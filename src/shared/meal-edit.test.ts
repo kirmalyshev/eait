@@ -1,11 +1,9 @@
-// The meal edit's arithmetic (#188): grams → numbers on one item, items+totals → the PATCH
-// body, and the one tinted line a recomputed detail names the change with ("Rice 150 → 200 g ·
-// 540 → 605 kcal" — the boards' `CHANGED` row, the change half of `changeLine` without the
-// verdict tail the thread carries).
+// The meal edit's arithmetic (#188): grams → numbers on one item, and items+totals → the PATCH
+// body. The tinted line a recomputed detail names the change with is `MealUpdated.line` — the
+// engine's `changeLine`, sent on the result rather than composed here.
 
 import { describe, expect, it } from "bun:test";
-import { mealEditRequest, scaledItem } from "./meal-edit.ts";
-import { changeBrief } from "./app/meal-copy.ts";
+import { mealEditRequest, movedItems, scaledItem } from "./meal-edit.ts";
 import type { MealItem } from "./types.ts";
 
 const rice = (over: Partial<MealItem> = {}): MealItem => ({
@@ -69,22 +67,12 @@ describe("mealEditRequest — the PATCH body, or null when nothing moved", () =>
   });
 });
 
-describe("changeBrief — the tinted line on the recomputed detail", () => {
-  it("names the grams that moved and the meal's kcal", () => {
-    const after = { ...MEAL, kcal: 605, items: [salmon, scaledItem(rice(), 200), broccoli] };
-    expect(changeBrief(MEAL, after, "en")).toBe("Rice 150 → 200 g · 540 → 605 kcal");
+describe("movedItems — the matching rule `changeLine` and the editor share", () => {
+  it("matches on the canonical key and returns the after item with its old grams", () => {
+    const moved = movedItems(MEAL.items, [salmon, scaledItem(rice(), 200), broccoli]);
+    expect(moved).toEqual([{ item: expect.objectContaining({ name: "Rice", grams: 200 }), gramsBefore: 150 }]);
   });
-  it("is the kcal pair alone when no item moved", () => {
-    expect(changeBrief(MEAL, { ...MEAL, kcal: 480 }, "en")).toBe("540 → 480 kcal");
-  });
-  it("is null when nothing nameable changed — the rename case", () => {
-    const after = { ...MEAL, items: MEAL.items.map((i) => ({ ...i, name: `${i.name} bis` })) };
-    expect(changeBrief(MEAL, after, "en")).toBeNull();
-  });
-  it("speaks the account's language", () => {
-    const after = { ...MEAL, kcal: 605, items: [salmon, scaledItem(rice(), 200), broccoli] };
-    const line = changeBrief(MEAL, after, "de")!;
-    expect(line).toContain("540 → 605");
-    expect(line).toContain("kcal");
+  it("is empty when only names changed — a rename is not a moved amount", () => {
+    expect(movedItems(MEAL.items, MEAL.items.map((i) => ({ ...i, name: `${i.name} bis` })))).toEqual([]);
   });
 });

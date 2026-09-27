@@ -267,7 +267,7 @@ describe("weekBars — the week's intake against the plan", () => {
   test("the persona's week, as progress.html draws it", () => {
     const c = weekBars(days, 1434, 3);
     expect(c.viewBox).toBe("0 0 320 142");
-    expect(c.planLine).toEqual({ x1: 8, x2: 312, y: 43 });
+    expect(c.planLine).toEqual({ x1: 8, x2: 312, y: 43, dash: "3 3" });
     expect(c.planLabel).toEqual({ x: 312, y: 37 });
     expect(c.bars[0]).toMatchObject({ x: 14, y: 45, height: 73, tone: "accent", today: false });
     expect(c.bars[1]).toMatchObject({ x: 58, y: 43, height: 75 });

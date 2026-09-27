@@ -9,7 +9,7 @@
 // `verdictLabels`, and the score is the server's `dayHealthScore`, never recomputed here.
 
 import { dateMinus } from "../../shared/dates.ts";
-import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
+import { dayBudget, kcalCardState, macroCardState, macroLeft } from "../../shared/budget.ts";
 import { LANG_TAG, countText, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -26,7 +26,7 @@ import {
   blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
 } from "../kit.ts";
 import {
-  COPY, DAYS, PENDING, behind, clear, composerRow, el, firstMealDue, heldProposal, kcal, kept,
+  COPY, DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
   keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
@@ -67,10 +67,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   // The boards' date formats: "Thursday 24 September" on the bar and the column's label; the
   // row's time is the account's timezone — the server's figures are already zoned.
-  const dayFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
-    timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
-  });
-  const dateText = (d: string): string => dayFmt.format(new Date(`${d}T12:00:00Z`));
+  const dateText = dayText;
   const timeFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
     timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
   });
@@ -102,7 +99,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         aria: fill(L.phoneStreakAria, { n: n(barStreak) }),
       })));
     }
-    const row = el("span", "homebar");
+    const row = el("span", "drow");
     const prev = el("button", "darrow") as HTMLButtonElement;
     prev.type = "button";
     prev.setAttribute("aria-label", COPY.dayPrev);
@@ -177,12 +174,14 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
    */
   const macroCard = (macro: ChipName, copy: HomeTargetMacroCopy,
     eaten: number, target: number | undefined): Element => {
-    const over = target !== undefined && eaten > target;
+    // The figure-and-label pair is `macroCardState`'s one choice — the same card You's day
+    // column draws (#175): the overage under "over", what's left under "left", a closed ring.
+    const s = macroCardState(eaten, target);
     return mcardEl({
       macro,
-      value: gram(over ? eaten - target : target !== undefined ? macroLeft(target, eaten) : eaten),
-      label: over ? copy.over : copy.left,
-      ...(target !== undefined ? { share: target > 0 ? Math.min(1, eaten / target) : 1 } : {}),
+      value: gram(s.figure),
+      label: s.label === "over" ? copy.over : copy.left,
+      ...(s.share !== undefined ? { share: s.share } : {}),
     });
   };
 

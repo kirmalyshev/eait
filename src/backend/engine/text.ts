@@ -281,6 +281,7 @@ async function keep(
       if (result.kind === "updated" && before !== null) {
         const meal = await deps.store.getMeal(userId, result.mealId);
         const line = meal ? changeLine(before, meal, profile) : null;
+        result.line = line;
         if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie" });
       }
     }

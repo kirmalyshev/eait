@@ -98,6 +98,31 @@ export const FREE_ANALYSES = 1;
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
 
 /**
+ * What the Subscription row IS, as one of five words (#175) — the board's "free week · day 5" is
+ * the trial state, and an empty value was the row saying nothing about the four others.
+ *
+ * The WORDS stay with each client's copy table; the STATE is the same rule on every surface.
+ * `trialDay` wins because the server only counts it while a trial is live. A paid period reads
+ * `until` its expiry — never "renews", because the store does not tell this server whether the
+ * period renews. `ended` carries the expiry when the record still has one (the engine blanks it
+ * when a grant stops counting, so a lapsed row usually answers `date: null`). And `free` is the
+ * answer for an account that never bought — the overwhelmingly common state, now named.
+ */
+export type SubscriptionState =
+  | { kind: "trial"; day: number }
+  | { kind: "until"; date: string }
+  | { kind: "lifetime" }
+  | { kind: "ended"; date: string | null }
+  | { kind: "free" };
+
+export const subscriptionState = (e: Entitlement): SubscriptionState => {
+  if (e.trialDay != null) return { kind: "trial", day: e.trialDay };
+  if (e.active) return e.expiresAt === null ? { kind: "lifetime" } : { kind: "until", date: e.expiresAt };
+  if (e.lapsed === true) return { kind: "ended", date: e.expiresAt };
+  return { kind: "free" };
+};
+
+/**
  * The free week's length. Written once because "day 5 of 7" and the day-5/day-6 reminder names are
  * the same week counted two ways; a number that ever changed would have to change in one place.
  */

@@ -10,14 +10,15 @@
 // reads `/v1/diary/days` and `/v1/diary/day`; the weigh-in and the edits are PATCHes answered by
 // the recomputed view. Nothing here derives a target or counts a day.
 
-import { dayBudget, macroLeft } from "../../shared/budget.ts";
+import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
+import { subscriptionState } from "../../shared/entitlement.ts";
 import { signsIn } from "../../shared/contract.ts";
 import { LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
-import { logCopyFor } from "../../shared/app/log-copy.ts";
+import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { youCopyFor, youFacts } from "../../shared/app/you-copy.ts";
 import type { OnboardingContent } from "@eait/shared";
@@ -28,9 +29,10 @@ import type {
 import { api, signOut } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl, macEl, mcardEl, ringEl, weekStripEl, weightChartEl } from "../kit.ts";
+import { ico, type ChipName } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
 import {
-  clear, COPY, el, forgetProfile, lang, profile, refusalWords, render, setHeldProposal,
+  clear, COPY, dayText, el, forgetProfile, lang, profile, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
 } from "../shell.ts";
 
@@ -48,9 +50,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   }
 
   const you = youCopyFor(lang);
+  const H = homeCopyFor(lang);
   const n = numbers(lang);
   const nWhole = wholeNumbers(lang);
-  const dayName = new Intl.DateTimeFormat(LANG_TAG[lang], { dateStyle: "full" });
   // The account's timezone and its today — the server's calendar, never UTC's.
   const zone = me.timezone;
 
@@ -60,19 +62,24 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   cols.append(leftCol, rightCol);
   wrap.append(cols);
 
-  // The board's date row lives in the top bar (wtop's right side) — the day the column shows.
+  // The board's date row lives in the top bar (wtop's right side) — the day the column shows,
+  // in the shell's one date form with the shared 32px chevrons, same row Home draws (#175).
   let viewing = localDate(zone);
-  const prev = el("button", "barbtn", "‹") as HTMLButtonElement;
+  const dateRow = el("span", "drow");
+  const prev = el("button", "darrow") as HTMLButtonElement;
   prev.type = "button";
   prev.setAttribute("aria-label", COPY.dayPrev);
-  const dateCell = el("span", "bardate");
-  const next = el("button", "barbtn", "›") as HTMLButtonElement;
+  prev.append(kitEl(ico("chevron-left")));
+  const dateCell = el("span", "dlabel");
+  const next = el("button", "darrow") as HTMLButtonElement;
   next.type = "button";
   next.setAttribute("aria-label", COPY.dayNext);
+  next.append(kitEl(ico("chevron-right")));
   // Bound once — draw() only ever rewrites the label and the enabled state.
   prev.addEventListener("click", () => { viewing = dateMinus(viewing, 1); void draw(); });
   next.addEventListener("click", () => { if (viewing < localDate(zone)) { viewing = dateMinus(viewing, -1); void draw(); } });
-  frame.bar.append(prev, dateCell, next);
+  dateRow.append(prev, dateCell, next);
+  frame.bar.append(dateRow);
 
   let mode: "none" | "weigh" | "plan" = "none";
   let saving = false;
@@ -100,6 +107,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
   const units = (): UnitSystem => me!.profile.units ?? "metric";
   const wnum = (kg: number): string => n(weightDisplayValue(kg, units()));
+
+  // The Subscription row's dates — "24 Oct" in the language's own locale, the year joining only
+  // when the expiry falls in a different one.
+  const subDate = (iso: string): string => {
+    const at = new Date(iso);
+    const sameYear = localDate(zone, at).slice(0, 4) === localDate(zone).slice(0, 4);
+    return new Intl.DateTimeFormat(LANG_TAG[lang], {
+      day: "numeric", month: "short", timeZone: zone, ...(sameYear ? {} : { year: "numeric" }),
+    }).format(at);
+  };
 
   const identityCard = (): HTMLElement => {
     const card = el("div", "card idcard");
@@ -300,12 +317,13 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       // The space lives INSIDE the span — adjacent elements carry no whitespace.
       el("span", "t13 m", ` ${you.perDay}`),
     );
+    // The board's single row: "109 g · 13 g sat fat" — the icon carries the macro's name, the
+    // text is grams; sat fat takes the short noun the macro cards use, not the verdict's long one.
     const chips = [
-      { name: "protein" as const, text: fill(you.proteinGrams, { g: nWhole(t.protein_g) }) },
-      // The sat-fat figure exists only when a restriction was declared, like the target itself,
-      // and its noun is the verdict's own `satfatNoun` — one wording for every surface.
+      { name: "protein" as const, text: fill(you.grams, { g: nWhole(t.protein_g) }) },
+      // The sat-fat figure exists only when a restriction was declared, like the target itself.
       ...(t.satfat_g !== undefined
-        ? [{ name: "fat" as const, text: fill(you.satFatGrams, { g: nWhole(t.satfat_g), noun: logCopyFor(lang).satfatNoun }) }]
+        ? [{ name: "fat" as const, text: fill(you.satFatGrams, { g: nWhole(t.satfat_g), noun: H.macros.satFat.name }) }]
         : [{ name: "fat" as const, text: fill(you.grams, { g: nWhole(t.fat_g) }) }]),
     ];
     const macrow = el("div", "macs");
@@ -330,9 +348,17 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const card = el("div", "card flat urows");
     // Read-only, and only while a sync is actually arriving — the server's own flag.
     if (me!.healthConnected === true) card.append(optRow(you.appleHealth, you.connected));
+    // The row names its state — the board's trial is one of five; `subscriptionState` is the
+    // one rule and the date is "24 Oct" in the language's locale, the year only off this year.
+    const sub = subscriptionState(me!.entitlement);
     card.append(optRow(
       you.subscription,
-      me!.entitlement.trialDay != null ? fill(you.freeWeekDay, { n: nWhole(me!.entitlement.trialDay) }) : "",
+      sub.kind === "trial" ? fill(you.freeWeekDay, { n: nWhole(sub.day) })
+        : sub.kind === "until" ? fill(you.subscriptionUntil, { date: subDate(sub.date) })
+        : sub.kind === "lifetime" ? you.subscriptionLifetime
+        : sub.kind === "ended"
+          ? (sub.date === null ? you.subscriptionEndedNoDate : fill(you.subscriptionEnded, { date: subDate(sub.date) }))
+        : you.subscriptionFree,
     ));
     // The sign-in providers, minus the device credential — "Apple" the way the board writes it.
     // More than one lists the language's own way — `Intl.ListFormat`, not a hand-joined " · ".
@@ -459,40 +485,42 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     ));
 
     const budget = dayBudget(day, today, me!.profile.goal);
+    // ONE card on both surfaces: the figure-and-label pair is `kcalCardState`'s choice, the
+    // over day reads "{overage} kcal over" in --bad with a closed --bad ring, as Home's does.
+    const state = kcalCardState(budget, false);
     const hero = el("div", "card dayhero rise rc-2");
+    if (budget.warn) hero.classList.add("over");
     const left = el("div", "");
-    const share = budget.fill;
-    left.append(el("b", "d num hnum", nWhole(budget.state === "unlogged" ? budget.target : budget.kcal)));
-    // The caption is `you.web.kcalLeft`'s own words; the chevron is a drawn affordance —
-    // aria-hidden, an element, never a character inside the sentence.
+    const hnum = el("b", "d num hnum");
+    if (state.guessed) hnum.append(el("span", "about", COPY.about));
+    hnum.append(document.createTextNode(nWhole(state.figure)));
+    left.append(hnum);
+    // The caption is the card's short label; the chevron is a drawn affordance — aria-hidden,
+    // an element, never a character inside the sentence.
     const caption = el("span", "m t13");
-    caption.textContent = ` ${budget.state === "unlogged" ? `${UNIT_KCAL[lang]} ${you.perDay}`
-      : budget.state === "over" ? `${UNIT_KCAL[lang]} ${COPY.budgetOver}` : you.web.kcalLeft}`;
+    caption.textContent = ` ${state.label === "over" ? H.kcalOver
+      : state.label === "eaten" ? H.kcalEaten : H.kcalLeft}`;
     if (budget.state !== "unlogged")
       caption.append(kitEl(`<i class="ico i-chevron-down" aria-hidden="true"></i>`));
     left.append(caption);
-    hero.append(left, ringEl({ share, size: 104, tone: "ink", icon: "kcal" }));
+    hero.append(left, ringEl({ share: budget.fill, size: 104, tone: budget.warn ? "bad" : "ink", icon: "kcal" }));
 
+    // The macro cards are Home's too: `macroCardState` picks overage/"over" over a clamped
+    // "0 g left", and the words are HOME_COPY's — one component, one table.
     const cards = el("div", "mcards");
+    const mac = (macro: ChipName, copy: HomeTargetMacroCopy, eaten: number, target: number | undefined): Element => {
+      const s = macroCardState(eaten, target);
+      return mcardEl({
+        macro,
+        value: fill(H.grams, { n: nWhole(s.figure) }),
+        label: s.label === "over" ? copy.over : copy.left,
+        ...(s.share !== undefined ? { share: s.share } : {}),
+      });
+    };
     cards.append(
-      mcardEl({
-        macro: "protein",
-        value: `${nWhole(macroLeft(day.targets.protein_g, day.totals.protein_g))} ${spellUnit(lang, "g")}`,
-        label: you.web.proteinLeft,
-        share: day.targets.protein_g > 0 ? day.totals.protein_g / day.targets.protein_g : 0,
-      }),
-      mcardEl({
-        macro: "carbs",
-        value: `${nWhole(macroLeft(day.targets.carbs_g, day.totals.carbs_g))} ${spellUnit(lang, "g")}`,
-        label: you.web.carbsLeft,
-        share: day.targets.carbs_g > 0 ? day.totals.carbs_g / day.targets.carbs_g : 0,
-      }),
-      mcardEl({
-        macro: "fat",
-        value: `${nWhole(macroLeft(day.targets.fat_g, day.totals.fat_g))} ${spellUnit(lang, "g")}`,
-        label: you.web.fatLeft,
-        share: day.targets.fat_g > 0 ? day.totals.fat_g / day.targets.fat_g : 0,
-      }),
+      mac("protein", H.macros.protein, day.totals.protein_g, day.targets.protein_g),
+      mac("carbs", H.macros.carbs, day.totals.carbs_g, day.targets.carbs_g),
+      mac("fat", H.macros.fat, day.totals.fat_g, day.targets.fat_g),
     );
     // The board's page dots — the column's position marker, drawn (never a control that lies).
     const dots = el("div", "pdots");
@@ -538,7 +566,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     if (mine !== drawing) return;
     const ob = content;
 
-    dateCell.textContent = dayName.format(new Date(`${viewing}T12:00:00Z`));
+    dateCell.textContent = dayText(viewing);
     next.disabled = viewing >= today;
 
     const wn = noticeFor();

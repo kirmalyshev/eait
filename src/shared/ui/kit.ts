@@ -412,7 +412,7 @@ export const weekBarsSvg = (
     `<text x="${p.x}" y="${p.y}" text-anchor="middle">${esc(o.letters[i] ?? "")}</text>`
   ).join("");
   return `<svg class="pgraph wb" viewBox="${g.viewBox}" width="100%" role="img">` +
-    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="3 3"/>` +
+    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="${g.planLine.dash}"/>` +
     bars + letters +
     `<text x="${g.planLabel.x}" y="${g.planLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(o.planLabel)}</text>` +
     `</svg>`;

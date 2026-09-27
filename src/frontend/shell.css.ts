@@ -54,6 +54,18 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 .wtop .wr { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
 .wtop .wr:empty { display: none; }
 .wtop .sp { flex: 1; }
+/* The date row a screen's bar side draws (the boards' wtop right: "‹ Thursday 24 September ›") —
+   the chevrons are 32px icon buttons, the label 14/500 between them. One row for Home and You
+   (#175): the shell owns it because the day a column shows is the frame's, not a surface's. */
+.drow { display: flex; align-items: center; gap: 8px; margin-left: 14px; }
+.drow .dlabel { font-weight: 500; white-space: nowrap; }
+.darrow { width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 50%;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); display: inline-flex;
+  align-items: center; justify-content: center; cursor: pointer; color: var(--ink);
+  font: inherit; padding: 0; }
+.darrow:disabled { opacity: .4; cursor: default; }
+.darrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.darrow .ico { width: 18px; height: 18px; }
 /* THE COLUMN: pro.css's wmain verbatim — a grid, because W4's Home draws a second 360px column;
    one is the single-column form every surface takes until then. wcol's 16px gap is the board's
    spacing between a screen's ROOT blocks; inside a screen, the blocks' own margins still space

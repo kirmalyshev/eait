@@ -66,6 +66,8 @@ export const PERF_SCREENS = [
   "you-subscription",
   "camera",
   "meal",
+  "meal-fix",
+  "meal-ingredient",
   "health",
 ] as const;
 
@@ -193,6 +195,10 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // One meal, seeded from the cache the diary already filled. The allowance is for the cold case:
   // opened from a chat bubble or a deep link, where there is nothing cached and it fetches.
   meal: { paintMs: 100, readyMs: 250 },
+  // The meal's own fix and ingredient editors — seeded from the same cache `meal` is (the card the
+  // user tapped), the same cold case when reached cold.
+  "meal-fix": { paintMs: 100, readyMs: 250 },
+  "meal-ingredient": { paintMs: 100, readyMs: 250 },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────

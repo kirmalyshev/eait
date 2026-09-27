@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget, kcalCardState, macroLeft, macroTone, mealIsGuessed } from "./budget.ts";
+import { dayBudget, kcalCardState, macroCardState, macroLeft, macroTone, mealIsGuessed } from "./budget.ts";
 
 const TODAY = "2026-09-16";
 const day = (
@@ -197,5 +197,30 @@ describe("kcalCardState", () => {
   test("a guessed day carries the about-marker through (#47)", () => {
     const b = dayBudget(day(1500, { guessed: true }), TODAY, "lose");
     expect(kcalCardState(b, false).guessed).toBe(true);
+  });
+});
+
+describe("macroCardState", () => {
+  // The one figure-and-label pair for "{n} g · {Macro} left/over" — Home's diary column and
+  // You's day column draw the same card (#175), so the rule lives here rather than on a screen.
+  test("under target: what is left, under 'left', the ring at the eaten share", () => {
+    expect(macroCardState(100, 150)).toEqual({ figure: 50, label: "left", share: 100 / 150 });
+  });
+
+  test("over target: the OVERAGE under 'over' and a closed ring — never a clamped '0 g left'", () => {
+    expect(macroCardState(155, 150)).toEqual({ figure: 5, label: "over", share: 1 });
+  });
+
+  test("exactly on target is 'left' 0, not 'over'", () => {
+    expect(macroCardState(150, 150)).toEqual({ figure: 0, label: "left", share: 1 });
+  });
+
+  test("no target: the eaten figure under 'left', and no ring to draw", () => {
+    expect(macroCardState(12, undefined)).toEqual({ figure: 12, label: "left" });
+  });
+
+  test("the eaten figure is the rounded one — a fraction is not a fact the analyzer had", () => {
+    expect(macroCardState(12.6, undefined)).toEqual({ figure: 13, label: "left" });
+    expect(macroCardState(10.4, 50)).toEqual({ figure: 40, label: "left", share: 10 / 50 });
   });
 });

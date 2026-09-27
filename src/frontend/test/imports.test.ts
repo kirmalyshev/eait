@@ -35,6 +35,7 @@ const WEB_MODULES = new Set([
   "outbox.ts",
   "results.ts",
   "contract.ts",
+  "entitlement.ts",    // the Subscription row's state rule (#175) — pure, reads dates.ts
   "progress.ts",       // the card-state rule — pure, one contract type
   "first-meal-copy.ts",
 ]);
