@@ -1226,6 +1226,30 @@ export interface Store {
    */
   deleteUser(userId: string): Promise<void>;
 
+  /**
+   * Delete every account abandoned in the sense of #106 — no identity that reaches it, no meals,
+   * and nothing used since `before` (epoch ms) — and say how many went.
+   *
+   * "Identity" is every provider but `device`: the install's own anonymous credential is the class
+   * being swept, so it cannot be what keeps an account alive. Apple, Google and Telegram each
+   * count — a row at one of them is a way back in, or a transport somebody is still listening on
+   * even though `telegram` mints no session.
+   *
+   * The activity clock is `tokens.last_used_at`, the same `last_seen` the admin list shows: every
+   * authenticated call slides it, so an anonymous account still opening the app is alive under
+   * this test however empty of identities it is. An account holding no token at all is measured
+   * from `created_at` — being younger than the window is itself a reason to leave it.
+   *
+   * Meals are the veto. One logged meal and the account is never touched — the legacy anonymous
+   * phone accounts survive on this clause alone.
+   *
+   * UNSCOPED, like every sweep, and ONE statement: the conditions are evaluated inside the delete
+   * rather than by a read taken first, so nothing can interleave between "does this account
+   * qualify" and its row going — the strongest version of "one transaction per account", with
+   * every account's dependents going with it by the cascade `deleteUser` relies on.
+   */
+  pruneAbandonedAccounts(before: number): Promise<number>;
+
   close(): Promise<void>;
 }
 

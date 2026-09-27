@@ -2764,14 +2764,142 @@ function pairingCodes(name: string, make: (opts: StoreOptions) => Promise<Store>
   });
 }
 
+/**
+ * The retention sweep for accounts nobody can reach again (#106). `/start` mints an account at the
+ * first onboarding answer and its cookie dies with the browser; an anonymous install abandoned at
+ * the same place is the same class. After `before` milliseconds of nothing they are deleted — but
+ * an account with an identity that can still reach it, one logged meal, or a session still in use
+ * is none of the sweep's business.
+ *
+ * Every test opens its OWN store, so a count can be exact: the sweeps above share one store per
+ * suite and settle for `toBeGreaterThanOrEqual`, which is what a shared one would make this do.
+ */
+function abandonedAccounts(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`abandoned accounts — ${name}`, () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    let clock = 0;
+    let stores: Store[] = [];
+    const open = async () => {
+      const s = await make({ now: () => clock });
+      stores.push(s);
+      return s;
+    };
+    afterAll(async () => {
+      for (const s of stores) await s.close();
+      stores = [];
+    });
+
+    it("deletes an account that has nothing but the credential it was born with, once idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      // The anonymous device account — a `device` identity is the install's own credential, not a
+      // way back from anywhere else, so it is "no identity" for this purpose.
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = await s.issueToken(userId);
+
+      clock += 31 * DAY;
+
+      // At least one: the sweep is the whole table's, so against real Postgres it also collects
+      // whatever the suites above left behind — exactly-one would be asserting database state.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBeGreaterThanOrEqual(1);
+      // Gone means gone — the profile answers nothing and the session resolves nobody.
+      expect(await s.getProfile(userId)).toBeNull();
+      expect(await s.userIdForToken(token)).toBeNull();
+      // And a second pass finds nothing, which is what makes a daily job safe to leave running.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+    });
+
+    it("deletes the account a browser abandoned, which never had a device at all", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      // `createUser` is the `/start` path: no device id, no identity row, a session cookie that
+      // went away when the tab did.
+      const userId = await s.createUser("en");
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBeGreaterThanOrEqual(1);
+      expect(await s.getProfile(userId)).toBeNull();
+    });
+
+    it("keeps an account a sign-in can still reach", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // Minted per run: `(provider, subject)` is a global primary key, so a fixed subject
+      // collides with the row a previous run kept.
+      await s.addIdentity(userId, "apple", crypto.randomUUID());
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("keeps an account still being talked to over a transport", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // `telegram` mints no session and yet counts: somebody is receiving the bot's messages on
+      // the other end of it, so this is not "no identity" however unreachable it is to a login.
+      await s.addIdentity(userId, "telegram", crypto.randomUUID());
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("never touches an account that has logged a meal, however idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.insertMeal(meal(userId));
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("keeps an account still in use — a session touched inside the window", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      clock += 29 * DAY;
+      await s.issueToken(userId);
+      clock += 2 * DAY;
+
+      // Created 31 days ago, active 2 days ago: the account is not idle even though it is old.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("leaves a young account alone, token or no token", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const userId = await s.createUser("en");
+
+      clock += 10 * DAY;
+
+      // Ten days idle is not thirty, whatever the account is missing.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+  });
+}
+
 tokenLifetime("memory", async (o) => memoryStore(o));
 pendingLifetime("memory", async (o) => memoryStore(o));
 pairingCodes("memory", async (o) => memoryStore(o));
+abandonedAccounts("memory", async (o) => memoryStore(o));
 
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pendingLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pairingCodes("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+  abandonedAccounts("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
 
   // The same question the tokens table is asked below, for the same reason: a pairing code is a
   // credential, the nightly dump leaves this box, and a column holding the value a person types
@@ -3321,8 +3449,9 @@ if (PG_URL) {
         "addSubscriber", "adminListUsers", "adminMetrics", "claimPairingCode", "confirmSubscriber",
         "countGlobalAnalyses", "countSubscribersSince", "createUser", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
-        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions", "pruneExpiredPendings",
-        "pruneExpiredTokens", "pruneHealthDaysBefore", "pruneUnconfirmedSubscribers",
+        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
+        "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
+        "pruneHealthDaysBefore", "pruneUnconfirmedSubscribers",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
         "removeSubscriber", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken", "usersWithPushTokens",
