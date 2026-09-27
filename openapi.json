@@ -2632,6 +2632,10 @@
               "type": "string"
             },
             "description": "What the user might ask next, in their own words, as chips under the answer. Live turn only: the thread stores the sentence and never the chips, so a stored line carries none. Absent means draw nothing; the app never invents any."
+          },
+          "focus": {
+            "$ref": "#/components/schemas/CoachFocus",
+            "description": "The one macro the answer is about, with the day's numbers — see `CoachFocus`."
           }
         },
         "required": [
@@ -3141,6 +3145,37 @@
         "type": "string",
         "const": "gabie",
         "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who answers in Chat (S9 — she was retired by #49 and restored by the redesign)."
+      },
+      "CoachFocus": {
+        "type": "object",
+        "properties": {
+          "nutrient": {
+            "$ref": "#/components/schemas/CoachNutrient"
+          },
+          "eaten": {
+            "type": "number"
+          },
+          "target": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "nutrient",
+          "eaten",
+          "target"
+        ],
+        "additionalProperties": false,
+        "description": "The macro bar on a coach answer (`chat-coach`): WHICH nutrient is the model's choice of subject — what the answer is about, not a verdict; the figures are the server's, read off the day's totals and the plan's targets at answer time, never taken from the reply. Absent means absent: an answer about no one macro carries none, and neither does the bar.\n\nLive turn only, like `suggestions`: the stored line keeps the sentence and the thread never re-draws the bar."
+      },
+      "CoachNutrient": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "carbs",
+          "fat",
+          "kcal",
+          "satfat"
+        ]
       },
       "ConfirmMealResult": {
         "anyOf": [
