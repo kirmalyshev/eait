@@ -88,6 +88,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   chat_messages: "user_id",
   push_tokens: "user_id",
   health_days: "user_id",
+  weights: "user_id",
   turns: "user_id",
 };
 
@@ -707,6 +708,21 @@ create table if not exists health_days (
 ${HEALTH_COLUMN_DDL}
 create index if not exists health_days_user_date_idx on health_days(user_id, date);
 
+-- The weigh-in log (S7): one typed weight per account per day.
+--
+-- health_days.weight_kg is the IMPORTED half of the same log — this table is the manual one, a
+-- row written by PATCH /v1/profile's weight, and the merged read (engine/weights.ts) draws the
+-- Progress chart and resolves the goal bar's start. One row per (user_id, date): a same-day
+-- correction is the new value of that day, not a second one, so the upsert replaces in place and
+-- updated_at records when the word was last given rather than when the day is.
+create table if not exists weights (
+  user_id    uuid not null references users(id) on delete cascade,
+  date       text not null,
+  kg         double precision not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date)
+);
+
 create table if not exists subscribers (
   email         text primary key,
   token         text not null unique,
@@ -1070,6 +1086,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   releaseSample: 0,
   putHealthDays: 0,
   healthDaysSince: 0,
+  putWeight: 0,
+  weightsSince: 0,
   claimTurn: 0,
   getTurn: 0,
   settleTurn: 0,
@@ -1756,6 +1774,15 @@ export async function postgresStore(
               select 1 from health_days t where t.user_id = ${intoUserId} and t.date = h.date
             )`;
         await tx`update health_days set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // Weigh-ins the anonymous session typed move by the same rule — a gap is a gift, a day
+        // the real account already logged stays the real account's.
+        await tx`
+          delete from weights w
+          where w.user_id = ${fromUserId}
+            and exists (
+              select 1 from weights t where t.user_id = ${intoUserId} and t.date = w.date
+            )`;
+        await tx`update weights set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // DROPPED, not repointed — the merged-away account is anonymous, so these are the device
         // identity and, since #205, possibly a `telegram` row. Repointing either would let plain
         // device auth walk back into the full account after a sign-out, or hand whoever holds that
@@ -2257,12 +2284,28 @@ export async function postgresStore(
 
     async totalsSince(userId, since) {
       const rows = await sql`
-        select date, sum(kcal) as kcal, sum(protein_g) as protein_g
+        select date, sum(kcal) as kcal, sum(protein_g) as protein_g,
+               sum(carbs_g) as carbs_g, sum(fat_g) as fat_g, sum(satfat_g) as satfat_g
         from meals where user_id = ${userId} and date >= ${since}
         group by date order by date desc`;
       return rows.map((r: Record<string, unknown>): DayTotals => ({
         date: String(r.date), kcal: num(r.kcal), protein_g: num(r.protein_g),
+        carbs_g: num(r.carbs_g), fat_g: num(r.fat_g), satfat_g: num(r.satfat_g),
       }));
+    },
+
+    async putWeight(userId, date, kg) {
+      await sql`
+        insert into weights (user_id, date, kg) values (${userId}, ${date}, ${kg})
+        on conflict (user_id, date) do update set kg = excluded.kg, updated_at = now()`;
+    },
+
+    async weightsSince(userId, since) {
+      const rows = await sql`
+        select date, kg from weights
+        where user_id = ${userId} and date >= ${since}
+        order by date desc`;
+      return rows.map((r: Record<string, unknown>) => ({ date: String(r.date), kg: num(r.kg) }));
     },
 
     async recordPortionCorrections(userId, rows) {

@@ -985,6 +985,20 @@ export interface Store {
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 
+  // ── The weigh-in log (`weights`) ─────────────────────────────────────────────────────────────
+  //
+  // What a user TYPED, one row per day — `health_days.weight_kg` is the imported half of the same
+  // log, and the engine merges the two for the Progress chart. `PATCH /v1/profile`'s weight lands
+  // here as well as on the profile: the goal bar's "start" is the first row this table saw.
+
+  /**
+   * The day's manual weight. Upserts `(user_id, date)`: the last write of a day wins, the same
+   * rule `weight_measured_at` runs against imports — a same-day correction is a correction.
+   */
+  putWeight(userId: string, date: string, kg: number): Promise<void>;
+  /** Most recent first, `since` inclusive — the manual rows only; the engine merges in health. */
+  weightsSince(userId: string, since: string): Promise<{ date: string; kg: number }[]>;
+
   // ── Portion corrections ────────────────────────────────────────────────────────────────────
   //
   // Every time a user changes an item's grams they are measuring the gap between their portion and

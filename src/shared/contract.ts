@@ -11,6 +11,7 @@ import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
+import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
@@ -153,8 +154,20 @@ export const HEALTH_RETENTION_DAYS = 5 * 365 + 1;
  * How far back the diary answers for. THE AUTHORITY, imported by the route that enforces it and
  * sent to the app in `Limits.diaryWindowDays` — one number, not a matched pair. Tied to the
  * health horizon for the reason given there.
+ *
+ * DEPRECATED (#103) with the `days`-window read it bounds — see {@link ROUTES.week}. The range
+ * read's bound is {@link DIARY_RANGE_MAX_DAYS}, a contract constant rather than a sent limit for
+ * the same reason `MAX_HEALTH_DAYS_PER_BATCH` is one: it is not env-configured, so the shared
+ * package is already the single authority on both sides.
  */
 export const DIARY_WINDOW_DAYS = HEALTH_RETENTION_DAYS;
+
+/**
+ * The widest span `GET /v1/diary/days` answers, in calendar days. Thirty-one is a month: the
+ * picker's grid and the week strip ask for the days they draw and no more, and a cap is what
+ * keeps a dense per-day answer from becoming the whole diary in one response.
+ */
+export const DIARY_RANGE_MAX_DAYS = 31;
 
 /**
  * What the liveness probe answers.
@@ -276,7 +289,25 @@ export const ROUTES = {
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
   pending: "/v1/meals/pending",
   day: "/v1/diary/day",
+  /**
+   * DEPRECATED (#103), still served. The App Store binary in the field calls it for the picker's
+   * marks and the health screen's intake series, and that binary outlives this deploy. New work
+   * asks {@link ROUTES.days}, which answers a `from`/`to` range with a streak attached.
+   */
   week: "/v1/diary/week",
+  /**
+   * GET `?from=YYYY-MM-DD&to=YYYY-MM-DD` — every calendar day of the range, at most
+   * {@link DIARY_RANGE_MAX_DAYS} of them, plus the logged-day streak. Future days inside the
+   * span come back as empty rows, because the week strip draws the days after today too.
+   * Answers {@link DaysResponse}.
+   */
+  days: "/v1/diary/days",
+  /**
+   * GET `?range=` — one of `WEIGHT_RANGES`; absent or `90D` defaults to it. The range's start
+   * date is computed server-side, in the account's timezone: no client does that arithmetic.
+   * Answers {@link WeightsResponse}.
+   */
+  weights: "/v1/weights",
   account: "/v1/account",
 
   // Note the distinction from `health` above, which is the LIVENESS probe the deploy watches.
@@ -567,6 +598,12 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
+  /**
+   * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
+   * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
+   * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
+   */
+  projection: PlanProjection | null;
 }
 
 /**
@@ -964,9 +1001,90 @@ export interface DayResponse {
   targets: FoodTargets;
 }
 
+/** DEPRECATED with {@link ROUTES.week} (#103) — superseded by {@link DaysResponse}. */
 export interface WeekResponse {
   days: DayTotals[];
 }
+
+/**
+ * One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals,
+ * so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.
+ *
+ * `when` is computed by the server in the account's timezone at request time: "past" day, the
+ * "today" the strip raises, or a "future" day — which is why no client ever compares a row's
+ * date with today. Future rows are EMPTY: `logged` false and every figure null, because a day
+ * that has not happened is not a zero — nothing has been eaten yet, not nothing measured.
+ * A past day with nothing logged is `logged` false with the figures at zero: it happened, and
+ * that is a fact about it rather than an unknown.
+ */
+export interface DiaryDay extends ChartDay {
+  /** YYYY-MM-DD in the account's timezone. */
+  date: string;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  satfat_g: number | null;
+  /** The day's calorie target — sent on every row so no client re-derives the plan. */
+  targetKcal: number;
+}
+
+/** `GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer. */
+export interface DaysResponse {
+  /** Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw. */
+  days: DiaryDay[];
+  /**
+   * Consecutive calendar days with at least one logged meal, counted backwards from today in the
+   * account's timezone. Today stays open: with nothing logged yet it does not break the run, and
+   * the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is
+   * a streak a client counted itself is a streak that disagrees with the server's.
+   */
+  streak: number;
+}
+
+/** One logged bodyweight: `health` came off the phone's health store, `manual` the user typed it. */
+export interface WeightEntry {
+  /** YYYY-MM-DD in the account's timezone. */
+  date: string;
+  kg: number;
+  /**
+   * Where the reading came from. On a day both sources hold a value the manual entry wins — the
+   * typed correction is the user's own word — so each date appears exactly once.
+   */
+  source: "health" | "manual";
+}
+
+/** `GET /v1/weights` — the merged weigh-in log the Progress chart draws. */
+export interface WeightsResponse {
+  /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
+  weights: WeightEntry[];
+}
+
+/**
+ * The goal's arc for `ProfileResponse.projection` — where the plan started, where the last
+ * weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null`
+ * carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback
+ * band, or a delta pointed away from the target each mean there is nothing to draw, and `null`
+ * is what those answer rather than an invented figure.
+ *
+ * `startKg` is the weight the plan was set at — the earliest weigh-in logged on or after
+ * onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it;
+ * with none that young it is the earliest logged weight at all, and with none at all it is
+ * `currentKg`. `month` is localized in the account's language; past `beyondHorizon` it is still
+ * computed, and the client draws "over two years" instead.
+ */
+export interface PlanProjection {
+  startKg: number;
+  currentKg: number;
+  targetKg: number;
+  weeks: number;
+  kgPerWeek: number;
+  month: string;
+  beyondHorizon: boolean;
+}
+
+/** The range vocabulary `GET /v1/weights` takes — re-exported so a validator imports one name. */
+export const isWeightRange = (v: string): v is WeightRange =>
+  (WEIGHT_RANGES as readonly string[]).includes(v);
 
 /** Every error body the API can produce, other than the refusals above. */
 export interface ErrorResponse {

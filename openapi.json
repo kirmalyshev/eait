@@ -2227,7 +2227,7 @@
     "/v1/diary/week": {
       "get": {
         "operationId": "get_week",
-        "summary": "Daily totals over a window.",
+        "summary": "Deprecated (#103): the App Store binary's rolling window of per-day totals. New work reads `/v1/diary/days`.",
         "parameters": [
           {
             "name": "days",
@@ -2246,6 +2246,143 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WeekResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/diary/days": {
+      "get": {
+        "operationId": "get_days",
+        "summary": "Every calendar day of a `from`/`to` range — empty ones included — plus the logged-day streak.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DaysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/weights": {
+      "get": {
+        "operationId": "get_weights",
+        "summary": "The merged weigh-in log — health imports and typed entries — oldest first.",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "description": "90D, 6M, 1Y or all; 90D when absent. The server resolves it in the account's timezone.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightsResponse"
                 }
               }
             }
@@ -3181,15 +3318,49 @@
           },
           "protein_g": {
             "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
           }
         },
         "required": [
           "date",
           "kcal",
-          "protein_g"
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "satfat_g"
         ],
         "additionalProperties": false,
-        "description": "Per-date sums — the week view's row shape."
+        "description": "Per-date sums — the row shape the diary's per-day reads aggregate meals into."
+      },
+      "DaysResponse": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiaryDay"
+            },
+            "description": "Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw."
+          },
+          "streak": {
+            "type": "number",
+            "description": "Consecutive calendar days with at least one logged meal, counted backwards from today in the account's timezone. Today stays open: with nothing logged yet it does not break the run, and the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is a streak a client counted itself is a streak that disagrees with the server's."
+          }
+        },
+        "required": [
+          "days",
+          "streak"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer."
       },
       "DeleteLineResponse": {
         "type": "object",
@@ -3218,6 +3389,73 @@
         ],
         "additionalProperties": false,
         "description": "`DELETE /v1/messages/:id` and `DELETE /v1/meals/:id` (#61). `mealId`/`date` name the meal that went with the line — or the meal that went — so the client can refresh that day; null when only a line went, which a meal delete never answers."
+      },
+      "DiaryDay": {
+        "type": "object",
+        "properties": {
+          "kcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "logged": {
+            "type": "boolean"
+          },
+          "when": {
+            "type": "string",
+            "enum": [
+              "past",
+              "today",
+              "future"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "description": "YYYY-MM-DD in the account's timezone."
+          },
+          "protein_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "carbs_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fat_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "satfat_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "targetKcal": {
+            "type": "number",
+            "description": "The day's calorie target — sent on every row so no client re-derives the plan."
+          }
+        },
+        "required": [
+          "carbs_g",
+          "date",
+          "fat_g",
+          "kcal",
+          "logged",
+          "protein_g",
+          "satfat_g",
+          "targetKcal",
+          "when"
+        ],
+        "additionalProperties": false,
+        "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals, so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
       },
       "EditLineLast": {
         "anyOf": [
@@ -4750,6 +4988,43 @@
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"
       },
+      "PlanProjection": {
+        "type": "object",
+        "properties": {
+          "startKg": {
+            "type": "number"
+          },
+          "currentKg": {
+            "type": "number"
+          },
+          "targetKg": {
+            "type": "number"
+          },
+          "weeks": {
+            "type": "number"
+          },
+          "kgPerWeek": {
+            "type": "number"
+          },
+          "month": {
+            "type": "string"
+          },
+          "beyondHorizon": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "startKg",
+          "currentKg",
+          "targetKg",
+          "weeks",
+          "kgPerWeek",
+          "month",
+          "beyondHorizon"
+        ],
+        "additionalProperties": false,
+        "description": "The goal's arc for `ProfileResponse.projection` — where the plan started, where the last weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null` carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback band, or a delta pointed away from the target each mean there is nothing to draw, and `null` is what those answer rather than an invented figure.\n\n`startKg` is the weight the plan was set at — the earliest weigh-in logged on or after onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it; with none that young it is the earliest logged weight at all, and with none at all it is `currentKg`. `month` is localized in the account's language; past `beyondHorizon` it is still computed, and the client draws \"over two years\" instead."
+      },
       "Profile": {
         "type": "object",
         "properties": {
@@ -4991,6 +5266,17 @@
           "paywall": {
             "$ref": "#/components/schemas/WebPaywall",
             "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
+          },
+          "projection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanProjection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The goal arc the Progress goal bar draws — start, current and target weights, the weeks and rate `projectGoal` computed, and the localized month it lands in. Null when no honest projection exists (no target, nothing weighed, a fallback band) — see  {@link  PlanProjection } ."
           }
         },
         "required": [
@@ -5004,7 +5290,8 @@
           "entitlement",
           "pairAddress",
           "telegramBot",
-          "paywall"
+          "paywall",
+          "projection"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -5360,7 +5647,52 @@
         "required": [
           "days"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "DEPRECATED with  {@link  ROUTES.week }  (#103) — superseded by  {@link  DaysResponse } ."
+      },
+      "WeightEntry": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "YYYY-MM-DD in the account's timezone."
+          },
+          "kg": {
+            "type": "number"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "health",
+              "manual"
+            ],
+            "description": "Where the reading came from. On a day both sources hold a value the manual entry wins — the typed correction is the user's own word — so each date appears exactly once."
+          }
+        },
+        "required": [
+          "date",
+          "kg",
+          "source"
+        ],
+        "additionalProperties": false,
+        "description": "One logged bodyweight: `health` came off the phone's health store, `manual` the user typed it."
+      },
+      "WeightsResponse": {
+        "type": "object",
+        "properties": {
+          "weights": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeightEntry"
+            },
+            "description": "Oldest first — chart order, `weightChart` reads the endpoints off the ends."
+          }
+        },
+        "required": [
+          "weights"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/weights` — the merged weigh-in log the Progress chart draws."
       },
       "YearlyPlan": {
         "type": "object",

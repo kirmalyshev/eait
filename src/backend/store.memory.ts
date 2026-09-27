@@ -169,6 +169,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `${userId}\n${date}` -> the day. One row per user per date, exactly as in Postgres, so the
   // upsert semantics the tests assert are the semantics production has.
   const healthDays = new Map<string, HealthDay & { userId: string }>();
+  // `${userId}\n${date}` -> the typed weigh-in. One row per day — `putWeight` upserts, the last
+  // write of a day winning, which is `on conflict` on Postgres and a `set` here.
+  const weights = new Map<string, { userId: string; date: string; kg: number }>();
   // Keyed by address, which is what makes a repeat subscription an upsert here too.
   const subscribers = new Map<string, {
     token: string;
@@ -272,6 +275,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
     // left them would make the settings screen's promise false in the one place it matters most.
     for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
+    // The typed weigh-ins are the same data by another door: they go with it.
+    for (const [k, w] of weights) if (w.userId === userId) weights.delete(k);
   };
 
   /**
@@ -597,6 +602,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         healthDays.delete(k);
         const target = `${intoUserId}\n${d.date}`;
         if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
+      }
+      // Typed weigh-ins follow the same rule as health days: into a gap, never over a day the
+      // surviving account already has. `store.pg.ts` runs the identical statements.
+      for (const [k, w] of weights) {
+        if (w.userId !== fromUserId) continue;
+        weights.delete(k);
+        const target = `${intoUserId}\n${w.date}`;
+        if (!weights.has(target)) weights.set(target, { ...w, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
       // A turn the anonymous session sent is replayed by the same phone under the real account.
@@ -1015,12 +1028,27 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const byDate = new Map<string, DayTotals>();
       for (const m of meals.values()) {
         if (m.user_id !== userId || m.date < since) continue;
-        const row = byDate.get(m.date) ?? { date: m.date, kcal: 0, protein_g: 0 };
+        const row = byDate.get(m.date) ??
+          { date: m.date, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0 };
         row.kcal += m.kcal;
         row.protein_g += m.protein_g;
+        row.carbs_g += m.carbs_g;
+        row.fat_g += m.fat_g;
+        row.satfat_g += m.satfat_g;
         byDate.set(m.date, row);
       }
       return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+    },
+
+    async putWeight(userId, date, kg) {
+      weights.set(`${userId}\n${date}`, { userId, date, kg });
+    },
+
+    async weightsSince(userId, since) {
+      return [...weights.values()]
+        .filter((w) => w.userId === userId && w.date >= since)
+        .map(({ date, kg }) => ({ date, kg }))
+        .sort((a, b) => b.date.localeCompare(a.date));
     },
 
     async recordPortionCorrections(userId, rows) {
