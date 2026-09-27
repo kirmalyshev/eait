@@ -1,18 +1,26 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
-import { FIXTURE_THREAD, HEALTH_FIELDS, firstVerdictLines, threadCopyFor } from "@eait/shared";
+import { FIXTURE_THREAD, HEALTH_FIELDS, dateMinus, firstVerdictLines, localDate, threadCopyFor } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
+import { configDefaults, type Config } from "../config.ts";
+import { demoPorts } from "../llm/demo.ts";
+import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
+import { days as daysRead, weights as weightsRead, profileView } from "../engine/index.ts";
+import type { EngineDeps } from "../engine/deps.ts";
 
 const TZ = "Europe/Berlin";
 const TODAY = "2026-08-06";
-/** The seven calendar days `TODAY` seeds, newest first. Written out rather than computed, so a bug
- *  in the date arithmetic under test cannot also be the thing asserting it. */
+/** The seven calendar days `TODAY` seeds health rows for, newest first. Written out rather than
+ *  computed, so a bug in the date arithmetic under test cannot also be the thing asserting it. */
 const SEEDED_WEEK = [
   "2026-08-06", "2026-08-05", "2026-08-04", "2026-08-03", "2026-08-02", "2026-08-01", "2026-07-31",
 ];
+/** Anna's logged days — Mon–Thu of the boards' week, which is `TODAY` and the three days back. */
+const ANNA_MEAL_DAYS = ["2026-08-06", "2026-08-05", "2026-08-04", "2026-08-03"];
 
 describe("seedDevData", () => {
   test("every persona is reachable by its pinned device id", async () => {
@@ -80,7 +88,7 @@ describe("seedDevData", () => {
     expect(ids.size).toBe(SEED_PERSONAS.length);
   });
 
-  test("the default persona is onboarded and carries a full week of meals", async () => {
+  test("the default persona is Anna — the boards' own week, written number for number (#84)", async () => {
     const store = memoryStore();
     const [seeded] = await seedDevData(store, {
       timezone: TZ, today: TODAY, only: [DEFAULT_SEED_PERSONA],
@@ -89,13 +97,111 @@ describe("seedDevData", () => {
 
     const profile = await store.getProfile(seeded!.userId);
     expect(profile?.onboarded_at).not.toBeNull();
+    // The profile the boards are drawn against: 74 kg typed, 68 to reach, a 1,434 plan.
+    expect(profile?.weight_kg).toBe(74);
+    expect(profile?.target_weight_kg).toBe(68);
+    expect(profile?.restrictions).toContain("ldl");
 
-    // Seven distinct dates, today back to six days ago, each with the same three meals.
-    for (const date of SEEDED_WEEK) {
+    // Mon–Thu of her week each carry three cards; nothing before them — the streak is 4.
+    for (const date of ANNA_MEAL_DAYS) {
       expect((await store.mealsForDate(seeded!.userId, date)).length).toBe(3);
     }
-    expect((await store.mealsForDate(seeded!.userId, "2026-07-30")).length).toBe(0);
-    expect(seeded!.meals).toBe(SEEDED_WEEK.length * 3);
+    expect((await store.mealsForDate(seeded!.userId, "2026-08-02")).length).toBe(0);
+    expect(seeded!.meals).toBe(ANNA_MEAL_DAYS.length * 3);
+  });
+
+  test("Anna's days land on the boards' totals, and Today reads like `phone/today.html`", async () => {
+    const store = memoryStore();
+    const [anna] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["anna"] });
+
+    // The Progress "This week" bars, oldest first: Mon 1,386 · Tue 1,429 · Wed 1,308 · Thu 1,066.
+    const totals = await store.totalsSince(anna!.userId, "2026-08-03");
+    expect(totals.map((t) => t.kcal)).toEqual([1066, 1308, 1429, 1386]);
+
+    // And the day's own cards are the board's rows — the arithmetic the "368 left" line asserts.
+    const today = await store.mealsForDate(anna!.userId, TODAY);
+    expect(today.map((m) => m.kcal)).toEqual([312, 540, 214]);
+    const sum = (key: "protein_g" | "carbs_g" | "fat_g") =>
+      today.reduce((n, m) => n + m[key], 0);
+    // The board's own words: 368 kcal, 55 g protein, 8 g carbs and 13 g fat left of a
+    // 1,434 / 109 / 142 / 48 plan.
+    expect({ kcal: 1434 - 1066, protein_g: 109 - sum("protein_g"), carbs_g: 142 - sum("carbs_g"), fat_g: 48 - sum("fat_g") })
+      .toEqual({ kcal: 368, protein_g: 55, carbs_g: 8, fat_g: 13 });
+    // The typed one is a rough estimate; the photographed two are not.
+    const flatWhite = today.find((m) => m.items[0]?.name === "Flat white")!;
+    expect(flatWhite.confidence).toBe("low");
+  });
+
+  test("Anna's weigh-in log merges the typed rows and the scale's, the typed one winning", async () => {
+    const store = memoryStore();
+    const [anna] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["anna"] });
+
+    expect(await store.weightsSince(anna!.userId, "2020-01-01"))
+      .toEqual([{ date: "2026-07-16", kg: 74.0 }]);
+
+    // On the day both halves have a reading — the onboarding morning — the typed row wins.
+    const health = await store.healthDaysSince(anna!.userId, "2026-07-01");
+    const byDate = new Map(health.filter((d) => d.weight_kg !== null).map((d) => [d.date, d.weight_kg]));
+    expect(byDate.get("2026-07-06")).toBe(74.6); // the pre-onboarding backfill
+    expect(byDate.get("2026-07-16")).toBe(74.2); // the scale's own figure that morning
+    expect(byDate.get(TODAY)).toBe(73.4);
+  });
+
+  test("Anna's photographs are the licensed board images, not the placeholder square", async () => {
+    const store = memoryStore();
+    const [anna] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["anna"] });
+    const today = await store.mealsForDate(anna!.userId, TODAY);
+    for (const meal of today) {
+      const photo = await store.getPhoto(anna!.userId, meal.id, 0);
+      expect(photo).not.toBeNull();
+      // Real webp files from product/design/pro/img — RIFF/WEBP magic, tens of kilobytes.
+      expect(photo!.mime).toBe("image/webp");
+      expect(photo!.bytes.length).toBeGreaterThan(10_000);
+      expect(Buffer.from(photo!.bytes.slice(8, 12)).toString()).toBe("WEBP");
+    }
+  });
+
+  test("the seeded account answers the boards' reads, not just their rows (#84)", async () => {
+    // The fixture and the endpoints are only worth seeding if they meet: the streak the strip
+    // draws, the line the Progress chart draws, and the arc the goal bar measures — all through
+    // the engine, on the seeded rows, so a drift in either is a test failure and not a screenshot.
+    //
+    // Seeded against the REAL today rather than the pinned one: the streak and the `when` flags
+    // are computed from the server's own clock, so asserting them needs the fixture's "today" to
+    // be the engine's — which is also what makes the seed reproducible on any day it runs.
+    const store = memoryStore();
+    const [anna] = await seedDevData(store, { timezone: TZ, only: ["anna"] });
+    const deps: EngineDeps = {
+      store, config: { ...configDefaults(), timezone: TZ } as Config,
+      llm: demoPorts(), mailer: fakeMailer(), push: fakePush(),
+    };
+    const today = localDate(TZ);
+    const back = (n: number) => dateMinus(today, n);
+
+    const range = await daysRead(deps, anna!.userId, back(3), today);
+    expect(range).not.toBeNull();
+    expect(range!.streak).toBe(4);
+    expect(range!.days.map((d) => d.kcal)).toEqual([1386, 1429, 1308, 1066]);
+    expect(range!.days[3]!.targetKcal).toBe(1434);
+
+    const log = await weightsRead(deps, anna!.userId, "90D");
+    // One row per day, oldest first, the typed onboarding value standing over the scale's.
+    expect(log!.weights).toEqual([
+      { date: back(31), kg: 74.6, source: "health" },
+      { date: back(21), kg: 74.0, source: "manual" },
+      { date: back(14), kg: 73.9, source: "health" },
+      { date: back(4), kg: 73.8, source: "health" },
+      { date: today, kg: 73.4, source: "health" },
+    ]);
+
+    const me = await profileView(deps, anna!.userId);
+    expect(me!.targets.kcal).toBe(1434);
+    expect(me!.projection).not.toBeNull();
+    // The bar reads 0.6 down, 5.4 to go: start at the typed 74, current at Health's 73.4.
+    expect(me!.projection!.startKg).toBe(74);
+    expect(me!.projection!.currentKg).toBe(73.4);
+    expect(me!.projection!.targetKg).toBe(68);
+    expect(me!.projection!.beyondHorizon).toBe(false);
   });
 
   test("the fresh persona exists, has never onboarded, and has no meals", async () => {
@@ -136,7 +242,7 @@ describe("seedDevData", () => {
 
     const verdicts = { weight: new Set<string>(), ldl: new Set<string>() };
     let counted = 0;
-    for (const date of SEEDED_WEEK) {
+    for (const date of ANNA_MEAL_DAYS) {
       for (const meal of await store.mealsForDate(seeded!.userId, date)) {
         counted++;
         if (meal.verdicts.weight) verdicts.weight.add(meal.verdicts.weight);
@@ -145,19 +251,22 @@ describe("seedDevData", () => {
     }
     // Asserted, because a loop that quietly walked the wrong dates would find no meals and every
     // set below would be trivially satisfiable.
-    expect(counted).toBe(21);
+    expect(counted).toBe(12);
     expect(verdicts.weight.size).toBeGreaterThan(1);
     expect(verdicts.ldl.has("good")).toBe(true);
   });
 
-  test("the onboarded persona carries a health trend over the same week", async () => {
+  test("the default persona carries a health trend over the week, and the weigh-ins further", async () => {
     const store = memoryStore();
     const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
-    const onboarded = seeded.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
+    const anna = seeded.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
 
-    const days = await store.healthDaysSince(onboarded.userId, SEEDED_WEEK[SEEDED_WEEK.length - 1]!);
+    // The full-metric rows cover the seeded week; the weigh-in log reaches further back.
+    const days = await store.healthDaysSince(anna.userId, SEEDED_WEEK[SEEDED_WEEK.length - 1]!);
     expect(days.map((d) => d.date)).toEqual(SEEDED_WEEK);
-    expect(onboarded.healthDays).toBe(SEEDED_WEEK.length);
+    // Plus the three sparse backfill rows (scale readings with nothing else on the day) — the
+    // weigh-ins of 6, 16 and 23 July.
+    expect(anna.healthDays).toBe(SEEDED_WEEK.length + 3);
   });
 
   test("the seeded trend has gaps, because a real one does", async () => {
@@ -242,7 +351,7 @@ describe("seedDevData", () => {
 
     const onboarded = second.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
     expect((await store.mealsForDate(onboarded.userId, TODAY)).length).toBe(3);
-    expect(onboarded.meals).toBe(21);
+    expect(onboarded.meals).toBe(12);
   });
 
   // ── the baselineable Chat (#257) ──

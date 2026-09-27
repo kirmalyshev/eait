@@ -105,7 +105,7 @@ export async function days(
   }
 
   // The streak: consecutive logged days ending today — or yesterday, while today is still open.
-  // Dates only: a meal's `date` is already the account's zone, so a weigh-in past local midnight
+  // Dates only: a meal's `date` is already the account's zone, so one logged past local midnight
   // belongs to the day the user is in, which is the boundary this must not get wrong.
   const loggedDates = new Set(rows.filter((r) => r.date <= today).map((r) => r.date));
   let streak = 0;
