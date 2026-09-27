@@ -26,6 +26,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { COPY, WEEK, clear, el, lang, names, refusalWords, sendOrKeep } from "../shell.ts";
 import type { Frame } from "../shell.ts";
 import { outbox, type WebQueued } from "../outbox.ts";
+import { roughGrams, roughPick } from "../portion.ts";
 import {
   ctaEl, gramMacsEl, kitEl, optionRowEl, photoHeroEl, spudAvatarEl, verdictListEl,
   verdictNounText, verdictWords,
@@ -65,28 +66,6 @@ async function isFirstMeal(me: ProfileResponse | null): Promise<boolean> {
   const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`).catch(() => null);
   return marked !== null && marked.days.length === 0;
 }
-
-/**
- * The item a rough card's composed question names — the one with the most grams; a tie goes to
- * the first listed (design-pro on #92). Nothing is asked when no item carries grams.
- */
-export const roughPick = (items: readonly MealItem[]): MealItem | null => {
-  let pick: MealItem | null = null;
-  for (const it of items) {
-    if (it.grams > 0 && (pick === null || it.grams > pick.grams)) pick = it;
-  }
-  return pick;
-};
-
-/**
- * The grams the composed answers mean: "Half that" is grams ÷ 2 rounded to 5 g; "More like
- * {n} g" is grams × 1.5 rounded UP to the next 50 g at 100 g or more, the next 10 g below it —
- * 150 → 250, as the board draws (design-pro on #92).
- */
-export const roughGrams = (grams: number): { half: number; more: number } => ({
-  half: Math.max(5, Math.round(grams / 10) * 5),
-  more: Math.ceil((grams * 1.5) / (grams >= 100 ? 50 : 10)) * (grams >= 100 ? 50 : 10),
-});
 
 export function logScreen(frame: Frame): HTMLElement {
   const me = frame.me;

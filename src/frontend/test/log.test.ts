@@ -3,7 +3,7 @@
 // ×1.5 rounded UP to the next 50 g at 100 g or more and the next 10 g below it — 150 → 250.
 
 import { describe, expect, test } from "bun:test";
-import { roughGrams, roughPick } from "../screens/log.ts";
+import { roughGrams, roughPick } from "../portion.ts";
 
 describe("roughPick — the item the composed question names", () => {
   const item = (name: string, grams: number) => ({ name, grams });
