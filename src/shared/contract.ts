@@ -592,6 +592,22 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
+  /**
+   * The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because
+   * the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words
+   * reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server
+   * that predates the field sends none, and a client falls back to the copy's own name.
+   */
+  coachName: string;
+  /**
+   * Whether this account has ever logged a meal — any date, not just inside the diary window
+   * (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read
+   * it as the ONE "nothing logged yet" answer, so two clients can never disagree about which
+   * meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other
+   * conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on
+   * this response.
+   */
+  hasLoggedMeal: boolean;
 }
 
 /**
