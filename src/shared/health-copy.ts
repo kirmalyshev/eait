@@ -351,6 +351,9 @@ export interface HealthScreenCopy {
     /** Where eait's switches live — the visible path and the one VoiceOver reads. */
     path: string;
     pathSpoken: string;
+    /** iOS alert titles when Health cannot be reached — `pathSpoken` is the body of both. */
+    alertOpenTitle: string;
+    alertSheetTitle: string;
   };
   intake: {
     /**
@@ -375,6 +378,8 @@ export interface HealthScreenCopy {
     /** correlate() found too few overlapping buckets: "Not enough {period}…" — plural nouns. */
     noData: string;
     periodNouns: Record<TrendPeriod, string>;
+    /** VoiceOver on a series row — "Bars: Intake" — a template, never a join in the call site. */
+    pickLabel: string;
   };
   body: {
     /** "▼ {d} since {date} · {to} to {target}" — and the up, flat and no-target forms of it. */
@@ -387,8 +392,15 @@ export interface HealthScreenCopy {
     plan: string;
     planValue: string;
     planMoved: string;
-    /** "From Apple Health, {when}" — `{when}` is `today` + a time, or a formatted date. */
+    /** `fromHealth`'s `{when}` for a read taken today — "today 18:30", lowercase in the table. */
+    todayAt: string;
+    /** "From Apple Health, {when}" — `{when}` is `todayAt` filled, or a formatted date. */
     fromHealth: string;
+    /** A metric's move against the rest of the window — "▼ 0.6%" — the arrow inside, always. */
+    deltaUp: string;
+    deltaDown: string;
+    /** The notice when the weigh-in read fails — the screen keeps what it had, says why. */
+    loadFailed: string;
     /**
      * Spud's line, eight whole sentences: a weigh-in trend read against the pace the plan was
      * built on. `Down`/`Up` by the direction the goal needs, ×3 for the observed rate COMPARED
@@ -458,6 +470,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait only sees the categories you switch on for it.",
       path: "In Health: your picture at the top right › Apps › eait. Or Settings › Privacy & Security › Health › eait.",
       pathSpoken: "In Health, tap your picture at the top right, then Apps, then eait. Or open Settings, Privacy and Security, Health, eait.",
+      alertOpenTitle: "Couldn't open Health",
+      alertSheetTitle: "Couldn't open the Health sheet",
     },
     intake: {
       periods: {
@@ -475,6 +489,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} as bars, left axis · {b} as the line, right axis.",
       noData: "Not enough {period} with both {a} and {b} recorded to say how they relate.",
       periodNouns: { days: "days", weeks: "weeks", months: "months", years: "years" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} since {date} · {to} to {target}",
@@ -485,7 +500,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Plan",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "today {time}",
       fromHealth: "From Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Couldn't load your weigh-ins.",
       lineDownSlow: "Down {kg} — slower than the {pace} pace you chose.",
       lineDownOnPace: "Down {kg} — on the {pace} pace you chose.",
       lineDownFast: "Down {kg} — faster than the {pace} pace you chose.",
@@ -538,6 +557,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait ne voit que les catégories que tu actives pour lui.",
       path: "Dans Santé : ta photo en haut à droite › Apps › eait. Ou Réglages › Confidentialité et sécurité › Santé › eait.",
       pathSpoken: "Dans Santé, touche ta photo en haut à droite, puis Apps, puis eait. Ou ouvre Réglages, Confidentialité et sécurité, Santé, eait.",
+      alertOpenTitle: "Impossible d'ouvrir Santé",
+      alertSheetTitle: "Impossible d'ouvrir la fenêtre de Santé",
     },
     intake: {
       periods: {
@@ -555,6 +576,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} en barres, axe de gauche · {b} en courbe, axe de droite.",
       noData: "Pas assez de {period} avec {a} et {b} enregistrés pour dire comment ils sont liés.",
       periodNouns: { days: "jours", weeks: "semaines", months: "mois", years: "années" },
+      pickLabel: "{kind} : {series}",
     },
     body: {
       trendDown: "▼ {d} depuis le {date} · reste {to} avant {target}",
@@ -565,7 +587,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Plan",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "aujourd'hui à {time}",
       fromHealth: "Depuis Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Impossible de charger tes pesées.",
       lineDownSlow: "{kg} en moins — plus lentement que le rythme {pace} que tu as choisi.",
       lineDownOnPace: "{kg} en moins — au rythme {pace} que tu as choisi.",
       lineDownFast: "{kg} en moins — plus vite que le rythme {pace} que tu as choisi.",
@@ -618,6 +644,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait sieht nur die Kategorien, die du dafür einschaltest.",
       path: "In Health: dein Bild oben rechts › Apps › eait. Oder Einstellungen › Datenschutz & Sicherheit › Health › eait.",
       pathSpoken: "Öffne in Health dein Bild oben rechts, dann Apps, dann eait. Oder öffne Einstellungen, Datenschutz und Sicherheit, Health, eait.",
+      alertOpenTitle: "Health lässt sich nicht öffnen",
+      alertSheetTitle: "Das Health-Blatt lässt sich nicht öffnen",
     },
     intake: {
       periods: {
@@ -635,6 +663,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} als Balken, linke Achse · {b} als Linie, rechte Achse.",
       noData: "Zu wenige {period} mit {a} und {b} aufgezeichnet, um zu sagen, wie sie zusammenhängen.",
       periodNouns: { days: "Tage", weeks: "Wochen", months: "Monate", years: "Jahre" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} seit dem {date} · noch {to} bis {target}",
@@ -645,7 +674,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Plan",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "heute um {time}",
       fromHealth: "Von Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Deine Wiegungen ließen sich nicht laden.",
       lineDownSlow: "{kg} weniger — langsamer als das {pace} Tempo, das du gewählt hast.",
       lineDownOnPace: "{kg} weniger — genau das {pace} Tempo, das du gewählt hast.",
       lineDownFast: "{kg} weniger — schneller als das {pace} Tempo, das du gewählt hast.",
@@ -698,6 +731,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait vede solo le categorie che attivi per lei.",
       path: "In Salute: la tua foto in alto a destra › App › eait. Oppure Impostazioni › Privacy e sicurezza › Salute › eait.",
       pathSpoken: "In Salute, tocca la tua foto in alto a destra, poi App, poi eait. Oppure apri Impostazioni, Privacy e sicurezza, Salute, eait.",
+      alertOpenTitle: "Impossibile aprire Salute",
+      alertSheetTitle: "Impossibile aprire il pannello di Salute",
     },
     intake: {
       periods: {
@@ -715,6 +750,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} in barre, asse sinistra · {b} in linea, asse destra.",
       noData: "Non abbastanza {period} con {a} e {b} registrati per dire come sono legati.",
       periodNouns: { days: "giorni", weeks: "settimane", months: "mesi", years: "anni" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} dal {date} · {to} fino a {target}",
@@ -725,7 +761,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Piano",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "oggi alle {time}",
       fromHealth: "Da Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Impossibile caricare le tue pesate.",
       lineDownSlow: "{kg} in meno — più piano del ritmo {pace} che hai scelto.",
       lineDownOnPace: "{kg} in meno — al ritmo {pace} che hai scelto.",
       lineDownFast: "{kg} in meno — più veloce del ritmo {pace} che hai scelto.",
@@ -778,6 +818,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait solo ve las categorías que activas para él.",
       path: "En Salud: tu foto arriba a la derecha › Apps › eait. O Ajustes › Privacidad y seguridad › Salud › eait.",
       pathSpoken: "En Salud, toca tu foto arriba a la derecha, luego Apps, luego eait. O abre Ajustes, Privacidad y seguridad, Salud, eait.",
+      alertOpenTitle: "No se pudo abrir Salud",
+      alertSheetTitle: "No se pudo abrir la hoja de Salud",
     },
     intake: {
       periods: {
@@ -795,6 +837,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} en barras, eje izquierdo · {b} en línea, eje derecho.",
       noData: "No hay suficientes {period} con {a} y {b} registrados para decir cómo se relacionan.",
       periodNouns: { days: "días", weeks: "semanas", months: "meses", years: "años" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} desde el {date} · {to} hasta {target}",
@@ -805,7 +848,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Plan",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "hoy a las {time}",
       fromHealth: "Desde Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "No se pudieron cargar tus pesajes.",
       lineDownSlow: "{kg} menos — más despacio que el ritmo {pace} que elegiste.",
       lineDownOnPace: "{kg} menos — al ritmo {pace} que elegiste.",
       lineDownFast: "{kg} menos — más rápido que el ritmo {pace} que elegiste.",
@@ -858,6 +905,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait chỉ thấy các nhóm bạn bật cho nó.",
       path: "Trong Health: ảnh của bạn ở góc trên bên phải › Apps › eait. Hoặc Cài đặt › Quyền riêng tư và bảo mật › Health › eait.",
       pathSpoken: "Trong Health, chạm vào ảnh của bạn ở góc trên bên phải, rồi Apps, rồi eait. Hoặc mở Cài đặt, Quyền riêng tư và bảo mật, Health, eait.",
+      alertOpenTitle: "Không mở được Health",
+      alertSheetTitle: "Không mở được bảng của Health",
     },
     intake: {
       periods: {
@@ -875,6 +924,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} dạng cột, trục trái · {b} dạng đường, trục phải.",
       noData: "Chưa đủ {period} có cả {a} lẫn {b} để nói chúng liên hệ thế nào.",
       periodNouns: { days: "ngày", weeks: "tuần", months: "tháng", years: "năm" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} từ {date} · còn {to} tới {target}",
@@ -885,7 +935,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Kế hoạch",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "hôm nay lúc {time}",
       fromHealth: "Từ Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Không tải được các lần cân của bạn.",
       lineDownSlow: "Giảm {kg} — chậm hơn nhịp {pace} bạn đã chọn.",
       lineDownOnPace: "Giảm {kg} — đúng nhịp {pace} bạn đã chọn.",
       lineDownFast: "Giảm {kg} — nhanh hơn nhịp {pace} bạn đã chọn.",
@@ -938,6 +992,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait hanya melihat kategori yang kamu nyalakan untuknya.",
       path: "Di Health: fotomu di kanan atas › Apps › eait. Atau Pengaturan › Privasi & Keamanan › Health › eait.",
       pathSpoken: "Di Health, ketuk fotomu di kanan atas, lalu Apps, lalu eait. Atau buka Pengaturan, Privasi dan Keamanan, Health, eait.",
+      alertOpenTitle: "Health tidak bisa dibuka",
+      alertSheetTitle: "Lembar Health tidak bisa dibuka",
     },
     intake: {
       periods: {
@@ -955,6 +1011,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} sebagai batang, sumbu kiri · {b} sebagai garis, sumbu kanan.",
       noData: "Belum cukup {period} dengan {a} dan {b} tercatat untuk bilang bagaimana keduanya berkaitan.",
       periodNouns: { days: "hari", weeks: "minggu", months: "bulan", years: "tahun" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} sejak {date} · sisa {to} ke {target}",
@@ -965,7 +1022,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "Rencana",
       planValue: "{kcal} kcal",
       planMoved: "{old} → {new} kcal",
+      todayAt: "hari ini {time}",
       fromHealth: "Dari Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Timbanganmu tidak bisa dimuat.",
       lineDownSlow: "Turun {kg} — lebih pelan dari ritme {pace} yang kamu pilih.",
       lineDownOnPace: "Turun {kg} — pas ritme {pace} yang kamu pilih.",
       lineDownFast: "Turun {kg} — lebih cepat dari ritme {pace} yang kamu pilih.",
@@ -1018,6 +1079,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreBody: "eait видит только категории, которые ты для него включаешь.",
       path: "В «Здоровье»: твоё фото вверху справа › «Программы» › eait. Или «Настройки» › «Конфиденциальность и безопасность» › «Здоровье» › eait.",
       pathSpoken: "В «Здоровье» нажми на фото вверху справа, затем «Программы», затем eait. Или открой «Настройки», «Конфиденциальность и безопасность», «Здоровье», eait.",
+      alertOpenTitle: "Не удалось открыть «Здоровье»",
+      alertSheetTitle: "Не удалось открыть окно «Здоровья»",
     },
     intake: {
       periods: {
@@ -1035,6 +1098,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} столбиками, левая ось · {b} линией, правая ось.",
       noData: "Слишком мало {period}, где записаны и {a}, и {b}, чтобы сказать, как они связаны.",
       periodNouns: { days: "дней", weeks: "недель", months: "месяцев", years: "лет" },
+      pickLabel: "{kind}: {series}",
     },
     body: {
       trendDown: "▼ {d} с {date} · осталось {to} до {target}",
@@ -1045,7 +1109,11 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       plan: "План",
       planValue: "{kcal} ккал",
       planMoved: "{old} → {new} ккал",
+      todayAt: "сегодня в {time}",
       fromHealth: "Из Apple Health, {when}",
+      deltaUp: "▲ {n}",
+      deltaDown: "▼ {n}",
+      loadFailed: "Не удалось загрузить твои взвешивания.",
       lineDownSlow: "Минус {kg} — медленнее, чем твой {pace} темп.",
       lineDownOnPace: "Минус {kg} — как раз твой {pace} темп.",
       lineDownFast: "Минус {kg} — быстрее, чем твой {pace} темп.",
