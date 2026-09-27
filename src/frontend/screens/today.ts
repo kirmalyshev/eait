@@ -316,8 +316,14 @@ const SATFAT: Localized<string> = {
 };
 
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
-  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`): the server answers
-  // "has this account ever logged" on the profile, so there is no window read to disagree about.
-  if (firstMealDue(me)) return firstMealScreen(me);
+  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`). The profile in the
+  // frame is the session's cached read — a meal logged this session flipped `hasLoggedMeal`
+  // without the cache knowing, so a cached "first" is re-verified on a fresh read before the
+  // free-meal flow shows; a stale one silently never did (the diary for somebody who HAS logged
+  // is the failure the gate exists to prevent).
+  if (firstMealDue(me)) {
+    const fresh = await api<ProfileResponse>("/profile").catch(() => me);
+    if (firstMealDue(fresh)) return firstMealScreen(fresh);
+  }
   return diaryScreen();
 }
