@@ -82,11 +82,11 @@ export const mealCss = `
   background:var(--accent-tint);font-size:14px;font-weight:600}
 .chgdot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--accent)}
 
-/* The ingredient rows open their editor — the board's .ing on a button. */
-button.ing{border:0;background:none;font:inherit;color:inherit;cursor:pointer;width:100%;
-  text-align:left}
-button.ing:hover{background:var(--bg)}
-button.ing:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* The ingredient rows open their editor — a button wrapping the kit's .ing row. */
+button.ingbtn{display:block;width:100%;border:0;background:none;padding:0;font:inherit;
+  color:inherit;cursor:pointer;text-align:left;border-radius:var(--r-ctl)}
+button.ingbtn:hover .ing{background:var(--bg)}
+button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* The ingredient editor's rows: the label 600, the amount pill an editable figure. */
 .ming .amlab{font-weight:600}

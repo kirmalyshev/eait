@@ -21,7 +21,7 @@
 
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
-import { mealEditRequest, scaledItem } from "../../shared/meal-edit.ts";
+import { mealEditParams, mealEditRequest, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -34,7 +34,8 @@ import { fillCopy as fill } from "../copy.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
-  blobSrc, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl, verdictListEl,
+  blobSrc, ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl,
+  verdictListEl,
 } from "../kit.ts";
 import {
   COPY, MEAL, clear, dayText, el, findMeal, lang, names, profile, sendOrKeep, setRedraw, takeTurn,
@@ -58,12 +59,10 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   // reopen them.
   const [path, query] = location.hash.split("?");
   const id = decodeURIComponent((path ?? "").replace(/^#\/meal\//, ""));
-  const params = new URLSearchParams(query ?? "");
-  const asked = params.get("d");
+  const asked = new URLSearchParams(query ?? "").get("d");
   let viewing: string | undefined = asked !== null && isCalendarDate(asked) ? asked : undefined;
-  const askedItem = params.has("item") ? Number.parseInt(params.get("item") ?? "", 10) : null;
-  let pending: "fix" | number | null =
-    params.has("fix") ? "fix" : askedItem !== null && Number.isInteger(askedItem) && askedItem >= 0 ? askedItem : null;
+  const { fix: askedFix, item: askedItem } = mealEditParams(query ?? "");
+  let pending: "fix" | number | null = askedFix ? "fix" : askedItem;
 
   // Relative day names for the meta line and header ("Today · 13:05"), the date in full for the
   // diary's own label — the boards write "Thursday 24 September" over the list.
@@ -88,10 +87,22 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   };
 
   // One overlay at a time — the delete dialog, the score breakdown, a fix panel. `overlay` is
-  // what Esc and a scrim tap close.
+  // what Esc and a scrim tap close. Focus moves INTO a panel on open and back to whatever opened
+  // it on close — a keyboard path has to end where it started.
   let overlay: HTMLElement | null = null;
-  const closeOverlay = (): void => { overlay?.remove(); overlay = null; };
-  const openOverlay = (node: HTMLElement): void => { closeOverlay(); wrap.append(node); overlay = node; };
+  let restoreFocus: Element | null = null;
+  const closeOverlay = (): void => {
+    overlay?.remove(); overlay = null;
+    if (restoreFocus instanceof HTMLElement && restoreFocus.isConnected) restoreFocus.focus();
+    restoreFocus = null;
+  };
+  const openOverlay = (node: HTMLElement, focus?: HTMLElement): void => {
+    closeOverlay();
+    restoreFocus = document.activeElement;
+    wrap.append(node); overlay = node;
+    focus?.focus();
+  };
+  const openPanel = (p: { node: HTMLElement; focus: HTMLElement }): void => openOverlay(p.node, p.focus);
 
   // The tinted line the detail carries after a fix landed (`meal-fixed.html`): `MealUpdated.line`
   // is the engine's `changeLine` — the same sentence the thread gets — null when nothing moved.
@@ -204,7 +215,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
    * sends the sentence as the correction turn — `focusMealId`, the contract unchanged — and the
    * recomputed answer lands the tinted line on the detail behind the closing panel.
    */
-  const fixPanel = (meal: MealRecord): HTMLElement => {
+  const fixPanel = (meal: MealRecord): { node: HTMLElement; focus: HTMLElement } => {
     const scrim = el("div", "mscrim");
     scrim.addEventListener("click", (e) => { if (e.target === scrim) closeOverlay(); });
     const dlg = el("div", "card mfix rise");
@@ -230,15 +241,15 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       thumb.append(kitEl(ico("chat")));
     }
     named.append(thumb, el("span", "t13 m",
-      // `phoneSheetMeal`'s {meal} is the meal's label: "Salmon, rice, greens · 540 kcal".
-      fill(mc.phoneSheetMeal, { meal: `${names(meal.items)} · ${n(meal.kcal)} ${UNIT_KCAL[lang]}`, time: mealTime(meal) })));
+      // `phoneFixMeal` — "{name} · {kcal} · {time}", the {kcal} spelled with its unit.
+      fill(mc.phoneFixMeal, {
+        name: names(meal.items), kcal: `${n(meal.kcal)} ${UNIT_KCAL[lang]}`, time: mealTime(meal),
+      })));
     const field = el("textarea", "fixfield") as HTMLTextAreaElement;
     field.placeholder = mc.composeHint;
-    // One string, one bold lead — the board's "<b>For example:</b> …".
+    // The board's "<b>For example:</b> …" — the lead is its own key, never a slice of the sentence.
     const example = el("div", "card flat fixex");
-    const colon = mc.phoneFixExample.indexOf(":");
-    example.append(el("b", "", mc.phoneFixExample.slice(0, colon + 1)),
-      ` ${mc.phoneFixExample.slice(colon + 1).trim()}`);
+    example.append(el("b", "", mc.phoneFixExampleLead), ` ${mc.phoneFixExample}`);
     const update = el("button", "cta p", mc.phoneUpdate) as HTMLButtonElement;
     update.type = "button";
     update.disabled = true;
@@ -261,16 +272,16 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     });
     dlg.append(title, named, field, example, update);
     scrim.append(dlg);
-    return scrim;
+    return { node: scrim, focus: field };
   };
 
   /**
    * `web/meal-ingredient.html` (#188): the name, the meal it belongs to, the amount in grams with
-   * "was" under it, the item's kcal, this meal's total and verdicts live. The bin PATCHes the
-   * item off the meal at once; Done PATCHes the grams — `mealEditRequest` — and a Done that moved
-   * nothing writes nothing.
+   * "was" under it, the item's kcal live off its own density, this meal's stored total and
+   * verdicts. The bin PATCHes the item off the meal at once; Done PATCHes the grams —
+   * `mealEditRequest` sends `{ items }` alone and a Done that moved nothing writes nothing.
    */
-  const ingredientPanel = (meal: MealRecord, index: number): HTMLElement => {
+  const ingredientPanel = (meal: MealRecord, index: number): { node: HTMLElement; focus: HTMLElement } => {
     const item = meal.items[index]!;
     const scrim = el("div", "mscrim");
     scrim.addEventListener("click", (e) => { if (e.target === scrim) closeOverlay(); });
@@ -287,11 +298,12 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     dlg.append(head, el("b", "d d28", item.name),
       el("span", "t13 m", fill(mc.phoneSheetMeal, { meal: names(meal.items), time: mealTime(meal) })));
 
-    // The amount is the pill itself: the figure editable in place, the pen the affordance.
+    // The amount is the pill itself: the figure editable in place, the pen the affordance. The
+    // input holds RAW digits — a grouped display string ("1,500") would not parse back.
     const grams = el("input", "amtin num") as HTMLInputElement;
     grams.type = "text";
     grams.inputMode = "decimal";
-    grams.value = `${n(item.grams)}`;
+    grams.value = `${item.grams}`;
     grams.setAttribute("aria-label", mc.phoneAmount);
     const size = (): void => { grams.style.width = `${Math.max(2, grams.value.length)}ch`; };
     size();
@@ -300,28 +312,29 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const amountRow = el("div", "row between");
     amountRow.append(el("span", "amlab", mc.phoneAmount), pill);
     const wasG = el("span", "t12 m ingwas",
-      fill(mc.phoneWasAmount, { amount: `${n(item.grams)} ${spellUnit(lang, "g")}` }));
+      fill(mc.phoneWasAmount, { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }));
     dlg.append(amountRow, wasG);
 
-    // Calories, live off the item's own density; "was" keeps the figure the edit started from.
-    const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "—");
-    const kcalLeft = el("div", "");
-    const kcalRow = el("div", "row ingkrow");
-    kcalRow.append(kitEl(ico("kcal")), kcalNow);
-    kcalLeft.append(el("span", "t12 m", cc.macroLabels.kcal), kcalRow);
-    const kcalCard = el("div", "card row between ingkcal");
-    kcalCard.append(kcalLeft);
-    if (item.kcal !== undefined) kcalCard.append(el("span", "t13 m num", fill(mc.phoneWasAmount, { amount: n(item.kcal) })));
-    dlg.append(kcalCard);
+    // Calories, live off the item's own density; "was" keeps the figure the edit started from. An
+    // item that reports no kcal draws no card — the preview has nothing to scale.
+    const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "");
+    if (item.kcal !== undefined) {
+      const kcalLeft = el("div", "");
+      const kcalRow = el("div", "row ingkrow");
+      kcalRow.append(kitEl(ico("kcal")), kcalNow);
+      kcalLeft.append(el("span", "t12 m", cc.macroLabels.kcal), kcalRow);
+      const kcalCard = el("div", "card row between ingkcal");
+      kcalCard.append(kcalLeft, el("span", "t13 m num",
+        fill(mc.phoneWasAmount, { amount: `${n(item.kcal)} ${UNIT_KCAL[lang]}` })));
+      dlg.append(kcalCard);
+    }
 
-    // This meal, live: "540 → 605" — the arrow part mutes, the new total is the figure.
+    // This meal's figure is the STORED one — the server owns the recomputed total now (items-only
+    // patches derive it), so a client-side "540 → 605" would only ever guess at it.
     const mealCard = el("div", "card ingmeal");
     const mealRow = el("div", "row between");
-    const total = el("span", "num");
-    const totalFrom = el("span", "m", `${n(meal.kcal)} →`);
-    const totalTo = el("b", "d d22", n(meal.kcal));
-    total.append(totalFrom, " ", totalTo, " ", el("span", "m t12", UNIT_KCAL[lang]));
-    mealRow.append(el("span", "amlab", mc.phoneThisMeal), total);
+    mealRow.append(el("span", "amlab", mc.phoneThisMeal),
+      el("span", "num", `${n(meal.kcal)} ${UNIT_KCAL[lang]}`));
     mealCard.append(mealRow, el("div", "hr"));
     const vlist = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
     if (vlist !== null) mealCard.append(vlist);
@@ -335,21 +348,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       size();
       const g = gramsNow();
       const scaled = g === null ? null : scaledItem(item, g);
-      const itemKcal = scaled?.kcal;
-      kcalNow.textContent = itemKcal !== undefined ? n(itemKcal) : item.kcal !== undefined ? n(item.kcal) : "—";
-      const mealKcal = item.kcal !== undefined && itemKcal !== undefined
-        ? Math.max(0, meal.kcal - item.kcal + itemKcal) : meal.kcal;
-      totalFrom.textContent = `${n(meal.kcal)}${mealKcal === meal.kcal ? "" : " →"}`;
-      totalTo.textContent = n(mealKcal);
+      kcalNow.textContent = scaled?.kcal !== undefined ? n(scaled.kcal)
+        : item.kcal !== undefined ? n(item.kcal) : "";
     });
 
-    const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
-    done.type = "button";
-    done.addEventListener("click", () => {
-      const g = gramsNow();
-      const items = g === null
-        ? [...meal.items]
-        : meal.items.map((it, i) => (i === index ? scaledItem(it, g) : it));
+    // Both writes end in the same PATCH: items only — the server derives the totals — and the
+    // returned `line` is what the detail names the change with.
+    const applyItems = (items: MealItem[]): void => {
       const req = mealEditRequest(meal, items);
       if (req === null) { closeOverlay(); return; }
       turn(async () => {
@@ -359,21 +364,18 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
         closeOverlay();
         if (r.kind === "updated") noteChange(meal.id, r.line);
       });
+    };
+    const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
+    done.type = "button";
+    done.addEventListener("click", () => {
+      const g = gramsNow();
+      applyItems(g === null ? [...meal.items]
+        : meal.items.map((it, i) => (i === index ? scaledItem(it, g) : it)));
     });
-    bin.addEventListener("click", () => {
-      const req = mealEditRequest(meal, meal.items.filter((_, i) => i !== index));
-      turn(async () => {
-        closeOverlay();
-        if (req === null) return;
-        const r = await api<MealUpdated | TargetGone>(MEAL(meal.id), {
-          method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(req),
-        });
-        if (r.kind === "updated") noteChange(meal.id, r.line);
-      });
-    });
+    bin.addEventListener("click", () => applyItems(meal.items.filter((_, i) => i !== index)));
     dlg.append(done);
     scrim.append(dlg);
-    return scrim;
+    return { node: scrim, focus: grams };
   };
 
   const menuButton = (meal: MealRecord): HTMLElement => {
@@ -401,7 +403,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     del.classList.add("bad");
     popup.append(
       // "Edit" is the Cal-AI fix sheet (#188) — a panel over this detail, not the chat.
-      item("pencil", mc.phoneEdit, () => openOverlay(fixPanel(meal))),
+      item("pencil", mc.phoneEdit, () => openPanel(fixPanel(meal))),
       reread,
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>
         turn(async () => {
@@ -504,12 +506,15 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       sheet.append(row);
     }
     meal.items.forEach((item, i) => {
-      // Each row opens its own editor (#188): same `ing` markup as the board, on a button.
-      const row = el("button", "ing") as HTMLButtonElement;
+      // Each row opens its own editor (#188): the kit's `ing` markup wrapped in a button —
+      // the board's row verbatim, the control around it rather than inside it.
+      const row = el("button", "ingbtn") as HTMLButtonElement;
       row.type = "button";
-      row.append(document.createTextNode(item.name), el("span", "", `${n(item.grams)} ${spellUnit(lang, "g")}`));
-      if (item.kcal !== undefined) row.append(el("b", "num", n(item.kcal)));
-      row.addEventListener("click", () => openOverlay(ingredientPanel(meal, i)));
+      row.append(ingredientEl({
+        name: item.name, amount: fill(mc.phoneGrams, { n: n(item.grams) }),
+        ...(item.kcal !== undefined ? { kcal: n(item.kcal) } : {}),
+      }));
+      row.addEventListener("click", () => openPanel(ingredientPanel(meal, i)));
       sheet.append(row);
     });
     const verdicts = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
@@ -560,8 +565,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       const p = pending;
       pending = null;
       history.replaceState(null, "", `#/meal/${encodeURIComponent(id)}?d=${viewing}`);
-      if (p === "fix") openOverlay(fixPanel(meal));
-      else if (p < meal.items.length) openOverlay(ingredientPanel(meal, p));
+      if (p === "fix") openPanel(fixPanel(meal));
+      else if (p < meal.items.length) openPanel(ingredientPanel(meal, p));
     }
   };
 
