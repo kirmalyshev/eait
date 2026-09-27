@@ -142,7 +142,7 @@ const get = (path: string, cookie?: string, headers: Record<string, string> = {}
     headers: { ...(cookie ? { cookie } : {}), ...headers },
   }));
 
-const post = (path: string, form: Record<string, string | string[]>, cookie?: string) => {
+const post = (path: string, form: Record<string, string | string[]>, cookie?: string, headers: Record<string, string> = {}) => {
   const body = new URLSearchParams();
   for (const [k, v] of Object.entries(form)) {
     for (const one of Array.isArray(v) ? v : [v]) body.append(k, one);
@@ -157,6 +157,7 @@ const post = (path: string, form: Record<string, string | string[]>, cookie?: st
       // cannot size is a body it must not buffer.
       "content-length": String(new TextEncoder().encode(encoded).length),
       ...(cookie ? { cookie } : {}),
+      ...headers,
     },
     body: encoded,
   }));
@@ -215,7 +216,8 @@ async function answerAll(session: string, answers: Record<string, string | strin
     if (!id) throw new Error(`no prompt on the page: ${html.slice(0, 400)}`);
     const answer = answers[id];
     if (answer === undefined) throw new Error(`no answer supplied for ${id}`);
-    const res = await post("/start/q", { prompt: id, answer }, session);
+    const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+    const res = await post(action, { prompt: id, answer }, session);
     expect(res.status).toBe(303);
     next = res.headers.get("location") ?? "/start/q";
   }
@@ -580,7 +582,7 @@ describe("the questions", () => {
       const html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
       asked.push(id);
-      const __r = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const __r = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
       next = __r.headers.get("location") ?? "/start/q";
     }
     // `country` IS asked here, and only because this request says nothing about where it is from:
@@ -604,7 +606,7 @@ describe("the questions", () => {
       const html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
       asked.push(id);
-      const __r = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const __r = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
       next = __r.headers.get("location") ?? "/start/q";
     }
     expect(asked).not.toContain("country");
@@ -628,7 +630,7 @@ describe("the questions", () => {
       html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1];
       if (id === undefined || id === "country") break;
-      const __r = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const __r = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
       next = __r.headers.get("location") ?? "/start/q";
     }
     expect(html).toContain('name="prompt" value="country"');
@@ -654,7 +656,7 @@ describe("the questions", () => {
       const html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
       asked.push(id);
-      const __r = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const __r = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
       next = __r.headers.get("location") ?? "/start/q";
     }
     expect(asked).toContain("country");
@@ -1153,7 +1155,7 @@ describe("a target that runs the wrong way", () => {
   const toTarget = async (session: string) => {
     for (const [prompt, answer] of [
       ["goal", "lose"], ["sex", "female"], ["birth_year", "34"],
-      ["height_cm", "170"], ["weight_kg", "80"],
+      ["height_cm", "170"], ["weight_kg", "80"], ["activity", "few"],
     ] as const) {
       await post("/start/q", { prompt, answer }, session);
     }
@@ -1206,7 +1208,7 @@ const walkTo = async (session: string, stopAt: string): Promise<string> => {
     const html = await page.text();
     const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
     if (id === stopAt) return html;
-    const res = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    const res = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
     next = res.headers.get("location") ?? "/start/q";
     if (res.status !== 303) throw new Error(`${id} refused: ${res.status}`);
   }
@@ -1253,7 +1255,8 @@ describe("the v2 questions that write the new fields", () => {
       if (page.status === 303) break;
       const html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
-      const res = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const res = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q",
+        { prompt: id, answer: ANSWERS[id]! }, session, { "accept-language": "de-DE" });
       next = res.headers.get("location") ?? "/start/q";
       expect(res.status).toBe(303);
       if (id === "medical") {
@@ -2374,7 +2377,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         }
 
         if (id === "country") countryHtml = html;
-        const res = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+        const res = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
         next = res.headers.get("location") ?? "/start/q";
       }
 
@@ -2418,7 +2421,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         const html = await (await get(next, session)).text();
         const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
         if (id === "country") return html;
-        const __r = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+        const __r = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
         next = __r.headers.get("location") ?? "/start/q";
       }
       throw new Error("never reached the country question");
@@ -2450,7 +2453,7 @@ describe("the counter and Back (#53)", () => {
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
       const [, n, m] = html.match(/Question (\d+) of (\d+)/)!;
       seen.push({ n: Number(n), m: Number(m), id });
-      const res = await post(html.match(/action="([^"]+)"/)?.[1] ?? "/start/q", { prompt: id, answer: answers[id]! }, session);
+      const res = await post(html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q", { prompt: id, answer: answers[id]! }, session);
       next = res.headers.get("location") ?? "/start/q";
     }
     throw new Error("onboarding did not finish");

@@ -241,7 +241,10 @@ test("a declared restriction without a cap still reaches the coach, and the prof
     profile: { ...PROFILE, restrictions: ["vegan", "lowsugar"], weight_kg: 93, weight_measured_at: "2026-01-15T09:00:00.000Z" },
     targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 },
   }));
-  expect(text).toContain("Declared restrictions: vegan, diabetes risk (low sugar).");
+  // Diet is a preference and lowsugar a declaration — they are read apart and said apart, so a
+  // diet tag never reaches the model as a medical fact.
+  expect(text).toContain("Diet preference the user declared: vegan.");
+  expect(text).toContain("Declared restrictions: diabetes risk (low sugar).");
   expect(text).toContain("Scored against them: nothing beyond kcal and protein.");
   expect(text).toContain("last known weight 93 kg (measured 2026-01-15; the trend is in get_health)");
   const bare = buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions: [] }, targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 } }));

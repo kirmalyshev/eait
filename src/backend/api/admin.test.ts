@@ -178,7 +178,8 @@ describe("the admin credential", () => {
     // The editor needs the FIELDS in order to draw an ask box for each, and the option vocabulary
     // in order to render the right chips. Both come from code, not from the stored copy — so a
     // question added in code shows up as an empty box rather than as a refused save.
-    expect(body.meta.screens.find((s2) => s2.id === "body")!.fields).toEqual(["height_cm", "weight_kg"]);
+    expect(body.meta.screens.find((s2) => s2.id === "weight")!.fields).toEqual(["weight_kg"]);
+    expect(body.meta.screens.find((s2) => s2.id === "sex")!.options.length).toBeGreaterThan(0);
     expect(body.meta.screens.find((s2) => s2.id === "goal")!.options.length).toBeGreaterThan(0);
   });
 });

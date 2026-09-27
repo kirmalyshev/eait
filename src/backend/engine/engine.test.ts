@@ -621,6 +621,38 @@ describe("profile free text", () => {
     const userId = await onboard({ restrictions: ["kidneys", "ldl", "kidneys", ...Array.from({ length: 1000 }, () => "ldl")] });
     expect((await store.getProfile(userId))!.restrictions).toEqual(RESTRICTION_TAGS.filter((t) => t === "ldl" || t === "kidneys"));
   });
+
+  // The v2 write views (#82): the client sends diet and medical, never the array. The server
+  // rewrites exactly the tags each view owns and leaves every other entry alone.
+  it("writes diet as a single tag swap: vegan to pescatarian, ldl untouched", async () => {
+    const userId = await onboard({ restrictions: ["vegan", "ldl"] });
+    await patchProfile(deps, userId, { diet: "pescatarian" });
+    expect((await store.getProfile(userId))!.restrictions).toEqual(["ldl", "pescatarian"]);
+    // And `balanced` removes the view's whole tag set.
+    await patchProfile(deps, userId, { diet: "balanced" });
+    expect((await store.getProfile(userId))!.restrictions).toEqual(["ldl"]);
+  });
+
+  it("writes medical as a set swap: [] clears all three, the diet survives", async () => {
+    const userId = await onboard({ restrictions: ["vegan", "kidneys", "ldl"] });
+    await patchProfile(deps, userId, { medical: [] });
+    expect((await store.getProfile(userId))!.restrictions).toEqual(["vegan"]);
+  });
+
+  it("refuses a PATCH that mixes the raw array with a view of it, as ambiguous", async () => {
+    const userId = await onboard({ restrictions: ["vegan"] });
+    const out = await patchProfile(deps, userId, { restrictions: ["kidneys"], diet: "vegan" } as never);
+    expect(out && !out.ok ? out.rejected.field : "accepted").toBe("restrictions");
+    expect((await store.getProfile(userId))!.restrictions).toEqual(["vegan"]);
+  });
+
+  it("stores the struggle picks in vocabulary order, and [] is not null", async () => {
+    const userId = await onboard({ restrictions: [] });
+    await patchProfile(deps, userId, { struggles: ["ideas", "busy"] });
+    expect((await store.getProfile(userId))!.struggles).toEqual(["busy", "ideas"]);
+    await patchProfile(deps, userId, { struggles: [] });
+    expect((await store.getProfile(userId))!.struggles).toEqual([]);
+  });
 });
 
 describe("verdict gating", () => {
@@ -1684,8 +1716,8 @@ describe("the thread", () => {
     await patchProfile(deps, userId, { goal: "gain" });
     await appendLines(deps, userId, [{ role: "assistant", ask: { prompt: "target_weight_kg", line: 0 } }]);
     const stored = (await thread(userId)).map(text).join(" ");
-    expect(stored).toContain("Where would you like to be");
-    expect(stored).not.toContain("Faster isn't better");
+    expect(stored).toContain("What weight are you aiming for");
+    // v2's target ask carries no per-goal tail at all — a gainer reads the same neutral question.
     expect(stored).not.toContain("{loseTail}");
   });
 

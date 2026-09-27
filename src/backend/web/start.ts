@@ -768,7 +768,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // for those two ids — a crafted `?asked=height_cm` is ignored — and absent from a fresh URL,
     // so a Balanced picker who left mid-run is still asked the diet once more on return, which is
     // the accepted re-ask the same binding describes.
-    const asked = new Set(
+    const asked = new Set<string>(
       url.searchParams.getAll("asked").filter((a) => a === "diet" || a === "medical"),
     );
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile) && !asked.has(p.id));
