@@ -106,6 +106,17 @@ export interface HomeCopy {
   webLogIt: string;
   /** web: the proposal's decline. */
   webProposalNo: string;
+  /**
+   * The page dots' accessible name — the two-dot switcher under the macro cards
+   * (`today.html`); `{page}` and `{total}` are figures.
+   */
+  webPage: string;
+  /**
+   * The score modal's close (`today-score`). Its words are `SCORES_APP_COPY`'s — `title`,
+   * `outOf`, `breakdownTitle`, `breakdownLine`, `todayFromMeals` — which #151 left Lingui-free;
+   * only this one key is Home's own.
+   */
+  webDone: string;
 }
 
 export const HOME_COPY: Localized<HomeCopy> = {
@@ -142,6 +153,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "today",
     webLogIt: "Log it",
     webProposalNo: "No",
+    webPage: "Page {n} of {total}",
+    webDone: "Done",
   },
   fr: {
     phoneToday: "Aujourd'hui",
@@ -176,6 +189,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "aujourd'hui",
     webLogIt: "Enregistrer",
     webProposalNo: "Non",
+    webPage: "Page {n} sur {total}",
+    webDone: "Terminé",
   },
   de: {
     phoneToday: "Heute",
@@ -210,6 +225,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "heute",
     webLogIt: "Eintragen",
     webProposalNo: "Nein",
+    webPage: "Seite {n} von {total}",
+    webDone: "Fertig",
   },
   it: {
     phoneToday: "Oggi",
@@ -244,6 +261,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "oggi",
     webLogIt: "Registra",
     webProposalNo: "No",
+    webPage: "Pagina {n} di {total}",
+    webDone: "Fatto",
   },
   es: {
     phoneToday: "Hoy",
@@ -278,6 +297,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "hoy",
     webLogIt: "Registrar",
     webProposalNo: "No",
+    webPage: "Página {n} de {total}",
+    webDone: "Listo",
   },
   vi: {
     phoneToday: "Hôm nay",
@@ -312,6 +333,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "hôm nay",
     webLogIt: "Ghi lại",
     webProposalNo: "Không",
+    webPage: "Trang {n} trên {total}",
+    webDone: "Xong",
   },
   id: {
     phoneToday: "Hari ini",
@@ -346,6 +369,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "hari ini",
     webLogIt: "Catat",
     webProposalNo: "Tidak",
+    webPage: "Halaman {n} dari {total}",
+    webDone: "Selesai",
   },
   ru: {
     phoneToday: "Сегодня",
@@ -380,6 +405,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     todayWord: "сегодня",
     webLogIt: "Записать",
     webProposalNo: "Нет",
+    webPage: "Страница {n} из {total}",
+    webDone: "Готово",
   },
 };
 

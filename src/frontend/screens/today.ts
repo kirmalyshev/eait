@@ -1,51 +1,86 @@
-// Today — the diary, and the gate that hands a fresh account the first-meal flow instead. Home in
-// the boards' navigation (`web/today.html`); the register's own layout of it is W4's — this is the
-// screen as it already was, moved whole out of `main.ts` (#87).
+// Today — Home (`web/today.html`, W4 #91). The boards' two-column diary: the left column holds
+// the day label, the meal card, a proposal the composer is holding, and the empty/failed cards;
+// the right column (the frame's `side`) holds the week strip, the calorie card, the macro cards
+// with their dot switcher and page-2 nutrient set, the health-score row, and — on today — the
+// upload CTA plus the in-diary composer.
+//
+// EVERY WORD THE CARDS DRAW ARRIVES FROM THE SERVER OR FROM `home-copy.ts` — the bundle holds no
+// i18n catalog: a meal row's verdict line is `verdictInline`, the proposal's pills are
+// `verdictLabels`, and the score is the server's `dayHealthScore`, never recomputed here.
 
 import { dateMinus } from "../../shared/dates.ts";
-import { dayBudget, macroTone } from "../../shared/budget.ts";
-import { renderableVerdicts } from "../../shared/types.ts";
-import { LANG_TAG, UNIT_KCAL, countText, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
+import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
+import { LANG_TAG, countText, wholeNumbers } from "../../shared/lang.ts";
+import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
+import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
+import { shellCopyFor } from "../../shared/app/shell-copy.ts";
+import { ico, tagx, type ChipName, type WeekDayRow } from "../../shared/ui/kit.ts";
+import type { MealRecord } from "@eait/shared";
 import type {
-  DayResponse, PendingMealsResponse, ProfileResponse,
+  DayResponse, DaysResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
-import { api } from "../api.ts";
+import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
-import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { homeCopyFor } from "../../shared/app/home-copy.ts";
-import type { Localized } from "../../shared/lang.ts";
 import {
-  COPY, PENDING, composerRow, el, clear, firstMealDue, heldProposal, kcal, lang, profile,
-  proposalCard, sendOrKeep, setHeldProposal, takeTurn,
+  blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
+} from "../kit.ts";
+import {
+  COPY, DAYS, PENDING, behind, clear, composerRow, el, firstMealDue, heldProposal, kcal, kept,
+  keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
+  takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
+async function diaryScreen(frame: Frame): Promise<HTMLElement> {
+  const wrap = el("section", "home");
+  const me = await profile();
+  const uid = me.profile.user_id;
+  const L = homeCopyFor(lang);
+  const SC = scoresAppCopy(lang);
+  const S = shellCopyFor(lang);
+  const n = wholeNumbers(lang);
+  const gram = (v: number): string => fill(L.grams, { n: n(v) });
+  const count = countText(lang);
 
-async function diaryScreen(): Promise<HTMLElement> {
-  const wrap = el("section", "");
   // THE SERVER'S CALENDAR DAY, NOT UTC's, and not this device's either.
   //
   // `toISOString().slice(0, 10)` is the UTC date: after 22:00 in Berlin it names yesterday, so
   // between midnight and 02:00 the page asked for the previous day and put "Today" above it — with
   // yesterday's totals against today's target. The server dates every meal in `config.timezone` and
   // sends it in the profile precisely so a client stops guessing.
-  const me = await profile();
   const calendar = new Intl.DateTimeFormat("en-CA", {
     timeZone: me.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   });
   const today = calendar.format(new Date());
-  const uid = me.profile.user_id;
 
-  // THE DAY THE SWITCHER IS LOOKING AT — today until a chevron moves it (#71). `/v1/diary/day`
-  // answers for any date, so the only bound is the future, which has no diary yet.
+  // THE DAY THE STRIP IS LOOKING AT — today until a chevron or a week cell moves it (#71).
+  // `/v1/diary/day` answers for any date, so the only bound is the future, which has no diary yet.
   let viewing = today;
-  // A stored `YYYY-MM-DD` carries no time: formatting it at midday UTC keeps it from slipping a
-  // day either way — the same trick `dayLabel` uses for its own date.
+  /** The macro page the right column is on: 0 the left-form set, 1 the nutrient set (the dots). */
+  let page = 0;
+  /** The calorie toggle's other side on today-with-meals: left, or eaten after a tap. */
+  let showEaten = false;
+  /** A turn in flight — the logging state hides the upload CTA while one runs. */
+  let turning = false;
+  /** Queued draws collapse to the newest, as `drawing` does for `render()`. */
+  let dayDrawing = 0;
+
+  // The boards' date formats: "Thursday 24 September" on the bar and the column's label; the
+  // row's time is the account's timezone — the server's figures are already zoned.
   const dayFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
     timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
   });
   const dateText = (d: string): string => dayFmt.format(new Date(`${d}T12:00:00Z`));
+  const timeFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const mealTime = (iso: string): string => timeFmt.format(new Date(iso));
 
+  // The week containing `viewing` — Monday first, as the strips draw.
+  const mondayOf = (d: string): string =>
+    dateMinus(d, (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7);
+
+  const h1 = el("h1", "visually-hidden", S.navHome);
   const notice = el("p", "notice");
   notice.setAttribute("role", "alert");
   notice.hidden = true;
@@ -54,212 +89,213 @@ async function diaryScreen(): Promise<HTMLElement> {
     notice.hidden = words === null;
   };
 
-  // The day's own content — the switcher, the head card, the rows, a proposal the composer is
-  // holding — is what a turn redraws; the composer and the notice below stay put.
-  const board = el("div", "");
-  // A chevron tapped twice queues two draws; the newer one wins, as `drawing` does for `render()`.
-  let dayDrawing = 0;
+  // ── The bar: the streak chip, then the date and its arrows ──────────────────────────────
 
-  /** The day as the server now has it, redrawn after every write. */
-  async function draw(): Promise<void> {
-    const mine = ++dayDrawing;
-    const day = await api<DayResponse>(`/diary/day?date=${viewing}`);
-    if (mine !== dayDrawing) return;
-
-    // THE DATE SWITCHER, on a white bar at the top of the view: the chevrons at the two ends, the
-    // day centred between them. Its label is the ONE place the date is written — a relative day
-    // carries its name with the date as a quiet sub-line, and any other day's name IS the date,
-    // so nothing is ever printed twice.
-    const daybar = el("div", "daybar");
-    const prev = el("button", "daybtn", "‹") as HTMLButtonElement;
+  let barStreak = 0;
+  const barRow = (): void => {
+    clear(frame.bar);
+    // The streak chip goes FIRST — Home's own item sits before the date row, not beside the
+    // brand (the boards' wtop, design's ruling on #91).
+    if (barStreak > 0) {
+      frame.bar.append(kitEl(tagx({
+        icon: "streak", text: n(barStreak),
+        aria: fill(L.phoneStreakAria, { n: n(barStreak) }),
+      })));
+    }
+    const row = el("span", "homebar");
+    const prev = el("button", "darrow") as HTMLButtonElement;
     prev.type = "button";
     prev.setAttribute("aria-label", COPY.dayPrev);
+    prev.append(kitEl(ico("chevron-left")));
     prev.addEventListener("click", () => { viewing = dateMinus(viewing, 1); void draw(); });
-    const next = el("button", "daybtn", "›") as HTMLButtonElement;
+    const next = el("button", "darrow") as HTMLButtonElement;
     next.type = "button";
     next.setAttribute("aria-label", COPY.dayNext);
     next.disabled = viewing >= today;
+    next.append(kitEl(ico("chevron-right")));
     next.addEventListener("click", () => {
       if (viewing >= today) return;
       viewing = dateMinus(viewing, -1);
       void draw();
     });
-    const rel = viewing === today ? COPY.today
-      : viewing === dateMinus(today, 1) ? COPY.yesterday
-      : null;
-    const label = el("div", "daylabel");
-    // A HEADING, not a decorated div: it is the only thing naming the day on this screen, and
-    // `app-offline.pw.ts` finds the day by its role.
-    label.append(el("h2", "dayname", rel ?? dateText(viewing)));
-    if (rel !== null) label.append(el("p", "daysub muted", dateText(viewing)));
-    daybar.append(prev, label, next);
+    row.append(prev, el("span", "dlabel", dateText(viewing)), next);
+    frame.bar.append(row);
+  };
 
-    const head = el("div", "card");
-    const body = el("div", "");
-    head.append(body);
-    // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
-    // phone's (`dayBudget`), so the two can never round the one number apart.
+  // ── The right column ──────────────────────────────────────────────────────────────────
+
+  /**
+   * The calorie card. The 104 px toggle — "kcal left ⌄" tapping to eaten — exists ONLY on today
+   * with a logged meal (design's ruling); the 96 px detail form covers every other loaded state,
+   * and the failed read draws dashes. An over day reads "{n} kcal over" in --bad, as the week
+   * strip's rule says it in word and colour.
+   */
+  const kcalCard = (day: DayResponse | null, interactive: boolean): HTMLElement => {
+    const card = el("div", "card kcard");
+    const left = el("div", "");
+    const kfig = el("b", "num kfig");
+    if (day === null) {
+      kfig.textContent = "—";
+      left.append(kfig, el("span", "klab", fill(L.kcalLeftDetail, { eaten: "—", plan: "—" })));
+      card.append(left, ringEl({ share: 0, size: 96, icon: "kcal" }));
+      return card;
+    }
     const budget = dayBudget(day, today, me.profile.goal);
-    const n = wholeNumbers(lang);
-    if (budget.state === "unlogged") {
-      body.append(el("p", "muted", fill(COPY.targetLine, {
-        target: kcal(budget.target), protein: n(budget.protein.target),
-      })));
+    // The figure-and-label pair is `kcalCardState`'s one choice: the toggle's two faces, the
+    // past day's "eaten" — a finished day has nothing "left" — and the overage under "over".
+    const state = kcalCardState(budget, interactive && showEaten);
+    if (state.guessed) kfig.append(el("span", "about", COPY.about));
+    kfig.append(document.createTextNode(n(state.figure)));
+    left.append(kfig);
+    if (budget.warn) card.classList.add("over");
+    if (interactive) {
+      const lab = el("button", "klab ktg") as HTMLButtonElement;
+      lab.type = "button";
+      const label = state.label === "over" ? L.kcalOver : state.label === "eaten" ? L.kcalEaten : L.kcalLeft;
+      lab.setAttribute("aria-label", label);
+      lab.append(document.createTextNode(label), kitEl(ico("chevron-down")));
+      lab.addEventListener("click", () => { showEaten = !showEaten; void draw(); });
+      left.append(lab);
     } else {
-      const big = el("p", budget.warn ? "big warn" : "big");
-      // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
-      // OUTSIDE its span: the figure keeps the face's own spacing, so a leading "about" does not
-      // render with a hole in it. The unit is a third span for the same reason.
-      // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
-      // between them, and `app-diary.pw.ts` reads this line as one string.
-      if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
-      big.append(
-        el("span", "hero num", n(budget.kcal)),
-        el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
-      );
-      // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
-      const bar = document.createElement("progress");
-      bar.max = 1;
-      bar.value = budget.fill;
-      bar.setAttribute("aria-hidden", "true");
-      const eaten = el("p", "muted", fill(COPY.eatenLine, {
-        eaten: n(budget.eaten), target: kcal(budget.target),
-      }));
-      // THE MACRO COUNTERS (#71): the label stays neutral and the eaten/target figures take the
-      // tone `macroTone` computes — one rule for both clients, on the palette's tokens, never
-      // plain black. Saturated fat exists only for a declared restriction, like its target.
-      const g = spellUnit(lang, "g");
-      const counter = (name: string, macroEaten: number, macroTarget: number, kind: "protein" | "satfat"): HTMLElement => {
-        const cell = el("div", "stat-cell macro");
-        cell.append(
-          el("div", "lab", name),
-          el("div", `stat-num num tone-${macroTone(kind, macroEaten, macroTarget)}`, `${n(macroEaten)} / ${n(macroTarget)} ${g}`),
-        );
-        return cell;
-      };
-      const counters = el("div", "stats macros");
-      counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
-      if (day.targets.satfat_g !== undefined) {
-                // The counter's noun, `verdict.noun.ldl`'s words as a Localized map — the catalog lives
-        // server-side; W4's nutrient cards carry their own names.
-        counters.append(counter(t(lang)(SATFAT),
-          Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
-      }
-      body.append(big, bar, eaten, counters);
+      left.append(el("span", "klab", fill(
+        state.label === "over" ? L.kcalOverDetail
+          : state.label === "eaten" ? L.kcalEatenDetail : L.kcalLeftDetail,
+        { eaten: n(budget.eaten), plan: n(budget.target) },
+      )));
     }
-    // THE FLOOR IS A STATUS LINE, and the one place blue is spent on this screen. Never a tick on a
-    // scale and never a region on a chart: both were range machinery.
-    const stat = el("div", "stat");
-    stat.append(el("span", "floor", fill(
-      me.basis.floorApplied ? COPY.floorHeld : COPY.floorClear,
-      { floor: n(me.basis.floorKcal) },
-    )));
-    body.append(stat);
-    // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
-    // every launch and the target moves with it. Never "from Apple Health": the profile does not say
-    // which source wrote it. Days are counted on the server's calendar, like `today`.
-    const { weight_kg: kg, weight_measured_at: at } = me.profile;
-    // NaN when never weighed or unreadable, which drops the "weighed" clause rather than throwing in
-    // `format` and taking the whole diary down with it.
-    const weighed = Date.parse(at ?? "");
-    const days = Number.isNaN(weighed) ? null
-      : Math.max(0, (Date.parse(today) - Date.parse(calendar.format(weighed))) / 86_400_000);
-    // `Intl.RelativeTimeFormat` in the READER's language, not in "en" — it was the one formatter on
-    // this page with a locale hard-coded into it, and "2 days ago" under a German diary reads as a
-    // half-finished translation rather than as one missing string.
-    body.append(el("p", "muted", kg === null
-      ? COPY.connectHealth
-      : days === null
-        ? fill(COPY.weightLine, { kg: numbers(lang)(kg) })
-        : fill(COPY.weightLineWhen, {
-            kg: numbers(lang)(kg),
-            when: new Intl.RelativeTimeFormat(LANG_TAG[lang], { numeric: "auto" }).format(-days, "day"),
-          })));
+    card.append(left, ringEl({
+      share: budget.fill, size: interactive ? 104 : 96,
+      tone: budget.warn ? "bad" : "accent", icon: "kcal",
+    }));
+    return card;
+  };
 
-    const parts: HTMLElement[] = [daybar, head];
-    if (day.meals.length === 0) {
-      parts.push(el("p", "muted", COPY.nothingToday));
-    } else {
-      // A TABLE, WHICH IS THE SECOND THING THIS WINDOW DOES THAT A PHONE CANNOT. A phone shows four
-      // rows and a total; this shows the one guess sitting in a list of measured things, which is
-      // the strongest statement of the mechanism anywhere in the product.
-      //
-      // ONE WORDED FLAG IS NOT NEEDED HERE. Every guessed row already says so in its own figure,
-      // and a table makes the amber row visible as a row rather than as a sentence.
-      const table = document.createElement("table");
-      table.className = "meals";
-      const thead = document.createElement("thead");
-      const hrow = document.createElement("tr");
-      for (const [label, cls] of [[COPY.colTime, ""], [COPY.colMeal, ""], [COPY.colKcal, "num"]] as const) {
-        const th = document.createElement("th");
-        th.className = cls;
-        th.textContent = label;
-        hrow.append(th);
-      }
-      thead.append(hrow);
-      const tbody = document.createElement("tbody");
-      for (const meal of day.meals) {
-        const guessed = meal.confidence === "low" && !meal.corrected;
-        const tr = document.createElement("tr");
-        if (guessed) tr.className = "guessed";
-        const time = document.createElement("td");
-        time.className = "num muted";
-        time.textContent = new Intl.DateTimeFormat(LANG_TAG[lang], {
-          timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
-        }).format(new Date(meal.ts));
-        // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather
-        // than under an `analysis` key. Naming the first two items is what makes a list of numbers
-        // read as a list of meals.
-        const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
-        const name = document.createElement("td");
-        name.textContent = named === "" ? COPY.meal : named;
-        // The row's pills are the meal's OWN verdicts — computed by the server on the write and
-        // sent on the row (#52). A client that derived its own would be the second copy
-        // `verdictsFromTargets` exists to prevent.
-        const labels = meal.verdictLabels ?? [];
-        if (labels.length > 0) {
-          const pills = el("span", "pills");
-          // The words arrive on the row — composed where the verdict was, never here.
-          for (const v of labels) pills.append(el("span", `pill ${v.tone}`, v.label));
-          name.append(pills);
-        }
-        const num = document.createElement("td");
-        num.className = "num";
-        if (guessed) num.append(el("span", "about", `${COPY.about} `));
-        num.append(el("span", "num", wholeNumbers(lang)(meal.kcal)));
-        tr.append(time, name, num);
-        tbody.append(tr);
-      }
-      table.append(thead, tbody);
-      parts.push(table);
+  /**
+   * A left-form macro card — "{n} g" over "{Macro} left" (or "{Macro} over", muted, the ring
+   * closed in its own colour, per the overseer's §F.6 default — never red). The share is
+   * eaten/target; without a target there is no ring to draw.
+   */
+  const macroCard = (macro: ChipName, copy: HomeTargetMacroCopy,
+    eaten: number, target: number | undefined): Element => {
+    const over = target !== undefined && eaten > target;
+    return mcardEl({
+      macro,
+      value: gram(over ? eaten - target : target !== undefined ? macroLeft(target, eaten) : eaten),
+      label: over ? copy.over : copy.left,
+      ...(target !== undefined ? { share: target > 0 ? Math.min(1, eaten / target) : 1 } : {}),
+    });
+  };
+
+  /**
+   * The compact centred card the empty and logging boards draw — the eaten figure over
+   * "of {target} {macro}", ringed where a target exists, the flat icon where it does not.
+   */
+  const ofTargetCard = (macro: ChipName, copy: HomeTargetMacroCopy,
+    eaten: number, target: number | undefined): Element =>
+    mcardEl({
+      macro, centred: true, value: gram(eaten),
+      label: target !== undefined ? fill(copy.ofTarget, { target: n(target) }) : copy.name,
+      ...(target !== undefined ? { share: target > 0 ? Math.min(1, eaten / target) : 0 } : {}),
+    });
+
+  /** A flat nutrient card — page 2's fibre/sugar/sodium carry no ring (no declared cap). */
+  const flatCard = (icon: "fibre" | "sugar" | "salt", value: string, label: string): Element =>
+    mcardEl({ macro: icon, value, label });
+
+  /**
+   * The sodium card when kidneys are declared — the cap's ring is drawn in ink (sodium has no
+   * macro colour to borrow — the kit's mcard takes salt-with-share for exactly this) over
+   * "Sodium left"/"Sodium over". Flat salt icon otherwise.
+   */
+  const sodiumCard = (eaten: number, target: number | undefined): Element => {
+    if (target === undefined) return flatCard("salt", fill(L.milligrams, { n: n(eaten) }), L.macros.sodium.name);
+    const over = eaten > target;
+    return mcardEl({
+      macro: "salt",
+      value: fill(L.milligrams, { n: n(over ? eaten - target : macroLeft(target, eaten)) }),
+      label: over ? L.macros.sodium.over : L.macros.sodium.left,
+      share: over || target <= 0 ? 1 : eaten / target,
+    });
+  };
+
+  /** The two-dot page switcher — real buttons on 44 px areas, the active one ink. */
+  const dots = (): HTMLElement => {
+    const row = el("div", "dots");
+    for (const p of [0, 1] as const) {
+      const b = el("button", p === page ? "on" : "") as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("aria-label", fill(L.webPage, { n: n(p + 1), total: n(2) }));
+      b.append(el("i", ""));
+      b.addEventListener("click", () => { page = p; void draw(); });
+      row.append(b);
     }
-    // A proposal the composer's text turn is holding stands on the diary too — the diary is where
-    // the meal lands. Same rules as the thread's: answered by the row it made, or by its clock.
-    const held = heldProposal();
-    if (held !== null && day.meals.some((m) => m.id === held.pendingId)) setHeldProposal(null);
-    if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) setHeldProposal(null);
-    if (heldProposal() !== null) {
-      const p = heldProposal()!;
-      const home = homeCopyFor(lang);
-      parts.push(proposalCard(p, turn, {
-        lead: home.webProposalLead.replace("{day}", p.date === today ? home.todayWord : dateText(p.date)),
-        accept: home.webLogIt,
-        decline: home.webProposalNo,
-      }));
+    return row;
+  };
+
+  /** The health-score row — a link card opening the per-day score board. */
+  const scoreRow = (day: DayResponse): Element | null => {
+    if (day.healthScore === null) return null;
+    const a = el("button", "hsr day") as HTMLButtonElement;
+    a.type = "button";
+    const line = el("span", "hline");
+    const hnum = el("span", "row");
+    hnum.style.gap = "4px";
+    hnum.append(el("b", "num hnum", fill(SC.outOf, { n: n(day.healthScore) })));
+    const chev = el("i", "chev");
+    chev.append(kitEl(ico("chevron-right")));
+    hnum.append(chev);
+    line.append(el("span", "hscore", SC.title), hnum);
+    const track = el("span", "hsb");
+    const fillEl = el("i", "");
+    fillEl.style.width = `${Math.max(0, Math.min(100, day.healthScore * 10))}%`;
+    track.append(fillEl);
+    const scored = day.meals.filter((m) => m.healthScore !== null).length;
+    a.append(line, track, el("span", "hfrom", count(SC.todayFromMeals, scored)));
+    a.addEventListener("click", () => openScore(day));
+    return a;
+  };
+
+  /** The per-day score board (`web/today-score.html`): title, method line, one row per meal. */
+  const openScore = (day: DayResponse): void => {
+    const overlay = el("div", "scorewrap");
+    const card = el("div", "card scorecard");
+    const title = el("div", "stitle");
+    title.append(
+      el("b", "", SC.breakdownTitle),
+      el("b", "snum", fill(SC.outOf, { n: n(day.healthScore ?? 0) })),
+    );
+    card.append(title, el("p", "sline", SC.breakdownLine));
+    for (const meal of day.meals) {
+      if (meal.healthScore === null) continue;
+      const row = el("a", "hsp") as HTMLAnchorElement;
+      row.href = `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`;
+      const name = el("span", "");
+      name.append(document.createTextNode(names(meal.items)), el("small", "", kcal(meal.kcal)));
+      const pts = el("span", "pts", fill(SC.outOf, { n: n(meal.healthScore.score) }));
+      const chev = el("i", "chev");
+      chev.append(kitEl(ico("chevron-right")));
+      row.append(name, pts, chev);
+      row.addEventListener("click", () => { overlay.remove(); });
+      card.append(row);
     }
-    clear(board).append(...parts);
-  }
+    const done = el("button", "cta p", L.webDone) as HTMLButtonElement;
+    done.type = "button";
+    done.addEventListener("click", () => overlay.remove());
+    card.append(done);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.append(card);
+    document.body.append(overlay);
+  };
 
-  // One write, then the day AS THE SERVER NOW HAS IT — the diary's composer posts like the chat's
-  // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
-  const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
+  // ── The composer (today only) ──────────────────────────────────────────────────────────
 
-  const comp = composerRow(homeCopyFor(lang).webComposerPlaceholder);
-  const { picker, words, send, count } = comp;
+  /** The in-diary composer — the boards' shared one (`composerRow`), text or photos. */
+  const comp = composerRow(L.webComposerPlaceholder);
+  const { picker, words, send, count: photoCount } = comp;
   const arm = (): void => {
     const picked = picker.files?.length ?? 0;
-    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
-    count.hidden = count.textContent === "";
+    photoCount.textContent = picked > 0 ? count(COPY.photosCount, picked) : "";
+    photoCount.hidden = photoCount.textContent === "";
     send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
   };
   picker.addEventListener("change", arm);
@@ -272,36 +308,238 @@ async function diaryScreen(): Promise<HTMLElement> {
     if (files.length > 0) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
       if (files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
-      if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
+      if (files.reduce((t, f) => t + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
-      // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it landed,
-      // not a past day the switcher was looking at.
+      // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
+      // landed, not a past day the strip was looking at.
       viewing = today;
-      if (files.length > 0) {
-        const saved = await sendOrKeep({
-          id: crypto.randomUUID(), userId: uid, kind: "photo", text: text === "" ? null : text,
-          photos: files, capturedAt: new Date().toISOString(),
-        });
-        picker.value = "";
-        words.value = "";
-        arm();
-        return saved;
-      }
-      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid, kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid, capturedAt: new Date().toISOString(),
+        kind: files.length > 0 ? "photo" : "text", text: text === "" ? null : text,
+        photos: files,
+      });
+      picker.value = "";
       words.value = "";
+      arm();
       return saved;
     });
   });
   arm();
 
+  // ── The draw ──────────────────────────────────────────────────────────────────────────
+
+  /** The day as the server now has it, redrawn after every write and every navigation. */
+  async function draw(): Promise<void> {
+    const mine = ++dayDrawing;
+    const monday = mondayOf(viewing);
+    const [dayR, daysR] = await Promise.all([
+      api<DayResponse>(`/diary/day?date=${viewing}`)
+        .then((d) => ({ ok: true as const, d }))
+        .catch(() => ({ ok: false as const })),
+      api<DaysResponse>(`${DAYS}?from=${monday}&to=${dateMinus(monday, -6)}`)
+        .then((d) => ({ ok: true as const, d }))
+        .catch(() => ({ ok: false as const })),
+    ]);
+    if (mine !== dayDrawing) return;
+
+    const day = dayR.ok ? dayR.d : null;
+    if (daysR.ok) barStreak = daysR.d.streak;
+    barRow();
+
+    // A proposal the composer is holding stands on the diary too — the diary is where the meal
+    // lands. Same rules as the thread's: answered by the row it made, or by its clock.
+    if (heldProposal() !== null && day !== null && day.meals.some((m) => m.id === heldProposal()!.pendingId)) {
+      setHeldProposal(null);
+    }
+    if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) {
+      setHeldProposal(null);
+    }
+
+    const isToday = viewing === today;
+    const hasMeals = day !== null && day.meals.length > 0;
+    const logging = heldProposal() !== null || turning;
+    // Page 2 exists only where its dots do — today with logged meals, nothing in flight.
+    const rich = isToday && hasMeals && !logging;
+    if (!rich) page = 0;
+
+    // ── The left column: the label, the meals, the proposal, the empty/failed card ──
+    // The boards' own twist: the column's label is "Recently uploaded" on today-with-meals and
+    // the VIEWED DATE everywhere else (empty, logging, past, failed).
+    const left: Element[] = [el("span", isToday && hasMeals ? "mealtitle" : "lab",
+      isToday && hasMeals ? L.recentlyUploaded : dateText(viewing))];
+    if (day === null) {
+      const card = el("div", "card failcard");
+      const say = el("div", "say");
+      const words = el("div", "");
+      words.append(el("p", "", L.diaryFailed));
+      const retry = el("button", "cta s") as HTMLButtonElement;
+      retry.type = "button";
+      retry.append(kitEl(ico("retry")), document.createTextNode(L.tryAgain));
+      retry.addEventListener("click", () => { void draw(); });
+      words.append(retry);
+      say.append(spudAvatarEl("care"), words);
+      card.append(say);
+      left.push(card);
+    } else if (day.meals.length === 0) {
+      const card = el("div", "emptycard");
+      const plate = el("span", "plate");
+      plate.setAttribute("aria-hidden", "true");
+      const say = el("div", "say rise");
+      say.append(spudAvatarEl("happy"), el("p", "", L.nothingLogged));
+      card.append(plate, say);
+      left.push(card);
+    } else {
+      const card = el("div", "card meals");
+      for (const meal of day.meals) {
+        card.append(mealRow(meal));
+      }
+      left.push(card);
+    }
+    if (heldProposal() !== null) {
+      // The shell's own proposal card — confirm/cancel/410 is its one implementation.
+      const card = proposalCard(heldProposal()!, turn, {
+        lead: fill(L.webProposalLead, {
+          day: heldProposal()!.date === today ? L.todayWord : dateText(heldProposal()!.date),
+        }),
+        accept: L.webLogIt,
+        decline: L.webProposalNo,
+      });
+      card.classList.add("rise");
+      left.push(card);
+    }
+
+    // ── The right column: the strip, the kcal card, the macro pages, the score, the actions ──
+    const right: Element[] = [];
+    if (daysR.ok) {
+      const strip = el("div", "weekwrap");
+      const rows: WeekDayRow[] = daysR.d.days.map((d) => ({ ...d, targetKcal: daysR.d.targetKcal }));
+      strip.append(weekStripEl(rows, (date) => {
+        if (date > today) return; // future cells carry no `data-date` — this is belt and braces
+        viewing = date;
+        void draw();
+      }, viewing));
+      right.push(strip);
+    }
+
+    right.push(kcalCard(day, rich));
+
+    if (day === null) {
+      // The failed day's dashes — flat icons, "— g", bare names.
+      const mcards = el("div", "mcards");
+      for (const [macro, copy] of [
+        ["protein", L.macros.protein], ["carbs", L.macros.carbs], ["satfat", L.macros.satFat],
+      ] as const) {
+        mcards.append(mcardEl({ macro, centred: true, value: fill(L.grams, { n: "—" }), label: copy.name }));
+      }
+      right.push(mcards);
+    } else if (rich) {
+      if (page === 0) {
+        const mcards = el("div", "mcards");
+        mcards.append(
+          macroCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
+          macroCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), day.targets.carbs_g),
+          macroCard("fat", L.macros.fat, Math.round(day.totals.fat_g), day.targets.fat_g),
+        );
+        right.push(mcards);
+      } else {
+        // Page 2 — the nutrient cards: saturated fat ringed when the marker is declared, fibre,
+        // sugar and sodium flat (sodium ringed only when kidneys are declared).
+        const mcards = el("div", "mcards p2");
+        mcards.append(
+          macroCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
+          flatCard("fibre", gram(Math.round(day.totals.fiber_g)), L.macros.fibre.name),
+          flatCard("sugar", gram(Math.round(day.totals.sugar_g)), L.macros.sugar.name),
+          sodiumCard(Math.round(day.totals.sodium_mg), day.targets.sodium_mg),
+        );
+        right.push(mcards);
+        const hsr = scoreRow(day);
+        if (hsr !== null) right.push(hsr);
+      }
+      right.push(dots());
+    } else if (isToday) {
+      // The compact of-target set — the empty and the logging boards' form. A past day draws no
+      // macro cards at all (today-past.html).
+      const mcards = el("div", "mcards");
+      mcards.append(
+        ofTargetCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
+        ofTargetCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), undefined),
+        ofTargetCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
+      );
+      right.push(mcards);
+    }
+
+    // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
+    // (today-logging draws compose with no CTA) — and the composer. The failed board draws
+    // neither: its right column ends at the dash cards.
+    if (isToday && day !== null) {
+      if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
+      right.push(comp.form);
+    }
+
+    clear(wrap).append(h1, ...left, notice);
+    clear(frame.side).append(...right);
+  }
+
+  /** A meal row: the photo or the chat tile, the time, the verdict line, the gram chips. */
+  const mealRow = (meal: MealRecord): Element => {
+    // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
+    // prefix. The board draws `.meal` without a glyph; the link is the affordance.
+    const row = mealRowEl(meal, {
+      time: mealTime(meal.ts),
+      ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
+      href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
+    });
+    // The photo rides behind the bearer — `apiBlob`'s bytes through `blobSrc`, a data URL: the
+    // one `src` form `img-src 'self' data:` permits.
+    if ((meal.photos ?? 0) > 0) {
+      const id = meal.id;
+      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (blob) => {
+        if (!row.isConnected) return;
+        const img = document.createElement("img");
+        img.className = "ph";
+        img.src = await blobSrc(blob);
+        img.alt = "";
+        row.querySelector(".ph")?.replaceWith(img);
+      }).catch(() => {});
+    }
+    return row;
+  };
+
+  // One write, then the day AS THE SERVER NOW HAS IT — the diary's composer posts like the chat's
+  // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
+  const turn = (write: () => Promise<string | void>): void => {
+    turning = true;
+    // The composer and the cards live in the side column — outside `wrap` — so they are locked by
+    // hand for the turn's span (takeTurn's own sweep covers `wrap`'s controls only); the redraw at
+    // the turn's end rebuilds them enabled. The upload CTA is a link, so nothing disables it —
+    // the logging board's rule is it hides while the turn is out; the draw re-adds it.
+    for (const c of frame.side.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) {
+      c.disabled = true;
+    }
+    frame.side.querySelector(".cta")?.remove();
+    takeTurn(wrap, tell, draw, uid, async () => {
+      try {
+        return await write();
+      } finally {
+        turning = false;
+      }
+    });
+  };
+
   // A proposal made on Chat stands here too — read back once, like the thread's, when the page
   // holds nothing of it.
-  if (heldProposal() === null) setHeldProposal((await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null);
+  if (heldProposal() === null) {
+    setHeldProposal((await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null);
+  }
   await draw();
-  // One h1 per page, and the boards draw no centred title on web — it stays for the landmark and
-  // is clipped rather than shown. The day card's "Today" stays the h2 inside it.
-  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navHome), board, notice, comp.form);
+
+  setRedraw(async () => { if (wrap.isConnected) await draw(); });
+  // A kept turn's notice carried from a screen that is gone is decided again now: minutes may
+  // have passed, and the turn may have gone meanwhile.
+  const carried = takeCarried();
+  if (carried !== null) tell(carried === kept() || carried === behind() ? keptNotice(uid) : carried);
+
   return wrap;
 }
 
@@ -312,27 +550,20 @@ async function diaryScreen(): Promise<HTMLElement> {
  * ("empty means absent, not zero"), so an empty window over the whole diary horizon the server
  * will reach back to IS "nothing logged yet" — asked at the server's own `diaryWindowDays`, never
  * a compiled-in copy.
- */
-/**
+ *
  * The free meal is offered to exactly the account that still has it: onboarded, not entitled, the
- * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing logged.
- * "No meals this week" alone would offer a paying user back from a holiday one meal on us.
+ * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing
+ * logged. "No meals this week" alone would offer a paying user back from a holiday one meal on us.
  */
-/** "Saturated fat" — the sat-fat counter's noun until W4's nutrient cards replace the counters. */
-const SATFAT: Localized<string> = {
-  en: "Saturated fat", de: "Gesättigte Fette", es: "Grasas saturadas", fr: "Graisses saturées",
-  id: "Lemak jenuh", it: "Grassi saturi", ru: "Насыщенные жиры", vi: "Chất béo bão hoà",
-};
-
-export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
+export async function homeScreen(frame: Frame): Promise<HTMLElement> {
   // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`). The profile in the
   // frame is the session's cached read — a meal logged this session flipped `hasLoggedMeal`
   // without the cache knowing, so a cached "first" is re-verified on a fresh read before the
   // free-meal flow shows; a stale one silently never did (the diary for somebody who HAS logged
   // is the failure the gate exists to prevent).
-  if (firstMealDue(me)) {
-    const fresh = await api<ProfileResponse>("/profile").catch(() => me);
+  if (firstMealDue(frame.me)) {
+    const fresh = await api<ProfileResponse>("/profile").catch(() => frame.me);
     if (firstMealDue(fresh)) return firstMealScreen(fresh);
   }
-  return diaryScreen();
+  return diaryScreen(frame);
 }

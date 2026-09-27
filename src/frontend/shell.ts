@@ -72,7 +72,7 @@ export const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 export const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 export const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
 export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
-
+export const DAYS: Under<typeof ROUTES.days> = "/diary/days";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
@@ -628,6 +628,13 @@ export async function flush(): Promise<void> {
 export interface Frame {
   me: ProfileResponse | null;
   bar: HTMLElement;
+  /**
+   * The screen's own SECOND column — the boards' two-column `wmain` (W4's Home draws the week
+   * strip and the cards there). Like `bar`: append into it or leave it empty; a column with
+   * children drops `one` off `wmain` and joins the grid. It is not a landmark — `main.wcol`
+   * stays the page's content.
+   */
+  side: HTMLElement;
 }
 export type ScreenFn = (frame: Frame) => Promise<HTMLElement> | HTMLElement;
 
@@ -690,12 +697,16 @@ export async function render(): Promise<void> {
   }
   if (mine !== drawing) return;
   const right = el("span", "wr");
+  const side = el("div", "wcol");
   app.append(chrome(route, right), wrap);
   body.textContent = COPY.loading;
   try {
-    const screen = await screenFor(route, { me: profileCache, bar: right });
+    const screen = await screenFor(route, { me: profileCache, bar: right, side });
     if (mine !== drawing) return;
     clear(body).append(screen);
+    // A screen that filled its side column takes the boards' two-column `wmain` (W4's Home);
+    // `one` stays for everybody else.
+    if (side.childElementCount > 0) { wrap.classList.remove("one"); wrap.append(side); }
     // Whatever was kept the last time this browser had no connection, now that there is a session.
     void flush();
   } catch (err) {

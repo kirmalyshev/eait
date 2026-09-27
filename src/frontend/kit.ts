@@ -22,6 +22,19 @@ import {
 import { lang, names } from "./shell.ts";
 
 /**
+ * Blob bytes → a data URL. `URL.createObjectURL` is never the answer on this page: `img-src`
+ * refuses `blob:` outright and `connect-src 'self'` refuses the fetch that would copy it, so the
+ * FileReader's read is the only leg an `<img>` can keep — and there is nothing to revoke after.
+ */
+export const blobSrc = (blob: Blob): Promise<string> =>
+  new Promise((ok, no) => {
+    const r = new FileReader();
+    r.onload = () => ok(r.result as string);
+    r.onerror = () => no(r.error);
+    r.readAsDataURL(blob);
+  });
+
+/**
  * Kit markup → one element. The builders all return a single root. `DOMParser` over
  * `createElementNS` because the components ARE markup — a parse keeps the string the one copy.
  */
@@ -111,8 +124,9 @@ export const gabieNameEl = (name: string): Element => kitEl(gabieNameMarkup(name
 export function weekStripEl(
   days: readonly WeekDayRow[],
   onPick?: (date: string) => void,
+  now?: string,
 ): Element {
-  const el_ = kitEl(weekStripMarkup(days, lang));
+  const el_ = kitEl(weekStripMarkup(days, lang, now));
   if (onPick !== undefined) {
     el_.addEventListener("click", (e) => {
       const cell = (e.target as Element | null)?.closest?.("[data-date]");

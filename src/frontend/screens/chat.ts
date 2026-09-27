@@ -20,7 +20,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
+import { blobSrc, gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
@@ -75,10 +75,6 @@ export async function chatScreen(): Promise<HTMLElement> {
   // newer turn retires them. Matched onto the newest assistant line of the same words.
   let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
 
-  // Object URLs this draw is showing — the stored photos arrive as bearer blobs. Revoked with the
-  // lines they sit on at the next draw, never at parse.
-  let urls: string[] = [];
-
   // Which stored lines the rise has already played for — a redraw animates what is NEW, not the
   // whole thread again (the boards play the column once, on arrival).
   const seen = new Set<string>();
@@ -98,8 +94,6 @@ export async function chatScreen(): Promise<HTMLElement> {
     }
     const entries = lastThreadEntries();
     const keptLines = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
-    urls.forEach((u) => URL.revokeObjectURL(u));
-    urls = [];
 
     // The proposal's clock is the server's own (#367): a confirm off the thread's meal list is
     // done; past `expiresAt` the card stands without its offers, the timed-out line where they
@@ -226,11 +220,9 @@ export async function chatScreen(): Promise<HTMLElement> {
       const li = el("li", `me dim${e.held !== undefined ? " held" : ""}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
       if (e.kind === "photo" && e.photos.length > 0) {
         const hero = el("div", "hero");
-        const url = URL.createObjectURL(e.photos[0]!);
-        urls.push(url);
         const img = el("img", "") as HTMLImageElement;
         img.alt = "";
-        img.src = url;
+        void blobSrc(e.photos[0]!).then((src) => { img.src = src; });
         hero.append(img, el("div", "stamp", timeFmt(new Date(e.capturedAt))));
         li.append(hero);
         if (e.text !== null) li.append(el("p", "cap", e.text));
@@ -369,10 +361,9 @@ export async function chatScreen(): Promise<HTMLElement> {
       img.alt = "";
       headWrap.append(img, col!);
       card.append(headWrap);
-      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((url) => {
-        if (!img.isConnected) { URL.revokeObjectURL(url); return; }
-        urls.push(url);
-        img.src = url;
+      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then(async (blob) => {
+        if (!img.isConnected) return;
+        img.src = await blobSrc(blob);
       }).catch(() => {});
     } else {
       card.append(head);
@@ -436,14 +427,13 @@ export async function chatScreen(): Promise<HTMLElement> {
     return b;
   };
 
-  /** A stored photo into its hero — bearer bytes as an object URL, never a token in a src. */
+  /** A stored photo into its hero — bearer bytes as a DATA URL, never a token in a src. */
   const photoInto = (hero: HTMLElement, mealId: string): void => {
-    void apiBlob(`/meals/${encodeURIComponent(mealId)}/photos/0`).then((url) => {
-      if (!hero.isConnected) { URL.revokeObjectURL(url); return; }
-      urls.push(url);
+    void apiBlob(`/meals/${encodeURIComponent(mealId)}/photos/0`).then(async (blob) => {
+      if (!hero.isConnected) return;
       const img = el("img", "") as HTMLImageElement;
       img.alt = "";
-      img.src = url;
+      img.src = await blobSrc(blob);
       hero.prepend(img);
     }).catch(() => { /* a photo that won't read draws the hero's own paper */ });
   };
