@@ -236,6 +236,29 @@ export interface YouCopy {
     discardTitle: string;
     discardCancel: string;
     discardConfirm: string;
+
+    // ── the flat card's own pickers — units' labels are `web.units*` above ──
+    /** The Language row's label — "Language". */
+    language: string;
+    /** The Appearance row's label — "Appearance" (the phone follows its own theme setting). */
+    appearance: string;
+    /** The theme picker's three answers — "Light" / "Dark" / "System". */
+    themeLight: string;
+    themeDark: string;
+    themeSystem: string;
+
+    // ── the sign-out rows' confirmations — the account board draws the rows; the questions ──
+    // ── are the phone's own guard against a one-tap sign-out ──
+    /** "Sign out?" — and what stays behind. */
+    signOutTitle: string;
+    signOutBody: string;
+    /** "Sign out everywhere?" — the everywhere one is also destructive here, so it says so. */
+    signOutEverywhereTitle: string;
+    signOutEverywhereBody: string;
+    /** The alerts' cancel. */
+    cancel: string;
+    /** The first confirm — "Sign out"; the second's is `signOutEverywhere`, same words. */
+    signOutConfirm: string;
   };
 }
 
@@ -330,6 +353,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "This cannot be undone.",
       keepIt: "Keep it",
       deleteConfirm: "Delete",
+      language: "Language",
+      appearance: "Appearance",
+      themeLight: "Light",
+      themeDark: "Dark",
+      themeSystem: "System",
+      signOutTitle: "Sign out?",
+      signOutBody: "Your meals stay on your account. Sign in again on any device to get them back.",
+      signOutEverywhereTitle: "Sign out everywhere?",
+      signOutEverywhereBody: "Every device and browser signed into this account is signed out, including this phone. Your meals stay on your account — sign in again to get them back.",
+      cancel: "Cancel",
+      signOutConfirm: "Sign out",
       discardTitle: "Discard changes?",
       discardCancel: "Keep editing",
       discardConfirm: "Discard",
@@ -425,6 +459,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "C'est irréversible.",
       keepIt: "Garder",
       deleteConfirm: "Supprimer",
+      language: "Langue",
+      appearance: "Apparence",
+      themeLight: "Clair",
+      themeDark: "Sombre",
+      themeSystem: "Système",
+      signOutTitle: "Se déconnecter ?",
+      signOutBody: "Tes repas restent sur ton compte. Reconnecte-toi sur n'importe quel appareil pour les retrouver.",
+      signOutEverywhereTitle: "Se déconnecter partout ?",
+      signOutEverywhereBody: "Tous les appareils et navigateurs connectés à ce compte sont déconnectés, y compris ce téléphone. Tes repas restent sur ton compte — reconnecte-toi pour les retrouver.",
+      cancel: "Annuler",
+      signOutConfirm: "Se déconnecter",
       discardTitle: "Ignorer les modifications ?",
       discardCancel: "Continuer la modification",
       discardConfirm: "Ignorer",
@@ -520,6 +565,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Das lässt sich nicht rückgängig machen.",
       keepIt: "Behalten",
       deleteConfirm: "Löschen",
+      language: "Sprache",
+      appearance: "Erscheinungsbild",
+      themeLight: "Hell",
+      themeDark: "Dunkel",
+      themeSystem: "System",
+      signOutTitle: "Abmelden?",
+      signOutBody: "Deine Mahlzeiten bleiben auf deinem Konto. Melde dich auf einem beliebigen Gerät wieder an, um sie zurückzubekommen.",
+      signOutEverywhereTitle: "Überall abmelden?",
+      signOutEverywhereBody: "Alle Geräte und Browser, die mit diesem Konto angemeldet sind, werden abgemeldet — auch dieses Telefon. Deine Mahlzeiten bleiben auf deinem Konto — melde dich wieder an, um sie zurückzubekommen.",
+      cancel: "Abbrechen",
+      signOutConfirm: "Abmelden",
       discardTitle: "Änderungen verwerfen?",
       discardCancel: "Weiter bearbeiten",
       discardConfirm: "Verwerfen",
@@ -615,6 +671,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "vengono eliminati. Non si può annullare.",
       keepIt: "Tienilo",
       deleteConfirm: "Elimina",
+      language: "Lingua",
+      appearance: "Aspetto",
+      themeLight: "Chiaro",
+      themeDark: "Scuro",
+      themeSystem: "Sistema",
+      signOutTitle: "Uscire?",
+      signOutBody: "I tuoi pasti restano sul tuo account. Accedi di nuovo su qualsiasi dispositivo per ritrovarli.",
+      signOutEverywhereTitle: "Uscire da tutti i dispositivi?",
+      signOutEverywhereBody: "Tutti i dispositivi e i browser connessi a questo account vengono disconnessi, incluso questo telefono. I tuoi pasti restano sul tuo account — accedi di nuovo per ritrovarli.",
+      cancel: "Annulla",
+      signOutConfirm: "Esci",
       discardTitle: "Scartare le modifiche?",
       discardCancel: "Continua a modificare",
       discardConfirm: "Scarta",
@@ -710,6 +777,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "No se puede deshacer.",
       keepIt: "Conservar",
       deleteConfirm: "Eliminar",
+      language: "Idioma",
+      appearance: "Apariencia",
+      themeLight: "Claro",
+      themeDark: "Oscuro",
+      themeSystem: "Sistema",
+      signOutTitle: "¿Cerrar sesión?",
+      signOutBody: "Tus comidas se quedan en tu cuenta. Vuelve a iniciar sesión en cualquier dispositivo para recuperarlas.",
+      signOutEverywhereTitle: "¿Cerrar sesión en todas partes?",
+      signOutEverywhereBody: "Todos los dispositivos y navegadores conectados a esta cuenta se desconectan, incluido este teléfono. Tus comidas se quedan en tu cuenta — vuelve a iniciar sesión para recuperarlas.",
+      cancel: "Cancelar",
+      signOutConfirm: "Cerrar sesión",
       discardTitle: "¿Descartar los cambios?",
       discardCancel: "Seguir editando",
       discardConfirm: "Descartar",
@@ -805,6 +883,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Không thể hoàn tác.",
       keepIt: "Giữ lại",
       deleteConfirm: "Xóa",
+      language: "Ngôn ngữ",
+      appearance: "Giao diện",
+      themeLight: "Sáng",
+      themeDark: "Tối",
+      themeSystem: "Hệ thống",
+      signOutTitle: "Đăng xuất?",
+      signOutBody: "Các bữa ăn của bạn vẫn nằm trong tài khoản. Đăng nhập lại trên bất kỳ thiết bị nào để lấy lại chúng.",
+      signOutEverywhereTitle: "Đăng xuất ở mọi nơi?",
+      signOutEverywhereBody: "Mọi thiết bị và trình duyệt đang đăng nhập vào tài khoản này đều bị đăng xuất, kể cả chiếc điện thoại này. Các bữa ăn của bạn vẫn nằm trong tài khoản — đăng nhập lại để lấy lại chúng.",
+      cancel: "Huỷ",
+      signOutConfirm: "Đăng xuất",
       discardTitle: "Bỏ các thay đổi?",
       discardCancel: "Tiếp tục chỉnh sửa",
       discardConfirm: "Bỏ",
@@ -900,6 +989,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Ini tidak bisa dibatalkan.",
       keepIt: "Simpan",
       deleteConfirm: "Hapus",
+      language: "Bahasa",
+      appearance: "Tampilan",
+      themeLight: "Terang",
+      themeDark: "Gelap",
+      themeSystem: "Sistem",
+      signOutTitle: "Keluar?",
+      signOutBody: "Makananmu tetap ada di akunmu. Masuk lagi di perangkat apa pun untuk mendapatkannya kembali.",
+      signOutEverywhereTitle: "Keluar di semua perangkat?",
+      signOutEverywhereBody: "Semua perangkat dan browser yang masuk ke akun ini dikeluarkan, termasuk ponsel ini. Makananmu tetap ada di akunmu — masuk lagi untuk mendapatkannya kembali.",
+      cancel: "Batal",
+      signOutConfirm: "Keluar",
       discardTitle: "Buang perubahan?",
       discardCancel: "Lanjutkan mengedit",
       discardConfirm: "Buang",
@@ -995,6 +1095,17 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Это необратимо.",
       keepIt: "Оставить",
       deleteConfirm: "Удалить",
+      language: "Язык",
+      appearance: "Внешний вид",
+      themeLight: "Светлая",
+      themeDark: "Тёмная",
+      themeSystem: "Как в системе",
+      signOutTitle: "Выйти?",
+      signOutBody: "Твои приёмы пищи остаются в аккаунте. Войди снова на любом устройстве, чтобы вернуть их.",
+      signOutEverywhereTitle: "Выйти везде?",
+      signOutEverywhereBody: "Все устройства и браузеры, вошедшие в этот аккаунт, выходят из него — включая этот телефон. Твои приёмы пищи остаются в аккаунте — войди снова, чтобы вернуть их.",
+      cancel: "Отмена",
+      signOutConfirm: "Выйти",
       discardTitle: "Сбросить изменения?",
       discardCancel: "Продолжить",
       discardConfirm: "Сбросить",
