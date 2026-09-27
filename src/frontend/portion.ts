@@ -87,24 +87,3 @@ export function firstMealEdit(
   return { items, ...totals };
 }
 
-/**
- * The item a rough-guess card's composed question names — the one with the most grams, a tie to
- * the first listed (design-pro on #92). Nothing is asked when no item carries grams.
- */
-export const roughPick = (items: readonly MealItem[]): MealItem | null => {
-  let pick: MealItem | null = null;
-  for (const it of items) {
-    if (it.grams > 0 && (pick === null || it.grams > pick.grams)) pick = it;
-  }
-  return pick;
-};
-
-/**
- * The grams the composed answers mean: "Half that" is grams ÷ 2 rounded to 5 g; "More like
- * {n} g" is grams × 1.5 rounded UP to the next 50 g at 100 g or more, the next 10 g below it —
- * 150 → 250, as the board draws (design-pro on #92).
- */
-export const roughGrams = (grams: number): { half: number; more: number } => ({
-  half: Math.max(5, Math.round(grams / 10) * 5),
-  more: Math.ceil((grams * 1.5) / (grams >= 100 ? 50 : 10)) * (grams >= 100 ? 50 : 10),
-});

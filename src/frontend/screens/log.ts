@@ -1,38 +1,47 @@
 // The log surface — `#/log` (W5, #92). The boards' web flow for one photo, end to end in a
-// single place: pick or drop it, the scan while the analyzer reads it, then the logged card with
-// the computed verdicts — or the rough-guess question, or the no-food refusal. The first verdict
-// is `phone/first-verdict.html`'s content in the logged frame; there is no web board for it.
+// single place: pick or drop it, the scan while the analyzer reads it (the say line is the
+// stream's own words — `PhotoProgress` carries each step already worded, so the bundle prints
+// rather than composes), then the logged card with the server's verdict labels — or the
+// rough-guess question, or the no-food refusal. The first verdict is `phone/first-verdict.html`'s
+// content in the logged frame; there is no web board for it.
 //
-// What this screen does NOT do: it never derives a verdict (the server computes every one), it
-// never invents a question (the engine's `mayAsk` decides; no `question` field means the card
-// asks nothing), and it does not draw the failure states itself — they are Chat states
-// (design-pro on #92), so a failed or unanswered photo is kept and the person is handed to
-// `#/chat`, where W7 draws the coach card with "Send it again".
+// What this screen does NOT do: it never derives a verdict (`verdictLabels` arrive worded from
+// the server), it never invents a question (the engine's `mayAsk` decides — no `question` field
+// means the card asks nothing, and without a server `MealQuestion` the rough card stays quiet),
+// and it does not draw the failure states itself — they are Chat states (design-pro on #92), so
+// a failed or unanswered photo is kept and the person is handed to `#/chat`, where W7 draws the
+// coach card with "Send it again".
 //
 // Edit and Correct open the conversation with the meal in focus — `#/chat?focus=<id>` — the same
 // ruling the meal detail got on #93: the edit is just a chat.
 
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
+import { dayBudget, type DayBudget } from "../../shared/budget.ts";
+import { localDate } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { ico as icoMarkup, type HeroCallout } from "../../shared/ui/kit.ts";
-import type { MealItem, MealLogged, MealRedated, MealUpdated } from "@eait/shared";
+import type { MealItem, MealLogged, MealUpdated } from "@eait/shared";
 import type {
-  MessageResponse, PhotoLast, ProfileResponse, WeekResponse,
+  MessageResponse, PhotoLast, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
 import { ApiError, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { COPY, WEEK, clear, el, lang, names, refusalWords, sendOrKeep } from "../shell.ts";
+import {
+  COPY, clear, el, firstMealDue, lang, names, refusalWords, sendOrKeep,
+} from "../shell.ts";
 import type { Frame } from "../shell.ts";
 import { outbox, type WebQueued } from "../outbox.ts";
-import { roughGrams, roughPick } from "../portion.ts";
 import {
   ctaEl, gramMacsEl, kitEl, optionRowEl, photoHeroEl, spudAvatarEl, verdictListEl,
-  verdictNounText, verdictWords,
 } from "../kit.ts";
 
-/** A meal a result view draws — `logged`, `updated` and `redated` all carry this shape. */
-type LoggedMeal = Pick<MealLogged, "mealId" | "analysis" | "totals" | "date">;
+/**
+ * A meal a result view draws — `logged` and `updated` carry the verdict's words (`verdictLabels`);
+ * a `redated` result does not (nothing was recomputed), so it lands on Chat rather than on a card
+ * drawn without them.
+ */
+type LoggedMeal = Pick<MealLogged, "mealId" | "analysis" | "totals" | "date" | "verdictLabels">;
 
 /** The picked photo as a data URL — `img-src 'self' data:` covers it; a blob URL would not. */
 const dataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -42,45 +51,46 @@ const dataUrl = (file: File): Promise<string> => new Promise((resolve, reject) =
   r.readAsDataURL(file);
 });
 
-/** The time a stamp or label names, in the account's own timezone — "13:05". */
-const atTime = (me: ProfileResponse | null, when: Date): string =>
-  new Intl.DateTimeFormat(LANG_TAG[lang], {
-    timeZone: me?.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(when);
-
-/** The bar's right side on the upload view — the plain date, "Thursday 24 September". */
-const dayText = (me: ProfileResponse | null): string =>
-  new Intl.DateTimeFormat(LANG_TAG[lang], {
-    timeZone: me?.timezone, weekday: "long", day: "numeric", month: "long",
-  }).format(new Date());
-
-/**
- * Whether the meal about to be logged is the account's first — the same condition Home's
- * `firstMealScreen` uses (design-pro on #92), so the two surfaces can never disagree about which
- * meal was first: onboarded, no entitlement, the server's `sampleUsed` still false, and the
- * diary window the server will reach back to reads empty.
- */
-async function isFirstMeal(me: ProfileResponse | null): Promise<boolean> {
-  if (me === null || me.onboarded !== true || me.entitlement.active || me.limits.sampleUsed) return false;
-  const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`).catch(() => null);
-  return marked !== null && marked.days.length === 0;
-}
-
 export function logScreen(frame: Frame): HTMLElement {
+  const wrap = el("section", "log centre");
   const me = frame.me;
+  // A signed-out visitor never reaches this screen — the shell draws the sign-in first — so a
+  // missing profile gets the empty surface rather than an upload that cannot send.
+  if (me === null) return wrap;
   const L = logCopyFor(lang);
   const n = wholeNumbers(lang);
   const g = spellUnit(lang, "g");
-  // The coach's name is server-sent (`ProfileResponse.coachName` — the Lingui table cannot reach
-  // this bundle); the literal is only the not-yet-loaded fallback.
-  const coach = me?.coachName ?? "Gabie";
-  const wrap = el("section", "log centre");
-  frame.bar.append(el("span", "", dayText(me)));
+  const coach = me.coachName;
+
+  /** The bar's right side on the upload view — the plain date, "Thursday 24 September". */
+  const dayText = (): string =>
+    new Intl.DateTimeFormat(LANG_TAG[lang], {
+      timeZone: me.timezone, weekday: "long", day: "numeric", month: "long",
+    }).format(new Date());
+  frame.bar.append(el("span", "", dayText()));
+
+  /** The time a stamp or label names, in the account's own timezone — "13:05". */
+  const atTime = (when: Date): string =>
+    new Intl.DateTimeFormat(LANG_TAG[lang], {
+      timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(when);
+
+  /** The day's budget the counter reads — the shared arithmetic, never a client subtraction. */
+  const budgetOf = (r: LoggedMeal): DayBudget =>
+    dayBudget({ date: r.date, meals: [r], totals: r.totals, targets: me.targets },
+      localDate(me.timezone), me.profile.goal);
+
+  /** The counter's right figure — "582 left", "120 over"; the day's own state words it. */
+  const budgetTail = (b: DayBudget): string | null =>
+    b.state === "left" ? fill(L.dayLeft, { left: n(b.kcal) })
+      : b.state === "over" ? fill(L.dayOver, { over: n(b.kcal) })
+        : null;
 
   let picked: File[] = [];
   let photoUrl = "";
   let captured = new Date();
   let notice: HTMLElement | null = null;
+  let readingWords: HTMLElement | null = null;
   let busy = false;
 
   const tell = (words: string): void => {
@@ -110,7 +120,7 @@ export function logScreen(frame: Frame): HTMLElement {
 
   const hero = (alt: string, scan: boolean, items: readonly MealItem[] = []): Element => {
     const h = photoHeroEl({
-      src: photoUrl, alt, pad: 18, stamp: atTime(me, captured), scan,
+      src: photoUrl, alt, pad: 18, stamp: atTime(captured), scan,
       callouts: callouts(items),
     });
     h.classList.toggle("reading", scan);
@@ -135,10 +145,15 @@ export function logScreen(frame: Frame): HTMLElement {
 
   const takeFiles = (files: File[]): void => {
     notice?.remove();
-    const max = me?.limits.maxPhotosPerMeal ?? 4;
-    const bytes = me?.limits.maxUploadBytes ?? 0;
-    if (files.length > max) { tell(fill(COPY.photosMax, { n: `${max}` })); return; }
-    if (bytes > 0 && files.reduce((sum, f) => sum + f.size, 0) > bytes) { tell(COPY.photoTooLarge); return; }
+    // The server's own limits, sent on the profile — a client-side default would guess.
+    if (files.length > me.limits.maxPhotosPerMeal) {
+      tell(fill(COPY.photosMax, { n: n(me.limits.maxPhotosPerMeal) }));
+      return;
+    }
+    if (files.reduce((sum, f) => sum + f.size, 0) > me.limits.maxUploadBytes) {
+      tell(COPY.photoTooLarge);
+      return;
+    }
     picked = files;
     dropLead.textContent = picked.map((f) => f.name).join(", ") || L.web.dropHint;
   };
@@ -165,6 +180,7 @@ export function logScreen(frame: Frame): HTMLElement {
 
   const drawUpload = (): void => {
     wrap.className = "log centre";
+    readingWords = null;
     clear(wrap).append(
       el("h1", "", L.web.title), drop, note, analyse,
       ctaEl({ text: fill(L.web.chatInstead, { coach }), kind: "g", href: "#/chat" }),
@@ -177,11 +193,16 @@ export function logScreen(frame: Frame): HTMLElement {
     wrap.className = "log";
     const grid = el("div", "loggrid");
     const side = el("div", "logcol tall");
+    // The stream's progress words land on this line as they arrive — `glance` carries its own
+    // text, `reading`/`item` carry `line`, each already worded on the server.
+    const sayRow = el("div", "say logsay");
+    readingWords = el("p", "", L.reading);
+    sayRow.append(spudAvatarEl("think"), readingWords);
     const checking = ctaEl({ text: L.checking, kind: "s" }) as HTMLButtonElement;
     checking.disabled = true;
     side.append(
-      el("span", "lab", `${atTime(me, captured)} · ${L.web.fromPhoto}`),
-      say("think", L.reading),
+      el("span", "lab", `${atTime(captured)} · ${L.web.fromPhoto}`),
+      sayRow,
       el("div", "logpush"),
       checking,
       ctaEl({ text: L.close, kind: "g", href: "#/" }),
@@ -204,7 +225,8 @@ export function logScreen(frame: Frame): HTMLElement {
       protein: r.analysis.protein_g, carbs: r.analysis.carbs_g, fat: r.analysis.fat_g,
     }));
     card.append(el("div", "hr"));
-    const list = verdictListEl(verdictWords(r.analysis.verdicts));
+    // The pills arrive already worded (`verdictLabels`) — the bundle composes no verdict text.
+    const list = verdictListEl(r.verdictLabels.map((v) => ({ tone: v.tone, words: v.label })));
     if (list !== null) card.append(list);
     if (r.analysis.confidence === "low") {
       const mark = el("div", "rough");
@@ -216,36 +238,31 @@ export function logScreen(frame: Frame): HTMLElement {
 
   /** The say line under the card — the detail a declared cap that ran high gets (`ldl`). */
   const detailLine = (r: LoggedMeal): HTMLElement | null => {
-    const target = me?.targets.satfat_g;
-    const v = r.analysis.verdicts as Record<string, string | undefined>;
-    if (v["ldl"] !== "warn" && v["ldl"] !== "bad") return null;
-    if (target === undefined) return null;
+    const ldl = r.verdictLabels.find((v) => v.dimension === "ldl");
+    if (ldl === undefined || ldl.tone === "good") return null;
+    if (me.targets.satfat_g === undefined) return null;
     return say("care", fill(L.verdictDetail, {
-      noun: verdictNounText("ldl"), amount: n(r.analysis.satfat_g), target: n(target),
+      noun: L.satfatNoun, amount: n(r.analysis.satfat_g), target: n(me.targets.satfat_g),
     }));
   };
 
-  /** The day counter — the server's day totals against the account's own target. */
+  /** The day counter — the server's day totals read through the shared day budget. */
   const dayCard = (r: LoggedMeal): HTMLElement => {
+    const budget = budgetOf(r);
     const card = el("div", "card flat");
     card.style.padding = "12px 16px";
     const row = el("div", "dayrow");
-    const left = el("span", "num muted");
     const lead = el("span", "num");
-    if (me?.targets.kcal !== undefined) {
-      lead.append(kitEl(icoMarkup("kcal")), el("b", "", ` ${n(r.totals.kcal)}`),
-        el("span", "muted", ` ${fill(L.dayEaten, { eaten: "", plan: n(me.targets.kcal) }).trim()}`));
-      left.textContent = fill(L.dayLeft, { left: n(Math.max(0, me.targets.kcal - r.totals.kcal)) });
-    } else {
-      lead.append(kitEl(icoMarkup("kcal")), el("b", "", ` ${n(r.totals.kcal)}`),
-        el("span", "muted", ` ${UNIT_KCAL[lang]}`));
-    }
-    row.append(lead, left);
+    lead.append(kitEl(icoMarkup("kcal")), el("b", "", ` ${n(budget.eaten)}`),
+      el("span", "muted", ` ${fill(L.dayOfPlan, { plan: n(budget.target) })}`));
+    row.append(lead);
+    const tail = budgetTail(budget);
+    if (tail !== null) row.append(el("span", "num muted", tail));
     card.append(row);
-    if (me?.targets.kcal !== undefined && me.targets.kcal > 0) {
+    if (budget.target > 0) {
       const bar = el("div", "bar");
       const fill_ = el("i", "");
-      fill_.style.width = `${Math.min(100, Math.round((r.totals.kcal / me.targets.kcal) * 100))}%`;
+      fill_.style.width = `${Math.round(budget.fill * 100)}%`;
       bar.append(fill_);
       card.append(bar);
     }
@@ -263,7 +280,7 @@ export function logScreen(frame: Frame): HTMLElement {
 
   // ── The result views ─────────────────────────────────────────────────────────────────────────
 
-  const drawResult = (r: MealLogged | MealUpdated | MealRedated, first: boolean): void => {
+  const drawResult = (r: MealLogged | MealUpdated, first: boolean): void => {
     wrap.className = "log";
     const grid = el("div", "loggrid wide");
     const side = el("div", "logcol");
@@ -280,12 +297,12 @@ export function logScreen(frame: Frame): HTMLElement {
       );
       side.append(btns);
     } else if (r.kind === "logged" && r.hint === "lowConfidence") {
-      side.append(el("span", "lab", `${L.logged} · ${atTime(me, new Date())}`), mealCard(r, null));
+      side.append(el("span", "lab", `${L.logged} · ${atTime(new Date())}`), mealCard(r, null));
       const ask = roughBlock(r);
       if (ask !== null) side.append(ask);
       side.append(dayLine(r), actionsRow(r));
     } else {
-      side.append(el("span", "lab", `${L.logged} · ${atTime(me, new Date())}`), mealCard(r, "0s"));
+      side.append(el("span", "lab", `${L.logged} · ${atTime(new Date())}`), mealCard(r, "0s"));
       const detail = detailLine(r);
       if (detail !== null) {
         const d = el("div", "rise");
@@ -304,71 +321,64 @@ export function logScreen(frame: Frame): HTMLElement {
 
   /** The day counter as the rough board's one centred line. */
   const dayLine = (r: LoggedMeal): HTMLElement => {
+    const budget = budgetOf(r);
     const line = el("div", "logday num");
-    const target = me?.targets.kcal;
-    const eaten = `${n(r.totals.kcal)} ${UNIT_KCAL[lang]}`;
-    line.textContent = target === undefined
-      ? eaten
-      : `${fill(L.dayEaten, { eaten: n(r.totals.kcal), plan: n(target) })} · ${fill(L.dayLeft, { left: n(Math.max(0, target - r.totals.kcal)) })}`;
+    const tail = budgetTail(budget);
+    line.textContent = tail === null
+      ? fill(L.dayEaten, { eaten: n(budget.eaten), plan: n(budget.target) })
+      : `${fill(L.dayEaten, { eaten: n(budget.eaten), plan: n(budget.target) })} · ${tail}`;
     return line;
   };
 
   /**
-   * The rough card's question: the server's own `MealQuestion` when it sent one, else the grams
-   * question the copy composes about the largest item. Every option is a text correction turn
-   * with this meal in focus — the one correction path — except "About that", which just closes
-   * the ask. A meal result re-draws the card; anything else hands the thread to Chat, where the
-   * answer lives.
+   * The rough card's question — the server's own `MealQuestion`, and ONLY it: without one the
+   * card asks nothing (the engine's `mayAsk` already decided; the client composes no question of
+   * its own — #92 review). Every option is a text correction turn with this meal in focus — the
+   * one correction path. A meal result re-draws the card; anything else hands the thread to Chat.
    */
   const roughBlock = (r: MealLogged): HTMLElement | null => {
-    const item = r.question === undefined ? roughPick(r.analysis.items) : null;
-    const question = r.question?.text
-      ?? (item === null ? null : fill(L.roughAsk, { item: item.name, grams: n(item.grams) }));
-    if (question === null) return null;
+    const q = r.question;
+    if (q === undefined || q.options.length === 0) return null;
 
     const block = el("div", "");
     const askRow = el("div", "rise");
     askRow.style.setProperty("--d", ".15s");
-    askRow.append(say("think", question, true));
+    askRow.append(say("think", q.text, true));
     const opts = el("div", "card");
     opts.style.padding = "4px 16px";
     opts.classList.add("rise");
     opts.style.setProperty("--d", ".3s");
 
     const send = async (text: string): Promise<void> => {
-      let answer: MessageResponse | PhotoLast | null = null;
+      // A property, not a variable: an assignment inside a callback is invisible to narrowing, so
+      // `answer !== null` would read as never. (first-meal.ts's `got` does the same.)
+      const got: { r: MessageResponse | PhotoLast | null } = { r: null };
       try {
         const keptNote = await sendOrKeep(
           {
-            id: crypto.randomUUID(), userId: me?.profile.user_id ?? "", kind: "text",
+            id: crypto.randomUUID(), userId: me.profile.user_id, kind: "text",
             text, photos: [], capturedAt: new Date().toISOString(), focusMealId: r.mealId,
           },
-          { onResult: (rr) => { answer = rr; } },
+          { onResult: (rr) => { got.r = rr; } },
         );
         if (keptNote !== undefined) { location.hash = "#/chat"; return; }
       } catch (err) {
         tell(refusalWords(err));
         return;
       }
-      if (answer !== null && isMeal(answer)) { drawResult(answer, false); return; }
+      const answer = got.r;
+      // A `redated` answer carries no verdict words — it is Chat's to draw, not this card's.
+      if (answer !== null && isMeal(answer) && answer.kind !== "redated") {
+        drawResult(answer, false);
+        return;
+      }
       location.hash = "#/chat";
     };
 
-    const opt = (text: string, fn?: () => void): HTMLElement => {
-      const row = optionRowEl({ text, tag: "button" }) as HTMLElement;
-      row.addEventListener("click", () => fn ? fn() : void send(text));
-      return row;
-    };
-    if (r.question !== undefined && r.question.options.length > 0) {
-      for (const o of r.question.options) opts.append(opt(o));
-    } else if (item !== null) {
-      const grams = roughGrams(item.grams);
-      const sent = (gg: number) => fill(L.roughSent, { item: item.name, grams: n(gg) });
-      opts.append(
-        opt(L.roughAbout, () => block.remove()),
-        opt(L.roughHalf, () => void send(sent(grams.half))),
-        opt(fill(L.roughMore, { grams: n(grams.more) }), () => void send(sent(grams.more))),
-      );
+    for (const o of q.options) {
+      const row = optionRowEl({ text: o, tag: "button" }) as HTMLElement;
+      row.addEventListener("click", () => void send(o));
+      opts.append(row);
     }
     block.append(askRow, opts);
     return block;
@@ -398,10 +408,14 @@ export function logScreen(frame: Frame): HTMLElement {
     if (busy || picked.length === 0) return;
     busy = true;
     captured = new Date();
-    const first = await isFirstMeal(me);
+    // The ONE first-meal answer, read FRESH — the profile on screen was fetched at mount and a
+    // meal since logged flips `hasLoggedMeal`/`sampleUsed` without the cache knowing. The cached
+    // profile is the fallback when the refresh itself fails.
+    const now = await api<ProfileResponse>("/profile").catch(() => me);
+    const first = firstMealDue(now);
     photoUrl = await dataUrl(picked[0]!);
     const entry: WebQueued = {
-      id: crypto.randomUUID(), userId: me?.profile.user_id ?? "", kind: "photo",
+      id: crypto.randomUUID(), userId: me.profile.user_id, kind: "photo",
       text: note.value.trim() === "" ? null : note.value.trim(),
       photos: [...picked], capturedAt: captured.toISOString(),
     };
@@ -409,6 +423,11 @@ export function logScreen(frame: Frame): HTMLElement {
     try {
       let result: MealLogged | null = null;
       const keptNote = await sendOrKeep(entry, {
+        onLine: (line) => {
+          const ev = line as PhotoProgress;
+          // Printed, never composed — the line each event carries is already worded (#608).
+          if (readingWords !== null) readingWords.textContent = ev.kind === "glance" ? ev.text : ev.line;
+        },
         onResult: (r: MessageResponse | PhotoLast) => { if (r.kind === "logged") result = r; },
       });
       // No answer — kept. The kept turn's own state lives on Chat (states-unknown is W7's).
@@ -419,9 +438,17 @@ export function logScreen(frame: Frame): HTMLElement {
       if (kind === "not-food") { drawRefused(); return; }
       if (kind === "analysis-failed" || outcomeUnknown(kind)) {
         // "Nothing was logged. Your photo is kept." — kept HELD, so the drain does not quietly
-        // send it again and Chat's card offers "Send it again" on it (states-failed is W7's).
-        await outbox.add({ ...entry, held: { kind } }).catch(() => {});
-        location.hash = "#/chat";
+        // send it again and Chat's card offers "Send it again" on it (states-failed is W7's). A
+        // resend mints a new client id (`outbox.resend`) — replaying the id would answer the
+        // stored failure (#708) without calling the model.
+        try {
+          await outbox.add({ ...entry, held: { kind } });
+          location.hash = "#/chat";
+        } catch {
+          // The keep itself failed — say so, rather than promise a photo that went nowhere.
+          drawUpload();
+          tell(COPY.notSaved);
+        }
         return;
       }
       drawUpload();

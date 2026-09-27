@@ -36,6 +36,7 @@ import type {
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
+import { routeBase } from "./route.ts";
 
 /**
  * THE LANGUAGE THIS TAB IS BEING READ IN, and every string on the page reads it.
@@ -134,12 +135,19 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
   { hash: "#/you", label: "navProfile" },
 ];
 
-/** The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff, #93). */
-const routeKey = (route: string): string => route.split("?")[0]!;
+/**
+ * The ONE first-meal answer (#92 review): Home's free-meal flow and the log's first verdict must
+ * never disagree about which meal was first, so both read the same predicate — onboarded, no
+ * entitlement, the sample unspent, and `hasLoggedMeal` — every field already on the profile, the
+ * last one computed on the server (the client's own `/v1/diary/week` probe is gone). A type
+ * guard because every caller holds `ProfileResponse | null` and only continues when it is one.
+ */
+export const firstMealDue = (me: ProfileResponse | null | undefined): me is ProfileResponse =>
+  me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed && !me.hasLoggedMeal;
 
 /** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
 const activeTab = (route: string): string =>
-  ["#/chat", "#/you", "#/progress"].includes(routeKey(route)) ? routeKey(route) : "#/";
+  ["#/chat", "#/you", "#/progress"].includes(routeBase(route)) ? routeBase(route) : "#/";
 
 /**
  * The boards' top bar (Register P): the `eait` wordmark — Spud's happy face at 20px — then the ONE
@@ -573,7 +581,7 @@ export function screen(hash: string, fn: ScreenFn): void {
 export const hasScreen = (hash: string): boolean => exactScreens.has(hash);
 
 const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
-  const key = routeKey(route);
+  const key = routeBase(route);
   const fn = exactScreens.get(key)
     ?? prefixScreens.find(([prefix]) => key.startsWith(prefix))?.[1]
     ?? exactScreens.get("#/");

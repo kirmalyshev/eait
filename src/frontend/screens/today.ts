@@ -7,7 +7,7 @@ import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
 import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
-  DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
+  DayResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
 import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
@@ -15,7 +15,7 @@ import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import type { Localized } from "../../shared/lang.ts";
 import {
-  COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
+  COPY, PENDING, composerRow, el, clear, firstMealDue, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
 } from "../shell.ts";
 
@@ -316,9 +316,8 @@ const SATFAT: Localized<string> = {
 };
 
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
-  if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
-    const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
-    if (marked.days.length === 0) return firstMealScreen(me);
-  }
+  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`): the server answers
+  // "has this account ever logged" on the profile, so there is no window read to disagree about.
+  if (firstMealDue(me)) return firstMealScreen(me);
   return diaryScreen();
 }
