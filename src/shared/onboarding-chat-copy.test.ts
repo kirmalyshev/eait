@@ -62,7 +62,7 @@ describe("every language's chat copy", () => {
   it("keeps every placeholder code fills, and introduces none it does not", () => {
     const known = new Set([
       "share", "age", "kg", "year", "weight", "target", "n", "label", "pct", "month",
-      "rate", "kcal", "floor", "delta",
+      "rate", "kcal", "floor", "delta", "from", "to",
     ]);
     for (const lang of LANGS) {
       for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {

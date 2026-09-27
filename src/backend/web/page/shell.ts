@@ -349,7 +349,14 @@ button.cta { font: inherit; font-size: 16px; font-weight: 600; }
 .pgraph text { font-size: 12px; fill: var(--muted); font-family: inherit; }
 .pgraph .ln { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
 .pgraph { display: block; overflow: visible; }
-.pln .kgrid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; }
+.pln .kgrid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; margin: 0 0 1rem; }
+.pln .kcal.card { margin: 0; }
+.est-more { margin-top: 6px; }
+.est-more > summary { cursor: pointer; list-style: none; }
+.est-more > summary::-webkit-details-marker { display: none; }
+.est-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: .4rem 0 0; }
+.est-foot { font-size: 12px; font-weight: 600; margin-top: 10px; }
+.est-foot > span:first-child { color: var(--muted); }
 .pln .kcal { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
 .pln .kcal .big { display: flex; align-items: center; gap: 8px; }
 .pln .kcal .big b { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }

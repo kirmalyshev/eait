@@ -284,7 +284,10 @@ describe("the plan headline's claims exemption", () => {
       }
     };
     walk(root);
-    expect(callers.sort()).toEqual(["src/shared/onboarding-chat.ts"]);
+    expect(callers.sort()).toEqual([
+      "src/backend/web/page/plan.ts",
+      "src/shared/onboarding-chat.ts",
+    ]);
   });
 
   it("sweeps the key's own templates with every rule except the one it is exempt from", () => {
