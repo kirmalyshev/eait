@@ -18,6 +18,13 @@ export interface ShellCopy {
   navProfile: string;
   /** The round "+" that logs a meal — its accessible name; the button itself is a glyph. */
   logMeal: string;
+  /**
+   * The coach's name, for every `{coach}` placeholder the surface tables carry. This is
+   * `THREAD_COPY`'s `coach.name` — "Gabie" in all eight until S9 names the others — duplicated
+   * here because the catalog is not on the browser bundle and a `{coach}` left unfilled prints
+   * as a raw placeholder.
+   */
+  coachName: string;
 }
 
 export const SHELL_COPY: Localized<ShellCopy> = {
@@ -27,6 +34,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profile",
     logMeal: "Log a meal",
+    coachName: "Gabie",
   },
   fr: {
     navHome: "Accueil",
@@ -34,6 +42,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Enregistrer un repas",
+    coachName: "Gabie",
   },
   de: {
     navHome: "Start",
@@ -41,6 +50,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Mahlzeit eintragen",
+    coachName: "Gabie",
   },
   it: {
     navHome: "Home",
@@ -48,6 +58,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profilo",
     logMeal: "Registra un pasto",
+    coachName: "Gabie",
   },
   es: {
     navHome: "Inicio",
@@ -55,6 +66,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Perfil",
     logMeal: "Registrar una comida",
+    coachName: "Gabie",
   },
   vi: {
     navHome: "Trang chủ",
@@ -62,6 +74,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Hồ sơ",
     logMeal: "Ghi một bữa ăn",
+    coachName: "Gabie",
   },
   id: {
     navHome: "Beranda",
@@ -69,6 +82,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Catat makanan",
+    coachName: "Gabie",
   },
   ru: {
     navHome: "Главная",
@@ -76,6 +90,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Чат",
     navProfile: "Профиль",
     logMeal: "Записать приём пищи",
+    coachName: "Gabie",
   },
 };
 
