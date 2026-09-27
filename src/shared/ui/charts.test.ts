@@ -21,7 +21,7 @@ import {
   ringDash,
   TWO_WAYS_CHART,
   weekBars,
-  weightChart,
+  TARGET_LANE_DASH, weightChart,
   WEIGHT_RANGES,
   WEEK_RING,
 } from "./charts.ts";
@@ -248,7 +248,7 @@ describe("weightChart — logged weights over the day axis", () => {
     const c = weightChart(persona, true);
     expect(c.viewBox).toBe("0 0 320 120");
     expect(c.dateLabelY).toBe(118);
-    expect(c.targetLine).toEqual({ x1: 24, x2: 296, y: 104 });
+    expect(c.targetLine).toEqual({ x1: 24, x2: 296, y: 104, dash: TARGET_LANE_DASH });
     expect(c.targetLabel).toEqual({ x: 296, y: 98 });
     const plain = weightChart(persona);
     expect(plain.targetLine).toBeUndefined();

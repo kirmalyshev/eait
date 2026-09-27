@@ -5895,6 +5895,13 @@
             "type": "number",
             "description": "What the chosen pace asked for, signed: negative cuts, positive adds."
           },
+          "activityDeltaKcal": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "What the person's days add on top of resting — `tdee − bmr`, the activity's own share. Null when `bmr`/`tdee` are null (flat-band fallback): there is no maintenance to split it from."
+          },
           "appliedDeltaKcal": {
             "type": "number",
             "description": "What was actually applied after BOTH guards — the delta the final kcal target carries."
@@ -5920,6 +5927,7 @@
           "bmr",
           "tdee",
           "requestedDeltaKcal",
+          "activityDeltaKcal",
           "appliedDeltaKcal",
           "shareCapApplied",
           "floorKcal",

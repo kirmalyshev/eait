@@ -13,8 +13,8 @@
 import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState } from "../../shared/entitlement.ts";
-import { signsIn } from "../../shared/contract.ts";
-import { LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
+import { dayMonth, dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
@@ -35,9 +35,6 @@ import {
   clear, COPY, dayText, el, forgetProfile, lang, profile, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
 } from "../shell.ts";
-
-// The provider's own names — proper nouns, never translated (like LANG_LABEL).
-const PROVIDER_NAME: Record<string, string> = { apple: "Apple", google: "Google" };
 
 export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const wrap = el("section", "you");
@@ -109,14 +106,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const wnum = (kg: number): string => n(weightDisplayValue(kg, units()));
 
   // The Subscription row's dates — "24 Oct" in the language's own locale, the year joining only
-  // when the expiry falls in a different one.
-  const subDate = (iso: string): string => {
-    const at = new Date(iso);
-    const sameYear = localDate(zone, at).slice(0, 4) === localDate(zone).slice(0, 4);
-    return new Intl.DateTimeFormat(LANG_TAG[lang], {
-      day: "numeric", month: "short", timeZone: zone, ...(sameYear ? {} : { year: "numeric" }),
-    }).format(at);
-  };
+  // when the expiry falls in a different one (`dayMonthAt` in shared/lang.ts).
+  const subDate = (iso: string): string => dayMonthAt(lang, zone, new Date(iso));
 
   const identityCard = (): HTMLElement => {
     const card = el("div", "card idcard");
@@ -136,7 +127,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const body = el("div", "wbody");
     card_.append(head, body, noticeBox.notice);
 
-    const dm = new Intl.DateTimeFormat(LANG_TAG[lang], { day: "numeric", month: "short" });
+    const dm = dayMonth(lang);
     const fmt = (d: string): string => dm.format(new Date(`${d}T12:00:00Z`));
 
     const target = me!.profile.target_weight_kg;

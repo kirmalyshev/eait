@@ -379,7 +379,7 @@ export const weightChartSvg = (
   return `<svg class="pgraph wl" viewBox="${g.viewBox}" width="100%" role="img"${labels.aria ? ` aria-label="${esc(labels.aria)}"` : ""}>` +
     grid +
     (g.targetLine !== undefined
-      ? `<line x1="${g.targetLine.x1}" x2="${g.targetLine.x2}" y1="${g.targetLine.y}" y2="${g.targetLine.y}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 4"/>` +
+      ? `<line x1="${g.targetLine.x1}" x2="${g.targetLine.x2}" y1="${g.targetLine.y}" y2="${g.targetLine.y}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="${g.targetLine.dash}"/>` +
         `<text x="${g.targetLabel!.x}" y="${g.targetLabel!.y}" text-anchor="end" fill="var(--accent)" font-size="12" font-weight="600">${esc(target!.label)}</text>`
       : "") +
     (g.path ? `<path class="draw wl-line" d="${g.path}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "") +

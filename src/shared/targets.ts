@@ -134,6 +134,9 @@ export interface TargetBasis {
   tdee: number | null;
   /** What the chosen pace asked for, signed: negative cuts, positive adds. */
   requestedDeltaKcal: number;
+  /** What the person's days add on top of resting — `tdee − bmr`, the activity's own share. Null
+      when `bmr`/`tdee` are null (flat-band fallback): there is no maintenance to split it from. */
+  activityDeltaKcal: number | null;
   /** What was actually applied after BOTH guards — the delta the final kcal target carries. */
   appliedDeltaKcal: number;
   /** True when `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE` bit before the floor did. */
@@ -153,7 +156,15 @@ export interface TargetOutcome {
 
 /** Mifflin-St Jeor. Returns null unless every input it needs is present and in range. */
 export function basalMetabolicRate(p: Profile, today = new Date()): number | null {
-  const age = ageFrom(p.birth_year, today);
+  return basalMetabolicRateAtAge(p, ageFrom(p.birth_year, today));
+}
+
+/**
+ * The same equation with the age taken as given — for a client PREVIEWING the arithmetic, where
+ * the age is the server's `ProfileResponse.age` and the clock in hand is a device's, not the
+ * server's. `null` asks for the fallback the server itself would reach on an unanswered year.
+ */
+export function basalMetabolicRateAtAge(p: Profile, age: number | null): number | null {
   if (age === null || p.sex === null || !p.height_cm || !p.weight_kg) return null;
   if (p.height_cm < 100 || p.height_cm > 250) return null;
   if (p.weight_kg < 30 || p.weight_kg > 400) return null;
@@ -248,8 +259,17 @@ export function targetRange(p: Profile): { min: number; max: number } | null {
  * the floor, which is the exact bug this whole file exists to prevent.
  */
 export function explainTargets(profile: Profile, today = new Date()): TargetOutcome {
+  return explainTargetsAtAge(profile, ageFrom(profile.birth_year, today));
+}
+
+/**
+ * The same arithmetic with the age taken as given — for a client previewing an edit (a weigh-in's
+ * live plan line), where `age` is the server's `ProfileResponse.age` rather than a figure the
+ * device's own clock would produce. `null` reaches the same fallback the server would.
+ */
+export function explainTargetsAtAge(profile: Profile, age: number | null): TargetOutcome {
   const floorKcal = profile.sex ? KCAL_FLOOR[profile.sex] : KCAL_FLOOR_UNKNOWN;
-  const bmrValue = basalMetabolicRate(profile, today);
+  const bmrValue = basalMetabolicRateAtAge(profile, age);
 
   if (bmrValue === null) {
     // No usable anthropometrics — fall back to eait's flat bands. Still floored: the bands sit
@@ -259,7 +279,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
     return {
       targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
       basis: {
-        bmr: null, tdee: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
+        bmr: null, tdee: null, activityDeltaKcal: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
         shareCapApplied: false, floorKcal, floorApplied: kcal > band, usedFallbackBand: true,
       },
     };
@@ -293,8 +313,8 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
   return {
     targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
     basis: {
-      bmr: bmrValue, tdee, requestedDeltaKcal, appliedDeltaKcal, shareCapApplied,
-      floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
+      bmr: bmrValue, tdee, activityDeltaKcal: tdee - bmrValue, requestedDeltaKcal, appliedDeltaKcal,
+      shareCapApplied, floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
     },
   };
 }

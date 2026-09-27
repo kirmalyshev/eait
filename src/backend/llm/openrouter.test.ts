@@ -463,7 +463,7 @@ const COACH_INPUT: CoachInput = {
   text: "how did my week go?",
   context: {
     profile: ROUTE_INPUT.profile, targets: ROUTE_INPUT.targets,
-    basis: { bmr: 1900, tdee: 2900, requestedDeltaKcal: -500, appliedDeltaKcal: -500, shareCapApplied: false, floorKcal: 1500, floorApplied: false, usedFallbackBand: false },
+    basis: { bmr: 1900, tdee: 2900, activityDeltaKcal: 1000, requestedDeltaKcal: -500, appliedDeltaKcal: -500, shareCapApplied: false, floorKcal: 1500, floorApplied: false, usedFallbackBand: false },
     today: "2026-09-02", localTime: "19:10", todayMeals: [], week: [], projection: null,
   },
   history: [
