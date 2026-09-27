@@ -78,6 +78,8 @@ test("a meal in words is proposed first, and Log it puts it in the thread", asyn
   // Confirm-first: a meal nobody photographed is one we inferred. The boards' card leads with
   // "Logging to today — look right?" and answers Log it / No.
   await expect(page.locator(".prop")).toContainText("Logging to today — look right?");
+  // The card carries its own numbers — the name, the d22 kcal, the dots.
+  await expect(page.locator(".prop .card")).toContainText("kcal");
   await expect(page.getByRole("button", { name: "No" })).toBeVisible();
   await expect(words).toHaveValue("");
   await page.getByRole("button", { name: "Log it" }).click();
@@ -243,7 +245,9 @@ test("Send again re-sends the kept photo, and the meal is logged exactly once", 
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
   await page.unroute("**/api/v1/meals/photo");
-  await page.getByRole("button", { name: "Send again" }).click();
+  // force: the kept line is still rising when it can be pressed, and the outbox's own redraw
+  // swaps the node under the click — the tap is the point, the stagger is decoration.
+  await page.getByRole("button", { name: "Send again" }).click({ force: true });
   await expect(page.locator(".thread li.me.dim")).toHaveCount(0);
   await expect(page.locator(".thread li.them .card")).toContainText("kcal");
   await expect(page.locator(".thread li.them .card")).toHaveCount(1);

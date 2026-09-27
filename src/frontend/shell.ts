@@ -310,10 +310,10 @@ export function proposalCard(
   const lead = el("div", "t13 m pl-lead", words.lead);
   const card = el("div", "card");
   const head = el("div", "row between");
-  head.append(el("b", "pl-name", names(p.analysis.items)));
   const num = el("span", "num row");
   num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
     el("span", "m t12", UNIT_KCAL[lang]));
+  head.append(el("b", "pl-name", names(p.analysis.items)), num);
   card.append(head, gramMacsDiv(p.analysis));
   // The dots' words are the payload's own — the bundle holds no catalog to compose them (#145).
   if ((p.verdictLabels ?? []).length > 0) {

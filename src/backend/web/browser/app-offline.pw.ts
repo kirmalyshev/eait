@@ -167,7 +167,8 @@ test("a refusal that comes back when the queue drains is worded against the kept
   await expect(waiting(page)).toHaveCount(2);
 
   refused = false;
-  await banana.getByRole("button", { name: "Send again" }).click();
+  // force: see app-chat's Send-again spec — the rising node is swapped under the pointer.
+  await banana.getByRole("button", { name: "Send again" }).click({ force: true });
   await expect(waiting(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Send again" })).toHaveCount(0);
   await expect.poll(() => userLines(page)).toEqual(["text:a banana", "text:and an apple", "text:and some toast"]);

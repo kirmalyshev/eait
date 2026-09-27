@@ -312,6 +312,14 @@ export async function chatScreen(): Promise<HTMLElement> {
       throw unread;
     }
     clear(thread).append(list);
+    // The newest line is the bottom anchor — land on it on every draw, and again when a
+    // photo finishes arriving (a blob's decode can change scrollHeight after the draw).
+    const bottom = () => { list.scrollTop = list.scrollHeight; };
+    bottom();
+    requestAnimationFrame(bottom);
+    list.addEventListener("load", (ev) => {
+      if ((ev.target as HTMLElement).tagName === "IMG") bottom();
+    }, true);
     // The composer's prompt is the empty thread's ask until a line is in it.
     words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
       : entries.length === 0 ? copy().composerAsk : fill(copy().composerThread, { coach: coachName() });
@@ -347,22 +355,28 @@ export async function chatScreen(): Promise<HTMLElement> {
       `thumb` is the meal-edit sheet's form — its photo at 52px beside the name (`meal-edit.html`). */
   const mealCard = (meal: MealRecord, thumb = false): HTMLElement => {
     const card = el("div", "card");
-    if (thumb && (meal.photos ?? 0) > 0) {
-      const img = el("img", "f-thumb") as HTMLImageElement;
-      img.alt = "";
-      card.append(img);
-      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((url) => {
-        if (!img.isConnected) { URL.revokeObjectURL(url); return; }
-        urls.push(url);
-        img.src = url;
-      }).catch(() => {});
-    }
     const head = el("div", "row between");
     head.append(el("b", "", names(meal.items)));
     const num = el("span", "num");
     num.append(el("b", "d d22", wholeNumbers(lang)(meal.kcal)), el("span", "m t12", ` ${UNIT_KCAL[lang]}`));
     head.append(num);
-    card.append(head);
+    // The focus sheet draws the meal's photo at 52px in a row beside the name-and-macs block;
+    // the dots run full-width under it (meal-edit.html).
+    const headWrap = thumb && (meal.photos ?? 0) > 0 ? el("div", "row frow") : null;
+    const col = headWrap !== null ? el("div", "fcol") : null;
+    if (headWrap !== null) {
+      const img = el("img", "f-thumb") as HTMLImageElement;
+      img.alt = "";
+      headWrap.append(img, col!);
+      card.append(headWrap);
+      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((url) => {
+        if (!img.isConnected) { URL.revokeObjectURL(url); return; }
+        urls.push(url);
+        img.src = url;
+      }).catch(() => {});
+    } else {
+      card.append(head);
+    }
     const macs = el("div", "pl-macs");
     const row = el("span", "macs");
     const g = copy().gramsChip;
@@ -377,11 +391,10 @@ export async function chatScreen(): Promise<HTMLElement> {
       const est = el("div", "row between");
       est.append(row, el("b", "t12 est", mealCopyFor(lang).roughEstimate));
       macs.append(est);
-      card.append(macs);
     } else {
       macs.append(row);
-      card.append(macs);
     }
+    if (col !== null) col.append(head, macs); else card.append(macs);
     // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
     const vs_ = meal.verdictLabels ?? [];
     if (vs_.length > 0) {

@@ -23,7 +23,9 @@ body { margin: 0; background: var(--bg); color: var(--ink);
    wordmark, then the one row the app navigates by — over a quiet column on the paper ground.
    wmain is the centred content; one is the single-column form every surface takes until W4
    draws Home's two. The right side of the bar is each screen's own (W4's date, W7's nothing). */
-#app { min-height: 100dvh; display: flex; flex-direction: column; }
+/* Fixed, as the boards' .web is: a screen's column scrolls INSIDE wcol (the thread scrolls itself
+   when it can), never the document — the composer and the bar stay put at every content length. */
+#app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .wtop { display: flex; align-items: center; gap: 28px; padding: 0 40px; height: 64px;
   background: var(--surface); border-bottom: 1px solid var(--hair); }
 /* The wordmark: eait in the register's weight, Spud at 20px on the accent tint — a signature,
@@ -59,7 +61,7 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 .wmain { flex: 1; display: grid; grid-template-columns: 1fr 360px; gap: 24px;
   padding: 28px 40px; max-width: 1160px; width: 100%; margin: 0 auto; overflow: hidden; }
 .wmain.one { grid-template-columns: 1fr; max-width: 820px; }
-.wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   .wtop { padding: 0 16px; gap: 16px; }
   .wtop .brand { margin-right: 0; }

@@ -69,6 +69,12 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${(i * 0.1).toF
   margin-top: 10px; gap: 6px; }
 .cta.s.sm .ico { width: 16px; height: 16px; }
 
+/* The focus sheet's card thumbnail (web/meal-edit.html): the meal's own photo at 52px. */
+.f-thumb { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 8px; object-fit: cover;
+  background: var(--hair); margin-right: 4px; }
+.frow { display: flex; gap: 10px; align-items: flex-start; }
+.fcol { flex: 1; min-width: 0; }
+
 /* The load failure ("states-chat-failed"): Gabie's line centred in the column's room. */
 .chatfail { flex: 1; display: flex; align-items: center; justify-content: center; }
 
