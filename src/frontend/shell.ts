@@ -440,7 +440,10 @@ export function composerRow(placeholder: string, opts?: { camera?: boolean; mult
         t.placeholder = placeholder;
         t.setAttribute("aria-label", placeholder);
         t.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+          // isComposing — an IME Enter (vi's tone marks, ja/zh) ends a composition, not the line.
+          if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+            e.preventDefault(); form.requestSubmit();
+          }
         });
         return t;
       })()
