@@ -1052,9 +1052,10 @@ export interface Store {
    *
    * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS (principal's decision, #44). A row counts from
    * the moment it is charged — so two requests racing for one free meal cannot both pass the check —
-   * until `releaseSample` says the turn delivered nothing: a timeout, a provider error, a photo
-   * that was not food. Only a turn that reached the person keeps counting. The ROW stays either
-   * way: it carries the cost, and the global budget and the paid daily cap count every row.
+   * until `releaseSample` says the turn delivered nothing: an answer that was not food, a reply
+   * that failed its schema, `analysis-failed`. Only a turn that reached the person keeps counting.
+   * The ROW stays either way: it carries the cost, and the global budget and the paid daily cap
+   * count every row — except a failure before any result, which `undoAnalysis` refunds (#139).
    */
   countUserAnalyses(userId: string): Promise<number>;
   /**
@@ -1078,11 +1079,12 @@ export interface Store {
    */
   analysisCosts(userId: string, analysisIds: string[]): Promise<{ id: string; costUsd: number | null; unpricedCalls: number }[]>;
   /**
-   * Give back the analysis a refused turn charged. True when that row was deleted, false when there
-   * was nothing to give.
+   * Give back the analysis a turn charged and a failure before any result spent — a gateway refusal,
+   * or ours (#139: a timeout, a 5xx, a dropped connection). True when that row was deleted, false
+   * when there was nothing to give.
    *
-   * The counterpart to charging before the call: a gateway refusal that generated nothing was
-   * billed nothing, so the account keeps its analysis. Deletes the ONE row the turn charged, scoped
+   * The counterpart to charging before the call: a call that generated nothing was billed nothing,
+   * so the account keeps its analysis. Deletes the ONE row the turn charged, scoped
    * `id = ? AND user_id = ?` — never the newest of its day, which a concurrent turn on the same
    * scope may own, cost and all (#537).
    */

@@ -89,23 +89,25 @@ route. A route that computes is a rule the tests cannot reach.
   NO ROW. Anything reading it is reading "days that have something", and treating a missing row as
   a zero is a claim the query never made.
 - **A cap is charged before the model call, not after.** A cap counting only successes is one a
-  retry loop walks through. Except a `GatewayRefusal` — a status that provably generated nothing
-  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. One
-  exception is accepted (#523): on a streamed photo turn the glance runs beside the analyzer on its
-  own model and may already be billed when the analyzer is refused. The analysis is given back
-  anyway — one bounded glance is worth less than a user's analysis — and the glance's cost, finding
-  no row, reaches only the `cost not recorded` log line. Charge
-  on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
-  but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
-  follow a completion that was billed.
+  retry loop walks through. Except a call that ended before any result: a `GatewayRefusal` — a
+  status that provably generated nothing (401, 402, 429, 503) was billed nothing — and a
+  `ProviderFailure`, the failures that are OURS (#139): a timeout, a dropped connection, a provider
+  5xx. `store.undoAnalysis` gives the analysis back for both. One exception is accepted (#523): on a
+  streamed photo turn the glance runs beside the analyzer on its own model and may already be billed
+  when the analyzer is refused. The analysis is given back anyway — one bounded glance is worth less
+  than a user's analysis — and the glance's cost, finding no row, reaches only the
+  `cost not recorded` log line. Charge on ambiguity: a truncation or a stall past an answer may have
+  generated — and so does any failure on a call but the FIRST of a turn (the schema retry,
+  `routeText`'s focused second call), because those follow a completion that was billed.
 - **The SAMPLE counts value delivered, not attempts — and it is not the cost ledger** (#44, the
   principal's decision). Both read the `analyses` row, and they are two questions. The charge above
   is COST: every row stays, with its cost, on the global budget and the paid daily cap. The sample
   (`countUserAnalyses`) counts only rows still marked `sample`: charged before the call, so two
   requests racing for one free meal cannot both pass `checkCaps`, and cleared by `releaseSample`
-  (`engine/caps.ts`) when the turn put no verdict in front of the person — a timeout, a provider
-  error, `analysis-failed`, a photo that was not food. So a failed free meal is a free retry; what
-  bounds a retry loop is the instance budget and `api/ratelimit.ts`, as it was before the sample.
+  (`engine/caps.ts`) when the turn put no verdict in front of the person — `analysis-failed`, a
+  photo that was not food. (A failure before any result does not even keep the row — #139 refunds it
+  through `undoAnalysis`.) So a failed free meal is a free retry; what bounds a retry loop is the
+  instance budget and `api/ratelimit.ts`, as it was before the sample.
 - **A billed turn runs once per client id** (#708). `logPhotoMeal` and `handleText` claim
   `(user, clientId)` in `turns` before the caps (`engine/turns.ts`, `once`). A request re-sending the
   id gets what the first attempt settled, refusals included, or waits for it; it never calls a model,

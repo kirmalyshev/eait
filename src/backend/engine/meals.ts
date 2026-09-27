@@ -154,8 +154,9 @@ export async function analyzePhotos(
       portionPriors: await deps.store.portionPriors(userId),
     }, onDelta);
   } catch (e) {
-    // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
-    // given back. Every other failure may have cost real money and stays charged.
+    // A failure before any result — a gateway refusal, or ours: a timeout, a 5xx, a dropped
+    // connection (#139) — generated nothing, so the analysis charged above is given back. A failure
+    // past an answer may have cost real money and stays charged.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
     // Billed or not, nothing reached the person, so the sample is still theirs (#44).
     if (!refunded) await releaseSample(deps, userId, analysisId);

@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
 import type { AnalyzePhoto, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
-import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
+import { GatewayRefusal, MAX_COACH_ROUNDS, ProviderFailure, clampDayOffset, imageMime } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, PROMPT_DEFAULTS,
   RouteSchema, buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText,
@@ -73,8 +73,10 @@ interface Choice { finish_reason?: string; message?: { content?: string | null; 
  * credit, rate limited, no provider available. Nothing was generated, so nothing was billed, and
  * the account's analysis is given back rather than spent (`GatewayRefusal`).
  *
- * Deliberately short. A 408 or a 502 may name a model that already ran, and charging on ambiguity
- * is the safe direction here — the alternative refunds calls this instance actually paid for.
+ * Deliberately short. A 400 or a 408 may name a model that already ran, and charging on ambiguity
+ * is the safe direction there — the alternative refunds calls this instance actually paid for. A
+ * 5xx is different (#139): the provider failed before a result, which is ours, and it is refunded
+ * as a `ProviderFailure` rather than a refusal.
  *
  * The status is only half the question. One engine charge can pay for SEVERAL calls — the schema
  * retry below, and `routeText`'s focused second call — and the ones after the first follow a 200
@@ -153,26 +155,43 @@ export function openRouterPorts(opts: Options): LlmPorts {
     const timer = setTimeout(() => abort.abort(), budgetMs);
     let res: Response;
     let cost: number | null = null;
+    // Set once an answer came back: a 200 means generation ran, so a failure past this line may
+    // have produced tokens and stays charged. Before it — a timeout, a dropped connection, a 5xx —
+    // nothing was generated, and on a turn's FIRST call the failure is ours and refunds (#139).
+    let answered = false;
     try {
-      res = await doFetch(url, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${opts.apiKey}`,
-          "content-type": "application/json",
-          "x-title": "eait",
-        },
-        body: JSON.stringify(onDelta ? { ...(body as object), stream: true } : body),
-        signal: abort.signal,
-      });
+      try {
+        res = await doFetch(url, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${opts.apiKey}`,
+            "content-type": "application/json",
+            "x-title": "eait",
+          },
+          body: JSON.stringify(onDelta ? { ...(body as object), stream: true } : body),
+          signal: abort.signal,
+        });
+      } catch (e) {
+        // An abort is classified with the reads' below. Anything else here is the network refusing
+        // to carry the request — a dropped connection, DNS, a refused socket — and no answer ever
+        // came back.
+        if (abort.signal.aborted) throw e;
+        throw billed ? e : new ProviderFailure(`llm request failed before an answer: ${(e as Error)?.message ?? e}`);
+      }
 
       if (!res.ok) {
         // The status and a short body go to the log; neither reaches the client. An upstream error
         // string can echo the prompt, which carries the user's medical free text.
         const detail = (await res.text()).slice(0, 500);
         const message = `llm http ${res.status}: ${detail}`;
-        const unrouted = UNROUTED.has(res.status) && !billed;
-        throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
+        if (!billed) {
+          if (UNROUTED.has(res.status)) throw new GatewayRefusal(res.status, message);
+          // A 5xx that is not a refusal failed before a result all the same (#139).
+          if (res.status >= 500) throw new ProviderFailure(message);
+        }
+        throw new Error(message);
       }
+      answered = true;
       if (!onDelta) {
         const payload = await res.json() as { choices?: Choice[]; usage?: unknown };
         cost = costOf(payload.usage);
@@ -216,7 +235,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
     } catch (e) {
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
-      if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
+      // Ours only before an answer (#139): past a 200, generation ran and the stall stays charged.
+      if (abort.signal.aborted) {
+        const message = `llm timeout after ${budgetMs}ms`;
+        throw billed || answered ? new Error(message) : new ProviderFailure(message);
+      }
       throw e;
     } finally {
       clearTimeout(timer);
@@ -283,7 +306,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
-      if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
+      // A FIRST call that finds the budget spent never sent anything — before a result, ours
+      // (#139). After a billed call the turn produced a result, and the charge stands.
+      if (left <= 0) {
+        const message = `llm ran past ${opts.timeoutMs}ms before ${schemaName}`;
+        throw billed || attempt > 0 ? new Error(message) : new ProviderFailure(message);
+      }
       const payload = await send(body, billed || attempt > 0, left, onDelta, onCost);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned

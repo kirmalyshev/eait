@@ -7,7 +7,7 @@
 
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
-import { GatewayRefusal, type OnCost } from "../llm/port.ts";
+import { GatewayRefusal, ProviderFailure, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { isAnonymous } from "./identity.ts";
 
@@ -90,12 +90,12 @@ export async function charge(
 /**
  * Take a turn that delivered nothing out of the SAMPLE, and leave its charge standing.
  *
- * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS — the principal's decision (#44). A timeout, a
- * provider error, an answer that failed validation or a photo that was not food may all have been
- * billed, so the analysis row stays: its cost, the global budget and the paid daily cap still see
- * it. What changes is only whether it spent the person's free meal, and a turn that put no verdict
- * in front of them did not. The pre-call charge still counts while the turn runs, so two requests
- * racing for one free meal cannot both pass `checkCaps`.
+ * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS — the principal's decision (#44). An answer that
+ * failed validation, a photo that was not food, a failure past an answer may all have been billed,
+ * so the analysis row stays: its cost, the global budget and the paid daily cap still see it. What
+ * changes is only whether it spent the person's free meal, and a turn that put no verdict in front
+ * of them did not. The pre-call charge still counts while the turn runs, so two requests racing for
+ * one free meal cannot both pass `checkCaps`.
  *
  * Never throws, for `refundGatewayRefusal`'s reason; a release that cannot be written leaves the
  * sample spent, the safe direction when the store is the thing that is broken.
@@ -107,13 +107,17 @@ export async function releaseSample(deps: EngineDeps, userId: string, analysisId
 }
 
 /**
- * The other half of charging before the call: give the analysis back when the gateway refused
- * before generating anything, and only then.
+ * The other half of charging before the call: give the analysis back when the failure produced
+ * nothing, and only then.
+ *
+ * Two shapes of it, and both are the turn's first call ending before a result: a `GatewayRefusal`
+ * (a status that provably generated nothing) and a `ProviderFailure` (the timeout, the 5xx, the
+ * dropped connection that are OURS, #139). Everything else may have cost real money — a reply that
+ * failed its schema, a stall past an answer, a later call of the turn — and stays charged.
  *
  * Lives beside `checkCaps` because it is the same rule read backwards, and because both charge
  * sites must answer it identically — a typed first meal that burns a sample a photo would have kept
- * is the bug this exists to prevent. Anything that is not a `GatewayRefusal` may have cost real
- * money and stays charged.
+ * is the bug this exists to prevent.
  *
  * Never throws. The caller is already inside a catch, handling a failure it is about to word for
  * the user; a store that cannot delete must not turn that handled failure into a 500 — and must not
@@ -125,7 +129,7 @@ export async function refundGatewayRefusal(
   analysisId: string,
   e: unknown,
 ): Promise<boolean> {
-  if (!(e instanceof GatewayRefusal)) return false;
+  if (!(e instanceof GatewayRefusal) && !(e instanceof ProviderFailure)) return false;
   return await deps.store.undoAnalysis(userId, analysisId).catch((x: unknown) => {
     console.error(`[eait] refund failed: ${(x as Error)?.message ?? x}`);
     return false;

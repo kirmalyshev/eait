@@ -3,7 +3,7 @@ import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEX
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
-import { GatewayRefusal } from "../llm/port.ts";
+import { GatewayRefusal, ProviderFailure } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { dateMinus, localDate, localTime } from "@eait/shared";
@@ -539,21 +539,27 @@ describe("the sample", () => {
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
 
-  // Principal's decision (2026-09-25, #44): the sample counts VALUE DELIVERED, not attempts. A
-  // timeout may have been billed, so the COST stays on the row and the global budget still counts
-  // it — but the person got no verdict, so their one meal is still theirs.
-  it("timed-out analysis leaves the sample unspent", async () => {
-    const slow = makeDeps({ freeAnalyses: 1 }, {
+  // #139: a failure that is OURS — the timeout, the provider 5xx, the connection that dropped
+  // before any answer — is refunded the way a refusal's is: the row is DELETED, not merely
+  // un-sampled. Neither the sample nor the instance budget nor the day's photo count ever sees it,
+  // which is what lets the kept photo go out again under a new turn and come back analysed rather
+  // than paywalled — the free-sample case the issue names.
+  it("a provider-side failure refunds the analysis, and the resend is analysed", async () => {
+    const failing = makeDeps({ freeAnalyses: 1 }, {
       ...demoPorts(),
-      analyzePhoto: async () => { throw new Error("llm timeout after 60000 ms"); },
-      routeText: async () => { throw new Error("llm timeout after 60000 ms"); },
+      analyzePhoto: async () => { throw new ProviderFailure("llm timeout after 90000ms"); },
+      routeText: async () => { throw new ProviderFailure("llm http 502: bad gateway"); },
     });
     const userId = await onboard();
-    expect((await logPhotoMeal(slow, userId, photo())).kind).toBe("analysis-failed");
-    expect((await handleText(slow, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
+    const today = localDate(one.config.timezone);
+    const before = await store.countGlobalAnalyses(today);
+    expect((await logPhotoMeal(failing, userId, photo())).kind).toBe("analysis-failed");
+    expect((await handleText(failing, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
+    // The charge is gone, not merely un-sampled: neither failure reached any counter.
+    expect(await store.countGlobalAnalyses(today)).toBe(before);
+    expect(await store.countUserPhotos(userId, today)).toBe(0);
     expect((await profileView(one, userId))!.limits).toMatchObject({ sampleUsed: false, sampleRemaining: 1 });
-    // Charged all the same: both billed attempts stay on today's instance budget.
-    expect(await store.countGlobalAnalyses(localDate(one.config.timezone))).toBeGreaterThanOrEqual(2);
+    // Resent under a new turn, the kept photo is analysed — not refused.
     expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
@@ -566,6 +572,9 @@ describe("the sample", () => {
     const userId = await onboard();
     expect((await logPhotoMeal(notFood, userId, photo())).kind).toBe("not-food");
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
+    // But the refusal is real — the model ANSWERED — so the charge stands (#139): the row stays on
+    // the budget and the day's photo count, whatever the sample does with it.
+    expect(await store.countUserPhotos(userId, localDate(one.config.timezone))).toBe(1);
   });
 
   it("still words the failure when the refund itself cannot be written", async () => {
@@ -2136,7 +2145,9 @@ describe("what each analysis cost", () => {
     const userId = await onboard();
     const llm: LlmPorts = {
       ...demoPorts(),
-      analyzePhoto: async (i) => { i.onCost?.(0.25); i.onCost?.(null); throw new Error("llm timeout after 90000ms"); },
+      // A failure AFTER a result — this one failed the schema — stays charged (#139); a timeout or
+      // a 5xx before any answer would come back as a ProviderFailure and refund the row.
+      analyzePhoto: async (i) => { i.onCost?.(0.25); i.onCost?.(null); throw new Error("llm did not satisfy meal_analysis: not valid JSON"); },
     };
     expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("analysis-failed");
     const d = await spend();

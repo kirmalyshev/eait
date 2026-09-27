@@ -49,8 +49,9 @@ export type AnalyzedMeal = Omit<MealAnalysis, "verdicts" | "healthScore"> & {
  * whether or not it returned anything usable — and a cap that only counts successes is a cap a
  * retry loop walks straight through. That reasoning does not reach a request the gateway turned
  * away: no inference happened, no invoice moved, and the account is given its analysis back
- * (`store.undoAnalysis`). Anything else — a timeout, a truncation, a reply that would not parse —
- * may have cost real money and stays charged.
+ * (`store.undoAnalysis`). What shares that refund is `ProviderFailure` — the other way a call can
+ * end before a result. Everything past an answer — a truncation, a reply that would not parse, a
+ * mid-body stall — may have cost real money and stays charged.
  *
  * It is a TYPE rather than a status field on the message because the engine must not decide this
  * by reading an error string, and only the implementation that saw the response knows which
@@ -80,6 +81,24 @@ export class GatewayRefusal extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
     this.name = "GatewayRefusal";
+  }
+}
+
+/**
+ * The call failed before any result, and the failure is OURS — the budget fired, the connection
+ * dropped, the provider answered 5xx — so the analysis the turn charged is given back exactly as a
+ * `GatewayRefusal`'s is (#139). A refusal has a status; this is the same boundary for the failures
+ * that carry none, or carry one that does not mean "never routed".
+ *
+ * Raised only where nothing in the turn had generated: the FIRST call, and never after an answer
+ * came back — a 200 means generation ran and may have been billed. A 400 or a 408 is still a plain
+ * error, as is every failure on a call that follows a billed one (`billed`): the turn produced a
+ * result, and the charge stands.
+ */
+export class ProviderFailure extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ProviderFailure";
   }
 }
 

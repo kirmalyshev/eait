@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test";
 import { openRouterPorts } from "./openrouter.ts";
 import { SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL } from "./prompt.ts";
-import { GatewayRefusal, MAX_COACH_ROUNDS, type CoachInput } from "./port.ts";
+import { GatewayRefusal, MAX_COACH_ROUNDS, ProviderFailure, type CoachInput } from "./port.ts";
 
 /** A payload the provider stopped at the completion bound. `partial` is what it had written. */
 const truncated = (partial: string) => ({ __finish_reason: "length", __raw: partial });
@@ -363,10 +363,20 @@ describe("a non-200 from the gateway", () => {
   });
 
   // Charging on ambiguity is the safe direction: the alternative gives back calls we paid for.
-  test.each([400, 408, 500, 502])("%i may name a model that already ran, and stays charged", async (status) => {
+  test.each([400, 408])("%i may name a model that already ran, and stays charged", async (status) => {
     const err = await thrown(status);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(GatewayRefusal);
+    expect(err).not.toBeInstanceOf(ProviderFailure);
+  });
+
+  // #139: a 5xx routed nowhere either — the provider failed before a result, which is OURS, and
+  // the analysis charged for the turn is given back the same way a refusal's is.
+  test.each([500, 502])("%i is the provider failing before a result, and is refunded", async (status) => {
+    const err = await thrown(status);
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
+    expect((err as Error).message).toContain(`llm http ${status}`);
   });
 
   /** A gateway that answers one completion and then refuses everything after it. */
@@ -406,6 +416,65 @@ describe("a non-200 from the gateway", () => {
       .routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(GatewayRefusal);
+  });
+
+  test("a provider 5xx on the focused second call stays charged too: the router call was billed", async () => {
+    const err = await thenRefusing({ intent: "meal", dayOffset: 0 }, 502)
+      .routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
+    expect(err).not.toBeInstanceOf(ProviderFailure);
+  });
+});
+
+// #139. A turn's FIRST call that never got an answer — the budget fired, the connection dropped —
+// generated nothing and bills the account nothing: it throws the failure the engine refunds. Once
+// anything in the turn was billed (a second call, a retry), or once an answer came back, the same
+// failure is a plain error and the charge stands.
+describe("a failure before any answer", () => {
+  /** A fetch that honours the abort signal the way the real one does: an aborted call rejects. */
+  const hanging = openRouterPorts({
+    apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+    baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 50, maxTokens: 4321,
+    fetchImpl: ((_url: string, init: RequestInit) => new Promise((_r, reject) =>
+      init.signal!.addEventListener("abort", () => reject(init.signal!.reason)))) as unknown as typeof fetch,
+  });
+
+  test("a timeout on the first call is ours: it outlived its budget before an answer", async () => {
+    const err = await hanging.routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect((err as Error).message).toContain("llm timeout");
+  });
+
+  test("a dropped connection on the first call is ours too", async () => {
+    const llm = openRouterPorts({
+      apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+      fetchImpl: (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch,
+    });
+    const err = await llm.routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderFailure);
+  });
+
+  test("a timeout on the focused second call stays charged: the router call was billed", async () => {
+    let n = 0;
+    const llm = openRouterPorts({
+      apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 50, maxTokens: 4321,
+      fetchImpl: (async (_url: string, init: RequestInit) => {
+        if (n++ === 0) {
+          return new Response(
+            JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ intent: "meal", dayOffset: 0 }) } }] }),
+            { status: 200, headers: { "content-type": "application/json" } });
+        }
+        await new Promise((_r, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason)));
+        throw new Error("unreachable");
+      }) as unknown as typeof fetch,
+    });
+    const err = await llm.routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(ProviderFailure);
+    expect((err as Error).message).toContain("llm timeout");
   });
 });
 
