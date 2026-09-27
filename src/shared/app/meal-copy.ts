@@ -10,9 +10,11 @@
 // WHAT IS NOT HERE, and whose table it is instead: the nav labels are `SHELL_COPY`; the verdict
 // lines ("Calories high") are `verdicts.ts`'s, computed and never reworded per surface; the coach's
 // NAME fills `{coach}` from `THREAD_COPY`'s `coach.name` (S9); the unit beside a figure is
-// `UNIT_KCAL`/`spellUnit`; the diary rows drawn behind the detail are the Home surface's component
-// (W4); and Gabie's line naming the change ("Rice 150 → 200 g: 540 → 605 kcal…") is written by the
-// coach per edit, not fixed copy — the same rule that keeps her other answers out of tables.
+// `UNIT_KCAL`/`spellUnit`; and the diary rows drawn behind the detail are the Home surface's
+// component (W4). "A change, named" — the board's "Rice 150 → 200 g: 540 → 605 kcal. Both still
+// high for one meal." — IS here as the `change*` templates: the server composes it from them
+// (#119), filling `{dim}` from `verdicts.ts` in its sentence-start form; nothing writes it
+// freehand, and no client or engine changes the dimension's case itself (German nouns).
 
 import { t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
@@ -90,6 +92,24 @@ export interface MealCopy {
   phoneGoneTitle: string;
   phoneGoneBody: string;
   phoneGoneBack: string;
+
+  /**
+   * "A change, named" (web + phone `meal-edited.html`): the clause naming the edit —
+   * "Rice 150 → 200 g: 540 → 605 kcal." `{unit}` is the amount's symbol (g, ml) and `{kcal}` is
+   * `UNIT_KCAL`. The server composes it (#119); nothing writes it freehand.
+   */
+  changeLine: string;
+  /**
+   * The outcome tails — WHOLE sentences, one per dimension whose verdict changed and one for the
+   * high ones that stayed ("Both" when two), composed after `changeLine`. `{dim}` is the verdict
+   * dimension's name from `verdicts.ts`, already in sentence-start form.
+   */
+  changeStillHighOne: string;
+  changeStillHighTwo: string;
+  changeToPlan: string;
+  changeToHigh: string;
+  changeToOver: string;
+  changeAllOnPlan: string;
 }
 
 export const MEAL_COPY: Localized<MealCopy> = {
@@ -122,6 +142,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} still high for one meal.",
+    changeStillHighTwo: "Both still high for one meal.",
+    changeToPlan: "{dim} now on plan.",
+    changeToHigh: "{dim} now high for one meal.",
+    changeToOver: "{dim} now over the plan.",
+    changeAllOnPlan: "All on plan now.",
   },
   fr: {
     metaPhoto: "{day} · {time} · d’après une photo",
@@ -152,6 +179,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} toujours au-dessus pour un repas.",
+    changeStillHighTwo: "Les deux toujours au-dessus pour un repas.",
+    changeToPlan: "{dim} maintenant dans le plan.",
+    changeToHigh: "{dim} maintenant au-dessus pour un repas.",
+    changeToOver: "{dim} maintenant au-dessus du plan.",
+    changeAllOnPlan: "Tout est dans le plan maintenant.",
   },
   de: {
     metaPhoto: "{day} · {time} · von einem Foto",
@@ -182,6 +216,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} immer noch hoch für eine Mahlzeit.",
+    changeStillHighTwo: "Beide immer noch hoch für eine Mahlzeit.",
+    changeToPlan: "{dim} jetzt im Plan.",
+    changeToHigh: "{dim} jetzt hoch für eine Mahlzeit.",
+    changeToOver: "{dim} jetzt über dem Plan.",
+    changeAllOnPlan: "Jetzt alles im Plan.",
   },
   it: {
     metaPhoto: "{day} · {time} · da una foto",
@@ -212,6 +253,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} ancora sopra per un pasto.",
+    changeStillHighTwo: "Entrambi ancora sopra per un pasto.",
+    changeToPlan: "{dim} ora nel piano.",
+    changeToHigh: "{dim} ora sopra per un pasto.",
+    changeToOver: "{dim} ora sopra il piano.",
+    changeAllOnPlan: "Ora tutto nel piano.",
   },
   es: {
     metaPhoto: "{day} · {time} · de una foto",
@@ -242,6 +290,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} sigue por encima para una comida.",
+    changeStillHighTwo: "Los dos siguen por encima para una comida.",
+    changeToPlan: "{dim} ahora en el plan.",
+    changeToHigh: "{dim} ahora por encima para una comida.",
+    changeToOver: "{dim} ahora por encima del plan.",
+    changeAllOnPlan: "Todo en el plan ahora.",
   },
   vi: {
     metaPhoto: "{day} · {time} · từ một bức ảnh",
@@ -272,6 +327,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} vẫn cao cho một bữa.",
+    changeStillHighTwo: "Cả hai vẫn cao cho một bữa.",
+    changeToPlan: "{dim} đã đúng kế hoạch.",
+    changeToHigh: "{dim} giờ cao cho một bữa.",
+    changeToOver: "{dim} giờ vượt kế hoạch.",
+    changeAllOnPlan: "Giờ tất cả đúng kế hoạch.",
   },
   id: {
     metaPhoto: "{day} · {time} · dari foto",
@@ -302,6 +364,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} masih tinggi untuk satu kali makan.",
+    changeStillHighTwo: "Keduanya masih tinggi untuk satu kali makan.",
+    changeToPlan: "{dim} kini sesuai rencana.",
+    changeToHigh: "{dim} kini tinggi untuk satu kali makan.",
+    changeToOver: "{dim} kini melebihi rencana.",
+    changeAllOnPlan: "Semua sesuai rencana sekarang.",
   },
   ru: {
     metaPhoto: "{day} · {time} · по фото",
@@ -332,6 +401,13 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",
+    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeStillHighOne: "{dim} всё ещё много для одного приёма пищи.",
+    changeStillHighTwo: "Оба всё ещё много для одного приёма пищи.",
+    changeToPlan: "{dim} теперь в норме.",
+    changeToHigh: "{dim} теперь много для одного приёма пищи.",
+    changeToOver: "{dim} теперь выше плана.",
+    changeAllOnPlan: "Теперь всё в норме.",
   },
 };
 
