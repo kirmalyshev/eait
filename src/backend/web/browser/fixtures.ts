@@ -73,14 +73,21 @@ export async function signIn(page: Page, subject: string, provider: "apple" | "g
  * an array ticks those checkboxes, which is how a chips answer like restrictions is given. */
 export async function onboard(page: Page, extra: Record<string, string | string[]> = {}) {
   const answers: Record<string, string | string[]> = { ...ANSWERS, ...extra };
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 25; i++) {
     if (/\/start\/plan/.test(page.url())) return;
-    const prompt = await page.locator('input[name="prompt"]').first().getAttribute("value");
-    if (!prompt) break;
+    const promptEl = page.locator('input[name="prompt"]').first();
+    const prompt = (await promptEl.count()) ? await promptEl.getAttribute("value") : null;
+    if (!prompt) {
+      // A moment card, not a question: its Continue is a link.
+      const cta = page.locator("a.cta");
+      if (await cta.count()) await cta.first().click();
+      else break;
+      continue;
+    }
     const answer = answers[prompt];
     if (Array.isArray(answer)) {
       for (const v of answer) {
-        await page.locator(`input[type="checkbox"][name="answer"][value="${v}"]`).check();
+        await page.locator(`label.opt:has(input[name="answer"][value="${v}"])`).click();
       }
       await page.locator('button[type="submit"]').last().click();
       continue;
@@ -89,17 +96,25 @@ export async function onboard(page: Page, extra: Record<string, string | string[
       // The questions with no entry above: the chips answered by choosing nothing, and any
       // free-text one, which takes an empty line. Both submit the same way.
       const text = page.locator('input[type="text"][name="answer"], input[type="number"][name="answer"]');
-      if (await text.count()) await text.first().fill("0");
+      if (await text.count() && await text.first().isVisible()) await text.first().fill("0");
       await page.locator('button[type="submit"]').last().click();
       continue;
     }
-    const button = page.locator(`button[name="answer"][value="${answer}"]`);
-    if (await button.count()) {
-      await button.first().click();
-    } else {
-      await page.locator('input[type="text"][name="answer"], input[type="number"][name="answer"]').first().fill(answer);
+    // A choice is its LABEL — the radios sit inside it, drawn away by the card styles.
+    // Except the pace slider's rows, which the script replaces and hides: check the input itself.
+    const row = page.locator(`label.opt:has(input[name="answer"][value="${answer}"])`);
+    if (await row.count()) {
+      if (await row.first().isVisible()) await row.first().click();
+      else await page.locator(`input[name="answer"][value="${answer}"]`).check({ force: true });
       await page.locator('button[type="submit"]').last().click();
+      continue;
     }
+    const field = page.locator('input[name="answer"]').first();
+    // The ruler's own input is hidden once the script runs — the script IS the thing under test
+    // in the drag paths; here the field is the wire, so it is set straight.
+    if (await field.isVisible()) await field.fill(answer);
+    else await field.evaluate((el, v) => { (el as { value: string }).value = String(v); }, answer);
+    await page.locator('button[type="submit"]').last().click();
   }
   await expect(page).toHaveURL(/\/start\/plan/);
 }

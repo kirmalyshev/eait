@@ -12,12 +12,13 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
+  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
+  type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, healthScore, localDate, localTime,
+  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
   mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
   verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
@@ -27,7 +28,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { clampDayOffset, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -404,6 +405,38 @@ export async function editMeal(
     kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
     ...verdictWordsFor(updated.verdicts, lang),
   };
+}
+
+/**
+ * THE ONE SANCTIONED WAY a meal's date changes (#150): by offset, clamped to the bound the router
+ * answers with, against the day the move was made (`at` — the turn path passes the turn's capture
+ * time, so a queued "that was yesterday" still means the day it was typed). A client never sends a
+ * `YYYY-MM-DD`: `EditMealRequest` has no `date` field on purpose, and a bare number cannot put a
+ * meal on a day the bound would not let it reach.
+ *
+ * Reached two ways: the router's `redate` intent, and `POST /v1/meals/:id/redate` — the meal
+ * surface's "Move to yesterday", unbilled. Both write the same thread card a turn's re-date does
+ * (`kind: "meal", event: "redated"`), so the thread reads identically whichever way it happened.
+ */
+export async function redateMeal(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+  dayOffset: unknown,
+  // `at` is the move's clock: the turn path passes the turn's capture time, so a queued "that was
+  // yesterday" still means the day it was typed. `thread` is the route's only — the chat path's
+  // `keep` writes the redated card under the user's words itself, so a second write here would
+  // land two cards for one move.
+  opts: { thread?: boolean; at?: Date } = {},
+): Promise<MealRedated | TargetGone> {
+  const date = dateMinus(localDate(deps.config.timezone, opts.at), clampDayOffset(dayOffset));
+  const moved = await deps.store.updateMeal(userId, mealId, { date });
+  if (!moved) return { kind: "target-gone", on: "redate" };
+  const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+  if (opts.thread === true) {
+    await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
+  }
+  return { kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date };
 }
 
 /**

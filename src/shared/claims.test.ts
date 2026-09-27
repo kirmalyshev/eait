@@ -207,6 +207,20 @@ describe("every sentence this product ships", () => {
         .toEqual([]);
     }
   });
+
+  it("the W2 surface's own words pass the gate — the how card, the units word, the pace tail", () => {
+    // The table's gate-shaped exceptions are the fields that quote the user (`options.lose`) and
+    // the S6 plan headline; the copy the redesign ADDS is ordinary prose and must not grow one.
+    for (const lang of LANGS) {
+      const copy = chatCopyFor(lang);
+      expect(lintCopy({
+        "how.meal": copy.how.meal,
+        "how.photoAlt": copy.how.photoAlt,
+        "units.years": copy.units.years,
+        "pace.rateSuffix": copy.pace.rateSuffix,
+      }).map((v) => `${v.field}: ${v.span}`), lang).toEqual([]);
+    }
+  });
 });
 
 // ── The one exemption (S6) ───────────────────────────────────────────────────────────────────
