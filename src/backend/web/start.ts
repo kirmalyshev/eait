@@ -132,7 +132,7 @@ const chatNotice = (copy: PageCopy): Record<string, string> => ({
  * Apfel". Same rule as `LANG_LABEL` and the product's own name.
  */
 const providerLabel = (p: WebProvider, lang: Lang): string =>
-  pageCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
+  signupCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
 
 /** What this browser asked for, narrowed. The only language signal there is before a session. */
 const browserLang = (req: Request): Lang =>

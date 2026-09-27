@@ -129,7 +129,6 @@ export interface PageCopy {
   languageLabel: string;
   languageSave: string;
   /** `{provider}` is Apple or Google — a brand, so it is not translated, only the verb around it. */
-  continueWith: string;
   /**
    * The rate limiter's plain-text 429 body.
    *
@@ -252,7 +251,6 @@ const EN: PageCopy = {
   /** The picker. Its OPTIONS are `LANG_LABEL` — endonyms, never translated. */
   languageLabel: "Language",
   languageSave: "Save",
-  continueWith: "Continue with {provider}",
   tooManyAttempts: "Too many attempts from this address. Try again shortly.\n",
   chatRefusalIdentity: "Sign in with Apple or Google to keep going — the sign-up screen is one step back.",
 };
@@ -331,7 +329,6 @@ const FR: PageCopy = {
   titleOffer: "Ta semaine offerte",
   languageLabel: "Langue",
   languageSave: "Enregistrer",
-  continueWith: "Continuer avec {provider}",
   tooManyAttempts: "Trop de tentatives depuis cette adresse. Réessaie dans un moment.\n",
   chatRefusalIdentity: "Connecte-toi avec Apple ou Google pour continuer — l'écran d'inscription est à un pas.",
 };
@@ -410,7 +407,6 @@ const DE: PageCopy = {
   titleOffer: "Deine Gratiswoche",
   languageLabel: "Sprache",
   languageSave: "Speichern",
-  continueWith: "Weiter mit {provider}",
   tooManyAttempts: "Zu viele Versuche von dieser Adresse. Versuch es gleich noch einmal.\n",
   chatRefusalIdentity: "Melde dich mit Apple oder Google an, um weiterzumachen — der Anmeldeschirm ist einen Schritt zurück.",
 };
@@ -489,7 +485,6 @@ const IT: PageCopy = {
   titleOffer: "La tua settimana gratis",
   languageLabel: "Lingua",
   languageSave: "Salva",
-  continueWith: "Continua con {provider}",
   tooManyAttempts: "Troppi tentativi da questo indirizzo. Riprova tra poco.\n",
   chatRefusalIdentity: "Accedi con Apple o Google per continuare — la schermata di registrazione è a un passo.",
 };
@@ -568,7 +563,6 @@ const ES: PageCopy = {
   titleOffer: "Tu semana gratis",
   languageLabel: "Idioma",
   languageSave: "Guardar",
-  continueWith: "Continuar con {provider}",
   tooManyAttempts: "Demasiados intentos desde esta dirección. Inténtalo dentro de un momento.\n",
   chatRefusalIdentity: "Inicia sesión con Apple o Google para continuar — la pantalla de registro está a un paso.",
 };
@@ -647,7 +641,6 @@ const VI: PageCopy = {
   titleOffer: "Tuần miễn phí của bạn",
   languageLabel: "Ngôn ngữ",
   languageSave: "Lưu",
-  continueWith: "Tiếp tục với {provider}",
   tooManyAttempts: "Quá nhiều lần thử từ địa chỉ này. Thử lại sau một lát nhé.\n",
   chatRefusalIdentity: "Đăng nhập bằng Apple hoặc Google để tiếp tục — màn hình đăng ký chỉ cách một bước.",
 };
@@ -726,7 +719,6 @@ const ID: PageCopy = {
   titleOffer: "Minggu gratismu",
   languageLabel: "Bahasa",
   languageSave: "Simpan",
-  continueWith: "Lanjutkan dengan {provider}",
   tooManyAttempts: "Terlalu banyak percobaan dari alamat ini. Coba lagi sebentar.\n",
   chatRefusalIdentity: "Masuk dengan Apple atau Google untuk lanjut — layar pendaftaran tinggal selangkah.",
 };
@@ -805,7 +797,6 @@ const RU: PageCopy = {
   titleOffer: "Твоя бесплатная неделя",
   languageLabel: "Язык",
   languageSave: "Сохранить",
-  continueWith: "Продолжить с {provider}",
   tooManyAttempts: "Слишком много попыток с этого адреса. Попробуй чуть позже.\n",
   chatRefusalIdentity: "Войди через Apple или Google, чтобы продолжить — экран регистрации в шаге назад.",
 };
