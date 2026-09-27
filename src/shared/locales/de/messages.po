@@ -15,6 +15,26 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Bekomme ich genug Eiweiß?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Wie läuft meine Woche?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Was soll ich heute Abend essen?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Aktualisiert — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "„{note}“ — notiert, es steckt in den Zahlen."
 
@@ -70,7 +90,7 @@ msgstr "Ein großer Teil deines Tages in einer Mahlzeit."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Bekomme ich genug Eiweiß?"
 
 #. js-lingui-explicit-id
@@ -155,6 +175,11 @@ msgstr "Die erste ist drin. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Gut — der Einstieg ist geschafft, und der erste Tag läuft. Noch eine Sache, bevor du loslegst, und es ist das einzige Mal, dass ich frage."
 
@@ -170,8 +195,13 @@ msgstr "Ehrliche Antwort: den Teller konnte ich nicht gut lesen. Nimm {kcal} als
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Wie läuft meine Woche?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Ich sage dir einfach, was ich gegessen habe"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -301,7 +331,7 @@ msgstr "Die gesättigten Fette laufen hier hoch. Bewertet nur, weil du mich daru
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Schick ein Foto einer Mahlzeit, sag mir, was du gegessen hast, oder stell mir eine Frage."
+msgstr "Schick ein Foto einer Mahlzeit, sag mir, was du gegessen hast, oder stell {coach} eine Frage."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -459,11 +489,6 @@ msgid "thread.firstVerdict.typed"
 msgstr "Getippt, nicht fotografiert — die Portionen sind also meine Schätzung. Nimm {kcal} als groben Wert; wenn du die Gramm kennst, sag es und ich korrigiere."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.correction"
-msgstr "Aktualisiert — {kcal} kcal. {day}"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.updated"
 msgstr "Aktualisiert."
@@ -480,8 +505,13 @@ msgstr "Portionen werden gewogen…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Was soll ich heute Abend essen?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Wie mache ich das Abendessen leichter?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

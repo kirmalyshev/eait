@@ -79,7 +79,10 @@ them. Ported from the private monorepo with its iOS, Metro and landing halves re
 
 - **`shared` may not import from `backend`.** It is the contract both sides implement, and a
   dependency in either direction makes it a third implementation instead. It holds no renderer:
-  the backend imports it, so React there would be React the server loads.
+  the backend imports it, so React there would be React the server loads. **The one exception is
+  `src/shared/ui/kit.ts`** (#88): HTML string builders — escaped, no inline handlers — for the TWO
+  web surfaces only (`/start` interpolates them server-side, the app parses them via `kitEl`); the
+  mobile client renders the same contract natively and never parses it.
 - **The HTTP contract is code, not a document.** `src/shared/contract.ts` carries the routes, the
   request/response types and the refusal→status map. Every client and this server import it. If
   you change an endpoint and only one side breaks, you changed it in the wrong place.

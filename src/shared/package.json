@@ -12,7 +12,8 @@
     "./palette": "./palette.ts",
     "./design": "./design.ts",
     "./mascot": "./mascot.ts",
-    "./ui/icons": "./ui/icons.ts"
+    "./ui/icons": "./ui/icons.ts",
+    "./ui/kit": "./ui/kit.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
