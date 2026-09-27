@@ -51,8 +51,15 @@ export const MAX_DEFICIT_SHARE = 0.2;
 /** Surpluses are capped tighter: past this, the surplus is fat, not muscle. */
 export const MAX_SURPLUS_SHARE = 0.15;
 
-/** Weekly rate of change per pace, in kg/week. `push` sits at the top of the sustainable band. */
-const PACE_KG_PER_WEEK: Record<Pace, number> = { easy: 0.25, steady: 0.5, push: 0.75 };
+/**
+ * Weekly rate of change per pace, in kg/week. `push` sits at the top of the sustainable band.
+ *
+ * Exported for `progress.ts`: the pace the plan was built on is a rung on THIS ladder, so the
+ * classification "slower than / on / faster than the pace you chose" compares the observed
+ * weekly rate against these three numbers — at the midpoints between rungs — and never against
+ * a free-floating threshold a client invented.
+ */
+export const PACE_KG_PER_WEEK: Record<Pace, number> = { easy: 0.25, steady: 0.5, push: 0.75 };
 
 /**
  * Energy in one kg of body mass. The classic 7700 kcal/kg figure.
