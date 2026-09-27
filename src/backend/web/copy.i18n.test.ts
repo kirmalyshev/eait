@@ -1,11 +1,34 @@
 import { describe, expect, it } from "bun:test";
 import {
-  askLines, chatCopyFor, DEFAULT_ONBOARDING_CONTENT, LANGS, LANGS_READY, LANG_LABEL,
-  promptById, UNIT_KCAL, lintCopy, signupCopyFor, wholeNumbers,
+  askLines, chatCopyFor, DEFAULT_ONBOARDING_CONTENT, explainTargets, LANGS, LANGS_READY,
+  LANG_LABEL, promptById, UNIT_KCAL, lintCopy, onboardingContentFor, projectGoal,
+  signupCopyFor, wholeNumbers,
+  type Lang, type Profile,
 } from "@eait/shared";
 import { blankProfile } from "../store.ts";
 import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
-import { chat, plan, question, shell } from "./page.ts";
+import { chat, plan, question, shell, type PlanView } from "./page.ts";
+
+/**
+ * A plan page takes the computed view, not a bag of strings — the fixture builds the profile the
+ * boards' persona wears and runs the real arithmetic once, so nothing here retypes a number.
+ */
+const PERSONA: Profile = {
+  user_id: "i18n", lang: "en", goal: "lose", sex: "female", birth_year: 1990,
+  height_cm: 170, weight_kg: 80, weight_measured_at: null, target_weight_kg: 70,
+  activity: "few", pace: "steady", units: null, struggles: [], country: "de",
+  restrictions: [], medical_limitations: null, food_allergies: null,
+  product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
+};
+
+function planView(lang: Lang, hasWebApp = false): PlanView {
+  const { targets, basis } = explainTargets(PERSONA);
+  return {
+    profile: { ...PERSONA, lang }, targets, basis,
+    projection: projectGoal(PERSONA, basis),
+    content: onboardingContentFor(lang), next: "/start/signup", hasWebApp, lang,
+  };
+}
 
 describe("what /start says for itself, in eight languages", () => {
   it("has every key in every language — the type says so, this says it out loud", () => {
@@ -21,12 +44,10 @@ describe("what /start says for itself, in eight languages", () => {
   it("keeps every placeholder code fills, and introduces none", () => {
     for (const lang of LANGS) {
       const copy = pageCopyFor(lang);
-      expect(copy.planAppBody, lang).toContain("{provider}");
       expect(copy.belowHealthyTarget, lang).toContain("{kg}");
-      // The plan's one placeholder. A translation that drops it renders a sentence with its
-      // number missing, and nothing anywhere would say so.
-      expect(copy.planWeeks, lang).toContain("{weeks}");
-      expect(copy.planFloorNumber, lang).toContain("{floor}");
+      // The pairing hint names the tab the phone's control lives on — `{tab}` is filled with
+      // SHELL_COPY's navProfile, so a translation that drops it renders "in ." for nothing.
+      expect(copy.pairLead, lang).toContain("{tab}");
       // A meal card's three. Dropping `{unit}` is how `UNIT_KCAL` and a translation come apart.
       for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
         expect(copy.cardMacros, `${lang}.cardMacros`).toContain(ph);
@@ -45,7 +66,7 @@ describe("what /start says for itself, in eight languages", () => {
       for (const [k, v] of Object.entries({ ...copy, ...signupCopyFor(lang) })) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
-            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy"],
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab"],
             `${lang}.${k}`,
           ).toContain(m[1] ?? "");
         }
@@ -70,24 +91,16 @@ describe("what /start says for itself, in eight languages", () => {
 describe("the language picker on the plan page", () => {
   // No web application here: with one, the picker is not drawn — the language lives in the app's
   // own settings — so every picker assertion is against a deployment that has none.
-  const view = {
-    signedInWith: "apple" as const, beat: null, targetKg: null, byWhen: null, weeks: null,
-    kcal: 1800, proteinG: 120,
-    labels: { rest: "At rest", activity: "The days", pace: "The pace", floor: "The floor", protein: "Protein" },
-    bmr: 1400, tdee: 1900, paceKcal: -300,
-    floorApplied: false, floorKcal: 1500, checkout: false, hasWebApp: false, telegram: false,
-  };
-
   it("stays off the plan page where a web application holds the language already (#51)", () => {
-    const html = plan({ ...view, lang: "de", hasWebApp: true });
+    const html = plan(planView("de", true));
     expect(html).not.toContain('<select name="lang"');
     expect(html).not.toContain('action="/start/language"');
     // And back on a deployment with none, the picker is the only place to change it — so it stays.
-    expect(plan({ ...view, lang: "de" })).toContain('<select name="lang"');
+    expect(plan(planView("de"))).toContain('<select name="lang"');
   });
 
   it("offers exactly LANGS_READY, labelled in each language's own name", () => {
-    const html = plan({ ...view, lang: "de" });
+    const html = plan(planView("de"));
     for (const code of LANGS_READY) {
       expect(html).toContain(`<option value="${code}"`);
       expect(html).toContain(LANG_LABEL[code]);
@@ -99,7 +112,7 @@ describe("the language picker on the plan page", () => {
 
   it("pre-selects the language being read, so the control is not lying", () => {
     for (const lang of LANGS_READY) {
-      expect(plan({ ...view, lang }), lang).toContain(`<option value="${lang}" selected>`);
+      expect(plan(planView(lang)), lang).toContain(`<option value="${lang}" selected>`);
     }
   });
 
@@ -110,20 +123,21 @@ describe("the language picker on the plan page", () => {
     // shows the first option, which is English: the control agrees with the page.
     const unready = LANGS.find((l) => !(LANGS_READY as readonly string[]).includes(l));
     if (unready === undefined) return; // every language is ready; nothing to disagree about
-    expect(plan({ ...view, lang: unready })).not.toContain("selected");
+    expect(plan(planView(unready))).not.toContain("selected");
   });
 
   it("writes the card's own sentences in the asked language, with the figures grouped", () => {
-    const de = plan({ ...view, lang: "de", floorApplied: true });
-    expect(de).toContain(pageCopyFor("de").planEachDay);
-    expect(de).toContain(pageCopyFor("de").planFloorNumber.replace("{floor}", "1.500"));
-    expect(de).toContain("1.800 kcal");
-    expect(de).not.toContain("Each day");
-    expect(de).not.toContain("The floor is");
+    const de = plan(planView("de"));
+    const content = onboardingContentFor("de");
+    const { targets } = explainTargets(PERSONA);
+    // The kcal card's caption is the content's, the figure grouped for the reader.
+    expect(de).toContain(`<small>${content.summary.kcalLabel}</small>`);
+    expect(de).toContain(wholeNumbers("de")(targets.kcal));
+    expect(de).not.toContain("kcal a day");
   });
 
   it("posts to the one route, which writes through the profile", () => {
-    expect(plan({ ...view, lang: "en" })).toContain('action="/start/language"');
+    expect(plan(planView("en"))).toContain('action="/start/language"');
   });
 
   it("renders a question page in the asked language", () => {
@@ -168,30 +182,27 @@ describe("the front door's two buttons", () => {
 });
 
 describe("the plan card's two figures", () => {
-  // The stylesheet legitimately contains the string "kcal" now — `--macro-kcal` is a token name
-  // (#78) — so the no-"kcal" assertions run on the page's CONTENT, not its CSS.
-  const content = (html: string) => html.replace(/<style>[\s\S]*?<\/style>/g, "");
-  const view = {
-    signedInWith: "apple" as const, beat: null, targetKg: null, byWhen: null, weeks: null,
-    kcal: 1500, proteinG: 120,
-    labels: { rest: "At rest", activity: "The days", pace: "The pace", floor: "The floor", protein: "Protein" },
-    bmr: 1400, tdee: 1900, paceKcal: -300,
-    floorApplied: true, floorKcal: 1500, checkout: false, hasWebApp: false, telegram: false,
-  };
+  // The stylesheet legitimately contains the string "kcal" — `--macro-kcal` is a token name (#78)
+  // — and so does the markup: the kcal icon's class is `i-kcal`. The no-"kcal" assertions therefore
+  // run on TEXT only, not on tags.
+  const content = (html: string) =>
+    html.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ").replace(/class="[^"]*"/g, "");
 
   it("spell the kilocalorie the same way, on one card, in every language", () => {
     // A Russian plan card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. The
-    // sentences carry the word in their own template; the headline concatenates it, and the two
-    // disagreed. `UNIT_KCAL` is the one spelling, and this is the card where it showed.
+    // kcal card's caption is the content's own (`kcalLabel`), so the spelling beside the figure
+    // is the language's and there is nothing else on the card to disagree with it.
     for (const lang of LANGS) {
-      const html = plan({ ...view, lang });
-      expect(html, lang).toContain(`${UNIT_KCAL[lang]}</p>`);
-      // The floor sentence is prose and already carried it; assert they agree rather than assert
-      // either one's contents, so this keeps holding when a translation is reworded.
-      expect(pageCopyFor(lang).planFloorNumber, lang).toContain(UNIT_KCAL[lang]);
+      const html = plan(planView(lang));
+      const label = onboardingContentFor(lang).summary.kcalLabel;
+      expect(html, lang).toContain(`<small>${label}</small>`);
+      // The caption carries the unit's own spelling — "kcal" or "ккал", never the other's.
+      expect(label, lang).toContain(UNIT_KCAL[lang]);
     }
-    expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
-    expect(content(plan({ ...view, lang: "ru" }))).not.toContain("kcal");
+    const ru = content(plan(planView("ru")));
+    expect(ru).toContain("ккал в день");
+    expect(ru).not.toMatch(/>\s*kcal|kcal\s*</);
+    expect(ru).not.toContain(" kcal ");
   });
 
   it("writes a MEAL CARD's figures in the reader's language too, not only the plan's", () => {

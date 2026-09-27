@@ -78,8 +78,8 @@ test("a paired browser opens the app account's own thread, and it is ONE thread"
   const { context, page } = await stranger(browser);
   await page.goto("/start/signup");
   // Typed the way a person types it off a phone screen: lower case, with a dash they added.
-  await page.getByPlaceholder("Your pairing code").fill(`${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase());
-  await page.getByRole("button", { name: "Connect this browser" }).click();
+  await page.getByLabel("Your pairing code").fill(`${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase());
+  await page.getByRole("button", { name: "Pair this browser" }).click();
 
   await expect(page).toHaveURL(/\/start\/chat/);
   await expect(page.getByRole("heading", { name: "Your chat" })).toBeVisible();

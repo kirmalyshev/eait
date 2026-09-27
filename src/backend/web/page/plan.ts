@@ -1,145 +1,121 @@
 import {
-  LANGS_READY, LANG_LABEL, numbers, spellUnit, UNIT_KCAL, verdictNoun, wholeNumbers,
+  capNote, chatCopyFor, estimateChart, fill, LANG_LABEL, LANGS_READY, PLAN_CHART_TICKS_MS,
+  planHeadline, projectionMonth, spellUnit, weightDisplay, wholeNumbers,
+  type FoodTargets, type GoalProjection, type Lang, type OnboardingContent,
+  type Profile, type TargetBasis,
 } from "@eait/shared";
-import { spudSvg, type MascotMood } from "@eait/shared/mascot";
-import type { Lang } from "@eait/shared";
+import { ctaLink, dash, say, wtop } from "./board.ts";
+import { spudSvg } from "@eait/shared/mascot";
 import { pageCopyFor } from "../copy.ts";
-import { topBar } from "./parts.ts";
 import { escape, shell } from "./shell.ts";
 
+/**
+ * The plan (board `onboarding/web/15-plan.html`), drawn for W3 (issue #90):
+ *
+ *   the walk's dash, all of it behind now      — `dash("summary")`: the plan IS the last segment
+ *   the say-line                               — the summary block's own words, Spud at 28 px
+ *   "Goal: lose 6 kg by January 2027"          — `planHeadline`, THE S6-exempt sentence, and the
+ *                                                reason this file is on claims.test.ts's caller
+ *                                                list: the only claim-shaped line, computed
+ *   the estimated-progress graph               — `estimateChart`'s geometry verbatim (the #112
+ *                                                chip position), its labels localized
+ *   "1,434 kcal a day"                         — the computed target, never a typed number
+ *   the macro row                              — protein/carbs/fat always, and saturated fat
+ *                                                ONLY when it was asked for: the card is drawn
+ *                                                because the cap was declared, so an undeclared
+ *                                                profile shows nothing
+ *   Continue                                   — the sign-up is next (S8)
+ *
+ * Gone with the old card: the arithmetic breakdown (that disclosure belongs to the pace
+ * question's Why), the get-the-app paragraph (the web application IS the app), the chat link and
+ * the Telegram controls — none of them are on the board, and the board is the design.
+ */
+
 export interface PlanView {
-  /** Which provider signed this account in, so the app instruction can name that button. */
-  signedInWith: "apple" | "google" | null;
+  profile: Profile;
+  targets: FoodTargets;
+  basis: TargetBasis;
+  /** `projectGoal`'s answer — null means no projection, and no graph card (horizon or no goal). */
+  projection: GoalProjection | null;
+  /** `onboardingContent` — the say-line, the macro labels, the marker and its note. */
+  content: OnboardingContent;
+  /** Where Continue goes — `/start/signup`. */
+  next: string;
   /**
-   * Spud's beat at the top — the restrictions reply the chat computes for this profile
-   * (`reactionTo`), with its mood. The page invents no sentence of its own here.
-   */
-  beat: { line: string; mood: MascotMood } | null;
-  /** The goal card's figure. A goal that carries no target — maintain — draws no card. */
-  targetKg: number | null;
-  /**
-   * The by-when line, already filled — `projectionLine` over the content's
-   * `summary.projection`/`projectionFar`, or null wherever `projectGoal` declined a number. Null
-   * is "no date", never a hole.
-   */
-  byWhen: string | null;
-  /** `projectGoal`'s week count, under the by-when. */
-  weeks: number | null;
-  kcal: number;
-  proteinG: number;
-  /**
-   * The marker caps, present ONLY for the restrictions the profile declared — the same fields on
-   * `targets` that `verdictsFromTargets` reads, so the figure on this page is the figure a meal is
-   * judged against.
-   */
-  satfatG?: number | undefined;
-  sodiumMg?: number | undefined;
-  /** The row labels — `content.building`'s and `summary.proteinLabel`, the phone's own words. */
-  labels: { rest: string; activity: string; pace: string; floor: string; protein: string };
-  bmr: number | null;
-  tdee: number | null;
-  /** `appliedDeltaKcal` — the pace as it was actually applied, after both guards. */
-  paceKcal: number;
-  floorApplied: boolean;
-  floorKcal: number;
-  /**
-   * Whether a checkout is configured — the ask is rendered, not the URL: it leads to the soft
-   * offer (`/start/offer`), which is where the configured checkout link now lives (#42).
-   */
-  checkout: boolean;
-  /**
-   * Whether there is a web application to hand over to.
-   *
-   * It decides two things. The primary button: "/" opens the first-meal flow there, and `/start`'s
-   * own chat is the nearest thing when there is none. And the language picker: with an app, the
-   * language lives in ITS settings and the picker is not drawn; without one this page is the only
-   * place to change it, so it stays.
+   * The language picker is drawn ONLY where there is no web application to hold the account's
+   * language (#423): without one this page is the only place to change it, and dropping the
+   * control would strand it.
    */
   hasWebApp: boolean;
-  /** Whether the Telegram connector is on, so Connect Telegram has a bot to send anybody to. */
-  telegram: boolean;
   lang: Lang;
 }
 
 export function plan(v: PlanView): string {
-  const lang = v.lang;
-  const PAGE_COPY = pageCopyFor(lang);
-  // The FIGURES are grouped the reader's way — "1.800", not "1,800", for half of Europe — and the
-  // sentences around them are the table's. A weight keeps its tenth; kcal, grams and weeks do not.
-  const n = wholeNumbers(lang);
-  const kg = spellUnit(lang, "kg");
-  const g = spellUnit(lang, "g");
+  const PAGE_COPY = pageCopyFor(v.lang);
+  const CHAT = chatCopyFor(v.lang);
+  const summary = v.content.summary;
+  const n = wholeNumbers(v.lang);
+  const today = new Date();
+  const units = v.profile.units ?? "metric";
 
-  // The marker row: protein always, then ONLY what the profile declared — a cap nobody asked for
-  // is a verdict nobody asked for. The noun is the verdict's own (`verdictNoun`), so the cap and
-  // the pill that judges it cannot spell the nutrient two ways.
-  const markers: { label: string; text: string }[] = [
-    { label: v.labels.protein, text: `${n(v.proteinG)} ${g}` },
+  // THE HEADLINE IS THE EXEMPTION (S6): the only sentence on this page the claims gate would
+  // otherwise refuse — "lose 6 kg by January 2027" is claim-shaped. `planHeadline` is the shared
+  // computation, and this file's call to it is what claims.test.ts's caller list guards.
+  const headline = planHeadline(v.profile, today, units, v.lang);
+
+  // The estimate graph rides on a projection that lands inside the horizon — a maintain goal
+  // draws no card (there is nowhere to arrive), and "80 weeks away" names no month.
+  const chart = v.projection === null || v.projection.beyondHorizon ? "" : chartCard(
+    v.profile, v.projection, CHAT, summary, v.lang,
+  );
+
+  // The marker is drawn when the share cap or the floor decided the number — the line is the
+  // flag, and its note sits one tap behind, unspoken until asked for (DIRECTION §5's "why").
+  let marker = "";
+  if (v.basis.shareCapApplied || v.basis.floorApplied) {
+    const note = v.basis.floorApplied
+      ? `<b>${escape(v.content.building.floorTitle)}</b> ${escape(fill(v.content.building.floorBody, { floor: n(v.basis.floorKcal) }))}`
+      : escape(capNote(summary.capNote, v.profile.goal, v.projection?.kgPerWeek ?? null, v.lang));
+    marker = `<details class="est-more"><summary class="est">${escape(fill(summary.floorMarker, { floor: n(v.basis.floorKcal) }))}</summary><p class="est-note">${note}</p></details>`;
+  }
+
+  const gram = spellUnit(v.lang, "g");
+  const macros = [
+    { icon: "protein", value: `${n(v.targets.protein_g)} ${gram}`, label: summary.macros.protein },
+    { icon: "carbs", value: `${n(v.targets.carbs_g)} ${gram}`, label: summary.macros.carbs },
+    { icon: "fat", value: `${n(v.targets.fat_g)} ${gram}`, label: summary.macros.fat },
+    // "Saturated fat · you asked" — the label is literal about it: the card exists because the
+    // cap was DECLARED (`targets.satfat_g` is set exactly then), never for a profile that did
+    // not ask. `planRows` holds the same rule for the reveal's rows.
+    ...(v.targets.satfat_g !== undefined && v.targets.satfat_g !== null
+      ? [{ icon: "satfat", value: `${n(v.targets.satfat_g)} ${gram}`, label: summary.macros.satfat }]
+      : []),
   ];
-  if (v.satfatG !== undefined)
-    markers.push({ label: verdictNoun("ldl", lang), text: `${n(v.satfatG)} ${g}` });
-  if (v.sodiumMg !== undefined)
-    markers.push({ label: verdictNoun("kidneys", lang), text: `${n(v.sodiumMg)} ${spellUnit(lang, "mg")}` });
 
-  // The arithmetic — every figure is `explainTargets`' own, handed in by the route: the body at
-  // rest, what the days add on top of it, the pace as it was actually APPLIED (capped, floored —
-  // never the one that was asked for), and the floor itself, drawn even when it did not bite
-  // because it holds either way.
-  const arithmetic: { label: string; text: string }[] = [];
-  if (v.bmr !== null) arithmetic.push({ label: v.labels.rest, text: n(v.bmr) });
-  if (v.bmr !== null && v.tdee !== null)
-    arithmetic.push({ label: v.labels.activity, text: `+${n(v.tdee - v.bmr)}` });
-  arithmetic.push({
-    label: v.labels.pace,
-    // A minus sign, not a hyphen, and a dash for no change — the phone's calc card reads the same.
-    text: v.paceKcal === 0 ? "—" : `${v.paceKcal < 0 ? "−" : "+"}${n(Math.abs(v.paceKcal))}`,
-  });
-  arithmetic.push({ label: v.labels.floor, text: n(v.floorKcal) });
-
-  return shell(PAGE_COPY.titlePlan, `
-${topBar(PAGE_COPY)}
-${v.beat === null ? "" : `<div class="spk"><span class="av">${spudSvg(v.beat.mood, "spud-plan")}</span><p class="bubble typed">${escape(v.beat.line)}</p></div>`}
-<h1>${escape(PAGE_COPY.planHeading)}</h1>
-${v.targetKg === null ? "" : `<div class="card">
-  <p class="figure">${escape(numbers(lang)(v.targetKg))} ${escape(kg)}</p>
-  ${v.byWhen === null ? "" : `<p class="muted">${escape(v.byWhen)}</p>`}
-  ${v.weeks === null ? "" : `<p class="lab">${escape(PAGE_COPY.planWeeks.replace("{weeks}", n(v.weeks)))}</p>`}
-</div>`}
-<div class="card">
-  <p class="lab">${escape(PAGE_COPY.planEachDay)}</p>
-  <p class="figure">${escape(n(v.kcal))} ${escape(UNIT_KCAL[lang])}</p>
-  <div class="specs">${markers.map((m) =>
-    `<div><p class="lab">${escape(m.label)}</p><p class="val">${escape(m.text)}</p></div>`,
-  ).join("")}</div>
-  <div class="arith">${arithmetic.map((r) =>
-    `<div class="rowline"><span>${escape(r.label)}</span><strong>${escape(r.text)}</strong></div>`,
-  ).join("")}</div>
+  return shell(PAGE_COPY.titlePlan, `${wtop()}
+<div class="wmain one"><div class="wcol">
+<div class="pln">
+${dash("summary", v.lang)}
+${say("happy", summary.lines, v.lang)}
+${headline ? `<p class="goal num">${escape(headline)}</p>` : ""}
+${chart}
+<div class="kgrid">
+  <div class="card kcal">
+    <div class="big"><i class="ico i-kcal"></i><b class="num">${n(v.targets.kcal)}</b> <small>${escape(summary.kcalLabel)}</small></div>
+    ${marker}
+  </div>
+${macros.map((m) => `  <div class="mcard"><i class="ico i-${m.icon}"></i><b class="num">${escape(m.value)}</b><small>${escape(m.label)}</small></div>`).join("\n")}
 </div>
-${v.floorApplied
-  ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} ${escape(PAGE_COPY.planFloorNumber.replace("{floor}", n(v.floorKcal)))}</p>`
-  : ""}
-<a class="button primary" href="/start/signup">${escape(PAGE_COPY.continueLabel)}</a>
-${v.checkout
-  ? `<a class="button primary" href="/start/offer">${escape(PAGE_COPY.planCheckout)}</a>`
-  : ""}
-<a class="button" href="${v.hasWebApp ? "/#/chat" : "/start/chat"}">${escape(PAGE_COPY.planChat)}</a>
-${v.telegram
-  ? `<p class="muted">${escape(PAGE_COPY.planTelegramBody)}</p>
-<form method="post" action="/start/telegram"><button class="button">${escape(PAGE_COPY.planTelegram)}</button></form>`
-  : ""}
-<h2>${escape(PAGE_COPY.planAppHeading)}</h2>
-<p class="muted">${escape(v.signedInWith === null
-  ? PAGE_COPY.planAppBodyGeneric
-  : PAGE_COPY.planAppBody.replace("{provider}", v.signedInWith === "apple" ? "Apple" : "Google"))}</p>
+${ctaLink(v.next, PAGE_COPY.continueLabel)}
 ${v.hasWebApp ? "" : languagePicker(v.lang)}
-`, v.lang);
+</div>
+</div></div>
+`, v.lang, "ob");
 }
 
 /**
- * THE PICKER, and this page is where it lives on this surface.
- *
- * The plan page is `/start`'s settings: it is the one page somebody comes back to, and the only one
- * with anything else to change on it. It writes through `PATCH /v1/profile` like every other
+ * The plan page is `/start`'s settings: it is the one page somebody comes back to, and the only
+ * one with anything else to change on it. It writes through `PATCH /v1/profile` like every other
  * surface — `POST /start/language` is a form handler that calls `patchProfile`, not a second
  * endpoint and not a second source of truth. There is no JavaScript on these pages, so a submit
  * button is the control; a `<select>` that saved on change would need one.
@@ -158,6 +134,44 @@ function languagePicker(lang: Lang): string {
   return `<h2>${escape(PAGE_COPY.languageLabel)}</h2>
 <form method="post" action="/start/language">
   <select name="lang" aria-label="${escape(PAGE_COPY.languageLabel)}">${options}</select>
-  <button type="submit">${escape(PAGE_COPY.languageSave)}</button>
+  <button type="submit" class="cta s">${escape(PAGE_COPY.languageSave)}</button>
 </form>`;
+}
+
+/**
+ * The estimate graph card (15-plan): the area, the curve drawing itself, the end dot's pop, the
+ * target chip's rise — the delays are the board's own (.6 s area, 1.1 s dot, 1.2 s chip) over the
+ * shared verbs. EVERY number is the profile's: start weight, target weight, the month the
+ * projection lands on. The geometry is `estimateChart`'s — #112's chip fix included — verbatim.
+ */
+function chartCard(
+  p: Profile,
+  projection: GoalProjection,
+  CHAT: ReturnType<typeof chatCopyFor>,
+  summary: OnboardingContent["summary"],
+  lang: Lang,
+): string {
+  const direction = p.goal === "gain" ? "gain" : "lose";
+  const TICKS = PLAN_CHART_TICKS_MS;
+  const g = estimateChart(direction);
+  const month = projectionMonth(new Date(), projection.weeks, lang);
+  const from = weightDisplay(p.weight_kg!, p.units, lang);
+  const to = weightDisplay(p.target_weight_kg!, p.units, lang);
+  const aria = fill(CHAT.chart.estimateAria, { from, to, month });
+  return `<div class="card est-card">
+  <div class="row between"><span class="lab">${escape(CHAT.chart.estimatedProgress)}</span><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
+  <svg class="pgraph" viewBox="${g.viewBox}" role="img" aria-label="${escape(aria)}">
+    <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1">${g.areaGradient.stops.map((s) => `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`).join("")}</linearGradient></defs>
+    <line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>
+    <path d="${g.areaPath}" fill="url(#pgf)" class="rise" style="--d:${TICKS.area / 1000}s"/>
+    <path d="${g.linePath}" class="ln draw"/>
+    <circle cx="${g.startDot.cx}" cy="${g.startDot.cy}" r="${g.startDot.r}" fill="var(--ink)"/>
+    <circle cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}" class="pop" style="--d:${TICKS.endDot / 1000}s"/>
+    <g class="rise" style="--d:${TICKS.targetChip / 1000}s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" fill="#fff" style="font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
+    <text x="${g.startLabel.x}" y="${g.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(from)}</text>
+    <text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${escape(CHAT.chart.now)}</text>
+    <text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" style="fill:var(--ink);font-weight:600">${escape(fill(CHAT.chart.monthEstimate, { month }))}</text>
+  </svg>
+  <div class="row between est-foot"><span>${escape(CHAT.chart.estimate)}</span><span class="num">${escape(from)} → ${escape(to)}</span></div>
+</div>`;
 }

@@ -11,7 +11,7 @@ import {
   BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
   minHealthyWeightKg, numbers, pacePreview, PACES, rulerLabels, RULER_TICKS,
   optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
-  suggestionFirst, targetRange,
+  targetRange,
   weightDisplay, weightDisplayValue,
 } from "@eait/shared";
 import type {
@@ -89,16 +89,9 @@ const GOAL_ICON: Record<string, string> = { lose: "lose", maintain: "keep", gain
 function optionControl(v: QuestionView): string {
   const place = v.prompt.place;
   const opts = screenOptions(v.content, place as OnboardingScreenId);
-  // `screenOptionValues` is the list the prompt does not pin (the country list lives there);
-  // `optionLabel` names what the content does not label — a country is CLDR's name, not a code.
-  // The stored answer leads only the country list — the screen W3 restyles, whose resolved pick
-  // is drawn first. Everywhere else the content's order is the order.
-  const values = place === "country"
-    ? suggestionFirst(
-      [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang))],
-      v.current[0] ?? null,
-    )
-    : [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang))];
+  // `screenOptionValues` is the list the prompt does not pin; `optionLabel` names what the
+  // content does not label. The content's order is the order.
+  const values = [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang))];
   const chosen = new Set(v.current);
   const multi = v.prompt.kind === "chips";
   if (place === "goal") {
@@ -405,9 +398,6 @@ export function question(v: QuestionView): string {
     case "diet":
     case "struggles":
     case "medical":
-    // `country` is W3's screen; it renders on this generic grid until then rather than owning a
-    // second option renderer.
-    case "country":
       return page(v, { control: optionControl(v) });
     case "age":
       return page(v, ageControl(v));

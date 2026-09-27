@@ -12,6 +12,7 @@ import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
 import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
 import { BOARD_CSS } from "./board-css.ts";
+import { W3_CSS } from "./w3-css.ts";
 import { CONTROL_SCRIPT } from "./control.ts";
 import type { Lang } from "@eait/shared";
 
@@ -266,6 +267,10 @@ ${motionCss()}
 
 /* The onboarding boards (#89): W2's register-P frames, scoped under main.ob. */
 ${BOARD_CSS}
+
+/* The screens W3 owns (issue #90): the reveal, the plan, the sign-up, the country —
+   same boards' classes, scoped the same way. */
+${W3_CSS}
 `;
 
 /**
@@ -286,7 +291,12 @@ export { CONTROL_SCRIPT };
 /** What the policy allows to run: that script and nothing else. */
 const CONTROL_SCRIPT_HASH = createHash("sha256").update(CONTROL_SCRIPT).digest("base64");
 
-export function shell(title: string, body: string, lang: Lang, mainClass?: string): string {
+export function shell(
+  title: string, body: string, lang: Lang,
+  mainClass?: string,
+  /** Extra <head> markup — the reveal's meta refresh is the only page that needs one. */
+  head = "",
+): string {
   return `<!doctype html>
 <!-- \`lang\` is not decoration: it is what a screen reader picks a voice from and what a browser
      offers to translate. A German page declaring itself English is read aloud in an English
@@ -295,7 +305,7 @@ export function shell(title: string, body: string, lang: Lang, mainClass?: strin
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>${escape(title)}</title>
+<title>${escape(title)}</title>${head}
 <!-- Empty data: icon. An anonymous request for an unknown path on this origin is answered 401
      by resolveUserId before anything can 404 it, so /favicon.ico logged a console error on every
      page load. A console that always has an error in it is a console nobody reads. -->

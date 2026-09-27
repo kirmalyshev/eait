@@ -21,10 +21,11 @@
 import {
   ageFrom,
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  countryOptions, fill,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
   heightToCm, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, projectGoal,
+  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, planRows, projectGoal,
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
@@ -49,7 +50,8 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, interstitial, offer, pageCopyFor, plan, question, signUp, stopped,
+  building, chat, country, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
+  signUp, stopped,
   FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal,
@@ -638,7 +640,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const PAGE_COPY = pageCopyFor(lang);
     return html(signUp({
       providers: offered.map((p) => ({
-        action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+        id: p, action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
       })),
       error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
         : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
@@ -1094,6 +1096,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       };
       const outcome = await patchProfile(ctx.deps, userId, patch);
       if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
+      // THE REVEAL IS THE COMPLETING PATCH'S ANSWER (W3), not a state `/start/q` resumes into:
+      // the run that just wrote `complete_onboarding` lands on it once, and every later arrival —
+      // a resume, a return, a refresh — goes to the plan itself.
+      if (editIndex === -1 && at === lastField) return seeOther(`${START_PREFIX}/building`);
       // The walk's memory of the two answers a mid-run GET cannot see (see `asked` above): the
       // redirect appends the prompt just written so the next page knows it was passed — and if
       // the next beat is a card rather than a question, `?show=` names it.
@@ -1194,21 +1200,30 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       email: await ctx.store.emailForUser(userId),
     });
     const prompt = promptById("country")!;
-    const ask = (error: string | null) => html(question({
-      prompt,
-      profile,
-      content,
-      lines: askLines(prompt, { content, lang }, profile),
-      lang,
-      units: profile.units ?? defaultUnits(regionOf(tags[0] ?? "") ?? ""),
+    const query = url.searchParams.get("q") ?? "";
+    // WHICH BUTTON TO PRESS IN THE APP — the sentence the old plan carried, re-homed on the
+    // post-sign-up handoff this screen is. The wrong provider in the install lands in a second
+    // account `identity.ts` will never merge, and nothing downstream repairs it.
+    const signedInWith = (await ctx.store.listIdentities(userId))
+      .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
+    const PAGE_COPY = pageCopyFor(lang);
+    const accountHint = signedInWith
+      ? fill(PAGE_COPY.sameAccountHint, { provider: signedInWith === "apple" ? "Apple" : "Google" })
+      : PAGE_COPY.sameAccountHintGeneric;
+    // The board is the 16-country one (W3): the ask, the search field, the flag grid with the
+    // resolved pick preselected — `country()` draws it, not the walk's `question()`. The sentinel's
+    // label is the content's own — the validator requires it, so there is no English fallback.
+    const ask = (error: string | null) => html(country({
+      ask: askLines(prompt, { content, lang }, profile)[0] ?? "",
+      placeholder: content.screens.find((s) => s.id === "country")?.asks.country?.placeholder ?? "",
+      options: countryOptions(lang),
+      selected: resolved.country,
+      otherLabel: screenOptions(content, "country").other!.label,
+      accountHint,
+      query,
       error,
-      actions: [],
       action: `${START_PREFIX}/country`,
-      segAction: `${START_PREFIX}/country`,
-      current: resolved.country === null ? [] : [resolved.country],
-      draft: null,
-      back: `${START_PREFIX}/signup`,
-      today: new Date(),
+      lang,
     }));
 
     if (req.method === "GET") return ask(null);
@@ -1387,50 +1402,44 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     return seeOther(`${START_PREFIX}/plan`);
   }
 
+  // ── The reveal (W3, `ob-building`) ────────────────────────────────────────────────────────
+  //
+  // Between the last answer and the plan: the count, the checklist of what was computed, and the
+  // one button. The page READS the finished plan — `profileView` ran `explainTargets` already —
+  // and shows it ticking in rather than pretending to compute: "the time the computation takes"
+  // is one local read, and the strip is honest about that by showing its own rows.
+  if (pathname === `${START_PREFIX}/building`) {
+    if (req.method !== "GET") return notFound();
+    const full = await profileView(ctx.deps, userId);
+    if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
+    const content = await onboardingContent(ctx.deps, profile.lang);
+    return html(building({
+      lines: content.building.lines,
+      cardLabel: content.building.title,
+      cta: content.building.cta,
+      rows: planRows(profile, full.targets, content, profile.lang),
+      next: `${START_PREFIX}/plan`,
+      lang: profile.lang,
+    }));
+  }
+
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {
     const full = await profileView(ctx.deps, userId);
     if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
-    // WHICH BUTTON TO PRESS IN THE APP, named rather than guessed, and the reason this page reads
-    // identities at all. The app offers both, and pressing the other one does not find this
-    // account: it attaches to the anonymous one the install already had, so onboarding runs a
-    // second time and the plan on this page — and any subscription bought from it — stays on an
-    // account the phone is no longer in. `engine/identity.ts` will not merge two real identities,
-    // so nothing downstream can repair it. One sentence naming the right button is what prevents it.
-    const identities = await ctx.store.listIdentities(userId);
-    const signedInWith = identities
-      .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     // The page's every figure is the engine's: `profileView` already ran `explainTargets`, and the
-    // by-when is the plan card's own goal line — `planGoalLine` reads `projectGoal` over that same
-    // basis, the rule the offer's headline and the phone's plan card hold to as well.
+    // headline is the plan card's own — `planHeadline`, the S6-exempt sentence, which the renderer
+    // computes over that same basis rather than retyping a number.
     const content = await onboardingContent(ctx.deps, profile.lang);
-    const projection = projectGoal(full.profile, full.basis);
+    // The plan's own dash is `dash("summary")` inside the renderer — the walk's last segment.
     return html(plan({
-      lang: profile.lang,
-      signedInWith,
-      telegram: config.telegramBotUsername !== "",
+      profile: full.profile,
+      targets: full.targets,
+      basis: full.basis,
+      projection: projectGoal(full.profile, full.basis),
+      content,
+      next: `${START_PREFIX}/signup`,
       hasWebApp: ctx.hasWebApp,
-      beat: null,
-      targetKg: full.profile.target_weight_kg,
-      byWhen: planGoalLine(full.profile, new Date(), profile.lang),
-      weeks: projection?.weeks ?? null,
-      kcal: full.targets.kcal,
-      proteinG: full.targets.protein_g,
-      // The caps sit on `targets` exactly when the restriction was declared — conditional spread,
-      // because under `exactOptionalPropertyTypes` an explicit `undefined` is not an absent key.
-      ...(full.targets.satfat_g !== undefined ? { satfatG: full.targets.satfat_g } : {}),
-      ...(full.targets.sodium_mg !== undefined ? { sodiumMg: full.targets.sodium_mg } : {}),
-      // The arithmetic rows' words are code-side now (`CHAT_COPY.plan` carries the set the admin
-      // does not own); the content only speaks for the reveal and the summary.
-      labels: CHAT(profile.lang).plan,
-      bmr: full.basis.bmr,
-      tdee: full.basis.tdee,
-      paceKcal: full.basis.appliedDeltaKcal,
-      floorApplied: full.basis.floorApplied,
-      floorKcal: full.basis.floorKcal,
-      // The ask leads to the offer, not straight at the checkout — the soft ask is a page of its
-      // own now (#42), and this boolean is the plan's whole knowledge of it. Either configured
-      // plan counts: the exit offer alone sells nothing without a plan to decline (#77).
-      checkout: config.webPaywall.yearlyCheckoutUrl !== "" || config.webPaywall.monthlyCheckoutUrl !== "",
+      lang: profile.lang,
     }));
   }
 

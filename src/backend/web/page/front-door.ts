@@ -34,7 +34,7 @@ ${wtop()}
   <div class="whead">
     <h1>${escape(welcome.lines.join(" "))}</h1>
     ${ctaLink(hrefs.q, welcome.cta)}
-    ${ctaLink(hrefs.signup, welcome.signin, true)}
+    ${ctaLink(hrefs.signup, welcome.signin, "s")}
   </div>
 </div></div>
 `, lang, "ob");
