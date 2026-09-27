@@ -193,6 +193,18 @@ export interface MealVerdicts {
 export const VERDICT_DIMENSIONS = ["weight", "ldl", "kidneys"] as const satisfies readonly (keyof MealVerdicts)[];
 export type VerdictDimension = (typeof VERDICT_DIMENSIONS)[number];
 
+/**
+ * One verdict's words, sent on the payload: the dimension, its tone, and the pill's label in the
+ * account's language. The browser bundle carries no i18n catalog (`deploy/Dockerfile.web` builds
+ * it with no `node_modules`), so a client renders this list and never composes it — a verdict's
+ * words beside its own numbers, computed where the verdict was.
+ */
+export interface VerdictLabel {
+  dimension: VerdictDimension;
+  tone: Verdict;
+  label: string;
+}
+
 const VERDICT_VALUES: readonly string[] = ["good", "warn", "bad"] satisfies readonly Verdict[];
 
 /**
@@ -291,6 +303,15 @@ export interface MealRecord extends MealAnalysis {
   question?: MealQuestion | null;
   /** How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0. */
   photos?: number;
+  /**
+   * The row's own verdict line — "calories high · saturated fat high", `verdictInlineText` in the
+   * account's language, joined server-side and empty when every verdict is on plan. Optional: the
+   * reads that serve a row (the diary day, the thread's meal arm) set it; a bare `MealRecord`
+   * built by hand has none.
+   */
+  verdictInline?: string | undefined;
+  /** The pills' words — `verdictPillLabel` per visible verdict, in render order. Same rule: set by the reads, absent on a bare row. */
+  verdictLabels?: VerdictLabel[] | undefined;
 }
 
 export interface DailyTotals {
