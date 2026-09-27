@@ -69,6 +69,7 @@ describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
       i: "Intake", n: "26", kcal: "1,066", avg: "1,467", target: "1,434", old: "1,434",
       new: "1,429", d: "1.2 kg", to: "5.4 kg", date: "24 Aug", when: "today 18:30",
       kg: "1.2 kg", pace: "steady", days: "2 days", a: "Intake", b: "Steps", period: "weeks",
+      kind: "Bars", series: "Intake", time: "18:30",
     };
     const fields = (o: unknown, at = ""): string[] =>
       typeof o === "string" ? [o]

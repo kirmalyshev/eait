@@ -392,7 +392,7 @@ export function weekBars(
   todayIndex = -1,
 ): {
   viewBox: string;
-  planLine: { x1: number; x2: number; y: number };
+  planLine: { x1: number; x2: number; y: number; dash: string };
   planLabel: { x: number; y: number };
   bars: ({ x: number; y: number; width: number; height: number; rx: number; tone: DayTone; today: boolean } | null)[];
   /** The day-letter captions, one per day whether it has a bar or not. */
@@ -403,7 +403,7 @@ export function weekBars(
   const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
   return {
     viewBox: "0 0 320 142",
-    planLine: { x1: 8, x2: 312, y: planY },
+    planLine: { x1: 8, x2: 312, y: planY, dash: "5 4" },
     planLabel: { x: 312, y: planY - 6 },
     bars: days.map((kcal, i) => {
       if (kcal === null) return null;
@@ -511,6 +511,8 @@ export function intakeChart(
   todayIndex = -1,
 ): {
   viewBox: string;
+  /** The frame's width — the baseline runs to it edge to edge. */
+  frame: number;
   /** The y the bars stand on — a full-width hairline. */
   baseline: number;
   /** The dashed plan line, or null when the account has no plan to draw. */
@@ -528,6 +530,7 @@ export function intakeChart(
   const planY = Math.round(INTAKE.base - planKcal * pxPerKcal);
   return {
     viewBox: INTAKE.viewBox,
+    frame: INTAKE.frame,
     baseline: INTAKE.base,
     planLine: planKcal > 0 ? { x1: 0, x2: INTAKE.frame, y: planY, dash: "5 4" } : null,
     planLabel: planKcal > 0 ? { x: INTAKE.frame, y: planY - 6 } : null,
