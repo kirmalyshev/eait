@@ -10,15 +10,16 @@
 // reads `/v1/diary/days` and `/v1/diary/day`; the weigh-in and the edits are PATCHes answered by
 // the recomputed view. Nothing here derives a target or counts a day.
 
-import { dayBudget } from "../../shared/budget.ts";
+import { dayBudget, macroLeft } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { signsIn } from "../../shared/contract.ts";
-import { LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
-  heightText, weightDisplayValue, weightToKg, type UnitSystem,
+  weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
+import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { youCopyFor } from "../../shared/app/you-copy.ts";
+import { youCopyFor, youFacts } from "../../shared/app/you-copy.ts";
 import type { OnboardingContent } from "@eait/shared";
 import type {
   DayResponse, DaysResponse, IdentitiesResponse, OnboardingContentResponse,
@@ -87,32 +88,15 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
   // ── LEFT: identity, weight, plan, the account rows ──────────────────────────────────────────
 
-  const facts = (): string => {
-    const p = me!.profile;
-    const med = content?.content.screens.find((s) => s.id === "medical")?.options ?? {};
-    const flags = p.restrictions
-      .filter((r) => r in med && r !== "none")
-      .map((r) => {
-        const label = med[r]!.label;
-        // "{condition} declared" wants the noun mid-sentence; other languages' templates carry
-        // the label's own case (German keeps its noun capitalized).
-        const c = lang === "en" ? label.charAt(0).toLowerCase() + label.slice(1) : label;
-        return fill(you.flagDeclared, { condition: c });
-      });
-    const parts: string[] = [];
-    if (p.birth_year !== null) parts.push(`${Number(localDate(zone).slice(0, 4)) - p.birth_year}`);
-    if (p.height_cm !== null) parts.push(heightText(p.height_cm, units(), lang));
-    parts.push(...flags);
-    if (parts.length >= 3) {
-      // The whole template — never fragments joined by code.
-      return fill(you.headerFacts, { age: parts[0]!, height: parts[1]!, flags: parts.slice(2).join(" · ") });
-    }
-    if (parts.length === 2 && flags.length === 0) {
-      return fill(you.headerFactsNoFlags, { age: parts[0]!, height: parts[1]! });
-    }
-    // A partial profile: the pieces that exist, spaced the same way.
-    return parts.join(" · ");
-  };
+  // The fact line comes out of `youFacts` — the age is the server's own `me.age`, the pieces are
+  // whole templates, and the declared conditions are `Intl.ListFormat`'s list, never a join.
+  const facts = (): string => youFacts(lang, {
+    age: me!.age,
+    heightCm: me!.profile.height_cm,
+    restrictions: me!.profile.restrictions,
+    medicalOptions: content?.content.screens.find((s) => s.id === "medical")?.options ?? {},
+    units: units(),
+  });
 
   const units = (): UnitSystem => me!.profile.units ?? "metric";
   const wnum = (kg: number): string => n(weightDisplayValue(kg, units()));
@@ -175,10 +159,10 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       field.inputMode = "decimal";
       const latest = w.latest?.kg ?? me!.profile.weight_kg;
       if (latest !== null) field.value = `${weightDisplayValue(latest, units())}`;
-      const unit = el("span", "m", units() === "imperial" ? "lb" : "kg");
+      const unit = el("span", "m", spellUnit(lang, units() === "imperial" ? "lb" : "kg"));
       const row = el("div", "wrow");
       row.append(field, unit);
-      const save = el("button", "cta p", you.web.save) as HTMLButtonElement;
+      const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
       save.type = "button";
       const cancel = el("button", "cta g", COPY.cancel) as HTMLButtonElement;
       cancel.type = "button";
@@ -201,7 +185,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         } catch (err) {
           noticeBox.tell(refusalWords(err));
         } finally {
+          // A refusal re-arms the button — the figure stays editable and the notice stays up.
           saving = false;
+          save.disabled = false;
         }
       });
       form.append(row, el("div", "weditbtns"));
@@ -258,7 +244,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       targetField.setAttribute("aria-label", you.phone.targetLabel);
       if (p.target_weight_kg !== null) targetField.value = `${weightDisplayValue(p.target_weight_kg, units())}`;
       const activitySel = optionSelect("activity", p.activity, you.phone.activitySection);
-      const save = el("button", "cta p", you.web.save) as HTMLButtonElement;
+      const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
       save.type = "button";
       const cancel = el("button", "cta g", COPY.cancel) as HTMLButtonElement;
       cancel.type = "button";
@@ -285,14 +271,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         } catch (err) {
           noticeBox.tell(refusalWords(err));
         } finally {
+          // A refusal re-arms the button — the fields stay editable and the notice stays up.
           saving = false;
+          save.disabled = false;
         }
       });
       const btns = el("div", "weditbtns");
       btns.append(save, cancel);
       body.append(
         row(you.phone.goalLabel, goalSel),
-        row(you.phone.targetLabel, targetField, el("span", "m", units() === "imperial" ? "lb" : "kg")),
+        row(you.phone.targetLabel, targetField, el("span", "m", spellUnit(lang, units() === "imperial" ? "lb" : "kg"))),
         row(you.phone.activitySection, activitySel),
         btns,
       );
@@ -314,9 +302,10 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     );
     const chips = [
       { name: "protein" as const, text: fill(you.proteinGrams, { g: nWhole(t.protein_g) }) },
-      // The sat-fat figure exists only when a restriction was declared, like the target itself.
+      // The sat-fat figure exists only when a restriction was declared, like the target itself,
+      // and its noun is the verdict's own `satfatNoun` — one wording for every surface.
       ...(t.satfat_g !== undefined
-        ? [{ name: "fat" as const, text: fill(you.satFatGrams, { g: nWhole(t.satfat_g) }) }]
+        ? [{ name: "fat" as const, text: fill(you.satFatGrams, { g: nWhole(t.satfat_g), noun: logCopyFor(lang).satfatNoun }) }]
         : [{ name: "fat" as const, text: fill(you.grams, { g: nWhole(t.fat_g) }) }]),
     ];
     const macrow = el("div", "macs");
@@ -343,14 +332,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     if (me!.healthConnected === true) card.append(optRow(you.appleHealth, you.connected));
     card.append(optRow(
       you.subscription,
-      me!.entitlement.trialDay != null ? fill(you.freeWeekDay, { n: `${me!.entitlement.trialDay}` }) : "",
+      me!.entitlement.trialDay != null ? fill(you.freeWeekDay, { n: nWhole(me!.entitlement.trialDay) }) : "",
     ));
     // The sign-in providers, minus the device credential — "Apple" the way the board writes it.
+    // More than one lists the language's own way — `Intl.ListFormat`, not a hand-joined " · ".
     const providers = (ids?.identities ?? [])
       .map((i) => i.provider)
       .filter((p) => signsIn(p) && p !== "device")
       .map((p) => PROVIDER_NAME[p] ?? p);
-    card.append(optRow(you.account, providers.join(" · ")));
+    const listOf = new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" });
+    card.append(optRow(you.account, listOf.format(providers)));
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     const unitsSel = document.createElement("select");
@@ -366,14 +357,22 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       unitsSel.append(o);
     }
     unitsSel.addEventListener("change", async () => {
-      await api("/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ units: unitsSel.value }),
-      });
-      forgetProfile();
-      me = await profile();
-      void draw();
+      // Locked for the flight; a refused write puts the stored unit back on the control.
+      unitsSel.disabled = true;
+      try {
+        await api("/profile", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ units: unitsSel.value }),
+        });
+        forgetProfile();
+        me = await profile();
+        void draw();
+      } catch (err) {
+        console.error(err);
+        unitsSel.value = units();
+        unitsSel.disabled = false;
+      }
     });
     card.append(optRow(you.web.units, "", unitsSel));
     // The picker's option labels are the languages' own names — never translated (LANG_LABEL).
@@ -392,12 +391,19 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       langSel.append(o);
     }
     langSel.addEventListener("change", async () => {
-      await api("/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ lang: langSel.value }),
-      });
-      location.reload();
+      langSel.disabled = true;
+      try {
+        await api("/profile", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ lang: langSel.value }),
+        });
+        location.reload();
+      } catch (err) {
+        console.error(err);
+        langSel.value = lang;
+        langSel.disabled = false;
+      }
     });
     card.append(optRow(COPY.language, "", langSel));
 
@@ -457,30 +463,33 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const left = el("div", "");
     const share = budget.fill;
     left.append(el("b", "d num hnum", nWhole(budget.state === "unlogged" ? budget.target : budget.kcal)));
-    const caption = budget.state === "unlogged"
-      ? `${UNIT_KCAL[lang]} ${you.perDay}`
-      : `${UNIT_KCAL[lang]} ${budget.state === "over" ? COPY.budgetOver : COPY.budgetLeft} ⌄`;
-    left.append(el("span", "m t13", ` ${caption}`));
+    // The caption is `you.web.kcalLeft`'s own words; the chevron is a drawn affordance —
+    // aria-hidden, an element, never a character inside the sentence.
+    const caption = el("span", "m t13");
+    caption.textContent = ` ${budget.state === "unlogged" ? `${UNIT_KCAL[lang]} ${you.perDay}`
+      : budget.state === "over" ? `${UNIT_KCAL[lang]} ${COPY.budgetOver}` : you.web.kcalLeft}`;
+    if (budget.state !== "unlogged")
+      caption.append(kitEl(`<i class="ico i-chevron-down" aria-hidden="true"></i>`));
+    left.append(caption);
     hero.append(left, ringEl({ share, size: 104, tone: "ink", icon: "kcal" }));
 
-    const g = (v: number): number => Math.round(v);
     const cards = el("div", "mcards");
     cards.append(
       mcardEl({
         macro: "protein",
-        value: `${nWhole(Math.max(0, g(day.targets.protein_g - day.totals.protein_g)))} g`,
+        value: `${nWhole(macroLeft(day.targets.protein_g, day.totals.protein_g))} ${spellUnit(lang, "g")}`,
         label: you.web.proteinLeft,
         share: day.targets.protein_g > 0 ? day.totals.protein_g / day.targets.protein_g : 0,
       }),
       mcardEl({
         macro: "carbs",
-        value: `${nWhole(Math.max(0, g(day.targets.carbs_g - day.totals.carbs_g)))} g`,
+        value: `${nWhole(macroLeft(day.targets.carbs_g, day.totals.carbs_g))} ${spellUnit(lang, "g")}`,
         label: you.web.carbsLeft,
         share: day.targets.carbs_g > 0 ? day.totals.carbs_g / day.targets.carbs_g : 0,
       }),
       mcardEl({
         macro: "fat",
-        value: `${nWhole(Math.max(0, g(day.targets.fat_g - day.totals.fat_g)))} g`,
+        value: `${nWhole(macroLeft(day.targets.fat_g, day.totals.fat_g))} ${spellUnit(lang, "g")}`,
         label: you.web.fatLeft,
         share: day.targets.fat_g > 0 ? day.totals.fat_g / day.targets.fat_g : 0,
       }),

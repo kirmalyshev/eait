@@ -8,7 +8,7 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS, type Lang } from "../types.ts";
 import { lintCopy } from "../claims.ts";
-import { YOU_COPY, youCopyFor } from "./you-copy.ts";
+import { YOU_COPY, youCopyFor, youFacts } from "./you-copy.ts";
 
 function flatten(node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> {
   if (typeof node === "string") { out[at] = node; return out; }
@@ -52,6 +52,7 @@ describe("YOU_COPY", () => {
     const FILL: Record<string, string> = {
       age: "32", height: "172 cm", flags: "high cholesterol declared", condition: "high cholesterol",
       w: "73.4", prev: "74", source: "Apple Health", time: "18:30", kcal: "1,434", g: "109",
+      noun: "Saturated fat",
       floor: "1,200", n: "5", total: "7", date: "Sat 26 Sep",
       from: "1,434", to: "1,429", url: "app.eait.fit/start",
     };
@@ -78,7 +79,7 @@ describe("YOU_COPY", () => {
     expect(en.kcalADay).toBe("{kcal} kcal a day");
     expect(en.perDay).toBe("a day");
     expect(en.grams).toBe("{g} g");
-    expect(en.satFatGrams).toBe("{g} g sat fat");
+    expect(en.satFatGrams).toBe("{g} g {noun}");
     expect(en.floorMarker).toBe("never below {floor}");
     expect(en.appleHealth).toBe("Apple Health");
     expect(en.connected).toBe("connected");
@@ -141,5 +142,54 @@ describe("YOU_COPY", () => {
     );
     expect(en.phone.keepIt).toBe("Keep it");
     expect(en.phone.deleteConfirm).toBe("Delete");
+  });
+});
+
+describe("youFacts", () => {
+  const medical = {
+    ldl: { label: "High cholesterol" },
+    kidneys: { label: "Kidney disease" },
+    none: { label: "None" },
+  };
+  const base = { restrictions: ["ldl"], medicalOptions: medical, units: "metric" as const };
+
+  it("composes the board's line out of templates — no fragment joins", () => {
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base })).toBe(
+      "32 · 172 cm · high cholesterol declared",
+    );
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: [] })).toBe(
+      "32 · 172 cm",
+    );
+    expect(youFacts("de", { age: 32, heightCm: 172, ...base })).toBe(
+      "32 · 172 cm · von dir angegeben: High cholesterol",
+    );
+    expect(youFacts("ru", { age: 32, heightCm: 172, ...base })).toBe(
+      "32 · 172 см · указано: High cholesterol",
+    );
+  });
+
+  it("lists two declared conditions the language's own way inside ONE flag", () => {
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["ldl", "kidneys"] })).toBe(
+      "32 · 172 cm · high cholesterol and kidney disease declared",
+    );
+  });
+
+  it("drops a missing fact by template, and prints nothing for a null age", () => {
+    expect(youFacts("en", { age: null, heightCm: 172, ...base })).toBe(
+      "172 cm · high cholesterol declared",
+    );
+    expect(youFacts("en", { age: null, heightCm: null, ...base })).toBe("high cholesterol declared");
+    expect(youFacts("en", { age: 32, heightCm: null, ...base })).toBe("32 · high cholesterol declared");
+    expect(youFacts("en", { age: null, heightCm: null, ...base, restrictions: [] })).toBe("");
+    expect(youFacts("en", { age: 32, heightCm: null, ...base, restrictions: [] })).toBe("32");
+  });
+
+  it("follows the account's units for the height", () => {
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, units: "imperial" })).toContain("5′8″");
+  });
+
+  it("reads an unknown or 'none' restriction as undeclared", () => {
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["none"] })).toBe("32 · 172 cm");
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["keto"] })).toBe("32 · 172 cm");
   });
 });
