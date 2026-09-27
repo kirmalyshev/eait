@@ -428,6 +428,31 @@ export type CountryCode = (typeof COUNTRY_CODES)[number];
 const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
 
 /**
+ * CLDR's English names for the curated codes — the fallback for a runtime without
+ * `Intl.DisplayNames`. Hermes ships only Collator, DateTimeFormat and NumberFormat, so on the
+ * phone `new Intl.DisplayNames` is `undefined` used as a constructor — a process abort where the
+ * country list would render (ieat-app#977). DATA, not copy: the English spelling of a region,
+ * used only where the platform cannot localize it — a wrong language on a picker beats no picker
+ * at all.
+ */
+const REGION_NAME_EN: Record<Exclude<CountryCode, "other">, string> = {
+  at: "Austria",
+  au: "Australia",
+  ca: "Canada",
+  ch: "Switzerland",
+  de: "Germany",
+  es: "Spain",
+  fr: "France",
+  gb: "United Kingdom",
+  id: "Indonesia",
+  it: "Italy",
+  mx: "Mexico",
+  ru: "Russia",
+  us: "United States",
+  vn: "Vietnam",
+};
+
+/**
  * The country's name in the reader's language, from CLDR.
  *
  * NOT A COPY TABLE, and that is the same call this PR already made for month names: a hand-written
@@ -443,6 +468,7 @@ const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
  */
 export function countryLabel(code: CountryCode, lang: Lang): string {
   if (code === "other") return code;
+  if (typeof Intl.DisplayNames !== "function") return REGION_NAME_EN[code];
   const names = (REGION_NAMES[lang] ??= new Intl.DisplayNames([LANG_TAG[lang]], { type: "region" }));
   return names.of(code.toUpperCase()) ?? code;
 }
