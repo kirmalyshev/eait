@@ -94,10 +94,14 @@ export interface ProgressCopy {
    */
   weightNone: Record<WeightRange, string>;
   /**
-   * The none-in-range big figure: the LATEST weigh-in with its date — "{n} kg · {date}".
-   * `{date}` is `trend.ts`'s day-month formatter, `{n}` `numbers`'s.
+   * The figure's quiet halves, SPLIT from `{n}` so a renderer never cuts a template at the
+   * placeholder: `weightNowTail` is just the unit beside a current weigh-in ("kg"), and
+   * `weightLatestTail` is the unit and its date beside the latest one ("kg · {date}") when the
+   * picked range holds none. `{date}` is `lang.ts`'s dayMonth formatter. The unit word is the
+   * language's own — "кг" in Russian, like every template here.
    */
-  weightLatest: ByUnits;
+  weightNowTail: ByUnits;
+  weightLatestTail: ByUnits;
   /** The BMI card with no weigh-in: "—" and this link — never a BMI computed from nothing. */
   bmiEmpty: string;
   /** The BMI card's provenance line — "From {w} and {h}", both figures preformatted. */
@@ -136,7 +140,8 @@ const EN: ProgressCopy = {
     "1Y": "No weights in the last year",
     all: "No weights yet",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Log a weight to see your BMI",
   bmiFrom: "From {w} and {h}",
   bmiHelp: "How BMI is computed",
@@ -167,7 +172,8 @@ const FR: ProgressCopy = {
     "1Y": "Aucun poids sur la dernière année",
     all: "Aucun poids enregistré",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Enregistrer un poids pour voir ton IMC",
   bmiFrom: "À partir de {w} et {h}",
   bmiHelp: "Comment l'IMC est calculé",
@@ -198,7 +204,8 @@ const DE: ProgressCopy = {
     "1Y": "Keine Gewichte im letzten Jahr",
     all: "Noch keine Gewichte",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Gewicht eintragen, um deinen BMI zu sehen",
   bmiFrom: "Aus {w} und {h}",
   bmiHelp: "Wie der BMI berechnet wird",
@@ -229,7 +236,8 @@ const IT: ProgressCopy = {
     "1Y": "Nessun peso nell'ultimo anno",
     all: "Ancora nessun peso",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Registra un peso per vedere il tuo IMC",
   bmiFrom: "Da {w} e {h}",
   bmiHelp: "Come viene calcolato l'IMC",
@@ -260,7 +268,8 @@ const ES: ProgressCopy = {
     "1Y": "Sin pesos en el último año",
     all: "Aún no hay pesos",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Registrar un peso para ver tu IMC",
   bmiFrom: "A partir de {w} y {h}",
   bmiHelp: "Cómo se calcula el IMC",
@@ -292,7 +301,8 @@ const VI: ProgressCopy = {
     "1Y": "Chưa có lần cân nào trong năm qua",
     all: "Chưa có lần cân nào",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Ghi cân nặng để xem BMI",
   bmiFrom: "Từ {w} và {h}",
   bmiHelp: "Cách tính BMI",
@@ -324,7 +334,8 @@ const ID: ProgressCopy = {
     "1Y": "Tidak ada berat dalam setahun terakhir",
     all: "Belum ada berat",
   },
-  weightLatest: { metric: "{n} kg · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "kg", imperial: "lb" },
+  weightLatestTail: { metric: "kg · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Catat berat untuk melihat IMT-mu",
   bmiFrom: "Dari {w} dan {h}",
   bmiHelp: "Cara menghitung IMT",
@@ -358,7 +369,8 @@ const RU: ProgressCopy = {
     "1Y": "Нет записей веса за последний год",
     all: "Веса пока нет",
   },
-  weightLatest: { metric: "{n} кг · {date}", imperial: "{n} lb · {date}" },
+  weightNowTail: { metric: "кг", imperial: "lb" },
+  weightLatestTail: { metric: "кг · {date}", imperial: "lb · {date}" },
   bmiEmpty: "Запиши вес, чтобы увидеть свой ИМТ",
   bmiFrom: "Из {w} и {h}",
   bmiHelp: "Как считается ИМТ",

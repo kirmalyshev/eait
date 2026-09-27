@@ -41,8 +41,8 @@ describe("PROGRESS_COPY", () => {
       expect(copy!.goalEstimate, `${lang}.goalEstimate`).toContain("{month}");
       expect(copy!.weekPlan, `${lang}.weekPlan`).toContain("{plan}");
       expect(copy!.streakDays.other, `${lang}.streakDays`).toContain("{n}");
-      expect(copy!.weightLatest.metric, `${lang}.weightLatest`).toContain("{date}");
-      expect(copy!.weightLatest.imperial, `${lang}.weightLatest.imperial`).toContain("{date}");
+      expect(copy!.weightLatestTail.metric, `${lang}.weightLatestTail`).toContain("{date}");
+      expect(copy!.weightLatestTail.imperial, `${lang}.weightLatestTail.imperial`).toContain("{date}");
       expect(copy!.bmiFrom, `${lang}.bmiFrom`).toContain("{w}");
       expect(copy!.bmiFrom, `${lang}.bmiFrom`).toContain("{h}");
       for (const r of WEIGHT_RANGES) expect(copy!.ranges[r], `${lang}.ranges.${r}`).toBeTruthy();
@@ -69,7 +69,8 @@ describe("PROGRESS_COPY", () => {
     expect(en.weightEmpty).toBe("Log a weight to see your trend");
     expect(en.weightOneMore).toBe("Log another weight to see your trend");
     expect(en.weightNone["90D"]).toBe("No weights in the last 90 days");
-    expect(en.weightLatest.metric).toBe("{n} kg · {date}");
+    expect(en.weightNowTail.metric).toBe("kg");
+    expect(en.weightLatestTail.metric).toBe("kg · {date}");
     expect(en.bmiEmpty).toBe("Log a weight to see your BMI");
     expect(en.bmiFrom).toBe("From {w} and {h}");
     expect(en.goalEstimateFar).toBe("over two years · estimate");

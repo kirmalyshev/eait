@@ -11,7 +11,7 @@
 // weekly one and say nothing about whether the user moved more. Null stays null: a bucket with no
 // reading is a gap in the line, never a zero, for the same reason `HealthDay` fields are.
 
-import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
+import { dateMinus, monthOf, monthShift, weekStart, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
 import { HEALTH_COPY } from "./health-copy.ts";
 import { dayMonth, LANG_TAG, t } from "./lang.ts";
@@ -112,8 +112,7 @@ export function trendBuckets(
     }
     case "weeks": {
       const dayAxis = dayMonth(lang);
-      // getUTCDay is 0 for Sunday; shift so Monday is 0.
-      const monday = dateMinus(today, (noon(today).getUTCDay() + 6) % 7);
+      const monday = weekStart(today);
       return Array.from({ length: BUCKETS.weeks }, (_, i) => {
         const start = dateMinus(monday, 7 * (BUCKETS.weeks - 1 - i));
         return { start, end: dateMinus(start, -6), label: dayAxis.format(noon(start)) };

@@ -18,10 +18,10 @@ import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import type {
   DaysResponse, PlanProjection, ProfileResponse, WeightsResponse,
 } from "@eait/shared";
-import { api } from "../api.ts";
+import { api, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl, weekBarsEl, weightChartEl } from "../kit.ts";
-import { clear, el, lang, type Frame } from "../shell.ts";
+import { clear, el, lang, refusalWords, render, type Frame } from "../shell.ts";
 
 const LOG_WEIGHT = "#/you"; // the weigh-in lives on You (W10), the same door its "Log weight" takes.
 
@@ -61,21 +61,32 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   seg.setAttribute("role", "group");
   seg.setAttribute("aria-label", copy.weightLabel);
   const segBtns = new Map<WeightRange, HTMLButtonElement>();
+  // A failed range refetch keeps the card that is already drawn and names the refusal under it,
+  // the way a chat line's notice does — never a silent stale figure. A dead session re-renders
+  // into the sign-in screen, as `render()`'s own boundary does.
+  const wNotice = el("p", "notice");
+  wNotice.setAttribute("role", "alert");
+  wNotice.hidden = true;
   for (const r of WEIGHT_RANGES) {
-    const b = el("button", "", copy.ranges[r]) as HTMLButtonElement;
+    const b = el("button", r === range ? "on" : "", copy.ranges[r]) as HTMLButtonElement;
     b.type = "button";
     b.setAttribute("aria-pressed", String(r === range));
     b.addEventListener("click", () => {
       if (r === range) return;
       range = r;
-      void drawWeights();
+      void drawWeights().catch(async (err: unknown) => {
+        console.error(err);
+        if (err instanceof Unauthenticated) { await render(); return; }
+        wNotice.textContent = refusalWords(err);
+        wNotice.hidden = false;
+      });
     });
     seg.append(b);
     segBtns.set(r, b);
   }
   wHead.append(seg);
   const wBody = el("div", "");
-  wCard.append(wHead, wBody);
+  wCard.append(wHead, wBody, wNotice);
 
   const logLink = (text: string): HTMLElement => {
     const a = el("a", "plink", text);
@@ -83,15 +94,14 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     return a;
   };
 
-  /** "{n} kg · {date}"-shaped templates: `{n}` is the figure, the rest the quieter tail. */
-  const weightFigure = (tpl: string, kg: number, params: Record<string, string>): HTMLElement => {
-    const i = tpl.indexOf("{n}");
+  /**
+   * The big figure: `{n}` in the display weight, and the card's own tail keys for the quieter
+   * half — `weightNowTail` (just the unit) or `weightLatestTail` (unit · date). Split keys, so
+   * no template is ever cut at a placeholder here.
+   */
+  const weightFigure = (kg: number, tail: string): HTMLElement => {
     const row = el("div", "wnum");
-    if (i < 0) { row.append(el("b", "d d28 num", wnum(kg))); return row; }
-    row.append(
-      el("b", "d d28 num", wnum(kg)),
-      el("span", "uw", ` ${fill(tpl.slice(i + 3), params).trim()}`),
-    );
+    row.append(el("b", "d d28 num", wnum(kg)), el("span", "uw", ` ${tail}`));
     return row;
   };
   const dashFigure = (): HTMLElement => {
@@ -114,7 +124,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     }
     if (state.kind === "none-in-range") {
       wBody.append(
-        weightFigure(copy.weightLatest[units], state.latest.kg, { date: fmtDate(state.latest.date) }),
+        weightFigure(state.latest.kg, fill(copy.weightLatestTail[units], { date: fmtDate(state.latest.date) })),
         emptyFrame(),
         el("p", "wempty", copy.weightNone[range]),
         logLink(copy.weightEmpty),
@@ -123,7 +133,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     }
     // `one` and `trend` both show the newest weigh-in — the range ends today, so its last point is
     // the log's latest, and a single point draws alone with its value and date, no invented second.
-    wBody.append(weightFigure(copy.weightNow[units], w.latest!.kg, {}));
+    wBody.append(weightFigure(w.latest!.kg, copy.weightNowTail[units]));
     const first = w.weights[0]!, last = w.weights.at(-1)!;
     wBody.append(weightChartEl(points, {
       aria: copy.weightChartName,
@@ -140,6 +150,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     const mine = ++wSeq;
     const w = await api<WeightsResponse>(`/weights?range=${range}`);
     if (mine !== wSeq) return w;
+    wNotice.hidden = true;
     for (const [r, b] of segBtns) {
       b.classList.toggle("on", r === range);
       b.setAttribute("aria-pressed", String(r === range));
@@ -167,8 +178,8 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     const doneTpl = p.targetKg >= p.startKg ? copy.goalUp : copy.goalDown;
     const under = el("div", "row between t12 m num");
     under.append(
-      el("span", "", fill(doneTpl[units], { n: n(bar.doneKg) })),
-      el("span", "", fill(copy.goalToGo[units], { n: n(bar.toGoKg) })),
+      el("span", "", fill(doneTpl[units], { n: wnum(bar.doneKg) })),
+      el("span", "", fill(copy.goalToGo[units], { n: wnum(bar.toGoKg) })),
     );
     card.append(head, barEl, under);
     return card;
@@ -281,7 +292,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     if (heightCm !== null && kg !== null) {
       card.append(el("div", "t12 m bmis", fill(copy.bmiFrom, {
         w: fill(copy.weightNow[units], { n: wnum(kg) }),
-        h: heightText(heightCm, units),
+        h: heightText(heightCm, units, lang),
       })));
     }
     return card;
