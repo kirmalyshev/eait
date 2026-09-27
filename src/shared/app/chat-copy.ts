@@ -137,6 +137,8 @@ export interface ChatScreenCopy {
     typing: string;
     /** The outbox row's own words (`phone/states-not-sent.html`); M7's client reads this key. */
     notSent: string;
+    /** A turn the server answered with a refusal, kept for a purchase — never sent is not the same thing. */
+    notLogged: string;
     /** A photo line's accessible name — alone, and with its caption in `{caption}`. */
     photo: string;
     photoCaption: string;
@@ -259,6 +261,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Sending",
       typing: "{coach} is typing",
       notSent: "Not sent — tap to put it back in the box",
+      notLogged: "Not logged — tap to put it back in the box.",
       photo: "Photo",
       photoCaption: "Photo: {caption}",
       discard: "Discard",
@@ -348,6 +351,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Envoi",
       typing: "{coach} écrit",
       notSent: "Non envoyé — touche pour le remettre dans la boîte",
+      notLogged: "Non enregistré — touche pour le remettre dans la boîte.",
       photo: "Photo",
       photoCaption: "Photo : {caption}",
       discard: "Supprimer",
@@ -437,6 +441,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Wird gesendet",
       typing: "{coach} schreibt",
       notSent: "Nicht gesendet — tippe, um es zurück in die Box zu legen",
+      notLogged: "Nicht gespeichert — tippe, um es zurück in die Box zu legen.",
       photo: "Foto",
       photoCaption: "Foto: {caption}",
       discard: "Verwerfen",
@@ -526,6 +531,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Invio",
       typing: "{coach} sta scrivendo",
       notSent: "Non inviato — tocca per rimetterlo nel box",
+      notLogged: "Non registrato — tocca per rimetterlo nel box.",
       photo: "Foto",
       photoCaption: "Foto: {caption}",
       discard: "Scarta",
@@ -615,6 +621,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Enviando",
       typing: "{coach} está escribiendo",
       notSent: "No enviado — toca para devolverlo a la bandeja",
+      notLogged: "No registrado — toca para devolverlo a la bandeja.",
       photo: "Foto",
       photoCaption: "Foto: {caption}",
       discard: "Descartar",
@@ -704,6 +711,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Đang gửi",
       typing: "{coach} đang nhập",
       notSent: "Chưa gửi — chạm để đặt lại vào hộp",
+      notLogged: "Chưa ghi — chạm để đặt lại vào hộp.",
       photo: "Ảnh",
       photoCaption: "Ảnh: {caption}",
       discard: "Bỏ đi",
@@ -793,6 +801,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Mengirim",
       typing: "{coach} sedang mengetik",
       notSent: "Belum terkirim — ketuk untuk mengembalikannya ke kotak",
+      notLogged: "Belum tercatat — ketuk untuk mengembalikannya ke kotak.",
       photo: "Foto",
       photoCaption: "Foto: {caption}",
       discard: "Buang",
@@ -882,6 +891,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Отправка",
       typing: "{coach} печатает",
       notSent: "Не отправлено — нажми, чтобы вернуть в коробку",
+      notLogged: "Не записано — нажми, чтобы вернуть в коробку.",
       photo: "Фото",
       photoCaption: "Фото: {caption}",
       discard: "Отменить",
