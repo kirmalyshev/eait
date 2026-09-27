@@ -13,8 +13,9 @@ import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, redateMeal, stepApplies, week, type EngineDeps,
 } from "./index.ts";
+import { MAX_DAY_OFFSET } from "../llm/port.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -1038,31 +1039,45 @@ describe("editing the answer", () => {
     expect(out).toEqual({ kind: "target-gone", on: "correction" });
   });
 
-  it("moves the meal to the date the patch names — the surface's 'Move to yesterday' (#93)", async () => {
+  it("moves a meal by offset — the surface's 'Move to yesterday' (#150)", async () => {
     const userId = await onboard();
     const meal = await logged(userId);
     const yesterday = dateMinus(meal.date, 1);
-    const out = await editMeal(deps, userId, meal.mealId, { date: yesterday });
-    if (out.kind !== "updated") throw new Error("expected updated");
+    const out = await redateMeal(deps, userId, meal.mealId, 1);
+    if (out.kind !== "redated") throw new Error("expected redated");
     // The result and the row name the NEW day, and its totals are the day it landed on.
     expect(out.date).toBe(yesterday);
     expect(out.totals.kcal).toBe(meal.analysis.kcal);
     const moved = (await store.getMeal(userId, meal.mealId))!;
     expect(moved.date).toBe(yesterday);
     expect((await store.mealsForDate(userId, meal.date)).map((m) => m.id)).not.toContain(meal.mealId);
-    // A move corrects nothing: the numbers are untouched, the row is not flagged, and a pending
-    // question about the plate is nobody's answer yet.
+    // A move corrects nothing: the numbers and the flag are untouched, and the thread holds the
+    // same card a chatted re-date writes.
     expect(moved.corrected).toBe(false);
     expect(moved.kcal).toBe(meal.analysis.kcal);
+    const t = await chatHistory(deps, userId, {});
+    expect(t.entries.at(-1)).toMatchObject({ role: "assistant", kind: "meal", event: "redated" });
+  });
+
+  it("clamps an out-of-range offset to the bound, the same answer the model's misparse gets", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const out = await redateMeal(deps, userId, meal.mealId, 99);
+    if (out.kind !== "redated") throw new Error("expected redated");
+    expect(out.date).toBe(dateMinus(meal.date, MAX_DAY_OFFSET));
+    // And nothing below today — a negative offset cannot move a meal into the future.
+    const back = await redateMeal(deps, userId, meal.mealId, -3);
+    if (back.kind !== "redated") throw new Error("expected redated");
+    expect(back.date).toBe(meal.date);
   });
 
   it("a move reaches only the caller's meal — another account's id is the same not-found", async () => {
     const a = await onboard();
     const b = await onboard();
     const meal = await logged(a);
-    const out = await editMeal(deps, b, meal.mealId, { date: "2020-01-01" });
+    const out = await redateMeal(deps, b, meal.mealId, 1);
     // Indistinguishable from a deleted meal — a probe learns nothing about whether it exists.
-    expect(out).toEqual({ kind: "target-gone", on: "correction" });
+    expect(out).toEqual({ kind: "target-gone", on: "redate" });
     expect((await store.getMeal(a, meal.mealId))!.date).toBe(meal.date);
   });
 

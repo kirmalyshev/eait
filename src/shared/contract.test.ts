@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   MAX_HEALTH_DAYS_PER_BATCH, MAX_ITEM_NAME, MAX_MEAL_AMOUNT, MAX_MEAL_ITEMS, healthDayBatches,
-  healthDaysFrom, healthSyncLanded, isEditMealRequest,
+  healthDaysFrom, healthSyncLanded, isEditMealRequest, isRedateMealRequest,
 } from "./contract.ts";
 import { emptyHealthDay } from "./health.ts";
 
@@ -14,17 +14,6 @@ describe("isEditMealRequest", () => {
     expect(isEditMealRequest({ items: [{ name: "egg", grams: 50 }] })).toBe(true);
   });
 
-  it("takes a calendar date for the move — and only a calendar date (#93)", () => {
-    // `date` is how "Move to yesterday" lands — a PATCH the meal's own surface sends, so the row
-    // moves without paying for a turn. It is a `YYYY-MM-DD` the server will trust like the one it
-    // computes, so anything that is not one is a bad body, not a bad day.
-    expect(isEditMealRequest({ date: "2026-09-26" })).toBe(true);
-    expect(isEditMealRequest({ date: "2026-09-26", kcal: 320 })).toBe(true);
-    expect(isEditMealRequest({ date: "yesterday" })).toBe(false);
-    expect(isEditMealRequest({ date: "2026-13-40" })).toBe(false);
-    expect(isEditMealRequest({ date: "2026-9-6" })).toBe(false);
-    expect(isEditMealRequest({ date: 20260926 })).toBe(false);
-  });
 
   it("refuses anything that is not a number where a number belongs", () => {
     expect(isEditMealRequest({ kcal: "abc" })).toBe(false);
@@ -102,5 +91,18 @@ describe("healthDaysFrom", () => {
     const d = (date: string) => ({ ...emptyHealthDay(date), steps: 1 });
     const days = [d("2026-09-10"), d("2026-09-04"), d("2026-09-03")];
     expect(healthDaysFrom(days, "2026-09-04").map((x) => x.date)).toEqual(["2026-09-10", "2026-09-04"]);
+  });
+});
+
+// The move's body is a bare offset — the engine clamps it to the router's own bound, so the shape
+// check is only that a number arrived. A client never sends a `YYYY-MM-DD` here.
+describe("isRedateMealRequest", () => {
+  it("takes a finite offset and nothing else (#150)", () => {
+    expect(isRedateMealRequest({ dayOffset: 1 })).toBe(true);
+    expect(isRedateMealRequest({ dayOffset: 0 })).toBe(true);
+    expect(isRedateMealRequest({ dayOffset: "yesterday" })).toBe(false);
+    expect(isRedateMealRequest({ dayOffset: Number.NaN })).toBe(false);
+    expect(isRedateMealRequest({})).toBe(false);
+    expect(isRedateMealRequest("2026-09-26")).toBe(false);
   });
 });

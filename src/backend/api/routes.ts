@@ -15,9 +15,9 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest, isRedateMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
-  type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
+  type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type AttachPhotosResponse, type DeleteLineResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
@@ -37,7 +37,7 @@ import {
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
-  reanalyzeMeal,
+  reanalyzeMeal, redateMeal,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -102,6 +102,7 @@ export interface RouterOptions {
 export const STREAM_KEEPALIVE_MS = 5_000;
 
 const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
+const REDATE_PATH = /^\/v1\/meals\/([^/]+)\/redate$/;
 /** `POST /v1/meals/:id/photos` — one segment shorter than the GET that reads one by position. */
 const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 /** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
@@ -748,6 +749,20 @@ export function createRouter(
         const result = await reanalyzeMeal(deps, userId, decodeURIComponent(reanalyzeMatch[1]!));
         if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
         return isRefusal(result) ? refusal(result) : json(result);
+      }
+
+      const redateMatch = REDATE_PATH.exec(pathname);
+      if (req.method === "POST" && redateMatch) {
+        // Unbilled — the menu's "Move to yesterday" — but it writes the thread's card, so per
+        // address it holds its own counter like the editor and the delete beside it.
+        const wait = limit(req, peer, "meal-redate", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body: unknown = await req.json();
+        if (!isRedateMealRequest(body)) return json({ error: "bad-edit" }, 400);
+        const result = await redateMeal(deps, userId, decodeURIComponent(redateMatch[1]!), body.dayOffset);
+        return result.kind === "target-gone"
+          ? json({ error: "target-gone", on: result.on }, 409)
+          : json(result satisfies RedateMealResponse);
       }
 
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);

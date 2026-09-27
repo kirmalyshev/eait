@@ -12,12 +12,13 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
+  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
+  type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, healthScore, localDate, localTime,
+  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
   mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
   verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
@@ -27,7 +28,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { clampDayOffset, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -354,22 +355,15 @@ export async function editMeal(
     sodium_mg: patch.sodium_mg ?? existing.sodium_mg,
   };
 
-  // `date` is the surface's move ("Move to yesterday"), and a move corrects nothing: `corrected`
-  // and the answered-question clear stay bound to a change of what the plate IS, so a body that
-  // only redates leaves the flag and the question exactly as they were.
-  const content = Object.keys(patch).some((k) => k !== "date");
   const updated = await deps.store.updateMeal(userId, mealId, {
     ...merged,
     verdicts: await gatedVerdicts(deps, userId, merged),
-    ...(content ? {
-      corrected: true,
-      // One question per meal, asked once. Cleared by the write that answers it — and by a manual
-      // edit too, which is the same write: once the user has changed the numbers themselves, the
-      // question is about a plate that no longer exists, and the next `GET /day` would offer the
-      // chips again over an answer already given.
-      question: null,
-    } : {}),
-    ...(patch.date !== undefined ? { date: patch.date } : {}),
+    corrected: true,
+    // One question per meal, asked once. Cleared by the write that answers it — and by a manual
+    // edit too, which is the same write: once the user has changed the numbers themselves, the
+    // question is about a plate that no longer exists, and the next `GET /day` would offer the
+    // chips again over an answer already given.
+    question: null,
   });
   // Not redundant with the read above: the row can vanish between the two (a concurrent account
   // delete). A correction that silently succeeded against nothing is worse than one that says so.
@@ -404,6 +398,32 @@ export async function editMeal(
     kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
     ...verdictWordsFor(updated.verdicts, lang),
   };
+}
+
+/**
+ * THE ONE SANCTIONED WAY a meal's date changes (#150): by offset, clamped to the bound the router
+ * answers with, against the day the move was made (`at` — the turn path passes the turn's capture
+ * time, so a queued "that was yesterday" still means the day it was typed). A client never sends a
+ * `YYYY-MM-DD`: `EditMealRequest` has no `date` field on purpose, and a bare number cannot put a
+ * meal on a day the bound would not let it reach.
+ *
+ * Reached two ways: the router's `redate` intent, and `POST /v1/meals/:id/redate` — the meal
+ * surface's "Move to yesterday", unbilled. Both write the same thread card a turn's re-date does
+ * (`kind: "meal", event: "redated"`), so the thread reads identically whichever way it happened.
+ */
+export async function redateMeal(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+  dayOffset: unknown,
+  at?: Date,
+): Promise<MealRedated | TargetGone> {
+  const date = dateMinus(localDate(deps.config.timezone, at), clampDayOffset(dayOffset));
+  const moved = await deps.store.updateMeal(userId, mealId, { date });
+  if (!moved) return { kind: "target-gone", on: "redate" };
+  const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+  await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
+  return { kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date };
 }
 
 /**
