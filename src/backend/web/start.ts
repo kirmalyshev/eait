@@ -1169,8 +1169,9 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       floorApplied: full.basis.floorApplied,
       floorKcal: full.basis.floorKcal,
       // The ask leads to the offer, not straight at the checkout — the soft ask is a page of its
-      // own now (#42), and this boolean is the plan's whole knowledge of it.
-      checkout: config.webCheckoutUrl !== "",
+      // own now (#42), and this boolean is the plan's whole knowledge of it. Either configured
+      // plan counts: the exit offer alone sells nothing without a plan to decline (#77).
+      checkout: config.webPaywall.yearlyCheckoutUrl !== "" || config.webPaywall.monthlyCheckoutUrl !== "",
     }));
   }
 
@@ -1180,21 +1181,31 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // first verdict", and the close is what keeps it — it goes to the web app's first-meal flow,
   // the same app root the plan page already links to. With no checkout configured there is
   // nothing to offer at all, so the route answers as if it were declined: straight there.
-  // THE ONE PAID LINK, and both offers point at it: this surface's soft offer and the web app's
-  // offer that holds. The id goes in the URL because RevenueCat's webhook is the only thing that
-  // can grant the entitlement and `app_user_id` is how it names the account; it is filled here,
-  // from the session, so no page and no client ever carries it. `replaceAll`: a template naming
-  // the placeholder twice would otherwise ship the second one literally. Nothing configured is a
-  // route that does not exist, the shape the purchase webhook and `/admin` use.
+  // THE PAID LINKS, one per configured plan (#77). `?plan=` says which — `yearly` is the
+  // preselected plan, so a bare link means it — and `exit` is the offer a decline leads to.
+  // A plan the operator did not configure is a route that does not exist, the shape the purchase
+  // webhook and `/admin` use. The id goes in the URL because RevenueCat's webhook is the only
+  // thing that can grant the entitlement and `app_user_id` is how it names the account; it is
+  // filled here, from the session, so no page and no client ever carries it. `replaceAll`: a
+  // template naming the placeholder twice would otherwise ship the second one literally.
   if (req.method === "GET" && pathname === `${START_PREFIX}/checkout`) {
-    if (config.webCheckoutUrl === "") return notFound();
-    return seeOther(config.webCheckoutUrl.replaceAll("{userId}", encodeURIComponent(userId)));
+    const plan = url.searchParams.get("plan");
+    const target =
+      plan === null ? config.webPaywall.yearlyCheckoutUrl || config.webPaywall.monthlyCheckoutUrl
+      : plan === "yearly" ? config.webPaywall.yearlyCheckoutUrl
+      : plan === "monthly" ? config.webPaywall.monthlyCheckoutUrl
+      : plan === "exit" ? config.webPaywall.exitOfferCheckoutUrl
+      : "";
+    if (target === "") return notFound();
+    return seeOther(target.replaceAll("{userId}", encodeURIComponent(userId)));
   }
 
   if (req.method === "GET" && pathname === `${START_PREFIX}/offer`) {
     if (profile.onboarded_at === null) return seeOther(`${START_PREFIX}/q`);
     const closeTo = ctx.hasWebApp ? "/" : CHAT_PATH;
-    if (config.webCheckoutUrl === "") return seeOther(closeTo);
+    if (config.webPaywall.yearlyCheckoutUrl === "" && config.webPaywall.monthlyCheckoutUrl === "") {
+      return seeOther(closeTo);
+    }
     return html(offer({
       // `offerHeadline` names the computed target by the computed month — never literals, and
       // never a figure the projection cannot stand behind; it answers null for those, and the
