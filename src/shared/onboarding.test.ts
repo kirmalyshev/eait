@@ -13,7 +13,7 @@ import {
   suggestionFirst, LANGS, type CountryCode,
   type CountrySignals,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
-  screenForStep, usableContent, validateOnboardingContent,
+  onboardingContentFor, screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
 } from "./index.ts";
 
@@ -101,6 +101,15 @@ describe("the shipped copy", () => {
       for (const [key, o] of Object.entries(screen.options)) {
         expect(o.label.trim(), `${screen.id}.${key}`).not.toBe("");
       }
+    }
+  });
+
+  it("offers 'other' as a sex, labelled in every shipped language", () => {
+    // A third enum value the chips cannot render is a dead option. `screenOptionValues` supplies
+    // the order; the content owes each a label, in all eight.
+    for (const lang of LANGS) {
+      const about = onboardingContentFor(lang).screens.find((s) => s.id === "about")!;
+      expect(about.options?.other?.label.trim(), `about.options.other (${lang})`).toBeTruthy();
     }
   });
 

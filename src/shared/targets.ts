@@ -38,11 +38,12 @@ import type {
  * These are the widely-published minimums for unsupervised dieting (1200 kcal for women, 1500 for
  * men) — the same 1200 figure the reviewer above cited Harvard for. They are a POLICY FLOOR, not a
  * clinical judgement about any individual: a supervised very-low-calorie diet is a real thing, and
- * this app is not supervision.
+ * this app is not supervision. `other` takes the higher one — the same call `KCAL_FLOOR_UNKNOWN`
+ * makes for a sex that was never answered, because guessing low is the harmful way.
  */
-export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
+export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other: 1500 };
 
-/** Floor used when sex is unknown — the higher of the two, because guessing low is the harmful way. */
+/** Floor used when sex is unknown — the highest of the three, because guessing low is the harmful way. */
 export const KCAL_FLOOR_UNKNOWN = 1500;
 
 /** The largest share of maintenance we will subtract. 20% is the standard "moderate deficit" band. */
@@ -152,7 +153,9 @@ export function basalMetabolicRate(p: Profile, today = new Date()): number | nul
   if (p.height_cm < 100 || p.height_cm > 250) return null;
   if (p.weight_kg < 30 || p.weight_kg > 400) return null;
   const base = 10 * p.weight_kg + 6.25 * p.height_cm - 5 * age;
-  return Math.round(p.sex === "male" ? base + 5 : base - 161);
+  // Mifflin-St Jeor publishes two constants. `other` is the mean of them (−78): the literature
+  // has no third, and inventing one would be pretending to a precision the equation does not have.
+  return Math.round(base + { male: 5, female: -161, other: -78 }[p.sex]);
 }
 
 /** Age in whole years, or null when the birth year is missing or out of the supported band. */

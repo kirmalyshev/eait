@@ -7,7 +7,7 @@
 // simply be told no.
 
 import { MAX_PROFILE_TEXT,
-  ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets,
+  ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, SEXES, checkTargetWeight, explainTargets,
   isAcceptableWeightKg,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse,
@@ -144,7 +144,7 @@ export async function patchProfile(
     patch.goal = req.goal;
   }
   if (req.sex !== undefined) {
-    if (req.sex !== null && !["female", "male"].includes(req.sex)) return reject("sex", "out-of-range");
+    if (req.sex !== null && !(SEXES as readonly string[]).includes(req.sex)) return reject("sex", "out-of-range");
     patch.sex = req.sex;
   }
   // Asked as an AGE; the server does the subtraction, with its own clock — see the contract's

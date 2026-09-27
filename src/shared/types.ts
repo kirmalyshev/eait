@@ -9,8 +9,14 @@
 export type Goal = "lose" | "maintain" | "gain";
 export type Verdict = "good" | "warn" | "bad";
 
-/** Biological sex. Required by every published BMR equation; asked for that reason and no other. */
-export type Sex = "female" | "male";
+/**
+ * Sex, for the BMR equation. Required by every published Mifflin-St Jeor constant pair; asked for
+ * that reason and no other. `other` exists so nobody has to file themselves under a binary that
+ * does not fit — it is priced at the mean of the two constants, not treated as either
+ * (`targets.ts`, decision 6 of the targets-v2 design).
+ */
+export const SEXES = ["male", "female", "other"] as const;
+export type Sex = (typeof SEXES)[number];
 
 /**
  * Activity multipliers applied to BMR. Standard Harris-Benedict/Mifflin bands.

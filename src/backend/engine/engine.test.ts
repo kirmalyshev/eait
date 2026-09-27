@@ -90,6 +90,13 @@ describe("onboarding", () => {
     expect(p.weight_kg).toBeNull();
   });
 
+  it("accepts 'other' as a sex", async () => {
+    const { userId } = await store.upsertDeviceUser("k".repeat(40), "en");
+    const out = await patchProfile(deps, userId, { sex: "other" });
+    expect(out!.ok).toBe(true);
+    expect((await store.getProfile(userId))!.sex).toBe("other");
+  });
+
   it("leaves target weight and pace unset for a maintaining user", async () => {
     const { userId } = await store.upsertDeviceUser("f".repeat(40), "en");
     await patchProfile(deps, userId, {

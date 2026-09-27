@@ -57,7 +57,7 @@ const FR: OnboardingContent = {
         sex: { lines: ["Un peu sur toi, pour la formule des calories. Qu'est-ce qui te correspond ?"] },
         birth_year: { lines: ["Quel âge as-tu ?"], placeholder: "Ton âge" },
       },
-      options: { female: { label: "Femme" }, male: { label: "Homme" } },
+      options: { male: { label: "Homme" }, female: { label: "Femme" }, other: { label: "Autre" } },
     },
     {
       id: "body",
@@ -170,7 +170,7 @@ const DE: OnboardingContent = {
         sex: { lines: ["Kurz zu dir, für die Kalorienformel. Was passt zu dir?"] },
         birth_year: { lines: ["Wie alt bist du?"], placeholder: "Dein Alter" },
       },
-      options: { female: { label: "Weiblich" }, male: { label: "Männlich" } },
+      options: { male: { label: "Männlich" }, female: { label: "Weiblich" }, other: { label: "Andere" } },
     },
     {
       id: "body",
@@ -283,7 +283,7 @@ const IT: OnboardingContent = {
         sex: { lines: ["Qualcosa su di te, per la formula delle calorie. Cosa ti corrisponde?"] },
         birth_year: { lines: ["Quanti anni hai?"], placeholder: "La tua età" },
       },
-      options: { female: { label: "Donna" }, male: { label: "Uomo" } },
+      options: { male: { label: "Uomo" }, female: { label: "Donna" }, other: { label: "Altro" } },
     },
     {
       id: "body",
@@ -396,7 +396,7 @@ const ES: OnboardingContent = {
         sex: { lines: ["Un poco sobre ti, para la fórmula de calorías. ¿Cuál encaja contigo?"] },
         birth_year: { lines: ["¿Cuántos años tienes?"], placeholder: "Tu edad" },
       },
-      options: { female: { label: "Mujer" }, male: { label: "Hombre" } },
+      options: { male: { label: "Hombre" }, female: { label: "Mujer" }, other: { label: "Otro" } },
     },
     {
       id: "body",
@@ -509,7 +509,7 @@ const VI: OnboardingContent = {
         sex: { lines: ["Vài điều về bạn, cho công thức tính calo. Cái nào đúng với bạn?"] },
         birth_year: { lines: ["Bạn bao nhiêu tuổi?"], placeholder: "Tuổi của bạn" },
       },
-      options: { female: { label: "Nữ" }, male: { label: "Nam" } },
+      options: { male: { label: "Nam" }, female: { label: "Nữ" }, other: { label: "Khác" } },
     },
     {
       id: "body",
@@ -622,7 +622,7 @@ const ID: OnboardingContent = {
         sex: { lines: ["Sedikit tentang kamu, untuk rumus kalori. Mana yang cocok denganmu?"] },
         birth_year: { lines: ["Umurmu berapa?"], placeholder: "Umurmu" },
       },
-      options: { female: { label: "Perempuan" }, male: { label: "Laki-laki" } },
+      options: { male: { label: "Laki-laki" }, female: { label: "Perempuan" }, other: { label: "Lainnya" } },
     },
     {
       id: "body",
@@ -735,7 +735,7 @@ const RU: OnboardingContent = {
         sex: { lines: ["Немного о тебе — для формулы калорий. Что подходит тебе?"] },
         birth_year: { lines: ["Сколько тебе лет?"], placeholder: "Твой возраст" },
       },
-      options: { female: { label: "Женский" }, male: { label: "Мужской" } },
+      options: { male: { label: "Мужской" }, female: { label: "Женский" }, other: { label: "Другой" } },
     },
     {
       id: "body",

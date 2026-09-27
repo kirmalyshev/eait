@@ -44,6 +44,7 @@ import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth } from "./projection.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
+import { SEXES } from "./types.ts";
 import type { ActivityLevel, Goal, Lang, Profile } from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
@@ -115,7 +116,7 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // reader is the client's HealthKit fill of sex/birth_year/height_cm/weight_kg, and on a surface
   // without Health (the browser) `promptsFor` leaves it out entirely.
   { id: "health", place: "health", kind: "health" },
-  { id: "sex", place: "about", field: "sex", kind: "choice", options: ["female", "male"] },
+  { id: "sex", place: "about", field: "sex", kind: "choice", options: SEXES },
   { id: "birth_year", place: "about", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "body", field: "height_cm", kind: "number" },
   { id: "weight_kg", place: "body", field: "weight_kg", kind: "number" },

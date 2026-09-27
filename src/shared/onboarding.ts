@@ -35,7 +35,7 @@
 
 import type { Lang, Profile } from "./types.ts";
 import { genderedRussian, LANG_TAG } from "./lang.ts";
-import { ACTIVITY_LEVELS, PACES } from "./types.ts";
+import { ACTIVITY_LEVELS, PACES, SEXES } from "./types.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
 
@@ -620,7 +620,7 @@ export function screenOptions(
 
 export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[]>> = {
   goal: ["lose", "maintain", "gain"],
-  about: ["female", "male"],
+  about: SEXES,
   target: PACES,
   activity: ACTIVITY_LEVELS,
   country: COUNTRY_CODES,
@@ -731,8 +731,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       },
 
       options: {
-        female: { label: "Female" },
         male: { label: "Male" },
+        female: { label: "Female" },
+        other: { label: "Other" },
       },
     },
     {

@@ -51,6 +51,15 @@ describe("basalMetabolicRate (Mifflin-St Jeor)", () => {
     expect(basalMetabolicRate(profile({ sex: "male", weight_kg: 80, height_cm: 180 }), TODAY)).toBe(1750);
   });
 
+  it("prices 'other' at the mean of the two published constants (−78)", () => {
+    // Mifflin-St Jeor publishes +5 and −161; "other" takes the mean (decision 6, the same call
+    // the incumbent makes). 10(74) + 6.25(172) − 5(32) = 1655 → 1660 / 1494 / 1577.
+    const base = { birth_year: 1994, height_cm: 172, weight_kg: 74 };
+    expect(basalMetabolicRate(profile({ ...base, sex: "male" }), TODAY)).toBe(1660);
+    expect(basalMetabolicRate(profile({ ...base, sex: "female" }), TODAY)).toBe(1494);
+    expect(basalMetabolicRate(profile({ ...base, sex: "other" }), TODAY)).toBe(1577);
+  });
+
   it("returns null when any input is missing, never a partial guess", () => {
     expect(basalMetabolicRate(profile({ sex: null }), TODAY)).toBeNull();
     expect(basalMetabolicRate(profile({ height_cm: null }), TODAY)).toBeNull();
@@ -83,6 +92,18 @@ describe("the calorie floor", () => {
       height_cm: 160, weight_kg: 55, birth_year: 1955,
     });
     expect(explainTargets(p, TODAY).targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.male);
+  });
+
+  it("holds 'other' to the HIGHER floor, because guessing low is the harmful way", () => {
+    expect(KCAL_FLOOR.other).toBe(1500);
+    const p = profile({
+      sex: "other", goal: "lose", pace: "push", activity: "sedentary",
+      height_cm: 150, weight_kg: 45, birth_year: 1960,
+    });
+    const { targets, basis } = explainTargets(p, TODAY);
+    expect(basis.floorKcal).toBe(1500);
+    expect(targets.kcal).toBeGreaterThanOrEqual(1500);
+    expect(basis.floorApplied).toBe(true);
   });
 
   it("uses the HIGHER floor when sex is unknown, because guessing low is the harmful way", () => {
