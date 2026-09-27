@@ -9,7 +9,7 @@
 
 import type { MealRecord, Verdict, VerdictDimension } from "@eait/shared";
 import { renderableVerdicts } from "../shared/types.ts";
-import { verdictPillLabel } from "../shared/verdicts.ts";
+import { verdictNoun, verdictPillLabel } from "../shared/verdicts.ts";
 import {
   cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
@@ -121,6 +121,9 @@ export function verdictWords(verdicts: MealRecord["verdicts"]): { tone: VerdictT
     tone: v[d]!, words: verdictPillLabel(d, v[d]!, lang),
   }));
 }
+
+/** A dimension's bare noun — "Saturated fat" — for the log card's detail sentence (#92). */
+export const verdictNounText = (dimension: VerdictDimension): string => verdictNoun(dimension, lang);
 
 /**
  * A MealRecord as the diary's `.meal` row: first-two-items name (shell.ts's `names`, the same

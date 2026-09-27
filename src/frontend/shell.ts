@@ -134,9 +134,12 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
   { hash: "#/you", label: "navProfile" },
 ];
 
+/** The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff, #93). */
+const routeKey = (route: string): string => route.split("?")[0]!;
+
 /** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
 const activeTab = (route: string): string =>
-  route === "#/chat" || route === "#/you" || route === "#/progress" ? route : "#/";
+  ["#/chat", "#/you", "#/progress"].includes(routeKey(route)) ? routeKey(route) : "#/";
 
 /**
  * The boards' top bar (Register P): the `eait` wordmark — Spud's happy face at 20px — then the ONE
@@ -570,8 +573,9 @@ export function screen(hash: string, fn: ScreenFn): void {
 export const hasScreen = (hash: string): boolean => exactScreens.has(hash);
 
 const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
-  const fn = exactScreens.get(route)
-    ?? prefixScreens.find(([prefix]) => route.startsWith(prefix))?.[1]
+  const key = routeKey(route);
+  const fn = exactScreens.get(key)
+    ?? prefixScreens.find(([prefix]) => key.startsWith(prefix))?.[1]
     ?? exactScreens.get("#/");
   if (fn === undefined) throw new Error("no #/ screen registered");
   return fn(frame);

@@ -48,7 +48,7 @@ test("a picked photo lands on the account's first verdict", async ({ inWebApp: p
   // The card: meal name, kcal, the three macro chips, the computed verdict lines.
   await expect(page.locator(".card")).toContainText("kcal");
   await expect(page.locator(".vs .v").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Correct" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Correct" })).toHaveAttribute("href", /#\/chat\?focus=.+/);
   await shot(page, "log-first-verdict");
 
   // Continue leads to the plans paywall — W9's route (#96). Until it binds, the hash is where the
@@ -64,11 +64,13 @@ test("a second photo draws the logged card, and Agree goes Home", async ({ inWeb
   await pick(page);
 
   await expect(page.getByText(/Logged ·/)).toBeVisible();
-  await expect(page.locator(".card")).toContainText("kcal");
+  await expect(page.locator(".card").first()).toContainText("kcal");
   await expect(page.locator(".vs .v").first()).toBeVisible();
   // The day counter is the server's own totals: "… of 1,434 kcal" and "… left".
   await expect(page.getByText(/of [\d.,]+ kcal/)).toBeVisible();
   await expect(page.getByText(/left$/)).toBeVisible();
+  // Edit is the chat-with-focus handoff — `#/chat?focus=<mealId>`, the meal's own id.
+  await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", /#\/chat\?focus=.+/);
   await shot(page, "log-logged");
 
   await page.getByRole("link", { name: "Agree" }).click();
@@ -80,14 +82,14 @@ test("a photo dropped onto the zone is analysed like a picked one", async ({ inW
   await logMeal(page);
   await uploadView(page);
   const b64 = readFileSync(FIXTURE).toString("base64");
-  await page.evaluate((data) => {
-    const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  await page.evaluate(`(() => {
+    const bytes = Uint8Array.from(atob(${JSON.stringify(b64)}), (c) => c.charCodeAt(0));
     const dt = new DataTransfer();
     dt.items.add(new File([bytes], "dropped.png", { type: "image/png" }));
-    const zone = document.querySelector<HTMLElement>(".drop")!;
+    const zone = document.querySelector(".drop");
     zone.dispatchEvent(new DragEvent("dragover", { bubbles: true, dataTransfer: dt }));
     zone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: dt }));
-  }, b64);
+  })()`);
   await expect(page.locator(".drop")).toContainText("dropped.png");
   await page.getByRole("button", { name: "Analyse" }).click();
   await expect(page.getByText(/Logged ·/)).toBeVisible();
@@ -103,6 +105,7 @@ test("the rough-guess card asks the server's question and chips correct the meal
 
   await expect(page.getByText("Rough guess")).toBeVisible();
   await expect(page.getByText("Was it cooked in oil, or dry?")).toBeVisible();
+  await expect(page.getByRole("button", { name: "In oil" })).toBeVisible();
   await shot(page, "log-rough");
 
   const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/api/v1/messages"));
@@ -154,13 +157,10 @@ test("with reduced motion the surface lands on its end state", async ({ inWebApp
   await expect(page.getByText("Your first verdict")).toBeVisible();
 
   // The scan does not run and nothing animates: every element sits at its end state.
-  const animating = await page.evaluate(() =>
+  const animating = await page.evaluate<string[]>(`(() =>
     [...document.querySelectorAll(".rise, .co, .pop, .grow, .draw, .settle, .count, .scan")]
-      .filter((el) => {
-        const s = getComputedStyle(el);
-        return s.animationName !== "none" || s.display === "none" && el.classList.contains("scan") ? s.animationName !== "none" : false;
-      })
-      .map((el) => `${el.className}:${getComputedStyle(el).animationName}`));
+      .filter((el) => getComputedStyle(el).animationName !== "none")
+      .map((el) => el.className + ":" + getComputedStyle(el).animationName))()`);
   expect(animating).toEqual([]);
   await expect(page.locator(".hero .co").first()).toBeVisible();
   await shot(page, "log-first-verdict-reduced");

@@ -6,11 +6,13 @@
 // `#/meal/` (W6) binds the prefix, `#/progress` (W8) binds exactly — and never touch the shell.
 import { screen, start } from "./shell.ts";
 import { chatScreen } from "./screens/chat.ts";
+import { logScreen } from "./screens/log.ts";
 import { youScreen } from "./screens/you.ts";
 import { homeScreen } from "./screens/today.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
 screen("#/chat", () => chatScreen());
+screen("#/log", (frame) => logScreen(frame));
 screen("#/you", (frame) => youScreen(frame.me));
 screen("#/", (frame) => homeScreen(frame.me));
 
