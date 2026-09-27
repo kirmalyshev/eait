@@ -449,8 +449,11 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const rich = isToday && hasMeals && !logging;
     if (!rich) page = 0;
 
-    // ── The left column: the day label, the meals, the proposal, the empty/failed card ──
-    const left: Element[] = [el("span", "lab", dateText(viewing))];
+    // ── The left column: the label, the meals, the proposal, the empty/failed card ──
+    // The boards' own twist: the column's label is "Recently uploaded" on today-with-meals and
+    // the VIEWED DATE everywhere else (empty, logging, past, failed).
+    const left: Element[] = [el("span", isToday && hasMeals ? "mealtitle" : "lab",
+      isToday && hasMeals ? L.recentlyUploaded : dateText(viewing))];
     if (day === null) {
       const card = el("div", "card failcard");
       const say = el("div", "say");
@@ -473,8 +476,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       card.append(plate, say);
       left.push(card);
     } else {
-      const card = el("div", "card");
-      card.append(el("span", "mealtitle", L.recentlyUploaded));
+      const card = el("div", "card meals");
       for (const meal of day.meals) {
         card.append(mealRow(meal));
       }

@@ -80,8 +80,9 @@ export const todayCss = `
 .hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
 .scorecard .cta { margin-top: 14px; }
 
-/* The meal list's section title ("Recently uploaded"). */
+/* The meal list's column title ("Recently uploaded" — today.html's d17 over the card). */
 .mealtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.meals .meal:first-of-type { border-top: 0; }
 
 /* The empty day — a dashed card holding the plate mark and Spud's line. */
 .emptycard { height: 420px; display: flex; flex-direction: column; align-items: center;
