@@ -52,7 +52,7 @@ describe("YOU_COPY", () => {
     const FILL: Record<string, string> = {
       age: "32", height: "172 cm", flags: "high cholesterol declared", condition: "high cholesterol",
       w: "73.4", prev: "74", source: "Apple Health", time: "18:30", kcal: "1,434", g: "109",
-      floor: "1,200", n: "5", total: "7", date: "Sat 26 Sep", price: "€5.99",
+      floor: "1,200", n: "5", total: "7", date: "Sat 26 Sep",
       from: "1,434", to: "1,429", url: "app.eait.fit/start",
     };
     const filled = (s: string) =>
@@ -122,7 +122,6 @@ describe("YOU_COPY", () => {
     expect(en.phone.beforeEnds).toBe("Before it ends");
     expect(en.phone.weRemind).toBe("We remind you");
     expect(en.phone.thenLabel).toBe("Then");
-    expect(en.phone.perMonth).toBe("{price} a month");
     expect(en.phone.manageStore).toBe("Manage in the App Store");
     expect(en.phone.restore).toBe("Restore");
     expect(en.phone.termsLink).toBe("Terms");

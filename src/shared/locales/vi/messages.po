@@ -15,6 +15,21 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Đã đủ đạm chưa?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Tuần này thế nào?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Tối nay nên ăn gì?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — đã ghi nhận, nó nằm trong các con số rồi."
 
@@ -70,7 +85,7 @@ msgstr "Một phần lớn của cả ngày trong một bữa."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Đã đủ đạm chưa?"
 
 #. js-lingui-explicit-id
@@ -155,6 +170,11 @@ msgstr "Bữa đầu tiên đã vào. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Tốt — phần thiết lập xong rồi, và ngày đầu tiên đã bắt đầu. Còn một chuyện trước khi bạn đi, và đây là lần duy nhất mình hỏi."
 
@@ -170,8 +190,13 @@ msgstr "Nói thật: đĩa đó mình đọc không rõ. Cứ xem {kcal} là ư�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Tuần này thế nào?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Tôi sẽ kể tôi đã ăn gì"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -301,7 +326,7 @@ msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn y�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi mình một câu."
+msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi {coach} một câu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -480,8 +505,13 @@ msgstr "Đang ước lượng khẩu phần…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Tối nay nên ăn gì?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Đổi món gì nhẹ hơn cho bữa tối?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

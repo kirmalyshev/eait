@@ -159,12 +159,14 @@ export interface YouCopy {
     dayOfTotal: string;
     /** Beside it: "until {date}" — `{date}` is `Intl`, short weekday and day. */
     untilDate: string;
-    /** The two explanation rows: "Before it ends" → "We remind you", "Then" → "{price} a month". */
+    /**
+     * The two explanation rows' labels: "Before it ends" → "We remind you", "Then" →
+     * the monthly price — which is `PAY_COPY`'s `pricePerMonth` ("{price} a month", #126),
+     * not a key here: one template for "{price} a month", read from the pay table.
+     */
     beforeEnds: string;
     weRemind: string;
     thenLabel: string;
-    /** `{price}` comes from `paywallPrice`; the board's "[price] a month" is this unfilled. */
-    perMonth: string;
     /** Out to Apple's subscription management: "Manage in the App Store". */
     manageStore: string;
     /** The footer's three links, drawn "Restore · Terms · Privacy". */
@@ -258,7 +260,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Before it ends",
       weRemind: "We remind you",
       thenLabel: "Then",
-      perMonth: "{price} a month",
       manageStore: "Manage in the App Store",
       restore: "Restore",
       termsLink: SIGNUP_COPY.en.termsLink,
@@ -339,7 +340,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Avant la fin",
       weRemind: "On te le rappelle",
       thenLabel: "Ensuite",
-      perMonth: "{price} par mois",
       manageStore: "Gérer dans l'App Store",
       restore: "Restaurer",
       termsLink: signupCopyFor("fr").termsLink,
@@ -420,7 +420,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Bevor sie endet",
       weRemind: "Wir erinnern dich",
       thenLabel: "Danach",
-      perMonth: "{price} im Monat",
       manageStore: "Im App Store verwalten",
       restore: "Wiederherstellen",
       termsLink: signupCopyFor("de").termsLink,
@@ -501,7 +500,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Prima che finisca",
       weRemind: "Ti avvisiamo noi",
       thenLabel: "Poi",
-      perMonth: "{price} al mese",
       manageStore: "Gestisci nell'App Store",
       restore: "Ripristina",
       termsLink: signupCopyFor("it").termsLink,
@@ -582,7 +580,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Antes de que acabe",
       weRemind: "Te lo recordamos",
       thenLabel: "Después",
-      perMonth: "{price} al mes",
       manageStore: "Gestionar en App Store",
       restore: "Restaurar",
       termsLink: signupCopyFor("es").termsLink,
@@ -663,7 +660,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Trước khi kết thúc",
       weRemind: "Chúng tôi nhắc bạn",
       thenLabel: "Sau đó",
-      perMonth: "{price} một tháng",
       manageStore: "Quản lý trong App Store",
       restore: "Khôi phục",
       termsLink: signupCopyFor("vi").termsLink,
@@ -744,7 +740,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Sebelum berakhir",
       weRemind: "Kami ingatkan",
       thenLabel: "Lalu",
-      perMonth: "{price} sebulan",
       manageStore: "Kelola di App Store",
       restore: "Pulihkan",
       termsLink: signupCopyFor("id").termsLink,
@@ -825,7 +820,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       beforeEnds: "Пока не кончилась",
       weRemind: "Мы напомним",
       thenLabel: "Дальше",
-      perMonth: "{price} в месяц",
       manageStore: "Управлять в App Store",
       restore: "Восстановить",
       termsLink: signupCopyFor("ru").termsLink,

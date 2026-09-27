@@ -7,7 +7,8 @@
 
 import { wholeNumbers } from "./lang.ts";
 import { threadCopyFor, type Figures } from "./chat-copy.ts";
-import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
+import { STRUGGLES } from "./types.ts";
+import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
 
 /**
  * Lines the APP may ask the server to append, BY ID. Never prose: the client names a line and the
@@ -119,12 +120,18 @@ export function scriptedLine(
 
 /**
  * What the Chat tab offers when nothing live is on screen: three things the coach can do, worded
- * as the user would send them, because a tap sends the words verbatim. Shared so the server can
- * one day suggest the same ones; today only the app reads them.
+ * as the user would send them, because a tap sends the words verbatim (S9). One starter exists
+ * per struggle; the profile's picks come FIRST, in `STRUGGLES` list order rather than tap order,
+ * and the unpicked fill what is left to three — so no pick is read by nothing, and a profile that
+ * was never asked gets the list's first three.
  */
 
-export const COACH_STARTERS = (lang: Lang): readonly string[] =>
-  threadCopyFor(lang).coachStarters;
+export function startersFor(picked: readonly Struggle[] | null | undefined, lang: Lang): string[] {
+  const starters = threadCopyFor(lang).coachStarters;
+  const chosen = STRUGGLES.filter((s) => picked?.includes(s));
+  const rest = STRUGGLES.filter((s) => !picked?.includes(s));
+  return [...chosen, ...rest].slice(0, 3).map((s) => starters[s]);
+}
 
 /**
  * The fixed thread the deterministic Chat is seeded with. Issue #257.

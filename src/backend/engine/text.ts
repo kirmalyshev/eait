@@ -175,7 +175,7 @@ async function textTurn(
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           answeredBy = deps.config.llmModel;
-          return { kind: "answered", text: routed.text };
+          return { kind: "answered", text: routed.text, speaker: "gabie" };
         }
       }
 
@@ -269,7 +269,7 @@ async function keep(
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
-      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
+      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
       if (result.kind === "updated") {
         const meal = await deps.store.getMeal(userId, result.mealId);
         if (meal) lines.push(...(await afterCorrection(deps, userId, meal, result.totals)));
