@@ -27,6 +27,12 @@ export const API_VERSION = "v1";
  */
 export const REFUSAL_STATUS = {
   "not-onboarded": 403,
+  /**
+   * The account carries no Apple or Google identity — sign-up has not happened. An analysis,
+   * the free one included, is refused before anything is charged: the sample is never spent
+   * anonymously. 403 for the same reason `not-onboarded` is: the caller authenticated fine.
+   */
+  "identity-required": 403,
   "not-food": 422,
   "cap-exceeded": 429,
   "subscription-required": 402,
@@ -407,6 +413,15 @@ export interface AuthProviderRequest {
    * because by then it is the user's own setting rather than a guess about their phone.
    */
   locale?: string;
+  /**
+   * The consent the sign-up screen collects (Kirill's decision, S8). `terms` is the required
+   * box — the server refuses the call when it is absent or not `true` — and `marketing` is the
+   * optional one. They land on the account as `terms_accepted_at` / `marketing_consent_at`
+   * (a timestamp; null means never given). EU consent needs the date, which is why a boolean
+   * is not what is stored.
+   */
+  terms: boolean;
+  marketing?: boolean;
 }
 
 /** What happened to the account when an identity was presented. */
