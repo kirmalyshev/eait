@@ -769,12 +769,12 @@ describe("the days read", () => {
 
     expect(out.days.map((day) => day.date)).toEqual([d(3), d(2), d(1), d(0)]);
     expect(out.days[0]).toMatchObject({ logged: false, kcal: 0, when: "past" });
-    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, protein_g: 20, when: "past" });
+    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, when: "past" });
     expect(out.days[2]).toMatchObject({ logged: false, kcal: 0, when: "past" });
     expect(out.days[3]).toMatchObject({ logged: true, kcal: 600, when: "today" });
-    // The day's own plan is on the row: the session() profile's kcal target, never recomputed.
+    // The day's plan is sent once, not repeated per row: the session() profile's kcal target.
     const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(out.days.every((day) => day.targetKcal === me.targets.kcal)).toBe(true);
+    expect(out.targetKcal).toBe(me.targets.kcal);
     // Two logged days back, a blank one between: the run counts today alone.
     expect(out.streak).toBe(1);
   });
@@ -788,7 +788,7 @@ describe("the days read", () => {
     expect(out.days.map((day) => day.when)).toEqual(["today", "future", "future"]);
     expect(out.days[1]!.logged).toBe(false);
     expect(out.days[1]!.kcal).toBeNull();
-    expect(out.days[2]!.protein_g).toBeNull();
+    expect(out.days[2]!.kcal).toBeNull();
   });
 
   it("counts the streak from yesterday while today is still open, and stops at a blank day", async () => {
@@ -902,7 +902,7 @@ describe("the weights read", () => {
   });
 });
 
-describe("the profile's projection", () => {
+describe("the projection on the weights read", () => {
   // An account onboarded three days ago at 70 kg aiming for 65 — hand-built rather than
   // session()'s, because the store-level patch can write the onboarded_at of a PAST day, which is
   // what the goal bar's "start" needs a history older than to prove it isn't reading it.
@@ -929,18 +929,18 @@ describe("the profile's projection", () => {
     await store.putWeight(userId, dateMinus(today, 3), 70.0);
     await store.putWeight(userId, dateMinus(today, 1), 66.0);
 
-    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(me.projection).not.toBeNull();
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.projection).not.toBeNull();
     // The current figure is the newest LOGGED weight, not the profile's stored 70.
-    expect(me.projection!.currentKg).toBe(66);
-    expect(me.projection!.targetKg).toBe(65);
+    expect(out.projection!.currentKg).toBe(66);
+    expect(out.projection!.targetKg).toBe(65);
     // And the start is the typed onboarding value — 70, not the 74.6 backfill and not the 71.1
     // the scale reported for the same morning (the typed row wins a shared date).
-    expect(me.projection!.startKg).toBe(70);
-    expect(me.projection!.weeks).toBeGreaterThan(0);
-    expect(me.projection!.kgPerWeek).toBeGreaterThan(0);
-    expect(me.projection!.month.length).toBeGreaterThan(0);
-    expect(me.projection!.beyondHorizon).toBe(false);
+    expect(out.projection!.startKg).toBe(70);
+    expect(out.projection!.weeks).toBeGreaterThan(0);
+    expect(out.projection!.kgPerWeek).toBeGreaterThan(0);
+    expect(out.projection!.month.length).toBeGreaterThan(0);
+    expect(out.projection!.beyondHorizon).toBe(false);
   });
 
   it("falls back to the earliest weigh-in when nothing was logged after onboarding", async () => {
@@ -951,16 +951,16 @@ describe("the profile's projection", () => {
       { ...emptyHealthDay(dateMinus(today, 60)), weight_kg: 74.6 },
       { ...emptyHealthDay(dateMinus(today, 40)), weight_kg: 74.0 },
     ]);
-    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(me.projection!.startKg).toBe(74.6);
-    expect(me.projection!.currentKg).toBe(74.0);
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.projection!.startKg).toBe(74.6);
+    expect(out.projection!.currentKg).toBe(74.0);
   });
 
   it("uses the stored weight when nothing was ever logged", async () => {
     const { token } = await accountWeighed();
-    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(me.projection!.currentKg).toBe(70);
-    expect(me.projection!.startKg).toBe(70);
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.projection!.currentKg).toBe(70);
+    expect(out.projection!.startKg).toBe(70);
   });
 
   it("writes the typed weight to the day's weigh-in row, the last write winning", async () => {
@@ -991,8 +991,8 @@ describe("the profile's projection", () => {
       goal: "maintain", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
       activity: "some", country: "gb", restrictions: [], complete_onboarding: true,
     }, token);
-    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(me.projection).toBeNull();
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.projection).toBeNull();
   });
 });
 

@@ -3362,6 +3362,10 @@
             },
             "description": "Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw."
           },
+          "targetKcal": {
+            "type": "number",
+            "description": "The account's calorie target, sent once rather than repeated on every row — a day's macros come from `/v1/diary/day`, this read is the strip's own shape."
+          },
           "streak": {
             "type": "number",
             "description": "Consecutive calendar days with at least one logged meal, counted backwards from today in the account's timezone. Today stays open: with nothing logged yet it does not break the run, and the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is a streak a client counted itself is a streak that disagrees with the server's."
@@ -3369,6 +3373,7 @@
         },
         "required": [
           "days",
+          "targetKcal",
           "streak"
         ],
         "additionalProperties": false,
@@ -3425,49 +3430,16 @@
           "date": {
             "type": "string",
             "description": "YYYY-MM-DD in the account's timezone."
-          },
-          "protein_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "carbs_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "fat_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "satfat_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "targetKcal": {
-            "type": "number",
-            "description": "The day's calorie target — sent on every row so no client re-derives the plan."
           }
         },
         "required": [
-          "carbs_g",
           "date",
-          "fat_g",
           "kcal",
           "logged",
-          "protein_g",
-          "satfat_g",
-          "targetKcal",
           "when"
         ],
         "additionalProperties": false,
-        "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals, so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
+        "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`), so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
       },
       "Diet": {
         "type": "string",
@@ -5168,7 +5140,7 @@
           "beyondHorizon"
         ],
         "additionalProperties": false,
-        "description": "The goal's arc for `ProfileResponse.projection` — where the plan started, where the last weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null` carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback band, or a delta pointed away from the target each mean there is nothing to draw, and `null` is what those answer rather than an invented figure.\n\n`startKg` is the weight the plan was set at — the earliest weigh-in logged on or after onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it; with none that young it is the earliest logged weight at all, and with none at all it is `currentKg`. `month` is localized in the account's language; past `beyondHorizon` it is still computed, and the client draws \"over two years\" instead."
+        "description": "The goal's arc for `WeightsResponse.projection` — where the plan started, where the last weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null` carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback band, or a delta pointed away from the target each mean there is nothing to draw, and `null` is what those answer rather than an invented figure.\n\n`startKg` is the weight the plan was set at — the earliest weigh-in logged on or after onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it; with none that young it is the earliest logged weight at all, and with none at all it is `currentKg`. `month` is localized in the account's language; past `beyondHorizon` it is still computed, and the client draws \"over two years\" instead."
       },
       "Profile": {
         "type": "object",
@@ -5442,17 +5414,6 @@
           "paywall": {
             "$ref": "#/components/schemas/WebPaywall",
             "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
-          },
-          "projection": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PlanProjection"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The goal arc the Progress goal bar draws — start, current and target weights, the weeks and rate `projectGoal` computed, and the localized month it lands in. Null when no honest projection exists (no target, nothing weighed, a fallback band) — see  {@link  PlanProjection } ."
           }
         },
         "required": [
@@ -5466,8 +5427,7 @@
           "entitlement",
           "pairAddress",
           "telegramBot",
-          "paywall",
-          "projection"
+          "paywall"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -5892,13 +5852,25 @@
               "$ref": "#/components/schemas/WeightEntry"
             },
             "description": "Oldest first — chart order, `weightChart` reads the endpoints off the ends."
+          },
+          "projection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanProjection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The goal arc the Progress goal bar draws — start, current and target weights, the weeks and rate `projectGoal` computed, and the localized month it lands in. Null when no honest projection exists (no target, nothing weighed, a fallback band) — see  {@link  PlanProjection } ."
           }
         },
         "required": [
-          "weights"
+          "weights",
+          "projection"
         ],
         "additionalProperties": false,
-        "description": "`GET /v1/weights` — the merged weigh-in log the Progress chart draws."
+        "description": "`GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc."
       },
       "YearlyPlan": {
         "type": "object",
