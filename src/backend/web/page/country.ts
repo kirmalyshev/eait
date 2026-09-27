@@ -63,7 +63,7 @@ export function country(v: CountryView): string {
 ${say("happy", [v.ask], v.lang)}
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form method="get" action="${escape(v.action)}">
-  <label class="srch">${iconSvg("search")}<input type="search" name="q" value="${escape(v.query)}" placeholder="${escape(v.placeholder)}" aria-label="${escape(v.placeholder)}"></label>
+  <label class="srch">${iconSvg("search", { size: 18, class: "ico" })}<input type="search" name="q" value="${escape(v.query)}" placeholder="${escape(v.placeholder)}" aria-label="${escape(v.placeholder)}"></label>
 </form>
 <form method="post" action="${escape(v.action)}">
   <div class="opts">
