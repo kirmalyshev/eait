@@ -126,6 +126,15 @@ export interface ChatCopy {
   /** The soft offer's title: `{kg}` the target, `{month}` CLDR's month and year. `offerHeadline`. */
   offerHeadline: string;
   /**
+   * The plan headline over the progress graph (S6; board `15-plan`): `{n}` the amount to lose in
+   * the reader's units, `{month}` the month `projectGoal` lands on, year included. `planHeadline`.
+   * The unit word is part of the sentence and not a symbol beside it, so `metric` and `imperial`
+   * are two whole templates. This is the ONE field the claims gate exempts from `weight-promise`
+   * — `CLAIM_EXEMPTIONS` in `claims.ts` names it — and it is a promise the plan makes about a
+   * goal the user already stated, computed, never written by hand.
+   */
+  planGoal: { metric: string; imperial: string };
+  /**
    * The ONE line Spud says after an answer, above the next question — keyed by what it answers.
    * The mood beside it is picked in `reactionTo` (`onboarding-chat.ts`), not here: a mood is a
    * reaction to what just happened and a copy field cannot know that.
@@ -327,6 +336,10 @@ const EN: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.en,
   stepper: { continue: "Continue", less: "Less", more: "More" },
   offerHeadline: "Get to {kg} kg by {month}",
+  planGoal: {
+    metric: "Goal: lose {n} kg by {month}",
+    imperial: "Goal: lose {n} lbs by {month}",
+  },
   reactions: {
     goalLose: "Lose weight. Good, let's make it stick",
     goalMaintain: "Maintain it is — let's keep what already works",
@@ -535,6 +548,10 @@ const FR: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.fr,
   stepper: { continue: "Continuer", less: "Moins", more: "Plus" },
   offerHeadline: "Atteindre {kg} kg d'ici {month}",
+  planGoal: {
+    metric: "Objectif : perdre {n} kg d'ici {month}",
+    imperial: "Objectif : perdre {n} lb d'ici {month}",
+  },
   reactions: {
     goalLose: "Perdre du poids. Bien — faisons en sorte que ça tienne",
     goalMaintain: "Maintenir — gardons ce qui fonctionne déjà",
@@ -742,6 +759,10 @@ const DE: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.de,
   stepper: { continue: "Weiter", less: "Weniger", more: "Mehr" },
   offerHeadline: "{kg} kg bis {month}",
+  planGoal: {
+    metric: "Ziel: bis {month} {n} kg abnehmen",
+    imperial: "Ziel: bis {month} {n} lb abnehmen",
+  },
   reactions: {
     goalLose: "Abnehmen. Gut — wir sorgen dafür, dass es hält",
     goalMaintain: "Halten — wir behalten, was schon funktioniert",
@@ -949,6 +970,10 @@ const IT: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.it,
   stepper: { continue: "Continua", less: "Meno", more: "Più" },
   offerHeadline: "Arrivare a {kg} kg entro {month}",
+  planGoal: {
+    metric: "Obiettivo: perdere {n} kg entro {month}",
+    imperial: "Obiettivo: perdere {n} lb entro {month}",
+  },
   reactions: {
     goalLose: "Perdere peso. Bene — facciamo in modo che duri",
     goalMaintain: "Mantenere — teniamo quello che già funziona",
@@ -1156,6 +1181,10 @@ const ES: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.es,
   stepper: { continue: "Continuar", less: "Menos", more: "Más" },
   offerHeadline: "Llegar a {kg} kg en {month}",
+  planGoal: {
+    metric: "Objetivo: bajar {n} kg para {month}",
+    imperial: "Objetivo: bajar {n} lb para {month}",
+  },
   reactions: {
     goalLose: "Perder peso. Bien — hagamos que se mantenga",
     goalMaintain: "Mantener — conservemos lo que ya funciona",
@@ -1363,6 +1392,10 @@ const VI: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.vi,
   stepper: { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
   offerHeadline: "Đạt {kg} kg vào {month}",
+  planGoal: {
+    metric: "Mục tiêu: giảm {n} kg vào {month}",
+    imperial: "Mục tiêu: giảm {n} lb vào {month}",
+  },
   reactions: {
     goalLose: "Xuống cân. Tốt — mình sẽ giúp nó bền",
     goalMaintain: "Giữ cân — mình giữ lại những gì đang ổn",
@@ -1570,6 +1603,10 @@ const ID: ChatCopy = {
   firstMeal: FIRST_MEAL_COPY.id,
   stepper: { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
   offerHeadline: "Capai {kg} kg pada {month}",
+  planGoal: {
+    metric: "Target: turun {n} kg pada {month}",
+    imperial: "Target: turun {n} lb pada {month}",
+  },
   reactions: {
     goalLose: "Turunkan berat. Bagus — kita buat supaya bertahan",
     goalMaintain: "Jaga berat — kita pertahankan yang sudah berhasil",
@@ -1780,6 +1817,10 @@ const RU: ChatCopy = {
   stepper: { continue: "Продолжить", less: "Меньше", more: "Больше" },
   // CLDR gives the month in the nominative ("январь 2027 г."), so no preposition may govern it.
   offerHeadline: "Цель {kg} кг. Срок: {month}",
+  planGoal: {
+    metric: "Цель: минус {n} кг. Срок: {month}",
+    imperial: "Цель: минус {n} фунтов. Срок: {month}",
+  },
   reactions: {
     goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",
     goalMaintain: "Удержать вес. Хорошо — оставим то, что уже работает",
