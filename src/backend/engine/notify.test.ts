@@ -62,7 +62,7 @@ async function logMeal(userId: string, date: string, kcal: number, protein: numb
     id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
     isFood: true, items: [{ name: "Rice", grams: 200 }], kcal, protein_g: protein,
     carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
-    verdicts: {}, confidence: "high", notes: "", corrected: false, model: "test",
+    verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
   });
 }
 

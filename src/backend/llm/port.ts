@@ -9,7 +9,8 @@ import type { ChatSpeaker, DayTotals, FoodTargets, MealAnalysis, Profile, Target
 import type { PortionPrior } from "../store.ts";
 
 /**
- * What an analyzer returns: every number, and NO verdicts.
+ * What an analyzer returns: every number, and NO verdicts or health score — both are computed by
+ * the engine from the stored row, never asked of the model.
  *
  * The model is never asked to judge — `prompt.ts` says so, and `MealAnalysisSchema` has no such
  * field, so zod strips one even when a model volunteers it. The engine derives verdicts from the
@@ -26,7 +27,7 @@ import type { PortionPrior } from "../store.ts";
  * Saying what an analyzer really returns makes "an analysis reached a client unrepaired" a compile
  * error, which is the only version of this guarantee that holds.
  */
-export type AnalyzedMeal = Omit<MealAnalysis, "verdicts"> & {
+export type AnalyzedMeal = Omit<MealAnalysis, "verdicts" | "healthScore"> & {
   /**
    * What the model measured the portions against, when anything in the frame gave it a reference.
    * `null` when nothing did — which is a real answer, and a better one than an invented plate.
@@ -215,6 +216,13 @@ export interface CoachReply {
   reply: string;
   /** Already through `cleanSuggestions`: chips, or none. */
   suggestions: string[];
+  /**
+   * The one nutrient the answer is about, as the model NAMED it — a string, not yet a
+   * `CoachNutrient`: the reply schema asks for the enum, and prose tolerated past it does not
+   * have to be one. The engine validates against `COACH_NUTRIENTS` and fills the figures itself —
+   * the model's choice is the subject, never the numbers.
+   */
+  focus?: string;
 }
 
 /**

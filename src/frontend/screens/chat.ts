@@ -3,9 +3,7 @@
 // with Today stays in `shell.ts`.
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { advancePending, pendingLine } from "../../shared/stream.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
-import type { PendingPhoto } from "@eait/shared";
 import type {
   ChatHistoryResponse, DeleteLineResponse, EditLineLast, PendingMealsResponse, PhotoProgress,
 } from "@eait/shared/contract";
@@ -220,13 +218,13 @@ export async function chatScreen(): Promise<HTMLElement> {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
         form.append("text", text);
-        let p: PendingPhoto = { glance: null, items: [] };
-        progress.textContent = pendingLine(p, lang);
-        progress.hidden = false;
         try {
           const r = await apiStream<EditLineLast>(MESSAGE(editing.id), { method: "PATCH", body: form }, (line) => {
+            // The stream's progress words arrive ON the event — a glance is its own line, and
+            // `reading`/`item` carry `line` already worded. Printed, never composed.
             const ev = line as PhotoProgress;
-            if (ev.kind === "glance" || ev.kind === "item") { p = advancePending(p, ev); progress.textContent = pendingLine(p, lang); }
+            progress.textContent = ev.kind === "glance" ? ev.text : ev.line;
+            progress.hidden = false;
           });
           if (r.kind === UNKNOWN) throw new Said(unclear());
           // GONE OR UNEDITABLE: the composer drops out of edit mode before the throw, because

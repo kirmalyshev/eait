@@ -1129,21 +1129,21 @@ describe("chat", () => {
     expect(confirmed.analysis.verdicts.weight).toBeDefined();
   });
 
-  it("words a proposal's verdict lines itself — the card cannot compose them", async () => {
-    // `MealProposed.verdictLines` — {tone, words} per renderable dimension, pill order, in the
-    // account's language — because the proposal card's "Calories on plan" lines are Lingui words
-    // the web bundle has no catalog for (#91). The pending read-back must carry the same lines, or
-    // a page that lost its card would show it wordless.
+  it("words a proposal's verdict labels itself — the card cannot compose them", async () => {
+    // `MealProposed.verdictLabels` — {dimension, tone, label} per visible verdict, pill order, in
+    // the account's language — because the proposal card's pills are Lingui words the web bundle
+    // has no catalog for (#91, #145). The pending read-back must carry the same words, or a page
+    // that lost its card would show it wordless.
     const userId = await onboard();
     const res = await handleText(deps, userId, { text: "two eggs and toast" });
     if (res.kind !== "proposed") throw new Error("expected proposed");
     const weight = res.analysis.verdicts?.weight;
     if (weight === undefined) throw new Error("expected a weight verdict");
-    expect(res.verdictLines).toEqual([{ tone: weight, words: verdictPillLabel("weight", weight, "en") }]);
+    expect(res.verdictLabels).toEqual([{ dimension: "weight", tone: weight, label: verdictPillLabel("weight", weight, "en") }]);
 
     const back = await pendingMeals(deps, userId);
     expect(back).toHaveLength(1);
-    expect(back[0]!.verdictLines).toEqual(res.verdictLines);
+    expect(back[0]!.verdictLabels).toEqual(res.verdictLabels);
   });
 
   it("words them in the account's language", async () => {
@@ -1153,9 +1153,9 @@ describe("chat", () => {
     if (res.kind !== "proposed") throw new Error("expected proposed");
     const weight = res.analysis.verdicts?.weight;
     if (weight === undefined) throw new Error("expected a weight verdict");
-    expect(res.verdictLines[0]!.words).toBe(verdictPillLabel("weight", weight, "de"));
+    expect(res.verdictLabels[0]!.label).toBe(verdictPillLabel("weight", weight, "de"));
     const back = await pendingMeals(deps, userId);
-    expect(back[0]!.verdictLines[0]!.words).toBe(verdictPillLabel("weight", weight, "de"));
+    expect(back[0]!.verdictLabels[0]!.label).toBe(verdictPillLabel("weight", weight, "de"));
   });
 
   it("writes only on confirm, and confirm is idempotent-safe", async () => {
@@ -1886,7 +1886,7 @@ describe("diary", () => {
     const view = (await day(deps, userId))!;
     expect(view.meals[0]!.verdictInline).toBe("calories high");
     expect(view.meals[1]!.verdictInline).toBe("calories very high");
-    expect(view.meals[2]!.verdictInline).toBeUndefined();
+    expect(view.meals[2]!.verdictInline).toBe("");
   });
 
   it("composes the inline verdicts in the account's language", async () => {
@@ -1907,6 +1907,37 @@ describe("diary", () => {
     const view = (await day(deps, userId))!;
     expect(view.meals[0]!.verdictInline).toBe(verdictInlineText({ weight: "bad" }, "de"));
     expect(view.meals[0]!.verdictInline).not.toBe("calories very high");
+  });
+
+  it("carries the score on each meal and the kcal-weighted mean on the day (#118)", async () => {
+    // The pinned persona: porridge scores 8, the flat white 5, and 312/214 kcal of them weigh the
+    // day to 6.8 — which is 7 rounded.
+    const userId = await onboard();
+    const date = localDate(CONFIG.timezone);
+    const put = (ts: string, m: {
+      kcal: number; protein_g: number; carbs_g: number; fat_g: number;
+      satfat_g: number; fiber_g: number; sugar_g: number; sodium_mg: number;
+    }) => store.insertMeal({
+      id: crypto.randomUUID(), user_id: userId, ts, date,
+      isFood: true, items: [], verdicts: {}, healthScore: null, confidence: "high", notes: "",
+      corrected: false, model: "test", ...m,
+    });
+    await put(`${date}T08:00:00.000Z`, { kcal: 312, protein_g: 11, carbs_g: 52, fat_g: 7, satfat_g: 1.8, fiber_g: 7, sugar_g: 18, sodium_mg: 160 });
+    await put(`${date}T17:00:00.000Z`, { kcal: 214, protein_g: 9, carbs_g: 34, fat_g: 5, satfat_g: 3, fiber_g: 3, sugar_g: 26, sodium_mg: 120 });
+    const view = (await day(deps, userId))!;
+    expect(view.meals.map((m) => m.healthScore?.score)).toEqual([8, 5]);
+    expect(view.healthScore).toBe(7);
+  });
+
+  it("puts the score on the logged card and on its thread entry (#118)", async () => {
+    const userId = await onboard();
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error("expected logged");
+    expect(res.analysis.healthScore).not.toBeNull();
+    expect(res.analysis.healthScore!.parts).toHaveLength(5);
+    const entry = (await chatHistory(deps, userId, { limit: 10 })).entries.find((e) => e.kind === "meal");
+    if (entry === undefined || entry.kind !== "meal") throw new Error("no meal entry");
+    expect(entry.meal?.healthScore?.score).toBe(res.analysis.healthScore!.score);
   });
 
   it("returns per-day sums for the week", async () => {

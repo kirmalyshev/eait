@@ -2632,6 +2632,10 @@
               "type": "string"
             },
             "description": "What the user might ask next, in their own words, as chips under the answer. Live turn only: the thread stores the sentence and never the chips, so a stored line carries none. Absent means draw nothing; the app never invents any."
+          },
+          "focus": {
+            "$ref": "#/components/schemas/CoachFocus",
+            "description": "The one macro the answer is about, with the day's numbers — see `CoachFocus`."
           }
         },
         "required": [
@@ -2864,6 +2868,15 @@
           "onboarded"
         ],
         "additionalProperties": false
+      },
+      "BmiRange": {
+        "type": "string",
+        "enum": [
+          "below-18.5",
+          "18.5-24.9",
+          "25-29.9",
+          "30-plus"
+        ]
       },
       "ChatEntry": {
         "anyOf": [
@@ -3133,6 +3146,37 @@
         "const": "gabie",
         "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who answers in Chat (S9 — she was retired by #49 and restored by the redesign)."
       },
+      "CoachFocus": {
+        "type": "object",
+        "properties": {
+          "nutrient": {
+            "$ref": "#/components/schemas/CoachNutrient"
+          },
+          "eaten": {
+            "type": "number"
+          },
+          "target": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "nutrient",
+          "eaten",
+          "target"
+        ],
+        "additionalProperties": false,
+        "description": "The macro bar on a coach answer (`chat-coach`): WHICH nutrient is the model's choice of subject — what the answer is about, not a verdict; the figures are the server's, read off the day's totals and the plan's targets at answer time, never taken from the reply. Absent means absent: an answer about no one macro carries none, and neither does the bar.\n\nLive turn only, like `suggestions`: the stored line keeps the sentence and the thread never re-draws the bar."
+      },
+      "CoachNutrient": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "carbs",
+          "fat",
+          "kcal",
+          "satfat"
+        ]
+      },
       "ConfirmMealResult": {
         "anyOf": [
           {
@@ -3224,14 +3268,15 @@
               "number",
               "null"
             ],
-            "description": "The day's health score — the kcal-weighted mean of the day's scored meals, 0–10, or null when too little of the day was read to score. Computed by S10's `dayHealthScore` (#118); optional here until it lands — Home draws its page-2 row only when this is a number, and a client must never compute one itself."
+            "description": "The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`, #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored."
           }
         },
         "required": [
           "date",
           "meals",
           "totals",
-          "targets"
+          "targets",
+          "healthScore"
         ],
         "additionalProperties": false
       },
@@ -3781,6 +3826,26 @@
         ],
         "additionalProperties": false
       },
+      "HealthScore": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "description": "Base 6 plus the parts, clamped to 1–10."
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorePart"
+            }
+          }
+        },
+        "required": [
+          "score",
+          "parts"
+        ],
+        "additionalProperties": false
+      },
       "IdentitiesResponse": {
         "type": "object",
         "properties": {
@@ -3942,6 +4007,17 @@
           "verdicts": {
             "$ref": "#/components/schemas/MealVerdicts"
           },
+          "healthScore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The meal's health score (`scores.ts`), computed at READ from the stored nutrients, the stored verdicts and the profile's declared restrictions — never stored and never accepted from the model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer than three of the five nutrients read)."
+          },
           "confidence": {
             "type": "string",
             "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
@@ -3962,6 +4038,7 @@
           "sugar_g",
           "sodium_mg",
           "verdicts",
+          "healthScore",
           "confidence",
           "notes"
         ],
@@ -4045,6 +4122,20 @@
           "question": {
             "$ref": "#/components/schemas/MealQuestion",
             "description": "The one thing Spud would ask about this plate, when there is one worth asking.\n\nABSENT is the normal case, and the surface must render nothing for it: the engine only asks about a low-confidence plate, past an account's first meal, when the account could afford the reply. The answer goes back through the ordinary text turn with this meal in focus, so the chips are a shortcut for typing rather than a route of their own."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The verdict's words on the payload — the pills, `verdictPillLabel` per visible verdict in the account's language. The browser bundle carries no i18n catalog, so every verdict a card draws arrives already worded: a client renders these and composes nothing itself."
+          },
+          "verdictHeadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Spud's one-sentence verdict for the card — `verdictHeadline`; null when the verdicts say nothing."
           }
         },
         "required": [
@@ -4053,7 +4144,9 @@
           "analysis",
           "totals",
           "date",
-          "hint"
+          "hint",
+          "verdictLabels",
+          "verdictHeadline"
         ],
         "additionalProperties": false,
         "description": "A meal that reached the diary, with everything a card needs to render."
@@ -4071,26 +4164,6 @@
           "analysis": {
             "$ref": "#/components/schemas/MealAnalysis"
           },
-          "verdictLines": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "tone": {
-                  "$ref": "#/components/schemas/Verdict"
-                },
-                "words": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "tone",
-                "words"
-              ],
-              "additionalProperties": false
-            },
-            "description": "The card's verdict lines — `{ tone, words }` per renderable dimension, pill order, on-plan ones included (\"Calories on plan\"). Composed server-side (`verdictCardLines`) in the account's language, for the same reason `MealRecord.verdictInline` exists: the Lingui catalog is not on the web bundle. Derived, never stored — the pending read recomputes it."
-          },
           "date": {
             "type": "string",
             "description": "The resolved calendar date, so the confirm prompt can NAME it — the misparse guard."
@@ -4098,15 +4171,26 @@
           "expiresAt": {
             "type": "string",
             "description": "ISO 8601. When this estimate stops being confirmable, SENT rather than compiled into both sides — the rule `PairCodeResponse.expiresAt` states, and the same reason: the TTL (`EAIT__BACKEND__PENDING_TTL_MINUTES`) is a limit the server enforces, and a client carrying its own copy of the number eventually disagrees with the one doing the refusing.\n\nA surface reads it to stop OFFERING a confirm it cannot honour (`proposalLive`, #367). It is a courtesy and never the guarantee: the row is swept on the next proposal and deleted lazily on read, and `POST /confirm` answers 410 either way."
+          },
+          "verdictInline": {
+            "type": "string",
+            "description": "The verdict words the proposal card draws — `verdictInlineText` joined (\"calories high · saturated fat high\", empty when all on plan) and `verdictPillLabel` per visible verdict — composed where the verdict was computed: the bundle that renders them holds no i18n catalog."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            }
           }
         },
         "required": [
           "kind",
           "pendingId",
           "analysis",
-          "verdictLines",
           "date",
-          "expiresAt"
+          "expiresAt",
+          "verdictInline",
+          "verdictLabels"
         ],
         "additionalProperties": false,
         "description": "A text meal awaiting confirmation. Nothing is in the diary yet."
@@ -4170,6 +4254,17 @@
           "verdicts": {
             "$ref": "#/components/schemas/MealVerdicts"
           },
+          "healthScore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The meal's health score (`scores.ts`), computed at READ from the stored nutrients, the stored verdicts and the profile's declared restrictions — never stored and never accepted from the model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer than three of the five nutrients read)."
+          },
           "confidence": {
             "type": "string",
             "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
@@ -4216,7 +4311,14 @@
           },
           "verdictInline": {
             "type": "string",
-            "description": "The row's off-plan words — \"calories high · saturated fat very high\" — composed server-side in the account's language with `verdictInlineText` (#124), because the Lingui catalog is not on the web bundle and a client that composed them would ship English to eight languages. Absent when every verdict is on plan — the row then shows its time alone. Sent on the day read."
+            "description": "The row's own verdict line — \"calories high · saturated fat high\", `verdictInlineText` in the account's language, joined server-side and empty when every verdict is on plan. Optional: the reads that serve a row (the diary day, the thread's meal arm) set it; a bare `MealRecord` built by hand has none."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The pills' words — `verdictPillLabel` per visible verdict, in render order. Same rule: set by the reads, absent on a bare row."
           }
         },
         "required": [
@@ -4226,6 +4328,7 @@
           "date",
           "fat_g",
           "fiber_g",
+          "healthScore",
           "id",
           "isFood",
           "items",
@@ -4299,6 +4402,20 @@
               "reanalysis"
             ],
             "description": "How the change was made. `manual` = the user edited numbers; `nl` = they described the fix; `reanalysis` = the analyzer re-read the stored photo."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The pills' words for the edited analysis — `verdictPillLabel` per visible verdict, localized. Never describes numbers that have since changed: computed at write."
+          },
+          "verdictHeadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say."
           }
         },
         "required": [
@@ -4307,7 +4424,9 @@
           "analysis",
           "totals",
           "date",
-          "via"
+          "via",
+          "verdictLabels",
+          "verdictHeadline"
         ],
         "additionalProperties": false
       },
@@ -5007,6 +5126,23 @@
             "properties": {
               "kind": {
                 "type": "string",
+                "const": "reading"
+              },
+              "line": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "line"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
                 "const": "glance"
               },
               "text": {
@@ -5031,17 +5167,21 @@
               },
               "item": {
                 "$ref": "#/components/schemas/MealItem"
+              },
+              "line": {
+                "type": "string"
               }
             },
             "required": [
               "kind",
               "index",
-              "item"
+              "item",
+              "line"
             ],
             "additionalProperties": false
           }
         ],
-        "description": "The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608)."
+        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or one `glance` (whose model-written text IS the line) and zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
       },
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"
@@ -5531,6 +5671,53 @@
         ],
         "description": "Why a request produced no meal. Each maps to one user-facing message, but the mapping lives in the surface — `not-onboarded` is a Telegram prompt in the bot and a navigation push here."
       },
+      "ScoreFactor": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "fibre",
+          "satfat",
+          "sugar",
+          "salt"
+        ]
+      },
+      "ScoreLimit": {
+        "type": "string",
+        "enum": [
+          "ldl",
+          "kidneys",
+          "lowsugar"
+        ],
+        "description": "The declared limit that personalised a part — the restriction tag, so the breakdown can name it."
+      },
+      "ScorePart": {
+        "type": "object",
+        "properties": {
+          "factor": {
+            "$ref": "#/components/schemas/ScoreFactor"
+          },
+          "density": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The measure the bands were applied to — a share of the meal's calories (protein, saturated fat, sugar) or grams per 100 kcal (fibre, salt). `null` when the nutrient was not read: the part scores 0 and the UI says \"not read\"."
+          },
+          "points": {
+            "type": "number"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/ScoreLimit",
+            "description": "Present when a declared restriction shaped the part."
+          }
+        },
+        "required": [
+          "factor",
+          "density",
+          "points"
+        ],
+        "additionalProperties": false
+      },
       "ScriptedLineId": {
         "type": "string",
         "enum": [
@@ -5691,6 +5878,35 @@
           "bad"
         ]
       },
+      "VerdictDimension": {
+        "type": "string",
+        "enum": [
+          "weight",
+          "ldl",
+          "kidneys"
+        ]
+      },
+      "VerdictLabel": {
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/VerdictDimension"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension",
+          "tone",
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "One verdict's words, sent on the payload: the dimension, its tone, and the pill's label in the account's language. The browser bundle carries no i18n catalog (`deploy/Dockerfile.web` builds it with no `node_modules`), so a client renders this list and never composes it — a verdict's words beside its own numbers, computed where the verdict was."
+      },
       "WebPaywall": {
         "type": "object",
         "properties": {
@@ -5804,11 +6020,36 @@
               }
             ],
             "description": "The goal arc the Progress goal bar draws — start, current and target weights, the weeks and rate `projectGoal` computed, and the localized month it lands in. Null when no honest projection exists (no target, nothing weighed, a fallback band) — see  {@link  PlanProjection } ."
+          },
+          "bmi": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "range": {
+                    "$ref": "#/components/schemas/BmiRange"
+                  }
+                },
+                "required": [
+                  "value",
+                  "range"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest weigh-in against the profile's height (`bmi`/`bmiRange`, #118) — the range is a NEUTRAL id and its label is the numbers themselves, never a category word. `null` without a height on the profile or a weigh-in to read."
           }
         },
         "required": [
           "weights",
-          "projection"
+          "projection",
+          "bmi"
         ],
         "additionalProperties": false,
         "description": "`GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc."

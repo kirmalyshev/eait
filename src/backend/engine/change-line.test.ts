@@ -57,6 +57,7 @@ const meal = (over: Partial<MealRecord>): MealRecord => ({
   verdicts: {}, confidence: "high", notes: "",
   id: "m1", user_id: "u", ts: "2026-09-27T12:00:00Z", date: "2026-09-27",
   corrected: false, model: null, ...over,
+  healthScore: over.healthScore ?? null,
 });
 const EN = { lang: "en" as const, restrictions: [] as string[] };
 

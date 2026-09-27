@@ -7,7 +7,7 @@
 
 import { i18nFor } from "./i18n.ts";
 import type { I18n } from "@lingui/core";
-import { renderableVerdicts, type Lang, type Verdict, type VerdictDimension } from "./types.ts";
+import { renderableVerdicts, type Lang, type Verdict, type VerdictDimension, type VerdictLabel } from "./types.ts";
 
 
 /**
@@ -131,17 +131,12 @@ export function verdictInlineText(verdicts: unknown, lang: Lang): string {
 }
 
 /**
- * The card's verdict lines — `{ tone, words }` per renderable dimension, pill order, on-plan ones
- * included — so the proposal card's "Calories on plan · Saturated fat on plan" block renders what
- * the server judged, worded in the reader's language. The words are Lingui, and the catalog is
- * not on the web bundle: the server composes the lines, the client only draws them. This is the
- * card's half of the job `verdictInlineText` does for a row — that one drops the on-plan verdicts,
- * this one keeps them, because the card is where the judgement is explained rather than glanced.
+ * The pills' words for a meal payload — `{dimension, tone, label}` per visible verdict, in render
+ * order, `good` pills included: the proposal card's "on plan" rows are pills too. Composed where
+ * the verdict is computed; the bundle that draws them holds no catalog to call `verdictPillLabel`
+ * itself (`deploy/Dockerfile.web` builds with no `node_modules`).
  */
-export function verdictCardLines(
-  verdicts: unknown,
-  lang: Lang,
-): { tone: Verdict; words: string }[] {
+export function verdictLabels(verdicts: unknown, lang: Lang): VerdictLabel[] {
   const v = verdicts as Partial<Record<VerdictDimension, Verdict>>;
-  return renderableVerdicts(verdicts).map((d) => ({ tone: v[d]!, words: verdictPillLabel(d, v[d]!, lang) }));
+  return renderableVerdicts(verdicts).map((d) => ({ dimension: d, tone: v[d]!, label: verdictPillLabel(d, v[d]!, lang) }));
 }

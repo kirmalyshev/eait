@@ -2,7 +2,8 @@
 // Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
 
 import {
-  dateMinus, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText, windowStart,
+  dateMinus, dayHealthScore, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
+  verdictLabels, windowStart,
   type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -39,11 +40,16 @@ export async function day(
     .map((m) => ({ m, at: localTime(deps.config.timezone, new Date(m.ts)) }))
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
     .map(({ m }) => m)
-    // The row's inline verdict words ride on the row (#91): the Lingui catalog is not on the web
-    // bundle, so a client composes nothing — absent means every verdict is on plan and the row
-    // shows its time alone.
-    .map((m) => ({ ...m, verdictInline: verdictInlineText(m.verdicts, profile.lang) || undefined }));
-  return { date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets };
+    // The row's own words, worded HERE — the web bundle carries no i18n catalog, so a meal's
+    // verdict reaches the page already composed ("calories high · saturated fat high", "" when
+    // every verdict is on plan) and the pills as {dimension, tone, label}.
+    .map((m) => ({ ...m, verdictInline: verdictInlineText(m.verdicts, profile.lang), verdictLabels: verdictLabels(m.verdicts, profile.lang) }));
+  return {
+    date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets,
+    // The day's score is the kcal-weighted mean of the meals' own — the store attached those on
+    // the read, so a meal nobody scored leaves this null rather than a six nobody earned.
+    healthScore: dayHealthScore(meals),
+  };
 }
 
 /**
