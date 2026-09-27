@@ -3,6 +3,11 @@
 The backend of [eait.fit](https://eait.fit) — a photo-first nutrition coach — the contract its
 clients implement, and the web application at [app.eait.fit](https://app.eait.fit).
 
+[![eait in 20 seconds](.github/media/eait-launch.jpg)](.github/media/eait-launch.mp4)
+
+Twenty seconds of the demo backend — canned analyses, a fictional account — driving the same
+screens a real one would.
+
 Three workspaces:
 
 | Workspace | What it is |
