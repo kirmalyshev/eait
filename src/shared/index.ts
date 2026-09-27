@@ -42,6 +42,7 @@ export * from "./paywall.ts";
 export * from "./design.ts";
 export * from "./ui/charts.ts";
 export * from "./ui/units.ts";
+export * from "./ui/kit.ts";
 // The icon set (#79). Same deal as the design tokens: in the barrel, and directly at
 // `@eait/shared/ui/icons` for a renderer that wants the data without the barrel.
 export * from "./ui/icons.ts";
