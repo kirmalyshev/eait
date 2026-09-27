@@ -84,11 +84,16 @@ describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
 
   it("titles the intake card by period, counted in the reader's own forms", () => {
     const s = healthScreenCopyFor("en");
-    expect(countText("en")(s.intake.periods.days, 7)).toBe("this week");
-    expect(countText("en")(s.intake.periods.weeks, 26)).toBe("the last 26 weeks");
-    expect(countText("en")(s.intake.periods.years, 1)).toBe("this year");
-    expect(countText("ru")(healthScreenCopyFor("ru").intake.periods.weeks, 5)).toBe("за последние 5 недель");
-    expect(countText("ru")(healthScreenCopyFor("ru").intake.periods.months, 12)).toBe("за последние 12 месяцев");
+    expect(s.intake.periods.days.one).toBe("this week");
+    expect(countText("en")(s.intake.periods.weeks.counted, 26)).toBe("the last 26 weeks");
+    expect(s.intake.periods.years.one).toBe("this year");
+    const ru = healthScreenCopyFor("ru");
+    expect(ru.intake.periods.weeks.one).toBe("за прошлую неделю");
+    expect(countText("ru")(ru.intake.periods.weeks.counted, 5)).toBe("за последние 5 недель");
+    expect(countText("ru")(ru.intake.periods.months.counted, 12)).toBe("за последние 12 месяцев");
+    // The bug this shape exists for: 21 selects `one`, and the counted one must count.
+    expect(countText("ru")(ru.intake.periods.weeks.counted, 21)).toBe("за последние 21 неделю");
+    expect(countText("ru")(ru.intake.periods.months.counted, 21)).toBe("за последние 21 месяц");
   });
 
   it("words the week line and the body line without a leftover placeholder, in all eight", () => {

@@ -350,10 +350,12 @@ export interface HealthScreenCopy {
   intake: {
     /**
      * The card's label after the series name — "Intake · this week" is `compare.intake` joined
-     * to `periods.days`. `days` is fixed copy; the other three count their own window
-     * ("the last 26 weeks") through `countText`, so a one-year account reads "this year".
+     * to the period's own word. `one` is the wording for a single period ("last week", "за
+     * прошлую неделю"), chosen by `n === 1` in the CALLER — Russian counts 21, 31, … in the `one`
+     * category, so the singular period cannot be a CountForms key. `counted` carries the real
+     * plural forms, including ru's counted one ("за последние 21 неделю").
      */
-    periods: Record<TrendPeriod, CountForms>;
+    periods: Record<TrendPeriod, { one: string; counted: CountForms }>;
     /** The figure for the days period — "{kcal} kcal today". */
     kcalToday: string;
     /** The figure for the longer periods — the bucket mean, "{kcal} kcal a day". */
@@ -457,10 +459,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "this week" },
-        weeks: { one: "last week", other: "the last {n} weeks" },
-        months: { one: "last month", other: "the last {n} months" },
-        years: { one: "this year", other: "the last {n} years" },
+        days: { one: "this week", counted: { other: "this week" } },
+        weeks: { one: "last week", counted: { other: "the last {n} weeks" } },
+        months: { one: "last month", counted: { other: "the last {n} months" } },
+        years: { one: "this year", counted: { other: "the last {n} years" } },
       },
       kcalToday: "{kcal} kcal today",
       kcalADay: "{kcal} kcal a day",
@@ -539,10 +541,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "cette semaine" },
-        weeks: { one: "la semaine dernière", other: "les {n} dernières semaines" },
-        months: { one: "le mois dernier", other: "les {n} derniers mois" },
-        years: { one: "cette année", other: "les {n} dernières années" },
+        days: { one: "cette semaine", counted: { other: "cette semaine" } },
+        weeks: { one: "la semaine dernière", counted: { other: "les {n} dernières semaines" } },
+        months: { one: "le mois dernier", counted: { other: "les {n} derniers mois" } },
+        years: { one: "cette année", counted: { other: "les {n} dernières années" } },
       },
       kcalToday: "{kcal} kcal aujourd'hui",
       kcalADay: "{kcal} kcal par jour",
@@ -621,10 +623,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "diese Woche" },
-        weeks: { one: "letzte Woche", other: "die letzten {n} Wochen" },
-        months: { one: "letzten Monat", other: "die letzten {n} Monate" },
-        years: { one: "dieses Jahr", other: "die letzten {n} Jahre" },
+        days: { one: "diese Woche", counted: { other: "diese Woche" } },
+        weeks: { one: "letzte Woche", counted: { other: "die letzten {n} Wochen" } },
+        months: { one: "letzten Monat", counted: { other: "die letzten {n} Monate" } },
+        years: { one: "dieses Jahr", counted: { other: "die letzten {n} Jahre" } },
       },
       kcalToday: "{kcal} kcal heute",
       kcalADay: "{kcal} kcal am Tag",
@@ -703,10 +705,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "questa settimana" },
-        weeks: { one: "la settimana scorsa", other: "le ultime {n} settimane" },
-        months: { one: "il mese scorso", other: "gli ultimi {n} mesi" },
-        years: { one: "quest'anno", other: "gli ultimi {n} anni" },
+        days: { one: "questa settimana", counted: { other: "questa settimana" } },
+        weeks: { one: "la settimana scorsa", counted: { other: "le ultime {n} settimane" } },
+        months: { one: "il mese scorso", counted: { other: "gli ultimi {n} mesi" } },
+        years: { one: "quest'anno", counted: { other: "gli ultimi {n} anni" } },
       },
       kcalToday: "{kcal} kcal oggi",
       kcalADay: "{kcal} kcal al giorno",
@@ -785,10 +787,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "esta semana" },
-        weeks: { one: "la semana pasada", other: "las últimas {n} semanas" },
-        months: { one: "el mes pasado", other: "los últimos {n} meses" },
-        years: { one: "este año", other: "los últimos {n} años" },
+        days: { one: "esta semana", counted: { other: "esta semana" } },
+        weeks: { one: "la semana pasada", counted: { other: "las últimas {n} semanas" } },
+        months: { one: "el mes pasado", counted: { other: "los últimos {n} meses" } },
+        years: { one: "este año", counted: { other: "los últimos {n} años" } },
       },
       kcalToday: "{kcal} kcal hoy",
       kcalADay: "{kcal} kcal al día",
@@ -867,10 +869,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "tuần này" },
-        weeks: { one: "tuần trước", other: "{n} tuần gần đây" },
-        months: { one: "tháng trước", other: "{n} tháng gần đây" },
-        years: { one: "năm nay", other: "{n} năm gần đây" },
+        days: { one: "tuần này", counted: { other: "tuần này" } },
+        weeks: { one: "tuần trước", counted: { other: "{n} tuần gần đây" } },
+        months: { one: "tháng trước", counted: { other: "{n} tháng gần đây" } },
+        years: { one: "năm nay", counted: { other: "{n} năm gần đây" } },
       },
       kcalToday: "{kcal} kcal hôm nay",
       kcalADay: "{kcal} kcal mỗi ngày",
@@ -949,10 +951,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "minggu ini" },
-        weeks: { one: "minggu lalu", other: "{n} minggu terakhir" },
-        months: { one: "bulan lalu", other: "{n} bulan terakhir" },
-        years: { one: "tahun ini", other: "{n} tahun terakhir" },
+        days: { one: "minggu ini", counted: { other: "minggu ini" } },
+        weeks: { one: "minggu lalu", counted: { other: "{n} minggu terakhir" } },
+        months: { one: "bulan lalu", counted: { other: "{n} bulan terakhir" } },
+        years: { one: "tahun ini", counted: { other: "{n} tahun terakhir" } },
       },
       kcalToday: "{kcal} kcal hari ini",
       kcalADay: "{kcal} kcal sehari",
@@ -1031,10 +1033,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { other: "эту неделю" },
-        weeks: { one: "за прошлую неделю", few: "за последние {n} недели", many: "за последние {n} недель", other: "за последние {n} недели" },
-        months: { one: "за прошлый месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" },
-        years: { one: "этот год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" },
+        days: { one: "эту неделю", counted: { other: "эту неделю" } },
+        weeks: { one: "за прошлую неделю", counted: { one: "за последние {n} неделю", few: "за последние {n} недели", many: "за последние {n} недель", other: "за последние {n} недели" } },
+        months: { one: "за прошлый месяц", counted: { one: "за последние {n} месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" } },
+        years: { one: "этот год", counted: { one: "за последние {n} год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" } },
       },
       kcalToday: "{kcal} ккал сегодня",
       kcalADay: "{kcal} ккал в день",
