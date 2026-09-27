@@ -22,7 +22,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
-  heldProposal, kept, keptNotice, lang, lastThreadEntries, mealLine, outstandingTurn,
+  heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread, setRedraw,
   takeCarried, takeTurn, timeFmt, unclear, names,
 } from "../shell.ts";
@@ -41,17 +41,17 @@ export async function chatScreen(): Promise<HTMLElement> {
   // Whose turns this browser is keeping (#708). Without a profile nothing is kept: a turn that
   // cannot be sent is worded as a lost answer, as it was.
   const uid = me?.profile.user_id ?? null;
-  // The coach's name is the profile's own `coachName` (W5 adds the field; the literal is the
-  // interim until that merge), never a Localized copy of it.
-  const coachName = (): string =>
-    (me as (ProfileResponse & { coachName?: string }) | null)?.coachName ?? "Gabie";
+  // The coach's name is the profile's own `coachName` (#149), never a Localized copy — the
+  // bundle holds no catalog to build one from; the literal is the contract's stated fallback
+  // for a profile that failed to load.
+  const coachName = (): string => me?.coachName ?? "Gabie";
   const wrap = el("section", "chat");
   // `#/chat?focus=<mealId>` — the meal-edit entry W5's logged card and W6's "…" both take
   // (`meal-edit.html`): the meal's own card leads, Gabie names what she read, and the composer
   // corrects it — every send carries `focusMealId` so the turn is a correction, not a new meal.
   const focusId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("focus");
-  const focusMeal = focusId === null ? null
-    : (await api<DayResponse>("/diary/day").catch(() => null))?.meals.find((m) => m.id === focusId) ?? null;
+  const focusMeal = focusId === null || me === null ? null
+    : (await findMeal(focusId, me.timezone).catch(() => null))?.meal ?? null;
   const thread = el("div", "thread-holder");
   const notice = el("p", "notice");
   // Announced, not only shown: a refusal only the sighted can see is silence to everybody else.
@@ -285,10 +285,13 @@ export async function chatScreen(): Promise<HTMLElement> {
       li.append(mealCard(focusMeal, true), el("div", "ts", timeFmt(new Date(focusMeal.ts))));
       const say = el("li", `them${rise(`focus-say:${focusMeal.id}`, idx++)}`);
       say.append(sayBlock(firstGabie === -1, true, (col) => {
+        // Her weakest guess, named as the board names it: the two biggest reads. The join word
+        // is CLDR's own conjunction for the language, not a literal.
         const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
-          focusMeal.items.map((i) => fill(mealCopyFor(lang).correctItem, {
-            amount: fill(copy().gramsChip, { n: wholeNumbers(lang)(i.grams) }), item: i.name,
-          })));
+          [...focusMeal.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
+            .map((i) => fill(mealCopyFor(lang).itemAmount, {
+              amount: fill(copy().gramsChip, { n: wholeNumbers(lang)(i.grams) }), item: i.name,
+            })));
         col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
       }));
       list.append(li, say);

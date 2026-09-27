@@ -28,14 +28,15 @@ import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { localDate, windowStart } from "../shared/dates.ts";
 import type { Lang } from "../shared/types.ts";
 import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
-  ProfileResponse, ROUTES,
+  DayResponse, DaysResponse, DIARY_RANGE_MAX_DAYS, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
-import { webCopyFor, type WebCopy } from "./copy.ts";
+import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 
 /**
@@ -490,12 +491,38 @@ export function refusalWords(err: unknown): string {
 export const names = (items: readonly { name: string }[]): string =>
   items.slice(0, 2).map((i) => i.name).join(", ") || COPY.meal;
 
+/**
+ * One meal by id, wherever the diary window holds it — today first, then the logged days behind
+ * it newest-first (#93's focus handoff; a meal is correctable for the whole window, not just
+ * today). `{day, meal: null}` is the answer when the id names nothing the caller may read.
+ *
+ * The range is the contract's own widest read — typed here, never the value: this bundle may not
+ * pull shared runtime code in.
+ */
+const DIARY_RANGE: typeof DIARY_RANGE_MAX_DAYS = 31;
+export async function findMeal(
+  mealId: string, zone: string, date?: string,
+): Promise<{ day: DayResponse; meal: MealRecord | null }> {
+  const first = await api<DayResponse>(`/diary/day?date=${date ?? localDate(zone)}`);
+  const hit = first.meals.find((m) => m.id === mealId);
+  if (hit !== undefined || date !== undefined) return { day: first, meal: hit ?? null };
+  const window = await api<DaysResponse>(
+    `/diary/days?from=${windowStart(first.date, DIARY_RANGE)}&to=${first.date}`);
+  for (const d of [...window.days].reverse()) {
+    if (!d.logged || d.date === first.date) continue;
+    const other = await api<DayResponse>(`/diary/day?date=${d.date}`);
+    const m = other.meals.find((x) => x.id === mealId);
+    if (m !== undefined) return { day: other, meal: m };
+  }
+  return { day: first, meal: null };
+}
+
 /** What an assistant meal card says in the thread, from the meal it still points at. */
 export function mealLine(meal: MealRecord | null): string {
   // Null once the meal is deleted, and the id outlives it deliberately — so the thread says
   // something rather than rendering an empty bubble.
   if (meal === null) return COPY.mealGone;
-  return `${names(meal.items)} — ${kcal(meal.kcal)}`;
+  return fill(chatScreenCopyFor(lang).mealLine, { name: names(meal.items), kcal: kcal(meal.kcal) });
 }
 
 /** What a turn kept for later says, once, under the composer (#708). No cause: offline and an edge are both this. */
