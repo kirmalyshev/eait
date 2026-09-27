@@ -1,6 +1,7 @@
 // You — the account's screen (`#/you`), moved whole out of `main.ts` (#87): language, Telegram when
 // the server names a bot, Sign out. The boards' Profile surface is W10's.
 
+import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { LANGS_READY, LANG_LABEL } from "../../shared/lang.ts";
 import type { Lang } from "../../shared/types.ts";
 import type { PairCodeResponse, PatchProfileRequest, ProfileResponse } from "@eait/shared/contract";
@@ -55,9 +56,8 @@ function languagePicker(): HTMLSelectElement {
 /** You (#52): the account's screen — language, Telegram when the server names a bot, Sign out. */
 export function youScreen(me: ProfileResponse | null): HTMLElement {
   const wrap = el("section", "");
-  const top = el("div", "top");
-  top.append(el("h1", "tt", COPY.navYou));
-  wrap.append(top);
+  // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
+  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navProfile));
   const card = el("div", "card you");
   const lrow = el("div", "rowline");
   lrow.append(el("span", "when", COPY.language), languagePicker());

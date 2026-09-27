@@ -9,7 +9,7 @@
 export const shellCss = `
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 var(--display); }
+  font: 15px/1.45 var(--display); }
 /* FOCUS IS VISIBLE (#53): a 2px ring in the text ink, offset 2px so it stands clear of the
    control's own border. --text on these grounds is far past the 3:1 a focus indicator needs —
    and on the accent surfaces, the offset puts the ring on the light around them. */
@@ -19,29 +19,51 @@ body { margin: 0; background: var(--bg); color: var(--ink);
    its space is the face's own. */
 .num { font-variant-numeric: tabular-nums; }
 
-/* THE FRAME (the boards' web layout, #52): a slim top bar — the mark, then the one row the app
-   navigates by — over a single quiet column the width a chat reads best at, the 38.75rem /start
-   already centres on. At a phone's width the column fills the viewport. */
-#app { min-height: 100vh; display: flex; flex-direction: column; }
-.wbar { display: flex; align-items: center; gap: 12px; padding: 0 26px; min-height: 60px;
-  font: 700 17px var(--display); letter-spacing: -.02em; }
-.wbar .mark { display: flex; align-items: center; gap: 8px; }
-.wbar .mark svg { width: 30px; height: 24px; display: block; }
-.wnav { display: flex; gap: 6px; margin-left: auto; }
-.wcol { width: 100%; max-width: 38.75rem; margin: 0 auto; flex: 1; padding: 18px 20px 30px;
-  background: var(--surface); border-radius: 26px 26px 0 0;
-  box-shadow: 0 -1px 0 var(--hair), 0 20px 50px -30px color-mix(in srgb, var(--ink) 40%, transparent); }
-.body { min-width: 0; }
-/* The centred title the boards draw above each screen's own column. */
-.top { text-align: center; padding: 6px 0 12px; }
-.top .tt { margin: 0; font-size: 19px; }
+/* THE FRAME (Register P's web shell, web/today.html): a slim white bar on the hairline — the
+   wordmark, then the one row the app navigates by — over a quiet column on the paper ground.
+   wmain is the centred content; one is the single-column form every surface takes until W4
+   draws Home's two. The right side of the bar is each screen's own (W4's date, W7's nothing). */
+#app { min-height: 100dvh; display: flex; flex-direction: column; }
+.wtop { display: flex; align-items: center; gap: 28px; padding: 0 40px; height: 64px;
+  background: var(--surface); border-bottom: 1px solid var(--hair); }
+/* The wordmark: eait in the register's weight, Spud at 20px on the accent tint — a signature,
+   not the app icon (DIRECTION §6). */
+.wtop .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px;
+  letter-spacing: -.02em; margin-right: 12px; }
+.wtop .wm { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-tint);
+  display: flex; align-items: center; justify-content: center; }
+.wtop .wm svg { width: 78%; height: 78%; display: block; }
+/* The tabs are TEXT, never pills: muted at rest, ink and underlined on the screen they name. The
+   link fills the bar's height — the underline lands on its bottom edge, and the box is the tap
+   target (#53). */
+.wnav { align-self: stretch; display: flex; gap: 22px; font-size: 14px; font-weight: 500; }
+.wnav a { position: relative; display: flex; align-items: center; justify-content: center;
+  min-width: 44px; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.wnav a.on { color: var(--ink); font-weight: 600; }
+.wnav a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: var(--accent); }
+.wtop .sp { flex: 1; }
+/* THE COLUMN: pro.css's wmain verbatim — a grid, because W4's Home draws a second 360px column;
+   one is the single-column form every surface takes until then. wcol's 16px gap is the board's
+   spacing between a screen's ROOT blocks; inside a screen, the blocks' own margins still space
+   them, as they did. */
+.wmain { flex: 1; display: grid; grid-template-columns: 1fr 360px; gap: 24px;
+  padding: 28px 40px; max-width: 1160px; width: 100%; margin: 0 auto; overflow: hidden; }
+.wmain.one { grid-template-columns: 1fr; max-width: 820px; }
+.wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 760px) {
+  .wtop { padding: 0 16px; gap: 16px; }
+  .wtop .brand { margin-right: 0; }
+  .wnav { gap: 14px; }
+  .wmain { padding: 20px 16px 32px; }
+}
 
-h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
+h1, h2 { margin: 0 0 .5rem; font-weight: 700; letter-spacing: -.02em; }
 h2 { font-size: 17px; }
 .muted { color: var(--muted); }
-.lab { font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.lab { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
-.hero { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
+.hero { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
 .big.warn .hero { color: var(--warn); }
 /* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
    outside the figure's own span. */
@@ -49,29 +71,24 @@ h2 { font-size: 17px; }
 /* THE FLOOR, AND NOTHING ELSE. Once per screen, as text, and never a tick on a scale. */
 .floor { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
 
-/* The boards' panel: a light surface one step up from the ground, with the hairline and the soft
-   shadow /start's card already carries. */
-.card { padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--hair);
-  border-radius: 18px; margin-bottom: 14px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
-
-/* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
-   controls already take. The three tabs never wrap onto a second row. */
-.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
-  /* A nav item is a tap target: the pill keeps its shape, the box grows to 44px (#53). */
-  display: inline-flex; align-items: center; min-height: 44px; }
-.tab.on { color: var(--accent); background: var(--surface); }
+/* The register's card, token by token (pro.css): a white surface on the paper, r-card, the shared
+   shadow — the hairline is not drawn; a surface that still needs one is .card.flat there. The
+   margin-bottom stays: the column's gap spaces a screen's ROOT children, and a screen's own cards
+   still space each other the way they did. */
+.card { padding: 16px; background: var(--surface); border-radius: var(--r-card); margin-bottom: 14px;
+  box-shadow: var(--shadow); }
 
 .primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
   border-radius: 999px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
-  font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 .error, .notice { color: var(--bad); }
 .notice { margin: 1rem 0 0; }
 
 /* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
-   field, the round send. It stays at the foot of the column while the thread scrolls under it. */
-.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--surface); padding: 10px 0 4px; }
+   field, the round send. It stays at the foot of the column while the thread scrolls under it —
+   paper behind it now that the column is the paper. */
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 4px; }
 .comp-row { display: flex; align-items: center; gap: 8px; }
 .comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
@@ -98,11 +115,12 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 
 /* The figure blocks the surfaces share: the stat tiles, the verdict pills, the label/value row. */
 .stats { display: flex; gap: 10px; margin-top: 12px; }
-.stat-cell { flex: 1; background: var(--surface); border-radius: 12px; padding: 10px 12px; }
-.stat-num { font-size: 18px; font-weight: 800; margin-top: 2px; }
+.stat-cell { flex: 1; background: var(--surface); border-radius: var(--r-card); padding: 10px 12px;
+  box-shadow: var(--shadow); }
+.stat-num { font-size: 18px; font-weight: 700; margin-top: 2px; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .pill { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px;
-  font-size: 12.5px; font-weight: 800; }
+  font-size: 12.5px; font-weight: 700; }
 .pill.good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
 .pill.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 .pill.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }

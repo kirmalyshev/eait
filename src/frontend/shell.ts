@@ -23,6 +23,7 @@
 // beside `web` for exactly this. `@eait/shared` stays TYPES ONLY, as `src/frontend/AGENTS.md`
 // requires; the ones below are the runtime pieces this page needs, and a relative import of the
 // file they live in costs nothing the Dockerfile does not already pay for.
+import { shellCopyFor } from "../shared/app/shell-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
@@ -121,20 +122,43 @@ export const profile = async (): Promise<ProfileResponse> => {
 export const forgetProfile = (): void => { profileCache = null; };
 
 /**
- * The boards' top bar (#52): the mark, then the ONE row the app navigates by — Diary · Chat · You,
- * pills on the right. A null `active` is the signed-out screen's bar: the mark alone, because the
- * row's destinations are all behind a session.
+ * The navigation row, in the boards' order (Register P, `web/today.html`): Home · Progress · Chat ·
+ * Profile. A tab renders only once a screen ANSWERS for its route — `#/progress` arrives with W8's
+ * surface, and no tab points at a screen that does not exist. `#/meal/:id` (W6) is a screen BEHIND
+ * Home rather than a tab, which is why it is not in this list.
  */
-function chrome(active: string | null): HTMLElement {
-  const bar = el("header", "wbar");
-  const mark = el("span", "mark");
-  mark.append(spudFace("idle"), "eait");
-  bar.append(mark);
-  if (active === null) return bar;
+const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat" | "navProfile" }[] = [
+  { hash: "#/", label: "navHome" },
+  { hash: "#/progress", label: "navProgress" },
+  { hash: "#/chat", label: "navChat" },
+  { hash: "#/you", label: "navProfile" },
+];
+
+/** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
+const activeTab = (route: string): string =>
+  route === "#/chat" || route === "#/you" || route === "#/progress" ? route : "#/";
+
+/**
+ * The boards' top bar (Register P): the `eait` wordmark — Spud's happy face at 20px — then the ONE
+ * row the app navigates by, text links underlined on the active one. A null `active` is the
+ * signed-out screen's bar: the mark alone, because the row's destinations are all behind a session.
+ */
+function chrome(route: string | null): HTMLElement {
+  const bar = el("header", "wtop");
+  const brand = el("span", "brand");
+  const wm = el("span", "wm");
+  wm.append(spudFace("happy"));
+  brand.append(wm, "eait");
+  bar.append(brand);
+  if (route === null) return bar;
+  const SCOPY = shellCopyFor(lang);
   const nav = el("nav", "wnav");
-  for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat], ["#/you", COPY.navYou]] as const) {
-    const a = el("a", href === active ? "tab on" : "tab", label) as HTMLAnchorElement;
-    a.href = href;
+  for (const tab of TABS) {
+    if (!hasScreen(tab.hash)) continue;
+    const on = tab.hash === activeTab(route);
+    const a = el("a", on ? "on" : "", SCOPY[tab.label]) as HTMLAnchorElement;
+    a.href = tab.hash;
+    if (on) a.setAttribute("aria-current", "page");
     nav.append(a);
   }
   if (profileCache?.isAdmin === true) {
@@ -143,11 +167,11 @@ function chrome(active: string | null): HTMLElement {
     //
     // ADVISORY. The server checks the role again on every request under /admin, so setting the flag
     // by hand in a console buys a menu entry with nothing behind it.
-    const a = el("a", "tab", COPY.navAdmin) as HTMLAnchorElement;
+    const a = el("a", "", COPY.navAdmin) as HTMLAnchorElement;
     a.href = "/admin";
     nav.append(a);
   }
-  bar.append(nav);
+  bar.append(nav, el("span", "sp"));
   return bar;
 }
 
@@ -548,13 +572,14 @@ let drawing = 0;
 export async function render(): Promise<void> {
   const mine = ++drawing;
   const app = clear(root());
-  // Signed in or not, the page sits in the same frame: the bar (the row only once there is a
-  // session to lose it over) over the one quiet column.
-  const col = el("div", "wcol");
+  // Signed in or not, the page sits in the same frame (Register P's `wtop`/`wmain`): the bar — the
+  // row only once there is a session to lose it over — over the one quiet column. `wmain`'s
+  // two-column form is W4's; every surface today's code draws is the boards' one-column `one`.
+  const wrap = el("div", "wmain one");
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
-  const body = el("main", "body");
-  col.append(body);
-  if (!signedIn()) { app.append(chrome(null), col); body.append(signInScreen()); return; }
+  const body = el("main", "wcol");
+  wrap.append(body);
+  if (!signedIn()) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
 
   const route = location.hash || "#/";
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
@@ -563,10 +588,10 @@ export async function render(): Promise<void> {
     await profile();
   } catch (err) {
     if (mine !== drawing) return;
-    if (err instanceof Unauthenticated) { app.append(chrome(null), col); body.append(signInScreen()); return; }
+    if (err instanceof Unauthenticated) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
   }
   if (mine !== drawing) return;
-  app.append(chrome(route), col);
+  app.append(chrome(route), wrap);
   body.textContent = COPY.loading;
   try {
     const screen = await screenFor(route, { me: profileCache });

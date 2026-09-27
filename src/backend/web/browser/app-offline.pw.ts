@@ -218,7 +218,7 @@ test("signing out takes the kept turns with it", async ({ inWebApp: page }) => {
 test("the chat opens offline, from another tab, with what it last had and a composer that keeps", async ({ inWebApp: page }) => {
   // Round 1 of #708's review: the first draw rethrew its failed read, so Chat was an error screen
   // offline unless it was already open.
-  // A meal first: with none logged, the Diary tap below lands on the first-meal flow (#42). The
+  // A meal first: with none logged, the Home tap below lands on the first-meal flow (#42). The
   // thread then holds that turn's lines too, so the counts below are read RELATIVE to it — and the
   // reload is because the chat drew before the seeded turn landed.
   await logMeal(page);
@@ -227,7 +227,7 @@ test("the chat opens offline, from another tab, with what it last had and a comp
   const before = await page.locator(".thread li").count();
   await say(page, "how did my week go?");
   await expect(page.locator(".thread li")).toHaveCount(before + 2);
-  await page.getByRole("link", { name: "Diary" }).click();
+  await page.getByRole("link", { name: "Home" }).click();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await page.context().setOffline(true);
   await page.getByRole("link", { name: "Chat" }).click();

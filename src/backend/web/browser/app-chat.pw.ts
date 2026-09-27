@@ -302,7 +302,7 @@ test("a turn still out when the screen is rebuilt offers no second send, and its
   });
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await page.getByRole("link", { name: "Diary" }).click();
+  await page.getByRole("link", { name: "Home" }).click();
   await page.getByRole("link", { name: "Chat" }).click();
   await expect(page.getByRole("button", { name: "Send", exact: true })).toHaveCount(0);
   release();

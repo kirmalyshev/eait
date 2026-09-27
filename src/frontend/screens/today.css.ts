@@ -33,8 +33,10 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
    show the one guess sitting in a list of measured things, which is the strongest statement of the
    mechanism anywhere in the product. */
 .meals { width: 100%; border-collapse: collapse; }
+/* The headers are MUTED, not faint: the column is the paper now (#87's frame), and --faint
+   clears 4.5:1 only on a white surface. */
 .meals th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--faint); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
+  color: var(--muted); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
 .meals td { padding: 11px 12px; border-bottom: 1px solid var(--hair); }
 .meals tr:last-child td { border-bottom: 0; }
 .meals .num { text-align: right; white-space: nowrap; }

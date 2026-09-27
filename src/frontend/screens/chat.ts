@@ -2,6 +2,7 @@
 // own look of it — Gabie's presence, the board's composer — is W7's; the turn machinery it shares
 // with Today stays in `shell.ts`.
 
+import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { advancePending, pendingLine } from "../../shared/stream.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
 import type { PendingPhoto } from "@eait/shared";
@@ -293,9 +294,8 @@ export async function chatScreen(): Promise<HTMLElement> {
     // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   });
-  const top = el("div", "top");
-  top.append(el("h1", "tt", COPY.navChat));
-  wrap.append(top, thread, notice, comp.form, progress);
+  // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
+  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
   // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
   // passed, and the turn may have gone meanwhile.

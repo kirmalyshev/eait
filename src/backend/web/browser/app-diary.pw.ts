@@ -220,5 +220,6 @@ test("a tab change while the first draw is still loading draws one page, not two
 
   await expect(page.locator(".big")).toBeVisible();
   await expect(page.locator("nav")).toHaveCount(1);
-  await expect(page.locator(".body")).toHaveCount(1);
+  // The column IS the main landmark since #87's split — `.wcol`, the class `main` carries.
+  await expect(page.locator("main.wcol")).toHaveCount(1);
 });

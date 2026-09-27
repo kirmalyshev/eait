@@ -16,10 +16,8 @@ import { t, type Localized } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 export interface WebCopy {
-  navDiary: string;
-  navChat: string;
-  /** The account's own screen: language and sign-out live there (#52). */
-  navYou: string;
+  /* The four tabs' names moved to `src/shared/app/shell-copy.ts` (#87): one table both clients
+     draw from. `navAdmin` stays — the admin link is this client's alone. */
   navAdmin: string;
   signOut: string;
   signedOutLead: string;
@@ -174,9 +172,6 @@ export interface WebCopy {
 }
 
 const EN: WebCopy = {
-  navDiary: "Diary",
-  navChat: "Chat",
-  navYou: "You",
   navAdmin: "Admin",
   signOut: "Sign out",
   signedOutLead: "Photograph a meal, get the numbers. Sign in to pick up your diary.",
@@ -289,7 +284,7 @@ const EN: WebCopy = {
 };
 
 const FR: WebCopy = {
-  navDiary: "Journal", navChat: "Chat", navYou: "Toi", navAdmin: "Admin", signOut: "Se déconnecter",
+  navAdmin: "Admin", signOut: "Se déconnecter",
   signedOutLead: "Photographie un repas, reçois les chiffres. Connecte-toi pour retrouver ton journal.",
   signIn: "Se connecter", today: "Aujourd'hui",
   yesterday: "Hier", dayPrev: "Jour précédent", dayNext: "Jour suivant",
@@ -388,7 +383,7 @@ const FR: WebCopy = {
 };
 
 const DE: WebCopy = {
-  navDiary: "Tagebuch", navChat: "Chat", navYou: "Du", navAdmin: "Admin", signOut: "Abmelden",
+  navAdmin: "Admin", signOut: "Abmelden",
   signedOutLead: "Fotografier eine Mahlzeit, bekomm die Zahlen. Melde dich an, um dein Tagebuch weiterzuführen.",
   signIn: "Anmelden", today: "Heute",
   yesterday: "Gestern", dayPrev: "Vorheriger Tag", dayNext: "Nächster Tag",
@@ -487,7 +482,7 @@ const DE: WebCopy = {
 };
 
 const IT: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navYou: "Tu", navAdmin: "Admin", signOut: "Esci",
+  navAdmin: "Admin", signOut: "Esci",
   signedOutLead: "Fotografa un pasto, ricevi i numeri. Accedi per riprendere il tuo diario.",
   signIn: "Accedi", today: "Oggi",
   yesterday: "Ieri", dayPrev: "Giorno precedente", dayNext: "Giorno successivo",
@@ -586,7 +581,7 @@ const IT: WebCopy = {
 };
 
 const ES: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navYou: "Tú", navAdmin: "Admin", signOut: "Cerrar sesión",
+  navAdmin: "Admin", signOut: "Cerrar sesión",
   signedOutLead: "Fotografía una comida, recibe los números. Entra para seguir con tu diario.",
   signIn: "Entrar", today: "Hoy",
   yesterday: "Ayer", dayPrev: "Día anterior", dayNext: "Día siguiente",
@@ -685,7 +680,7 @@ const ES: WebCopy = {
 };
 
 const VI: WebCopy = {
-  navDiary: "Nhật ký", navChat: "Chat", navYou: "Bạn", navAdmin: "Quản trị", signOut: "Đăng xuất",
+  navAdmin: "Quản trị", signOut: "Đăng xuất",
   signedOutLead: "Chụp một bữa ăn, nhận các con số. Đăng nhập để tiếp tục nhật ký của bạn.",
   signIn: "Đăng nhập", today: "Hôm nay",
   yesterday: "Hôm qua", dayPrev: "Ngày trước", dayNext: "Ngày sau",
@@ -784,7 +779,7 @@ const VI: WebCopy = {
 };
 
 const ID: WebCopy = {
-  navDiary: "Buku harian", navChat: "Chat", navYou: "Kamu", navAdmin: "Admin", signOut: "Keluar",
+  navAdmin: "Admin", signOut: "Keluar",
   signedOutLead: "Foto sebuah makanan, dapat angkanya. Masuk untuk melanjutkan buku harianmu.",
   signIn: "Masuk", today: "Hari ini",
   yesterday: "Kemarin", dayPrev: "Hari sebelumnya", dayNext: "Hari berikutnya",
@@ -883,7 +878,7 @@ const ID: WebCopy = {
 };
 
 const RU: WebCopy = {
-  navDiary: "Дневник", navChat: "Чат", navYou: "Ты", navAdmin: "Админка", signOut: "Выйти",
+  navAdmin: "Админка", signOut: "Выйти",
   signedOutLead: "Сфотографируй еду — получи цифры. Войди, чтобы продолжить свой дневник.",
   signIn: "Войти", today: "Сегодня",
   yesterday: "Вчера", dayPrev: "Предыдущий день", dayNext: "Следующий день",

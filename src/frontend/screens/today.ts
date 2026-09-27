@@ -13,10 +13,12 @@ import type {
 import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
+import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import {
   COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
 } from "../shell.ts";
+
 
 async function diaryScreen(): Promise<HTMLElement> {
   const wrap = el("section", "");
@@ -285,11 +287,9 @@ async function diaryScreen(): Promise<HTMLElement> {
   // holds nothing of it.
   if (heldProposal() === null) setHeldProposal((await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null);
   await draw();
-  // The centred title Chat and You already carry — one h1 per page, and the day card's "Today"
-  // stays the h2 inside it.
-  const top = el("div", "top");
-  top.append(el("h1", "tt", COPY.navDiary));
-  wrap.append(top, board, notice, comp.form);
+  // One h1 per page, and the boards draw no centred title on web — it stays for the landmark and
+  // is clipped rather than shown. The day card's "Today" stays the h2 inside it.
+  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navHome), board, notice, comp.form);
   return wrap;
 }
 

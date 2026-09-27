@@ -69,7 +69,7 @@ the exclude is written so a new file in this directory is browser code by defaul
 - **`textContent`, never `innerHTML`.** Everything on these screens came from a server response or
   from a person, and the shell's CSP has no `'unsafe-inline'` to fall back on: an injected `<script>`
   would not run, but an injected `<img onerror>` is a defence you are relying on rather than a
-  defence you built. `el()` in `main.ts` is the only node constructor.
+  defence you built. `el()` in `shell.ts` is the only node constructor.
 - **No inline handler, ever — `addEventListener` only.** The page is served under a nonce policy,
   which refuses `onclick=` attributes outright. One added here is a control that silently stops
   working rather than an error somebody sees.
@@ -94,12 +94,21 @@ twice: that is an endless pair of requests against a server that has already sai
 
 ## Where to add things
 
-- A new screen → a function returning an element in `main.ts`, plus a route in `render()`. Screens
-  stay thin; anything shared goes beside `el()`.
+- A new screen → one module `screens/<surface>.ts` returning an element, plus ONE line in
+  `main.ts`'s route table (`screen("#/meal/", …)` binds a prefix; `#/` stays the fallthrough). What
+  the surfaces share — `el()`, `render()`, the language binding, the profile cache, the
+  turn/outbox plumbing — lives in `shell.ts`; a screen that imports a sibling screen's helper is a
+  second copy of it. The route's TAB, if it has one, is a line in `shell.ts`'s `TABS`, drawn only
+  once the route answers.
 - A new server call → a method in `api.ts`. If the endpoint does not exist yet, it goes in
   `src/shared/contract.ts` first, then the backend, then here — the order the root `AGENTS.md` sets.
-- Styling → the `<style>` block in `server/index.ts`. It is one stylesheet under the nonce; a second
-  one is a second thing to keep under a policy.
+- A screen's own copy → the surface's `src/shared/app/<surface>-copy.ts` table, in all eight
+  languages (`shell-copy.ts` is the shell's own). A string only this client shows goes in
+  `copy.ts` as before.
+- Styling → `screens/<surface>.css.ts` for the surface's own rules, `shell.css.ts` for the frame and
+  the shared primitives. `server/index.ts` composes its ONE `<style>` block from them plus the
+  generated `lightVars`/`fontFaces`/`motionCss`/`iconCss` — a second block is a second thing to keep
+  under the policy, and a token retyped into a string is a second copy of it.
 - A new path this process answers → a branch in `server/index.ts` AND the `@app` matcher in
   `app.caddy.j2`, in the same commit. The edge sends this container two exact paths; a third one
   added here alone is a route only a laptop ever reaches.

@@ -15,7 +15,7 @@ import { expect, test } from "./fixtures.ts";
 // project ever calls `selectOption`. And it is the surface where a language OTHER than German has
 // never been rendered in a browser at all.
 test("the web app's own picker writes the account and comes back translated", async ({ inWebApp: page }) => {
-  // Since #52 the picker's home is You — Diary · Chat · You is the whole of the top row.
+  // Since #52 the picker's home is Profile — Home · Chat · Profile is the whole of the top row.
   await page.goto("/#/you");
   const picker = page.getByLabel("Language");
   await expect(picker).toHaveValue("en");
