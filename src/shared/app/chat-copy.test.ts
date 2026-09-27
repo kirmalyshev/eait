@@ -6,7 +6,8 @@
 import { describe, expect, it } from "bun:test";
 import { lintCopy } from "../claims.ts";
 import { LANGS, type Lang } from "../types.ts";
-import { CHAT_SCREEN_COPY, chatScreenCopyFor, type ChatScreenCopy } from "./chat-copy.ts";
+import { CHAT_SCREEN_COPY, chatScreenCopyFor, coachRowIcon, STARTER_ICONS, type ChatScreenCopy } from "./chat-copy.ts";
+import { starterRowsFor } from "../chat.ts";
 
 const flatten = (node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> => {
   if (typeof node === "string") { out[at] = node; return out; }
@@ -67,6 +68,24 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.analysisFailed).toBe("The analysis didn't come back.");
     expect(en.phone.notSent).toBe("Not sent — tap to put it back in the box");
     expect(en.phone.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+  });
+
+  it("pairs each starter with its board icon, the struggles in the same order as startersFor", () => {
+    const rows = starterRowsFor(["busy", "ideas"], "en" as Lang);
+    expect(rows.map((r) => r.text)).toEqual([
+      "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
+    ]);
+    expect(rows.map((r) => STARTER_ICONS[r.struggle])).toEqual(["busy", "ideas", "consistency"]);
+  });
+
+  it("gives a coach row the starter's icon, a named macro's icon, or ideas", () => {
+    expect(coachRowIcon("How's my week going?", "en" as Lang)).toBe("consistency");
+    expect(coachRowIcon("Am I getting enough protein?", "en" as Lang)).toBe("protein");
+    expect(coachRowIcon("which meal had the most Fat?", "en" as Lang)).toBe("fat");
+    // Whole words only — "father" is not "fat", and an inflected form ("белка" ≠ "Белок") is not
+    // the label either; an unrecognised row reads `ideas`.
+    expect(coachRowIcon("what should I cook?", "en" as Lang)).toBe("ideas");
+    expect(coachRowIcon("Сколько БЕЛОК сегодня?", "ru" as Lang)).toBe("protein");
   });
 
   it("carries no claim the linter would refuse — every language", () => {

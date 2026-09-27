@@ -30,7 +30,9 @@
 // is a symbol inside the template — "{n} г" — never a declined word.
 
 import { t, type Localized } from "../lang.ts";
-import type { Lang } from "../types.ts";
+import type { Lang, Struggle } from "../types.ts";
+import { threadCopyFor } from "../chat-copy.ts";
+import type { IconName } from "../ui/icons.ts";
 
 export interface ChatScreenCopy {
   /** First open (web + phone `chat-empty.html`, `chat-coach.html`): Gabie's opening line. */
@@ -350,3 +352,47 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
 };
 
 export const chatScreenCopyFor = (lang: Lang): ChatScreenCopy => t(lang)(CHAT_SCREEN_COPY);
+
+// ── The option-row icons ───────────────────────────────────────────────────────────────────
+//
+// The starter card and the coach's suggestion rows draw the boards' `.opt` rows — one icon,
+// the words, a chevron. WHICH icon follows the boards (`chat-empty`, `chat-coach`): a starter
+// carries its struggle's own, and a suggestion row takes the macro's when the words name one,
+// else `ideas`. The mapping is shared so W7 and M7 draw the same icon for the same line.
+
+/** Each struggle's starter row's icon, the boards' own pairing. */
+export const STARTER_ICONS: Record<Struggle, IconName> = {
+  consistency: "consistency", habits: "habits", support: "protein", busy: "busy", ideas: "ideas",
+};
+
+const words = (text: string): string[] =>
+  text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 0);
+
+/** True when `phrase` appears in `text` as whole words — never inside a longer word. */
+const hasPhrase = (text: string, phrase: string): boolean => {
+  const hay = words(text);
+  const needle = words(phrase);
+  if (needle.length === 0) return false;
+  outer: for (let i = 0; i + needle.length <= hay.length; i++) {
+    for (let j = 0; j < needle.length; j++) if (hay[i + j] !== needle[j]) continue outer;
+    return true;
+  }
+  return false;
+};
+
+/**
+ * The icon a coach line's `.opt` row carries (`chat-coach`): a starter's own struggle icon when
+ * the row IS a starter, a macro's icon when the words name a `macroLabels` entry, `ideas`
+ * otherwise. Whole-word, case-insensitive — the boards' rule, in the reader's language.
+ */
+export function coachRowIcon(text: string, lang: Lang): IconName {
+  const starters = threadCopyFor(lang).coachStarters;
+  for (const s of Object.keys(STARTER_ICONS) as Struggle[]) {
+    if (hasPhrase(text, starters[s])) return STARTER_ICONS[s];
+  }
+  const labels = chatScreenCopyFor(lang).macroLabels;
+  for (const [m, label] of Object.entries(labels)) {
+    if (hasPhrase(text, label)) return m as IconName;
+  }
+  return "ideas";
+}
