@@ -281,6 +281,17 @@ describe("the charts", () => {
     expect(m.match(/<circle/g)!.length).toBe(3);
   });
 
+  test("weightChartSvg draws the target lane you.html marks under the points", () => {
+    const m = weightChartSvg(
+      [{ t: 0, kg: 74.6 }, { t: 1, kg: 74 }, { t: 2, kg: 73.4 }],
+      { first: "74.6", last: "73.4", from: "24 Aug", to: "24 Sep" },
+      { label: "68 kg · target" },
+    );
+    expect(m).toContain('viewBox="0 0 320 120"');
+    expect(m).toContain('stroke-dasharray="4 4"');
+    expect(m).toContain(">68 kg · target</text>");
+  });
+
   test("weekBarsSvg: empty days have no bar, today is the tinted one", () => {
     const m = weekBarsSvg([1200, 1400, null, 800, null, null, null], 1434, {
       todayIndex: 3, letters: ["M", "T", "W", "T", "F", "S", "S"], planLabel: "1,434",

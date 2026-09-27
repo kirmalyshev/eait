@@ -9,7 +9,7 @@
 // `verdictLabels`, and the score is the server's `dayHealthScore`, never recomputed here.
 
 import { dateMinus } from "../../shared/dates.ts";
-import { dayBudget, kcalCardState } from "../../shared/budget.ts";
+import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { LANG_TAG, countText, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -180,7 +180,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const over = target !== undefined && eaten > target;
     return mcardEl({
       macro,
-      value: gram(over ? eaten - target : target !== undefined ? target - eaten : eaten),
+      value: gram(over ? eaten - target : target !== undefined ? macroLeft(target, eaten) : eaten),
       label: over ? copy.over : copy.left,
       ...(target !== undefined ? { share: target > 0 ? Math.min(1, eaten / target) : 1 } : {}),
     });
@@ -212,7 +212,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const over = eaten > target;
     return mcardEl({
       macro: "salt",
-      value: fill(L.milligrams, { n: n(over ? eaten - target : target - eaten) }),
+      value: fill(L.milligrams, { n: n(over ? eaten - target : macroLeft(target, eaten)) }),
       label: over ? L.macros.sodium.over : L.macros.sodium.left,
       share: over || target <= 0 ? 1 : eaten / target,
     });

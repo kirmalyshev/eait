@@ -6,6 +6,7 @@
 // everything here is for the ruler under the user's thumb and the number beside it.
 
 import { describe, expect, test } from "bun:test";
+import { spellUnit } from "../lang.ts";
 import {
   cmToFtIn, defaultUnits, ftInToCm, heightDisplayValue, heightText, heightToCm, kgToLb, lbToKg,
   rulerLabels, RULER_TICKS, weightDisplayValue, weightToKg,
@@ -126,5 +127,21 @@ describe("heightText — the copy-ready height", () => {
   });
   test("imperial is the ft-in join, digits in the language's format", () => {
     expect(heightText(172, "imperial", "en")).toBe("5′8″");
+  });
+});
+
+describe("spellUnit — the weigh-in's and macro cards' unit words", () => {
+  // The editors and the "{g} g" cards reach for kg, lb and g, and the You surface must not
+  // re-spell them itself: Cyrillic is the one divergence, everything else passes through.
+  test("kg, lb and g spell the way the reader's language writes them", () => {
+    expect(spellUnit("en", "kg")).toBe("kg");
+    expect(spellUnit("en", "lb")).toBe("lb");
+    expect(spellUnit("en", "g")).toBe("g");
+    expect(spellUnit("ru", "kg")).toBe("кг");
+    expect(spellUnit("ru", "g")).toBe("г");
+    // lb has no Cyrillic spelling — the symbol stays Latin, like the table says it does.
+    expect(spellUnit("ru", "lb")).toBe("lb");
+    expect(spellUnit("de", "kg")).toBe("kg");
+    expect(spellUnit("vi", "g")).toBe("g");
   });
 });

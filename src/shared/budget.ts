@@ -109,6 +109,17 @@ export function dayBudget(
 }
 
 /**
+ * Grams of a macro still left against its target — the figure a "{g} g left" card prints.
+ *
+ * Shared so the phone and the web card agree: both clients draw the same macro cards, and each
+ * clamping or rounding the subtraction on its own is how "0 g left" on one surface reads "-1 g"
+ * on another. A macro with no target has nothing left to count and answers 0.
+ */
+export function macroLeft(target: number, eaten: number): number {
+  return Math.max(0, Math.round(target - eaten));
+}
+
+/**
  * The W4 calorie card's figure-and-label pair — ONE choice for the screen's two forms (#164).
  *
  * `label` is a copy slot the screen fills ("kcal left"/"kcal eaten"/"kcal over" and their detail
@@ -136,3 +147,4 @@ export const kcalCardState = (budget: DayBudget, showEaten: boolean): KcalCardSt
     label: "left", guessed: budget.guessed,
   };
 };
+

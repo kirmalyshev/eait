@@ -517,6 +517,17 @@ export interface ProfileResponse {
   targets: FoodTargets;
   /** Why the targets are what they are. `basis.floorApplied` MUST be surfaced to the user. */
   basis: TargetBasis;
+  /**
+   * The account's age in whole years, computed HERE from `birth_year` in this server's
+   * timezone — `ageFrom`, the same arithmetic the target model consumes.
+   *
+   * SENT, NEVER COMPUTED BY THE CLIENT: `birth_year` is a year, not a birthday, so "current
+   * year minus it" is already an approximation — having the server answer it keeps every
+   * surface on the same approximation instead of each client subtracting in its own zone
+   * and disagreeing by one around the new year (#97 review). `null` when the profile holds
+   * no usable birth year; a client prints nothing then, not a guess.
+   */
+  age: number | null;
   /** Null until onboarding completes. */
   onboarded: boolean;
   /**
