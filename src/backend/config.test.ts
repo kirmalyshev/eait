@@ -334,6 +334,18 @@ describe("the web onboarding", () => {
       });
     });
 
+    it("refuses an exit offer that does not undercut the regular price — there is no offer to show", () => {
+      withRequired({ ...SELLS,
+        EAIT__BACKEND__WEB_EXIT_OFFER_URL: "https://pay.rev.cat/u/{userId}",
+        EAIT__BACKEND__WEB_EXIT_OFFER_PRICE: "39.99" });
+      expect(() => loadConfig()).toThrow(/WEB_EXIT_OFFER_PRICE/);
+      clear();
+      withRequired({ ...SELLS,
+        EAIT__BACKEND__WEB_EXIT_OFFER_URL: "https://pay.rev.cat/u/{userId}",
+        EAIT__BACKEND__WEB_EXIT_OFFER_PRICE: "44.99" });
+      expect(() => loadConfig()).toThrow(/WEB_EXIT_OFFER_PRICE/);
+    });
+
     it("lets the exit offer's anchor be set apart from the yearly price", () => {
       withRequired({
         ...SELLS,

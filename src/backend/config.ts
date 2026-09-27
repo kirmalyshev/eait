@@ -1012,6 +1012,9 @@ export function webPaywallFromEnv(): WebPaywallConfig {
   if (w.exitOfferCheckoutUrl !== "" && (w.exitOfferPrice <= 0 || w.exitOfferRegularPrice <= 0)) {
     throw new Error("[eait] EAIT__BACKEND__WEB_EXIT_OFFER_URL needs EAIT__BACKEND__WEB_EXIT_OFFER_PRICE and a regular price to strike through — its own, or EAIT__BACKEND__WEB_PRICE_YEARLY");
   }
+  if (w.exitOfferCheckoutUrl !== "" && w.exitOfferPrice >= w.exitOfferRegularPrice) {
+    throw new Error("[eait] EAIT__BACKEND__WEB_EXIT_OFFER_PRICE must undercut the regular price — an exit offer that saves nothing would show a '0 % off' card; leave WEB_EXIT_OFFER_URL empty instead");
+  }
   const sellsSomething = w.yearlyCheckoutUrl !== "" || w.monthlyCheckoutUrl !== "" || w.exitOfferCheckoutUrl !== "";
   if (sellsSomething) {
     try {

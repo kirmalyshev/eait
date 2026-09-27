@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { offerMath, paywallPrice } from "./paywall.ts";
+import { offerMath, paywallPrice, perMonth } from "./paywall.ts";
 
 // The one arithmetic the web paywall (#96) and the native one (#928) share: the exit offer's
 // percent off and its per-month equivalent, derived from the two prices that were actually
@@ -29,10 +29,20 @@ describe("offerMath", () => {
     expect(offerMath(NaN, 23.99)).toBeNull();
   });
 
-  it("reports a negative discount rather than inventing one when the offer costs more", () => {
-    // −50.02 % floored is −51: down, always, so a mispriced offer can only look worse, never
-    // better, than it is.
-    expect(offerMath(19.99, 29.99)!.percentOff).toBe(-51);
+  it("answers null when the floored saving is under one percent — there is no offer to draw", () => {
+    // Priced ABOVE the regular plan, equal to it, or 0.25 % off: every card would say "0 % off"
+    // or worse, so the answer is no offer at all and a decline goes to the app.
+    expect(offerMath(19.99, 29.99)).toBeNull();
+    expect(offerMath(39.99, 39.99)).toBeNull();
+    expect(offerMath(40, 39.99)).toBeNull();
+  });
+});
+
+describe("perMonth", () => {
+  it("spreads a yearly amount over a month, to the cent — the one figure both cards share", () => {
+    expect(perMonth(23.99)).toBe(2.00);
+    expect(perMonth(39.99)).toBe(3.33);
+    expect(perMonth(0.09)).toBe(0.01);
   });
 });
 

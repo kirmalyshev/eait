@@ -66,14 +66,24 @@ export function paywallPrice(amount: number, currency: string, lang: Lang): stri
 }
 
 /**
+ * What a yearly amount costs per month, to the cent — the "≈ €2.00 a month" line on BOTH the
+ * yearly plan's card and the exit offer's. One copy, shared with the native paywall (#928), so
+ * the two lines can never drift apart.
+ */
+export function perMonth(yearlyAmount: number): number {
+  return Math.round((yearlyAmount / 12) * 100) / 100;
+}
+
+/**
  * What the exit-offer card needs derived from its two prices: the percent cheaper — FLOORED, so a
  * fractional discount can only ever read smaller, never bigger — and the offer spread over a
  * month, to the cent. The struck-through price is the caller's own first argument; it needs no
  * second copy.
  *
- * Null rather than wrong figures when either price cannot stand: a regular price of nothing makes
- * the percent a division by zero, and a negative offer is a configuration error no card should
- * quietly reframe.
+ * Null rather than wrong figures when either price cannot stand — a regular price of nothing
+ * makes the percent a division by zero — and null when the floored saving is under one percent:
+ * an offer priced at or above the regular plan, or cheaper by a rounding error, has no card to
+ * draw, so a decline goes straight to the app.
  */
 export interface OfferMath {
   percentOff: number;
@@ -84,8 +94,7 @@ export function offerMath(regularYearly: number, offer: number): OfferMath | nul
   if (!Number.isFinite(regularYearly) || !Number.isFinite(offer) || regularYearly <= 0 || offer < 0) {
     return null;
   }
-  return {
-    percentOff: Math.floor(((regularYearly - offer) / regularYearly) * 100),
-    perMonth: Math.round((offer / 12) * 100) / 100,
-  };
+  const percentOff = Math.floor(((regularYearly - offer) / regularYearly) * 100);
+  if (percentOff < 1) return null;
+  return { percentOff, perMonth: perMonth(offer) };
 }

@@ -8,7 +8,7 @@
 
 import { MAX_PROFILE_TEXT,
   ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, offerMath, paywallPrice,
+  isAcceptableWeightKg, offerMath, paywallPrice, perMonth,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
@@ -96,8 +96,8 @@ function pairAddressOf(config: { publicWebUrl: string; publicApiUrl: string }): 
  * id it was not issued.
  *
  * A plan with no configured checkout is null rather than half-offered, and an exit offer whose
- * discount cannot be computed — a regular price of nothing — is no offer at all: the decline then
- * goes straight to the app.
+ * discount cannot stand — a regular price of nothing, or a saving under one percent — is no offer
+ * at all: the decline then goes straight to the app.
  */
 function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
   const w = deps.config.webPaywall;
@@ -109,7 +109,7 @@ function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
     yearly: w.yearlyCheckoutUrl === "" ? null : {
       checkoutUrl: url(w.yearlyCheckoutUrl),
       price: price(w.yearlyPrice),
-      pricePerMonth: price(w.yearlyPrice / 12),
+      pricePerMonth: price(perMonth(w.yearlyPrice)),
     },
     monthly: w.monthlyCheckoutUrl === "" ? null : {
       checkoutUrl: url(w.monthlyCheckoutUrl),
