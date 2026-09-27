@@ -196,12 +196,12 @@ describe("seedDevData", () => {
 
     const me = await profileView(deps, anna!.userId);
     expect(me!.targets.kcal).toBe(1434);
-    expect(me!.projection).not.toBeNull();
+    expect(log!.projection).not.toBeNull();
     // The bar reads 0.6 down, 5.4 to go: start at the typed 74, current at Health's 73.4.
-    expect(me!.projection!.startKg).toBe(74);
-    expect(me!.projection!.currentKg).toBe(73.4);
-    expect(me!.projection!.targetKg).toBe(68);
-    expect(me!.projection!.beyondHorizon).toBe(false);
+    expect(log!.projection!.startKg).toBe(74);
+    expect(log!.projection!.currentKg).toBe(73.4);
+    expect(log!.projection!.targetKg).toBe(68);
+    expect(log!.projection!.beyondHorizon).toBe(false);
   });
 
   test("the 'onboarded' persona is still there beside her — its name is an API (#84 review)", async () => {

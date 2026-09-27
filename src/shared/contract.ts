@@ -615,12 +615,6 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
-  /**
-   * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
-   * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
-   * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
-   */
-  projection: PlanProjection | null;
 }
 
 /**
@@ -1086,14 +1080,20 @@ export interface WeightEntry {
   source: "health" | "manual";
 }
 
-/** `GET /v1/weights` — the merged weigh-in log the Progress chart draws. */
+/** `GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc. */
 export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
   weights: WeightEntry[];
+  /**
+   * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
+   * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
+   * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
+   */
+  projection: PlanProjection | null;
 }
 
 /**
- * The goal's arc for `ProfileResponse.projection` — where the plan started, where the last
+ * The goal's arc for `WeightsResponse.projection` — where the plan started, where the last
  * weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null`
  * carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback
  * band, or a delta pointed away from the target each mean there is nothing to draw, and `null`
