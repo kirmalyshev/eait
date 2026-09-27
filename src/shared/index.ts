@@ -58,6 +58,7 @@ export * from "./app/meal-copy.ts";
 export * from "./app/bmi-copy.ts";
 export * from "./app/progress-copy.ts";
 export * from "./app/shell-copy.ts";
+export * from "./app/error-copy.ts";
 export * from "./app/signup-copy.ts";
 export * from "./app/chat-copy.ts";
 export * from "./app/pay-copy.ts";
