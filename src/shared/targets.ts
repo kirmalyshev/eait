@@ -368,6 +368,7 @@ export type MedicalTag = (typeof MEDICAL_TAGS)[number];
  * declared way. `wholefood`/`mediterranean`/`flexitarian` are preferences: the coach prompt
  * reads them, the analyzer does not (the reader table, DIRECTION §"Every answer has a reader"). */
 export const EXCLUDING_DIET_TAGS = ["pescatarian", "vegetarian", "vegan"] as const;
+export type ExcludingDietTag = (typeof EXCLUDING_DIET_TAGS)[number];
 export const DIET_TAGS = [
   "wholefood", "mediterranean", "flexitarian", "pescatarian", "vegetarian", "vegan",
 ] as const;
@@ -402,7 +403,7 @@ export function medicalOf(restrictions: readonly string[]): MedicalTag[] {
 }
 
 /** Whether a diet excludes the ambiguous-plate answer space (analyzer reads only these). */
-export function isExcludingDiet(d: Diet): boolean {
+export function isExcludingDiet(d: Diet): d is ExcludingDietTag {
   return (EXCLUDING_DIET_TAGS as readonly string[]).includes(d);
 }
 
