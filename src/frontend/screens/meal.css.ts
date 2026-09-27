@@ -32,6 +32,8 @@ export const mealCss = `
 .mwrap{position:relative}
 .mpopup{position:absolute;right:0;top:calc(100% + 8px);z-index:30;min-width:220px;background:var(--surface);
   border-radius:var(--r-card);box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column}
+/* display:flex above beats the UA's [hidden] rule — without this the menu arrived open (#172). */
+.mpopup[hidden]{display:none}
 .mi{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:0;background:none;
   font:inherit;font-size:14px;font-weight:500;color:var(--ink);border-radius:var(--r-ctl);
   cursor:pointer;text-align:left}

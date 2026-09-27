@@ -74,8 +74,10 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   padding: 28px 40px; max-width: 1160px; width: 100%; margin: 0 auto; overflow: hidden; }
 .wmain.one { grid-template-columns: 1fr; max-width: 820px; }
 /* The meal's board puts its 400px|1fr columns INSIDE the main — the screen's own .mdetail grid —
-   so the route's main is one column at the full width, not the .one variant's 820px. */
-.wmain.meal { grid-template-columns: 1fr; }
+   so the route's main is one column at the full width, not the .one variant's 820px. Selected by
+   CONTENT, never a .meal class: the kit's .meal is a list ROW, and a class here would hand
+   the main its padding (#172). */
+.wmain:has(.mdetail) { grid-template-columns: 1fr; }
 .wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   .wtop { padding: 0 16px; gap: 16px; }
