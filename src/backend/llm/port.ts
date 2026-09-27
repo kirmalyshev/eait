@@ -216,6 +216,13 @@ export interface CoachReply {
   reply: string;
   /** Already through `cleanSuggestions`: chips, or none. */
   suggestions: string[];
+  /**
+   * The one nutrient the answer is about, as the model NAMED it — a string, not yet a
+   * `CoachNutrient`: the reply schema asks for the enum, and prose tolerated past it does not
+   * have to be one. The engine validates against `COACH_NUTRIENTS` and fills the figures itself —
+   * the model's choice is the subject, never the numbers.
+   */
+  focus?: string;
 }
 
 /**

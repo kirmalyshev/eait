@@ -115,6 +115,31 @@ export interface MealProposed {
  */
 export type ChatSpeaker = "gabie";
 
+/**
+ * The nutrient a coach answer's bar can show (`chat-coach`): the one macro the question was
+ * about. "sugar" is not here — the bar has no glyph and no target for it, and a client that
+ * drew one would be drawing a judgement the plan never made.
+ */
+export const COACH_NUTRIENTS = ["protein", "carbs", "fat", "kcal", "satfat"] as const;
+export type CoachNutrient = (typeof COACH_NUTRIENTS)[number];
+export const isCoachNutrient = (n: unknown): n is CoachNutrient =>
+  typeof n === "string" && (COACH_NUTRIENTS as readonly string[]).includes(n);
+
+/**
+ * The macro bar on a coach answer (`chat-coach`): WHICH nutrient is the model's choice of subject
+ * — what the answer is about, not a verdict; the figures are the server's, read off the day's
+ * totals and the plan's targets at answer time, never taken from the reply. Absent means absent:
+ * an answer about no one macro carries none, and neither does the bar.
+ *
+ * Live turn only, like `suggestions`: the stored line keeps the sentence and the thread never
+ * re-draws the bar.
+ */
+export interface CoachFocus {
+  nutrient: CoachNutrient;
+  eaten: number;
+  target: number;
+}
+
 export interface Answered {
   kind: "answered";
   /** Model prose in the user's language. Content, not copy — it passes through unrendered. */
@@ -127,6 +152,8 @@ export interface Answered {
    * means draw nothing; the app never invents any.
    */
   suggestions?: string[];
+  /** The one macro the answer is about, with the day's numbers — see `CoachFocus`. */
+  focus?: CoachFocus;
 }
 
 export interface MealUpdated {
