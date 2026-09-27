@@ -110,6 +110,31 @@ describe("dayRing — the week-strip ring, tone and dash together", () => {
   });
 });
 
+/** A drawn "M x y C …" cubic, sampled densely — the test reads the path a renderer draws. */
+function curvePoints(d: string, samples = 2000): { x: number; y: number }[] {
+  const m = /^M([\d.]+) ([\d.]+) C([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)$/.exec(d);
+  if (!m) throw new Error(`not a single cubic: ${d}`);
+  const p = m.slice(1).map(Number);
+  return Array.from({ length: samples + 1 }, (_, i) => {
+    const t = i / samples;
+    const u = 1 - t;
+    return {
+      x: u ** 3 * p[0]! + 3 * u * u * t * p[2]! + 3 * u * t * t * p[4]! + t ** 3 * p[6]!,
+      y: u ** 3 * p[1]! + 3 * u * u * t * p[3]! + 3 * u * t * t * p[5]! + t ** 3 * p[7]!,
+    };
+  });
+}
+
+/** Every sampled point of the curve that lands inside the chip's rectangle. */
+function curveInChip(
+  d: string,
+  chip: { x: number; y: number; width: number; height: number },
+): { x: number; y: number }[] {
+  return curvePoints(d).filter(
+    (p) => p.x >= chip.x && p.x <= chip.x + chip.width && p.y >= chip.y && p.y <= chip.y + chip.height,
+  );
+}
+
 describe("the estimate curve — a drawn shape, not read data", () => {
   test("the line runs flat out of the start and flat into the end", () => {
     const d = estimateCurvePath(20, 34, 292, 110);
@@ -130,7 +155,7 @@ describe("the estimate curve — a drawn shape, not read data", () => {
     expect(c.baseline).toEqual({ x1: 20, x2: 300, y: 138 });
     expect(c.startDot).toEqual({ cx: 20, cy: 34, r: 5 });
     expect(c.endDot).toMatchObject({ cx: 292, cy: 110, r: 6 });
-    expect(c.targetChip).toMatchObject({ x: 198, y: 68, width: 106, height: 28, rx: 8 });
+    expect(c.targetChip).toMatchObject({ x: 198, y: 48, width: 106, height: 28, rx: 8, textY: 67 });
     expect(c.startLabel).toEqual({ x: 20, y: 22 });
     expect(c.nowLabel).toEqual({ x: 20, y: 158 });
     expect(c.monthLabel).toEqual({ x: 300, y: 158 });
@@ -142,11 +167,18 @@ describe("the estimate curve — a drawn shape, not read data", () => {
     expect(c.areaPath).toBe("M20 110 C110 110 200 34 292 34 L292 138 L20 138 Z");
     expect(c.startDot).toEqual({ cx: 20, cy: 110, r: 5 });
     expect(c.endDot).toMatchObject({ cx: 292, cy: 34, r: 6 });
-    expect(c.targetChip).toMatchObject({ x: 198, y: 48, width: 106, height: 28, rx: 8 });
+    expect(c.targetChip).toMatchObject({ x: 198, y: 68, width: 106, height: 28, rx: 8, textY: 87 });
     expect(c.startLabel).toEqual({ x: 20, y: 122 });
     // The axis and its captions do not move.
     expect(c.baseline).toEqual({ x1: 20, x2: 300, y: 138 });
     expect(c.nowLabel).toEqual({ x: 20, y: 158 });
+  });
+
+  test("the Target chip never touches the curve, in either direction (#112)", () => {
+    for (const direction of ["lose", "gain"] as const) {
+      const c = estimateChart(direction);
+      expect(curveInChip(c.linePath, c.targetChip)).toEqual([]);
+    }
   });
 
   test("How it works' mini chart is its own fixed frame", () => {
@@ -157,6 +189,7 @@ describe("the estimate curve — a drawn shape, not read data", () => {
     expect(ESTIMATE_CHART_MINI.endDot).toMatchObject({ cx: 296, cy: 70, r: 5 });
     expect(ESTIMATE_CHART_MINI.targetChip).toMatchObject({ x: 212, y: 34, width: 92, height: 24 });
     expect(ESTIMATE_CHART_MINI.startLabel).toEqual({ x: 16, y: 10 });
+    expect(curveInChip(ESTIMATE_CHART_MINI.linePath, ESTIMATE_CHART_MINI.targetChip)).toEqual([]);
   });
 });
 

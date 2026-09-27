@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
-  COACH_STARTERS, SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
-  scriptedLine, type ScriptedLineId,
+  SCRIPTED_LINES, firstVerdictLines, runningLine,
+  scriptedLine, startersFor, type ScriptedLineId,
 } from "./chat.ts";
 
 const TARGETS = { kcal: 1724, protein_g: 104, carbs_g: 190, fat_g: 55 };
@@ -23,8 +23,8 @@ describe("the thread in eight languages", () => {
 
   it("offers three starters, in every language", () => {
     for (const lang of LANGS) {
-      expect(COACH_STARTERS(lang).length, lang).toBeGreaterThanOrEqual(3);
-      for (const s of COACH_STARTERS(lang)) expect(s.length, lang).toBeGreaterThan(0);
+      expect(startersFor(null, lang).length, lang).toBe(3);
+      for (const s of startersFor(null, lang)) expect(s.length, lang).toBeGreaterThan(0);
     }
   });
 
@@ -33,7 +33,6 @@ describe("the thread in eight languages", () => {
       const said: string[] = [
         runningLine({ targets: TARGETS, eatenToday: EATEN }, lang),
         runningLine({ targets: TARGETS, eatenToday: { kcal: 2100, protein_g: 120 } }, lang),
-        correctionLine({ targets: TARGETS, meal: { kcal: 520 }, eatenToday: EATEN }, lang),
       ];
       for (const goal of ["gain", "lose", "maintain"] as const) {
         for (const via of ["photo", "text"] as const) {
@@ -77,7 +76,7 @@ describe("the thread in eight languages", () => {
       (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.headline.caloriesHigh,
       (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
       (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
-      (l: (typeof LANGS)[number]) => COACH_STARTERS(l)[0]!,
+      (l: (typeof LANGS)[number]) => startersFor(null, l)[0]!,
     ]) {
       expect(new Set(LANGS.map(sample)).size).toBe(LANGS.length);
     }

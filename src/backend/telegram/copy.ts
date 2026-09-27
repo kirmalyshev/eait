@@ -39,7 +39,8 @@ export interface TelegramCopy {
   signIn: string;
   connectedLead: string;
   viaApp: string;
-  connectedTail: string;
+  /** `{coach}` is the coach's localized name — she answers questions (S9); never a literal. */
+  connectedTail: (v: { coach: string }) => string;
   notYours: string;
   codeInvalid: string;
   tooManyTries: string;
@@ -74,7 +75,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
   signIn: i18n._("tg.signIn", undefined, { message: "Sign in" }),
   connectedLead: i18n._("tg.connectedLead", undefined, { message: "Connected to the eait account signed in with" }),
   viaApp: i18n._("tg.viaApp", undefined, { message: "the app" }),
-  connectedTail: i18n._("tg.connectedTail", undefined, { message: "Send a photo of a meal, tell me what you ate, or ask me a question." }),
+  connectedTail: (v: { coach: string }) => i18n._("tg.connectedTail", v, { message: "Send a photo of a meal, tell me what you ate, or ask {coach} a question." }),
   notYours: i18n._("tg.notYours", undefined, { message: "Not your account? Sign in to your own on the web and press Connect Telegram there — this Telegram moves to it." }),
   codeInvalid: i18n._("tg.codeInvalid", undefined, { message: "That link has expired. Open your plan on the web and press Connect Telegram again." }),
   tooManyTries: i18n._("tg.tooManyTries", undefined, { message: "Too many tries from this Telegram. Wait a while, then press the link again." }),

@@ -638,7 +638,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
             spec.via === "photo"
               ? { role: "user", kind: "photo", text: null }
               : { role: "user", kind: "text", text: spec.name },
-            { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+            { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
           ] });
           meals++;
         }
@@ -713,7 +713,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         // thread's order.
         thread.push({ back, record, lines: [
           { role: "user", kind: "photo", text: null },
-          { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+          { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
         ] });
         meals++;
       }
@@ -728,7 +728,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         goal: profile.goal ?? "maintain", targets, via: "photo", verdicts: oldest.record.verdicts,
         meal: { kcal: oldest.record.kcal, confidence: oldest.record.confidence },
         eatenToday: { kcal: oldest.record.kcal, protein_g: oldest.record.protein_g },
-      }, lang).map((text) => ({ role: "assistant", kind: "text", text } as const)));
+      }, lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" } as const)));
     }
     for (const t of thread) await store.appendChat(userId, t.lines);
 

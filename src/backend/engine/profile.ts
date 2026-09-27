@@ -20,7 +20,6 @@ import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
-import { planProjection } from "./weights.ts";
 
 /**
  * The sample, as the app is told about it: spent or not, and how much is left.
@@ -140,7 +139,6 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
     paywall: paywallOf(deps, profile.lang, userId),
-    projection: await planProjection(deps, profile, { targets, basis }),
   };
 }
 
@@ -352,7 +350,6 @@ export async function patchProfile(
       pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
-      projection: await planProjection(deps, profile, { targets, basis }),
     },
   };
 }

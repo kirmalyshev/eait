@@ -8,7 +8,7 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
-  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
@@ -92,20 +92,9 @@ async function dayStanding(
   };
 }
 
-/** copy.md § Step 14's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
-export async function afterCorrection(
-  deps: EngineDeps,
-  userId: string,
-  meal: MealRecord,
-  totals: DailyTotals,
-): Promise<ChatAppend[]> {
-  const day = await dayStanding(deps, userId, meal, totals);
-  if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }, day.lang) }];
-}
-
 /**
- * Where the day stands after a meal LANDED (#306) — the sentence a correction already got.
+ * Where the day stands after a meal LANDED (#306) — a sentence a correction no longer gets: #119's
+ * change line names the edit itself and says nothing about the day's remainder.
  *
  * NOT ON THE ACCOUNT'S FIRST MEAL: `firstVerdictLines` carries the same arithmetic inside the
  * greeting, and saying it twice under one card is the defect this fixes wearing the other hat. The
@@ -120,7 +109,7 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang) }];
+  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang), speaker: "gabie" }];
 }
 
 /**
@@ -146,7 +135,7 @@ export async function firstVerdict(
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
-  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text }));
+  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
   return { lines, undo: () => deps.store.releaseFirstVerdict(userId) };
@@ -305,7 +294,7 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
   if (m.kind === "meal") {
     return {
       ...base, role: "assistant", kind: "meal", event: m.event ?? "logged", mealId: m.mealId,
-      meal: (m.mealId && meals.get(m.mealId)) || null,
+      meal: (m.mealId && meals.get(m.mealId)) || null, speaker: m.speaker,
     };
   }
   return { ...base, role: "assistant", kind: "text", text: m.text ?? "", speaker: m.speaker };
