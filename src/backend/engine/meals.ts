@@ -18,7 +18,7 @@ import {
 } from "@eait/shared";
 import {
   LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, localDate, localTime, mealCopyFor,
-  mealIsGuessed, spellUnit, verdictNoun, wholeNumbers, windowStart,
+  mealIsGuessed, spellUnit, verdictCardLines, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
@@ -733,8 +733,12 @@ export async function cancelPendingMeal(
  * and writes nothing; an expired one is not offered, because nobody may confirm it.
  */
 export async function pendingMeals(deps: EngineDeps, userId: string): Promise<MealProposed[]> {
+  // The verdict lines are DERIVED, never stored — so the read recomputes them, and the card a page
+  // lost to a reload comes back wording the same judgement, in the account's current language.
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   return (await deps.store.pendingsFor(userId)).map((p) => ({
     kind: "proposed", pendingId: p.id, analysis: p.analysis, date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    verdictLines: verdictCardLines(p.analysis.verdicts, lang),
   } satisfies MealProposed));
 }
 

@@ -129,3 +129,19 @@ export function verdictInlineText(verdicts: unknown, lang: Lang): string {
   }
   return segments.join(" · ");
 }
+
+/**
+ * The card's verdict lines — `{ tone, words }` per renderable dimension, pill order, on-plan ones
+ * included — so the proposal card's "Calories on plan · Saturated fat on plan" block renders what
+ * the server judged, worded in the reader's language. The words are Lingui, and the catalog is
+ * not on the web bundle: the server composes the lines, the client only draws them. This is the
+ * card's half of the job `verdictInlineText` does for a row — that one drops the on-plan verdicts,
+ * this one keeps them, because the card is where the judgement is explained rather than glanced.
+ */
+export function verdictCardLines(
+  verdicts: unknown,
+  lang: Lang,
+): { tone: Verdict; words: string }[] {
+  const v = verdicts as Partial<Record<VerdictDimension, Verdict>>;
+  return renderableVerdicts(verdicts).map((d) => ({ tone: v[d]!, words: verdictPillLabel(d, v[d]!, lang) }));
+}

@@ -1002,6 +1002,13 @@ export interface DayResponse {
   meals: MealRecord[];
   totals: DailyTotals;
   targets: FoodTargets;
+  /**
+   * The day's health score — the kcal-weighted mean of the day's scored meals, 0–10, or null when
+   * too little of the day was read to score. Computed by S10's `dayHealthScore` (#118); optional
+   * here until it lands — Home draws its page-2 row only when this is a number, and a client must
+   * never compute one itself.
+   */
+  healthScore?: number | null;
 }
 
 /** DEPRECATED with {@link ROUTES.week} (#103) — superseded by {@link DaysResponse}. */

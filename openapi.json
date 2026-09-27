@@ -3218,6 +3218,13 @@
           },
           "targets": {
             "$ref": "#/components/schemas/FoodTargets"
+          },
+          "healthScore": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The day's health score — the kcal-weighted mean of the day's scored meals, 0–10, or null when too little of the day was read to score. Computed by S10's `dayHealthScore` (#118); optional here until it lands — Home draws its page-2 row only when this is a number, and a client must never compute one itself."
           }
         },
         "required": [
@@ -4064,6 +4071,26 @@
           "analysis": {
             "$ref": "#/components/schemas/MealAnalysis"
           },
+          "verdictLines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tone": {
+                  "$ref": "#/components/schemas/Verdict"
+                },
+                "words": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tone",
+                "words"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The card's verdict lines — `{ tone, words }` per renderable dimension, pill order, on-plan ones included (\"Calories on plan\"). Composed server-side (`verdictCardLines`) in the account's language, for the same reason `MealRecord.verdictInline` exists: the Lingui catalog is not on the web bundle. Derived, never stored — the pending read recomputes it."
+          },
           "date": {
             "type": "string",
             "description": "The resolved calendar date, so the confirm prompt can NAME it — the misparse guard."
@@ -4077,6 +4104,7 @@
           "kind",
           "pendingId",
           "analysis",
+          "verdictLines",
           "date",
           "expiresAt"
         ],
@@ -4185,6 +4213,10 @@
           "photos": {
             "type": "number",
             "description": "How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0."
+          },
+          "verdictInline": {
+            "type": "string",
+            "description": "The row's off-plan words — \"calories high · saturated fat very high\" — composed server-side in the account's language with `verdictInlineText` (#124), because the Lingui catalog is not on the web bundle and a client that composed them would ship English to eight languages. Absent when every verdict is on plan — the row then shows its time alone. Sent on the day read."
           }
         },
         "required": [

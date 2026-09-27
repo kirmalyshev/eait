@@ -9,7 +9,7 @@
 // `hint` is a CODE, not copy, for exactly that reason: `"lowConfidence"` resolves to one string in
 // the bot and another in this app, and neither has to agree with the other about wording.
 
-import type { DailyTotals, MealAnalysis, MealQuestion } from "./types.ts";
+import type { DailyTotals, MealAnalysis, MealQuestion, Verdict } from "./types.ts";
 import { OUTCOME_UNKNOWN, REFUSAL_STATUS } from "./contract.ts";
 
 /** Which correction nudge the surface should show under a logged meal. */
@@ -79,6 +79,13 @@ export interface MealProposed {
   kind: "proposed";
   pendingId: string;
   analysis: MealAnalysis;
+  /**
+   * The card's verdict lines — `{ tone, words }` per renderable dimension, pill order, on-plan
+   * ones included ("Calories on plan"). Composed server-side (`verdictCardLines`) in the account's
+   * language, for the same reason `MealRecord.verdictInline` exists: the Lingui catalog is not on
+   * the web bundle. Derived, never stored — the pending read recomputes it.
+   */
+  verdictLines: readonly { tone: Verdict; words: string }[];
   /** The resolved calendar date, so the confirm prompt can NAME it — the misparse guard. */
   date: string;
   /**

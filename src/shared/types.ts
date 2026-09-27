@@ -282,6 +282,13 @@ export interface MealRecord extends MealAnalysis {
   question?: MealQuestion | null;
   /** How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0. */
   photos?: number;
+  /**
+   * The row's off-plan words — "calories high · saturated fat very high" — composed server-side in
+   * the account's language with `verdictInlineText` (#124), because the Lingui catalog is not on
+   * the web bundle and a client that composed them would ship English to eight languages. Absent
+   * when every verdict is on plan — the row then shows its time alone. Sent on the day read.
+   */
+  verdictInline?: string | undefined;
 }
 
 export interface DailyTotals {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, verdictInlineText, verdictPillLabel, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -13,7 +13,7 @@ import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, pendingMeals, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
 } from "./index.ts";
 
 const CONFIG: Config = {
@@ -1129,6 +1129,35 @@ describe("chat", () => {
     expect(confirmed.analysis.verdicts.weight).toBeDefined();
   });
 
+  it("words a proposal's verdict lines itself — the card cannot compose them", async () => {
+    // `MealProposed.verdictLines` — {tone, words} per renderable dimension, pill order, in the
+    // account's language — because the proposal card's "Calories on plan" lines are Lingui words
+    // the web bundle has no catalog for (#91). The pending read-back must carry the same lines, or
+    // a page that lost its card would show it wordless.
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const weight = res.analysis.verdicts?.weight;
+    if (weight === undefined) throw new Error("expected a weight verdict");
+    expect(res.verdictLines).toEqual([{ tone: weight, words: verdictPillLabel("weight", weight, "en") }]);
+
+    const back = await pendingMeals(deps, userId);
+    expect(back).toHaveLength(1);
+    expect(back[0]!.verdictLines).toEqual(res.verdictLines);
+  });
+
+  it("words them in the account's language", async () => {
+    const userId = await onboard();
+    await patchProfile(deps, userId, { lang: "de" });
+    const res = await handleText(deps, userId, { text: "zwei Eier" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const weight = res.analysis.verdicts?.weight;
+    if (weight === undefined) throw new Error("expected a weight verdict");
+    expect(res.verdictLines[0]!.words).toBe(verdictPillLabel("weight", weight, "de"));
+    const back = await pendingMeals(deps, userId);
+    expect(back[0]!.verdictLines[0]!.words).toBe(verdictPillLabel("weight", weight, "de"));
+  });
+
   it("writes only on confirm, and confirm is idempotent-safe", async () => {
     const userId = await onboard();
     const res = await handleText(deps, userId, { text: "two eggs and toast" });
@@ -1832,6 +1861,52 @@ describe("diary", () => {
     const b = await onboard();
     await logPhotoMeal(deps, a, photo());
     expect((await day(deps, b))!.meals).toHaveLength(0);
+  });
+
+  it("sends each row its inline verdict words — the web client cannot compose them", async () => {
+    // `MealRecord.verdictInline` is composed on the day read, in the account's language
+    // (`verdictInlineText`): "calories high · saturated fat very high". The Lingui catalog is not
+    // on the web bundle, so this string is the only way a browser row gets the words (#91). A meal
+    // whose verdicts are all on plan carries none — its row shows the time alone.
+    const userId = await onboard();
+    const target = (await day(deps, userId))!.targets.kcal;
+    const meal = (kcal: number): LlmPorts => ({
+      ...demoPorts(),
+      analyzePhoto: async () => ({
+        isFood: true,
+        items: [{ name: "A plate", grams: 400, kcal, protein_g: 40, carbs_g: 60, fat_g: 20 }],
+        kcal, protein_g: 40, carbs_g: 60, fat_g: 20,
+        satfat_g: 2, fiber_g: 4, sugar_g: 5, sodium_mg: 300,
+        confidence: "high", notes: "",
+      }),
+    });
+    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.4))), userId, photo());
+    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.7))), userId, photo());
+    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.1))), userId, photo());
+    const view = (await day(deps, userId))!;
+    expect(view.meals[0]!.verdictInline).toBe("calories high");
+    expect(view.meals[1]!.verdictInline).toBe("calories very high");
+    expect(view.meals[2]!.verdictInline).toBeUndefined();
+  });
+
+  it("composes the inline verdicts in the account's language", async () => {
+    const userId = await onboard();
+    await patchProfile(deps, userId, { lang: "de" });
+    const target = (await day(deps, userId))!.targets.kcal;
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async () => ({
+        isFood: true,
+        items: [{ name: "Ein Teller", grams: 400, kcal: Math.round(target * 0.7), protein_g: 40, carbs_g: 60, fat_g: 20 }],
+        kcal: Math.round(target * 0.7), protein_g: 40, carbs_g: 60, fat_g: 20,
+        satfat_g: 2, fiber_g: 4, sugar_g: 5, sodium_mg: 300,
+        confidence: "high", notes: "",
+      }),
+    };
+    await logPhotoMeal(makeDeps({}, llm), userId, photo());
+    const view = (await day(deps, userId))!;
+    expect(view.meals[0]!.verdictInline).toBe(verdictInlineText({ weight: "bad" }, "de"));
+    expect(view.meals[0]!.verdictInline).not.toBe("calories very high");
   });
 
   it("returns per-day sums for the week", async () => {

@@ -52,7 +52,7 @@ describe("reconcilePage", () => {
     const none = reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [failed], new Set(["c1"]), false);
     expect(none.next.at(-1)).toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     // Beside the line it answers — not after a later turn's proposal, where it would read as that turn's.
-    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
+    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } };
     const page = [userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")];
     const placed = reconcilePage(page, [failed, later], new Set(["c1"]), false);
     expect(placed.next.map((e) => e.id)).toEqual([page[0]!.id, "unanswered:c1", page[1]!.id, "a2"]);
@@ -106,15 +106,15 @@ describe("mergeThread", () => {
   it("drops a live proposal once the page carries the card its confirm wrote", () => {
     // A page fetched while the confirm is in flight already has the card (the meal takes the
     // proposal's id); the bubble with its buttons must not stay beside it.
-    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE } };
-    const other: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
+    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } };
+    const other: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } };
     const logged = card(meal("p1", 300));
     const next = mergeThread(fromHistory([logged]), [proposal, other], new Set());
     expect(next.map((e) => e.id)).toEqual([logged.id, "a2"]);
   });
 
   it("keeps a live proposal and a bubble still in flight, and lets an error bubble go with the page", () => {
-    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE } };
+    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } };
     const asked: ThreadEntry = { id: "c9", role: "user", text: "and a coffee" };
     const error: ThreadEntry = { id: "e1", role: "error", kind: "analysis-failed" };
     const page = [userLine("hi")];
@@ -143,7 +143,7 @@ describe("landedLine / unansweredFor", () => {
   });
 
   it("places the notice right under the line it answers, and changes nothing when there is none to give", () => {
-    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
+    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } };
     const entries = [...fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")]), later];
     expect(withUnanswered(entries, "c1").map((e) => e.id)).toEqual([entries[0]!.id, "unanswered:c1", entries[1]!.id, "a2"]);
     expect(withUnanswered(entries, "c9")).toBe(entries);
@@ -278,7 +278,7 @@ describe("oneCardPerMeal — #301", () => {
 
 describe("oneLiveProposal / pendingIdOf — #360", () => {
   const proposal = (id: string, pendingId: string): ThreadEntry =>
-    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt: LIVE } });
+    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] } });
   const totals = { guessed: false, kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
   /** The screen's `replace` on a confirm: the entry becomes the logged card, in its own place. */
   const confirm = (entries: ThreadEntry[], id: string, pendingId: string): ThreadEntry[] => {
@@ -337,7 +337,7 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
 
 /** An assistant row of any result kind, for the exhaustive walks below. */
 const spoke = (result: ChatResult, id = "a1"): ThreadEntry => ({ id, role: "assistant", result });
-const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25", expiresAt: LIVE };
+const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25", expiresAt: LIVE, verdictLines: [] };
 const landed: ChatResult = {
   kind: "logged", mealId: "m1", analysis: meal("m1", 300), date: "2026-08-25", hint: "correction",
   totals: { guessed: false, kcal: 300, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },

@@ -260,7 +260,7 @@ test("an estimate past the moment the server stops holding it is not offered", a
   // `expiresAt` is sent so a surface stops offering a confirm it cannot honour (#367).
   await page.route("**/api/v1/messages", (r) => r.request().method() !== "POST" ? r.fallback() : r.fulfill({
     status: 200, contentType: "application/json", body: JSON.stringify({
-      kind: "proposed", pendingId: "p-gone", date: "2026-09-10", expiresAt: "2000-01-01T00:00:00.000Z",
+      kind: "proposed", pendingId: "p-gone", date: "2026-09-10", expiresAt: "2000-01-01T00:00:00.000Z", verdictLines: [],
       analysis: { items: [{ name: "banana", grams: 120 }], kcal: 107 },
     }),
   }));

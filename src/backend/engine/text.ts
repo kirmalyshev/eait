@@ -9,7 +9,7 @@
 
 import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
-  type Profile, explainTargets,
+  type Profile, explainTargets, verdictCardLines,
 } from "@eait/shared";
 import { TEXT_MODEL_CALLS, dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -209,6 +209,9 @@ async function textTurn(
         await deps.store.putPending({ id: pendingId, userId, analysis, date, expiresAt });
         return {
           kind: "proposed", pendingId, analysis, date, expiresAt: new Date(expiresAt).toISOString(),
+          // The card's verdict lines, worded here in the account's language — the web bundle has
+          // no Lingui catalog to compose them from (#91).
+          verdictLines: verdictCardLines(analysis.verdicts, profile.lang),
         } satisfies MealProposed;
       }
 
