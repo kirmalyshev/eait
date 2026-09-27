@@ -53,6 +53,22 @@ export const PACES = ["easy", "steady", "push"] as const;
 export type Pace = (typeof PACES)[number];
 
 /**
+ * The unit pair the body screens and every weight chart render in. Storage stays metric
+ * (`height_cm`, `weight_kg`); this is a DISPLAY preference set by the cm|ft,in / kg|lb toggle,
+ * which the client defaults from the device locale. Null = never chosen (metric renders).
+ */
+export const UNITS = ["metric", "imperial"] as const;
+export type Units = (typeof UNITS)[number];
+
+/**
+ * Cal AI's five "what's been hard" answers (design pro, onboarding 11/12), in list order — the
+ * order is load-bearing: the first picked writes the On-track caption and every pick orders
+ * Chat's starters. Replaces the shipped eight (`struggleCard` et al.), which are retired.
+ */
+export const STRUGGLES = ["consistency", "habits", "support", "busy", "ideas"] as const;
+export type Struggle = (typeof STRUGGLES)[number];
+
+/**
  * Every language the server stores, the model answers in, and the picker offers.
  *
  * IN PICKER ORDER, and English first because it is the one `Localized<T>` requires. The rest are
@@ -100,9 +116,21 @@ export interface Profile {
   target_weight_kg: number | null;
   activity: ActivityLevel | null;
   pace: Pace | null;
+  /** cm|ft,in / kg|lb display toggle; null = never set, metric renders. Storage stays metric. */
+  units: Units | null;
+  /**
+   * The "what's been hard" picks, stored in LIST order (`STRUGGLES`). `null` = the question was
+   * never asked — that distinction is what resume checks: an empty array is an answer, `null` is
+   * an interruption.
+   */
+  struggles: Struggle[] | null;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
-  /** CLOSED four-tag vocabulary — see `RESTRICTION_TAGS`. Each drives a cap AND a verdict key. */
+  /**
+   * Closed vocabulary — see `RESTRICTION_TAGS`. Two views of it: the diet it names
+   * (`dietOf`; "balanced" when no diet tag) and the medical caps it carries (`medicalOf`).
+   * Clients never compose it — PATCH writes `diet`/`medical` and the server merges.
+   */
   restrictions: string[];
   /**
    * Free-text "food specifics", prompt-only — everything the closed vocabulary cannot express.

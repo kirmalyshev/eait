@@ -33,10 +33,10 @@
 // so it can render the next question without a round trip. One implementation, so they cannot
 // disagree about what "next" means.
 
-import type { Lang, Profile } from "./types.ts";
+import type { Lang, Profile, Struggle } from "./types.ts";
 import { genderedRussian, LANG_TAG } from "./lang.ts";
-import { ACTIVITY_LEVELS, PACES, SEXES } from "./types.ts";
-import { RESTRICTION_TAGS } from "./targets.ts";
+import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
+import { DIETS, MEDICAL_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
 
 // ── Steps: the fields ────────────────────────────────────────────────────────────────────────
@@ -58,9 +58,14 @@ import { lintCopy } from "./claims.ts";
  * once, on the plan — so the design's order stands unopposed.
  */
 export const ONBOARDING_STEPS = [
-  "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg", "pace", "activity",
-  "country", "restrictions",
+  "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "target_weight_kg", "pace",
+  "struggles", "diet", "medical", "country",
 ] as const;
+/**
+ * The answer keys, in flow order. Most name the profile column the answer lands in; `diet` and
+ * `medical` name the SUBSET of `restrictions` they write — `dietOf`/`medicalOf` are the reads and
+ * the server merges each PATCH view inside that one column, so no client composes it.
+ */
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 /**
@@ -90,7 +95,8 @@ export function stepApplies(step: OnboardingStep, p: Profile): boolean {
  * enter the calorie arithmetic.
  */
 export const ONBOARDING_SCREENS = [
-  "goal", "about", "body", "target", "activity", "country", "restrictions",
+  "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
+  "struggles", "diet", "medical", "country",
 ] as const;
 export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
 
@@ -106,27 +112,21 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * before they existed. Adding a place a user can BE does not add a place a calorie target can come
  * from.
  *
- * `struggles` is a question to the USER — the empathy layer of `copy.md` step 7 — and it is here
- * rather than in `ONBOARDING_STEPS` because nothing it collects is stored on the profile or reaches
- * `explainTargets`. Its answer lives in the conversation, which IS the record: the thread is stored
- * server-side and erased with the account. See `onboarding-chat.ts`.
+ * `ontrack` is the with-plan-vs-without chart beat that follows `struggles` and reads its first
+ * pick for the caption. `how` is the three-beat "whole app" picture after the goal. `signup` is the
+ * account step between the plan and `country` — it belongs to the sign-in surface, and this list
+ * only holds its place in the order. `health` is the post-sign-up Apple Health offer; on a surface
+ * without it (the browser) the prompt is not emitted — see `promptsFor`.
  *
- * `health` is the Apple Health offer (v5): it collects nothing either — its reader is the client's
- * HealthKit fill of `sex`/`birth_year`/`height_cm`/`weight_kg`, which lands on the profile like any
- * other answer. On a surface without Health (the browser) the prompt is simply not emitted — see
- * `promptsFor`.
- *
- * There were four of the conversation kind. `why`, `moment` and `eatout` were cut on 2026-08-26 by
- * copy.md's second rule — a question earns its place by having a reader, and each of those three
- * wrote something nothing in `src/` read back. `struggles` is the one that survives it: it picks
- * the support cards a sentence later, which the user sees.
+ * `struggles` MOVED OUT of this list in v2: it is a stored field now (`Profile.struggles`), so it
+ * is a screen like any other.
  *
  * They are all places analytics counts, because the funnel's job is to price them. A beat that
  * costs more people than it convinces has to be visible as a drop between two rows.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "health", "struggles", "building", "summary",
+  "welcome", "how", "ontrack", "building", "summary", "signup", "health",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -138,8 +138,8 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "health", "about", "body", "target", "activity",
-  "struggles", "country", "restrictions", "building", "summary",
+  "welcome", "goal", "how", "sex", "age", "height", "weight", "activity", "target", "pace",
+  "struggles", "ontrack", "diet", "medical", "building", "summary", "signup", "country", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -165,14 +165,17 @@ export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
  */
 export const SCREEN_FIELDS: Record<OnboardingScreenId, readonly OnboardingStep[]> = {
   goal: ["goal"],
-  about: ["sex", "birth_year"],
-  body: ["height_cm", "weight_kg"],
-  // Where you want to be, and how fast. One question in two parts, and the pair that a maintaining
-  // user is asked NEITHER of — so both disappear for them.
-  target: ["target_weight_kg", "pace"],
+  sex: ["sex"],
+  age: ["birth_year"],
+  height: ["height_cm"],
+  weight: ["weight_kg"],
   activity: ["activity"],
+  target: ["target_weight_kg"],
+  pace: ["pace"],
+  struggles: ["struggles"],
+  diet: ["diet"],
+  medical: ["medical"],
   country: ["country"],
-  restrictions: ["restrictions"],
 };
 
 /**
@@ -304,10 +307,12 @@ export interface OnboardingScreenContent {
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export interface OnboardingWelcomeContent {
-  /** Spud's opening bubbles. One to four — past that it is a wall, not a front door. */
+  /** The headline. One line now — the picture does the talking (design pro, onboarding 00). */
   lines: string[];
-  /** The quick reply that starts the flow. */
+  /** The primary button — "Build my plan". */
   cta: string;
+  /** The second door — "I already have an account". */
+  signin: string;
 }
 
 /**
@@ -319,39 +324,41 @@ export interface OnboardingWelcomeContent {
  * computed.
  */
 export interface OnboardingBuildingContent {
-  /** What Spud says before the card. */
+  /** Under the counting loader — "Building your personal plan". */
   lines: string[];
-  /** The label beside each figure. The figures themselves are not editable — they are computed. */
-  restLabel: string;
-  activityLabel: string;
-  paceLabel: string;
-  /** Shown only when the safety floor is the reason the number is what it is. */
-  floorLabel: string;
-  /** The floor support card, shown under the arithmetic when the floor bit. `{floor}` is filled. */
+  /** The card's label — "Your daily plan". */
+  title: string;
+  /**
+   * The reveal rows' labels. Their VALUES are computed (`planRows`), never editable — a row the
+   * arithmetic did not produce is a claim, not a label.
+   */
+  rows: { calories: string; protein: string; carbs: string; fat: string; diet: string };
+  /**
+   * The declared-limit row's value, per cap-bearing tag; `{n}` is the cap, filled. A declaration
+   * carrying no numeric cap (`lowsugar`) draws no row — there is no limit to print.
+   */
+  limitCap: { ldl: string; kidneys: string };
+  /** Appears only once the count reaches 100 — "Show me the plan". */
+  cta: string;
+  /** One tap behind the floor marker — the floor explainer card. `{floor}` is filled. */
   floorTitle: string;
   floorBody: string;
 }
 
-/** The payoff. Editable too, because it is the most-read thing in the flow. */
+/** The payoff — the plan card. Editable too, because it is the most-read thing in the flow. */
 export interface OnboardingSummaryContent {
-  /** What Spud says before the plan card. */
+  /** "Here is your plan". */
   lines: string[];
   kcalLabel: string;
-  proteinLabel: string;
   /**
-   * The projection, with `{weeks}`, `{month}` and `{target}` substituted.
-   *
-   * Weeks and a month name, never a day-precise date: `projection.ts` says why. Absent from the
-   * card entirely when `projectGoal` returns null, which is every case where a number would be an
-   * invention rather than a calculation.
+   * The marker under the kcal figure, shown when the share cap or the floor decided the number —
+   * "capped for safety · never below {floor}". `{floor}` is filled from `targets.ts`.
    */
-  projection: string;
-  /** Replaces `projection` past the two-year horizon, where naming a month stops being useful. */
-  projectionFar: string;
-  /** Shown when the share cap bit — `{share}` is the percentage, filled from `targets.ts`. */
+  floorMarker: string;
+  /** The macro cards' labels. `satfat` renders only when the user declared it — hence "you asked". */
+  macros: { protein: string; carbs: string; fat: string; satfat: string };
+  /** One tap behind the marker — the share-cap explainer, `{share}` filled from `targets.ts`. */
   capNote: string;
-  /** The estimates-not-measurements line. */
-  disclaimer: string;
   /** The one button. It opens the camera — see `copy.md` § Step 15. */
   cta: string;
 }
@@ -620,11 +627,14 @@ export function screenOptions(
 
 export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[]>> = {
   goal: ["lose", "maintain", "gain"],
-  about: SEXES,
-  target: PACES,
+  sex: SEXES,
   activity: ACTIVITY_LEVELS,
+  pace: PACES,
+  struggles: STRUGGLES,
+  diet: DIETS,
+  // "none" is a drawn row ("None of these"), not a tag — answering with it stores [].
+  medical: [...MEDICAL_TAGS, "none"],
   country: COUNTRY_CODES,
-  restrictions: RESTRICTION_TAGS,
 };
 
 /**
@@ -646,6 +656,18 @@ export const screenOptionValues = (id: OnboardingScreenId, lang: Lang): readonly
  */
 export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): string =>
   optionLabelIsData(id, value) ? countryLabel(value as CountryCode, lang) : value;
+
+/**
+ * The plan reveal's timing, as DATA — the design's strip (ob-building), verbatim: the count runs
+ * 0 → 100 % in 3.5 s while the six rows tick in at these marks (calories, protein, carbs, fat,
+ * diet, the declared limit), the button appears only at 100 %, and the plan opens a second later
+ * if nobody taps. Exported so neither client hand-types a number that is the animation.
+ */
+export const PLAN_REVEAL = {
+  durationMs: 3500,
+  rowTicksMs: [500, 1000, 1600, 2100, 2700, 3300],
+  autoOpenDelayMs: 1000,
+} as const;
 
 // ── The defaults ─────────────────────────────────────────────────────────────────────────────
 
@@ -701,38 +723,35 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
   // and the sex question gained "other". A stored v13 revision carries neither, so the validator
   // retires it and every language falls back to this.
-  version: 14,
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  version: 15,
   welcome: {
-    lines: [
-      "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
-      "Three minutes of questions, then your plan — daily calories, protein, what's realistic by when — and a verdict on your first meal.",
-      "Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
-    ],
-    cta: "Let's go",
+    lines: ["Snap a meal. Know if it fits."],
+    cta: "Build my plan",
+    signin: "I already have an account",
   },
   screens: [
     {
       id: "goal",
       asks: {
-        goal: { lines: ["The big question: what are you here to do?"] },
+        goal: { lines: ["What are you here to do?"] },
       },
       options: {
         lose: { label: "Lose weight" },
-        maintain: { label: "Maintain my weight" },
+        maintain: { label: "Keep my weight" },
         gain: { label: "Gain weight" },
       },
     },
     {
-      id: "about",
+      id: "sex",
       asks: {
-        sex: { lines: ["A little about you, for the calorie formula. Which fits you?"] },
-        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
-        birth_year: {
-          lines: ["How old are you?"],
-          placeholder: "Your age",
-        },
+        sex: { lines: ["What's your sex?"] },
       },
-
       options: {
         male: { label: "Male" },
         female: { label: "Female" },
@@ -740,56 +759,112 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       },
     },
     {
-      id: "body",
+      id: "age",
       asks: {
-        height_cm: {
-          lines: ["Your numbers now. Roughly is genuinely fine — I'd rather have close than blank. How tall are you, in cm?"],
-          placeholder: "Height in cm",
-        },
-        weight_kg: {
-          lines: ["And your weight now, in kg? The eait iPhone app can keep it updated from Apple Health."],
-          placeholder: "Weight in kg",
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["What's your age?"],
+          placeholder: "Your age",
         },
       },
     },
     {
-      id: "target",
+      id: "height",
       asks: {
-        // Two goals, two sentences, and the pair is why this is one entry rather than a lookup:
-        // "faster isn't better" is a warning about losing, and saying it to a gainer is a reply
-        // written for nobody. `{loseTail}` is dropped for a gain plan — see `askLines`.
-        target_weight_kg: {
-          lines: ["Where would you like to be, in kg?{loseTail}"],
-          placeholder: "Goal weight in kg",
+        height_cm: {
+          lines: ["What's your height?"],
+          placeholder: "Height in cm",
         },
-        pace: { lines: ["And the pace?"] },
       },
-      options: {
-        easy: { label: "Gentle", hint: "≈ 0.25 kg a week" },
-        steady: { label: "Steady", hint: "≈ 0.5 kg a week" },
-        push: { label: "Push", hint: "harder to hold" },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["What do you weigh today?"],
+          placeholder: "Weight in kg",
+        },
       },
     },
     {
       id: "activity",
       asks: {
         activity: {
-          lines: ["How often do you exercise in a normal week? Honest beats aspirational — this moves the number a lot."],
+          lines: ["How active are your days?"],
         },
       },
       options: {
         // Targets v2: three levels id'd by their icons — the range is the label, the line beneath
-        // is the hint — the same list a Health-derived suggestion confirms against
-        // (`activityFromHealthLine`).
+        // is the hint.
         few: { label: "0–2", hint: "Workouts now and then" },
         some: { label: "3–5", hint: "A few workouts a week" },
         many: { label: "6+", hint: "Dedicated athlete" },
       },
     },
     {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["What weight are you aiming for?"],
+          placeholder: "Goal weight in kg",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["How fast?"] },
+      },
+      options: {
+        easy: { label: "Gentle" },
+        steady: { label: "Steady" },
+        push: { label: "Brisk" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["What's been hard?"] },
+      },
+      options: {
+        consistency: { label: "Lack of consistency" },
+        habits: { label: "Unhealthy eating habits" },
+        support: { label: "Lack of support" },
+        busy: { label: "Busy schedule" },
+        ideas: { label: "Lack of meal inspiration" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["Do you follow a diet?"] },
+      },
+      options: {
+        balanced: { label: "Balanced" },
+        wholefood: { label: "Whole-food" },
+        mediterranean: { label: "Mediterranean" },
+        flexitarian: { label: "Flexitarian" },
+        pescatarian: { label: "Pescatarian" },
+        vegetarian: { label: "Vegetarian" },
+        vegan: { label: "Vegan" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["Any medical limits?"] },
+      },
+      options: {
+        kidneys: { label: "Kidney condition" },
+        ldl: { label: "High cholesterol" },
+        lowsugar: { label: "Diabetes risk" },
+        none: { label: "None of these" },
+      },
+    },
+    {
       id: "country",
       asks: {
-        country: { lines: ["Where do you eat? So I know your supermarket, not somebody else's."] },
+        country: { lines: ["Where do you live?"], placeholder: "Search" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -809,39 +884,27 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         other: { label: "Somewhere else" },
       },
     },
-    {
-      id: "restrictions",
-      asks: {
-        restrictions: {
-          lines: ["Last one. Anything I should judge your food against? Only what you pick gets scored — skip it freely."],
-          placeholder: "Allergies, foods you avoid…",
-        },
-      },
-      options: {
-        kidneys: { label: "Kidney condition" },
-        ldl: { label: "High cholesterol" },
-        vegan: { label: "Vegan" },
-        lowsugar: { label: "Diabetes risk" },
-      },
-    },
   ],
   building: {
-    lines: ["That's everything. Give me a second — I'm doing the arithmetic, not guessing."],
-    restLabel: "Your body at rest burns",
-    activityLabel: "With your activity, about",
-    paceLabel: "For your pace, we adjust",
-    floorLabel: "The floor we won't cross",
+    lines: ["Building your personal plan"],
+    title: "Your daily plan",
+    rows: { calories: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat", diet: "Diet" },
+    limitCap: { ldl: "sat fat ≤ {n} g", kidneys: "sodium ≤ {n} mg" },
+    cta: "Show me the plan",
     floorTitle: "We stopped at {floor} kcal",
     floorBody: "The arithmetic wanted to go lower. We don't set targets below this without medical supervision, so this is where yours sits. It'll also say so on your diary.",
   },
   summary: {
-    lines: ["That's you, worked out properly. Here's your plan."],
+    lines: ["Here is your plan"],
     kcalLabel: "kcal a day",
-    proteinLabel: "Protein to aim for",
-    projection: "On this pace you'd be at {target} kg around {month}.",
-    projectionFar: "That's a long road — we'll navigate by the next few weeks, not the horizon.",
+    floorMarker: "capped for safety · never below {floor}",
+    macros: {
+      protein: "Protein",
+      carbs: "Carbs",
+      fat: "Fat",
+      satfat: "Saturated fat · you asked",
+    },
     capNote: "That pace needs a bigger daily change than is safe to keep up, so yours is the safe version: {share}% of what your body burns in a day.",
-    disclaimer: "Estimates, not medical advice. Change any answer in settings.",
     // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
     // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
     // and a second decision.
@@ -1058,15 +1121,27 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
   else {
     bubbles(wel.lines, "welcome.lines", MAX_WELCOME_LINES);
     str(wel.cta, "welcome.cta", MAX_LABEL);
+    str(wel.signin, "welcome.signin", MAX_LABEL);
   }
+
+  const strTable = (v: unknown, at: string, keys: readonly string[], max: number) => {
+    if (typeof v !== "object" || v === null) { push(`${at} is required`); return; }
+    const o = v as Record<string, unknown>;
+    for (const key of keys) str(o[key], `${at}.${key}`, max);
+    for (const key of Object.keys(o)) {
+      if (!keys.includes(key)) push(`${at}.${key} is not a used key`);
+    }
+  };
 
   const bld = raw.building as Record<string, unknown> | undefined;
   if (typeof bld !== "object" || bld === null) push("building is required");
   else {
     bubbles(bld.lines, "building.lines", MAX_ASK_LINES);
-    for (const key of ["restLabel", "activityLabel", "paceLabel", "floorLabel", "floorTitle"] as const) {
-      str(bld[key], `building.${key}`, MAX_LABEL);
-    }
+    str(bld.title, "building.title", MAX_LABEL);
+    strTable(bld.rows, "building.rows", ["calories", "protein", "carbs", "fat", "diet"], MAX_LABEL);
+    strTable(bld.limitCap, "building.limitCap", ["ldl", "kidneys"], MAX_LABEL);
+    str(bld.cta, "building.cta", MAX_LABEL);
+    str(bld.floorTitle, "building.floorTitle", MAX_LABEL);
     str(bld.floorBody, "building.floorBody", MAX_BODY);
   }
 
@@ -1074,12 +1149,11 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
   if (typeof sum !== "object" || sum === null) push("summary is required");
   else {
     bubbles(sum.lines, "summary.lines", MAX_ASK_LINES);
-    for (const key of ["kcalLabel", "proteinLabel", "cta"] as const) {
-      str(sum[key], `summary.${key}`, MAX_LABEL);
-    }
-    for (const key of ["projection", "projectionFar", "capNote", "disclaimer"] as const) {
-      str(sum[key], `summary.${key}`, MAX_BODY);
-    }
+    str(sum.kcalLabel, "summary.kcalLabel", MAX_LABEL);
+    str(sum.floorMarker, "summary.floorMarker", MAX_LABEL);
+    strTable(sum.macros, "summary.macros", ["protein", "carbs", "fat", "satfat"], MAX_LABEL);
+    str(sum.capNote, "summary.capNote", MAX_BODY);
+    str(sum.cta, "summary.cta", MAX_LABEL);
   }
 
   // THE CLAIMS GATE, the same one the notification copy and the landing page run. Onboarding copy
@@ -1151,10 +1225,15 @@ export function usableContent(
     version: c.version,
     welcome: usableWelcome(c.welcome) ? c.welcome : fallback.welcome,
     screens: c.screens,
-    building: usableBlock(c.building, ["restLabel", "floorTitle", "floorBody"]) ? c.building : fallback.building,
+    building: usableBlock(c.building, ["title", "cta", "floorTitle", "floorBody"])
+        && hasKeys(c.building?.rows, ["calories", "protein", "carbs", "fat", "diet"])
+        && hasKeys(c.building?.limitCap, ["ldl", "kidneys"])
+      ? c.building
+      : fallback.building,
     // The summary carries the plan card's every label, so a revision from before one of them
     // renders a card with a hole in it. Filled the same way rather than half-adopted.
-    summary: usableBlock(c.summary, ["kcalLabel", "proteinLabel", "projection", "cta"])
+    summary: usableBlock(c.summary, ["kcalLabel", "floorMarker", "capNote", "cta"])
+        && hasKeys(c.summary?.macros, ["protein", "carbs", "fat", "satfat"])
       ? c.summary
       : fallback.summary,
   };
@@ -1166,6 +1245,13 @@ function usableBlock<T extends { lines?: unknown }>(block: T | undefined, keys: 
   if (!Array.isArray(block.lines) || block.lines.length === 0) return false;
   const b = block as unknown as Record<string, unknown>;
   return keys.every((k) => typeof b[k] === "string" && b[k] !== "");
+}
+
+/** A nested string table — `building.rows`, `summary.macros` — with every key present and set. */
+function hasKeys(v: unknown, keys: readonly string[]): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return keys.every((k) => typeof o[k] === "string" && o[k] !== "");
 }
 
 /**
@@ -1182,7 +1268,8 @@ function usableWelcome(w: OnboardingWelcomeContent | undefined): w is Onboarding
   if (typeof w !== "object" || w === null) return false;
   if (!Array.isArray(w.lines) || w.lines.length === 0) return false;
   if (typeof w.cta !== "string" || w.cta === "") return false;
-  return lintCopy(claimFields({ lines: w.lines, cta: w.cta }), ONBOARDING_CLAIM_RULES).length === 0;
+  if (typeof w.signin !== "string" || w.signin === "") return false;
+  return lintCopy(claimFields({ lines: w.lines, cta: w.cta, signin: w.signin }), ONBOARDING_CLAIM_RULES).length === 0;
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────────────────────
@@ -1212,10 +1299,10 @@ export type OnboardingAction = (typeof ONBOARDING_ACTIONS)[number];
  * know a question WAS answered, not what with — so `value` carries an enumerated choice (`lose`,
  * `moderate`, `de`) and nothing else, and the numeric questions send no value at all.
  *
- * `struggles`, the one question that collects nothing, sends no value either, and it is the
- * strongest case of the lot: "binge episodes" is a disclosure, not a preference. `REPORTABLE_FIELDS`
- * is keyed by `OnboardingStep`, so that field is not on it and its answers are dropped by
- * construction rather than by anybody remembering.
+ * `struggles`/`diet`/`medical` are enumerable picks, sent the way `restrictions` always was: the
+ * vocabulary ids, never free text. (The v2 struggles list is tamer than the retired eight —
+ * "busy schedule", not "binge episodes" — and the medical tags are the same disclosure the old
+ * restrictions answer already sent.)
  *
  * This is not a nicety. Analytics rows outlive the account that produced them in most systems, and
  * the account here can be deleted on demand under 5.1.1(v); a funnel that had recorded someone's
@@ -1241,9 +1328,11 @@ export interface OnboardingEvent {
   at: string;
 }
 
-/** Fields whose answer may be sent as `value`. Everything else is recorded as answered, no more. */
+/** Fields whose answer may be sent as `value`. Everything else is recorded as answered, no more.
+ * The enumerated picks are reportable — a tag list is already what `restrictions` sent — while a
+ * typed number or free text never is. */
 export const REPORTABLE_FIELDS: readonly OnboardingStep[] = [
-  "goal", "sex", "activity", "pace", "country", "restrictions",
+  "goal", "sex", "activity", "pace", "struggles", "diet", "medical", "country",
 ];
 
 export function isReportableField(field: string): boolean {

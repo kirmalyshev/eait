@@ -30,10 +30,11 @@
 // edits them.
 
 import { z } from "zod";
-import type { CountryCode, FoodTargets, Profile } from "@eait/shared";
+import type { CountryCode, DietTag, FoodTargets, MedicalTag, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 import {
-  COUNTRY_CODES, countryLabel, LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, narrowLang,
+  COUNTRY_CODES, countryLabel, LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE,
+  dietOf, isDietTag, isMedicalTag, medicalOf, narrowLang,
 } from "@eait/shared";
 import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
@@ -238,8 +239,19 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   if (profile.product_limitations) {
     lines.push(`Products the user avoids: "${normalizePromptText(profile.product_limitations)}"`);
   }
-  if (profile.restrictions.length > 0) {
-    lines.push(`Declared dietary restrictions: ${profile.restrictions.join(", ")}.`);
+  // Diet and medical are READ THROUGH THEIR OWN READERS, never parsed off the tag list: a diet
+  // preference is a preference, a medical tag is a declaration, and joining the raw array is how
+  // "mediterranean" would come to read like a doctor's note. A tag a binary this old does not
+  // know still reaches the prompt as its own word, dropped nowhere.
+  const diet = dietOf(profile.restrictions);
+  const medical = medicalOf(profile.restrictions);
+  const otherTags = profile.restrictions.filter((r) => !isDietTag(r) && !isMedicalTag(r));
+  if (diet !== "balanced") lines.push(`Dietary preference the user declared: ${DIET_WORDS[diet]}.`);
+  if (medical.length > 0) {
+    lines.push(`Medical declarations: ${medical.map((t) => MEDICAL_WORDS[t]).join(", ")}.`);
+  }
+  if (otherTags.length > 0) {
+    lines.push(`Other declared dietary restrictions: ${otherTags.join(", ")}.`);
   }
   // Country is an identification aid with a measured payoff: the incumbent's recognition
   // complaints skew GB/AU ("wasn't even recognised" — Oatly, Marmite, M&S items), which is the
@@ -602,9 +614,13 @@ export const COACH_TOOL_DEFS = [
  * The context the coach reads before the history and the message. Structured, not a transcript:
  * the question people ask is "how much protein have I had", and rows answer it better than words.
  */
-/** The words the coach reads for each declared tag. Its own list, not the admin's chip labels. */
-const RESTRICTION_WORDS: Record<string, string> = {
-  kidneys: "kidney condition", ldl: "high cholesterol", vegan: "vegan", lowsugar: "diabetes risk (low sugar)",
+/** The words the model reads for each declared tag. Its own list, not the admin's chip labels. */
+const DIET_WORDS: Record<DietTag, string> = {
+  wholefood: "whole-food", mediterranean: "mediterranean", flexitarian: "flexitarian",
+  pescatarian: "pescatarian", vegetarian: "vegetarian", vegan: "vegan",
+};
+const MEDICAL_WORDS: Record<MedicalTag, string> = {
+  kidneys: "kidney condition", ldl: "high cholesterol", lowsugar: "diabetes risk (low sugar)",
 };
 
 /**
@@ -626,9 +642,20 @@ export function buildCoachContext(c: CoachContext): string {
     `Daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
   ];
 
-  // Every declared restriction, named — a vegan told nothing is scored was still offered chicken.
-  // Then which of them carry a cap, so the two sentences the prompt allows have their numbers.
-  const declared = profile.restrictions.map((r) => RESTRICTION_WORDS[r] ?? normalizePromptText(r, 30));
+  // Every declaration, named — a vegan told nothing is scored was still offered chicken. Diet is
+  // a PREFERENCE and medical a DECLARATION, so they are read apart through `dietOf`/`medicalOf`
+  // and said apart: a diet tag must never reach the prompt as a medical fact. Then which of them
+  // carry a cap, so the two sentences the prompt allows have their numbers.
+  const coachDiet = dietOf(profile.restrictions);
+  if (coachDiet !== "balanced") {
+    lines.push(`Diet preference the user declared: ${DIET_WORDS[coachDiet]}.`);
+  }
+  const declared = [
+    ...medicalOf(profile.restrictions).map((t) => MEDICAL_WORDS[t]),
+    ...profile.restrictions
+      .filter((r) => !isDietTag(r) && !isMedicalTag(r))
+      .map((r) => normalizePromptText(r, 30)),
+  ];
   lines.push(`Declared restrictions: ${declared.length > 0 ? declared.join(", ") : "none"}.`);
   const scored = [
     ...(targets.satfat_g !== undefined ? [`saturated fat at most ${targets.satfat_g} g a day (high cholesterol)`] : []),

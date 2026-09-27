@@ -15,9 +15,9 @@ import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
-  OnboardingContentSet, Profile, Provider,
+  OnboardingContentSet, Profile, Provider, Struggle,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -208,6 +208,13 @@ alter table users add column if not exists weight_measured_at timestamptz;
 --
 -- (No backticks anywhere in this file's SQL: it is one template literal, and a backtick ends it.)
 alter table users add column if not exists role text not null default 'user';
+
+-- Onboarding v2 (S5, #82). units is the cm|ft,in / kg|lb display toggle — storage stays metric,
+-- this is presentation only. struggles is the "what's been hard" picks in LIST order and is
+-- NULLABLE on purpose: null is "the question was never asked" — what resume checks — while '{}'
+-- is "asked, nothing picked". A not-null-with-default would erase that distinction.
+alter table users add column if not exists units text;
+alter table users add column if not exists struggles text[];
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
 -- stored value moves to the nearest of them. Idempotent rather than guarded: the new ids match no
@@ -807,6 +814,12 @@ function toProfile(r: UserRow): Profile {
     target_weight_kg: nullableNum(r.target_weight_kg),
     activity: migrateActivityLevel(r.activity as string | null),
     pace: (r.pace ?? null) as Profile["pace"],
+    units: (r.units ?? null) as Profile["units"],
+    // Unknown members drop on the read the way patchProfile drops them on the write: a tag from a
+    // newer binary is unrenderable here, not wrong.
+    struggles: r.struggles === null || r.struggles === undefined
+      ? null
+      : ((r.struggles as string[]).filter((s) => (STRUGGLES as readonly string[]).includes(s)) as Struggle[]),
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -875,8 +888,8 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "country", "restrictions", "medical_limitations", "food_allergies",
-  "product_limitations", "onboarded_at",
+  "activity", "pace", "units", "struggles", "country", "restrictions", "medical_limitations",
+  "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 
 /** The meal columns an update may write. Same rule, same reason. */
@@ -1797,12 +1810,18 @@ export async function postgresStore(
       // The tagged template infers the array type properly, so it is used instead. Found only by
       // running against real Postgres: the memory store accepted the array happily, so onboarding
       // with ANY restriction would have 500ed in production while every test passed.
+      //
+      // `struggles` is the same `text[]` shape and takes the same path — NULL, not '{}', when the
+      // patch asks to clear it, because null is the never-asked marker resume reads.
       if (patch.restrictions !== undefined) {
         await sql`update users set restrictions = ${toPgTextArray(patch.restrictions)} where id = ${userId}`;
       }
+      if (patch.struggles !== undefined) {
+        await sql`update users set struggles = ${patch.struggles === null ? null : toPgTextArray(patch.struggles)} where id = ${userId}`;
+      }
 
       const entries = PROFILE_COLUMNS
-        .filter((c) => c !== "restrictions" && (patch as Record<string, unknown>)[c] !== undefined)
+        .filter((c) => c !== "restrictions" && c !== "struggles" && (patch as Record<string, unknown>)[c] !== undefined)
         .map((c) => [c, (patch as Record<string, unknown>)[c]] as const);
       if (entries.length > 0) {
         // Column names come from the frozen list above, never from the patch's own keys, so no

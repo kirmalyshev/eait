@@ -355,12 +355,55 @@ export function weightRemainingKg(p: Profile): number | null {
  *
  * Ordered so stored tags are stable regardless of input order: `patchProfile` walks this list
  * rather than the request, and onboarding offers the options in it.
+ *
+ * TWO SUBSETS, ONE COLUMN (onboarding v2): the medical declarations carry the caps and verdicts
+ * (`kidneys` → sodium, `ldl` → sat fat, `lowsugar` → prompts only), and the diet tags name what
+ * the user follows. A PATCH writes `diet`/`medical` and the server replaces each subset inside
+ * this array — no client ever composes it.
  */
-export const RESTRICTION_TAGS = ["kidneys", "ldl", "vegan", "lowsugar"] as const;
+export const MEDICAL_TAGS = ["kidneys", "ldl", "lowsugar"] as const;
+export type MedicalTag = (typeof MEDICAL_TAGS)[number];
+
+/** Diets that EXCLUDE things — the analyzer reads these to resolve an ambiguous plate the
+ * declared way. `wholefood`/`mediterranean`/`flexitarian` are preferences: the coach prompt
+ * reads them, the analyzer does not (the reader table, DIRECTION §"Every answer has a reader"). */
+export const EXCLUDING_DIET_TAGS = ["pescatarian", "vegetarian", "vegan"] as const;
+export const DIET_TAGS = [
+  "wholefood", "mediterranean", "flexitarian", "pescatarian", "vegetarian", "vegan",
+] as const;
+export type DietTag = (typeof DIET_TAGS)[number];
+
+/** The diet question's seven answers: `balanced` stores no tag (the default, readers see it). */
+export const DIETS = ["balanced", ...DIET_TAGS] as const;
+export type Diet = (typeof DIETS)[number];
+
+export const RESTRICTION_TAGS = [...MEDICAL_TAGS, ...DIET_TAGS] as const;
 export type RestrictionTag = (typeof RESTRICTION_TAGS)[number];
 
 export function isRestrictionTag(v: string): v is RestrictionTag {
   return (RESTRICTION_TAGS as readonly string[]).includes(v);
+}
+export function isMedicalTag(v: string): v is MedicalTag {
+  return (MEDICAL_TAGS as readonly string[]).includes(v);
+}
+export function isDietTag(v: string): v is DietTag {
+  return (DIET_TAGS as readonly string[]).includes(v);
+}
+
+/** The diet a restrictions array names — "balanced" when it carries no diet tag. At most one is
+ * stored; a legacy row holding two resolves in VOCABULARY order, deterministically. */
+export function dietOf(restrictions: readonly string[]): Diet {
+  return DIET_TAGS.find((t) => restrictions.includes(t)) ?? "balanced";
+}
+
+/** The medical tags a restrictions array carries, in vocabulary order. */
+export function medicalOf(restrictions: readonly string[]): MedicalTag[] {
+  return MEDICAL_TAGS.filter((t) => restrictions.includes(t));
+}
+
+/** Whether a diet excludes the ambiguous-plate answer space (analyzer reads only these). */
+export function isExcludingDiet(d: Diet): boolean {
+  return (EXCLUDING_DIET_TAGS as readonly string[]).includes(d);
 }
 
 // ── Verdicts ─────────────────────────────────────────────────────────────────────────────────

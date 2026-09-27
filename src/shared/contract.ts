@@ -6,7 +6,9 @@
 
 import type {
   ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,
+  Struggle, Units,
 } from "./types.ts";
+import type { Diet, MedicalTag } from "./targets.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
@@ -591,8 +593,24 @@ export interface PatchProfileRequest {
   target_weight_kg?: number | null;
   activity?: ActivityLevel | null;
   pace?: Pace | null;
+  /** The cm|ft,in / kg|lb toggle. Stored metric regardless; this is the display preference. */
+  units?: Units | null;
+  /**
+   * The "what's been hard" picks — stored, so `null` = not asked and `[]` = asked, nothing
+   * picked. Resume reads that difference; a client sending `null` clears it back to unasked.
+   */
+  struggles?: Struggle[] | null;
   country?: string | null;
   restrictions?: string[];
+  /**
+   * WRITE-ONLY views of `restrictions` (onboarding v2). `diet` names the diet the user follows —
+   * `balanced` stores no tag — and `medical` names the declared caps, `[]` meaning none. The
+   * server merges each over the matching subset of `restrictions` and leaves every other entry
+   * alone, so a client never composes the array. Sending `restrictions` TOGETHER with either of
+   * these is refused as ambiguous: two spellings of the same column.
+   */
+  diet?: Diet | null;
+  medical?: MedicalTag[] | null;
   medical_limitations?: string | null;
   food_allergies?: string | null;
   product_limitations?: string | null;

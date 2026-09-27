@@ -1199,7 +1199,7 @@ export function blankProfile(userId: string, lang: Lang): Profile {
   return {
     user_id: userId, lang, goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    country: null,
+    units: null, struggles: null, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
   };
