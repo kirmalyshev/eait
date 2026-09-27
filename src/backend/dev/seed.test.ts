@@ -7,7 +7,6 @@ import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "
 import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { days as daysRead, weights as weightsRead, profileView } from "../engine/index.ts";
 import type { EngineDeps } from "../engine/deps.ts";
@@ -173,7 +172,7 @@ describe("seedDevData", () => {
     const [anna] = await seedDevData(store, { timezone: TZ, only: ["anna"] });
     const deps: EngineDeps = {
       store, config: { ...configDefaults(), timezone: TZ } as Config,
-      llm: demoPorts(), mailer: fakeMailer(), push: fakePush(),
+      llm: demoPorts(), push: fakePush(),
     };
     const today = localDate(TZ);
     const back = (n: number) => dateMinus(today, n);

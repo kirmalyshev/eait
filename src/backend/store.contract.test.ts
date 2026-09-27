@@ -2764,14 +2764,161 @@ function pairingCodes(name: string, make: (opts: StoreOptions) => Promise<Store>
   });
 }
 
+/**
+ * The retention sweep for accounts nobody can reach again (#106). `/start` mints an account at the
+ * first onboarding answer and its cookie dies with the browser; an anonymous install abandoned at
+ * the same place is the same class. After `before` milliseconds of nothing they are deleted — but
+ * an account with an identity that can still reach it, one logged meal, or a session still in use
+ * is none of the sweep's business.
+ *
+ * Every test opens its OWN store, so a count can be exact: the sweeps above share one store per
+ * suite and settle for `toBeGreaterThanOrEqual`, which is what a shared one would make this do.
+ */
+function abandonedAccounts(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`abandoned accounts — ${name}`, () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    let clock = 0;
+    let stores: Store[] = [];
+    const open = async () => {
+      const s = await make({ now: () => clock });
+      stores.push(s);
+      return s;
+    };
+    afterAll(async () => {
+      for (const s of stores) await s.close();
+      stores = [];
+    });
+
+    it("deletes an account that has nothing but the credential it was born with, once idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      // The anonymous device account — a `device` identity is the install's own credential, not a
+      // way back from anywhere else, so it is "no identity" for this purpose.
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = await s.issueToken(userId);
+
+      clock += 31 * DAY;
+
+      // At least one: the sweep is the whole table's, so against real Postgres it also collects
+      // whatever the suites above left behind — exactly-one would be asserting database state.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBeGreaterThanOrEqual(1);
+      // Gone means gone — the profile answers nothing and the session resolves nobody.
+      expect(await s.getProfile(userId)).toBeNull();
+      expect(await s.userIdForToken(token)).toBeNull();
+      // And a second pass finds nothing, which is what makes a daily job safe to leave running.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+    });
+
+    it("deletes the account a browser abandoned, which never had a device at all", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      // `createUser` is the `/start` path: no device id, no identity row, a session cookie that
+      // went away when the tab did.
+      const userId = await s.createUser("en");
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBeGreaterThanOrEqual(1);
+      expect(await s.getProfile(userId)).toBeNull();
+    });
+
+    it("keeps an account a sign-in can still reach", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // Minted per run: `(provider, subject)` is a global primary key, so a fixed subject
+      // collides with the row a previous run kept.
+      await s.addIdentity(userId, "apple", crypto.randomUUID());
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("keeps an account still being talked to over a transport", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // `telegram` mints no session and yet counts: somebody is receiving the bot's messages on
+      // the other end of it, so this is not "no identity" however unreachable it is to a login.
+      await s.addIdentity(userId, "telegram", crypto.randomUUID());
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("never touches an account that has logged a meal, however idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.insertMeal(meal(userId));
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("never touches an account that has ever paid, however anonymous and idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // A LAPSED grant, deliberately: `entitlement_event_at` is the record's existence marker,
+      // and it is the history that disqualifies — the next renewal finds this account or finds
+      // nothing, and an erased one makes a paying stranger of somebody who already paid.
+      await s.putEntitlement(userId, {
+        expiresAt: new Date(clock + DAY).toISOString(),
+        productId: "monthly",
+        eventAt: new Date(clock).toISOString(),
+      });
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("keeps an account still in use — a session touched inside the window", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      clock += 29 * DAY;
+      await s.issueToken(userId);
+      clock += 2 * DAY;
+
+      // Created 31 days ago, active 2 days ago: the account is not idle even though it is old.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
+    it("leaves a young account alone, token or no token", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const userId = await s.createUser("en");
+
+      clock += 10 * DAY;
+
+      // Ten days idle is not thirty, whatever the account is missing.
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+  });
+}
+
 tokenLifetime("memory", async (o) => memoryStore(o));
 pendingLifetime("memory", async (o) => memoryStore(o));
 pairingCodes("memory", async (o) => memoryStore(o));
+abandonedAccounts("memory", async (o) => memoryStore(o));
 
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pendingLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pairingCodes("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+  abandonedAccounts("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
 
   // The same question the tokens table is asked below, for the same reason: a pairing code is a
   // credential, the nightly dump leaves this box, and a column holding the value a person types
@@ -2895,34 +3042,27 @@ if (PG_URL) {
       }
     });
 
-    it("grandfathers a single-opt-in list rather than sweeping it", async () => {
-      // The other migration with a judgement call in it. These addresses were submitted under a
-      // flow that was live at the time and said what it would do; leaving them pending would mean
-      // deleting genuine signups within the week without ever asking, which is a worse answer to
-      // the same question. docs/DEPLOY.md names the decision.
+    it("drops the subscribers table the retired mailing list left behind (#113)", async () => {
+      // The list is gone and the prod table was erased after a verified backup; a self-hosted or
+      // development database that still has it loses it on the next boot, rows and all.
       const sql = await rawSql();
       try {
-        await sql`drop table if exists subscribers`;
-        await sql.unsafe(`create table subscribers (
+        await sql.unsafe(`create table if not exists subscribers (
           email      text primary key,
           token      text not null unique,
           source     text not null,
           created_at timestamptz not null default now()
         )`);
-        const email = `legacy-${RUN}@example.com`;
         await sql`insert into subscribers (email, token, source)
-                  values (${email}, ${`legacy-unsub-${RUN}`}, 'web')`;
+                  values (${`legacy-${RUN}@example.com`}, ${`legacy-unsub-${RUN}`}, 'web')`;
 
+        // Opening a store is what runs the migration.
         const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
         try {
-          // Confirmed, so the sweep leaves it alone — and `addSubscriber` reports no confirmation
-          // token for it, which is what stops the first deploy mailing the whole existing list.
-          expect(await s.pruneUnconfirmedSubscribers(new Date(Date.now() + 1).toISOString())).toBe(0);
-          const upsert = await s.addSubscriber(email, "web");
-          expect(upsert.confirmToken).toBeNull();
-          expect(upsert.created).toBe(false);
-          // The withdrawal token they were given is still the one that works.
-          expect(await s.removeSubscriber(`legacy-unsub-${RUN}`)).toBe(true);
+          const tables = await sql`
+            select table_name from information_schema.tables
+            where table_schema = current_schema() and table_name = 'subscribers'`;
+          expect(tables).toHaveLength(0);
         } finally {
           await s.close();
         }
@@ -3318,13 +3458,14 @@ if (PG_URL) {
         .map(([name]) => name)
         .sort();
       expect(unscoped).toEqual([
-        "addSubscriber", "adminListUsers", "adminMetrics", "claimPairingCode", "confirmSubscriber",
-        "countGlobalAnalyses", "countSubscribersSince", "createUser", "forgetTurnOutcomes",
+        "adminListUsers", "adminMetrics", "claimPairingCode",
+        "countGlobalAnalyses", "createUser", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
-        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions", "pruneExpiredPendings",
-        "pruneExpiredTokens", "pruneHealthDaysBefore", "pruneUnconfirmedSubscribers",
+        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
+        "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
+        "pruneHealthDaysBefore",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
-        "removeSubscriber", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
+        "revokeToken", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken", "usersWithPushTokens",
       ]);
     });

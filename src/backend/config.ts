@@ -223,8 +223,6 @@ export interface Config {
    * this is guarding. Zero disables it; `globalDailyAnalysisCap` is then the only backstop.
    */
   analysisRateLimitPerDay: number;
-  /** Subscribe submissions per hour, per address. The honeypot's backstop. Zero disables. */
-  subscribeRateLimitPerHour: number;
   /**
    * Health-sync posts per hour, per address.
    *
@@ -286,42 +284,7 @@ export interface Config {
   // RETIRED in #391b — the admin is a role on an account. See `adminBootstrapUserId`.
 
   /**
-   * How many addresses the landing page's form may add in a rolling day, across everyone.
-   *
-   * The honeypot stops a bot that fills every field it finds; this stops one that does not. It
-   * counts rows ADDED, not requests accepted — a cap that only counts the ones it liked is a cap a
-   * retry loop walks straight through, which is the same reasoning as `globalDailyAnalysisCap`.
-   */
-  subscribeDailyCap: number;
-
-  /**
-   * How long a submitted-but-unconfirmed address is kept before it is deleted.
-   *
-   * Not a tidying interval. An address that was typed into a form and never confirmed is personal
-   * data held with no basis at all — quite possibly somebody else's address, typed by a stranger —
-   * and a week is long enough for a person to find the email and short enough that nothing lingers.
-   */
-  subscribeConfirmTtlDays: number;
-
-  /**
-   * Who sends the one email this product sends.
-   *
-   * `log` prints the confirmation link and NOT the recipient, which is what makes the whole flow
-   * drivable in development with no vendor account. `resend` is the real one. Anything else is a
-   * startup error rather than a silent fallback to printing links nobody reads.
-   */
-  mailProvider: "log" | "resend";
-  /** The From header. Must be on a domain verified with the provider, or every send is a 403. */
-  mailFrom: string;
-  /** Credential for `resend`. Required when that provider is selected, ignored otherwise. */
-  resendApiKey: string;
-  /** Regional endpoint. The EU one matters here — see `mail/resend.ts`. */
-  resendBaseUrl: string;
-  /** How long one send may hang before it is abandoned, holding a person's form submission. */
-  mailTimeoutMs: number;
-
-  /**
-   * This server's own public origin, used to build the confirmation link.
+   * This server's own public origin.
    *
    * Empty is supported and means "work it out from the request" — the Host header Caddy forwards,
    * plus `X-Forwarded-Proto`. Setting it explicitly is better wherever it is known, because a link
@@ -334,10 +297,8 @@ export interface Config {
    *
    * Split out of `publicApiUrl` in #406, because one value cannot name two origins and the
    * reshuffle needs it to: `app.eait.fit` serves people, `api.eait.fit` serves the phone. The
-   * OAuth `redirect_uri` is where a provider returns a person, so it follows THIS; the
-   * confirmation link in an email is a path on the API, so it follows `publicApiUrl`. Flipping the
-   * single old value would have pointed every double-opt-in link at a host that answers 404 on
-   * `/v1/subscribe/confirm`, and the mailing list would have stopped growing in silence.
+   * OAuth `redirect_uri` is where a provider returns a person, so it follows THIS. The two were
+   * one value until `app.eait.fit` existed, and the split is what lets each keep its own.
    *
    * Empty means "the same origin as the API", which is what every host did before this existed —
    * so an environment that never sets it is unchanged.
@@ -399,7 +360,7 @@ export interface Config {
    * client without it.
    */
   expoPushAccessToken: string;
-  /** How long one push request may hang. Same argument as `llmTimeoutMs` and `mailTimeoutMs`. */
+  /** How long one push request may hang. Same argument as `llmTimeoutMs`. */
   pushTimeoutMs: number;
   /**
    * When the evening line goes out, in this server's `timezone`.
@@ -411,15 +372,11 @@ export interface Config {
   eveningLineTime: { hour: number; minute: number };
 
   /**
-   * The landing page's origin, for the ONE thing the API needs it for: where to send a browser
-   * after it posts the subscribe form.
+   * The landing page's origin, for the one thing the API needs it for: the privacy link `/start`
+   * renders at `${landingUrl}/privacy`.
    *
-   * The form lives on a different origin from this API and the page carries no JavaScript, so the
-   * browser NAVIGATES to the response. Without somewhere to send it back to, a person who
-   * subscribed would be left looking at a JSON body on an api. hostname.
-   *
-   * Empty is a supported state, not a broken one: the routes answer with JSON instead of
-   * redirecting, which is what a `curl` and a backend deployed without a landing page both want.
+   * Empty is a supported state, not a broken one: the pages then carry no privacy link, which is
+   * what a backend deployed without a landing page has to do.
    */
   landingUrl: string;
 
@@ -529,7 +486,6 @@ export function configDefaults(): Config {
     sessionTtlDays: DEFAULT_SESSION_TTL_MS / (24 * 60 * 60 * 1000),
     authRateLimitPerHour: 20,
     analysisRateLimitPerDay: 60,
-    subscribeRateLimitPerHour: 5,
     healthSyncRateLimitPerHour: 120,
     linesRateLimitPerHour: 120,
     appleAudiences: [],
@@ -554,13 +510,6 @@ export function configDefaults(): Config {
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "eait_fit_pro",
     revenueCatAcceptSandbox: false,
-    subscribeDailyCap: 200,
-    subscribeConfirmTtlDays: 7,
-    mailProvider: "log",
-    mailFrom: "eait <lets@eait.fit>",
-    resendApiKey: "",
-    resendBaseUrl: "https://api.resend.com",
-    mailTimeoutMs: 15_000,
     publicApiUrl: "",
     publicWebUrl: "",
     telegramBotToken: "",
@@ -646,22 +595,6 @@ export function loadConfig(): Config {
     );
   }
 
-  const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
-  if (subscribeConfirmTtlDays < 1) {
-    throw new Error("[eait] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
-  }
-
-  // An unknown provider is a STARTUP ERROR, not a fallback to `log`. Falling back would mean a
-  // typo in a deploy variable produced a server that quietly printed confirmation links into a
-  // container log instead of sending them, and the only symptom is a list that stops growing.
-  const mailProvider = (process.env.EAIT__BACKEND__MAIL_PROVIDER ?? d.mailProvider) as Config["mailProvider"];
-  if (mailProvider !== "log" && mailProvider !== "resend") {
-    throw new Error(`[eait] EAIT__BACKEND__MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
-  }
-  if (mailProvider === "resend" && !process.env.EAIT__BACKEND__RESEND_API_KEY) {
-    throw new Error("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
-  }
-
   // A value the provider rejects is a 400 on EVERY schema call — charged, because a 400 is not a
   // gateway refusal — so a typo here would spend every user's sample on nothing. Refused at boot.
   const llmReasoningEffort = process.env.EAIT__BACKEND__LLM_REASONING_EFFORT ?? d.llmReasoningEffort;
@@ -697,7 +630,6 @@ export function loadConfig(): Config {
     sessionTtlDays,
     authRateLimitPerHour: int("EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
     analysisRateLimitPerDay: int("EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
-    subscribeRateLimitPerHour: int("EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
     healthSyncRateLimitPerHour: int("EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
     linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
@@ -713,13 +645,6 @@ export function loadConfig(): Config {
     revenueCatEntitlementId:
       process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
     revenueCatAcceptSandbox: ["1", "true"].includes(process.env.EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX ?? ""),
-    subscribeDailyCap: int("EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
-    subscribeConfirmTtlDays: subscribeConfirmTtlDays,
-    mailProvider,
-    mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
-    resendApiKey: process.env.EAIT__BACKEND__RESEND_API_KEY ?? d.resendApiKey,
-    resendBaseUrl: (process.env.EAIT__BACKEND__RESEND_BASE_URL ?? d.resendBaseUrl).replace(/\/$/, ""),
-    mailTimeoutMs: int("EAIT__BACKEND__MAIL_TIMEOUT_MS", d.mailTimeoutMs),
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
     telegramBotToken: telegramBotTokenFromEnv(),
@@ -801,7 +726,7 @@ export function telegramBotTokenFromEnv(): string {
  */
 export function redact(c: Config): Record<string, unknown> {
   const {
-    llmApiKey: _k, resendApiKey: _r, revenueCatWebhookToken: _rc,
+    llmApiKey: _k, revenueCatWebhookToken: _rc,
     expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, databaseUrl,
     ...rest
   } = c;
@@ -811,7 +736,6 @@ export function redact(c: Config): Record<string, unknown> {
     llmApiKey: "***",
     // Destructured out above and reinstated as a mask, so a field added to Config can never reach
     // this log by being forgotten — the omission is the default and the disclosure is the edit.
-    resendApiKey: c.resendApiKey === "" ? "(unset)" : "***",
     // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
     // Same again: whether purchases can be reported at all is the thing worth reading in a log.
     revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
@@ -900,7 +824,6 @@ export function demoConfig(): Config {
     // OVERRIDABLE, under a name of its own — see `demoAuthRateLimitPerHour` below.
     authRateLimitPerHour: demoAuthRateLimitPerHour(),
     analysisRateLimitPerDay: 1_000_000,
-    subscribeRateLimitPerHour: 1_000_000,
     healthSyncRateLimitPerHour: 1_000_000,
     linesRateLimitPerHour: 1_000_000,
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
@@ -928,9 +851,8 @@ export function demoConfig(): Config {
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? "",
     applePrivateKey: applePrivateKeyFromEnv(),
     webPaywall: webPaywallFromEnv(),
-    // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
-    // by reading the code — you have to POST the form and watch where the browser goes — and a
-    // demo that always answered JSON would make that untestable outside production.
+    // Same argument — "works in demo, untested in production" is the shape of every configuration
+    // bug that ships. The privacy link `/start` renders comes off this.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
     // And the same argument again for the notification sweep. `choosePush` gives a demo the
     // LOGGING implementation whatever these say, so nothing can leave the machine — but the

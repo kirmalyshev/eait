@@ -70,12 +70,22 @@ msgstr "{noun} — tinggi"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — sesuai rencana"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — sangat tinggi"
 
 #. js-lingui-explicit-id
@@ -120,6 +130,11 @@ msgstr "Jawab dulu pertanyaan rencananya di web."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Kalori"
 
@@ -137,16 +152,6 @@ msgstr "Karbohidrat"
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
 msgstr "Membandingkan dengan rencanamu"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Konfirmasi bahwa alamat ini milikmu:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Konfirmasi emailmu untuk eait"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -234,11 +239,6 @@ msgid "thread.firstVerdict.fixHint"
 msgstr "Kalau ada yang meleset, bilang saja — \"nasinya setengah\", \"tanpa alpukat\" — atau ketuk kartunya dan ubah gramnya."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Catat"
@@ -309,11 +309,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Sesuai rencana."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Satu hal lagi yang sebentar lagi ditanyakan iOS: notifikasi. Sehari satu dan tidak pernah lebih — baris pukul 20:30, plus dua pengingat sebelum minggu gratisnya habis kalau kamu sedang menjalaninya. Selain itu tidak pernah ada."
@@ -345,6 +340,11 @@ msgstr "Dipulihkan — kamu sudah masuk. Satu foto atau satu kalimat, dua-duanya
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "lemak jenuh"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
 
@@ -360,13 +360,13 @@ msgstr "Masuk"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
-msgid "verdict.noun.kidneys"
-msgstr "Natrium"
+msgid "verdict.noun.inline.kidneys"
+msgstr "natrium"
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis."
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "Natrium"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

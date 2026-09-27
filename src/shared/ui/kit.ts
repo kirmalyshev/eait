@@ -23,7 +23,7 @@ import {
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
 import { RADIUS, SHADOW } from "../design.ts";
-import { LANG_TAG, spellUnit, UNIT_KCAL, wholeNumbers, type Lang } from "../lang.ts";
+import { LANG_TAG, spellUnit, UNIT_KCAL, weekdayLetters, wholeNumbers, type Lang } from "../lang.ts";
 import { MOUTHS, spudSvg, type MascotMood } from "../mascot.ts";
 
 /** Text or an attribute value, made inert. The one escaper both surfaces get. */
@@ -93,7 +93,7 @@ export interface WeekDayRow extends ChartDay {
 }
 
 export const weekStrip = (days: readonly WeekDayRow[], lang: Lang): string => {
-  const letterOf = new Intl.DateTimeFormat(LANG_TAG[lang], { weekday: "narrow", timeZone: "UTC" });
+  const letters = weekdayLetters(lang);
   const fullDate = new Intl.DateTimeFormat(LANG_TAG[lang], { dateStyle: "full", timeZone: "UTC" });
   const cells = days.map((day) => {
     const noon = new Date(`${day.date}T12:00:00Z`);
@@ -104,7 +104,7 @@ export const weekStrip = (days: readonly WeekDayRow[], lang: Lang): string => {
       : `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
         `<circle class="fg" cx="15" cy="15" r="12" fill="none" stroke="var(--${ring.tone})" stroke-width="2.4" ` +
         `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
-    const letter = esc(letterOf.format(noon));
+    const letter = esc(letters[(noon.getUTCDay() + 6) % 7]!);
     const num = Number(day.date.slice(8, 10));
     return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
       `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;

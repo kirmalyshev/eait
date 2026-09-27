@@ -1,6 +1,6 @@
 // Delivering a notification to a device, as a port.
 //
-// Same reason `llm/port.ts` and `mail/port.ts` exist: the sweep that composes the 20:30 line is
+// Same reason `llm/port.ts` exists: the sweep that composes the 20:30 line is
 // where this product's own bugs live, and a test of it must not need Expo, a device, or a network.
 //
 // TWO METHODS, because Expo's push API has two phases and the second one is not optional. `send`

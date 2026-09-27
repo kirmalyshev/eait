@@ -65,10 +65,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * predicate is forgotten, widened, or written against the wrong column.
  *
  * `users` is here keyed on `id`, because a user row IS the account; the rest key on `user_id`.
- * Absent on purpose, all four of them: `onboarding_content` and `notification_copy` (one row each,
- * id = 1, the same copy for everybody), `llm_prompts` (one set of system prompts for the whole
- * instance, admin-edited, no account anywhere near it) and `subscribers`, which has no account and
- * must never gain one — see the note on that table and the rule in AGENTS.md.
+ * Absent on purpose, all three of them: `onboarding_content` and `notification_copy` (one row each,
+ * id = 1, the same copy for everybody) and `llm_prompts` (one set of system prompts for the whole
+ * instance, admin-edited, no account anywhere near it).
  *
  * A NEW USER-SCOPED TABLE ADDS ITS LINE HERE. The test that reads the CATALOG rather than this list
  * (`store.contract.test.ts`, "row-level security") is what makes that a rule rather than a hope: it
@@ -680,18 +679,6 @@ alter table llm_prompts drop constraint if exists llm_prompts_key_check;
 alter table llm_prompts add constraint llm_prompts_key_check
   check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'glance', 'coach'));
 
--- The mailing list, from the landing page.
---
--- NO FOREIGN KEY TO users, deliberately. A subscriber is not an account: the app never asks for an
--- email and never stores one, and the only way that stays true is if the list it does keep is not
--- attached to the accounts. The consequence to know about is that deleting an account does NOT
--- remove an address from here -- withdrawal is its own action, which is what the token column is.
---
--- The email is the primary key, so a second submission of the same address is an upsert rather than
--- a second row with a second token of which only one would unsubscribe them.
--- A row here is NOT a subscriber until confirmed_at is set. See engine/subscribe.ts: an address
--- typed into a form is not consent, and in Germany specifically the standard for proving consent is
--- the confirmed variety. Unconfirmed rows are swept after a few days rather than kept.
 -- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
 -- of numbers per day, and a per-second heart rate series would be a large pile of special-category
 -- data whose only property is risk.
@@ -730,15 +717,6 @@ create table if not exists weights (
   primary key (user_id, date)
 );
 
-create table if not exists subscribers (
-  email         text primary key,
-  token         text not null unique,
-  confirm_token text not null unique,
-  confirmed_at  timestamptz,
-  source        text not null,
-  created_at    timestamptz not null default now()
-);
-
 -- ── S8: sign-up consent ──────────────────────────────────────────────────────────────────────
 -- The sign-up screen's two boxes, stored as the dates they were ticked — EU consent needs the
 -- date, so they are timestamps and null is "never given". On the users row so deleting the
@@ -750,57 +728,18 @@ ${RLS_DDL}
 `;
 
 /**
- * Migration for a host whose list predates double opt-in.
- *
- * Separate from SCHEMA because it is conditional in a way a plain DDL string cannot express, and
- * because the grandfathering decision in the middle of it deserves to be read rather than skimmed.
+ * The mailing list is retired (#113): the landing that posted to it is gone and the production
+ * table was erased after a verified backup. `if exists`, because a host that already dropped it
+ * by hand — or never had it — must still migrate clean. Separate from SCHEMA rather than edited
+ * out of it, so the DROP reaches a database that has the table.
  */
-const SUBSCRIBER_MIGRATION = `
-do $$
-begin
-  if not exists (
-    select 1 from information_schema.columns
-    where table_schema = current_schema()
-      and table_name = 'subscribers' and column_name = 'confirm_token'
-  ) then
-    alter table subscribers add column confirm_token text;
-    alter table subscribers add column confirmed_at timestamptz;
-    -- A token for every existing row, so the column can be NOT NULL and UNIQUE like a new one.
-    update subscribers set confirm_token = encode(gen_random_bytes(32), 'hex')
-      where confirm_token is null;
-    -- EXISTING ADDRESSES ARE GRANDFATHERED AS CONFIRMED.
-    --
-    -- They were submitted under a single-opt-in flow that was live at the time and said what it
-    -- would do. Nulling them instead would mean sweeping genuine signups within the week without
-    -- ever asking, which is a worse answer to the same question. docs/DEPLOY.md names this so it is
-    -- a decision on the record rather than a side effect nobody noticed.
-    update subscribers set confirmed_at = created_at where confirmed_at is null;
-    alter table subscribers alter column confirm_token set not null;
-    alter table subscribers add constraint subscribers_confirm_token_key unique (confirm_token);
-  end if;
-end $$;
-
-create index if not exists subscribers_created_idx on subscribers(created_at);
--- The sweep reads this one: pending rows, oldest first.
-create index if not exists subscribers_pending_idx on subscribers(created_at) where confirmed_at is null;
+const DROP_SUBSCRIBERS = `
+drop table if exists subscribers;
 `;
 
 /** Row shapes as Postgres hands them back. Numbers are coerced at the boundary, once. */
 type UserRow = Record<string, unknown>;
 type MealRow = Record<string, unknown>;
-
-/**
- * The unsubscribe token. 256 bits of randomness, hex, in one column.
- *
- * It is a capability: whoever holds it can remove that address and nothing else. That is the whole
- * design — an unsubscribe link that needs a login is an unsubscribe link people do not use, and one
- * that takes the address as a parameter lets anyone unsubscribe anyone.
- */
-function newSubscriberToken(): string {
-  return [...crypto.getRandomValues(new Uint8Array(32))]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 /** One `llm_prompts` row. `updated_at` is an ISO string on both stores, so the two can be compared. */
 const toPromptRevision = (r: Record<string, unknown>): PromptRevision => ({
@@ -1025,13 +964,12 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
+  pruneAbandonedAccounts: "unscoped",
   pruneExpiredTokens: "unscoped",
   pruneExpiredPendings: "unscoped",
   pruneHealthDaysBefore: "unscoped",
-  pruneUnconfirmedSubscribers: "unscoped",
 
-  // ── Rows belonging to nobody: the single-row admin copy, and the mailing list, which has no
-  // account and must never gain one.
+  // ── Rows belonging to nobody: the single-row admin copy.
   getOnboardingContent: "unscoped",
   putOnboardingContent: "unscoped",
   // The six system prompts. One set for the whole instance, admin-edited, no account anywhere.
@@ -1040,10 +978,6 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   promptRevisions: "unscoped",
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
-  addSubscriber: "unscoped",
-  confirmSubscriber: "unscoped",
-  removeSubscriber: "unscoped",
-  countSubscribersSince: "unscoped",
 
   // ── The pool itself.
   close: "raw",
@@ -1200,14 +1134,7 @@ export async function postgresStore(
     // again -- a bounded stall and a loud log in place of an unbounded silent one.
     await migrator`select set_config('lock_timeout', '5s', false)`;
     await migrator.unsafe(SCHEMA);
-    // `gen_random_bytes` is pgcrypto's. Requested only here, and only on the upgrade path — a fresh
-    // database mints its tokens in TypeScript like every other one and needs no extension at all.
-    await migrator.unsafe(`create extension if not exists pgcrypto`).catch(() => {
-      // A managed Postgres may refuse the extension to a non-superuser. The migration below is the
-      // only thing that wants it, so this is fatal ONLY on a host that has rows to migrate — and
-      // there the next statement says so with the right error rather than this one.
-    });
-    await migrator.unsafe(SUBSCRIBER_MIGRATION);
+    await migrator.unsafe(DROP_SUBSCRIBERS);
   } finally {
     await migrator.end();
   }
@@ -1320,7 +1247,11 @@ export async function postgresStore(
         userId = String(found[0].id);
       } else {
         const id = crypto.randomUUID();
-        await sql`insert into users (id, device_id, lang) values (${id}, ${deviceId}, ${lang})
+        // `created_at` from the store's clock rather than the column default, for the reason
+        // `tokens.last_used_at` takes one: a test that can move time forward cannot move
+        // `default now()`, and `pruneAbandonedAccounts` reads this column as its idle floor.
+        await sql`insert into users (id, device_id, lang, created_at)
+                  values (${id}, ${deviceId}, ${lang}, ${new Date(now())})
                   on conflict (device_id) do nothing`;
         // The conflict branch is a genuine race (two cold starts of the same app), not paranoia:
         // re-reading is what makes the second one return the FIRST one's user rather than throwing.
@@ -1379,7 +1310,8 @@ export async function postgresStore(
 
     async createUser(lang: Lang) {
       const id = crypto.randomUUID();
-      await sql`insert into users (id, lang) values (${id}, ${lang})`;
+      // `created_at` from the store's clock, same as `upsertDeviceUser` above.
+      await sql`insert into users (id, lang, created_at) values (${id}, ${lang}, ${new Date(now())})`;
       return id;
     },
 
@@ -2096,66 +2028,6 @@ export async function postgresStore(
       return added;
     },
 
-    // ── The mailing list ─────────────────────────────────────────────────────────────────────
-
-    async addSubscriber(email, source) {
-      const token = newSubscriberToken();
-      const confirmToken = newSubscriberToken();
-      // `do update` rather than `do nothing`, so the RETURNING clause always yields a row and the
-      // existing tokens come back for an address already known. With `do nothing` a repeat
-      // submission returns nothing at all, and the caller cannot tell "already here" from "the
-      // insert failed" — which is the difference between a thank-you page and an error page.
-      //
-      // The update itself is a no-op that touches nothing: the source and the tokens of the first
-      // submission are what stay, because re-submitting must not mint a second confirmation link
-      // and quietly invalidate the one already sitting in somebody's inbox.
-      const rows = await sql`
-        insert into subscribers (email, token, confirm_token, source)
-        values (${email}, ${token}, ${confirmToken}, ${source})
-        on conflict (email) do update set email = excluded.email
-        returning token, confirm_token, confirmed_at, (xmax = 0) as inserted`;
-      const row = rows[0] as Record<string, unknown> | undefined;
-      return {
-        // Null once the address is confirmed: that is the caller's signal to send NOTHING. A
-        // "you are already subscribed" email is unsolicited mail to somebody who did not ask for
-        // it this time.
-        confirmToken: row?.confirmed_at ? null : String(row?.confirm_token ?? confirmToken),
-        unsubscribeToken: String(row?.token ?? token),
-        created: Boolean(row?.inserted),
-      };
-    },
-
-    async confirmSubscriber(confirmToken) {
-      // Idempotent: `confirmed_at` is only written when it is null, and the row is returned either
-      // way, so a second click on the link says the same thing as the first.
-      const rows = await sql`
-        update subscribers set confirmed_at = coalesce(confirmed_at, now())
-        where confirm_token = ${confirmToken}
-        returning email`;
-      return rows.length > 0;
-    },
-
-    async removeSubscriber(token) {
-      const rows = await sql`delete from subscribers where token = ${token} returning email`;
-      return rows.length > 0;
-    },
-
-    async countSubscribersSince(sinceIso) {
-      // Every row, pending or confirmed. Counting only the confirmed ones would be a cap a bot
-      // walks straight through — submitting is what costs a row and an outbound email, and
-      // confirming is the part an abuser never does.
-      const rows = await sql`select count(*)::int as n from subscribers where created_at >= ${sinceIso}`;
-      return num((rows[0] as Record<string, unknown> | undefined)?.n);
-    },
-
-    async pruneUnconfirmedSubscribers(beforeIso) {
-      const rows = await sql`
-        delete from subscribers
-        where confirmed_at is null and created_at < ${beforeIso}
-        returning email`;
-      return rows.length;
-    },
-
     async onboardingFunnel(days): Promise<FunnelAggregate> {
       // `days` is an integer chosen by the engine, never a raw request value, and it is bound as a
       // parameter regardless.
@@ -2705,6 +2577,29 @@ export async function postgresStore(
       // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, portion
       // corrections, the chat thread AND onboarding events with the row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
+    },
+
+    async pruneAbandonedAccounts(before) {
+      // Across every account, like the sweeps it sits beside — see the port for the rule. `device`
+      // is the one provider that does NOT disqualify: it is the anonymous credential an install is
+      // born with, the very class being swept, rather than a way back. `telegram` does disqualify
+      // although `signsIn` answers false for it — somebody is listening on that transport.
+      //
+      // The `not exists` clauses are IN the delete, the same guarded-statement rule as
+      // `pruneHealthDaysBefore`: nothing interleaves between qualifying and going.
+      const rows = await sql`
+        delete from users u
+        where u.created_at < ${new Date(before)}
+          and u.entitlement_event_at is null
+          and not exists (
+            select 1 from identities i
+            where i.user_id = u.id and i.provider <> 'device')
+          and not exists (select 1 from meals m where m.user_id = u.id)
+          and not exists (
+            select 1 from tokens t
+            where t.user_id = u.id and t.last_used_at >= ${new Date(before)})
+        returning u.id`;
+      return rows.length;
     },
 
     async close() {

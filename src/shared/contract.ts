@@ -325,30 +325,6 @@ export const ROUTES = {
   /** POST — a batch of daily health aggregates read off the phone's health store. Upserted. */
   healthDays: "/v1/health/days",
 
-  // ── The mailing list ──────────────────────────────────────────────────────────────────────
-  //
-  // The only two routes here that no app ever calls. They exist for the landing page, they are
-  // unauthenticated, and they take FORM ENCODING rather than JSON — because the page that posts to
-  // them carries no JavaScript, and a plain <form> is the only way to submit without any.
-  //
-  // A subscriber is deliberately NOT a user. There is no row linking the two, and there cannot be.
-  // Since issue #95 an account carries an address as well, and the difference is the whole design:
-  // that one belongs to an account, is held to run it, and is erased with it, while a subscriber
-  // has no account and consented to one specific thing — being told when the app ships. Neither
-  // basis covers the other. It also means leaving the list is its own action with its own token,
-  // not something buried in account deletion.
-  /** POST, form-encoded, unauthenticated. Fields: `email`, and the honeypot `company`. */
-  subscribe: "/v1/subscribe",
-  /**
-   * GET `?t=<token>`. The confirmation half of double opt-in — the link in the one email this
-   * product sends. Until it is followed the address is on no list at all, and if it never is, the
-   * row is deleted within days: an address somebody typed into a form is not consent, and holding
-   * one that was never confirmed is holding personal data with no basis for it.
-   */
-  subscribeConfirm: "/v1/subscribe/confirm",
-  /** GET `?t=<token>`. The withdrawal half — one click, no login, no confirmation screen. */
-  unsubscribe: "/v1/unsubscribe",
-
   /**
    * The browser onboarding, and the ONE route here that is not part of the JSON API.
    *
