@@ -128,7 +128,7 @@ async function linked(): Promise<{ userId: string; from: number }> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
   await patchProfile(deps, userId, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-    target_weight_kg: 65, activity: "moderate", pace: "steady", country: "de",
+    target_weight_kg: 65, activity: "some", pace: "steady", country: "de",
     restrictions: [], complete_onboarding: true,
   });
   const from = nextId++;

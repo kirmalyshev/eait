@@ -225,7 +225,7 @@ const ANSWERS: Record<string, string | string[]> = {
   weight_kg: "80",
   target_weight_kg: "70",
   pace: "steady",
-  activity: "light",
+  activity: "few",
   country: "de",
   restrictions: [],
 };
@@ -664,7 +664,7 @@ describe("the questions", () => {
 
   it("refuses an answer for a question that is not the open one", async () => {
     const session = await signIn();
-    const res = await post("/start/q", { prompt: "activity", answer: "light" }, session);
+    const res = await post("/start/q", { prompt: "activity", answer: "few" }, session);
     expect(res.status).toBe(303);
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     expect((await store.getProfile(userId))!.activity).toBeNull();
@@ -692,10 +692,10 @@ describe("the plan", () => {
 
   it("says when the floor decided the number", async () => {
     const session = await signIn();
-    // Small, light, sedentary and pushing: the deficit runs into `KCAL_FLOOR`.
+    // Small, light, barely active and pushing: the deficit runs into `KCAL_FLOOR`.
     await answerAll(session, {
       ...ANSWERS, height_cm: "150", weight_kg: "48", target_weight_kg: "44", pace: "push",
-      activity: "sedentary",
+      activity: "few",
     });
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     const profile = (await store.getProfile(userId))! as Profile;
@@ -842,7 +842,7 @@ describe("pairing a browser with an app account", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
         goal: "lose", sex: "female", birth_year: 1990, height_cm: 170, weight_kg: 80,
-        target_weight_kg: 70, activity: "light", pace: "steady", country: "de",
+        target_weight_kg: 70, activity: "few", pace: "steady", country: "de",
         restrictions: [], complete_onboarding: true,
       }),
     }));
@@ -1323,7 +1323,7 @@ describe("the support moments", () => {
   it("does the same for activity, pointing on at the struggles question", async () => {
     const session = await signIn();
     await walkTo(session, "activity");
-    const res = await post("/start/q", { prompt: "activity", answer: "light" }, session);
+    const res = await post("/start/q", { prompt: "activity", answer: "few" }, session);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/moment/activity");
     const html = await (await momentPage(session, "activity")).text();
@@ -1334,7 +1334,7 @@ describe("the support moments", () => {
   it("answers struggles with the picked card's moment, and without one with nothing", async () => {
     const session = await signIn();
     await walkTo(session, "activity");
-    await post("/start/q", { prompt: "activity", answer: "light" }, session);
+    await post("/start/q", { prompt: "activity", answer: "few" }, session);
 
     // The struggles screen itself: chips, not a profile field, on its own route.
     const ask = await (await get("/start/struggles", session)).text();
@@ -1355,7 +1355,7 @@ describe("the support moments", () => {
     // "None of these" takes no screen: the moment is skipped by the contract's own null.
     const session2 = await signIn("struggles-none");
     await walkTo(session2, "activity");
-    await post("/start/q", { prompt: "activity", answer: "light" }, session2);
+    await post("/start/q", { prompt: "activity", answer: "few" }, session2);
     const none = await post("/start/struggles", { answer: [""] }, session2);
     expect(none.status).toBe(303);
     expect(none.headers.get("location")).toBe("/start/q");
@@ -2016,7 +2016,7 @@ describe("the plan page hands over to the product", () => {
     const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
     await store.patchProfile(userId, {
       sex: "female", birth_year: 1990, height_cm: 170, weight_kg: 70, target_weight_kg: 65,
-      activity: "light", pace: "steady", goal: "lose", onboarded_at: new Date().toISOString(),
+      activity: "few", pace: "steady", goal: "lose", onboarded_at: new Date().toISOString(),
     });
     return await (await get("/start/plan", cookie)).text();
   };

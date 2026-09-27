@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test";
-import { VERDICT_DIMENSIONS, renderableVerdicts, verdictMood } from "./types.ts";
+import { ACTIVITY_LEVELS, VERDICT_DIMENSIONS, migrateActivityLevel, renderableVerdicts, verdictMood } from "./types.ts";
 import { verdictPillLabel } from "./verdicts.ts";
 import { LANGS } from "./types.ts";
 
@@ -90,5 +90,29 @@ describe("verdictMood", () => {
   it("offers no praise it has nothing to base on: no pill, or only pills this binary cannot read", () => {
     expect(verdictMood({})).toBe("happy");
     expect(verdictMood({ weight: "splendid" })).toBe("happy");
+  });
+});
+
+// The activity vocabulary went from five levels to three (targets v2, decision 7): the stored
+// values of every existing account are the old ids, and this is the ONE mapping that moves them —
+// the schema backfill, the row reader and the patch validator all read it.
+describe("migrateActivityLevel", () => {
+  it("maps each of the five stored ids to the nearest of the three", () => {
+    expect(migrateActivityLevel("sedentary")).toBe("few");
+    expect(migrateActivityLevel("light")).toBe("few");
+    expect(migrateActivityLevel("moderate")).toBe("some");
+    expect(migrateActivityLevel("active")).toBe("some");
+    expect(migrateActivityLevel("athlete")).toBe("many");
+  });
+
+  it("leaves the current ids untouched — the migration is idempotent", () => {
+    for (const level of ACTIVITY_LEVELS) expect(migrateActivityLevel(level)).toBe(level);
+  });
+
+  it("reads an unknown or absent value as unanswered, never as a guess", () => {
+    // A value from no vocabulary cannot be allowed to pick a multiplier silently.
+    expect(migrateActivityLevel("olympian")).toBeNull();
+    expect(migrateActivityLevel(null)).toBeNull();
+    expect(migrateActivityLevel(undefined)).toBeNull();
   });
 });

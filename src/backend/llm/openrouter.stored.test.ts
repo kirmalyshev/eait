@@ -42,7 +42,7 @@ const messagesOf = (body: Record<string, unknown>) =>
 
 const PROFILE = {
   user_id: "u1", lang: "en", goal: "lose", sex: "male", birth_year: 1990, height_cm: 183,
-  weight_kg: 93, target_weight_kg: 88, activity: "moderate", pace: "steady", country: "de",
+  weight_kg: 93, target_weight_kg: 88, activity: "some", pace: "steady", country: "de",
   restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
   onboarded_at: "2026-01-01T00:00:00.000Z",
 } as unknown as CoachInput["context"]["profile"];

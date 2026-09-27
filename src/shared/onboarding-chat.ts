@@ -44,6 +44,7 @@ import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth } from "./projection.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
+import { ACTIVITY_LEVELS, SEXES } from "./types.ts";
 import type { ActivityLevel, Goal, Lang, Profile } from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
@@ -115,13 +116,13 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // reader is the client's HealthKit fill of sex/birth_year/height_cm/weight_kg, and on a surface
   // without Health (the browser) `promptsFor` leaves it out entirely.
   { id: "health", place: "health", kind: "health" },
-  { id: "sex", place: "about", field: "sex", kind: "choice", options: ["female", "male"] },
+  { id: "sex", place: "about", field: "sex", kind: "choice", options: SEXES },
   { id: "birth_year", place: "about", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "body", field: "height_cm", kind: "number" },
   { id: "weight_kg", place: "body", field: "weight_kg", kind: "number" },
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
   { id: "pace", place: "target", field: "pace", kind: "choice", options: ["easy", "steady", "push"] },
-  { id: "activity", place: "activity", field: "activity", kind: "choice", options: ["sedentary", "light", "moderate", "active", "athlete"] },
+  { id: "activity", place: "activity", field: "activity", kind: "choice", options: ACTIVITY_LEVELS },
   { id: "struggles", place: "struggles", kind: "chips", options: STRUGGLES },
   // NO `options`, and it is the only choice prompt without them. The country list is sorted by the
   // reader's own alphabet — Austria files under Ö in German and А in Russian — so it cannot be a
@@ -397,7 +398,7 @@ export function weightAck(bmr: number | null, lang: Lang): string[] {
   return lines;
 }
 
-/** copy.md § Step 06 — one reply per activity level. `athlete` is this binary's fifth. */
+/** copy.md § Step 06 — one reply per activity level; the vocabulary is three now (`few`/`some`/`many`). */
 export const ACTIVITY_REPLIES = (lang: Lang): Record<string, string> =>
   chatCopyFor(lang).activityReplies;
 

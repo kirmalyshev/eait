@@ -264,11 +264,9 @@ const EN: ChatCopy = {
     bmr: "And here's your first number: at rest, your body burns about {bmr} kcal a day. The next questions sharpen it.",
   },
   activityReplies: {
-    sedentary: "Thanks for the honest answer — most people overshoot this one, and then the target overshoots them.",
-    light: "Good — walks count for more than people think.",
-    moderate: "Solid. The number will assume those workouts happen — keep me honest.",
-    active: "Good — that buys you more food. I'd rather fuel it properly than guess low.",
-    athlete: "Then the number has real work to fuel. I'd rather feed it properly than guess low.",
+    few: "Thanks for the honest answer — most people overshoot this one, and then the target overshoots them.",
+    some: "Solid. The number will assume those workouts happen — keep me honest.",
+    many: "Then the number has real work to fuel. I'd rather feed it properly than guess low.",
   },
   strugglesCloser: {
     none: "Even better. If something turns up later, tell me in the chat — the plan can bend.",
@@ -474,11 +472,9 @@ const FR: ChatCopy = {
     bmr: "Et voilà ton premier chiffre : au repos, ton corps brûle environ {bmr} kcal par jour. Les questions suivantes vont l'affiner.",
   },
   activityReplies: {
-    sedentary: "Merci pour la réponse honnête — la plupart des gens surestiment leur activité, et leur objectif finit trop généreux.",
-    light: "Bien — la marche compte plus qu'on ne le croit.",
-    moderate: "Solide. Le chiffre partira du principe que ces séances ont lieu — ne me fais pas mentir.",
-    active: "Bien — ça te donne droit à manger plus. Je préfère bien te nourrir que viser trop bas.",
-    athlete: "Alors il y a du vrai effort à alimenter. Je préfère bien te nourrir que viser trop bas.",
+    few: "Merci pour la réponse honnête — la plupart des gens surestiment leur activité, et leur objectif finit trop généreux.",
+    some: "Solide. Le chiffre partira du principe que ces séances ont lieu — ne me fais pas mentir.",
+    many: "Alors il y a du vrai effort à alimenter. Je préfère bien te nourrir que viser trop bas.",
   },
   strugglesCloser: {
     none: "Encore mieux. Si quelque chose change plus tard, dis-le-moi dans le chat — le plan peut s'adapter.",
@@ -683,11 +679,9 @@ const DE: ChatCopy = {
     bmr: "Und hier ist deine erste Zahl: in Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag. Die nächsten Fragen schärfen sie.",
   },
   activityReplies: {
-    sedentary: "Danke für die ehrliche Antwort — die meisten schätzen sich hier zu hoch ein, und dann schätzt das Ziel sie zu hoch ein.",
-    light: "Gut — Spaziergänge zählen mehr, als man denkt.",
-    moderate: "Solide. Die Zahl geht davon aus, dass diese Einheiten stattfinden — halt mich ehrlich.",
-    active: "Gut — das bringt dir mehr zu essen. Lieber ordentlich versorgen als zu niedrig raten.",
-    athlete: "Dann hat die Zahl echte Arbeit zu versorgen. Lieber ordentlich füttern als zu niedrig raten.",
+    few: "Danke für die ehrliche Antwort — die meisten schätzen sich hier zu hoch ein, und dann schätzt das Ziel sie zu hoch ein.",
+    some: "Solide. Die Zahl geht davon aus, dass diese Einheiten stattfinden — halt mich ehrlich.",
+    many: "Dann hat die Zahl echte Arbeit zu versorgen. Lieber ordentlich füttern als zu niedrig raten.",
   },
   strugglesCloser: {
     none: "Umso besser. Wenn später etwas auftaucht, sag es mir im Chat — der Plan kann sich biegen.",
@@ -892,11 +886,9 @@ const IT: ChatCopy = {
     bmr: "Ed ecco il tuo primo numero: a riposo il tuo corpo brucia circa {bmr} kcal al giorno. Le prossime domande lo affinano.",
   },
   activityReplies: {
-    sedentary: "Grazie per la risposta onesta — quasi tutti esagerano qui, e poi è l'obiettivo a esagerare con loro.",
-    light: "Bene — camminare conta più di quanto si pensi.",
-    moderate: "Solido. Il numero darà per scontato che quegli allenamenti si facciano — non farmi sbagliare.",
-    active: "Bene — così ti spetta più cibo. Preferisco nutrirti come si deve piuttosto che tirare al ribasso.",
-    athlete: "Allora il numero ha del lavoro vero da alimentare. Preferisco nutrirlo come si deve che tirare basso.",
+    few: "Grazie per la risposta onesta — quasi tutti esagerano qui, e poi è l'obiettivo a esagerare con loro.",
+    some: "Solido. Il numero darà per scontato che quegli allenamenti si facciano — non farmi sbagliare.",
+    many: "Allora il numero ha del lavoro vero da alimentare. Preferisco nutrirlo come si deve che tirare basso.",
   },
   strugglesCloser: {
     none: "Meglio ancora. Se salta fuori qualcosa più avanti, dimmelo in chat — il piano sa adattarsi.",
@@ -1101,11 +1093,9 @@ const ES: ChatCopy = {
     bmr: "Y aquí va tu primer número: en reposo tu cuerpo quema unas {bmr} kcal al día. Las siguientes preguntas lo afinan.",
   },
   activityReplies: {
-    sedentary: "Gracias por la respuesta honesta — casi todo el mundo se pasa aquí, y luego el objetivo se pasa con ellos.",
-    light: "Bien — caminar cuenta más de lo que la gente cree.",
-    moderate: "Sólido. El número dará por hecho que esos entrenamientos ocurren — no me dejes mentir.",
-    active: "Bien — eso te da derecho a más comida. Prefiero alimentarlo bien que quedarme corto.",
-    athlete: "Entonces el número tiene trabajo de verdad que alimentar. Prefiero alimentarlo bien que quedarme corto.",
+    few: "Gracias por la respuesta honesta — casi todo el mundo se pasa aquí, y luego el objetivo se pasa con ellos.",
+    some: "Sólido. El número dará por hecho que esos entrenamientos ocurren — no me dejes mentir.",
+    many: "Entonces el número tiene trabajo de verdad que alimentar. Prefiero alimentarlo bien que quedarme corto.",
   },
   strugglesCloser: {
     none: "Mejor aún. Si aparece algo más adelante, dímelo en el chat — el plan sabe adaptarse.",
@@ -1310,11 +1300,9 @@ const VI: ChatCopy = {
     bmr: "Và đây là con số đầu tiên của bạn: lúc nghỉ, cơ thể bạn đốt khoảng {bmr} kcal mỗi ngày. Mấy câu tiếp theo sẽ làm nó chính xác hơn.",
   },
   activityReplies: {
-    sedentary: "Cảm ơn vì câu trả lời thành thật — phần lớn mọi người khai quá tay ở chỗ này, rồi con số cũng quá tay với họ.",
-    light: "Tốt — đi bộ đáng giá hơn người ta tưởng.",
-    moderate: "Ổn đấy. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
-    active: "Tốt — vậy là bạn được ăn nhiều hơn. Mình thà nạp đủ còn hơn đoán thấp.",
-    athlete: "Vậy thì con số này phải nuôi khối lượng vận động thật. Mình thà nạp đủ còn hơn đoán thấp.",
+    few: "Cảm ơn vì câu trả lời thành thật — phần lớn mọi người khai quá tay ở chỗ này, rồi con số cũng quá tay với họ.",
+    some: "Ổn đấy. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
+    many: "Vậy thì con số này phải nuôi khối lượng vận động thật. Mình thà nạp đủ còn hơn đoán thấp.",
   },
   strugglesCloser: {
     none: "Càng tốt. Nếu sau này có gì xuất hiện, cứ nói với mình trong chat — kế hoạch điều chỉnh được.",
@@ -1519,11 +1507,9 @@ const ID: ChatCopy = {
     bmr: "Dan ini angka pertamamu: saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari. Pertanyaan berikutnya akan mempertajamnya.",
   },
   activityReplies: {
-    sedentary: "Terima kasih untuk jawaban jujurnya — kebanyakan orang melebih-lebihkan yang satu ini, lalu targetnya jadi kelewat tinggi buat mereka.",
-    light: "Bagus — jalan kaki bernilai lebih dari yang orang kira.",
-    moderate: "Mantap. Angkanya akan berasumsi latihan itu benar-benar terjadi — koreksi aku kalau meleset, ya.",
-    active: "Bagus — itu artinya jatah makanmu lebih banyak. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
-    athlete: "Kalau begitu angkanya harus menutupi kerja fisik yang nyata. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
+    few: "Terima kasih untuk jawaban jujurnya — kebanyakan orang melebih-lebihkan yang satu ini, lalu targetnya jadi kelewat tinggi buat mereka.",
+    some: "Mantap. Angkanya akan berasumsi latihan itu benar-benar terjadi — koreksi aku kalau meleset, ya.",
+    many: "Kalau begitu angkanya harus menutupi kerja fisik yang nyata. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
   },
   strugglesCloser: {
     none: "Lebih bagus lagi. Kalau nanti ada yang muncul, bilang di chat — rencananya bisa menyesuaikan.",
@@ -1728,11 +1714,9 @@ const RU: ChatCopy = {
     bmr: "И вот твоя первая цифра: в покое тело сжигает около {bmr} ккал в день. Следующие вопросы её уточнят.",
   },
   activityReplies: {
-    sedentary: "Спасибо за честный ответ — здесь большинство завышает, а потом завышенной оказывается и цель.",
-    light: "Хорошо — прогулки значат больше, чем принято думать.",
-    moderate: "Солидно. Цифра будет исходить из того, что эти тренировки действительно случаются, — держи меня в честности.",
-    active: "Хорошо — это покупает тебе больше еды. Лучше накормить как следует, чем занизить наугад.",
-    athlete: "Тогда цифре есть что питать. Лучше накормить как следует, чем занизить наугад.",
+    few: "Спасибо за честный ответ — здесь большинство завышает, а потом завышенной оказывается и цель.",
+    some: "Солидно. Цифра будет исходить из того, что эти тренировки действительно случаются, — держи меня в честности.",
+    many: "Тогда цифре есть что питать. Лучше накормить как следует, чем занизить наугад.",
   },
   strugglesCloser: {
     none: "Тем лучше. Если что-то появится позже, скажи мне в чате — план умеет гнуться.",

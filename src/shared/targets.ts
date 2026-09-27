@@ -38,11 +38,12 @@ import type {
  * These are the widely-published minimums for unsupervised dieting (1200 kcal for women, 1500 for
  * men) — the same 1200 figure the reviewer above cited Harvard for. They are a POLICY FLOOR, not a
  * clinical judgement about any individual: a supervised very-low-calorie diet is a real thing, and
- * this app is not supervision.
+ * this app is not supervision. `other` takes the higher one — the same call `KCAL_FLOOR_UNKNOWN`
+ * makes for a sex that was never answered, because guessing low is the harmful way.
  */
-export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
+export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other: 1500 };
 
-/** Floor used when sex is unknown — the higher of the two, because guessing low is the harmful way. */
+/** Floor used when sex is unknown — the highest of the three, because guessing low is the harmful way. */
 export const KCAL_FLOOR_UNKNOWN = 1500;
 
 /** The largest share of maintenance we will subtract. 20% is the standard "moderate deficit" band. */
@@ -92,11 +93,9 @@ export function isAcceptableWeightKg(kg: number): boolean {
 }
 
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  athlete: 1.9,
+  few: 1.2,
+  some: 1.55,
+  many: 1.725,
 };
 
 // ── Protein (unchanged from eait) ────────────────────────────────────────────────────────────
@@ -152,7 +151,9 @@ export function basalMetabolicRate(p: Profile, today = new Date()): number | nul
   if (p.height_cm < 100 || p.height_cm > 250) return null;
   if (p.weight_kg < 30 || p.weight_kg > 400) return null;
   const base = 10 * p.weight_kg + 6.25 * p.height_cm - 5 * age;
-  return Math.round(p.sex === "male" ? base + 5 : base - 161);
+  // Mifflin-St Jeor publishes two constants. `other` is the mean of them (−78): the literature
+  // has no third, and inventing one would be pretending to a precision the equation does not have.
+  return Math.round(base + { male: 5, female: -161, other: -78 }[p.sex]);
 }
 
 /** Age in whole years, or null when the birth year is missing or out of the supported band. */
@@ -249,7 +250,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
     const band = KCAL_BY_GOAL[profile.goal ?? "maintain"];
     const kcal = Math.max(floorKcal, band);
     return {
-      targets: withCaps({ kcal, protein_g: proteinTarget(profile) }, profile),
+      targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
       basis: {
         bmr: null, tdee: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
         shareCapApplied: false, floorKcal, floorApplied: kcal > band, usedFallbackBand: true,
@@ -257,7 +258,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
     };
   }
 
-  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "sedentary"]);
+  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "few"]);
   const goal = profile.goal ?? "maintain";
   const pace = profile.pace ?? "steady";
 
@@ -283,12 +284,25 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
   const appliedDeltaKcal = kcal - tdee;
 
   return {
-    targets: withCaps({ kcal, protein_g: proteinTarget(profile) }, profile),
+    targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
     basis: {
       bmr: bmrValue, tdee, requestedDeltaKcal, appliedDeltaKcal, shareCapApplied,
       floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
     },
   };
+}
+
+/**
+ * The macro cards the plan draws (decision 3): fat takes 30 % of the kcal, at 9 kcal a gram; carbs
+ * take what protein and fat leave, at 4. Computed HERE and nowhere else — a second split anywhere
+ * would be two numbers that eventually disagree on one card. The remainder clamps at zero: a
+ * protein target at its cap beside a floored kcal may exhaust the budget, and a negative gram is a
+ * nonsense answer, not a hard diet.
+ */
+function macroTargets(kcal: number, protein_g: number): FoodTargets {
+  const fat_g = Math.max(0, Math.round((kcal * 0.3) / 9));
+  const carbs_g = Math.max(0, Math.round((kcal - 4 * protein_g - 9 * fat_g) / 4));
+  return { kcal, protein_g, fat_g, carbs_g };
 }
 
 /** The targets alone, for callers that do not render the reasoning (the analyzer prompt, verdicts). */
