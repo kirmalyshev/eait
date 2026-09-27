@@ -99,7 +99,8 @@ twice: that is an endless pair of requests against a server that has already sai
   the surfaces share — `el()`, `render()`, the language binding, the profile cache, the
   turn/outbox plumbing — lives in `shell.ts`; a screen that imports a sibling screen's helper is a
   second copy of it. The route's TAB, if it has one, is a line in `shell.ts`'s `TABS`, drawn only
-  once the route answers.
+  once the route answers. The screen's own RIGHT SIDE of the top bar (the boards' `wtop`: the date
+  row on Home, nothing on Chat) is `frame.bar` — append into it or leave it empty.
 - A new server call → a method in `api.ts`. If the endpoint does not exist yet, it goes in
   `src/shared/contract.ts` first, then the backend, then here — the order the root `AGENTS.md` sets.
 - A screen's own copy → the surface's `src/shared/app/<surface>-copy.ts` table, in all eight

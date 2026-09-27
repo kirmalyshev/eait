@@ -40,8 +40,14 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 .wnav a { position: relative; display: flex; align-items: center; justify-content: center;
   min-width: 44px; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .wnav a.on { color: var(--ink); font-weight: 600; }
-.wnav a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+.wnav a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+  /* The boards' mark: the accent covers the header's bottom hairline and runs 1px below it
+     (pro.css's a.on::after), so the active tab reads as a cut in the line, not a line above it. */
   background: var(--accent); }
+/* Each screen's own right side of the bar — W4's date with its arrows on Home, nothing on Chat.
+   The shell provides the slot; a screen fills frame.bar or leaves it empty. */
+.wtop .wr { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.wtop .wr:empty { display: none; }
 .wtop .sp { flex: 1; }
 /* THE COLUMN: pro.css's wmain verbatim — a grid, because W4's Home draws a second 360px column;
    one is the single-column form every surface takes until then. wcol's 16px gap is the board's

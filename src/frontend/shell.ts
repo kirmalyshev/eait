@@ -143,7 +143,7 @@ const activeTab = (route: string): string =>
  * row the app navigates by, text links underlined on the active one. A null `active` is the
  * signed-out screen's bar: the mark alone, because the row's destinations are all behind a session.
  */
-function chrome(route: string | null): HTMLElement {
+function chrome(route: string | null, right?: HTMLElement): HTMLElement {
   const bar = el("header", "wtop");
   const brand = el("span", "brand");
   const wm = el("span", "wm");
@@ -172,6 +172,10 @@ function chrome(route: string | null): HTMLElement {
     nav.append(a);
   }
   bar.append(nav, el("span", "sp"));
+  // The right side of the bar is each screen's OWN (the boards' wtop: Home's date with its arrows
+  // there, the upload view's plain date, nothing on Chat). The shell provides the slot — `.wr`,
+  // styled to the boards' right row — and the screen fills `frame.bar` or leaves it empty.
+  if (right) bar.append(right);
   return bar;
 }
 
@@ -533,9 +537,15 @@ export async function flush(): Promise<void> {
 
 // ── The route table and the renderer ──────────────────────────────────────────────────────────
 
-/** What a screen gets from the frame: the profile render() already fetched. */
+/**
+ * What a screen gets from the frame: the profile render() already fetched, and `bar` — the screen's
+ * OWN right side of the top bar (the boards' wtop: Home's date with its arrows, the upload view's
+ * plain date, nothing on Chat). The shell provides the slot; a screen appends into it or leaves it
+ * empty. It is never re-fetched: the bar belongs to the draw that made it.
+ */
 export interface Frame {
   me: ProfileResponse | null;
+  bar: HTMLElement;
 }
 export type ScreenFn = (frame: Frame) => Promise<HTMLElement> | HTMLElement;
 
@@ -591,10 +601,11 @@ export async function render(): Promise<void> {
     if (err instanceof Unauthenticated) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
   }
   if (mine !== drawing) return;
-  app.append(chrome(route), wrap);
+  const right = el("span", "wr");
+  app.append(chrome(route, right), wrap);
   body.textContent = COPY.loading;
   try {
-    const screen = await screenFor(route, { me: profileCache });
+    const screen = await screenFor(route, { me: profileCache, bar: right });
     if (mine !== drawing) return;
     clear(body).append(screen);
     // Whatever was kept the last time this browser had no connection, now that there is a session.
