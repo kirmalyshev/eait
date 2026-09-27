@@ -38,7 +38,9 @@ async function say(page: Page, words: string) {
   await page.getByRole("button", { name: "Send", exact: true }).click();
 }
 
-const waiting = (page: Page) => page.locator(".thread li.me.dim");
+// A kept turn's bubble is dimmed; one whose refusal is back carries "held" — `waiting` is the
+// still-queued kind only.
+const waiting = (page: Page) => page.locator(".thread li.me.dim:not(.held)");
 
 test("a photo and a message sent offline wait in the thread, and go once, in order, when the connection is back", async ({ inWebApp: page }) => {
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();

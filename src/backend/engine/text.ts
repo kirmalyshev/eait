@@ -11,7 +11,7 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
   type Profile, explainTargets,
 } from "@eait/shared";
-import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
@@ -213,6 +213,9 @@ async function textTurn(
         await deps.store.putPending({ id: pendingId, userId, analysis, date, expiresAt });
         return {
           kind: "proposed", pendingId, analysis, date, expiresAt: new Date(expiresAt).toISOString(),
+          // The card's verdict words, in the account's language, composed where the verdict was.
+          verdictInline: verdictInlineText(analysis.verdicts, profile.lang),
+          verdictLabels: verdictLabels(analysis.verdicts, profile.lang),
         } satisfies MealProposed;
       }
 

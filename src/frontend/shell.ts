@@ -28,9 +28,7 @@ import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
-import { renderableVerdicts } from "../shared/types.ts";
-import { verdictPillLabel } from "../shared/verdicts.ts";
-import type { Lang, Verdict, VerdictDimension } from "../shared/types.ts";
+import type { Lang } from "../shared/types.ts";
 import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
@@ -316,14 +314,11 @@ export function proposalCard(
   num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
     el("span", "m t12", UNIT_KCAL[lang]));
   card.append(head, gramMacsDiv(p.analysis));
-  const verdicts = renderableVerdicts(p.analysis.verdicts) as VerdictDimension[];
-  if (verdicts.length > 0) {
+  // The dots' words are the payload's own — the bundle holds no catalog to compose them (#145).
+  if ((p.verdictLabels ?? []).length > 0) {
     card.append(el("div", "hr"));
     const vs = el("div", "vs");
-    for (const d of verdicts) {
-      const v = (p.analysis.verdicts as Record<VerdictDimension, Verdict>)[d];
-      vs.append(el("span", `v ${v}`, verdictPillLabel(d, v, lang)));
-    }
+    for (const v of p.verdictLabels ?? []) vs.append(el("span", `v ${v.tone}`, v.label));
     card.append(vs);
   }
   const actions = el("div", "row pl-actions");
@@ -651,7 +646,9 @@ export async function render(): Promise<void> {
   wrap.append(body);
   if (!signedIn()) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
 
-  const route = location.hash || "#/";
+  // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
+  // take, #93/#94).
+  const route = (location.hash || "#/").split("?")[0]!;
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {

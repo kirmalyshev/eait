@@ -11,7 +11,10 @@ test("the chat asks its one question, and the photo input lives behind a labelle
   await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add a photo" })).toBeVisible();
   // The native input is never shown — it is the labelled round button that drives it.
-  await expect(page.locator('input[type="file"]')).toBeHidden();
+  const box = await page.locator('input[type="file"]').boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.width).toBeLessThanOrEqual(1);
+  expect(box!.height).toBeLessThanOrEqual(1);
 });
 
 test("Gabie's disc sits beside her newest line only, and mine are right-side lines", async ({ inWebApp: page }) => {
@@ -26,7 +29,7 @@ test("Gabie's disc sits beside her newest line only, and mine are right-side lin
 
   // One disc, on the LAST of her lines — the older one keeps her column's spacer in its place.
   await expect(page.locator(".thread .gabie")).toHaveCount(1);
-  await expect(page.locator(".thread li.them").last().locator(".gabie")).toHaveCount(1);
+  await expect(page.locator(".thread li.them:has(.say)").last().locator(".gabie")).toHaveCount(1);
   await expect(page.locator(".thread .saygap")).toHaveCount(1);
   // And her name above the FIRST of them — the boards' rule (design-pro, #94).
   await expect(page.locator(".thread li.them .gname").first()).toHaveText("Gabie · nutritionist");

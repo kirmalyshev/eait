@@ -9,18 +9,13 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
-import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon } from "../../shared/app/chat-copy.ts";
-import { threadCopyFor } from "../../shared/chat-copy.ts";
-import { starterRowsFor } from "../../shared/chat.ts";
-import { renderableVerdicts } from "../../shared/types.ts";
-import { verdictNoun, verdictPillLabel } from "../../shared/verdicts.ts";
-import { wholeNumbers, UNIT_KCAL } from "../../shared/lang.ts";
-import { advancePending, pendingLine } from "../../shared/stream.ts";
+import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
+import { wholeNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
-import type { CoachFocus, MealRecord, PendingPhoto, VerdictDimension } from "@eait/shared";
+import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
-  ChatEntry, ChatHistoryResponse, DeleteLineResponse, EditLineLast, MessageResponse,
-  PendingMealsResponse, PhotoLast, PhotoProgress,
+  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast,
+  MessageResponse, PendingMealsResponse, PhotoLast, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
@@ -33,8 +28,7 @@ import {
 } from "../shell.ts";
 
 const copy = () => chatScreenCopyFor(lang);
-const coachName = (): string => threadCopyFor(lang).coach.name;
-const gabieName = (): string => mealCopyFor(lang).coachLine.replace("{coach}", coachName());
+const gabieName = (coach: string): string => mealCopyFor(lang).coachLine.replace("{coach}", coach);
 
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -47,7 +41,17 @@ export async function chatScreen(): Promise<HTMLElement> {
   // Whose turns this browser is keeping (#708). Without a profile nothing is kept: a turn that
   // cannot be sent is worded as a lost answer, as it was.
   const uid = me?.profile.user_id ?? null;
+  // The coach's name is the profile's own `coachName` (W5 adds the field; the literal is the
+  // interim until that merge), never a Localized copy of it.
+  const coachName = (): string =>
+    (me as (ProfileResponse & { coachName?: string }) | null)?.coachName ?? "Gabie";
   const wrap = el("section", "chat");
+  // `#/chat?focus=<mealId>` — the meal-edit entry W5's logged card and W6's "…" both take
+  // (`meal-edit.html`): the meal's own card leads, Gabie names what she read, and the composer
+  // corrects it — every send carries `focusMealId` so the turn is a correction, not a new meal.
+  const focusId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("focus");
+  const focusMeal = focusId === null ? null
+    : (await api<DayResponse>("/diary/day").catch(() => null))?.meals.find((m) => m.id === focusId) ?? null;
   const thread = el("div", "thread-holder");
   const notice = el("p", "notice");
   // Announced, not only shown: a refusal only the sighted can see is silence to everybody else.
@@ -110,8 +114,9 @@ export async function chatScreen(): Promise<HTMLElement> {
     const gabieLine = (e: ChatEntry): boolean => e.role === "assistant" && e.kind === "text" && e.speaker === "gabie";
     const firstGabie = entries.findIndex(gabieLine);
     const lastGabie = entries.findLastIndex(gabieLine);
-    // A kept turn's error block is also a line of hers — when any stand, hers is the LAST of them.
-    const avatarAt = keptLines.length > 0 ? -2 : lastGabie;
+    // A kept turn's error block — and the focus sheet's opener say — are lines of hers too: when
+    // either stands, the LAST drawn one is where her disc lands.
+    const avatarAt = focusMeal !== null || keptLines.length > 0 ? -2 : lastGabie;
 
     let idx = 0;
     for (const [i, entry] of entries.entries()) {
@@ -214,12 +219,15 @@ export async function chatScreen(): Promise<HTMLElement> {
     // words dimmed, then Gabie's line — the reachability wording for a turn still out, the server's
     // own refusal words for a held one, with Send again beside it.
     for (const e of keptLines) {
-      const li = el("li", `me dim${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
+      // Held is the same dimmed bubble but marked — a waiting turn is pending, a held one has its
+      // refusal beside it, and a spec (or a reader) can tell the queue apart by the class.
+      const li = el("li", `me dim${e.held !== undefined ? " held" : ""}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
       if (e.kind === "photo" && e.photos.length > 0) {
         const hero = el("div", "hero");
         const url = URL.createObjectURL(e.photos[0]!);
         urls.push(url);
         const img = el("img", "") as HTMLImageElement;
+        img.alt = "";
         img.src = url;
         hero.append(img, el("div", "stamp", timeFmt(new Date(e.capturedAt))));
         li.append(hero);
@@ -263,19 +271,36 @@ export async function chatScreen(): Promise<HTMLElement> {
         el("div", "ts", timeFmt(new Date())));
       const card = el("li", `them opts${rise("starters", idx++)}`);
       card.append(optCard(
-        starterRowsFor(me?.profile.struggles ?? null, lang).map((s) => ({ icon: STARTER_ICONS[s.struggle], text: s.text })),
+        starterRows(me?.profile.struggles ?? null, lang).map((s) => ({ icon: STARTER_ICONS[s.struggle], text: s.text })),
         sendText,
       ));
       list.append(hi, card);
     }
 
+    // The meal-edit head (`web/meal-edit.html`): the meal's card with its photo thumb, then her
+    // opener — the items and grams she read, and the ask. Live lines, like the greeting: the
+    // stored thread is untouched.
+    if (focusMeal !== null) {
+      const li = el("li", `them focus-meal${rise(`focus:${focusMeal.id}`, idx++)}`);
+      li.append(mealCard(focusMeal, true), el("div", "ts", timeFmt(new Date(focusMeal.ts))));
+      const say = el("li", `them${rise(`focus-say:${focusMeal.id}`, idx++)}`);
+      say.append(sayBlock(firstGabie === -1, true, (col) => {
+        const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
+          focusMeal.items.map((i) => fill(mealCopyFor(lang).correctItem, {
+            amount: fill(copy().gramsChip, { n: wholeNumbers(lang)(i.grams) }), item: i.name,
+          })));
+        col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
+      }));
+      list.append(li, say);
+    }
+
     // The whole column could not be read and nothing is held: the boards' centred failed state.
-    if (unread !== null && entries.length === 0) {
+    if (unread !== null && entries.length === 0 && keptLines.length === 0) {
       const fail = el("div", "chatfail");
       const say = el("div", "say");
       const av = el("span", "gabie"); av.setAttribute("aria-hidden", "true");
       const col = el("div", "");
-      col.append(el("div", "gname", gabieName()), el("p", "saytitle", copy().loadFailed));
+      col.append(el("div", "gname", gabieName(coachName())), el("p", "saytitle", copy().loadFailed));
       const again = smallCta(copy().tryAgain, () => turn(async () => {}));
       col.append(again);
       say.append(av, col);
@@ -285,7 +310,8 @@ export async function chatScreen(): Promise<HTMLElement> {
     }
     clear(thread).append(list);
     // The composer's prompt is the empty thread's ask until a line is in it.
-    words.placeholder = entries.length === 0 ? copy().composerAsk : fill(copy().composerThread, { coach: coachName() });
+    words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
+      : entries.length === 0 ? copy().composerAsk : fill(copy().composerThread, { coach: coachName() });
     words.setAttribute("aria-label", words.placeholder);
     if (unread !== null) throw unread;
   };
@@ -303,7 +329,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
     say.append(faced ? kitAvatar() : gap);
     const col = el("div", "");
-    if (named) col.append(el("div", "gname", gabieName()));
+    if (named) col.append(el("div", "gname", gabieName(coachName())));
     fill(col);
     say.append(col);
     return say;
@@ -314,9 +340,20 @@ export async function chatScreen(): Promise<HTMLElement> {
     return a;
   };
 
-  /** A meal's thread card (`chat.html`): name, kcal at d22, the gram chips, the verdict dots. */
-  const mealCard = (meal: MealRecord): HTMLElement => {
+  /** A meal's thread card (`chat.html`): name, kcal at d22, the gram chips, the verdict dots.
+      `thumb` is the meal-edit sheet's form — its photo at 52px beside the name (`meal-edit.html`). */
+  const mealCard = (meal: MealRecord, thumb = false): HTMLElement => {
     const card = el("div", "card");
+    if (thumb && (meal.photos ?? 0) > 0) {
+      const img = el("img", "f-thumb") as HTMLImageElement;
+      img.alt = "";
+      card.append(img);
+      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((url) => {
+        if (!img.isConnected) { URL.revokeObjectURL(url); return; }
+        urls.push(url);
+        img.src = url;
+      }).catch(() => {});
+    }
     const head = el("div", "row between");
     head.append(el("b", "", names(meal.items)));
     const num = el("span", "num");
@@ -342,14 +379,12 @@ export async function chatScreen(): Promise<HTMLElement> {
       macs.append(row);
       card.append(macs);
     }
-    const dims = renderableVerdicts(meal.verdicts) as VerdictDimension[];
-    if (dims.length > 0) {
+    // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
+    const vs_ = meal.verdictLabels ?? [];
+    if (vs_.length > 0) {
       card.append(el("div", "hr"));
       const vs = el("div", "vs");
-      for (const d of dims) {
-        const v = meal.verdicts[d];
-        if (v !== undefined) vs.append(el("span", `v ${v}`, verdictPillLabel(d, v, lang)));
-      }
+      for (const v of vs_) vs.append(el("span", `v ${v.tone}`, v.label));
       card.append(vs);
     }
     return card;
@@ -357,10 +392,7 @@ export async function chatScreen(): Promise<HTMLElement> {
 
   /** The coach bar (`chat-coach`): the macro's chip and label, "54 of 109 g", the fill capped. */
   const focusBar = (focus: CoachFocus): HTMLElement => {
-    const labels = copy().macroLabels;
-    const noun = focus.nutrient === "kcal" ? verdictNoun("weight", lang)
-      : focus.nutrient === "satfat" ? verdictNoun("ldl", lang)
-      : labels[focus.nutrient];
+    const noun = copy().macroLabels[focus.nutrient];
     const mb = el("div", "mb");
     const head = el("div", "row between");
     const name = el("span", "row mb-name");
@@ -408,6 +440,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       if (!hero.isConnected) { URL.revokeObjectURL(url); return; }
       urls.push(url);
       const img = el("img", "") as HTMLImageElement;
+      img.alt = "";
       img.src = url;
       hero.prepend(img);
     }).catch(() => { /* a photo that won't read draws the hero's own paper */ });
@@ -419,6 +452,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       const saved = await sendOrKeep({
         id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
         capturedAt: new Date().toISOString(),
+        ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
       }, { onResult: rememberLive });
       return saved;
     });
@@ -473,13 +507,13 @@ export async function chatScreen(): Promise<HTMLElement> {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
         form.append("text", text);
-        let p: PendingPhoto = { glance: null, items: [] };
-        progress.textContent = pendingLine(p, lang);
-        progress.hidden = false;
         try {
           const r = await apiStream<EditLineLast>(MESSAGE(editing.id), { method: "PATCH", body: form }, (line) => {
+            // The stream's progress words arrive ON the event — a glance is its own line, and
+            // `reading`/`item` carry `line` already worded. Printed, never composed.
             const ev = line as PhotoProgress;
-            if (ev.kind === "glance" || ev.kind === "item") { p = advancePending(p, ev); progress.textContent = pendingLine(p, lang); }
+            progress.textContent = ev.kind === "glance" ? ev.text : ev.line;
+            progress.hidden = false;
           });
           if (r.kind === UNKNOWN) throw new Said(unclear());
           if (r.kind === "target-gone") {
@@ -514,7 +548,11 @@ export async function chatScreen(): Promise<HTMLElement> {
         arm();
         return saved;
       }
-      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() }, { onResult: rememberLive });
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
+        capturedAt: new Date().toISOString(),
+        ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
+      }, { onResult: rememberLive });
       words.value = "";
       return saved;
     });

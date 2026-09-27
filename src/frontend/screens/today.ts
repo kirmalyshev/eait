@@ -5,8 +5,7 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { verdictNoun, verdictPillLabel } from "../../shared/verdicts.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
   DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
 } from "@eait/shared/contract";
@@ -15,6 +14,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import type { Localized } from "../../shared/lang.ts";
 import {
   COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
@@ -140,7 +140,9 @@ async function diaryScreen(): Promise<HTMLElement> {
       const counters = el("div", "stats macros");
       counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
       if (day.targets.satfat_g !== undefined) {
-        counters.append(counter(verdictNoun("ldl", lang),
+                // The counter's noun, `verdict.noun.ldl`'s words as a Localized map — the catalog lives
+        // server-side; W4's nutrient cards carry their own names.
+        counters.append(counter(t(lang)(SATFAT),
           Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
       }
       body.append(big, bar, eaten, counters);
@@ -214,10 +216,11 @@ async function diaryScreen(): Promise<HTMLElement> {
         // The row's pills are the meal's OWN verdicts — computed by the server on the write and
         // sent on the row (#52). A client that derived its own would be the second copy
         // `verdictsFromTargets` exists to prevent.
-        const dims = renderableVerdicts(meal.verdicts);
-        if (dims.length > 0) {
+        const labels = meal.verdictLabels ?? [];
+        if (labels.length > 0) {
           const pills = el("span", "pills");
-          for (const d of dims) pills.append(el("span", `pill ${meal.verdicts[d]!}`, verdictPillLabel(d, meal.verdicts[d]!, lang)));
+          // The words arrive on the row — composed where the verdict was, never here.
+          for (const v of labels) pills.append(el("span", `pill ${v.tone}`, v.label));
           name.append(pills);
         }
         const num = document.createElement("td");
@@ -315,6 +318,12 @@ async function diaryScreen(): Promise<HTMLElement> {
  * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing logged.
  * "No meals this week" alone would offer a paying user back from a holiday one meal on us.
  */
+/** "Saturated fat" — the sat-fat counter's noun until W4's nutrient cards replace the counters. */
+const SATFAT: Localized<string> = {
+  en: "Saturated fat", de: "Gesättigte Fette", es: "Grasas saturadas", fr: "Graisses saturées",
+  id: "Lemak jenuh", it: "Grassi saturi", ru: "Насыщенные жиры", vi: "Chất béo bão hoà",
+};
+
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
   if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
     const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);

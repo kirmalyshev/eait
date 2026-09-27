@@ -11,8 +11,8 @@
 // for what a route refuses before the engine runs, and the LAST LINE of the stream for what the
 // engine refuses on the photo route, whose 200 went out with the first byte. What is under test
 // there is what the page does with the answer, not the cap behind it.
-import type { ProfileResponse } from "@eait/shared/contract";
-import { REAL_MODEL, expect, sessionToken, test } from "./fixtures.ts";
+import type { DayResponse, ProfileResponse } from "@eait/shared/contract";
+import { REAL_MODEL, expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 /** The empty thread's prompt — `composerAsk`; a populated one reads `composerThread`. */
@@ -71,7 +71,8 @@ test("a photograph logs a meal, with its caption in the thread", async ({ inWebA
 });
 
 test("a meal in words is proposed first, and Log it puts it in the thread", async ({ inWebApp: page }) => {
-  const words = page.getByPlaceholder(ASK);
+  // The box, not its placeholder: the prompt text itself changes once a line is in the thread.
+  const words = page.locator(".compose .box");
   await words.fill("two boiled eggs and a slice of rye bread");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   // Confirm-first: a meal nobody photographed is one we inferred. The boards' card leads with
@@ -125,7 +126,9 @@ test("the protein question draws the day's bar from the server, a week question 
   await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".thread li.them", { hasText: "Demo answer" }).last()).toBeVisible();
-  await expect(page.locator(".thread .mb")).toHaveCount(1);
+  // The bar is the LIVE answer's own (`focus` is live-only, like `suggestions` — the stored line
+  // keeps the sentence): a newer answer retires it, and a week answer draws none of its own.
+  await expect(page.locator(".thread .mb")).toHaveCount(0);
 });
 
 test("a file that is not a JPEG, PNG or WebP is refused in words, out loud", async ({ inWebApp: page }) => {
@@ -232,9 +235,10 @@ test("a turn whose answer never arrived keeps the photo and offers Send again", 
 });
 
 test("Send again re-sends the kept photo, and the meal is logged exactly once", async ({ inWebApp: page }) => {
-  // The turn LANDED and logged; only the answer was lost on the way back. The resend goes under the
-  // same client id, which the server answers from the first attempt — a second meal would be the bug.
-  await page.route("**/api/v1/meals/photo", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
+  // The connection died before the server ever saw it — never `r.fetch()` on a file-backed
+  // multipart (Playwright truncates the body; the count-asserting spec in app-offline says why).
+  // Send again drains it under the same client id, so one card is the whole proof.
+  await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
@@ -242,7 +246,6 @@ test("Send again re-sends the kept photo, and the meal is logged exactly once", 
   await page.getByRole("button", { name: "Send again" }).click();
   await expect(page.locator(".thread li.me.dim")).toHaveCount(0);
   await expect(page.locator(".thread li.them .card")).toContainText("kcal");
-  // One card, not two — the turn's own id carried the replay.
   await expect(page.locator(".thread li.them .card")).toHaveCount(1);
 });
 
@@ -305,6 +308,28 @@ test("a Log it after the session ended goes to the sign-in, not to 'press it aga
   }));
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+});
+
+test("#/chat?focus= opens the meal's correction — its card, her opener, the words as the answer", async ({ inWebApp: page }) => {
+  // W5's logged card and W6's "…" both hand a mealId here (`web/meal-edit.html` is the board).
+  await logMeal(page);
+  const day = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const mealId = ((await day.json()) as DayResponse).meals[0]!.id;
+  await page.goto(`/#/chat?focus=${mealId}`);
+  // The meal's card first — thumb, name, kcal, dots — then Gabie naming what she read.
+  const card = page.locator(".thread li.focus-meal .card");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("kcal");
+  await expect(page.locator(".thread")).toContainText("Tell me what I got wrong.");
+  await expect(page.getByPlaceholder("Say what was wrong")).toBeVisible();
+  // A send is a CORRECTION — the body names the meal it corrects, and the thread gets the update.
+  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/messages"));
+  await page.getByPlaceholder("Say what was wrong").fill("half that");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  expect((await sent).postDataJSON()).toMatchObject({ focusMealId: mealId });
+  await expect(page.locator(".thread li.me", { hasText: "half that" })).toBeVisible();
 });
 
 test("reduced motion: the thread arrives at its end state, nothing still animating", async ({ inWebApp: page }) => {
