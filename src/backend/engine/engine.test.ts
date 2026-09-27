@@ -201,6 +201,12 @@ describe("onboarding", () => {
     const tighter = { ...deps, config: { ...CONFIG, maxPhotosPerMeal: 1 } };
     expect((await profileView(tighter, userId))!.limits.maxPhotosPerMeal).toBe(1);
   });
+
+  it("sends the coach's name in the account's language, because the Lingui table cannot reach a bundle", async () => {
+    const userId = await onboard();
+    const view = (await profileView(deps, userId))!;
+    expect(view.coachName).toBe(threadCopyFor(view.profile.lang).coach.name);
+  });
 });
 
 describe("photo logging", () => {

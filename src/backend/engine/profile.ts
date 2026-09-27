@@ -10,7 +10,7 @@ import { MAX_PROFILE_TEXT,
   DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STRUGGLES, UNITS,
   checkTargetWeight, explainTargets,
   isAcceptableWeightKg, isDietTag, isMedicalTag, localDate, migrateActivityLevel, offerMath,
-  paywallPrice, perMonth,
+  paywallPrice, perMonth, threadCopyFor,
   type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
@@ -139,6 +139,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
     paywall: paywallOf(deps, profile.lang, userId),
+    coachName: threadCopyFor(profile.lang).coach.name,
   };
 }
 
@@ -350,6 +351,7 @@ export async function patchProfile(
       pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
+      coachName: threadCopyFor(profile.lang).coach.name,
     },
   };
 }

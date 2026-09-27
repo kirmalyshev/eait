@@ -5419,6 +5419,10 @@
           "paywall": {
             "$ref": "#/components/schemas/WebPaywall",
             "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
+          },
+          "coachName": {
+            "type": "string",
+            "description": "The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server that predates the field sends none, and a client falls back to the copy's own name."
           }
         },
         "required": [
@@ -5432,7 +5436,8 @@
           "entitlement",
           "pairAddress",
           "telegramBot",
-          "paywall"
+          "paywall",
+          "coachName"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."

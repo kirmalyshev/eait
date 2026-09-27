@@ -13,7 +13,6 @@
 // ruling the meal detail got on #93: the edit is just a chat.
 
 import { logCopyFor } from "../../shared/app/log-copy.ts";
-import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { ico as icoMarkup, type HeroCallout } from "../../shared/ui/kit.ts";
@@ -72,7 +71,9 @@ export function logScreen(frame: Frame): HTMLElement {
   const L = logCopyFor(lang);
   const n = wholeNumbers(lang);
   const g = spellUnit(lang, "g");
-  const coach = shellCopyFor(lang).coachName;
+  // The coach's name is server-sent (`ProfileResponse.coachName` — the Lingui table cannot reach
+  // this bundle); the literal is only the not-yet-loaded fallback.
+  const coach = me?.coachName ?? "Gabie";
   const wrap = el("section", "log centre");
   frame.bar.append(el("span", "", dayText(me)));
 
@@ -254,7 +255,7 @@ export function logScreen(frame: Frame): HTMLElement {
   const actionsRow = (r: LoggedMeal): HTMLElement => {
     const row = el("div", "logbtns");
     row.append(
-      ctaEl({ text: L.edit, kind: "s", href: `#/chat?focus=${r.mealId}` }),
+      ctaEl({ text: L.edit, kind: "s", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
       ctaEl({ text: L.agree, kind: "p", href: "#/" }),
     );
     return row;
@@ -273,7 +274,7 @@ export function logScreen(frame: Frame): HTMLElement {
       side.append(say("happy", L.firstVerdict, true), mealCard(r, ".4s"));
       const btns = el("div", "logbtns");
       btns.append(
-        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/chat?focus=${r.mealId}` }),
+        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
         // W9's plans paywall is `#/pay` — unbound until it lands; the fallthrough lands Home.
         ctaEl({ text: L.continueCta, kind: "p", href: "#/pay" }),
       );

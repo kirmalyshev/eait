@@ -592,6 +592,13 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
+  /**
+   * The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because
+   * the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words
+   * reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server
+   * that predates the field sends none, and a client falls back to the copy's own name.
+   */
+  coachName: string;
 }
 
 /**
