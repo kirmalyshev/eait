@@ -8,10 +8,11 @@
 // lines out (`TYPING_SCRIPT`); it never changes, so the policy names it by hash rather than by a
 // nonce, and every page works without it — the full text is in the markup.
 
-import { TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
 import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
+import { BOARD_CSS } from "./board-css.ts";
+import { CONTROL_SCRIPT } from "./control.ts";
 import type { Lang } from "@eait/shared";
 
 export function escape(text: string): string {
@@ -262,6 +263,9 @@ label.check {
 /* The register's motion vocabulary, generated — the six verbs, their keyframes, the stagger
    property and the reduced-motion block, so this file never retypes a duration (#78). */
 ${motionCss()}
+
+/* The onboarding boards (#89): W2's register-P frames, scoped under main.ob. */
+${BOARD_CSS}
 `;
 
 /**
@@ -272,44 +276,17 @@ ${motionCss()}
  * party — so an edit that reaches for a CDN fails here rather than shipping one quietly.
  */
 /**
- * Spud types his onboarding lines out, one after another, one character per beat — the pace the
- * app's onboarding keeps (`shared/typing.ts`), so the two surfaces read the same. THE WHOLE LINE
- * IS IN THE MARKUP from the first byte: a line not yet typed is drawn transparent at its final size,
- * so nothing moves, a screen reader has every word, and a browser with no script sees the page whole.
- * `prefers-reduced-motion` shows the lines at once. Only `.bubble.typed` is touched — the chat
- * thread's lines are history, drawn whole.
+ * The one script the page carries (`control.ts`): it drives the boards' pickers — the rulers,
+ * the wheel, the pace slider — and nothing else. Every control it touches degrades to a plain
+ * input the same response already rendered, so a browser with the script blocked still answers
+ * every question; the hash, not a nonce, is what the policy names because the bytes never change.
  */
-export const TYPING_SCRIPT = `(function () {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  var MS = ${TYPE_MS_PER_CHAR}, GAP = 350;
-  var lines = Array.prototype.slice.call(document.querySelectorAll(".bubble.typed")).map(function (p) {
-    var chars = Array.from(p.textContent);
-    var seen = document.createElement("span"), rest = document.createElement("span");
-    rest.className = "untyped";
-    rest.textContent = p.textContent;
-    p.textContent = "";
-    p.appendChild(seen);
-    p.appendChild(rest);
-    return { chars: chars, seen: seen, rest: rest };
-  });
-  var i = 0;
-  function next() {
-    if (i >= lines.length) return;
-    var line = lines[i++], t0 = performance.now();
-    (function tick() {
-      var n = Math.min(line.chars.length, Math.floor((performance.now() - t0) / MS));
-      line.seen.textContent = line.chars.slice(0, n).join("");
-      line.rest.textContent = line.chars.slice(n).join("");
-      if (n < line.chars.length) requestAnimationFrame(tick); else setTimeout(next, GAP);
-    })();
-  }
-  next();
-})();`;
+export { CONTROL_SCRIPT };
 
 /** What the policy allows to run: that script and nothing else. */
-const TYPING_SCRIPT_HASH = createHash("sha256").update(TYPING_SCRIPT).digest("base64");
+const CONTROL_SCRIPT_HASH = createHash("sha256").update(CONTROL_SCRIPT).digest("base64");
 
-export function shell(title: string, body: string, lang: Lang): string {
+export function shell(title: string, body: string, lang: Lang, mainClass?: string): string {
   return `<!doctype html>
 <!-- \`lang\` is not decoration: it is what a screen reader picks a voice from and what a browser
      offers to translate. A German page declaring itself English is read aloud in an English
@@ -324,7 +301,7 @@ export function shell(title: string, body: string, lang: Lang): string {
      page load. A console that always has an error in it is a console nobody reads. -->
 <link rel="icon" href="data:,">
 <style>${STYLES}</style>
-</head><body><main>${body}</main><script>${TYPING_SCRIPT}</script></body></html>`;
+</head><body><main${mainClass ? ` class="${escape(mainClass)}"` : ""}>${body}</main><script>${CONTROL_SCRIPT}</script></body></html>`;
 }
 
 export function html(
@@ -337,7 +314,9 @@ export function html(
     headers: {
       "content-type": "text/html; charset=utf-8",
       "content-security-policy":
-        `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${TYPING_SCRIPT_HASH}'; ` +
+        `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${CONTROL_SCRIPT_HASH}'; ` +
+        // `media-src` is the welcome's recorded demo loop — one self-hosted file, same origin.
+        `media-src 'self'; ` +
         // `https://t.me` because Connect Telegram's POST answers with a redirect there, and a form's
         // redirect is held to this directive as well. `formAction` is the same thing for the
         // sign-up screen: the consent POST's 303 sends the browser to the provider's own origin,

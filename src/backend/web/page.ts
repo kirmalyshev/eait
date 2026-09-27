@@ -16,6 +16,7 @@
 export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
 export * from "./page/shell.ts";
+export * from "./page/board.ts";
 export * from "./page/front-door.ts";
 export * from "./page/sign-up.ts";
 export * from "./page/question.ts";
