@@ -37,6 +37,10 @@ export type Localized<T> = { en: T } & Partial<Record<Lang, T>>;
  */
 export const t = (lang: Lang) => <T>(entry: Localized<T>): T => entry[lang] ?? entry.en;
 
+// The type itself, re-exported so a `ui/` module — which may not reach `types.ts` — can still
+// name the language it formats in (ui.test.ts's allow-list is `./`, palette, design, lang).
+export type { Lang };
+
 /**
  * WHAT THE APP HAS WORDS FOR, which is not what the server accepts.
  *

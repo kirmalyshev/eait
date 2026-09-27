@@ -190,7 +190,8 @@ function signInScreen(): HTMLElement {
   box.append(el("p", "muted", COPY.signedOutLead));
   // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
   // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
+  // The W1 primary button (#88): .cta.p — 16/600 on accent, radius 14, never uppercase.
+  const a = el("a", "cta p", COPY.signIn) as HTMLAnchorElement;
   a.href = "/start";
   box.append(a);
   return box;
