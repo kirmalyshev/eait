@@ -4501,6 +4501,13 @@
               "null"
             ],
             "description": "Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say."
+          },
+          "line": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The change, named — the SAME line the engine writes into the thread (\"Rice 150 → 200 g: 540 → 605 kcal. …\", `changeLine`, #119), returned so the screen that made the write can show it without a second read. Null when the edit moved nothing (a rename), matching the thread."
           }
         },
         "required": [
@@ -4511,7 +4518,8 @@
           "date",
           "via",
           "verdictLabels",
-          "verdictHeadline"
+          "verdictHeadline",
+          "line"
         ],
         "additionalProperties": false
       },

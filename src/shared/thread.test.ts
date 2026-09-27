@@ -251,7 +251,7 @@ describe("oneCardPerMeal — #301", () => {
     const stored = fromHistory([card(meal("m1", 300))]);
     const live: ThreadEntry = {
       id: "a1", role: "assistant",
-      result: { kind: "updated", mealId: "m1", analysis: meal("m1", 870), totals: { guessed: false, kcal: 870, protein_g: 40, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, date: "2026-08-25", via: "nl", verdictLabels: [], verdictHeadline: null },
+      result: { kind: "updated", mealId: "m1", analysis: meal("m1", 870), totals: { guessed: false, kcal: 870, protein_g: 40, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, date: "2026-08-25", via: "nl", verdictLabels: [], verdictHeadline: null, line: null },
     };
     expect(oneCardPerMeal([...stored, live]).map((e) => e.id)).toEqual(["a1"]);
   });
