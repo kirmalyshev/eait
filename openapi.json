@@ -2673,8 +2673,7 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                },
-                "description": "Construct a type with a set of properties K of type T"
+                }
               }
             },
             "required": [
