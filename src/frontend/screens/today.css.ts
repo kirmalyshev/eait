@@ -80,10 +80,6 @@ export const todayCss = `
 .hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
 .scorecard .cta { margin-top: 14px; }
 
-/* The day column's label ("Thursday 24 September" over the meal card). */
-.daylab { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--muted); }
-
 /* The meal list's section title ("Recently uploaded"). */
 .mealtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
 

@@ -13,7 +13,7 @@ import { dayBudget } from "../../shared/budget.ts";
 import { LANG_TAG, UNIT_KCAL, countText, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { ico, tagx, type ChipName, type VerdictTone, type WeekDayRow } from "../../shared/ui/kit.ts";
+import { ico, tagx, type ChipName, type WeekDayRow } from "../../shared/ui/kit.ts";
 import type { MealProposed, MealRecord } from "@eait/shared";
 import type {
   DayResponse, DaysResponse, PendingMealsResponse, PendingResponse, ProfileResponse, WeekResponse,
@@ -333,7 +333,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     }
     card.append(macsRow, el("div", "hr"));
     const vts = el("div", "vts");
-    for (const v of p.verdictLabels) vts.append(verdictDotEl(v.tone as VerdictTone, v.label));
+    for (const v of p.verdictLabels) vts.append(verdictDotEl(v.tone, v.label));
     if (proposedAt !== null) vts.append(el("span", "t12", mealTime(proposedAt)));
     card.append(vts);
     const act = el("div", "pact");
@@ -450,7 +450,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (!rich) page = 0;
 
     // ── The left column: the day label, the meals, the proposal, the empty/failed card ──
-    const left: Element[] = [el("span", "daylab", dateText(viewing))];
+    const left: Element[] = [el("span", "lab", dateText(viewing))];
     if (day === null) {
       const card = el("div", "card failcard");
       const say = el("div", "say");
@@ -543,8 +543,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     }
 
     // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
-    // (today-logging draws compose with no CTA) — and the composer.
-    if (isToday) {
+    // (today-logging draws compose with no CTA) — and the composer. The failed board draws
+    // neither: its right column ends at the dash cards.
+    if (isToday && day !== null) {
       if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
       right.push(composeRow());
     }
