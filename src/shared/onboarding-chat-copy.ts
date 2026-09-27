@@ -1819,7 +1819,9 @@ const RU: ChatCopy = {
   offerHeadline: "Цель {kg} кг. Срок: {month}",
   planGoal: {
     metric: "Цель: минус {n} кг. Срок: {month}",
-    imperial: "Цель: минус {n} фунтов. Срок: {month}",
+    // The SYMBOL, as every other language writes it: the word "фунтов" is the genitive plural and
+    // reads wrong beside 1 or 2–4, which no amount of {n} fixes from inside the template.
+    imperial: "Цель: минус {n} lb. Срок: {month}",
   },
   reactions: {
     goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",

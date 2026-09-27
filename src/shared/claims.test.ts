@@ -17,6 +17,8 @@
 // this product ships, in all eight, run through the gate its own surface uses.
 
 import { describe, expect, it } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { lintCopy } from "./claims.ts";
 import { LANGS } from "./types.ts";
 import { NOTIFICATION_COPY } from "./notifications.ts";
@@ -254,6 +256,35 @@ describe("the plan headline's claims exemption", () => {
     // the other languages' patterns read.
     expect(lintCopy({ "PAGE_COPY.planHeading": filled("en", "imperial") })
       .map((v) => v.pattern)).toContain("weight-promise");
+  });
+
+  it("pins who may publish it — the gate reads strings, not call sites", () => {
+    // lintCopy cannot see WHICH surface renders the sentence; decision 4 allows the onboarding
+    // plan screen alone. So the non-test files that call `planHeadline` or read `planGoal` are
+    // enumerated here: today the helper's own module only, and W3's /start plan renderer adds
+    // itself to this list in its own PR. A file joining this list that is not the plan screen is
+    // a promise being published where it was not approved — this test, not the gate, sees it.
+    const root = join(import.meta.dir, "..", "..");
+    const SKIP_DIRS = new Set([".git", "node_modules", "dist"]);
+    const callers: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) {
+          if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name));
+          continue;
+        }
+        if (!e.name.endsWith(".ts") || e.name.endsWith(".test.ts") || e.name.endsWith(".pw.ts")) continue;
+        const file = join(dir, e.name);
+        const src = readFileSync(file, "utf8");
+        // `"CHAT_COPY.planGoal"` is the exemption NAMING the key, not a read of it — the lookbehind
+        // keeps `claims.ts` itself out of a list about callers.
+        if (/\bplanHeadline\s*\(/.test(src) || /(?<!CHAT_COPY)\.planGoal\b/.test(src)) {
+          callers.push(relative(root, file));
+        }
+      }
+    };
+    walk(root);
+    expect(callers.sort()).toEqual(["src/shared/onboarding-chat.ts"]);
   });
 
   it("sweeps the key's own templates with every rule except the one it is exempt from", () => {

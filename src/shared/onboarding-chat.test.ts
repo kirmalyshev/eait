@@ -789,6 +789,12 @@ describe("planHeadline", () => {
     expect(planHeadline(her, SEP_24, "imperial", "en")).toBe("Goal: lose 13 lbs by January 2027");
   });
 
+  it("writes Russian pounds as the symbol, because the word declines wrong for 1 and 2–4", () => {
+    // A 1 kg loss is 2 lb: "минус 2 lb", never "минус 2 фунтов".
+    const near = profile({ ...her, target_weight_kg: 73 });
+    expect(planHeadline(near, SEP_24, "imperial", "ru")).toContain("минус 2 lb");
+  });
+
   it("is null wherever the plan draws no such headline: maintaining, gaining, or no target", () => {
     expect(planHeadline(profile({ ...her, goal: "maintain", target_weight_kg: null }), SEP_24, "metric", "en")).toBeNull();
     expect(planHeadline(profile({ ...her, goal: "gain", target_weight_kg: 80 }), SEP_24, "metric", "en")).toBeNull();
