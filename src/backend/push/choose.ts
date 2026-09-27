@@ -9,10 +9,9 @@
 //                                                 who learns a device token can impersonate.
 //   enabled with a token                        → expoPush.
 //
-// The warning fires once at boot, which the mailer's history says is not enough on its own — the
-// log provider ran behind a public landing page for weeks and one boot line did not stop it. The
-// difference here is that nothing user-visible depends on a push having been sent: a missing 20:30
-// line is a message that did not arrive, not a form that lied to the person who filled it in.
+// The warning fires once at boot. The difference here is that nothing user-visible depends on a
+// push having been sent: a missing 20:30 line is a message that did not arrive, not a form that
+// lied to the person who filled it in.
 
 import type { Config } from "../config.ts";
 import { expoPush } from "./expo.ts";

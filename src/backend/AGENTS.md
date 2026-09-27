@@ -15,7 +15,7 @@ llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are AUT
                   `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
-mail/, push/      outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
+push/             outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
 telegram/         the Telegram connector, a second transport over the engine — telegram/AGENTS.md
 ```
 
@@ -40,7 +40,7 @@ route. A route that computes is a rule the tests cannot reach.
   `id`, the row IS the account), `tokens`, `identities`, `meals`, `meal_photos`, `pendings`,
   `pairing_codes`, `portion_corrections`, `analyses`, `onboarding_events`, `chat_messages`,
   `push_tokens`, `health_days`, `turns`. Out of it, because they belong to nobody: `onboarding_content`,
-  `notification_copy`, `subscribers`.
+  `notification_copy`.
 - **What declares it is the store's own wrapper, and `SCOPE` says what every method may touch.**
   `postgresStore` wraps each method in a transaction that sets `app.user_id` from the argument
   holding it — so the ninety-nine statements in that file did not have to be rewritten, and one
@@ -256,13 +256,6 @@ naming it too.
   **last** `X-Forwarded-For` value, never the first: a proxy appends what it saw, so everything left
   of it was written by the client. IPv6 keys on the /64. In memory, so a restart forgives everyone
   and a second replica would double every limit — both stated, neither discovered.
-- **A form submission is not consent.** The mailing list is double opt-in: a submission writes a
-  PENDING row and sends one confirmation, and only the link in it adds anybody. An address never
-  confirmed is deleted within a week, because it is personal data held with no basis and quite
-  possibly somebody else's. Re-submitting a pending address re-sends the SAME link (a new token
-  invalidates the one already in their inbox); re-submitting a confirmed one sends NOTHING (it would
-  be unsolicited mail, and answering differently makes the endpoint an oracle for who is on the
-  list). The success page is `/check-your-email`; `/subscribed` belongs to the confirmation link.
 - **`deploy/backup.sh` is scheduled by ansible, not by a comment.** `roles/eait_app/tasks/backup.yml`
   writes `/etc/cron.d/eait-backup` and takes the first dump during the deploy that installs it, then
   asserts a file exists. The tree lives at `/srv/eait/**src**`; a cron line missing that `src` fails
@@ -436,15 +429,6 @@ naming it too.
   section quotes `KCAL_FLOOR`, and a test fails when the copy and the constant disagree. A safety
   guarantee described in marketing that the app does not implement is the worst sentence this repo
   could publish.
-- **A subscriber is not a user, and no row may join them.** Since issue #95 an account carries an
-  address too, and that is a DIFFERENT thing: it belongs to an account, is held to run it, and is
-  erased with it, while a subscriber has no account and consented to one specific thing — being
-  told when the app ships. Neither basis covers the other, so the two are never reconciled,
-  deduplicated or read together. `subscribers` has no foreign key to `users` and must not gain one. The
-  consequence — deleting an account does NOT leave the list — is stated on the page and in the
-  privacy policy, because a privacy promise with an unstated exception is how one becomes a
-  complaint. Withdrawal is a capability token in a link: no login, no confirmation screen, and
-  clicking it twice says the same thing both times.
 - **`--env-file` feeds compose's interpolation, not the container's environment.** A variable that
   is in `deploy/.env.prod` and not in that service's `environment:` block reaches nothing. It looks
   configured from the host and is absent inside the process; `EAIT__BACKEND__LANDING_URL` shipped that way and the

@@ -11,7 +11,6 @@ import { demoPorts } from "../llm/demo.ts";
 import type { CoachInput, CoachTools, LlmPorts, TextInput } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile, recentLines, type EngineDeps } from "./index.ts";
 
@@ -24,7 +23,7 @@ const CONFIG: Config = {
 let store: Store;
 let deps: EngineDeps;
 const makeDeps = (llm: LlmPorts = demoPorts(), over: Partial<Config> = {}): EngineDeps =>
-  ({ store, config: { ...CONFIG, ...over }, llm, mailer: fakeMailer(), push: fakePush() });
+  ({ store, config: { ...CONFIG, ...over }, llm, push: fakePush() });
 
 async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");

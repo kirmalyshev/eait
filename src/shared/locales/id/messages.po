@@ -134,16 +134,6 @@ msgid "stream.steps.3"
 msgstr "Membandingkan dengan rencanamu"
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Konfirmasi bahwa alamat ini milikmu:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Konfirmasi emailmu untuk eait"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedLead"
 msgstr "Terhubung ke akun eait yang masuk lewat"
@@ -224,11 +214,6 @@ msgid "thread.firstVerdict.fixHint"
 msgstr "Kalau ada yang meleset, bilang saja — \"nasinya setengah\", \"tanpa alpukat\" — atau ketuk kartunya dan ubah gramnya."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Catat"
@@ -299,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Sesuai rencana."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Satu hal lagi yang sebentar lagi ditanyakan iOS: notifikasi. Sehari satu dan tidak pernah lebih — baris pukul 20:30, plus dua pengingat sebelum minggu gratisnya habis kalau kamu sedang menjalaninya. Selain itu tidak pernah ada."
@@ -372,11 +352,6 @@ msgstr "Natrium"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Natrium makanan ini tinggi. Dinilai hanya karena kamu memintanya."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

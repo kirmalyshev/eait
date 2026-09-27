@@ -12,7 +12,6 @@ import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
-import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
@@ -88,7 +87,6 @@ if (config.adminBootstrapUserId !== "") {
       + "Nobody has been made an admin. Sign in once to create the account, then use its user id.");
 }
 
-const mailer = chooseMailer(config, demo);
 const push = choosePush(config, demo);
 
 // One sweep at startup, so a process that has been up for months and is then restarted does not
@@ -102,7 +100,6 @@ if (stale > 0) console.log(`[eait] pruned ${stale} expired proposal(s) at startu
 const deps: EngineDeps = {
   store,
   config,
-  mailer,
   push,
   llm: cannedLlm
     ? demoPorts()

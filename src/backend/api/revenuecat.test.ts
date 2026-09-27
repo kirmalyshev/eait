@@ -13,7 +13,6 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import {
   REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook, describeTransfer, parseRevenueCatEvent,
@@ -39,7 +38,7 @@ let handle: (req: Request) => Promise<Response>;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush() };
   handle = createRouter(deps, store, verifier);
 }
 
@@ -664,7 +663,7 @@ describe("refunding the lifetime unlock while a subscription is still paid for",
 describe("the misconfiguration warning's quiet period", () => {
   const deps = () => ({
     store: memoryStore(), config: { ...base, revenueCatWebhookToken: TOKEN },
-    llm: demoPorts(), mailer: fakeMailer(),
+    llm: demoPorts(),
   }) as unknown as EngineDeps;
 
   const post = (event: unknown) =>

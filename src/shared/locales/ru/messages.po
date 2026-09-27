@@ -134,16 +134,6 @@ msgid "stream.steps.3"
 msgstr "Сверить с твоим планом"
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Подтверди, что этот адрес твой:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Подтверди свою почту для eait"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedLead"
 msgstr "Подключено к аккаунту eait, вход выполнен через"
@@ -224,11 +214,6 @@ msgid "thread.firstVerdict.fixHint"
 msgstr "Если что-то не так, скажи — «риса половина», «без авокадо» — или нажми на карточку и поменяй граммы."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Если это не ты, просто не отвечай. Ничего не произойдёт, а адрес удалится в течение недели."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Записать"
@@ -299,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "В плане."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Одно письмо, когда приложение выйдет, и отписка в один клик внутри. Больше ничего и никогда."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Ещё одно, о чём сейчас спросит iOS: уведомления. Одно в день и не больше — строка в 20:30 плюс два напоминания перед концом бесплатной недели, если ты в ней. Больше ничего и никогда."
@@ -372,11 +352,6 @@ msgstr "Натрий"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Натрия здесь много. Оценено только по твоей просьбе."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Кто-то — скорее всего, ты — просит сообщить, когда выйдет приложение eait для iPhone."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
