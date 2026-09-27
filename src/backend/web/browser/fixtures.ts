@@ -42,9 +42,10 @@ const ANSWERS: Record<string, string> = {
   birth_year: "1988",
   height_cm: "182",
   weight_kg: "98",
+  activity: "some",
   target_weight_kg: "92",
   pace: "steady",
-  activity: "some",
+  diet: "balanced",
   country: "de",
 };
 

@@ -4,9 +4,9 @@ import { expect, onboard, signIn, test } from "./fixtures.ts";
 
 test("a person signs in, answers the questions, and reaches their plan", async ({ page }) => {
   await signIn(page, `pw-smoke-${Date.now()}`);
-  // High cholesterol ticked at the restrictions chips — the declaration whose marker the plan has
+  // High cholesterol ticked at the medical chips — the declaration whose marker the plan has
   // to name.
-  await onboard(page, { restrictions: ["ldl"] });
+  await onboard(page, { medical: ["ldl"] });
   await expect(page.getByRole("heading", { name: "Here is your plan" })).toBeVisible();
 
   // The plan keeps the welcome's promise: the month `projectGoal` lands the target in, and the
