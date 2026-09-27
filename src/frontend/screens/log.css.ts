@@ -4,15 +4,18 @@
 // drop zone's height and the type sizes the boards set in one-off styles.
 
 export const logCss = `
-/* The centred states — the upload column at 640 px and the refusal at 560, held mid-height the
-   way the boards centre them (align-content:center on the wmain). */
+/* The centred states — the upload main at 640 px and the refusal's at 560 (columns of 560 and
+   480), held mid-height the way the boards centre them. */
 .log { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-/* The board's upload main is narrower (wmain one at 640 — the column is 560): a column-flex
-   child's margin:auto suppresses stretch AND centres on both axes, so the width has to be
-   explicit or the column shrink-wraps to its content (#171). */
+/* The board narrows the MAIN on these states, not just the column: log-upload.html's
+   wmain is 640, log-refused.html's 560. The refusal's rule must follow the shared one —
+   a refused day is .log.centre.refused, and the later rule wins the tie (#171). And a
+   column-flex child's margin:auto suppresses stretch AND centres on both axes, so the
+   width has to be explicit or the column shrink-wraps to its content. */
 .wmain:has(.log.centre) { max-width: 640px; }
+.wmain:has(.log.refused) { max-width: 560px; }
 .log.centre { width: 100%; margin: auto; }
-.log.refused { text-align: center; }
+.log.refused { text-align: center; gap: 20px; }
 .log h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
 
 /* The drop zone — the shell's .drop gains this surface's height and radius. */
