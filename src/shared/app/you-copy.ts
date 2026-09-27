@@ -17,9 +17,10 @@
 // Weight-bearing templates come in `…Kg`/`…Lb` pairs: the unit word lives in the template and
 // the client picks by `Profile.units` — a kg figure and a lb figure are not one string.
 
-import { t, type Localized } from "../lang.ts";
+import { LANG_TAG, numbers, t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 import { healthLabel } from "../health-copy.ts";
+import { heightText, type UnitSystem } from "../ui/units.ts";
 import { SHELL_COPY, shellCopyFor } from "./shell-copy.ts";
 import { SIGNUP_COPY, signupCopyFor } from "./signup-copy.ts";
 
@@ -34,6 +35,10 @@ export interface YouCopy {
   headerFacts: string;
   /** The same header with nothing declared: "{age} · {height}". */
   headerFactsNoFlags: string;
+  /** A partial profile, age and flags but no height: "{age} · {flags}". */
+  headerFactsAgeFlags: string;
+  /** A partial profile, height and flags but no birth year: "{height} · {flags}". */
+  headerFactsHeightFlags: string;
   /**
    * One flag inside `{flags}`: "{condition} declared". `{condition}` is a medical option's
    * label lowercased the way this language writes a mid-sentence noun ("High cholesterol" →
@@ -63,7 +68,10 @@ export interface YouCopy {
   grams: string;
   /** "{g} g protein" — the phone's plan line spells it. */
   proteinGrams: string;
-  /** "{g} g sat fat" — the second macro the card and the phone's lines show. */
+  /**
+   * The saturated-fat macro, "{g} g {noun}" — `{noun}` is filled with `LOG_COPY.satfatNoun`
+   * so the plan names the same dimension the verdicts do, in one wording.
+   */
   satFatGrams: string;
   /** The floor marker under the plan figures: "never below {floor}" — `{floor}` is kcal. */
   floorMarker: string;
@@ -86,6 +94,11 @@ export interface YouCopy {
     proteinLeft: string;
     carbsLeft: string;
     fatLeft: string;
+    /** The Units row's label and its two options — the symbols are `spellUnit`'s, spelled the
+        way the language writes them (`kg · cm` / `lb · ft`, Russian "кг · см"). */
+    units: string;
+    unitsMetric: string;
+    unitsImperial: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -202,6 +215,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   en: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "{condition} declared",
     weightLabel: healthLabel("weight_kg", "en"),
     logWeight: "Log weight",
@@ -213,7 +228,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "a day",
     grams: "{g} g",
     proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g sat fat",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "never below {floor}",
     appleHealth: "Apple Health",
     connected: "connected",
@@ -225,6 +240,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protein left",
       carbsLeft: "Carbs left",
       fatLeft: "Fat left",
+      units: "Units",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "You",
@@ -282,6 +300,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   fr: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "vous avez déclaré : {condition}",
     weightLabel: healthLabel("weight_kg", "fr"),
     logWeight: "Enregistrer le poids",
@@ -293,7 +313,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "par jour",
     grams: "{g} g",
     proteinGrams: "{g} g de protéines",
-    satFatGrams: "{g} g de gras saturés",
+    satFatGrams: "{g} g de {noun}",
     floorMarker: "jamais moins de {floor}",
     appleHealth: "Apple Health",
     connected: "connecté",
@@ -305,6 +325,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protéines restantes",
       carbsLeft: "Glucides restants",
       fatLeft: "Lipides restants",
+      units: "Unités",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Vous",
@@ -362,6 +385,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   de: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "von dir angegeben: {condition}",
     weightLabel: healthLabel("weight_kg", "de"),
     logWeight: "Gewicht eintragen",
@@ -373,7 +398,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "am Tag",
     grams: "{g} g",
     proteinGrams: "{g} g Eiweiß",
-    satFatGrams: "{g} g gesättigte Fette",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "nie unter {floor}",
     appleHealth: "Apple Health",
     connected: "verbunden",
@@ -385,6 +410,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Eiweiß übrig",
       carbsLeft: "Kohlenhydrate übrig",
       fatLeft: "Fett übrig",
+      units: "Einheiten",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Du",
@@ -442,6 +470,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   it: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "condizioni indicate: {condition}",
     weightLabel: healthLabel("weight_kg", "it"),
     logWeight: "Registra il peso",
@@ -453,7 +483,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "al giorno",
     grams: "{g} g",
     proteinGrams: "{g} g di proteine",
-    satFatGrams: "{g} g di grassi saturi",
+    satFatGrams: "{g} g di {noun}",
     floorMarker: "mai sotto {floor}",
     appleHealth: "Apple Health",
     connected: "connesso",
@@ -465,6 +495,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Proteine rimaste",
       carbsLeft: "Carboidrati rimasti",
       fatLeft: "Grassi rimasti",
+      units: "Unità",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Tu",
@@ -522,6 +555,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   es: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "has indicado: {condition}",
     weightLabel: healthLabel("weight_kg", "es"),
     logWeight: "Registrar el peso",
@@ -533,7 +568,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "al día",
     grams: "{g} g",
     proteinGrams: "{g} g de proteína",
-    satFatGrams: "{g} g de grasa saturada",
+    satFatGrams: "{g} g de {noun}",
     floorMarker: "nunca por debajo de {floor}",
     appleHealth: "Apple Health",
     connected: "conectado",
@@ -545,6 +580,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Proteína restante",
       carbsLeft: "Carbohidratos restantes",
       fatLeft: "Grasa restante",
+      units: "Unidades",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Tú",
@@ -602,6 +640,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   vi: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "đã khai báo: {condition}",
     weightLabel: healthLabel("weight_kg", "vi"),
     logWeight: "Ghi cân nặng",
@@ -613,7 +653,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "một ngày",
     grams: "{g} g",
     proteinGrams: "{g} g đạm",
-    satFatGrams: "{g} g chất béo bão hòa",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "không dưới {floor}",
     appleHealth: "Apple Health",
     connected: "đã kết nối",
@@ -625,6 +665,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Đạm còn lại",
       carbsLeft: "Carb còn lại",
       fatLeft: "Chất béo còn lại",
+      units: "Đơn vị",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Bạn",
@@ -682,6 +725,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   id: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "{condition} (dinyatakan)",
     weightLabel: healthLabel("weight_kg", "id"),
     logWeight: "Catat berat",
@@ -693,7 +738,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "sehari",
     grams: "{g} g",
     proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g lemak jenuh",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "tidak di bawah {floor}",
     appleHealth: "Apple Health",
     connected: "terhubung",
@@ -705,6 +750,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protein tersisa",
       carbsLeft: "Karbo tersisa",
       fatLeft: "Lemak tersisa",
+      units: "Unit",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Kamu",
@@ -762,6 +810,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   ru: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "указано: {condition}",
     weightLabel: healthLabel("weight_kg", "ru"),
     logWeight: "Записать вес",
@@ -773,7 +823,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "в день",
     grams: "{g} г",
     proteinGrams: "{g} г белка",
-    satFatGrams: "{g} г насыщенных жиров",
+    satFatGrams: "{g} г {noun}",
     floorMarker: "не ниже {floor}",
     appleHealth: "Apple Health",
     connected: "подключено",
@@ -785,6 +835,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Осталось белка",
       carbsLeft: "Осталось углеводов",
       fatLeft: "Осталось жиров",
+      units: "Единицы",
+      unitsMetric: "кг · см",
+      unitsImperial: "lb · ft",
     },
     phone: {
       title: "Вы",
@@ -842,3 +895,51 @@ export const YOU_COPY: Localized<YouCopy> = {
 };
 
 export const youCopyFor = (lang: Lang): YouCopy => t(lang)(YOU_COPY);
+
+/** The tables' own `{placeholder}` fill — a key with nothing to fill it left alone. */
+const fill = (template: string, params: Record<string, string>): string =>
+  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+/**
+ * The identity card's fact line — "32 · 172 cm · high cholesterol declared" — assembled HERE so
+ * the web and the phone build the same line off the same pieces (#97 review).
+ *
+ * `age` is the SERVER's `ProfileResponse.age` — a surface never subtracts years itself; `null`
+ * prints nothing, not a guess. `heightCm` goes through `heightText`, so the unit follows
+ * `units`. The flags are the medical options' labels joined the way this language lists two
+ * things — `Intl.ListFormat` — inside ONE `flagDeclared` fill: "high cholesterol and kidney
+ * disease declared". A template that LEADS with `{condition}` reads the noun mid-sentence, and
+ * lowering it is the locale's own operation over the whole phrase — `toLocaleLowerCase`, never
+ * a character slice.
+ */
+export function youFacts(
+  lang: Lang,
+  facts: {
+    age: number | null;
+    heightCm: number | null;
+    restrictions: readonly string[];
+    medicalOptions: Record<string, { label: string }>;
+    units: UnitSystem;
+  },
+): string {
+  const you = youCopyFor(lang);
+  const labels = facts.restrictions
+    .filter((r) => r !== "none" && r in facts.medicalOptions)
+    .map((r) => facts.medicalOptions[r]!.label);
+  const list = new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" });
+  const joined = list.format(labels);
+  const flags = labels.length
+    ? fill(you.flagDeclared, {
+        condition: you.flagDeclared.startsWith("{condition}")
+          ? joined.toLocaleLowerCase(LANG_TAG[lang])
+          : joined,
+      })
+    : "";
+  const age = facts.age !== null ? numbers(lang)(facts.age) : null;
+  const height = facts.heightCm !== null ? heightText(facts.heightCm, facts.units, lang) : null;
+  if (age !== null && height !== null)
+    return flags ? fill(you.headerFacts, { age, height, flags }) : fill(you.headerFactsNoFlags, { age, height });
+  if (age !== null) return flags ? fill(you.headerFactsAgeFlags, { age, flags }) : age;
+  if (height !== null) return flags ? fill(you.headerFactsHeightFlags, { height, flags }) : height;
+  return flags;
+}

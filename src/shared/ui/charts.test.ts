@@ -241,6 +241,18 @@ describe("weightChart — logged weights over the day axis", () => {
     expect(c.path).toBe("");
   });
 
+  test("a target adds the bottom lane you.html draws — without one the geometry is unchanged", () => {
+    const c = weightChart(persona, true);
+    expect(c.viewBox).toBe("0 0 320 120");
+    expect(c.dateLabelY).toBe(118);
+    expect(c.targetLine).toEqual({ x1: 24, x2: 296, y: 104 });
+    expect(c.targetLabel).toEqual({ x: 296, y: 98 });
+    const plain = weightChart(persona);
+    expect(plain.targetLine).toBeUndefined();
+    expect(plain.viewBox).toBe("0 0 320 112");
+    expect(plain.dateLabelY).toBe(110);
+  });
+
   test("the four ranges exist and are the only ones", () => {
     expect(WEIGHT_RANGES).toEqual(["90D", "6M", "1Y", "all"]);
   });
