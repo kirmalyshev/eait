@@ -336,6 +336,44 @@ test("#/chat?focus= opens the meal's correction — its card, her opener, the wo
   await expect(page.locator(".thread li.me", { hasText: "half that" })).toBeVisible();
 });
 
+test("a proposal past its clock stands with the timed-out line and no offers", async ({ inWebApp: page }) => {
+  // `chat-expired`'s draw: the card stays, its buttons are gone, the line says why. The read-back
+  // is stubbed to a proposal already past its expiresAt — what the server would answer a reload.
+  await page.route("**/api/v1/meals/pending", (r) => r.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ proposals: [{
+      kind: "proposed", pendingId: "p1", date: "2026-09-27",
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      analysis: { isFood: true, kcal: 214, protein_g: 9, carbs_g: 34, fat_g: 5, satfat_g: 3,
+        fiber_g: 2, sugar_g: 12, sodium_mg: 80,
+        items: [{ name: "Flat white", grams: 250, confidence: "high" }, { name: "banana", grams: 100, confidence: "high" }],
+        verdicts: {}, score: null },
+      verdictLabels: [{ tone: "good", label: "Calories on plan" }],
+      verdictInline: "Calories on plan",
+    }] }),
+  }));
+  // inWebApp already sits on #/chat — reload so the read-back goes through the route.
+  await page.reload();
+  await expect(page.locator(".prop .card")).toContainText("Flat white, banana");
+  await expect(page.locator(".prop")).toContainText("That one timed out. Describe it again and I'll re-read it.");
+  await expect(page.getByRole("button", { name: "Log it", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "No", exact: true })).toHaveCount(0);
+});
+
+test("#/chat?focus= sends a picked photo onto that meal's own photos", async ({ inWebApp: page }) => {
+  // Angles, not a new turn (#304): the focus sheet's upload attaches to the meal it corrects.
+  await logMeal(page);
+  const day = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const mealId = ((await day.json()) as DayResponse).meals[0]!.id;
+  await page.goto(`/#/chat?focus=${mealId}`);
+  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith(`/meals/${mealId}/photos`));
+  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+  await page.getByRole("button", { name: "Send the photo" }).click();
+  await sent;
+});
+
 test("reduced motion: the thread arrives at its end state, nothing still animating", async ({ inWebApp: page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByPlaceholder(ASK).fill("two boiled eggs");

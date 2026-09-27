@@ -5,7 +5,7 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, countText, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
   DayResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
@@ -258,7 +258,7 @@ async function diaryScreen(): Promise<HTMLElement> {
   const { picker, words, send, count } = comp;
   const arm = (): void => {
     const picked = picker.files?.length ?? 0;
-    count.textContent = picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     count.hidden = count.textContent === "";
     send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
   };

@@ -81,11 +81,8 @@ export interface ChatScreenCopy {
    */
   mealLine: string;
 
-  /**
-   * A macro chip's figure on the meal card ("34 g", `chat.html`/`chat-proposal.html`, both
-   * clients). The symbol lives in the template because Russian's is "г", not "g".
-   */
-  gramsChip: string;
+  /** A proposal left unanswered too long (`phone/chat-expired.html`, the web's same card). */
+  expired: string;
 
   /** `states-chat-failed.html`, both clients: the load failure and its button. */
   loadFailed: string;
@@ -125,8 +122,6 @@ export interface ChatScreenCopy {
     sending: string;
     /** The typing indicator's aria-label (`phone/chat-busy.html` — the board's literal reads "Spud", the direction's coach is Gabie: `{coach}`). */
     typing: string;
-    /** A proposal left unanswered too long (`phone/chat-expired.html`). */
-    expired: string;
     /** The outbox row's own words (`phone/states-not-sent.html`); M7's client reads this key. */
     notSent: string;
   };
@@ -141,10 +136,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Logging to today — look right?",
     proposalAccept: "Log it",
     proposalDecline: "No",
+    expired: "That one timed out. Describe it again and I'll re-read it.",
     macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat", kcal: "Calories", satfat: "Saturated fat" },
     starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?" },
     macroOfTarget: "{value} of {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Couldn't load the conversation.",
     tryAgain: "Try again",
     eitherWorks: "Photograph it or tell me — either works",
@@ -160,7 +155,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Sending",
       typing: "{coach} is typing",
-      expired: "That one timed out. Describe it again and I'll re-read it.",
       notSent: "Not sent — tap to put it back in the box",
     },
   },
@@ -172,10 +166,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
     proposalAccept: "Enregistrer",
     proposalDecline: "Non",
+    expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
     macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides", kcal: "Calories", satfat: "Graisses saturées" },
     starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?" },
     macroOfTarget: "{value} sur {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Impossible de charger la conversation.",
     tryAgain: "Réessayer",
     eitherWorks: "Photographie-le ou raconte-le-moi — les deux marchent",
@@ -191,7 +185,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Envoi",
       typing: "{coach} écrit",
-      expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
       notSent: "Non envoyé — touche pour le remettre dans la boîte",
     },
   },
@@ -203,10 +196,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Ich trage es für heute ein — passt das?",
     proposalAccept: "Eintragen",
     proposalDecline: "Nein",
+    expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
     macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett", kcal: "Kalorien", satfat: "Gesättigte Fette" },
     starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Eiweiß?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?" },
     macroOfTarget: "{value} von {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Die Unterhaltung konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
     eitherWorks: "Fotografier es oder sag es mir — beides geht",
@@ -222,7 +215,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Wird gesendet",
       typing: "{coach} schreibt",
-      expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
       notSent: "Nicht gesendet — tippe, um es zurück in die Box zu legen",
     },
   },
@@ -234,10 +226,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Lo registro a oggi — va bene?",
     proposalAccept: "Registralo",
     proposalDecline: "No",
+    expired: "Quella è scaduta. Descrivila di nuovo e la rileggo.",
     macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi", kcal: "Calorie", satfat: "Grassi saturi" },
     starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?" },
     macroOfTarget: "{value} su {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Impossibile caricare la conversazione.",
     tryAgain: "Riprova",
     eitherWorks: "Fotografalo o dimmelo — uno vale l'altro",
@@ -253,7 +245,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Invio",
       typing: "{coach} sta scrivendo",
-      expired: "Quella è scaduta. Descrivila di nuovo e la rileggo.",
       notSent: "Non inviato — tocca per rimetterlo nel box",
     },
   },
@@ -265,10 +256,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Lo registro en hoy — ¿te parece bien?",
     proposalAccept: "Registrarla",
     proposalDecline: "No",
+    expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
     macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa", kcal: "Calorías", satfat: "Grasas saturadas" },
     starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que comí y ya", ideas: "¿Qué ceno hoy?" },
     macroOfTarget: "{value} de {target} g",
-    gramsChip: "{n} g",
     loadFailed: "No se pudo cargar la conversación.",
     tryAgain: "Reintentar",
     eitherWorks: "Fotografíalo o cuéntamelo — cualquiera vale",
@@ -284,7 +275,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Enviando",
       typing: "{coach} está escribiendo",
-      expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
       notSent: "No enviado — toca para devolverlo a la bandeja",
     },
   },
@@ -296,10 +286,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Ghi vào hôm nay — đúng chứ?",
     proposalAccept: "Ghi lại",
     proposalDecline: "Không",
+    expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
     macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hoà" },
     starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Tôi sẽ kể tôi đã ăn gì", ideas: "Tối nay nên ăn gì?" },
     macroOfTarget: "{value} trên {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Không tải được cuộc trò chuyện.",
     tryAgain: "Thử lại",
     eitherWorks: "Chụp nó hoặc kể mình nghe — cách nào cũng được",
@@ -315,7 +305,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Đang gửi",
       typing: "{coach} đang nhập",
-      expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
       notSent: "Chưa gửi — chạm để đặt lại vào hộp",
     },
   },
@@ -327,10 +316,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Kucatat untuk hari ini — benar?",
     proposalAccept: "Catat",
     proposalDecline: "Tidak",
+    expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
     macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak jenuh" },
     starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?" },
     macroOfTarget: "{value} dari {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Tidak bisa memuat percakapan.",
     tryAgain: "Coba lagi",
     eitherWorks: "Foto atau ceritakan ke aku — dua-duanya bisa",
@@ -346,7 +335,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Mengirim",
       typing: "{coach} sedang mengetik",
-      expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
       notSent: "Belum terkirim — ketuk untuk mengembalikannya ke kotak",
     },
   },
@@ -358,10 +346,10 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalCheck: "Записываю на сегодня — верно?",
     proposalAccept: "Записать",
     proposalDecline: "Нет",
+    expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
     macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры", kcal: "Калории", satfat: "Насыщенные жиры" },
     starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?" },
     macroOfTarget: "{value} из {target} г",
-    gramsChip: "{n} г",
     loadFailed: "Не удалось загрузить переписку.",
     tryAgain: "Попробовать ещё раз",
     eitherWorks: "Сфотографируй или расскажи — сработает и так, и так",
@@ -377,7 +365,6 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Отправка",
       typing: "{coach} печатает",
-      expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
       notSent: "Не отправлено — нажми, чтобы вернуть в коробку",
     },
   },

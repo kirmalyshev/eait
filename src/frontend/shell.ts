@@ -28,14 +28,16 @@ import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
 import { localDate, windowStart } from "../shared/dates.ts";
 import type { Lang } from "../shared/types.ts";
 import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
-  DayResponse, DaysResponse, DIARY_RANGE_MAX_DAYS, ProfileResponse, ROUTES,
+  DayResponse, DaysResponse, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
+import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
@@ -73,6 +75,8 @@ export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
+// `POST /v1/meals/:id/photos` — another angle of a logged meal, stored not charged (#304).
+export const MEAL_PHOTOS: (id: string) => `/meals/${string}/photos` = (id) => `${MEAL(id)}/photos`;
 export const CONFIRM: (id: string) => `/meals/pending/${string}/confirm` = (id) => `${PENDING}/${encodeURIComponent(id)}/confirm`;
 
 export const root = (): HTMLElement => document.getElementById("app")!;
@@ -313,10 +317,12 @@ export function takeTurn(
 export function proposalCard(
   p: MealProposed,
   turn: (write: () => Promise<string | void>) => void,
-  words: { lead: string; accept: string; decline: string },
+  words: { lead: string; accept: string; decline: string; expired?: string },
 ): HTMLElement {
   // The boards' proposal (`chat-proposal`): the question over the card, the card — name, kcal,
-  // the macro chips, the verdict dots — then the two ctas and the turn's time.
+  // the macro chips, the verdict dots — then the two ctas and the turn's time. An EXPIRED one
+  // keeps the card but its offers are gone — the timed-out line stands where they sat
+  // (`phone/chat-expired.html`'s draw), because a dead button is worse than the words.
   const wrap = el("div", "prop");
   const lead = el("div", "t13 m pl-lead", words.lead);
   const card = el("div", "card");
@@ -325,18 +331,19 @@ export function proposalCard(
   num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
     el("span", "m t12", UNIT_KCAL[lang]));
   head.append(el("b", "pl-name", names(p.analysis.items)), num);
-  card.append(head, gramMacsDiv(p.analysis));
+  const macs = el("div", "pl-macs");
+  macs.append(gramMacsEl({ protein: p.analysis.protein_g, carbs: p.analysis.carbs_g, fat: p.analysis.fat_g }));
+  card.append(head, macs);
   // The dots' words are the payload's own — the bundle holds no catalog to compose them (#145).
-  if ((p.verdictLabels ?? []).length > 0) {
-    card.append(el("div", "hr"));
-    const vs = el("div", "vs");
-    for (const v of p.verdictLabels ?? []) vs.append(el("span", `v ${v.tone}`, v.label));
-    card.append(vs);
+  const vs = verdictListEl((p.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
+  if (vs !== null) card.append(el("div", "hr"), vs);
+  if (words.expired !== undefined) {
+    wrap.append(lead, card, el("p", "t13 m pl-expired", words.expired), el("div", "ts", timeFmt(new Date())));
+    return wrap;
   }
   const actions = el("div", "row pl-actions");
-  for (const [verb, label, className] of [["confirm", words.accept, "cta p"], ["cancel", words.decline, "cta s"]] as const) {
-    const b = el("button", className, label) as HTMLButtonElement;
-    b.type = "button";
+  for (const [verb, label, kind] of [["confirm", words.accept, "p"], ["cancel", words.decline, "s"]] as const) {
+    const b = ctaEl({ text: label, kind }) as HTMLButtonElement;
     b.addEventListener("click", () => turn(async () => {
       let r: PendingResponse;
       try {
@@ -378,24 +385,6 @@ export function proposalCard(
 /** A line's "13:05" — the hour and minute, in the reader's own calendar. */
 export const timeFmt = (d: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "2-digit", minute: "2-digit" }).format(d);
-
-/**
- * The proposal's three macro chips — the `.macs` row the boards draw under the name ("34 g ·
- * 48 g · 23 g"), the chip templates in the table's own language.
- */
-function gramMacsDiv(a: MealAnalysis): HTMLElement {
-  const macs = el("div", "pl-macs");
-  const row = el("span", "macs");
-  const g = chatScreenCopyFor(lang).gramsChip;
-  for (const [name, value] of [["protein", a.protein_g], ["carbs", a.carbs_g], ["fat", a.fat_g]] as const) {
-    const chip = el("span", "mac");
-    chip.append(el("i", `ico i-${name}`));
-    chip.append(g.replace("{n}", wholeNumbers(lang)(value)));
-    row.append(chip);
-  }
-  macs.append(row);
-  return macs;
-}
 
 export function textField(placeholder: string): HTMLInputElement {
   const input = el("input", "") as HTMLInputElement;
@@ -507,10 +496,9 @@ export const names = (items: readonly { name: string }[]): string =>
  * it newest-first (#93's focus handoff; a meal is correctable for the whole window, not just
  * today). `{day, meal: null}` is the answer when the id names nothing the caller may read.
  *
- * The range is the contract's own widest read — typed here, never the value: this bundle may not
- * pull shared runtime code in.
+ * The range is the contract's own widest read, imported as the value — `contract.ts` is on the
+ * bundle's whitelist, a retyped 31 is two copies of one bound.
  */
-const DIARY_RANGE: typeof DIARY_RANGE_MAX_DAYS = 31;
 export async function findMeal(
   mealId: string, zone: string, date?: string,
 ): Promise<{ day: DayResponse; meal: MealRecord | null }> {
@@ -518,7 +506,7 @@ export async function findMeal(
   const hit = first.meals.find((m) => m.id === mealId);
   if (hit !== undefined || date !== undefined) return { day: first, meal: hit ?? null };
   const window = await api<DaysResponse>(
-    `/diary/days?from=${windowStart(first.date, DIARY_RANGE)}&to=${first.date}`);
+    `/diary/days?from=${windowStart(first.date, DIARY_RANGE_MAX_DAYS)}&to=${first.date}`);
   for (const d of [...window.days].reverse()) {
     if (!d.logged || d.date === first.date) continue;
     const other = await api<DayResponse>(`/diary/day?date=${d.date}`);
@@ -687,7 +675,7 @@ export async function render(): Promise<void> {
 
   // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
   // take, #93/#94).
-  const route = (location.hash || "#/").split("?")[0]!;
+  const route = routeBase(location.hash || "#/");
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {

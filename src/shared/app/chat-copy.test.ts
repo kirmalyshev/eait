@@ -6,7 +6,11 @@
 import { describe, expect, it } from "bun:test";
 import { lintCopy } from "../claims.ts";
 import { LANGS, type Lang } from "../types.ts";
-import { CHAT_SCREEN_COPY, chatScreenCopyFor, coachRowIcon, STARTER_ICONS, type ChatScreenCopy } from "./chat-copy.ts";
+import { STRUGGLES, type Struggle } from "../types.ts";
+import {
+  CHAT_SCREEN_COPY, chatScreenCopyFor, coachRowIcon, starterRows, STARTER_ICONS,
+  type ChatScreenCopy,
+} from "./chat-copy.ts";
 import { starterRowsFor } from "../chat.ts";
 
 const flatten = (node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> => {
@@ -37,7 +41,7 @@ describe("CHAT_SCREEN_COPY", () => {
     const withPlaceholders: Record<string, string[]> = {
       composerThread: ["{coach}"],
       macroOfTarget: ["{value}", "{target}"],
-      gramsChip: ["{n}"],
+      mealLine: ["{name}", "{kcal}"],
       "phone.typing": ["{coach}"],
     };
     for (const lang of LANGS) {
@@ -67,7 +71,29 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.unknownTitle).toBe("That didn't finish cleanly.");
     expect(en.analysisFailed).toBe("The analysis didn't come back.");
     expect(en.phone.notSent).toBe("Not sent — tap to put it back in the box");
-    expect(en.phone.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+    expect(en.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+  });
+
+  it("shows the catalog's own starter words — every language, every struggle set", () => {
+    // The bundle's table restates THREAD_COPY because it cannot reach Lingui (#145): the check
+    // that keeps it honest is the catalog's `starterRowsFor` producing the same rows, text for
+    // text, for every language and every subset an onboarding can set.
+    const sets: (readonly Struggle[] | null)[] = [
+      null,
+      STRUGGLES,
+      ["busy", "ideas"] as const,
+      ["support", "consistency", "habits"] as const,
+      ["ideas"] as const,
+    ];
+    for (const lang of LANGS) {
+      for (const set of sets) {
+        const expected = starterRowsFor(set, lang).map((r) => r.text);
+        const actual = starterRows(set, lang).map((r) => r.text);
+        expect(actual, `${lang} ${String(set)}`).toEqual(expected);
+        expect(starterRows(set, lang).map((r) => STARTER_ICONS[r.struggle]))
+          .toEqual(starterRowsFor(set, lang).map((r) => STARTER_ICONS[r.struggle]));
+      }
+    }
   });
 
   it("pairs each starter with its board icon, the struggles in the same order as startersFor", () => {

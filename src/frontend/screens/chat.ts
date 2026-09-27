@@ -10,25 +10,26 @@
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
-import { wholeNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
+import { countText, spellUnit, wholeNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
+import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast,
-  MessageResponse, PendingMealsResponse, PhotoLast, PhotoProgress, ProfileResponse,
+  AttachPhotosResponse, MessageResponse, PendingMealsResponse, PhotoLast, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
-  proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread, setRedraw,
-  takeCarried, takeTurn, timeFmt, unclear, names,
+  MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
+  setRedraw, takeCarried, takeTurn, timeFmt, unclear, names,
 } from "../shell.ts";
 
 const copy = () => chatScreenCopyFor(lang);
-const gabieName = (coach: string): string => mealCopyFor(lang).coachLine.replace("{coach}", coach);
 
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -42,9 +43,8 @@ export async function chatScreen(): Promise<HTMLElement> {
   // cannot be sent is worded as a lost answer, as it was.
   const uid = me?.profile.user_id ?? null;
   // The coach's name is the profile's own `coachName` (#149), never a Localized copy — the
-  // bundle holds no catalog to build one from; the literal is the contract's stated fallback
-  // for a profile that failed to load.
-  const coachName = (): string => me?.coachName ?? "Gabie";
+  // bundle holds no catalog to build one from. A profile that failed to load draws NO name.
+  const coachName = (): string | null => me?.coachName ?? null;
   const wrap = el("section", "chat");
   // `#/chat?focus=<mealId>` — the meal-edit entry W5's logged card and W6's "…" both take
   // (`meal-edit.html`): the meal's own card leads, Gabie names what she read, and the composer
@@ -101,12 +101,13 @@ export async function chatScreen(): Promise<HTMLElement> {
     urls.forEach((u) => URL.revokeObjectURL(u));
     urls = [];
 
-    // The proposal's clock is the server's own (#367): gone once `expiresAt` has passed, and an
-    // unreadable moment stays live — the analysis is already billed.
+    // The proposal's clock is the server's own (#367): a confirm off the thread's meal list is
+    // done; past `expiresAt` the card stands without its offers, the timed-out line where they
+    // sat (`chat-expired`'s draw). An unreadable moment stays live — the analysis is billed.
     const pending = heldProposal()?.pendingId;
     if (pending !== undefined && entries.some((e) => e.kind === "meal" && e.mealId === pending)) setHeldProposal(null);
-    if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) setHeldProposal(null);
     const held = heldProposal();
+    const heldTimedOut = held !== null && Date.parse(held.expiresAt) <= Date.now();
 
     const list = el("ul", "thread");
     // Gabie's presence, the boards' rule: her name line above her FIRST line, her disc beside her
@@ -201,6 +202,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       const li = el("li", `them prop-li${rise(`prop:${held.pendingId}`, idx++)}`);
       li.append(proposalCard(held, turn, {
         lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
+        ...(heldTimedOut ? { expired: copy().expired } : {}),
       }));
       list.append(li);
     }
@@ -290,7 +292,7 @@ export async function chatScreen(): Promise<HTMLElement> {
         const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
           [...focusMeal.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
             .map((i) => fill(mealCopyFor(lang).itemAmount, {
-              amount: fill(copy().gramsChip, { n: wholeNumbers(lang)(i.grams) }), item: i.name,
+              amount: `${wholeNumbers(lang)(i.grams)} ${spellUnit(lang, "g")}`, item: i.name,
             })));
         col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
       }));
@@ -301,12 +303,13 @@ export async function chatScreen(): Promise<HTMLElement> {
     if (unread !== null && entries.length === 0 && keptLines.length === 0) {
       const fail = el("div", "chatfail");
       const say = el("div", "say");
-      const av = el("span", "gabie"); av.setAttribute("aria-hidden", "true");
       const col = el("div", "");
-      col.append(el("div", "gname", gabieName(coachName())), el("p", "saytitle", copy().loadFailed));
+      const n = coachName();
+      if (n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
+      col.append(el("p", "saytitle", copy().loadFailed));
       const again = smallCta(copy().tryAgain, () => turn(async () => {}));
       col.append(again);
-      say.append(av, col);
+      say.append(gabieAvatarEl(), col);
       fail.append(say);
       clear(thread).append(fail);
       throw unread;
@@ -322,7 +325,8 @@ export async function chatScreen(): Promise<HTMLElement> {
     }, true);
     // The composer's prompt is the empty thread's ask until a line is in it.
     words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
-      : entries.length === 0 ? copy().composerAsk : fill(copy().composerThread, { coach: coachName() });
+      : entries.length === 0 || coachName() === null ? copy().composerAsk
+      : fill(copy().composerThread, { coach: coachName()! });
     words.setAttribute("aria-label", words.placeholder);
     if (unread !== null) throw unread;
   };
@@ -335,20 +339,16 @@ export async function chatScreen(): Promise<HTMLElement> {
 
   /** Gabie's say block: her name on the first of her lines, her disc beside the newest, a spacer
       where neither is asked for so the words keep one column. `fill` appends the line's content. */
-  const sayBlock = (named: boolean, faced: boolean, fill: (col: HTMLElement) => void): HTMLElement => {
+  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void): HTMLElement => {
     const say = el("div", "say");
     const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
-    say.append(faced ? kitAvatar() : gap);
+    say.append(faced ? gabieAvatarEl() : gap);
     const col = el("div", "");
-    if (named) col.append(el("div", "gname", gabieName(coachName())));
-    fill(col);
+    const n = coachName();
+    if (named && n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
+    body(col);
     say.append(col);
     return say;
-  };
-  const kitAvatar = (): HTMLElement => {
-    const a = el("span", "gabie");
-    a.setAttribute("aria-hidden", "true");
-    return a;
   };
 
   /** A meal's thread card (`chat.html`): name, kcal at d22, the gram chips, the verdict dots.
@@ -377,32 +377,22 @@ export async function chatScreen(): Promise<HTMLElement> {
     } else {
       card.append(head);
     }
+    // The chips' figures come from the kit's `gramChips` — "34 g" spelled by the kit's own unit
+    // table, not a retyped template here.
+    const grams = gramMacsEl({ protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g });
     const macs = el("div", "pl-macs");
-    const row = el("span", "macs");
-    const g = copy().gramsChip;
-    for (const [n, v] of [["protein", meal.protein_g], ["carbs", meal.carbs_g], ["fat", meal.fat_g]] as const) {
-      const chip = el("span", "mac");
-      chip.append(el("i", `ico i-${n}`));
-      chip.append(g.replace("{n}", wholeNumbers(lang)(v)));
-      row.append(chip);
-    }
     const estimate = meal.confidence === "low" && !meal.corrected;
     if (estimate) {
       const est = el("div", "row between");
-      est.append(row, el("b", "t12 est", mealCopyFor(lang).roughEstimate));
+      est.append(grams, el("b", "t12 est", mealCopyFor(lang).roughEstimate));
       macs.append(est);
     } else {
-      macs.append(row);
+      macs.append(grams);
     }
     if (col !== null) col.append(head, macs); else card.append(macs);
     // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
-    const vs_ = meal.verdictLabels ?? [];
-    if (vs_.length > 0) {
-      card.append(el("div", "hr"));
-      const vs = el("div", "vs");
-      for (const v of vs_) vs.append(el("span", `v ${v.tone}`, v.label));
-      card.append(vs);
-    }
+    const vs = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
+    if (vs !== null) card.append(el("div", "hr"), vs);
     return card;
   };
 
@@ -413,13 +403,12 @@ export async function chatScreen(): Promise<HTMLElement> {
     const head = el("div", "row between");
     const name = el("span", "row mb-name");
     name.append(el("i", `ico i-${focus.nutrient}`), noun);
-    // "{value} of {target} g", the eaten figure bold like the board's — a sentinel in `{value}`
-    // splits the template so the bold sits inside the words rather than around them.
-    const [before, after] = fill(copy().macroOfTarget, {
-      value: "\u0001", target: wholeNumbers(lang)(focus.target),
-    }).split("\u0001");
+    // "{value} of {target} g", the eaten figure bold like the board's: split the TEMPLATE on its
+    // `{value}` placeholder so the bold sits inside the words rather than around them.
+    const [before, after] = copy().macroOfTarget.split("{value}");
     const figure = el("span", "num mb-num");
-    figure.append(before ?? "", el("b", "", wholeNumbers(lang)(focus.eaten)), after ?? "");
+    figure.append(before ?? "", el("b", "", wholeNumbers(lang)(focus.eaten)),
+      fill(after ?? "", { target: wholeNumbers(lang)(focus.target) }));
     head.append(name, figure);
     const bar = el("div", "bar");
     const fillEl = el("i", "grow");
@@ -430,12 +419,10 @@ export async function chatScreen(): Promise<HTMLElement> {
   };
 
   /** The option card — a `.card.flat` of `.opt` rows; a starter or a suggestion, tapped, is sent. */
-  const optCard = (rows: { icon: string; text: string }[], onPick: (text: string) => void): HTMLElement => {
+  const optCard = (rows: { icon: IconName; text: string }[], onPick: (text: string) => void): HTMLElement => {
     const card = el("div", "card flat");
     for (const r of rows) {
-      const opt = el("button", "opt", "") as HTMLButtonElement;
-      opt.type = "button";
-      opt.append(el("i", `ico i-${r.icon}`), el("span", "ot", r.text), el("i", "ico i-chevron-right chv"));
+      const opt = optionRowEl({ text: r.text, icon: r.icon, tag: "button", chevron: true }) as HTMLButtonElement;
       opt.addEventListener("click", () => onPick(r.text));
       card.append(opt);
     }
@@ -443,9 +430,8 @@ export async function chatScreen(): Promise<HTMLElement> {
   };
 
   const smallCta = (label: string, onTap: () => void): HTMLButtonElement => {
-    const b = el("button", "cta s sm", "") as HTMLButtonElement;
-    b.type = "button";
-    b.append(el("i", "ico i-retry"), label);
+    const b = ctaEl({ text: label, kind: "s", icon: "retry" }) as HTMLButtonElement;
+    b.classList.add("sm");
     b.addEventListener("click", onTap);
     return b;
   };
@@ -482,7 +468,8 @@ export async function chatScreen(): Promise<HTMLElement> {
   };
 
   // THE ONE COMPOSER (the boards' row): the camera round, the pill field, the send round.
-  const comp = composerRow(fill(copy().composerThread, { coach: coachName() }));
+  const comp = composerRow(coachName() !== null
+    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk);
   const { picker, words, send, count, cancel } = comp;
   /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
   const arm = (): void => {
@@ -490,7 +477,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     const picked = picker.files?.length ?? 0;
     count.textContent = editing !== null
       ? fill(COPY.photosOnMeal, { n: `${stored}` })
-      : picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+      : picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
     // row, which showed as a stray space before Send.
     count.hidden = count.textContent === "";
@@ -510,7 +497,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     // and a person should hear "too many" before the upload rather than after it.
     if (me !== null && (editing !== null || files.length > 0)) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
-      const stored = editing?.photos ?? 0;
+      const stored = editing !== null ? editing.photos : (focusMeal?.photos ?? 0);
       if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
       if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
@@ -551,6 +538,14 @@ export async function chatScreen(): Promise<HTMLElement> {
         editing = null;
         picker.value = "";
         words.value = "";
+        arm();
+        return;
+      }
+      if (files.length > 0 && focusMeal !== null) {
+        // ANGLES ON THE FOCUSED MEAL, not a new turn: the sheet's upload posts to the meal's own
+        // collection — the words in the box stay for the correction turn that reads them.
+        await api<AttachPhotosResponse>(MEAL_PHOTOS(focusMeal.id), { method: "POST", body: form });
+        picker.value = "";
         arm();
         return;
       }

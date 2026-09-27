@@ -41,6 +41,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${(i * 0.1).toF
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
 .prop-li { align-self: flex-start; width: 100%; max-width: 560px; margin-left: 38px; }
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
+.prop .pl-expired { margin: 10px 0 0 2px; font-weight: 500; }
 .prop .card { margin-bottom: 0; }
 .prop .pl-macs { margin-top: 10px; }
 .prop .pl-actions { gap: 8px; margin-top: 10px; }
