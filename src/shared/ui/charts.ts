@@ -259,7 +259,8 @@ export function weightChart(points: readonly WeightPoint[]): {
     viewBox: W_VIEW_BOX,
     gridlines: W_GRID,
     points: pts,
-    path: pts.length ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
+    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
+    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: W_X0, y: 14 },
     lastLabel: last ? { x: last.x - 10, y: last.y + 4 } : { x: W_X1, y: 90 },
     dateLabelY: 110,
@@ -335,4 +336,40 @@ export function goalBar(
     doneKg: r1(Math.max(0, done)),
     toGoKg: r1(Math.max(0, toGo)),
   };
+}
+
+// ── The BMI bar ──────────────────────────────────────────────────────────────────────────────
+//
+// The last card on Progress: four neutral segments and a tick where the value lands
+// (`product/design/pro/boards.py` `BMI_RANGES` / `_BPOS`). The SEGMENT bounds are the ones the
+// labels print — "18.5–24.9" — while `scores.ts`'s `BMI_BANDS` derives its membership edges from
+// this table, so a moved edge cannot strand a label.
+
+/**
+ * The four segments, in bar order: the id `bmiRange` returns, and the printed bounds the label
+ * under it is built from. `lo`/`hi` are null on the open ends — "below 18.5" has no floor and
+ * "30 and above" no ceiling; the tick borrows the inner neighbour's width there.
+ */
+export const BMI_SEGMENTS = [
+  { id: "below-18.5", lo: null, hi: 18.5 },
+  { id: "18.5-24.9", lo: 18.5, hi: 24.9 },
+  { id: "25-29.9", lo: 25, hi: 29.9 },
+  { id: "30-plus", lo: 30, hi: null },
+] as const;
+
+/**
+ * Where the value's tick sits across the whole bar, 0..1 — `boards.py`'s `_BPOS`: the segment
+ * index plus the value's fraction through its bounds, over four. An open segment borrows the
+ * inner neighbour's width, so a 17 or a 34 pins inside its own segment rather than at its edge —
+ * and clamped, so no value ever draws the tick outside the bar.
+ */
+export function bmiTick(value: number, range: string): number {
+  const i = BMI_SEGMENTS.findIndex((s) => s.id === range);
+  if (i < 0) return 0;
+  const seg = BMI_SEGMENTS[i]!;
+  const wLow = BMI_SEGMENTS[1]!.hi! - BMI_SEGMENTS[1]!.lo!;
+  const wHigh = BMI_SEGMENTS[2]!.hi! - BMI_SEGMENTS[2]!.lo!;
+  const lo = seg.lo ?? seg.hi! - wLow;
+  const hi = seg.hi ?? seg.lo! + wHigh;
+  return (i + clamp01((value - lo) / (hi - lo))) / BMI_SEGMENTS.length;
 }

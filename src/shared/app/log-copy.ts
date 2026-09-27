@@ -95,6 +95,8 @@ export interface LogCopy {
   dayOfPlan: string;
   /** `log-logged`, `log-rough`: its second half — "582 left"; the rough board joins them with " · ". */
   dayLeft: string;
+  /** `log-logged`, `log-rough`: the same slot when the day ran past — "120 over". */
+  dayOver: string;
 
   /** The boards only the web draws: `log-upload`'s dropzone, and the chat-thread failure state. */
   web: {
@@ -179,6 +181,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} of {plan} kcal",
     dayOfPlan: "of {plan} kcal",
     dayLeft: "{left} left",
+    dayOver: "{over} over",
     web: {
       title: "A photo of the meal",
       dropHint: "Drop a photo here",
@@ -235,6 +238,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} sur {plan} kcal",
     dayOfPlan: "sur {plan} kcal",
     dayLeft: "{left} restantes",
+    dayOver: "{over} en trop",
     web: {
       title: "Une photo du repas",
       dropHint: "Dépose une photo ici",
@@ -291,6 +295,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} von {plan} kcal",
     dayOfPlan: "von {plan} kcal",
     dayLeft: "{left} übrig",
+    dayOver: "{over} zu viel",
     web: {
       title: "Ein Foto vom Essen",
       dropHint: "Foto hier ablegen",
@@ -347,6 +352,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} di {plan} kcal",
     dayOfPlan: "di {plan} kcal",
     dayLeft: "ne restano {left}",
+    dayOver: "{over} in più",
     web: {
       title: "Una foto del pasto",
       dropHint: "Trascina qui una foto",
@@ -403,6 +409,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} de {plan} kcal",
     dayOfPlan: "de {plan} kcal",
     dayLeft: "quedan {left}",
+    dayOver: "{over} de más",
     web: {
       title: "Una foto de la comida",
       dropHint: "Suelta una foto aquí",
@@ -459,6 +466,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} trên {plan} kcal",
     dayOfPlan: "trên {plan} kcal",
     dayLeft: "còn {left}",
+    dayOver: "{over} vượt quá",
     web: {
       title: "Ảnh chụp bữa ăn",
       dropHint: "Thả ảnh vào đây",
@@ -515,6 +523,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} dari {plan} kcal",
     dayOfPlan: "dari {plan} kcal",
     dayLeft: "sisa {left}",
+    dayOver: "{over} berlebih",
     web: {
       title: "Foto makanannya",
       dropHint: "Taruh foto di sini",
@@ -571,6 +580,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     dayEaten: "{eaten} из {plan} ккал",
     dayOfPlan: "из {plan} ккал",
     dayLeft: "осталось {left}",
+    dayOver: "{over} сверх плана",
     web: {
       title: "Фото приёма пищи",
       dropHint: "Перетащи сюда фото",
