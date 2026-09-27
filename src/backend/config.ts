@@ -380,6 +380,25 @@ export interface Config {
    */
   landingUrl: string;
 
+  /**
+   * The donation links an operator may offer — the You surface's "Support eait" row (#200).
+   * ALL EMPTY IS THE DEFAULT AND THE OFF STATE: a host that takes no donations draws no row,
+   * and `ProfileResponse.donate` is how the bundle learns the ones that are set — sent, like
+   * `limits`, never compiled into a client that serves more than one host.
+   */
+  donateKofiUrl: string;
+  donateBmcUrl: string;
+  donateGithubUrl: string;
+
+}
+
+/** A donation link: empty is off; a set one must be an http(s) URL a browser can open. */
+function donateUrl(name: string, raw: string | undefined): string {
+  const v = (raw ?? "").trim();
+  if (v !== "" && !/^https?:\/\/\S+$/.test(v)) {
+    throw new Error(`[eait] ${name} must be an http(s) URL — e.g. https://ko-fi.com/you — not "${v}"`);
+  }
+  return v;
 }
 
 /** Comma-separated env list → trimmed array, empties dropped. */
@@ -516,6 +535,9 @@ export function configDefaults(): Config {
     telegramBotUsername: "",
     adminBootstrapUserId: "",
     landingUrl: "",
+    donateKofiUrl: "",
+    donateBmcUrl: "",
+    donateGithubUrl: "",
     pushEnabled: false,
     expoPushAccessToken: "",
     pushTimeoutMs: 15_000,
@@ -652,6 +674,9 @@ export function loadConfig(): Config {
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
+    donateKofiUrl: donateUrl("EAIT__BACKEND__DONATE_KOFI_URL", process.env.EAIT__BACKEND__DONATE_KOFI_URL),
+    donateBmcUrl: donateUrl("EAIT__BACKEND__DONATE_BMC_URL", process.env.EAIT__BACKEND__DONATE_BMC_URL),
+    donateGithubUrl: donateUrl("EAIT__BACKEND__DONATE_GITHUB_URL", process.env.EAIT__BACKEND__DONATE_GITHUB_URL),
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
     pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
@@ -854,6 +879,11 @@ export function demoConfig(): Config {
     // Same argument — "works in demo, untested in production" is the shape of every configuration
     // bug that ships. The privacy link `/start` renders comes off this.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
+    // Same argument once more for the donation links (#200): off unless the operator sets one,
+    // and settable here so the Support row is the same code the production server sends.
+    donateKofiUrl: donateUrl("EAIT__BACKEND__DONATE_KOFI_URL", process.env.EAIT__BACKEND__DONATE_KOFI_URL),
+    donateBmcUrl: donateUrl("EAIT__BACKEND__DONATE_BMC_URL", process.env.EAIT__BACKEND__DONATE_BMC_URL),
+    donateGithubUrl: donateUrl("EAIT__BACKEND__DONATE_GITHUB_URL", process.env.EAIT__BACKEND__DONATE_GITHUB_URL),
     // And the same argument again for the notification sweep. `choosePush` gives a demo the
     // LOGGING implementation whatever these say, so nothing can leave the machine — but the
     // scheduler, the sweep and the composed sentence are only reachable by hand if these are

@@ -22,6 +22,12 @@ in it. Comments and rulebooks here occasionally name files from that
 side (`src/mobile/…`, `docs/…`, `scripts/…`, `deploy/…`) or an issue number — those refer to the
 private repository this backend is developed alongside.
 
+## Support eait
+
+eait is independent and self-funded. If it is useful to you, you can support its development:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/kirmalyshev)
+
 ## Run it
 
 ```sh

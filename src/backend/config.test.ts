@@ -42,6 +42,7 @@ const VARS = [
   "EAIT__BACKEND__APPLE_SERVICE_ID", "EAIT__BACKEND__APPLE_TEAM_ID", "EAIT__BACKEND__APPLE_KEY_ID",
   "EAIT__BACKEND__APPLE_PRIVATE_KEY",
   "EAIT__BACKEND__TELEGRAM_BOT_TOKEN",
+  "EAIT__BACKEND__DONATE_KOFI_URL", "EAIT__BACKEND__DONATE_BMC_URL", "EAIT__BACKEND__DONATE_GITHUB_URL",
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
@@ -128,6 +129,34 @@ describe("loadConfig", () => {
     expect(c.timezone).toBe("America/New_York");
     expect(c.port).toBe(9999);
     expect(c.host).toBe("0.0.0.0");
+  });
+
+  // The Support link (#200): three operator URLs, all empty by default, each read from its own
+  // variable — the host that sets none draws no row, and a set one must be a real http(s) URL
+  // rather than text a client would drop into an anchor.
+  it("reads the donation links — empty is off, each from its own variable", () => {
+    withRequired({
+      EAIT__BACKEND__DONATE_KOFI_URL: "https://ko-fi.com/kirmalyshev",
+      EAIT__BACKEND__DONATE_BMC_URL: "https://buymeacoffee.com/kirmalyshev",
+      EAIT__BACKEND__DONATE_GITHUB_URL: "https://github.com/sponsors/kirmalyshev",
+    });
+    const c = loadConfig();
+    expect(c.donateKofiUrl).toBe("https://ko-fi.com/kirmalyshev");
+    expect(c.donateBmcUrl).toBe("https://buymeacoffee.com/kirmalyshev");
+    expect(c.donateGithubUrl).toBe("https://github.com/sponsors/kirmalyshev");
+  });
+
+  it("defaults every donation link to off", () => {
+    withRequired();
+    const c = loadConfig();
+    expect(c.donateKofiUrl).toBe("");
+    expect(c.donateBmcUrl).toBe("");
+    expect(c.donateGithubUrl).toBe("");
+  });
+
+  it("refuses a donation link that is not an http(s) URL", () => {
+    withRequired({ EAIT__BACKEND__DONATE_KOFI_URL: "ko-fi.com/kirmalyshev" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__DONATE_KOFI_URL/);
   });
 
   // Zero is the local idiom for "no limit" — the caps and the rate limits in this same file all

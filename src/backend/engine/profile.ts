@@ -162,8 +162,16 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     paywall: paywallOf(deps, profile.lang, userId),
     coachName: threadCopyFor(profile.lang).coach.name,
     hasLoggedMeal: await hasLoggedMeal(deps, userId),
+    donate: donateOf(deps.config),
   };
 }
+
+/** The operator's donation links, per provider — null while its variable is unset (#200). */
+const donateOf = (config: EngineDeps["config"]): ProfileResponse["donate"] => ({
+  github: config.donateGithubUrl || null,
+  kofi: config.donateKofiUrl || null,
+  buyMeACoffee: config.donateBmcUrl || null,
+});
 
 /**
  * "Has this account ever logged a meal", read the way the diary reads its window — `totalsSince`
@@ -385,6 +393,7 @@ export async function patchProfile(
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
       coachName: threadCopyFor(profile.lang).coach.name,
+      donate: donateOf(deps.config),
       hasLoggedMeal: await hasLoggedMeal(deps, userId),
     },
   };

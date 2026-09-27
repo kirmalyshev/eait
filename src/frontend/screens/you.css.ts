@@ -65,6 +65,8 @@ ${Array.from({ length: WEIGHT_CHART_DOTS.lastIndex + 1 }, (_, i) => `.you .pgrap
 .you .card.flat { box-shadow: 0 0 0 1px var(--hair); padding: 4px 16px; }
 .you .urows .opt { padding: 13px 0; font-size: 15px; font-weight: 500; }
 .you .urows .opt .ov { margin-left: auto; font-size: 13px; color: var(--muted); }
+/* The Support row's provider links (#200) — quiet, and each one reachable on its own (44px). */
+.you .urows .opt .ov a { color: var(--accent); text-decoration: none; padding: 6px 0; }
 .you .urows button.opt { cursor: pointer; color: inherit; text-align: left; }
 /* Every select a finger touches is the same control: 16px type, a 44px box (the a11y floor,
    which is also why 'pick' stays the language select's own hook and the others are 'optpick'). */

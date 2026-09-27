@@ -103,6 +103,9 @@ export interface YouCopy {
     units: string;
     unitsMetric: string;
     unitsImperial: string;
+    /** The optional Support row's label (#200) — drawn only while the operator configures a
+        donation URL; the provider names beside it are brands and stay untranslated. */
+    support: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -311,6 +314,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Units",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Support eait",
     },
     phone: {
       title: "You",
@@ -420,6 +424,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Unités",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Soutenir eait",
     },
     phone: {
       title: "Vous",
@@ -529,6 +534,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Einheiten",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "eait unterstützen",
     },
     phone: {
       title: "Du",
@@ -638,6 +644,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Unità",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Sostieni eait",
     },
     phone: {
       title: "Tu",
@@ -747,6 +754,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Unidades",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Apoyar eait",
     },
     phone: {
       title: "Tú",
@@ -856,6 +864,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Đơn vị",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Ủng hộ eait",
     },
     phone: {
       title: "Bạn",
@@ -965,6 +974,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Unit",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
+      support: "Dukung eait",
     },
     phone: {
       title: "Kamu",
@@ -1074,6 +1084,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       units: "Единицы",
       unitsMetric: "кг · см",
       unitsImperial: "lb · ft",
+      support: "Поддержать eait",
     },
     phone: {
       title: "Вы",

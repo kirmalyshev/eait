@@ -519,6 +519,20 @@ export interface PairCodeResponse {
 
 // ── Profile ──────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The donation links a host may offer (#200) — the You surface's "Support eait" row.
+ *
+ * SENT, NEVER COMPILED, for the reason `limits` is: the same bundle serves self-hosted
+ * instances that take no donations, so the operator's `EAIT__BACKEND__DONATE_*_URL` variables
+ * are the only source. Each is null while its variable is unset; ALL THREE null is the off
+ * state and a client draws no row.
+ */
+export interface DonateLinks {
+  github: string | null;
+  kofi: string | null;
+  buyMeACoffee: string | null;
+}
+
 /** Profile plus everything derived from it, so the app never recomputes targets locally. */
 export interface ProfileResponse {
   profile: Profile;
@@ -639,6 +653,8 @@ export interface ProfileResponse {
    * this response.
    */
   hasLoggedMeal: boolean;
+  /** {@link DonateLinks} — the operator's donation URLs, every one null when none are set. */
+  donate: DonateLinks;
 }
 
 /**
