@@ -61,6 +61,10 @@ export interface HomeCopy {
   pickerNextMonth: string;
   /** phone: the month sheet's scrim's accessible name — the tap-outside dismissal. */
   pickerClose: string;
+  /** phone: a marked day's accessible name in the sheet — `{day}` is `dayLabel`'s. */
+  pickerDayLogged: string;
+  /** phone: an empty day's accessible name in the sheet. */
+  pickerDayUnlogged: string;
   /**
    * The guess hedge beside a figure (`today.html` "about 1,437" when the day holds a rough
    * estimate) — the analysis's own honesty, never the target's.
@@ -139,6 +143,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Previous month",
     pickerNextMonth: "Next month",
     pickerClose: "Close",
+    pickerDayLogged: "{day}, has meals",
+    pickerDayUnlogged: "{day}, nothing logged",
     about: "about",
     kcalLeft: "kcal left",
     kcalEaten: "kcal eaten",
@@ -179,6 +185,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mois précédent",
     pickerNextMonth: "Mois suivant",
     pickerClose: "Fermer",
+    pickerDayLogged: "{day}, repas notés",
+    pickerDayUnlogged: "{day}, rien de noté",
     about: "environ",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal consommées",
@@ -219,6 +227,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Vorheriger Monat",
     pickerNextMonth: "Nächster Monat",
     pickerClose: "Schließen",
+    pickerDayLogged: "{day}, Mahlzeiten erfasst",
+    pickerDayUnlogged: "{day}, nichts erfasst",
     about: "etwa",
     kcalLeft: "kcal übrig",
     kcalEaten: "kcal gegessen",
@@ -259,6 +269,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mese precedente",
     pickerNextMonth: "Mese successivo",
     pickerClose: "Chiudi",
+    pickerDayLogged: "{day}, pasti registrati",
+    pickerDayUnlogged: "{day}, niente registrato",
     about: "circa",
     kcalLeft: "kcal rimaste",
     kcalEaten: "kcal mangiate",
@@ -299,6 +311,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mes anterior",
     pickerNextMonth: "Mes siguiente",
     pickerClose: "Cerrar",
+    pickerDayLogged: "{day}, con comidas",
+    pickerDayUnlogged: "{day}, sin registros",
     about: "unas",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal comidas",
@@ -339,6 +353,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Tháng trước",
     pickerNextMonth: "Tháng sau",
     pickerClose: "Đóng",
+    pickerDayLogged: "{day}, đã ghi bữa ăn",
+    pickerDayUnlogged: "{day}, chưa ghi gì",
     about: "khoảng",
     kcalLeft: "kcal còn lại",
     kcalEaten: "kcal đã ăn",
@@ -379,6 +395,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Bulan sebelumnya",
     pickerNextMonth: "Bulan berikutnya",
     pickerClose: "Tutup",
+    pickerDayLogged: "{day}, ada catatan makan",
+    pickerDayUnlogged: "{day}, belum ada catatan",
     about: "sekitar",
     kcalLeft: "kcal tersisa",
     kcalEaten: "kcal dimakan",
@@ -419,6 +437,8 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Предыдущий месяц",
     pickerNextMonth: "Следующий месяц",
     pickerClose: "Закрыть",
+    pickerDayLogged: "{day}, записаны приёмы пищи",
+    pickerDayUnlogged: "{day}, ничего не записано",
     about: "около",
     kcalLeft: "ккал осталось",
     kcalEaten: "ккал съедено",
