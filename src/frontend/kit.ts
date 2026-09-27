@@ -14,6 +14,7 @@ import {
   cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
   optionRow as optionRowMarkup, photoHero as photoHeroMarkup, planCard as planCardMarkup,
+  gabieAvatar as gabieAvatarMarkup, gabieName as gabieNameMarkup, spudAvatar as spudAvatarMarkup,
   ring as ringMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
   verdictList as verdictListMarkup, weekBarsSvg, weekStrip as weekStripMarkup, weightChartSvg,
   type ChipName, type HeroCallout, type MealRowSpec, type RingOpts, type VerdictTone,
@@ -82,6 +83,15 @@ export const ctaEl = (o: Parameters<typeof ctaMarkup>[0]): Element => kitEl(ctaM
 
 export const optionRowEl = (o: Parameters<typeof optionRowMarkup>[0]): Element =>
   kitEl(optionRowMarkup(o));
+
+export const spudAvatarEl = (
+  mood: Parameters<typeof spudAvatarMarkup>[0],
+  o?: Parameters<typeof spudAvatarMarkup>[1],
+): Element => kitEl(spudAvatarMarkup(mood, o));
+
+export const gabieAvatarEl = (): Element => kitEl(gabieAvatarMarkup());
+
+export const gabieNameEl = (name: string): Element => kitEl(gabieNameMarkup(name));
 
 // ── The ones that carry data ─────────────────────────────────────────────────────────────────
 

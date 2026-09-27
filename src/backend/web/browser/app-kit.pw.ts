@@ -9,11 +9,12 @@
 
 import type { Page } from "@playwright/test";
 import { lightVars } from "@eait/shared/palette";
-import { motionCss } from "@eait/shared/design";
+import { fontFaces, motionCss } from "@eait/shared/design";
 import { iconCss } from "@eait/shared/ui/icons";
 import {
-  cta, estimateChartSvg, gramMacs, kitCss, mac, mcard, mealRow, optionRow, photoHero, ring,
-  twoWayChartSvg, verdictList, weekBarsSvg, weekStrip, weightChartSvg, type WeekDayRow,
+  cta, estimateChartSvg, gabieAvatar, gabieName, gramMacs, kitCss, mac, mcard, mealRow,
+  optionRow, photoHero, ring, spudAvatar, twoWayChartSvg, verdictList, weekBarsSvg, weekStrip,
+  weightChartSvg, type WeekDayRow,
 } from "@eait/shared/ui/kit";
 import { expect, test } from "./fixtures.ts";
 
@@ -78,11 +79,20 @@ async function kitSheet(page: Page): Promise<void> {
     `<div class="opts">${optionRow({ text: "Lose weight", icon: "lose", tile: true, selected: true })}${optionRow({ text: "Keep weight", icon: "keep", tile: true })}</div>`,
     // A hairline list is the same row outside the card grid — the form .card.flat wraps it in.
     `<div class="card flat" style="padding:0 16px">${optionRow({ text: "Language", icon: "person", tag: "div" })}${optionRow({ text: "Sign out", tag: "div" })}</div>`,
+    // The avatars: Spud's mood disc and Gabie's lettered one, with her name line.
+    `<div class="say">${spudAvatar("think")}<div><p>Reading the plate.</p></div></div>`,
+    `<div class="say">${gabieAvatar()}<div>${gabieName("Gabie · nutritionist")}<p>Tell me what I got wrong.</p></div></div>`,
   ].join("\n");
+  // Land on the app's origin first — on the quietest page it has, /health — so the fonts'
+  // relative route resolves there, and so the shell's own bundle is not running when setContent
+  // replaces the document. Without fonts the sheet measures fallback-serif metrics, not the design.
+  await page.goto("/health");
   await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>
 :root{${lightVars}}
+${fontFaces("/start/assets/fonts")}
 </style><style>${iconCss()}</style><style>${kitCss()}</style><style>${motionCss()}</style>
 </head><body style="background:var(--bg);font-family:var(--sans);max-width:420px;margin:24px auto">${markup}</body></html>`);
+  await page.evaluate("document.fonts.ready");
 }
 
 test("the kit's measurements are pro.css's", async ({ page }) => {
@@ -143,9 +153,22 @@ test("the kit's measurements are pro.css's", async ({ page }) => {
   await expect(page.locator(".opt.sel .ck")).toHaveCSS("background-color", "rgb(30, 107, 60)");
   await expect(page.locator(".opt").nth(1).locator(".ck")).toHaveCSS("box-shadow", /inset/);
 
-  // The charts are the shared geometry: paths verbatim, the end dot accent.
+  // The charts are the shared geometry: paths verbatim, the end dot accent — and the Target
+  // chip's label is white on ink, not the muted fill .pgraph text would give it.
   await expect(page.locator(".pgraph .ln")).toHaveAttribute("d", /M20 34/);
   await expect(page.locator(".pgraph .end")).toHaveAttribute("fill", "var(--accent)");
+  await expect(page.locator(".pgraph .chip text")).toHaveCSS("fill", "rgb(255, 255, 255)");
+  await expect(page.locator(".pgraph .chip rect")).toHaveCSS("fill", "rgb(23, 25, 28)");
+
+  // The avatars: Spud's 28 px disc draws its mood's face, Gabie's is the lettered accent one.
+  await expect(page.locator(".spud.think")).toHaveCSS("width", "28px");
+  const face = await page.evaluate(
+    `getComputedStyle(document.querySelector(".spud.think")).backgroundImage`,
+  );
+  expect(face).toContain("data:image/svg+xml");
+  await expect(page.locator(".gabie")).toHaveCSS("background-color", "rgb(30, 107, 60)");
+  await expect(page.locator(".gabie")).toHaveCSS("border-radius", "50%");
+  await expect(page.locator(".gname")).toContainText("Gabie · nutritionist");
 });
 
 test("reduced motion: the kit draws its end state and animates nothing", async ({ page }) => {

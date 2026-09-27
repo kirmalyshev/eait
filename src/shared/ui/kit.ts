@@ -24,6 +24,7 @@ import {
 import type { IconName } from "./icons.ts";
 import { RADIUS, SHADOW } from "../design.ts";
 import { LANG_TAG, spellUnit, UNIT_KCAL, wholeNumbers, type Lang } from "../lang.ts";
+import { MOUTHS, spudSvg, type MascotMood } from "../mascot.ts";
 
 /** Text or an attribute value, made inert. The one escaper both surfaces get. */
 export const esc = (text: string): string =>
@@ -351,6 +352,23 @@ export const weekBarsSvg = (
     `</svg>`;
 };
 
+// ── The avatars ──────────────────────────────────────────────────────────────────────────────
+//
+// Spud is the 28 px tinted disc the boards draw beside a `.say` (36 px `.lg`); the face art per
+// mood is mascot.ts's own, data-urled into a `--face` variable by kitCss — never a copy
+// transcribed into a string here. Gabie is the lettered accent disc, and her name line is
+// `.gname` — the "Gabie · nutritionist" the correction boards carry.
+
+/** Spud at 28 px, mood-named, decorative beside its `.say` text. `large` is the 36 px variant. */
+export const spudAvatar = (mood: MascotMood, o: { large?: boolean } = {}): string =>
+  `<span class="spud ${mood}${o.large ? " lg" : ""}" aria-hidden="true"></span>`;
+
+/** Gabie's lettered disc — the letter itself is `.gabie::before`, so the markup carries none. */
+export const gabieAvatar = (): string => `<span class="gabie" aria-hidden="true"></span>`;
+
+/** Her name line above a `.say` turn's words — the caller composes the words, escaped here. */
+export const gabieName = (name: string): string => `<div class="gname">${esc(name)}</div>`;
+
 // ── Buttons and option rows ──────────────────────────────────────────────────────────────────
 //
 // `.cta.p` is the register's one button: 16/600 on accent, radius 14, never uppercase. An `href`
@@ -497,6 +515,20 @@ export function kitCss(): string {
 .hero .stamp{position:absolute;right:12px;bottom:12px;background:rgba(23,25,28,.72);color:#fff;
   font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px}
 
+/* The avatars. Each mood's --face is mascot.ts's own SVG as a data URL — the same drawing the
+   surfaces inline elsewhere, so a board and a bubble never carry two potatoes. */
+.spud{width:28px;height:28px;flex:0 0 28px;border-radius:50%;
+  background:var(--accent-tint) var(--face) center/78% no-repeat}
+.spud.lg{width:36px;height:36px;flex-basis:36px}
+${(Object.keys(MOUTHS) as MascotMood[]).map((m) =>
+  `.spud.${m}{--face:url("data:image/svg+xml,${encodeURIComponent(spudSvg(m, `face-${m}`))}")}`
+).join("\n")}
+.gabie{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--accent);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font:700 13px/1 var(--sans)}
+.gabie::before{content:"G"}
+.say{display:flex;gap:10px;align-items:flex-start}
+.gname{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 2px}
+
 /* The chart frame — overflow:visible so an end dot can sit on the edge. */
 .pgraph{display:block;overflow:visible;width:100%}
 .pgraph text{font-size:12px;fill:var(--muted);font-family:inherit}
@@ -506,6 +538,9 @@ export function kitCss(): string {
 .pgraph .chip{animation-delay:1.2s}
 .pgraph .wo{animation-delay:.2s}
 .pgraph .wi{animation-delay:.5s}
+/* The Target chip's label is white on ink — without this rule the .pgraph text line above
+   out-ranks the fill attribute and the chip reads muted-on-ink (~3.6:1). */
+.pgraph .chip text{fill:#fff}
 /* Staggered entries, by data index rather than DOM position — a sparse week keeps its delays.
    Inline styles are not an option (the app's CSP), so the delay arrives as a generated class. */
 ${Array.from({ length: 13 }, (_, i) => `.pgraph.wl circle.pd-${i}{animation-delay:${(0.8 + i * 0.08).toFixed(2)}s}`).join("\n")}

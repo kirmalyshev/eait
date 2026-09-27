@@ -6,9 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  cta, esc, estimateChartSvg, gramMacs, kitCss, mac, macs, mcard, mealRow, optionRow,
-  photoHero, planCard, ring, twoWayChartSvg, verdictDot, verdictList, weekBarsSvg, weekStrip,
-  weightChartSvg,
+  cta, esc, estimateChartSvg, gabieAvatar, gabieName, gramMacs, kitCss, mac, macs, mcard,
+  mealRow, optionRow, photoHero, planCard, ring, spudAvatar, twoWayChartSvg, verdictDot,
+  verdictList, weekBarsSvg, weekStrip, weightChartSvg,
 } from "./kit.ts";
 import { dayRing, estimateChart, ringDash, TWO_WAYS_CHART } from "./charts.ts";
 
@@ -274,6 +274,26 @@ describe("the charts", () => {
   });
 });
 
+describe("avatars — Spud's mood disc and Gabie's letter", () => {
+  test("spudAvatar is the 28 px disc with its mood class", () => {
+    expect(spudAvatar("happy")).toBe('<span class="spud happy" aria-hidden="true"></span>');
+    expect(spudAvatar("think", { large: true })).toContain('class="spud think lg"');
+  });
+  test("gabieAvatar is the lettered disc; gabieName is the name line", () => {
+    expect(gabieAvatar()).toBe('<span class="gabie" aria-hidden="true"></span>');
+    expect(gabieName("Gabie · nutritionist")).toBe('<div class="gname">Gabie · nutritionist</div>');
+    expect(gabieName("Gabie <script>")).toContain("&lt;script&gt;");
+  });
+  test("every mood's --face is mascot.ts's own svg, data-urled once", () => {
+    const css = kitCss();
+    for (const mood of ["happy", "think", "care", "idle", "wave", "joy"]) {
+      expect(css).toContain(`.spud.${mood}{--face:url("data:image/svg+xml,`);
+    }
+    expect(css).toContain('.spud{width:28px;height:28px');
+    expect(css).toContain('.gabie::before{content:"G"}');
+  });
+});
+
 describe("cta — the one button", () => {
   test("primary as a link, primary as a submit", () => {
     expect(cta({ text: "See my plan", kind: "p", href: "#/plan" }))
@@ -346,5 +366,10 @@ describe("kitCss — the numbers the boards measure", () => {
     expect(rule(".pgraph")).toContain("overflow:visible");
     expect(css).toContain("k-rise");
     expect(css).toContain("k-draw");
+  });
+
+  test("the Target chip's text stays white on ink — .pgraph text would mute it", () => {
+    // A presentation attribute loses to a rule; the chip's label needs its own rule.
+    expect(css).toContain(".pgraph .chip text{fill:#fff}");
   });
 });
