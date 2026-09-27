@@ -23,7 +23,8 @@ test("answers before an account, the plan before the sign-up, and the first meal
 
   // The whole walk with NO sign-in — the account exists because the first answer made it.
   await onboard(page);
-  await expect(page.getByRole("heading", { name: "Here is your plan" })).toBeVisible();
+  // The board's headline is the goal sentence itself — the S6 line, not a title.
+  await expect(page.locator(".pln .goal")).toContainText("Goal:");
 
   // The plan's way on is the sign-up screen, which asks for the two boxes AND the provider.
   await page.getByRole("link", { name: "Continue", exact: true }).click();
@@ -42,9 +43,11 @@ test("answers before an account, the plan before the sign-up, and the first meal
   await page.getByRole("button").click();
 
   // The identity attached to the session's own account — and the country question is what a
-  // signed-up, answered account is asked next, on its own screen (S8).
+  // signed-up, answered account is asked next, on its own screen (S8). The new screen is a radio
+  // grid plus Continue: a tap selects, the button commits.
   await expect(page).toHaveURL(/\/start\/country/);
-  await page.getByRole("button", { name: "Germany" }).click();
+  await page.locator('.cty .opt:has(input[value="de"])').click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
 
   // The handoff: this deployment has no web application, so the product's own thread is it.
   await expect(page).toHaveURL(/\/start\/chat/);

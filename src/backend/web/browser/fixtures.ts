@@ -74,7 +74,7 @@ export async function signIn(page: Page, subject: string, provider: "apple" | "g
 export async function onboard(page: Page, extra: Record<string, string | string[]> = {}) {
   const answers: Record<string, string | string[]> = { ...ANSWERS, ...extra };
   for (let i = 0; i < 20; i++) {
-    if (/\/start\/plan/.test(page.url())) return;
+    if (/\/start\/(plan|building)/.test(page.url())) break;
     const prompt = await page.locator('input[name="prompt"]').first().getAttribute("value");
     if (!prompt) break;
     const answer = answers[prompt];
@@ -100,6 +100,11 @@ export async function onboard(page: Page, extra: Record<string, string | string[
       await page.locator('input[type="text"][name="answer"], input[type="number"][name="answer"]').first().fill(answer);
       await page.locator('button[type="submit"]').last().click();
     }
+  }
+  // The reveal stands between the last answer and the plan (W3): its own CTA is the fastest way
+  // through — the meta refresh would arrive on its own at 4.5 s, but a spec should not wait for it.
+  if (/\/start\/building/.test(page.url())) {
+    await page.locator('a[href="/start/plan"]').click();
   }
   await expect(page).toHaveURL(/\/start\/plan/);
 }
