@@ -60,12 +60,22 @@ msgstr "{noun} — tinggi"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — sesuai rencana"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — sangat tinggi"
 
 #. js-lingui-explicit-id
@@ -97,6 +107,11 @@ msgstr "Proteinku sudah cukup belum?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Jawab dulu pertanyaan rencananya di web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "kalori"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -300,6 +315,11 @@ msgstr "Dipulihkan — kamu sudah masuk. Satu foto atau satu kalimat, dua-duanya
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "lemak jenuh"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
 
@@ -317,6 +337,11 @@ msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya {coach} se
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Masuk"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "natrium"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts

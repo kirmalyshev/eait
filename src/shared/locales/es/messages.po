@@ -60,12 +60,22 @@ msgstr "{noun} — por encima"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — por encima"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — en el plan"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — muy por encima"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — muy por encima"
 
 #. js-lingui-explicit-id
@@ -97,6 +107,11 @@ msgstr "¿Estoy tomando suficiente proteína?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Responde primero a las preguntas del plan en la web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calorías"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -300,6 +315,11 @@ msgstr "Restaurado — estás dentro. Una foto o una frase, las dos registran un
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "grasas saturadas"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Grasas saturadas"
 
@@ -317,6 +337,11 @@ msgstr "Manda la foto de una comida, dime qué comiste, o hazle una pregunta a {
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Entrar"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodio"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
