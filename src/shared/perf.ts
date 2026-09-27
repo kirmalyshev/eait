@@ -59,6 +59,11 @@ export const PERF_SCREENS = [
   "today",
   "chat",
   "settings",
+  "you-weight",
+  "you-profile",
+  "you-basis",
+  "you-account",
+  "you-subscription",
   "camera",
   "meal",
   "health",
@@ -169,6 +174,17 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
 
   // Renders the profile that is already in the session.
   settings: { paintMs: 100, readyMs: 100 },
+
+  // The You stack's pushed screens (the weigh-in, the editor, the arithmetic, the account, the
+  // subscription) — all of them draw from `ProfileResponse`, which is already in the session.
+  // The weigh-in and the editor re-read `/v1/weights` for the provenance line and the chart's
+  // source word, but the figure the user came for is seeded off the profile, so there is nothing
+  // to wait on — readyMs === paintMs, the same answer "settings" gives.
+  "you-weight": { paintMs: 100, readyMs: 100 },
+  "you-profile": { paintMs: 100, readyMs: 100 },
+  "you-basis": { paintMs: 100, readyMs: 100 },
+  "you-account": { paintMs: 100, readyMs: 100 },
+  "you-subscription": { paintMs: 100, readyMs: 100 },
 
   // A native capture session has to start. That is not JavaScript and not something a budget can
   // argue with, so the allowance is real and stated rather than hidden.
