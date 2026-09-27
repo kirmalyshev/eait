@@ -241,6 +241,18 @@ export interface YouCopy {
     discardCancel: string;
     discardConfirm: string;
 
+    /**
+     * A sheet's scrim — the tap-outside dismissal — as VoiceOver names it: "Dismiss".
+     * (The phone's pickers and the delete sheet share it.)
+     */
+    dismiss: string;
+    /**
+     * How a flat row ANNOUNCES itself to a reader when it carries a value — "{label}: {value}" —
+     * "Language: English". The visible pieces stay separate elements; this is the label the row
+     * reads as ONE element, so the separator is the language's own punctuation, not a code join.
+     */
+    labeledValue: string;
+
     // ── the flat card's own pickers — units' labels are `web.units*` above ──
     /** The Language row's label — "Language". */
     language: string;
@@ -372,6 +384,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Discard changes?",
       discardCancel: "Keep editing",
       discardConfirm: "Discard",
+      dismiss: "Dismiss",
+      labeledValue: "{label}: {value}",
     },
   },
   fr: {
@@ -479,6 +493,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Ignorer les modifications ?",
       discardCancel: "Continuer la modification",
       discardConfirm: "Ignorer",
+      dismiss: "Fermer",
+      labeledValue: "{label}: {value}",
     },
   },
   de: {
@@ -586,6 +602,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Änderungen verwerfen?",
       discardCancel: "Weiter bearbeiten",
       discardConfirm: "Verwerfen",
+      dismiss: "Schließen",
+      labeledValue: "{label}: {value}",
     },
   },
   it: {
@@ -693,6 +711,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Scartare le modifiche?",
       discardCancel: "Continua a modificare",
       discardConfirm: "Scarta",
+      dismiss: "Chiudi",
+      labeledValue: "{label}: {value}",
     },
   },
   es: {
@@ -800,6 +820,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "¿Descartar los cambios?",
       discardCancel: "Seguir editando",
       discardConfirm: "Descartar",
+      dismiss: "Cerrar",
+      labeledValue: "{label}: {value}",
     },
   },
   vi: {
@@ -907,6 +929,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Bỏ các thay đổi?",
       discardCancel: "Tiếp tục chỉnh sửa",
       discardConfirm: "Bỏ",
+      dismiss: "Đóng",
+      labeledValue: "{label}: {value}",
     },
   },
   id: {
@@ -1014,6 +1038,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Buang perubahan?",
       discardCancel: "Lanjutkan mengedit",
       discardConfirm: "Buang",
+      dismiss: "Tutup",
+      labeledValue: "{label}: {value}",
     },
   },
   ru: {
@@ -1121,6 +1147,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       discardTitle: "Сбросить изменения?",
       discardCancel: "Продолжить",
       discardConfirm: "Сбросить",
+      dismiss: "Закрыть",
+      labeledValue: "{label}: {value}",
     },
   },
 };

@@ -6,6 +6,8 @@
 // (.opt/.macs/.mcard/.week) are kitCss's own; what lives here is the board's arrangement of them
 // plus the words-only helpers (`.lab`, `.est`, `.d`) that are not the kit's.
 
+import { WEIGHT_CHART_DOTS } from "../../shared/ui/charts.ts";
+
 export const youCss = `
 /* The board's two columns, 1000px wide — one column under the phone-width breakpoint. */
 .wmain:has(.you) { max-width: 1000px; }
@@ -39,13 +41,11 @@ export const youCss = `
 .you .card button.plink:hover, .you .card button.elink:hover { text-decoration: underline; }
 
 /* The weight chart's own tempo (the board's, not the Progress card's): the line draws, then the
-   points pop at .9/1.0/1.1/1.2 — pd-N is the kit's delay class, re-timed here for this board. */
+   points pop on WEIGHT_CHART_DOTS' stagger — pd-N is the kit's delay class, re-timed here for
+   this board, the timings read off the shared constant rather than retyped. */
 .you .wchart { margin-top: 8px; }
-.you .pgraph.wl circle.pd-0 { animation-delay: .9s; }
-.you .pgraph.wl circle.pd-1 { animation-delay: 1s; }
-.you .pgraph.wl circle.pd-2 { animation-delay: 1.1s; }
-.you .pgraph.wl circle.pd-3 { animation-delay: 1.2s; }
-.you .pgraph.wl circle { animation-delay: 1.2s; }
+${Array.from({ length: WEIGHT_CHART_DOTS.lastIndex + 1 }, (_, i) => `.you .pgraph.wl circle.pd-${i} { animation-delay: ${(WEIGHT_CHART_DOTS.delayMs + i * WEIGHT_CHART_DOTS.stepMs) / 1000}s; }`).join("\n")}
+.you .pgraph.wl circle { animation-delay: ${(WEIGHT_CHART_DOTS.delayMs + WEIGHT_CHART_DOTS.lastIndex * WEIGHT_CHART_DOTS.stepMs) / 1000}s; }
 
 /* The inline editors — the weigh-in and the plan edit sit inside their card, rows of
    label + control like the flat card's rows. */

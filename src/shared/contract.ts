@@ -401,6 +401,14 @@ export const signsIn = (provider: string): boolean =>
   provider === "device" || provider === "apple" || provider === "google";
 
 /**
+ * A provider's brand name, for the rows that say who somebody signed in with. Brand names are not
+ * translated — "Apple" is "Apple" in all eight languages — so this is a record, not a `Localized`
+ * table. One copy for every surface: the web You screen and the phone's account board were each
+ * carrying their own.
+ */
+export const PROVIDER_NAME: Record<string, string> = { apple: "Apple", google: "Google" };
+
+/**
  * Sign in with Apple / Google.
  *
  * The client sends the provider's ID TOKEN. The server verifies its signature against the

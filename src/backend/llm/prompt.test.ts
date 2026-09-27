@@ -142,7 +142,7 @@ test("the correction prompt says the photographs are attached only when they are
 // one is a sentence the model actually reads. A rule that is only in a document is a rule the
 // model has never heard.
 
-const BASIS = { bmr: 1400, tdee: 2100, requestedDeltaKcal: -500, appliedDeltaKcal: -420, shareCapApplied: true, floorKcal: 1200, floorApplied: false, usedFallbackBand: false };
+const BASIS = { bmr: 1400, tdee: 2100, activityDeltaKcal: 700, requestedDeltaKcal: -500, appliedDeltaKcal: -420, shareCapApplied: true, floorKcal: 1200, floorApplied: false, usedFallbackBand: false };
 
 const coachInput = (over: Partial<Parameters<typeof buildCoachContext>[0]> = {}) => ({
   profile: { ...PROFILE, lang: "de" as const, goal: "lose" as const, restrictions: ["kidneys"], food_allergies: "peanuts" },
