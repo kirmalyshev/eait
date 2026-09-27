@@ -59,6 +59,12 @@ them. Ported from the private monorepo with its iOS, Metro and landing halves re
   5 cannot meet one of those at any slot, and `dev-env.test.ts` proves it as arithmetic rather
   than as a list of slots. The CONTAINER still publishes 8787 — inside one nothing collides.
 
+- **`bun run web:e2e` draws on the same ladder.** Its three servers take offsets 2, 5 and 6 of the
+  slot — the only ones left once the dev pair and the monorepo's last digits are excluded — printed
+  by `bun src/scripts/dev-env.ts e2e-ports`, which `playwright.config.ts` asks for as a subprocess
+  because playwright loads its config as CommonJS and `require` of `dev-env.ts` dies on
+  `import.meta.main`. `EAIT_WEB_E2E_PORT` stays the explicit override, with its old +1/+2 layout.
+
 - **A service is started from the repo ROOT by entry path**, never `bun run --cwd`. bun loads `.env`
   from its working directory, so `--cwd src/backend` reads `src/backend/.env`, finds nothing, and
   the server comes up on defaults against no database — which looks exactly like a configuration

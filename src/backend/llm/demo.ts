@@ -262,9 +262,19 @@ export function demoPorts(): LlmPorts {
       };
     }
     const eaten = Math.round(todayMeals.reduce((n, m) => n + m.kcal, 0));
+    // The bar's subject, the way a real coach names it: when the question is about one nutrient.
+    // The engine fills the figures; a demo that handed numbers through would be different from
+    // the real thing in a way a test can see.
+    const focus = /protein|protéin|eiweiß|белк|prot[ée]ine?/i.test(text) ? "protein"
+      : /satur/i.test(text) ? "satfat"
+      : /\bcarb|kohlenhydrat|углевод|glucid/i.test(text) ? "carbs"
+      : /\bfat\b|fett\b|gras|жир/i.test(text) ? "fat"
+      : /calori|kcal|kalor/i.test(text) ? "kcal"
+      : undefined;
     return {
       reply: `You are at ${eaten} kcal today — ${Math.max(0, targets.kcal - eaten)} left of your ${targets.kcal}, and ${targets.protein_g} g protein is the day's aim. (Demo answer.)`,
       suggestions,
+      ...(focus !== undefined ? { focus } : {}),
     };
   };
 

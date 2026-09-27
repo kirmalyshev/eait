@@ -13,20 +13,50 @@
 //
 // `channel: "chrome"` uses the Chrome already on the machine rather than downloading a browser.
 
+import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = Number(process.env.EAIT_WEB_E2E_PORT ?? 8899);
+// THE PORTS ARE DERIVED, the way `./dev` derives this worktree's own (#138): the suite's three
+// servers take three offsets of this worktree's slot, computed in `src/scripts/dev-env.ts` — the
+// one place a port may be computed. A fixed 8899 meant every second worktree's `web:e2e` died on
+// a port a sibling's run already held. The slot resolution stays in that file and is asked for as
+// a subprocess: playwright loads this config as CommonJS, and `require` of `dev-env.ts` dies on
+// its `import.meta.main`. `EAIT_WEB_E2E_PORT` stays the explicit override and keeps its old +1/+2
+// layout; a checkout with no answer still gets 8899.
+function suitePorts(): { start: number; app: number; appBackend: number } {
+  const override = process.env.EAIT_WEB_E2E_PORT;
+  if (override !== undefined && override !== "") {
+    const p = Number(override);
+    return { start: p, app: p + 1, appBackend: p + 2 };
+  }
+  try {
+    // `__dirname`, not the caller's cwd: the slot asked for is THIS worktree's, which the config's
+    // own location names wherever `playwright test` happens to be run from.
+    const out = execFileSync("bun", [join(__dirname, "src/scripts/dev-env.ts"), "e2e-ports"], { encoding: "utf8" });
+    const [start, app, appBackend] = out.trim().split(/\s+/).map(Number);
+    if ([start, app, appBackend].every((p) => Number.isInteger(p) && p > 0)) {
+      return { start: start!, app: app!, appBackend: appBackend! };
+    }
+  } catch {
+    // No bun, no git, no worktree — a plain checkout still runs on the old default.
+  }
+  return { start: 8899, app: 8900, appBackend: 8901 };
+}
+
+const PORTS = suitePorts();
+const PORT = PORTS.start;
 const MODE = process.env.EAIT_WEB_E2E_LLM === "real" ? "real" : "demo";
 const BASE = `http://localhost:${PORT}`;
-// The web APPLICATION (#423) is its own process, on the next port. It forwards everything it does
-// not serve itself — `/start`, `/api` — to the backend above, the way the edge does in production,
-// so a spec driving it reaches the API through one origin exactly as a browser does.
-const APP_PORT = PORT + 1;
+// The web APPLICATION (#423) is its own process, on a port of its own. It forwards everything it
+// does not serve itself — `/start`, `/api` — to the backend behind it, the way the edge does in
+// production, so a spec driving it reaches the API through one origin exactly as a browser does.
+const APP_PORT = PORTS.app;
 const APP = `http://localhost:${APP_PORT}`;
 // And the backend BEHIND it is a deployment that HAS a web application (`publicWebUrl` set), which is
 // what production is and what the one above deliberately is not: `/start/chat` sends people to the
 // web application's chat there (#499), and keeps its own page here, where `chat.pw.ts` drives it.
-const APP_BACKEND_PORT = PORT + 2;
+const APP_BACKEND_PORT = PORTS.appBackend;
 
 export default defineConfig({
   testDir: "./src/backend/web/browser",
@@ -83,7 +113,7 @@ export default defineConfig({
       // worktree's WEB APPLICATION port into it — a different application on a different port.
       // Inherited here, the backend would answer every `/start` navigation with a 301 to that port,
       // where nothing this suite started is listening. Empty means "the browser's origin is my own",
-      // which is what a single server on 8899 is.
+      // which is what a single server on this slot's `start` port is.
       EAIT__BACKEND__PUBLIC_WEB_URL: "",
     },
   }, {
