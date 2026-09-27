@@ -24,17 +24,18 @@ import {
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
+  DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
 } from "@eait/shared";
 import { acceptLang, narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, deleteLine, deleteMealById, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
-  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
+  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
   reanalyzeMeal,
 } from "../engine/index.ts";
@@ -968,6 +969,32 @@ export function createRouter(
         }
         const totals = await week(deps, userId, days);
         return totals ? json({ days: totals }) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.days) {
+        // Both ends required and calendar-real: a missing or misspelt one answers as a wrong-but-
+        // plausible window otherwise, which is how a client comes to draw "nothing logged" over a
+        // typo. The span is calendar days — strings, not hours, so no zone question enters it.
+        const from = url.searchParams.get("from");
+        const to = url.searchParams.get("to");
+        if (from === null || to === null || !isCalendarDate(from) || !isCalendarDate(to)) {
+          return json({ error: "from and to must be YYYY-MM-DD" }, 400);
+        }
+        const spanDays = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+        if (spanDays < 1 || spanDays > DIARY_RANGE_MAX_DAYS) {
+          return json({ error: `the range is at most ${DIARY_RANGE_MAX_DAYS} days` }, 400);
+        }
+        const out = await days(deps, userId, from, to);
+        return out ? json(out satisfies DaysResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.weights) {
+        const range = url.searchParams.get("range") ?? "90D";
+        if (!isWeightRange(range)) {
+          return json({ error: `range must be one of ${WEIGHT_RANGES.join(", ")}` }, 400);
+        }
+        const out = await weights(deps, userId, range);
+        return out ? json(out satisfies WeightsResponse) : json({ error: "not-onboarded" }, 403);
       }
 
       // ── Health ────────────────────────────────────────────────────────────────────────────

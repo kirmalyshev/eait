@@ -24,8 +24,13 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@eait/shared";
-import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, FIXTURE_THREAD, type HealthDay } from "@eait/shared";
+import {
+  localDate, dateMinus, emptyHealthDay, firstVerdictLines, zonedMidnight, FIXTURE_THREAD,
+  type HealthDay,
+} from "@eait/shared";
 import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
+import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 /**
  * A device id that is stable across runs, unguessable, and recognisable in a `psql` session.
@@ -47,6 +52,25 @@ const SEED_PHOTO = Uint8Array.from(Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mM48T2QJMQwqmFUw/DVAAApdxAfIDFTpwAAAABJRU5ErkJggg==",
   "base64",
 ));
+
+/**
+ * The persona's meal photographs — real, licensed images (#84), because the boards these fixtures
+ * reproduce show real ones.
+ *
+ * Files on disk rather than inline base64: 20 KB of webp is a picture, not a constant, and the
+ * licences ride beside them in `img/LICENSES.md` — the same three rows `product/design/pro/img`
+ * carries, which is where the squares were cropped from. Loaded lazily so the module stays cheap
+ * to import (the test and the seeder are its only callers).
+ */
+const BOARD_PHOTO_FILES = {
+  porridge: "porridge-sq.webp",
+  salmon: "salmon-sq.webp",
+  flatwhite: "flatwhite-sq.webp",
+} as const;
+type BoardPhoto = keyof typeof BOARD_PHOTO_FILES;
+
+const boardPhoto = (key: BoardPhoto): Uint8Array =>
+  new Uint8Array(readFileSync(join(import.meta.dir, "img", BOARD_PHOTO_FILES[key])));
 
 export function seedDeviceId(key: string): string {
   const digest = new Bun.CryptoHasher("sha256").update(`eait-dev-seed:${key}`).digest("hex");
@@ -84,17 +108,253 @@ export interface SeedPersona {
    * `days > 0` gets its thread from its meals and wants none of this.
    */
   thread?: readonly string[];
+  /**
+   * The authored board (#84) — the persona whose every number IS the Register P design.
+   *
+   * When set, `days` is ignored for meals: the days below are written exactly as authored, so a
+   * seeded screenshot equals its board number for number. All `back` values are days before the
+   * seeded today, so the fixture reproduces the boards at whatever date it runs.
+   */
+  board?: SeedBoard;
+}
+
+/** One authored meal on the board — the card, in numbers. */
+export interface SeedMeal {
+  name: string;
+  name_en?: string;
+  /** `HH:MM` in the seeded zone — the card's clock time. */
+  at: string;
+  /** "photo" puts a photo line in the thread and a picture on the card; "typed" puts the words. */
+  via: "photo" | "typed";
+  /** Which licensed image backs the card. Absent → the neutral square. */
+  photo?: BoardPhoto;
+  items: readonly MealItem[];
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  satfat_g: number;
+  fiber_g: number;
+  sugar_g: number;
+  sodium_mg: number;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface SeedBoard {
+  /** `back` days before today → that day's meals, in card order. */
+  days: readonly { back: number; meals: readonly SeedMeal[] }[];
+  /** The typed weigh-ins — the manual half of the log, as the `weights` table holds them. */
+  manualWeights: readonly { back: number; kg: number }[];
+  /**
+   * The scale's own readings — the imported half, written as `health_days.weight_kg`. On a day
+   * with both, the typed row wins the merged read, the tie the goal bar's start needs.
+   */
+  healthWeights: readonly { back: number; kg: number }[];
+  /** How far back the full health rows reach; older weigh-in days carry their weight alone. */
+  healthSpan: number;
+  /** How far back the account onboarded — the day the plan and its start weight were set. */
+  onboardedBack: number;
 }
 
 /**
- * The personas, in the order the seeder prints them. `onboarded` is first because it is the one
- * `dev-env` pins by default.
+ * Anna's week, as the boards draw it (#84).
  *
- * The profile on `onboarded` declares `ldl` deliberately. That is the tag that unlocks the `ldl`
- * verdict dimension, so seeded meals carry a second verdict pill and the row that renders it is
- * exercised by looking at the app rather than only by a unit test.
+ * Every number below is a number on a board: the four logged days are Mon–Thu of "the week of
+ * Thu 24 Sep 2026" (the Progress bars and the 4-day streak), today's three cards are the Today
+ * screen's own rows, and the weigh-ins draw the Progress line — 74.6 on the pre-onboarding
+ * backfill through to Health's 73.4 today. Written relative to the seeded today, so the fixture
+ * reproduces the boards whatever day it runs.
+ */
+const ANNA_BOARD: SeedBoard = {
+  onboardedBack: 21, // 3 Sep on the boards — the day she typed 74 kg and the plan was set.
+  healthSpan: 7,
+  manualWeights: [
+    { back: 21, kg: 74.0 }, // the onboarding answer — the goal bar's start, beating the scale's own
+  ],
+  healthWeights: [
+    { back: 31, kg: 74.6 }, // the backfill — logged before the account existed; never the start
+    { back: 21, kg: 74.2 }, // the scale's reading on the onboarding morning; her typed 74.0 wins
+    { back: 14, kg: 73.9 },
+    { back: 4, kg: 73.8 },
+    { back: 0, kg: 73.4 },  // today 18:30 — the newest weigh-in, so the projection's current
+  ],
+  days: [
+    {
+      // Monday — 1,386 for the day.
+      back: 3,
+      meals: [
+        {
+          name: "Avocado toast with eggs", name_en: "avocado toast", at: "08:10", via: "photo",
+          kcal: 430, protein_g: 16, carbs_g: 32, fat_g: 24, satfat_g: 5, fiber_g: 7, sugar_g: 3,
+          sodium_mg: 540, confidence: "high",
+          items: [
+            { name: "Avocado toast", name_en: "avocado toast", grams: 150, kcal: 290, protein_g: 6, carbs_g: 30, fat_g: 16 },
+            { name: "Boiled egg", name_en: "egg", grams: 50, kcal: 140, protein_g: 10, carbs_g: 2, fat_g: 8 },
+          ],
+        },
+        {
+          name: "Chicken quinoa bowl", name_en: "chicken quinoa bowl", at: "13:15", via: "photo",
+          kcal: 620, protein_g: 40, carbs_g: 52, fat_g: 24, satfat_g: 4, fiber_g: 9, sugar_g: 6,
+          sodium_mg: 720, confidence: "high",
+          items: [
+            { name: "Grilled chicken", name_en: "chicken breast", grams: 140, kcal: 260, protein_g: 34, carbs_g: 0, fat_g: 12 },
+            { name: "Quinoa, roasted vegetables", name_en: "quinoa bowl", grams: 220, kcal: 360, protein_g: 6, carbs_g: 52, fat_g: 12 },
+          ],
+        },
+        {
+          name: "Tomato pasta, side salad", name_en: "pasta", at: "19:40", via: "photo",
+          kcal: 336, protein_g: 11, carbs_g: 44, fat_g: 12, satfat_g: 2.5, fiber_g: 6, sugar_g: 8,
+          sodium_mg: 480, confidence: "high",
+          items: [
+            { name: "Tomato pasta", name_en: "pasta", grams: 240, kcal: 260, protein_g: 9, carbs_g: 42, fat_g: 6 },
+            { name: "Side salad", name_en: "mixed salad", grams: 80, kcal: 76, protein_g: 2, carbs_g: 2, fat_g: 6 },
+          ],
+        },
+      ],
+    },
+    {
+      // Tuesday — 1,429 for the day.
+      back: 2,
+      meals: [
+        {
+          name: "Skyr with granola", name_en: "skyr bowl", at: "07:50", via: "photo",
+          kcal: 400, protein_g: 22, carbs_g: 46, fat_g: 13, satfat_g: 5, fiber_g: 5, sugar_g: 22,
+          sodium_mg: 180, confidence: "high",
+          items: [
+            { name: "Skyr with granola", name_en: "skyr bowl", grams: 260, kcal: 400, protein_g: 22, carbs_g: 46, fat_g: 13 },
+          ],
+        },
+        {
+          name: "Sushi set", name_en: "sushi", at: "13:00", via: "photo",
+          kcal: 610, protein_g: 28, carbs_g: 82, fat_g: 16, satfat_g: 3, fiber_g: 4, sugar_g: 9,
+          sodium_mg: 1150, confidence: "high",
+          items: [
+            { name: "Sushi set", name_en: "sushi", grams: 320, kcal: 610, protein_g: 28, carbs_g: 82, fat_g: 16 },
+          ],
+        },
+        {
+          name: "Lentil soup and bread", name_en: "lentil soup", at: "19:20", via: "photo",
+          kcal: 419, protein_g: 17, carbs_g: 56, fat_g: 14, satfat_g: 2, fiber_g: 11, sugar_g: 5,
+          sodium_mg: 890, confidence: "high",
+          items: [
+            { name: "Lentil soup", name_en: "lentil soup", grams: 300, kcal: 300, protein_g: 15, carbs_g: 40, fat_g: 8 },
+            { name: "Bread roll", name_en: "bread", grams: 60, kcal: 119, protein_g: 2, carbs_g: 16, fat_g: 6 },
+          ],
+        },
+      ],
+    },
+    {
+      // Wednesday — 1,308 for the day.
+      back: 1,
+      meals: [
+        {
+          name: "Scrambled eggs on rye", name_en: "scrambled eggs", at: "08:05", via: "photo",
+          kcal: 360, protein_g: 21, carbs_g: 24, fat_g: 19, satfat_g: 6, fiber_g: 4, sugar_g: 2,
+          sodium_mg: 430, confidence: "high",
+          items: [
+            { name: "Scrambled eggs", name_en: "eggs", grams: 110, kcal: 210, protein_g: 15, carbs_g: 1, fat_g: 15 },
+            { name: "Rye toast", name_en: "rye bread", grams: 60, kcal: 150, protein_g: 6, carbs_g: 23, fat_g: 4 },
+          ],
+        },
+        {
+          name: "Burrito bowl", name_en: "burrito bowl", at: "13:10", via: "photo",
+          kcal: 640, protein_g: 36, carbs_g: 68, fat_g: 22, satfat_g: 6, fiber_g: 12, sugar_g: 7,
+          sodium_mg: 980, confidence: "high",
+          items: [
+            { name: "Burrito bowl", name_en: "burrito bowl", grams: 380, kcal: 640, protein_g: 36, carbs_g: 68, fat_g: 22 },
+          ],
+        },
+        {
+          name: "Greek salad with feta", name_en: "greek salad", at: "19:30", via: "photo",
+          kcal: 308, protein_g: 13, carbs_g: 14, fat_g: 21, satfat_g: 8, fiber_g: 4, sugar_g: 9,
+          sodium_mg: 640, confidence: "high",
+          items: [
+            { name: "Greek salad with feta", name_en: "greek salad", grams: 260, kcal: 308, protein_g: 13, carbs_g: 14, fat_g: 21 },
+          ],
+        },
+      ],
+    },
+    {
+      // Today — the Today board's own three cards: 1,066 of 1,434, 368 left.
+      back: 0,
+      meals: [
+        {
+          name: "Porridge with berries", name_en: "oat porridge", at: "07:40", via: "photo",
+          photo: "porridge",
+          kcal: 312, protein_g: 11, carbs_g: 52, fat_g: 7, satfat_g: 1.8, fiber_g: 7, sugar_g: 18,
+          sodium_mg: 160, confidence: "high",
+          items: [
+            { name: "Porridge with berries", name_en: "oat porridge", grams: 300, kcal: 312, protein_g: 11, carbs_g: 52, fat_g: 7 },
+          ],
+        },
+        {
+          // "calories high · saturated fat high" on the board: 540 of a 1,434 plan is a `warn`
+          // share, and 7.5 g of a 13 g LDL cap is a `bad` one — computed like every other meal.
+          name: "Salmon, rice, greens", name_en: "salmon", at: "13:05", via: "photo",
+          photo: "salmon",
+          kcal: 540, protein_g: 34, carbs_g: 48, fat_g: 23, satfat_g: 7.5, fiber_g: 5, sugar_g: 3,
+          sodium_mg: 620, confidence: "high",
+          items: [
+            { name: "Salmon fillet", name_en: "salmon", grams: 140, kcal: 290, protein_g: 26, carbs_g: 0, fat_g: 18 },
+            { name: "White rice", name_en: "rice", grams: 150, kcal: 195, protein_g: 4, carbs_g: 42, fat_g: 1 },
+            { name: "Broccoli", name_en: "broccoli", grams: 90, kcal: 55, protein_g: 4, carbs_g: 6, fat_g: 4 },
+          ],
+        },
+        {
+          // Typed, not photographed — the "rough estimate" chip is `confidence: "low"` behind
+          // `mealIsGuessed`, not a field the seed gets to invent.
+          name: "Flat white and a banana", name_en: "flat white", at: "16:10", via: "typed",
+          photo: "flatwhite",
+          kcal: 214, protein_g: 9, carbs_g: 34, fat_g: 5, satfat_g: 3, fiber_g: 3, sugar_g: 26,
+          sodium_mg: 120, confidence: "low",
+          items: [
+            { name: "Flat white", name_en: "flat white", grams: 240, kcal: 120, protein_g: 6, carbs_g: 10, fat_g: 4 },
+            { name: "Banana", name_en: "banana", grams: 100, kcal: 94, protein_g: 3, carbs_g: 24, fat_g: 1 },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * The personas, in the order the seeder prints them. `anna` is first because she is the one
+ * `dev-env` pins by default — the board persona, so the app opens on the screens the design
+ * teams measure against. `onboarded` stays beside her, exactly as it has been: other tooling
+ * seeds it by name (the monorepo's `scripts/eval-coach.ts` does `only: ["onboarded"]` and refuses
+ * without it), and the generated week is still the fixture for an ordinary, unauthored account.
  */
 export const SEED_PERSONAS: readonly SeedPersona[] = [
+  {
+    // THE BOARD PERSONA (#84). Anna is the account every Register P board was drawn against: the
+    // week strip, the streak, the goal bar, the weigh-in log — the meals, weights and health rows
+    // below are the boards' own numbers, so a screenshot of a seeded database can be compared with
+    // `product/design/pro/phone/` literally, figure for figure.
+    //
+    // `weight_kg` stays 74 — the plan the boards show (1,434 kcal) is computed on the weight she
+    // TYPED at onboarding. The 73.4 Health reports lives in the log, which is what the projection
+    // and the chart read; a profile row that carried it would draw a different plan.
+    key: "anna",
+    summary: "Anna — the boards' persona: 74 → 68 kg, LDL declared, streak 4, Health's 73.4",
+    days: 0,
+    board: ANNA_BOARD,
+    profile: {
+      goal: "lose",
+      sex: "female",
+      birth_year: 1994,
+      height_cm: 172,
+      weight_kg: 74,
+      target_weight_kg: 68,
+      activity: "few",
+      pace: "steady",
+      country: "de",
+      restrictions: ["ldl"],
+      medical_limitations: null,
+      food_allergies: null,
+      product_limitations: null,
+      // onboarded_at is computed per seed run — see `seedDevData`.
+    },
+  },
   {
     key: "onboarded",
     summary: "onboarded, 7 days of meals, declares an LDL restriction",
@@ -205,7 +465,7 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
 ];
 
 /** The persona `dev-env` pins into `EXPO_PUBLIC_EAIT__FRONTEND__DEV_DEVICE_ID` unless told otherwise. */
-export const DEFAULT_SEED_PERSONA = "onboarded";
+export const DEFAULT_SEED_PERSONA = "anna";
 
 export interface SeedOptions {
   /** IANA zone the dates are computed in. Must match the server's, or the diary looks a day off. */
@@ -289,6 +549,12 @@ function jitter(seed: string): number {
   return 0.85 + unitHash(seed) * 0.3;
 }
 
+/** The instant `HH:MM` shows on a wall clock in `zone` on `date` — the seeded card's own time. */
+const atClock = (zone: string, date: string, hhmm: string): Date => {
+  const [h, m] = hhmm.split(":").map(Number) as [number, number];
+  return new Date(zonedMidnight(zone, date).getTime() + (h * 60 + m) * 60_000);
+};
+
 export async function seedDevData(store: Store, opts: SeedOptions): Promise<SeededPersona[]> {
   const today = opts.today ?? localDate(opts.timezone);
   const wanted = opts.only && opts.only.length > 0
@@ -321,11 +587,68 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       continue;
     }
 
-    const profile = await store.patchProfile(userId, persona.profile);
+    // The board persona's onboarding is dated relative to the seeded today — `onboarded_at` is
+    // what the projection resolves "start" against, so a fixture seeded tomorrow must still put
+    // her first weigh-in ON the onboarding day and her backfill before it.
+    const onboardedAt = persona.board === undefined ? null
+      : atClock(opts.timezone, dateMinus(today, persona.board.onboardedBack), "08:00").toISOString();
+    const patch: ProfilePatch = persona.board
+      ? { ...persona.profile, onboarded_at: onboardedAt, weight_measured_at: onboardedAt }
+      : persona.profile;
+    const profile = await store.patchProfile(userId, patch);
     const { targets } = explainTargets(profile);
 
     let meals = 0;
     const thread: { back: number; record: MealRecord; lines: ChatAppend[] }[] = [];
+
+    if (persona.board) {
+      for (const day of persona.board.days) {
+        const date = dateMinus(today, day.back);
+        for (const spec of day.meals) {
+          const record: MealRecord = {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            ts: atClock(opts.timezone, date, spec.at).toISOString(),
+            date,
+            isFood: true,
+            items: spec.items.map((i) => ({ ...i })),
+            kcal: spec.kcal, protein_g: spec.protein_g, carbs_g: spec.carbs_g, fat_g: spec.fat_g,
+            satfat_g: spec.satfat_g, fiber_g: spec.fiber_g, sugar_g: spec.sugar_g,
+            sodium_mg: spec.sodium_mg,
+            verdicts: visibleVerdicts(
+              verdictsFromTargets(
+                { kcal: spec.kcal, satfat_g: spec.satfat_g, sodium_mg: spec.sodium_mg },
+                targets,
+              ),
+              profile.restrictions,
+            ),
+            confidence: spec.confidence,
+            notes: "Seeded",
+            corrected: false,
+            model: "seed",
+          };
+          await store.insertMeal(record);
+          // A real, licensed photograph where the board shows one — see `img/LICENSES.md`.
+          await store.putPhotos(userId, record.id, spec.photo
+            ? [{ mime: "image/webp", bytes: boardPhoto(spec.photo) }]
+            : [{ mime: "image/png", bytes: SEED_PHOTO }]);
+          // The thread line matches the door the meal came in by: the picture she sent, or the
+          // words she typed.
+          thread.push({ back: day.back, record, lines: [
+            spec.via === "photo"
+              ? { role: "user", kind: "photo", text: null }
+              : { role: "user", kind: "text", text: spec.name },
+            { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+          ] });
+          meals++;
+        }
+      }
+      // The typed half of the weigh-in log — what a PATCH would have written, dated as authored.
+      for (const w of persona.board.manualWeights) {
+        await store.putWeight(userId, dateMinus(today, w.back), w.kg);
+      }
+    }
+
     for (let back = 0; back < persona.days; back++) {
       const date = dateMinus(today, back);
       for (const slot of SLOTS) {
@@ -435,13 +758,23 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     // in-bed minutes were all in that state. A test now fails when any metric is absent from the
     // whole week, which is the same guard `scripts/health-fake.test.ts` puts on the phone's source.
     const healthDays: HealthDay[] = [];
-    for (let back = 0; back < persona.days; back++) {
+    // The board persona's span is its own: the weigh-in line reaches further back than its week
+    // of meals does, and her scale's readings are authored, not jittered — a random number on a
+    // drawn chart is the board disagreeing with itself.
+    const healthSpan = persona.board?.healthSpan ?? persona.days;
+    const authoredWeight = new Map(
+      (persona.board?.healthWeights ?? []).map((w) => [dateMinus(today, w.back), w.kg]),
+    );
+    for (let back = 0; back < healthSpan; back++) {
       const date = dateMinus(today, back);
       const seed = `${persona.key}:health:${date}`;
       const day = emptyHealthDay(date);
 
-      // A scale is stepped on most mornings, not all of them.
-      if (back % 3 !== 1) {
+      // A scale is stepped on most mornings, not all of them — and on the board persona, only
+      // on the days her weigh-in is authored for; every other day carries no weight at all.
+      if (persona.board) {
+        day.weight_kg = authoredWeight.get(date) ?? null;
+      } else if (back % 3 !== 1) {
         day.weight_kg = round1((profile.weight_kg ?? 80) + (jitter(`${seed}:w`) - 1) * 4);
       }
       day.height_cm = profile.height_cm;
@@ -469,6 +802,17 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       if (back % 5 === 0) day.workouts = 1;
 
       healthDays.push(day);
+    }
+    // Weigh-ins older than the span: a sparse row carrying the weight and nothing else — a day
+    // the scale synced and no watch was worn is exactly what a backfill looks like.
+    if (persona.board) {
+      for (const w of persona.board.healthWeights) {
+        const date = dateMinus(today, w.back);
+        if (w.back < healthSpan) continue;
+        const day = emptyHealthDay(date);
+        day.weight_kg = w.kg;
+        healthDays.push(day);
+      }
     }
     await store.putHealthDays(userId, healthDays);
 

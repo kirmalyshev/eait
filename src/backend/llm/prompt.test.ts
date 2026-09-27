@@ -150,7 +150,7 @@ const coachInput = (over: Partial<Parameters<typeof buildCoachContext>[0]> = {})
   basis: BASIS,
   today: "2026-09-02", localTime: "19:10",
   todayMeals: [{ items: ["Rice", "Chicken"], kcal: 640, protein_g: 42 }],
-  week: [{ date: "2026-09-01", kcal: 1900, protein_g: 95 }],
+  week: [{ date: "2026-09-01", kcal: 1900, protein_g: 95, carbs_g: 180, fat_g: 60, satfat_g: 15 }],
   projection: "around March 2027",
   ...over,
 });

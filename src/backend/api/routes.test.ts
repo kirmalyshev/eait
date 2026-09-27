@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
-  localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
-  type ProfileResponse, type MealProposed, type PendingMealsResponse, type ChatEntry,
+  dateMinus, localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
+  type DaysResponse, type MealRecord, type ProfileResponse, type MealProposed, type PendingMealsResponse,
+  type ChatEntry, type WeightsResponse,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -219,6 +220,73 @@ describe("profile", () => {
     expect(view.onboarded).toBe(true);
     expect(view.basis.tdee).toBeGreaterThan(0);
     expect(view.targets.kcal).toBeGreaterThanOrEqual(1200);
+  });
+
+  // #77. The paywall is operator configuration the client is TOLD — computed and formatted
+  // server-side, so the browser calculates nothing and the bundle compiles no price.
+  describe("paywall", () => {
+    const SELLING: Config["webPaywall"] = {
+      yearlyCheckoutUrl: "https://pay.rev.cat/y/{userId}",
+      monthlyCheckoutUrl: "https://pay.rev.cat/m/{userId}",
+      yearlyPrice: 39.99,
+      monthlyPrice: 4.99,
+      trialDays: 7,
+      exitOfferCheckoutUrl: "https://pay.rev.cat/u/{userId}",
+      exitOfferPrice: 23.99,
+      exitOfferRegularPrice: 39.99,
+      currency: "EUR",
+    };
+
+    const viewFor = async (webPaywall: Config["webPaywall"], locale = "en-GB") => {
+      const s = memoryStore();
+      const h = createRouter(
+        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() },
+        s, testVerifier);
+      const res = await h(new Request(url(ROUTES.authDevice), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale }),
+      }));
+      const { token } = await res.json() as { token: string };
+      return (await (await h(new Request(url(ROUTES.profile), {
+        headers: { authorization: `Bearer ${token}` },
+      }))).json() as ProfileResponse);
+    };
+
+    it("sends both plans and the exit offer, priced and named for THIS account", async () => {
+      const view = await viewFor(SELLING);
+      const userId = view.profile.user_id;
+      expect(view.paywall.trialDays).toBe(7);
+      // Every checkout already carries this account's id — `{userId}` is filled here, never by a
+      // client, because the webhook grants the purchase to app_user_id and nothing else.
+      expect(view.paywall.yearly).toEqual({
+        checkoutUrl: `https://pay.rev.cat/y/${userId}`,
+        price: "€39.99",
+        pricePerMonth: "€3.33",
+      });
+      expect(view.paywall.monthly).toEqual({
+        checkoutUrl: `https://pay.rev.cat/m/${userId}`,
+        price: "€4.99",
+      });
+      expect(view.paywall.exitOffer).toEqual({
+        checkoutUrl: `https://pay.rev.cat/u/${userId}`,
+        price: "€23.99",
+        regularPrice: "€39.99",
+        percentOff: 40,
+        perMonth: "€2.00",
+      });
+    });
+
+    it("formats the same prices in the account's own language", async () => {
+      const view = await viewFor(SELLING, "de-DE");
+      expect(view.paywall.yearly?.price).toBe("39,99 €");
+      expect(view.paywall.exitOffer?.perMonth).toBe("2,00 €");
+    });
+
+    it("sends an empty paywall — plans null, offer null — when the host sells nothing", async () => {
+      const view = await viewFor({ ...SELLING,
+        yearlyCheckoutUrl: "", monthlyCheckoutUrl: "", exitOfferCheckoutUrl: "" });
+      expect(view.paywall).toEqual({ trialDays: 7, yearly: null, monthly: null, exitOffer: null });
+    });
   });
 });
 
@@ -665,6 +733,266 @@ describe("diary", () => {
     expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS + 1}`, token)).status).toBe(400);
     // The intake series on the health screen covers the same span as the health rows.
     expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS}`, token)).status).toBe(200);
+  });
+});
+
+// ── The range reads (#84) ───────────────────────────────────────────────────────────────────
+//
+// `GET /v1/diary/days` is what Home's week strip and Progress's "This week" bars read; the streak
+// travels inside the same answer because a streak a client counted is a streak that disagrees.
+// Dates here are written out relative to the server's zone — `localDate(CONFIG.timezone)` is what
+// the engine calls "today", which is exactly the thing under test.
+
+const aMeal = (userId: string, date: string, kcal: number): MealRecord => ({
+  id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
+  isFood: true, items: [], kcal, protein_g: 10, carbs_g: 40, fat_g: 15, satfat_g: 4,
+  fiber_g: 1, sugar_g: 1, sodium_mg: 10,
+  verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test",
+});
+
+const TODAY = () => localDate(CONFIG.timezone);
+
+describe("the days read", () => {
+  it("answers every day of the range, oldest first, logged or empty", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+
+    const today = TODAY();
+    const d = (back: number) => dateMinus(today, back);
+    await store.insertMeal(aMeal(uid, d(2), 500));
+    await store.insertMeal(aMeal(uid, d(2), 300));
+    await store.insertMeal(aMeal(uid, d(0), 600));
+
+    const res = await get(`${ROUTES.days}?from=${d(3)}&to=${d(0)}`, token);
+    expect(res.status).toBe(200);
+    const out = await res.json() as DaysResponse;
+
+    expect(out.days.map((day) => day.date)).toEqual([d(3), d(2), d(1), d(0)]);
+    expect(out.days[0]).toMatchObject({ logged: false, kcal: 0, when: "past" });
+    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, protein_g: 20, when: "past" });
+    expect(out.days[2]).toMatchObject({ logged: false, kcal: 0, when: "past" });
+    expect(out.days[3]).toMatchObject({ logged: true, kcal: 600, when: "today" });
+    // The day's own plan is on the row: the session() profile's kcal target, never recomputed.
+    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+    expect(out.days.every((day) => day.targetKcal === me.targets.kcal)).toBe(true);
+    // Two logged days back, a blank one between: the run counts today alone.
+    expect(out.streak).toBe(1);
+  });
+
+  it("marks a day after today empty rather than zero — a day not yet is not a day eaten at zero", async () => {
+    const token = await session();
+    const today = TODAY();
+    const res = await get(`${ROUTES.days}?from=${today}&to=${dateMinus(today, -2)}`, token);
+    expect(res.status).toBe(200);
+    const out = await res.json() as DaysResponse;
+    expect(out.days.map((day) => day.when)).toEqual(["today", "future", "future"]);
+    expect(out.days[1]!.logged).toBe(false);
+    expect(out.days[1]!.kcal).toBeNull();
+    expect(out.days[2]!.protein_g).toBeNull();
+  });
+
+  it("counts the streak from yesterday while today is still open, and stops at a blank day", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+    const today = TODAY();
+    const d = (back: number) => dateMinus(today, back);
+
+    await store.insertMeal(aMeal(uid, d(1), 100));
+    await store.insertMeal(aMeal(uid, d(2), 100));
+    await store.insertMeal(aMeal(uid, d(3), 100));
+    // d(4) blank → the run is three days even though d(5) is also logged.
+    await store.insertMeal(aMeal(uid, d(5), 100));
+
+    const out = await (await get(`${ROUTES.days}?from=${d(6)}&to=${today}`, token)).json() as DaysResponse;
+    expect(out.streak).toBe(3);
+
+    // One logged meal today and the same run reads four.
+    await store.insertMeal(aMeal(uid, d(0), 100));
+    const today2 = await (await get(`${ROUTES.days}?from=${d(6)}&to=${today}`, token)).json() as DaysResponse;
+    expect(today2.streak).toBe(4);
+  });
+
+  it("counts nobody else's meals", async () => {
+    const token = await session();
+    const other = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const today = TODAY();
+    await store.insertMeal(aMeal(other, dateMinus(today, 1), 900));
+
+    const out = await (await get(`${ROUTES.days}?from=${dateMinus(today, 2)}&to=${today}`, token)).json() as DaysResponse;
+    expect(out.streak).toBe(0);
+    expect(out.days.every((day) => !day.logged)).toBe(true);
+  });
+
+  it("400s a missing, malformed or over-31-day span; 403s a fresh account", async () => {
+    const token = await session();
+    const today = TODAY();
+    expect((await get(`${ROUTES.days}?from=${today}`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.days}?from=nope&to=${today}`, token)).status).toBe(400);
+    // from AFTER to is an empty span, not a mistaken one.
+    expect((await get(`${ROUTES.days}?from=${today}&to=${dateMinus(today, 1)}`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.days}?from=${dateMinus(today, 31)}&to=${today}`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.days}?from=${dateMinus(today, 30)}&to=${today}`, token)).status).toBe(200);
+
+    // A fresh account answers like the sibling diary reads: an empty diary is not a refusal —
+    // `day` and `week` both answer one, and so does this: every row empty, streak zero.
+    const { token: fresh } = await (await post(ROUTES.authDevice, {
+      deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en",
+    })).json() as { token: string };
+    const blank = await get(`${ROUTES.days}?from=${today}&to=${today}`, fresh);
+    expect(blank.status).toBe(200);
+    expect(await blank.json() as DaysResponse).toMatchObject({
+      days: [{ date: today, logged: false, when: "today" }], streak: 0,
+    });
+  });
+});
+
+describe("the weights read", () => {
+  const healthWeight = (date: string, kg: number) => ({ ...emptyHealthDay(date), weight_kg: kg });
+
+  it("merges the health import and the typed log, the typed word winning a shared day", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+    const today = TODAY();
+
+    // A HealthKit backfill, a typed correction on the same day, and an older typed one.
+    await store.putHealthDays(uid, [healthWeight(today, 73.4), healthWeight(dateMinus(today, 10), 74.6)]);
+    await store.putWeight(uid, today, 73.2);
+    await store.putWeight(uid, dateMinus(today, 30), 75.0);
+
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    // Oldest first — chart order — and each date once.
+    expect(out.weights).toEqual([
+      { date: dateMinus(today, 30), kg: 75.0, source: "manual" },
+      { date: dateMinus(today, 10), kg: 74.6, source: "health" },
+      { date: today, kg: 73.2, source: "manual" },
+    ]);
+  });
+
+  it("bounds the log by the range, in the server's own timezone", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+    const today = TODAY();
+    await store.putWeight(uid, today, 73.4);
+    await store.putWeight(uid, dateMinus(today, 40), 74.4);  // inside 90D, outside nothing newer
+    await store.putWeight(uid, dateMinus(today, 100), 75.5); // outside 90D
+    await store.putWeight(uid, dateMinus(today, 200), 76.5); // outside 6M
+
+    const d90 = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    expect(d90.weights.map((w) => w.date)).toEqual([dateMinus(today, 40), today]);
+    const m6 = await (await get(`${ROUTES.weights}?range=6M`, token)).json() as WeightsResponse;
+    expect(m6.weights.map((w) => w.date)).toEqual([dateMinus(today, 100), dateMinus(today, 40), today]);
+    const all = await (await get(`${ROUTES.weights}?range=all`, token)).json() as WeightsResponse;
+    expect(all.weights.map((w) => w.date)).toEqual([
+      dateMinus(today, 200), dateMinus(today, 100), dateMinus(today, 40), today,
+    ]);
+    // And nobody else's: another account's row never surfaces here.
+    const other = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    await store.putWeight(other, today, 50.0);
+    expect((await (await get(`${ROUTES.weights}?range=all`, token)).json() as WeightsResponse).weights)
+      .toHaveLength(4);
+  });
+
+  it("defaults to the board's first segment and refuses a range it does not know", async () => {
+    const token = await session();
+    const today = TODAY();
+    expect((await get(`${ROUTES.weights}`, token)).status).toBe(200);
+    expect((await get(`${ROUTES.weights}?range=90D`, token)).status).toBe(200);
+    expect((await get(`${ROUTES.weights}?range=nope`, token)).status).toBe(400);
+    void today;
+  });
+});
+
+describe("the profile's projection", () => {
+  // An account onboarded three days ago at 70 kg aiming for 65 — hand-built rather than
+  // session()'s, because the store-level patch can write the onboarded_at of a PAST day, which is
+  // what the goal bar's "start" needs a history older than to prove it isn't reading it.
+  const accountWeighed = async () => {
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const token = await store.issueToken(userId);
+    const today = TODAY();
+    await store.patchProfile(userId, {
+      goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+      target_weight_kg: 65, activity: "some", pace: "steady", country: "gb", restrictions: [],
+      onboarded_at: `${dateMinus(today, 3)}T08:00:00.000Z`,
+    });
+    return { token, userId, today };
+  };
+
+  it("projects the plan from the latest weigh-in, starting where the plan was set", async () => {
+    const { token, userId, today } = await accountWeighed();
+    // The onboarding-day weigh-in, a pre-onboarding health backfill that must NOT become the
+    // start, and a health same-day reading that must not beat what she typed.
+    await store.putHealthDays(userId, [
+      { ...emptyHealthDay(dateMinus(today, 30)), weight_kg: 74.6 },
+      { ...emptyHealthDay(dateMinus(today, 3)), weight_kg: 71.1 },
+    ]);
+    await store.putWeight(userId, dateMinus(today, 3), 70.0);
+    await store.putWeight(userId, dateMinus(today, 1), 66.0);
+
+    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+    expect(me.projection).not.toBeNull();
+    // The current figure is the newest LOGGED weight, not the profile's stored 70.
+    expect(me.projection!.currentKg).toBe(66);
+    expect(me.projection!.targetKg).toBe(65);
+    // And the start is the typed onboarding value — 70, not the 74.6 backfill and not the 71.1
+    // the scale reported for the same morning (the typed row wins a shared date).
+    expect(me.projection!.startKg).toBe(70);
+    expect(me.projection!.weeks).toBeGreaterThan(0);
+    expect(me.projection!.kgPerWeek).toBeGreaterThan(0);
+    expect(me.projection!.month.length).toBeGreaterThan(0);
+    expect(me.projection!.beyondHorizon).toBe(false);
+  });
+
+  it("falls back to the earliest weigh-in when nothing was logged after onboarding", async () => {
+    const { token, userId, today } = await accountWeighed();
+    // The whole log predates the account — a HealthKit backfill of a phone that had data long
+    // before the install. The plan still needs somewhere to start from.
+    await store.putHealthDays(userId, [
+      { ...emptyHealthDay(dateMinus(today, 60)), weight_kg: 74.6 },
+      { ...emptyHealthDay(dateMinus(today, 40)), weight_kg: 74.0 },
+    ]);
+    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+    expect(me.projection!.startKg).toBe(74.6);
+    expect(me.projection!.currentKg).toBe(74.0);
+  });
+
+  it("uses the stored weight when nothing was ever logged", async () => {
+    const { token } = await accountWeighed();
+    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+    expect(me.projection!.currentKg).toBe(70);
+    expect(me.projection!.startKg).toBe(70);
+  });
+
+  it("writes the typed weight to the day's weigh-in row, the last write winning", async () => {
+    const token = await session();
+    const today = TODAY();
+
+    await patch(ROUTES.profile, { weight_kg: 69.5 }, token);
+    await patch(ROUTES.profile, { weight_kg: 69.2 }, token);
+
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    // One row for today — the second typing replaced the first, onboarding's own included.
+    expect(out.weights.filter((w) => w.date === today))
+      .toEqual([{ date: today, kg: 69.2, source: "manual" }]);
+  });
+
+  it("does not weigh-in on a patch that clears the weight", async () => {
+    const token = await session();
+    await patch(ROUTES.profile, { weight_kg: null }, token);
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    // The onboarding PATCH's own row stands; the clear wrote nothing — null is not a weigh-in.
+    expect(out.weights.filter((w) => w.date === TODAY())).toHaveLength(1);
+  });
+
+  it("answers null where no honest projection exists — a maintainer has nowhere to arrive", async () => {
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" });
+    const { token } = await res.json() as { token: string };
+    await patch(ROUTES.profile, {
+      goal: "maintain", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+      activity: "some", country: "gb", restrictions: [], complete_onboarding: true,
+    }, token);
+    const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+    expect(me.projection).toBeNull();
   });
 });
 

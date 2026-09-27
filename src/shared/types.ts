@@ -273,11 +273,14 @@ export interface DailyTotals {
   guessed: boolean;
 }
 
-/** Per-date sums — the week view's row shape. */
+/** Per-date sums — the row shape the diary's per-day reads aggregate meals into. */
 export interface DayTotals {
   date: string;
   kcal: number;
   protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  satfat_g: number;
 }
 
 /**

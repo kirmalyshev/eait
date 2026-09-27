@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  dateMinus, dayLabel, isCalendarDate, localDate, localTime, monthGrid, monthLabel, monthOf,
-  monthShift, windowStart, zonedMidnight,
+  dateMinus, dateMinusMonths, dayLabel, isCalendarDate, localDate, localTime, monthGrid,
+  monthLabel, monthOf, monthShift, windowStart, zonedMidnight,
 } from "./dates.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
 
@@ -162,5 +162,21 @@ describe("windowStart", () => {
     // everything, which is the failure that hides rather than crashes.
     expect(windowStart("2026-09-06", Infinity)).toBe(windowStart("2026-09-06", 1e9));
     expect(windowStart("2026-09-06", Infinity)).not.toBe("2026-09-06");
+  });
+});
+
+describe("dateMinusMonths", () => {
+  test("steps whole calendar months, keeping the day", () => {
+    expect(dateMinusMonths("2026-09-24", 6)).toBe("2026-03-24");
+    expect(dateMinusMonths("2026-09-24", 12)).toBe("2025-09-24");
+    expect(dateMinusMonths("2026-01-15", 1)).toBe("2025-12-15");
+  });
+
+  test("clamps at the end of a shorter month rather than rolling into the next", () => {
+    // Plain UTC arithmetic rolls 31 March back a month onto 3 April; the answer is 28 February —
+    // and 29 in a leap year, which is why this cannot be `min(day, 28)`.
+    expect(dateMinusMonths("2026-03-31", 1)).toBe("2026-02-28");
+    expect(dateMinusMonths("2024-03-31", 1)).toBe("2024-02-29");
+    expect(dateMinusMonths("2026-10-31", 1)).toBe("2026-09-30");
   });
 });

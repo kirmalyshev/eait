@@ -71,6 +71,20 @@ const PROVIDERS: Partial<Record<WebProvider, WebSignInProvider>> = {
   google: fakeProvider("google", WEB_CLIENT),
 };
 
+// A paywall that sells a yearly plan. A checkout URL alone is a config `loadConfig` refuses —
+// no price, no currency — so a hand-built Config carries all three.
+const PAYWALL: Config["webPaywall"] = {
+  yearlyCheckoutUrl: "https://pay.rev.cat/eait/{userId}",
+  monthlyCheckoutUrl: "",
+  yearlyPrice: 39.99,
+  monthlyPrice: 0,
+  trialDays: 7,
+  exitOfferCheckoutUrl: "",
+  exitOfferPrice: 0,
+  exitOfferRegularPrice: 0,
+  currency: "EUR",
+};
+
 const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
@@ -755,7 +769,7 @@ describe("the plan", () => {
     // Nothing configured is nothing to offer — the soft offer has no screen of its own either.
     expect((await get("/start/offer", session)).status).toBe(303);
 
-    router({ ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}" });
+    router({ ...CONFIG, webPaywall: PAYWALL });
     const second = await signIn();
     await answerAll(second, ANSWERS);
     const userId = (await store.userIdForToken(second.split("=")[1]!))!;
@@ -1431,7 +1445,7 @@ describe("the support moments", () => {
 describe("the soft offer after the plan", () => {
   const toPlan = async (webApp = false): Promise<string> => {
     router(
-      { ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}" },
+      { ...CONFIG, webPaywall: PAYWALL },
       undefined, undefined, webApp,
     );
     const session = await signIn();
@@ -1483,8 +1497,44 @@ describe("the soft offer after the plan", () => {
     expect((await get("/start/checkout", session)).status).toBe(404);
   });
 
+  // #77 — one paid link per configured plan, and the exit offer's own.
+  it("routes ?plan= to that plan's checkout, with the same account named", async () => {
+    router({ ...CONFIG, webPaywall: { ...PAYWALL,
+      yearlyCheckoutUrl: "https://pay.rev.cat/y/{userId}",
+      monthlyCheckoutUrl: "https://pay.rev.cat/m/{userId}",
+      monthlyPrice: 4.99,
+      exitOfferCheckoutUrl: "https://pay.rev.cat/u/{userId}",
+      exitOfferPrice: 23.99,
+    } });
+    const session = await signIn();
+    const userId = await webUser(session);
+    expect((await get("/start/checkout", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/y/${userId}`);
+    expect((await get("/start/checkout?plan=yearly", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/y/${userId}`);
+    expect((await get("/start/checkout?plan=monthly", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/m/${userId}`);
+    expect((await get("/start/checkout?plan=exit", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/u/${userId}`);
+  });
+
+  it("has no route for a plan the host does not sell, and none it never heard of", async () => {
+    router({ ...CONFIG, webPaywall: { ...PAYWALL, yearlyCheckoutUrl: "",
+      monthlyCheckoutUrl: "https://pay.rev.cat/m/{userId}", monthlyPrice: 4.99 } });
+    const session = await signIn();
+    const userId = await webUser(session);
+    // Only monthly is configured: it answers, and the bare link falls back to the one plan.
+    expect((await get("/start/checkout?plan=monthly", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/m/${userId}`);
+    expect((await get("/start/checkout", session)).headers.get("location"))
+      .toBe(`https://pay.rev.cat/m/${userId}`);
+    expect((await get("/start/checkout?plan=yearly", session)).status).toBe(404);
+    expect((await get("/start/checkout?plan=exit", session)).status).toBe(404);
+    expect((await get("/start/checkout?plan=weekly", session)).status).toBe(404);
+  });
+
   it("links the privacy policy under the offer, where one is published", async () => {
-    router({ ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}", landingUrl: "https://eait.fit" });
+    router({ ...CONFIG, webPaywall: PAYWALL, landingUrl: "https://eait.fit" });
     const session = await signIn();
     await answerAll(session, ANSWERS);
     const html = await (await get("/start/offer", session)).text();
@@ -1514,7 +1564,7 @@ describe("the soft offer after the plan", () => {
     expect(early.headers.get("location")).toBe("/start/q");
 
     // No checkout configured is nothing to offer: straight to where × would have gone.
-    router({ ...CONFIG, webCheckoutUrl: "" }, undefined, undefined, false);
+    router({ ...CONFIG }, undefined, undefined, false);
     const session2 = await signIn();
     await answerAll(session2, ANSWERS);
     const noCheckout = await get("/start/offer", session2);
@@ -2002,8 +2052,8 @@ describe("the web surface and the landing are one product", () => {
       const page = await res.text();
       expect(page).not.toContain("prefers-color-scheme");
       // The same typeface, served by this origin's backend route.
-      expect(page).toContain('font-family: "Space Grotesk"');
-      expect(page).toContain("/start/assets/space-grotesk-latin.woff2");
+      expect(page).toContain('font-family: "Montserrat"');
+      expect(page).toContain("/start/assets/fonts/montserrat-latin.woff2");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -2014,17 +2064,22 @@ describe("the web surface and the landing are one product", () => {
     const page = await (await get("/start/chat", session)).text();
     // The landing's palette, by variable name, rather than a second copy of the hexes.
     expect(page).toContain("--accent-ink:");
-    expect(page).toContain('font-family: "Space Grotesk"');
+    expect(page).toContain('font-family: "Montserrat"');
     // Light unless somebody says otherwise, which is the landing's rule: the OS is not consulted.
     expect(page).not.toContain("prefers-color-scheme");
   });
 
   it("serves that typeface itself, cached, so the page loads nothing from anyone else", async () => {
-    const res = await get("/start/assets/space-grotesk-latin.woff2");
+    const res = await get("/start/assets/fonts/montserrat-latin.woff2");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("font/woff2");
     expect(res.headers.get("cache-control")).toContain("immutable");
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+    // Every subset the pages declare is served — the five of them, and nothing beside them.
+    for (const subset of ["latin-ext", "cyrillic", "cyrillic-ext", "vietnamese"]) {
+      expect((await get(`/start/assets/fonts/montserrat-${subset}.woff2`)).status, subset).toBe(200);
+    }
+    expect((await get("/start/assets/fonts/montserrat-400.ttf")).status).toBe(404);
     // And the policy that allows it is same-origin only.
     const front = await get("/start");
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");

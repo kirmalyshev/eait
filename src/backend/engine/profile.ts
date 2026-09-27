@@ -8,9 +8,9 @@
 
 import { MAX_PROFILE_TEXT,
   LANGS, PACES, RESTRICTION_TAGS, SEXES, checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, migrateActivityLevel,
+  isAcceptableWeightKg, localDate, migrateActivityLevel, offerMath, paywallPrice, perMonth,
   type Lang, type Pace, type PatchProfileRequest, type Profile,
-  type Limits, type ProfileRejected, type ProfileResponse,
+  type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
 } from "@eait/shared";
 import { MIN_AGE } from "@eait/shared";
@@ -18,6 +18,7 @@ import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
+import { planProjection } from "./weights.ts";
 
 /**
  * The sample, as the app is told about it: spent or not, and how much is left.
@@ -88,6 +89,43 @@ function pairAddressOf(config: { publicWebUrl: string; publicApiUrl: string }): 
   return `${origin.replace(/^https?:\/\//, "").replace(/\/+$/, "")}${ROUTES.webStart}`;
 }
 
+/**
+ * The web paywall, computed per account (#77): the operator's `EAIT__BACKEND__WEB_*` block with
+ * every price formatted in the account's language and configured currency, the offer's discount
+ * derived by the shared `offerMath` (never a fixed percentage), and `{userId}` filled into every
+ * checkout link from THIS account — the one the credential resolved, so no client ever carries an
+ * id it was not issued.
+ *
+ * A plan with no configured checkout is null rather than half-offered, and an exit offer whose
+ * discount cannot stand — a regular price of nothing, or a saving under one percent — is no offer
+ * at all: the decline then goes straight to the app.
+ */
+function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
+  const w = deps.config.webPaywall;
+  const url = (template: string) => template.replaceAll("{userId}", encodeURIComponent(userId));
+  const price = (n: number) => paywallPrice(n, w.currency, lang);
+  const math = offerMath(w.exitOfferRegularPrice, w.exitOfferPrice);
+  return {
+    trialDays: w.trialDays,
+    yearly: w.yearlyCheckoutUrl === "" ? null : {
+      checkoutUrl: url(w.yearlyCheckoutUrl),
+      price: price(w.yearlyPrice),
+      pricePerMonth: price(perMonth(w.yearlyPrice)),
+    },
+    monthly: w.monthlyCheckoutUrl === "" ? null : {
+      checkoutUrl: url(w.monthlyCheckoutUrl),
+      price: price(w.monthlyPrice),
+    },
+    exitOffer: w.exitOfferCheckoutUrl === "" || math === null ? null : {
+      checkoutUrl: url(w.exitOfferCheckoutUrl),
+      price: price(w.exitOfferPrice),
+      regularPrice: price(w.exitOfferRegularPrice),
+      percentOff: math.percentOff,
+      perMonth: price(math.perMonth),
+    },
+  };
+}
+
 export async function profileView(deps: EngineDeps, userId: string): Promise<ProfileResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -99,6 +137,8 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
+    paywall: paywallOf(deps, profile.lang, userId),
+    projection: await planProjection(deps, profile, { targets, basis }),
   };
 }
 
@@ -244,6 +284,15 @@ export async function patchProfile(
   }
 
   const profile = await deps.store.patchProfile(userId, patch);
+
+  // A typed weight is also a weigh-in (#84): the log the Progress chart draws has a manual half,
+  // and this is where it is written. The row is dated TODAY, in the account's zone — the same
+  // rule `weight_measured_at` holds for the profile field — and the last write of a day wins, so
+  // retyping a weight corrects the chart rather than adding a second point to it.
+  if (patch.weight_kg !== undefined && patch.weight_kg !== null) {
+    await deps.store.putWeight(userId, localDate(deps.config.timezone), patch.weight_kg);
+  }
+
   const { targets, basis } = explainTargets(profile);
   const entitlement = await entitlementFor(deps, userId);
   return {
@@ -254,6 +303,8 @@ export async function patchProfile(
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
       pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
+      paywall: paywallOf(deps, profile.lang, userId),
+      projection: await planProjection(deps, profile, { targets, basis }),
     },
   };
 }

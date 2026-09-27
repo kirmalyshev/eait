@@ -1408,6 +1408,75 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(totals[0]!.kcal).toBe(300);
     });
 
+    it("sums every macro the days read answers with, not only the two the old week view drew", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.insertMeal(meal(u, {
+        kcal: 100, protein_g: 10, carbs_g: 20, fat_g: 5, satfat_g: 2, date: "2026-08-01",
+      }));
+      await s.insertMeal(meal(u, {
+        kcal: 200, protein_g: 20, carbs_g: 30, fat_g: 6, satfat_g: 1, date: "2026-08-01",
+      }));
+      const totals = await s.totalsSince(u, "2026-08-01");
+      expect(totals).toHaveLength(1);
+      expect(totals[0]).toEqual({
+        date: "2026-08-01", kcal: 300, protein_g: 30, carbs_g: 50, fat_g: 11, satfat_g: 3,
+      });
+    });
+
+    // ── The manual weigh-in log (`weights`) ──────────────────────────────────────────────────
+    //
+    // What `PATCH /v1/profile`'s weight writes land in: one row per (user, day), the last write of
+    // a day winning. The engine merges these with `health_days.weight_kg`; these tests pin the
+    // table's own rules — scoping, the upsert, the merge's never-overwrite — so both stores prove
+    // them and neither needs a route to do it.
+
+    it("keeps one weight per day, the last write winning, scoped to the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+
+      await s.putWeight(u, "2026-08-01", 80.5);
+      await s.putWeight(u, "2026-08-01", 80.1); // a same-day correction replaces, never appends
+      await s.putWeight(u, "2026-07-30", 81.0);
+      await s.putWeight(other, "2026-08-01", 60.0);
+
+      expect(await s.weightsSince(u, "2026-07-01")).toEqual([
+        { date: "2026-08-01", kg: 80.1 },
+        { date: "2026-07-30", kg: 81.0 },
+      ]);
+      expect(await s.weightsSince(u, "2026-08-01")).toEqual([{ date: "2026-08-01", kg: 80.1 }]);
+      expect(await s.weightsSince(other, "2026-07-01")).toEqual([{ date: "2026-08-01", kg: 60.0 }]);
+    });
+
+    it("moves a merge's weights into gaps only, never over a day the survivor already logged", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+
+      await s.putWeight(anon, "2026-08-01", 75.0); // a day the survivor has too
+      await s.putWeight(anon, "2026-08-02", 74.8); // a gap the survivor never weighed on
+      await s.putWeight(real, "2026-08-01", 74.2); // the deliberate entry — wins
+
+      await s.mergeUsers(anon, real);
+
+      // Same rule as health_days: filling a gap is a gift, overwriting a deliberate number is
+      // data loss. The anonymous account's weigh-in on a day the real account already has is the
+      // duplicate, not the truth.
+      expect(await s.weightsSince(real, "2026-07-01")).toEqual([
+        { date: "2026-08-02", kg: 74.8 },
+        { date: "2026-08-01", kg: 74.2 },
+      ]);
+    });
+
+    it("erases the weigh-in log with the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putWeight(u, "2026-08-01", 80.0);
+      await s.deleteUser(u);
+      expect(await s.weightsSince(u, "2020-01-01")).toEqual([]);
+    });
+
     it("lists the meals in a window, newest first, bounded, and only this user's", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;

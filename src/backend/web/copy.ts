@@ -106,7 +106,7 @@ export interface PageCopy {
    * The soft offer after the plan (#42). The headline is shared — `offerHeadline` names the
    * computed target and month — so these are the words around it: the beat, the fallback title
    * for a goal that carries no target, the three perks, the timeline, the plan rows, the ask and
-   * the close. NO PRICE ANYWHERE: `webCheckoutUrl` is a URL, not a figure, and inventing one is
+   * the close. NO PRICE ANYWHERE: `webPaywall` holds URLs, not figures, and inventing one is
    * exactly the claim the gate exists to catch.
    */
   offerBeat: string;
