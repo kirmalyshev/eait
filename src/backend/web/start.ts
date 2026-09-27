@@ -37,16 +37,17 @@ import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
-  cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, logPhotoMeal, onboardingContent,
-  mintPairingCode, patchProfile, profileView, redeemPairingCode, signInWithProvider, type EngineDeps,
+  cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal,
+  onboardingContent, mintPairingCode, patchProfile, profileView, redeemPairingCode,
+  signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
-import type { Store } from "../store.ts";
+import { blankProfile, type Store } from "../store.ts";
 import {
   // NOT `PAGE_COPY`. It is the English alias, and every use here is shadowed by a local
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, stopped, FONT_PATH,
+  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, signUp, stopped, FONT_PATH,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
@@ -117,6 +118,7 @@ const CHAT_PAGE_LINES = 50;
  */
 const chatNotice = (copy: PageCopy): Record<string, string> => ({
   expired: copy.chatExpired,
+  "identity-required": copy.chatRefusalIdentity,
   "too-long": copy.chatTooLong,
   "cap-address": copy.chatRefusalNetwork,
   "cap-global": copy.chatRefusalGlobal,
@@ -299,6 +301,20 @@ const randomToken = (): string => crypto.randomUUID().replace(/-/g, "");
 const failedCallback = (pathname: string): Response => seeOther(pathname);
 
 /**
+ * WHERE A SESSION RESUMES — the flow's own order (S8): questions on the session account, then the
+ * plan, then sign-up, then the one deferred question, then the product. A cookie from any point
+ * in that lands wherever its account actually is, so closing a tab mid-walk is not a lost walk.
+ *
+ * The pairing form and the front door both call this; it is the single place the order lives.
+ */
+async function resumeTo(ctx: StartContext, userId: string, profile: Profile): Promise<string> {
+  if (profile.onboarded_at === null) return `${START_PREFIX}/q`;
+  if (await isAnonymous(ctx.deps, userId)) return `${START_PREFIX}/plan`;
+  if (profile.country === null) return `${START_PREFIX}/country`;
+  return ctx.hasWebApp ? "/" : CHAT_PATH;
+}
+
+/**
  * The questions this surface asks: every prompt that fills a profile field, in the app's order.
  *
  * `askCountry` is the browser's half of the rule the phone applies in `onboarding.tsx` — the group
@@ -437,40 +453,32 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   const { pathname } = url;
   const secure = ctx.origin.startsWith("https://");
   const cookies = cookieHeader(req);
+  // The session, resolved once for every path here. On the sign-up flow it is the SESSION ACCOUNT
+  // the OAuth callback attaches the identity to (S8): onboarding runs on an account with no
+  // identity — the cookie's — and sign-up writes Apple or Google onto it.
+  const session = cookies[SESSION_COOKIE] ?? "";
+  const userId = session === "" ? null : await ctx.store.userIdForToken(session);
 
   // ── The front door ────────────────────────────────────────────────────────────────────────
   if (req.method === "GET" && (pathname === START_PREFIX || pathname === `${START_PREFIX}/`)) {
-    // ALREADY SIGNED IN AND ALREADY FINISHED → THE DIARY, not the questions a second time.
-    //
-    // This surface exists to get somebody to the point of using the product, and for a returning
-    // person that point is behind them. The front door renders before the session is ever read
-    // further down, so without this it showed the sign-in buttons to somebody who was signed in.
-    //
-    // ONBOARDED, not merely signed in: a half-answered profile has no plan behind it, so the diary
-    // would be a screen of zeroes with no route back to the questions. And only when there IS a web
-    // app — bouncing somebody into a 404 is worse than asking them again.
-    if (ctx.hasWebApp) {
-      const session = cookies[SESSION_COOKIE] ?? "";
-      const already = session === "" ? null : await ctx.store.userIdForToken(session);
-      if (already !== null && (await ctx.store.getProfile(already))?.onboarded_at) {
-        return seeOther("/");
-      }
+    // A session mid-flow resumes where its account is — the questions, the plan, the deferred
+    // country, or the product itself — rather than the welcome a returning user has no use for.
+    // The welcome only exists for somebody with no session at all.
+    if (userId !== null) {
+      const profile = await ctx.store.getProfile(userId);
+      if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile));
     }
     // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
-    // account to ask. Everything past it reads `profile.lang`, which sign-in seeds from this same
-    // signal and the picker overrules — so this is a starting guess and never the answer.
+    // account to ask. Everything past it reads `profile.lang`, which the first answer's account
+    // seeds from this same signal and the picker overrules — so this is a starting guess and
+    // never the answer.
     const lang = acceptLang(req.headers.get("accept-language"));
     const PAGE_COPY = pageCopyFor(lang);
     const content = await onboardingContent(ctx.deps, lang);
-    // A CODE, NEVER A SENTENCE — the same rule `?notice=` follows on the chat page. `error=code`
-    // is the pairing form's refusal and anything else is the sign-in's, which is what the OAuth
-    // failure path already sets.
-    const error = url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
-      : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
-      : null;
-    return html(frontDoor(content.welcome.lines, offered.map((p) => ({
-      href: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
-    })), error, lang));
+    return html(frontDoor(content.welcome.lines, [
+      { href: `${START_PREFIX}/q`, label: PAGE_COPY.startCta },
+      { href: `${START_PREFIX}/signup`, label: PAGE_COPY.haveAccountCta },
+    ], lang));
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -535,6 +543,92 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     return seeOther(`${pathname}?${carried.toString()}`);
   }
 
+  // ── The sign-up screen (S8) ───────────────────────────────────────────────────────────────
+  //
+  // One screen for both callers: a session account signing UP after its answers, and a returning
+  // person signing IN from "I already have an account" — attaching an identity and presenting one
+  // are the same mechanism either way, and the consent boxes are required for both.
+  //
+  // BEFORE THE SESSION GATE: a returning sign-in arrives with no cookie at all.
+  if (pathname === `${START_PREFIX}/signup`) {
+    if (req.method !== "GET") return notFound();
+    // A session that already carries an identity has nothing to sign up for — send it onward,
+    // which is also what keeps a signed-in person who taps "I already have an account" from
+    // signing themselves a second account over their own.
+    if (userId !== null && !(await isAnonymous(ctx.deps, userId))) {
+      const profile = await ctx.store.getProfile(userId);
+      if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile));
+    }
+    const profile = userId === null ? null : await ctx.store.getProfile(userId);
+    const lang = profile?.lang ?? browserLang(req);
+    const PAGE_COPY = pageCopyFor(lang);
+    return html(signUp({
+      providers: offered.map((p) => ({
+        action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+      })),
+      error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
+        : url.searchParams.get("error") === "terms" ? PAGE_COPY.errorTerms
+        : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
+        : null,
+      privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
+      lang,
+    }), 200, {
+      // The consent POST answers with a 303 to the provider's own origin — and `form-action`
+      // is checked against EVERY hop, so each configured provider's authorize origin is named.
+      formAction: [...new Set(offered.map(
+        (p) => new URL(usable[p]!.authorizeEndpoint, ctx.origin).origin,
+      ))],
+    });
+  }
+
+  // THE KICKOFF IS A POST — the consent boxes ride the form, and a cookie the callback reads is
+  // only ever minted by a request that carried the tick. GET on the same path goes back to the
+  // screen rather than starting anything: a sign-in started without consent is not started at all.
+  const postedAuth = req.method === "POST" ? AUTH_PATH.exec(pathname) : null;
+  if (postedAuth && postedAuth[2] === undefined) {
+    const name = postedAuth[1] as WebProvider;
+    const provider = usable[name];
+    if (!provider) return notFound();
+    const form = await req.formData().catch(() => null);
+    // The required box, enforced on the server: the screen's tick is a suggestion, the POST is the
+    // fact. The fourth cookie segment carries the optional box's answer — terms is implied, since
+    // this cookie cannot exist without it.
+    if (form === null || form.get("terms") === null) return seeOther(`${START_PREFIX}/signup?error=terms`);
+    const marketing = form.get("marketing") !== null;
+    const state = randomToken();
+    const nonce = randomToken();
+    const redirectUri = `${ctx.origin}${START_PREFIX}/auth/${name}/callback`;
+    // A local provider names a path on this server, so it is resolved against the origin the
+    // request arrived on rather than one baked in at boot: a demo reached by hostname must not
+    // redirect the browser to loopback.
+    const to = new URL(provider.authorizeEndpoint, ctx.origin);
+    to.search = new URLSearchParams({
+      // The provider's own extras FIRST, so nothing it adds can override one of the six below.
+      // `state` is the CSRF defence and `scope` is the privacy promise; a provider that could
+      // overwrite either would do it silently, in a URL nobody reads.
+      ...provider.extraAuthorizeParams,
+      client_id: provider.clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      // `openid email`, for BOTH of them, since issue #95 — the address is what makes a
+      // signed-in account reachable. NOT `profile`, which both vendors' own libraries add by
+      // default: it puts a name and a picture on the consent screen and in the token, two
+      // personal fields nothing in this product reads.
+      //
+      // The email scope is what obliges Apple's `response_mode=form_post`, and the bridge at the
+      // top of this function is what keeps that from costing the Lax state cookie.
+      scope: "openid email",
+      nonce,
+      state,
+    }).toString();
+    return seeOther(to.toString(), [
+      // THE PROVIDER IS IN THE COOKIE, not only in the path. Without it a state minted on the way
+      // to one provider is spendable at the other's callback, which is a stranger's half-finished
+      // sign-in completing against whichever provider they can produce a code for.
+      setCookie(OAUTH_COOKIE, `${name}.${state}.${nonce}.${marketing ? "m" : ""}`, { secure, maxAge: OAUTH_TTL_S }),
+    ]);
+  }
+
   const authMatch = req.method === "GET" ? AUTH_PATH.exec(pathname) : null;
   if (authMatch) {
     const name = authMatch[1] as WebProvider;
@@ -545,41 +639,13 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const redirectUri = `${ctx.origin}${START_PREFIX}/auth/${name}/callback`;
 
     if (authMatch[2] === undefined) {
-      const state = randomToken();
-      const nonce = randomToken();
-      // A local provider names a path on this server, so it is resolved against the origin the
-      // request arrived on rather than one baked in at boot: a demo reached by hostname must not
-      // redirect the browser to loopback.
-      const to = new URL(provider.authorizeEndpoint, ctx.origin);
-      to.search = new URLSearchParams({
-        // The provider's own extras FIRST, so nothing it adds can override one of the six below.
-        // `state` is the CSRF defence and `scope` is the privacy promise; a provider that could
-        // overwrite either would do it silently, in a URL nobody reads.
-        ...provider.extraAuthorizeParams,
-        client_id: provider.clientId,
-        redirect_uri: redirectUri,
-        response_type: "code",
-        // `openid email`, for BOTH of them, since issue #95 — the address is what makes a
-        // signed-in account reachable. NOT `profile`, which both vendors' own libraries add by
-        // default: it puts a name and a picture on the consent screen and in the token, two
-        // personal fields nothing in this product reads.
-        //
-        // The email scope is what obliges Apple's `response_mode=form_post`, and the bridge at the
-        // top of this function is what keeps that from costing the Lax state cookie.
-        scope: "openid email",
-        nonce,
-        state,
-      }).toString();
-      return seeOther(to.toString(), [
-        // THE PROVIDER IS IN THE COOKIE, not only in the path. Without it a state minted on the way
-        // to one provider is spendable at the other's callback, which is a stranger's half-finished
-        // sign-in completing against whichever provider they can produce a code for.
-        setCookie(OAUTH_COOKIE, `${name}.${state}.${nonce}`, { secure, maxAge: OAUTH_TTL_S }),
-      ]);
+      // A GET kickoff cannot carry consent, so it carries the visitor to the screen that asks
+      // for it. Old links lose nothing: the sign-up screen is what they meant.
+      return seeOther(`${START_PREFIX}/signup`);
     }
 
-    const failed = () => seeOther(`${START_PREFIX}?error=1`, [clearCookie(OAUTH_COOKIE, secure)]);
-    const [forProvider, state, nonce] = (cookies[OAUTH_COOKIE] ?? "").split(".");
+    const failed = () => seeOther(`${START_PREFIX}/signup?error=1`, [clearCookie(OAUTH_COOKIE, secure)]);
+    const [forProvider, state, nonce, consentFlags] = (cookies[OAUTH_COOKIE] ?? "").split(".");
     const code = url.searchParams.get("code") ?? "";
     // Everything about this comparison is the CSRF defence. An absent cookie fails it too, which is
     // what makes a callback replayed from somewhere else useless.
@@ -595,33 +661,39 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       return tooManyAttempts(wait, browserLang(req));
     }
 
-    let token: string;
+    let result;
     try {
       const idToken = await provider.exchange(code, redirectUri);
       // The SAME verifier the app's route uses. Nothing about this being a browser makes the
       // signature, the issuer, the audience or the nonce optional.
-      ({ token } = await signInWithProvider(
-        ctx.deps, ctx.verifier, name, idToken, nonce,
-        // No account is carried into this: a browser arriving here has no anonymous session to
-        // merge, and there is nothing on this surface that could have created one.
-        null,
-        // ...which is why the header decides the language of the account this creates. It is the
-        // SAME reading the front door at `/start` took a moment ago, so the questions continue in
-        // the language the welcome was written in.
+      //
+      // THE SESSION ACCOUNT GOES IN: the cookie's account is the one onboarding ran on, so an
+      // unknown identity attaches to IT and the answers stay; an identity that already has an
+      // account wins instead, and the session's answers are dropped with it. Consent came off the
+      // kickoff's cookie — the one only a ticked terms box could mint.
+      result = await signInWithProvider(
+        ctx.deps, ctx.verifier, name, idToken, nonce, userId,
+        // ...and the header decides the language only when this sign-in CREATES the account — the
+        // same reading the front door took — since every other outcome keeps the surviving one.
         browserLang(req),
-      ));
+        { terms: true, marketing: consentFlags === "m" },
+      );
     } catch (e) {
       // Logged, never shown. The exchange's error quotes the request and the verifier's can quote
       // the token.
       console.error(`[eait] web sign-in failed: ${e instanceof AuthError ? e.reason : (e as Error)?.message}`);
       return failed();
     }
-    return seeOther(`${START_PREFIX}/q`, [
-      clearCookie(OAUTH_COOKIE, secure),
-      // No Max-Age: a session cookie, gone when the browser closes. The token itself expires on
-      // idle time server-side, which is the authority.
-      setCookie(SESSION_COOKIE, token, { secure }),
-    ]);
+    const landed = await ctx.store.getProfile(result.userId);
+    return seeOther(
+      landed === null ? `${START_PREFIX}/q` : await resumeTo(ctx, result.userId, landed),
+      [
+        clearCookie(OAUTH_COOKIE, secure),
+        // No Max-Age: a session cookie, gone when the browser closes. The token itself expires on
+        // idle time server-side, which is the authority.
+        setCookie(SESSION_COOKIE, result.token, { secure }),
+      ],
+    );
   }
 
   // ── Pairing: a browser trades a code for a session ────────────────────────────────────────
@@ -648,7 +720,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const token = await redeemPairingCode(ctx.deps, typeof code === "string" ? code : "");
     // ONE ANSWER for unknown, spent, expired and malformed. Anything else is an oracle for which
     // codes are live, and the person holding a dead code has the same thing to do in every case.
-    if (token === null) return seeOther(`${START_PREFIX}?error=code`);
+    // Back to the sign-up screen, which is where the pairing form lives now (S8).
+    if (token === null) return seeOther(`${START_PREFIX}/signup?error=code`);
     return seeOther(CHAT_PATH, [
       // The callback's cookie, verbatim: same name, same flags, no Max-Age. A paired browser holds
       // an ordinary session and nothing downstream can tell it apart from a signed-in one — which
@@ -668,73 +741,31 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // token logs nothing, and says exactly what is true. All three measured in Chrome, 2026-09-10.
   const scripted = req.method === "POST"
     && (pathname === `${START_PREFIX}/session/token` || pathname === `${START_PREFIX}/session/signout`);
-  const session = cookies[SESSION_COOKIE] ?? "";
-  const userId = session === "" ? null : await ctx.store.userIdForToken(session);
-  if (userId === null) return scripted ? noSession(secure) : seeOther(START_PREFIX);
+  // THE ONE ROUTE WITHOUT A SESSION IS THE QUESTIONS THEMSELVES (S8): onboarding runs on the
+  // session account, which the first answer creates — so `/start/q` renders and posts without a
+  // cookie, and everything else still goes to the front door (or answers a script in JSON).
+  const preAccount = userId === null && pathname === `${START_PREFIX}/q`
+    && (req.method === "GET" || req.method === "POST");
+  if (userId === null && !preAccount) return scripted ? noSession(secure) : seeOther(START_PREFIX);
 
   // Read once, and NOT non-null asserted. A token can outlive the profile it names — an erasure
   // racing this request, and `deleteUser` revokes tokens rather than waiting for them — and the
   // assertion turned that into a TypeError, which the router's outer catch answers as a JSON 500 on
   // an HTML surface. The front door with the cookie cleared is what that session actually is.
-  const profile = await ctx.store.getProfile(userId);
+  //
+  // On the pre-account path there IS no row yet: the questions render against a blank profile in
+  // the browser's own language, and the account — and its language — is created by the first
+  // answer that lands, not by a page view.
+  const profile = userId === null
+    ? blankProfile("pre-account", browserLang(req))
+    : await ctx.store.getProfile(userId);
   if (profile === null) {
     return scripted ? noSession(secure) : seeOther(START_PREFIX, [clearCookie(SESSION_COOKIE, secure)]);
   }
 
-  // ── THE BEARER THIS PAGE'S JAVASCRIPT MAY HOLD (#407) ─────────────────────────────────────
-  //
-  // The web app on this origin talks to `/api/v1/*`, and that API is bearer-only — deliberately,
-  // because an API that accepts a cookie is an API another origin can post to on a signed-in
-  // browser. So the bundle needs a token, and this is the one place it can get one.
-  //
-  // A SECOND TOKEN, NOT THE COOKIE'S OWN VALUE. The session cookie is HttpOnly precisely so script
-  // cannot read it; handing its value back would undo that. A separate token means the cookie
-  // never enters JavaScript and the two can be revoked apart.
-  //
-  // IN THE BODY, NEVER IN A URL. A bearer in a query string lands in history, in a `Referer` and in
-  // every log between here and the browser — the thing this document refuses by name.
-  //
-  // A POST, so `SameSite=Lax` is the guard. A cross-site GET navigation carries a Lax cookie and a
-  // cross-site POST does not, which is why every write on this surface is a POST; minting a
-  // credential is a write.
-  // ── ENDING THE SESSION, WHICH IS A SERVER-SIDE ACT ───────────────────────────────────────
-  //
-  // The web app's Sign out cleared a variable in its own module and nothing else. The cookie is
-  // HttpOnly, so script cannot clear it, and it stayed valid — the very next press of "Sign in"
-  // answered 303 to the diary and minted a fresh bearer from the SAME session. On a shared browser
-  // that is the next person reading the last person's diary, having supplied no credential.
-  //
-  // `revokeTokensFor`, not `revokeToken`: the page holds a SECOND credential minted from this same
-  // session above, and there is no way for it to hand that one back. "Sign out of this browser"
-  // that leaves a live bearer behind is a promise the product does not keep.
-  //
-  // A POST, like every other write here: a GET that ends a session is a session another site can
-  // end with an <img> tag.
-  if (req.method === "POST" && pathname === `${START_PREFIX}/session/signout`) {
-    await ctx.store.revokeTokensFor(userId);
-    const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
-    // Cleared on the way out, so the browser stops presenting a token that is already dead.
-    headers.append("set-cookie", clearCookie(SESSION_COOKIE, secure));
-    return new Response(JSON.stringify({ ok: true }), { headers });
-  }
-
-  if (req.method === "POST" && pathname === `${START_PREFIX}/session/token`) {
-    // WITH A LIFETIME OF ITS OWN, not the phone's six idle months. This token is re-minted from the
-    // cookie on every page load and after any 401, so the long one buys the browser nothing and
-    // leaves a working credential behind for every tab anybody ever opened — on the origin that
-    // also serves the admin. See `BROWSER_SESSION_TTL_MS`.
-    return new Response(JSON.stringify({ token: await ctx.store.issueToken(userId, BROWSER_SESSION_TTL_MS) }), {
-      headers: {
-        "content-type": "application/json",
-        // Not a page, and not something an intermediary may keep.
-        "cache-control": "no-store",
-      },
-    });
-  }
-
-  // THE ACCOUNT'S LANGUAGE, and the copy fetched in it. `/start` has a signed-in user by the time
-  // it asks anything, so the browser's `Accept-Language` is not consulted for this — it seeded
-  // `users.lang` at sign-in and the picker in Settings has had every chance to overrule it since.
+  // THE ACCOUNT'S LANGUAGE, and the copy fetched in it — or the browser's, on the one path that
+  // runs before an account exists: the pre-account `/q` renders the blank profile in
+  // `browserLang(req)`, which is also the language the first answer's account is born into.
   const view = async (): Promise<{ profile: Profile; content: OnboardingContent }> => ({
     profile, content: await onboardingContent(ctx.deps, profile.lang),
   });
@@ -742,30 +773,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (pathname === `${START_PREFIX}/q`) {
     const { profile, content } = await view();
 
-    // THE COUNTRY, DECIDED THE WAY THE PHONE DECIDES IT (#365). The browser's own languages answer
-    // it for most people and it is never put to them; the rest are asked, with whatever the header
-    // or their sign-in address hinted at offered first. Resolved once, only while the field is
-    // still empty — the write below fills it, and every later render takes this branch no further.
-    //
-    // The address is read HERE and goes no further: `emailForUser` exists so that its ANSWER, a
-    // country code, is the only thing that leaves the server. See the note on the port.
-    //
-    // Resolved on EVERY request, written only while the field is empty (#53). Whether the question
-    // is in the walk is what the counter's total counts, and resolving it only while the country
-    // was empty made the first page count nine questions and every later one ten.
-    const tags = acceptLanguageTags(req.headers.get("accept-language"));
-    const resolved = resolveCountry({
-      regions: tags.map(regionOf),
-      languages: tags,
-      email: await ctx.store.emailForUser(userId),
-    });
-    // The app's `fillCountryFromDevice`, on this surface. Awaited but not checked: a lost country
-    // is a correctable one, and a question we have decided not to ask is not worth an error page.
-    if (profile.country === null && !resolved.ask) {
-      await patchProfile(ctx.deps, userId, { country: resolved.country });
-    }
-
-    const questions = questionsFor(profile, content, resolved.ask);
+    // COUNTRY IS NOT A WALK QUESTION ANY MORE (S8): it waits for the sign-up and is asked on its
+    // own screen after it (`/start/country`), preselected where the browser's languages already
+    // answer it. `false` here keeps it out of `promptsFor` — and out of the step count.
+    const questions = questionsFor(profile, content, false);
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
     // BACK (#53): an answered question, shown again to change. Only one BEFORE the open question —
     // what is past it has no answer to show, and the profile still decides where the walk resumes.
@@ -778,7 +789,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       index: number, error: string | null, actions: Action[] = [], draftKg?: number, typed?: string[],
     ) =>
       html(renderQuestion(
-        questions, index, profile, content, error, actions, resolved.country, draftKg,
+        questions, index, profile, content, error, actions, null, draftKg,
         typed ?? (index === openIndex ? undefined : currentAnswer(questions[index]!, profile)),
       ));
     const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
@@ -804,6 +815,48 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     if (req.method === "POST") {
       const form = await req.formData().catch(() => null);
       if (form === null) return seeOther(`${START_PREFIX}/q`);
+
+      // THE FIRST ANSWER CREATES THE ACCOUNT (S8). Onboarding runs on the session account — this
+      // surface's version of the phone's device account — so the answers are already the
+      // account's when Apple or Google attaches at sign-up. Only an answer that LANDS creates
+      // one: a refused first answer re-renders against the blank profile and leaves no row,
+      // which is also why a page view never creates anything.
+      if (userId === null) {
+        const open = questions[0];
+        if (open === undefined || form.get("prompt") !== open.id) return seeOther(`${START_PREFIX}/q`);
+        // The under-sixteen confirm can only be offered by a walk that has an account; posted
+        // without one it is still honoured — nothing was ever kept, which is what the page says.
+        if (form.get("confirm") === "under-age") {
+          const card = UNDER_AGE_CARD(profile.lang);
+          return html(stopped(card.title, card.body, UNDER_AGE_LINES(profile.lang).stopped, profile.lang));
+        }
+        const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
+        const answer = answerFor(open, typed, profile);
+        const retry = (error: string | null, actions: Action[] = []) =>
+          html(renderQuestion(questions, 0, profile, content, error, actions, null, undefined,
+            typed.length > 0 ? typed : undefined));
+        if (answer.kind === "missing") return retry(pageCopyFor(profile.lang).answerRequired);
+        if (answer.kind === "ambiguous-age") {
+          const age = AMBIGUOUS_AGE(profile.lang);
+          return retry(age.line(answer.age), [
+            { name: "age", value: String(answer.age), label: age.confirm(answer.age) },
+          ]);
+        }
+        if (answer.kind === "under-age") {
+          const under = UNDER_AGE_LINES(profile.lang);
+          return retry(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
+        }
+        if (answer.kind === "refuse") return retry(answer.line);
+        const fresh = await ctx.store.createUser(profile.lang);
+        const outcome = await patchProfile(ctx.deps, fresh, answer.patch);
+        if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
+        const token = await ctx.store.issueToken(fresh);
+        const momentId = MOMENT_AFTER[open.id];
+        return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`, [
+          setCookie(SESSION_COOKIE, token, { secure }),
+        ]);
+      }
+
       // The open question is the server's to decide, so a post naming a LATER one is dropped rather
       // than applied: the profile is what says where somebody is, on this surface exactly as in the
       // app. An EARLIER, answered one is Back's change (#53), written the same way and then resumed.
@@ -892,6 +945,132 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const momentId = editIndex === -1 ? MOMENT_AFTER[open.id] : undefined;
       return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`);
     }
+  }
+
+  // Past the questions, null is not a state a session can be in — the gate above let it through
+  // for `/start/q` alone, and this line is what the compiler learns that from.
+  if (userId === null) return notFound();
+
+  // ── THE BEARER THIS PAGE'S JAVASCRIPT MAY HOLD (#407) ─────────────────────────────────────
+  //
+  // The web app on this origin talks to `/api/v1/*`, and that API is bearer-only — deliberately,
+  // because an API that accepts a cookie is an API another origin can post to on a signed-in
+  // browser. So the bundle needs a token, and this is the one place it can get one.
+  //
+  // A SECOND TOKEN, NOT THE COOKIE'S OWN VALUE. The session cookie is HttpOnly precisely so script
+  // cannot read it; handing its value back would undo that. A separate token means the cookie
+  // never enters JavaScript and the two can be revoked apart.
+  //
+  // IN THE BODY, NEVER IN A URL. A bearer in a query string lands in history, in a `Referer` and in
+  // every log between here and the browser — the thing this document refuses by name.
+  //
+  // A POST, so `SameSite=Lax` is the guard. A cross-site GET navigation carries a Lax cookie and a
+  // cross-site POST does not, which is why every write on this surface is a POST; minting a
+  // credential is a write.
+  // ── ENDING THE SESSION, WHICH IS A SERVER-SIDE ACT ───────────────────────────────────────
+  //
+  // The web app's Sign out cleared a variable in its own module and nothing else. The cookie is
+  // HttpOnly, so script cannot clear it, and it stayed valid — the very next press of "Sign in"
+  // answered 303 to the diary and minted a fresh bearer from the SAME session. On a shared browser
+  // that is the next person reading the last person's diary, having supplied no credential.
+  //
+  // `revokeTokensFor`, not `revokeToken`: the page holds a SECOND credential minted from this same
+  // session above, and there is no way for it to hand that one back. "Sign out of this browser"
+  // that leaves a live bearer behind is a promise the product does not keep.
+  //
+  // A POST, like every other write here: a GET that ends a session is a session another site can
+  // end with an <img> tag.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/session/signout`) {
+    await ctx.store.revokeTokensFor(userId);
+    const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
+    // Cleared on the way out, so the browser stops presenting a token that is already dead.
+    headers.append("set-cookie", clearCookie(SESSION_COOKIE, secure));
+    return new Response(JSON.stringify({ ok: true }), { headers });
+  }
+
+  if (req.method === "POST" && pathname === `${START_PREFIX}/session/token`) {
+    // WITH A LIFETIME OF ITS OWN, not the phone's six idle months. This token is re-minted from the
+    // cookie on every page load and after any 401, so the long one buys the browser nothing and
+    // leaves a working credential behind for every tab anybody ever opened — on the origin that
+    // also serves the admin. See `BROWSER_SESSION_TTL_MS`.
+    return new Response(JSON.stringify({ token: await ctx.store.issueToken(userId, BROWSER_SESSION_TTL_MS) }), {
+      headers: {
+        "content-type": "application/json",
+        // Not a page, and not something an intermediary may keep.
+        "cache-control": "no-store",
+      },
+    });
+  }
+
+  // ── The country, asked AFTER sign-up (S8) ─────────────────────────────────────────────────
+  //
+  // It tunes the analyzer's cuisine and nothing else, so it is the one answer that was willing to
+  // wait: out of the walk entirely, and on a screen of its own once the account has an identity.
+  // The browser's languages usually already answer it — the screen is still shown, with that
+  // answer preselected, because a person confirming where they live is a better country than a
+  // header guessing it.
+  if (pathname === `${START_PREFIX}/country`) {
+    const { content } = await view();
+    const lang = profile.lang;
+    // Before the plan exists this screen means nothing; once the answer is stored it never means
+    // anything again. Both resume the session where its account actually is — and a session that
+    // has not signed up yet goes to the step this one comes after.
+    if (profile.onboarded_at === null) return seeOther(`${START_PREFIX}/q`);
+    if (await isAnonymous(ctx.deps, userId)) return seeOther(`${START_PREFIX}/signup`);
+    if (profile.country !== null) return seeOther(await resumeTo(ctx, userId, profile));
+    // `enabled` is still the admin's switch, here as it was in the walk: a screen switched off is
+    // a question this deployment does not put to anybody, and the step collapses to the handoff.
+    if (disabledScreens(content).includes("country")) {
+      return seeOther(ctx.hasWebApp ? "/" : CHAT_PATH);
+    }
+
+    // Resolved the way `/start/q` used to resolve it (#365): the browser's regions, then its
+    // languages, then the sign-in address — `emailForUser` exists so that a code is the only
+    // thing that leaves the server. Here it preselects rather than writes.
+    const tags = acceptLanguageTags(req.headers.get("accept-language"));
+    const resolved = resolveCountry({
+      regions: tags.map(regionOf),
+      languages: tags,
+      email: await ctx.store.emailForUser(userId),
+    });
+    const prompt = promptById("country")!;
+    const ask = (error: string | null) => html(question({
+      promptId: "country",
+      kind: "choice",
+      lines: askLines(prompt, { content, lang }, profile),
+      options: optionsFor(prompt, content, lang, resolved.country),
+      placeholder: null,
+      error,
+      actions: [],
+      action: `${START_PREFIX}/country`,
+      back: `${START_PREFIX}/signup`,
+      // The struggles segue was written to sit above the country ask — "the line that sits above
+      // the country ask" is `reactionTo`'s own comment. The walk no longer reaches it, so the
+      // screen that took the ask takes the line too.
+      reaction: (() => {
+        const r = reactionTo("struggles", profile, lang);
+        return r === null ? null : { line: r.line, mood: r.mood === "cheer" ? "joy" as const : r.mood };
+      })(),
+      ...(resolved.country === null ? {} : { current: [resolved.country] }),
+      lang,
+    }));
+
+    if (req.method === "GET") return ask(null);
+    if (req.method === "POST") {
+      const form = await req.formData().catch(() => null);
+      const chosen = form?.get("answer");
+      // Only what the screen offered — the answer is a country code or `other`, and anything else
+      // is the question re-asked rather than a value stored.
+      const offeredValues = optionsFor(prompt, content, lang).map((o) => o.value);
+      if (typeof chosen !== "string" || !offeredValues.includes(chosen)) {
+        return ask(pageCopyFor(lang).answerRequired);
+      }
+      await patchProfile(ctx.deps, userId, { country: chosen });
+      // The stored profile read above still says country=null — the handoff is known without
+      // re-reading it: onboarded, signed in, country just written. That is the end of `/start`.
+      return seeOther(ctx.hasWebApp ? "/" : CHAT_PATH);
+    }
+    return notFound();
   }
 
   // ── The struggles question, and the four support moments (#42) ──────────────────────────────

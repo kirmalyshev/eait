@@ -142,6 +142,32 @@ export interface PageCopy {
    * header beside it is what a machine reads.
    */
   tooManyAttempts: string;
+
+  // ── S8: the welcome's two doors, and the sign-up screen ────────────────────────────────────
+  /** The welcome's primary — into the questions, which is where the session account is born. */
+  startCta: string;
+  /** The welcome's secondary — for somebody whose account already exists. */
+  haveAccountCta: string;
+  /** The sign-up screen's headline — the product's promise, said once. */
+  signUpHeading: string;
+  /**
+   * The required box's label. `{terms}` and `{privacy}` hold the two document names, so a
+   * translation puts them wherever its grammar needs them rather than reordering a sentence that
+   * was written in English.
+   */
+  termsLabel: string;
+  /** The document names inside `termsLabel` — "Terms" has no published page, only "Privacy" links. */
+  termsLink: string;
+  privacyLink: string;
+  /** The optional box. Unticked means nothing is recorded — the stamp is a date, not a boolean. */
+  consentMarketing: string;
+  /** What a sign-up POST without the terms tick comes back to. */
+  errorTerms: string;
+  /**
+   * `identity-required`: the engine's answer to analysis on an account with no Apple or Google
+   * identity — the sign-up screen is the remedy, not an apology.
+   */
+  chatRefusalIdentity: string;
 }
 
 const EN: PageCopy = {
@@ -260,6 +286,15 @@ const EN: PageCopy = {
   languageSave: "Save",
   continueWith: "Continue with {provider}",
   tooManyAttempts: "Too many attempts from this address. Try again shortly.\n",
+  startCta: "Build my plan",
+  haveAccountCta: "I already have an account",
+  signUpHeading: "Photograph what you eat, get an honest answer",
+  termsLabel: "I agree to eait's {terms} and {privacy}",
+  termsLink: "Terms",
+  privacyLink: "Privacy Policy",
+  consentMarketing: "Send me tips and new features from eait",
+  errorTerms: "Agree to the Terms and Privacy Policy to continue.",
+  chatRefusalIdentity: "Sign in with Apple or Google to keep going — the sign-up screen is one step back.",
 };
 
 const FR: PageCopy = {
@@ -347,6 +382,15 @@ const FR: PageCopy = {
   languageSave: "Enregistrer",
   continueWith: "Continuer avec {provider}",
   tooManyAttempts: "Trop de tentatives depuis cette adresse. Réessaie dans un moment.\n",
+  startCta: "Créer mon plan",
+  haveAccountCta: "J'ai déjà un compte",
+  signUpHeading: "Photographie ce que tu manges, reçois une réponse honnête",
+  termsLabel: "J'accepte les {terms} et la {privacy} d'eait",
+  termsLink: "Conditions",
+  privacyLink: "Politique de confidentialité",
+  consentMarketing: "Envoie-moi des conseils et les nouveautés d'eait",
+  errorTerms: "Accepte les Conditions et la Politique de confidentialité pour continuer.",
+  chatRefusalIdentity: "Connecte-toi avec Apple ou Google pour continuer — l'écran d'inscription est à un pas.",
 };
 
 const DE: PageCopy = {
@@ -434,6 +478,15 @@ const DE: PageCopy = {
   languageSave: "Speichern",
   continueWith: "Weiter mit {provider}",
   tooManyAttempts: "Zu viele Versuche von dieser Adresse. Versuch es gleich noch einmal.\n",
+  startCta: "Meinen Plan erstellen",
+  haveAccountCta: "Ich habe schon ein Konto",
+  signUpHeading: "Fotografier, was du isst, und bekomm eine ehrliche Antwort",
+  termsLabel: "Ich stimme den {terms} und der {privacy} von eait zu",
+  termsLink: "Nutzungsbedingungen",
+  privacyLink: "Datenschutzerklärung",
+  consentMarketing: "Schick mir Tipps und neue Funktionen von eait",
+  errorTerms: "Stimm den Nutzungsbedingungen und der Datenschutzerklärung zu, um weiterzumachen.",
+  chatRefusalIdentity: "Melde dich mit Apple oder Google an, um weiterzumachen — der Anmeldeschirm ist einen Schritt zurück.",
 };
 
 const IT: PageCopy = {
@@ -521,6 +574,15 @@ const IT: PageCopy = {
   languageSave: "Salva",
   continueWith: "Continua con {provider}",
   tooManyAttempts: "Troppi tentativi da questo indirizzo. Riprova tra poco.\n",
+  startCta: "Crea il mio piano",
+  haveAccountCta: "Ho già un account",
+  signUpHeading: "Fotografa quello che mangi, ricevi una risposta onesta",
+  termsLabel: "Accetto i {terms} e la {privacy} di eait",
+  termsLink: "Termini",
+  privacyLink: "Informativa sulla privacy",
+  consentMarketing: "Inviami consigli e novità da eait",
+  errorTerms: "Accetta i Termini e l'Informativa sulla privacy per continuare.",
+  chatRefusalIdentity: "Accedi con Apple o Google per continuare — la schermata di registrazione è a un passo.",
 };
 
 const ES: PageCopy = {
@@ -608,6 +670,15 @@ const ES: PageCopy = {
   languageSave: "Guardar",
   continueWith: "Continuar con {provider}",
   tooManyAttempts: "Demasiados intentos desde esta dirección. Inténtalo dentro de un momento.\n",
+  startCta: "Crear mi plan",
+  haveAccountCta: "Ya tengo una cuenta",
+  signUpHeading: "Fotografía lo que comes, recibe una respuesta honesta",
+  termsLabel: "Acepto los {terms} y la {privacy} de eait",
+  termsLink: "Términos",
+  privacyLink: "Política de privacidad",
+  consentMarketing: "Envíame consejos y novedades de eait",
+  errorTerms: "Acepta los Términos y la Política de privacidad para continuar.",
+  chatRefusalIdentity: "Inicia sesión con Apple o Google para continuar — la pantalla de registro está a un paso.",
 };
 
 const VI: PageCopy = {
@@ -695,6 +766,15 @@ const VI: PageCopy = {
   languageSave: "Lưu",
   continueWith: "Tiếp tục với {provider}",
   tooManyAttempts: "Quá nhiều lần thử từ địa chỉ này. Thử lại sau một lát nhé.\n",
+  startCta: "Tạo kế hoạch cho tôi",
+  haveAccountCta: "Tôi đã có tài khoản",
+  signUpHeading: "Chụp món bạn ăn, nhận câu trả lời thẳng thắn",
+  termsLabel: "Tôi đồng ý với {terms} và {privacy} của eait",
+  termsLink: "Điều khoản",
+  privacyLink: "Chính sách bảo mật",
+  consentMarketing: "Gửi cho tôi mẹo và tính năng mới từ eait",
+  errorTerms: "Đồng ý với Điều khoản và Chính sách bảo mật để tiếp tục.",
+  chatRefusalIdentity: "Đăng nhập bằng Apple hoặc Google để tiếp tục — màn hình đăng ký chỉ cách một bước.",
 };
 
 const ID: PageCopy = {
@@ -782,6 +862,15 @@ const ID: PageCopy = {
   languageSave: "Simpan",
   continueWith: "Lanjutkan dengan {provider}",
   tooManyAttempts: "Terlalu banyak percobaan dari alamat ini. Coba lagi sebentar.\n",
+  startCta: "Buat rencanaku",
+  haveAccountCta: "Saya sudah punya akun",
+  signUpHeading: "Foto makananmu, dapatkan jawaban jujur",
+  termsLabel: "Saya menyetujui {terms} dan {privacy} eait",
+  termsLink: "Ketentuan",
+  privacyLink: "Kebijakan Privasi",
+  consentMarketing: "Kirimi saya tips dan fitur baru dari eait",
+  errorTerms: "Setujui Ketentuan dan Kebijakan Privasi untuk melanjutkan.",
+  chatRefusalIdentity: "Masuk dengan Apple atau Google untuk lanjut — layar pendaftaran tinggal selangkah.",
 };
 
 const RU: PageCopy = {
@@ -869,6 +958,15 @@ const RU: PageCopy = {
   languageSave: "Сохранить",
   continueWith: "Продолжить с {provider}",
   tooManyAttempts: "Слишком много попыток с этого адреса. Попробуй чуть позже.\n",
+  startCta: "Собрать мой план",
+  haveAccountCta: "У меня уже есть аккаунт",
+  signUpHeading: "Сфотографируй еду — получи честный ответ",
+  termsLabel: "Я принимаю {terms} и {privacy} eait",
+  termsLink: "Условия",
+  privacyLink: "Политику конфиденциальности",
+  consentMarketing: "Присылай мне советы и новинки eait",
+  errorTerms: "Чтобы продолжить, прими Условия и Политику конфиденциальности.",
+  chatRefusalIdentity: "Войди через Apple или Google, чтобы продолжить — экран регистрации в шаге назад.",
 };
 
 /** Every sentence `/start` writes for itself, keyed by language. */

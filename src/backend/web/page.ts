@@ -346,7 +346,7 @@ export function shell(title: string, body: string, lang: Lang): string {
 export function html(
   body: string,
   status = 200,
-  opts: { cookies?: readonly string[] } = {},
+  opts: { cookies?: readonly string[]; formAction?: readonly string[] } = {},
 ): Response {
   const res = new Response(body, {
     status,
@@ -355,8 +355,11 @@ export function html(
       "content-security-policy":
         `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${TYPING_SCRIPT_HASH}'; ` +
         // `https://t.me` because Connect Telegram's POST answers with a redirect there, and a form's
-        // redirect is held to this directive as well.
-        "img-src 'self' data:; font-src 'self'; form-action 'self' https://t.me",
+        // redirect is held to this directive as well. `formAction` is the same thing for the
+        // sign-up screen: the consent POST's 303 sends the browser to the provider's own origin,
+        // which 'self' would have Chrome refuse with ERR_ABORTED and no navigation at all.
+        "img-src 'self' data:; font-src 'self'; form-action 'self' https://t.me"
+        + (opts.formAction?.length ? ` ${opts.formAction.join(" ")}` : ""),
       "referrer-policy": "no-referrer",
       "x-frame-options": "DENY",
       // A sign-up in progress is per-person and per-session. Nothing here may sit in a shared cache.
@@ -392,19 +395,60 @@ export interface SignInButton { href: string; label: string }
  * button that looks like the afterthought.
  */
 export function frontDoor(
-  welcome: readonly string[], buttons: readonly SignInButton[], error: string | null,
+  welcome: readonly string[], buttons: readonly SignInButton[],
   lang: Lang,
 ): string {
   const PAGE_COPY = pageCopyFor(lang);
   return shell(PAGE_COPY.titleStart, `
 ${spud(lang)}
 <h1>eait</h1>
-${error ? `<p class="notice">${escape(error)}</p>` : ""}
 ${bubbles(welcome)}
 <p class="muted">${escape(PAGE_COPY.frontDoorLead)}</p>
 ${buttons.map((b, i) =>
   `<a class="button${i === 0 ? " primary" : ""}" href="${escape(b.href)}">${escape(b.label)}</a>`,
 ).join("\n")}
+`, lang);
+}
+
+/**
+ * The sign-up screen (S8): attach Apple or Google to the session account — or present one that
+ * already has an account, which is the same mechanism in the other direction.
+ *
+ * THE PROVIDER BUTTONS ARE SUBMITS OF ONE FORM, not links: the kickoff is a POST now, because it
+ * is the tick that makes the kickoff legal. `formaction` names the provider so the consent boxes
+ * ride the same request — and they can sit below the buttons, as the board draws them, because
+ * `form="signup"` binds a control to a form it is not inside.
+ *
+ * The pairing card lives HERE, where somebody who already has an account is standing — a person
+ * holding a code their phone minted does not want the welcome's questions.
+ */
+export interface SignUpView {
+  providers: readonly { action: string; label: string }[];
+  error: string | null;
+  /** The published privacy policy, or null where no landing is configured to publish one. */
+  privacyHref: string | null;
+  lang: Lang;
+}
+
+export function signUp(v: SignUpView): string {
+  const PAGE_COPY = pageCopyFor(v.lang);
+  // The two links inside the terms label are placeholders the sentence carries itself, so a
+  // translation can put them wherever its grammar needs them. Terms has nothing published to
+  // point at — underlined text, as the board draws it; the policy links when a landing exists.
+  const termsLabel = escape(PAGE_COPY.termsLabel)
+    .replace("{terms}", escape(PAGE_COPY.termsLink))
+    .replace("{privacy}", v.privacyHref === null
+      ? escape(PAGE_COPY.privacyLink)
+      : `<a href="${escape(v.privacyHref)}">${escape(PAGE_COPY.privacyLink)}</a>`);
+  return shell(PAGE_COPY.titleStart, `
+${spud(v.lang)}
+<h1>${escape(PAGE_COPY.signUpHeading)}</h1>
+${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
+<form id="signup" method="post">
+${v.providers.map((p, i) =>
+  `  <button class="button${i === 0 ? " primary" : ""}" type="submit" formaction="${escape(p.action)}">${escape(p.label)}</button>`,
+).join("\n")}
+</form>
 <h2>${escape(PAGE_COPY.pairHeading)}</h2>
 <p class="muted">${escape(PAGE_COPY.pairLead)}</p>
 <form method="post" action="/start/pair">
@@ -413,7 +457,9 @@ ${buttons.map((b, i) =>
     aria-label="${escape(PAGE_COPY.pairLabel)}">
   <button type="submit">${escape(PAGE_COPY.pairButton)}</button>
 </form>
-`, lang);
+<label class="check"><input type="checkbox" name="terms" value="yes" form="signup"> ${termsLabel}</label>
+<label class="check"><input type="checkbox" name="marketing" value="yes" form="signup"> ${escape(PAGE_COPY.consentMarketing)}</label>
+`, v.lang);
 }
 
 export interface QuestionOption { value: string; label: string; hint?: string }
@@ -874,7 +920,7 @@ ${v.targetKg === null ? "" : `<div class="card">
 ${v.floorApplied
   ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} ${escape(PAGE_COPY.planFloorNumber.replace("{floor}", n(v.floorKcal)))}</p>`
   : ""}
-<a class="button primary" href="${v.hasWebApp ? "/" : "/start/chat"}">${escape(PAGE_COPY.planFirstMeal)}</a>
+<a class="button primary" href="/start/signup">${escape(PAGE_COPY.continueLabel)}</a>
 ${v.checkout
   ? `<a class="button primary" href="/start/offer">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}

@@ -23,11 +23,12 @@ import type { APIRequestContext, Browser } from "@playwright/test";
 const deviceId = () => crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
 /**
- * The app's half: a device-anonymous account, onboarded, with a bearer token.
+ * The app's half: an onboarded account with a bearer token, signed in the way the phone signs in —
+ * a device identity, then Google attached over the app's own bearer (S8).
  *
- * No provider, no identity but `device` — which is the whole point of the ticket. This account
- * cannot be reached by any sign-in button on the front door, because there is nothing to sign in
- * with; before pairing, a browser could not open it at all.
+ * The anonymous session account still exists — onboarding and pairing both run on it — but since
+ * S8 an account with no sign-in identity is refused analysis, so a pairing spec that sends a turn
+ * needs the account the flow actually produces: one somebody has signed into.
  */
 async function appAccount(request: APIRequestContext): Promise<{ token: string; userId: string }> {
   const auth = await request.post("/v1/auth/device", { data: { deviceId: deviceId(), locale: "en" } });
@@ -42,6 +43,13 @@ async function appAccount(request: APIRequestContext): Promise<{ token: string; 
     },
   });
   expect(profile.status()).toBe(200);
+  // Attach a sign-in identity, the way sign-up does it: the demo verifier trusts
+  // `demo:<provider>:<subject>` and the consent box is required.
+  const link = await request.post("/v1/auth/google", {
+    headers: { authorization: `Bearer ${token}` },
+    data: { idToken: `demo:google:pair-${deviceId()}`, terms: true },
+  });
+  expect(link.status(), await link.text()).toBe(200);
   return { token, userId };
 }
 
@@ -63,12 +71,12 @@ async function stranger(browser: Browser) {
   return { context, page: await context.newPage() };
 }
 
-test("a device-anonymous account opens its own thread in a browser, and it is ONE thread", async ({ browser, request }) => {
+test("a paired browser opens the app account's own thread, and it is ONE thread", async ({ browser, request }) => {
   const { token, userId } = await appAccount(request);
   const code = await mint(request, token);
 
   const { context, page } = await stranger(browser);
-  await page.goto("/start");
+  await page.goto("/start/signup");
   // Typed the way a person types it off a phone screen: lower case, with a dash they added.
   await page.getByPlaceholder("Your pairing code").fill(`${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase());
   await page.getByRole("button", { name: "Connect this browser" }).click();
@@ -89,10 +97,11 @@ test("a device-anonymous account opens its own thread in a browser, and it is ON
   const { entries } = await thread.json() as { entries: { text: string | null }[] };
   expect(entries.some((e) => (e.text ?? "").includes("two boiled eggs"))).toBe(true);
 
-  // Still anonymous: pairing linked no identity and merged nothing.
+  // Pairing linked no identity and merged nothing — the account's two are still just the ones
+  // sign-up put there: the device it was born on and the Google it was signed into with.
   const identities = await request.get("/v1/auth/identities", { headers: { authorization: `Bearer ${token}` } });
   const { identities: linked } = await identities.json() as { identities: { provider: string }[] };
-  expect(linked.map((i) => i.provider)).toEqual(["device"]);
+  expect(linked.map((i) => i.provider).sort()).toEqual(["device", "google"]);
   expect(userId).toBeTruthy();
   await context.close();
 });
