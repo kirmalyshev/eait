@@ -1,4 +1,4 @@
-// The coach: Spud answering a question, with the user's data behind tools.
+// The coach: Gabie answering a question, with the user's data behind tools.
 //
 // The router decided the message was a question (`handleText`); this builds what the agent needs
 // and runs it. THE TOOLS ARE BUILT HERE, AS CLOSURES OVER ONE USER ID, so the port that runs the
