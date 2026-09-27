@@ -99,16 +99,6 @@ msgid "stream.steps.3"
 msgstr "Đối chiếu với kế hoạch của bạn"
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Hãy xác nhận địa chỉ này là của bạn:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Xác nhận email của bạn cho eait"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedLead"
 msgstr "Đã kết nối với tài khoản eait đăng nhập bằng"
@@ -177,11 +167,6 @@ msgstr "Tuần này thế nào?"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
 msgstr "Có gì sai thì cứ nói — \"một nửa cơm thôi\", \"không có bơ\" — hoặc chạm vào thẻ và đổi số gam."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -254,11 +239,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Đúng kế hoạch."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra không có gì, không bao giờ."
@@ -317,11 +297,6 @@ msgstr "Natri"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Bữa này natri cao. Được chấm chỉ vì bạn yêu cầu."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Ai đó — nhiều khả năng là bạn — đã đăng ký nhận tin khi ứng dụng eait cho iPhone ra mắt."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

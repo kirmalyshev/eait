@@ -99,16 +99,6 @@ msgid "stream.steps.3"
 msgstr "Comparar con tu plan"
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Confirma que esta dirección es tuya:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Confirma tu correo para eait"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedLead"
 msgstr "Este Telegram está conectado a la cuenta de eait con la que entraste usando"
@@ -177,11 +167,6 @@ msgstr "¿Cómo va mi semana?"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
 msgstr "Si algo falla, dilo — \"la mitad del arroz\", \"sin aguacate\" — o toca la ficha y cambia los gramos."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Si no fuiste tú, ignora este mensaje. No pasa nada, y la dirección se borra en menos de una semana."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -254,11 +239,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "En el plan."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Un mensaje cuando salga la app, con un enlace de baja en un clic. Nada más, nunca."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Una cosa más que iOS va a preguntar: las notificaciones. Una al día y nunca más — la línea de las 20:30, más dos recordatorios antes de que acabe la semana gratis, si estás en ella. Nada más, nunca."
@@ -317,11 +297,6 @@ msgstr "Sodio"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "El sodio sale alto en esta. Puntuado solo porque me lo pediste."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Alguien — probablemente tú — pidió que le avisemos cuando salga la app de eait para iPhone."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
