@@ -40,12 +40,22 @@ msgstr "{noun} — много"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — много"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — в норме"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — очень много"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — очень много"
 
 #. js-lingui-explicit-id
@@ -77,6 +87,11 @@ msgstr "Мне хватает белка?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Сначала ответь на вопросы плана в вебе."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "калории"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -290,6 +305,11 @@ msgstr "Восстановлено — ты внутри. Фото или фра
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "насыщенные жиры"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Насыщенные жиры"
 
@@ -307,6 +327,11 @@ msgstr "Пришли фото еды, расскажи, что было на т�
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Войти"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "натрий"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts

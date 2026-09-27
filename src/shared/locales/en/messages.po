@@ -40,12 +40,22 @@ msgstr "{noun} high"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} high"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} on plan"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} very high"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} very high"
 
 #. js-lingui-explicit-id
@@ -77,6 +87,11 @@ msgstr "Am I getting enough protein?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Answer the plan questions on the web first."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calories"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -290,6 +305,11 @@ msgstr "Restored — you're in. A photo or a sentence both log a meal."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "saturated fat"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Saturated fat"
 
@@ -307,6 +327,11 @@ msgstr "Send a photo of a meal, tell me what you ate, or ask me a question."
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Sign in"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodium"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts

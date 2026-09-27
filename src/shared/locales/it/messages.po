@@ -40,12 +40,22 @@ msgstr "{noun} — sopra"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — nel piano"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — molto sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — molto sopra"
 
 #. js-lingui-explicit-id
@@ -77,6 +87,11 @@ msgstr "Sto prendendo abbastanza proteine?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Prima rispondi alle domande del piano sul web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calorie"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -290,6 +305,11 @@ msgstr "Ripristinato — ci sei. Una foto o una frase, entrambe registrano un pa
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "grassi saturi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Grassi saturi"
 
@@ -307,6 +327,11 @@ msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fammi una domanda.
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Accedi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodio"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts

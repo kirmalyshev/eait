@@ -40,12 +40,22 @@ msgstr "{noun} — cao"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — cao"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — đúng kế hoạch"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — rất cao"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — rất cao"
 
 #. js-lingui-explicit-id
@@ -77,6 +87,11 @@ msgstr "Đã đủ đạm chưa?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Hãy trả lời các câu hỏi lập kế hoạch trên web trước."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calo"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -290,6 +305,11 @@ msgstr "Đã khôi phục — bạn vào rồi. Một tấm ảnh hay một câu
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "chất béo bão hoà"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Chất béo bão hoà"
 
@@ -307,6 +327,11 @@ msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc 
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Đăng nhập"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "natri"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
