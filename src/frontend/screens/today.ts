@@ -556,6 +556,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   /** A meal row: the photo or the chat tile, the time, the verdict line, the gram chips. */
   const mealRow = (meal: MealRecord): Element => {
+    // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
+    // prefix. The board draws `.meal` without a glyph; the link is the affordance.
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
       ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
