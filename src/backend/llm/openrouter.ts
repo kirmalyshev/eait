@@ -540,7 +540,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
         const p = parsed as Record<string, unknown>;
         const reply = typeof p.reply === "string" ? p.reply.trim() : "";
         if (reply === "") throw new Error("coach returned JSON with an empty reply");
-        return { reply, suggestions: cleanSuggestions(p.suggestions) };
+        // `focus` passes as the model wrote it — a string or nothing; the engine is the one
+        // that decides whether what was named is a nutrient the bar knows.
+        return {
+          reply, suggestions: cleanSuggestions(p.suggestions),
+          ...(typeof p.focus === "string" ? { focus: p.focus } : {}),
+        };
       }
       // A reply cut off mid-JSON is not prose; it is a bound too tight, and naming it beats
       // rendering half an object as a sentence.
