@@ -8,7 +8,7 @@
 
 import {
   explainTargets, HEALTH_FIELDS, isCalendarDate, localTime, projectGoal, projectionMonth,
-  windowStart, type Answered, type MealRecord, type Profile,
+  windowStart, type Answered, type DayTotals, type MealRecord, type Profile,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
 import type { CoachContext, CoachHistoryLine, CoachTools, OnCost } from "../llm/port.ts";
@@ -25,7 +25,7 @@ export interface CoachTurnInput {
   profile: Profile;
   focus: MealRecord | null;
   todayRows: MealRecord[];
-  week: { date: string; kcal: number; protein_g: number }[];
+  week: DayTotals[];
   /** Oldest first — what `recentLines` returned for this turn. */
   history: CoachHistoryLine[];
   /** The caller's date for the turn — the one the analysis was charged to, never re-derived. */
