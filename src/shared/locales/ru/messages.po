@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Насыщенных жиров здесь много. Оценено только по твоей просьбе."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Натрия здесь много. Оценено только по твоей просьбе."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — записал, это в цифрах."
 
@@ -67,6 +77,16 @@ msgstr "{noun} — в норме"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} — очень много"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} — много для одного приёма пищи: {eaten} из твоих {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} — очень много для одного приёма пищи: {eaten} из твоих {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -177,6 +197,11 @@ msgstr "Первый записан. {kcal} ккал — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Не налегай на это до конца дня."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Насыщенные жиры"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Насыщенных жиров здесь много. Оценено только по твоей просьбе."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Пришли фото еды, расскажи, что было на тарелке, или задай {coach} вопрос."
@@ -342,11 +362,6 @@ msgstr "Войти"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Натрий"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Натрия здесь много. Оценено только по твоей просьбе."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts

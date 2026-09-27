@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn yêu cầu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Bữa này natri cao. Được chấm chỉ vì bạn yêu cầu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — đã ghi nhận, nó nằm trong các con số rồi."
 
@@ -67,6 +77,16 @@ msgstr "{noun} — đúng kế hoạch"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} — rất cao"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} cao cho một bữa: {eaten} trên {target} {unit} của bạn."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} rất cao cho một bữa: {eaten} trên {target} {unit} của bạn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -177,6 +197,11 @@ msgstr "Bữa đầu tiên đã vào. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Nhẹ tay với nó trong phần còn lại của hôm nay."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Chất béo bão hoà"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn yêu cầu."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi {coach} một câu."
@@ -342,11 +362,6 @@ msgstr "Đăng nhập"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natri"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Bữa này natri cao. Được chấm chỉ vì bạn yêu cầu."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts

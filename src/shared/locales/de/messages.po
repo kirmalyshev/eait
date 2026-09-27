@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Die gesättigten Fette laufen hier hoch. Bewertet nur, weil du mich darum gebeten hast."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Das Natrium läuft hier hoch. Bewertet nur, weil du mich darum gebeten hast."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "„{note}“ — notiert, es steckt in den Zahlen."
 
@@ -67,6 +77,16 @@ msgstr "{noun} — im Plan"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} — sehr hoch"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} ist hoch für ein Essen: {eaten} von deinen {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} ist sehr hoch für ein Essen: {eaten} von deinen {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -177,6 +197,11 @@ msgstr "Die erste ist drin. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Geh für den Rest des Tages sparsam damit um."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Gesättigte Fette"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Die gesättigten Fette laufen hier hoch. Bewertet nur, weil du mich darum gebeten hast."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Schick ein Foto einer Mahlzeit, sag mir, was du gegessen hast, oder stell {coach} eine Frage."
@@ -342,11 +362,6 @@ msgstr "Anmelden"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natrium"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Das Natrium läuft hier hoch. Bewertet nur, weil du mich darum gebeten hast."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts

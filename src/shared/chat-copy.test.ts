@@ -6,7 +6,7 @@ import {
   scriptedLine, startersFor, type ScriptedLineId,
 } from "./chat.ts";
 
-const TARGETS = { kcal: 1724, protein_g: 104, carbs_g: 190, fat_g: 55 };
+const TARGETS = { kcal: 1724, protein_g: 104, carbs_g: 190, fat_g: 55, satfat_g: 13, sodium_mg: 2000 };
 const EATEN = { kcal: 1168, protein_g: 74.8 };
 
 describe("the thread in eight languages", () => {
@@ -39,7 +39,7 @@ describe("the thread in eight languages", () => {
           for (const confidence of ["high", "low"] as const) {
             for (const eaten of [EATEN, { kcal: 2100, protein_g: 120 }]) {
               said.push(...firstVerdictLines({
-                goal, targets: TARGETS, meal: { kcal: 520, confidence }, eatenToday: eaten, via,
+                goal, targets: TARGETS, meal: { kcal: 520, satfat_g: 8, sodium_mg: 1200, confidence }, eatenToday: eaten, via,
                 verdicts: { weight: "good", kidneys: "bad", ldl: "warn" },
                 caption: "two eggs and toast",
               }, lang));

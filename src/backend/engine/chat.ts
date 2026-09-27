@@ -8,7 +8,7 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
-  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, explainTargets, firstVerdictLines, runningLine,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, capVerdictLines, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
@@ -109,7 +109,13 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang), speaker: "gabie" }];
+  // #130: a cap that is not on plan gets Gabie's computed verdict line under the card, ahead of
+  // the day's standing — the specific first, then the summary, as the board draws them.
+  const caps = capVerdictLines({ meal, targets: day.targets, verdicts: meal.verdicts, eatenToday: day.eatenToday }, day.lang);
+  return [
+    ...caps.map((text) => ({ role: "assistant" as const, kind: "text" as const, text, speaker: "gabie" as const })),
+    { role: "assistant" as const, kind: "text" as const, text: runningLine(day, day.lang), speaker: "gabie" as const },
+  ];
 }
 
 /**
@@ -133,7 +139,7 @@ export async function firstVerdict(
   const { targets } = explainTargets(profile);
   const lines: ChatAppend[] = firstVerdictLines({
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
-    meal: { kcal: meal.kcal, confidence: meal.confidence },
+    meal: { kcal: meal.kcal, satfat_g: meal.satfat_g, sodium_mg: meal.sodium_mg, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
   }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };

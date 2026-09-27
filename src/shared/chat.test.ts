@@ -163,10 +163,12 @@ describe("the first verdict", () => {
   });
 
   it("mentions sodium or saturated fat only when the user asked for it, and only when it ran high", () => {
-    const base = { goal: "lose" as const, targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo" as const };
-    // Last, now that nobody is introduced after them (#49).
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-1)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
-    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-1)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
+    const capped = { ...targets, satfat_g: 13, sodium_mg: 2000 };
+    const base = { goal: "lose" as const, targets: capped, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo" as const };
+    // Last, now that nobody is introduced after them (#49) — and computed, with the meal's amount
+    // against the declared cap (#130).
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-1)).toBe("Sodium is high for one meal: 900 of your 2,000 mg.");
+    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-1)).toBe("Saturated fat is very high for one meal: 4 of your 13 g.");
     expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } }, "en")).toHaveLength(2);
   });
 });
@@ -214,7 +216,7 @@ describe("coach", () => {
 // #49: the first verdict contradicted itself — "On plan." in the sentence over "Calories high" on
 // the pill. The headline is now the pills' own verdict in words, and the first line spoken.
 describe("the first verdict's headline", () => {
-  const targets = { kcal: 1643, protein_g: 109, fat_g: 55, carbs_g: 205 };
+  const targets = { kcal: 1643, protein_g: 109, fat_g: 55, carbs_g: 205, satfat_g: 13, sodium_mg: 2000 };
   const meal = { kcal: 584, protein_g: 37, satfat_g: 6, sodium_mg: 600, confidence: "high" };
   const said = (verdicts: Record<string, string>, lang: Lang = "en") => firstVerdictLines({
     goal: "lose", targets, meal, eatenToday: { kcal: 584, protein_g: 37 }, via: "photo", verdicts: verdicts as never,
@@ -241,7 +243,7 @@ describe("the first verdict's headline", () => {
   it("says calories are on plan, and no more, when a declared marker ran high", () => {
     const lines = said({ weight: "good", ldl: "warn" });
     expect(lines[0]).toBe("Calories on plan.");
-    expect(lines).toContain("Saturated fat runs high on this one. Scored only because you asked me to.");
+    expect(lines).toContain("Saturated fat is high for one meal: 6 of your 13 g.");
   });
 
   it("claims nothing when there is no calories pill to back it", () => {

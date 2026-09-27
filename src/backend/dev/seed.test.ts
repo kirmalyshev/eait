@@ -63,7 +63,7 @@ describe("seedDevData", () => {
         ...Object.values(threadCopyFor(lang).firstVerdict.headline),
         firstVerdictLines({
           goal: "lose", targets: { kcal: 2000, protein_g: 140, fat_g: 67, carbs_g: 230 },
-          via: "photo", verdicts: {}, meal: { kcal: 500, confidence: "high" },
+          via: "photo", verdicts: {}, meal: { kcal: 500, satfat_g: 2, sodium_mg: 300, confidence: "high" },
           eatenToday: { kcal: 500, protein_g: 30 },
         }, lang)[0]!,
       ];

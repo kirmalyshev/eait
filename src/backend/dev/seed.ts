@@ -726,7 +726,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     if (oldest) {
       oldest.lines.push(...firstVerdictLines({
         goal: profile.goal ?? "maintain", targets, via: "photo", verdicts: oldest.record.verdicts,
-        meal: { kcal: oldest.record.kcal, confidence: oldest.record.confidence },
+        meal: { kcal: oldest.record.kcal, satfat_g: oldest.record.satfat_g, sodium_mg: oldest.record.sodium_mg, confidence: oldest.record.confidence },
         eatenToday: { kcal: oldest.record.kcal, protein_g: oldest.record.protein_g },
       }, lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" } as const)));
     }

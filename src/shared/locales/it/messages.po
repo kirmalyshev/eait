@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chiesto tu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Su questo il sodio va alto. Valutato solo perché me l'hai chiesto tu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — preso nota, è nei numeri."
 
@@ -67,6 +77,16 @@ msgstr "{noun} — nel piano"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} — molto sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} è sopra in un pasto: {eaten} dei tuoi {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} è molto sopra in un pasto: {eaten} dei tuoi {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -177,6 +197,11 @@ msgstr "Il primo è dentro. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Vacci piano per il resto della giornata."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Grassi saturi"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chiesto tu."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a {coach}."
@@ -342,11 +362,6 @@ msgstr "Accedi"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodio"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Su questo il sodio va alto. Valutato solo perché me l'hai chiesto tu."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts

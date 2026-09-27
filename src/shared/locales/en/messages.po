@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Saturated fat runs high on this one. Scored only because you asked me to."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Sodium runs high on this one. Scored only because you asked me to."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — noted, it's in the numbers."
 
@@ -67,6 +77,16 @@ msgstr "{noun} on plan"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} very high"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} is high for one meal: {eaten} of your {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} is very high for one meal: {eaten} of your {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -177,6 +197,11 @@ msgstr "First one in. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Go easy on it for the rest of today."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Saturated fat"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Saturated fat runs high on this one. Scored only because you asked me to."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Send a photo of a meal, tell me what you ate, or ask {coach} a question."
@@ -342,11 +362,6 @@ msgstr "Sign in"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodium"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Sodium runs high on this one. Scored only because you asked me to."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
