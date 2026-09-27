@@ -17,7 +17,7 @@
 // Weight-bearing templates come in `…Kg`/`…Lb` pairs: the unit word lives in the template and
 // the client picks by `Profile.units` — a kg figure and a lb figure are not one string.
 
-import { LANG_TAG, numbers, t, type Localized } from "../lang.ts";
+import { LANG_TAG, listConjunction, numbers, t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 import { healthLabel } from "../health-copy.ts";
 import { heightText, type UnitSystem } from "../ui/units.ts";
@@ -1185,8 +1185,7 @@ export function youFacts(
   const labels = facts.restrictions
     .filter((r) => r !== "none" && r in facts.medicalOptions)
     .map((r) => facts.medicalOptions[r]!.label);
-  const list = new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" });
-  const joined = list.format(labels);
+  const joined = listConjunction(lang, labels);
   const flags = labels.length
     ? fill(you.flagDeclared, {
         condition: you.flagDeclared.startsWith("{condition}")
