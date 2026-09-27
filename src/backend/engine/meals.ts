@@ -15,7 +15,7 @@ import {
   type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
   type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
-  explainTargets, verdictsFromTargets, visibleVerdicts,
+  explainTargets, movedItems, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
   LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
@@ -487,12 +487,9 @@ export function changeLine(
   const parts: string[] = [];
 
   // The change itself. Items are matched on the canonical key like `portionCorrections` — the
-  // prior and the line must agree about which rice moved — and the display name is AFTER's.
-  const was = new Map(before.items.map((i) => [i.name_en ?? i.name, i.grams]));
-  const moved = after.items.flatMap((i) => {
-    const g = was.get(i.name_en ?? i.name);
-    return g !== undefined && g !== i.grams ? [{ item: i, gramsBefore: g }] : [];
-  });
+  // prior, the line and the client's tinted `changeBrief` must agree about which rice moved —
+  // and the display name is AFTER's.
+  const moved = movedItems(before.items, after.items);
   const total = fill(copy.changeTotal, {
     kcalBefore: n(before.kcal), kcalAfter: n(after.kcal), kcal: UNIT_KCAL[lang],
   });

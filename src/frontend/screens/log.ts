@@ -12,8 +12,8 @@
 // a failed or unanswered photo is kept and the person is handed to `#/chat`, where W7 draws the
 // coach card with "Send it again".
 //
-// Edit and Correct open the conversation with the meal in focus — `#/chat?focus=<id>` — the same
-// ruling the meal detail got on #93: the edit is just a chat.
+// Edit and Correct open the meal's fix panel — `#/meal/<id>?fix` (#188): the edit is Cal AI's
+// one-field sheet over the meal detail, never the chat.
 
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
@@ -272,7 +272,7 @@ export function logScreen(frame: Frame): HTMLElement {
   const actionsRow = (r: LoggedMeal): HTMLElement => {
     const row = el("div", "logbtns");
     row.append(
-      ctaEl({ text: L.edit, kind: "s", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
+      ctaEl({ text: L.edit, kind: "s", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
       ctaEl({ text: L.agree, kind: "p", href: "#/" }),
     );
     return row;
@@ -291,7 +291,7 @@ export function logScreen(frame: Frame): HTMLElement {
       side.append(say("happy", L.firstVerdict, true), mealCard(r, ".4s"));
       const btns = el("div", "logbtns");
       btns.append(
-        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
+        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
         // W9's plans paywall is `#/pay` — unbound until it lands; the fallthrough lands Home.
         ctaEl({ text: L.continueCta, kind: "p", href: "#/pay" }),
       );

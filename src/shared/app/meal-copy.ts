@@ -17,8 +17,9 @@
 // and filling `{dim}` from `verdicts.ts` in its sentence-start form; nothing writes it freehand,
 // and no client or engine changes the dimension's case itself (German nouns).
 
-import { t, type Localized } from "../lang.ts";
-import type { Lang } from "../types.ts";
+import { LANG_TAG, UNIT_KCAL, spellUnit, t, wholeNumbers, type Localized } from "../lang.ts";
+import { movedItems } from "../meal-edit.ts";
+import type { Lang, MealAnalysis } from "../types.ts";
 
 export interface MealCopy {
   /**
@@ -138,6 +139,32 @@ export interface MealCopy {
   changeToHigh: string;
   changeToVeryHigh: string;
   changeAllOnPlan: string;
+
+  /**
+   * The Cal-AI fix sheet (web + phone `meal-fix.html`): the meal named beside its thumb, so it
+   * is clear what is being corrected — "{name} · {n} {kcal} · {time}".
+   */
+  fixMeal: string;
+  /** The example card under the field — the caption ("For example:") and the sentence it leads. */
+  fixExampleLead: string;
+  fixExample: string;
+  /** The fix sheet's commit button (`web/meal-fix.html`, `phone/meal-fix.html`). */
+  fixUpdate: string;
+  /**
+   * The tinted line the recomputed detail shows after a fix (`meal-fixed.html`'s "Rice 150 →
+   * 200 g · 540 → 605 kcal") — the change half of `changeLine`, without the verdict tail the
+   * thread carries. `fixChanged` when grams moved — `{items}` is `changeItem` clauses through
+   * `Intl.ListFormat`'s conjunction — `fixChangedKcal` when only the meal's total did.
+   */
+  fixChanged: string;
+  fixChangedKcal: string;
+
+  /** The ingredient editor (web + phone `meal-ingredient.html`): title, labels, the bin. */
+  ingTitle: string;
+  ingAmount: string;
+  ingCalories: string;
+  /** The bin's accessible name — the glyph is silent; Delete is the meal's own word. */
+  ingRemove: string;
 }
 
 export const MEAL_COPY: Localized<MealCopy> = {
@@ -186,6 +213,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} now high for one meal.",
     changeToVeryHigh: "{dim} now very high for one meal.",
     changeAllOnPlan: "All on plan now.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "For example:",
+    fixExample: "the rice was about 200 g, and there was no sauce.",
+    fixUpdate: "Update",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Edit ingredient",
+    ingAmount: "Amount",
+    ingCalories: "Calories",
+    ingRemove: "Remove ingredient",
   },
   fr: {
     metaPhoto: "{day} · {time} · d’après une photo",
@@ -232,6 +269,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} maintenant au-dessus pour un repas.",
     changeToVeryHigh: "{dim} maintenant trop haut pour un repas.",
     changeAllOnPlan: "Tout est dans le plan maintenant.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Par exemple :",
+    fixExample: "le riz faisait environ 200 g, et il n'y avait pas de sauce.",
+    fixUpdate: "Mettre à jour",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Modifier l'ingrédient",
+    ingAmount: "Quantité",
+    ingCalories: "Calories",
+    ingRemove: "Retirer l'ingrédient",
   },
   de: {
     metaPhoto: "{day} · {time} · von einem Foto",
@@ -278,6 +325,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} jetzt hoch für eine Mahlzeit.",
     changeToVeryHigh: "{dim} jetzt sehr hoch für eine Mahlzeit.",
     changeAllOnPlan: "Jetzt alles im Plan.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Zum Beispiel:",
+    fixExample: "der Reis war etwa 200 g, und es gab keine Soße.",
+    fixUpdate: "Aktualisieren",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Zutat bearbeiten",
+    ingAmount: "Menge",
+    ingCalories: "Kalorien",
+    ingRemove: "Zutat entfernen",
   },
   it: {
     metaPhoto: "{day} · {time} · da una foto",
@@ -324,6 +381,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} ora sopra per un pasto.",
     changeToVeryHigh: "{dim} ora molto sopra per un pasto.",
     changeAllOnPlan: "Ora tutto nel piano.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Per esempio:",
+    fixExample: "il riso era circa 200 g, e non c'era salsa.",
+    fixUpdate: "Aggiorna",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Modifica ingrediente",
+    ingAmount: "Quantità",
+    ingCalories: "Calorie",
+    ingRemove: "Rimuovi ingrediente",
   },
   es: {
     metaPhoto: "{day} · {time} · de una foto",
@@ -370,6 +437,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} ahora por encima para una comida.",
     changeToVeryHigh: "{dim} ahora muy por encima para una comida.",
     changeAllOnPlan: "Todo en el plan ahora.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Por ejemplo:",
+    fixExample: "había unos 200 g de arroz, y no llevaba salsa.",
+    fixUpdate: "Actualizar",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Editar ingrediente",
+    ingAmount: "Cantidad",
+    ingCalories: "Calorías",
+    ingRemove: "Quitar ingrediente",
   },
   vi: {
     metaPhoto: "{day} · {time} · từ một bức ảnh",
@@ -416,6 +493,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} giờ cao cho một bữa.",
     changeToVeryHigh: "{dim} giờ rất cao cho một bữa.",
     changeAllOnPlan: "Giờ tất cả đúng kế hoạch.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Ví dụ:",
+    fixExample: "cơm khoảng 200 g, và không có nước sốt.",
+    fixUpdate: "Cập nhật",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Sửa nguyên liệu",
+    ingAmount: "Lượng",
+    ingCalories: "Calo",
+    ingRemove: "Xóa nguyên liệu",
   },
   id: {
     metaPhoto: "{day} · {time} · dari foto",
@@ -462,6 +549,16 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} kini tinggi untuk satu kali makan.",
     changeToVeryHigh: "{dim} kini sangat tinggi untuk satu kali makan.",
     changeAllOnPlan: "Semua sesuai rencana sekarang.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Misalnya:",
+    fixExample: "nasinya sekitar 200 g, dan tidak ada saus.",
+    fixUpdate: "Perbarui",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Edit bahan",
+    ingAmount: "Jumlah",
+    ingCalories: "Kalori",
+    ingRemove: "Hapus bahan",
   },
   ru: {
     metaPhoto: "{day} · {time} · по фото",
@@ -508,7 +605,48 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeToHigh: "{dim} теперь много для одного приёма пищи.",
     changeToVeryHigh: "{dim} теперь очень много для одного приёма пищи.",
     changeAllOnPlan: "Теперь всё в норме.",
+    fixMeal: "{name} · {n} {kcal} · {time}",
+    fixExampleLead: "Например:",
+    fixExample: "риса было около 200 г, и соуса не было.",
+    fixUpdate: "Обновить",
+    fixChanged: "{items} · {kcalBefore} → {kcalAfter} {kcal}",
+    fixChangedKcal: "{kcalBefore} → {kcalAfter} {kcal}",
+    ingTitle: "Изменить ингредиент",
+    ingAmount: "Количество",
+    ingCalories: "Калории",
+    ingRemove: "Убрать ингредиент",
   },
 };
 
 export const mealCopyFor = (lang: Lang): MealCopy => t(lang)(MEAL_COPY);
+
+/**
+ * "A change, named" on the recomputed detail (#188) — the tinted line `meal-fixed.html` and the
+ * web's redrawn sheet show after a fix: "Rice 150 → 200 g · 540 → 605 kcal". The change half of
+ * the engine's `changeLine`, minus the verdict tail the thread carries — same `movedItems`
+ * matching, same `changeItem` clauses through `Intl.ListFormat`'s conjunction. Null when nothing
+ * nameable moved (a rename is a card, not a line — #49's rule).
+ */
+export function changeBrief(
+  before: Pick<MealAnalysis, "items" | "kcal">,
+  after: Pick<MealAnalysis, "items" | "kcal">,
+  lang: Lang,
+): string | null {
+  const copy = mealCopyFor(lang);
+  const n = wholeNumbers(lang);
+  const fill = (template: string, params: Record<string, string>): string =>
+    template.replace(/\{(\w+)\}/g, (whole, k: string) => params[k] ?? whole);
+  const moved = movedItems(before.items, after.items);
+  if (moved.length > 0) {
+    const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
+      moved.map(({ item, gramsBefore }) => fill(copy.changeItem, {
+        item: item.name, before: n(gramsBefore), after: n(item.grams), unit: spellUnit(lang, "g"),
+      })));
+    return fill(copy.fixChanged, {
+      items, kcalBefore: n(before.kcal), kcalAfter: n(after.kcal), kcal: UNIT_KCAL[lang],
+    });
+  }
+  return before.kcal !== after.kcal
+    ? fill(copy.fixChangedKcal, { kcalBefore: n(before.kcal), kcalAfter: n(after.kcal), kcal: UNIT_KCAL[lang] })
+    : null;
+}

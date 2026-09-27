@@ -8,30 +8,35 @@
 // right; X or Esc returns to the diary (`#/`), and the menu is the phone's (meal-menu.html): Edit,
 // Re-read the photo, Move to yesterday, Delete — which asks first, over the master-detail.
 //
-// "Correct" is NOT a state of this screen: it navigates to `#/chat?focus=<id>` (the contract's
-// focusMealId), per design-pro — the board draws it in the Chat frame and she stays there. The
-// score row opens the `web/meal-score.html` overlay in place, and a deleted, moved-away or
-// foreign id resolves to the gone state — the server scopes the read, so "another user's meal"
-// and "no meal" are the same answer and the same panel.
+// THE EDIT IS CAL AI'S LAYOUT, not a chat (#188, Kirill 21:58). "Correct this meal" and the
+// menu's Edit open `web/meal-fix.html` — a PANEL over this detail: one field, an example, Update,
+// which sends the sentence as the correction turn (the contract's `focusMealId`, unchanged) and
+// returns here recomputed with the change named in one tinted line (`changeBrief`). An ingredient
+// row opens `web/meal-ingredient.html` — grams, the item's and the meal's kcal live, a bin that
+// removes it, Done — a `PATCH /v1/meals/:id`, the same write the first-meal editor sends. Other
+// surfaces deep-link in: `#/meal/<id>?fix` opens the fix panel, `#/meal/<id>?item=<n>` the
+// ingredient's. The score row opens `web/meal-score.html`, and a deleted, moved-away or foreign
+// id resolves to the gone state — the server scopes the read, so "another user's meal" and "no
+// meal" are the same answer and the same panel.
 
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
-import { LANG_TAG, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
-import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { mealEditRequest, scaledItem } from "../../shared/meal-edit.ts";
+import { changeBrief, mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
-import type { MealRecord } from "@eait/shared";
-import type { DayResponse } from "@eait/shared/contract";
-import type { MealRedated, MealUpdated } from "../../shared/results.ts";
+import type { MealItem, MealRecord } from "@eait/shared";
+import type { DayResponse, MessageResponse, PhotoLast } from "@eait/shared/contract";
+import type { MealRedated, MealUpdated, TargetGone } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
-  blobSrc, ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl,
-  verdictListEl,
+  blobSrc, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl, verdictListEl,
 } from "../kit.ts";
 import {
-  COPY, MEAL, clear, el, findMeal, lang, names, profile, setRedraw, takeTurn,
+  COPY, MEAL, clear, el, findMeal, lang, names, profile, sendOrKeep, setRedraw, takeTurn,
   type Frame,
 } from "../shell.ts";
 
@@ -46,11 +51,17 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
   // THE ROUTE: `#/meal/<id>` on its own, or `#/meal/<id>?d=<YYYY-MM-DD>` — the day its row was on,
   // so the left column opens on the right diary and a bare id is looked up (`findMeal` walks the
-  // logged days back through the window).
+  // logged days back through the window). `?fix` and `?item=<n>` are the deep links the OTHER
+  // surfaces take into the panels (#188) — consumed once, then stripped so a redraw does not
+  // reopen them.
   const [path, query] = location.hash.split("?");
   const id = decodeURIComponent((path ?? "").replace(/^#\/meal\//, ""));
-  const asked = new URLSearchParams(query ?? "").get("d");
+  const params = new URLSearchParams(query ?? "");
+  const asked = params.get("d");
   let viewing: string | undefined = asked !== null && isCalendarDate(asked) ? asked : undefined;
+  const askedItem = params.has("item") ? Number.parseInt(params.get("item") ?? "", 10) : null;
+  let pending: "fix" | number | null =
+    params.has("fix") ? "fix" : askedItem !== null && Number.isInteger(askedItem) && askedItem >= 0 ? askedItem : null;
 
   // Relative day names for the meta line and header ("Today · 13:05"), the date in full for the
   // diary's own label — the boards write "Thursday 24 September" over the list.
@@ -77,11 +88,19 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     notice.hidden = words === null;
   };
 
-  // One overlay at a time — the delete dialog or the score breakdown. `overlay` is what Esc and
-  // a scrim tap close.
+  // One overlay at a time — the delete dialog, the score breakdown, a fix panel. `overlay` is
+  // what Esc and a scrim tap close.
   let overlay: HTMLElement | null = null;
   const closeOverlay = (): void => { overlay?.remove(); overlay = null; };
   const openOverlay = (node: HTMLElement): void => { closeOverlay(); wrap.append(node); overlay = node; };
+
+  // The tinted line the detail carries after a fix landed (`meal-fixed.html`): set by the panels
+  // below from `changeBrief`, keyed to the meal so it survives `draw()` but no other meal's.
+  let changedNote: { id: string; text: string } | null = null;
+  const noteChange = (before: MealRecord, after: MealUpdated["analysis"]): void => {
+    const text = changeBrief(before, after, lang);
+    changedNote = text === null ? null : { id: before.id, text };
+  };
 
   // The photo bytes arrive under the bearer, so they cannot be an <img>'s URL — and the CSP
   // refuses both a blob: src and a fetch OF a blob: URL, so `blobSrc`'s data URL is the one form
@@ -181,6 +200,180 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     return scrim;
   };
 
+  /**
+   * `web/meal-fix.html` (#188): X, the sparkle and "Correct this meal", the meal named beside its
+   * thumb, the one field ("Say what was wrong" — `composeHint`), the example card, Update. Update
+   * sends the sentence as the correction turn — `focusMealId`, the contract unchanged — and the
+   * recomputed answer lands the tinted line on the detail behind the closing panel.
+   */
+  const fixPanel = (meal: MealRecord): HTMLElement => {
+    const scrim = el("div", "mscrim");
+    scrim.addEventListener("click", (e) => { if (e.target === scrim) closeOverlay(); });
+    const dlg = el("div", "card mfix rise");
+    dlg.setAttribute("role", "dialog");
+    dlg.setAttribute("aria-modal", "true");
+    dlg.setAttribute("aria-label", mc.webCorrect);
+    const close = iconButton("x", mc.cancelCta);
+    close.addEventListener("click", closeOverlay);
+    const xrow = el("div", "row");
+    xrow.append(close);
+    dlg.append(xrow);
+    const title = el("div", "row fixtitle");
+    title.append(kitEl(ico("sparkle")), el("b", "d d28", mc.webCorrect));
+    const named = el("div", "row fixmeal");
+    const thumb = el("span", "fixthumb");
+    if ((meal.photos ?? 0) > 0) {
+      const img = el("img", "") as HTMLImageElement;
+      img.alt = "";
+      void photoUrl(meal.id, 0).then((src) => { if (src !== null && img.isConnected) img.src = src; });
+      thumb.append(img);
+    } else {
+      thumb.classList.add("chat");
+      thumb.append(kitEl(ico("chat")));
+    }
+    named.append(thumb, el("span", "t13 m",
+      fill(mc.fixMeal, { name: names(meal.items), n: n(meal.kcal), kcal: UNIT_KCAL[lang], time: mealTime(meal) })));
+    const field = el("textarea", "fixfield") as HTMLTextAreaElement;
+    field.placeholder = mc.composeHint;
+    const example = el("div", "card flat fixex");
+    example.append(el("b", "", mc.fixExampleLead), ` ${mc.fixExample}`);
+    const update = el("button", "cta p", mc.fixUpdate) as HTMLButtonElement;
+    update.type = "button";
+    update.disabled = true;
+    field.addEventListener("input", () => { update.disabled = field.value.trim() === ""; });
+    update.addEventListener("click", () => {
+      const text = field.value.trim();
+      if (text === "") return;
+      turn(async () => {
+        // The result rides `onResult` — a kept (offline) turn answers none, and the redraw picks
+        // the meal up when the outbox drains.
+        const got: { r: MessageResponse | PhotoLast | null } = { r: null };
+        const saved = await sendOrKeep({
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
+          capturedAt: new Date().toISOString(), focusMealId: meal.id,
+        }, { onResult: (r) => { got.r = r; } });
+        closeOverlay();
+        if (got.r?.kind === "updated") noteChange(meal, got.r.analysis);
+        return saved;
+      });
+    });
+    dlg.append(title, named, field, example, update);
+    scrim.append(dlg);
+    return scrim;
+  };
+
+  /**
+   * `web/meal-ingredient.html` (#188): the name, the meal it belongs to, the amount in grams with
+   * "was" under it, the item's kcal, this meal's total and verdicts live. The bin PATCHes the
+   * item off the meal at once; Done PATCHes the grams — `mealEditRequest` — and a Done that moved
+   * nothing writes nothing.
+   */
+  const ingredientPanel = (meal: MealRecord, index: number): HTMLElement => {
+    const item = meal.items[index]!;
+    const scrim = el("div", "mscrim");
+    scrim.addEventListener("click", (e) => { if (e.target === scrim) closeOverlay(); });
+    const dlg = el("div", "card ming rise");
+    dlg.setAttribute("role", "dialog");
+    dlg.setAttribute("aria-modal", "true");
+    dlg.setAttribute("aria-label", mc.ingTitle);
+
+    const head = el("div", "row between");
+    const close = iconButton("x", mc.cancelCta);
+    close.addEventListener("click", closeOverlay);
+    const bin = iconButton("trash", mc.ingRemove);
+    head.append(close, el("span", "d d17", mc.ingTitle), bin);
+    dlg.append(head, el("b", "d d28", item.name),
+      el("span", "t13 m", fill(mc.phoneSheetMeal, { meal: names(meal.items), time: mealTime(meal) })));
+
+    // The amount is the pill itself: the figure editable in place, the pen the affordance.
+    const grams = el("input", "amtin num") as HTMLInputElement;
+    grams.type = "text";
+    grams.inputMode = "decimal";
+    grams.value = `${n(item.grams)}`;
+    grams.setAttribute("aria-label", mc.ingAmount);
+    const size = (): void => { grams.style.width = `${Math.max(2, grams.value.length)}ch`; };
+    size();
+    const pill = el("label", "amtpill");
+    pill.append(grams, document.createTextNode(` ${spellUnit(lang, "g")}`), kitEl(ico("pencil")));
+    const amountRow = el("div", "row between");
+    amountRow.append(el("span", "amlab", mc.ingAmount), pill);
+    const wasG = el("span", "t12 m ingwas",
+      fill(mc.phoneWasAmount, { amount: `${n(item.grams)} ${spellUnit(lang, "g")}` }));
+    dlg.append(amountRow, wasG);
+
+    // Calories, live off the item's own density; "was" keeps the figure the edit started from.
+    const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "—");
+    const kcalLeft = el("div", "");
+    const kcalRow = el("div", "row ingkrow");
+    kcalRow.append(kitEl(ico("kcal")), kcalNow);
+    kcalLeft.append(el("span", "t12 m", mc.ingCalories), kcalRow);
+    const kcalCard = el("div", "card row between ingkcal");
+    kcalCard.append(kcalLeft);
+    if (item.kcal !== undefined) kcalCard.append(el("span", "t13 m num", fill(mc.phoneWasAmount, { amount: n(item.kcal) })));
+    dlg.append(kcalCard);
+
+    // This meal, live: "540 → 605" — the arrow part mutes, the new total is the figure.
+    const mealCard = el("div", "card ingmeal");
+    const mealRow = el("div", "row between");
+    const total = el("span", "num");
+    const totalFrom = el("span", "m", `${n(meal.kcal)} →`);
+    const totalTo = el("b", "d d22", n(meal.kcal));
+    total.append(totalFrom, " ", totalTo, " ", el("span", "m t12", UNIT_KCAL[lang]));
+    mealRow.append(el("span", "amlab", mc.phoneThisMeal), total);
+    mealCard.append(mealRow, el("div", "hr"));
+    const vlist = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
+    if (vlist !== null) mealCard.append(vlist);
+    dlg.append(mealCard);
+
+    const gramsNow = (): number | null => {
+      const g = Number.parseFloat(grams.value.replace(",", "."));
+      return Number.isFinite(g) && g >= 0 ? g : null;
+    };
+    grams.addEventListener("input", () => {
+      size();
+      const g = gramsNow();
+      const scaled = g === null ? null : scaledItem(item, g);
+      const itemKcal = scaled?.kcal;
+      kcalNow.textContent = itemKcal !== undefined ? n(itemKcal) : item.kcal !== undefined ? n(item.kcal) : "—";
+      const mealKcal = item.kcal !== undefined && itemKcal !== undefined
+        ? Math.max(0, meal.kcal - item.kcal + itemKcal) : meal.kcal;
+      totalFrom.textContent = `${n(meal.kcal)}${mealKcal === meal.kcal ? "" : " →"}`;
+      totalTo.textContent = n(mealKcal);
+    });
+
+    const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
+    done.type = "button";
+    done.addEventListener("click", () => {
+      const g = gramsNow();
+      const items = g === null
+        ? [...meal.items]
+        : meal.items.map((it, i) => (i === index ? scaledItem(it, g) : it));
+      const req = mealEditRequest(meal, items);
+      if (req === null) { closeOverlay(); return; }
+      turn(async () => {
+        const r = await api<MealUpdated | TargetGone>(MEAL(meal.id), {
+          method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(req),
+        });
+        closeOverlay();
+        if (r.kind === "updated") noteChange(meal, r.analysis);
+      });
+    });
+    bin.addEventListener("click", () => {
+      const req = mealEditRequest(meal, meal.items.filter((_, i) => i !== index));
+      turn(async () => {
+        closeOverlay();
+        if (req === null) return;
+        const r = await api<MealUpdated | TargetGone>(MEAL(meal.id), {
+          method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(req),
+        });
+        if (r.kind === "updated") noteChange(meal, r.analysis);
+      });
+    });
+    dlg.append(done);
+    scrim.append(dlg);
+    return scrim;
+  };
+
   const menuButton = (meal: MealRecord): HTMLElement => {
     const box = el("div", "mwrap");
     const btn = iconButton("dots", mc.menuButton);
@@ -205,9 +398,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const del = item("trash", mc.deleteCta, () => openOverlay(deleteDialog(meal)));
     del.classList.add("bad");
     popup.append(
-      item("pencil", mc.phoneEdit, () => {
-        location.hash = `#/chat?focus=${encodeURIComponent(meal.id)}`;
-      }),
+      // "Edit" is the Cal-AI fix sheet (#188) — a panel over this detail, not the chat.
+      item("pencil", mc.phoneEdit, () => openOverlay(fixPanel(meal))),
       reread,
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>
         turn(async () => {
@@ -281,6 +473,12 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const split = el("div", "msplit");
     split.append(hero(meal));
     const sheet = el("div", "msheet");
+    // `meal-fixed.html`'s one tinted line, above the name row — the change the last fix made.
+    if (changedNote?.id === meal.id) {
+      const line = el("div", "chgline");
+      line.append(el("i", "chgdot"), document.createTextNode(changedNote.text));
+      sheet.append(line);
+    }
     sheet.append(kitEl(`<div class="row between"><div><b class="d d22">${esc(names(meal.items))}</b>` +
       `<div class="t13 m mmeta">${esc(meta(meal))}</div></div>` +
       `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(n(meal.kcal))}</b></span></div>`));
@@ -303,17 +501,19 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       row.addEventListener("click", () => openOverlay(scoreOverlay(meal, day)));
       sheet.append(row);
     }
-    for (const item of meal.items) {
-      sheet.append(ingredientEl({
-        name: item.name,
-        amount: `${n(item.grams)} ${spellUnit(lang, "g")}`,
-        ...(item.kcal !== undefined ? { kcal: n(item.kcal) } : {}),
-      }));
-    }
+    meal.items.forEach((item, i) => {
+      // Each row opens its own editor (#188): same `ing` markup as the board, on a button.
+      const row = el("button", "ing") as HTMLButtonElement;
+      row.type = "button";
+      row.append(document.createTextNode(item.name), el("span", "", `${n(item.grams)} ${spellUnit(lang, "g")}`));
+      if (item.kcal !== undefined) row.append(el("b", "num", n(item.kcal)));
+      row.addEventListener("click", () => openOverlay(ingredientPanel(meal, i)));
+      sheet.append(row);
+    });
     const verdicts = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
     if (verdicts !== null) sheet.append(verdicts);
     const correct = kitEl(`<a class="cta s">${esc(mc.webCorrect)}</a>`) as HTMLAnchorElement;
-    correct.href = `#/chat?focus=${encodeURIComponent(meal.id)}`;
+    correct.href = `#/meal/${encodeURIComponent(meal.id)}?fix`;
     sheet.append(correct);
     split.append(sheet);
     card.append(split);
@@ -351,6 +551,16 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     }
     left.append(rows);
     clear(right).append(notice, meal === null ? goneCard() : detailCard(meal, day));
+
+    // The deep links `#/meal/<id>?fix` / `?item=<n>` open their panel once, over the drawn detail,
+    // then the hash loses the param — a redraw must not reopen a panel the person already closed.
+    if (meal !== null && pending !== null) {
+      const p = pending;
+      pending = null;
+      history.replaceState(null, "", `#/meal/${encodeURIComponent(id)}?d=${viewing}`);
+      if (p === "fix") openOverlay(fixPanel(meal));
+      else if (p < meal.items.length) openOverlay(ingredientPanel(meal, p));
+    }
   };
 
   // A queued turn that lands while this screen is up — a correction sent from the chat, or a kept

@@ -97,5 +97,17 @@ describe("MEAL_COPY", () => {
     expect(en.changeToHigh).toBe("{dim} now high for one meal.");
     expect(en.changeToVeryHigh).toBe("{dim} now very high for one meal.");
     expect(en.changeAllOnPlan).toBe("All on plan now.");
+    // The Cal-AI fix sheet and ingredient editor (#188 — `web/meal-fix.html`,
+    // `web/meal-ingredient.html`, `meal-fixed.html`'s tinted line).
+    expect(en.fixMeal).toBe("{name} · {n} {kcal} · {time}");
+    expect(en.fixExampleLead).toBe("For example:");
+    expect(en.fixExample).toBe("the rice was about 200 g, and there was no sauce.");
+    expect(en.fixUpdate).toBe("Update");
+    expect(en.fixChanged).toBe("{items} · {kcalBefore} → {kcalAfter} {kcal}");
+    expect(en.fixChangedKcal).toBe("{kcalBefore} → {kcalAfter} {kcal}");
+    expect(en.ingTitle).toBe("Edit ingredient");
+    expect(en.ingAmount).toBe("Amount");
+    expect(en.ingCalories).toBe("Calories");
+    expect(en.ingRemove).toBe("Remove ingredient");
   });
 });
