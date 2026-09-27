@@ -346,7 +346,9 @@ export const weightChartSvg = (
   target?: { label: string },
 ): string => {
   const g = weightChart(points, target !== undefined);
-  const grid = g.gridlines.map((y) =>
+  // The You board's wchart carries no hairlines — with the target lane the dashed line IS the
+  // frame's one guide; without a lane the plain chart keeps its grid.
+  const grid = g.targetLine !== undefined ? "" : g.gridlines.map((y) =>
     `<line x1="20" x2="310" y1="${y}" y2="${y}" stroke="var(--hair)"/>`
   ).join("");
   const dots = g.points.map((p, i) =>

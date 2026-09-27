@@ -60,7 +60,7 @@ export const youCss = `
 
 /* The flat card — hairline-separated rows, label then a quiet value or a control. The kit's
    .opt keeps the check-disc/vars for the forms; here it is a plain row, 15px. */
-.you .card.flat { box-shadow: 0 0 0 1px var(--hair); }
+.you .card.flat { box-shadow: 0 0 0 1px var(--hair); padding: 4px 16px; }
 .you .urows .opt { padding: 13px 0; font-size: 15px; font-weight: 500; }
 .you .urows .opt .ov { margin-left: auto; font-size: 13px; color: var(--muted); }
 .you .urows button.opt { cursor: pointer; color: inherit; text-align: left; }

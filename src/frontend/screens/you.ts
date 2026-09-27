@@ -309,7 +309,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     fig.append(
       kitEl(`<i class="ico i-kcal" aria-hidden="true"></i>`),
       el("b", "d d22 num", `${nWhole(t.kcal)} ${UNIT_KCAL[lang]}`),
-      el("span", "m", you.perDay),
+      // The space lives INSIDE the span — adjacent elements carry no whitespace.
+      el("span", "t13 m", ` ${you.perDay}`),
     );
     const chips = [
       { name: "protein" as const, text: fill(you.proteinGrams, { g: nWhole(t.protein_g) }) },
@@ -517,13 +518,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const today = localDate(zone);
     // EVERY READ DEGRADES ALONE: one refused fetch must not blank the surface — a card that can
     // still answer does, and the notice under the columns says what did not.
-    const [w, ids, ob] = await Promise.all([
+    const [w, ids] = await Promise.all([
       api<WeightsResponse>("/weights?range=all").catch(() => null),
       api<IdentitiesResponse>("/auth/identities").catch(() => null),
-      (content ?? api<OnboardingContentResponse>(`/onboarding?lang=${lang}`)).catch(() => null),
     ]);
+    // The option labels are read once — a language change reloads the page rather than refetching.
+    if (content === null) {
+      content = await api<OnboardingContentResponse>(`/onboarding?lang=${lang}`).catch(() => null);
+    }
     if (mine !== drawing) return;
-    content = ob;
+    const ob = content;
 
     dateCell.textContent = dayName.format(new Date(`${viewing}T12:00:00Z`));
     next.disabled = viewing >= today;
