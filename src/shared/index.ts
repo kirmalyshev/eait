@@ -47,5 +47,6 @@ export * from "./ui/units.ts";
 export * from "./ui/icons.ts";
 // The per-surface copy tables both clients read (#87's W0 first): `app/<surface>-copy.ts` holds
 // every string a surface shows, in all eight languages, so no client writes its own.
+export * from "./app/meal-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/signup-copy.ts";
