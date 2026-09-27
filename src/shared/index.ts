@@ -35,6 +35,7 @@ export * from "./claims.ts";
 export * from "./stream.ts";
 export * from "./typing.ts";
 export * from "./budget.ts";
+export * from "./meal-edit.ts";
 export * from "./outbox.ts";
 export * from "./paywall.ts";
 export * from "./progress.ts";

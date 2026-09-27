@@ -59,6 +59,51 @@ export const mealCss = `
 .mgone p{margin:8px 0 18px}
 .mgone .cta{max-width:260px}
 
+/* The Cal-AI panels (#188) — the fix sheet and the ingredient editor on the shared scrim, the
+   boards' 480px card: 18/22 padding, 14px between the rows. */
+.mfix,.ming{width:480px;max-width:calc(100vw - 32px);padding:18px 22px 22px;margin:0;
+  display:flex;flex-direction:column;gap:14px}
+.mfix .card,.ming .card{margin:0}
+.fixtitle{gap:10px;align-items:center}
+.fixtitle .ico{width:28px;height:28px}
+.fixmeal{gap:10px;align-items:center}
+.fixthumb{width:40px;height:40px;flex:0 0 40px;border-radius:8px;overflow:hidden;
+  background:var(--accent-tint);display:flex;align-items:center;justify-content:center}
+.fixthumb img{width:100%;height:100%;object-fit:cover}
+.fixthumb.chat .ico{width:22px;height:22px;background:var(--accent)}
+.fixfield{min-height:96px;padding:14px 16px;border:0;border-radius:var(--r-card);resize:vertical;
+  background:var(--surface);box-shadow:0 0 0 1.5px var(--ink);font:inherit;font-size:15px;
+  color:var(--ink)}
+.fixfield::placeholder{color:var(--faint)}
+.fixex{padding:14px 16px;background:var(--hair);box-shadow:none;font-size:15px;line-height:1.45}
+
+/* The recomputed detail's one tinted line (meal-fixed.html) — the change, named. */
+.chgline{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
+  background:var(--accent-tint);font-size:14px;font-weight:600}
+.chgdot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--accent)}
+
+/* The ingredient rows open their editor — a button wrapping the kit's .ing row. */
+button.ingbtn{display:block;width:100%;border:0;background:none;padding:0;font:inherit;
+  color:inherit;cursor:pointer;text-align:left;border-radius:var(--r-ctl)}
+button.ingbtn:hover .ing{background:var(--bg)}
+button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* The ingredient editor's rows: the label 600, the amount pill an editable figure. */
+.ming .amlab{font-weight:600}
+.amtpill{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;
+  box-shadow:0 0 0 1.5px var(--ink);font-weight:700;cursor:text}
+.amtpill .ico{width:16px;height:16px}
+.amtin{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--ink);
+  text-align:right;min-width:2ch}
+.amtin:focus-visible{outline:none}
+.amtpill:focus-within{box-shadow:0 0 0 2px var(--accent)}
+.ingwas{align-self:flex-end;margin-top:-6px}
+.ingkcal{padding:16px 18px}
+.ingkrow{gap:8px;margin-top:2px}
+.ingkrow .ico{width:26px;height:26px}
+.ingmeal{padding:14px 16px}
+.ingmeal .hr{margin:10px 0}
+
 /* Narrow screens: the pair stacks, the photo over the sheet. */
 @media (max-width:960px){
   .mdetail{grid-template-columns:1fr}
