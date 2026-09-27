@@ -132,11 +132,32 @@ export interface YouCopy {
      */
     weightSourceKg: string;
     weightSourceLb: string;
+    /**
+     * `{source}` for a reading the person TYPED — "you" — filling the slot the provider's
+     * name does, so `weightSourceKg`/`weightSourceOnKg` still read honestly for a manual
+     * weigh-in: "{prev} kg · you, today {time}".
+     */
+    sourceYou: string;
+    /**
+     * The check's typed-reading variant — "{source} says" has no source to name when the
+     * person typed the figure: "You typed {w} kg. Is that right?"
+     */
+    weightCheckTypedKg: string;
+    weightCheckTypedLb: string;
+    /**
+     * The provenance line past the reading's own day — "{prev} kg · {source}, {date}",
+     * `{date}` an `Intl` short date. `weightSourceKg` is the same-day wording.
+     */
+    weightSourceOnKg: string;
+    weightSourceOnLb: string;
     /** The plan recomputing live on the weigh-in and the save: "{from} → {to} kcal a day". */
     planRevised: string;
     /** Spud's confirmation on the saved board: "{w} kg from {source}, saved". */
     savedNoteKg: string;
     savedNoteLb: string;
+    /** A typed weight's saved line — "{w} kg, saved"; there is no {source} to name. */
+    savedNoteTypedKg: string;
+    savedNoteTypedLb: string;
 
     // ── you-profile.html / you-saved.html — the editor ──
     /** Row labels; the values are the onboarding option labels and CLDR's country names. */
@@ -208,6 +229,13 @@ export interface YouCopy {
     /** The sheet's two buttons: "Keep it" and "Delete". */
     keepIt: string;
     deleteConfirm: string;
+    /**
+     * The guard over leaving the editor with changes still staged — "Discard changes?",
+     * then "Keep editing" / "Discard" (design-pro, ieat-app#929).
+     */
+    discardTitle: string;
+    discardCancel: string;
+    discardConfirm: string;
   };
 }
 
@@ -251,15 +279,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Your weight",
       weightCheckKg: "{source} says {w} kg. Is that right?",
       weightCheckLb: "{source} says {w} lb. Is that right?",
+      sourceYou: "you",
+      weightCheckTypedKg: "You typed {w} kg. Is that right?",
+      weightCheckTypedLb: "You typed {w} lb. Is that right?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, today {time}",
       weightSourceLb: "{prev} lb · {source}, today {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal a day",
       savedNoteKg: "{w} kg from {source}, saved",
       savedNoteLb: "{w} lb from {source}, saved",
+      savedNoteTypedKg: "{w} kg, saved",
+      savedNoteTypedLb: "{w} lb, saved",
       goalLabel: "Goal",
       targetLabel: "Target",
       activitySection: "Exercise frequency",
@@ -295,6 +330,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "This cannot be undone.",
       keepIt: "Keep it",
       deleteConfirm: "Delete",
+      discardTitle: "Discard changes?",
+      discardCancel: "Keep editing",
+      discardConfirm: "Discard",
     },
   },
   fr: {
@@ -336,15 +374,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Ton poids",
       weightCheckKg: "{source} indique {w} kg. C'est juste ?",
       weightCheckLb: "{source} indique {w} lb. C'est juste ?",
+      sourceYou: "votre saisie",
+      weightCheckTypedKg: "Tu as saisi {w} kg. C'est juste ?",
+      weightCheckTypedLb: "Tu as saisi {w} lb. C'est juste ?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, aujourd'hui {time}",
       weightSourceLb: "{prev} lb · {source}, aujourd'hui {time}",
+      weightSourceOnKg: "{prev} kg · {source}, le {date}",
+      weightSourceOnLb: "{prev} lb · {source}, le {date}",
       planRevised: "{from} → {to} kcal par jour",
       savedNoteKg: "{w} kg depuis {source}, enregistré",
       savedNoteLb: "{w} lb depuis {source}, enregistré",
+      savedNoteTypedKg: "{w} kg, enregistré",
+      savedNoteTypedLb: "{w} lb, enregistré",
       goalLabel: "Objectif",
       targetLabel: "Cible",
       activitySection: "Fréquence d'exercice",
@@ -380,6 +425,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "C'est irréversible.",
       keepIt: "Garder",
       deleteConfirm: "Supprimer",
+      discardTitle: "Ignorer les modifications ?",
+      discardCancel: "Continuer la modification",
+      discardConfirm: "Ignorer",
     },
   },
   de: {
@@ -421,15 +469,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Dein Gewicht",
       weightCheckKg: "{source} sagt {w} kg. Stimmt das?",
       weightCheckLb: "{source} sagt {w} lb. Stimmt das?",
+      sourceYou: "dir",
+      weightCheckTypedKg: "Du hast {w} kg eingetragen. Stimmt das?",
+      weightCheckTypedLb: "Du hast {w} lb eingetragen. Stimmt das?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, heute {time}",
       weightSourceLb: "{prev} lb · {source}, heute {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal am Tag",
       savedNoteKg: "{w} kg von {source}, gespeichert",
       savedNoteLb: "{w} lb von {source}, gespeichert",
+      savedNoteTypedKg: "{w} kg, gespeichert",
+      savedNoteTypedLb: "{w} lb, gespeichert",
       goalLabel: "Ziel",
       targetLabel: "Zielgewicht",
       activitySection: "Trainingshäufigkeit",
@@ -465,6 +520,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Das lässt sich nicht rückgängig machen.",
       keepIt: "Behalten",
       deleteConfirm: "Löschen",
+      discardTitle: "Änderungen verwerfen?",
+      discardCancel: "Weiter bearbeiten",
+      discardConfirm: "Verwerfen",
     },
   },
   it: {
@@ -506,15 +564,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Il tuo peso",
       weightCheckKg: "{source} dice {w} kg. È giusto?",
       weightCheckLb: "{source} dice {w} lb. È giusto?",
+      sourceYou: "te",
+      weightCheckTypedKg: "Hai inserito {w} kg. È giusto?",
+      weightCheckTypedLb: "Hai inserito {w} lb. È giusto?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, oggi {time}",
       weightSourceLb: "{prev} lb · {source}, oggi {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal al giorno",
       savedNoteKg: "{w} kg da {source}, salvato",
       savedNoteLb: "{w} lb da {source}, salvato",
+      savedNoteTypedKg: "{w} kg, salvato",
+      savedNoteTypedLb: "{w} lb, salvato",
       goalLabel: "Obiettivo",
       targetLabel: "Peso obiettivo",
       activitySection: "Frequenza di allenamento",
@@ -550,6 +615,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "vengono eliminati. Non si può annullare.",
       keepIt: "Tienilo",
       deleteConfirm: "Elimina",
+      discardTitle: "Scartare le modifiche?",
+      discardCancel: "Continua a modificare",
+      discardConfirm: "Scarta",
     },
   },
   es: {
@@ -591,15 +659,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Tu peso",
       weightCheckKg: "{source} dice {w} kg. ¿Es correcto?",
       weightCheckLb: "{source} dice {w} lb. ¿Es correcto?",
+      sourceYou: "ti",
+      weightCheckTypedKg: "Escribiste {w} kg. ¿Es correcto?",
+      weightCheckTypedLb: "Escribiste {w} lb. ¿Es correcto?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hoy {time}",
       weightSourceLb: "{prev} lb · {source}, hoy {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal al día",
       savedNoteKg: "{w} kg de {source}, guardado",
       savedNoteLb: "{w} lb de {source}, guardado",
+      savedNoteTypedKg: "{w} kg, guardado",
+      savedNoteTypedLb: "{w} lb, guardado",
       goalLabel: "Objetivo",
       targetLabel: "Peso objetivo",
       activitySection: "Frecuencia de ejercicio",
@@ -635,6 +710,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "No se puede deshacer.",
       keepIt: "Conservar",
       deleteConfirm: "Eliminar",
+      discardTitle: "¿Descartar los cambios?",
+      discardCancel: "Seguir editando",
+      discardConfirm: "Descartar",
     },
   },
   vi: {
@@ -676,15 +754,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Cân nặng của bạn",
       weightCheckKg: "{source} báo {w} kg. Đúng không?",
       weightCheckLb: "{source} báo {w} lb. Đúng không?",
+      sourceYou: "bạn",
+      weightCheckTypedKg: "Bạn đã nhập {w} kg. Đúng không?",
+      weightCheckTypedLb: "Bạn đã nhập {w} lb. Đúng không?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hôm nay {time}",
       weightSourceLb: "{prev} lb · {source}, hôm nay {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal một ngày",
       savedNoteKg: "{w} kg từ {source}, đã lưu",
       savedNoteLb: "{w} lb từ {source}, đã lưu",
+      savedNoteTypedKg: "{w} kg, đã lưu",
+      savedNoteTypedLb: "{w} lb, đã lưu",
       goalLabel: "Mục tiêu",
       targetLabel: "Cân nặng mục tiêu",
       activitySection: "Tần suất tập luyện",
@@ -720,6 +805,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Không thể hoàn tác.",
       keepIt: "Giữ lại",
       deleteConfirm: "Xóa",
+      discardTitle: "Bỏ các thay đổi?",
+      discardCancel: "Tiếp tục chỉnh sửa",
+      discardConfirm: "Bỏ",
     },
   },
   id: {
@@ -761,15 +849,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Beratmu",
       weightCheckKg: "{source} bilang {w} kg. Benar?",
       weightCheckLb: "{source} bilang {w} lb. Benar?",
+      sourceYou: "Anda",
+      weightCheckTypedKg: "Kamu memasukkan {w} kg. Benar?",
+      weightCheckTypedLb: "Kamu memasukkan {w} lb. Benar?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hari ini {time}",
       weightSourceLb: "{prev} lb · {source}, hari ini {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal sehari",
       savedNoteKg: "{w} kg dari {source}, tersimpan",
       savedNoteLb: "{w} lb dari {source}, tersimpan",
+      savedNoteTypedKg: "{w} kg, tersimpan",
+      savedNoteTypedLb: "{w} lb, tersimpan",
       goalLabel: "Tujuan",
       targetLabel: "Berat target",
       activitySection: "Frekuensi olahraga",
@@ -805,6 +900,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Ini tidak bisa dibatalkan.",
       keepIt: "Simpan",
       deleteConfirm: "Hapus",
+      discardTitle: "Buang perubahan?",
+      discardCancel: "Lanjutkan mengedit",
+      discardConfirm: "Buang",
     },
   },
   ru: {
@@ -846,15 +944,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Твой вес",
       weightCheckKg: "{source} сообщает: {w} кг. Всё верно?",
       weightCheckLb: "{source} сообщает: {w} lb. Всё верно?",
+      sourceYou: "вы",
+      weightCheckTypedKg: "Твоя последняя запись — {w} кг. Всё верно?",
+      weightCheckTypedLb: "Твоя последняя запись — {w} lb. Всё верно?",
       weightKg: "{w} кг",
       weightLb: "{w} lb",
       weightFromKg: "{w} кг · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} кг · {source}, сегодня {time}",
       weightSourceLb: "{prev} lb · {source}, сегодня {time}",
+      weightSourceOnKg: "{prev} кг · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} ккал в день",
       savedNoteKg: "{w} кг из {source} — сохранено",
       savedNoteLb: "{w} lb из {source} — сохранено",
+      savedNoteTypedKg: "{w} кг, сохранено",
+      savedNoteTypedLb: "{w} lb, сохранено",
       goalLabel: "Цель",
       targetLabel: "Целевой вес",
       activitySection: "Частота тренировок",
@@ -890,6 +995,9 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Это необратимо.",
       keepIt: "Оставить",
       deleteConfirm: "Удалить",
+      discardTitle: "Сбросить изменения?",
+      discardCancel: "Продолжить",
+      discardConfirm: "Сбросить",
     },
   },
 };
