@@ -1,4 +1,4 @@
-// The coach: Spud answering a question, with the user's data behind tools.
+// The coach: Gabie answering a question, with the user's data behind tools.
 //
 // The router decided the message was a question (`handleText`); this builds what the agent needs
 // and runs it. THE TOOLS ARE BUILT HERE, AS CLOSURES OVER ONE USER ID, so the port that runs the
@@ -7,14 +7,16 @@
 // the model would be the one place in this codebase a model output chose whose rows to read.
 
 import {
-  explainTargets, HEALTH_FIELDS, isCalendarDate, localTime, projectGoal, projectionMonth,
-  windowStart, type Answered, type DayTotals, type MealRecord, type Profile,
+  explainTargets, HEALTH_FIELDS, isCalendarDate, isCoachNutrient, localTime, projectGoal,
+  projectionMonth, windowStart,
+  type Answered, type CoachFocus, type DailyTotals, type DayTotals, type FoodTargets,
+  type MealRecord, type Profile,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
 import type { CoachContext, CoachHistoryLine, CoachTools, OnCost } from "../llm/port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
-import { toAnalysis } from "./meals.ts";
+import { sumTotals, toAnalysis } from "./meals.ts";
 
 /** Thread lines replayed to the coach, and the few of them the router sees. */
 export const COACH_HISTORY_LINES = 20;
@@ -84,7 +86,32 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
     { text: input.text, context, history: input.history, onCost: input.onCost },
     coachTools(deps, userId, today),
   );
-  return { kind: "answered", text: out.reply, suggestions: out.suggestions };
+  // The bar's subject is the model's; its FIGURES are the day's totals and the plan's target,
+  // read here — never the reply's numbers, and never a nutrient whose target the plan does not
+  // have (saturated fat exists only for a declared restriction).
+  const focus = coachFocus(out.focus, sumTotals(input.todayRows), targets);
+  return {
+    kind: "answered", text: out.reply, suggestions: out.suggestions, speaker: "gabie",
+    ...(focus !== undefined ? { focus } : {}),
+  };
+}
+
+/** Which column of the day's totals and the plan's targets a nutrient names. */
+const FOCUS_KEYS = {
+  protein: "protein_g", carbs: "carbs_g", fat: "fat_g", kcal: "kcal", satfat: "satfat_g",
+} as const;
+
+/**
+ * The model names a nutrient; the server decides what it shows. A name that is no nutrient the
+ * bar knows, or one the plan sets no target for, is answered with `undefined` — the client draws
+ * a bar exactly when a `focus` arrives, so anything unbacked by a target never reaches it.
+ */
+function coachFocus(named: string | undefined, totals: DailyTotals, targets: FoodTargets): CoachFocus | undefined {
+  if (!isCoachNutrient(named)) return undefined;
+  const key = FOCUS_KEYS[named];
+  const target = targets[key];
+  if (target === undefined) return undefined;
+  return { nutrient: named, eaten: Math.round(totals[key]), target: Math.round(target) };
 }
 
 /**

@@ -98,3 +98,7 @@ test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back
   await expect(returning.locator('input[name="prompt"]')).toHaveCount(0);
   await other.close();
 });
+
+// The walk's numbers are spoken in the units on screen — en-GB pins metric (98 kg,
+// not 98 lb), so the answers below are metric numbers and the floors hold.
+test.use({ locale: "en-GB" });

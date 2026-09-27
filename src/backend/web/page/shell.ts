@@ -8,11 +8,12 @@
 // lines out (`TYPING_SCRIPT`); it never changes, so the policy names it by hash rather than by a
 // nonce, and every page works without it — the full text is in the markup.
 
-import { PLAN_REVEAL, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
-import { FONTS, fontFaces, fontFile, motionCss, RADIUS, SHADOW } from "@eait/shared/design";
-import { iconCss } from "@eait/shared/ui/icons";
+import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
+import { BOARD_CSS } from "./board-css.ts";
+import { W3_CSS } from "./w3-css.ts";
+import { CONTROL_SCRIPT } from "./control.ts";
 import type { Lang } from "@eait/shared";
 
 export function escape(text: string): string {
@@ -39,10 +40,6 @@ const STYLES = `
    the values are already right. */
 :root {
   ${lightVars}
-  /* The register's shape and elevation, composed from shared's RADIUS/SHADOW under the boards'
-     own names (--r-card, --r-ctl, --r-cta, --shadow) so a rule below reads like pro.css. */
-  --r-card: ${RADIUS.card}px; --r-ctl: ${RADIUS.control}px; --r-cta: ${RADIUS.cta}px;
-  --shadow: ${SHADOW};
   --sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
   --display: "Montserrat", var(--sans);
   --warm: 232 190 131;
@@ -264,178 +261,16 @@ label.check {
 .arith .rowline { font-size: .875rem; padding: .5rem 0; }
 .arith strong { font-variant-numeric: tabular-nums; }
 
-/* ── The Register P screens (W3): reveal, plan, sign-up, country ────────────────────────────
-   Board classes, one rule each, the values the boards' own (pro.css): tokens from :root, the
-   icon classes generated from shared's ICONS, and durations from MOTION / PLAN_REVEAL. */
-${iconCss()}
-.num { font-variant-numeric: tabular-nums; }
-
-/* The primary control the boards draw (.cta): not a pill — r-cta, 16 px, full width. */
-.cta {
-  display: flex; align-items: center; justify-content: center; gap: .5rem;
-  width: 100%; min-height: 52px; padding: 0 1.25rem; margin: 0 0 .625rem;
-  border: 0; border-radius: var(--r-cta); cursor: pointer; text-decoration: none;
-  font-family: var(--sans); font-size: 16px; font-weight: 600; text-align: center;
-}
-.cta.p { background: var(--accent); color: var(--accent-ink); }
-.cta.s { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
-.cta.apple { background: #000; color: #fff; }
-.cta svg { width: 20px; height: 20px; }
-button.cta { font: inherit; font-size: 16px; font-weight: 600; }
-
-/* The say-line: Spud at 28 px beside his one line (DIRECTION §6 — the avatar, never the body). */
-.say { display: flex; gap: 10px; align-items: center; }
-.say .av {
-  flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%;
-  background: var(--accent-tint); display: flex; align-items: center; justify-content: center;
-}
-.say .av svg { width: 22px; height: 22px; }
-.say .q { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin: 0; }
-
-/* The walk's dash: one segment per screen behind the reader, the current one in accent —
-   the now segment's grow is motionCss's own .dash i.now rule. */
-.dash { display: flex; gap: 4px; margin: 0 0 2rem; }
-.dash i { height: 3px; flex: 1; background: var(--hair); }
-.dash i.on { background: var(--ink); }
-.dash i.now { background: var(--accent); }
-
-/* The reveal (ob-building). The count, the bar and the row ticks are PLAN_REVEAL's data drawn,
-   not retyped: the count and the bar run durationMs, the rows tick at rowTicksMs and the
-   button pops when the count lands. */
-.bld { padding-top: 4rem; text-align: center; }
-.bld .pct { font-size: 72px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
-.bld .pct::after { content: "%"; font-size: 28px; font-weight: 600; margin-left: 4px; letter-spacing: 0; }
-.bld .count { animation-duration: ${PLAN_REVEAL.durationMs / 1000}s; animation-timing-function: linear; }
-.bld .bld-line { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin: 12px 0 0; }
-.bld .lbar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; margin: 18px 0 26px; }
-.bld .lbar i {
-  display: block; height: 100%; background: var(--accent); transform-origin: left;
-  animation: k-grow ${PLAN_REVEAL.durationMs / 1000}s linear both;
-}
-.bld .card { border: 0; border-radius: var(--r-card); box-shadow: var(--shadow); text-align: left; }
-.bld .card > .lab {
-  display: block; font-size: .75rem; font-weight: 600; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--muted); margin-bottom: .25rem;
-}
-/* A row waits dimmed for its tick and fades up — the board's own effect, a soft rise timed by
-   data rather than a duration from the vocabulary. */
-@keyframes k-tick { from { opacity: .3; } to { opacity: 1; } }
-.bld .chk {
-  display: flex; align-items: center; gap: 12px; padding: 12px 0;
-  border-top: 1px solid var(--hair); font-weight: 500;
-  animation: k-tick .4s var(--ease) both; animation-delay: var(--d, 0s);
-}
-.bld .chk:first-of-type { border-top: 0; }
-.bld .chk > i { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 22px; background: var(--accent); position: relative; }
-.bld .chk > i::after {
-  content: ""; position: absolute; left: 7px; top: 3px; width: 6px; height: 11px;
-  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
-}
-.bld .chk b { margin-left: auto; font-weight: 600; }
-.bld .go { max-width: 22.5rem; margin: 1.5rem auto 0; }
-
-/* The plan (15-plan): the headline, the estimate graph card, the kcal card and the macro grid. */
-.pln .goal { font-size: 20px; font-weight: 700; line-height: 1.25; margin: 0; }
-.pln .card { border: 0; border-radius: var(--r-card); box-shadow: var(--shadow); padding: 18px 24px; }
-.pln .row-between { display: flex; align-items: center; justify-content: space-between; }
-.pln .row-between b { font-weight: 600; }
-.tagx {
-  display: inline-flex; align-items: center; gap: 5px; background: var(--surface);
-  border-radius: 999px; padding: 3px 9px 3px 4px; font-size: 12px; font-weight: 600;
-  color: var(--ink); box-shadow: 0 1px 3px rgba(23,25,28,.16); white-space: nowrap;
-}
-.tagx .wm { width: 18px; height: 18px; display: inline-flex; }
-.tagx .wm svg { width: 18px; height: 18px; border-radius: 50%; }
-.pgraph text { font-size: 12px; fill: var(--muted); font-family: inherit; }
-.pgraph .ln { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; }
-.pgraph { display: block; overflow: visible; }
-.pln .kgrid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; margin: 0 0 1rem; }
-.pln .kcal.card { margin: 0; }
-.est-more { margin-top: 6px; }
-.est-more > summary { cursor: pointer; list-style: none; }
-.est-more > summary::-webkit-details-marker { display: none; }
-.est-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: .4rem 0 0; }
-.est-foot { font-size: 12px; font-weight: 600; margin-top: 10px; }
-.est-foot > span:first-child { color: var(--muted); }
-.pln .kcal { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.pln .kcal .big { display: flex; align-items: center; gap: 8px; }
-.pln .kcal .big b { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
-.pln .est { font-size: 12px; font-weight: 600; color: var(--muted); }
-.mcard {
-  background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
-  padding: 12px 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
-}
-.mcard .ico { width: 34px; height: 34px; margin-bottom: 4px; }
-.mcard b { font-size: 20px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.mcard small { font-size: 12px; font-weight: 600; color: var(--muted); }
-@media (max-width: 560px) {
-  .pln .kgrid { grid-template-columns: 1fr 1fr; }
-  .pln .kcal { grid-column: 1 / -1; }
-}
-
-/* The sign-up (pay-signin): the plate photograph on top, the two provider buttons, the pairing
-   card, then the two consent boxes — tickable but never pre-ticked. */
-.sup .hero { border-radius: var(--r-card); overflow: hidden; margin: 0 0 1.25rem; }
-.sup .hero img { width: 100%; height: 240px; object-fit: cover; display: block; }
-.sup h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; margin: 0 0 1rem; }
-.sup .paircard { border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); background: var(--surface); padding: 14px 16px; margin: 6px 0 10px; }
-.sup .paircard .row-between { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.sup .paircard .row-between small { font-size: 12px; color: var(--muted); font-weight: 500; }
-.sup .paircard form { display: flex; gap: 10px; margin-top: 12px; }
-.sup .paircard input[type="text"] {
-  flex: 1; margin: 0; border-radius: var(--r-ctl); border: 0; box-shadow: 0 0 0 1px var(--line);
-  letter-spacing: .3em; font-weight: 600; padding: 0 14px; height: 48px;
-}
-.sup .paircard .cta { width: auto; min-height: 48px; padding: 0 18px; font-size: 15px; margin: 0; }
-.consent { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
-.consent label {
-  display: flex; gap: 10px; align-items: flex-start; cursor: pointer;
-  font-size: 13px; line-height: 1.35; color: var(--muted); font-weight: 500;
-}
-.consent input {
-  appearance: none; flex: 0 0 20px; width: 20px; height: 20px; margin: 1px 0 0;
-  border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--line); background: var(--surface);
-}
-/* The tick is drawn on the box itself, the same stroke the reveal's checks wear. */
-.consent input:checked {
-  background: var(--accent); box-shadow: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.4 3.4L15 6.6' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-position: center; background-repeat: no-repeat; background-size: 13px;
-}
-
-/* The country (16-country): the ask, the search, the flagged grid — other last. */
-.cty .srch {
-  display: flex; align-items: center; gap: 8px; height: 44px; border-radius: var(--r-card);
-  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); padding: 0 14px;
-  color: var(--faint); margin: 18px 0 12px;
-}
-.cty .srch svg { width: 18px; height: 18px; }
-.cty .srch input { border: 0; background: none; padding: 0; margin: 0; flex: 1; font: inherit; color: var(--ink); height: 100%; }
-.cty .srch input:focus { outline: none; }
-.cty .srch:focus-within { box-shadow: 0 0 0 2px var(--ink); }
-.cty .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 1rem; }
-.cty .opt {
-  display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 0; cursor: pointer;
-  background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
-  font-size: 15px; font-weight: 500;
-}
-.cty .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.cty .opt:has(input:checked) { box-shadow: 0 0 0 2px var(--ink); font-weight: 600; }
-.cty .opt:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
-.cty .flag { font-size: 22px; line-height: 1; }
-.cty .flag.any { width: 22px; display: inline-flex; justify-content: center; color: var(--muted); font-size: 18px; }
-.cty .ck { margin-left: auto; flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line); position: relative; }
-.cty .opt:has(input:checked) .ck { background: var(--accent); box-shadow: none; }
-.cty .opt:has(input:checked) .ck::after {
-  content: ""; position: absolute; left: 7px; top: 3px; width: 6px; height: 11px;
-  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
-}
-.cty .opt.hide { display: none; }
-@media (max-width: 560px) { .cty .opts { grid-template-columns: 1fr; } }
-
 /* The register's motion vocabulary, generated — the six verbs, their keyframes, the stagger
    property and the reduced-motion block, so this file never retypes a duration (#78). */
 ${motionCss()}
+
+/* The onboarding boards (#89): W2's register-P frames, scoped under main.ob. */
+${BOARD_CSS}
+
+/* The screens W3 owns (issue #90): the reveal, the plan, the sign-up, the country —
+   same boards' classes, scoped the same way. */
+${W3_CSS}
 `;
 
 /**
@@ -446,57 +281,22 @@ ${motionCss()}
  * party — so an edit that reaches for a CDN fails here rather than shipping one quietly.
  */
 /**
- * Spud types his onboarding lines out, one after another, one character per beat — the pace the
- * app's onboarding keeps (`shared/typing.ts`), so the two surfaces read the same. THE WHOLE LINE
- * IS IN THE MARKUP from the first byte: a line not yet typed is drawn transparent at its final size,
- * so nothing moves, a screen reader has every word, and a browser with no script sees the page whole.
- * `prefers-reduced-motion` shows the lines at once. Only `.bubble.typed` is touched — the chat
- * thread's lines are history, drawn whole.
+ * The one script the page carries (`control.ts`): it drives the boards' pickers — the rulers,
+ * the wheel, the pace slider — and nothing else. Every control it touches degrades to a plain
+ * input the same response already rendered, so a browser with the script blocked still answers
+ * every question; the hash, not a nonce, is what the policy names because the bytes never change.
  */
-export const TYPING_SCRIPT = `(function () {
-  // The country screen's search filters live — the same narrow the GET form does for a browser
-  // with no script. It is not motion, so reduced-motion does not turn it off.
-  var filter = document.querySelector("input[data-filter]");
-  if (filter) filter.addEventListener("input", function () {
-    var needle = filter.value.trim().toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "");
-    var rows = document.querySelectorAll(".cty .opt");
-    for (var k = 0; k < rows.length; k++) {
-      var row = rows[k];
-      var sentinel = row.querySelector(".flag.any") !== null;
-      var match = needle === "" || sentinel || row.textContent.toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "").indexOf(needle) !== -1;
-      row.classList.toggle("hide", !match);
-    }
-  });
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  var MS = ${TYPE_MS_PER_CHAR}, GAP = 350;
-  var lines = Array.prototype.slice.call(document.querySelectorAll(".bubble.typed")).map(function (p) {
-    var chars = Array.from(p.textContent);
-    var seen = document.createElement("span"), rest = document.createElement("span");
-    rest.className = "untyped";
-    rest.textContent = p.textContent;
-    p.textContent = "";
-    p.appendChild(seen);
-    p.appendChild(rest);
-    return { chars: chars, seen: seen, rest: rest };
-  });
-  var i = 0;
-  function next() {
-    if (i >= lines.length) return;
-    var line = lines[i++], t0 = performance.now();
-    (function tick() {
-      var n = Math.min(line.chars.length, Math.floor((performance.now() - t0) / MS));
-      line.seen.textContent = line.chars.slice(0, n).join("");
-      line.rest.textContent = line.chars.slice(n).join("");
-      if (n < line.chars.length) requestAnimationFrame(tick); else setTimeout(next, GAP);
-    })();
-  }
-  next();
-})();`;
+export { CONTROL_SCRIPT };
 
 /** What the policy allows to run: that script and nothing else. */
-const TYPING_SCRIPT_HASH = createHash("sha256").update(TYPING_SCRIPT).digest("base64");
+const CONTROL_SCRIPT_HASH = createHash("sha256").update(CONTROL_SCRIPT).digest("base64");
 
-export function shell(title: string, body: string, lang: Lang, opts: { head?: string } = {}): string {
+export function shell(
+  title: string, body: string, lang: Lang,
+  mainClass?: string,
+  /** Extra <head> markup — the reveal's meta refresh is the only page that needs one. */
+  head = "",
+): string {
   return `<!doctype html>
 <!-- \`lang\` is not decoration: it is what a screen reader picks a voice from and what a browser
      offers to translate. A German page declaring itself English is read aloud in an English
@@ -505,13 +305,13 @@ export function shell(title: string, body: string, lang: Lang, opts: { head?: st
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>${escape(title)}</title>${opts.head ?? ""}
+<title>${escape(title)}</title>${head}
 <!-- Empty data: icon. An anonymous request for an unknown path on this origin is answered 401
      by resolveUserId before anything can 404 it, so /favicon.ico logged a console error on every
      page load. A console that always has an error in it is a console nobody reads. -->
 <link rel="icon" href="data:,">
 <style>${STYLES}</style>
-</head><body><main>${body}</main><script>${TYPING_SCRIPT}</script></body></html>`;
+</head><body><main${mainClass ? ` class="${escape(mainClass)}"` : ""}>${body}</main><script>${CONTROL_SCRIPT}</script></body></html>`;
 }
 
 export function html(
@@ -524,7 +324,9 @@ export function html(
     headers: {
       "content-type": "text/html; charset=utf-8",
       "content-security-policy":
-        `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${TYPING_SCRIPT_HASH}'; ` +
+        `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${CONTROL_SCRIPT_HASH}'; ` +
+        // `media-src` is the welcome's recorded demo loop — one self-hosted file, same origin.
+        `media-src 'self'; ` +
         // `https://t.me` because Connect Telegram's POST answers with a redirect there, and a form's
         // redirect is held to this directive as well. `formAction` is the same thing for the
         // sign-up screen: the consent POST's 303 sends the browser to the provider's own origin,

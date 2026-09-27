@@ -59,6 +59,12 @@ them. Ported from the private monorepo with its iOS, Metro and landing halves re
   5 cannot meet one of those at any slot, and `dev-env.test.ts` proves it as arithmetic rather
   than as a list of slots. The CONTAINER still publishes 8787 — inside one nothing collides.
 
+- **`bun run web:e2e` draws on the same ladder.** Its three servers take offsets 2, 5 and 6 of the
+  slot — the only ones left once the dev pair and the monorepo's last digits are excluded — printed
+  by `bun src/scripts/dev-env.ts e2e-ports`, which `playwright.config.ts` asks for as a subprocess
+  because playwright loads its config as CommonJS and `require` of `dev-env.ts` dies on
+  `import.meta.main`. `EAIT_WEB_E2E_PORT` stays the explicit override, with its old +1/+2 layout.
+
 - **A service is started from the repo ROOT by entry path**, never `bun run --cwd`. bun loads `.env`
   from its working directory, so `--cwd src/backend` reads `src/backend/.env`, finds nothing, and
   the server comes up on defaults against no database — which looks exactly like a configuration
@@ -79,7 +85,10 @@ them. Ported from the private monorepo with its iOS, Metro and landing halves re
 
 - **`shared` may not import from `backend`.** It is the contract both sides implement, and a
   dependency in either direction makes it a third implementation instead. It holds no renderer:
-  the backend imports it, so React there would be React the server loads.
+  the backend imports it, so React there would be React the server loads. **The one exception is
+  `src/shared/ui/kit.ts`** (#88): HTML string builders — escaped, no inline handlers — for the TWO
+  web surfaces only (`/start` interpolates them server-side, the app parses them via `kitEl`); the
+  mobile client renders the same contract natively and never parses it.
 - **The HTTP contract is code, not a document.** `src/shared/contract.ts` carries the routes, the
   request/response types and the refusal→status map. Every client and this server import it. If
   you change an endpoint and only one side breaks, you changed it in the wrong place.

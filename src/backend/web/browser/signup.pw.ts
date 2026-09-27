@@ -23,8 +23,7 @@ test("answers before an account, the plan before the sign-up, and the first meal
 
   // The whole walk with NO sign-in — the account exists because the first answer made it.
   await onboard(page);
-  // The board's headline is the goal sentence itself — the S6 line, not a title.
-  await expect(page.locator(".pln .goal")).toContainText("Goal:");
+  await expect(page.getByRole("heading", { name: "Here is your plan" })).toBeVisible();
 
   // The plan's way on is the sign-up screen, which asks for the two boxes AND the provider.
   await page.getByRole("link", { name: "Continue", exact: true }).click();
@@ -43,11 +42,11 @@ test("answers before an account, the plan before the sign-up, and the first meal
   await page.getByRole("button").click();
 
   // The identity attached to the session's own account — and the country question is what a
-  // signed-up, answered account is asked next, on its own screen (S8). The new screen is a radio
-  // grid plus Continue: a tap selects, the button commits.
+  // signed-up, answered account is asked next, on its own screen (S8).
   await expect(page).toHaveURL(/\/start\/country/);
-  await page.locator('.cty .opt:has(input[value="de"])').click();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  // A country is a card: the label carries the radio, Continue posts it.
+  await page.locator('label.opt:has(input[value="de"])').click();
+  await page.locator('button[type="submit"]').last().click();
 
   // The handoff: this deployment has no web application, so the product's own thread is it.
   await expect(page).toHaveURL(/\/start\/chat/);
@@ -55,3 +54,8 @@ test("answers before an account, the plan before the sign-up, and the first meal
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator("div.card")).toContainText("kcal");
 });
+
+// The walk's numbers are spoken in the units on screen — en-GB pins metric (98 kg,
+// not 98 lb), so the answers below are metric numbers and the floors hold.
+test.use({ locale: "en-GB" });
+

@@ -176,9 +176,10 @@ export function demoPorts(): LlmPorts {
 
     if (input.focusMeal && /half|less|no |without|actually|instead|only|половин|без |wirklich/.test(text)) {
       const scale = /half|половин/.test(text) ? 0.5 : 0.8;
-      // `verdicts` is dropped deliberately: a real analyzer has none, and a fake that supplies
-      // one cannot fail the way the real one does. That difference hid a crash for a whole day.
-      const { verdicts: _drop, ...f } = input.focusMeal;
+      // `verdicts` and `healthScore` are dropped deliberately: a real analyzer has neither, and a
+      // fake that supplies them cannot fail the way the real one does. That difference hid a crash
+      // for a whole day.
+      const { verdicts: _drop, healthScore: _dropScore, ...f } = input.focusMeal;
       // Each item's NUMBERS move with its grams. Halving the portion and leaving the item's kcal
       // where it was produces a plate whose rows no longer add up to its totals — which is the exact
       // shape `prepareAnalysis` reconciles, so the fake would be manufacturing the defect and every
@@ -261,9 +262,19 @@ export function demoPorts(): LlmPorts {
       };
     }
     const eaten = Math.round(todayMeals.reduce((n, m) => n + m.kcal, 0));
+    // The bar's subject, the way a real coach names it: when the question is about one nutrient.
+    // The engine fills the figures; a demo that handed numbers through would be different from
+    // the real thing in a way a test can see.
+    const focus = /protein|protéin|eiweiß|белк|prot[ée]ine?/i.test(text) ? "protein"
+      : /satur/i.test(text) ? "satfat"
+      : /\bcarb|kohlenhydrat|углевод|glucid/i.test(text) ? "carbs"
+      : /\bfat\b|fett\b|gras|жир/i.test(text) ? "fat"
+      : /calori|kcal|kalor/i.test(text) ? "kcal"
+      : undefined;
     return {
       reply: `You are at ${eaten} kcal today — ${Math.max(0, targets.kcal - eaten)} left of your ${targets.kcal}, and ${targets.protein_g} g protein is the day's aim. (Demo answer.)`,
       suggestions,
+      ...(focus !== undefined ? { focus } : {}),
     };
   };
 

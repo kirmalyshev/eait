@@ -35,7 +35,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { i18nFor, type I18n } from "./i18n.ts";
-import type { Lang } from "./types.ts";
+import type { Lang, Struggle } from "./types.ts";
+import type { PendingPhoto } from "./stream.ts";
 // Type-only: `chat.ts` imports this file. Keying `scripted` by the id set rather than by
 // `string` is what lets `scriptedLine` drop its `!` — a language that forgets an id is a
 // compile error instead of a TypeError inside a chat bubble.
@@ -68,7 +69,16 @@ export type ArithmeticCopy = Record<
 export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
   scripted: Record<ScriptedLineId, (v?: Record<string, string>) => string>;
-  coachStarters: string[];
+  /**
+   * Who the coach is (S9). `name` is "Gabie" in every shipped language until Kirill confirms the
+   * per-language table (proposed: fr Gaby · de Gabi · it Gabriella · es Gabriela · vi Gabie ·
+   * id Gabi · ru Габи) — one key, so his confirmation changes it once, not sixteen strings. Every
+   * surface that names her — Chat's avatar line, a `{coach}` placeholder, Telegram's prefix —
+   * fills from this, never a literal.
+   */
+  coach: { name: string };
+  /** One starter per struggle; `startersFor` in `chat.ts` picks and orders them for a profile. */
+  coachStarters: Record<Struggle, string>;
   /**
    * WHOLE SENTENCES, never fragments joined by code.
    *
@@ -78,8 +88,6 @@ export interface ThreadCopy {
    * translation.
    */
   running: { left: (v: Figures) => string; over: (v: Figures) => string };
-  /** The meal's own kcal, and the sentence above. */
-  correction: (v: { kcal: string; day: string }) => string;
   firstVerdict: {
     /** After a dash, so English leads lowercase. */
     arithmetic: ArithmeticCopy;
@@ -123,16 +131,18 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     "onboarding-done": (v) => i18n._("thread.scripted.onboarding-done", v, { message: "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask." }),
     "dropped": (v) => i18n._("thread.scripted.dropped", v, { message: "Dropped it." }),
   },
-  coachStarters: [
-    i18n._("thread.coachStarters.0", undefined, { message: "How's my week going?" }),
-    i18n._("thread.coachStarters.1", undefined, { message: "What should I eat tonight?" }),
-    i18n._("thread.coachStarters.2", undefined, { message: "Am I getting enough protein?" }),
-  ],
+  coach: { name: i18n._("thread.coach.name", undefined, { message: "Gabie" }) },
+  coachStarters: {
+    consistency: i18n._("thread.coachStarters.consistency", undefined, { message: "How's my week going?" }),
+    habits: i18n._("thread.coachStarters.habits", undefined, { message: "What's a lighter swap for dinner?" }),
+    support: i18n._("thread.coachStarters.support", undefined, { message: "Am I getting enough protein?" }),
+    busy: i18n._("thread.coachStarters.busy", undefined, { message: "I'll just tell you what I ate" }),
+    ideas: i18n._("thread.coachStarters.ideas", undefined, { message: "What should I eat tonight?" }),
+  },
   running: {
     left: (v: Figures) => i18n._("thread.running.left", v, { message: "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
     over: (v: Figures) => i18n._("thread.running.over", v, { message: "{over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),
   },
-  correction: (v: { kcal: string; day: string }) => i18n._("thread.correction", v, { message: "Updated — {kcal} kcal. {day}" }),
   firstVerdict: {
     arithmetic: {
       gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),
@@ -197,3 +207,24 @@ const STREAM = (i18n: I18n): StreamCopy => ({
 
 /** The analyzer's progress words, in one language. */
 export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
+
+/**
+ * Spud's one line while the turn is pending, and it only moves forward: a row outranks the glance
+ * whichever arrived first, and a schema retry still holds a row. The stream carries nothing between
+ * the last row and the answer, so there is no later step to show — the card replaces the line.
+ *
+ * Moved here from `stream.ts`: the words are Lingui-backed, so they live beside their table. The
+ * web bundle — which ships no catalog — does not call this; its pending line is the `line` each
+ * PhotoProgress event carries, sent already worded.
+ */
+export function pendingLine(p: PendingPhoto, lang: Lang): string {
+  const copy = streamCopyFor(lang);
+  return p.items.length > 0 ? copy.weighing : p.glance ?? copy.reading;
+}
+
+/** The analyzer's steps as the card lists them: what is done, what is happening, what is left (#663). */
+export function pendingSteps(p: PendingPhoto, lang: Lang): { label: string; state: "done" | "now" | "next" }[] {
+  const at = p.items.length > 0 ? 2 : p.glance !== null ? 1 : 0;
+  return streamCopyFor(lang).steps.map((label, i) =>
+    ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
+}

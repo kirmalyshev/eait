@@ -12,15 +12,20 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
-  type Profile, type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
+  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
+  type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
+  explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
-import { PHOTO_MODEL_CALLS, localDate, localTime, mealIsGuessed, windowStart } from "@eait/shared";
+import {
+  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, healthScore, localDate, localTime,
+  mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
+  verdictLabels, verdictNoun, wholeNumbers, windowStart,
+} from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
+import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
@@ -108,6 +113,9 @@ export async function analyzePhotos(
   eaten: Date = new Date(),
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
+  // The stream's first word — "Reading the plate…", already in the account's language. A client
+  // prints it; it never composes it: the web bundle holds no i18n catalog.
+  onEvent?.({ kind: "reading", line: streamCopyFor(profile.lang).reading });
   const refusal = await checkCaps(deps, userId, date, "photo");
   if (refusal) return refusal;
 
@@ -136,7 +144,9 @@ export async function analyzePhotos(
       .then((text) => onEvent({ kind: "glance", text }))
       .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
   }
-  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item })) : undefined;
+  // The weighing words ride the item events: same rule as `reading` — the line is sent, not derived.
+  const weighing = streamCopyFor(profile.lang).weighing;
+  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item, line: weighing })) : undefined;
 
   let analysis: AnalyzedMeal;
   try {
@@ -213,13 +223,17 @@ async function logPhotoTurn(
   const { analysis, images, analysisId } = read;
   const question = await mayAsk(deps, userId, today, analysis, read.question);
 
+  const verdicts = await gatedVerdicts(deps, userId, analysis);
   const record: MealRecord = {
     ...analysis,
     id: crypto.randomUUID(),
     user_id: userId,
     ts: eaten.toISOString(),
     date,
-    verdicts: await gatedVerdicts(deps, userId, analysis),
+    verdicts,
+    // Computed at write for the card this turn returns; the stores recompute it on every READ, so
+    // a later edit can never leave the score describing numbers that changed.
+    healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
     corrected: false,
     model: deps.config.llmModel,
     // Stored, because the answer arrives as its own turn and has to find the question again — and
@@ -243,7 +257,7 @@ async function logPhotoTurn(
       lines: [
         // A bubble that names a meal with no photo behind it is an empty frame in the thread.
         { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null, analysisId },
-        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
         // Where the DAY now stands (#306) — the sentence a correction already got, on every meal
         // that is not the account's first. The greeting carries the same arithmetic, so an empty
@@ -252,14 +266,16 @@ async function logPhotoTurn(
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
         // is delivered, then queried. There is no line kind for it, because a question that needed
         // one would be a question the Chat tab could not show when the app scrolls back to it.
-        ...(question ? [{ role: "assistant", kind: "text", text: question.text, model: deps.config.llmModel } as const] : []),
+        ...(question ? [{ role: "assistant", kind: "text", text: question.text, speaker: "gabie", model: deps.config.llmModel } as const] : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date, hint: hintFor(analysis),
+    ...verdictWordsFor(record.verdicts, profile.lang),
     ...(question ? { question } : {}),
   } satisfies MealLogged;
 }
@@ -364,17 +380,23 @@ export async function editMeal(
   }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
-  // #49: "Updated — {kcal} kcal" is the arithmetic of a change, so an edit that changed no number
-  // (a rename) writes the card and no line — it said "Updated" about a meal that had not changed.
-  const NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
-  const changed = NUMBERS.some((k) => merged[k] !== existing[k]);
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   if (opts.thread !== false) {
-    await remember(deps, userId, async () => [
-      { role: "assistant", kind: "meal", mealId, event: "updated" },
-      ...(changed ? await afterCorrection(deps, userId, updated, totals) : []),
-    ]);
+    await remember(deps, userId, async () => {
+      // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
+      // that moved nothing (a rename), which keeps #49's rule: the card, and no line about it.
+      const profile = await deps.store.getProfile(userId);
+      const line = profile ? changeLine(existing, updated, profile) : null;
+      return [
+        { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
+        ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
+      ];
+    });
   }
-  return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual" };
+  return {
+    kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
+    ...verdictWordsFor(updated.verdicts, lang),
+  };
 }
 
 /**
@@ -403,6 +425,80 @@ function portionCorrections(before: readonly MealItem[], after: readonly MealIte
     out.push({ name_en: key, grams_before, grams_after: it.grams });
   }
   return out;
+}
+
+/**
+ * "A change, named" (#119) — the ONE line written into the thread after an edit lands, whichever
+ * path made it: Gabie's, `speaker: "gabie"`. It names the change (the items' grams and the meal's
+ * kcal, before → after) and says what the verdicts did — one sentence per dimension that moved,
+ * and one for the high ones that stayed.
+ *
+ * COMPUTED, which is the point: it states verdicts, and verdicts are never the model's to write —
+ * `visibleVerdicts` is read on the stored rows, before and after, gated on the restrictions as the
+ * profile declares them NOW. The words are `MEAL_COPY`'s `change*` templates; nothing here writes
+ * freehand. Returns null when the edit moved nothing the line can name (a rename — its card is
+ * already written, and a sentence about it would be #49's lie again).
+ */
+export function changeLine(
+  before: MealRecord,
+  after: MealRecord,
+  profile: Pick<Profile, "lang" | "restrictions">,
+): string | null {
+  const lang = profile.lang;
+  const copy = mealCopyFor(lang);
+  const n = wholeNumbers(lang);
+  const fill = (template: string, params: Record<string, string>): string =>
+    template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+  const dimName = (d: VerdictDimension) => verdictNoun(d, lang);
+
+  const parts: string[] = [];
+
+  // The change itself. Items are matched on the canonical key like `portionCorrections` — the
+  // prior and the line must agree about which rice moved — and the display name is AFTER's.
+  const was = new Map(before.items.map((i) => [i.name_en ?? i.name, i.grams]));
+  const moved = after.items.flatMap((i) => {
+    const g = was.get(i.name_en ?? i.name);
+    return g !== undefined && g !== i.grams ? [{ item: i, gramsBefore: g }] : [];
+  });
+  const total = fill(copy.changeTotal, {
+    kcalBefore: n(before.kcal), kcalAfter: n(after.kcal), kcal: UNIT_KCAL[lang],
+  });
+  if (moved.length > 0) {
+    const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
+      moved.map(({ item, gramsBefore }) => fill(copy.changeItem, {
+        item: item.name, before: n(gramsBefore), after: n(item.grams), unit: spellUnit(lang, "g"),
+      })));
+    // Sentence case belongs to the position, not the stored name — the first character only, so
+    // an "and"-joined second item keeps the case the analyzer gave it.
+    parts.push(fill(copy.changeWithItems, { items, total })
+      .replace(/^./, (c) => c.toLocaleUpperCase(LANG_TAG[lang])));
+  } else if (before.kcal !== after.kcal) {
+    parts.push(total);
+  }
+
+  // What the verdicts did. Only dimensions visible after the edit are spoken of; one that appeared
+  // (a restriction declared between the writes) counts as a move onto its verdict.
+  const beforeV = visibleVerdicts(before.verdicts, profile.restrictions);
+  const afterV = visibleVerdicts(after.verdicts, profile.restrictions);
+  const visible = VERDICT_DIMENSIONS.filter((d) => afterV[d] !== undefined);
+  const changedDims = visible.filter((d) => beforeV[d] !== afterV[d]);
+  const stillHigh = visible.filter((d) => beforeV[d] === afterV[d] && afterV[d] !== "good");
+  // A verdict tail exists to say what THE EDIT did; nothing moved, nothing to say — the rename
+  // case, whose card is written by the caller regardless.
+  if (parts.length === 0 && changedDims.length === 0) return null;
+  if (visible.length > 0 && visible.every((d) => afterV[d] === "good") && changedDims.length > 0) {
+    // One dimension moving alone names itself; a fuller sweep is "All on plan now."
+    parts.push(changedDims.length === 1 && visible.length === 1
+      ? fill(copy.changeToPlan, { dim: dimName(changedDims[0]!) })
+      : copy.changeAllOnPlan);
+  } else {
+    const landed = { good: copy.changeToPlan, warn: copy.changeToHigh, bad: copy.changeToVeryHigh } as const;
+    for (const d of changedDims) parts.push(fill(landed[afterV[d]!], { dim: dimName(d) }));
+    if (stillHigh.length === 1) parts.push(fill(copy.changeStillHighOne, { dim: dimName(stillHigh[0]!) }));
+    else if (stillHigh.length === 2) parts.push(copy.changeStillHighTwo);
+    else if (stillHigh.length >= 3) parts.push(copy.changeStillHighAll);
+  }
+  return parts.length > 0 ? parts.join(" ") : null;
 }
 
 /** Apply an LLM-produced correction. Same write path as a manual edit; only `via` differs. */
@@ -471,8 +567,8 @@ export async function attachPhotos(
 
 /**
  * The edit path (`rewriteMeal`) with no new text and no new photos: reads the caption off the
- * photo line, as the analyzer first saw it, and writes no thread line. The charging and
- * `corrected: false` prose lives on `rewriteMeal` already.
+ * photo line, as the analyzer first saw it. The charging and `corrected: false` prose lives on
+ * `rewriteMeal` already, and the change line (#119) is written there when the read moved numbers.
  */
 export async function reanalyzeMeal(
   deps: EngineDeps,
@@ -495,8 +591,8 @@ export async function reanalyzeMeal(
  * The analyzer reads a meal's photos again — the stored ones, plus `added` — and replaces the
  * numbers (#608). Charged like a photo, written like an edit but with `corrected: false` and the
  * current model: an estimator replacing itself is not a person correcting it. Never through
- * `editMeal`, which would record portion corrections. WRITES NO THREAD LINE: the meal's card
- * lines carry its current record, so the card changes where it is.
+ * `editMeal`, which would record portion corrections. Writes the ONE thread line an edit earns
+ * (#119): `changeLine`, computed — and nothing when the read changed nothing.
  *
  * `added` is a THUNK, read inside the spine's own `read` callback right alongside the stored
  * bytes — after the caps, before the charge — so a capped or refused turn never opens an angle
@@ -534,7 +630,14 @@ export async function rewriteMeal(
       .catch((e: unknown) => console.error(`[eait] photos not appended: ${(e as Error)?.message ?? e}`));
   }
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
-  return { kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date, via: "reanalysis" };
+  // #119: a re-read is an edit like any other — the same computed line names what it changed,
+  // written only when the read actually moved something.
+  const line = changeLine(existing, updated, profile);
+  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
+  return {
+    kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
+    via: "reanalysis", ...verdictWordsFor(updated.verdicts, profile.lang),
+  };
 }
 
 /** A stored row, back to the analysis shape a card renders. */
@@ -542,8 +645,8 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
   return {
     isFood: m.isFood, items: m.items as MealItem[], kcal: m.kcal, protein_g: m.protein_g,
     carbs_g: m.carbs_g, fat_g: m.fat_g, satfat_g: m.satfat_g, fiber_g: m.fiber_g,
-    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, confidence: m.confidence,
-    notes: m.notes,
+    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, healthScore: m.healthScore,
+    confidence: m.confidence, notes: m.notes,
   };
 }
 
@@ -554,11 +657,24 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
  * the caller's with that id answers this way, a photo meal's included: the id is theirs, nothing is
  * written, and "logged" is the true state of it.
  */
+/**
+ * The verdict words a write result carries — the pills plus the one-sentence headline the
+ * first-meal card draws — composed where the verdicts were recomputed, in the account's language.
+ */
+const verdictWordsFor = (verdicts: MealRecord["verdicts"], lang: Lang) => ({
+  verdictLabels: verdictLabels(verdicts, lang),
+  verdictHeadline: verdictHeadline(verdicts, lang),
+});
+
 async function loggedAs(deps: EngineDeps, userId: string, id: string): Promise<MealLogged | null> {
   const already = await deps.store.getMeal(userId, id);
   if (!already) return null;
   const totals = sumTotals(await deps.store.mealsForDate(userId, already.date));
-  return { kind: "logged", mealId: already.id, analysis: toAnalysis(already), totals, date: already.date, hint: hintFor(already) };
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  return {
+    kind: "logged", mealId: already.id, analysis: toAnalysis(already), totals, date: already.date,
+    hint: hintFor(already), ...verdictWordsFor(already.verdicts, lang),
+  };
 }
 
 export async function confirmPendingMeal(
@@ -576,13 +692,18 @@ export async function confirmPendingMeal(
   let record: MealRecord;
   let inserted: boolean;
   try {
+    const verdicts = await gatedVerdicts(deps, userId, pending.analysis);
+    const restrictions = (await deps.store.getProfile(userId))?.restrictions ?? [];
     record = {
       ...pending.analysis,
       id: pendingId,
       user_id: userId,
       ts: new Date().toISOString(),
       date: pending.date,
-      verdicts: await gatedVerdicts(deps, userId, pending.analysis),
+      verdicts,
+      // A pending row written before #118 carries no score — it is computed here, never trusted
+      // off the stored proposal.
+      healthScore: healthScore({ ...pending.analysis, verdicts }, restrictions),
       corrected: false,
       model: deps.config.llmModel,
     };
@@ -602,13 +723,14 @@ export async function confirmPendingMeal(
   if (!inserted) return (await alreadyLogged()) ?? { kind: "expired" };
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, pending.date));
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   await remember(deps, userId, async () => {
     const profile = await deps.store.getProfile(userId);
     const greeting = profile ? await firstVerdict(deps, userId, profile, record, totals, "text") : { lines: [] };
     return {
       // The words were kept when they were said; this is the card, and on a first meal the verdict.
       lines: [
-        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
         // The same line a photo meal gets (#306): a confirmed estimate is a landed meal.
         ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
@@ -617,8 +739,10 @@ export async function confirmPendingMeal(
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...pending.analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...pending.analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date: pending.date, hint: hintFor(pending.analysis),
+    ...verdictWordsFor(record.verdicts, lang),
   };
 }
 
@@ -637,7 +761,7 @@ export async function cancelPendingMeal(
   // A THUNK, so the profile read that words it sits inside `remember`'s guard: the drop has
   // already happened and a store hiccup here must not turn a cancel into a failure.
   await remember(deps, userId, async () => [{
-    role: "assistant", kind: "text",
+    role: "assistant", kind: "text", speaker: "gabie",
     text: scriptedLine("dropped", (await deps.store.getProfile(userId))?.lang ?? "en"),
   }]);
   return { kind: "cancelled" };
@@ -649,8 +773,18 @@ export async function cancelPendingMeal(
  * and writes nothing; an expired one is not offered, because nobody may confirm it.
  */
 export async function pendingMeals(deps: EngineDeps, userId: string): Promise<MealProposed[]> {
+  const profile = await deps.store.getProfile(userId);
+  const restrictions = profile?.restrictions ?? [];
+  const lang = profile?.lang ?? "en";
   return (await deps.store.pendingsFor(userId)).map((p) => ({
-    kind: "proposed", pendingId: p.id, analysis: p.analysis, date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    kind: "proposed", pendingId: p.id,
+    // Recomputed, not read off the row — a pending written before #118 has none, and a restriction
+    // the user has since ticked should shape the card being re-shown.
+    analysis: { ...p.analysis, healthScore: healthScore(p.analysis, restrictions) },
+    date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    // The card's words recomputed with it — a language change between proposal and read-back shows.
+    verdictInline: verdictInlineText(p.analysis.verdicts, lang),
+    verdictLabels: verdictLabels(p.analysis.verdicts, lang),
   } satisfies MealProposed));
 }
 

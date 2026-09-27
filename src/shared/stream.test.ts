@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { OUTCOME_UNKNOWN, type PhotoEvent } from "./contract.ts";
 import type { MealLogged } from "./results.ts";
-import { advancePending, lastLine, pendingLine, pendingSteps, splitLines, streamEnd, type PendingPhoto } from "./stream.ts";
+import { advancePending, lastLine, splitLines, streamEnd, type PendingPhoto } from "./stream.ts";
+import { pendingLine, pendingSteps } from "./chat-copy.ts";
 import type { MealItem } from "./types.ts";
 
 // The phone throws everything but an answer, and what it throws picks the words. #514 was a server
@@ -83,21 +84,21 @@ describe("the pending photo turn", () => {
   });
 
   test("the first row moves it on to the portions", () => {
-    const p = run({ kind: "glance", text: "Looks like rice." }, { kind: "item", index: 0, item: rice });
+    const p = run({ kind: "glance", text: "Looks like rice." }, { kind: "item", index: 0, item: rice, line: "Weighing portions…" });
     expect(pendingLine(p, "en")).toBe("Weighing portions…");
     expect(p.items).toEqual([rice]);
   });
 
   test("a glance that lands after a row does not step back", () => {
-    const p = run({ kind: "item", index: 0, item: rice }, { kind: "glance", text: "Looks like rice." });
+    const p = run({ kind: "item", index: 0, item: rice, line: "Weighing portions…" }, { kind: "glance", text: "Looks like rice." });
     expect(pendingLine(p, "en")).toBe("Weighing portions…");
   });
 
   test("a schema retry resets the rows and stays on the portions", () => {
     const p = run(
-      { kind: "item", index: 0, item: rice },
-      { kind: "item", index: 1, item: egg },
-      { kind: "item", index: 0, item: egg },
+      { kind: "item", index: 0, item: rice, line: "Weighing portions…" },
+      { kind: "item", index: 1, item: egg, line: "Weighing portions…" },
+      { kind: "item", index: 0, item: egg, line: "Weighing portions…" },
     );
     expect(p.items).toEqual([egg]);
     expect(pendingLine(p, "en")).toBe("Weighing portions…");
@@ -112,9 +113,9 @@ describe("pendingSteps — what the card shows while the analyzer works (#663)",
     expect(states(start)).toEqual(["now", "next", "next", "next"]);
     const glanced = advancePending(start, { kind: "glance", text: "Looks like rice." });
     expect(states(glanced)).toEqual(["done", "now", "next", "next"]);
-    const row = advancePending(glanced, { kind: "item", index: 0, item: { name: "Rice", grams: 150 } });
+    const row = advancePending(glanced, { kind: "item", index: 0, item: { name: "Rice", grams: 150 }, line: "Weighing portions…" });
     expect(states(row)).toEqual(["done", "done", "now", "next"]);
     // A row before any glance still means the plate was read.
-    expect(states(advancePending(start, { kind: "item", index: 0, item: { name: "Rice", grams: 150 } }))).toEqual(["done", "done", "now", "next"]);
+    expect(states(advancePending(start, { kind: "item", index: 0, item: { name: "Rice", grams: 150 }, line: "Weighing portions…" }))).toEqual(["done", "done", "now", "next"]);
   });
 });

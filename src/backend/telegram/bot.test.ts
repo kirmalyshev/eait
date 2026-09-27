@@ -7,7 +7,6 @@ import { GrammyError, HttpError } from "grammy";
 import type { UserFromGetMe } from "grammy/types";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -41,7 +40,7 @@ let quiet: ReturnType<typeof spyOn>[] = [];
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: { ...CONFIG }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush() };
   quiet = [spyOn(console, "warn").mockImplementation(() => {}), spyOn(console, "error").mockImplementation(() => {})];
 });
 afterEach(() => { for (const q of quiet) q.mockRestore(); });

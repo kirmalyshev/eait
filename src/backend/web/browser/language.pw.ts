@@ -79,3 +79,8 @@ test.describe("a browser that is not English", () => {
     await expect(page.getByLabel("Sprache")).toHaveValue("de");
   });
 });
+
+// The walk's numbers are spoken in the units on screen — en-GB pins metric (98 kg,
+// not 98 lb), so the answers below are metric numbers and the floors hold.
+test.use({ locale: "en-GB" });
+

@@ -5,13 +5,12 @@
 // account's rows or widens a window past its bound.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { HEALTH_RETENTION_DAYS, type HealthDay, type MealRecord, dateMinus, localDate } from "@eait/shared";
+import { HEALTH_RETENTION_DAYS, explainTargets, type HealthDay, type MealRecord, dateMinus, localDate } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { CoachInput, CoachTools, LlmPorts, TextInput } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile, recentLines, type EngineDeps } from "./index.ts";
 
@@ -24,7 +23,7 @@ const CONFIG: Config = {
 let store: Store;
 let deps: EngineDeps;
 const makeDeps = (llm: LlmPorts = demoPorts(), over: Partial<Config> = {}): EngineDeps =>
-  ({ store, config: { ...CONFIG, ...over }, llm, mailer: fakeMailer(), push: fakePush() });
+  ({ store, config: { ...CONFIG, ...over }, llm, push: fakePush() });
 
 async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
@@ -45,7 +44,7 @@ const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
   id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: today(),
   isFood: true, items: [{ name: "Rice", grams: 200, name_en: "rice" }, { name: "Chicken", grams: 150 }],
   kcal: 500, protein_g: 40, carbs_g: 56, fat_g: 8, satfat_g: 2, fiber_g: 1, sugar_g: 0.1, sodium_mg: 400,
-  verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test", ...over,
+  verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test", ...over,
 });
 
 /** A coach that records what it was handed and answers a fixed line. */
@@ -72,14 +71,14 @@ describe("the coach turn", () => {
     const d = makeDeps(llm);
     const userId = await onboard();
     const res = await handleText(d, userId, { text: "how much protein have I had?" });
-    // #49: an answer is Spud's like every other line of his — nothing carries a speaker any more.
-    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"] });
+    // S9: Chat's coach answers are Gabie's — the turn carries her speaker and the thread keeps it.
+    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"], speaker: "gabie" });
     expect(seen).toHaveLength(1);
     const lines = (await store.chatBefore(userId, null, 10)).reverse();
     expect(lines.map((l) => [l.role, l.text, l.speaker])).toEqual([
-      ["user", "how much protein have I had?", null], ["assistant", "Here is the answer.", null],
+      ["user", "how much protein have I had?", null], ["assistant", "Here is the answer.", "gabie"],
     ]);
-    expect((await chatHistory(d, userId, {})).entries.at(-1)).toMatchObject({ kind: "text", speaker: null });
+    expect((await chatHistory(d, userId, {})).entries.at(-1)).toMatchObject({ kind: "text", speaker: "gabie" });
   });
 
   it("hands the coach the plan, the day, the week, the focus meal and the clock", async () => {
@@ -150,12 +149,12 @@ describe("the coach turn", () => {
     if (res.kind === "answered") {
       expect(res.text).toContain("Demo answer");
       expect(res.suggestions).toBeUndefined();
-      // The question was Spud's to answer, so the router's sentence is his too — no speaker.
-      expect(res.speaker ?? null).toBeNull();
+      // The question was Gabie's to answer, so the router's fallback sentence is hers too.
+      expect(res.speaker).toBe("gabie");
     }
     const lines = await store.chatBefore(userId, null, 10);
     expect(lines).toHaveLength(2);
-    expect(lines[0]!.speaker).toBeNull();
+    expect(lines[0]!.speaker).toBe("gabie");
   });
 
   it("refuses as analysis-failed when the coach fails and the router had nothing to say either", async () => {
@@ -170,6 +169,62 @@ describe("the coach turn", () => {
     const userId = await onboard();
     expect((await handleText(d, userId, { text: "how much protein have I had?" })).kind).toBe("analysis-failed");
     expect(await store.chatBefore(userId, null, 10)).toHaveLength(0);
+  });
+
+  it("carries the question's macro as focus — the model names it, the day and the plan fill the numbers (#94)", async () => {
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      coach: async (i) => ({
+        reply: "54 g so far — the aim is 109.", suggestions: [],
+        ...(i.text.includes("protein") ? { focus: "protein" } : {}),
+      }),
+    };
+    const d = makeDeps(llm);
+    const userId = await onboard();
+    await store.insertMeal(meal(userId)); // 40 g protein of the fixture's own numbers
+    const res = await handleText(d, userId, { text: "am I getting enough protein?" });
+    const { targets } = explainTargets((await store.getProfile(userId))!);
+    expect(res).toEqual({
+      kind: "answered", text: "54 g so far — the aim is 109.", suggestions: [], speaker: "gabie",
+      focus: { nutrient: "protein", eaten: 40, target: targets.protein_g },
+    });
+    // And the turn's own words stay out of it: a nutrient the model said nothing about is absent.
+    const plain = await handleText(d, userId, { text: "how did my week go?" });
+    expect(plain).toMatchObject({ kind: "answered" });
+    if (plain.kind === "answered") expect(plain.focus).toBeUndefined();
+  });
+
+  it("drops a focus that is not a nutrient, or one whose target the account does not have", async () => {
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      coach: async (_i, _t) => ({ reply: "An answer.", suggestions: [], focus: "sugar" }),
+    };
+    const d = makeDeps(llm);
+    const userId = await onboard();
+    const res = await handleText(d, userId, { text: "what about sugar?" });
+    if (res.kind !== "answered") throw new Error("expected an answer");
+    // "sugar" is no nutrient the bar knows — model output is never the enum.
+    expect(res.focus).toBeUndefined();
+
+    // Saturated fat rides on a declared restriction only: no ldl, no target, no bar.
+    const satfat: LlmPorts = {
+      ...demoPorts(),
+      coach: async () => ({ reply: "An answer.", suggestions: [], focus: "satfat" }),
+    };
+    const d2 = makeDeps(satfat);
+    const uid2 = await onboard();
+    const res2 = await handleText(d2, uid2, { text: "saturated fat?" });
+    if (res2.kind !== "answered") throw new Error("expected an answer");
+    expect(res2.focus).toBeUndefined();
+
+    // With the restriction declared, the same focus carries the day's sat fat against its cap.
+    const uid3 = await onboard({ restrictions: ["ldl"] });
+    await store.insertMeal(meal(uid3, { satfat_g: 6 }));
+    const res3 = await handleText(d2, uid3, { text: "saturated fat?" });
+    if (res3.kind !== "answered") throw new Error("expected an answer");
+    const { targets } = explainTargets((await store.getProfile(uid3))!);
+    expect(res3.focus).toEqual({ nutrient: "satfat", eaten: 6, target: targets.satfat_g ?? -1 });
+    expect(res3.focus?.target).toBeGreaterThan(0);
   });
 
   it("never reaches the coach on a refused turn: the sample rule and the caps stand in front of it", async () => {

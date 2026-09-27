@@ -4,15 +4,15 @@ import {
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent,
   type Profile, type TargetBasis,
 } from "@eait/shared";
+import { ctaLink, dash, say, wtop } from "./board.ts";
 import { spudSvg } from "@eait/shared/mascot";
 import { pageCopyFor } from "../copy.ts";
 import { escape, shell } from "./shell.ts";
-import { topBar } from "./parts.ts";
 
 /**
  * The plan (board `onboarding/web/15-plan.html`), drawn for W3 (issue #90):
  *
- *   the walk's dash, all of it behind now      — one segment per screen the profile met
+ *   the walk's dash, all of it behind now      — `dash("summary")`: the plan IS the last segment
  *   the say-line                               — the summary block's own words, Spud at 28 px
  *   "Goal: lose 6 kg by January 2027"          — `planHeadline`, THE S6-exempt sentence, and the
  *                                                reason this file is on claims.test.ts's caller
@@ -32,8 +32,6 @@ import { topBar } from "./parts.ts";
  */
 
 export interface PlanView {
-  /** One segment per screen the walk asked — all `on`; the plan itself is the dash's `now`. */
-  dashOn: number;
   profile: Profile;
   targets: FoodTargets;
   basis: TargetBasis;
@@ -97,10 +95,11 @@ export function plan(v: PlanView): string {
       : []),
   ];
 
-  return shell(PAGE_COPY.titlePlan, `${topBar(PAGE_COPY)}
+  return shell(PAGE_COPY.titlePlan, `${wtop()}
+<div class="wmain one"><div class="wcol">
 <div class="pln">
-<div class="dash">${"<i class=\"on\"></i>".repeat(v.dashOn)}<i class="now"></i></div>
-<div class="say"><span class="av">${spudSvg("happy", "spud-plan")}</span><p class="q">${escape(summary.lines.join(" "))}</p></div>
+${dash("summary", v.lang)}
+${say("happy", summary.lines, v.lang)}
 ${headline ? `<p class="goal num">${escape(headline)}</p>` : ""}
 ${chart}
 <div class="kgrid">
@@ -110,10 +109,11 @@ ${chart}
   </div>
 ${macros.map((m) => `  <div class="mcard"><i class="ico i-${m.icon}"></i><b class="num">${escape(m.value)}</b><small>${escape(m.label)}</small></div>`).join("\n")}
 </div>
-<a class="cta p" href="${escape(v.next)}">${escape(PAGE_COPY.continueLabel)}</a>
+${ctaLink(v.next, PAGE_COPY.continueLabel)}
 ${v.hasWebApp ? "" : languagePicker(v.lang)}
 </div>
-`, v.lang);
+</div></div>
+`, v.lang, "ob");
 }
 
 /**
@@ -161,7 +161,7 @@ function chartCard(
   const to = weightDisplay(p.target_weight_kg!, p.units, lang);
   const aria = fill(CHAT.chart.estimateAria, { from, to, month });
   return `<div class="card est-card">
-  <div class="row-between"><span class="lab">${escape(CHAT.chart.estimatedProgress)}</span><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
+  <div class="row between"><span class="lab">${escape(CHAT.chart.estimatedProgress)}</span><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
   <svg class="pgraph" viewBox="${g.viewBox}" role="img" aria-label="${escape(aria)}">
     <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1">${g.areaGradient.stops.map((s) => `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`).join("")}</linearGradient></defs>
     <line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>
@@ -174,6 +174,6 @@ function chartCard(
     <text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${escape(CHAT.chart.now)}</text>
     <text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" style="fill:var(--ink);font-weight:600">${escape(fill(CHAT.chart.monthEstimate, { month }))}</text>
   </svg>
-  <div class="row-between est-foot"><span>${escape(CHAT.chart.estimate)}</span><span class="num">${escape(from)} → ${escape(to)}</span></div>
+  <div class="row between est-foot"><span>${escape(CHAT.chart.estimate)}</span><span class="num">${escape(from)} → ${escape(to)}</span></div>
 </div>`;
 }

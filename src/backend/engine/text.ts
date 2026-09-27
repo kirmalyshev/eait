@@ -8,17 +8,17 @@
 // that may spend more calls: the thread, the plan, and two tools over the user's own rows.
 
 import {
-  type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
-  explainTargets,
+  type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
+  type Profile, explainTargets,
 } from "@eait/shared";
-import { TEXT_MODEL_CALLS, dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
-import { afterCorrection, remember } from "./chat.ts";
+import { applyCorrection, changeLine, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
+import { remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -153,7 +153,7 @@ async function textTurn(
       console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
     });
   }
-  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId });
+  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId }, focus, profile);
   return result;
 
   async function route(): Promise<HandleTextResult> {
@@ -175,7 +175,7 @@ async function textTurn(
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           answeredBy = deps.config.llmModel;
-          return { kind: "answered", text: routed.text };
+          return { kind: "answered", text: routed.text, speaker: "gabie" };
         }
       }
 
@@ -192,10 +192,14 @@ async function textTurn(
         // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        const verdicts = await gatedVerdicts(deps, userId, reconciled);
         const analysis: MealAnalysis = {
           ...reconciled,
           confidence: "low",
-          verdicts: await gatedVerdicts(deps, userId, reconciled),
+          verdicts,
+          // Same rule as the verdicts above: the score is computed HERE because the proposal the
+          // card renders never passes through a store row that would attach it.
+          healthScore: healthScore({ ...reconciled, verdicts }, profile.restrictions),
         };
         // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
         // so it can never fail the turn it rides on — that turn is already billed.
@@ -209,6 +213,9 @@ async function textTurn(
         await deps.store.putPending({ id: pendingId, userId, analysis, date, expiresAt });
         return {
           kind: "proposed", pendingId, analysis, date, expiresAt: new Date(expiresAt).toISOString(),
+          // The card's verdict words, in the account's language, composed where the verdict was.
+          verdictInline: verdictInlineText(analysis.verdicts, profile.lang),
+          verdictLabels: verdictLabels(analysis.verdicts, profile.lang),
         } satisfies MealProposed;
       }
 
@@ -252,6 +259,9 @@ async function keep(
   // #486: the router's decision rides on the words it read, the model on the words it wrote.
   // #525: and the words name the analysis that paid for the turn.
   how: { intent: ChatIntent; model: string | null; analysisId: string },
+  // The focus meal as it stood BEFORE this turn — the change line's "before" (#119) — and the
+  // profile for its language and declared restrictions.
+  before: MealRecord | null, profile: Profile,
 ): Promise<void> {
   // A refusal never was a turn; a correction whose meal is gone changed nothing, and the app says
   // so in a notice that is not a line.
@@ -269,10 +279,14 @@ async function keep(
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
-      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
-      if (result.kind === "updated") {
+      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
+      // #119: the ONE computed line — Gabie's — names the change and what the verdicts did. A
+      // correction always carried a focus meal; `before` being null is the target-gone case,
+      // which returned before this thunk.
+      if (result.kind === "updated" && before !== null) {
         const meal = await deps.store.getMeal(userId, result.mealId);
-        if (meal) lines.push(...(await afterCorrection(deps, userId, meal, result.totals)));
+        const line = meal ? changeLine(before, meal, profile) : null;
+        if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie" });
       }
     }
     return lines;

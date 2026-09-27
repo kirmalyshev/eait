@@ -28,7 +28,6 @@ import { AuthError, type Verifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import { chatHistory, day, handleText, linkTelegram, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { escape, PAGE_COPY } from "./page.ts";
 import { pageCopyFor } from "./copy.ts";
@@ -133,7 +132,7 @@ function router(
   store = memoryStore(storeOpts);
   // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
   const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
-  deps = { store, config: withWeb, llm, mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config: withWeb, llm, push: fakePush() };
   const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }
@@ -322,8 +321,8 @@ describe("the front door", () => {
   });
 });
 
-describe("Spud types his lines out", () => {
-  it("ships one first-party script, hashed into the policy, on the shared schedule", async () => {
+describe("the one control script", () => {
+  it("ships one first-party script, hashed into the policy", async () => {
     const res = await get("/start");
     const html = await res.text();
     const m = html.match(/<script>([\s\S]*?)<\/script>/);
@@ -331,12 +330,14 @@ describe("Spud types his lines out", () => {
     // The hash, not a nonce: the script never changes, so the policy can name it outright and the
     // page still allows no origin but its own.
     const hash = createHash("sha256").update(m![1]!).digest("base64");
-    expect(res.headers.get("content-security-policy")).toContain(`script-src 'sha256-${hash}'`);
-    expect(m![1]).toContain(`${TYPE_MS_PER_CHAR}`);
-    // Only the onboarding's lines are marked for typing. The chat thread's are history, drawn whole
-    // (the thread test below asserts the bare class).
-    expect(html).toContain('<p class="bubble typed">');
-    expect(html).not.toContain('<p class="bubble">');
+    const csp = res.headers.get("content-security-policy")!;
+    expect(csp).toContain(`script-src 'sha256-${hash}'`);
+    // It is the progressive-enhancement controller: the drag controls' names and the
+    // reduced-motion guard are its two signatures.
+    expect(m![1]).toContain("data-ctl");
+    expect(m![1]).toContain("prefers-reduced-motion");
+    // The welcome's recorded loop is same-origin media, and the CSP says so.
+    expect(csp).toContain("media-src 'self'");
   });
 });
 
@@ -1337,7 +1338,16 @@ const walkTo = async (session: string, stopAt: string): Promise<string> => {
     const page = await get(next, session);
     if (page.status === 303) throw new Error(`walk ended before ${stopAt}`);
     const html = await page.text();
-    const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+    const m = html.match(/name="prompt" value="([a-z_]+)"/);
+    if (m === null) {
+      // An interstitial (`?show=how` / `?show=ontrack`): its Continue is a link, not a form.
+      const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+        ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+      if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
+      next = href.replace(/&amp;/g, "&");
+      continue;
+    }
+    const id = m[1]!;
     if (id === stopAt) return html;
     const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
     const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, session);
@@ -1369,6 +1379,21 @@ describe("the v2 questions that write the new fields", () => {
     expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["pescatarian"]);
   });
 
+  it("carries EVERY asked marker forward — a mid-walk write keeps the marks it was passed", async () => {
+    const session = await signIn();
+    // Posting the diet while `?asked=diet` still marks it: a `set` where the list needs an
+    // `append` drops it, and the diet question comes back asking again.
+    await walkTo(session, "diet");
+    const res = await post("/start/q?asked=diet", { prompt: "diet", answer: ["pescatarian"] }, session);
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("asked=diet");
+    // The COMPLETING write is the exception — it answers with the reveal (W3), not a /q
+    // redirect whose marks would only be read by a page that no longer exists.
+    await walkTo(session, "medical");
+    const done = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
+    expect(done.headers.get("location")).toBe("/start/building");
+  });
+
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
     const session = await signIn();
     await walkTo(session, "medical");
@@ -1389,37 +1414,40 @@ describe("the v2 questions that write the new fields", () => {
   });
 });
 
-describe("the target-weight stepper", () => {
-  /** 80 kg at 170 cm → the suggested target is 73.5, the range 54–79.5. */
-  it("opens on the shared suggestion, said as the ask, and takes no typed answer", async () => {
+describe("the target-weight ruler", () => {
+  /** 80 kg at 170 cm → the suggested target is 73.5, the healthy floor about 53.5. */
+  it("opens on the shared suggestion, said as the ask, with the refused zone drawn", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
     // `targetSuggestionLine` is Spud's ask here, per the design — the admin's own ask is not
     // ALSO said, or the screen is two questions at once.
     expect(html).toContain("I suggest 73.5 kg");
-    // The control is the stepper: −/+ submits around a number input the suggestion fills.
-    expect(html).toContain('name="step"');
-    expect(html).toMatch(/type="number" name="answer"[^>]*value="73\.5"/);
-    expect(html).toContain(`aria-label="${chatCopyFor("en").stepper.less}"`);
-    expect(html).toContain(`aria-label="${chatCopyFor("en").stepper.more}"`);
+    // The control is the ruler: the suggestion is its needle, carried as data-val AND as the
+    // plain input's value — the same number with or without the script.
+    expect(html).toContain('data-ctl="ruler"');
+    expect(html).toContain('data-val="73.5"');
+    expect(html).toMatch(/type="number"[^>]*name="answer"[^>]*value="73\.5"/);
+    // The refused zone and the "now" marker are drawn, with the floor's own words on them.
+    expect(html).toContain('data-floor="54"');
+    expect(html).toContain('data-now="80"');
+    expect(html).toContain("lowest we set");
+    // The live delta says how far the needle sits from now, in the copy's own words — a
+    // placeholder left unfilled would print "{weight}" raw inside the live line.
+    expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5 kg<\//);
+    expect(html).not.toMatch(/<div class="live[^>]*>[^<]*\{weight\}/);
   });
 
-  it("steps a half kilo a press, inside the range, without writing the profile", async () => {
+  it("writes the typed answer straight through — there is no preview state", async () => {
     const session = await signIn();
     await walkTo(session, "target_weight_kg");
     const userId = await webUser(session);
-
-    const down = await post("/start/q", { prompt: "target_weight_kg", answer: "73.5", step: "-1" }, session);
-    expect(down.status).toBe(200);
-    expect(await down.text()).toContain('value="73"');
-    // A step changes what the screen shows, never the profile — only the Continue commits.
-    expect((await store.getProfile(userId))!.target_weight_kg).toBeNull();
-    // And a reload does not re-ask: the same POST is the page, not a redirect that replays it.
-    expect((await get("/start/q", session)).status).toBe(200);
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "70" }, session);
+    expect(res.status).toBe(303);
+    expect((await store.getProfile(userId))!.target_weight_kg).toBe(70);
   });
 
-  it("clamps at the floor, and draws the minus as spent", async () => {
-    // 170 cm tall at 56 kg: the healthy floor is 54, so the suggestion IS the floor.
+  it("refuses below the floor, drawn or typed — the bound is the server's", async () => {
+    // 170 cm tall at 56 kg: the healthy floor is ~53.5, so the suggestion IS the floor.
     const session = await signIn();
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
     await post("/start/q", { prompt: "sex", answer: "female" }, session);
@@ -1429,14 +1457,14 @@ describe("the target-weight stepper", () => {
     await post("/start/q", { prompt: "activity", answer: "few" }, session);
     const html = await (await get("/start/q", session)).text();
     expect(html).toContain('name="prompt" value="target_weight_kg"');
-    expect(html).toContain('name="answer" inputmode="decimal" step="any" required value="54"');
-    expect(html).toMatch(/value="-1"[^>]*disabled/);
-    // A crafted POST does no better: the clamp is the server's, not the button's.
-    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "54", step: "-1" }, session);
-    expect(await res.text()).toContain('value="54"');
+    expect(html).toContain('value="54"');
+    // A crafted POST does no better: the refusal is `checkNumber`'s, not the markup's.
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "50" }, session);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("The lowest target we can plan for at your height is 54 kg");
   });
 
-  it("keeps the plain number input when there is nothing to suggest", async () => {
+  it("still draws the ruler when there is nothing to suggest", async () => {
     // At the floor already (54 kg at 170 cm) a lose target has no suggestion — today's behaviour.
     const session = await signIn();
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
@@ -1447,7 +1475,7 @@ describe("the target-weight stepper", () => {
     await post("/start/q", { prompt: "activity", answer: "few" }, session);
     const html = await (await get("/start/q", session)).text();
     expect(html).toContain('name="prompt" value="target_weight_kg"');
-    expect(html).not.toContain('name="step"');
+    expect(html).toContain('data-ctl="ruler"');
     expect(html).toContain('type="number"');
   });
 });
@@ -2064,21 +2092,18 @@ describe("chat on the web: a turn that needs a meal in focus", () => {
 });
 
 describe("chat on the web: who said it", () => {
-  it("puts nobody's name on an answer — every line is Spud's", async () => {
+  it("names Gabie on her answers and nobody else — Spud's lines carry no name", async () => {
     const { session, userId } = await onboarded();
     await store.appendChat(userId, [
       { role: "assistant", kind: "text", text: "First one in. 612 kcal." },
       { role: "user", kind: "text", text: "how much protein have I had?" },
-      // A stored line still carrying the retired speaker is his too (#49) — the page never names her.
+      // S9: a coach answer is Gabie's, and the page says so — his lines stay unlabelled.
       { role: "assistant", kind: "text", text: "About 40 g so far.", speaker: "gabie" },
     ]);
     const page = await (await get("/start/chat", session)).text();
-    // No name leads any bubble: his is the only voice the page has, and a label on every line
-    // reads as two strangers rather than one conversation.
-    expect(page).toContain('<p class="bubble">About 40 g so far.</p>');
+    expect(page).toContain('<p class="who">Gabie</p><p class="bubble">About 40 g so far.</p>');
     expect(page).toContain('<p class="bubble">First one in. 612 kcal.</p>');
-    expect(page).not.toContain("Gabie");
-    expect(page.match(/class="who"/g)).toBeNull();
+    expect(page.match(/class="who"/g)).toHaveLength(1);
   });
 });
 
@@ -2755,43 +2780,70 @@ describe("the counter and Back (#53)", () => {
   // changed between the first question and the second, because only the first request resolved it.
   const BRITISH = { "accept-language": "en-GB,en;q=0.9" };
   async function walk(session: string, answers: Record<string, string | string[]>) {
-    const seen: { n: number; m: number; id: string }[] = [];
-    for (let i = 0; i < 20; i++) {
+    // The progress a question shows is the DASH now — one lit segment per place already passed,
+    // the current one the wider segment. `lit` counts the lit ones; the same `on` class on every
+    // walk is the total not drifting.
+    const seen: { lit: number; total: number; id: string }[] = [];
+    for (let i = 0; i < 25; i++) {
       const page = await get("/start/q", session, BRITISH);
       if (page.status === 303) return seen;
       const html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
-      const [, n, m] = html.match(/Question (\d+) of (\d+)/)!;
-      seen.push({ n: Number(n), m: Number(m), id });
+      const m = html.match(/name="prompt" value="([a-z_]+)"/);
+      if (m === null) {
+        // An interstitial: its Continue is a link, and its dash counts too.
+        const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+        seen.push({ lit: (segs.match(/class="on"/g) ?? []).length, total: (segs.match(/<i/g) ?? []).length, id: "(card)" });
+        const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
+          ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
+        if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
+        await get(href.replace(/&amp;/g, "&"), session, BRITISH);
+        continue;
+      }
+      const id = m[1]!;
+      const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+      seen.push({
+        lit: (segs.match(/class="on"/g) ?? []).length,
+        total: (segs.match(/<i/g) ?? []).length,
+        id,
+      });
       await post("/start/q", { prompt: id, answer: answers[id]! }, session);
     }
     throw new Error("onboarding did not finish");
   }
 
   for (const goal of ["lose", "gain"] as const) {
-    it(`counts one total from the first question to the last on the ${goal} path`, async () => {
+    it(`fills the dash forward from the first question to the last on the ${goal} path`, async () => {
       const session = await signIn(`counter-${goal}`, "google", BRITISH["accept-language"]);
       const seen = await walk(session, {
         ...ANSWERS, goal, target_weight_kg: goal === "gain" ? "90" : "70",
       });
-      expect(new Set(seen.map((s) => s.m)).size).toBe(1);
-      expect(seen.map((s) => s.n)).toEqual(seen.map((_, i) => i + 1));
-      expect(seen.at(-1)!.n).toBe(seen[0]!.m);
+      // One segment count for the whole walk, and the lit half never shrinks.
+      expect(new Set(seen.map((s) => s.total)).size).toBe(1);
+      const lit = seen.map((s) => s.lit);
+      expect([...lit].sort((a, b) => a - b)).toEqual(lit);
+      expect(lit[0]).toBe(0);
+      expect(lit.at(-1)!).toBeGreaterThan(lit[0]!);
     });
   }
 
-  it("keeps one total after the goal on the maintain path", async () => {
+  it("keeps one segment count after the goal on the maintain path", async () => {
     const seen = await walk(
       await signIn("counter-maintain", "google", BRITISH["accept-language"]), { ...ANSWERS, goal: "maintain" });
-    expect(new Set(seen.slice(1).map((s) => s.m)).size).toBe(1);
-    expect(seen.at(-1)!.n).toBe(seen.at(-1)!.m);
+    expect(new Set(seen.map((s) => s.total)).size).toBe(1);
+    const lit = seen.map((s) => s.lit);
+    expect([...lit].sort((a, b) => a - b)).toEqual(lit);
   });
 
   it("puts Back on every question: the first to the welcome, the rest to the one before", async () => {
     const session = await signIn("back-links");
-    expect(await (await get("/start/q", session)).text()).toContain('class="back" href="/start"');
+    expect(await (await get("/start/q", session)).text()).toContain('class="wback" href="/start"');
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
-    expect(await (await get("/start/q", session)).text()).toContain('href="/start/q?edit=goal"');
+    // The how-it-works card sits between goal and sex, and a card is nowhere Back can go —
+    // the link past it is the previous QUESTION's edit.
+    const card = await get("/start/q?show=how", session);
+    expect(card.status).toBe(200);
+    expect(await (await get("/start/q", session)).text())
+      .toContain('href="/start/q?edit=goal"');
   });
 
   it("re-shows an answered question with its answer chosen, and a changed answer is written", async () => {
@@ -2801,7 +2853,7 @@ describe("the counter and Back (#53)", () => {
     await post("/start/q", { prompt: "birth_year", answer: "34" }, session);
     const sex = await (await get("/start/q?edit=sex", session)).text();
     expect(sex).toContain('name="prompt" value="sex"');
-    expect(sex).toMatch(/value="female"[^>]*aria-pressed="true"/);
+    expect(sex).toMatch(/value="female"[^>]*checked/);
     const age = await (await get("/start/q?edit=birth_year", session)).text();
     expect(age).toMatch(/name="answer"[^>]*value="34"/);
 
@@ -2831,7 +2883,7 @@ describe("the counter and Back (#53)", () => {
     for (const id of ["goal", "sex", "birth_year"]) await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
     const page = await (await get("/start/q", session)).text();
     expect(page).toMatch(/<label class="lab" for="answer">[^<]+<\/label>/);
-    expect(page).toMatch(/<h1 class="bubble typed">[^<]+<\/h1>/);
+    expect(page).toMatch(/<h1 class="q">[^<]+<\/h1>/);
     const refused = await (await post("/start/q", { prompt: "height_cm", answer: "9" }, session)).text();
     expect(refused).toMatch(/id="answer"[^>]*value="9"[^>]*aria-invalid="true" aria-describedby="answer-error"/);
     expect(refused).toContain('id="answer-error"');

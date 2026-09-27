@@ -139,12 +139,8 @@ export const RADIUS = {
   pill: 999,
 } as const;
 
-/**
- * The card's elevation, verbatim the boards' `--shadow` (pro.css). Two layers — a contact line
- * and a soft lift — and one constant, because a shadow retyped per surface is a token twice
- * defined. `plan.css`-style blocks read it as `--shadow`; a surface composes it into `:root`.
- */
-export const SHADOW = "0 1px 2px rgba(23,25,28,.06),0 8px 24px -16px rgba(23,25,28,.18)" as const;
+/** The card's lift — pro.css's `--shadow`, verbatim. One soft pair, shared by every surface. */
+export const SHADOW = "0 1px 2px rgba(23,25,28,.06), 0 8px 24px -16px rgba(23,25,28,.18)" as const;
 
 /** px. The gutters are the boards' own: 20 on the phone, 40 on the web. */
 export const SPACE = {

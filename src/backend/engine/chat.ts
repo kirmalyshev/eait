@@ -8,8 +8,8 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
-  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
-  isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, explainTargets, firstVerdictLines, runningLine,
+  isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams, verdictInlineText, verdictLabels,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -92,20 +92,9 @@ async function dayStanding(
   };
 }
 
-/** copy.md § Step 14's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
-export async function afterCorrection(
-  deps: EngineDeps,
-  userId: string,
-  meal: MealRecord,
-  totals: DailyTotals,
-): Promise<ChatAppend[]> {
-  const day = await dayStanding(deps, userId, meal, totals);
-  if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }, day.lang) }];
-}
-
 /**
- * Where the day stands after a meal LANDED (#306) — the sentence a correction already got.
+ * Where the day stands after a meal LANDED (#306) — a sentence a correction no longer gets: #119's
+ * change line names the edit itself and says nothing about the day's remainder.
  *
  * NOT ON THE ACCOUNT'S FIRST MEAL: `firstVerdictLines` carries the same arithmetic inside the
  * greeting, and saying it twice under one card is the defect this fixes wearing the other hat. The
@@ -120,7 +109,7 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang) }];
+  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang), speaker: "gabie" }];
 }
 
 /**
@@ -146,7 +135,7 @@ export async function firstVerdict(
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
-  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text }));
+  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
   return { lines, undo: () => deps.store.releaseFirstVerdict(userId) };
@@ -243,8 +232,8 @@ export async function chatHistory(
   userId: string,
   opts: { before?: number | null; limit?: number },
 ): Promise<ChatHistoryResponse> {
-  const { page, meals, before } = await chatPage(deps, userId, opts);
-  return { entries: page.map((m) => toEntry(m, meals)), before };
+  const { page, meals, lang, before } = await chatPage(deps, userId, opts);
+  return { entries: page.map((m) => toEntry(m, meals, lang)), before };
 }
 
 /**
@@ -269,19 +258,25 @@ export async function chatHistoryWithProvenance(
   userId: string,
   opts: { before?: number | null; limit?: number },
 ): Promise<{ entries: AdminChatEntry[]; before: number | null }> {
-  const { page, meals, before } = await chatPage(deps, userId, opts);
+  const { page, meals, lang, before } = await chatPage(deps, userId, opts);
   const paid = page.flatMap((m) => (m.analysisId ? [m.analysisId] : []));
   const costs = new Map((paid.length > 0 ? await deps.store.analysisCosts(userId, paid) : []).map((c) => [c.id, c]));
   return {
     entries: page.map((m) => {
       const c = m.analysisId ? costs.get(m.analysisId) : undefined;
       return {
-        ...toEntry(m, meals), intent: m.intent, model: m.model, analysisId: m.analysisId,
+        ...toEntry(m, meals, lang), intent: m.intent, model: m.model, analysisId: m.analysisId,
         cost: c ? { usd: c.costUsd, unpricedCalls: c.unpricedCalls } : null,
       };
     }),
     before,
   };
+}
+
+/** The thread's meal arm, worded: a card's verdicts arrive already composed, never re-derived. */
+function mealWithWords(m: MealRecord | undefined, lang: Lang): MealRecord | null {
+  if (m === undefined) return null;
+  return { ...m, verdictInline: verdictInlineText(m.verdicts, lang), verdictLabels: verdictLabels(m.verdicts, lang) };
 }
 
 async function chatPage(deps: EngineDeps, userId: string, opts: { before?: number | null; limit?: number }) {
@@ -292,10 +287,13 @@ async function chatPage(deps: EngineDeps, userId: string, opts: { before?: numbe
   const page = rows.slice(0, limit).reverse();
   const ids = [...new Set(page.flatMap((m) => (m.kind === "meal" && m.mealId ? [m.mealId] : [])))];
   const meals = new Map((await deps.store.getMeals(userId, ids)).map((m) => [m.id, m]));
-  return { page, meals, before: more && page.length > 0 ? page[0]!.seq : null };
+  // The meal arm's verdict words are composed here — the account's language — because the bundle
+  // rendering the card holds no i18n catalog (deploy/Dockerfile.web builds with none).
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  return { page, meals, lang, before: more && page.length > 0 ? page[0]!.seq : null };
 }
 
-function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
+function toEntry(m: ChatMessage, meals: Map<string, MealRecord>, lang: Lang): ChatEntry {
   const base = { id: m.id, seq: m.seq, ts: m.ts };
   if (m.role === "user") {
     return m.kind === "photo"
@@ -305,7 +303,7 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
   if (m.kind === "meal") {
     return {
       ...base, role: "assistant", kind: "meal", event: m.event ?? "logged", mealId: m.mealId,
-      meal: (m.mealId && meals.get(m.mealId)) || null,
+      meal: mealWithWords(m.mealId ? meals.get(m.mealId) : undefined, lang), speaker: m.speaker,
     };
   }
   return { ...base, role: "assistant", kind: "text", text: m.text ?? "", speaker: m.speaker };

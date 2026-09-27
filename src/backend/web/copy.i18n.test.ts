@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
-  explainTargets, LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy,
-  onboardingContentFor, projectGoal, signupCopyFor, wholeNumbers,
+  askLines, chatCopyFor, DEFAULT_ONBOARDING_CONTENT, explainTargets, LANGS, LANGS_READY,
+  LANG_LABEL, promptById, UNIT_KCAL, lintCopy, onboardingContentFor, projectGoal,
+  signupCopyFor, wholeNumbers,
   type Lang, type Profile,
 } from "@eait/shared";
+import { blankProfile } from "../store.ts";
 import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
 import { chat, plan, question, shell, type PlanView } from "./page.ts";
 
@@ -22,7 +24,7 @@ const PERSONA: Profile = {
 function planView(lang: Lang, hasWebApp = false): PlanView {
   const { targets, basis } = explainTargets(PERSONA);
   return {
-    dashOn: 13, profile: { ...PERSONA, lang }, targets, basis,
+    profile: { ...PERSONA, lang }, targets, basis,
     projection: projectGoal(PERSONA, basis),
     content: onboardingContentFor(lang), next: "/start/signup", hasWebApp, lang,
   };
@@ -140,10 +142,22 @@ describe("the language picker on the plan page", () => {
 
   it("renders a question page in the asked language", () => {
     const de = question({
-      promptId: "goal", kind: "number", lines: ["Wie groß bist du?"], options: [],
-      placeholder: null, error: null, actions: [], step: 1, total: 10, lang: "de",
+      prompt: promptById("birth_year")!,
+      profile: blankProfile("t", "de"),
+      content: DEFAULT_ONBOARDING_CONTENT,
+      lines: askLines(promptById("birth_year")!, { content: DEFAULT_ONBOARDING_CONTENT, lang: "de" }, blankProfile("t", "de")),
+      lang: "de",
+      units: "metric",
+      error: null,
+      actions: [],
+      action: "/start/q",
+      segAction: "/start/q",
+      current: [],
+      draft: null,
+      back: "/start",
+      today: new Date("2025-01-01T00:00:00Z"),
     });
-    expect(de).toContain(pageCopyFor("de").continueLabel);
+    expect(de).toContain(chatCopyFor("de").continueLabel);
     expect(de).not.toContain(">Continue<");
   });
 });

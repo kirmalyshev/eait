@@ -1,4 +1,3 @@
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 // The onboarding API, and the admin behind it.
 //
@@ -47,7 +46,7 @@ const url = (p: string) => `http://localhost${p}`;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush() };
   handle = createRouter(deps, store, verifier);
 }
 
@@ -409,7 +408,7 @@ describe("editing the system prompts", () => {
     // Rows, not a fallback: the store holds the shipped text from the moment it exists, so this
     // screen shows the same thing the transport reads.
     expect(prompts.every((p) => p.version === 1 && p.source === "shipped")).toBe(true);
-    expect(prompts.find((p) => p.key === "coach")!.text).toContain("You are Spud");
+    expect(prompts.find((p) => p.key === "coach")!.text).toContain("You are Gabie");
   });
 
   it("saves an edit, and serves it back as a stored revision", async () => {

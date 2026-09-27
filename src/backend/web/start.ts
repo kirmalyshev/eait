@@ -23,16 +23,17 @@ import {
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   countryOptions,
   chatCopyFor as CHAT,
-  askPlaceholder, checkDirection, checkNumber, dietOf, disabledScreens, isAnswered, promptsFor,
+  askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
+  heightToCm, isAnswered, promptsFor,
   isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, planRows, projectGoal,
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
-  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG,
+  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor, weightToKg,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
-  type Profile, type Struggle,
+  type Profile, type Struggle, type UnitSystem,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
@@ -49,10 +50,11 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  building, chat, country, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped,
-  FONT_FILES, FONT_URL_DIR,
+  building, chat, country, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
+  signUp, stopped,
+  FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
   type PageCopy,
-  type ChatLine, type ChatProposal, type QuestionOption,
+  type ChatLine, type ChatProposal,
 } from "./page.ts";
 
 /**
@@ -317,6 +319,18 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
     .filter((p) => p.field !== undefined);
 }
 
+/**
+ * The W2 walk — the field questions PLUS the two interstitials that sit between them (`how`
+ * after the goal, `ontrack` after the struggles). The `welcome`, `building`, `summary`, `signup`
+ * and `country` places are out: the front door renders its own, the rest are the steps after
+ * this walk ends (the reveal, the plan, sign-up — W3).
+ */
+function walkFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
+  const off = disabledScreens(content);
+  return promptsFor(profile, [...off, "country"], { health: false })
+    .filter((p) => p.field !== undefined || p.place === "how" || p.place === "ontrack");
+}
+
 
 /** A tag's region: the first two-letter subtag after the language, so "zh-Hans-CN" still answers. */
 const regionOf = (tag: string): string | undefined =>
@@ -330,6 +344,9 @@ const regionOf = (tag: string): string | undefined =>
  * `countryLabel` names them and the content carries only `other`. An admin who writes one anyway
  * still wins — this reads the content first.
  */
+/** The option shape the country's offer-list check works in. */
+interface QuestionOption { value: string; label: string; hint?: string }
+
 function optionsFor(
   prompt: ChatPrompt,
   content: OnboardingContent,
@@ -367,7 +384,13 @@ type Answered =
  * likewise a deliberate subset of the server's, so the only refusals anybody can meet are the two
  * that have words written for them.
  */
-function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Answered {
+function answerFor(
+  prompt: ChatPrompt,
+  answers: string[],
+  profile: Profile,
+  units: UnitSystem,
+  form?: { get(name: string): unknown },
+): Answered {
   const field = prompt.field!;
   // The three v2 writes (#82). `struggles` stores the picked chips in the list's own order; `diet`
   // and `medical` go to the server AS their write views and it rewrites `restrictions` — the web
@@ -381,10 +404,12 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
     };
   }
   if (field === "medical") {
+    // "None of these" is exclusive BY MEANING: a browser with no script can tick it beside a real
+    // tag, and the only honest read of that is none — the row it ticked is the row that wins.
     return {
       kind: "patch",
       patch: {
-        medical: answers.filter(
+        medical: answers.includes("none") ? [] : answers.filter(
           (a): a is MedicalTag => (MEDICAL_TAGS as readonly string[]).includes(a),
         ),
       },
@@ -401,7 +426,22 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
   if (value === undefined || value === "") return { kind: "missing" };
 
   if (prompt.kind === "number") {
-    const checked = checkNumber(field as NumberField, value, profile.lang, new Date());
+    // THE WIRE IS THE DISPLAYED UNIT. The ruler drags and the field types cm|in|kg|lb; what the
+    // store keeps — and `checkNumber` bands — is metric, so the conversion happens at the door
+    // (`units.ts`, the one place conversions live). Imperial height's two-field fallback posts
+    // `answer_ft`/`answer_in`; the scripted ruler posts `answer` as total inches.
+    let raw = value;
+    if (units === "imperial") {
+      if (field === "height_cm") {
+        const ft = form?.get("answer_ft"), inch = form?.get("answer_in");
+        raw = typeof ft === "string" || typeof inch === "string"
+          ? String(ftInToCm(Number(ft) || 0, Number(inch) || 0))
+          : String(heightToCm("imperial", Number(value)));
+      } else if (field === "weight_kg" || field === "target_weight_kg") {
+        raw = String(weightToKg("imperial", Number(value)));
+      }
+    }
+    const checked = checkNumber(field as NumberField, raw, profile.lang, new Date());
     if (!checked.ok) {
       if ("underAge" in checked) return { kind: "under-age" };
       // "90" is 1990 typed the short way, or somebody who is ninety. Computing the wrong one is
@@ -482,12 +522,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // seeds from this same signal and the picker overrules — so this is a starting guess and
     // never the answer.
     const lang = acceptLang(req.headers.get("accept-language"));
-    const SIGNUP_COPY = signupCopyFor(lang);
     const content = await onboardingContent(ctx.deps, lang);
-    return html(frontDoor(content.welcome.lines, [
-      { href: `${START_PREFIX}/q`, label: SIGNUP_COPY.startCta },
-      { href: `${START_PREFIX}/signup`, label: SIGNUP_COPY.haveAccountCta },
-    ], lang));
+    return html(frontDoor(content.welcome, {
+      q: `${START_PREFIX}/q`,
+      signup: `${START_PREFIX}/signup`,
+    }, lang));
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -508,12 +547,26 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
-  // The sign-up's plate photograph (the pay-signin board's hero), on this origin for the same
-  // reason the fonts are: `img-src 'self'` loads nothing from anyone else. Whitelist, like the
-  // fonts — the name is never built from request bytes.
-  if (req.method === "GET" && pathname === `${START_PREFIX}/assets/img/hero.webp`) {
-    return new Response(Bun.file(new URL("./assets/hero.webp", import.meta.url)), {
-      headers: { "content-type": "image/webp", "cache-control": "public, max-age=604800" },
+  // The welcome's recorded loop and still, and the photographs the how-it-works cards draw —
+  // whitelisted by name the same way the fonts are, so no path under them is a file read.
+  if (req.method === "GET" && pathname.startsWith(`${WELCOME_URL_DIR}/`)) {
+    const name = pathname.slice(WELCOME_URL_DIR.length + 1);
+    if (!(WELCOME_FILES as readonly string[]).includes(name)) return notFound();
+    return new Response(Bun.file(new URL(`../../shared/assets/welcome/${name}`, import.meta.url)), {
+      headers: {
+        "content-type": name.endsWith(".mp4") ? "video/mp4" : "image/webp",
+        "cache-control": "public, max-age=31536000, immutable",
+      },
+    });
+  }
+  if (req.method === "GET" && pathname.startsWith(`${IMG_URL_DIR}/`)) {
+    const name = pathname.slice(IMG_URL_DIR.length + 1);
+    if (!(IMG_FILES as readonly string[]).includes(name)) return notFound();
+    return new Response(Bun.file(new URL(`../../shared/assets/img/${name}`, import.meta.url)), {
+      headers: {
+        "content-type": "image/webp",
+        "cache-control": "public, max-age=31536000, immutable",
+      },
     });
   }
 
@@ -796,10 +849,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (pathname === `${START_PREFIX}/q`) {
     const { profile, content } = await view();
 
-    // COUNTRY IS NOT A WALK QUESTION ANY MORE (S8): it waits for the sign-up and is asked on its
-    // own screen after it (`/start/country`), preselected where the browser's languages already
-    // answer it. `false` here keeps it out of `promptsFor` — and out of the step count.
-    const questions = questionsFor(profile, content, false);
+    // COUNTRY IS NOT A WALK QUESTION (S8): it waits for the sign-up and is asked on its own
+    // screen after it (`/start/country`), preselected where the browser's languages already
+    // answer it. The W2 walk keeps the field questions plus the `how` and `ontrack`
+    // interstitials — `walkFor` is the one place that order lives.
+    const walk = walkFor(profile, content);
     // `diet` and `medical` are the two prompts whose answer the profile cannot SHOW mid-run: a
     // Balanced pick stores no tag, and `medical` reads as answered only once `onboarded_at` lands
     // — the binding's resume rule, which a mid-walk request cannot tell from "was just answered".
@@ -811,34 +865,66 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const asked = new Set<string>(
       url.searchParams.getAll("asked").filter((a) => a === "diet" || a === "medical"),
     );
-    const openIndex = questions.findIndex((p) => !isAnswered(p, profile) && !asked.has(p.id));
+    // The open question is the first FIELD prompt not yet answered — the interstitials draw no
+    // field, so they are never "open"; they are shown only by the `?show=` a POST redirects to.
+    const openIndex = walk.findIndex(
+      (p) => p.field !== undefined && !isAnswered(p, profile) && !asked.has(p.id),
+    );
     // What the just-rendered form posts to — the set travels inside the walk, never into history.
     const askPath = asked.size === 0
       ? `${START_PREFIX}/q`
       : `${START_PREFIX}/q?${[...asked].map((a) => `asked=${a}`).join("&")}`;
-    // BACK (#53): an answered question, shown again to change. Only one BEFORE the open question —
-    // what is past it has no answer to show, and the profile still decides where the walk resumes.
+    // The system the controls display in: the stored preference, else the browser's region —
+    // the same default the phone applies (`defaultUnits`), so a US browser opens on imperial.
+    const units: UnitSystem = profile.units
+      ?? defaultUnits(
+        regionOf(acceptLanguageTags(req.headers.get("accept-language"))[0] ?? "") ?? "",
+      );
+    /** A `?draft=` carries a typed-but-uncommitted answer across the unit toggle — metric. */
+    const draftParam = url.searchParams.get("draft");
+    const draft = draftParam !== null && Number.isFinite(Number(draftParam)) && Number(draftParam) > 0
+      ? Number(draftParam) : undefined;
+    // BACK (#53): an answered question, shown again to change. Only a FIELD before the open
+    // question — the interstitials ask nothing, and what is past the open one has no answer.
     const editable = (id: unknown): number => {
-      const i = questions.findIndex((p) => p.id === id);
-      return i !== -1 && (openIndex === -1 || i < openIndex) && isAnswered(questions[i]!, profile) ? i : -1;
+      const i = walk.findIndex((p) => p.id === id);
+      return i !== -1 && walk[i]!.field !== undefined
+        && (openIndex === -1 || i < openIndex) && isAnswered(walk[i]!, profile) ? i : -1;
     };
 
     const askAt = (
       index: number, error: string | null, actions: Action[] = [], draftKg?: number, typed?: string[],
     ) =>
       html(renderQuestion(
-        questions, index, profile, content, error, actions, null, draftKg,
-        typed ?? (index === openIndex ? undefined : currentAnswer(questions[index]!, profile)),
-        askPath,
+        walk, index, profile, content, error, actions, draftKg ?? draft,
+        typed ?? (index === openIndex ? undefined : currentAnswer(walk[index]!, profile)),
+        askPath, units,
       ));
     const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
       askAt(openIndex, error, actions, draftKg);
 
     if (req.method === "GET" && url.searchParams.has("edit")) {
       const i = editable(url.searchParams.get("edit"));
-      if (i === -1) return seeOther(`${START_PREFIX}/q`);
-      const kg = questions[i]!.id === "target_weight_kg" ? profile.target_weight_kg ?? undefined : undefined;
+      if (i === -1) return seeOther(askPath);
+      const kg = walk[i]!.id === "target_weight_kg" ? profile.target_weight_kg ?? undefined : undefined;
       return askAt(i, null, [], kg);
+    }
+
+    // THE INTERSTITIALS: `how` sits between goal and sex, `ontrack` between struggles and diet.
+    // They write nothing, so they are reached only by `?show=` — the POST of the question before
+    // them redirects to it, and the page's Continue is a plain GET back to the walk. A `show`
+    // that is not the next beat (an id the walk does not hold, or one sitting after the open
+    // question) is not an error — it is the walk.
+    if (req.method === "GET" && url.searchParams.has("show")) {
+      const showId = url.searchParams.get("show");
+      const i = walk.findIndex((p) => p.id === showId);
+      const auto = i !== -1 && walk[i]!.kind === "auto" ? walk[i]! : null;
+      const beforeOpen = auto !== null && (openIndex === -1 || i < openIndex);
+      const ready = auto !== null && walk.slice(0, i).every(
+        (p) => p.field === undefined || isAnswered(p, profile) || asked.has(p.id),
+      );
+      if (auto === null || !beforeOpen || !ready) return seeOther(askPath);
+      return html(interstitial(auto.place as "how" | "ontrack", profile, profile.lang, askPath));
     }
 
     if (req.method === "GET") {
@@ -855,13 +941,40 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const form = await req.formData().catch(() => null);
       if (form === null) return seeOther(`${START_PREFIX}/q`);
 
+      // THE UNIT TOGGLE IS A POST — it writes a preference, and a write is never a GET. It stores
+      // the choice (`units` carries to every later screen) and carries the typed draft across the
+      // system change, converted at the door: the ruler redraws in the new units with the same
+      // number on it.
+      const setunits = form.get("setunits");
+      if (userId !== null && (setunits === "metric" || setunits === "imperial")) {
+        const outcome = await patchProfile(ctx.deps, userId, { units: setunits });
+        if (outcome && !outcome.ok) return ask(null);
+        const promptId = form.get("from");
+        const p = walk.find((x) => x.id === promptId);
+        const params = new URLSearchParams();
+        for (const a of asked) params.append("asked", a);
+        const d = form.get("draft");
+        if (p?.field !== undefined && d !== null) {
+          const n = Number(d);
+          if (Number.isFinite(n) && n > 0) {
+            const metric = p.field === "height_cm"
+              ? heightToCm(units, n)
+              : (p.field === "weight_kg" || p.field === "target_weight_kg")
+                ? weightToKg(units, n)
+                : n;
+            params.set("draft", String(Math.round(metric * 10) / 10));
+          }
+        }
+        return seeOther(`${START_PREFIX}/q${params.size === 0 ? "" : `?${params}`}`);
+      }
+
       // THE FIRST ANSWER CREATES THE ACCOUNT (S8). Onboarding runs on the session account — this
       // surface's version of the phone's device account — so the answers are already the
       // account's when Apple or Google attaches at sign-up. Only an answer that LANDS creates
       // one: a refused first answer re-renders against the blank profile and leaves no row,
       // which is also why a page view never creates anything.
       if (userId === null) {
-        const open = questions[0];
+        const open = walk.find((p) => p.field !== undefined);
         if (open === undefined || form.get("prompt") !== open.id) return seeOther(`${START_PREFIX}/q`);
         // The under-sixteen confirm can only be offered by a walk that has an account; posted
         // without one it is still honoured — nothing was ever kept, which is what the page says.
@@ -870,10 +983,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
           return html(stopped(card.title, card.body, UNDER_AGE_LINES(profile.lang).stopped, profile.lang));
         }
         const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
-        const answer = answerFor(open, typed, profile);
+        const answer = answerFor(open, typed, profile, units, form);
         const retry = (error: string | null, actions: Action[] = []) =>
-          html(renderQuestion(questions, 0, profile, content, error, actions, null, undefined,
-            typed.length > 0 ? typed : undefined));
+          html(renderQuestion(walk, walk.indexOf(open), profile, content, error, actions, undefined,
+            typed.length > 0 ? typed : undefined, askPath, units));
         if (answer.kind === "missing") return retry(pageCopyFor(profile.lang).answerRequired);
         if (answer.kind === "ambiguous-age") {
           const age = AMBIGUOUS_AGE(profile.lang);
@@ -893,40 +1006,30 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         const wait = ctx.limitAuth();
         if (wait !== null) return tooManyAttempts(wait, profile.lang);
         const fresh = await ctx.store.createUser(profile.lang);
-        const outcome = await patchProfile(ctx.deps, fresh, answer.patch);
+        const postedUnits = form.get("units");
+        const patch: PatchProfileRequest = (postedUnits === "metric" || postedUnits === "imperial")
+          ? { ...answer.patch, units: postedUnits } : answer.patch;
+        const outcome = await patchProfile(ctx.deps, fresh, patch);
         if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
         const token = await ctx.store.issueToken(fresh);
-        return seeOther(`${START_PREFIX}/q`, [setCookie(SESSION_COOKIE, token, { secure })]);
+        // The how-it-works card sits between the goal and the next question — the first answer's
+        // redirect is the beat that shows it.
+        return seeOther(`${START_PREFIX}/q?show=how`, [setCookie(SESSION_COOKIE, token, { secure })]);
       }
 
       // The open question is the server's to decide, so a post naming a LATER one is dropped rather
       // than applied: the profile is what says where somebody is, on this surface exactly as in the
       // app. An EARLIER, answered one is Back's change (#53), written the same way and then resumed.
-      const editIndex = form.get("prompt") === questions[openIndex]?.id ? -1 : editable(form.get("prompt"));
-      if (editIndex === -1 && (openIndex === -1 || form.get("prompt") !== questions[openIndex]!.id)) {
-        return seeOther(openIndex === -1 ? `${START_PREFIX}/plan` : `${START_PREFIX}/q`);
+      const editIndex = form.get("prompt") === walk[openIndex]?.id ? -1 : editable(form.get("prompt"));
+      if (editIndex === -1 && (openIndex === -1 || form.get("prompt") !== walk[openIndex]!.id)) {
+        return seeOther(openIndex === -1 ? `${START_PREFIX}/plan` : askPath);
       }
       const at = editIndex === -1 ? openIndex : editIndex;
-      const open = questions[at]!;
+      const open = walk[at]!;
       // A refused answer is shown back as typed (#53): wiping the box made the person retype it.
       const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
-      const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
+      const retry = (error: string | null, actions: Action[] = [], draftKg?: number) =>
         askAt(at, error, actions, draftKg, typed.length > 0 ? typed : undefined);
-
-      // The stepper's − and + ARE submits of this same form: the shown number comes back as
-      // `answer` with a `step` direction, and the page answers stepped — a render, not a redirect,
-      // because nothing was written and a refresh can only re-ask. The range is the server's own;
-      // a crafted POST clamps at it the same way the disabled button does.
-      const stepReq = form.get("step");
-      if (open.id === "target_weight_kg" && stepReq !== null) {
-        const dir = stepReq === "-1" ? -1 : stepReq === "1" ? 1 : 0;
-        const range = targetRange(profile);
-        const draft = Number(form.get("answer"));
-        if (dir === 0 || !Number.isFinite(draft)) return ask(null);
-        return range === null
-          ? ask(null)
-          : ask(null, [], Math.min(range.max, Math.max(range.min, draft + dir * TARGET_STEP_KG)));
-      }
 
       // The wrong-direction refusal's own escape: usually the goal was mistapped, not the number.
       const switchTo = form.get("switch");
@@ -940,8 +1043,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const asAge = form.get("age");
       if (typeof asAge === "string" && /^\d{2}$/.test(asAge)) {
         const outcome = await patchProfile(ctx.deps, userId, { age: Number(asAge) });
-        if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
-        return seeOther(`${START_PREFIX}/q`);
+        if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
+        return seeOther(askPath);
       }
 
       // The under-sixteen stop, taken. The account goes: "nothing you told me is kept" is a
@@ -955,22 +1058,22 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       }
 
       const answers = form.getAll("answer").filter((v): v is string => typeof v === "string");
-      const answer = answerFor(open, answers, profile);
-      if (answer.kind === "missing") return ask(pageCopyFor(profile.lang).answerRequired);
+      const answer = answerFor(open, answers, profile, units, form);
+      if (answer.kind === "missing") return retry(pageCopyFor(profile.lang).answerRequired);
       if (answer.kind === "ambiguous-age") {
         // The quick reply takes it as an age; four digits in the box take it as the year.
         const age = AMBIGUOUS_AGE(profile.lang);
-        return ask(age.line(answer.age), [
+        return retry(age.line(answer.age), [
           { name: "age", value: String(answer.age), label: age.confirm(answer.age) },
         ]);
       }
       if (answer.kind === "under-age") {
         // Offered ONCE, in case a typo got us here. Confirming is what takes the stop.
         const under = UNDER_AGE_LINES(profile.lang);
-        return ask(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
+        return retry(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
       }
       if (answer.kind === "refuse") {
-        return ask(answer.line, answer.switchTo
+        return retry(answer.line, answer.switchTo
           ? [{
               name: "switch",
               value: answer.switchTo,
@@ -983,26 +1086,33 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // COMPLETION RIDES THE LAST QUESTION'S PATCH, whichever one it is — `medical`, since country
       // is S8's own screen after the sign-up and never in this walk. It goes on the patch rather
       // than a second POST so a partial write can never mark a run complete.
-      const patch: PatchProfileRequest =
-        editIndex === -1 && at === questions.length - 1
+      const lastField = walk.length - 1 - [...walk].reverse().findIndex((p) => p.field !== undefined);
+      const postedUnits = form.get("units");
+      const patch: PatchProfileRequest = {
+        ...(editIndex === -1 && at === lastField
           ? { ...answer.patch, complete_onboarding: true }
-          : answer.patch;
+          : answer.patch),
+        ...(postedUnits === "metric" || postedUnits === "imperial" ? { units: postedUnits } : {}),
+      };
       const outcome = await patchProfile(ctx.deps, userId, patch);
-      if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
+      if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
       // THE REVEAL IS THE COMPLETING PATCH'S ANSWER (W3), not a state `/start/q` resumes into:
       // the run that just wrote `complete_onboarding` lands on it once, and every later arrival —
       // a resume, a return, a refresh — goes to the plan itself.
-      if (editIndex === -1 && at === questions.length - 1) return seeOther(`${START_PREFIX}/building`);
+      if (editIndex === -1 && at === lastField) return seeOther(`${START_PREFIX}/building`);
       // The walk's memory of the two answers a mid-run GET cannot see (see `asked` above): the
-      // redirect appends the prompt just written so the next page knows it was passed.
+      // redirect appends the prompt just written so the next page knows it was passed — and if
+      // the next beat is a card rather than a question, `?show=` names it.
       const nextAsked = new Set(asked);
       if (open.id === "diet" || open.id === "medical") nextAsked.add(open.id);
-      const marker = nextAsked.size === 0
-        ? "" : `?${[...nextAsked].map((a) => `asked=${a}`).join("&")}`;
-      return seeOther(`${START_PREFIX}/q${marker}`);
+      const params = new URLSearchParams();
+      const next = editIndex === -1 ? walk[at + 1] : undefined;
+      if (next !== undefined && next.kind === "auto") params.set("show", next.id);
+      for (const a of nextAsked) params.append("asked", a);
+      const qs = params.size === 0 ? "" : `?${params}`;
+      return seeOther(`${START_PREFIX}/q${qs}`);
     }
   }
-
   // Past the questions, null is not a state a session can be in — the gate above let it through
   // for `/start/q` alone, and this line is what the compiler learns that from.
   if (userId === null) return notFound();
@@ -1091,6 +1201,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
     const prompt = promptById("country")!;
     const query = url.searchParams.get("q") ?? "";
+    // The board is the 16-country one (W3): the ask, the search field, the flag grid with the
+    // resolved pick preselected — `country()` draws it, not the walk's `question()`.
     const ask = (error: string | null) => html(country({
       ask: askLines(prompt, { content, lang }, profile)[0] ?? "",
       placeholder: content.screens.find((s) => s.id === "country")?.asks.country?.placeholder ?? "",
@@ -1292,7 +1404,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const content = await onboardingContent(ctx.deps, profile.lang);
     return html(building({
       lines: content.building.lines,
-      title: content.building.title,
+      cardLabel: content.building.title,
       cta: content.building.cta,
       rows: planRows(profile, full.targets, content, profile.lang),
       next: `${START_PREFIX}/plan`,
@@ -1307,13 +1419,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // headline is the plan card's own — `planHeadline`, the S6-exempt sentence, which the renderer
     // computes over that same basis rather than retyping a number.
     const content = await onboardingContent(ctx.deps, profile.lang);
-    // The walk's dash counts the screens already asked — one segment per prompt before the
-    // reveal's own, so the count is the walk's and not a number the page types in. The browser
-    // sees no Health prompt and no in-walk country, which is what the filters say.
-    const prompts = promptsFor(profile, [...disabledScreens(content), "country"], { health: false });
-    const dashOn = Math.max(0, prompts.findIndex((p) => p.id === "building") - 1);
+    // The plan's own dash is `dash("summary")` inside the renderer — the walk's last segment.
     return html(plan({
-      dashOn,
       profile: full.profile,
       targets: full.targets,
       basis: full.basis,
@@ -1414,7 +1521,9 @@ function threadLine(e: ChatEntry, lang: Lang): ChatLine {
       ? { kind: "user", text: e.text, photo: true }
       : { kind: "user", text: e.text };
   }
-  if (e.kind === "text") return { kind: "said", who: null, text: e.text };
+  if (e.kind === "text") {
+    return { kind: "said", who: e.speaker === "gabie" ? threadCopyFor(lang).coach.name : null, text: e.text };
+  }
   const meal = e.meal;
   if (!meal) return { kind: "card", card: null };
   return {
@@ -1450,31 +1559,28 @@ function currentAnswer(prompt: ChatPrompt, p: Profile): string[] {
 interface Action { name: string; value: string; label: string }
 
 function renderQuestion(
-  questions: readonly ChatPrompt[],
+  walk: readonly ChatPrompt[],
   index: number,
   profile: Profile,
   content: OnboardingContent,
   error: string | null,
   actions: Action[] = [],
-  suggested: string | null = null,
-  draftKg?: number,
+  draft?: number,
   current?: readonly string[],
   action = `${START_PREFIX}/q`,
+  units: UnitSystem = "metric",
 ): string {
-  const prompt = questions[index]!;
+  const prompt = walk[index]!;
   const lang = profile.lang;
 
   let lines = askLines(prompt, { content, lang }, profile);
-  // The target question is the design's stepper when there is a suggestion to start from — with
-  // `targetSuggestionLine` AS the ask, because the suggestion spoken and the number shown are the
-  // same sentence. At the healthy floor there is nothing to suggest and the plain box stands.
-  let stepper: { value: number; min: number; max: number } | null = null;
+  // The target question speaks its suggestion when there is one — `targetSuggestionLine` AS the
+  // ask, because the suggestion spoken and the number shown are the same sentence. At the
+  // healthy floor there is nothing to suggest and the plain question stands.
   if (prompt.id === "target_weight_kg") {
     const suggestedKg = suggestedTargetKg(profile);
-    const range = targetRange(profile);
-    if (suggestedKg !== null && range !== null && profile.weight_kg !== null
+    if (suggestedKg !== null && profile.weight_kg !== null
         && (profile.goal === "lose" || profile.goal === "gain")) {
-      stepper = { value: draftKg ?? suggestedKg, min: range.min, max: range.max };
       const share = Math.round(Math.abs(suggestedKg - profile.weight_kg) / profile.weight_kg * 100);
       const line = targetSuggestionLine(suggestedKg, share, profile.goal, lang);
       if (line !== null) lines = [line];
@@ -1482,19 +1588,23 @@ function renderQuestion(
   }
 
   return question({
-    promptId: prompt.id,
-    kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
+    prompt,
+    profile,
+    content,
     lines,
-    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, lang, suggested),
-    placeholder: askPlaceholder(prompt, content),
+    lang,
+    units,
     error,
     actions,
     action,
-    stepper,
-    step: index + 1,
-    total: questions.length,
-    back: index > 0 ? `${START_PREFIX}/q?edit=${encodeURIComponent(questions[index - 1]!.id)}` : START_PREFIX,
-    ...(current ? { current } : {}),
-    lang,
+    segAction: action,
+    current: current ?? [],
+    draft: draft ?? null,
+    // Back is the last FIELD before this one — an interstitial between them asks nothing, so it
+    // is not a place Back can go to.
+    back: walk.slice(0, index).reverse().find((p) => p.field !== undefined) !== undefined
+      ? `${START_PREFIX}/q?edit=${encodeURIComponent(walk.slice(0, index).reverse().find((p) => p.field !== undefined)!.id)}`
+      : START_PREFIX,
+    today: new Date(),
   });
 }

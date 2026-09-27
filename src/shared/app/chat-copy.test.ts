@@ -1,0 +1,86 @@
+// The chat surface's words (W7 #94). Completeness in all eight languages is `localizedGaps`' job
+// in `copy.i18n.test.ts`; this file holds the table's own contract: the keys exist, the
+// placeholders survive every language, the English is the boards' words, and the claims linter
+// passes over every rendered string.
+
+import { describe, expect, it } from "bun:test";
+import { lintCopy } from "../claims.ts";
+import { LANGS, type Lang } from "../types.ts";
+import { CHAT_SCREEN_COPY, chatScreenCopyFor, type ChatScreenCopy } from "./chat-copy.ts";
+
+const flatten = (node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> => {
+  if (typeof node === "string") { out[at] = node; return out; }
+  if (node && typeof node === "object") {
+    for (const [k, v] of Object.entries(node)) flatten(v, at === "" ? k : `${at}.${k}`, out);
+  }
+  return out;
+};
+
+describe("CHAT_SCREEN_COPY", () => {
+  it("has every key in every language", () => {
+    const enKeys = Object.keys(flatten(CHAT_SCREEN_COPY.en)).sort();
+    for (const lang of LANGS) {
+      const copy = CHAT_SCREEN_COPY[lang];
+      expect(copy, lang).toBeDefined();
+      const flat = flatten(copy);
+      expect(Object.keys(flat).sort(), lang).toEqual(enKeys);
+      for (const [k, v] of Object.entries(flat)) {
+        expect(v.length, `${lang}.${k}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("keeps every placeholder in every language", () => {
+    // `{coach}` is the coach's name (THREAD_COPY's `coach.name`, S9); `{value}`/`{target}`/`{n}`
+    // are figures filled by the caller. A translation that drops one renders the hole literally.
+    const withPlaceholders: Record<string, string[]> = {
+      composerThread: ["{coach}"],
+      macroOfTarget: ["{value}", "{target}"],
+      gramsChip: ["{n}"],
+      "phone.typing": ["{coach}"],
+    };
+    for (const lang of LANGS) {
+      const flat = flatten(CHAT_SCREEN_COPY[lang]);
+      for (const [key, placeholders] of Object.entries(withPlaceholders)) {
+        for (const ph of placeholders) {
+          expect(flat[key], `${lang}.${key}`).toContain(ph);
+        }
+      }
+    }
+  });
+
+  it("draws the boards' words in English", () => {
+    const en: ChatScreenCopy = chatScreenCopyFor("en" as Lang);
+    expect(en.greeting).toBe("Tell me what you ate, or ask me anything.");
+    expect(en.composerAsk).toBe("What did you eat?");
+    expect(en.composerThread).toBe("Tell {coach} what you ate, or ask");
+    expect(en.proposalCheck).toBe("Logging to today — look right?");
+    expect(en.proposalAccept).toBe("Log it");
+    expect(en.proposalDecline).toBe("No");
+    expect(en.loadFailed).toBe("Couldn't load the conversation.");
+    expect(en.tryAgain).toBe("Try again");
+    expect(en.offlineTitle).toBe("Couldn't reach eait.");
+    expect(en.offlineBody).toBe("Nothing was logged.");
+    expect(en.sendAgain).toBe("Send again");
+    expect(en.waitingToSend).toBe("Waiting to send");
+    expect(en.unknownTitle).toBe("That didn't finish cleanly.");
+    expect(en.analysisFailed).toBe("The analysis didn't come back.");
+    expect(en.phone.notSent).toBe("Not sent — tap to put it back in the box");
+    expect(en.phone.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+  });
+
+  it("carries no claim the linter would refuse — every language", () => {
+    // The figures and the coach's name filled, as a render would. Russian's declension sits inside
+    // templates, so the sweep reads the same strings the screen shows.
+    const FILL: Record<string, string> = { coach: "Gabie", value: "54", target: "109", n: "34" };
+    const filled = (s: string) => s.replace(/\{(\w+)\}/g, (_, k: string) => FILL[k] ?? "X");
+    for (const lang of LANGS) {
+      const fields: Record<string, string> = {};
+      for (const [at, text] of Object.entries(flatten(CHAT_SCREEN_COPY[lang]))) {
+        fields[at] = filled(text);
+      }
+      const violations = lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`);
+      expect(violations, lang).toEqual([]);
+    }
+  });
+});

@@ -3,6 +3,7 @@ import { LANGS, STRUGGLES, type Lang, type Profile } from "./types.ts";
 import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, RESTRICTION_TAGS, explainTargets } from "./targets.ts";
 import { STRUGGLE_LABELS } from "./onboarding-chat.ts";
 import { CHAT_COPY, chatCopyFor } from "./onboarding-chat-copy.ts";
+import { threadCopyFor } from "./chat-copy.ts";
 import { lintCopy } from "./claims.ts";
 import {
   AMBIGUOUS_AGE, UNDER_AGE_CARD, belowHealthyCard, checkDirection, checkNumber,
@@ -22,6 +23,23 @@ describe("every language's chat copy", () => {
       for (const field of ["age", "height_cm", "weight_kg", "target_weight_kg"] as const) {
         expect(invalid[field]?.trim(), `${lang}.invalid.${field}`).toBeTruthy();
       }
+    }
+  });
+
+  it("names the coach through {coach} on the two captions that promise Chat, never a literal", () => {
+    // S9: the support and ideas captions answer "who do I ask" with `coach.name`, so the day the
+    // per-language name table lands it changes one key rather than sixteen strings. No caption
+    // may name Spud as the one who answers in Chat — he signs, she answers.
+    for (const lang of LANGS) {
+      const captions = chatCopyFor(lang).ontrack.captions;
+      expect(captions.support, `${lang}.support`).toContain("{coach}");
+      expect(captions.ideas, `${lang}.ideas`).toContain("{coach}");
+      for (const s of STRUGGLES) {
+        const said = ontrackCaption([s], lang)!;
+        expect(said, `${lang}.${s}`).not.toMatch(/\{coach\}|Spud|Спад/);
+      }
+      expect(ontrackCaption(["support"], lang), lang).toContain(threadCopyFor(lang).coach.name);
+      expect(ontrackCaption(["ideas"], lang), lang).toContain(threadCopyFor(lang).coach.name);
     }
   });
 
@@ -62,7 +80,7 @@ describe("every language's chat copy", () => {
   it("keeps every placeholder code fills, and introduces none it does not", () => {
     const known = new Set([
       "share", "age", "kg", "year", "weight", "target", "n", "label", "pct", "month",
-      "rate", "kcal", "floor", "delta", "from", "to",
+      "rate", "kcal", "floor", "delta", "from", "to", "coach",
     ]);
     for (const lang of LANGS) {
       for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {
@@ -100,6 +118,9 @@ describe("every language's chat copy", () => {
       for (const k of ["lowest", "now", "deltaDown", "deltaUp"] as const) {
         expect(copy.target[k], `${lang}.target.${k}`).toContain("{weight}");
       }
+      // The two On-track captions that promise Chat name her through `{coach}` (S9).
+      expect(copy.ontrack.captions.support, `${lang}.ontrack.support`).toContain("{coach}");
+      expect(copy.ontrack.captions.ideas, `${lang}.ontrack.ideas`).toContain("{coach}");
     }
   });
 });
@@ -181,7 +202,7 @@ describe("the readers of those tables", () => {
     const FILL = {
       weight: "68 kg", target: "68 kg", delta: "6 kg", month: "January 2027", kcal: "1,434",
       rate: "0.4 kg", floor: "1,200", share: "20", age: "16", kg: "58", year: "1990",
-      n: "13", label: "0–2", pct: "8",
+      n: "13", label: "0–2", pct: "8", coach: "Gabie",
     };
     const filled = (s: string) =>
       s.replace(/\{(\w+)\}/g, (_, k: string) => FILL[k as keyof typeof FILL] ?? "X");
