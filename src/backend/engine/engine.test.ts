@@ -1834,7 +1834,10 @@ describe("diary", () => {
     // day to 6.8 — which is 7 rounded.
     const userId = await onboard();
     const date = localDate(CONFIG.timezone);
-    const put = (ts: string, m: Record<string, number>) => store.insertMeal({
+    const put = (ts: string, m: {
+      kcal: number; protein_g: number; carbs_g: number; fat_g: number;
+      satfat_g: number; fiber_g: number; sugar_g: number; sodium_mg: number;
+    }) => store.insertMeal({
       id: crypto.randomUUID(), user_id: userId, ts, date,
       isFood: true, items: [], verdicts: {}, healthScore: null, confidence: "high", notes: "",
       corrected: false, model: "test", ...m,

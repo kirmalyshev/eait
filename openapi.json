@@ -2967,6 +2967,15 @@
         ],
         "additionalProperties": false
       },
+      "BmiRange": {
+        "type": "string",
+        "enum": [
+          "below-18.5",
+          "18.5-24.9",
+          "25-29.9",
+          "30-plus"
+        ]
+      },
       "ChatEntry": {
         "anyOf": [
           {
@@ -3309,13 +3318,21 @@
           },
           "targets": {
             "$ref": "#/components/schemas/FoodTargets"
+          },
+          "healthScore": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`, #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored."
           }
         },
         "required": [
           "date",
           "meals",
           "totals",
-          "targets"
+          "targets",
+          "healthScore"
         ],
         "additionalProperties": false
       },
@@ -3865,6 +3882,26 @@
         ],
         "additionalProperties": false
       },
+      "HealthScore": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "description": "Base 6 plus the parts, clamped to 1–10."
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScorePart"
+            }
+          }
+        },
+        "required": [
+          "score",
+          "parts"
+        ],
+        "additionalProperties": false
+      },
       "IdentitiesResponse": {
         "type": "object",
         "properties": {
@@ -4026,6 +4063,17 @@
           "verdicts": {
             "$ref": "#/components/schemas/MealVerdicts"
           },
+          "healthScore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The meal's health score (`scores.ts`), computed at READ from the stored nutrients, the stored verdicts and the profile's declared restrictions — never stored and never accepted from the model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer than three of the five nutrients read)."
+          },
           "confidence": {
             "type": "string",
             "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
@@ -4046,6 +4094,7 @@
           "sugar_g",
           "sodium_mg",
           "verdicts",
+          "healthScore",
           "confidence",
           "notes"
         ],
@@ -4233,6 +4282,17 @@
           "verdicts": {
             "$ref": "#/components/schemas/MealVerdicts"
           },
+          "healthScore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthScore"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The meal's health score (`scores.ts`), computed at READ from the stored nutrients, the stored verdicts and the profile's declared restrictions — never stored and never accepted from the model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer than three of the five nutrients read)."
+          },
           "confidence": {
             "type": "string",
             "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
@@ -4285,6 +4345,7 @@
           "date",
           "fat_g",
           "fiber_g",
+          "healthScore",
           "id",
           "isFood",
           "items",
@@ -5590,6 +5651,53 @@
         ],
         "description": "Why a request produced no meal. Each maps to one user-facing message, but the mapping lives in the surface — `not-onboarded` is a Telegram prompt in the bot and a navigation push here."
       },
+      "ScoreFactor": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "fibre",
+          "satfat",
+          "sugar",
+          "salt"
+        ]
+      },
+      "ScoreLimit": {
+        "type": "string",
+        "enum": [
+          "ldl",
+          "kidneys",
+          "lowsugar"
+        ],
+        "description": "The declared limit that personalised a part — the restriction tag, so the breakdown can name it."
+      },
+      "ScorePart": {
+        "type": "object",
+        "properties": {
+          "factor": {
+            "$ref": "#/components/schemas/ScoreFactor"
+          },
+          "density": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The measure the bands were applied to — a share of the meal's calories (protein, saturated fat, sugar) or grams per 100 kcal (fibre, salt). `null` when the nutrient was not read: the part scores 0 and the UI says \"not read\"."
+          },
+          "points": {
+            "type": "number"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/ScoreLimit",
+            "description": "Present when a declared restriction shaped the part."
+          }
+        },
+        "required": [
+          "factor",
+          "density",
+          "points"
+        ],
+        "additionalProperties": false
+      },
       "ScriptedLineId": {
         "type": "string",
         "enum": [
@@ -5863,11 +5971,36 @@
               }
             ],
             "description": "The goal arc the Progress goal bar draws — start, current and target weights, the weeks and rate `projectGoal` computed, and the localized month it lands in. Null when no honest projection exists (no target, nothing weighed, a fallback band) — see  {@link  PlanProjection } ."
+          },
+          "bmi": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "range": {
+                    "$ref": "#/components/schemas/BmiRange"
+                  }
+                },
+                "required": [
+                  "value",
+                  "range"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest weigh-in against the profile's height (`bmi`/`bmiRange`, #118) — the range is a NEUTRAL id and its label is the numbers themselves, never a category word. `null` without a height on the profile or a weigh-in to read."
           }
         },
         "required": [
           "weights",
-          "projection"
+          "projection",
+          "bmi"
         ],
         "additionalProperties": false,
         "description": "`GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc."

@@ -6,6 +6,8 @@
 // differs (`Profile` gains the anthropometrics a computed calorie target needs) the difference is
 // commented. See `docs/PORTED_FROM_EAIT.md`.
 
+import type { HealthScore } from "./scores.ts";
+
 export type Goal = "lose" | "maintain" | "gain";
 export type Verdict = "good" | "warn" | "bad";
 
@@ -253,7 +255,7 @@ export interface MealAnalysis {
    * model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer
    * than three of the five nutrients read).
    */
-  healthScore: import("./scores.ts").HealthScore | null;
+  healthScore: HealthScore | null;
   /** `low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown. */
   confidence: string;
   notes: string;
