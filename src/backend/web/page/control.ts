@@ -35,6 +35,11 @@ export const CONTROL_SCRIPT = `(function () {
   main.querySelectorAll("input[data-alt]").forEach(function (i) { i.disabled = true; });
 
   function num(s, d) { var n = parseFloat(s); return isFinite(n) ? n : d; }
+  // Display numbers are the document's language, never the wire's — a German ruler reads 73,5.
+  // The INPUT the same script writes stays an ASCII number, which is what the server parses.
+  var NF = new Intl.NumberFormat(document.documentElement.lang || "en",
+    { maximumFractionDigits: 1 });
+  function fmtN(v) { return NF.format(Math.round(v * 10) / 10); }
 
   // The label text for a ruler value: plain integer, or feet′inches″.
   function fmtVal(fmt, v) {
@@ -53,7 +58,7 @@ export const CONTROL_SCRIPT = `(function () {
       // the bign's own text still carries the unit word for screen readers via the smalls
       return;
     }
-    bv.textContent = (Math.round(v * 10) / 10).toString();
+    bv.textContent = fmtN(v);
   }
 
   // ── rulers (horizontal + vertical) ──────────────────────────────────────────────────────────
@@ -101,7 +106,7 @@ export const CONTROL_SCRIPT = `(function () {
         var d = Math.round((val - nowV) * 10) / 10;
         var tpl = d < 0 ? dnT : d > 0 ? upT : null;
         live.style.display = tpl ? "" : "none";
-        if (tpl) live.textContent = tpl.replace("{weight}", Math.abs(d) + " " + (ctl.dataset.unitword || ""));
+        if (tpl) live.textContent = tpl.replace("{weight}", fmtN(Math.abs(d)) + " " + (ctl.dataset.unitword || ""));
         live.className = "live" + (d < 0 ? " dn" : d > 0 ? " up" : "");
       }
       bigSet(ctl, fmt, val);
@@ -147,7 +152,7 @@ export const CONTROL_SCRIPT = `(function () {
     function sync(i) {
       for (var k = 0; k < rows.length; k++) rows[k].className = "wr" + (k === i ? " on" : "");
       val = min + i; inp.value = String(val);
-      var bv = ctl.querySelector(".bv"); if (bv) bv.textContent = String(val);
+      var bv = ctl.querySelector(".bv"); if (bv) bv.textContent = fmtN(val);
     }
     function toVal(v) { el.scrollTop = (v - min) * H; }
     toVal(val);

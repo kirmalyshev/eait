@@ -10,7 +10,7 @@ import {
   chatCopyFor, ESTIMATE_CHART_MINI, fill, HOW_DEMO, numbers, ontrackCaption, TWO_WAYS_CHART,
   verdictPillLabel, weightDisplay, wholeNumbers,
 } from "@eait/shared";
-import type { Lang, Profile } from "@eait/shared";
+import type { Lang, Profile, UnitSystem } from "@eait/shared";
 import { spudSvg } from "@eait/shared/mascot";
 import { ctaLink, dash, IMG_URL_DIR, PLACE_MOOD, say, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
@@ -22,7 +22,7 @@ const MACS: readonly { icon: string; cls: string; of: (m: typeof HOW_DEMO.meal) 
   { icon: "fat", cls: "m-fat", of: (m) => m.fatG },
 ];
 
-function howCards(lang: Lang): string {
+function howCards(lang: Lang, units: UnitSystem): string {
   const copy = chatCopyFor(lang);
   const n = numbers(lang);
   const w = wholeNumbers(lang);
@@ -60,9 +60,9 @@ function howCards(lang: Lang): string {
     `<path d="${mini.linePath}" class="ln draw"/>` +
     `<circle cx="${mini.startDot.cx}" cy="${mini.startDot.cy}" r="${mini.startDot.r}" fill="var(--ink)"/>` +
     `<circle cx="${mini.endDot.cx}" cy="${mini.endDot.cy}" r="${mini.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${mini.endDot.strokeWidth}"/>` +
-    `<text x="${mini.startLabel.x}" y="${mini.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(weightDisplay(HOW_DEMO.startKg, "metric", lang))}</text>` +
+    `<text x="${mini.startLabel.x}" y="${mini.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(weightDisplay(HOW_DEMO.startKg, units, lang))}</text>` +
     `</svg>` +
-    `<div class="ptick"><span style="left:78%">${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, "metric", lang) }))}</span></div>` +
+    `<div class="ptick"><span style="left:78%">${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, units, lang) }))}</span></div>` +
     `<span class="n">3</span></div>` +
     `<div class="pt">${escape(s3!)}</div></div>`;
   return `<div class="cards c3">${card1}${card2}${card3}</div>`;
@@ -93,7 +93,7 @@ export function interstitial(
 ): string {
   const copy = chatCopyFor(lang);
   const inner = place === "how"
-    ? howCards(lang)
+    ? howCards(lang, profile.units ?? "metric")
     : `<div class="card" style="position:relative">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
       `${ontrackChart(lang)}` +

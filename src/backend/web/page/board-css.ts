@@ -13,7 +13,6 @@ export const BOARD_CSS = `
 .ob {
   ${lightVars}
   --r-card: 12px; --r-ctl: 10px; --r-cta: 14px;
-  --ease: cubic-bezier(.22,.61,.36,1);
   --shadow: 0 1px 2px rgb(23 25 28 / .04), 0 8px 24px rgb(23 25 28 / .06);
   display: flex; flex-direction: column; min-height: 100svh; max-width: none; margin: 0;
   padding: 0; width: 100%; background: var(--bg);

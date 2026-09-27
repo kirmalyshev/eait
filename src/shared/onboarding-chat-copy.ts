@@ -72,6 +72,8 @@ export interface ChatCopy {
    */
   pace: {
     rate: string;
+    /** The words after the rate figure alone — "a week", said without the number. */
+    rateSuffix: string;
     /** `{target}` with unit, `{month}` CLDR's, `{kcal}` the computed number. */
     result: string;
     capMarker: string;
@@ -202,6 +204,7 @@ const EN: ChatCopy = {
   },
   pace: {
     rate: "{rate} a week",
+    rateSuffix: "a week",
     result: "{target} around {month} · {kcal} kcal a day",
     capMarker: "capped at the safe limit",
     floorMarker: "never below {floor} · every pace lands here",
@@ -313,6 +316,7 @@ const FR: ChatCopy = {
   },
   pace: {
     rate: "{rate} par semaine",
+    rateSuffix: "par semaine",
     result: "{target} vers {month} · {kcal} kcal par jour",
     capMarker: "plafonné à la limite sûre",
     floorMarker: "jamais sous {floor} · chaque rythme y arrive",
@@ -424,6 +428,7 @@ const DE: ChatCopy = {
   },
   pace: {
     rate: "{rate} pro Woche",
+    rateSuffix: "pro Woche",
     result: "{target} um {month} · {kcal} kcal am Tag",
     capMarker: "auf die sichere Grenze gekappt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
@@ -535,6 +540,7 @@ const IT: ChatCopy = {
   },
   pace: {
     rate: "{rate} a settimana",
+    rateSuffix: "a settimana",
     result: "{target} verso {month} · {kcal} kcal al giorno",
     capMarker: "limitato al valore di sicurezza",
     floorMarker: "mai sotto {floor} · ogni ritmo arriva qui",
@@ -646,6 +652,7 @@ const ES: ChatCopy = {
   },
   pace: {
     rate: "{rate} a la semana",
+    rateSuffix: "a la semana",
     result: "{target} hacia {month} · {kcal} kcal al día",
     capMarker: "limitado al tope seguro",
     floorMarker: "nunca por debajo de {floor} · cada ritmo llega aquí",
@@ -757,6 +764,7 @@ const VI: ChatCopy = {
   },
   pace: {
     rate: "{rate} một tuần",
+    rateSuffix: "một tuần",
     result: "{target} vào khoảng {month} · {kcal} kcal một ngày",
     capMarker: "đã giới hạn ở mức an toàn",
     floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
@@ -868,6 +876,7 @@ const ID: ChatCopy = {
   },
   pace: {
     rate: "{rate} seminggu",
+    rateSuffix: "seminggu",
     result: "{target} sekitar {month} · {kcal} kcal sehari",
     capMarker: "dibatasi ke batas aman",
     floorMarker: "tidak pernah di bawah {floor} · semua tempo sampai di sini",
@@ -979,6 +988,7 @@ const RU: ChatCopy = {
   },
   pace: {
     rate: "{rate} в неделю",
+    rateSuffix: "в неделю",
     // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
     // CLDR gives us no declension to put after «к».
     result: "{target} — примерно {month} · {kcal} ккал в день",

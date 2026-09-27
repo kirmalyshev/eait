@@ -950,7 +950,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         const promptId = form.get("from");
         const p = walk.find((x) => x.id === promptId);
         const params = new URLSearchParams();
-        for (const a of asked) params.set("asked", a);
+        for (const a of asked) params.append("asked", a);
         const d = form.get("draft");
         if (p?.field !== undefined && d !== null) {
           const n = Number(d);
@@ -1102,7 +1102,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const params = new URLSearchParams();
       const next = editIndex === -1 ? walk[at + 1] : undefined;
       if (next !== undefined && next.kind === "auto") params.set("show", next.id);
-      for (const a of nextAsked) params.set("asked", a);
+      for (const a of nextAsked) params.append("asked", a);
       const qs = params.size === 0 ? "" : `?${params}`;
       return seeOther(`${START_PREFIX}/q${qs}`);
     }

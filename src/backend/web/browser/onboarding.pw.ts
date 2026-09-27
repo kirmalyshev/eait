@@ -88,12 +88,19 @@ test.describe("the walk", () => {
     await page.locator('input[name="answer"]').first()
       .evaluate((el) => { (el as { value: string }).value = "68"; });
     await page.locator('button[type="submit"]').last().click();
-    // … and the stored height is metric, because every unit here is display-only.
+    // The choice carries: the weight ruler opens in pounds without being asked again.
+    await expect(page.locator('input[name="prompt"]')).toHaveAttribute("value", "weight_kg");
+    await expect(page.locator(".bign small").first()).toContainText("lb");
+    await page.locator('input[name="answer"]').first()
+      .evaluate((el) => { (el as { value: string }).value = "163"; });
+    await page.locator('button[type="submit"]').last().click();
+    // … and the stored values are metric, because every unit here is display-only.
     const res = await page.request.get("/v1/profile", {
       headers: { authorization: `Bearer ${await sessionToken(page)}` },
     });
     const body = await res.json();
     expect(Math.abs((body.height_cm ?? body.profile?.height_cm) - 172)).toBeLessThan(1.5);
+    expect(Math.abs((body.weight_kg ?? body.profile?.weight_kg) - 73.9)).toBeLessThan(0.6);
   });
 
   test("the under-16 answer stops the walk and deletes the account", async ({ page }) => {
@@ -110,12 +117,19 @@ test.describe("the walk", () => {
       }
       await page.locator('button[type="submit"]').last().click();
     }
+    // The token before the stop — after the delete it must resolve nothing.
+    const token = await sessionToken(page);
     // 14 is the stop: the confirm is offered once, then the card says nothing was kept.
     await page.getByRole("button", { name: /16 and over|Yes, delete|I'm under/i }).or(
       page.locator('button[name="confirm"]'),
     ).first().click();
     await expect(page.getByText(/16 and over/)).toBeVisible();
     await expect(page.locator('input[name="prompt"]')).toHaveCount(0);
+    // The stop is the account deleted, not a screen shown: the session token resolves nothing.
+    const res = await page.request.get("/v1/profile", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status()).toBe(401);
   });
 
   test("no script at all still reaches the plan", async ({ browser }) => {

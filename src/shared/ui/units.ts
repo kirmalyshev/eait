@@ -120,6 +120,19 @@ export function rulerLabels(ticks: RulerTicks, from: number, to: number): number
   return out;
 }
 
+/**
+ * Where the ruler's gradient sits so a tick lands under the needle: the offset of the window's
+ * centre from the value, wrapped into one period. `major` phases the long ticks by their own
+ * period; both layers get the same raw offset modulo their own period, or the majors drift off
+ * the numbers they mark. The client script recomputes the same phase on drag (it is a hashed
+ * literal and cannot import this); the two agree because the geometry is this one function's.
+ */
+export function rulerTickPhase(ticks: RulerTicks, centre: number, val: number, major = false): number {
+  const period = ticks.pxPerUnit * (major ? ticks.majorEvery : 1);
+  const raw = centre - val * ticks.pxPerUnit;
+  return ((raw % period) + period) % period;
+}
+
 // ── The wire: display value ↔ stored metric ──────────────────────────────────────────────────
 //
 // A ruler drags and a field is typed in the DISPLAYED unit; the store stays metric. These two

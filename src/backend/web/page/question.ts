@@ -8,9 +8,9 @@
 // field (the walk's `?draft=` and the toggle's POST are how a typed value crosses a unit change).
 
 import {
-  capNote, chatCopyFor, fill, heightDisplayValue,
+  BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
   minHealthyWeightKg, numbers, pacePreview, PACES, rulerLabels, RULER_TICKS,
-  optionLabel, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
+  optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
   suggestionFirst, targetRange,
   weightDisplay, weightDisplayValue,
 } from "@eait/shared";
@@ -160,13 +160,6 @@ function numfmt(lang: Lang, v: number): string {
   return Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : numbers(lang)(v);
 }
 
-/** The tick phase: the bg offset that lands a tick under the needle at the current value. */
-function rulerPhase(ticks: RulerTicks, centre: number, val: number, major = false): number {
-  const period = ticks.pxPerUnit * (major ? ticks.majorEvery : 1);
-  const raw = centre - val * ticks.pxPerUnit;
-  return Math.round((((raw % period) + period) % period) * 100) / 100;
-}
-
 function rulerControl(v: QuestionView, cfg: RulerCfg): string {
   const t = cfg.ticks;
   const tickMinor = `repeating-linear-gradient(${cfg.vertical ? "180deg" : "90deg"},var(--line) 0 1.5px,transparent 1.5px ${t.pxPerUnit}px)`;
@@ -189,21 +182,21 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
     cfg.now ? `<span class="lbl hi" style="left:${at(cfg.now.at)}px">${escape(cfg.now.label)}</span>` : "",
   ].join("") : "";
   const bign = cfg.fmt === "ftin"
-    ? `<div class="bign num"><span class="bv">${Math.floor(cfg.val / 12)}′</span><small>ft</small> ` +
-      `<span class="bv bv2">${cfg.val % 12}″</span><small>in</small></div>`
+    ? `<div class="bign num"><span class="bv">${cmToFtIn(cfg.val * 2.54).ft}′</span><small>ft</small> ` +
+      `<span class="bv bv2">${cmToFtIn(cfg.val * 2.54).in}″</span><small>in</small></div>`
     : `<div class="bign num"><span class="bv">${escape(numfmt(v.lang, cfg.val))}</span><small>${escape(cfg.smalls)}</small></div>`;
   const liveShown = cfg.delta && cfg.now && cfg.val !== cfg.now.at;
   const live = cfg.delta && cfg.now
     ? `<div class="live${liveShown ? (cfg.val < cfg.now.at! ? " dn" : " up") : ""}"${liveShown ? "" : ` style="display:none"`}>${
         escape(fill(cfg.val < cfg.now.at! ? cfg.delta.dn : cfg.delta.up, {
-          w: `${numfmt(v.lang, Math.abs(cfg.val - cfg.now.at!))} ${cfg.unitWord}`,
+          weight: `${numfmt(v.lang, Math.abs(cfg.val - cfg.now.at!))} ${cfg.unitWord}`,
         }))}</div>`
     : "";
   const bg = cfg.vertical
-    ? `${tickMinor} 100% ${rulerPhase(t, centre, cfg.val)}px/22px 100% no-repeat,` +
-      `${tickMajor} 100% ${rulerPhase(t, centre, cfg.val, true)}px/22px 100% no-repeat`
-    : `${tickMinor} ${rulerPhase(t, centre, cfg.val)}px 100%/100% 22px repeat-x,` +
-      `${tickMajor} ${rulerPhase(t, centre, cfg.val, true)}px 100%/100% 22px repeat-x`;
+    ? `${tickMinor} 100% ${rulerTickPhase(t, centre, cfg.val)}px/22px 100% no-repeat,` +
+      `${tickMajor} 100% ${rulerTickPhase(t, centre, cfg.val, true)}px/22px 100% no-repeat`
+    : `${tickMinor} ${rulerTickPhase(t, centre, cfg.val)}px 100%/100% 22px repeat-x,` +
+      `${tickMajor} ${rulerTickPhase(t, centre, cfg.val, true)}px 100%/100% 22px repeat-x`;
   return `<div class="ctl" data-ctl="ruler" data-min="${cfg.min}" data-max="${cfg.max}"` +
     ` data-val="${cfg.val}" data-px="${t.pxPerUnit}" data-every="${t.labelEvery}"` +
     ` data-step="${cfg.step}" data-fmt="${cfg.fmt}" data-unitword="${escape(cfg.unitWord)}"` +
@@ -263,20 +256,25 @@ function heightControl(v: QuestionView): { seg: string; control: string } {
   const cm = v.draft ?? stored ?? 170;
   const t = RULER_TICKS.height[v.units];
   const val = heightDisplayValue(cm, v.units);
-  const [min, max] = v.units === "imperial" ? [48, 90] : [120, 230];
+  // The imperial band rounds INWARD: a value the UI admits is always inside the metric band
+  // `checkNumber` enforces, so no bound it shows is one the server refuses.
+  const [min, max] = v.units === "imperial"
+    ? [Math.ceil(heightDisplayValue(BANDS.height_cm[0], "imperial")),
+       Math.floor(heightDisplayValue(BANDS.height_cm[1], "imperial"))]
+    : BANDS.height_cm;
   // Imperial's plain fallback is two fields — "5 ft 8 in" is two numbers, and one box would ask a
   // user to invent a decimal nobody writes. `answer` (total inches) stays the scripted wire.
   const alt = v.units === "imperial"
     ? `<div class="numalt"><label class="lab" for="answer_ft">${escape(v.lines[v.lines.length - 1] ?? "")}</label>` +
-      `<input type="number" name="answer_ft" data-alt value="${Math.floor(val / 12)}" min="3" max="8" step="1" inputmode="numeric" aria-label="ft">` +
-      `<input type="number" name="answer_in" data-alt value="${val % 12}" min="0" max="11" step="1" inputmode="numeric" aria-label="in">` +
+      `<input type="number" name="answer_ft" id="answer_ft" data-alt value="${cmToFtIn(val ? Math.round(val * 2.54) : 0).ft}" min="3" max="8" step="1" inputmode="numeric" aria-label="ft">` +
+      `<input type="number" name="answer_in" id="answer_in" data-alt value="${cmToFtIn(val ? Math.round(val * 2.54) : 0).in}" min="0" max="11" step="1" inputmode="numeric" aria-label="in">` +
       `<span class="uname">ft · in</span></div>` +
       `<input type="hidden" name="answer" value="${val}">`
     : numAlt(v, numInput(v, val, min, max, 1), "cm");
   const ctl = rulerControl(v, {
     ticks: t, val, min, max, step: 1,
     fmt: v.units === "imperial" ? "ftin" : "int",
-    vertical: true, smalls: "cm", unitWord: "cm",
+    vertical: true, smalls: spellUnit(v.lang, "cm"), unitWord: spellUnit(v.lang, "cm"),
   });
   return { seg: unitsSeg(v, "height"), control: ctl + alt };
 }
@@ -286,13 +284,16 @@ function weightControl(v: QuestionView): { seg: string; control: string } {
   const kg = v.draft ?? stored ?? 75;
   const t = RULER_TICKS.weight[v.units];
   const val = weightDisplayValue(kg, v.units);
-  const [min, max] = v.units === "imperial" ? [70, 650] : [30, 300];
+  const [min, max] = v.units === "imperial"
+    ? [Math.ceil(weightDisplayValue(BANDS.weight_kg[0], "imperial")),
+       Math.floor(weightDisplayValue(BANDS.weight_kg[1], "imperial"))]
+    : BANDS.weight_kg;
   const word = v.units === "imperial" ? "lb" : "kg";
   const ctl = rulerControl(v, {
     ticks: t, val, min, max, step: 0.5,
-    fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: word, settle: true,
+    fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: spellUnit(v.lang, word), settle: true,
   });
-  return { seg: unitsSeg(v, "weight"), control: ctl + numAlt(v, numInput(v, val, min, max, 0.5), word) };
+  return { seg: unitsSeg(v, "weight"), control: ctl + numAlt(v, numInput(v, val, min, max, 0.5), spellUnit(v.lang, word)) };
 }
 
 function targetControl(v: QuestionView): { seg: string; control: string } {
@@ -320,14 +321,14 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
     : null;
   const ctl = rulerControl(v, {
     ticks: t, val, min, max, step: 0.5,
-    fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: word, settle: true,
+    fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: spellUnit(v.lang, word), settle: true,
     floor: floorAt !== undefined && lowest !== null ? { at: floorAt, label: lowest } : undefined,
     now: now !== undefined
       ? { at: now, label: fill(copy.target.now, { weight: weightDisplay(nowKg!, v.units, v.lang) }) }
       : undefined,
     delta: { dn: copy.target.deltaDown, up: copy.target.deltaUp },
   });
-  const alt = numAlt(v, numInput(v, val, min, max, 0.5), word) +
+  const alt = numAlt(v, numInput(v, val, min, max, 0.5), spellUnit(v.lang, word)) +
     // The no-JS field cannot draw the refused zone — the marker's words carry it instead.
     (lowest !== null ? `<p class="altline">${escape(lowest)}</p>` : "");
   return { seg: unitsSeg(v, "weight"), control: ctl + alt };
@@ -350,7 +351,7 @@ function paceControl(v: QuestionView): string {
     const unit = cut && cut.length > 1 ? cut[cut.length - 1]! : "";
     return {
       num: cut ? cut.slice(0, -1).join(" ") || "–" : "–",
-      rest: unit + copy.pace.rate.replace("{rate}", ""),
+      rest: `${unit} ${copy.pace.rateSuffix}`,
       disp,
     };
   };

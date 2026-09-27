@@ -1302,6 +1302,17 @@ describe("the v2 questions that write the new fields", () => {
     expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["pescatarian"]);
   });
 
+  it("carries EVERY asked marker forward — the diet's survives the medical write", async () => {
+    const session = await signIn();
+    await walkTo(session, "medical");
+    // Medical is asked while `?asked=diet` still marks the diet answer; a `set` where the list
+    // needs an `append` drops it, and the diet question comes back asking again.
+    const res = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
+    const loc = res.headers.get("location") ?? "";
+    expect(loc).toContain("asked=diet");
+    expect(loc).toContain("asked=medical");
+  });
+
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
     const session = await signIn();
     await walkTo(session, "medical");
@@ -1339,6 +1350,10 @@ describe("the target-weight ruler", () => {
     expect(html).toContain('data-floor="54"');
     expect(html).toContain('data-now="80"');
     expect(html).toContain("lowest we set");
+    // The live delta says how far the needle sits from now, in the copy's own words — a
+    // placeholder left unfilled would print "{weight}" raw inside the live line.
+    expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5 kg<\//);
+    expect(html).not.toMatch(/<div class="live[^>]*>[^<]*\{weight\}/);
   });
 
   it("writes the typed answer straight through — there is no preview state", async () => {

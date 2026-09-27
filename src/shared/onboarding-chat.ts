@@ -440,7 +440,7 @@ export function checkNumber(
   return { ok: true, value: Math.round(value * 10) / 10 };
 }
 
-const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number]> = {
+export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number]> = {
   height_cm: [120, 230],
   // The design says 25 kg; the server refuses anything under `MIN_WEIGHT_KG`, so the lower bound is
   // the server's. A band the client is looser than is a band whose refusals have no words.
