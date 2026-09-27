@@ -127,10 +127,21 @@ export function scriptedLine(
  */
 
 export function startersFor(picked: readonly Struggle[] | null | undefined, lang: Lang): string[] {
+  return starterRowsFor(picked, lang).map((s) => s.text);
+}
+
+/**
+ * The starters WITH the struggle each belongs to — the words-only `startersFor` cannot pair one
+ * with its icon, and a second ordering written beside this one is the drift it exists to prevent.
+ */
+export function starterRowsFor(
+  picked: readonly Struggle[] | null | undefined,
+  lang: Lang,
+): { struggle: Struggle; text: string }[] {
   const starters = threadCopyFor(lang).coachStarters;
   const chosen = STRUGGLES.filter((s) => picked?.includes(s));
   const rest = STRUGGLES.filter((s) => !picked?.includes(s));
-  return [...chosen, ...rest].slice(0, 3).map((s) => starters[s]);
+  return [...chosen, ...rest].slice(0, 3).map((s) => ({ struggle: s, text: starters[s] }));
 }
 
 /**

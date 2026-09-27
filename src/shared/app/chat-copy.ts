@@ -30,7 +30,8 @@
 // is a symbol inside the template — "{n} г" — never a declined word.
 
 import { t, type Localized } from "../lang.ts";
-import type { Lang } from "../types.ts";
+import { STRUGGLES, type Lang, type Struggle } from "../types.ts";
+import type { IconName } from "../ui/icons.ts";
 
 export interface ChatScreenCopy {
   /** First open (web + phone `chat-empty.html`, `chat-coach.html`): Gabie's opening line. */
@@ -60,14 +61,28 @@ export interface ChatScreenCopy {
    * name, TITLE-case as drawn — `MEAL_COPY.macro*` are the tile labels and read lowercase there.
    * A calories or saturated-fat bar reads `verdictNoun` instead of this map.
    */
-  macroLabels: { protein: string; carbs: string; fat: string };
+  /**
+   * `kcal` and `satfat` name the cap, not the macro — the verdict nouns "Calories" and
+   * "Saturated fat" (`verdict.noun.weight`/`ldl`), typed here because this bundle holds no
+   * i18n catalog to call `verdictNoun` with (#145).
+   */
+  macroLabels: { protein: string; carbs: string; fat: string; kcal: string; satfat: string };
   /** The figure beside the bar — "54 of 109 g". `{value}`/`{target}` are `wholeNumbers`. */
   macroOfTarget: string;
   /**
-   * A macro chip's figure on the meal card ("34 g", `chat.html`/`chat-proposal.html`, both
-   * clients). The symbol lives in the template because Russian's is "г", not "g".
+   * The first-open starter rows (`chat-empty.html`, both clients), keyed by the struggle each
+   * asks. The words are `THREAD_COPY`'s `coachStarters` values restated as a Localized map —
+   * the bundle has no catalog (#145), so the row text must sit in a table it can read.
    */
-  gramsChip: string;
+  starters: Record<Struggle, string>;
+  /**
+   * The meal named on ONE line — the focus sheet's caption and the thread's shrunken card alike:
+   * "{name} — {kcal}", `names()` and `kcal()` either side, never a literal join in code.
+   */
+  mealLine: string;
+
+  /** A proposal left unanswered too long (`phone/chat-expired.html`, the web's same card). */
+  expired: string;
 
   /** `states-chat-failed.html`, both clients: the load failure and its button. */
   loadFailed: string;
@@ -107,8 +122,6 @@ export interface ChatScreenCopy {
     sending: string;
     /** The typing indicator's aria-label (`phone/chat-busy.html` — the board's literal reads "Spud", the direction's coach is Gabie: `{coach}`). */
     typing: string;
-    /** A proposal left unanswered too long (`phone/chat-expired.html`). */
-    expired: string;
     /** The outbox row's own words (`phone/states-not-sent.html`); M7's client reads this key. */
     notSent: string;
   };
@@ -118,13 +131,15 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   en: {
     greeting: "Tell me what you ate, or ask me anything.",
     composerAsk: "What did you eat?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Tell {coach} what you ate, or ask",
     proposalCheck: "Logging to today — look right?",
     proposalAccept: "Log it",
     proposalDecline: "No",
-    macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat" },
+    expired: "That one timed out. Describe it again and I'll re-read it.",
+    macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat", kcal: "Calories", satfat: "Saturated fat" },
+    starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?" },
     macroOfTarget: "{value} of {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Couldn't load the conversation.",
     tryAgain: "Try again",
     eitherWorks: "Photograph it or tell me — either works",
@@ -140,20 +155,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Sending",
       typing: "{coach} is typing",
-      expired: "That one timed out. Describe it again and I'll re-read it.",
       notSent: "Not sent — tap to put it back in the box",
     },
   },
   fr: {
     greeting: "Raconte-moi ce que tu as mangé, ou demande-moi n'importe quoi.",
     composerAsk: "Qu'as-tu mangé ?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Dis à {coach} ce que tu as mangé, ou demande",
     proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
     proposalAccept: "Enregistrer",
     proposalDecline: "Non",
-    macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides" },
+    expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
+    macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides", kcal: "Calories", satfat: "Graisses saturées" },
+    starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?" },
     macroOfTarget: "{value} sur {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Impossible de charger la conversation.",
     tryAgain: "Réessayer",
     eitherWorks: "Photographie-le ou raconte-le-moi — les deux marchent",
@@ -169,20 +185,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Envoi",
       typing: "{coach} écrit",
-      expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
       notSent: "Non envoyé — touche pour le remettre dans la boîte",
     },
   },
   de: {
     greeting: "Sag mir, was du gegessen hast, oder frag mich, was du willst.",
     composerAsk: "Was hast du gegessen?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Sag {coach}, was du gegessen hast, oder frag",
     proposalCheck: "Ich trage es für heute ein — passt das?",
     proposalAccept: "Eintragen",
     proposalDecline: "Nein",
-    macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett" },
+    expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
+    macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett", kcal: "Kalorien", satfat: "Gesättigte Fette" },
+    starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Eiweiß?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?" },
     macroOfTarget: "{value} von {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Die Unterhaltung konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
     eitherWorks: "Fotografier es oder sag es mir — beides geht",
@@ -198,20 +215,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Wird gesendet",
       typing: "{coach} schreibt",
-      expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
       notSent: "Nicht gesendet — tippe, um es zurück in die Box zu legen",
     },
   },
   it: {
     greeting: "Dimmi cosa hai mangiato, o chiedimi quello che vuoi.",
     composerAsk: "Cosa hai mangiato?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Di' a {coach} cosa hai mangiato, o chiedi",
     proposalCheck: "Lo registro a oggi — va bene?",
     proposalAccept: "Registralo",
     proposalDecline: "No",
-    macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi" },
+    expired: "Quella è scaduta. Descrivila di nuovo e la rileggo.",
+    macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi", kcal: "Calorie", satfat: "Grassi saturi" },
+    starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?" },
     macroOfTarget: "{value} su {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Impossibile caricare la conversazione.",
     tryAgain: "Riprova",
     eitherWorks: "Fotografalo o dimmelo — uno vale l'altro",
@@ -227,20 +245,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Invio",
       typing: "{coach} sta scrivendo",
-      expired: "Quella è scaduta. Descrivila di nuovo e la rileggo.",
       notSent: "Non inviato — tocca per rimetterlo nel box",
     },
   },
   es: {
     greeting: "Cuéntame qué has comido, o pregúntame lo que sea.",
     composerAsk: "¿Qué has comido?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Dile a {coach} qué has comido, o pregunta",
     proposalCheck: "Lo registro en hoy — ¿te parece bien?",
     proposalAccept: "Registrarla",
     proposalDecline: "No",
-    macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa" },
+    expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
+    macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa", kcal: "Calorías", satfat: "Grasas saturadas" },
+    starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que comí y ya", ideas: "¿Qué ceno hoy?" },
     macroOfTarget: "{value} de {target} g",
-    gramsChip: "{n} g",
     loadFailed: "No se pudo cargar la conversación.",
     tryAgain: "Reintentar",
     eitherWorks: "Fotografíalo o cuéntamelo — cualquiera vale",
@@ -256,20 +275,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Enviando",
       typing: "{coach} está escribiendo",
-      expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
       notSent: "No enviado — toca para devolverlo a la bandeja",
     },
   },
   vi: {
     greeting: "Kể mình nghe bạn đã ăn gì, hoặc hỏi mình bất cứ điều gì.",
     composerAsk: "Bạn đã ăn gì?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Kể {coach} nghe bạn đã ăn gì, hoặc hỏi",
     proposalCheck: "Ghi vào hôm nay — đúng chứ?",
     proposalAccept: "Ghi lại",
     proposalDecline: "Không",
-    macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo" },
+    expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
+    macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hoà" },
+    starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Tôi sẽ kể tôi đã ăn gì", ideas: "Tối nay nên ăn gì?" },
     macroOfTarget: "{value} trên {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Không tải được cuộc trò chuyện.",
     tryAgain: "Thử lại",
     eitherWorks: "Chụp nó hoặc kể mình nghe — cách nào cũng được",
@@ -285,20 +305,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Đang gửi",
       typing: "{coach} đang nhập",
-      expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
       notSent: "Chưa gửi — chạm để đặt lại vào hộp",
     },
   },
   id: {
     greeting: "Beri tahu aku apa yang kamu makan, atau tanyakan apa saja.",
     composerAsk: "Apa yang kamu makan?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Beri tahu {coach} apa yang kamu makan, atau tanya",
     proposalCheck: "Kucatat untuk hari ini — benar?",
     proposalAccept: "Catat",
     proposalDecline: "Tidak",
-    macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak" },
+    expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
+    macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak jenuh" },
+    starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?" },
     macroOfTarget: "{value} dari {target} g",
-    gramsChip: "{n} g",
     loadFailed: "Tidak bisa memuat percakapan.",
     tryAgain: "Coba lagi",
     eitherWorks: "Foto atau ceritakan ke aku — dua-duanya bisa",
@@ -314,20 +335,21 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Mengirim",
       typing: "{coach} sedang mengetik",
-      expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
       notSent: "Belum terkirim — ketuk untuk mengembalikannya ke kotak",
     },
   },
   ru: {
     greeting: "Расскажи, что было на тарелке, или спроси о чём угодно.",
     composerAsk: "Что было на тарелке?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Расскажи {coach}, что было на тарелке, или спроси",
     proposalCheck: "Записываю на сегодня — верно?",
     proposalAccept: "Записать",
     proposalDecline: "Нет",
-    macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры" },
+    expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
+    macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры", kcal: "Калории", satfat: "Насыщенные жиры" },
+    starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?" },
     macroOfTarget: "{value} из {target} г",
-    gramsChip: "{n} г",
     loadFailed: "Не удалось загрузить переписку.",
     tryAgain: "Попробовать ещё раз",
     eitherWorks: "Сфотографируй или расскажи — сработает и так, и так",
@@ -343,10 +365,67 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     phone: {
       sending: "Отправка",
       typing: "{coach} печатает",
-      expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
       notSent: "Не отправлено — нажми, чтобы вернуть в коробку",
     },
   },
 };
 
 export const chatScreenCopyFor = (lang: Lang): ChatScreenCopy => t(lang)(CHAT_SCREEN_COPY);
+
+// ── The option-row icons ───────────────────────────────────────────────────────────────────
+//
+// The starter card and the coach's suggestion rows draw the boards' `.opt` rows — one icon,
+// the words, a chevron. WHICH icon follows the boards (`chat-empty`, `chat-coach`): a starter
+// carries its struggle's own, and a suggestion row takes the macro's when the words name one,
+// else `ideas`. The mapping is shared so W7 and M7 draw the same icon for the same line.
+
+/** Each struggle's starter row's icon, the boards' own pairing. */
+export const STARTER_ICONS: Record<Struggle, IconName> = {
+  consistency: "consistency", habits: "habits", support: "protein", busy: "busy", ideas: "ideas",
+};
+
+const words = (text: string): string[] =>
+  text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 0);
+
+/** True when `phrase` appears in `text` as whole words — never inside a longer word. */
+const hasPhrase = (text: string, phrase: string): boolean => {
+  const hay = words(text);
+  const needle = words(phrase);
+  if (needle.length === 0) return false;
+  outer: for (let i = 0; i + needle.length <= hay.length; i++) {
+    for (let j = 0; j < needle.length; j++) if (hay[i + j] !== needle[j]) continue outer;
+    return true;
+  }
+  return false;
+};
+
+/**
+ * The starter rows in the struggles' own order — the picked struggles first, in `STRUGGLES` list
+ * order, the unpicked filling to three — `shared/chat.ts`'s rule restated against this table,
+ * because `starterRowsFor` there reads the lingui THREAD_COPY and this bundle holds no catalog.
+ */
+export function starterRows(
+  picked: readonly Struggle[] | null | undefined,
+  lang: Lang,
+): { struggle: Struggle; text: string }[] {
+  const starters = chatScreenCopyFor(lang).starters;
+  return [...STRUGGLES.filter((s) => picked?.includes(s)), ...STRUGGLES.filter((s) => !picked?.includes(s))]
+    .slice(0, 3).map((s) => ({ struggle: s, text: starters[s] }));
+}
+
+/**
+ * The icon a coach line's `.opt` row carries (`chat-coach`): a starter's own struggle icon when
+ * the row IS a starter, a macro's icon when the words name a `macroLabels` entry, `ideas`
+ * otherwise. Whole-word, case-insensitive — the boards' rule, in the reader's language.
+ */
+export function coachRowIcon(text: string, lang: Lang): IconName {
+  const starters = chatScreenCopyFor(lang).starters;
+  for (const s of Object.keys(STARTER_ICONS) as Struggle[]) {
+    if (hasPhrase(text, starters[s])) return STARTER_ICONS[s];
+  }
+  const labels = chatScreenCopyFor(lang).macroLabels;
+  for (const [m, label] of Object.entries(labels)) {
+    if (hasPhrase(text, label)) return m as IconName;
+  }
+  return "ideas";
+}

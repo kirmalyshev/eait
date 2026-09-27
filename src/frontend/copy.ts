@@ -12,7 +12,7 @@
 // `node_modules/@eait/shared`, which exists only after `bun install`, and `deploy/Dockerfile.web`
 // builds this bundle with neither. `@eait/shared` stays TYPES ONLY in this workspace.
 
-import { t, type Localized } from "../shared/lang.ts";
+import { t, type CountForms, type Localized } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 export interface WebCopy {
@@ -163,6 +163,8 @@ export interface WebCopy {
   photosMax: string;
   /** `{n}` — photos already on the meal being re-read. */
   photosOnMeal: string;
+  /** The picker's chosen count under the composer — plural by rule, not a "(s)". */
+  photosCount: CountForms;
   /** `{text}` — a queued photo's caption. */
   photoWithCaption: string;
   /** The three macros the verdict card reports, under the big kcal. */
@@ -258,6 +260,7 @@ const EN: WebCopy = {
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
   photosOnMeal: "Photos: {n} · add angles:",
+  photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
@@ -357,6 +360,7 @@ const FR: WebCopy = {
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
   photosOnMeal: "Photos : {n} · ajoute des angles :",
+  photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
@@ -456,6 +460,7 @@ const DE: WebCopy = {
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
   photosOnMeal: "Fotos: {n} · weitere Blickwinkel:",
+  photosCount: { one: "{n} Foto", few: "{n} Fotos", many: "{n} Fotos", other: "{n} Fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
@@ -555,6 +560,7 @@ const IT: WebCopy = {
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
   photosOnMeal: "Foto: {n} · aggiungi angolazioni:",
+  photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
@@ -654,6 +660,7 @@ const ES: WebCopy = {
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
   photosOnMeal: "Fotos: {n} · añade ángulos:",
+  photosCount: { one: "{n} foto", few: "{n} fotos", many: "{n} fotos", other: "{n} fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
@@ -753,6 +760,7 @@ const VI: WebCopy = {
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
   photosOnMeal: "Ảnh: {n} · thêm góc chụp:",
+  photosCount: { one: "{n} bức ảnh", few: "{n} bức ảnh", many: "{n} bức ảnh", other: "{n} bức ảnh" },
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
   refusals: {
@@ -852,6 +860,7 @@ const ID: WebCopy = {
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
   photosOnMeal: "Foto: {n} · tambah sudut:",
+  photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
   refusals: {
@@ -951,6 +960,7 @@ const RU: WebCopy = {
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
   photosOnMeal: "Фото: {n} · добавь ракурсы:",
+  photosCount: { one: "{n} фото", few: "{n} фото", many: "{n} фото", other: "{n} фото" },
   photoWithCaption: "Фото: {text}",
   statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {

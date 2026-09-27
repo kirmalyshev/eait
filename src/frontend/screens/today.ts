@@ -5,7 +5,7 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, countText, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
   DayResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
@@ -13,6 +13,7 @@ import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import type { Localized } from "../../shared/lang.ts";
 import {
   COPY, PENDING, composerRow, el, clear, firstMealDue, heldProposal, kcal, lang, profile,
@@ -237,7 +238,15 @@ async function diaryScreen(): Promise<HTMLElement> {
     const held = heldProposal();
     if (held !== null && day.meals.some((m) => m.id === held.pendingId)) setHeldProposal(null);
     if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) setHeldProposal(null);
-    if (heldProposal() !== null) parts.push(proposalCard(heldProposal()!, turn));
+    if (heldProposal() !== null) {
+      const p = heldProposal()!;
+      const home = homeCopyFor(lang);
+      parts.push(proposalCard(p, turn, {
+        lead: home.webProposalLead.replace("{day}", p.date === today ? home.todayWord : dateText(p.date)),
+        accept: home.webLogIt,
+        decline: home.webProposalNo,
+      }));
+    }
     clear(board).append(...parts);
   }
 
@@ -245,11 +254,11 @@ async function diaryScreen(): Promise<HTMLElement> {
   // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
   const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
-  const comp = composerRow(COPY.diaryPlaceholder);
+  const comp = composerRow(homeCopyFor(lang).webComposerPlaceholder);
   const { picker, words, send, count } = comp;
   const arm = (): void => {
     const picked = picker.files?.length ?? 0;
-    count.textContent = picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     count.hidden = count.textContent === "";
     send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
   };

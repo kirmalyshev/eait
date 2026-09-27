@@ -24,17 +24,21 @@
 // requires; the ones below are the runtime pieces this page needs, and a relative import of the
 // file they live in costs nothing the Dockerfile does not already pay for.
 import { shellCopyFor } from "../shared/app/shell-copy.ts";
+import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
-import { UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
+import { localDate, windowStart } from "../shared/dates.ts";
 import type { Lang } from "../shared/types.ts";
-import type { MealProposed, MealRecord } from "@eait/shared";
+import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
-  ProfileResponse, ROUTES,
+  DayResponse, DaysResponse, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
-import { webCopyFor, type WebCopy } from "./copy.ts";
+import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
+import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
 
@@ -71,6 +75,8 @@ export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
+// `POST /v1/meals/:id/photos` — another angle of a logged meal, stored not charged (#304).
+export const MEAL_PHOTOS: (id: string) => `/meals/${string}/photos` = (id) => `${MEAL(id)}/photos`;
 export const CONFIRM: (id: string) => `/meals/pending/${string}/confirm` = (id) => `${PENDING}/${encodeURIComponent(id)}/confirm`;
 
 export const root = (): HTMLElement => document.getElementById("app")!;
@@ -308,12 +314,36 @@ export function takeTurn(
  * The proposal a text turn is holding, until it is logged or dropped — one card, on whichever
  * screen is up (the thread's, or beside the diary's own composer since #52).
  */
-export function proposalCard(p: MealProposed, turn: (write: () => Promise<string | void>) => void): HTMLElement {
+export function proposalCard(
+  p: MealProposed,
+  turn: (write: () => Promise<string | void>) => void,
+  words: { lead: string; accept: string; decline: string; expired?: string },
+): HTMLElement {
+  // The boards' proposal (`chat-proposal`): the question over the card, the card — name, kcal,
+  // the macro chips, the verdict dots — then the two ctas and the turn's time. An EXPIRED one
+  // keeps the card but its offers are gone — the timed-out line stands where they sat
+  // (`phone/chat-expired.html`'s draw), because a dead button is worse than the words.
+  const wrap = el("div", "prop");
+  const lead = el("div", "t13 m pl-lead", words.lead);
   const card = el("div", "card");
-  card.append(el("p", "muted", COPY.proposalLead));
-  card.append(el("p", "", `${names(p.analysis.items)} — ${kcal(p.analysis.kcal)}`));
-  for (const [verb, label, className] of [["confirm", COPY.logIt, "primary"], ["cancel", COPY.notThis, ""]] as const) {
-    const b = el("button", className, label) as HTMLButtonElement;
+  const head = el("div", "row between");
+  const num = el("span", "num row");
+  num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
+    el("span", "m t12", UNIT_KCAL[lang]));
+  head.append(el("b", "pl-name", names(p.analysis.items)), num);
+  const macs = el("div", "pl-macs");
+  macs.append(gramMacsEl({ protein: p.analysis.protein_g, carbs: p.analysis.carbs_g, fat: p.analysis.fat_g }));
+  card.append(head, macs);
+  // The dots' words are the payload's own — the bundle holds no catalog to compose them (#145).
+  const vs = verdictListEl((p.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
+  if (vs !== null) card.append(el("div", "hr"), vs);
+  if (words.expired !== undefined) {
+    wrap.append(lead, card, el("p", "t13 m pl-expired", words.expired), el("div", "ts", timeFmt(new Date())));
+    return wrap;
+  }
+  const actions = el("div", "row pl-actions");
+  for (const [verb, label, kind] of [["confirm", words.accept, "p"], ["cancel", words.decline, "s"]] as const) {
+    const b = ctaEl({ text: label, kind }) as HTMLButtonElement;
     b.addEventListener("click", () => turn(async () => {
       let r: PendingResponse;
       try {
@@ -326,30 +356,35 @@ export function proposalCard(p: MealProposed, turn: (write: () => Promise<string
         // check" would wipe it (it lives only in this page), and describing the meal again is a
         // second paid analysis.
         if (refusalWords(err) === maybeLanded()) {
-          // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
-          // was asked for holds whether or not it landed — and offering the card again would put
-          // it back under the server's own COPY.dropped (#529).
-          if (verb === "cancel") { setHeldProposal(null); card.remove(); return; }
+          // A lost decline needs no second press: nothing is logged without a confirm, so what was
+          // asked for holds whether or not it landed — and offering the card again would put it
+          // back under the server's own dropped line (#529).
+          if (verb === "cancel") { setHeldProposal(null); wrap.remove(); return; }
           throw new Said(COPY.logRetry);
         }
         if (!(err instanceof ApiError && err.status === 410)) throw err;
         // 410: no longer held, and never will be again, so the card goes rather than offering a
-        // dead button. For COPY.notThis that is the outcome that was asked for, and it says nothing.
+        // dead button. For a decline that is the outcome that was asked for, and it says nothing.
         setHeldProposal(null);
-        if (verb === "confirm") { card.remove(); throw err; }
+        if (verb === "confirm") { wrap.remove(); throw err; }
         return;
       }
       // The card goes with its offer, not only when the redraw after it succeeds (#529): a failed
       // thread fetch left COPY.sent under a card still offering Log it.
       setHeldProposal(null);
-      card.remove();
+      wrap.remove();
       // A confirm got there first and its answer never came back: the meal stays logged.
       if (verb === "cancel" && r.kind === "logged") return COPY.alreadyLogged;
     }));
-    card.append(b);
+    actions.append(b);
   }
-  return card;
+  wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
+  return wrap;
 }
+
+/** A line's "13:05" — the hour and minute, in the reader's own calendar. */
+export const timeFmt = (d: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "2-digit", minute: "2-digit" }).format(d);
 
 export function textField(placeholder: string): HTMLInputElement {
   const input = el("input", "") as HTMLInputElement;
@@ -373,20 +408,25 @@ export function composerRow(placeholder: string): {
   form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
   words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
 } {
+  const shell = shellCopyFor(lang);
   const form = el("form", "comp") as HTMLFormElement;
   const picker = el("input", "visually-hidden") as HTMLInputElement;
   picker.type = "file";
   picker.accept = "image/jpeg,image/png,image/webp";
   picker.multiple = true;
   picker.setAttribute("aria-label", COPY.photosOfOneMeal);
-  const add = el("button", "add", COPY.addPhoto) as HTMLButtonElement;
+  const row = el("div", "compose");
+  const add = el("button", "ib", "") as HTMLButtonElement;
   add.type = "button";
+  add.setAttribute("aria-label", shell.composerPhoto);
+  add.append(el("i", "ico i-upload"));
   add.addEventListener("click", () => picker.click());
-  const row = el("div", "comp-row");
   const words = textField(placeholder);
-  words.className = "fld";
-  const send = el("button", "send", "↑") as HTMLButtonElement;
-  send.setAttribute("aria-label", COPY.send);
+  words.className = "box";
+  const send = el("button", "ib p", "") as HTMLButtonElement;
+  send.type = "submit";
+  send.setAttribute("aria-label", shell.composerSend);
+  send.append(el("i", "ico i-send"));
   row.append(add, words, send);
   const count = el("span", "count", "");
   count.hidden = true;
@@ -451,12 +491,37 @@ export function refusalWords(err: unknown): string {
 export const names = (items: readonly { name: string }[]): string =>
   items.slice(0, 2).map((i) => i.name).join(", ") || COPY.meal;
 
+/**
+ * One meal by id, wherever the diary window holds it — today first, then the logged days behind
+ * it newest-first (#93's focus handoff; a meal is correctable for the whole window, not just
+ * today). `{day, meal: null}` is the answer when the id names nothing the caller may read.
+ *
+ * The range is the contract's own widest read, imported as the value — `contract.ts` is on the
+ * bundle's whitelist, a retyped 31 is two copies of one bound.
+ */
+export async function findMeal(
+  mealId: string, zone: string, date?: string,
+): Promise<{ day: DayResponse; meal: MealRecord | null }> {
+  const first = await api<DayResponse>(`/diary/day?date=${date ?? localDate(zone)}`);
+  const hit = first.meals.find((m) => m.id === mealId);
+  if (hit !== undefined || date !== undefined) return { day: first, meal: hit ?? null };
+  const window = await api<DaysResponse>(
+    `/diary/days?from=${windowStart(first.date, DIARY_RANGE_MAX_DAYS)}&to=${first.date}`);
+  for (const d of [...window.days].reverse()) {
+    if (!d.logged || d.date === first.date) continue;
+    const other = await api<DayResponse>(`/diary/day?date=${d.date}`);
+    const m = other.meals.find((x) => x.id === mealId);
+    if (m !== undefined) return { day: other, meal: m };
+  }
+  return { day: first, meal: null };
+}
+
 /** What an assistant meal card says in the thread, from the meal it still points at. */
 export function mealLine(meal: MealRecord | null): string {
   // Null once the meal is deleted, and the id outlives it deliberately — so the thread says
   // something rather than rendering an empty bubble.
   if (meal === null) return COPY.mealGone;
-  return `${names(meal.items)} — ${kcal(meal.kcal)}`;
+  return fill(chatScreenCopyFor(lang).mealLine, { name: names(meal.items), kcal: kcal(meal.kcal) });
 }
 
 /** What a turn kept for later says, once, under the composer (#708). No cause: offline and an edge are both this. */
@@ -608,7 +673,9 @@ export async function render(): Promise<void> {
   wrap.append(body);
   if (!signedIn()) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
 
-  const route = location.hash || "#/";
+  // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
+  // take, #93/#94).
+  const route = routeBase(location.hash || "#/");
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {
