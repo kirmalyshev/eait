@@ -22,6 +22,7 @@ import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { blobSrc, gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
+import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
@@ -485,16 +486,18 @@ export async function chatScreen(): Promise<HTMLElement> {
     // THE SERVER'S NUMBERS, off the profile, never compiled in: they differ between environments,
     // and a person should hear "too many" before the upload rather than after it.
     if (me !== null && (editing !== null || files.length > 0)) {
-      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      const { maxPhotosPerMeal } = me.limits;
       const stored = editing !== null ? editing.photos : (focusMeal?.photos ?? 0);
       if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
-      if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
       liveAnswer = null;
+      // What goes up is the resized frame — the byte cap weighs it, not what was picked.
+      const shrunk = await shrinkPhotos(files);
+      if (me !== null && shrunk.reduce((n, f) => n + f.size, 0) > me.limits.maxUploadBytes) throw new Said(COPY.photoTooLarge);
       // Several files are ANGLES OF ONE MEAL, `photo` fields like the app's.
       const form = new FormData();
-      for (const f of files) form.append("photo", f);
+      for (const f of shrunk) form.append("photo", f);
       if (editing !== null) {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
@@ -540,7 +543,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       }
       if (files.length > 0) {
         const saved = await sendOrKeep({
-          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: files,
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
           capturedAt: new Date().toISOString(),
         }, { onResult: rememberLive });
         picker.value = "";

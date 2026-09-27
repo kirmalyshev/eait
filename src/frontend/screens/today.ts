@@ -26,10 +26,11 @@ import {
   blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
 } from "../kit.ts";
 import {
-  COPY, DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
+  COPY, DAYS, PENDING, Said, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
   keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
+import { shrinkPhotos } from "../photo.ts";
 
 async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const wrap = el("section", "home");
@@ -305,18 +306,20 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (files.length === 0 && text === "") return;
     // THE SERVER'S NUMBERS, off the profile — the same bounds the chat's composer checks.
     if (files.length > 0) {
-      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      const { maxPhotosPerMeal } = me.limits;
       if (files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
-      if (files.reduce((t, f) => t + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
+      // What goes up is the resized frame — the byte cap weighs it, not what was picked.
+      const shrunk = await shrinkPhotos(files);
+      if (shrunk.reduce((t, f) => t + f.size, 0) > me.limits.maxUploadBytes) throw new Said(COPY.photoTooLarge);
       // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
       // landed, not a past day the strip was looking at.
       viewing = today;
       const saved = await sendOrKeep({
         id: crypto.randomUUID(), userId: uid, capturedAt: new Date().toISOString(),
-        kind: files.length > 0 ? "photo" : "text", text: text === "" ? null : text,
-        photos: files,
+        kind: shrunk.length > 0 ? "photo" : "text", text: text === "" ? null : text,
+        photos: shrunk,
       });
       picker.value = "";
       words.value = "";

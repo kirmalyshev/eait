@@ -446,7 +446,8 @@ alter table meals add column if not exists question jsonb;
 
 -- The photo lives with the meal. user_id is on the row as well as reachable through the meal, so
 -- a read is meal_id AND user_id with no join, and the cascade from users erases it even if a
--- meal were ever orphaned. Bytes as uploaded (1280 px JPEG from the app); no thumbnail column.
+-- meal were ever orphaned. Bytes as uploaded (the clients cap the long edge at 768 px, JPEG);
+-- no thumbnail column.
 create table if not exists meal_photos (
   id         uuid primary key,
   meal_id    uuid not null references meals(id) on delete cascade,

@@ -32,6 +32,7 @@ import {
 } from "../shell.ts";
 import type { Frame } from "../shell.ts";
 import { outbox, type WebQueued } from "../outbox.ts";
+import { shrinkPhotos } from "../photo.ts";
 import {
   ctaEl, gramMacsEl, kitEl, optionRowEl, photoHeroEl, spudAvatarEl, verdictListEl,
 } from "../kit.ts";
@@ -87,6 +88,8 @@ export function logScreen(frame: Frame): HTMLElement {
         : null;
 
   let picked: File[] = [];
+  // Picks race each other — a slow first shrink must not overwrite a newer, faster one.
+  let pickSeq = 0;
   let photoUrl = "";
   let captured = new Date();
   let notice: HTMLElement | null = null;
@@ -133,7 +136,7 @@ export function logScreen(frame: Frame): HTMLElement {
   file.type = "file";
   file.accept = "image/jpeg,image/png,image/webp";
   file.addEventListener("change", () => {
-    takeFiles([...file.files ?? []]);
+    void takeFiles([...file.files ?? []]);
     file.value = "";
   });
 
@@ -143,21 +146,25 @@ export function logScreen(frame: Frame): HTMLElement {
   drop.setAttribute("role", "button");
   drop.append(kitEl(icoMarkup("upload")), dropLead, el("small", "", L.web.chooseFile), file);
 
-  const takeFiles = (files: File[]): void => {
+  const takeFiles = async (files: File[]): Promise<void> => {
     notice?.remove();
     // The server's own limits, sent on the profile — a client-side default would guess.
     if (files.length > me.limits.maxPhotosPerMeal) {
       tell(fill(COPY.photosMax, { n: n(me.limits.maxPhotosPerMeal) }));
       return;
     }
-    if (files.reduce((sum, f) => sum + f.size, 0) > me.limits.maxUploadBytes) {
+    const mine = ++pickSeq;
+    // Resized BEFORE the byte check: the cap weighs what goes up, not what was picked.
+    const shrunk = await shrinkPhotos(files);
+    if (mine !== pickSeq) return;
+    if (shrunk.reduce((sum, f) => sum + f.size, 0) > me.limits.maxUploadBytes) {
       tell(COPY.photoTooLarge);
       return;
     }
-    picked = files;
+    picked = shrunk;
     dropLead.textContent = picked.map((f) => f.name).join(", ") || L.web.dropHint;
   };
-  takeFiles([]);
+  void takeFiles([]);
 
   drop.addEventListener("click", () => file.click());
   drop.addEventListener("keydown", (e) => {
@@ -168,7 +175,7 @@ export function logScreen(frame: Frame): HTMLElement {
   drop.addEventListener("drop", (e) => {
     e.preventDefault();
     drop.classList.remove("over");
-    takeFiles([...e.dataTransfer?.files ?? []]);
+    void takeFiles([...e.dataTransfer?.files ?? []]);
   });
 
   const note = el("input", "lognote") as HTMLInputElement;
