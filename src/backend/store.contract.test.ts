@@ -2203,7 +2203,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
       const at = new Date().toISOString();
-      const e = { id: `dup-${RUN}`, sessionId: `sess-${RUN}`, place: "about" as const, action: "view" as const, contentVersion: 1, at };
+      const e = { id: `dup-${RUN}`, sessionId: `sess-${RUN}`, place: "sex" as const, action: "view" as const, contentVersion: 1, at };
 
       expect(await s.recordOnboardingEvents(u, [e])).toBe(1);
       expect(await s.recordOnboardingEvents(u, [e])).toBe(0);

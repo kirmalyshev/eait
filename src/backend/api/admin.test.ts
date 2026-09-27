@@ -206,8 +206,8 @@ describe("editing the copy", () => {
   it("saves the interstitials and serves them to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     content.welcome.lines = ["Photograph dinner. Get a straight answer.", "Ready when you are."];
-    content.building.floorLabel = "Stopped at your floor";
-    content.summary.projection = "Roughly {weeks} weeks — {month}.";
+    content.building.floorTitle = "Stopped at your floor of {floor} kcal";
+    content.summary.capNote = "Roughly {share}% of what your body burns — the safe version.";
 
     expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
 
@@ -217,8 +217,8 @@ describe("editing the copy", () => {
     }));
     const body = await res.json() as { content: OnboardingContent };
     expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "Ready when you are."]);
-    expect(body.content.building.floorLabel).toBe("Stopped at your floor");
-    expect(body.content.summary.projection).toBe("Roughly {weeks} weeks — {month}.");
+    expect(body.content.building.floorTitle).toBe("Stopped at your floor of {floor} kcal");
+    expect(body.content.summary.capNote).toBe("Roughly {share}% of what your body burns — the safe version.");
   });
 
   it("422s an interstitial the app could not render", async () => {
