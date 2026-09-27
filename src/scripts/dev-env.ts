@@ -176,6 +176,16 @@ export interface WorktreePlan {
   webPort: number;
   /** Where a browser reaches it. Also `EAIT__BACKEND__PUBLIC_WEB_URL` for this worktree. */
   webUrl: string;
+  /**
+   * The browser suite's three servers (#138): the `/start` backend, the web application, and the
+   * application's own backend — at offsets 2, 5 and 6 of the slot's ten, NOT consecutive.
+   *
+   * Within a slot's range the last digit is the whole collision question, because every ladder on
+   * this machine steps by ten: the private monorepo's end in 7, 8, 1 and 3, which is offsets 3, 4,
+   * 7 and 9 here, and 0 and 1 are this slot's own dev services. 2, 5, 6 and 8 are the only offsets
+   * left that can never meet any of those at any slot, and the suite takes three of them.
+   */
+  e2ePorts: { start: number; app: number; appBackend: number };
   dbName: string;
   databaseUrl: string;
   /**
@@ -210,6 +220,7 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
     backendPort,
     webPort,
     webUrl: `http://${apiHost}:${webPort}`,
+    e2ePorts: { start: backendPort + 2, app: backendPort + 5, appBackend: backendPort + 6 },
     dbName,
     databaseUrl: `${pgBase}/${dbName}`,
     testDbName,
@@ -570,8 +581,17 @@ if (import.meta.main) {
     // derivation. Printed from the constant rather than spelled again in sh, where a second copy
     // would go stale the next time a key is added.
     else if (cmd === "derived-keys") console.log(DERIVED_KEYS.join(" "));
+    // For `playwright.config.ts`, which cannot IMPORT this file — playwright loads its config as
+    // CommonJS and `require` of this module dies on `import.meta.main`. It asks for the three
+    // ports as a subprocess instead, and the claim is persisted exactly as `setup` does: a suite
+    // that runs before the first `./dev up` still holds the slot `./dev up` will later read.
+    else if (cmd === "e2e-ports") {
+      const { res, plan } = resolveHere(root);
+      if (res.persist) writeFileSync(join(root, SLOT_FILE), `${plan.slot}\n`);
+      console.log(`${plan.e2ePorts.start} ${plan.e2ePorts.app} ${plan.e2ePorts.appBackend}`);
+    }
     else {
-      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check | clean | derived-keys`);
+      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check | clean | derived-keys | e2e-ports`);
       process.exit(2);
     }
   } catch (e) {
