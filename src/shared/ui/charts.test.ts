@@ -9,8 +9,9 @@ import {
   dayRing,
   dayTone,
   estimateAreaPath,
+  estimateChart,
   estimateCurvePath,
-  ESTIMATE_CHART,
+  ESTIMATE_CHART_MINI,
   goalBar,
   ringDash,
   TWO_WAYS_CHART,
@@ -54,42 +55,58 @@ describe("ringDash — the share of a ring's circumference to draw", () => {
 
 describe("dayTone — what a day in the week strip is allowed to say", () => {
   test("accent at or under the plan, bad past it, and never amber", () => {
-    expect(dayTone(1066, 1434)).toBe("accent");
-    expect(dayTone(1434, 1434)).toBe("accent"); // at the plan is on plan
-    expect(dayTone(1812, 1434)).toBe("bad");
+    expect(dayTone({ kcal: 1066, logged: true, when: "today" }, 1434)).toBe("accent");
+    expect(dayTone({ kcal: 1434, logged: true, when: "past" }, 1434)).toBe("accent");
+    expect(dayTone({ kcal: 1812, logged: true, when: "past" }, 1434)).toBe("bad");
   });
 
-  test("a logged day with nothing in it is still a day: accent at zero share", () => {
-    expect(dayTone(0, 1434)).toBe("accent");
+  test("today with nothing logged yet keeps the instrument: accent at zero share", () => {
+    // today-empty.html draws today's ring as the accent arc fully offset — the solid track alone.
+    expect(dayTone({ kcal: null, logged: false, when: "today" }, 1434)).toBe("accent");
   });
 
-  test("dotted when nothing is logged at all", () => {
-    expect(dayTone(null, 1434)).toBe("dotted");
+  test("a past day with nothing logged is dotted", () => {
+    // DIRECTION: dotted when nothing is logged.
+    expect(dayTone({ kcal: null, logged: false, when: "past" }, 1434)).toBe("dotted");
   });
 
-  test("faded for a future day", () => {
-    expect(dayTone(null, 1434, true)).toBe("faded");
-    expect(dayTone(0, 1434, true)).toBe("faded");
+  test("a future day is faded — the dimmed cell over the dotted ring", () => {
+    expect(dayTone({ kcal: null, logged: false, when: "future" }, 1434)).toBe("faded");
   });
 });
 
 describe("dayRing — the week-strip ring, tone and dash together", () => {
   test("a logged day under plan", () => {
-    const r = dayRing(1066, 1434);
+    const r = dayRing({ kcal: 1066, logged: true, when: "today" }, 1434);
     expect(r.tone).toBe("accent");
     expect(r.dasharray).toBe("75.4");
     expect(r.dashoffset).toBe("19.3");
   });
 
   test("an over-plan day closes the ring in bad", () => {
-    const r = dayRing(1812, 1434);
+    // today-past.html: the Sunday, 1,812 of 1,434, is the full ring in --bad.
+    const r = dayRing({ kcal: 1812, logged: true, when: "past" }, 1434);
     expect(r.tone).toBe("bad");
     expect(r.dashoffset).toBe("0.0");
   });
 
-  test("nothing logged and a future day both draw the dotted placeholder", () => {
-    expect(dayRing(null, 1434)).toEqual({ tone: "dotted", dasharray: WEEK_RING.dottedDash });
-    expect(dayRing(null, 1434, true)).toEqual({ tone: "faded", dasharray: WEEK_RING.dottedDash });
+  test("today's empty ring is accent at zero, exactly as today-empty.html draws it", () => {
+    expect(dayRing({ kcal: null, logged: false, when: "today" }, 1434)).toEqual({
+      tone: "accent",
+      dasharray: "75.4",
+      dashoffset: "75.4",
+    });
+  });
+
+  test("a past day with nothing logged and a future day both draw the dotted placeholder", () => {
+    expect(dayRing({ kcal: null, logged: false, when: "past" }, 1434)).toEqual({
+      tone: "dotted",
+      dasharray: WEEK_RING.dottedDash,
+    });
+    expect(dayRing({ kcal: null, logged: false, when: "future" }, 1434)).toEqual({
+      tone: "faded",
+      dasharray: WEEK_RING.dottedDash,
+    });
   });
 });
 
@@ -105,27 +122,45 @@ describe("the estimate curve — a drawn shape, not read data", () => {
     );
   });
 
-  test("the canonical chart is the board's: viewBox, dots, chip, labels", () => {
-    expect(ESTIMATE_CHART.viewBox).toBe("0 0 320 168");
-    expect(ESTIMATE_CHART.linePath.startsWith("M20 34")).toBe(true);
-    expect(ESTIMATE_CHART.linePath.endsWith("292 110")).toBe(true);
-    expect(ESTIMATE_CHART.baseline).toEqual({ x1: 20, x2: 300, y: 138 });
-    expect(ESTIMATE_CHART.startDot).toEqual({ cx: 20, cy: 34, r: 5 });
-    expect(ESTIMATE_CHART.endDot).toMatchObject({ cx: 292, cy: 110, r: 6 });
-    expect(ESTIMATE_CHART.targetChip).toMatchObject({ x: 198, y: 68, width: 106, height: 28, rx: 8 });
-    expect(ESTIMATE_CHART.startLabel).toEqual({ x: 20, y: 22 });
-    expect(ESTIMATE_CHART.nowLabel).toEqual({ x: 20, y: 158 });
-    expect(ESTIMATE_CHART.monthLabel).toEqual({ x: 300, y: 158 });
+  test("the canonical chart for a lose goal is the board's, verbatim", () => {
+    const c = estimateChart("lose");
+    expect(c.viewBox).toBe("0 0 320 168");
+    expect(c.linePath).toBe("M20 34 C110 34 200 110 292 110");
+    expect(c.areaPath).toBe("M20 34 C110 34 200 110 292 110 L292 138 L20 138 Z");
+    expect(c.baseline).toEqual({ x1: 20, x2: 300, y: 138 });
+    expect(c.startDot).toEqual({ cx: 20, cy: 34, r: 5 });
+    expect(c.endDot).toMatchObject({ cx: 292, cy: 110, r: 6 });
+    expect(c.targetChip).toMatchObject({ x: 198, y: 68, width: 106, height: 28, rx: 8 });
+    expect(c.startLabel).toEqual({ x: 20, y: 22 });
+    expect(c.nowLabel).toEqual({ x: 20, y: 158 });
+    expect(c.monthLabel).toEqual({ x: 300, y: 158 });
+  });
+
+  test("a gain goal mirrors the curve vertically and the chip follows the end", () => {
+    const c = estimateChart("gain");
+    expect(c.linePath).toBe("M20 110 C110 110 200 34 292 34");
+    expect(c.areaPath).toBe("M20 110 C110 110 200 34 292 34 L292 138 L20 138 Z");
+    expect(c.startDot).toEqual({ cx: 20, cy: 110, r: 5 });
+    expect(c.endDot).toMatchObject({ cx: 292, cy: 34, r: 6 });
+    expect(c.targetChip).toMatchObject({ x: 198, y: 48, width: 106, height: 28, rx: 8 });
+    expect(c.startLabel).toEqual({ x: 20, y: 122 });
+    // The axis and its captions do not move.
+    expect(c.baseline).toEqual({ x1: 20, x2: 300, y: 138 });
+    expect(c.nowLabel).toEqual({ x: 20, y: 158 });
+  });
+
+  test("How it works' mini chart is its own fixed frame", () => {
+    expect(ESTIMATE_CHART_MINI.viewBox).toBe("0 0 320 96");
+    expect(ESTIMATE_CHART_MINI.linePath).toBe("M16 18 C100 18 180 70 296 70");
+    expect(ESTIMATE_CHART_MINI.areaPath).toBe("M16 18 C100 18 180 70 296 70 L296 88 L16 88 Z");
+    expect(ESTIMATE_CHART_MINI.startDot).toEqual({ cx: 16, cy: 18, r: 4.5 });
+    expect(ESTIMATE_CHART_MINI.endDot).toMatchObject({ cx: 296, cy: 70, r: 5 });
+    expect(ESTIMATE_CHART_MINI.targetChip).toMatchObject({ x: 212, y: 34, width: 92, height: 24 });
+    expect(ESTIMATE_CHART_MINI.startLabel).toEqual({ x: 16, y: 10 });
   });
 });
 
 describe("the with-a-plan vs without chart — two fixed shapes, no numbers", () => {
-  test("its accessible name is the challenge-8 wording, exactly", () => {
-    expect(TWO_WAYS_CHART.a11yName).toBe(
-      "Weight over time, drawn two ways: with a plan and without",
-    );
-  });
-
   test("the two drawn shapes and the shared start", () => {
     expect(TWO_WAYS_CHART.viewBox).toBe("0 0 320 170");
     expect(TWO_WAYS_CHART.withoutPath).toBe("M16 36 C70 44 92 96 150 94 S230 64 304 40");
@@ -205,6 +240,18 @@ describe("weekBars — the week's intake against the plan", () => {
     expect(bar).not.toBeNull();
     expect(bar?.tone).toBe("bad");
     expect(bar && bar.y < c.planLine.y).toBe(true);
+  });
+
+  test("a maintain-scale plan still fits the viewBox — the scale yields to the data", () => {
+    // plan 2,800 with a 3,200-kcal day: the fixed 100/1900 scale would put the plan line at y −29.
+    const c = weekBars([2600, 3200, 2400, 2100, null, null, null], 2800, 3);
+    expect(c.planLine.y).toBeGreaterThanOrEqual(0);
+    expect(c.planLabel.y).toBeGreaterThanOrEqual(0);
+    for (const bar of c.bars) {
+      if (bar === null) continue;
+      expect(bar.y).toBeGreaterThanOrEqual(0);
+      expect(bar.y + bar.height).toBeLessThanOrEqual(118);
+    }
   });
 });
 

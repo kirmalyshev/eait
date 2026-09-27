@@ -29,20 +29,34 @@ export function ringDash(share: number, r: number): { dasharray: number; dashoff
 }
 
 /**
+ * One day on the week strip, as the data knows it.
+ *
+ * `logged` is whether the diary holds anything for the day — it is NOT the same question as
+ * `kcal > 0`, because "nothing recorded" draws differently on different days: today keeps its
+ * instrument (the solid track, an accent ring at zero share), a past day gets the dotted
+ * placeholder, and a future day is faded. `kcal` is the day's total and may be null while the
+ * day itself is already known.
+ */
+export interface ChartDay {
+  kcal: number | null;
+  logged: boolean;
+  when: "past" | "today" | "future";
+}
+
+/**
  * What a day is allowed to say on the week strip (and anywhere else a day's kcal meets its plan).
  *
  * There is no day-level "high", so amber never appears here: at or under the plan is `accent`,
- * past it is `bad`. `null` kcal — no reading at all — is `dotted`, the placeholder circle. A
- * future day is `faded`: the same dotted ring under a dimmed cell, which is why `future` is a
- * flag and not something the kcal can say. A logged day that recorded nothing is 0, not null —
- * an accent ring at zero share, i.e. just its track.
+ * past it is `bad`. The three empty states each have their own board: today with nothing yet is
+ * `accent` at share zero — the solid track alone (`today-empty`); a past day with nothing logged
+ * is `dotted`; a future day is `faded`, the dotted ring under a dimmed cell.
  */
 export type DayTone = "accent" | "bad" | "dotted" | "faded";
 
-export function dayTone(kcal: number | null, planKcal: number, future = false): DayTone {
-  if (future) return "faded";
-  if (kcal === null) return "dotted";
-  return kcal > planKcal ? "bad" : "accent";
+export function dayTone(day: ChartDay, planKcal: number): DayTone {
+  if (day.when === "future") return "faded";
+  if (!day.logged) return day.when === "past" ? "dotted" : "accent";
+  return (day.kcal ?? 0) > planKcal ? "bad" : "accent";
 }
 
 /** The week-strip ring's own frame, as every board draws it. */
@@ -60,13 +74,12 @@ export const WEEK_RING = {
  * so it carries no offset.
  */
 export function dayRing(
-  kcal: number | null,
+  day: ChartDay,
   planKcal: number,
-  future = false,
 ): { tone: DayTone; dasharray: string; dashoffset?: string } {
-  const tone = dayTone(kcal, planKcal, future);
+  const tone = dayTone(day, planKcal);
   if (tone === "dotted" || tone === "faded") return { tone, dasharray: WEEK_RING.dottedDash };
-  const d = ringDash((kcal ?? 0) / planKcal, WEEK_RING.r);
+  const d = ringDash((day.kcal ?? 0) / planKcal, WEEK_RING.r);
   return { tone, dasharray: s1(d.dasharray), dashoffset: s1(d.dashoffset) };
 }
 
@@ -80,7 +93,8 @@ const pathNum = (n: number): string => `${r1(n)}`;
 
 /**
  * The eased S from (x0, y0) to (x1, y1): horizontal tangents at both ends, handles a third of the
- * horizontal span in. The boards' hand-drawn handles sit within a pixel of this on every surface.
+ * horizontal span in. For any frame that is not one of the fixed ones below — the fixed frames
+ * carry the boards' own `d` strings verbatim.
  */
 export function estimateCurvePath(x0: number, y0: number, x1: number, y1: number): string {
   const dx = x1 - x0;
@@ -99,41 +113,81 @@ export function estimateAreaPath(
 }
 
 /**
- * The canonical estimate chart — the plan board's 320 × 168 frame. Positions only: the labels
- * ("Now", the month with "· estimate", the start weight, the target chip) are the surface's words.
- *
- * `curve`/`area` are computed through `estimateCurvePath`/`estimateAreaPath`, so the mini curve in
- * How it works step 3 (320 × 96) is the same helper with its own endpoints, not a second drawing.
+ * Which way the curve runs. `maintain` has no projection (`projectGoal` is null), so no chart —
+ * the caller decides that before reaching for this.
  */
-export const ESTIMATE_CHART = (() => {
-  const x0 = 20, y0 = 34, x1 = 292, y1 = 110, baseY = 138;
+export type EstimateDirection = "lose" | "gain";
+
+/**
+ * The canonical estimate chart — the plan board's 320 × 168 frame, also on How it works' context,
+ * the Progress goal card and the landing. Positions only: the labels ("Now", the month with
+ * "· estimate", the start weight, the target chip) are the surface's words.
+ *
+ * The paths are the drawn ones, verbatim — the shape between the two ends is drawn, not read, so
+ * the constants hold the board's own handles rather than a re-derived curve. A `gain` chart is the
+ * lose drawing mirrored about the band's centre (y′ = 144 − y): the endpoints swap heights, the
+ * target chip follows the end, and the baseline and captions do not move.
+ */
+export function estimateChart(direction: EstimateDirection): {
+  viewBox: string;
+  baseline: { x1: number; x2: number; y: number };
+  linePath: string;
+  areaPath: string;
+  areaGradient: { stops: { offset: number; opacity: number }[] };
+  startDot: { cx: number; cy: number; r: number };
+  endDot: { cx: number; cy: number; r: number; strokeWidth: number };
+  targetChip: { x: number; y: number; width: number; height: number; rx: number; textX: number; textY: number };
+  startLabel: { x: number; y: number };
+  nowLabel: { x: number; y: number };
+  monthLabel: { x: number; y: number };
+} {
+  const lose = direction === "lose";
+  const y0 = lose ? 34 : 110;
+  const y1 = lose ? 110 : 34;
   return {
     viewBox: "0 0 320 168",
-    baseline: { x1: 20, x2: 300, y: baseY },
-    linePath: estimateCurvePath(x0, y0, x1, y1),
-    areaPath: estimateAreaPath(x0, y0, x1, y1, baseY),
+    baseline: { x1: 20, x2: 300, y: 138 },
+    linePath: lose ? "M20 34 C110 34 200 110 292 110" : "M20 110 C110 110 200 34 292 34",
+    areaPath: lose
+      ? "M20 34 C110 34 200 110 292 110 L292 138 L20 138 Z"
+      : "M20 110 C110 110 200 34 292 34 L292 138 L20 138 Z",
     /** The area's fade: accent at 24 % dissolving down, vertical. */
     areaGradient: { stops: [{ offset: 0, opacity: 0.24 }, { offset: 1, opacity: 0 }] },
-    startDot: { cx: x0, cy: y0, r: 5 },
-    endDot: { cx: x1, cy: y1, r: 6, strokeWidth: 2.5 },
-    /** The "Target {n}" pill: its right edge sits 12 past the curve's end, its centre 28 above it. */
-    targetChip: { x: 198, y: 68, width: 106, height: 28, rx: 8, textX: 251, textY: 87 },
-    startLabel: { x: x0, y: 22 },
-    nowLabel: { x: x0, y: 158 },
+    startDot: { cx: 20, cy: y0, r: 5 },
+    endDot: { cx: 292, cy: y1, r: 6, strokeWidth: 2.5 },
+    /** The "Target {n}" pill: its right edge sits 12 past the curve's end, its centre 28 off it. */
+    targetChip: { x: 198, y: lose ? 68 : 48, width: 106, height: 28, rx: 8, textX: 251, textY: lose ? 87 : 67 },
+    startLabel: { x: 20, y: lose ? 22 : 122 },
+    nowLabel: { x: 20, y: 158 },
     monthLabel: { x: 300, y: 158 },
-  } as const;
-})();
+  };
+}
+
+/**
+ * How it works step 3's mini curve — the same drawn shape in a 320 × 96 frame, verbatim from
+ * `onboarding/02-how`. Drawn once, for the persona's lose direction; a client that needs it
+ * mirrored reaches for `estimateCurvePath`.
+ */
+export const ESTIMATE_CHART_MINI = {
+  viewBox: "0 0 320 96",
+  linePath: "M16 18 C100 18 180 70 296 70",
+  areaPath: "M16 18 C100 18 180 70 296 70 L296 88 L16 88 Z",
+  areaGradient: { stops: [{ offset: 0, opacity: 0.24 }, { offset: 1, opacity: 0 }] },
+  startDot: { cx: 16, cy: 18, r: 4.5 },
+  endDot: { cx: 296, cy: 70, r: 5, strokeWidth: 2 },
+  targetChip: { x: 212, y: 34, width: 92, height: 24, rx: 7, textX: 258, textY: 50 },
+  startLabel: { x: 16, y: 10 },
+} as const;
 
 // ── The with-a-plan vs without chart ─────────────────────────────────────────────────────────
 //
 // Two fixed shapes and no numbers, no unit, no timescale — the chart states nothing a claims rule
-// could refuse. The accessible name is the wording challenge #8 settled, exactly: a name that
-// describes the drawing without speaking the promise the drawing only suggests.
+// could refuse. Its accessible name is copy, not geometry — the settled wording is "Weight over
+// time, drawn two ways: with a plan and without" (challenge #8), and it reaches this module's
+// callers as a localized key, never a literal here.
 
 export const TWO_WAYS_CHART = {
   viewBox: "0 0 320 170",
-  /** The exact accessible name — do not reword. */
-  a11yName: "Weight over time, drawn two ways: with a plan and without",
   baseline: { x1: 16, x2: 304, y: 140 },
   /** Without a plan: the faint upper line. */
   withoutPath: "M16 36 C70 44 92 96 150 94 S230 64 304 40",
@@ -217,10 +271,13 @@ export function weightChart(points: readonly WeightPoint[]): {
 //
 // Progress's "This week" card: one bar a day against a dashed plan line, today picked out with a
 // tint fill and an outline. The scale is the board's own — 1900 kcal of headroom over the baseline
-// — so a bar over plan simply clears the dashed line and keeps going.
+// — and it yields to the data: past ~1.1× the largest figure on the card (plan or day), the px per
+// kcal shrink so a 2,800-kcal plan and a 3,200-kcal day still fit the 142-tall viewBox. A bar over
+// plan simply clears the dashed line and keeps going.
 
 const BARS_BASE = 118;
-const BARS_PX_PER_KCAL = 100 / 1900;
+/** The board's headroom: 100 px of bar for every 1,900 kcal. */
+const BARS_BASELINE_FULL = 1900;
 
 export function weekBars(
   days: readonly (number | null)[],
@@ -234,21 +291,23 @@ export function weekBars(
   /** The day-letter captions, one per day whether it has a bar or not. */
   labels: { x: number; y: number }[];
 } {
-  const planY = Math.round(BARS_BASE - planKcal * BARS_PX_PER_KCAL);
+  const largest = Math.max(planKcal, ...days.map((d) => d ?? 0));
+  const pxPerKcal = 100 / Math.max(BARS_BASELINE_FULL, largest * 1.1);
+  const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
   return {
     viewBox: "0 0 320 142",
     planLine: { x1: 8, x2: 312, y: planY },
     planLabel: { x: 312, y: planY - 6 },
     bars: days.map((kcal, i) => {
       if (kcal === null) return null;
-      const h = Math.round(kcal * BARS_PX_PER_KCAL);
+      const h = Math.round(kcal * pxPerKcal);
       return {
         x: 14 + i * 44,
         y: BARS_BASE - h,
         width: 26,
         height: h,
         rx: 4,
-        tone: dayTone(kcal, planKcal),
+        tone: dayTone({ kcal, logged: true, when: i === todayIndex ? "today" : "past" }, planKcal),
         today: i === todayIndex,
       };
     }),

@@ -31,6 +31,13 @@ describe("cm ↔ ft/in", () => {
     expect(ftInToCm(5, 8)).toBe(173);
     expect(ftInToCm(6, 4)).toBe(193);
   });
+
+  test("the round trips drift — which is why the toggle relabels and never writes", () => {
+    // 172 cm displays as 5′8″, and 5′8″ converts back to 173. If flipping the unit wrote back the
+    // converted value, the stored profile would move on its own; it must not.
+    const { ft, in: inch } = cmToFtIn(172);
+    expect(ftInToCm(ft, inch)).toBe(173);
+  });
 });
 
 describe("kg ↔ lb", () => {
@@ -40,6 +47,10 @@ describe("kg ↔ lb", () => {
 
   test("lb back to kg keeps a tenth, like every stored weight", () => {
     expect(lbToKg(163)).toBe(73.9);
+  });
+
+  test("74 kg → 163 lb → 73.9 kg: the display drift, pinned", () => {
+    expect(lbToKg(kgToLb(74))).toBe(73.9);
   });
 });
 
@@ -60,24 +71,22 @@ describe("defaultUnits", () => {
 });
 
 describe("the ruler tick sets", () => {
-  test("the height ruler stands up in cm: 165–180, a label every 5", () => {
+  test("the height ruler stands up in cm: the board's window is 15 wide, a label every 5", () => {
     const t = RULER_TICKS.height.metric;
-    expect(t.min).toBe(165);
-    expect(t.max).toBe(180);
+    expect(t.span).toBe(15); // the board's window is 165–180 — a window, not a bound
     expect(t.pxPerUnit).toBe(9.5);
     expect(t.majorEvery).toBe(5);
     expect(t.labelEvery).toBe(5);
-    expect(rulerLabels(t, t.min, t.max)).toEqual([165, 170, 175, 180]);
+    expect(rulerLabels(t, 165, 180)).toEqual([165, 170, 175, 180]);
   });
 
-  test("the imperial height ruler: 5′0″–6′4″, a label every four inches", () => {
+  test("the imperial height ruler: a 16-inch window, a label every four inches", () => {
     const t = RULER_TICKS.height.imperial;
-    expect(t.min).toBe(60);
-    expect(t.max).toBe(76);
+    expect(t.span).toBe(16); // 5′0″–6′4″ on the board
     expect(t.pxPerUnit).toBe(9.5);
     expect(t.majorEvery).toBe(4);
     expect(t.labelEvery).toBe(4);
-    expect(rulerLabels(t, t.min, t.max)).toEqual([60, 64, 68, 72, 76]);
+    expect(rulerLabels(t, 60, 76)).toEqual([60, 64, 68, 72, 76]);
     expect(t.format(76)).toBe("6′4″");
     expect(t.format(68)).toBe("5′8″");
   });

@@ -6,6 +6,11 @@
 // converts for display and the choice carries to every later screen (`Profile.units`, the pace's
 // "kg a week", the plan graph, Progress).
 //
+// THE ONE RULE: switching units RELABELS the value and never writes it. The round trips drift —
+// 172 cm → 5′8″ → 173 cm, and 74 kg → 163 lb → 73.9 kg — so a toggle that wrote back what it
+// displayed would move the stored number on its own. The stored cm or kg changes only when the
+// user moves the control.
+//
 // The boards that drew these (`product/design/pro/onboarding/phone/06-height.html`, `06b`, `07`,
 // `07b`, `09` on ieat-app main d3fe6ef8): a vertical ruler for height, a horizontal one for weight,
 // and a two-way segment "cm | ft, in" / "kg | lb" under the question.
@@ -55,7 +60,12 @@ export function defaultUnits(region: string): UnitSystem {
  *
  * `pxPerUnit` is the boards' own pitch: 9.5 px per cm/inch on the vertical height ruler, 9 px per
  * kg/lb on the horizontal weight ruler. `majorEvery`/`labelEvery` count UNITS between the long
- * ticks and the printed labels; both are `var(--ink)`-strong on the boards.
+ * ticks and the printed labels.
+ *
+ * There is deliberately no `min`/`max` here: the 165–180 cm on the height board is the WINDOW the
+ * drawing shows around the persona's 172 (`span`), not what the control accepts. The bounds a
+ * consumer clamps to are the profile validator's limits, passed in by the consumer — this module
+ * may not reach the validator, and copying its numbers would be a second definition of them.
  */
 export interface RulerTicks {
   /** What the steps count in. */
@@ -66,9 +76,8 @@ export interface RulerTicks {
   majorEvery: number;
   /** A printed label every N units. */
   labelEvery: number;
-  /** Bounds where the board fixes them — the height ruler is a fixed window. */
-  min?: number;
-  max?: number;
+  /** How much of the range the board's window shows, in units — where the board fixes one. */
+  span?: number;
   /** The label's text, e.g. `172` or `6′4″`. */
   format(value: number): string;
 }
@@ -81,14 +90,14 @@ const ftInLabel = (totalIn: number) => `${Math.floor(totalIn / 12)}′${totalIn 
 /**
  * The two rulers and their two systems, as `product/design/pro` draws them.
  *
- * Height (vertical, `06-height`/`06b`): cm window 165–180 with a label every 5; ft/in window
- * 5′0″–6′4″ with a label every 4. Weight (horizontal, `07`/`07b`): labels every 10 kg or 10 lb and
- * a long tick every 5; the window slides with the value, so it carries no min/max.
+ * Height (vertical, `06-height`/`06b`): the board's window is 15 cm / 16 in tall, labels every
+ * 5 cm / 4 in. Weight (horizontal, `07`/`07b`): labels every 10 kg or 10 lb and a long tick every
+ * 5; the window slides with the value and is sized by the viewport, so it carries no `span`.
  */
 export const RULER_TICKS = {
   height: {
-    metric: { unit: "cm", pxPerUnit: 9.5, majorEvery: 5, labelEvery: 5, min: 165, max: 180, format: cmLabel },
-    imperial: { unit: "in", pxPerUnit: 9.5, majorEvery: 4, labelEvery: 4, min: 60, max: 76, format: ftInLabel },
+    metric: { unit: "cm", pxPerUnit: 9.5, majorEvery: 5, labelEvery: 5, span: 15, format: cmLabel },
+    imperial: { unit: "in", pxPerUnit: 9.5, majorEvery: 4, labelEvery: 4, span: 16, format: ftInLabel },
   },
   weight: {
     metric: { unit: "kg", pxPerUnit: 9, majorEvery: 5, labelEvery: 10, format: kgLabel },
@@ -101,7 +110,8 @@ export const RULER_TICKS = {
 
 /**
  * The label values a window of the ruler prints — the multiples of `labelEvery` inside
- * `[from, to]`, inclusive. 165–180 on the cm height ruler is 165, 170, 175, 180.
+ * `[from, to]`, inclusive. On the persona's board the cm window is 165–180 → 165, 170, 175, 180;
+ * the caller decides which window it is showing.
  */
 export function rulerLabels(ticks: RulerTicks, from: number, to: number): number[] {
   const out: number[] = [];
