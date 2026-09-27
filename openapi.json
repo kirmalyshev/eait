@@ -3833,6 +3833,10 @@
             "type": "number",
             "description": "Base 6 plus the parts, clamped to 1–10."
           },
+          "base": {
+            "type": "number",
+            "description": "The points every score starts from — the breakdown's \"Start\" row reads it, never recomputes it."
+          },
           "parts": {
             "type": "array",
             "items": {
@@ -3842,6 +3846,7 @@
         },
         "required": [
           "score",
+          "base",
           "parts"
         ],
         "additionalProperties": false
