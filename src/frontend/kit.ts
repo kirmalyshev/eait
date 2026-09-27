@@ -15,7 +15,8 @@ import {
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
   optionRow as optionRowMarkup, photoHero as photoHeroMarkup, planCard as planCardMarkup,
   gabieAvatar as gabieAvatarMarkup, gabieName as gabieNameMarkup, spudAvatar as spudAvatarMarkup,
-  ring as ringMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
+  ring as ringMarkup, scorePart as scorePartMarkup, scoreRow as scoreRowMarkup,
+  ingredient as ingredientMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
   verdictList as verdictListMarkup, weekBarsSvg, weekStrip as weekStripMarkup, weightChartSvg,
   type ChipName, type HeroCallout, type MealRowSpec, type RingOpts, type VerdictTone,
   type WeekDayRow,
@@ -54,6 +55,15 @@ export const verdictDotEl = (tone: VerdictTone, words: string): Element =>
 
 export const verdictListEl = (items: readonly { tone: VerdictTone; words: string }[]): Element | null =>
   items.length ? kitEl(verdictListMarkup(items)) : null;
+
+export const scoreRowEl = (o: Parameters<typeof scoreRowMarkup>[0]): Element =>
+  kitEl(scoreRowMarkup(o));
+
+export const scorePartEl = (o: Parameters<typeof scorePartMarkup>[0]): Element =>
+  kitEl(scorePartMarkup(o));
+
+export const ingredientEl = (o: Parameters<typeof ingredientMarkup>[0]): Element =>
+  kitEl(ingredientMarkup(o));
 
 export const photoHeroEl = (o: {
   src: string; alt?: string; pad?: 14 | 18; stamp?: string; scan?: boolean;

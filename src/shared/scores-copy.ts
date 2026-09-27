@@ -12,7 +12,7 @@
 // "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
 
 import { numbers, t, type CountForms, type Localized } from "./lang.ts";
-import type { BmiRange, ScoreFactor } from "./scores.ts";
+import type { BmiRange, ScoreFactor, ScoreLimit } from "./scores.ts";
 import type { Lang } from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
 
@@ -50,6 +50,21 @@ export interface ScoresCopy {
   bmiAbove: string;
   /** The factor names nothing else owns — saturated fat reuses the verdict noun. */
   factors: Record<"protein" | "fibre" | "sugar" | "salt", string>;
+  /** The breakdown's opening row — the base points every score starts from. */
+  startRow: string;
+  /**
+   * A part's measure under its factor name, as the boards write it ("25% of kcal", "0.9 g per
+   * 100 kcal", "115 mg sodium per 100 kcal"). `{n}` arrives already formatted. The
+   * `partOfTarget*` forms are the declared-limit variants — "{n} g of your {target} g" — where
+   * `{target}` is the cap the profile's restriction sets on the day's targets.
+   */
+  partPctOfKcal: string;
+  partGPer100Kcal: string;
+  partMgSodiumPer100Kcal: string;
+  partOfTargetG: string;
+  partOfTargetMg: string;
+  /** The declared limit a personalised part names, mid-sentence — "high cholesterol". */
+  limits: Record<ScoreLimit, string>;
 }
 
 export const SCORES_COPY: Localized<ScoresCopy> = {
@@ -70,6 +85,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} and above",
     factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
+    startRow: "Start",
+    partPctOfKcal: "{n}% of kcal",
+    partGPer100Kcal: "{n} g per 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg sodium per 100 kcal",
+    partOfTargetG: "{n} g of your {target} g",
+    partOfTargetMg: "{n} mg of your {target} mg",
+    limits: { ldl: "high cholesterol", kidneys: "kidney condition", lowsugar: "diabetes risk" },
   },
   fr: {
     title: "Score santé",
@@ -88,6 +110,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} et plus",
     factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
+    startRow: "Base",
+    partPctOfKcal: "{n} % des kcal",
+    partGPer100Kcal: "{n} g pour 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg de sodium pour 100 kcal",
+    partOfTargetG: "{n} g sur vos {target} g",
+    partOfTargetMg: "{n} mg sur vos {target} mg",
+    limits: { ldl: "cholestérol élevé", kidneys: "maladie rénale", lowsugar: "risque de diabète" },
   },
   de: {
     title: "Gesundheitsscore",
@@ -106,6 +135,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} und mehr",
     factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
+    startRow: "Basis",
+    partPctOfKcal: "{n} % der kcal",
+    partGPer100Kcal: "{n} g pro 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg Natrium pro 100 kcal",
+    partOfTargetG: "{n} g von deinen {target} g",
+    partOfTargetMg: "{n} mg von deinen {target} mg",
+    limits: { ldl: "hohes Cholesterin", kidneys: "Nierenerkrankung", lowsugar: "Diabetesrisiko" },
   },
   it: {
     title: "Punteggio di salute",
@@ -124,6 +160,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} e oltre",
     factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
+    startRow: "Base",
+    partPctOfKcal: "{n}% delle kcal",
+    partGPer100Kcal: "{n} g per 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg di sodio per 100 kcal",
+    partOfTargetG: "{n} g sui tuoi {target} g",
+    partOfTargetMg: "{n} mg sui tuoi {target} mg",
+    limits: { ldl: "colesterolo alto", kidneys: "malattia renale", lowsugar: "rischio di diabete" },
   },
   es: {
     title: "Puntuación de salud",
@@ -142,6 +185,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} y más",
     factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
+    startRow: "Base",
+    partPctOfKcal: "{n}% de las kcal",
+    partGPer100Kcal: "{n} g por 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg de sodio por 100 kcal",
+    partOfTargetG: "{n} g de tus {target} g",
+    partOfTargetMg: "{n} mg de tus {target} mg",
+    limits: { ldl: "colesterol alto", kidneys: "enfermedad renal", lowsugar: "riesgo de diabetes" },
   },
   vi: {
     title: "Điểm sức khỏe",
@@ -160,6 +210,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "từ {n} trở lên",
     factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
+    startRow: "Điểm gốc",
+    partPctOfKcal: "{n}% của kcal",
+    partGPer100Kcal: "{n} g trên 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg natri trên 100 kcal",
+    partOfTargetG: "{n} g trong {target} g của bạn",
+    partOfTargetMg: "{n} mg trong {target} mg của bạn",
+    limits: { ldl: "cholesterol cao", kidneys: "bệnh thận", lowsugar: "nguy cơ tiểu đường" },
   },
   id: {
     title: "Skor kesehatan",
@@ -178,6 +235,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} ke atas",
     factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
+    startRow: "Awal",
+    partPctOfKcal: "{n}% dari kcal",
+    partGPer100Kcal: "{n} g per 100 kcal",
+    partMgSodiumPer100Kcal: "{n} mg natrium per 100 kcal",
+    partOfTargetG: "{n} g dari {target} g kamu",
+    partOfTargetMg: "{n} mg dari {target} mg kamu",
+    limits: { ldl: "kolesterol tinggi", kidneys: "penyakit ginjal", lowsugar: "risiko diabetes" },
   },
   ru: {
     title: "Оценка здоровья",
@@ -201,6 +265,13 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} и выше",
     factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
+    startRow: "База",
+    partPctOfKcal: "{n}% от ккал",
+    partGPer100Kcal: "{n} г на 100 ккал",
+    partMgSodiumPer100Kcal: "{n} мг натрия на 100 ккал",
+    partOfTargetG: "{n} г из ваших {target} г",
+    partOfTargetMg: "{n} мг из ваших {target} мг",
+    limits: { ldl: "высокий холестерин", kidneys: "заболевание почек", lowsugar: "риск диабета" },
   },
 };
 

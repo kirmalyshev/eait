@@ -93,6 +93,21 @@ export interface MealCopy {
   phoneGoneTitle: string;
   phoneGoneBody: string;
   phoneGoneBack: string;
+  /**
+   * The web's gone state — the same state the phone's `phoneGone*` covers, worded for a surface
+   * with no "today" header to name. A deleted, moved away or FOREIGN id lands here: the detail
+   * never renders somebody else's meal.
+   */
+  webGoneTitle: string;
+  webGoneBody: string;
+  webGoneBack: string;
+  /**
+   * One item inside the correct opener's `{items}` — "{amount} of {item}", with `{amount}`
+   * already spelled ("150 g"). The caller joins them with `Intl.ListFormat`'s conjunction.
+   */
+  itemAmount: string;
+  /** The "…" menu button's accessible name — the glyph itself is silent. */
+  menuButton: string;
 
   /**
    * "A change, named" (web + phone `meal-edited.html`), built from parts — only the server
@@ -149,6 +164,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
+    webGoneTitle: "This meal is gone.",
+    webGoneBody: "It was deleted, or it was never yours.",
+    webGoneBack: "Back to the diary",
+    itemAmount: "{amount} of {item}",
+    menuButton: "Meal actions",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -189,6 +209,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
+    webGoneTitle: "Ce repas n’existe plus.",
+    webGoneBody: "Il a été supprimé, ou n’a jamais été à vous.",
+    webGoneBack: "Retour au journal",
+    itemAmount: "{amount} de {item}",
+    menuButton: "Actions du repas",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -229,6 +254,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
+    webGoneTitle: "Diese Mahlzeit ist weg.",
+    webGoneBody: "Sie wurde gelöscht, oder sie war nie deine.",
+    webGoneBack: "Zurück zum Tagebuch",
+    itemAmount: "{amount} {item}",
+    menuButton: "Aktionen zur Mahlzeit",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -269,6 +299,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
+    webGoneTitle: "Questo pasto non c’è più.",
+    webGoneBody: "È stato eliminato, o non è mai stato tuo.",
+    webGoneBack: "Torna al diario",
+    itemAmount: "{amount} di {item}",
+    menuButton: "Azioni sul pasto",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -309,6 +344,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
+    webGoneTitle: "Esta comida ya no existe.",
+    webGoneBody: "Se ha eliminado, o nunca fue tuya.",
+    webGoneBack: "Volver al diario",
+    itemAmount: "{amount} de {item}",
+    menuButton: "Acciones de la comida",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -349,6 +389,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
+    webGoneTitle: "Bữa này không còn nữa.",
+    webGoneBody: "Đã bị xoá, hoặc chưa bao giờ là của bạn.",
+    webGoneBack: "Về nhật ký",
+    itemAmount: "{amount} {item}",
+    menuButton: "Thao tác bữa ăn",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -389,6 +434,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
+    webGoneTitle: "Makanan ini sudah hilang.",
+    webGoneBody: "Sudah dihapus, atau tidak pernah jadi milikmu.",
+    webGoneBack: "Kembali ke catatan",
+    itemAmount: "{amount} {item}",
+    menuButton: "Aksi makanan",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -429,6 +479,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",
+    webGoneTitle: "Этого приёма пищи больше нет.",
+    webGoneBody: "Его удалили, или он никогда не был вашим.",
+    webGoneBack: "Назад к дневнику",
+    itemAmount: "{item} — {amount}",
+    menuButton: "Действия с приёмом пищи",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",

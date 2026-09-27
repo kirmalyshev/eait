@@ -171,6 +171,33 @@ export const verdictDot = (tone: VerdictTone, words: string): string =>
 export const verdictList = (items: readonly { tone: VerdictTone; words: string }[]): string =>
   items.length ? `<div class="vs">${items.map((v) => verdictDot(v.tone, v.words)).join("")}</div>` : "";
 
+// ── The health score ─────────────────────────────────────────────────────────────────────────
+//
+// The compact row on the meal sheet (web + phone `meal.html`): label · the 6 px bar · "{n}/10" ·
+// the chevron that opens the breakdown. A BUTTON — it opens a surface overlay, it navigates
+// nowhere. The bar is an svg because `style="width:n%"` is what the kit never emits (the shell's
+// CSP refuses it), and a `rect`'s width is the same value.
+//
+// `.hsp` is the breakdown's row (`web/meal-score.html`, `phone/meal-score.html`): the factor, its
+// measure underneath — with the declared limit appended — and the points on the right.
+
+export const scoreRow = (o: { label: string; score: string; pct: number }): string =>
+  `<button type="button" class="hsr"><span class="hl">${esc(o.label)}</span>` +
+  `<svg class="hsb" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">` +
+  `<rect class="tr" width="100" height="6"/><rect class="fg" width="${Math.min(100, Math.max(0, o.pct))}" height="6"/></svg>` +
+  `<b class="num">${esc(o.score)}</b>${ico("chevron-right")}</button>`;
+
+export const scorePart = (o: { name: string; measure?: string; limit?: string; points: string }): string => {
+  const small = o.measure !== undefined || o.limit !== undefined
+    ? `<small>${esc(o.measure ?? "")}${o.limit !== undefined ? ` · ${esc(o.limit)}` : ""}</small>` : "";
+  return `<div class="hsp"><span>${esc(o.name)}${small}</span><span class="pts">${esc(o.points)}</span></div>`;
+};
+
+/** One ingredient row on the meal sheet — the name, its amount, its own kcal (`web/meal.html`). */
+export const ingredient = (o: { name: string; amount: string; kcal?: string }): string =>
+  `<div class="ing">${esc(o.name)}<span>${esc(o.amount)}</span>` +
+  `${o.kcal !== undefined ? `<b class="num">${esc(o.kcal)}</b>` : ""}</div>`;
+
 // ── The meal row ─────────────────────────────────────────────────────────────────────────────
 //
 // 56 px photo or the chat tile, the time, the row's verdict words ONLY when not on plan (a "good"
@@ -620,5 +647,42 @@ ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:$
   box-shadow:0 0 0 1px var(--hair);font-size:16px}
 .opts .opt.sel{box-shadow:0 0 0 2px var(--ink)}
 .card.flat{box-shadow:0 0 0 1px var(--hair)}
+
+/* The boards' type utilities and the hairline rule, verbatim from pro.css — display weight and
+   its four sizes, the two caption sizes, muted/faint inks. */
+.d{font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.d34{font-size:34px}.d28{font-size:28px}.d22{font-size:22px}.d17{font-size:17px;letter-spacing:-.01em}
+.t13{font-size:13px}.t12{font-size:12px}.m{color:var(--muted)}.f{color:var(--faint)}
+.hr{height:1px;background:var(--hair);margin:12px 0}
+
+/* The 36 px icon button (pro.css's .ib) — the meal header's X and "…", the date switcher's arrows.
+   The glyph is the masked .ico, so the colour is the button's ink, not a stroke rule. */
+.ib{width:36px;height:36px;flex:0 0 36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface);box-shadow:0 0 0 1px var(--hair);border:0;padding:0;cursor:pointer;color:var(--ink)}
+.ib .ico{width:18px;height:18px;background:var(--ink)}
+
+/* The health-score row and its breakdown rows (web + phone meal.html / meal-score.html). The bar
+   is an svg: a rect width carries the fill where the boards wrote style="width:n%". The .card
+   button base would otherwise restyle it, so the same re-statement the .cta rule makes is made
+   here. */
+.hsr{display:flex;align-items:center;gap:12px;width:100%;padding:10px 14px;border-radius:var(--r-card);
+  box-shadow:0 0 0 1px var(--hair);background:var(--surface);color:var(--ink);border:0;cursor:pointer;
+  font:inherit;font-size:15px;text-align:left;text-decoration:none}
+.hsr .hl{font-weight:600}
+.hsr .hsb{flex:1;display:block;height:6px}
+.hsb .tr{fill:var(--hair)} .hsb .fg{fill:var(--ink)}
+.hsr .num{font-size:16px}
+.hsr .ico{width:16px;height:16px;background:var(--muted)}
+.card button.hsr{margin:0;padding:10px 14px;border:0;min-height:0;border-radius:var(--r-card)}
+.hsp{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--hair);
+  font-size:15px;font-weight:500}
+.hsp small{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:1px}
+.hsp .pts{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* The ingredient row — the name, its amount, its own kcal (web + phone meal.html). */
+.ing{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-ctl);
+  box-shadow:0 0 0 1px var(--hair);font-size:14px;font-weight:600}
+.ing span{color:var(--muted);font-weight:500}
+.ing b{margin-left:auto;font-variant-numeric:tabular-nums}
 `;
 }

@@ -30,9 +30,10 @@ import { UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 import type { MealProposed, MealRecord } from "@eait/shared";
 import type {
-  ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
-  ProfileResponse, ROUTES,
+  ChatEntry, DayResponse, DaysResponse, DIARY_RANGE_MAX_DAYS, MessageResponse,
+  OUTCOME_UNKNOWN, PendingResponse, PhotoLast, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
+import { localDate, windowStart } from "../shared/dates.ts";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
@@ -67,6 +68,8 @@ export const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 export const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 export const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
 export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
+export const DAY: Under<typeof ROUTES.day> = "/diary/day";
+export const DAYS: Under<typeof ROUTES.days> = "/diary/days";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
@@ -134,9 +137,17 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
   { hash: "#/you", label: "navProfile" },
 ];
 
+/**
+ * The route's PATH — a hash may carry a query (`#/chat?focus=<meal>`, `#/meal/<id>?d=<day>`),
+ * which belongs to the screen, never to which screen it is or which tab it marks.
+ */
+export const routePath = (hash: string): string => hash.split("?")[0]!;
+
 /** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
-const activeTab = (route: string): string =>
-  route === "#/chat" || route === "#/you" || route === "#/progress" ? route : "#/";
+const activeTab = (route: string): string => {
+  const path = routePath(route);
+  return path === "#/chat" || path === "#/you" || path === "#/progress" ? path : "#/";
+};
 
 /**
  * The boards' top bar (Register P): the `eait` wordmark — Spud's happy face at 20px — then the ONE
@@ -440,6 +451,33 @@ export function refusalWords(err: unknown): string {
 export const names = (items: readonly { name: string }[]): string =>
   items.slice(0, 2).map((i) => i.name).join(", ") || COPY.meal;
 
+/** The widest span `GET /v1/diary/days` answers — the contract's constant, typed so it cannot drift. */
+const DIARY_RANGE: typeof DIARY_RANGE_MAX_DAYS = 31;
+
+/**
+ * The meal an id names, with the day it sits on. `#/meal/:id` may carry `?d=` — the day its row
+ * lives on — or nothing, and then the id is looked up on today first and walked back over the
+ * window's LOGGED days, newest first. A miss is one answer — `{ meal: null }` — for a deleted
+ * meal, a moved one outside the window, and somebody else's alike: the server would never answer
+ * the row either way, and neither does this.
+ */
+export async function findMeal(
+  mealId: string, zone: string, date?: string,
+): Promise<{ day: DayResponse; meal: MealRecord | null }> {
+  const first = await api<DayResponse>(`${DAY}?date=${date ?? localDate(zone)}`);
+  const hit = first.meals.find((m) => m.id === mealId);
+  if (hit !== undefined || date !== undefined) return { day: first, meal: hit ?? null };
+  const window = await api<DaysResponse>(
+    `${DAYS}?from=${windowStart(first.date, DIARY_RANGE)}&to=${first.date}`);
+  for (const d of [...window.days].reverse()) {
+    if (!d.logged || d.date === first.date) continue;
+    const other = await api<DayResponse>(`${DAY}?date=${d.date}`);
+    const m = other.meals.find((x) => x.id === mealId);
+    if (m !== undefined) return { day: other, meal: m };
+  }
+  return { day: first, meal: null };
+}
+
 /** What an assistant meal card says in the thread, from the meal it still points at. */
 export function mealLine(meal: MealRecord | null): string {
   // Null once the meal is deleted, and the id outlives it deliberately — so the thread says
@@ -570,8 +608,9 @@ export function screen(hash: string, fn: ScreenFn): void {
 export const hasScreen = (hash: string): boolean => exactScreens.has(hash);
 
 const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
-  const fn = exactScreens.get(route)
-    ?? prefixScreens.find(([prefix]) => route.startsWith(prefix))?.[1]
+  const path = routePath(route);
+  const fn = exactScreens.get(path)
+    ?? prefixScreens.find(([prefix]) => path.startsWith(prefix))?.[1]
     ?? exactScreens.get("#/");
   if (fn === undefined) throw new Error("no #/ screen registered");
   return fn(frame);
