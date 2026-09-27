@@ -1034,8 +1034,8 @@ export interface WeekResponse {
 }
 
 /**
- * One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals,
- * so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.
+ * One calendar day of the range read — `ChartDay` (`ui/charts.ts`), so a row a client receives
+ * goes straight into `dayTone`/`dayRing` with nothing re-derived.
  *
  * `when` is computed by the server in the account's timezone at request time: "past" day, the
  * "today" the strip raises, or a "future" day — which is why no client ever compares a row's
@@ -1047,18 +1047,17 @@ export interface WeekResponse {
 export interface DiaryDay extends ChartDay {
   /** YYYY-MM-DD in the account's timezone. */
   date: string;
-  protein_g: number | null;
-  carbs_g: number | null;
-  fat_g: number | null;
-  satfat_g: number | null;
-  /** The day's calorie target — sent on every row so no client re-derives the plan. */
-  targetKcal: number;
 }
 
 /** `GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer. */
 export interface DaysResponse {
   /** Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw. */
   days: DiaryDay[];
+  /**
+   * The account's calorie target, sent once rather than repeated on every row — a day's macros
+   * come from `/v1/diary/day`, this read is the strip's own shape.
+   */
+  targetKcal: number;
   /**
    * Consecutive calendar days with at least one logged meal, counted backwards from today in the
    * account's timezone. Today stays open: with nothing logged yet it does not break the run, and

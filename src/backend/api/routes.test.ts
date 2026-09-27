@@ -769,12 +769,12 @@ describe("the days read", () => {
 
     expect(out.days.map((day) => day.date)).toEqual([d(3), d(2), d(1), d(0)]);
     expect(out.days[0]).toMatchObject({ logged: false, kcal: 0, when: "past" });
-    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, protein_g: 20, when: "past" });
+    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, when: "past" });
     expect(out.days[2]).toMatchObject({ logged: false, kcal: 0, when: "past" });
     expect(out.days[3]).toMatchObject({ logged: true, kcal: 600, when: "today" });
-    // The day's own plan is on the row: the session() profile's kcal target, never recomputed.
+    // The day's plan is sent once, not repeated per row: the session() profile's kcal target.
     const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(out.days.every((day) => day.targetKcal === me.targets.kcal)).toBe(true);
+    expect(out.targetKcal).toBe(me.targets.kcal);
     // Two logged days back, a blank one between: the run counts today alone.
     expect(out.streak).toBe(1);
   });
@@ -788,7 +788,7 @@ describe("the days read", () => {
     expect(out.days.map((day) => day.when)).toEqual(["today", "future", "future"]);
     expect(out.days[1]!.logged).toBe(false);
     expect(out.days[1]!.kcal).toBeNull();
-    expect(out.days[2]!.protein_g).toBeNull();
+    expect(out.days[2]!.kcal).toBeNull();
   });
 
   it("counts the streak from yesterday while today is still open, and stops at a blank day", async () => {

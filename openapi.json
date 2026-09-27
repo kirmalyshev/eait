@@ -3362,6 +3362,10 @@
             },
             "description": "Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw."
           },
+          "targetKcal": {
+            "type": "number",
+            "description": "The account's calorie target, sent once rather than repeated on every row — a day's macros come from `/v1/diary/day`, this read is the strip's own shape."
+          },
           "streak": {
             "type": "number",
             "description": "Consecutive calendar days with at least one logged meal, counted backwards from today in the account's timezone. Today stays open: with nothing logged yet it does not break the run, and the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is a streak a client counted itself is a streak that disagrees with the server's."
@@ -3369,6 +3373,7 @@
         },
         "required": [
           "days",
+          "targetKcal",
           "streak"
         ],
         "additionalProperties": false,
@@ -3425,49 +3430,16 @@
           "date": {
             "type": "string",
             "description": "YYYY-MM-DD in the account's timezone."
-          },
-          "protein_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "carbs_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "fat_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "satfat_g": {
-            "type": [
-              "number",
-              "null"
-            ]
-          },
-          "targetKcal": {
-            "type": "number",
-            "description": "The day's calorie target — sent on every row so no client re-derives the plan."
           }
         },
         "required": [
-          "carbs_g",
           "date",
-          "fat_g",
           "kcal",
           "logged",
-          "protein_g",
-          "satfat_g",
-          "targetKcal",
           "when"
         ],
         "additionalProperties": false,
-        "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals, so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
+        "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`), so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
       },
       "Diet": {
         "type": "string",

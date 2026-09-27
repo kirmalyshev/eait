@@ -182,7 +182,7 @@ describe("seedDevData", () => {
     expect(range).not.toBeNull();
     expect(range!.streak).toBe(4);
     expect(range!.days.map((d) => d.kcal)).toEqual([1386, 1429, 1308, 1066]);
-    expect(range!.days[3]!.targetKcal).toBe(1434);
+    expect(range!.targetKcal).toBe(1434);
 
     const log = await weightsRead(deps, anna!.userId, "90D");
     // One row per day, oldest first, the typed onboarding value standing over the scale's.
