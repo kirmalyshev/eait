@@ -129,6 +129,16 @@ async function call(path: string, init: RequestInit): Promise<Response> {
   return res;
 }
 
+/**
+ * A binary read — a stored meal photo — as an object URL the caller revokes. The CSP's
+ * `img-src 'self' data:` is why the blob, not the path, goes into the `src`: the bearer is a
+ * header, and a plain `<img>` would go unsigned.
+ */
+export async function apiBlob(path: string): Promise<string> {
+  const res = await call(path, { method: "GET" });
+  return URL.createObjectURL(await res.blob());
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return await (await call(path, init)).json() as T;
 }

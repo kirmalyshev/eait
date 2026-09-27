@@ -1,4 +1,6 @@
-// The web APPLICATION's chat (#493) — the SPA at `/`, not `/start/chat`.
+// The web APPLICATION's chat (#493) — the SPA at `/`, not `/start/chat`. W7 (#94) drew it
+// Register P: the thread column, Gabie's say lines, the proposal card, the coach bar, the
+// kept turns' dimmed photo with Send again — all of it under the shared composer.
 //
 // It only read the thread until this: no photo picker, no text box, no send. These drive its
 // composer the way a person does, on the SPA's own origin, which reaches the API through the same
@@ -13,10 +15,45 @@ import type { ProfileResponse } from "@eait/shared/contract";
 import { REAL_MODEL, expect, sessionToken, test } from "./fixtures.ts";
 
 const FIXTURE = "src/backend/web/browser/fixture-meal.png";
+/** The empty thread's prompt — `composerAsk`; a populated one reads `composerThread`. */
+const ASK = "What did you eat?";
+
+test("first open draws Gabie's greeting and the three starters, in the struggles' order", async ({ inWebApp: page }) => {
+  // An empty stored thread is the boards' `chat-empty`: the greeting is her first AND newest line.
+  await expect(page.locator(".thread .say .gname")).toHaveText("Gabie · nutritionist");
+  await expect(page.locator(".thread")).toContainText("Tell me what you ate, or ask me anything.");
+  await expect(page.locator(".thread .gabie")).toHaveCount(1);
+  const starters = page.locator(".opts .opt .ot");
+  await expect(starters).toHaveText([
+    "How's my week going?", "What's a lighter swap for dinner?", "Am I getting enough protein?",
+  ]);
+  // Each row carries its struggle's icon — the boards' pairing.
+  const icons = page.locator(".opts .opt .ico").first();
+  await expect(page.locator(".opts .opt").first()).toContainText("week");
+  await expect(icons).toHaveCount(1);
+});
+
+test("the starters follow the account's struggles, its own first", async ({ inWebApp: page }) => {
+  await page.request.patch("/v1/profile", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
+    data: { struggles: ["busy", "ideas"] },
+  });
+  await page.reload();
+  await expect(page.locator(".opts .opt .ot")).toHaveText([
+    "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
+  ]);
+});
+
+test("a starter tapped is sent as the words, and the card is gone once the thread has lines", async ({ inWebApp: page }) => {
+  await page.locator(".opts .opt", { hasText: "week" }).click();
+  await expect(page.locator(".thread li.me")).toContainText("How's my week going?");
+  // The stored thread is no longer empty, so the starters' card does not come back.
+  await expect(page.locator(".opts")).toHaveCount(0);
+});
 
 test("a photograph logs a meal, with its caption in the thread", async ({ inWebApp: page }) => {
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("lunch at the desk");
+  await page.getByPlaceholder(ASK).fill("lunch at the desk");
   const sent = page.waitForRequest((r) => r.url().endsWith("/meals/photo"));
   await page.getByRole("button", { name: "Send the photo" }).click();
   // THE STREAM, as the phone asks for it: a blank line every few seconds keeps every hop between the
@@ -34,23 +71,61 @@ test("a photograph logs a meal, with its caption in the thread", async ({ inWebA
 });
 
 test("a meal in words is proposed first, and Log it puts it in the thread", async ({ inWebApp: page }) => {
-  const words = page.getByPlaceholder("Tell Spud what you ate, or ask anything");
+  const words = page.getByPlaceholder(ASK);
   await words.fill("two boiled eggs and a slice of rye bread");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  // Confirm-first: a meal nobody photographed is one we inferred.
-  await expect(page.getByRole("button", { name: "Not this" })).toBeVisible();
+  // Confirm-first: a meal nobody photographed is one we inferred. The boards' card leads with
+  // "Logging to today — look right?" and answers Log it / No.
+  await expect(page.locator(".prop")).toContainText("Logging to today — look right?");
+  await expect(page.getByRole("button", { name: "No" })).toBeVisible();
   await expect(words).toHaveValue("");
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  // The card, by its own shape. Not the LAST line: a first meal is followed by Spud's introductions.
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  // The card, by its own shape — name, the d22 kcal, and the verdict dots under the hairline.
+  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
+  await expect(page.locator(".thread li.them .card .vs")).toBeVisible();
 });
 
-test("a question is answered in the thread and proposes nothing", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("how did my week go?");
+test("a proposal's No resolves the card and logs nothing", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.locator(".thread li")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "No" })).toBeVisible();
+  await page.getByRole("button", { name: "No" }).click();
+  await expect(page.locator(".prop")).toHaveCount(0);
+  // Nothing was logged: no meal card in the thread, and the day stays empty on Today.
+  await expect(page.locator(".thread li.them .card")).toHaveCount(0);
+});
+
+test("a question is answered by Gabie, with her face on the newest line", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder(ASK).fill("how did my week go?");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const answer = page.locator(".thread li.them", { hasText: "Demo answer" });
+  await expect(answer).toBeVisible();
+  await expect(answer.locator(".say")).toBeVisible();
+  // Her disc sits beside her newest line — the one just answered; her name was on the first.
+  await expect(answer.locator(".gabie")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
+});
+
+test("the protein question draws the day's bar from the server, a week question draws none", async ({ inWebApp: page }) => {
+  // The demo coach names the nutrient; the engine fills the figures — the bar shows the profile's
+  // protein target against the day's eaten total, and no other answer carries one.
+  const res = await page.request.get("/api/v1/profile", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const { targets } = await res.json() as ProfileResponse;
+  await page.getByPlaceholder(ASK).fill("Am I getting enough protein?");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const bar = page.locator(".thread .mb");
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText("Protein");
+  await expect(bar).toContainText(`of ${targets.protein_g}`);
+  // The fill is capped at the track — a number over target reads true but never overflows it.
+  await expect(page.locator(".mb .bar i")).toHaveCount(1);
+  await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("how did my week go?");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator(".thread li.them", { hasText: "Demo answer" }).last()).toBeVisible();
+  await expect(page.locator(".thread .mb")).toHaveCount(1);
 });
 
 test("a file that is not a JPEG, PNG or WebP is refused in words, out loud", async ({ inWebApp: page }) => {
@@ -83,11 +158,11 @@ test("a spent day, refused in the stream, is a sentence and logs nothing", async
     body: `\n${JSON.stringify({ kind: "cap-exceeded", scope: "user" })}\n`,
   }));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("second lunch");
+  await page.getByPlaceholder(ASK).fill("second lunch");
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".notice")).toHaveText("That was your last one today — your daily allowance resets at midnight.");
   // Refused, so the words stay for when it is allowed again.
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toHaveValue("second lunch");
+  await expect(page.getByPlaceholder(ASK)).toHaveValue("second lunch");
 });
 
 test("a spent sample says where to subscribe, and keeps the words", async ({ inWebApp: page }) => {
@@ -95,7 +170,7 @@ test("a spent sample says where to subscribe, and keeps the words", async ({ inW
   await page.route("**/api/v1/messages", (r) => r.request().method() !== "POST" ? r.fallback() : r.fulfill({
     status: 402, contentType: "application/json", body: JSON.stringify({ error: "subscription-required" }),
   }));
-  const words = page.getByPlaceholder("Tell Spud what you ate, or ask anything");
+  const words = page.getByPlaceholder(ASK);
   await words.fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".notice")).toHaveText(
@@ -105,7 +180,7 @@ test("a spent sample says where to subscribe, and keeps the words", async ({ inW
 });
 
 test("a proposal the server no longer holds stops offering Log it", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.route("**/api/v1/meals/pending/*/confirm", (r) => r.fulfill({
@@ -118,7 +193,7 @@ test("a proposal the server no longer holds stops offering Log it", async ({ inW
 });
 
 test("a held proposal survives a reload, and Log it still logs it (#530)", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   // The page's memory is gone; the server holds the proposal until it expires.
@@ -126,31 +201,63 @@ test("a held proposal survives a reload, and Log it still logs it (#530)", async
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
 });
 
 test("dropping a proposal the server no longer holds is what was asked, and says nothing", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Not this" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "No" })).toBeVisible();
   await page.route("**/api/v1/meals/pending/*/cancel", (r) => r.fulfill({
     status: 410, contentType: "application/json", body: JSON.stringify({ error: "expired" }),
   }));
-  await page.getByRole("button", { name: "Not this" }).click();
-  await expect(page.getByRole("button", { name: "Not this" })).toHaveCount(0);
+  await page.getByRole("button", { name: "No" }).click();
+  await expect(page.getByRole("button", { name: "No" })).toHaveCount(0);
   // Nothing is logged, which is the outcome they asked for; "say it again" would be the wrong advice.
   await expect(page.locator(".notice")).toBeHidden();
 });
 
-test("a turn whose answer never arrived is kept and sent again, never asked for twice", async ({ inWebApp: page }) => {
+test("a turn whose answer never arrived keeps the photo and offers Send again", async ({ inWebApp: page }) => {
   // The connection went with the turn still running: the server may have logged it. Since #708 the
-  // page keeps the photo and re-sends it under the same id, which the server answers from the first
-  // attempt — so the person is not asked to check and send it again. `app-offline.pw.ts` proves once.
+  // page keeps the photo — dimmed, under Gabie's "Couldn't reach eait." with the resend beside it.
   await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".notice")).toHaveText(KEPT);
-  await expect(page.locator(".thread li", { hasText: "Waiting to send" })).toHaveCount(1);
+  await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
+  await expect(page.locator(".thread li.me.dim .hero")).toBeVisible();
+  await expect(page.locator(".thread li.them")).toContainText("Couldn't reach eait.");
+  await expect(page.locator(".thread li.them")).toContainText("Nothing was logged.");
+  await expect(page.getByRole("button", { name: "Send again" })).toBeVisible();
+});
+
+test("Send again re-sends the kept photo, and the meal is logged exactly once", async ({ inWebApp: page }) => {
+  // The turn LANDED and logged; only the answer was lost on the way back. The resend goes under the
+  // same client id, which the server answers from the first attempt — a second meal would be the bug.
+  await page.route("**/api/v1/meals/photo", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
+  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+  await page.getByRole("button", { name: "Send the photo" }).click();
+  await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
+  await page.unroute("**/api/v1/meals/photo");
+  await page.getByRole("button", { name: "Send again" }).click();
+  await expect(page.locator(".thread li.me.dim")).toHaveCount(0);
+  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
+  // One card, not two — the turn's own id carried the replay.
+  await expect(page.locator(".thread li.them .card")).toHaveCount(1);
+});
+
+test("a thread that cannot be loaded says so, and Try again asks again", async ({ inWebApp: page }) => {
+  await page.route("**/api/v1/messages?*", (r) => r.fulfill({
+    status: 500, contentType: "application/json", body: JSON.stringify({ error: "internal" }),
+  }));
+  await page.reload();
+  await expect(page.locator(".chatfail")).toBeVisible();
+  await expect(page.locator(".chatfail")).toContainText("Couldn't load the conversation.");
+  await expect(page.locator(".chatfail .gname")).toHaveText("Gabie · nutritionist");
+  await page.unroute("**/api/v1/messages?*");
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.locator(".chatfail")).toHaveCount(0);
+  await expect(page.locator(".thread")).toContainText("Tell me what you ate, or ask me anything.");
 });
 
 test("an account the server holds no profile for still gets its chat", async ({ inWebApp: page }) => {
@@ -160,14 +267,14 @@ test("an account the server holds no profile for still gets its chat", async ({ 
     status: 403, contentType: "application/json", body: JSON.stringify({ error: "not-onboarded" }),
   }));
   await page.reload();
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.getByPlaceholder(ASK)).toBeVisible();
 });
 
 const MAYBE_LANDED = "No answer came back, and it may still have gone through. Reload to check before sending it again.";
 const KEPT = "Saved on this device. It goes on its own as soon as it can.";
 
 test("a Log it whose answer never arrived keeps the card, because pressing it again is safe", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   // The confirm REACHES the server and logs the meal; only its answer is lost on the way back.
@@ -180,12 +287,12 @@ test("a Log it whose answer never arrived keeps the card, because pressing it ag
   await page.getByRole("button", { name: "Log it" }).click();
   // Pressed twice, logged once, and nothing left to say.
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
   await expect(page.locator(".notice")).toBeHidden();
 });
 
 test("a Log it after the session ended goes to the sign-in, not to 'press it again'", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+  await page.getByPlaceholder(ASK).fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   // Signed out everywhere from another tab: every token revoked, and the cookie with them — so the
@@ -200,150 +307,18 @@ test("a Log it after the session ended goes to the sign-in, not to 'press it aga
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 });
 
-test("a proposal whose confirm landed without its answer is not offered again after the next turn", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
+test("reduced motion: the thread arrives at its end state, nothing still animating", async ({ inWebApp: page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByPlaceholder(ASK).fill("two boiled eggs");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
-  await page.route("**/api/v1/meals/pending/*/confirm", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
-  await page.getByRole("button", { name: "Log it" }).click();
-  await expect(page.locator(".notice")).not.toBeHidden();
-  await page.unroute("**/api/v1/meals/pending/*/confirm");
-  // The next turn redraws the thread, and the thread now carries that proposal's card: the meal takes
-  // the proposal's id when confirmed (`ChatEntry`, contract.ts), so the offer is over.
-  const words = page.getByPlaceholder("Tell Spud what you ate, or ask anything");
-  await words.fill("how did my week go?");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(words).toHaveValue("");
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
-});
-
-test("a stream the server could not finish may still have landed, so it is not worded as a failure", async ({ inWebApp: page }) => {
-  // The route writes this for a throw that can come after the meal was logged (#514).
-  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
-    status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "outcome-unknown" })}\n`,
-  }));
-  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByRole("button", { name: "Send the photo" }).click();
-  // An answer DID come back, so not "no answer came back": the doubt is whether it was logged.
-  await expect(page.locator(".notice")).toHaveText(
-    "That did not finish cleanly, and it may still have been logged. Reload to check before sending it again.",
-  );
-});
-
-test("an analysis the stream calls failed is a failed analysis, and says so", async ({ inWebApp: page }) => {
-  // Since #514 the route writes `analysis-failed` for the engine's own refusal and nothing else:
-  // charged, nothing logged, so trying again is safe.
-  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
-    status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "analysis-failed" })}\n`,
-  }));
-  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText("That did not come back. Try it again.");
-});
-
-test("Not this on an estimate that was already logged says so", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Not this" })).toBeVisible();
-  // What `cancelPendingMeal` answers when a confirm got there first (trimmed to what the page reads).
-  await page.route("**/api/v1/meals/pending/*/cancel", (r) => r.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify({ kind: "logged", mealId: "m1", date: "2026-09-10" }),
-  }));
-  await page.getByRole("button", { name: "Not this" }).click();
-  await expect(page.locator(".notice")).toHaveText("That one was already logged.");
-  await expect(page.getByRole("button", { name: "Not this" })).toHaveCount(0);
-});
-
-test("an estimate past the moment the server stops holding it is not offered", async ({ inWebApp: page }) => {
-  // `expiresAt` is sent so a surface stops offering a confirm it cannot honour (#367).
-  await page.route("**/api/v1/messages", (r) => r.request().method() !== "POST" ? r.fallback() : r.fulfill({
-    status: 200, contentType: "application/json", body: JSON.stringify({
-      kind: "proposed", pendingId: "p-gone", date: "2026-09-10", expiresAt: "2000-01-01T00:00:00.000Z",
-      analysis: { items: [{ name: "banana", grams: 120 }], kcal: 107 },
-    }),
-  }));
-  const words = page.getByPlaceholder("Tell Spud what you ate, or ask anything");
-  await words.fill("a banana");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(words).toHaveValue("");
-  // The controls come back in `turn()`'s `finally`, after the thread was redrawn: the moment a card
-  // could exist. Asserting its absence before that passes with or without the expiry check.
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-});
-
-test("an edge that answers 5xx with nothing in it got no answer of ours, so the photo is kept for later", async ({ inWebApp: page }) => {
-  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({ status: 502, body: "" }));
-  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText(KEPT);
-});
-
-test("a stream that ends with no answer reads as a turn that may have landed", async ({ inWebApp: page }) => {
-  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
-    status: 200, contentType: "application/x-ndjson", body: "\n\n",
-  }));
-  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText(MAYBE_LANDED);
-});
-
-test("a turn still out when the screen is rebuilt offers no second send, and its answer reaches the new screen", async ({ inWebApp: page }) => {
-  // The tabs and Back stay live while a turn is out, and rebuilding the chat drew a fresh composer:
-  // a second photo of the same meal, a second paid analysis, and the first one's answer on a screen
-  // nobody could see any more (#529).
-  let release!: () => void;
-  const gate = new Promise<void>((r) => { release = r; });
-  await page.route("**/api/v1/meals/photo", async (r) => {
-    await gate;
-    await r.fulfill({ status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "not-food" })}\n` });
-  });
-  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByRole("button", { name: "Send the photo" }).click();
-  await page.getByRole("link", { name: "Home" }).click();
-  await page.getByRole("link", { name: "Chat" }).click();
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toHaveCount(0);
-  release();
-  await expect(page.locator(".notice")).toHaveText("That did not look like food.");
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-});
-
-test("a Not this whose answer never arrived drops the card, because nothing is logged without a confirm", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Not this" })).toBeVisible();
-  await page.route("**/api/v1/meals/pending/*/cancel", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
-  await page.getByRole("button", { name: "Not this" }).click();
-  // Pressed or not, landed or not, the outcome is the one asked for; offering the card again would
-  // put it back under the server's own "Dropped it.".
-  await expect(page.getByRole("button", { name: "Not this" })).toHaveCount(0);
-  await expect(page.locator(".notice")).toBeHidden();
-});
-
-test("a re-mint that loses the network reads as a lost answer, not as signed out", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
-  // The bearer has lapsed (12 hours) and the connection drops as the page asks for another: the
-  // session behind it is still alive, so the sign-in screen would be a lie that wipes the card.
-  await page.route("**/api/v1/meals/pending/*/confirm", (r) => r.fulfill({
-    status: 401, contentType: "application/json", body: JSON.stringify({ error: "unauthenticated" }),
-  }));
-  await page.route("**/start/session/token", (r) => r.abort("connectionreset"));
-  await page.getByRole("button", { name: "Log it" }).click();
-  await expect(page.locator(".notice")).toHaveText("No answer came back. Press Log it again: it cannot log the meal twice.");
-  await expect(page.getByRole("link", { name: "Sign in" })).toHaveCount(0);
-});
-
-test("a confirm that worked leaves no card offering it, even when the redraw after it fails", async ({ inWebApp: page }) => {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a banana");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
-  await page.route((url) => url.pathname.endsWith("/api/v1/messages") && url.searchParams.has("limit"),
-    (r) => r.request().method() === "GET" ? r.abort("connectionreset") : r.fallback());
-  await page.getByRole("button", { name: "Log it" }).click();
-  await expect(page.locator(".notice")).toHaveText("Sent. Reload to see the conversation.");
-  await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
+  await expect(page.locator(".prop .card")).toBeVisible();
+  // With reduce on, rise/grow run to the end instantly — nothing is left mid-flight and every line
+  // is fully drawn: no running or pending animation, and the new lines are already opaque.
+  // Strings, because this file is typechecked without the DOM: the browser is where it runs.
+  const animating = await page.evaluate<number>(
+    `document.getAnimations().filter((a) => a.playState !== "finished").length`);
+  expect(animating).toBe(0);
+  const opacity = await page.evaluate<string>(
+    `getComputedStyle(document.querySelector(".thread li.me")).opacity`);
+  expect(opacity).toBe("1");
 });

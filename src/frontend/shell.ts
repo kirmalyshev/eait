@@ -24,11 +24,14 @@
 // requires; the ones below are the runtime pieces this page needs, and a relative import of the
 // file they live in costs nothing the Dockerfile does not already pay for.
 import { shellCopyFor } from "../shared/app/shell-copy.ts";
+import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
-import { UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
-import type { Lang } from "../shared/types.ts";
-import type { MealProposed, MealRecord } from "@eait/shared";
+import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { renderableVerdicts } from "../shared/types.ts";
+import { verdictPillLabel } from "../shared/verdicts.ts";
+import type { Lang, Verdict, VerdictDimension } from "../shared/types.ts";
+import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
   ProfileResponse, ROUTES,
@@ -297,12 +300,36 @@ export function takeTurn(
  * The proposal a text turn is holding, until it is logged or dropped — one card, on whichever
  * screen is up (the thread's, or beside the diary's own composer since #52).
  */
-export function proposalCard(p: MealProposed, turn: (write: () => Promise<string | void>) => void): HTMLElement {
+export function proposalCard(
+  p: MealProposed,
+  turn: (write: () => Promise<string | void>) => void,
+  words: { lead: string; accept: string; decline: string },
+): HTMLElement {
+  // The boards' proposal (`chat-proposal`): the question over the card, the card — name, kcal,
+  // the macro chips, the verdict dots — then the two ctas and the turn's time.
+  const wrap = el("div", "prop");
+  const lead = el("div", "t13 m pl-lead", words.lead);
   const card = el("div", "card");
-  card.append(el("p", "muted", COPY.proposalLead));
-  card.append(el("p", "", `${names(p.analysis.items)} — ${kcal(p.analysis.kcal)}`));
-  for (const [verb, label, className] of [["confirm", COPY.logIt, "primary"], ["cancel", COPY.notThis, ""]] as const) {
+  const head = el("div", "row between");
+  head.append(el("b", "pl-name", names(p.analysis.items)));
+  const num = el("span", "num row");
+  num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
+    el("span", "m t12", UNIT_KCAL[lang]));
+  card.append(head, gramMacsDiv(p.analysis));
+  const verdicts = renderableVerdicts(p.analysis.verdicts) as VerdictDimension[];
+  if (verdicts.length > 0) {
+    card.append(el("div", "hr"));
+    const vs = el("div", "vs");
+    for (const d of verdicts) {
+      const v = (p.analysis.verdicts as Record<VerdictDimension, Verdict>)[d];
+      vs.append(el("span", `v ${v}`, verdictPillLabel(d, v, lang)));
+    }
+    card.append(vs);
+  }
+  const actions = el("div", "row pl-actions");
+  for (const [verb, label, className] of [["confirm", words.accept, "cta p"], ["cancel", words.decline, "cta s"]] as const) {
     const b = el("button", className, label) as HTMLButtonElement;
+    b.type = "button";
     b.addEventListener("click", () => turn(async () => {
       let r: PendingResponse;
       try {
@@ -315,29 +342,52 @@ export function proposalCard(p: MealProposed, turn: (write: () => Promise<string
         // check" would wipe it (it lives only in this page), and describing the meal again is a
         // second paid analysis.
         if (refusalWords(err) === maybeLanded()) {
-          // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
-          // was asked for holds whether or not it landed — and offering the card again would put
-          // it back under the server's own COPY.dropped (#529).
-          if (verb === "cancel") { setHeldProposal(null); card.remove(); return; }
+          // A lost decline needs no second press: nothing is logged without a confirm, so what was
+          // asked for holds whether or not it landed — and offering the card again would put it
+          // back under the server's own dropped line (#529).
+          if (verb === "cancel") { setHeldProposal(null); wrap.remove(); return; }
           throw new Said(COPY.logRetry);
         }
         if (!(err instanceof ApiError && err.status === 410)) throw err;
         // 410: no longer held, and never will be again, so the card goes rather than offering a
-        // dead button. For COPY.notThis that is the outcome that was asked for, and it says nothing.
+        // dead button. For a decline that is the outcome that was asked for, and it says nothing.
         setHeldProposal(null);
-        if (verb === "confirm") { card.remove(); throw err; }
+        if (verb === "confirm") { wrap.remove(); throw err; }
         return;
       }
       // The card goes with its offer, not only when the redraw after it succeeds (#529): a failed
       // thread fetch left COPY.sent under a card still offering Log it.
       setHeldProposal(null);
-      card.remove();
+      wrap.remove();
       // A confirm got there first and its answer never came back: the meal stays logged.
       if (verb === "cancel" && r.kind === "logged") return COPY.alreadyLogged;
     }));
-    card.append(b);
+    actions.append(b);
   }
-  return card;
+  wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
+  return wrap;
+}
+
+/** A line's "13:05" — the hour and minute, in the reader's own calendar. */
+export const timeFmt = (d: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "2-digit", minute: "2-digit" }).format(d);
+
+/**
+ * The proposal's three macro chips — the `.macs` row the boards draw under the name ("34 g ·
+ * 48 g · 23 g"), the chip templates in the table's own language.
+ */
+function gramMacsDiv(a: MealAnalysis): HTMLElement {
+  const macs = el("div", "pl-macs");
+  const row = el("span", "macs");
+  const g = chatScreenCopyFor(lang).gramsChip;
+  for (const [name, value] of [["protein", a.protein_g], ["carbs", a.carbs_g], ["fat", a.fat_g]] as const) {
+    const chip = el("span", "mac");
+    chip.append(el("i", `ico i-${name}`));
+    chip.append(g.replace("{n}", wholeNumbers(lang)(value)));
+    row.append(chip);
+  }
+  macs.append(row);
+  return macs;
 }
 
 export function textField(placeholder: string): HTMLInputElement {
@@ -362,20 +412,25 @@ export function composerRow(placeholder: string): {
   form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
   words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
 } {
+  const shell = shellCopyFor(lang);
   const form = el("form", "comp") as HTMLFormElement;
   const picker = el("input", "visually-hidden") as HTMLInputElement;
   picker.type = "file";
   picker.accept = "image/jpeg,image/png,image/webp";
   picker.multiple = true;
   picker.setAttribute("aria-label", COPY.photosOfOneMeal);
-  const add = el("button", "add", COPY.addPhoto) as HTMLButtonElement;
+  const row = el("div", "compose");
+  const add = el("button", "ib", "") as HTMLButtonElement;
   add.type = "button";
+  add.setAttribute("aria-label", shell.composerPhoto);
+  add.append(el("i", "ico i-upload"));
   add.addEventListener("click", () => picker.click());
-  const row = el("div", "comp-row");
   const words = textField(placeholder);
-  words.className = "fld";
-  const send = el("button", "send", "↑") as HTMLButtonElement;
-  send.setAttribute("aria-label", COPY.send);
+  words.className = "box";
+  const send = el("button", "ib p", "") as HTMLButtonElement;
+  send.type = "submit";
+  send.setAttribute("aria-label", shell.composerSend);
+  send.append(el("i", "ico i-send"));
   row.append(add, words, send);
   const count = el("span", "count", "");
   count.hidden = true;

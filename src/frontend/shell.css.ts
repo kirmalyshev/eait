@@ -94,25 +94,50 @@ h2 { font-size: 17px; }
 .error, .notice { color: var(--bad); }
 .notice { margin: 1rem 0 0; }
 
-/* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
-   field, the round send. It stays at the foot of the column while the thread scrolls under it —
-   paper behind it now that the column is the paper. */
-.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--bg); padding: 10px 0 4px; }
-.comp-row { display: flex; align-items: center; gap: 8px; }
-.comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  font: 700 13px var(--display); }
-.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; font-size: 16px; padding: 11px 16px; border-radius: 999px;
-  min-height: 44px;
-  border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
-.comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center; }
-.comp-note { display: flex; align-items: center; gap: 6px; }
+/* pro.css's type helpers and the hairline — the boards' own class names, so a screen transcribes
+   a board without re-measuring a type step. */
+.d { font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.d34 { font-size: 34px; } .d28 { font-size: 28px; } .d22 { font-size: 22px; }
+.d17 { font-size: 17px; letter-spacing: -.01em; }
+.t13 { font-size: 13px; } .t12 { font-size: 12px; }
+.m { color: var(--muted); } .f { color: var(--faint); }
+.hr { height: 1px; background: var(--hair); }
+
+/* THE ONE COMPOSER (pro.css ".compose"), on Chat and on Today alike: the camera round, the pill
+   field, the send round. ".ib" is the boards' 36 px icon button; the composer wears it at 44 —
+   the tap floor. The ".box" is the boards' field as a real input — at 16 px, not the board's 15:
+   the floor that keeps iOS from zooming on focus (the a11y gate measures the box). */
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--bg); padding: 6px 0 4px; }
+.compose { display: flex; gap: 10px; align-items: center; }
+.ib { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: var(--surface); box-shadow: 0 0 0 1px var(--hair);
+  border: 0; padding: 0; cursor: pointer; color: var(--ink); }
+.ib .ico { width: 18px; height: 18px; }
+.ib:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.compose .ib { width: 44px; height: 44px; flex-basis: 44px; }
+.compose .ib .ico { width: 20px; height: 20px; }
+.compose .ib.p { background: var(--accent); box-shadow: none; color: var(--accent-ink); }
+.compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
+  color: var(--ink); }
+.compose .box::placeholder { color: var(--faint); }
+.compose .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.comp-note { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
 .comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 /* The composer's cancel is the same small text button a thread line's actions wear. */
 .act { background: none; border: 0; color: var(--muted); cursor: pointer;
   font: 700 12.5px var(--display); padding: 4px 10px; min-width: 44px; min-height: 44px; }
+
+/* The coach answer's macro bar (pro.css's .mb/.bar): the number row, the track with the target
+   tick at its right end, the fill growing once on arrival — the grow verb is motionCss's. */
+.bar { height: 6px; background: var(--hair); border-radius: 1px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.bar i.grow { transform-origin: left center; }
+.mb .row { font-size: 13px; font-weight: 600; }
+.mb .row span:last-child { color: var(--muted); font-weight: 500; }
+.mb .bar { margin-top: 5px; position: relative; overflow: visible; }
+.mb .bar::after { content: ""; position: absolute; right: 0; top: -3px; width: 2px; height: 12px;
+  background: var(--ink); }
 
 .card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
   font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--hair);
