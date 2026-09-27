@@ -12,7 +12,6 @@ import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
-import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
@@ -88,7 +87,6 @@ if (config.adminBootstrapUserId !== "") {
       + "Nobody has been made an admin. Sign in once to create the account, then use its user id.");
 }
 
-const mailer = chooseMailer(config, demo);
 const push = choosePush(config, demo);
 
 // One sweep at startup, so a process that has been up for months and is then restarted does not
@@ -102,7 +100,6 @@ if (stale > 0) console.log(`[eait] pruned ${stale} expired proposal(s) at startu
 const deps: EngineDeps = {
   store,
   config,
-  mailer,
   push,
   llm: cannedLlm
     ? demoPorts()
@@ -136,6 +133,12 @@ const deps: EngineDeps = {
 // because an hour's DST drift is visible to the people receiving it, and the only thing that can
 // see this one drift is a row that leaves a day later than it might have.
 const DAY_MS = 24 * 60 * 60 * 1000;
+// How long an account nobody can reach again is kept (#106): `/start` mints one at the first
+// onboarding answer and its cookie dies with the browser, so an abandoned walk leaves a row
+// holding body facts forever unless something sweeps it. A constant, not a setting — the
+// coordinator's call. An identity that can sign back in, one logged meal, or a session used
+// inside the window each keep the account; the store owns the precise test.
+const ABANDONED_ACCOUNT_IDLE_DAYS = 30;
 const sweepHealthRetention = async () => {
   try {
     const gone = await pruneAgedHealthDays(deps);
@@ -149,6 +152,14 @@ const sweepHealthRetention = async () => {
   await store.forgetTurnOutcomes(Date.now() - TURN_OUTCOME_TTL_MS).catch((e: unknown) => {
     console.error(`[eait] turn answer sweep failed: ${(e as Error)?.message ?? e}`);
   });
+  // Counts only: the ids are nobody's business once the rows are gone.
+  await store.pruneAbandonedAccounts(Date.now() - ABANDONED_ACCOUNT_IDLE_DAYS * DAY_MS)
+    .then((gone) => {
+      if (gone > 0) console.log(`[eait] pruned ${gone} account(s) idle past ${ABANDONED_ACCOUNT_IDLE_DAYS} days`);
+    })
+    .catch((e: unknown) => {
+      console.error(`[eait] abandoned account sweep failed: ${(e as Error)?.message ?? e}`);
+    });
 };
 await sweepHealthRetention();
 setInterval(() => { void sweepHealthRetention(); }, DAY_MS).unref?.();

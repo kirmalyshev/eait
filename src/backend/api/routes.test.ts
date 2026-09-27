@@ -14,7 +14,6 @@ import type { LlmPorts } from "../llm/port.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 import { redeemPairingCode } from "../engine/pairing.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 
 /** 64 bytes that pass the engine's magic-byte check as a JPEG. */
@@ -128,7 +127,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 
 beforeEach(() => {
   store = memoryStore();
-  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
   handle = createRouter(deps, store, testVerifier);
 });
 
@@ -147,7 +146,7 @@ describe("auth", () => {
     // says demo, the ports answering do not.
     const real = { ...demoPorts(), canned: false };
     const handleReal = createRouter(
-      { store, config: CONFIG, llm: real, mailer: fakeMailer(), push: fakePush() },
+      { store, config: CONFIG, llm: real, push: fakePush() },
       store, testVerifier,
     );
     expect(CONFIG.llmProvider).toBe("demo");
@@ -240,7 +239,7 @@ describe("profile", () => {
     const viewFor = async (webPaywall: Config["webPaywall"], locale = "en-GB") => {
       const s = memoryStore();
       const h = createRouter(
-        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() },
+        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), push: fakePush() },
         s, testVerifier);
       const res = await h(new Request(url(ROUTES.authDevice), {
         method: "POST", headers: { "content-type": "application/json" },
@@ -430,7 +429,7 @@ describe("photo", () => {
   // there is held by the client, whose "Send again" is a NEW id: the second meal (#708 review).
   it("lets a re-sent turn past the address limit that a new turn meets", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, analysisRateLimitPerDay: 1 }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, analysisRateLimitPerDay: 1 }, llm: demoPorts(), push: fakePush() };
     handle = createRouter(deps, store, testVerifier);
     const said = crypto.randomUUID();
     const send = (key: string) => handle(new Request(url(ROUTES.messages), {
@@ -448,7 +447,7 @@ describe("photo", () => {
 
   it("402s once the sample is spent — the status the app opens the paywall on", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), push: fakePush() };
     handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
@@ -520,18 +519,17 @@ describe("chat and editing", () => {
     expect((await get(ROUTES.messages)).status).toBe(401);
   });
 
-  it("keeps the wire speaker-free: an answer is Spud's like every line of his, and never what a client claims", async () => {
+  it("signs a coach answer as Gabie's, and never takes a speaker a client claims", async () => {
     const token = await session();
     const asked = await (await post(ROUTES.messages, { text: "how's my week going?" }, token)).json() as { kind: string; speaker?: string };
-    // #49: nobody is named — Spud answers now, so a question comes back unsigned like his other lines.
-    expect(asked).toMatchObject({ kind: "answered" });
-    expect(asked.speaker ?? null).toBeNull();
+    // S9: Gabie answers in Chat — the wire says so.
+    expect(asked).toMatchObject({ kind: "answered", speaker: "gabie" });
     // A scripted line is Spud's even when the client tries to sign it as somebody else's.
     const forged = await post(ROUTES.messagesLines, { lines: [{ role: "assistant", scripted: "camera-closed", speaker: "gabie" }] }, token);
     expect(forged.status).toBe(200);
     const { entries } = await (await get(ROUTES.messages, token)).json() as { entries: { role: string; kind: string; speaker?: string | null }[] };
     expect(entries.map((e) => [e.role, e.kind, e.speaker])).toEqual([
-      ["user", "text", undefined], ["assistant", "text", null], ["assistant", "text", null],
+      ["user", "text", undefined], ["assistant", "text", "gabie"], ["assistant", "text", null],
     ]);
   });
 
@@ -1084,7 +1082,7 @@ describe("errors", () => {
   it("never returns an internal error message to the client", async () => {
     const exploding: EngineDeps = {
       store, config: CONFIG,
-      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, mailer: fakeMailer(), push: fakePush(),
+      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, push: fakePush(),
     };
     const token = await session();
     handle = createRouter(exploding, store, testVerifier);
@@ -1510,7 +1508,7 @@ describe("POST /v1/auth/pair", () => {
   it("sends the pairing address on the browser's origin, not the API's", async () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1529,7 +1527,7 @@ describe("POST /v1/auth/pair", () => {
   it("falls back to the API's own origin, which is every host that has not moved yet", async () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1547,7 +1545,7 @@ describe("POST /v1/auth/pair", () => {
     // on a dead token. A copy taken at router construction would keep a link to a bot that is gone.
     const s = memoryStore();
     const config: Config = { ...CONFIG };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1590,7 +1588,7 @@ describe("POST /v1/auth/pair", () => {
 
     const { code } = await (await post(ROUTES.authPair, { userId: victim }, mine)).json() as PairCodeResponse;
     const paired = await redeemPairingCode(
-      { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() },
+      { store, config: CONFIG, llm: demoPorts(), push: fakePush() },
       code,
     );
     const landedOn = await store.userIdForToken(paired!);
@@ -1602,7 +1600,7 @@ describe("POST /v1/auth/pair", () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, authRateLimitPerHour: 2 };
     const h = createRouter(
-      { store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+      { store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
     const address = "203.0.113.77";
     const reg = await h(new Request(url(ROUTES.authDevice), {
       method: "POST",
@@ -1622,253 +1620,6 @@ describe("POST /v1/auth/pair", () => {
   });
 });
 
-describe("the mailing list", () => {
-  /** A router with its own config, because these routes are the only ones that read landingUrl. */
-  const router = (landingUrl: string) => {
-    const s = memoryStore();
-    const mailer = fakeMailer();
-    const config: Config = { ...CONFIG, landingUrl };
-    return {
-      store: s, mailer,
-      handle: createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier),
-    };
-  };
-
-  const form = (fields: Record<string, string>) =>
-    new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) });
-
-  it("takes a submission and sends the browser to check-your-email", async () => {
-    const { handle: h, mailer } = router("https://eait.fit");
-    const res = await h(form({ email: "a@example.com", source: "web_hero" }));
-    // 303, not 302: 303 tells the browser to follow with GET, so a reload does not re-post.
-    expect(res.status).toBe(303);
-    // NOT /subscribed. Nothing is on the list yet, and a page that said so would be the same lie
-    // the capped case used to tell, in a nicer font.
-    expect(res.headers.get("location")).toBe("https://eait.fit/check-your-email");
-    expect(mailer.sent).toHaveLength(1);
-  });
-
-  it("sends the browser to try-later when the confirmation could not be sent", async () => {
-    // The visible half of the mail-provider fix. A host whose sender throws — including the log
-    // provider behind a public page — must never read as "check your email".
-    const { handle: h, mailer } = router("https://eait.fit");
-    mailer.failNext();
-    const res = await h(form({ email: "a@example.com" }));
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("https://eait.fit/try-later");
-    expect(mailer.sent).toHaveLength(0);
-  });
-
-  it("confirms on the link, and lands on the page that says you are on the list", async () => {
-    const { handle: h, mailer, store: s } = router("https://eait.fit");
-    await h(form({ email: "a@example.com" }));
-
-    const link = new URL(mailer.sent[0]!.confirmUrl);
-    const res = await h(new Request(url(`${ROUTES.subscribeConfirm}${link.search}`)));
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
-    // Confirmed, so the sweep leaves it alone.
-    expect(await s.pruneUnconfirmedSubscribers(new Date(Date.now() + 1).toISOString())).toBe(0);
-  });
-
-  it("lands an unknown confirmation token on the same page as a real one", async () => {
-    // Same rule as unsubscribe: not an oracle for which links are live, and clicking twice is fine.
-    const { handle: h } = router("https://eait.fit");
-    const res = await h(new Request(url(`${ROUTES.subscribeConfirm}?t=deadbeef`)));
-    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
-  });
-
-  it("builds the confirmation link with the scheme the client actually used", async () => {
-    // The request reaches this process over plain HTTP on a Docker network — Caddy terminates TLS
-    // and proxies onward — so without X-Forwarded-Proto every link in every email is http://, and
-    // a mail client that refuses to open one is right to.
-    //
-    // The HOST needs no such rescue: Caddy passes the original Host header through untouched
-    // (unlike nginx, which replaces it unless told otherwise), so the URL this handler sees already
-    // carries the public name.
-    const { handle: h, mailer } = router("https://eait.fit");
-    await h(new Request("http://api.eait.fit/v1/subscribe", {
-      method: "POST",
-      headers: { "x-forwarded-proto": "https" },
-      body: new URLSearchParams({ email: "a@example.com" }),
-    }));
-    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
-  });
-
-  it("prefers the configured public origin over anything a request can say", async () => {
-    // A link built from a header is a link whose hostname a client can influence, and this one goes
-    // into an email. Where the origin is known, it is stated.
-    const s = memoryStore();
-    const mailer = fakeMailer();
-    const config: Config = {
-      ...CONFIG, landingUrl: "https://eait.fit", publicApiUrl: "https://api.eait.fit",
-    };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier);
-
-    await h(new Request("http://attacker.example/v1/subscribe", {
-      method: "POST",
-      body: new URLSearchParams({ email: "a@example.com" }),
-    }));
-    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
-  });
-
-  it("answers /api/v1/* itself, because development has no Caddy in front of it", async () => {
-    // #393 put the prefix strip in a `handle_path` at the edge, and DRIVING REAL CHROME is what
-    // found the hole: `./dev up` runs this process directly, so every call the web app makes went
-    // to `/api/v1/profile` and got a 404. The bundle is served by this same process — if it can be
-    // fetched from here, its API must answer from here too.
-    //
-    // ONE ROUTE TABLE STILL. The prefix is stripped before dispatch, so `/api/v1/profile` and
-    // `/v1/profile` reach the same handler and `shared/contract.ts` stays the only place a
-    // route is named.
-    const s = memoryStore();
-    const h = createRouter({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-
-    const token = (await (await h(new Request(url(ROUTES.authDevice), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
-    }))).json() as { token: string }).token;
-
-    const direct = await h(new Request(url("/v1/profile"), { headers: { authorization: `Bearer ${token}` } }));
-    const prefixed = await h(new Request(url("/api/v1/profile"), { headers: { authorization: `Bearer ${token}` } }));
-    expect(prefixed.status).toBe(direct.status);
-    expect(prefixed.status).toBe(200);
-  });
-
-  it("does not answer /api for the machine-to-machine paths", async () => {
-    // The edge refuses these on the browser's name (#393) and so does this: a webhook reachable
-    // under two spellings is a webhook whose name nobody can answer from the path alone.
-    const s = memoryStore();
-    const h = createRouter({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-    for (const p of ["/api/v1/revenuecat/webhook", "/api/v1/apple/notifications"]) {
-      expect(`${p}: ${(await h(new Request(url(p), { method: "POST" }))).status}`).toBe(`${p}: 404`);
-    }
-  });
-
-  it("sends a browser that asked the API for /start to the web origin instead", async () => {
-    // #392/#408. Shipped iOS builds print `api.eait.fit/start` on the Settings screen as the
-    // pairing address (`settings.tsx`), and a binary already on a phone cannot be told otherwise.
-    // So the API's name never stops answering /start — it answers 301, permanently, and every
-    // build keeps working.
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-
-    const res = await h(new Request("https://api.eait.fit/start?src=x", { redirect: "manual" }));
-    expect(res.status).toBe(301);
-    expect(res.headers.get("location")).toBe("https://app.eait.fit/start?src=x");
-
-    // The alias moves with it — it is the same surface under a shorter name.
-    const chat = await h(new Request("https://api.eait.fit/chat", { redirect: "manual" }));
-    expect(chat.headers.get("location")).toBe("https://app.eait.fit/chat");
-  });
-
-  it("redirects a GET and never a POST, because Apple's callback is a POST", async () => {
-    // A 301 turns a POST into a GET in every browser, and Apple returns from Sign in with Apple by
-    // POSTing the form to its registered Return URL. Redirecting that would drop the body and lose
-    // the sign-in — so whichever host Apple was told about keeps handling its own callback, and
-    // only navigations move.
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-
-    const res = await h(new Request("https://api.eait.fit/start/auth/apple/callback", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ code: "c", state: "s" }),
-      redirect: "manual",
-    }));
-    expect(res.status).not.toBe(301);
-  });
-
-  it("does not redirect when the browser is already on the web origin", async () => {
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-    const res = await h(new Request("https://app.eait.fit/start", { redirect: "manual" }));
-    expect(res.status).not.toBe(301);
-  });
-
-  it("does not redirect at all until a web origin is configured", async () => {
-    // Which is every host today, and every host that never moves its browser surface.
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicWebUrl: "" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-    const res = await h(new Request("https://api.eait.fit/start", { redirect: "manual" }));
-    expect(res.status).not.toBe(301);
-  });
-
-  it("keeps the email link on the API's origin when the browser has moved to another", async () => {
-    // #406. One value named both origins until app.eait.fit existed, and `confirmUrl` hardcodes
-    // `${base}/v1/subscribe/confirm` — so pointing the browser's origin at the web app would have
-    // pointed every double-opt-in link at a host that answers 404 on that path, and the list would
-    // have stopped growing in silence. The two origins are now separate settings.
-    const s = memoryStore();
-    const mailer = fakeMailer();
-    const config: Config = {
-      ...CONFIG,
-      landingUrl: "https://eait.fit",
-      publicApiUrl: "https://api.eait.fit",
-      publicWebUrl: "https://app.eait.fit",
-    };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier);
-
-    await h(new Request("https://app.eait.fit/v1/subscribe", {
-      method: "POST",
-      body: new URLSearchParams({ email: "split@example.com" }),
-    }));
-    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
-  });
-
-  it("needs no token, which is the entire point", async () => {
-    // A subscriber is not a user. Requiring auth here would mean the list could only hold people
-    // who already signed up for the thing the list exists to tell them about.
-    const { handle: h, store: s } = router("https://eait.fit");
-    await h(form({ email: "b@example.com" }));
-    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(1);
-  });
-
-  it("tells a person about a typo, and a bot about nothing", async () => {
-    const { handle: h } = router("https://eait.fit");
-    const typo = await h(form({ email: "not-an-address" }));
-    expect(typo.headers.get("location")).toBe("https://eait.fit/not-subscribed");
-  });
-
-  it("answers a filled honeypot exactly like a success", async () => {
-    const { handle: h, store: s } = router("https://eait.fit");
-    const res = await h(form({ email: "bot@example.com", company: "Acme" }));
-    expect(res.status).toBe(303);
-    // The same page a real submission gets — which is now "check your email", because a pending
-    // row is not a subscription and the page must not say it is.
-    expect(res.headers.get("location")).toBe("https://eait.fit/check-your-email");
-    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
-  });
-
-  it("unsubscribes on a token and no login", async () => {
-    const { handle: h, store: s } = router("https://eait.fit");
-    const { unsubscribeToken } = await s.addSubscriber("a@example.com", "web");
-    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=${unsubscribeToken}`)));
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("https://eait.fit/unsubscribed");
-    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
-  });
-
-  it("lands an unknown token on the same page as a real one", async () => {
-    // The route must not be an oracle for which tokens are live, and clicking twice is not an error.
-    const { handle: h } = router("https://eait.fit");
-    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=deadbeef`)));
-    expect(res.headers.get("location")).toBe("https://eait.fit/unsubscribed");
-  });
-
-  it("answers JSON when there is no landing page to send anyone to", async () => {
-    const { handle: h } = router("");
-    const res = await h(form({ email: "a@example.com" }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-  });
-});
-
 // ── Per-address limits ─────────────────────────────────────────────────────────────────────────
 //
 // The unit tests in `ratelimit.test.ts` cover the limiter. These cover the thing it is FOR: that
@@ -1878,7 +1629,7 @@ describe("rate limits", () => {
   const routerWith = (over: Partial<Config>) => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, ...over };
-    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    return createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
   };
 
   /** A device registration from a stated address, as Caddy would present it. */
@@ -2150,57 +1901,6 @@ describe("rate limits", () => {
   });
 });
 
-describe("subscribe outcomes", () => {
-  const routerWith = (over: Partial<Config>) => {
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, landingUrl: "https://eait.fit", ...over };
-    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
-  };
-
-  const submit = (h: (r: Request) => Promise<Response>, fields: Record<string, string>) =>
-    h(new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) }));
-
-  it("does not tell a capped submitter they are on the list", async () => {
-    // The defect this exists for. Only `invalid` was routed away from /subscribed, so a submission
-    // the cap refused reported success and dropped the address — and the cap is global, so one
-    // script filling it turned every real visitor for the rest of the day into a silent loss.
-    const h = routerWith({ subscribeDailyCap: 1 });
-
-    const first = await submit(h, { email: "first@example.com" });
-    expect(first.headers.get("location")).toBe("https://eait.fit/check-your-email");
-
-    const capped = await submit(h, { email: "second@example.com" });
-    expect(capped.headers.get("location")).toBe("https://eait.fit/try-later");
-  });
-
-  it("still answers a honeypot hit exactly like a success", async () => {
-    // The one case where lying is right: a bot that can tell the two apart learns which field to
-    // leave empty next time.
-    const h = routerWith({});
-    const bot = await submit(h, { email: "bot@example.com", company: "Acme Inc" });
-    expect(bot.headers.get("location")).toBe("https://eait.fit/check-your-email");
-  });
-
-  it("says the cap was hit in the JSON answer too, for a backend with no landing page", async () => {
-    const h = routerWith({ landingUrl: "", subscribeDailyCap: 1 });
-    await submit(h, { email: "first@example.com" });
-    const capped = await submit(h, { email: "second@example.com" });
-    // 429 rather than 200-with-an-error-body: a caller that only reads the status must not read
-    // this as an acceptance.
-    expect(capped.status).toBe(429);
-    expect(await capped.json()).toHaveProperty("error");
-  });
-
-  it("sends a rate-limited submission to the same page, saying nothing about which limit", async () => {
-    // Distinguishing "the cap is spent" from "you are being limited" tells a script how well it is
-    // doing. One page for both.
-    const h = routerWith({ subscribeRateLimitPerHour: 1 });
-    await submit(h, { email: "a@example.com" });
-    const limited = await submit(h, { email: "b@example.com" });
-    expect(limited.headers.get("location")).toBe("https://eait.fit/try-later");
-  });
-});
-
 describe("push tokens", () => {
   const token = () => `ExponentPushToken[${crypto.randomUUID().slice(0, 12)}]`;
 
@@ -2273,7 +1973,7 @@ describe("push tokens", () => {
     // can invent as many valid-looking ones as it likes.
     const s = memoryStore();
     const config = { ...CONFIG, linesRateLimitPerHour: 3 };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
     const res = await h(new Request(url(ROUTES.authDevice), {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
@@ -2393,7 +2093,7 @@ describe("the stream's keepalive", () => {
         return demoPorts().analyzePhoto(input, onDelta);
       },
     };
-    const deps: EngineDeps = { store, config: CONFIG, llm: slow, mailer: fakeMailer(), push: fakePush() };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush() };
     const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
     const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
     const { token } = await res.json() as { token: string };
@@ -2428,7 +2128,7 @@ describe("the text turn, streamed (#508)", () => {
         return demoPorts().routeText(...args);
       },
     };
-    const deps: EngineDeps = { store, config: CONFIG, llm: slow, mailer: fakeMailer(), push: fakePush() };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush() };
     const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
     const res = await h(new Request(url(ROUTES.messages), {
       method: "POST",

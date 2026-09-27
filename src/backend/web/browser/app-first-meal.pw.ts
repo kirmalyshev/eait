@@ -83,7 +83,7 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
 
 test("a meal told in words reaches the same first verdict", async ({ inWebApp: page }) => {
   await page.goto("/#/");
-  await page.getByRole("button", { name: "Tell Spud what you ate" }).click();
+  await page.getByRole("button", { name: "Tell Gabie what you ate" }).click();
   await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("a bowl of pasta and a salad");
   // A typed meal is proposed and this screen IS the confirmation — the confirm lands on its own.
   const confirmed = page.waitForRequest((r) => r.method() === "POST" && /\/meals\/pending\/[^/]+\/confirm$/.test(r.url()));

@@ -7,7 +7,8 @@
 
 import { wholeNumbers } from "./lang.ts";
 import { threadCopyFor, type Figures } from "./chat-copy.ts";
-import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
+import { STRUGGLES } from "./types.ts";
+import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
 
 /**
  * Lines the APP may ask the server to append, BY ID. Never prose: the client names a line and the
@@ -119,12 +120,18 @@ export function scriptedLine(
 
 /**
  * What the Chat tab offers when nothing live is on screen: three things the coach can do, worded
- * as the user would send them, because a tap sends the words verbatim. Shared so the server can
- * one day suggest the same ones; today only the app reads them.
+ * as the user would send them, because a tap sends the words verbatim (S9). One starter exists
+ * per struggle; the profile's picks come FIRST, in `STRUGGLES` list order rather than tap order,
+ * and the unpicked fill what is left to three — so no pick is read by nothing, and a profile that
+ * was never asked gets the list's first three.
  */
 
-export const COACH_STARTERS = (lang: Lang): readonly string[] =>
-  threadCopyFor(lang).coachStarters;
+export function startersFor(picked: readonly Struggle[] | null | undefined, lang: Lang): string[] {
+  const starters = threadCopyFor(lang).coachStarters;
+  const chosen = STRUGGLES.filter((s) => picked?.includes(s));
+  const rest = STRUGGLES.filter((s) => !picked?.includes(s));
+  return [...chosen, ...rest].slice(0, 3).map((s) => starters[s]);
+}
 
 /**
  * The fixed thread the deterministic Chat is seeded with. Issue #257.
@@ -187,11 +194,12 @@ export function cleanSuggestions(raw: unknown): string[] {
 /**
  * WHERE THE DAY STANDS, said the same way whatever put the meal there (#306).
  *
- * copy.md § Step 14's arithmetic clause, on its own. It was reachable only through
- * `correctionLine`, so a corrected meal was followed by the day's numbers and a logged one by
- * nothing — #301's "three consecutive meals look like three different features", in the half #301
- * did not touch. Worse, the account's FIRST meal does say the arithmetic (`firstVerdictLines`), so
- * the very next meal broke an expectation the product had just set.
+ * copy.md § Step 14's arithmetic clause, on its own. It was once reachable only through the old
+ * correction line (#119 retired it — the change line names the edit, not the day), so a corrected
+ * meal was followed by the day's numbers and a logged one by nothing — #301's "three consecutive
+ * meals look like three different features", in the half #301 did not touch. Worse, the account's
+ * FIRST meal does say the arithmetic (`firstVerdictLines`), so the very next meal broke an
+ * expectation the product had just set.
  *
  * NO VERB, AND NO MEAL KCAL. The card under it already carries the meal's own numbers, and #301
  * removed the "Logged." caption for exactly that reason — `LandedMeal` says the running arithmetic
@@ -229,23 +237,6 @@ function figures(
     protein: n(i.eatenToday.protein_g),
     proteinTarget: n(i.targets.protein_g),
   };
-}
-
-/**
- * copy.md § Step 14 · after a correction, from chat or from the editor. `eatenToday` is after it.
- *
- * The changed number in front of the day's, because a correction's whole point is that the meal's
- * kcal MOVED — the one thing the re-rendered card cannot say by itself. The clause behind it is
- * `runningLine`, shared with every landed meal so the two can never disagree about one day.
- */
-export function correctionLine(
-  i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang,
-): string {
-  return threadCopyFor(lang).correction({
-    kcal: wholeNumbers(lang)(i.meal.kcal),
-    day: runningLine(i, lang),
-  });
 }
 
 /**

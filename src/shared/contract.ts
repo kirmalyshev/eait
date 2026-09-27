@@ -326,30 +326,6 @@ export const ROUTES = {
   /** POST — a batch of daily health aggregates read off the phone's health store. Upserted. */
   healthDays: "/v1/health/days",
 
-  // ── The mailing list ──────────────────────────────────────────────────────────────────────
-  //
-  // The only two routes here that no app ever calls. They exist for the landing page, they are
-  // unauthenticated, and they take FORM ENCODING rather than JSON — because the page that posts to
-  // them carries no JavaScript, and a plain <form> is the only way to submit without any.
-  //
-  // A subscriber is deliberately NOT a user. There is no row linking the two, and there cannot be.
-  // Since issue #95 an account carries an address as well, and the difference is the whole design:
-  // that one belongs to an account, is held to run it, and is erased with it, while a subscriber
-  // has no account and consented to one specific thing — being told when the app ships. Neither
-  // basis covers the other. It also means leaving the list is its own action with its own token,
-  // not something buried in account deletion.
-  /** POST, form-encoded, unauthenticated. Fields: `email`, and the honeypot `company`. */
-  subscribe: "/v1/subscribe",
-  /**
-   * GET `?t=<token>`. The confirmation half of double opt-in — the link in the one email this
-   * product sends. Until it is followed the address is on no list at all, and if it never is, the
-   * row is deleted within days: an address somebody typed into a form is not consent, and holding
-   * one that was never confirmed is holding personal data with no basis for it.
-   */
-  subscribeConfirm: "/v1/subscribe/confirm",
-  /** GET `?t=<token>`. The withdrawal half — one click, no login, no confirmation screen. */
-  unsubscribe: "/v1/unsubscribe",
-
   /**
    * The browser onboarding, and the ONE route here that is not part of the JSON API.
    *
@@ -739,10 +715,10 @@ export type ChatEntry =
   | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
   /** `mealId`: the meal the photo logged, so the bubble can fetch the picture; null on lines from before photos were kept. */
   | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
-  /** `speaker`: legacy (#49). Null on every new line; `gabie` only on a line stored before Spud answered alone, and it is Spud's too. */
+  /** `speaker`: who said it. Null is Spud — onboarding's asks and scripted beats; `gabie` is an engine line, and the app draws her face on it (S9). */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string; speaker: ChatSpeaker | null }
-  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
-  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };
+  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. `speaker`: the engines' card is Gabie's; a row from before the column reads null. */
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; speaker: ChatSpeaker | null };
 
 export interface ChatHistoryResponse {
   /** Oldest first within the page. */

@@ -7,7 +7,7 @@
 
 import { i18nFor } from "./i18n.ts";
 import type { I18n } from "@lingui/core";
-import type { Lang, Verdict, VerdictDimension } from "./types.ts";
+import { renderableVerdicts, type Lang, type Verdict, type VerdictDimension } from "./types.ts";
 
 
 /**
@@ -46,6 +46,27 @@ const PILL: Record<Verdict, (i18n: I18n, noun: string) => string> = {
 };
 
 /**
+ * The MID-SENTENCE noun — "calories", not "Calories" — for the inline form below.
+ *
+ * A separate set of keys rather than the pill's noun lowered, because case is a language's
+ * decision, not a string operation: German keeps "Kalorien" capitalised wherever the word sits,
+ * and a client that called `.toLowerCase()` on the pill's word would be wrong there while looking
+ * right in English. Each catalog carries its own inline noun, so no client ever cases a word.
+ */
+const INLINE_NOUN: Record<VerdictDimension, (i18n: I18n) => string> = {
+  weight: (i18n) => i18n._("verdict.noun.inline.weight", undefined, { message: "calories" }),
+  ldl: (i18n) => i18n._("verdict.noun.inline.ldl", undefined, { message: "saturated fat" }),
+  kidneys: (i18n) => i18n._("verdict.noun.inline.kidneys", undefined, { message: "sodium" }),
+};
+
+// Warn and bad only. A diary row speaks when the meal is NOT on plan — a meal whose every verdict
+// is good shows its time alone, so `verdict.inline.good` does not exist.
+const INLINE: Record<Exclude<Verdict, "good">, (i18n: I18n, noun: string) => string> = {
+  warn: (i18n, noun) => i18n._("verdict.inline.warn", { noun }, { message: "{noun} high" }),
+  bad: (i18n, noun) => i18n._("verdict.inline.bad", { noun }, { message: "{noun} very high" }),
+};
+
+/**
  * The words on a verdict pill — INCLUDING the verdict.
  *
  * The pill used to read "Calories" and carry good/warn/bad in its tint and a coloured dot. That is
@@ -76,4 +97,35 @@ export function verdictPillLabel(
  */
 export function verdictNoun(dimension: VerdictDimension, lang: Lang): string {
   return NOUN[dimension](i18nFor(lang));
+}
+
+/**
+ * One verdict inside a diary row — "calories high", "saturated fat very high" — the pill's words
+ * in mid-sentence case. `verdict.bad` stays "very high" everywhere it already reads: `bad` is a
+ * share of the day's allowance (`shareVerdict`), never a claim that the plan was exceeded.
+ */
+export function verdictInlineLabel(
+  dimension: VerdictDimension,
+  verdict: Exclude<Verdict, "good">,
+  lang: Lang,
+): string {
+  const i18n = i18nFor(lang);
+  return INLINE[verdict](i18n, INLINE_NOUN[dimension](i18n));
+}
+
+/**
+ * The verdict half of a diary row: every verdict that is not on plan, joined by " · ", in pill
+ * order — "calories high · saturated fat very high". The row itself is the time, then this.
+ *
+ * Empty when every verdict is on plan (the row shows its time alone) or when nothing here is a
+ * verdict this build knows — `renderableVerdicts` does the dropping, same as the pills.
+ */
+export function verdictInlineText(verdicts: unknown, lang: Lang): string {
+  const v = verdicts as Partial<Record<VerdictDimension, Verdict>>;
+  const segments: string[] = [];
+  for (const d of renderableVerdicts(verdicts)) {
+    const verdict = v[d];
+    if (verdict === "warn" || verdict === "bad") segments.push(verdictInlineLabel(d, verdict, lang));
+  }
+  return segments.join(" · ");
 }

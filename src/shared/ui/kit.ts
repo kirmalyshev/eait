@@ -1,0 +1,624 @@
+// The W1 component kit (#88): the markup every Register-P web surface draws, written ONCE.
+//
+// WHY STRINGS AND NOT NODES: `/start` renders server-side and has no DOM, and the issue's rule is
+// that nobody builds a second copy of a ring, a week strip or a meal row — so the markup is a
+// string the server interpolates and the browser client parses (`kitEl`, frontend/kit.ts). The
+// class names and measurements are `product/design/pro/`'s own, and `kitCss()` — generated beside
+// them like `iconCss()` and `motionCss()` are — is what both surfaces interpolate, so a rule can
+// never drift between the two.
+//
+// TWO SAFETY RULES, and they are why the signatures take primitives and not records:
+//   1. Every interpolated value goes through `esc` — a name the model wrote or a person typed is
+//      text here, never markup. The CSP has no 'unsafe-inline' to save a mistake.
+//   2. No `style=""` attribute is ever emitted — the app's shell refuses them outright
+//      (`style-src 'nonce-…'`). Everything a board writes inline is a class or a plain SVG
+//      presentation attribute here, which the same policy lets through.
+//
+// Verdict words are the caller's — `verdictPillLabel` is a verdicts.ts affair and `ui/` may not
+// import it — so the functions take `{tone, words}` pairs the caller computed.
+
+import {
+  dayRing, estimateChart, ringDash, TWO_WAYS_CHART, weekBars, weightChart,
+  type ChartDay, type EstimateDirection, type WeightPoint,
+} from "./charts.ts";
+import type { IconName } from "./icons.ts";
+import { RADIUS, SHADOW } from "../design.ts";
+import { LANG_TAG, spellUnit, UNIT_KCAL, weekdayLetters, wholeNumbers, type Lang } from "../lang.ts";
+import { MOUTHS, spudSvg, type MascotMood } from "../mascot.ts";
+
+/** Text or an attribute value, made inert. The one escaper both surfaces get. */
+export const esc = (text: string): string =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/** The icon chip — `<i class="ico i-<name>">`, sized by the rule that holds it. */
+export const ico = (name: IconName): string => `<i class="ico i-${name}"></i>`;
+
+/** The macro names that have a chip and a `--macro-*` hue. `satfat` is the fat alias. */
+export type ChipName = "kcal" | "protein" | "carbs" | "fat" | "satfat";
+
+// ── The ring ─────────────────────────────────────────────────────────────────────────────────
+//
+// One instrument in the boards' three frames: the 104 px hero ring (r 44, stroke 8), the 96 px
+// web day ring (r 40, stroke 8) and the 52 px macro ring (r 21, stroke 5). The dash figures are
+// `ringDash`'s, the track is `--hair`, the arc's hue is a TOKEN NAME — a literal hex here is the
+// second copy the kit exists to prevent.
+
+export type RingTone =
+  | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line"
+  | `macro-${ChipName}`;
+
+const RING_SPEC = {
+  104: { box: 104, r: 44, stroke: 8 },
+  96: { box: 96, r: 40, stroke: 8 },
+  52: { box: 52, r: 21, stroke: 5 },
+} as const;
+
+const toneVar = (tone: RingTone): string =>
+  `var(--${tone === "macro-satfat" ? "macro-fat" : tone})`;
+
+export interface RingOpts {
+  share: number;
+  /** The frame — 52 when unsaid. */
+  size?: 104 | 96 | 52;
+  tone?: RingTone;
+  /** The icon centred in the ring. Unsaid is no `.ico` node at all. */
+  icon?: IconName;
+}
+
+export const ring = (o: RingOpts): string => {
+  const spec = RING_SPEC[o.size ?? 52];
+  const c = spec.box / 2;
+  const d = ringDash(o.share, spec.r);
+  const cls = o.size === 104 ? "mring w104" : o.size === 96 ? "mring w96" : "mring";
+  return `<div class="${cls}"><svg viewBox="0 0 ${spec.box} ${spec.box}">` +
+    `<circle cx="${c}" cy="${c}" r="${spec.r}" fill="none" stroke="var(--hair)" stroke-width="${spec.stroke}"/>` +
+    `<circle class="fg" cx="${c}" cy="${c}" r="${spec.r}" fill="none" stroke="${toneVar(o.tone ?? "accent")}" ` +
+    `stroke-width="${spec.stroke}" stroke-dasharray="${d.dasharray}" stroke-dashoffset="${d.dashoffset}" stroke-linecap="round"/>` +
+    `</svg>${o.icon ? ico(o.icon) : ""}</div>`;
+};
+
+// ── The week strip ───────────────────────────────────────────────────────────────────────────
+//
+// Seven days, the date centred in its ring. `when` arrives from the server (`DiaryDay`) — a client
+// never compares a row's date with today. Each cell is a real `<button type="button">` carrying
+// `data-date`, so a surface can delegate a tap without reaching into the markup; `type="button"`
+// because an untyped one inside a `/start` form would submit it.
+
+export interface WeekDayRow extends ChartDay {
+  /** YYYY-MM-DD in the account's timezone — the server's, read straight through. */
+  date: string;
+  /** The day's calorie target, sent on every row (`DiaryDay.targetKcal`). */
+  targetKcal: number;
+}
+
+export const weekStrip = (days: readonly WeekDayRow[], lang: Lang): string => {
+  const letters = weekdayLetters(lang);
+  const fullDate = new Intl.DateTimeFormat(LANG_TAG[lang], { dateStyle: "full", timeZone: "UTC" });
+  const cells = days.map((day) => {
+    const noon = new Date(`${day.date}T12:00:00Z`);
+    const ring = dayRing(day, day.targetKcal);
+    const cls = day.when === "today" ? "dy now" : day.when === "future" ? "dy fut" : "dy";
+    const circles = ring.dashoffset === undefined
+      ? `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
+      : `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
+        `<circle class="fg" cx="15" cy="15" r="12" fill="none" stroke="var(--${ring.tone})" stroke-width="2.4" ` +
+        `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
+    const letter = esc(letters[(noon.getUTCDay() + 6) % 7]!);
+    const num = Number(day.date.slice(8, 10));
+    return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
+      `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;
+  });
+  return `<div class="week">${cells.join("")}</div>`;
+};
+
+// ── Macro chips and cards ────────────────────────────────────────────────────────────────────
+//
+// `.mac` is icon + number + unit; `.macs` is the row of them. `gramMacs` writes the boards'
+// "{n} g" in the surface's language — the formatter is shared so a chip in German cannot drift.
+
+export const mac = (name: ChipName, text: string): string =>
+  `<span class="mac">${ico(name)}${esc(text)}</span>`;
+
+export const macs = (chips: readonly { name: ChipName; text: string }[], cls = ""): string =>
+  `<span class="macs${cls ? ` ${cls}` : ""}">${chips.map((c) => mac(c.name, c.text)).join("")}</span>`;
+
+/** A meal's three macro chips, "{n} g" in the surface's language — never a hand-written " g". */
+export const gramChips = (
+  grams: { protein: number; carbs: number; fat: number },
+  lang: Lang,
+): { name: ChipName; text: string }[] => {
+  const n = wholeNumbers(lang);
+  const g = spellUnit(lang, "g");
+  return [
+    { name: "protein", text: `${n(grams.protein)} ${g}` },
+    { name: "carbs", text: `${n(grams.carbs)} ${g}` },
+    { name: "fat", text: `${n(grams.fat)} ${g}` },
+  ];
+};
+
+export const gramMacs = (
+  grams: { protein: number; carbs: number; fat: number },
+  lang: Lang,
+): string => macs(gramChips(grams, lang));
+
+/**
+ * The macro card. `share` present is the ring variant — value, label, ring. `share` absent draws
+ * the centred icon: a macro the plan does not target gets no ring, because a ring says "of a
+ * target" and there is none to show. `centred` is the meal sheet's alignment; the plan card —
+// icon, figure, label and no ring div — is `planCard`.
+ */
+export const mcard = (o: {
+  macro: ChipName; value: string; label: string; share?: number; centred?: boolean;
+}): string => {
+  const pic = o.share === undefined
+    ? `<div class="mring flat">${ico(o.macro)}</div>`
+    : ring({ share: o.share, tone: `macro-${o.macro}`, icon: o.macro });
+  return `<div class="mcard${o.centred ? " ctr" : ""}"><b>${esc(o.value)}</b><small>${esc(o.label)}</small>${pic}</div>`;
+};
+
+export const planCard = (o: { macro: ChipName; value: string; label: string }): string =>
+  `<div class="mcard">${ico(o.macro)}<b>${esc(o.value)}</b><small>${esc(o.label)}</small></div>`;
+
+// ── Verdicts — a dot and a line, never a pill ────────────────────────────────────────────────
+
+export type VerdictTone = "good" | "warn" | "bad";
+
+export const verdictDot = (tone: VerdictTone, words: string): string =>
+  `<span class="v ${tone}">${esc(words)}</span>`;
+
+/** The `.vs` stack on a card — one dot-and-line per verdict, its own tone on each. */
+export const verdictList = (items: readonly { tone: VerdictTone; words: string }[]): string =>
+  items.length ? `<div class="vs">${items.map((v) => verdictDot(v.tone, v.words)).join("")}</div>` : "";
+
+// ── The meal row ─────────────────────────────────────────────────────────────────────────────
+//
+// 56 px photo or the chat tile, the time, the row's verdict words ONLY when not on plan (a "good"
+// verdict is silence on a diary row), the macro chips and the kcal. `href` makes the row the link
+// the detail sheet opens from; without it the row is a div.
+
+export interface MealRowSpec {
+  name: string;
+  /** The meal's own time, formatted by the caller. */
+  time: string;
+  kcal: number;
+  grams?: { protein: number; carbs: number; fat: number };
+  /** The meal's renderable verdicts. Good ones are filtered — the row speaks only off-plan. */
+  verdicts?: readonly { tone: VerdictTone; words: string }[];
+  /** A second clause after the time — "rough estimate" for a typed meal, say. */
+  note?: string;
+  /** The photo's src; anything else draws the chat tile. */
+  photo?: { src: string; alt?: string } | null;
+  href?: string;
+  /** Carried on `data-meal` so a tap handler can name the row it was tapped on. */
+  id?: string;
+}
+
+export const mealRow = (o: MealRowSpec, lang: Lang): string => {
+  const n = wholeNumbers(lang);
+  const photo = o.photo?.src !== undefined
+    ? `<img class="ph" src="${esc(o.photo.src)}" alt="${esc(o.photo.alt ?? "")}">`
+    : `<div class="ph chat">${ico("chat")}</div>`;
+  // The words only when not on plan, one dot for the row, the worst tone's colour on it.
+  const spoken = (o.verdicts ?? []).filter((v) => v.tone !== "good");
+  const tag = o.href !== undefined ? "a" : "div";
+  const attrs = o.href !== undefined ? ` href="${esc(o.href)}"` : "";
+  const idAttr = o.id !== undefined ? ` data-meal="${esc(o.id)}"` : "";
+  const tail = [
+    spoken.length
+      ? `<span class="v ${spoken.some((v) => v.tone === "bad") ? "bad" : "warn"}">${esc(spoken.map((v) => v.words).join(" · "))}</span>`
+      : "",
+    o.note !== undefined ? esc(o.note) : "",
+  ].filter(Boolean).join(" · ");
+  return `<${tag} class="meal"${attrs}${idAttr}>${photo}<div class="mm"><b>${esc(o.name)}</b>` +
+    `<small>${esc(o.time)}${tail ? ` · ${tail}` : ""}</small>` +
+    (o.grams ? macs(gramChips(o.grams, lang), "sm") : "") +
+    `</div><div class="kc num">${n(o.kcal)}<small>${esc(UNIT_KCAL[lang])}</small></div></${tag}>`;
+};
+
+// ── The photo hero ───────────────────────────────────────────────────────────────────────────
+//
+// The photo, its item callouts at their corners, the stamp bottom-right, the scan while the
+// analyzer is out. Callouts arrive only when the analyzer returns them — nothing here invents
+// one. Height is the surface's (`height` is layout, and surfaces differ: 600 on log-logged, 300 on
+// meal-delete), so `.hero` carries no height rule and the screen's own css sets it.
+
+export interface HeroCallout {
+  text: string;
+  /** The small value after the item's words — its kcal on the boards. */
+  value?: string;
+  corner: "tl" | "tr" | "bl" | "br";
+  /** Raised off the corner by the boards' 38 px — the bottom-right callout over the stamp lane. */
+  lift?: boolean;
+}
+
+export const photoHero = (o: {
+  src: string;
+  alt?: string;
+  /** The callout inset — 14 on the phone boards, 18 on the web's log pages. */
+  pad?: 14 | 18;
+  stamp?: string;
+  scan?: boolean;
+  callouts?: readonly HeroCallout[];
+}): string => {
+  const callouts = (o.callouts ?? []).map((c) =>
+    `<div class="co ${c.corner}${c.lift ? " lift" : ""}">${esc(c.text)}${c.value !== undefined ? ` <span>${esc(c.value)}</span>` : ""}</div>`
+  ).join("");
+  return `<div class="hero${o.pad === 18 ? " p18" : ""}">` +
+    `<img src="${esc(o.src)}" alt="${esc(o.alt ?? "")}">` +
+    callouts +
+    (o.stamp !== undefined ? `<div class="stamp">${esc(o.stamp)}</div>` : "") +
+    (o.scan ? `<div class="scan"></div>` : "") +
+    `</div>`;
+};
+
+// ── The charts ───────────────────────────────────────────────────────────────────────────────
+//
+// Thin markup over S3's geometry: the positions are `estimateChart`/`TWO_WAYS_CHART`/`weightChart`/
+// `weekBars`' own, the labels are the caller's words. SVG presentation attributes carry the paint
+// — a `style=` on an element is what the app's CSP refuses.
+//
+// The gradient id is per-instance (`spudSeq`'s rule): two charts on one page may not share one.
+let chartSeq = 0;
+
+/** The estimate chart is a component, not a bare svg: the header row (its `.lab` plus the
+ * `.tagx` "eait analysis" mark) is part of what it renders — a chart cannot ship labelless.
+ * Single root so `kitEl` parses it whole. */
+export const estimateChartSvg = (
+  direction: EstimateDirection,
+  labels: {
+    aria: string; start: string; target: string; now: string; month: string;
+    label: string; byEait: string;
+  },
+): string => {
+  const g = estimateChart(direction);
+  const uid = `pgf-${++chartSeq}`;
+  const stops = g.areaGradient.stops.map((s) =>
+    `<stop offset="${s.offset}" stop-color="var(--accent)" stop-opacity="${s.opacity}"/>`
+  ).join("");
+  return `<div class="ec"><div class="row between"><span class="lab">${esc(labels.label)}</span>` +
+    `${tagx({ text: labels.byEait })}</div>` +
+    `<svg class="pgraph" viewBox="${g.viewBox}" width="100%" role="img" aria-label="${esc(labels.aria)}">` +
+    `<defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>` +
+    `<line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>` +
+    `<path class="area rise" d="${g.areaPath}" fill="url(#${uid})"/>` +
+    `<path class="ln draw" d="${g.linePath}"/>` +
+    `<circle cx="${g.startDot.cx}" cy="${g.startDot.cy}" r="${g.startDot.r}" fill="var(--ink)"/>` +
+    `<circle class="pop end" cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}"/>` +
+    `<g class="rise chip"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/>` +
+    `<text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">${esc(labels.target)}</text></g>` +
+    `<text x="${g.startLabel.x}" y="${g.startLabel.y}" fill="var(--ink)" font-weight="600">${esc(labels.start)}</text>` +
+    `<text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${esc(labels.now)}</text>` +
+    `<text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(labels.month)}</text>` +
+    `</svg></div>`;
+};
+
+export const twoWayChartSvg = (
+  labels: { aria: string; without: string; now: string; later: string },
+): string =>
+  `<svg class="pgraph" viewBox="${TWO_WAYS_CHART.viewBox}" width="100%" role="img" aria-label="${esc(labels.aria)}">` +
+  `<line x1="${TWO_WAYS_CHART.baseline.x1}" y1="${TWO_WAYS_CHART.baseline.y}" x2="${TWO_WAYS_CHART.baseline.x2}" y2="${TWO_WAYS_CHART.baseline.y}" stroke="var(--hair)"/>` +
+  `<path class="draw wo" d="${TWO_WAYS_CHART.withoutPath}" fill="none" stroke="var(--faint)" stroke-width="2.5" stroke-linecap="round"/>` +
+  `<path class="draw wi" d="${TWO_WAYS_CHART.withPath}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>` +
+  `<circle cx="${TWO_WAYS_CHART.startDot.cx}" cy="${TWO_WAYS_CHART.startDot.cy}" r="${TWO_WAYS_CHART.startDot.r}" fill="var(--ink)"/>` +
+  `<text x="${TWO_WAYS_CHART.withoutLabel.x}" y="${TWO_WAYS_CHART.withoutLabel.y}" text-anchor="end" fill="var(--muted)" font-size="13" font-weight="600">${esc(labels.without)}</text>` +
+  `<text x="${TWO_WAYS_CHART.nowLabel.x}" y="${TWO_WAYS_CHART.nowLabel.y}">${esc(labels.now)}</text>` +
+  `<text x="${TWO_WAYS_CHART.laterLabel.x}" y="${TWO_WAYS_CHART.laterLabel.y}" text-anchor="end">${esc(labels.later)}</text>` +
+  `</svg>`;
+
+/**
+ * The logged-weight line (`weightChart`): hairline rows, the polyline through the weigh-ins, a dot
+ * per point, the first and last values and the two dates. `points` are `{t, kg}` — epoch ms or day
+ * indexes, one unit throughout.
+ */
+export const weightChartSvg = (
+  points: readonly WeightPoint[],
+  labels: { aria?: string; first: string; last: string; from: string; to: string },
+): string => {
+  const g = weightChart(points);
+  const grid = g.gridlines.map((y) =>
+    `<line x1="20" x2="310" y1="${y}" y2="${y}" stroke="var(--hair)"/>`
+  ).join("");
+  const dots = g.points.map((p, i) =>
+    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="var(--ink)" class="pop pd-${Math.min(i, 12)}"/>`
+  ).join("");
+  return `<svg class="pgraph wl" viewBox="${g.viewBox}" width="100%" role="img"${labels.aria ? ` aria-label="${esc(labels.aria)}"` : ""}>` +
+    grid +
+    (g.path ? `<path class="draw wl-line" d="${g.path}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "") +
+    dots +
+    `<text x="${g.firstLabel.x}" y="${g.firstLabel.y}" fill="var(--ink)" font-weight="600">${esc(labels.first)}</text>` +
+    (g.points.length ? `<text x="${g.lastLabel.x}" y="${g.lastLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(labels.last)}</text>` : "") +
+    `<text x="${g.dateLabelX.start}" y="${g.dateLabelY}">${esc(labels.from)}</text>` +
+    `<text x="${g.dateLabelX.end}" y="${g.dateLabelY}" text-anchor="end">${esc(labels.to)}</text>` +
+    `</svg>`;
+};
+
+/**
+ * The week's intake bars (`weekBars`): one per logged day against the dashed plan line, today the
+ * tinted-and-outlined one. `days` are kcal or null (no bar — an empty day is not a zero), `letters`
+ * the caller's localized weekday letters, `planLabel` the formatted target.
+ */
+export const weekBarsSvg = (
+  days: readonly (number | null)[],
+  planKcal: number,
+  o: { todayIndex: number; letters: readonly string[]; planLabel: string },
+): string => {
+  const g = weekBars(days, planKcal, o.todayIndex);
+  const bars = g.bars.map((b, i) =>
+    b === null ? "" :
+    b.today
+      ? `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" rx="${b.rx}" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="1.5" class="rise rd-${i}"/>`
+      : `<rect x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}" rx="${b.rx}" fill="var(--accent)" class="rise rd-${i}"/>`
+  ).join("");
+  const letters = g.labels.map((p, i) =>
+    `<text x="${p.x}" y="${p.y}" text-anchor="middle">${esc(o.letters[i] ?? "")}</text>`
+  ).join("");
+  return `<svg class="pgraph wb" viewBox="${g.viewBox}" width="100%" role="img">` +
+    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="3 3"/>` +
+    bars + letters +
+    `<text x="${g.planLabel.x}" y="${g.planLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(o.planLabel)}</text>` +
+    `</svg>`;
+};
+
+// ── The avatars ──────────────────────────────────────────────────────────────────────────────
+//
+// Spud is the 28 px tinted disc the boards draw beside a `.say` (36 px `.lg`); the face art per
+// mood is mascot.ts's own, data-urled into a `--face` variable by kitCss — never a copy
+// transcribed into a string here. Gabie is the lettered accent disc, and her name line is
+// `.gname` — the "Gabie · nutritionist" the correction boards carry.
+
+/** Spud at 28 px, mood-named, decorative beside its `.say` text. `large` is the 36 px variant. */
+export const spudAvatar = (mood: MascotMood, o: { large?: boolean } = {}): string =>
+  `<span class="spud ${mood}${o.large ? " lg" : ""}" aria-hidden="true"></span>`;
+
+/** Gabie's lettered disc — the letter itself is `.gabie::before`, so the markup carries none. */
+export const gabieAvatar = (): string => `<span class="gabie" aria-hidden="true"></span>`;
+
+/** Her name line above a `.say` turn's words — the caller composes the words, escaped here. */
+export const gabieName = (name: string): string => `<div class="gname">${esc(name)}</div>`;
+
+/**
+ * The attribution chip: the eait mark's face plus the localized label — the "eait analysis" tag
+ * on a chart — on a surface pill. The streak chip is the same pill with an icon instead of the
+ * face (`icon` + `aria`, and `.ic` padding the board draws), so surfaces share the one chip.
+ */
+export const tagx = (o: { text: string; mood?: MascotMood; icon?: IconName; aria?: string }): string =>
+  `<span class="tagx${o.icon !== undefined ? " ic" : ""}"${o.aria !== undefined ? ` aria-label="${esc(o.aria)}"` : ""}>` +
+  (o.icon !== undefined ? ico(o.icon) : `<span class="wm ${o.mood ?? "happy"}" aria-hidden="true"></span>`) +
+  `${esc(o.text)}</span>`;
+
+// ── Buttons and option rows ──────────────────────────────────────────────────────────────────
+//
+// `.cta.p` is the register's one button: 16/600 on accent, radius 14, never uppercase. An `href`
+// is a link, everything else is a button — `type` only ever "button" or "submit", because a
+// default-typed button inside a `/start` form submits it.
+
+export const cta = (o: {
+  text: string;
+  kind: "p" | "s" | "g";
+  icon?: IconName;
+  href?: string;
+  type?: "button" | "submit";
+  name?: string;
+  value?: string;
+}): string => {
+  const inner = `${o.icon ? ico(o.icon) : ""}${esc(o.text)}`;
+  if (o.href !== undefined) return `<a class="cta ${o.kind}" href="${esc(o.href)}">${inner}</a>`;
+  const form = (o.name !== undefined ? ` name="${esc(o.name)}"` : "") +
+    (o.value !== undefined ? ` value="${esc(o.value)}"` : "");
+  return `<button class="cta ${o.kind}" type="${o.type ?? "button"}"${form}>${inner}</button>`;
+};
+
+/**
+ * The option row: hairline-separated, a hollow check disc that fills accent when selected — never
+ * a chip. `tile` wraps the icon in the tinted disc the list boards draw. `tag` is `a` for a
+ * navigation row (`href`), `button` for a choice, `div` for display. A button's `type` is only
+ * ever explicit — an untyped one inside a `/start` form submits it.
+ */
+export const optionRow = (o: {
+  text: string;
+  icon?: IconName;
+  tile?: boolean;
+  selected?: boolean;
+  tag?: "div" | "button" | "a";
+  href?: string;
+  type?: "button" | "submit";
+  name?: string;
+  value?: string;
+}): string => {
+  const tag = o.tag ?? (o.href !== undefined ? "a" : "button");
+  const lead = o.icon !== undefined
+    ? (o.tile ? `<span class="tile">${ico(o.icon)}</span>` : ico(o.icon))
+    : "";
+  const attrs = (tag === "a" && o.href !== undefined ? ` href="${esc(o.href)}"` : "") +
+    (tag === "button" ? ` type="${o.type ?? "button"}"` : "") +
+    (o.name !== undefined ? ` name="${esc(o.name)}"` : "") +
+    (o.value !== undefined ? ` value="${esc(o.value)}"` : "");
+  return `<${tag} class="opt${o.selected ? " sel" : ""}"${attrs}>${lead}<span class="ot">${esc(o.text)}</span><span class="ck"></span></${tag}>`;
+};
+
+// ── The kit's rules ──────────────────────────────────────────────────────────────────────────
+//
+// `pro.css`'s rules for these components, token by token, minus the inline styles the CSP forbids
+// (they are classes and presentation attributes now). Interpolated into the web shell's one style
+// block and into `/start`'s STYLES — the same string both places, like `iconCss()`.
+
+export function kitCss(): string {
+  return `
+/* W1 — the component kit (#88). pro.css's measurements; the vars are palette.ts/design.ts's. */
+:root{--r-card:${RADIUS.card}px;--r-ctl:${RADIUS.control}px;--r-thumb:${RADIUS.thumbnail}px;--r-cta:${RADIUS.cta}px;--shadow:${SHADOW}}
+
+/* The ring instrument — 104/96/52 px, strokes 8/8/5, the arc drawn on entry. */
+.mring{position:relative;width:52px;height:52px;margin-top:8px;flex:0 0 auto}
+.mring svg{width:52px;height:52px;display:block;transform:rotate(-90deg)}
+.mring circle{fill:none}
+.mring .fg{animation:k-draw 1.2s var(--ease) both}
+.mring .ico{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:14px}
+.mring.w104{width:104px;height:104px;margin-top:0}
+.mring.w104 svg{width:104px;height:104px}
+.mring.w104 .ico{width:40px;height:40px}
+.mring.w96{width:96px;height:96px;margin-top:0}
+.mring.w96 svg{width:96px;height:96px}
+.mring.w96 .ico{width:38px;height:38px}
+.mring.flat{display:flex;align-items:center;justify-content:center}
+.mring.flat .ico{position:static;transform:none;width:34px;height:34px}
+
+/* The week strip — seven days, the date centred in a 32 px ring of stroke 2.4. */
+.week{display:flex;justify-content:space-between;padding:0 16px}
+.week .dy{display:flex;flex-direction:column;align-items:center;gap:5px;width:44px;padding:6px 0 7px;
+  border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:12px;font-weight:600;
+  color:var(--muted);position:relative;cursor:pointer}
+.week .dy.now{background:var(--surface);box-shadow:var(--shadow);color:var(--ink)}
+.week .dy.fut{opacity:.45}
+.week .dy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.week svg{width:32px;height:32px;transform:rotate(-90deg)}
+.week .fg{animation:k-draw 1.2s var(--ease) both}
+.week .dy b{position:absolute;left:0;right:0;bottom:7px;height:32px;margin:0;display:flex;
+  align-items:center;justify-content:center;font-size:13px;font-weight:700;line-height:1;color:var(--ink)}
+
+/* The macro chip — icon, number, unit. */
+.mac{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.macs{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}
+.macs.sm{font-size:12px;gap:10px;color:var(--muted)}
+
+/* The macro card — value, label, and a 52 px ring only where a target exists. */
+.mcard{position:relative;background:var(--surface);border-radius:var(--r-card);padding:12px 12px 14px;
+  display:flex;flex-direction:column;gap:4px;min-width:0;box-shadow:var(--shadow)}
+.mcard.ctr{align-items:center;text-align:center}
+.mcard b{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.mcard small{font-size:12px;font-weight:600;color:var(--muted)}
+.mcard>.mring{align-self:center}
+.mcard>.ico{width:34px;height:34px;margin-bottom:4px}
+.mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* The meal row — 56 px photo or chat tile, name, time, verdict words only off-plan, chips, kcal. */
+.meal{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--hair);
+  color:inherit;text-decoration:none}
+.meal:first-child{border-top:0;padding-top:0}
+.meal:last-child{padding-bottom:0}
+.meal .ph{width:56px;height:56px;flex:0 0 56px;border-radius:var(--r-thumb);object-fit:cover;background:var(--hair)}
+.meal .ph.chat{display:flex;align-items:center;justify-content:center;background:var(--accent-tint)}
+.meal .ph.chat .ico{width:22px;height:22px;color:var(--accent)}
+.meal .mm{flex:1;min-width:0}
+.meal .mm b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meal .mm small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.meal .mm .macs{margin-top:4px}
+.meal .kc{font-weight:600;font-size:15px;text-align:right}
+.meal .kc small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.num{font-variant-numeric:tabular-nums}
+
+/* The verdict — a dot and a line, never a pill. */
+.v{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted)}
+.v::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:0 0 8px}
+.v.warn{color:var(--warn)}.v.warn::before{background:var(--warn)}
+.v.bad{color:var(--bad)}.v.bad::before{background:var(--bad)}
+.vs{display:flex;gap:14px;flex-wrap:wrap}
+
+/* The photo hero — image, corner callouts, the stamp; height is the surface's own. */
+.hero{position:relative;overflow:hidden;background:#DDD8CE}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero .co{--copad:14px;position:absolute;display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.94);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:600;
+  box-shadow:0 1px 2px rgba(0,0,0,.12);white-space:nowrap;animation:k-rise .5s var(--ease) both}
+.hero.p18 .co{--copad:18px}
+.hero .co.tl{left:var(--copad);top:var(--copad)}
+.hero .co.tr{right:var(--copad);top:var(--copad)}
+.hero .co.bl{left:var(--copad);bottom:var(--copad)}
+.hero .co.br{right:var(--copad);bottom:var(--copad)}
+.hero .co.lift{bottom:calc(var(--copad) + 38px)}
+.hero .co::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink)}
+.hero .co span{color:var(--muted);font-weight:500}
+.hero .co:nth-of-type(2){animation-delay:.15s}
+.hero .co:nth-of-type(3){animation-delay:.3s}
+.hero .stamp{position:absolute;right:12px;bottom:12px;background:rgba(23,25,28,.72);color:#fff;
+  font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px}
+
+/* The shared bits the components reach for: a row, space-between, the small caps label, and the
+   estimate chart's own wrapper (header over graph, as the boards draw it). */
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.lab{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ec .row{margin-bottom:10px}
+
+/* The avatars. Each mood's --face is mascot.ts's own SVG as a data URL — the same drawing the
+   surfaces inline elsewhere, so a board and a bubble never carry two potatoes. .wm is the 20px
+   wordmark size; .tagx shrinks it to 18 for the chip. */
+.spud{width:28px;height:28px;flex:0 0 28px;border-radius:50%;
+  background:var(--accent-tint) var(--face) center/78% no-repeat}
+.spud.lg{width:36px;height:36px;flex-basis:36px}
+.wm{width:20px;height:20px;border-radius:50%;flex:0 0 auto;
+  background:var(--accent-tint) var(--face) center/78% no-repeat}
+${(Object.keys(MOUTHS) as MascotMood[]).map((m) =>
+  `.spud.${m},.wm.${m}{--face:url("data:image/svg+xml,${encodeURIComponent(spudSvg(m, `face-${m}`))}")}`
+).join("\n")}
+.gabie{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--accent);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font:700 13px/1 var(--sans)}
+.gabie::before{content:"G"}
+.say{display:flex;gap:10px;align-items:flex-start}
+.gname{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 2px}
+
+/* The attribution chip — the eait face plus words; the streak chip is the same pill at .ic. */
+.tagx{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border-radius:999px;
+  padding:3px 9px 3px 4px;font-size:12px;font-weight:600;color:var(--ink);
+  box-shadow:0 1px 3px rgba(23,25,28,.16);white-space:nowrap}
+.tagx .wm{width:18px;height:18px;flex-basis:18px}
+.tagx .ico{width:16px;height:16px}
+.tagx.ic{padding:4px 10px}
+
+/* The chart frame — overflow:visible so an end dot can sit on the edge. */
+.pgraph{display:block;overflow:visible;width:100%}
+.pgraph text{font-size:12px;fill:var(--muted);font-family:inherit}
+.pgraph .ln{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linecap:round}
+.pgraph .area{animation-delay:.6s}
+.pgraph .end{animation-delay:1.1s}
+.pgraph .chip{animation-delay:1.2s}
+.pgraph .wo{animation-delay:.2s}
+.pgraph .wi{animation-delay:.5s}
+/* The Target chip's label is white on ink — without this rule the .pgraph text line above
+   out-ranks the fill attribute and the chip reads muted-on-ink (~3.6:1). */
+.pgraph .chip text{fill:#fff}
+/* Staggered entries, by data index rather than DOM position — a sparse week keeps its delays.
+   Inline styles are not an option (the app's CSP), so the delay arrives as a generated class. */
+${Array.from({ length: 13 }, (_, i) => `.pgraph.wl circle.pd-${i}{animation-delay:${(0.8 + i * 0.08).toFixed(2)}s}`).join("\n")}
+${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:${(i * 0.06).toFixed(2)}s}`).join("\n")}
+
+/* The one button — 16/600 on accent, radius 14, never uppercase. The .card rule's legacy
+   button style would otherwise win on radius and padding inside a card, so it is re-stated. */
+.cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;
+  border-radius:var(--r-cta);font:inherit;font-size:16px;font-weight:600;cursor:pointer;border:0;
+  text-decoration:none;padding:0}
+.cta.p{background:var(--accent);color:var(--accent-ink)}
+.cta.s{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+/* The boards draw the ghost at 40px; the app's tap floor is 44 (the a11y gate measures the box),
+   so the smaller box wins the floor, not the pixel. */
+.cta.g{background:none;color:var(--muted);min-height:44px;font-weight:500}
+.cta .ico{width:20px;height:20px}
+.cta:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card button.cta{font:inherit;font-size:16px;font-weight:600;padding:0;border:0;margin:0;
+  border-radius:var(--r-cta);min-height:52px}
+.card button.cta.g{min-height:44px;font-weight:500}
+
+/* The option row — a hairline and a check disc, no chips. */
+.opt{display:flex;align-items:center;gap:14px;width:100%;padding:16px 0;
+  border:0;border-top:1px solid var(--hair);background:none;font:inherit;font-size:17px;
+  font-weight:500;color:var(--ink);text-align:left;cursor:pointer;text-decoration:none}
+.opt:first-child{border-top:0}
+.opt .ot{flex:1;min-width:0}
+.opt .ico{width:24px;height:24px}
+.opt .tile{width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:var(--bg);
+  display:flex;align-items:center;justify-content:center}
+.opt .tile .ico{width:22px;height:22px}
+.opt .ck{margin-left:auto;width:22px;height:22px;flex:0 0 22px;border-radius:50%;
+  box-shadow:inset 0 0 0 1.5px var(--line);position:relative}
+.opt.sel{font-weight:600}
+.opt.sel .ck{background:var(--accent);box-shadow:none}
+.opt.sel .ck::after{content:"";position:absolute;left:7px;top:3px;width:6px;height:11px;
+  border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.opt:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opts .opt{border-top:0;background:var(--surface);border-radius:var(--r-card);padding:12px 16px;
+  box-shadow:0 0 0 1px var(--hair);font-size:16px}
+.opts .opt.sel{box-shadow:0 0 0 2px var(--ink)}
+.card.flat{box-shadow:0 0 0 1px var(--hair)}
+`;
+}

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -26,7 +25,7 @@ let deps: EngineDeps;
 beforeEach(() => {
   store = memoryStore();
   push = fakePush();
-  deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push };
+  deps = { store, config: CONFIG, llm: demoPorts(), push };
 });
 
 /** A fully onboarded user. Returns the id. */

@@ -15,6 +15,26 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Sto prendendo abbastanza proteine?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Come sta andando la settimana?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Cosa mangio stasera?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Aggiornato — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — preso nota, è nei numeri."
 
@@ -40,12 +60,22 @@ msgstr "{noun} — sopra"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — nel piano"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — molto sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — molto sopra"
 
 #. js-lingui-explicit-id
@@ -70,13 +100,18 @@ msgstr "Una bella fetta della tua giornata in un solo pasto."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Sto prendendo abbastanza proteine?"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Prima rispondi alle domande del piano sul web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calorie"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -97,16 +132,6 @@ msgstr "Carboidrati"
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
 msgstr "Confronto con il tuo piano"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Conferma che questo indirizzo è tuo:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Conferma la tua email per eait"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -155,6 +180,11 @@ msgstr "Il primo è dentro. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Bene — la configurazione iniziale è finita, e il primo giorno è partito. Ancora una cosa prima che tu vada, ed è l'unica volta che te lo chiedo."
 
@@ -170,18 +200,18 @@ msgstr "Risposta onesta: quel piatto non l'ho letto bene. Prendi {kcal} come sti
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Come sta andando la settimana?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Ti dico solo cosa ho mangiato"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
 msgstr "Se qualcosa non torna, dimmelo — \"metà del riso\", \"niente avocado\" — oppure tocca la scheda e cambia i grammi."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Se non hai fatto tu questa richiesta, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -254,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Nel piano."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Ancora una cosa che iOS sta per chiedere: le notifiche. Una al giorno e mai di più — la riga delle 20:30, più due promemoria prima che finisca la settimana gratis, se ci sei dentro. Nient'altro, mai."
@@ -290,6 +315,11 @@ msgstr "Ripristinato — ci sei. Una foto o una frase, entrambe registrano un pa
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "grassi saturi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Grassi saturi"
 
@@ -301,12 +331,17 @@ msgstr "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chi
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fammi una domanda."
+msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a {coach}."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Accedi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodio"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -317,11 +352,6 @@ msgstr "Sodio"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Su questo il sodio va alto. Valutato solo perché me l'hai chiesto tu."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Qualcuno — probabilmente tu — ha chiesto di ricevere un avviso quando esce l'app eait per iPhone."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -459,11 +489,6 @@ msgid "thread.firstVerdict.typed"
 msgstr "Scritto, non fotografato — quindi le porzioni sono una mia stima. Prendi {kcal} come ordine di grandezza; se sai i grammi, dimmelo e correggo."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.correction"
-msgstr "Aggiornato — {kcal} kcal. {day}"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.updated"
 msgstr "Aggiornato."
@@ -480,8 +505,13 @@ msgstr "Peso delle porzioni…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Cosa mangio stasera?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Un'alternativa più leggera per cena?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
