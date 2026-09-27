@@ -8,7 +8,7 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
-  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
@@ -92,20 +92,9 @@ async function dayStanding(
   };
 }
 
-/** copy.md § Step 14's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
-export async function afterCorrection(
-  deps: EngineDeps,
-  userId: string,
-  meal: MealRecord,
-  totals: DailyTotals,
-): Promise<ChatAppend[]> {
-  const day = await dayStanding(deps, userId, meal, totals);
-  if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }, day.lang) }];
-}
-
 /**
- * Where the day stands after a meal LANDED (#306) — the sentence a correction already got.
+ * Where the day stands after a meal LANDED (#306) — a sentence a correction no longer gets: #119's
+ * change line names the edit itself and says nothing about the day's remainder.
  *
  * NOT ON THE ACCOUNT'S FIRST MEAL: `firstVerdictLines` carries the same arithmetic inside the
  * greeting, and saying it twice under one card is the defect this fixes wearing the other hat. The
