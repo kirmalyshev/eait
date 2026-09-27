@@ -16,6 +16,7 @@ export type Verdict = "good" | "warn" | "bad";
  * (`targets.ts`, decision 6 of the targets-v2 design).
  */
 export const SEXES = ["male", "female", "other"] as const;
+/** Biological sex. Required by every published BMR equation; asked for that reason and no other. */
 export type Sex = (typeof SEXES)[number];
 
 /**
@@ -279,10 +280,18 @@ export interface DayTotals {
   protein_g: number;
 }
 
-/** The user's daily targets. Caps are present ONLY for restrictions the user declared. */
+/**
+ * The user's daily targets. Caps are present ONLY for restrictions the user declared.
+ *
+ * `fat_g`/`carbs_g` are the plan's macro cards (targets v2, decision 3): fat takes 30 % of the
+ * kcal, carbs take what protein and fat leave. They are targets only — nothing judges a meal
+ * against them, so no verdict dimension exists for either.
+ */
 export interface FoodTargets {
   kcal: number;
   protein_g: number;
+  fat_g: number;
+  carbs_g: number;
   satfat_g?: number; // present when the user declared an ldl restriction
   sodium_mg?: number; // present when the user declared a kidneys restriction
 }

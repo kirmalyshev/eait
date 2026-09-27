@@ -250,7 +250,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
     const band = KCAL_BY_GOAL[profile.goal ?? "maintain"];
     const kcal = Math.max(floorKcal, band);
     return {
-      targets: withCaps({ kcal, protein_g: proteinTarget(profile) }, profile),
+      targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
       basis: {
         bmr: null, tdee: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
         shareCapApplied: false, floorKcal, floorApplied: kcal > band, usedFallbackBand: true,
@@ -284,12 +284,25 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
   const appliedDeltaKcal = kcal - tdee;
 
   return {
-    targets: withCaps({ kcal, protein_g: proteinTarget(profile) }, profile),
+    targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
     basis: {
       bmr: bmrValue, tdee, requestedDeltaKcal, appliedDeltaKcal, shareCapApplied,
       floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
     },
   };
+}
+
+/**
+ * The macro cards the plan draws (decision 3): fat takes 30 % of the kcal, at 9 kcal a gram; carbs
+ * take what protein and fat leave, at 4. Computed HERE and nowhere else — a second split anywhere
+ * would be two numbers that eventually disagree on one card. The remainder clamps at zero: a
+ * protein target at its cap beside a floored kcal may exhaust the budget, and a negative gram is a
+ * nonsense answer, not a hard diet.
+ */
+function macroTargets(kcal: number, protein_g: number): FoodTargets {
+  const fat_g = Math.max(0, Math.round((kcal * 0.3) / 9));
+  const carbs_g = Math.max(0, Math.round((kcal - 4 * protein_g - 9 * fat_g) / 4));
+  return { kcal, protein_g, fat_g, carbs_g };
 }
 
 /** The targets alone, for callers that do not render the reasoning (the analyzer prompt, verdicts). */

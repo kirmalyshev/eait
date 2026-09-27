@@ -218,6 +218,40 @@ describe("the design persona (issue #81)", () => {
     expect(targets.kcal).toBe(1434);
     expect(targets.protein_g).toBe(109); // anchored to the goal weight: 68 × 1.6
     expect(targets.satfat_g).toBe(13); // declared
+    // The split the plan card draws (decision 3): fat 30 % of 1,434 → 430 kcal → 48 g; carbs take
+    // the rest — (1434 − 4·109 − 9·48) ÷ 4 = 141.5 → 142.
+    expect(targets.fat_g).toBe(48);
+    expect(targets.carbs_g).toBe(142);
+  });
+});
+
+describe("the carbs and fat targets (targets v2, decision 3)", () => {
+  it("splits the fallback band the same way — the macro math is explainTargets', not the path's", () => {
+    // maintain 2,100, 112 g protein (the fixture's 70 kg) → fat 70 g (630 kcal);
+    // carbs (2100 − 448 − 630) ÷ 4 = 255.5 → 256.
+    const t = explainTargets(profile({ sex: null, birth_year: null, height_cm: null }), TODAY).targets;
+    expect(t.kcal).toBe(2100);
+    expect(t.fat_g).toBe(70);
+    expect(t.carbs_g).toBe(256);
+  });
+
+  it("never answers a negative gram, whatever the protein asks", () => {
+    // The clamp is unreachable while protein caps at 180 g and kcal floors at 1,200 — pin it
+    // anyway: the day either bound moves, the remainder is what pays.
+    const t = explainTargets(profile({
+      goal: "lose", pace: "push", weight_kg: 200, target_weight_kg: 180,
+      height_cm: 200, sex: "female",
+    }), TODAY).targets;
+    expect(t.fat_g).toBeGreaterThanOrEqual(0);
+    expect(t.carbs_g).toBeGreaterThanOrEqual(0);
+  });
+
+  it("issues NO verdict on them — the targets are for the rings, not for judgement", () => {
+    // The plan draws carbs and fat; nothing scores a meal against them.
+    const t = targetsFor(profile());
+    const v = verdictsFromTargets({ kcal: t.kcal * 2, satfat_g: 99, sodium_mg: 9999 }, t);
+    expect(v).not.toHaveProperty("carbs");
+    expect(v).not.toHaveProperty("fat");
   });
 });
 
@@ -319,7 +353,7 @@ describe("visibleVerdicts", () => {
 });
 
 describe("verdictsFromTargets", () => {
-  const targets = { kcal: 2000, protein_g: 120, satfat_g: 13, sodium_mg: 2000 };
+  const targets = { kcal: 2000, protein_g: 120, fat_g: 67, carbs_g: 229, satfat_g: 13, sodium_mg: 2000 };
 
   it("judges by share of the day's allowance", () => {
     expect(verdictsFromTargets({ kcal: 500, satfat_g: 2, sodium_mg: 300 }, targets).weight).toBe("good");
@@ -328,7 +362,7 @@ describe("verdictsFromTargets", () => {
   });
 
   it("produces no medical verdict when the cap is absent", () => {
-    const out = verdictsFromTargets({ kcal: 500, satfat_g: 40, sodium_mg: 5000 }, { kcal: 2000, protein_g: 120 });
+    const out = verdictsFromTargets({ kcal: 500, satfat_g: 40, sodium_mg: 5000 }, { kcal: 2000, protein_g: 120, fat_g: 67, carbs_g: 229 });
     expect(out.ldl).toBeUndefined();
     expect(out.kidneys).toBeUndefined();
   });
