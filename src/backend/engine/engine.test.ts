@@ -282,6 +282,23 @@ describe("onboarding", () => {
     if (!isMeal(res)) throw new Error("expected a meal");
     expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(true);
   });
+
+  // The "Support eait" row (#200): operator variables, SENT on the profile the way `limits` is —
+  // the same bundle serves hosts that take no donations, so all three null is the default and no
+  // link is drawn.
+  it("sends the configured donation links on the profile — all null while none are set", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.donate)
+      .toEqual({ github: null, kofi: null, buyMeACoffee: null });
+    const d = { ...deps, config: { ...CONFIG,
+      donateKofiUrl: "https://ko-fi.com/kirmalyshev",
+      donateGithubUrl: "https://github.com/sponsors/kirmalyshev" } };
+    expect((await profileView(d, userId))!.donate).toEqual({
+      github: "https://github.com/sponsors/kirmalyshev",
+      kofi: "https://ko-fi.com/kirmalyshev",
+      buyMeACoffee: null,
+    });
+  });
 });
 
 describe("photo logging", () => {

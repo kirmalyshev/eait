@@ -3487,6 +3487,36 @@
           "vegan"
         ]
       },
+      "DonateLinks": {
+        "type": "object",
+        "properties": {
+          "github": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kofi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "buyMeACoffee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "github",
+          "kofi",
+          "buyMeACoffee"
+        ],
+        "additionalProperties": false,
+        "description": "The donation links a host may offer (#200) — the You surface's \"Support eait\" row.\n\nSENT, NEVER COMPILED, for the reason `limits` is: the same bundle serves self-hosted instances that take no donations, so the operator's `EAIT__BACKEND__DONATE_*_URL` variables are the only source. Each is null while its variable is unset; ALL THREE null is the off state and a client draws no row."
+      },
       "EditLineLast": {
         "anyOf": [
           {
@@ -5607,6 +5637,10 @@
           "hasLoggedMeal": {
             "type": "boolean",
             "description": "Whether this account has ever logged a meal — any date, not just inside the diary window (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read it as the ONE \"nothing logged yet\" answer, so two clients can never disagree about which meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on this response."
+          },
+          "donate": {
+            "$ref": "#/components/schemas/DonateLinks",
+            "description": "{@link  DonateLinks }  — the operator's donation URLs, every one null when none are set."
           }
         },
         "required": [
@@ -5624,7 +5658,8 @@
           "healthConnected",
           "paywall",
           "coachName",
-          "hasLoggedMeal"
+          "hasLoggedMeal",
+          "donate"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
