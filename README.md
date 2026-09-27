@@ -3,7 +3,7 @@
 The backend of [eait.fit](https://eait.fit) — a photo-first nutrition coach — the contract its
 clients implement, and the web application at [app.eait.fit](https://app.eait.fit).
 
-https://github.com/user-attachments/assets/49597d12-2981-4350-a45d-d019c6e61e04
+https://github.com/user-attachments/assets/3969bf68-972d-4076-98ff-e36211031c9a
 
 Twenty-five seconds of the demo backend — canned analyses, a fictional account — driving the same
 screens a real one would.
