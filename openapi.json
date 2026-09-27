@@ -3538,6 +3538,13 @@
           "lapsed": {
             "type": "boolean",
             "description": "Whether this account bought something once and nothing it bought keeps it in now — a subscription that ended, or a lifetime unlock that was refunded. The app asks it to RESUBSCRIBE rather than to subscribe, and nothing on the phone could tell the two apart without this: the server blanks `expiresAt` the moment a grant stops keeping somebody in.\n\nFalse for an account that never bought anything and for one entitled now. OPTIONAL because a server older than the field sends none, which the app reads as false: \"subscribe\" is the ask true of both people. `entitlementFor` always sends it."
+          },
+          "trialDay": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Which day of the free week today is — the \"5\" of \"free week · day 5\" the Subscription row shows — or null when the account is not on one. Computed server-side (`trialDay` below), so a client renders it and never counts days itself: two counters would drift apart.\n\nOPTIONAL for the reason `lapsed` is — a server older than the field sends none."
           }
         },
         "required": [
@@ -5492,6 +5499,10 @@
             ],
             "description": "The username of this server's Telegram bot, for a Connect Telegram link, or null.\n\nNULL WHILE THE CONNECTOR IS OFF — no token, `--demo`, a dead token, or Telegram not reached yet — and a client draws no link then. The link is `https://t.me/<this>?start=<code>`, with a code from  {@link  ROUTES.authPair }  minted at the moment of the tap: a code shown in advance would die on the screen in five minutes."
           },
+          "healthConnected": {
+            "type": "boolean",
+            "description": "Whether health sync is actually arriving: any `HealthDay` row stored in the last seven days, computed here so the You surface's \"connected\" is a fact and not a flag a client can set (#97). The phone backfills weight history on connect, so a fresh sync counts from day one."
+          },
           "paywall": {
             "$ref": "#/components/schemas/WebPaywall",
             "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
@@ -5508,6 +5519,7 @@
           "entitlement",
           "pairAddress",
           "telegramBot",
+          "healthConnected",
           "paywall"
         ],
         "additionalProperties": false,

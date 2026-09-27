@@ -578,6 +578,12 @@ export interface ProfileResponse {
    */
   telegramBot: string | null;
   /**
+   * Whether health sync is actually arriving: any `HealthDay` row stored in the last seven days,
+   * computed here so the You surface's "connected" is a fact and not a flag a client can set
+   * (#97). The phone backfills weight history on connect, so a fresh sync counts from day one.
+   */
+  healthConnected: boolean;
+  /**
    * The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).
    *
    * SENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the
