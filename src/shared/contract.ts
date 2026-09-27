@@ -1066,6 +1066,12 @@ export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
   weights: WeightEntry[];
   /**
+   * The newest weigh-in in the WHOLE log, whatever `range` left of it — Progress's current
+   * figure and its none-in-range state ("weights exist, just not in this window") need a dated
+   * entry the filtered `weights` can no longer name. `null` when nothing was ever logged.
+   */
+  latest: WeightEntry | null;
+  /**
    * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
    * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
    * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.

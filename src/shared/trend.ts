@@ -66,7 +66,8 @@ const noon = (date: string) => new Date(`${date}T12:00:00Z`);
  * out here rather than fixed there — the date format and the unit system are different questions,
  * and `targets.ts` is the reason that distinction is kept sharp.
  */
-const dayMonth = (lang: Lang) =>
+/** "24 Aug" in the reader's language — the day-of-month axes (trend charts, the weight chart). */
+export const dayMonth = (lang: Lang) =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
 const monthShort = (lang: Lang) =>
   new Intl.DateTimeFormat(lang === "en" ? "en-US" : LANG_TAG[lang], { timeZone: "UTC", month: "short" });
