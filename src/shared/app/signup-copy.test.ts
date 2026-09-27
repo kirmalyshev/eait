@@ -28,8 +28,9 @@ describe("SIGNUP_COPY", () => {
     // `{terms}` and `{privacy}` hold the document names — a translation that drops one renders an
     // agreement that names half of what it means.
     for (const lang of LANGS) {
+      const copy = SIGNUP_COPY[lang];
       for (const ph of ["{terms}", "{privacy}"]) {
-        expect(SIGNUP_COPY[lang].termsLabel, `${lang}.termsLabel`).toContain(ph);
+        expect(copy!.termsLabel, `${lang}.termsLabel`).toContain(ph);
       }
     }
   });
