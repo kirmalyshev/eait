@@ -64,10 +64,12 @@ export const youCss = `
 .you .urows .opt { padding: 13px 0; font-size: 15px; font-weight: 500; }
 .you .urows .opt .ov { margin-left: auto; font-size: 13px; color: var(--muted); }
 .you .urows button.opt { cursor: pointer; color: inherit; text-align: left; }
-.you .urows .pick { margin-left: auto; font: inherit; font-size: 14px; font-weight: 500;
-  padding: 6px 10px; border-radius: 999px; min-height: 36px;
+/* Every select a finger touches is the same control: 16px type, a 44px box (the a11y floor,
+   which is also why 'pick' stays the language select's own hook and the others are 'optpick'). */
+.you .urows .pick, .you .urows .optpick { margin-left: auto; font: inherit; font-size: 16px;
+  font-weight: 500; padding: 0 12px; border-radius: 999px; min-height: 44px;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-.you .editrow .pick { font: inherit; font-size: 14px; padding: 8px 12px; min-height: 40px;
+.you .editrow .optpick { font: inherit; font-size: 16px; padding: 8px 12px; min-height: 44px;
   border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
   color: var(--ink); }
 

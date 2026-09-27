@@ -230,7 +230,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       // how active the days are — PATCHed; the card redraws off the server's recomputed targets.
       const optionSelect = (screenId: "goal" | "activity", current: string | null, label: string): HTMLSelectElement => {
         const sel = document.createElement("select");
-        sel.className = "pick";
+        sel.className = "optpick";
         sel.setAttribute("aria-label", label);
         const opts = ob?.screens.find((s) => s.id === screenId)?.options ?? {};
         for (const v of Object.keys(opts)) {
@@ -353,7 +353,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     const unitsSel = document.createElement("select");
-    unitsSel.className = "pick";
+    // `optpick`, not `pick` — `select.pick` is the language picker's own hook, and the specs
+    // (and the reader) rely on it naming exactly one control.
+    unitsSel.className = "optpick";
     unitsSel.setAttribute("aria-label", you.web.units);
     for (const [v, label] of [["metric", you.web.unitsMetric], ["imperial", you.web.unitsImperial]] as const) {
       const o = document.createElement("option");
@@ -490,17 +492,35 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
   let content: OnboardingContentResponse | null = null;
 
+  // THE TWO COLUMNS FETCH AND DRAW ON THEIR OWN CLOCKS. The today column's reads are a second
+  // promise — a day read that hangs or refuses must never keep the account column (or its picker)
+  // from rendering.
+  let daySeq = 0;
+  async function drawDay(): Promise<void> {
+    const mine = ++daySeq;
+    const today = localDate(zone);
+    const [days, day] = await Promise.all([
+      api<DaysResponse>(`/diary/days?from=${weekStart(today)}&to=${dateMinus(weekStart(today), -6)}`).catch(() => null),
+      api<DayResponse>(`/diary/day?date=${viewing}`).catch(() => null),
+    ]);
+    if (mine !== daySeq) return;
+    if (days !== null && day !== null) {
+      clear(rightCol).append(...dayColumn(days, day, today));
+    } else if (rightCol.childElementCount === 0) {
+      // A failed refetch keeps the drawn day — only a cold failure leaves the column a notice.
+      rightCol.append(el("p", "notice", COPY.somethingWrong));
+    }
+  }
+
   async function draw(): Promise<void> {
     const mine = ++drawing;
     const today = localDate(zone);
-    const mon = weekStart(today);
-    const sun = dateMinus(mon, -6);
-    const [w, days, day, ids, ob] = await Promise.all([
-      api<WeightsResponse>("/weights?range=all"),
-      api<DaysResponse>(`/diary/days?from=${mon}&to=${sun}`),
-      api<DayResponse>(`/diary/day?date=${viewing}`),
+    // EVERY READ DEGRADES ALONE: one refused fetch must not blank the surface — a card that can
+    // still answer does, and the notice under the columns says what did not.
+    const [w, ids, ob] = await Promise.all([
+      api<WeightsResponse>("/weights?range=all").catch(() => null),
       api<IdentitiesResponse>("/auth/identities").catch(() => null),
-      content ?? api<OnboardingContentResponse>(`/onboarding?lang=${lang}`).catch(() => null),
+      (content ?? api<OnboardingContentResponse>(`/onboarding?lang=${lang}`)).catch(() => null),
     ]);
     if (mine !== drawing) return;
     content = ob;
@@ -510,13 +530,11 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
     const wn = noticeFor();
     const pn = noticeFor();
-    clear(leftCol).append(
-      identityCard(),
-      weightCard(w, wn),
-      planCard(ob?.content ?? null, pn),
-      rowsCard(ids),
-    );
-    clear(rightCol).append(...dayColumn(days, day, today));
+    clear(leftCol).append(identityCard());
+    if (w !== null) leftCol.append(weightCard(w, wn));
+    else leftCol.append(el("p", "notice", COPY.somethingWrong));
+    leftCol.append(planCard(ob?.content ?? null, pn), rowsCard(ids));
+    void drawDay();
   }
 
   await draw();
