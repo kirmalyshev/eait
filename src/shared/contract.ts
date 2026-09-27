@@ -13,6 +13,7 @@ import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
+import { isCalendarDate } from "./dates.ts";
 import type { BmiRange } from "./scores.ts";
 import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
 import type { Entitlement } from "./entitlement.ts";
@@ -808,6 +809,12 @@ export interface MessageRequest {
  * a meal that blows a medical cap, and the person reading that card declared a medical restriction.
  */
 export interface EditMealRequest {
+  /**
+   * The day the meal belongs on, as `YYYY-MM-DD` — "Move to yesterday" is a PATCH, not a turn:
+   * no model is called, nothing is billed, and the meal's numbers pass through untouched. The
+   * engine still recomputes the verdicts, so a moved card never reads them off another day's row.
+   */
+  date?: string;
   items?: MealItem[];
   kcal?: number;
   protein_g?: number;
@@ -833,6 +840,9 @@ const amount = (v: unknown): boolean => typeof v === "number" && Number.isFinite
 export function isEditMealRequest(body: unknown): body is EditMealRequest {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
   const b = body as Record<string, unknown>;
+  // The move is a stored `YYYY-MM-DD` like any the engine computes — a string that is not one
+  // becomes a meal dated "tomorrow" the diary can never find again.
+  if (b.date !== undefined && (typeof b.date !== "string" || !isCalendarDate(b.date))) return false;
   for (const k of EDIT_NUMBERS) {
     const v = b[k];
     if (v !== undefined && !amount(v)) return false;

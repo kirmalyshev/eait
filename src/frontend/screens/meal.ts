@@ -30,7 +30,7 @@ import {
   ingredientEl, kitEl, mcardEl, mealRowEl, scorePartEl, scoreRowEl, verdictListEl,
 } from "../kit.ts";
 import {
-  COPY, MEAL, clear, el, findMeal, lang, names, profile, sendOrKeep, setRedraw, takeTurn,
+  COPY, MEAL, clear, el, findMeal, lang, names, profile, setRedraw, takeTurn,
   type Frame,
 } from "../shell.ts";
 
@@ -221,18 +221,17 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       }),
       reread,
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>
-        turn(() => sendOrKeep({
-          id: crypto.randomUUID(), userId: uid ?? "", kind: "text",
-          // The menu item's own words are the turn — the edit is just a chat (the boards' flow),
-          // and the router reads a re-date out of them with the meal in focus.
-          text: mc.phoneMenuMoveYesterday, photos: [], capturedAt: new Date().toISOString(),
-          focusMealId: meal.id,
-        }, {
+        turn(async () => {
+          // A move is a PATCH on the meal's date (#150), not a billed turn of words — the same
+          // user scoping an edit goes through, and the verdicts come back recomputed.
+          const out = await api<MealUpdated>(MEAL(meal.id), {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ date: dateMinus(today, 1) }),
+          });
           // The meal left this day: follow it there rather than draw the day without it.
-          onResult: (r) => {
-            if (r.kind === "redated") location.hash = `#/meal/${encodeURIComponent(meal.id)}?d=${r.date}`;
-          },
-        }))),
+          location.hash = `#/meal/${encodeURIComponent(meal.id)}?d=${out.date}`;
+        })),
       del,
     );
     btn.addEventListener("click", (e) => {

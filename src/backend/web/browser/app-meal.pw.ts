@@ -122,10 +122,11 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
 test("Move to yesterday puts the meal on yesterday's diary", async ({ inWebApp: page }) => {
   const { id, date } = await openMeal(page);
   await page.locator(".mdetail .ib").last().click();
-  const moved = page.waitForResponse((r) => r.url().endsWith("/v1/messages") && r.request().method() === "POST" && r.ok());
+  // "Move to yesterday" is a PATCH on the meal — unbilled, unworded, the row's `date` (#150).
+  const moved = page.waitForResponse((r) => r.url().endsWith(`/v1/meals/${id}`) && r.request().method() === "PATCH" && r.ok());
   await page.locator(".mpopup").getByText("Move to yesterday").click();
   const result = (await (await moved).json()) as { kind: string; date?: string };
-  expect(result.kind).toBe("redated");
+  expect(result.kind).toBe("updated");
   const yesterday = result.date!;
   expect(yesterday).not.toBe(date);
   // The detail follows the meal onto yesterday, and today's list no longer holds the row.
