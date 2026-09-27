@@ -25,8 +25,11 @@ export const todayCss = `
    figure --bad and reads "kcal over" — the week's rule, said in words. */
 .kcard { display: flex; align-items: center; justify-content: space-between;
   padding: 18px 20px; }
-.kcard.tgl { cursor: pointer; }
-.kcard.tgl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kcard .ktg { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none;
+  padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted);
+  cursor: pointer; }
+.kcard .ktg .ico { width: 14px; height: 14px; }
+.kcard .ktg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .kcard .kfig { font-size: 44px; font-weight: 700; letter-spacing: -.03em; display: block;
   line-height: 1.05; }
 .kcard.over .kfig { color: var(--bad); }

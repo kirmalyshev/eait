@@ -60,8 +60,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   let showEaten = false;
   /** The proposal's own message time — known only for a proposal this tab just made (#91's rule). */
   let proposedAt: string | null = null;
-  /** The blob URLs handed to meal photos this draw — revoked on the next, or they're a leak. */
-  let photoUrls: string[] = [];
   /** A turn in flight — the logging state hides the upload CTA while one runs. */
   let turning = false;
   /** Queued draws collapse to the newest, as `drawing` does for `render()`. */
@@ -147,6 +145,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // compact label says "left" of it, matching the boards' "0 of 1,434" form.
     const figure = budget.state === "unlogged" ? budget.target : budget.kcal;
     kfig.textContent = n(interactive && showEaten ? budget.eaten : figure);
+    left.append(kfig);
     if (budget.warn) card.classList.add("over");
     if (interactive) {
       const lab = el("button", "klab ktg") as HTMLButtonElement;
@@ -427,8 +426,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         .catch(() => ({ ok: false as const })),
     ]);
     if (mine !== dayDrawing) return;
-    for (const u of photoUrls) URL.revokeObjectURL(u);
-    photoUrls = [];
 
     const day = dayR.ok ? dayR.d : null;
     if (daysR.ok) barStreak = daysR.d.streak;
@@ -545,9 +542,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       right.push(mcards);
     }
 
-    // Today carries the actions: the upload CTA — hidden while a turn is out — and the composer.
+    // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
+    // (today-logging draws compose with no CTA) — and the composer.
     if (isToday) {
-      if (!turning) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
+      if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
       right.push(composeRow());
     }
 
@@ -562,17 +560,20 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
       href: `#/meal/${meal.id}`,
     });
-    // The photo is fetched behind the bearer — the photo route has no cookie path, so it arrives
-    // as a blob and the `<img>` gets an object URL.
+    // The photo is fetched behind the bearer — the route has no cookie path, so it arrives as a
+    // blob and the `<img>` gets a data URL: the CSP's `img-src 'self' data:` refuses `blob:`.
     if ((meal.photos ?? 0) > 0) {
       const id = meal.id;
-      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then((blob) => {
+      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (blob) => {
         if (!row.isConnected) return;
-        const url = URL.createObjectURL(blob);
-        photoUrls.push(url);
         const img = document.createElement("img");
         img.className = "ph";
-        img.src = url;
+        img.src = await new Promise<string>((ok, no) => {
+          const r = new FileReader();
+          r.onload = () => ok(r.result as string);
+          r.onerror = () => no(r.error);
+          r.readAsDataURL(blob);
+        });
         img.alt = "";
         row.querySelector(".ph")?.replaceWith(img);
       }).catch(() => {});
