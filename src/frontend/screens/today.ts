@@ -23,7 +23,7 @@ import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import {
-  ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
+  blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
 } from "../kit.ts";
 import {
   COPY, DAYS, PENDING, behind, clear, composerRow, el, firstMealDue, heldProposal, kcal, kept,
@@ -490,23 +490,15 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
       href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
     });
-    // The photo is fetched behind the bearer — the route has no cookie path, so it arrives as a
-    // blob. apiBlob answers an object URL the CSP's `img-src 'self' data:` refuses, so the same
-    // bytes are read once more into a data URL and the object URL freed (meal.ts's `photoUrl`).
+    // The photo rides behind the bearer — `apiBlob`'s bytes through `blobSrc`, a data URL: the
+    // one `src` form `img-src 'self' data:` permits.
     if ((meal.photos ?? 0) > 0) {
       const id = meal.id;
-      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (objectUrl) => {
-        if (!row.isConnected) { URL.revokeObjectURL(objectUrl); return; }
-        const blob = await (await fetch(objectUrl)).blob();
-        URL.revokeObjectURL(objectUrl);
+      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (blob) => {
+        if (!row.isConnected) return;
         const img = document.createElement("img");
         img.className = "ph";
-        img.src = await new Promise<string>((ok, no) => {
-          const r = new FileReader();
-          r.onload = () => ok(r.result as string);
-          r.onerror = () => no(r.error);
-          r.readAsDataURL(blob);
-        });
+        img.src = await blobSrc(blob);
         img.alt = "";
         row.querySelector(".ph")?.replaceWith(img);
       }).catch(() => {});

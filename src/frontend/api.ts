@@ -130,13 +130,13 @@ async function call(path: string, init: RequestInit): Promise<Response> {
 }
 
 /**
- * A binary read — a stored meal photo — as an object URL the caller revokes. The CSP's
- * `img-src 'self' data:` is why the blob, not the path, goes into the `src`: the bearer is a
- * header, and a plain `<img>` would go unsigned.
+ * A binary read — a stored meal photo — as its Blob. The bearer is a header, so a plain `<img>`
+ * could never carry it; the CSP's `connect-src 'self'` refuses even a fetch of an object URL, so
+ * what the caller makes of the bytes is a DATA URL (`blobSrc` in kit.ts) — the one `src` form
+ * `img-src 'self' data:` permits.
  */
-export async function apiBlob(path: string): Promise<string> {
-  const res = await call(path, { method: "GET" });
-  return URL.createObjectURL(await res.blob());
+export async function apiBlob(path: string): Promise<Blob> {
+  return await (await call(path, { method: "GET" })).blob();
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {

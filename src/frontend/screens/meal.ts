@@ -27,7 +27,8 @@ import { fillCopy as fill } from "../copy.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
-  ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl, verdictListEl,
+  blobSrc, ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl,
+  verdictListEl,
 } from "../kit.ts";
 import {
   COPY, MEAL, clear, el, findMeal, lang, names, profile, setRedraw, takeTurn,
@@ -83,24 +84,10 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const openOverlay = (node: HTMLElement): void => { closeOverlay(); wrap.append(node); overlay = node; };
 
   // The photo bytes arrive under the bearer, so they cannot be an <img>'s URL — and the CSP
-  // refuses blob:. A data URL is what `img-src` already allows, and it needs no revocation.
-  const photoUrl = async (mealId: string, index: number): Promise<string | null> => {
-    try {
-      // apiBlob answers an object URL; the CSP's `img-src 'self' data:` refuses `blob:`,
-      // so the same bytes are read once more into a data URL, and the object URL freed.
-      const objectUrl = await apiBlob(`${MEAL(mealId)}/photos/${index}`);
-      const blob = await (await fetch(objectUrl)).blob();
-      URL.revokeObjectURL(objectUrl);
-      return await new Promise<string>((ok, no) => {
-        const reader = new FileReader();
-        reader.onload = () => ok(reader.result as string);
-        reader.onerror = () => no(reader.error);
-        reader.readAsDataURL(blob);
-      });
-    } catch {
-      return null;
-    }
-  };
+  // refuses both a blob: src and a fetch OF a blob: URL, so `blobSrc`'s data URL is the one form
+  // `img-src` already allows, and it needs no revocation.
+  const photoUrl = async (mealId: string, index: number): Promise<string | null> =>
+    await apiBlob(`${MEAL(mealId)}/photos/${index}`).then(blobSrc).catch(() => null);
 
   const closeToDiary = (): void => { location.hash = "#/"; };
   document.addEventListener("keydown", function onKey(e) {
