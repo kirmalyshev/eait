@@ -48,6 +48,9 @@ describe("HOME_COPY", () => {
     expect(en.macros.protein.ofTarget).toBe("of {target} protein");
     expect(en.macros.satFat.ofTarget).toBe("of {target} sat fat");
     expect(en.macros.carbs.name).toBe("carbs");
+    // sodium counts in mg — the board's "sodium 835 mg", never a gram
+    expect(en.macros.sodium.chip).toBe("sodium {n} mg");
+    expect(en.milligrams).toBe("{n} mg");
     // today-past — the over day
     expect(en.kcalOverDetail).toBe("kcal over · {eaten} of {plan}");
     // the empty and the failed days
