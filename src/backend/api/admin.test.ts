@@ -895,7 +895,7 @@ describe("inspecting one account's diary", () => {
 
   it("answers the diary as the app sees it, newest first, with the model that answered", async () => {
     const userId = await user();
-    await store.patchProfile(userId, { onboarded_at: new Date().toISOString(), height_cm: 180, weight_kg: 80, birth_year: 1990, sex: "male", goal: "lose", activity: "moderate", pace: "steady" });
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString(), height_cm: 180, weight_kg: 80, birth_year: 1990, sex: "male", goal: "lose", activity: "some", pace: "steady" });
     await meal(userId, "2026-09-01");
     await meal(userId, "2026-09-03", { model: "openai/gpt-5" });
 

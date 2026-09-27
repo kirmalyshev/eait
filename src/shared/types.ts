@@ -9,18 +9,44 @@
 export type Goal = "lose" | "maintain" | "gain";
 export type Verdict = "good" | "warn" | "bad";
 
+/**
+ * Sex, for the BMR equation. Required by every published Mifflin-St Jeor constant pair; asked for
+ * that reason and no other. `other` exists so nobody has to file themselves under a binary that
+ * does not fit — it is priced at the mean of the two constants, not treated as either
+ * (`targets.ts`, decision 6 of the targets-v2 design).
+ */
+export const SEXES = ["male", "female", "other"] as const;
 /** Biological sex. Required by every published BMR equation; asked for that reason and no other. */
-export type Sex = "female" | "male";
+export type Sex = (typeof SEXES)[number];
 
 /**
  * Activity multipliers applied to BMR. Standard Harris-Benedict/Mifflin bands.
  *
- * Deliberately five coarse buckets rather than a step-count integration: a wrong multiplier moves
- * the target by hundreds of kcal, and a user who self-reports "moderate" is giving a better
- * estimate than a phone that counted the steps of one pocket.
+ * THREE coarse buckets — 0–2, 3–5 and 6+ workouts a week (targets v2, decision 7) — id'd after the
+ * icons that draw them. A wrong multiplier moves the target by hundreds of kcal, and a user who
+ * self-reports a bucket is giving a better estimate than a phone that counted one pocket's steps.
  */
-export const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active", "athlete"] as const;
+export const ACTIVITY_LEVELS = ["few", "some", "many"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
+
+/**
+ * The one mapping from the five stored values to the three current ones (decision 7):
+ * `sedentary`/`light` → `few`, `moderate`/`active` → `some`, `athlete` → `many`.
+ *
+ * Every path an old id can still travel reads this: the schema's boot-time backfill covers rows
+ * already stored, this covers the rest — a row written by a build still on the old vocabulary, and
+ * a PATCH from an installed binary that predates the change, which lands migrated rather than
+ * refused. Null stays null; a word from no vocabulary is unanswered, never a guessed multiplier.
+ */
+export function migrateActivityLevel(value: string | null | undefined): ActivityLevel | null {
+  switch (value) {
+    case "few": case "some": case "many": return value;
+    case "sedentary": case "light": return "few";
+    case "moderate": case "active": return "some";
+    case "athlete": return "many";
+    default: return null;
+  }
+}
 
 /** How fast the user wants to move. Bounded — see `targets.ts`; this is where safety is decided. */
 export const PACES = ["easy", "steady", "push"] as const;
@@ -254,10 +280,18 @@ export interface DayTotals {
   protein_g: number;
 }
 
-/** The user's daily targets. Caps are present ONLY for restrictions the user declared. */
+/**
+ * The user's daily targets. Caps are present ONLY for restrictions the user declared.
+ *
+ * `fat_g`/`carbs_g` are the plan's macro cards (targets v2, decision 3): fat takes 30 % of the
+ * kcal, carbs take what protein and fat leave. They are targets only — nothing judges a meal
+ * against them, so no verdict dimension exists for either.
+ */
 export interface FoodTargets {
   kcal: number;
   protein_g: number;
+  fat_g: number;
+  carbs_g: number;
   satfat_g?: number; // present when the user declared an ldl restriction
   sodium_mg?: number; // present when the user declared a kidneys restriction
 }

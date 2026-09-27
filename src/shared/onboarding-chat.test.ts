@@ -87,7 +87,7 @@ describe("where a killed run picks up", () => {
     // point is replayed from the profile, and `struggles` has nothing to replay.
     const p = profile({
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-      target_weight_kg: 88, pace: "steady", activity: "moderate",
+      target_weight_kg: 88, pace: "steady", activity: "some",
     });
     const list = promptsFor(p, ["country"], { health: false });
     const at = resumeAt(list, p);
@@ -105,7 +105,7 @@ describe("where a killed run picks up", () => {
   it("holds on restrictions until onboarding is completed", () => {
     const p = profile({
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-      target_weight_kg: 88, pace: "steady", activity: "moderate",
+      target_weight_kg: 88, pace: "steady", activity: "some",
     });
     const list = promptsFor(p, ["country"], { health: false });
     expect(list[resumeAt(list, p)]!.id).toBe("restrictions");
@@ -155,7 +155,7 @@ describe("what Spud asks", () => {
 describe("the answer a resumed run draws back", () => {
   it("writes an enumerated answer the way it was labelled", () => {
     expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), { content: content, lang: "en" })).toBe("Lose weight");
-    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), { content: content, lang: "en" })).toBe("2–3 times a week");
+    expect(answerLabel(promptById("activity"), profile({ activity: "some" }), { content: content, lang: "en" })).toBe("3–5");
   });
 
   it("writes a number the way it was typed", () => {
@@ -571,22 +571,20 @@ describe("the age question (C2)", () => {
 });
 
 describe("the activity choices (C4)", () => {
-  it("asks in plain frequencies, on the five levels in order", () => {
+  it("asks in plain frequencies, on the three levels in order", () => {
     const labels = screenOptions(content, "activity");
-    expect(ACTIVITY_LEVELS.map((l) => labels[l]!.label)).toEqual([
-      "No", "A little each week", "2–3 times a week", "4–5 times a week", "6–7 times a week",
-    ]);
+    expect(ACTIVITY_LEVELS.map((l) => labels[l]!.label)).toEqual(["0–2", "3–5", "6+"]);
   });
 
   it("confirms a Health-computed level with the workouts it counted", () => {
-    expect(activityFromHealthLine(4, "light", "en"))
-      .toBe("Health shows 4 workouts in the last 4 weeks. A little each week?");
+    expect(activityFromHealthLine(4, "few", "en"))
+      .toBe("Health shows 4 workouts in the last 4 weeks. 0–2?");
     for (const lang of LANGS) {
-      const line = activityFromHealthLine(4, "moderate", lang);
+      const line = activityFromHealthLine(4, "some", lang);
       expect(line, lang).not.toMatch(/\{[a-z]+\}/);
       // The label is the option's own words — the same chip the user is about to see.
       const label = onboardingContentFor(lang).screens.find((s) => s.id === "activity")!
-        .options!.moderate!.label;
+        .options!.some!.label;
       expect(line, lang).toContain(label);
     }
   });
@@ -595,7 +593,7 @@ describe("the activity choices (C4)", () => {
 describe("the one-line reaction to each answer (C5)", () => {
   const answered = profile({
     goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
-    target_weight_kg: 68, pace: "steady", activity: "light", country: "gb",
+    target_weight_kg: 68, pace: "steady", activity: "few", country: "gb",
     restrictions: ["ldl"],
   });
 
@@ -663,7 +661,7 @@ describe("the support moments (C6)", () => {
   const ctx = (over: Partial<Profile> = {}, struggles: Struggle[] = ["diets"]) => ({
     profile: profile({
       goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
-      target_weight_kg: 68, activity: "light", restrictions: ["ldl"], ...over,
+      target_weight_kg: 68, activity: "few", restrictions: ["ldl"], ...over,
     }),
     struggles,
     lang: "en" as const,
@@ -697,7 +695,7 @@ describe("the support moments (C6)", () => {
   });
 
   it("echoes the answer's own label", () => {
-    expect(supportMoment("activity", ctx())!.echo).toBe("A little each week");
+    expect(supportMoment("activity", ctx())!.echo).toBe("0–2");
     expect(supportMoment("struggles", ctx())!.echo).toBe("Diets that didn't stick");
     expect(supportMoment("restrictions", ctx())!.echo).toBe("High cholesterol");
     expect(supportMoment("restrictions", ctx({ restrictions: [] }))!.echo)
@@ -746,7 +744,7 @@ describe("the mascot's new face (C5)", () => {
 describe("the soft offer's headline", () => {
   const her = profile({
     goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
-    target_weight_kg: 68, pace: "steady", activity: "light",
+    target_weight_kg: 68, pace: "steady", activity: "few",
   });
   const SEP_24 = new Date("2026-09-24T12:00:00Z");
 

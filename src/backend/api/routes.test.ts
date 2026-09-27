@@ -81,7 +81,7 @@ async function session(): Promise<string> {
   const { token } = await res.json() as { token: string };
   await patch(ROUTES.profile, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-    target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+    target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
     restrictions: [], complete_onboarding: true,
   }, token);
   return token;
@@ -1625,7 +1625,7 @@ describe("rate limits", () => {
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({
           goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-          target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+          target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
           restrictions: [], complete_onboarding: true,
         }),
       }));
@@ -1663,7 +1663,7 @@ describe("rate limits", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
         goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
         restrictions: [], complete_onboarding: true,
       }),
     }));
@@ -1693,7 +1693,7 @@ describe("rate limits", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
         goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
         restrictions: [], complete_onboarding: true,
       }),
     }));
@@ -1977,7 +1977,7 @@ describe("the stream's keepalive", () => {
     const { token } = await res.json() as { token: string };
     await patch(ROUTES.profile, {
       goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-      target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+      target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
       restrictions: [], complete_onboarding: true,
     }, token);
     const req = photoRequest(token);

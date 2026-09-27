@@ -49,7 +49,7 @@ describe("scripted lines", () => {
 
 // copy.md § Step 14. The numbers are the plan's and the day's; the words are the design's.
 describe("the first verdict", () => {
-  const targets = { kcal: 1454, protein_g: 110 };
+  const targets = { kcal: 1454, protein_g: 110, fat_g: 48, carbs_g: 203 };
   const meal = { kcal: 612, protein_g: 38, satfat_g: 4, sodium_mg: 900, confidence: "high" };
 
   it("reads the plan back for a lose/maintain goal, and invites the correction", () => {
@@ -110,7 +110,7 @@ describe("the first verdict", () => {
 
   it("fills rather than leaves for a gain goal", () => {
     const lines = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo", verdicts: {},
+      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo", verdicts: {},
     }, "en");
     expect(lines[0]).toBe("First one in. 612 kcal — 2,288 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
   });
@@ -124,16 +124,16 @@ describe("the first verdict", () => {
     expect(lines).toHaveLength(2);
     // Rule 1 holds on this branch too: a gain plan is filled, not left.
     const gain = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
+      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
     }, "en");
     expect(gain[1]).toBe("Even rough, it counts: about 2,420 of your 2,900 still to fill today.");
     // Past the target on a gain plan is not "still to fill": rule 1, the branch taken.
     const past = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
+      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
     }, "en");
     expect(past[1]).toBe("Even rough, it counts: about 200 over your 2,900 today.");
     const sure = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480 }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
+      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480 }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
     }, "en");
     expect(sure[0]).toBe("First one in. 480 kcal — 200 over your 2,900 today, and 160 of the 150 g protein. Past it is the point on a gain plan; tomorrow is a fresh number.");
     // Over target reads as an overshoot, like the confident branch — no clamp to zero, no bare sign.
@@ -148,7 +148,7 @@ describe("the first verdict", () => {
     expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it.");
     expect(lines[1]).toBe("That leaves 914 of your 1,454 for the rest of today, and 30 of the 110 g protein.");
     const gain = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38 }, via: "text", verdicts: {},
+      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38 }, via: "text", verdicts: {},
     }, "en");
     expect(gain[1]).toBe("2,288 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
   });
@@ -206,7 +206,7 @@ describe("coach", () => {
 // #49: the first verdict contradicted itself — "On plan." in the sentence over "Calories high" on
 // the pill. The headline is now the pills' own verdict in words, and the first line spoken.
 describe("the first verdict's headline", () => {
-  const targets = { kcal: 1643, protein_g: 109 };
+  const targets = { kcal: 1643, protein_g: 109, fat_g: 55, carbs_g: 205 };
   const meal = { kcal: 584, protein_g: 37, satfat_g: 6, sodium_mg: 600, confidence: "high" };
   const said = (verdicts: Record<string, string>, lang: Lang = "en") => firstVerdictLines({
     goal: "lose", targets, meal, eatenToday: { kcal: 584, protein_g: 37 }, via: "photo", verdicts: verdicts as never,
@@ -243,7 +243,7 @@ describe("the first verdict's headline", () => {
 
 describe("verdictHeadline", () => {
   it("is the first verdict's own first line, so a re-rendered card says what the thread said", () => {
-    const targets = { kcal: 1643, protein_g: 109 };
+    const targets = { kcal: 1643, protein_g: 109, fat_g: 55, carbs_g: 205 };
     const meal = { kcal: 584, protein_g: 37, satfat_g: 6, sodium_mg: 600, confidence: "high" };
     for (const verdicts of [{ weight: "good" }, { weight: "warn" }, { weight: "bad" }, { weight: "good", ldl: "bad" }] as const) {
       for (const lang of LANGS) {

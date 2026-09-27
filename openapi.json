@@ -2564,11 +2564,9 @@
       "ActivityLevel": {
         "type": "string",
         "enum": [
-          "sedentary",
-          "light",
-          "moderate",
-          "active",
-          "athlete"
+          "few",
+          "some",
+          "many"
         ]
       },
       "Answered": {
@@ -3377,6 +3375,12 @@
           "protein_g": {
             "type": "number"
           },
+          "fat_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
           "satfat_g": {
             "type": "number"
           },
@@ -3386,10 +3390,12 @@
         },
         "required": [
           "kcal",
-          "protein_g"
+          "protein_g",
+          "fat_g",
+          "carbs_g"
         ],
         "additionalProperties": false,
-        "description": "The user's daily targets. Caps are present ONLY for restrictions the user declared."
+        "description": "The user's daily targets. Caps are present ONLY for restrictions the user declared.\n\n`fat_g`/`carbs_g` are the plan's macro cards (targets v2, decision 3): fat takes 30 % of the kcal, carbs take what protein and fat leave. They are targets only — nothing judges a meal against them, so no verdict dimension exists for either."
       },
       "Goal": {
         "type": "string",
@@ -5111,8 +5117,9 @@
       "Sex": {
         "type": "string",
         "enum": [
+          "male",
           "female",
-          "male"
+          "other"
         ],
         "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
       },

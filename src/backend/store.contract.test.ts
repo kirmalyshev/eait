@@ -33,7 +33,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type ActivityLevel, type MealRecord } from "@eait/shared";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -1392,7 +1392,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
       const p = await s.patchProfile(u, {
         goal: "gain", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93.5,
-        target_weight_kg: 92, activity: "moderate", pace: "push", country: "de",
+        target_weight_kg: 92, activity: "some", pace: "push", country: "de",
         restrictions: ["ldl", "kidneys"], medical_limitations: "gastritis",
         food_allergies: null, onboarded_at: "2026-01-01T00:00:00.000Z",
       });
@@ -1401,6 +1401,21 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(p.medical_limitations).toBe("gastritis");
       expect(p.food_allergies).toBeNull();
       expect(p.onboarded_at).toBe("2026-01-01T00:00:00.000Z");
+    });
+
+    it("reads a stored legacy activity level migrated to the nearest of the three", async () => {
+      // The five-level vocabulary became three in targets v2 (decision 7). The write path is typed
+      // — the cast is what a row written by an older binary looks like — and the read must answer
+      // the new vocabulary either way, because a legacy row can outlive the boot-time backfill by
+      // being written while an old build is still up.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.patchProfile(u, { activity: "sedentary" as ActivityLevel });
+      expect((await s.getProfile(u))!.activity).toBe("few");
+      await s.patchProfile(u, { activity: "athlete" as ActivityLevel });
+      expect((await s.getProfile(u))!.activity).toBe("many");
+      await s.patchProfile(u, { activity: "some" });
+      expect((await s.getProfile(u))!.activity).toBe("some");
     });
 
     it("expires a pending meal rather than returning it", async () => {
@@ -2928,6 +2943,32 @@ if (PG_URL) {
       await migrate();
       expect((await store.getEntitlement(userId))?.lifetimeProductId).toBeNull();
       await sql.end();
+    });
+  });
+
+  describe("the five-level activity vocabulary, stored by an older build", () => {
+    // Constructing the store IS the migration — `postgresStore` runs the schema before it returns.
+    const migrate = () => postgresStore(PG_URL, { maxConnections: TEST_POOL });
+
+    it("migrates every stored value on boot and leaves the new ids alone", async () => {
+      const sql = await rawSql();
+      const store = await migrate();
+      const rows: [string, ActivityLevel][] = [];
+      for (const [stored, expected] of [
+        ["sedentary", "few"], ["light", "few"], ["moderate", "some"],
+        ["active", "some"], ["athlete", "many"], ["some", "some"],
+      ] as const) {
+        const { userId } = await store.upsertDeviceUser(`act-${stored}-${device()}`, "en");
+        await sql`update users set activity = ${stored} where id = ${userId}`;
+        rows.push([userId, expected]);
+      }
+      const redeployed = await migrate();
+      for (const [userId, expected] of rows) {
+        expect((await redeployed.getProfile(userId))!.activity, `stored value`).toBe(expected);
+      }
+      await sql.end();
+      await store.close();
+      await redeployed.close();
     });
   });
 }

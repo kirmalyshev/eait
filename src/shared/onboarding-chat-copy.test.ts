@@ -111,7 +111,7 @@ describe("the readers of those tables", () => {
         GAIN_PACE_CARD(lang).body, UNDER_AGE_CARD(lang).title,
         belowHealthyCard(58, lang).body,
         AMBIGUOUS_AGE(lang).line(90), AMBIGUOUS_AGE(lang).confirm(90),
-        ACTIVITY_REPLIES(lang).athlete!,
+        ACTIVITY_REPLIES(lang).many!,
         STRUGGLE_LABELS(lang).binge,
         checkDirection("gain", 93, 88, lang)!.line,
         checkDirection("lose", 93, 95, lang)!.line,
@@ -209,7 +209,7 @@ describe("the v5 additions to the chat copy", () => {
       };
       const p = (over: Partial<Profile> = {}) => ({
         user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
-        weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "light",
+        weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "few",
         pace: "steady", country: "gb",
         restrictions: ["ldl"], medical_limitations: null, food_allergies: null,
         product_limitations: null, onboarded_at: null, ...over,

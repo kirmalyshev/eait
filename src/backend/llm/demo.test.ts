@@ -11,7 +11,7 @@ import type { CoachContext } from "./port.ts";
 // shape and a test that invented a narrower one would stop compiling against the port it checks.
 const PROFILE = {
   lang: "en", goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 94,
-  target_weight_kg: 88, activity: "moderate", pace: "steady", country: "de", restrictions: [],
+  target_weight_kg: 88, activity: "some", pace: "steady", country: "de", restrictions: [],
   medical_limitations: null, food_allergies: null, product_limitations: null, onboarded: true,
 } as unknown as Profile;
 

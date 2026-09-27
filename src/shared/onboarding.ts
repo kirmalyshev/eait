@@ -35,7 +35,7 @@
 
 import type { Lang, Profile } from "./types.ts";
 import { genderedRussian, LANG_TAG } from "./lang.ts";
-import { ACTIVITY_LEVELS, PACES } from "./types.ts";
+import { ACTIVITY_LEVELS, PACES, SEXES } from "./types.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
 
@@ -620,7 +620,7 @@ export function screenOptions(
 
 export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[]>> = {
   goal: ["lose", "maintain", "gain"],
-  about: ["female", "male"],
+  about: SEXES,
   target: PACES,
   activity: ACTIVITY_LEVELS,
   country: COUNTRY_CODES,
@@ -698,7 +698,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // and the activity options answer in plain frequencies — "A little each week" — rather than
   // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
   // before the first question, and one content tree cannot say it on the phone only.
-  version: 13,
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  version: 14,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -731,8 +734,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       },
 
       options: {
-        female: { label: "Female" },
         male: { label: "Male" },
+        female: { label: "Female" },
+        other: { label: "Other" },
       },
     },
     {
@@ -774,13 +778,12 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         },
       },
       options: {
-        // v5: plain frequencies on the five levels in order — the same list a Health-derived
-        // suggestion confirms against (`activityFromHealthLine`).
-        sedentary: { label: "No" },
-        light: { label: "A little each week" },
-        moderate: { label: "2–3 times a week" },
-        active: { label: "4–5 times a week" },
-        athlete: { label: "6–7 times a week" },
+        // Targets v2: three levels id'd by their icons — the range is the label, the line beneath
+        // is the hint — the same list a Health-derived suggestion confirms against
+        // (`activityFromHealthLine`).
+        few: { label: "0–2", hint: "Workouts now and then" },
+        some: { label: "3–5", hint: "A few workouts a week" },
+        many: { label: "6+", hint: "Dedicated athlete" },
       },
     },
     {

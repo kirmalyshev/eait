@@ -17,7 +17,7 @@ import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
   OnboardingContentSet, Profile, Provider,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -208,6 +208,15 @@ alter table users add column if not exists weight_measured_at timestamptz;
 --
 -- (No backticks anywhere in this file's SQL: it is one template literal, and a backtick ends it.)
 alter table users add column if not exists role text not null default 'user';
+
+-- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
+-- stored value moves to the nearest of them. Idempotent rather than guarded: the new ids match no
+-- WHERE clause here, so the hundredth boot rewrites nothing, and the one place the mapping is
+-- authored is migrateActivityLevel in shared — a row written in the window between this backfill
+-- and an old build still serving is coerced by rowToProfile instead of migrated here.
+update users set activity = 'few'  where activity in ('sedentary', 'light');
+update users set activity = 'some' where activity in ('moderate', 'active');
+update users set activity = 'many' where activity = 'athlete';
 
 -- The paid tier, on the user row rather than in a subscriptions table.
 --
@@ -796,7 +805,7 @@ function toProfile(r: UserRow): Profile {
       ? new Date(r.weight_measured_at as string).toISOString()
       : null,
     target_weight_kg: nullableNum(r.target_weight_kg),
-    activity: (r.activity ?? null) as Profile["activity"],
+    activity: migrateActivityLevel(r.activity as string | null),
     pace: (r.pace ?? null) as Profile["pace"],
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
