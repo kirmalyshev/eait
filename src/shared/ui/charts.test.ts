@@ -353,7 +353,7 @@ describe("intakeChart — the Health intake card's bars against the plan", () =>
   // The seeded week's intake, Sep 18 → today the 24th, plan 1,434 — health.html's own numbers.
   const vals = [1386, 1522, 1308, 1908, 1572, 1580, 1066];
   const labels = ["18", "19", "20", "21", "22", "23", "Today"];
-  const c = intakeChart(vals, labels, 1434, 6);
+  const c = intakeChart(vals, 1434, 6);
 
   test("the board's frame: 350×150, a full-width baseline at 124, labels at 142", () => {
     expect(c.viewBox).toBe("0 0 350 150");
@@ -387,21 +387,21 @@ describe("intakeChart — the Health intake card's bars against the plan", () =>
 
   test("only today carries the flag — a gap draws no bar but keeps its label slot", () => {
     expect(c.bars.filter((b) => b?.today)).toHaveLength(1);
-    const g = intakeChart([null, 1066, null, null, null, null, null], labels, 1434, 1);
+    const g = intakeChart([null, 1066, null, null, null, null, null], 1434, 1);
     expect(g.bars[0]).toBeNull();
     expect(g.labels[0]).toEqual({ x: 23, y: 142 });
     expect(g.bars[1]?.today).toBe(true);
   });
 
   test("more buckets narrow the bars — a 26-week axis still fits the frame", () => {
-    const w = intakeChart(Array(26).fill(1200), Array(26).fill("w"), 1434);
+    const w = intakeChart(Array(26).fill(1200), 1434);
     expect(w.bars[25]!.x + w.bars[25]!.width).toBeLessThanOrEqual(350);
     expect(w.bars[0]!.x).toBeGreaterThanOrEqual(0);
     for (const b of w.bars) expect(b!.width).toBeGreaterThanOrEqual(2);
   });
 
   test("no plan means no line and no label", () => {
-    const c0 = intakeChart(vals, labels, 0);
+    const c0 = intakeChart(vals, 0);
     expect(c0.planLine).toBeNull();
     expect(c0.planLabel).toBeNull();
   });

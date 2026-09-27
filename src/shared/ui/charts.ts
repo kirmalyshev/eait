@@ -507,7 +507,6 @@ const INTAKE = {
 
 export function intakeChart(
   values: readonly (number | null)[],
-  labels: readonly string[],
   planKcal: number,
   todayIndex = -1,
 ): {
