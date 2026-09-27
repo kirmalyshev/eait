@@ -272,7 +272,11 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
     // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: W_X0, y: 14 },
-    lastLabel: last ? { x: last.x - 10, y: last.y + 4 } : { x: W_X1, y: 90 },
+    // With the lane open the label keeps clear of it: its anchor tops out above the target
+    // line (y 104) rather than writing over it when the newest point sits at the bottom of range.
+    lastLabel: last
+      ? { x: last.x - 10, y: withTargetLane ? Math.min(last.y + 4, 88) : last.y + 4 }
+      : { x: W_X1, y: 90 },
     dateLabelY: withTargetLane ? 118 : 110,
     dateLabelX: { start: W_X0, end: W_X1 },
     ...(withTargetLane ? {
