@@ -11,6 +11,7 @@
 import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
+import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
 import { spudSvg, type MascotMood } from "@eait/shared/mascot";
 
 export function escape(text: string): string {
@@ -38,13 +39,16 @@ import {
 
 export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
-/** Where the typeface is served from, on this origin, so the CSP needs `font-src 'self'` and no more. */
-export const FONT_PATH = "/start/assets/space-grotesk-latin.woff2";
+/** Where the typeface's files are served from, on this origin — `font-src 'self'` and no more. */
+export const FONT_URL_DIR = "/start/assets/fonts";
+
+/** The files the font route will serve — the family's woff2 subsets, and nothing else. */
+export const FONT_FILES = FONTS.subsets.map(fontFile);
 
 const STYLES = `
 /* ── Tokens, the landing's own ───────────────────────────────────────────────────────────────
    IMPORTED RATHER THAN RETYPED. This surface and the landing page are one product to whoever is
-   looking at them, and they had drifted into two: the landing is light with Space Grotesk on its
+   looking at them, and they had drifted into two: the landing is light with Montserrat on its
    headings, and these pages were a system-font sheet following the OS, so a visitor on a dark
    machine met a light marketing page and a black sign-up.
 
@@ -54,30 +58,26 @@ const STYLES = `
    the values are already right. */
 :root {
   ${lightVars}
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
-  --display: "Space Grotesk", var(--sans);
+  --sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --display: "Montserrat", var(--sans);
   --warm: 232 190 131;
   --haze: .16;
 }
 :root[data-theme="dark"] { ${darkVars} --haze: .10; }
 
-/* The one typeface, self-hosted on this origin — the landing's file, served by the route beside
-   this module so nothing is loaded from anyone else. Its OFL licence travels with the source. */
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("${FONT_PATH}") format("woff2");
-  font-weight: 300 700;
-  font-display: swap;
-}
+/* The one typeface, self-hosted on this origin — the register's family (DIRECTION §3), its files
+   kept once in shared/assets/fonts and served by the route beside this module so nothing is
+   loaded from anyone else. Its OFL licence travels with the source. */
+${fontFaces(FONT_URL_DIR)}
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; background: var(--ink); }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
 body {
   margin: 0; min-height: 100dvh;
   /* The same warm haze the landing lays over its first screen, so arriving here reads as the next
      page of one site rather than as another site. */
-  background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--ink);
-  color: var(--text);
+  background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--bg);
+  color: var(--ink);
   font-family: var(--sans); font-size: 17px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -102,12 +102,12 @@ p { margin: 0 0 1rem; }
 img, svg { display: block; max-width: 100%; }
 
 .card {
-  background: var(--panel); border: 1px solid var(--line);
+  background: var(--surface); border: 1px solid var(--hair);
   border-radius: 20px; padding: 1.25rem; margin: 0 0 .75rem;
   box-shadow: 0 1px 2px rgb(19 20 23 / .04);
 }
 .bubble {
-  background: var(--panel); border: 1px solid var(--line);
+  background: var(--surface); border: 1px solid var(--hair);
   border-radius: 20px; border-bottom-left-radius: 6px;
   padding: .8rem 1.1rem; margin: 0 0 .5rem;
   box-shadow: 0 1px 2px rgb(19 20 23 / .04);
@@ -120,10 +120,10 @@ img, svg { display: block; max-width: 100%; }
 }
 .who {
   font-family: var(--display); font-size: .8125rem; font-weight: 600; letter-spacing: -0.01em;
-  color: var(--dim); margin: 0 0 .25rem .25rem;
+  color: var(--faint); margin: 0 0 .25rem .25rem;
 }
 .pill {
-  display: inline-block; border: 1px solid var(--line-strong); border-radius: 999px;
+  display: inline-block; border: 1px solid var(--line); border-radius: 999px;
   padding: .15rem .7rem; margin: .4rem .4rem 0 0;
   font-size: .8125rem; color: var(--muted);
 }
@@ -136,12 +136,12 @@ form { margin: 0; }
 button, .button {
   display: block; width: 100%; text-align: left; cursor: pointer;
   font: inherit; font-family: var(--display); font-weight: 600; letter-spacing: -0.01em;
-  color: var(--text); background: var(--raised);
-  border: 1px solid var(--line-strong); border-radius: 999px;
+  color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px;
   padding: .9375rem 1.375rem; margin: 0 0 .625rem; text-decoration: none;
   transition: border-color .15s ease, transform .18s ease, box-shadow .18s ease;
 }
-button:hover, .button:hover { border-color: var(--text); }
+button:hover, .button:hover { border-color: var(--ink); }
 button.primary, .button.primary {
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   text-align: center;
@@ -151,17 +151,17 @@ button.primary:hover, .button.primary:hover { transform: translateY(-2px); box-s
 button .hint { display: block; font-family: var(--sans); font-weight: 400; color: var(--muted); font-size: .875rem; }
 button.primary .hint { color: inherit; opacity: .85; }
 input[type=number], input[type=text] {
-  width: 100%; font: inherit; color: var(--text); background: var(--raised);
-  border: 1px solid var(--line-strong); border-radius: 999px;
+  width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px;
   padding: .9375rem 1.375rem; margin: 0 0 .625rem;
   box-shadow: 0 1px 2px rgb(19 20 23 / .04);
   transition: border-color .15s ease, box-shadow .15s ease;
 }
-input::placeholder { color: var(--dim); }
+input::placeholder { color: var(--faint); }
 input:focus { border-color: var(--care); }
 /* ONE focus ring (#53), solid ink on every control — the old 18%-alpha glow did not reach 3:1. */
-:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-label.check:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+label.check:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
 label.check input { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; vertical-align: -.15rem; margin: 0 .5rem 0 0; }
 .field-error { margin-top: -.25rem; }
 h1.bubble { font-family: var(--sans); font-size: 1em; font-weight: 400; letter-spacing: normal; line-height: 1.6; margin: 0 0 .5rem; }
@@ -175,13 +175,13 @@ input[type=file] {
   color: var(--muted);
 }
 label.check {
-  display: block; background: var(--raised); border: 1px solid var(--line-strong);
+  display: block; background: var(--surface); border: 1px solid var(--line);
   border-radius: 20px; padding: .8rem 1.25rem; margin: 0 0 .625rem; cursor: pointer;
 }
 .notice { border-left: 3px solid var(--warn); padding-left: 1rem; margin: 0 0 1.25rem; color: var(--muted); }
 .care { border-left-color: var(--care); }
 .progress {
-  font-family: var(--display); color: var(--dim); font-size: .75rem;
+  font-family: var(--display); color: var(--faint); font-size: .75rem;
   margin: 0 0 1rem; letter-spacing: .08em; text-transform: uppercase;
 }
 .figure { font-family: var(--display); font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
@@ -191,7 +191,7 @@ label.check {
 .spk { display: flex; gap: .7rem; align-items: flex-start; margin: 0 0 .6rem; }
 .spk .av {
   flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
-  background: var(--raised); border: 1px solid var(--line);
+  background: var(--surface); border: 1px solid var(--hair);
   display: flex; align-items: center; justify-content: center;
 }
 .spk .av svg { width: 32px; height: 32px; }
@@ -218,7 +218,7 @@ label.check {
   font-size: 1.5rem; line-height: 1;
 }
 .stepper-btns button:disabled { opacity: .38; cursor: default; }
-.stepper-btns button:disabled:hover { border-color: var(--line-strong); transform: none; box-shadow: none; }
+.stepper-btns button:disabled:hover { border-color: var(--line); transform: none; box-shadow: none; }
 
 /* A support moment (#42): a whole screen that is one beat — the halo, the prop that names the
    pose, the answer echoed back, a title, a line and one button. */
@@ -233,9 +233,9 @@ label.check {
 .prop svg { width: 100%; height: 100%; }
 .prop-think { color: var(--care); }
 .prop-heart { color: var(--bad); }
-.prop-lift { color: var(--text); }
+.prop-lift { color: var(--ink); }
 .echo {
-  display: inline-block; background: var(--raised); border: 1px solid var(--line);
+  display: inline-block; background: var(--surface); border: 1px solid var(--hair);
   border-radius: 999px; padding: .3rem .95rem; margin: 0 0 1rem;
   font-family: var(--display); font-weight: 600;
 }
@@ -246,7 +246,7 @@ label.check {
 .offer .x {
   position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; text-decoration: none;
-  color: var(--muted); background: var(--raised); border: 1px solid var(--line); font-size: 1.15rem;
+  color: var(--muted); background: var(--surface); border: 1px solid var(--hair); font-size: 1.15rem;
 }
 .offer-hero { width: 96px; margin: 1rem auto .5rem; }
 .offer-hero svg { width: 96px; height: 96px; }
@@ -259,14 +259,14 @@ label.check {
   display: inline-flex; align-items: center; justify-content: center;
 }
 .tick svg { width: 12px; height: 12px; }
-.rowline { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-top: 1px solid var(--line); }
+.rowline { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-top: 1px solid var(--hair); }
 .rowline:first-child { border-top: 0; }
 
 /* The plan page (#51). A small label over a figure, the declared marker caps in a row beside it,
    and the arithmetic as labelled rows — the phone's calc card, drawn the web's way. */
 .lab {
   font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--dim); margin: 0 0 .4rem;
+  color: var(--faint); margin: 0 0 .4rem;
 }
 .specs { display: flex; gap: 1.25rem; margin: .75rem 0 0; }
 .specs > div { flex: 1; min-width: 0; }
@@ -278,6 +278,10 @@ label.check {
 .arith { margin-top: .75rem; }
 .arith .rowline { font-size: .875rem; padding: .5rem 0; }
 .arith strong { font-variant-numeric: tabular-nums; }
+
+/* The register's motion vocabulary, generated — the six verbs, their keyframes, the stagger
+   property and the reduced-motion block, so this file never retypes a duration (#78). */
+${motionCss()}
 `;
 
 /**
@@ -565,7 +569,7 @@ const poseProp = (pose: MomentPose): string => {
     case "lift":
       return `<svg viewBox="0 0 32 20" aria-hidden="true"><rect fill="currentColor" x="9" y="8" width="14" height="4" rx="2"/><rect fill="currentColor" x="3" y="4" width="4" height="12" rx="1.5"/><rect fill="currentColor" x="25" y="4" width="4" height="12" rx="1.5"/><rect fill="currentColor" x="7" y="6" width="2.6" height="8" rx="1"/><rect fill="currentColor" x="22.4" y="6" width="2.6" height="8" rx="1"/></svg>`;
     case "think":
-      return `<svg viewBox="0 0 32 26" aria-hidden="true"><path fill="var(--panel)" stroke="currentColor" stroke-width="1.8" d="M10.5 4a6.5 6.5 0 0 1 10.8 2.3A5.5 5.5 0 0 1 27 10.5a5 5 0 0 1-4.5 5H9a4.5 4.5 0 0 1 1.5-11.5z"/><circle fill="currentColor" cx="8" cy="20.5" r="2"/><circle fill="currentColor" cx="4" cy="24" r="1.2"/></svg>`;
+      return `<svg viewBox="0 0 32 26" aria-hidden="true"><path fill="var(--surface)" stroke="currentColor" stroke-width="1.8" d="M10.5 4a6.5 6.5 0 0 1 10.8 2.3A5.5 5.5 0 0 1 27 10.5a5 5 0 0 1-4.5 5H9a4.5 4.5 0 0 1 1.5-11.5z"/><circle fill="currentColor" cx="8" cy="20.5" r="2"/><circle fill="currentColor" cx="4" cy="24" r="1.2"/></svg>`;
     case "heart":
       return `<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="currentColor" d="M12 20C12 20 2 13.8 2 7.6 2 4.6 4.4 2.5 7.3 2.5c1.8 0 3.6 1 4.7 2.4 1.1-1.4 2.9-2.4 4.7-2.4 2.9 0 5.3 2.1 5.3 5.1C22 13.8 12 20 12 20z"/></svg>`;
   }
