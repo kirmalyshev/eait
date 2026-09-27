@@ -88,6 +88,14 @@ const lbLabel = (lb: number) => `${lb}`;
 const ftInLabel = (totalIn: number) => `${Math.floor(totalIn / 12)}′${totalIn % 12}″`;
 
 /**
+ * A person's height the way copy needs it — "172 cm" metric, `ftInLabel`'s "5′8″" imperial —
+ * so a template like Progress's "From {w} and {h}" never retypes the ′″ join.
+ */
+export function heightText(cm: number, system: UnitSystem): string {
+  return system === "imperial" ? ftInLabel(Math.round(cm / CM_PER_IN)) : `${cm} cm`;
+}
+
+/**
  * The two rulers and their two systems, as `product/design/pro` draws them.
  *
  * Height (vertical, `06-height`/`06b`): the board's window is 15 cm / 16 in tall, labels every

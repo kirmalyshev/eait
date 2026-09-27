@@ -259,7 +259,8 @@ export function weightChart(points: readonly WeightPoint[]): {
     viewBox: W_VIEW_BOX,
     gridlines: W_GRID,
     points: pts,
-    path: pts.length ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
+    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
+    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: W_X0, y: 14 },
     lastLabel: last ? { x: last.x - 10, y: last.y + 4 } : { x: W_X1, y: 90 },
     dateLabelY: 110,

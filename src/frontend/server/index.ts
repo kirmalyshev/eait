@@ -36,6 +36,7 @@ import { todayCss } from "../screens/today.css.ts";
 import { chatCss } from "../screens/chat.css.ts";
 import { youCss } from "../screens/you.css.ts";
 import { firstMealCss } from "../screens/first-meal.css.ts";
+import { progressCss } from "../screens/progress.css.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -99,6 +100,7 @@ ${todayCss}
 ${chatCss}
 ${youCss}
 ${firstMealCss}
+${progressCss}
 /* The register's icon set, generated (#79): .ico plus an .i-<name> mask class per icon, the
    same file the boards render with — never a glyph retyped into this page. */
 ${iconCss()}
