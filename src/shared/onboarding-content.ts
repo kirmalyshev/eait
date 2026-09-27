@@ -90,11 +90,9 @@ const FR: OnboardingContent = {
         activity: { lines: ["Dans une semaine normale, tu fais de l'exercice combien de fois ? Honnête vaut mieux qu'ambitieux — ça déplace beaucoup le chiffre."] },
       },
       options: {
-        sedentary: { label: "Non" },
-        light: { label: "Un peu chaque semaine" },
-        moderate: { label: "2–3 fois par semaine" },
-        active: { label: "4–5 fois par semaine" },
-        athlete: { label: "6–7 fois par semaine" },
+        few: { label: "0–2", hint: "Une séance de temps en temps" },
+        some: { label: "3–5", hint: "Quelques séances par semaine" },
+        many: { label: "6+", hint: "Athlète confirmé" },
       },
     },
     {
@@ -203,11 +201,9 @@ const DE: OnboardingContent = {
         activity: { lines: ["Wie oft treibst du Sport in einer normalen Woche? Ehrlich schlägt ambitioniert — das verschiebt die Zahl deutlich."] },
       },
       options: {
-        sedentary: { label: "Nein" },
-        light: { label: "Etwas jede Woche" },
-        moderate: { label: "2–3 Mal pro Woche" },
-        active: { label: "4–5 Mal pro Woche" },
-        athlete: { label: "6–7 Mal pro Woche" },
+        few: { label: "0–2", hint: "Ab und zu ein Workout" },
+        some: { label: "3–5", hint: "Ein paar Workouts pro Woche" },
+        many: { label: "6+", hint: "Fast täglich Training" },
       },
     },
     {
@@ -316,11 +312,9 @@ const IT: OnboardingContent = {
         activity: { lines: ["Quante volte fai esercizio in una settimana normale? Meglio onesto che ambizioso — qui il numero cambia parecchio."] },
       },
       options: {
-        sedentary: { label: "No" },
-        light: { label: "Un po' ogni settimana" },
-        moderate: { label: "2–3 volte a settimana" },
-        active: { label: "4–5 volte a settimana" },
-        athlete: { label: "6–7 volte a settimana" },
+        few: { label: "0–2", hint: "Un allenamento ogni tanto" },
+        some: { label: "3–5", hint: "Qualche allenamento a settimana" },
+        many: { label: "6+", hint: "Quasi tutti i giorni" },
       },
     },
     {
@@ -429,11 +423,9 @@ const ES: OnboardingContent = {
         activity: { lines: ["¿Con qué frecuencia haces ejercicio en una semana normal? Mejor honesto que aspiracional — esto mueve mucho el número."] },
       },
       options: {
-        sedentary: { label: "No" },
-        light: { label: "Un poco cada semana" },
-        moderate: { label: "2–3 veces por semana" },
-        active: { label: "4–5 veces por semana" },
-        athlete: { label: "6–7 veces por semana" },
+        few: { label: "0–2", hint: "Algún entrenamiento de vez en cuando" },
+        some: { label: "3–5", hint: "Unos entrenamientos a la semana" },
+        many: { label: "6+", hint: "Casi todos los días" },
       },
     },
     {
@@ -542,11 +534,9 @@ const VI: OnboardingContent = {
         activity: { lines: ["Một tuần bình thường bạn tập thể dục bao nhiêu lần? Cứ thành thật, đừng ước lượng theo mong muốn — chỗ này làm con số lệch nhiều."] },
       },
       options: {
-        sedentary: { label: "Không" },
-        light: { label: "Thỉnh thoảng mỗi tuần" },
-        moderate: { label: "2–3 lần mỗi tuần" },
-        active: { label: "4–5 lần mỗi tuần" },
-        athlete: { label: "6–7 lần mỗi tuần" },
+        few: { label: "0–2", hint: "Thỉnh thoảng tập" },
+        some: { label: "3–5", hint: "Vài buổi tập mỗi tuần" },
+        many: { label: "6+", hint: "Vận động viên thực thụ" },
       },
     },
     {
@@ -655,11 +645,9 @@ const ID: OnboardingContent = {
         activity: { lines: ["Seberapa sering kamu berolahraga dalam seminggu biasa? Jujur lebih baik daripada ambisius — ini menggeser angkanya jauh."] },
       },
       options: {
-        sedentary: { label: "Tidak" },
-        light: { label: "Sedikit tiap minggu" },
-        moderate: { label: "2–3 kali seminggu" },
-        active: { label: "4–5 kali seminggu" },
-        athlete: { label: "6–7 kali seminggu" },
+        few: { label: "0–2", hint: "Olahraga sesekali" },
+        some: { label: "3–5", hint: "Beberapa kali olahraga seminggu" },
+        many: { label: "6+", hint: "Atlet berdedikasi" },
       },
     },
     {
@@ -768,11 +756,9 @@ const RU: OnboardingContent = {
         activity: { lines: ["Как часто ты тренируешься в обычную неделю? Честно лучше, чем с запасом — это сильно двигает цифру."] },
       },
       options: {
-        sedentary: { label: "Нет" },
-        light: { label: "Немного каждую неделю" },
-        moderate: { label: "2–3 раза в неделю" },
-        active: { label: "4–5 раз в неделю" },
-        athlete: { label: "6–7 раз в неделю" },
+        few: { label: "0–2", hint: "Тренировки время от времени" },
+        some: { label: "3–5", hint: "Несколько тренировок в неделю" },
+        many: { label: "6+", hint: "Почти каждый день" },
       },
     },
     {

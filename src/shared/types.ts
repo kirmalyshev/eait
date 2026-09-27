@@ -21,12 +21,31 @@ export type Sex = (typeof SEXES)[number];
 /**
  * Activity multipliers applied to BMR. Standard Harris-Benedict/Mifflin bands.
  *
- * Deliberately five coarse buckets rather than a step-count integration: a wrong multiplier moves
- * the target by hundreds of kcal, and a user who self-reports "moderate" is giving a better
- * estimate than a phone that counted the steps of one pocket.
+ * THREE coarse buckets — 0–2, 3–5 and 6+ workouts a week (targets v2, decision 7) — id'd after the
+ * icons that draw them. A wrong multiplier moves the target by hundreds of kcal, and a user who
+ * self-reports a bucket is giving a better estimate than a phone that counted one pocket's steps.
  */
-export const ACTIVITY_LEVELS = ["sedentary", "light", "moderate", "active", "athlete"] as const;
+export const ACTIVITY_LEVELS = ["few", "some", "many"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
+
+/**
+ * The one mapping from the five stored values to the three current ones (decision 7):
+ * `sedentary`/`light` → `few`, `moderate`/`active` → `some`, `athlete` → `many`.
+ *
+ * Every path an old id can still travel reads this: the schema's boot-time backfill covers rows
+ * already stored, this covers the rest — a row written by a build still on the old vocabulary, and
+ * a PATCH from an installed binary that predates the change, which lands migrated rather than
+ * refused. Null stays null; a word from no vocabulary is unanswered, never a guessed multiplier.
+ */
+export function migrateActivityLevel(value: string | null | undefined): ActivityLevel | null {
+  switch (value) {
+    case "few": case "some": case "many": return value;
+    case "sedentary": case "light": return "few";
+    case "moderate": case "active": return "some";
+    case "athlete": return "many";
+    default: return null;
+  }
+}
 
 /** How fast the user wants to move. Bounded — see `targets.ts`; this is where safety is decided. */
 export const PACES = ["easy", "steady", "push"] as const;

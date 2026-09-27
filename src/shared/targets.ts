@@ -93,11 +93,9 @@ export function isAcceptableWeightKg(kg: number): boolean {
 }
 
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-  athlete: 1.9,
+  few: 1.2,
+  some: 1.55,
+  many: 1.725,
 };
 
 // ── Protein (unchanged from eait) ────────────────────────────────────────────────────────────
@@ -260,7 +258,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
     };
   }
 
-  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "sedentary"]);
+  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "few"]);
   const goal = profile.goal ?? "maintain";
   const pace = profile.pace ?? "steady";
 

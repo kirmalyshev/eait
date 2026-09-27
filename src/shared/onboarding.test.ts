@@ -31,7 +31,7 @@ function profile(over: Partial<Profile> = {}): Profile {
 /** A complete profile, one field short of done. */
 const ANSWERED = profile({
   goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-  target_weight_kg: 88, activity: "moderate", pace: "steady", country: "de",
+  target_weight_kg: 88, activity: "some", pace: "steady", country: "de",
 });
 
 const clone = (c: OnboardingContent): OnboardingContent => structuredClone(c);
@@ -218,10 +218,10 @@ describe("validation refuses what would break the app", () => {
   it("a missing option label — the blank tappable chip", () => {
     const errors = bad((c) => {
       const activity = c.screens.find((s) => s.id === "activity")!;
-      delete activity.options!.athlete;
+      delete activity.options!.many;
       return c;
     });
-    expect(errors.join(" ")).toContain("athlete");
+    expect(errors.join(" ")).toContain("many");
   });
 
   it("a bubble long enough to clip on a small phone", () => {
@@ -360,7 +360,7 @@ describe("validation allows what an admin is meant to do", () => {
 
   it("dropping an optional hint", () => {
     good((x) => {
-      delete x.screens.find((s) => s.id === "activity")!.options!.moderate!.hint;
+      delete x.screens.find((s) => s.id === "activity")!.options!.some!.hint;
       return x;
     });
   });

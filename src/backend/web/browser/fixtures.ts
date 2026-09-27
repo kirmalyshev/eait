@@ -44,7 +44,7 @@ const ANSWERS: Record<string, string> = {
   weight_kg: "98",
   target_weight_kg: "92",
   pace: "steady",
-  activity: "moderate",
+  activity: "some",
   country: "de",
 };
 
@@ -118,7 +118,7 @@ export async function onboardFast(page: Page) {
     headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
     data: {
       goal: "lose", sex: "male", birth_year: 1988, height_cm: 182, weight_kg: 98,
-      target_weight_kg: 92, activity: "moderate", pace: "steady", country: "de",
+      target_weight_kg: 92, activity: "some", pace: "steady", country: "de",
       restrictions: [], complete_onboarding: true,
     },
   });

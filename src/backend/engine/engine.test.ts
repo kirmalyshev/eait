@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -38,7 +38,7 @@ async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
   const out = await patchProfile(deps, userId, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-    target_weight_kg: 65, activity: "moderate", pace: "steady", country: "de",
+    target_weight_kg: 65, activity: "some", pace: "steady", country: "de",
     restrictions: [], complete_onboarding: true, ...over,
   });
   if (!out || !out.ok) throw new Error(`onboarding failed: ${JSON.stringify(out)}`);
@@ -97,11 +97,23 @@ describe("onboarding", () => {
     expect((await store.getProfile(userId))!.sex).toBe("other");
   });
 
+  it("stores a legacy activity level migrated rather than refused", async () => {
+    // An installed build that still speaks the five-level vocabulary PATCHes "some"; the
+    // stored value migrates with the enum (decision 7) instead of bouncing off the validator.
+    const { userId } = await store.upsertDeviceUser("m".repeat(40), "en");
+    const out = await patchProfile(deps, userId, { activity: "some" as ActivityLevel });
+    expect(out!.ok).toBe(true);
+    expect((await store.getProfile(userId))!.activity).toBe("some");
+    // …and a value from no vocabulary still is refused.
+    const junk = await patchProfile(deps, userId, { activity: "olympian" as ActivityLevel });
+    expect(junk!.ok).toBe(false);
+  });
+
   it("leaves target weight and pace unset for a maintaining user", async () => {
     const { userId } = await store.upsertDeviceUser("f".repeat(40), "en");
     await patchProfile(deps, userId, {
       goal: "maintain", sex: "male", birth_year: 1988, height_cm: 180, weight_kg: 80,
-      activity: "light",
+      activity: "few",
     });
     // `stepApplies` is what drops both questions from the conversation; nothing writes them here.
     const p = (await store.getProfile(userId))!;
@@ -163,11 +175,11 @@ describe("onboarding", () => {
   });
 
   it("surfaces the floor through the profile view", async () => {
-    // A small, older, sedentary woman on the fastest pace — the shape that produced the
+    // A small, older, barely-active woman on the fastest pace — the shape that produced the
     // incumbent's 569 kcal review.
     const userId = await onboard({
       sex: "female", birth_year: 1958, height_cm: 152, weight_kg: 48, target_weight_kg: 45,
-      activity: "sedentary", pace: "push", goal: "lose",
+      activity: "few", pace: "push", goal: "lose",
     });
     const view = (await profileView(deps, userId))!;
     expect(view.targets.kcal).toBe(1200);
