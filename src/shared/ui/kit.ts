@@ -682,7 +682,7 @@ ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:$
 /* The ingredient row — the name, its amount, its own kcal (web + phone meal.html). */
 .ing{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-ctl);
   box-shadow:0 0 0 1px var(--hair);font-size:14px;font-weight:600}
-.ing span{color:var(--muted);font-weight:500}
+.ing span{color:var(--muted);font-weight:500;white-space:nowrap}
 .ing b{margin-left:auto;font-variant-numeric:tabular-nums}
 `;
 }

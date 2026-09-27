@@ -84,14 +84,17 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const closeOverlay = (): void => { overlay?.remove(); overlay = null; };
   const openOverlay = (node: HTMLElement): void => { closeOverlay(); wrap.append(node); overlay = node; };
 
-  // The photo bytes arrive under the bearer, so they are blob URLs — revoked when the next draw
-  // replaces them, or every open of this screen would pin another copy of every thumbnail.
-  let blobs: string[] = [];
+  // The photo bytes arrive under the bearer, so they cannot be an <img>'s URL — and the CSP
+  // refuses blob:. A data URL is what `img-src` already allows, and it needs no revocation.
   const photoUrl = async (mealId: string, index: number): Promise<string | null> => {
     try {
-      const url = URL.createObjectURL(await apiBlob(`${MEAL(mealId)}/photos/${index}`));
-      blobs.push(url);
-      return url;
+      const blob = await apiBlob(`${MEAL(mealId)}/photos/${index}`);
+      return await new Promise<string>((ok, no) => {
+        const reader = new FileReader();
+        reader.onload = () => ok(reader.result as string);
+        reader.onerror = () => no(reader.error);
+        reader.readAsDataURL(blob);
+      });
     } catch {
       return null;
     }
@@ -334,8 +337,6 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
   const draw = async (): Promise<void> => {
-    for (const u of blobs) URL.revokeObjectURL(u);
-    blobs = [];
     const { day, meal } = await findMeal(id, zone, viewing);
     viewing = day.date;
     // The top bar's right side is this screen's own — the day it looks at, stepped by the

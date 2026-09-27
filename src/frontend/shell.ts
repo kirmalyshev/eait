@@ -628,14 +628,16 @@ export async function render(): Promise<void> {
   const app = clear(root());
   // Signed in or not, the page sits in the same frame (Register P's `wtop`/`wmain`): the bar — the
   // row only once there is a session to lose it over — over the one quiet column. `wmain`'s
-  // two-column form is W4's; every surface today's code draws is the boards' one-column `one`.
-  const wrap = el("div", "wmain one");
+  // two-column form is W4's; every surface today's code draws is the boards' one-column `one` —
+  // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
+  // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
+  const route = location.hash || "#/";
+  const wrap = el("div", `wmain ${routePath(route).startsWith("#/meal/") ? "meal" : "one"}`);
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
   wrap.append(body);
   if (!signedIn()) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
 
-  const route = location.hash || "#/";
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {
