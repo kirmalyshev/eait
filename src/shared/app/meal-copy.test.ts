@@ -21,7 +21,7 @@ const KEYS = [
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
   "changeItem", "changeTotal", "changeWithItems",
   "changeStillHighOne", "changeStillHighTwo", "changeStillHighAll",
-  "changeToPlan", "changeToHigh", "changeToOver", "changeAllOnPlan",
+  "changeToPlan", "changeToHigh", "changeToVeryHigh", "changeAllOnPlan",
 ] as const;
 
 describe("MEAL_COPY", () => {
@@ -51,7 +51,7 @@ describe("MEAL_COPY", () => {
       changeStillHighOne: ["{dim}"],
       changeToPlan: ["{dim}"],
       changeToHigh: ["{dim}"],
-      changeToOver: ["{dim}"],
+      changeToVeryHigh: ["{dim}"],
     };
     for (const lang of LANGS) {
       const copy = MEAL_COPY[lang]!;
@@ -92,7 +92,7 @@ describe("MEAL_COPY", () => {
     expect(en.changeStillHighAll).toBe("All still high for one meal.");
     expect(en.changeToPlan).toBe("{dim} now on plan.");
     expect(en.changeToHigh).toBe("{dim} now high for one meal.");
-    expect(en.changeToOver).toBe("{dim} now over the plan.");
+    expect(en.changeToVeryHigh).toBe("{dim} now very high for one meal.");
     expect(en.changeAllOnPlan).toBe("All on plan now.");
   });
 });
