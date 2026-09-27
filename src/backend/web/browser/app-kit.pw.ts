@@ -116,11 +116,12 @@ test("the kit's measurements are pro.css's", async ({ page }) => {
   await expect(page.locator(".meal").nth(1).locator(".ph.chat .i-chat")).toBeVisible();
   await expect(page.locator(".meal").nth(1).locator(".v")).toHaveCount(0);
 
-  // The verdict: an 8 px dot and words — never a pill.
-  const dot = await page.locator(".v.warn").first().evaluate((n) => {
-    const s = getComputedStyle(n, "::before");
-    return { width: s.width, borderRadius: s.borderRadius, backgroundColor: s.backgroundColor };
-  });
+  // The verdict: an 8 px dot and words — never a pill. (The pseudo-element read is a string
+  // evaluate — this file typechecks without the DOM; the browser is where it runs.)
+  const dot = await page.evaluate(
+    `(() => { const s = getComputedStyle(document.querySelector(".v.warn"), "::before");
+      return { width: s.width, borderRadius: s.borderRadius, backgroundColor: s.backgroundColor }; })()`,
+  ) as { width: string; borderRadius: string; backgroundColor: string };
   expect(dot.width).toBe("8px");
   expect(dot.borderRadius).toBe("50%");
   expect(dot.backgroundColor).toBe("rgb(163, 90, 0)"); // --warn
