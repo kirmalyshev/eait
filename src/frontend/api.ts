@@ -133,6 +133,14 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return await (await call(path, init)).json() as T;
 }
 
+/**
+ * Bytes behind the bearer — a stored meal photo, whose src an `<img>` can only reach as an object
+ * URL (the route answers 401 to a bare `<img>` load: no cookie, no query token).
+ */
+export async function apiBlob(path: string): Promise<Blob> {
+  return await (await call(path, {})).blob();
+}
+
 /** The streamed shape, spelled as the contract spells it — a type import, so nothing is bundled. */
 const STREAM: typeof NDJSON = "application/x-ndjson";
 

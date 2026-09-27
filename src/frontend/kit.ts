@@ -100,8 +100,9 @@ export const gabieNameEl = (name: string): Element => kitEl(gabieNameMarkup(name
 export function weekStripEl(
   days: readonly WeekDayRow[],
   onPick?: (date: string) => void,
+  now?: string,
 ): Element {
-  const el_ = kitEl(weekStripMarkup(days, lang));
+  const el_ = kitEl(weekStripMarkup(days, lang, now));
   if (onPick !== undefined) {
     el_.addEventListener("click", (e) => {
       const cell = (e.target as Element | null)?.closest?.("[data-date]");

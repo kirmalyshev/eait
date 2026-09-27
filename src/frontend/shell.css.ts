@@ -64,7 +64,7 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   .wtop { padding: 0 16px; gap: 16px; }
   .wtop .brand { margin-right: 0; }
   .wnav { gap: 14px; }
-  .wmain { padding: 20px 16px 32px; }
+  .wmain { padding: 20px 16px 32px; grid-template-columns: 1fr; }
 }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 700; letter-spacing: -.02em; }

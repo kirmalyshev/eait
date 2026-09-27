@@ -12,6 +12,6 @@ import { homeScreen } from "./screens/today.ts";
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
 screen("#/chat", () => chatScreen());
 screen("#/you", (frame) => youScreen(frame.me));
-screen("#/", (frame) => homeScreen(frame.me));
+screen("#/", (frame) => homeScreen(frame));
 
 start();
