@@ -387,6 +387,15 @@ export function proposalCard(
 export const timeFmt = (d: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "2-digit", minute: "2-digit" }).format(d);
 
+/**
+ * The boards' one date form for a `YYYY-MM-DD` — "Thursday 24 September", in the surface's
+ * language. Midday UTC keeps a date-only value on its own day at either side of the date line.
+ */
+export const dayText = (d: string): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+  }).format(new Date(`${d}T12:00:00Z`));
+
 export function textField(placeholder: string): HTMLInputElement {
   const input = el("input", "") as HTMLInputElement;
   input.type = "text";

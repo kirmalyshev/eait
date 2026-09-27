@@ -85,12 +85,13 @@ describe("YOU_COPY", () => {
     expect(en.connected).toBe("connected");
     expect(en.subscription).toBe("Subscription");
     expect(en.freeWeekDay).toBe("free week · day {n}");
+    // The row's other states (#175): paid, lifetime, lapsed (dated and bare), and never bought.
+    expect(en.subscriptionUntil).toBe("until {date}");
+    expect(en.subscriptionLifetime).toBe("lifetime");
+    expect(en.subscriptionEnded).toBe("ended {date}");
+    expect(en.subscriptionEndedNoDate).toBe("ended");
+    expect(en.subscriptionFree).toBe("free");
     expect(en.account).toBe("Account");
-    // web/you.html's today column — the right-hand pane only the web draws.
-    expect(en.web.kcalLeft).toBe("kcal left");
-    expect(en.web.proteinLeft).toBe("Protein left");
-    expect(en.web.carbsLeft).toBe("Carbs left");
-    expect(en.web.fatLeft).toBe("Fat left");
     // phone/you-weight.html
     expect(en.phone.weightTitle).toBe("Your weight");
     expect(en.phone.weightCheckKg).toBe("{source} says {w} kg. Is that right?");

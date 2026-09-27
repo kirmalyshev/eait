@@ -83,17 +83,21 @@ export interface YouCopy {
   subscription: string;
   /** Its trial value, lowercase on the board: "free week · day {n}". */
   freeWeekDay: string;
+  /** Its paid value: "until {date}" — the period's end; the store never says it renews. */
+  subscriptionUntil: string;
+  /** The lifetime unlock's value: "lifetime". */
+  subscriptionLifetime: string;
+  /** A lapsed period: "ended {date}" — and "ended" alone when the record keeps no date. */
+  subscriptionEnded: string;
+  subscriptionEndedNoDate: string;
+  /** Its value when the account has never bought: "free". */
+  subscriptionFree: string;
   /** The account row — and the phone's account screen title: "Account". */
   account: string;
 
-  /** What only the web board draws: the today column at the screen's right. */
+  /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
+      the same component on both surfaces, so its captions come from one table. */
   web: {
-    /** The caption under the big figure — "368" over "kcal left ⌄" (the ⌄ is a glyph). */
-    kcalLeft: string;
-    /** The three macro cards' captions: "{g} g" over "Protein left" etc. */
-    proteinLeft: string;
-    carbsLeft: string;
-    fatLeft: string;
     /** The Units row's label and its two options — the symbols are `spellUnit`'s, spelled the
         way the language writes them (`kg · cm` / `lb · ft`, Russian "кг · см"). */
     units: string;
@@ -285,12 +289,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "connected",
     subscription: "Subscription",
     freeWeekDay: "free week · day {n}",
+    subscriptionUntil: "until {date}",
+    subscriptionLifetime: "lifetime",
+    subscriptionEnded: "ended {date}",
+    subscriptionEndedNoDate: "ended",
+    subscriptionFree: "free",
     account: "Account",
     web: {
-      kcalLeft: "kcal left",
-      proteinLeft: "Protein left",
-      carbsLeft: "Carbs left",
-      fatLeft: "Fat left",
       units: "Units",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -391,12 +396,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "connecté",
     subscription: "Abonnement",
     freeWeekDay: "semaine gratuite · jour {n}",
+    subscriptionUntil: "jusqu'au {date}",
+    subscriptionLifetime: "à vie",
+    subscriptionEnded: "terminé le {date}",
+    subscriptionEndedNoDate: "terminé",
+    subscriptionFree: "gratuit",
     account: "Compte",
     web: {
-      kcalLeft: "kcal restantes",
-      proteinLeft: "Protéines restantes",
-      carbsLeft: "Glucides restants",
-      fatLeft: "Lipides restants",
       units: "Unités",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -497,12 +503,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "verbunden",
     subscription: "Abo",
     freeWeekDay: "Gratiswoche · Tag {n}",
+    subscriptionUntil: "bis {date}",
+    subscriptionLifetime: "lebenslang",
+    subscriptionEnded: "beendet am {date}",
+    subscriptionEndedNoDate: "beendet",
+    subscriptionFree: "kostenlos",
     account: "Konto",
     web: {
-      kcalLeft: "kcal übrig",
-      proteinLeft: "Eiweiß übrig",
-      carbsLeft: "Kohlenhydrate übrig",
-      fatLeft: "Fett übrig",
       units: "Einheiten",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -603,12 +610,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "connesso",
     subscription: "Abbonamento",
     freeWeekDay: "settimana gratis · giorno {n}",
+    subscriptionUntil: "fino al {date}",
+    subscriptionLifetime: "a vita",
+    subscriptionEnded: "terminato il {date}",
+    subscriptionEndedNoDate: "terminato",
+    subscriptionFree: "gratuito",
     account: "Account",
     web: {
-      kcalLeft: "kcal rimaste",
-      proteinLeft: "Proteine rimaste",
-      carbsLeft: "Carboidrati rimasti",
-      fatLeft: "Grassi rimasti",
       units: "Unità",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -709,12 +717,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "conectado",
     subscription: "Suscripción",
     freeWeekDay: "semana gratis · día {n}",
+    subscriptionUntil: "hasta el {date}",
+    subscriptionLifetime: "de por vida",
+    subscriptionEnded: "terminada el {date}",
+    subscriptionEndedNoDate: "terminada",
+    subscriptionFree: "gratis",
     account: "Cuenta",
     web: {
-      kcalLeft: "kcal restantes",
-      proteinLeft: "Proteína restante",
-      carbsLeft: "Carbohidratos restantes",
-      fatLeft: "Grasa restante",
       units: "Unidades",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -815,12 +824,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "đã kết nối",
     subscription: "Gói đăng ký",
     freeWeekDay: "tuần miễn phí · ngày {n}",
+    subscriptionUntil: "đến {date}",
+    subscriptionLifetime: "trọn đời",
+    subscriptionEnded: "đã kết thúc {date}",
+    subscriptionEndedNoDate: "đã kết thúc",
+    subscriptionFree: "miễn phí",
     account: "Tài khoản",
     web: {
-      kcalLeft: "kcal còn lại",
-      proteinLeft: "Đạm còn lại",
-      carbsLeft: "Carb còn lại",
-      fatLeft: "Chất béo còn lại",
       units: "Đơn vị",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -921,12 +931,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "terhubung",
     subscription: "Langganan",
     freeWeekDay: "minggu gratis · hari {n}",
+    subscriptionUntil: "sampai {date}",
+    subscriptionLifetime: "seumur hidup",
+    subscriptionEnded: "berakhir {date}",
+    subscriptionEndedNoDate: "berakhir",
+    subscriptionFree: "gratis",
     account: "Akun",
     web: {
-      kcalLeft: "kcal tersisa",
-      proteinLeft: "Protein tersisa",
-      carbsLeft: "Karbo tersisa",
-      fatLeft: "Lemak tersisa",
       units: "Unit",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1027,12 +1038,13 @@ export const YOU_COPY: Localized<YouCopy> = {
     connected: "подключено",
     subscription: "Подписка",
     freeWeekDay: "бесплатная неделя · день {n}",
+    subscriptionUntil: "до {date}",
+    subscriptionLifetime: "пожизненная",
+    subscriptionEnded: "закончилась {date}",
+    subscriptionEndedNoDate: "закончилась",
+    subscriptionFree: "бесплатно",
     account: "Аккаунт",
     web: {
-      kcalLeft: "ккал осталось",
-      proteinLeft: "Осталось белка",
-      carbsLeft: "Осталось углеводов",
-      fatLeft: "Осталось жиров",
       units: "Единицы",
       unitsMetric: "кг · см",
       unitsImperial: "lb · ft",

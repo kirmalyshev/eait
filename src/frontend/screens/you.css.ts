@@ -20,7 +20,9 @@ export const youCss = `
 .you .m { color: var(--muted); }
 .you .d { font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
 .you .d22 { font-size: 22px; }
-.you .est { font-size: 12px; font-weight: 600; color: var(--muted); }
+/* The plan card's floor marker stays on its own line's right — the board's "never below 1,200"
+   is one line, so it never breaks mid-phrase. */
+.you .est { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 
 /* The identity card — the tinted disc (48px, the person mark inside) beside the fact line. */
 .you .idcard { display: flex; align-items: center; gap: 14px; }
@@ -73,19 +75,15 @@ export const youCss = `
   border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
   color: var(--ink); }
 
-/* The top bar's date row (wtop's right side): the chevrons are 32px icon buttons, the date is
-   14/500 between them — the bar itself is the shell's .wr. */
-.wtop .wr .barbtn { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; border: 0;
-  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); color: var(--ink);
-  cursor: pointer; font: inherit; font-size: 16px; line-height: 1; }
-.wtop .wr .barbtn:disabled { opacity: .4; cursor: default; }
-.wtop .wr .bardate { white-space: nowrap; }
-
 /* The today column — the strip bleeds to the column edges (the board's -16px), the hero is the
-   48px figure with the 104 ring beside it, then the three macro cards and the page dots. */
+   48px figure with the 104 ring beside it, then the three macro cards and the page dots. The
+   figure and ring go --bad on a warn day, the card's one "over" state, same as Home's (#175). */
 .you .weekbleed { margin: 0 -16px; }
 .you .dayhero { display: flex; align-items: center; justify-content: space-between; }
 .you .dayhero .hnum { font-size: 48px; display: block; }
+.you .dayhero.over .hnum { color: var(--bad); }
+.you .dayhero .hnum .about { font-size: 14px; font-weight: 600; letter-spacing: 0;
+  color: var(--muted); margin-right: 4px; }
 .you .dayhero .mring { margin-top: 0; }
 .you .pdots { display: flex; justify-content: center; gap: 6px; }
 .you .pdot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }

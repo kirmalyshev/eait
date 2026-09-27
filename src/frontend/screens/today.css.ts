@@ -4,18 +4,8 @@
 // the empty/failed day cards, the proposal card, and the in-diary composer.
 
 export const todayCss = `
-/* The top bar's right side: the streak chip, then the date with its day arrows (today.html's
-   wtop). frame.bar is a flex row already; these only size its parts. */
-.homebar { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500;
-  margin-left: 14px; }
-.homebar .dlabel { font-weight: 500; white-space: nowrap; }
-.darrow { width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 50%;
-  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); display: inline-flex;
-  align-items: center; justify-content: center; cursor: pointer; color: var(--ink);
-  font: inherit; padding: 0; }
-.darrow:disabled { opacity: .4; cursor: default; }
-.darrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.darrow .ico { width: 18px; height: 18px; }
+/* The top bar's right side: the streak chip, then the shared date row (.drow/.darrow are
+   the shell's — Home and You both draw them, #175). frame.bar is a flex row already. */
 
 /* The week's strip sits edge to edge in its column (the boards' margin:-16px bleeds). */
 .weekwrap { margin: 0 -16px; }
