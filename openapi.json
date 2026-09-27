@@ -2726,7 +2726,7 @@
                 "type": "null"
               }
             ],
-            "description": "Legacy only (#49): absent on every answer now. Absent or null is Spud."
+            "description": "Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud."
           },
           "suggestions": {
             "type": "array",
@@ -3144,6 +3144,16 @@
                     "type": "null"
                   }
                 ]
+              },
+              "speaker": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ChatSpeaker"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -3154,7 +3164,8 @@
               "kind",
               "event",
               "mealId",
-              "meal"
+              "meal",
+              "speaker"
             ],
             "additionalProperties": false
           }
@@ -3222,7 +3233,7 @@
       "ChatSpeaker": {
         "type": "string",
         "const": "gabie",
-        "description": "LEGACY (#49): a stored line from when the nutritionist persona answered. Nothing produces it any more; every assistant line is Spud's, and `speakerOf` reads this one as his too."
+        "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who answers in Chat (S9 — she was retired by #49 and restored by the redesign)."
       },
       "ConfirmMealResult": {
         "anyOf": [

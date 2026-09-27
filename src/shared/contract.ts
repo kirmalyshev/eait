@@ -738,10 +738,10 @@ export type ChatEntry =
   | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
   /** `mealId`: the meal the photo logged, so the bubble can fetch the picture; null on lines from before photos were kept. */
   | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
-  /** `speaker`: legacy (#49). Null on every new line; `gabie` only on a line stored before Spud answered alone, and it is Spud's too. */
+  /** `speaker`: who said it. Null is Spud — onboarding's asks and scripted beats; `gabie` is an engine line, and the app draws her face on it (S9). */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string; speaker: ChatSpeaker | null }
-  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
-  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };
+  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. `speaker`: the engines' card is Gabie's; a row from before the column reads null. */
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; speaker: ChatSpeaker | null };
 
 export interface ChatHistoryResponse {
   /** Oldest first within the page. */

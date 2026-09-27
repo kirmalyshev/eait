@@ -35,10 +35,14 @@ describe("the bot's words in eight languages", () => {
     // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
     // a tool. That renders a complete, correct English sentence and passes every gate and every
     // other assertion in this file. This is the one that would fail.
-    for (const field of ["stranger", "connectedTail", "notYours", "logged", "failed"] as const) {
+    for (const field of ["stranger", "notYours", "logged", "failed"] as const) {
       const said = LANGS.map((l) => telegramCopyFor(l)[field]);
       expect(new Set(said).size, `${field} is not translated in all eight`).toBe(LANGS.length);
     }
+    // `connectedTail` is a template now ({coach}): compared filled, so the name doesn't hide a
+    // language that is the English.
+    const tails = LANGS.map((l) => telegramCopyFor(l).connectedTail({ coach: "Gabie" }));
+    expect(new Set(tails).size, "connectedTail is not translated in all eight").toBe(LANGS.length);
     const refusals = LANGS.map((l) => telegramCopyFor(l).refusals["not-onboarded"]);
     expect(new Set(refusals).size, "not-onboarded is not translated in all eight").toBe(LANGS.length);
   });
@@ -56,6 +60,10 @@ describe("the bot's words in eight languages", () => {
       const dated = copy.proposalLeadDated({ date: "2026-09-20" });
       expect(dated, lang).toContain("2026-09-20");
       expect(dated, lang).not.toMatch(/\{\w+\}/);
+
+      const tail = copy.connectedTail({ coach: "Gabie" });
+      expect(tail, lang).toContain("Gabie");
+      expect(tail, lang).not.toMatch(/\{\w+\}/);
     }
   });
 
@@ -65,6 +73,7 @@ describe("the bot's words in eight languages", () => {
     for (const [k, v] of Object.entries(copy)) if (typeof v === "string") fields[k] = v;
     fields["todayHead"] = copy.todayHead(FIGURES);
     fields["proposalLeadDated"] = copy.proposalLeadDated({ date: "2026-09-20" });
+    fields["connectedTail"] = copy.connectedTail({ coach: "Gabie" });
     expect(lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`)).toEqual([]);
   });
 });
