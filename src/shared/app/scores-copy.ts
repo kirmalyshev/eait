@@ -12,11 +12,11 @@
 // the two equal rather than sharing a lookup. `limit` on a part is a `medical` screen option id
 // ("ldl", "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
 
-import { numbers, t, type CountForms, type Localized } from "../lang.ts";
-import type { BmiRange, ScoreFactor, ScoreLimit } from "../scores.ts";
+import { t, type CountForms, type Localized } from "../lang.ts";
+import type { ScoreFactor, ScoreLimit } from "../scores.ts";
 import type { Lang } from "../types.ts";
 
-export interface ScoresCopy {
+export interface ScoreAppCopy {
   /** The card's title. */
   title: string;
   /** "{n}/10" — the score as a fraction, `{n}` already formatted. */
@@ -40,14 +40,6 @@ export interface ScoresCopy {
   breakdownTitle: string;
   /** Under the breakdown's title: what the day's number IS. */
   breakdownLine: string;
-  /** The BMI label — the acronym, spelled the way the language spells it. */
-  bmi: string;
-  /** The one line explaining BMI. */
-  bmiExplainer: string;
-  /** Range templates — `{n}` / `{low}`/`{high}` are the band's own bounds, localized by `numbers`. */
-  bmiBelow: string;
-  bmiBetween: string;
-  bmiAbove: string;
   /** The five factor names — `satfat` is the verdict pill's noun, verbatim. */
   factors: Record<ScoreFactor, string>;
   /** The breakdown's opening row — the base points every score starts from. */
@@ -67,7 +59,7 @@ export interface ScoresCopy {
   limits: Record<ScoreLimit, string>;
 }
 
-export const SCORES_COPY: Localized<ScoresCopy> = {
+export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   en: {
     title: "Health score",
     outOf: "{n}/10",
@@ -79,11 +71,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
     breakdownTitle: "Today's health score",
     breakdownLine: "The mean of today's meals, weighted by their calories.",
-    bmi: "BMI",
-    bmiExplainer: "Weight in kg divided by height in metres, squared.",
-    bmiBelow: "below {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} and above",
     factors: { satfat: "Saturated fat", protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
     startRow: "Start",
     partPctOfKcal: "{n}% of kcal",
@@ -104,11 +91,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     breakdownTitle: "Score santé d'aujourd'hui",
     breakdownLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
-    bmi: "IMC",
-    bmiExplainer: "Poids en kg divisé par la taille en mètres, au carré.",
-    bmiBelow: "moins de {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} et plus",
     factors: { satfat: "Graisses saturées", protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
     startRow: "Base",
     partPctOfKcal: "{n} % des kcal",
@@ -129,11 +111,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     breakdownTitle: "Heutiger Gesundheitsscore",
     breakdownLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
-    bmi: "BMI",
-    bmiExplainer: "Gewicht in kg geteilt durch die Körpergröße in Metern zum Quadrat.",
-    bmiBelow: "unter {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} und mehr",
     factors: { satfat: "Gesättigte Fette", protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
     startRow: "Basis",
     partPctOfKcal: "{n} % der kcal",
@@ -154,11 +131,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     breakdownTitle: "Punteggio di salute di oggi",
     breakdownLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
-    bmi: "IMC",
-    bmiExplainer: "Peso in kg diviso per l'altezza in metri, al quadrato.",
-    bmiBelow: "sotto {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} e oltre",
     factors: { satfat: "Grassi saturi", protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
     startRow: "Base",
     partPctOfKcal: "{n}% delle kcal",
@@ -179,11 +151,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     breakdownTitle: "Puntuación de salud de hoy",
     breakdownLine: "La media de las comidas de hoy, ponderada por sus calorías.",
-    bmi: "IMC",
-    bmiExplainer: "Peso en kg dividido por la altura en metros, al cuadrado.",
-    bmiBelow: "por debajo de {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} y más",
     factors: { satfat: "Grasas saturadas", protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
     partPctOfKcal: "{n}% de las kcal",
@@ -204,11 +171,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
     breakdownTitle: "Điểm sức khỏe hôm nay",
     breakdownLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
-    bmi: "BMI",
-    bmiExplainer: "Cân nặng tính bằng kg chia cho chiều cao tính bằng mét, bình phương.",
-    bmiBelow: "dưới {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "từ {n} trở lên",
     factors: { satfat: "Chất béo bão hoà", protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
     startRow: "Điểm gốc",
     partPctOfKcal: "{n}% của kcal",
@@ -229,11 +191,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
     breakdownTitle: "Skor kesehatan hari ini",
     breakdownLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
-    bmi: "IMT",
-    bmiExplainer: "Berat badan dalam kg dibagi tinggi badan dalam meter, dikuadratkan.",
-    bmiBelow: "di bawah {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} ke atas",
     factors: { satfat: "Lemak jenuh", protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
     startRow: "Awal",
     partPctOfKcal: "{n}% dari kcal",
@@ -259,11 +216,6 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     },
     breakdownTitle: "Оценка здоровья за сегодня",
     breakdownLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
-    bmi: "ИМТ",
-    bmiExplainer: "Вес в кг, делённый на рост в метрах в квадрате.",
-    bmiBelow: "ниже {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} и выше",
     factors: { satfat: "Насыщенные жиры", protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
     startRow: "База",
     partPctOfKcal: "{n}% от ккал",
@@ -275,26 +227,12 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
   },
 };
 
-export const scoresCopy = (lang: Lang): ScoresCopy => t(lang)(SCORES_COPY);
+export const scoresAppCopy = (lang: Lang): ScoreAppCopy => t(lang)(SCORES_APP_COPY);
 
 /**
  * A factor's name. Saturated fat's is the verdict pill's noun — carried verbatim in the table
  * (`verdict.noun.ldl` in the catalog), and `scores-copy.test.ts` still pins the two equal.
  */
 export function scoreFactorLabel(factor: ScoreFactor, lang: Lang): string {
-  return t(lang)(SCORES_COPY).factors[factor];
-}
-
-/**
- * A BMI range as its own numbers — "below 18.5", "18.5–24.9", "30 and above". The bounds are read
- * out of the range ID ITSELF, so the label and the boundary `bmiRange` tests can never disagree,
- * and `numbers(lang)` moves the decimal separator with the language.
- */
-export function bmiRangeLabel(range: BmiRange, lang: Lang): string {
-  const copy = t(lang)(SCORES_COPY);
-  const n = numbers(lang);
-  if (range.startsWith("below-")) return copy.bmiBelow.replace("{n}", n(Number(range.slice(6))));
-  if (range.endsWith("-plus")) return copy.bmiAbove.replace("{n}", n(Number(range.slice(0, -5))));
-  const [lo, hi] = range.split("-") as [string, string];
-  return copy.bmiBetween.replace("{low}", n(Number(lo))).replace("{high}", n(Number(hi)));
+  return t(lang)(SCORES_APP_COPY).factors[factor];
 }

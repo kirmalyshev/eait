@@ -6,7 +6,7 @@ import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { dateMinus, localDate, localTime } from "@eait/shared";
+import { dateMinus, emptyHealthDay, localDate, localTime } from "@eait/shared";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import { LANGS, LANGS_READY } from "@eait/shared";
@@ -201,6 +201,60 @@ describe("onboarding", () => {
     // And it tracks the config rather than a constant that happens to match today.
     const tighter = { ...deps, config: { ...CONFIG, maxPhotosPerMeal: 1 } };
     expect((await profileView(tighter, userId))!.limits.maxPhotosPerMeal).toBe(1);
+  });
+
+  // The Subscription row's "free week · day 5" (#97). The number is the SERVER's — a client that
+  // counted days itself would drift from the reminder days `trialReminderDates` already sends.
+  it("counts the free week on the profile, null the moment the trial is not live", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
+    // Expiry the day after tomorrow in the server's zone: today is day 5, exactly as the
+    // notification scheduler names it.
+    const expiry = dateMinus(localDate(deps.config.timezone), -2);
+    await store.putEntitlement(userId, {
+      expiresAt: `${expiry}T12:00:00.000Z`,
+      productId: "com.eait.fit.ios.yearly",
+      eventAt: new Date().toISOString(),
+      trial: true,
+    });
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBe(5);
+    // Converted to paid, there is no free week left to count.
+    await store.putEntitlement(userId, {
+      expiresAt: dateMinus(localDate(deps.config.timezone), -365) + "T12:00:00.000Z",
+      productId: "com.eait.fit.ios.yearly",
+      eventAt: new Date(Date.now() + 60_000).toISOString(),
+      trial: false,
+    });
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
+  });
+
+  // The You surface's "Apple Health · connected" row (#97): drawn only while a sync is actually
+  // arriving. The signal is a stored health row inside the last seven days — never a flag a
+  // client could set for itself.
+  it("reports healthConnected from recent health rows, and only recent ones", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.healthConnected).toBe(false);
+    const today = localDate(deps.config.timezone);
+    await store.putHealthDays(userId, [{ ...emptyHealthDay(dateMinus(today, 6)), steps: 4000 }]);
+    expect((await profileView(deps, userId))!.healthConnected).toBe(true);
+    // Eight days back is a stale sync, not a connection.
+    const stale = await onboard();
+    await store.putHealthDays(stale, [{ ...emptyHealthDay(dateMinus(today, 7)), steps: 4000 }]);
+    expect((await profileView(deps, stale))!.healthConnected).toBe(false);
+  });
+
+  it("sends the coach's name in the account's language, because the Lingui table cannot reach a bundle", async () => {
+    const userId = await onboard();
+    const view = (await profileView(deps, userId))!;
+    expect(view.coachName).toBe(threadCopyFor(view.profile.lang).coach.name);
+  });
+
+  it("answers hasLoggedMeal over the whole diary, not the marking window (#92)", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(false);
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (!isMeal(res)) throw new Error("expected a meal");
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(true);
   });
 });
 

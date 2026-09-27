@@ -584,6 +584,12 @@ export interface ProfileResponse {
    */
   telegramBot: string | null;
   /**
+   * Whether health sync is actually arriving: any `HealthDay` row stored in the last seven days,
+   * computed here so the You surface's "connected" is a fact and not a flag a client can set
+   * (#97). The phone backfills weight history on connect, so a fresh sync counts from day one.
+   */
+  healthConnected: boolean;
+  /**
    * The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).
    *
    * SENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the
@@ -598,6 +604,22 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
+  /**
+   * The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because
+   * the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words
+   * reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server
+   * that predates the field sends none, and a client falls back to the copy's own name.
+   */
+  coachName: string;
+  /**
+   * Whether this account has ever logged a meal — any date, not just inside the diary window
+   * (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read
+   * it as the ONE "nothing logged yet" answer, so two clients can never disagree about which
+   * meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other
+   * conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on
+   * this response.
+   */
+  hasLoggedMeal: boolean;
 }
 
 /**
@@ -1092,6 +1114,12 @@ export interface WeightEntry {
 export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
   weights: WeightEntry[];
+  /**
+   * The newest weigh-in in the WHOLE log, whatever `range` left of it — Progress's current
+   * figure and its none-in-range state ("weights exist, just not in this window") need a dated
+   * entry the filtered `weights` can no longer name. `null` when nothing was ever logged.
+   */
+  latest: WeightEntry | null;
   /**
    * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
    * rate `projectGoal` computed, and the localized month it lands in. Null when no honest

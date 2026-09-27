@@ -8,10 +8,15 @@ import { expect, test } from "./fixtures.ts";
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 
+/** Let rise/grow land before measuring — axe reads opacity mid-flight as low contrast. The longest
+   stagger is ~1.9s; two seconds covers it (an infinite animation, like .scan, can never satisfy a
+   playState poll). */
+const settle = (page: Page): Promise<void> => page.waitForTimeout(2000);
+
 /** The page's violations as one line each — the list IS the failure message. */
 const axeFindings = async (page: Page): Promise<string[]> =>
   (await new AxeBuilder({ page }).withTags(TAGS).analyze())
-    .violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s) — ${v.help}`);
+    .violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(" | ")} — ${v.help}`);
 
 for (const [width, height] of [[390, 844], [1440, 900]] as const) {
   test(`the diary, the chat, You and the offer have no axe violations at ${width}px`, async ({ inWebApp: page }) => {
@@ -30,6 +35,7 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
 
     await page.goto("/#/chat");
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+    await settle(page);
     expect(await axeFindings(page), "chat").toEqual([]);
 
     await page.goto("/#/you");

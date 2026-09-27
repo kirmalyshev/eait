@@ -448,6 +448,18 @@ export function countryLabel(code: CountryCode, lang: Lang): string {
 }
 
 /**
+ * The flag a curated country draws (the 16-country board): the two regional indicators the code
+ * spells — computed, because fifteen flags in a table is fifteen things to keep. `other` is a
+ * sentinel, not a region: it gets no flag, and its caller draws the ellipsis instead. A code this
+ * list does not carry is still rendered — a raw region string can land on a profile — so the
+ * guard answers null rather than throwing.
+ */
+export function countryFlag(code: string): string | null {
+  if (!/^[a-z]{2}$/.test(code)) return null;
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 97));
+}
+
+/**
  * The options for the country question, in the order this reader should see them.
  *
  * SORTED BY THE NAME ON SCREEN, with `Intl.Collator`, because fifteen countries in code order is a

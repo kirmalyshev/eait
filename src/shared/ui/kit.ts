@@ -448,6 +448,9 @@ export const optionRow = (o: {
   icon?: IconName;
   tile?: boolean;
   selected?: boolean;
+  /** The chat boards' trailing affordance: a faint chevron where the check disc would sit —
+      the row navigates forward into an answer, nothing is selected. */
+  chevron?: boolean;
   tag?: "div" | "button" | "a";
   href?: string;
   type?: "button" | "submit";
@@ -458,11 +461,12 @@ export const optionRow = (o: {
   const lead = o.icon !== undefined
     ? (o.tile ? `<span class="tile">${ico(o.icon)}</span>` : ico(o.icon))
     : "";
+  const tail = o.chevron ? `<i class="ico i-chevron-right chv" aria-hidden="true"></i>` : `<span class="ck"></span>`;
   const attrs = (tag === "a" && o.href !== undefined ? ` href="${esc(o.href)}"` : "") +
     (tag === "button" ? ` type="${o.type ?? "button"}"` : "") +
     (o.name !== undefined ? ` name="${esc(o.name)}"` : "") +
     (o.value !== undefined ? ` value="${esc(o.value)}"` : "");
-  return `<${tag} class="opt${o.selected ? " sel" : ""}"${attrs}>${lead}<span class="ot">${esc(o.text)}</span><span class="ck"></span></${tag}>`;
+  return `<${tag} class="opt${o.selected ? " sel" : ""}"${attrs}>${lead}<span class="ot">${esc(o.text)}</span>${tail}</${tag}>`;
 };
 
 // ── The kit's rules ──────────────────────────────────────────────────────────────────────────

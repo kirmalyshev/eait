@@ -51,9 +51,15 @@ export interface MealCopy {
   /**
    * Her opening line when "Correct" is tapped (web + phone `meal-{edit,edited}.html`).
    * `{items}` is the meal's ingredient list formatted by the caller — "150 g of rice and 140 g
-   * of salmon".
+   * of salmon" — each item a `correctItem` and the parts joined by `Intl.ListFormat`.
    */
   correctOpener: string;
+  /**
+   * One item inside `correctOpener`'s `{items}` — "{amount} of {item}", "150 g of rice", with
+   * `{amount}` already spelled ("150 g"). The caller joins the parts with `Intl.ListFormat`'s
+   * conjunction — which word does the joining is CLDR's, not a literal here.
+   */
+  itemAmount: string;
   /** The composer's placeholder on the same sheets. */
   composeHint: string;
 
@@ -101,11 +107,6 @@ export interface MealCopy {
   webGoneTitle: string;
   webGoneBody: string;
   webGoneBack: string;
-  /**
-   * One item inside the correct opener's `{items}` — "{amount} of {item}", with `{amount}`
-   * already spelled ("150 g"). The caller joins them with `Intl.ListFormat`'s conjunction.
-   */
-  itemAmount: string;
   /** The "…" menu button's accessible name — the glyph itself is silent. */
   menuButton: string;
 
@@ -144,6 +145,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "fat",
     coachLine: "{coach} · nutritionist",
     correctOpener: "I read {items}. Tell me what I got wrong.",
+    itemAmount: "{amount} of {item}",
     composeHint: "Say what was wrong",
     deleteTitle: "Delete this meal?",
     deleteBody: "It comes off today’s diary. This can’t be undone.",
@@ -167,7 +169,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "This meal is gone.",
     webGoneBody: "It was deleted, or it was never yours.",
     webGoneBack: "Back to the diary",
-    itemAmount: "{amount} of {item}",
     menuButton: "Meal actions",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -189,6 +190,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "lipides",
     coachLine: "{coach} · nutritionniste",
     correctOpener: "J’ai lu {items}. Dis-moi ce que j’ai raté.",
+    itemAmount: "{amount} de {item}",
     composeHint: "Dis ce qui n’allait pas",
     deleteTitle: "Supprimer ce repas ?",
     deleteBody: "Il disparaît du journal d’aujourd’hui. C’est définitif.",
@@ -212,7 +214,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Ce repas n’existe plus.",
     webGoneBody: "Il a été supprimé, ou n’a jamais été à vous.",
     webGoneBack: "Retour au journal",
-    itemAmount: "{amount} de {item}",
     menuButton: "Actions du repas",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -234,6 +235,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "Fett",
     coachLine: "{coach} · Ernährungsberaterin",
     correctOpener: "Ich habe {items} gelesen. Sag mir, was ich falsch erkannt habe.",
+    itemAmount: "{amount} {item}",
     composeHint: "Sag, was nicht stimmte",
     deleteTitle: "Diese Mahlzeit löschen?",
     deleteBody: "Sie verschwindet aus dem heutigen Tagebuch. Das lässt sich nicht rückgängig machen.",
@@ -257,7 +259,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Diese Mahlzeit ist weg.",
     webGoneBody: "Sie wurde gelöscht, oder sie war nie deine.",
     webGoneBack: "Zurück zum Tagebuch",
-    itemAmount: "{amount} {item}",
     menuButton: "Aktionen zur Mahlzeit",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -279,6 +280,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "grassi",
     coachLine: "{coach} · nutrizionista",
     correctOpener: "Ho letto {items}. Dimmi cosa ho sbagliato.",
+    itemAmount: "{amount} di {item}",
     composeHint: "Dimmi cosa non andava",
     deleteTitle: "Eliminare questo pasto?",
     deleteBody: "Sparisce dal diario di oggi. Non si può annullare.",
@@ -302,7 +304,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Questo pasto non c’è più.",
     webGoneBody: "È stato eliminato, o non è mai stato tuo.",
     webGoneBack: "Torna al diario",
-    itemAmount: "{amount} di {item}",
     menuButton: "Azioni sul pasto",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -324,6 +325,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "grasa",
     coachLine: "{coach} · nutricionista",
     correctOpener: "Leí {items}. Dime en qué me equivoqué.",
+    itemAmount: "{amount} de {item}",
     composeHint: "Di qué estaba mal",
     deleteTitle: "¿Eliminar esta comida?",
     deleteBody: "Sale del diario de hoy. No se puede deshacer.",
@@ -347,7 +349,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Esta comida ya no existe.",
     webGoneBody: "Se ha eliminado, o nunca fue tuya.",
     webGoneBack: "Volver al diario",
-    itemAmount: "{amount} de {item}",
     menuButton: "Acciones de la comida",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -369,6 +370,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "chất béo",
     coachLine: "{coach} · chuyên gia dinh dưỡng",
     correctOpener: "Tôi đọc được {items}. Hãy nói tôi sai chỗ nào.",
+    itemAmount: "{amount} {item}",
     composeHint: "Nói xem chỗ nào chưa đúng",
     deleteTitle: "Xoá bữa này?",
     deleteBody: "Bữa này sẽ ra khỏi nhật ký hôm nay. Không thể hoàn tác.",
@@ -392,7 +394,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Bữa này không còn nữa.",
     webGoneBody: "Đã bị xoá, hoặc chưa bao giờ là của bạn.",
     webGoneBack: "Về nhật ký",
-    itemAmount: "{amount} {item}",
     menuButton: "Thao tác bữa ăn",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -414,6 +415,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "lemak",
     coachLine: "{coach} · ahli gizi",
     correctOpener: "Saya membaca {items}. Beri tahu apa yang saya lewatkan.",
+    itemAmount: "{amount} {item}",
     composeHint: "Bilang apa yang keliru",
     deleteTitle: "Hapus makanan ini?",
     deleteBody: "Makanan ini hilang dari catatan hari ini. Tidak bisa dibatalkan.",
@@ -437,7 +439,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Makanan ini sudah hilang.",
     webGoneBody: "Sudah dihapus, atau tidak pernah jadi milikmu.",
     webGoneBack: "Kembali ke catatan",
-    itemAmount: "{amount} {item}",
     menuButton: "Aksi makanan",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
@@ -459,6 +460,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroFat: "жиры",
     coachLine: "{coach} · нутрициолог",
     correctOpener: "Я прочитала {items}. Скажи, где я ошиблась.",
+    itemAmount: "{amount} {item}",
     composeHint: "Напиши, что не так",
     deleteTitle: "Удалить этот приём пищи?",
     deleteBody: "Он исчезнет из дневника за сегодня. Отменить нельзя.",
@@ -482,7 +484,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneTitle: "Этого приёма пищи больше нет.",
     webGoneBody: "Его удалили, или он никогда не был вашим.",
     webGoneBack: "Назад к дневнику",
-    itemAmount: "{item} — {amount}",
     menuButton: "Действия с приёмом пищи",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
