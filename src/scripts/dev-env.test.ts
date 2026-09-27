@@ -17,9 +17,25 @@ describe("ports", () => {
     const seen = new Map<number, string>();
     for (let slot = 0; slot < 20; slot++) {
       const p = planFor(slot, `branch-${slot}`);
-      for (const [name, port] of [["backend", p.backendPort], ["web", p.webPort]] as const) {
+      const ports: Array<[string, number]> = [["backend", p.backendPort], ["web", p.webPort]];
+      for (const [name, port] of Object.entries(p.e2ePorts)) ports.push([`e2e.${name}`, port]);
+      for (const [name, port] of ports) {
         expect(`${port} ${seen.get(port) ?? "free"}`).toBe(`${port} free`);
         seen.set(port, `slot${slot}.${name}`);
+      }
+    }
+  });
+
+  // The browser suite needs THREE servers (#138), and three consecutive ports cannot be had
+  // inside a slot's ten: offsets 3, 4, 7 and 9 land on the last digits the monorepo's ladder owns
+  // (7, 8, 1, 3) and 0/1 are this slot's dev services. The derivation takes 2, 5 and 6.
+  test("the browser suite's ports sit inside the slot, off the dev pair", () => {
+    expect(planFor(0, "main").e2ePorts).toEqual({ start: 8486, app: 8489, appBackend: 8490 });
+    for (let slot = 0; slot < 20; slot++) {
+      const p = planFor(slot, "x");
+      for (const port of Object.values(p.e2ePorts)) {
+        expect(port).toBeGreaterThan(p.webPort);
+        expect(port).toBeLessThan(p.backendPort + PORT_STEP);
       }
     }
   });
@@ -46,10 +62,12 @@ describe("ports", () => {
   // numbers, because a list only ever covers the slots somebody thought to write down.
   test("no slot here can land on a port the monorepo's stack derives", () => {
     const theirs = { backend: 8787, web: 8788, metro: 8081, landing: 4173 };
-    for (const ours of [PORT_BASE.backend, PORT_BASE.web]) {
+    const ours: number[] = [PORT_BASE.backend, PORT_BASE.web];
+    for (let slot = 0; slot < 20; slot++) ours.push(...Object.values(planFor(slot, "x").e2ePorts));
+    for (const ours_ of ours) {
       for (const [name, base] of Object.entries(theirs)) {
-        expect(`${ours} vs ${name}`).toBe(
-          `${ours} vs ${Math.abs(ours - base) % PORT_STEP === 0 ? `${name} COLLIDES` : name}`,
+        expect(`${ours_} vs ${name}`).toBe(
+          `${ours_} vs ${Math.abs(ours_ - base) % PORT_STEP === 0 ? `${name} COLLIDES` : name}`,
         );
       }
     }
@@ -76,6 +94,20 @@ describe("the keys dev.sh clears", () => {
     for (const key of DERIVED_KEYS) {
       expect(`${key} spelled in dev.sh: ${code.includes(key)}`).toBe(`${key} spelled in dev.sh: false`);
     }
+  });
+});
+
+describe("the playwright subprocess", () => {
+  // `playwright.config.ts` cannot import this file — playwright loads its config as CommonJS and
+  // `require` of a module containing `import.meta.main` dies — so it asks for the three ports as
+  // a subprocess. The slot is PINNED, which keeps the check deterministic and writes no claim.
+  test("`e2e-ports` prints the slot's three derived ports", () => {
+    const out = Bun.spawnSync({
+      cmd: ["bun", new URL("./dev-env.ts", import.meta.url).pathname, "e2e-ports"],
+      env: { ...process.env, EAIT_WORKTREE_SLOT: "7" },
+    });
+    const e = planFor(7, "x").e2ePorts;
+    expect(new TextDecoder().decode(out.stdout).trim()).toBe(`${e.start} ${e.app} ${e.appBackend}`);
   });
 });
 
