@@ -1,58 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS, type Profile } from "./types.ts";
-import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, RESTRICTION_TAGS } from "./targets.ts";
-import { ACTIVITY_LEVELS } from "./types.ts";
-import { STRUGGLES, supportMoment } from "./onboarding-chat.ts";
+import { LANGS, STRUGGLES, type Lang, type Profile } from "./types.ts";
+import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, RESTRICTION_TAGS, explainTargets } from "./targets.ts";
+import { STRUGGLE_LABELS } from "./onboarding-chat.ts";
 import { CHAT_COPY, chatCopyFor } from "./onboarding-chat-copy.ts";
-import { onboardingContentFor } from "./onboarding-content.ts";
 import { lintCopy } from "./claims.ts";
 import {
-  ACTIVITY_REPLIES, AMBIGUOUS_AGE, GAIN_PACE_CARD, GOAL_CARDS, STRUGGLE_LABELS, UNDER_AGE_CARD,
-  belowHealthyCard, checkDirection, checkNumber, restrictionsReply, struggleCard, strugglesCloser,
-  switchedLine, weightAck,
+  AMBIGUOUS_AGE, UNDER_AGE_CARD, belowHealthyCard, checkDirection, checkNumber,
+  ontrackCaption, pacePreview, planRows, switchedLine,
 } from "./onboarding-chat.ts";
+import { DEFAULT_ONBOARDING_CONTENT } from "./onboarding.ts";
 
-// The conversation around the questions. `onboarding.ts`'s copy is admin-editable; this is not,
-// because it carries sourced statistics and a translator's typo in one is an unsubstantiated health
-// claim on every phone. So it is code, and what is asserted here is that every branch has words in
-// every language — a reply that falls back to English mid-conversation is the wart that reads as
-// the app breaking.
+// The words around the questions. `onboarding.ts`'s copy is admin-editable; this is not — the
+// refusals, the chart's accessible name and the captions carry numbers and branches a translator
+// must not move. What is asserted here is that every branch has words in every language — a line
+// that falls back to English mid-flow is the wart that reads as the app breaking.
 
 describe("every language's chat copy", () => {
-  it("has a label for every struggle chip, and a card behind it", () => {
-    for (const lang of LANGS) {
-      const copy = chatCopyFor(lang);
-      for (const s of STRUGGLES) {
-        expect(copy.struggles[s]?.trim(), `${lang}.struggles.${s}`).toBeTruthy();
-        expect(copy.struggleCards[s]?.title.trim(), `${lang}.struggleCards.${s}.title`).toBeTruthy();
-        expect(copy.struggleCards[s]?.body.trim(), `${lang}.struggleCards.${s}.body`).toBeTruthy();
-      }
-    }
-  });
-
-  it("puts no crowd statistic on a struggle card, in any language (#50)", () => {
-    // The card stands under the reader's OWN pick, so a number about other people does not
-    // belong there: no percentages, no study counts, and no `source` line to cite one.
-    for (const lang of LANGS) {
-      const copy = chatCopyFor(lang);
-      for (const s of STRUGGLES) {
-        const card = copy.struggleCards[s]!;
-        expect(card.body, `${lang}.struggleCards.${s}.body`).not.toMatch(/[\d%]/);
-        expect(card.source, `${lang}.struggleCards.${s}`).toBeUndefined();
-      }
-      expect(copy.dietsGainCard.body, `${lang}.dietsGainCard.body`).not.toMatch(/[\d%]/);
-      expect(copy.dietsGainCard.source, `${lang}.dietsGainCard`).toBeUndefined();
-    }
-  });
-
-  it("has a reply for every activity level this binary offers", () => {
-    for (const lang of LANGS) {
-      for (const level of ACTIVITY_LEVELS) {
-        expect(chatCopyFor(lang).activityReplies[level]?.trim(), `${lang}.${level}`).toBeTruthy();
-      }
-    }
-  });
-
   it("has a refusal for every number field, so no refusal is wordless", () => {
     for (const lang of LANGS) {
       const invalid = chatCopyFor(lang).invalid;
@@ -62,8 +25,45 @@ describe("every language's chat copy", () => {
     }
   });
 
+  it("has a caption for every struggle, keyed by the id union", () => {
+    // `Record<Struggle, string>` makes the compiler name the language that forgets one; this
+    // asserts none of them is an empty string.
+    for (const lang of LANGS) {
+      for (const s of STRUGGLES) {
+        expect(chatCopyFor(lang).ontrack.captions[s]?.trim(), `${lang}.ontrack.${s}`).toBeTruthy();
+      }
+    }
+  });
+
+  it("has the new beats' words — how, health, the Continue button — in every language", () => {
+    for (const lang of LANGS) {
+      const c = chatCopyFor(lang);
+      expect(c.continueLabel.trim(), `${lang}.continue`).toBeTruthy();
+      expect(c.how.title.trim(), `${lang}.how`).toBeTruthy();
+      expect(c.how.steps, `${lang}.how.steps`).toHaveLength(3);
+      for (const key of ["title", "body", "connect", "skip"] as const) {
+        expect(c.health[key].trim(), `${lang}.health.${key}`).toBeTruthy();
+      }
+    }
+  });
+
+  it("has every chart word, in every language — the a11y name most of all", () => {
+    for (const lang of LANGS) {
+      const ch = chatCopyFor(lang).chart;
+      for (const key of ["byEait", "weightTrend", "without", "now", "later", "twoWays",
+        "estimatedProgress", "estimate", "target", "monthEstimate"] as const) {
+        expect(ch[key].trim(), `${lang}.chart.${key}`).toBeTruthy();
+      }
+      expect(ch.target, `${lang}.chart.target`).toContain("{weight}");
+      expect(ch.monthEstimate, `${lang}.chart.monthEstimate`).toContain("{month}");
+    }
+  });
+
   it("keeps every placeholder code fills, and introduces none it does not", () => {
-    const known = new Set(["share", "age", "kg", "bmr", "year", "weight", "target", "n", "label", "pct", "month"]);
+    const known = new Set([
+      "share", "age", "kg", "year", "weight", "target", "n", "label", "pct", "month",
+      "rate", "kcal", "floor", "delta",
+    ]);
     for (const lang of LANGS) {
       for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {
         for (const m of text.matchAll(/\{(\w+)\}/g)) {
@@ -73,10 +73,8 @@ describe("every language's chat copy", () => {
     }
     for (const lang of LANGS) {
       const copy = chatCopyFor(lang);
-      expect(copy.gainPaceCard.body, lang).toContain("{share}");
       expect(copy.underAgeCard.title, lang).toContain("{age}");
       expect(copy.belowHealthy.body, lang).toContain("{kg}");
-      expect(copy.weightAck.bmr, lang).toContain("{bmr}");
       expect(copy.ambiguousAge.line, lang).toContain("{year}");
       expect(copy.ambiguousAge.confirm, lang).toContain("{age}");
       expect(copy.capNoteTail, lang).toContain("{kg}");
@@ -84,37 +82,53 @@ describe("every language's chat copy", () => {
         expect(copy.direction[k], `${lang}.direction.${k}`).toContain("{weight}");
         expect(copy.direction[k], `${lang}.direction.${k}`).toContain("{target}");
       }
-      // THE FOUR THE SWEEP ALONE DOES NOT HOLD. The unknown-name half passes any name on the
-      // shared list, so renaming `{weight}` to `{bmr}` here was green AND rendered a literal
-      // `{bmr}` in the box the user is about to type their goal weight into. Deleting it was
-      // green too, and hard-coded one language's number.
+      // THE SWEEP ALONE DOES NOT HOLD THESE. The unknown-name half passes any name on the shared
+      // list, so renaming `{weight}` to `{rate}` here would be green AND render a literal
+      // `{rate}` on the pace screen. Each placeholder a reader fills is pinned by name.
       expect(copy.direction.above, `${lang}.direction.above`).toContain("{weight}");
       expect(copy.direction.below, `${lang}.direction.below`).toContain("{weight}");
       expect(copy.underAge.endedPlaceholder, `${lang}.underAge.endedPlaceholder`).toContain("{age}");
       expect(copy.underAge.stopped[1], `${lang}.underAge.stopped[1]`).toContain("{age}");
+      // The pace line and its markers, the goal lines, the target ruler's markers.
+      expect(copy.pace.result, `${lang}.pace.result`).toContain("{target}");
+      expect(copy.pace.result, `${lang}.pace.result`).toContain("{month}");
+      expect(copy.pace.result, `${lang}.pace.result`).toContain("{kcal}");
+      expect(copy.pace.rate, `${lang}.pace.rate`).toContain("{rate}");
+      expect(copy.pace.floorMarker, `${lang}.pace.floorMarker`).toContain("{floor}");
+      expect(copy.plan.goalLose, `${lang}.plan.goalLose`).toContain("{delta}");
+      expect(copy.plan.goalLose, `${lang}.plan.goalLose`).toContain("{month}");
+      for (const k of ["lowest", "now", "deltaDown", "deltaUp"] as const) {
+        expect(copy.target[k], `${lang}.target.${k}`).toContain("{weight}");
+      }
     }
   });
 });
 
 describe("the readers of those tables", () => {
+  const today = new Date("2026-09-24T12:00:00Z");
+  const her = (lang: Lang): Profile => ({
+    user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
+    weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "few",
+    pace: "steady", units: null, struggles: ["consistency"], country: "gb",
+    restrictions: ["vegan", "ldl"], medical_limitations: null, food_allergies: null,
+    product_limitations: null, onboarded_at: null,
+  });
+
   it("say every branch in the asked language, with nothing left to fill", () => {
     for (const lang of LANGS) {
+      const p = her(lang);
+      const preview = pacePreview(p, "steady", today, lang)!;
       const said = [
-        ...weightAck(1700, lang),
-        ...weightAck(null, lang),
-        strugglesCloser(0, lang), strugglesCloser(1, lang), strugglesCloser(2, lang),
-        ...restrictionsReply(["kidneys", "ldl"], true, lang),
-        ...restrictionsReply(["vegan"], false, lang),
-        ...restrictionsReply([], false, lang),
         switchedLine("gain", lang), switchedLine("lose", lang),
-        GOAL_CARDS(lang).lose.body, struggleCard("diets", "gain", lang).body,
-        GAIN_PACE_CARD(lang).body, UNDER_AGE_CARD(lang).title,
+        UNDER_AGE_CARD(lang).title,
         belowHealthyCard(58, lang).body,
         AMBIGUOUS_AGE(lang).line(90), AMBIGUOUS_AGE(lang).confirm(90),
-        ACTIVITY_REPLIES(lang).many!,
-        STRUGGLE_LABELS(lang).binge,
         checkDirection("gain", 93, 88, lang)!.line,
         checkDirection("lose", 93, 95, lang)!.line,
+        ontrackCaption(p.struggles, lang)!,
+        preview.line!,
+        ...planRows(p, explainTargets(p, today).targets, DEFAULT_ONBOARDING_CONTENT, lang)
+          .flatMap((r) => [r.label, r.value]),
       ];
       for (const [i, line] of said.entries()) {
         expect(line, `${lang}[${i}]`).toBeTruthy();
@@ -123,14 +137,12 @@ describe("the readers of those tables", () => {
     }
   });
 
-  it("quotes the share caps the arithmetic actually applies, in every language", () => {
-    // A safety guarantee described in copy that the code does not implement is the worst sentence
-    // this repo could ship — so the percentage is READ from the constant, in all eight.
+  it("quotes the minimum age the code enforces, in every language", () => {
     for (const lang of LANGS) {
-      expect(GAIN_PACE_CARD(lang).body, lang).toContain(String(Math.round(MAX_SURPLUS_SHARE * 100)));
       expect(UNDER_AGE_CARD(lang).title, lang).toContain(String(MIN_AGE));
     }
     expect(Math.round(MAX_DEFICIT_SHARE * 100)).toBeGreaterThan(0);
+    expect(Math.round(MAX_SURPLUS_SHARE * 100)).toBeGreaterThan(0);
   });
 
   it("refuses a bad number with words in the reader's language", () => {
@@ -142,90 +154,42 @@ describe("the readers of those tables", () => {
   });
 
   it("writes its figures in the reader's grouping — the German never reads 1,454", () => {
-    // `checkDirection` quotes the weights back. 1454 is not a weight, but the grouping rule is the
-    // same one every figure in the thread follows, and the wrong one turns 1.5 kg into 15.
     expect(checkDirection("gain", 93.5, 90, "de")!.line).toContain("93,5");
     expect(checkDirection("gain", 93.5, 90, "en")!.line).toContain("93.5");
   });
 
-  it("labels the struggle chips for a card the user is about to be shown", () => {
+  it("labels the struggle chips from the screen's own options", () => {
     for (const lang of LANGS) {
       for (const tag of RESTRICTION_TAGS) expect(typeof tag).toBe("string");
-      expect(Object.keys(STRUGGLE_LABELS(lang)).sort()).toEqual([...STRUGGLES].sort());
-    }
-  });
-});
-
-/** Every string in the table, keyed well enough to name in a failure. */
-function flatten(node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> {
-  if (typeof node === "string") { out[at] = node; return out; }
-  if (Array.isArray(node)) { node.forEach((v, i) => flatten(v, `${at}[${i}]`, out)); return out; }
-  if (typeof node === "object" && node !== null) {
-    for (const [k, v] of Object.entries(node)) flatten(v, at === "" ? k : `${at}.${k}`, out);
-  }
-  return out;
-}
-
-describe("the v5 additions to the chat copy", () => {
-  it("has the Health offer's words in every language", () => {
-    for (const lang of LANGS) {
-      const h = chatCopyFor(lang).health;
-      for (const key of ["ask", "connect", "manual", "connected", "partial", "denied"] as const) {
-        expect(h[key]?.trim(), `${lang}.health.${key}`).toBeTruthy();
-      }
-      expect(h.rows, lang).toHaveLength(3);
-      for (const [i, row] of h.rows.entries()) expect(row.trim(), `${lang}.health.rows[${i}]`).toBeTruthy();
+      expect(Object.keys(STRUGGLE_LABELS(DEFAULT_ONBOARDING_CONTENT)).sort())
+        .toEqual([...STRUGGLES].sort());
     }
   });
 
-  it("has a suggestion line, a reaction set and the four moments, in every language", () => {
-    for (const lang of LANGS) {
-      const copy = chatCopyFor(lang);
-      expect(copy.targetSuggestion.down, `${lang}.targetSuggestion.down`).toContain("{kg}");
-      expect(copy.targetSuggestion.down, `${lang}.targetSuggestion.down`).toContain("{pct}");
-      expect(copy.targetSuggestion.up, `${lang}.targetSuggestion.up`).toContain("{kg}");
-      expect(copy.healthActivity, `${lang}.healthActivity`).toContain("{n}");
-      expect(copy.healthActivity, `${lang}.healthActivity`).toContain("{label}");
-      for (const [at, text] of Object.entries(flatten(copy.reactions))) {
-        expect(text.trim(), `${lang}.reactions.${at}`).toBeTruthy();
-      }
-      for (const [at, text] of Object.entries(flatten(copy.moments))) {
-        expect(text.trim(), `${lang}.moments.${at}`).toBeTruthy();
-      }
-    }
-  });
-
-  it("carries no claim the linter would refuse, in any language, in any moment", () => {
-    // The moments are full screens — headline, two sentences, a button — which makes them the
-    // loudest copy in the walk, and the claim rules apply to them the same as to the landing.
+  it("carries no claim the linter would refuse — every new template, every language", () => {
+    // lintCopy over every rendered string the new surfaces can show: the captions, the pace line
+    // with its placeholders filled, the chart words, the how/health beats.
+    //
+    // ONE SCOPED EXEMPTION, the same one `ONBOARDING_CLAIM_RULES` makes: `weight-promise` cannot
+    // tell "lose 6 kg" the user's own stated goal (the plan card echoes it back) from a promise.
+    // `direction`, `plan`, `switched`, `goalEdit`, `belowHealthy` and `invalid` all quote the
+    // user's own numbers back at them — they are out of the sweep for exactly that reason.
+    // `planGoal` is out by S6's own published exemption — `CLAIM_EXEMPTIONS` names the qualified
+    // key `CHAT_COPY.planGoal`, which is exactly this table flattened, so `lintCopy` alone would
+    // not carry the qualifier through.
+    const EXEMPT = /^(direction|plan|planGoal|switched|goalEdit|belowHealthy|invalid|ambiguousAge|underAge|underAgeCard|capNoteTail|targetSuggestion|target)\./;
+    const FILL = {
+      weight: "68 kg", target: "68 kg", delta: "6 kg", month: "January 2027", kcal: "1,434",
+      rate: "0.4 kg", floor: "1,200", share: "20", age: "16", kg: "58", year: "1990",
+      n: "13", label: "0–2", pct: "8",
+    };
+    const filled = (s: string) =>
+      s.replace(/\{(\w+)\}/g, (_, k: string) => FILL[k as keyof typeof FILL] ?? "X");
     for (const lang of LANGS) {
       const fields: Record<string, string> = {};
-      const put = (at: string, m: { echo: string; title: string; body: string; cta: string } | null) => {
-        if (!m) return;
-        fields[`${at}.echo`] = m.echo;
-        fields[`${at}.title`] = m.title;
-        fields[`${at}.body`] = m.body;
-        fields[`${at}.cta`] = m.cta;
-      };
-      const p = (over: Partial<Profile> = {}) => ({
-        user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
-        weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "few",
-        pace: "steady", country: "gb",
-        restrictions: ["ldl"], medical_limitations: null, food_allergies: null,
-        product_limitations: null, onboarded_at: null, ...over,
-      }) as Profile;
-      const content = onboardingContentFor(lang);
-      put("target.inBand", supportMoment("target", { profile: p(), struggles: [], lang, content }));
-      put("target.neutral", supportMoment("target", { profile: p({ target_weight_kg: 60 }), struggles: [], lang, content }));
-      put("target.gain", supportMoment("target", { profile: p({ goal: "gain", target_weight_kg: 78 }), struggles: [], lang, content }));
-      put("activity", supportMoment("activity", { profile: p(), struggles: [], lang, content }));
-      for (const s of STRUGGLES) {
-        for (const goal of ["lose", "gain", "maintain"] as const) {
-          put(`struggles.${s}.${goal}`, supportMoment("struggles", { profile: p({ goal }), struggles: [s], lang, content }));
-        }
+      for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {
+        if (!EXEMPT.test(at)) fields[at] = filled(text);
       }
-      put("restrictions.some", supportMoment("restrictions", { profile: p(), struggles: [], lang, content }));
-      put("restrictions.none", supportMoment("restrictions", { profile: p({ restrictions: [] }), struggles: [], lang, content }));
       const violations = lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`);
       expect(violations, lang).toEqual([]);
     }
@@ -233,8 +197,6 @@ describe("the v5 additions to the chat copy", () => {
 });
 
 describe("the under-16 stop (#65)", () => {
-  // Both surfaces DELETE an account at this moment (the phone's `deleteAccount()`, the web's
-  // `deleteUser`), so a line saying there is none, or that nothing was sent, is false where it stands.
   const OLD = [
     "there is no account to delete", "il n'y a aucun compte à supprimer", "es gibt kein Konto zu löschen",
     "non c'è nessun account da cancellare", "no hay ninguna cuenta que borrar", "không có tài khoản nào để xoá",
@@ -249,3 +211,13 @@ describe("the under-16 stop (#65)", () => {
     }
   });
 });
+
+/** Every string in the table, keyed well enough to name in a failure. */
+function flatten(node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> {
+  if (typeof node === "string") { out[at] = node; return out; }
+  if (Array.isArray(node)) { node.forEach((v, i) => flatten(v, `${at}[${i}]`, out)); return out; }
+  if (typeof node === "object" && node !== null) {
+    for (const [k, v] of Object.entries(node)) flatten(v, at === "" ? k : `${at}.${k}`, out);
+  }
+  return out;
+}

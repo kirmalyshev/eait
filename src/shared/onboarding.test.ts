@@ -21,7 +21,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    country: null,
+    units: null, struggles: null, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
     ...over,
@@ -87,12 +87,11 @@ describe("the shipped copy", () => {
     }
   });
 
-  it("says the iPhone app can keep the weight current from Apple Health (#609)", () => {
-    // The phone syncs a newer weight on every launch and it moves the target, so somebody typing
-    // one into a browser is told where the next one can come from.
-    const ask = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "body")!.asks.weight_kg!.lines.join(" ");
-    expect(ask).toContain("iPhone app");
-    expect(ask).toContain("Apple Health");
+  it("asks the units, and keeps the stored answer metric either way", () => {
+    // The toggle changes the DISPLAY, never the stored numbers — height_cm stays centimetres.
+    // The units question itself rides on the rulers, not on a screen of its own.
+    expect(ONBOARDING_SCREENS as readonly string[]).not.toContain("units");
+    expect(ONBOARDING_STEPS as readonly string[]).not.toContain("units");
   });
 
   it("labels every option the app can render", () => {
@@ -108,8 +107,8 @@ describe("the shipped copy", () => {
     // A third enum value the chips cannot render is a dead option. `screenOptionValues` supplies
     // the order; the content owes each a label, in all eight.
     for (const lang of LANGS) {
-      const about = onboardingContentFor(lang).screens.find((s) => s.id === "about")!;
-      expect(about.options?.other?.label.trim(), `about.options.other (${lang})`).toBeTruthy();
+      const sex = onboardingContentFor(lang).screens.find((s) => s.id === "sex")!;
+      expect(sex.options?.other?.label.trim(), `sex.options.other (${lang})`).toBeTruthy();
     }
   });
 
@@ -142,7 +141,6 @@ describe("the shipped copy", () => {
       // A "free text" instruction is about a box, not a claim about a price.
       .replace(/\bfree text\b/g, "");
     expect(unqualified).not.toMatch(/\bfree\b/);
-    expect(DEFAULT_ONBOARDING_CONTENT.welcome.lines.join(" ")).toContain("free to try");
   });
 
   it("quotes the calorie floor the code actually enforces", () => {
@@ -163,10 +161,10 @@ describe("validation refuses what would break the app", () => {
 
   it("a missing screen", () => {
     const errors = bad((c) => {
-      c.screens = c.screens.filter((s) => s.id !== "about");
+      c.screens = c.screens.filter((s) => s.id !== "sex");
       return c;
     });
-    expect(errors.join(" ")).toContain("about");
+    expect(errors.join(" ")).toContain("sex");
   });
 
   it("a duplicated screen", () => {
@@ -181,7 +179,7 @@ describe("validation refuses what would break the app", () => {
     // THE CHAT-SPECIFIC ONE. A missing ask is not a degraded screen — the conversation reaches a
     // field the target math needs and has no sentence to pose it with.
     const errors = bad((c) => {
-      delete c.screens.find((s) => s.id === "body")!.asks.weight_kg;
+      delete c.screens.find((s) => s.id === "weight")!.asks.weight_kg;
       return c;
     });
     expect(errors.join(" ")).toContain("weight_kg");
@@ -301,7 +299,7 @@ describe("the retired privacy promise cannot come back", () => {
 
   it("refuses it anywhere in the revision, not only in the welcome", () => {
     const c = clone(DEFAULT_ONBOARDING_CONTENT);
-    c.summary.disclaimer = "Estimates. We never ask for your email.";
+    c.summary.capNote = "Estimates. We never ask for your email.";
     expect(validateOnboardingContent(c).ok).toBe(false);
   });
 
@@ -382,7 +380,7 @@ describe("content from a server this binary does not match", () => {
 
   it("falls back entirely when a question this binary asks has no words", () => {
     const old = clone(DEFAULT_ONBOARDING_CONTENT);
-    delete old.screens.find((s) => s.id === "target")!.asks.pace;
+    delete old.screens.find((s) => s.id === "pace")!.asks.pace;
     // Not "use it minus the missing ask" — that would be a conversation that stops dead on a field
     // the calorie target is computed from.
     expect(usableContent(old)).toBe(DEFAULT_ONBOARDING_CONTENT);
@@ -448,31 +446,37 @@ describe("the interstitials", () => {
   it("are counted in the order a person meets them", () => {
     const at = (s: string) => (ONBOARDING_PLACES as readonly string[]).indexOf(s);
     expect(at("welcome")).toBe(0);
-    expect(at("goal")).toBeLessThan(at("about"));
-    expect(at("target")).toBeLessThan(at("activity"));
-    expect(at("activity")).toBeLessThan(at("struggles"));
-    expect(at("struggles")).toBeLessThan(at("restrictions"));
-    expect(at("restrictions")).toBeLessThan(at("building"));
+    expect(at("goal")).toBeLessThan(at("how"));
+    expect(at("how")).toBeLessThan(at("sex"));
+    expect(at("weight")).toBeLessThan(at("activity"));
+    expect(at("activity")).toBeLessThan(at("target"));
+    expect(at("target")).toBeLessThan(at("pace"));
+    expect(at("pace")).toBeLessThan(at("struggles"));
+    // The on-track beat reads the struggles pick, so it cannot precede it.
+    expect(at("struggles")).toBeLessThan(at("ontrack"));
+    expect(at("ontrack")).toBeLessThan(at("diet"));
+    expect(at("diet")).toBeLessThan(at("medical"));
+    expect(at("medical")).toBeLessThan(at("building"));
     expect(at("building")).toBeLessThan(at("summary"));
+    // The account step lands between the plan and the country — the design's order, fixed here.
+    expect(at("summary")).toBeLessThan(at("signup"));
+    expect(at("signup")).toBeLessThan(at("country"));
+    expect(at("country")).toBeLessThan(at("health"));
   });
 });
 
 describe("the analytics vocabulary", () => {
   it("reports enumerated fields only", () => {
     // Never a weight, a height, a year of birth or free text: these are answers to a health
-    // questionnaire about an identified person, and analytics rows outlive the account.
+    // questionnaire about an identified person, and analytics rows outlive the account. The
+    // enumerable picks — including struggles, diet and medical, whose v2 lists are tamer than the
+    // retired eight — travel as tag lists the way `restrictions` always did.
     for (const f of REPORTABLE_FIELDS) {
-      expect(["goal", "sex", "activity", "pace", "country", "restrictions"]).toContain(f);
+      expect(["goal", "sex", "activity", "pace", "struggles", "diet", "medical", "country"]).toContain(f);
     }
     for (const f of ["weight_kg", "height_cm", "birth_year", "target_weight_kg"]) {
       expect(REPORTABLE_FIELDS as readonly string[]).not.toContain(f);
     }
-  });
-
-  it("has no room for a struggle", () => {
-    // The strongest case in the whole list: "binge episodes" is a disclosure, not a preference.
-    // It is not an `OnboardingStep`, so it cannot be on `REPORTABLE_FIELDS` by construction.
-    expect(REPORTABLE_FIELDS as readonly string[]).not.toContain("struggles");
   });
 });
 

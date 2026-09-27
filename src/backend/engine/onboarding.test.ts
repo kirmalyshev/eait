@@ -132,13 +132,13 @@ describe("events", () => {
     // THE PRIVACY RULE, enforced on the write. A client that sends a body weight as an event value
     // must not be able to put it in the analytics table, whatever the app promises to send.
     await recordOnboardingEvents(deps, userId, [
-      event({ place: "body", action: "answer", field: "weight_kg", value: "93" }),
+      event({ place: "weight", action: "answer", field: "weight_kg", value: "93" }),
       event({ place: "restrictions", action: "answer", field: "medical_limitations", value: "stage 3 CKD" }),
       event({ place: "goal", action: "answer", field: "goal", value: "lose" }),
     ]);
 
     const stored = await store.onboardingFunnel(30);
-    expect(stored.rows.find((r) => r.place === "body")!.answers).toBe(1);
+    expect(stored.rows.find((r) => r.place === "weight")!.answers).toBe(1);
     // The rows exist — the funnel still knows those screens were answered — and the values do not.
     const raw = JSON.stringify(stored);
     expect(raw).not.toContain("93");
@@ -176,13 +176,13 @@ describe("the funnel", () => {
     await recordOnboardingEvents(deps, userId, [
       { id: "a1", sessionId: "a", place: "goal", action: "view", contentVersion: 1, at },
       { id: "a2", sessionId: "a", place: "goal", action: "answer", field: "goal", value: "lose", ms: 1000, at },
-      { id: "a3", sessionId: "a", place: "body", action: "view", contentVersion: 1, at },
-      { id: "a4", sessionId: "a", place: "body", action: "answer", field: "weight_kg", ms: 5000, at },
+      { id: "a3", sessionId: "a", place: "weight", action: "view", contentVersion: 1, at },
+      { id: "a4", sessionId: "a", place: "weight", action: "answer", field: "weight_kg", ms: 5000, at },
       { id: "a5", sessionId: "a", place: "summary", action: "complete", contentVersion: 1, at },
       { id: "b1", sessionId: "b", place: "goal", action: "view", contentVersion: 1, at },
       { id: "b2", sessionId: "b", place: "goal", action: "answer", field: "goal", value: "gain", ms: 3000, at },
-      { id: "b3", sessionId: "b", place: "body", action: "view", contentVersion: 1, at },
-      { id: "b4", sessionId: "b", place: "body", action: "back", ms: 9000, at },
+      { id: "b3", sessionId: "b", place: "weight", action: "view", contentVersion: 1, at },
+      { id: "b4", sessionId: "b", place: "weight", action: "back", ms: 9000, at },
     ] as never);
   });
 
@@ -194,7 +194,7 @@ describe("the funnel", () => {
 
   it("shows the drop-off as views minus answers", async () => {
     const f = await onboardingFunnel(deps, 30);
-    const body = f.rows.find((r) => r.place === "body")!;
+    const body = f.rows.find((r) => r.place === "weight")!;
     expect(body.views).toBe(2);
     expect(body.answers).toBe(1);
     expect(body.backs).toBe(1);

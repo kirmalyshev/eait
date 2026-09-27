@@ -13,13 +13,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
-  UNDER_AGE_LINES, basalMetabolicRate, chatCopyFor, countryLabel, countryOptions, disabledScreens,
+  UNDER_AGE_LINES, chatCopyFor, countryLabel, countryOptions, disabledScreens,
   explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, projectGoal,
   projectionMonth, resolveCountry, suggestionFirst,
-  screenForStep, screenOptions, struggleCard, suggestedTargetKg, targetSuggestionLine,
-  TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
+  screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
+  TYPE_MS_PER_CHAR, signupCopyFor, wholeNumbers, type Profile,
 } from "@eait/shared";
-import { MOUTHS } from "@eait/shared/mascot";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -237,7 +236,11 @@ async function answerAll(
     if (!id) throw new Error(`no prompt on the page: ${html.slice(0, 400)}`);
     const answer = answers[id];
     if (answer === undefined) throw new Error(`no answer supplied for ${id}`);
-    const res = await post("/start/q", { prompt: id, answer }, cookie);
+    // The POST goes to the form's own action: its `?asked=` params are how the walk steps past the
+    // two answers a mid-run GET cannot see on the profile (diet-as-balanced, medical). A browser
+    // posts where the form says; the `&amp;` decode is what its HTML parser would do.
+    const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+    const res = await post(action, { prompt: id, answer }, cookie);
     expect(res.status).toBe(303);
     const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
     if (set) cookie = set.split(";")[0]!;
@@ -269,11 +272,12 @@ const ANSWERS: Record<string, string | string[]> = {
   birth_year: "34",
   height_cm: "170",
   weight_kg: "80",
+  activity: "few",
   target_weight_kg: "70",
   pace: "steady",
-  activity: "few",
-  country: "de",
-  restrictions: [],
+  struggles: ["habits"],
+  diet: "mediterranean",
+  medical: [],
 };
 
 beforeEach(() => {
@@ -311,8 +315,8 @@ describe("the front door", () => {
     const html = await res.text();
     expect(html).toContain('href="/start/q"');
     expect(html).toContain('href="/start/signup"');
-    expect(html).toContain(pageCopyFor("en").startCta);
-    expect(html).toContain(pageCopyFor("en").haveAccountCta);
+    expect(html).toContain(signupCopyFor("en").startCta);
+    expect(html).toContain(signupCopyFor("en").haveAccountCta);
     expect(html).not.toContain("/start/auth/");
     expect(html).toContain("Spud");
   });
@@ -347,7 +351,7 @@ describe("the sign-up screen", () => {
     expect(html).toContain('name="terms"');
     expect(html).toContain('name="marketing"');
     expect(html).toContain('form="signup"');
-    expect(html).toContain(pageCopyFor("en").signUpHeading);
+    expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
   it("offers only what is configured", async () => {
@@ -691,14 +695,15 @@ describe("the questions", () => {
       const html = await page.text();
       const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
       asked.push(id);
-      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+      await post(action, { prompt: id, answer: ANSWERS[id]! }, session);
     }
     // Country is NOT in the walk any more (S8): it waits for the sign-up and gets a screen of its
     // own after it, at `/start/country` — the tests for that screen are with it.
     expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toEqual([]);
     expect(asked).toEqual([
       "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "target_weight_kg", "pace", "activity", "restrictions",
+      "activity", "target_weight_kg", "pace", "struggles", "diet", "medical",
     ]);
   });
 
@@ -709,6 +714,7 @@ describe("the questions", () => {
     await post("/start/q", { prompt: "birth_year", answer: "1990" }, session);
     await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
     await post("/start/q", { prompt: "weight_kg", answer: "80" }, session);
+    await post("/start/q", { prompt: "activity", answer: "few" }, session);
     // Below a healthy BMI for 170cm. This is the anorexia guard, and it is a refusal.
     const res = await post("/start/q", { prompt: "target_weight_kg", answer: "40" }, session);
     expect(res.status).toBe(200);
@@ -812,7 +818,7 @@ describe("the plan", () => {
     const session = await signIn();
     // High cholesterol declared: saturated fat is scored, and the plan says so with the same cap
     // the verdicts will be computed against — `targets`, not a figure typed into the page.
-    await answerAll(session, { ...ANSWERS, restrictions: ["ldl"] });
+    await answerAll(session, { ...ANSWERS, medical: ["ldl"] });
 
     const html = await (await get("/start/plan", session)).text();
     const profile = (await store.getProfile(await webUser(session)))!;
@@ -1203,7 +1209,7 @@ describe("a target that runs the wrong way", () => {
   const toTarget = async (session: string) => {
     for (const [prompt, answer] of [
       ["goal", "lose"], ["sex", "female"], ["birth_year", "34"],
-      ["height_cm", "170"], ["weight_kg", "80"],
+      ["height_cm", "170"], ["weight_kg", "80"], ["activity", "few"],
     ] as const) {
       await post("/start/q", { prompt, answer }, session);
     }
@@ -1249,56 +1255,60 @@ describe("a target that runs the wrong way", () => {
 
 /** Walk a session to the question named, one real POST at a time, and return its HTML. */
 const walkTo = async (session: string, stopAt: string): Promise<string> => {
+  let next = "/start/q";
   for (let i = 0; i < 20; i++) {
-    const page = await get("/start/q", session);
+    const page = await get(next, session);
     if (page.status === 303) throw new Error(`walk ended before ${stopAt}`);
     const html = await page.text();
     const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
     if (id === stopAt) return html;
-    const res = await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+    const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, session);
+    next = res.headers.get("location") ?? "/start/q";
     if (res.status !== 303) throw new Error(`${id} refused: ${res.status}`);
   }
   throw new Error(`never reached ${stopAt}`);
 };
 
-describe("the reaction above the question", () => {
-  it("says nothing above the first question, which has no answer to react to", async () => {
+describe("the v2 questions that write the new fields", () => {
+  it("stores the struggle picks in list order, whatever order they were tapped", async () => {
     const session = await signIn();
+    await walkTo(session, "struggles");
     const html = await (await get("/start/q", session)).text();
-    expect(html).toContain('name="prompt" value="goal"');
-    expect(html).not.toContain('class="spk"');
+    expect(html).toContain('name="prompt" value="struggles"');
+    // The chips are the new vocabulary's, labelled from the content — none of the retired eight.
+    expect(html).toContain('value="consistency"');
+    expect(html).not.toContain('value="binge"');
+    const res = await post("/start/q", { prompt: "struggles", answer: ["ideas", "busy"] }, session);
+    expect(res.status).toBe(303);
+    expect((await store.getProfile(await webUser(session)))!.struggles).toEqual(["busy", "ideas"]);
   });
 
-  it("reacts to the goal above the next question, with the mood's own face", async () => {
+  it("sends the diet pick AS diet and lets the server write the tag", async () => {
     const session = await signIn();
-    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
-    const html = await (await get("/start/q", session)).text();
-    expect(html).toContain('name="prompt" value="sex"');
-    // `reactionTo("goal")`, lose's line — and above the ask, not after it.
-    const line = escape(chatCopyFor("en").reactions.goalLose);
-    expect(html).toContain(line);
-    const ask = html.indexOf('name="prompt"');
-    expect(html.indexOf(line)).toBeLessThan(ask);
-    // The mood is drawn, not just decided: joy's mouth is the filled smile, and no other mood's.
-    expect(html).toContain(`d="${MOUTHS.joy}"`);
+    await walkTo(session, "diet");
+    const res = await post("/start/q", { prompt: "diet", answer: "pescatarian" }, session);
+    expect(res.status).toBe(303);
+    expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["pescatarian"]);
   });
 
-  it("speaks the BMR quick win above the target question, from the weight just given", async () => {
+  it("writes medical [] for 'none', and keeps a picked diet", async () => {
     const session = await signIn();
-    const html = await walkTo(session, "target_weight_kg");
-    // `reactionTo("weight_kg")` — the quick win, computed on the profile the walk just wrote.
-    expect(html).toContain("burns about");
-    const bmr = basalMetabolicRate((await store.getProfile(await webUser(session)))!);
-    expect(html).toContain(`${wholeNumbers("en")(bmr!)}`);
+    await walkTo(session, "medical");
+    const res = await post("/start/q", { prompt: "medical", answer: ["none"] }, session);
+    expect(res.status).toBe(303);
+    // The diet tag survives the medical write — the two views share one column without touching
+    // each other's subset.
+    expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["mediterranean"]);
   });
 
-  it("carries the struggles segue onto the country ask, which is where it was written to sit", async () => {
-    // S8 moved country out of the walk, and the segue with it — `reactionTo("struggles")` is the
-    // line above the country question, on its own post-sign-up screen now.
-    const { session } = await signedUp("segue-subject");
-    await store.patchProfile(await webUser(session), { country: null });
-    const html = await (await get("/start/country", session)).text();
-    expect(html).toContain(chatCopyFor("en").reactions.struggles);
+  it("finishes onboarding on the LAST question's patch — `medical`, and the plan's gate holds", async () => {
+    const session = await signIn();
+    await answerAll(session, ANSWERS);
+    // Medical was the last field prompt, so the profile is onboarded already — and the plan's gate
+    // agrees, which is `full.onboarded` on the same `onboarded_at`.
+    expect((await store.getProfile(await webUser(session)))!.onboarded_at).not.toBeNull();
+    expect((await get("/start/q", session)).headers.get("location")).toBe("/start/plan");
   });
 });
 
@@ -1339,6 +1349,7 @@ describe("the target-weight stepper", () => {
     await post("/start/q", { prompt: "birth_year", answer: "35" }, session);
     await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
     await post("/start/q", { prompt: "weight_kg", answer: "56" }, session);
+    await post("/start/q", { prompt: "activity", answer: "few" }, session);
     const html = await (await get("/start/q", session)).text();
     expect(html).toContain('name="prompt" value="target_weight_kg"');
     expect(html).toContain('name="answer" inputmode="decimal" step="any" required value="54"');
@@ -1356,89 +1367,11 @@ describe("the target-weight stepper", () => {
     await post("/start/q", { prompt: "birth_year", answer: "35" }, session);
     await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
     await post("/start/q", { prompt: "weight_kg", answer: "54" }, session);
+    await post("/start/q", { prompt: "activity", answer: "few" }, session);
     const html = await (await get("/start/q", session)).text();
     expect(html).toContain('name="prompt" value="target_weight_kg"');
     expect(html).not.toContain('name="step"');
     expect(html).toContain('type="number"');
-  });
-});
-
-describe("the support moments", () => {
-  const momentPage = async (session: string, id: string) => {
-    const res = await get(`/start/moment/${id}`, session);
-    return res;
-  };
-
-  it("takes the target answer to its moment, a page of its own", async () => {
-    const session = await signIn();
-    await walkTo(session, "target_weight_kg");
-    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "73.5" }, session);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/moment/target");
-    const html = await (await momentPage(session, "target")).text();
-    expect(html).toContain("A goal you can keep");
-    expect(html).toContain('class="echo"');
-    expect(html).toContain("73.5");
-    expect(html).toContain('action="/start/q"');
-  });
-
-  it("does the same for activity, pointing on at the struggles question", async () => {
-    const session = await signIn();
-    await walkTo(session, "activity");
-    const res = await post("/start/q", { prompt: "activity", answer: "few" }, session);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/moment/activity");
-    const html = await (await momentPage(session, "activity")).text();
-    expect(html).toContain("That&#39;s great!");
-    expect(html).toContain('action="/start/struggles"');
-  });
-
-  it("answers struggles with the picked card's moment, and without one with nothing", async () => {
-    const session = await signIn();
-    await walkTo(session, "activity");
-    await post("/start/q", { prompt: "activity", answer: "few" }, session);
-
-    // The struggles screen itself: chips, not a profile field, on its own route.
-    const ask = await (await get("/start/struggles", session)).text();
-    expect(ask).toContain("Diets that didn&#39;t stick");
-    expect(ask).toContain("Night snacking");
-
-    // A pick gets the moment — echo, card title and card body — straight off the POST, because
-    // nothing it collects is ever written down: a reload re-asking is safer than a URL that says it.
-    const res = await post("/start/struggles", { answer: ["diets"] }, session);
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain("That&#39;s completely normal!");
-    // The echo is the picked chip's own label; the body is that card's.
-    expect(html).toContain("Diets that didn&#39;t stick");
-    expect(html).toContain(struggleCard("diets", "lose", "en").body.split(".")[0]!);
-    expect(html).toContain('action="/start/q"');
-
-    // "None of these" takes no screen: the moment is skipped by the contract's own null.
-    const session2 = await signIn("struggles-none");
-    await walkTo(session2, "activity");
-    await post("/start/q", { prompt: "activity", answer: "few" }, session2);
-    const none = await post("/start/struggles", { answer: [""] }, session2);
-    expect(none.status).toBe(303);
-    expect(none.headers.get("location")).toBe("/start/q");
-  });
-
-  it("thanks them for the restrictions, then hands over the plan", async () => {
-    const session = await signIn();
-    await walkTo(session, "restrictions");
-    const res = await post("/start/q", { prompt: "restrictions", answer: ["kidneys"] }, session);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/moment/restrictions");
-    const html = await (await momentPage(session, "restrictions")).text();
-    expect(html).toContain("Thank you for trusting me");
-    expect(html).toContain('action="/start/plan"');
-  });
-
-  it("skips a moment whose inputs are not there, rather than rendering it empty", async () => {
-    const session = await signIn();
-    const res = await momentPage(session, "target");
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/q");
   });
 });
 
@@ -2616,7 +2549,8 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
           }
         }
 
-        const res = await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, cookie, headers);
+        const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+        const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, cookie, headers);
         // The first answer mints the session account — keep its cookie.
         const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
         if (set) cookie = set.split(";")[0]!;
@@ -2624,7 +2558,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
 
       // Country is NOT a walk question (S8) — it waits for the sign-up below.
       expect(seen, lang).not.toContain("country");
-      expect(seen.at(-1), lang).toBe("restrictions");
+      expect(seen.at(-1), lang).toBe("medical");
 
       // The plan, then the consent screen — in the language the questions were answered in,
       // which the first answer wrote into the session account.
@@ -2636,11 +2570,11 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(pageCopyFor(lang).signUpHeading));
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).signUpHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
-      expect(signupHtml, `${lang}.signup terms`).toContain(escape(pageCopyFor(lang).termsLink));
-      expect(signupHtml, `${lang}.signup privacy`).toContain(escape(pageCopyFor(lang).privacyLink));
+      expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));
+      expect(signupHtml, `${lang}.signup privacy`).toContain(escape(signupCopyFor(lang).privacyLink));
 
       // Sign up — the identity attaches to the account the answers already live on (S8).
       const signed = await signIn(`web-${lang}`, "google", lang, cookie);
@@ -2780,16 +2714,6 @@ describe("the counter and Back (#53)", () => {
     // A POST for a question past the open one is still dropped.
     await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
     expect((await store.getProfile(await webUser(session)))!.height_cm).toBeNull();
-  });
-
-  it("puts Back on a moment, to the answer it reacts to", async () => {
-    const session = await signIn("back-moment");
-    for (const id of ["goal", "sex", "birth_year", "height_cm", "weight_kg"]) {
-      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
-    }
-    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "70" }, session);
-    const page = await (await get(res.headers.get("location")!.replace("https://api.eait.fit", ""), session)).text();
-    expect(page).toContain('class="back" href="/start/q?edit=target_weight_kg"');
   });
 
   it("labels a number field, keeps a refused value, and ties the refusal to the field", async () => {
