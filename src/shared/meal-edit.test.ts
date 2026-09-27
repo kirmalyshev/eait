@@ -1,9 +1,10 @@
-// The meal edit's arithmetic (#188): grams → numbers on one item, and items+totals → the PATCH
-// body. The tinted line a recomputed detail names the change with is `MealUpdated.line` — the
-// engine's `changeLine`, sent on the result rather than composed here.
+// The meal edit's arithmetic (#188): grams → numbers on one item, items → the PATCH body, and
+// the deep-link query. The tinted line a recomputed detail names the change with is
+// `MealUpdated.line` — the engine's `changeLine`, sent on the result rather than composed here;
+// and the meal's totals are the SERVER's job on an items-only patch (`editMeal` derives them).
 
 import { describe, expect, it } from "bun:test";
-import { mealEditRequest, movedItems, scaledItem } from "./meal-edit.ts";
+import { mealEditParams, mealEditRequest, scaledItem } from "./meal-edit.ts";
 import type { MealItem } from "./types.ts";
 
 const rice = (over: Partial<MealItem> = {}): MealItem => ({
@@ -15,11 +16,7 @@ const salmon: MealItem = {
   protein_g: 30, carbs_g: 0, fat_g: 18,
 };
 const broccoli: MealItem = { name: "Broccoli", name_en: "broccoli", grams: 90, kcal: 55 };
-const MEAL = {
-  items: [salmon, rice(), broccoli],
-  kcal: 540, protein_g: 34, carbs_g: 48, fat_g: 23,
-  satfat_g: 5, fiber_g: 6, sugar_g: 3, sodium_mg: 320,
-};
+const MEAL = { items: [salmon, rice(), broccoli] };
 
 describe("scaledItem — one ingredient at a new amount", () => {
   it("scales kcal by the item's own density when it has one", () => {
@@ -40,39 +37,33 @@ describe("scaledItem — one ingredient at a new amount", () => {
   });
 });
 
-describe("mealEditRequest — the PATCH body, or null when nothing moved", () => {
+describe("mealEditRequest — the PATCH body is items, or null when nothing moved", () => {
   it("is null when the items are the same", () => {
     expect(mealEditRequest(MEAL, MEAL.items)).toBeNull();
   });
-  it("carries the edited items and the totals shifted by the item's delta", () => {
+  it("sends the edited items and nothing else — the server derives the totals", () => {
     const items = [salmon, scaledItem(rice(), 200), broccoli];
     const req = mealEditRequest(MEAL, items);
-    expect(req).not.toBeNull();
-    expect(req!.items![1]).toMatchObject({ name: "Rice", grams: 200, kcal: 260 });
-    // 540 + (260 − 195) — the item carries the delta, never a recomputed guess.
-    expect(req!.kcal).toBe(605);
-    expect(req!.protein_g).toBeCloseTo(35, 5);
-    expect(req!.carbs_g).toBeCloseTo(62, 5);
+    expect(req).toEqual({ items });
+    expect(req).not.toHaveProperty("kcal");
+    expect(req).not.toHaveProperty("protein_g");
   });
-  it("subtracts a removed ingredient's reported numbers", () => {
-    const req = mealEditRequest(MEAL, [salmon, broccoli]);
-    expect(req!.items).toHaveLength(2);
-    expect(req!.kcal).toBe(345);
-    expect(req!.carbs_g).toBeCloseTo(6, 5);
-  });
-  it("never touches a total the items do not report", () => {
-    const req = mealEditRequest(MEAL, [salmon, broccoli]);
-    expect(req!.satfat_g).toBeUndefined();
-    expect(req!.sodium_mg).toBeUndefined();
+  it("sends the shortened list on a removal", () => {
+    expect(mealEditRequest(MEAL, [salmon, broccoli])).toEqual({ items: [salmon, broccoli] });
   });
 });
 
-describe("movedItems — the matching rule `changeLine` and the editor share", () => {
-  it("matches on the canonical key and returns the after item with its old grams", () => {
-    const moved = movedItems(MEAL.items, [salmon, scaledItem(rice(), 200), broccoli]);
-    expect(moved).toEqual([{ item: expect.objectContaining({ name: "Rice", grams: 200 }), gramsBefore: 150 }]);
+describe("mealEditParams — the ?fix / ?item deep links", () => {
+  it("reads the fix flag and a digit item index", () => {
+    expect(mealEditParams("fix")).toEqual({ fix: true, item: null });
+    expect(mealEditParams("item=2")).toEqual({ fix: false, item: 2 });
+    expect(mealEditParams("fix&item=0")).toEqual({ fix: true, item: 0 });
+    expect(mealEditParams("")).toEqual({ fix: false, item: null });
+    expect(mealEditParams("d=2026-09-27")).toEqual({ fix: false, item: null });
   });
-  it("is empty when only names changed — a rename is not a moved amount", () => {
-    expect(movedItems(MEAL.items, MEAL.items.map((i) => ({ ...i, name: `${i.name} bis` })))).toEqual([]);
+  it("refuses an index that is not all digits — parseInt would have taken '1abc'", () => {
+    expect(mealEditParams("item=1abc")).toEqual({ fix: false, item: null });
+    expect(mealEditParams("item=-1")).toEqual({ fix: false, item: null });
+    expect(mealEditParams("item=")).toEqual({ fix: false, item: null });
   });
 });

@@ -103,10 +103,11 @@ export interface MealCopy {
   /**
    * The fix screen (`phone/meal-fix.html`, `web/meal-fix.html`): one field + "Update". Its title is
    * `phoneCorrectTitle`; `phoneFixMeal` is its meal line — "{name} · {kcal} · {time}", `{kcal}`
-   * spelled with its unit ("540 kcal") — and the worked example beside the field, the commit
-   * button.
+   * spelled with its unit ("540 kcal") — the worked example beside the field, drawn as
+   * `<b>{phoneFixExampleLead}</b> {phoneFixExample}` — and the commit button.
    */
   phoneFixMeal: string;
+  phoneFixExampleLead: string;
   phoneFixExample: string;
   phoneUpdate: string;
   /**
@@ -164,7 +165,6 @@ export interface MealCopy {
   changeToHigh: string;
   changeToVeryHigh: string;
   changeAllOnPlan: string;
-
 }
 
 export const MEAL_COPY: Localized<MealCopy> = {
@@ -197,7 +197,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Save and recheck",
     phoneKeypadBackspace: "Backspace",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "For example: the rice was about 200 g, and there was no sauce.",
+    phoneFixExampleLead: "For example:",
+        phoneFixExample: "the rice was about 200 g, and there was no sauce.",
     phoneUpdate: "Update",
     phoneIngredientTitle: "Edit ingredient",
     phoneAmount: "Amount",
@@ -251,7 +252,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Enregistrer et revérifier",
     phoneKeypadBackspace: "Effacer",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Par exemple : le riz pesait environ 200 g, et il n’y avait pas de sauce.",
+    phoneFixExampleLead: "Par exemple :",
+        phoneFixExample: "le riz pesait environ 200 g, et il n’y avait pas de sauce.",
     phoneUpdate: "Mettre à jour",
     phoneIngredientTitle: "Modifier un ingrédient",
     phoneAmount: "Quantité",
@@ -305,7 +307,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Speichern und neu prüfen",
     phoneKeypadBackspace: "Löschen",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Zum Beispiel: der Reis war etwa 200 g, und es gab keine Sauce.",
+    phoneFixExampleLead: "Zum Beispiel:",
+        phoneFixExample: "der Reis war etwa 200 g, und es gab keine Sauce.",
     phoneUpdate: "Aktualisieren",
     phoneIngredientTitle: "Zutat bearbeiten",
     phoneAmount: "Menge",
@@ -359,7 +362,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Salva e ricontrolla",
     phoneKeypadBackspace: "Elimina",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Per esempio: il riso era circa 200 g, e non c’era alcuna salsa.",
+    phoneFixExampleLead: "Per esempio:",
+        phoneFixExample: "il riso era circa 200 g, e non c’era alcuna salsa.",
     phoneUpdate: "Aggiorna",
     phoneIngredientTitle: "Modifica ingrediente",
     phoneAmount: "Quantità",
@@ -413,7 +417,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Guardar y revisar",
     phoneKeypadBackspace: "Borrar",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Por ejemplo: el arroz era unos 200 g, y no había salsa.",
+    phoneFixExampleLead: "Por ejemplo:",
+        phoneFixExample: "el arroz era unos 200 g, y no había salsa.",
     phoneUpdate: "Actualizar",
     phoneIngredientTitle: "Editar ingrediente",
     phoneAmount: "Cantidad",
@@ -467,7 +472,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Lưu và kiểm tra lại",
     phoneKeypadBackspace: "Xóa",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Ví dụ: cơm khoảng 200 g, và không có sốt.",
+    phoneFixExampleLead: "Ví dụ:",
+        phoneFixExample: "cơm khoảng 200 g, và không có sốt.",
     phoneUpdate: "Cập nhật",
     phoneIngredientTitle: "Sửa nguyên liệu",
     phoneAmount: "Lượng",
@@ -521,7 +527,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Simpan dan periksa lagi",
     phoneKeypadBackspace: "Hapus",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Misalnya: nasinya sekitar 200 g, dan tidak ada saus.",
+    phoneFixExampleLead: "Misalnya:",
+        phoneFixExample: "nasinya sekitar 200 g, dan tidak ada saus.",
     phoneUpdate: "Perbarui",
     phoneIngredientTitle: "Edit bahan",
     phoneAmount: "Jumlah",
@@ -575,7 +582,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneSaveRecheck: "Сохранить и перепроверить",
     phoneKeypadBackspace: "Стереть",
         phoneFixMeal: "{name} · {kcal} · {time}",
-    phoneFixExample: "Например: риса было примерно 200 г, и соуса не было.",
+    phoneFixExampleLead: "Например:",
+        phoneFixExample: "риса было примерно 200 г, и соуса не было.",
     phoneUpdate: "Обновить",
     phoneIngredientTitle: "Редактировать ингредиент",
     phoneAmount: "Количество",
@@ -603,4 +611,3 @@ export const MEAL_COPY: Localized<MealCopy> = {
 };
 
 export const mealCopyFor = (lang: Lang): MealCopy => t(lang)(MEAL_COPY);
-
