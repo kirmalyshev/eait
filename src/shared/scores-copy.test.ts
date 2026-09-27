@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { LANGS } from "./types.ts";
+import { countText } from "./lang.ts";
 import { bmiRangeLabel, scoreFactorLabel, scoresCopy } from "./scores-copy.ts";
 import { BMI_BANDS, type BmiRange } from "./scores.ts";
 import { verdictNoun } from "./verdicts.ts";
@@ -51,18 +52,30 @@ describe("score copy (#118)", () => {
     for (const lang of LANGS) expect(scoreFactorLabel("satfat", lang)).toBe(verdictNoun("ldl", lang));
   });
 
-  test("the today board's strings take their {n} in every language (W4)", () => {
+  test("the today board's strings are present in every language (W4)", () => {
     for (const lang of LANGS) {
       const copy = scoresCopy(lang);
       expect(copy.todayTitle, lang).toContain("{n}");
       expect(copy.todayTitle, lang).toContain("/10");
-      expect(copy.todayFromMeals, lang).toContain("{n}");
-      // The singular carries no count — one meal is said, not numbered.
-      expect(copy.todayFromMeal, lang).not.toContain("{n}");
-      for (const s of [copy.todayTitle, copy.todayMethod, copy.todayFromMeal, copy.todayFromMeals]) {
+      for (const s of [copy.todayTitle, copy.breakdownTitle, copy.breakdownLine]) {
         expect(s.length, lang).toBeGreaterThan(0);
       }
     }
+  });
+
+  test("'From today's meals' counts in the reader's own plural forms — Russian's three included (W4)", () => {
+    const say = (lang: (typeof LANGS)[number], n: number) =>
+      countText(lang)(scoresCopy(lang).todayFromMeals, n);
+    expect(say("en", 1)).toBe("From today's meal");
+    expect(say("en", 3)).toBe("From today's 3 meals");
+    expect(say("de", 1)).toBe("Aus der heutigen Mahlzeit");
+    expect(say("ru", 1)).toBe("Из 1 сегодняшнего приёма пищи");
+    expect(say("ru", 4)).toBe("Из 4 сегодняшних приёма пищи");
+    expect(say("ru", 5)).toBe("Из 5 сегодняшних приёмов пищи");
+    expect(say("ru", 21)).toBe("Из 21 сегодняшнего приёма пищи");
+    // Languages without plural marking still fill the count.
+    expect(say("vi", 2)).toBe("Từ 2 bữa hôm nay");
+    expect(say("id", 2)).toBe("Dari 2 santapan hari ini");
   });
 
   test("every factor has a name in every language", () => {
