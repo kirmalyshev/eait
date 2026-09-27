@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
-  SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
+  SCRIPTED_LINES, firstVerdictLines, runningLine,
   scriptedLine, startersFor, type ScriptedLineId,
 } from "./chat.ts";
 
@@ -33,7 +33,6 @@ describe("the thread in eight languages", () => {
       const said: string[] = [
         runningLine({ targets: TARGETS, eatenToday: EATEN }, lang),
         runningLine({ targets: TARGETS, eatenToday: { kcal: 2100, protein_g: 120 } }, lang),
-        correctionLine({ targets: TARGETS, meal: { kcal: 520 }, eatenToday: EATEN }, lang),
       ];
       for (const goal of ["gain", "lose", "maintain"] as const) {
         for (const via of ["photo", "text"] as const) {

@@ -232,7 +232,6 @@ gets its meal names in that language.
   *Chat:* `threadCopyFor` (incl. `coach.name` — Gabie), `scriptedLine`, `firstVerdictLines`,
   `runningLine`, `startersFor`, `speakerOf`, `oneLiveProposal`, `verdictPillLabel`,
   `pendingLine` / `pendingSteps`.
-  NOT `correctionLine` — `engine/chat.ts` writes that server-side and it arrives as text.
 
   *Health:* `healthLabel`, `correlationWords`, `trendPeriods`, `trendBuckets`, `trendSummary`,
   `compareSeriesLabels`, `formatHealthValue`. **This whole surface has zero non-test consumers in

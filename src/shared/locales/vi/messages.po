@@ -30,6 +30,11 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Đã cập nhật — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — đã ghi nhận, nó nằm trong các con số rồi."
 
@@ -482,11 +487,6 @@ msgstr "Đã bật tuần dùng thử. Bảy ngày, sau đó {price} trừ khi b
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Bạn gõ chứ không chụp — nên khẩu phần là mình đoán. Cứ xem {kcal} là con số áng chừng; nếu bạn biết số gam thì nói, mình sửa."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.correction"
-msgstr "Đã cập nhật — {kcal} kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -1244,9 +1244,9 @@ describe("the thread", () => {
   const thread = async (userId: string) => (await chatHistory(deps, userId, {})).entries;
   const text = (e: { kind: string }) => ("text" in e ? (e as { text: string | null }).text : null);
 
-  // #49: "Updated — 584 kcal" was said about an edit that changed no number (a rename). The line
-  // is the arithmetic of a change, so a change of no number writes no line; the card still updates.
-  it("says 'Updated' only when an edit changed a number", async () => {
+  // #49/#119: the change line is the arithmetic of a change, so an edit that changed no number
+  // (a rename) writes no line; the card still updates.
+  it("names a change only when an edit changed a number", async () => {
     const userId = await onboard();
     const res = await logPhotoMeal(deps, userId, photo());
     if (res.kind !== "logged") throw new Error("expected logged");
@@ -1254,10 +1254,10 @@ describe("the thread", () => {
     const renamed = res.analysis.items.map((it, i) => (i === 0 ? { ...it, name: "Salmon bowl" } : it));
     expect((await editMeal(deps, userId, res.mealId, { items: renamed })).kind).toBe("updated");
     const t = await thread(userId);
-    expect(t.slice(before).map(text).filter((x) => x?.startsWith("Updated"))).toEqual([]);
+    expect(t.slice(before).map(text).filter((x) => x?.includes("→"))).toEqual([]);
     expect(t.slice(before).some((e) => e.kind === "meal")).toBe(true);
     await editMeal(deps, userId, res.mealId, { kcal: res.analysis.kcal + 100 });
-    expect((await thread(userId)).map(text).some((x) => x?.startsWith("Updated"))).toBe(true);
+    expect((await thread(userId)).map(text).some((x) => x?.includes(`→ ${res.analysis.kcal + 100} kcal`))).toBe(true);
   });
 
   it("keeps a question and its answer, oldest first", async () => {
@@ -1483,18 +1483,20 @@ describe("the thread", () => {
     expect((await confirmPendingMeal({ ...deps, store: flaky }, userId, typed.pendingId)).kind).toBe("logged");
   });
 
-  it("keeps a correction's words, its card, and the design's 'Updated —' line, from chat and from the editor alike", async () => {
+  it("keeps a correction's words, its card, and the computed change line, from chat and from the editor alike (#119)", async () => {
     const userId = await onboard();
     const meal = await logPhotoMeal(deps, userId, photo());
     if (meal.kind !== "logged") throw new Error("expected logged");
     await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
     let t = await thread(userId);
     expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
-    expect(text(t.at(-1)!)).toMatch(/^Updated — [\d,]+ kcal\. .* of the [\d,]+ g protein\.$/);
+    expect(t.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
+    expect(text(t.at(-1)!)).toContain("→");
     await editMeal(deps, userId, meal.mealId, { kcal: 100 });
     t = await thread(userId);
     expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
-    expect(text(t.at(-1)!)).toMatch(/^Updated — 100 kcal\./);
+    expect(t.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
+    expect(text(t.at(-1)!)).toContain("→ 100 kcal");
   });
 
   it("says where the day stands after EVERY landed meal, not only after a correction (#306)", async () => {
@@ -1531,8 +1533,8 @@ describe("the thread", () => {
   });
 
   it("says nothing about today for a meal logged to another day", async () => {
-    // The sentence is "left TODAY". A back-dated meal has nothing to say about it — the same
-    // guard `afterCorrection` has, and the reason a re-dated correction writes no line either.
+    // The sentence is "left TODAY". A back-dated meal has nothing to say about it — `dayStanding`
+    // still gates `runningLine`; #119's change line speaks of the edit instead, not the day.
     const userId = await onboard();
     await logPhotoMeal(deps, userId, photo()); // spends the greeting
     const back = await handleText(deps, userId, { text: "a banana yesterday" });
@@ -1552,8 +1554,11 @@ describe("the thread", () => {
     expect(moved.kind).toBe("redated");
     await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
     const t = await thread(userId);
-    // words, updated card — and no "left today" line about yesterday's budget.
-    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"]]);
+    // words, updated card, and #119's change line — which names the EDIT and says nothing about
+    // today's budget, so a yesterday meal earns it like any other.
+    expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
+    expect(text(t.at(-1)!)).toContain("→");
+    expect(text(t.at(-1)!)).not.toContain("left today");
   });
 
   it("saves the first verdict for the first meal that IS today's, and still says it once", async () => {

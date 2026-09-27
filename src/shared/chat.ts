@@ -194,11 +194,12 @@ export function cleanSuggestions(raw: unknown): string[] {
 /**
  * WHERE THE DAY STANDS, said the same way whatever put the meal there (#306).
  *
- * copy.md § Step 14's arithmetic clause, on its own. It was reachable only through
- * `correctionLine`, so a corrected meal was followed by the day's numbers and a logged one by
- * nothing — #301's "three consecutive meals look like three different features", in the half #301
- * did not touch. Worse, the account's FIRST meal does say the arithmetic (`firstVerdictLines`), so
- * the very next meal broke an expectation the product had just set.
+ * copy.md § Step 14's arithmetic clause, on its own. It was once reachable only through the old
+ * correction line (#119 retired it — the change line names the edit, not the day), so a corrected
+ * meal was followed by the day's numbers and a logged one by nothing — #301's "three consecutive
+ * meals look like three different features", in the half #301 did not touch. Worse, the account's
+ * FIRST meal does say the arithmetic (`firstVerdictLines`), so the very next meal broke an
+ * expectation the product had just set.
  *
  * NO VERB, AND NO MEAL KCAL. The card under it already carries the meal's own numbers, and #301
  * removed the "Logged." caption for exactly that reason — `LandedMeal` says the running arithmetic
@@ -236,23 +237,6 @@ function figures(
     protein: n(i.eatenToday.protein_g),
     proteinTarget: n(i.targets.protein_g),
   };
-}
-
-/**
- * copy.md § Step 14 · after a correction, from chat or from the editor. `eatenToday` is after it.
- *
- * The changed number in front of the day's, because a correction's whole point is that the meal's
- * kcal MOVED — the one thing the re-rendered card cannot say by itself. The clause behind it is
- * `runningLine`, shared with every landed meal so the two can never disagree about one day.
- */
-export function correctionLine(
-  i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang,
-): string {
-  return threadCopyFor(lang).correction({
-    kcal: wholeNumbers(lang)(i.meal.kcal),
-    day: runningLine(i, lang),
-  });
 }
 
 /**
