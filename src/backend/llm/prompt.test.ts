@@ -251,6 +251,24 @@ test("a declared restriction without a cap still reaches the coach, and the prof
   expect(bare).toContain("Declared restrictions: none.");
 });
 
+test("only an excluding diet reaches the analyzer; the coach reads every declared diet (#82)", () => {
+  // `mediterranean` is a pattern — it changes nothing a photo can contain, so the analyzer's
+  // input says nothing of it. `vegetarian` closes plates, so it IS said.
+  const photo = (restrictions: string[]) => buildUserText({ ...PROFILE, restrictions }, TARGETS);
+  expect(photo(["mediterranean"])).not.toContain("preference");
+  expect(photo(["wholefood"])).not.toContain("preference");
+  expect(photo(["flexitarian"])).not.toContain("preference");
+  expect(photo(["vegetarian"])).toContain("Dietary preference the user declared: vegetarian.");
+  expect(photo(["pescatarian"])).toContain("Dietary preference the user declared: pescatarian.");
+  expect(photo(["vegan"])).toContain("Dietary preference the user declared: vegan.");
+
+  // The coach is the other reader: a pattern diet is still the user's own word there.
+  const coach = (restrictions: string[]) =>
+    buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions } }));
+  expect(coach(["mediterranean"])).toContain("Diet preference the user declared: mediterranean.");
+  expect(coach(["vegetarian"])).toContain("Diet preference the user declared: vegetarian.");
+});
+
 test("the coach context names the floor when it is the reason for the number", () => {
   const text = buildCoachContext(coachInput({ basis: { ...BASIS, floorApplied: true, shareCapApplied: false } }));
   expect(text).toContain("floor of 1200 kcal");

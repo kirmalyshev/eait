@@ -34,7 +34,7 @@ import type { CountryCode, DietTag, FoodTargets, MedicalTag, Profile } from "@ea
 import type { PortionPrior } from "../store.ts";
 import {
   COUNTRY_CODES, countryLabel, LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE,
-  dietOf, isDietTag, isMedicalTag, medicalOf, narrowLang,
+  dietOf, isDietTag, isExcludingDiet, isMedicalTag, medicalOf, narrowLang,
 } from "@eait/shared";
 import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
@@ -246,7 +246,10 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   const diet = dietOf(profile.restrictions);
   const medical = medicalOf(profile.restrictions);
   const otherTags = profile.restrictions.filter((r) => !isDietTag(r) && !isMedicalTag(r));
-  if (diet !== "balanced") lines.push(`Dietary preference the user declared: ${DIET_WORDS[diet]}.`);
+  // Only the diets that close a plate reach the photo analyzer (#82): `balanced` is no
+  // restriction and the pattern diets — whole-food, mediterranean, flexitarian — change nothing
+  // about what a picture may contain, so naming one would only weigh the verdict against it.
+  if (isExcludingDiet(diet)) lines.push(`Dietary preference the user declared: ${DIET_WORDS[diet]}.`);
   if (medical.length > 0) {
     lines.push(`Medical declarations: ${medical.map((t) => MEDICAL_WORDS[t]).join(", ")}.`);
   }
