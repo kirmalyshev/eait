@@ -118,6 +118,8 @@ export interface MealCopy {
   phoneAmount: string;
   phoneCalories: string;
   phoneRemoveIngredient: string;
+  /** The back affordance at the top of the fix/ingredient screens — a glyph, so the label is the words. */
+  phoneNavBack: string;
 
   /** The gone state (`phone/meal-gone.html`) — a deleted, moved or foreign meal id. */
   phoneGoneTitle: string;
@@ -196,6 +198,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Amount",
     phoneCalories: "Calories",
     phoneRemoveIngredient: "Remove ingredient",
+    phoneNavBack: "Back",
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
@@ -250,6 +253,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Quantité",
     phoneCalories: "Calories",
     phoneRemoveIngredient: "Supprimer l’ingrédient",
+    phoneNavBack: "Retour",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
@@ -304,6 +308,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Menge",
     phoneCalories: "Kalorien",
     phoneRemoveIngredient: "Zutat entfernen",
+    phoneNavBack: "Zurück",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
@@ -358,6 +363,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Quantità",
     phoneCalories: "Calorie",
     phoneRemoveIngredient: "Rimuovi ingrediente",
+    phoneNavBack: "Indietro",
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
@@ -412,6 +418,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Cantidad",
     phoneCalories: "Calorías",
     phoneRemoveIngredient: "Eliminar ingrediente",
+    phoneNavBack: "Atrás",
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
@@ -466,6 +473,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Lượng",
     phoneCalories: "Calo",
     phoneRemoveIngredient: "Bỏ nguyên liệu",
+    phoneNavBack: "Quay lại",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
@@ -520,6 +528,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Jumlah",
     phoneCalories: "Kalori",
     phoneRemoveIngredient: "Hapus bahan",
+    phoneNavBack: "Kembali",
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
@@ -574,6 +583,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneAmount: "Количество",
     phoneCalories: "Калории",
     phoneRemoveIngredient: "Удалить ингредиент",
+    phoneNavBack: "Назад",
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",

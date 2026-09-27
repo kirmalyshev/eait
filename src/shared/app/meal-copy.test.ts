@@ -20,7 +20,7 @@ const KEYS = [
   "phoneCorrectTitle", "phoneSheetMeal", "phoneWasAmount", "phoneThisMeal", "phoneSaveRecheck",
   "phoneKeypadBackspace",
   "phoneFixTitle", "phoneFixMeal", "phoneFixExample", "phoneUpdate",
-  "phoneIngredientTitle", "phoneAmount", "phoneCalories", "phoneRemoveIngredient",
+  "phoneIngredientTitle", "phoneAmount", "phoneCalories", "phoneRemoveIngredient", "phoneNavBack",
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
   "webGoneTitle", "webGoneBody", "webGoneBack", "itemAmount", "menuButton",
   "changeItem", "changeTotal", "changeWithItems",
