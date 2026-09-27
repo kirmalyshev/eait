@@ -39,4 +39,5 @@ export * from "./outbox.ts";
 // under Node inside Expo's config loader, and the app's own `palette.ts`, which imports nothing
 // that touches react-native.
 export * from "./design.ts";
+export * from "./ui/charts.ts";
 export * from "./ui/units.ts";
