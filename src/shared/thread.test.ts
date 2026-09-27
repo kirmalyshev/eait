@@ -11,7 +11,7 @@ import { fromHistory, hasLiveSuggestions, queuedEntries, keepsItsWords, landedLi
 
 const meal = (id: string, kcal: number, date = "2026-08-25"): MealRecord => ({
   id, user_id: "u", ts: "2026-08-25T12:00:00.000Z", date, isFood: true, items: [], kcal, protein_g: 0, carbs_g: 0, fat_g: 0,
-  satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high", notes: "", corrected: false, model: null,
+  satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: null,
 });
 /** Far enough out that these fixtures are about what they are about, never about the clock (#367). */
 const LIVE = "2099-01-01T00:00:00.000Z";
@@ -479,7 +479,7 @@ describe("proposalLive — #367", () => {
 // #608. A line the server deleted goes, and so does every card that answered it — a delete on a
 // photo line is a delete of the meal. A text line takes nothing with it.
 describe("line-removed", () => {
-  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: "2026-09-11", isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high" as const, notes: "", corrected: false, model: "t" };
+  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: "2026-09-11", isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const, notes: "", corrected: false, model: "t" };
   const entries: ThreadEntry[] = [
     { id: "p1", role: "user", text: null, photo: true, stored: true, mealId: "m1" },
     { id: "c1", role: "card", event: "logged", mealId: "m1", meal, stored: true },

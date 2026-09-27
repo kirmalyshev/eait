@@ -233,7 +233,7 @@ describe("the composer can turn into the ask", () => {
 // #608. A delete is a server write and a local removal: the line goes, its meal's cards go, the
 // composer waits while it is out, and a line the server no longer has goes just the same.
 describe("deleteLine", () => {
-  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: TODAY, isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high" as const, notes: "", corrected: false, model: "t" };
+  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: TODAY, isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const, notes: "", corrected: false, model: "t" };
   const seeded = (): ChatHistoryResponse => ({ before: null, entries: [
     { id: "p1", seq: 1, ts: meal.ts, role: "user", kind: "photo", text: "rice", mealId: "m1" },
     { id: "c1", seq: 2, ts: meal.ts, role: "assistant", kind: "meal", event: "logged", mealId: "m1", meal, speaker: null },
@@ -280,7 +280,7 @@ describe("the outbox (#708)", () => {
     kind: "proposed", pendingId, date: TODAY, expiresAt: "2099-01-01T00:00:00.000Z",
     analysis: {
       isFood: true, items: [], kcal: 100, protein_g: 1, carbs_g: 1, fat_g: 1, satfat_g: 0, fiber_g: 0,
-      sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "low", notes: "",
+      sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "low", notes: "",
     },
   });
 

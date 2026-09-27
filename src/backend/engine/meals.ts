@@ -17,8 +17,8 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, localDate, localTime, mealCopyFor,
-  mealIsGuessed, spellUnit, verdictNoun, wholeNumbers, windowStart,
+  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, healthScore, localDate, localTime,
+  mealCopyFor, mealIsGuessed, spellUnit, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
@@ -217,13 +217,17 @@ async function logPhotoTurn(
   const { analysis, images, analysisId } = read;
   const question = await mayAsk(deps, userId, today, analysis, read.question);
 
+  const verdicts = await gatedVerdicts(deps, userId, analysis);
   const record: MealRecord = {
     ...analysis,
     id: crypto.randomUUID(),
     user_id: userId,
     ts: eaten.toISOString(),
     date,
-    verdicts: await gatedVerdicts(deps, userId, analysis),
+    verdicts,
+    // Computed at write for the card this turn returns; the stores recompute it on every READ, so
+    // a later edit can never leave the score describing numbers that changed.
+    healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
     corrected: false,
     model: deps.config.llmModel,
     // Stored, because the answer arrives as its own turn and has to find the question again — and
@@ -262,7 +266,8 @@ async function logPhotoTurn(
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date, hint: hintFor(analysis),
     ...(question ? { question } : {}),
   } satisfies MealLogged;
@@ -626,8 +631,8 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
   return {
     isFood: m.isFood, items: m.items as MealItem[], kcal: m.kcal, protein_g: m.protein_g,
     carbs_g: m.carbs_g, fat_g: m.fat_g, satfat_g: m.satfat_g, fiber_g: m.fiber_g,
-    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, confidence: m.confidence,
-    notes: m.notes,
+    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, healthScore: m.healthScore,
+    confidence: m.confidence, notes: m.notes,
   };
 }
 
@@ -660,13 +665,18 @@ export async function confirmPendingMeal(
   let record: MealRecord;
   let inserted: boolean;
   try {
+    const verdicts = await gatedVerdicts(deps, userId, pending.analysis);
+    const restrictions = (await deps.store.getProfile(userId))?.restrictions ?? [];
     record = {
       ...pending.analysis,
       id: pendingId,
       user_id: userId,
       ts: new Date().toISOString(),
       date: pending.date,
-      verdicts: await gatedVerdicts(deps, userId, pending.analysis),
+      verdicts,
+      // A pending row written before #118 carries no score — it is computed here, never trusted
+      // off the stored proposal.
+      healthScore: healthScore({ ...pending.analysis, verdicts }, restrictions),
       corrected: false,
       model: deps.config.llmModel,
     };
@@ -701,7 +711,8 @@ export async function confirmPendingMeal(
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...pending.analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...pending.analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date: pending.date, hint: hintFor(pending.analysis),
   };
 }
@@ -733,8 +744,13 @@ export async function cancelPendingMeal(
  * and writes nothing; an expired one is not offered, because nobody may confirm it.
  */
 export async function pendingMeals(deps: EngineDeps, userId: string): Promise<MealProposed[]> {
+  const restrictions = (await deps.store.getProfile(userId))?.restrictions ?? [];
   return (await deps.store.pendingsFor(userId)).map((p) => ({
-    kind: "proposed", pendingId: p.id, analysis: p.analysis, date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    kind: "proposed", pendingId: p.id,
+    // Recomputed, not read off the row — a pending written before #118 has none, and a restriction
+    // the user has since ticked should shape the card being re-shown.
+    analysis: { ...p.analysis, healthScore: healthScore(p.analysis, restrictions) },
+    date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
   } satisfies MealProposed));
 }
 

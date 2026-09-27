@@ -11,7 +11,7 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
   type Profile, explainTargets,
 } from "@eait/shared";
-import { TEXT_MODEL_CALLS, dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
@@ -192,10 +192,14 @@ async function textTurn(
         // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        const verdicts = await gatedVerdicts(deps, userId, reconciled);
         const analysis: MealAnalysis = {
           ...reconciled,
           confidence: "low",
-          verdicts: await gatedVerdicts(deps, userId, reconciled),
+          verdicts,
+          // Same rule as the verdicts above: the score is computed HERE because the proposal the
+          // card renders never passes through a store row that would attach it.
+          healthScore: healthScore({ ...reconciled, verdicts }, profile.restrictions),
         };
         // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
         // so it can never fail the turn it rides on — that turn is already billed.
