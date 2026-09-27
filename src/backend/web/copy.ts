@@ -65,6 +65,7 @@ export interface PageCopy {
   chatCaption: string;
   errorSignIn: string;
   pairHeading: string;
+  /** `{tab}` is filled with the shipped tab's own name (SHELL_COPY.navProfile). */
   pairLead: string;
   pairLabel: string;
   pairButton: string;
@@ -180,14 +181,14 @@ const EN: PageCopy = {
    * them — and a second page they would have to be told the address of defeats the point of a code
    * short enough to read out loud. One field under the buttons is the whole surface.
    *
-   * IT DESCRIBES THE CODE, NOT WHERE TO GET ONE, because today there is nowhere: the app cannot
-   * show a code yet (that control is its own ticket). Words naming a button that does not exist
-   * would be false now and would have to be rewritten on a guarded surface later.
+   * IT NOW SAYS WHERE TO GET ONE — the board's words ("Your phone makes one in You"), with the
+   * tab named by its shipped label rather than the board's older name: `{tab}` is filled with
+   * `SHELL_COPY.navProfile` ("Profile"), the screen the phone's pairing control lives on.
    */
   pairHeading: "Have a pairing code?",
-  pairLead: "A code signs this browser into the account that made it. It works once, and only for five minutes.",
+  pairLead: "Your phone makes one in {tab}.",
   pairLabel: "Your pairing code",
-  pairButton: "Connect this browser",
+  pairButton: "Pair this browser",
   errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
   /** Three places want it and it was typed out in each. */
   continueLabel: "Continue",
@@ -264,9 +265,9 @@ const FR: PageCopy = {
   chatCaption: "Quelque chose que je devrais savoir ? (facultatif)",
   errorSignIn: "Cette connexion n'a pas abouti. Réessaie.",
   pairHeading: "Tu as un code d'appairage ?",
-  pairLead: "Un code connecte ce navigateur au compte qui l'a créé. Il marche une fois, et seulement pendant cinq minutes.",
+  pairLead: "Ton téléphone en crée un dans {tab}.",
   pairLabel: "Ton code d'appairage",
-  pairButton: "Connecter ce navigateur",
+  pairButton: "Appairer ce navigateur",
   errorPair: "Ce code n'a pas marché. Un code marche une fois, et seulement cinq minutes après sa création.",
   continueLabel: "Continuer",
   answerRequired: "Cette question attend une réponse.",
@@ -339,9 +340,9 @@ const DE: PageCopy = {
   chatCaption: "Soll ich noch etwas wissen? (optional)",
   errorSignIn: "Diese Anmeldung ist nicht durchgegangen. Versuch es noch einmal.",
   pairHeading: "Hast du einen Kopplungscode?",
-  pairLead: "Ein Code meldet diesen Browser bei dem Konto an, das ihn erzeugt hat. Er gilt einmal und nur fünf Minuten lang.",
+  pairLead: "Dein Telefon erstellt ihn in {tab}.",
   pairLabel: "Dein Kopplungscode",
-  pairButton: "Diesen Browser verbinden",
+  pairButton: "Diesen Browser koppeln",
   errorPair: "Dieser Code hat nicht funktioniert. Ein Code gilt einmal und nur fünf Minuten nach seiner Erzeugung.",
   continueLabel: "Weiter",
   answerRequired: "Die hier braucht eine Antwort.",
@@ -414,9 +415,9 @@ const IT: PageCopy = {
   chatCaption: "C'è qualcosa che dovrei sapere? (facoltativo)",
   errorSignIn: "Quell'accesso non è andato a buon fine. Riprova.",
   pairHeading: "Hai un codice di collegamento?",
-  pairLead: "Un codice collega questo browser all'account che l'ha creato. Vale una volta sola, e solo per cinque minuti.",
+  pairLead: "Il telefono ne crea uno in {tab}.",
   pairLabel: "Il tuo codice di collegamento",
-  pairButton: "Collega questo browser",
+  pairButton: "Abbina questo browser",
   errorPair: "Quel codice non ha funzionato. Un codice vale una volta sola, e solo per cinque minuti da quando è stato creato.",
   continueLabel: "Continua",
   answerRequired: "Questa ha bisogno di una risposta.",
@@ -489,9 +490,9 @@ const ES: PageCopy = {
   chatCaption: "¿Algo que deba saber? (opcional)",
   errorSignIn: "Ese inicio de sesión no se completó. Inténtalo otra vez.",
   pairHeading: "¿Tienes un código de vinculación?",
-  pairLead: "Un código conecta este navegador con la cuenta que lo creó. Vale una vez, y solo durante cinco minutos.",
+  pairLead: "Tu teléfono crea uno en {tab}.",
   pairLabel: "Tu código de vinculación",
-  pairButton: "Conectar este navegador",
+  pairButton: "Vincular este navegador",
   errorPair: "Ese código no funcionó. Un código vale una vez, y solo durante cinco minutos desde que se crea.",
   continueLabel: "Continuar",
   answerRequired: "Esa necesita una respuesta.",
@@ -564,9 +565,9 @@ const VI: PageCopy = {
   chatCaption: "Có gì mình nên biết không? (không bắt buộc)",
   errorSignIn: "Lần đăng nhập đó chưa hoàn tất. Thử lại nhé.",
   pairHeading: "Bạn có mã ghép nối không?",
-  pairLead: "Một mã sẽ đăng nhập trình duyệt này vào tài khoản đã tạo ra nó. Dùng được một lần, và chỉ trong năm phút.",
+  pairLead: "Điện thoại tạo một mã trong {tab}.",
   pairLabel: "Mã ghép nối của bạn",
-  pairButton: "Kết nối trình duyệt này",
+  pairButton: "Ghép trình duyệt này",
   errorPair: "Mã đó không dùng được. Mỗi mã chỉ dùng một lần, và chỉ trong năm phút kể từ khi tạo.",
   continueLabel: "Tiếp tục",
   answerRequired: "Câu này cần một câu trả lời.",
@@ -639,9 +640,9 @@ const ID: PageCopy = {
   chatCaption: "Ada yang perlu aku tahu? (opsional)",
   errorSignIn: "Proses masuk itu tidak selesai. Coba lagi.",
   pairHeading: "Punya kode penyambung?",
-  pairLead: "Kode memasukkan browser ini ke akun yang membuatnya. Berlaku sekali, dan hanya selama lima menit.",
+  pairLead: "Ponsel membuatnya di {tab}.",
   pairLabel: "Kode penyambungmu",
-  pairButton: "Sambungkan browser ini",
+  pairButton: "Pasangkan browser ini",
   errorPair: "Kode itu tidak berhasil. Kode berlaku sekali, dan hanya lima menit setelah dibuat.",
   continueLabel: "Lanjut",
   answerRequired: "Yang ini butuh jawaban.",
@@ -714,9 +715,9 @@ const RU: PageCopy = {
   chatCaption: "Есть что-то, что мне стоит знать? (необязательно)",
   errorSignIn: "Этот вход не завершился. Попробуй ещё раз.",
   pairHeading: "Есть код привязки?",
-  pairLead: "Код входит этим браузером в аккаунт, который его создал. Работает один раз и только пять минут.",
+  pairLead: "Телефон создаёт его в разделе {tab}.",
   pairLabel: "Твой код привязки",
-  pairButton: "Подключить этот браузер",
+  pairButton: "Привязать этот браузер",
   errorPair: "Этот код не сработал. Код работает один раз и только пять минут после создания.",
   continueLabel: "Дальше",
   answerRequired: "На этот нужен ответ.",

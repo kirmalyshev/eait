@@ -43,6 +43,9 @@ describe("what /start says for itself, in eight languages", () => {
     for (const lang of LANGS) {
       const copy = pageCopyFor(lang);
       expect(copy.belowHealthyTarget, lang).toContain("{kg}");
+      // The pairing hint names the tab the phone's control lives on — `{tab}` is filled with
+      // SHELL_COPY's navProfile, so a translation that drops it renders "in ." for nothing.
+      expect(copy.pairLead, lang).toContain("{tab}");
       // A meal card's three. Dropping `{unit}` is how `UNIT_KCAL` and a translation come apart.
       for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
         expect(copy.cardMacros, `${lang}.cardMacros`).toContain(ph);
@@ -61,7 +64,7 @@ describe("what /start says for itself, in eight languages", () => {
       for (const [k, v] of Object.entries({ ...copy, ...signupCopyFor(lang) })) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
-            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy"],
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab"],
             `${lang}.${k}`,
           ).toContain(m[1] ?? "");
         }

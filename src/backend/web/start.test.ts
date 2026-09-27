@@ -354,6 +354,20 @@ describe("the sign-up screen", () => {
     expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
+  it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
+    const html = await (await get("/start/signup")).text();
+    // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
+    expect(html).toContain('/start/assets/img/hero.webp');
+    // Apple in black, Google secondary — the buttons carry the brands' own artwork.
+    expect(html).toContain('class="cta apple"');
+    expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));
+    // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
+    expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
+    expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
+    // The pairing card names where the code comes from — the shipped tab's own word.
+    expect(html).toContain(PAGE_COPY.pairLead.replace("{tab}", "Profile"));
+  });
+
   it("offers only what is configured", async () => {
     router(CONFIG, { apple: PROVIDERS.apple! });
     const html = await (await get("/start/signup")).text();

@@ -507,6 +507,15 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
+  // The sign-up's plate photograph (the pay-signin board's hero), on this origin for the same
+  // reason the fonts are: `img-src 'self'` loads nothing from anyone else. Whitelist, like the
+  // fonts — the name is never built from request bytes.
+  if (req.method === "GET" && pathname === `${START_PREFIX}/assets/img/hero.webp`) {
+    return new Response(Bun.file(new URL("./assets/hero.webp", import.meta.url)), {
+      headers: { "content-type": "image/webp", "cache-control": "public, max-age=604800" },
+    });
+  }
+
   // ONE CHAT ON THE WEB (#499). Where this deployment has a web application, ITS chat is the chat:
   // the short link and this page's own address both send people there, signed in or not — it has
   // its own way to sign somebody in. The page below stays for a deployment with no web application,
@@ -577,7 +586,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const PAGE_COPY = pageCopyFor(lang);
     return html(signUp({
       providers: offered.map((p) => ({
-        action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+        id: p, action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
       })),
       error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
         : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
