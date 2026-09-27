@@ -175,10 +175,12 @@ describe("the type ramp", () => {
     // The ruler's big number and Home's "kcal left".
     expect(TYPE.bigNumber.size).toBe(56);
     expect(TYPE.dayKcal.size).toBe(48);
+    // The landing's hero: 34 on a phone, 52 on the window — the one role with a web size.
+    expect(TYPE.hero).toMatchObject({ size: 34, web: 52, weight: 700, tracking: -0.03 });
   });
 
   test("display is tight and 1.1, text is 1.45", () => {
-    for (const role of ["display34", "display28", "display22", "display17", "dayKcal"] as const) {
+    for (const role of ["hero", "display34", "display28", "display22", "display17", "dayKcal"] as const) {
       expect(TYPE[role].lineHeight).toBe(1.1);
       expect(TYPE[role].tracking).toBeLessThan(0);
     }

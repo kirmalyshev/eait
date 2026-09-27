@@ -81,11 +81,15 @@ export type TypeRole = keyof typeof TYPE;
 
 /**
  * The ramp, in the units the drawing uses: px for size, em for tracking. Display steps are tight
- * with a 1.1 line height; reading text is 1.45. A renderer that needs points multiplies tracking
- * by size itself — React Native's `letterSpacing` is points, not em, and that conversion is the
- * renderer's job.
+ * with a 1.1 line height; reading text is 1.45. `size` is the phone's value; `web` is given only
+ * where the window uses a different one (the landing's hero), and is otherwise the same number. A
+ * renderer that needs points multiplies tracking by size itself — React Native's `letterSpacing`
+ * is points, not em, and that conversion is the renderer's job.
  */
 export const TYPE = {
+  /** The landing's headline: 34 on a phone, 52 on a desktop — the reviewer's own deviation from
+      the app scale. */
+  hero: { size: 34, web: 52, weight: 700, tracking: -0.03, lineHeight: 1.1 },
   /** The largest display step — section-level headlines and the pace screen's question. */
   display34: { size: 34, weight: 700, tracking: -0.02, lineHeight: 1.1 },
   display28: { size: 28, weight: 700, tracking: -0.02, lineHeight: 1.1 },
