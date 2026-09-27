@@ -15,7 +15,7 @@ import {
   screenForStep, screenOptionValues, screenOptions,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
   answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber,
-  isAnswered, minHealthyKg, offerHeadline, promptsFor, reactionTo, reconcileGoalEdit,
+  isAnswered, minHealthyKg, offerHeadline, planHeadline, promptsFor, reactionTo, reconcileGoalEdit,
   restrictionsReply, resumeAt, supportMoment,
   struggleCard, strugglesCloser, switchedLine, weightAck,
   type ChatPromptId, type Profile, type Struggle,
@@ -768,6 +768,51 @@ describe("the soft offer's headline", () => {
       const h = offerHeadline(her, SEP_24, lang);
       expect(h).not.toBeNull();
       expect(h).not.toContain("{");
+    }
+  });
+});
+
+describe("planHeadline", () => {
+  // The same persona the soft-offer tests use: 74 → 68 kg is a promise to lose 6 kg.
+  const her = profile({
+    goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
+    target_weight_kg: 68, pace: "steady", activity: "few",
+  });
+  const SEP_24 = new Date("2026-09-24T12:00:00Z");
+
+  it("names the amount to lose and the month the plan's own projection reaches it", () => {
+    // The board's own numbers: the persona at 74 → 68 kg reads "lose 6 kg by January 2027".
+    expect(planHeadline(her, SEP_24, "metric", "en")).toBe("Goal: lose 6 kg by January 2027");
+  });
+
+  it("says it in the reader's units — pounds, never a stored one rewritten", () => {
+    expect(planHeadline(her, SEP_24, "imperial", "en")).toBe("Goal: lose 13 lbs by January 2027");
+  });
+
+  it("writes Russian pounds as the symbol, because the word declines wrong for 1 and 2–4", () => {
+    // A 1 kg loss is 2 lb: "минус 2 lb", never "минус 2 фунтов".
+    const near = profile({ ...her, target_weight_kg: 73 });
+    expect(planHeadline(near, SEP_24, "imperial", "ru")).toContain("минус 2 lb");
+  });
+
+  it("is null wherever the plan draws no such headline: maintaining, gaining, or no target", () => {
+    expect(planHeadline(profile({ ...her, goal: "maintain", target_weight_kg: null }), SEP_24, "metric", "en")).toBeNull();
+    expect(planHeadline(profile({ ...her, goal: "gain", target_weight_kg: 80 }), SEP_24, "metric", "en")).toBeNull();
+    expect(planHeadline(profile({ ...her, target_weight_kg: null }), SEP_24, "metric", "en")).toBeNull();
+  });
+
+  it("is null past the projection horizon, where the plan names no month", () => {
+    const far = profile({ ...her, weight_kg: 180, target_weight_kg: 80, pace: "easy" });
+    expect(planHeadline(far, SEP_24, "metric", "en")).toBeNull();
+  });
+
+  it("has a metric and an imperial template in every language, each fully filled", () => {
+    for (const lang of LANGS) {
+      for (const units of ["metric", "imperial"] as const) {
+        const h = planHeadline(her, SEP_24, units, lang);
+        expect(h, `${lang}/${units}`).not.toBeNull();
+        expect(h, `${lang}/${units}`).not.toContain("{");
+      }
     }
   });
 });

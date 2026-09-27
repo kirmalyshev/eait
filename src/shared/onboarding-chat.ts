@@ -42,6 +42,7 @@ import {
 } from "./targets.ts";
 import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth } from "./projection.ts";
+import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
 import { ACTIVITY_LEVELS, SEXES } from "./types.ts";
@@ -948,6 +949,29 @@ export function offerHeadline(p: Profile, today: Date, lang: Lang): string | nul
   if (projection === null || projection.beyondHorizon) return null;
   return fill(chatCopyFor(lang).offerHeadline, {
     kg: numbers(lang)(p.target_weight_kg),
+    month: projectionMonth(today, projection.weeks, lang),
+  });
+}
+
+/**
+ * The plan headline over the progress graph (S6; board `15-plan`): "Goal: lose 6 kg by January
+ * 2027" — the goal the user already stated, restated with the plan's own projection.
+ *
+ * LOSE ONLY, and only where `projectGoal` names an arrival: maintain, gain, a missing target and
+ * a projection past the horizon all draw nothing, because no board draws them a headline. The
+ * amount is current − target in the reader's `units` (the unit word is part of the template, per
+ * the unit rule in this workspace's AGENTS.md); the month is the plan's own, year included.
+ *
+ * This is the ONE sentence the claims gate exempts from `weight-promise` — `CLAIM_EXEMPTIONS` in
+ * `claims.ts` names the key — a published promise, not a hole in the gate.
+ */
+export function planHeadline(p: Profile, today: Date, units: UnitSystem, lang: Lang): string | null {
+  if (p.goal !== "lose" || p.weight_kg === null || p.target_weight_kg === null) return null;
+  const projection = projectGoal(p, explainTargets(p, today).basis);
+  if (projection === null || projection.beyondHorizon) return null;
+  const loss = p.weight_kg - p.target_weight_kg;
+  return fill(chatCopyFor(lang).planGoal[units], {
+    n: numbers(lang)(units === "imperial" ? kgToLb(loss) : loss),
     month: projectionMonth(today, projection.weeks, lang),
   });
 }

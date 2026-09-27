@@ -17,10 +17,14 @@
 // this product ships, in all eight, run through the gate its own surface uses.
 
 import { describe, expect, it } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { lintCopy } from "./claims.ts";
 import { LANGS } from "./types.ts";
 import { NOTIFICATION_COPY } from "./notifications.ts";
 import { ONBOARDING_CONTENT } from "./onboarding-content.ts";
+import { chatCopyFor } from "./onboarding-chat-copy.ts";
+import { projectionMonth } from "./projection.ts";
 
 /** Every phrase the gate must refuse, by family and by language. */
 const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> = {
@@ -201,6 +205,95 @@ describe("every sentence this product ships", () => {
       walk(content, "");
       expect(lintCopy(fields, ["retired-no-email"]).map((v) => `${v.field}: ${v.span}`), lang)
         .toEqual([]);
+    }
+  });
+});
+
+// ── The one exemption (S6) ───────────────────────────────────────────────────────────────────
+//
+// "Goal: lose 6 kg by January 2027" is drawn above the plan graph — the user's own stated goal,
+// restated with the plan's own projection. `weight-promise` cannot tell it from a marketing
+// claim, so `claims.ts` exempts exactly one field name, `CHAT_COPY.planGoal`, and these tests
+// prove both halves: the key passes, and the same words anywhere else are still refused.
+
+describe("the plan headline's claims exemption", () => {
+  const SEP_24 = new Date("2026-09-24T12:00:00Z");
+  const KEY = "CHAT_COPY.planGoal";
+
+  /** The sentence the plan graph draws, filled the way `planHeadline` fills it (6 kg ≈ 13 lb). */
+  const filled = (lang: (typeof LANGS)[number], units: "metric" | "imperial"): string =>
+    chatCopyFor(lang).planGoal[units]
+      .replace("{n}", units === "metric" ? "6" : "13")
+      .replace("{month}", projectionMonth(SEP_24, 16, lang));
+
+  it("passes under its own name, in all eight languages and both units", () => {
+    for (const lang of LANGS) {
+      for (const units of ["metric", "imperial"] as const) {
+        expect(lintCopy({ [KEY]: filled(lang, units) }), `${lang}/${units}`).toEqual([]);
+      }
+    }
+  });
+
+  it("applies weight-promise alone — every other rule still reads the field", () => {
+    expect(lintCopy({ [KEY]: "Goal: lose 6 kg by January 2027, guaranteed results" })
+      .map((v) => v.pattern)).toContain("guarantee");
+  });
+
+  it("refuses the same sentence under any other name — the landing, PAGE_COPY, notifications, WEB_COPY", () => {
+    for (const lang of LANGS) {
+      const sentence = filled(lang, "metric");
+      // The sentence must BE a claim, or a pass under another name would prove nothing.
+      expect(lintCopy({ anything: sentence }).map((v) => v.pattern), lang)
+        .toContain("weight-promise");
+      for (const field of [
+        "PAGE_COPY.planHeading", "WEB_COPY.tagline", "notification.daily.title", "landing.hero",
+      ]) {
+        expect(lintCopy({ [field]: sentence }).map((v) => v.pattern), `${lang}:${field}`)
+          .toContain("weight-promise");
+      }
+    }
+    // Imperial too, where the word trips: English "lbs" is a banned unit word, "lb" is not one
+    // the other languages' patterns read.
+    expect(lintCopy({ "PAGE_COPY.planHeading": filled("en", "imperial") })
+      .map((v) => v.pattern)).toContain("weight-promise");
+  });
+
+  it("pins who may publish it — the gate reads strings, not call sites", () => {
+    // lintCopy cannot see WHICH surface renders the sentence; decision 4 allows the onboarding
+    // plan screen alone. So the non-test files that call `planHeadline` or read `planGoal` are
+    // enumerated here: today the helper's own module only, and W3's /start plan renderer adds
+    // itself to this list in its own PR. A file joining this list that is not the plan screen is
+    // a promise being published where it was not approved — this test, not the gate, sees it.
+    const root = join(import.meta.dir, "..", "..");
+    const SKIP_DIRS = new Set([".git", "node_modules", "dist"]);
+    const callers: string[] = [];
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) {
+          if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name));
+          continue;
+        }
+        if (!e.name.endsWith(".ts") || e.name.endsWith(".test.ts") || e.name.endsWith(".pw.ts")) continue;
+        const file = join(dir, e.name);
+        const src = readFileSync(file, "utf8");
+        // `"CHAT_COPY.planGoal"` is the exemption NAMING the key, not a read of it — the lookbehind
+        // keeps `claims.ts` itself out of a list about callers.
+        if (/\bplanHeadline\s*\(/.test(src) || /(?<!CHAT_COPY)\.planGoal\b/.test(src)) {
+          callers.push(relative(root, file));
+        }
+      }
+    };
+    walk(root);
+    expect(callers.sort()).toEqual(["src/shared/onboarding-chat.ts"]);
+  });
+
+  it("sweeps the key's own templates with every rule except the one it is exempt from", () => {
+    // Under the qualified name the exemption applies, so what runs here is the full set minus
+    // `weight-promise` — which is what makes a guarantee or a detox in a translation still fail.
+    for (const lang of LANGS) {
+      const key = chatCopyFor(lang).planGoal;
+      expect(lintCopy({ [KEY]: key.metric }), `${lang}.metric`).toEqual([]);
+      expect(lintCopy({ [KEY]: key.imperial }), `${lang}.imperial`).toEqual([]);
     }
   });
 });
