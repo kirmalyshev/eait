@@ -12,6 +12,7 @@ export * from "./first-meal-copy.ts";
 export * from "./onboarding-content.ts";
 export * from "./onboarding-chat.ts";
 export * from "./contract.ts";
+export * from "./foods.ts";
 export * from "./perf.ts";
 export * from "./dates.ts";
 export * from "./health.ts";

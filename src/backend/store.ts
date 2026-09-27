@@ -15,6 +15,7 @@ import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
+import type { FoodRef, OffProduct } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
@@ -899,6 +900,40 @@ export interface Store {
    * the gap only shows up as a row that does not add up, hours either side of midnight.
    */
   adminMetrics(query: AdminMetricsQuery): Promise<AdminMetrics>;
+
+  // ── The food catalog (`food_ref`, `off_product`) ─────────────────────────────────────────────
+  //
+  // GLOBAL, like the prompts above and for the same reason: a BLS oat or a jar of Nutella is not
+  // anybody's data, so these methods take no `userId` and sit in `unscoped` in SCOPE. The tables
+  // carry no `user_id`, so the row-level policies never see them at all.
+  //
+  // The WRITE side is the ingest: the bulk loaders in `scripts/` pour a source's rows through
+  // `putFoodRefs`/`putOffProducts`, and the same two statements are what a future label-OCR
+  // write-back calls with a batch of one — which is why `off_product` is keyed on the barcode
+  // itself rather than a synthetic id.
+
+  /**
+   * The generic foods whose `name`, `name_de` or `name_en` contains `query`, case-insensitive —
+   * closest match first (the name the needle lands earliest in), then the shortest name, then
+   * alphabetical, so both stores order identically. At most `limit`, which the engine clamps.
+   */
+  searchFoods(query: string, limit: number): Promise<FoodRef[]>;
+  /** One barcoded product, or null — a miss is the common case and the label-read path's cue. */
+  offProductByBarcode(barcode: string): Promise<OffProduct | null>;
+  /**
+   * Upsert generic foods by `id`. Returns the number of rows written — an ingest reports it,
+   * and a test reads whether an upsert landed.
+   */
+  putFoodRefs(rows: FoodRef[]): Promise<number>;
+  /**
+   * Upsert products by `barcode`. Returns the number of rows written.
+   *
+   * One rule of precedence, stated HERE rather than by the callers: a `label-ocr` row is a phone's
+   * read of the actual package, so a dump row (`source: 'off'`) may overwrite it only when the
+   * dump row carries a calorie figure — an empty OFF row never displaces a contributed one. A
+   * `label-ocr` row always lands.
+   */
+  putOffProducts(rows: OffProduct[]): Promise<number>;
 
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   /** False when a meal with this id already exists — a confirm racing itself; the first one won. */

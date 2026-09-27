@@ -176,6 +176,15 @@ export const API: readonly Endpoint[] = [
     summary: "Erase the account and everything it holds.",
     responses: { 200: { type: "object", properties: { deleted: { const: true } }, required: ["deleted"] } } },
 
+  // ── The food catalog ──
+  { route: "foods", method: "GET", path: "/v1/foods", auth: "bearer",
+    summary: "Search the generic-food catalog by name, in any language a source carries.",
+    query: { q: "Name substring, case-insensitive.", limit: "Page size; capped server-side." },
+    responses: { 200: "FoodSearchResponse", 400: ERROR, 429: ERROR } },
+  { route: "product", method: "GET", path: "/v1/products/{barcode}", auth: "bearer",
+    summary: "The barcoded product the catalog knows — a miss is `product: null`, not an error.",
+    responses: { 200: "ProductResponse", 400: ERROR, 429: ERROR } },
+
 ];
 
 /** `ROUTES` keys that are not JSON endpoints, with the reason each is left out. */
