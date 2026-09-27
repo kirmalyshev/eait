@@ -52,8 +52,8 @@ the exclude is written so a new file in this directory is browser code by defaul
   icons, motion, geometry, units — and the surface copy tables may be imported by RELATIVE path, as
   `../shared/mascot.ts`, `stream.ts`, `budget.ts` and `copy.ts` already are. The boundary that makes
   it safe is enforced by a test in `src/shared/ui.test.ts`: a module in `ui/` may import another
-  module in `ui/` or `lang.ts`, and nothing else — the day one reaches back into the workspace it
-  pulls the runtime in and the test fails.
+  module in `ui/`, `palette.ts`, `design.ts` or `lang.ts`, and nothing else — the day one reaches
+  back into the workspace it pulls the runtime in and the test fails.
 - **Every request goes through `api.ts`, and every path is RELATIVE.** Never `https://api.eait.fit`,
   and never the backend's own port. The backend has no CORS headers anywhere and must not gain any;
   the moment a cross-origin call is attempted the fix that suggests itself is
