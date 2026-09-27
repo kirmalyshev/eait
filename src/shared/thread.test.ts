@@ -20,7 +20,8 @@ const base = () => ({ id: `s${++seq}`, seq, ts: "2026-08-25T12:00:00.000Z" });
 const userLine = (text: string, o: { clientId?: string; pendingId?: string } = {}): ChatEntry =>
   ({ ...base(), role: "user", kind: "text", text, clientId: o.clientId ?? null, pendingId: o.pendingId ?? null });
 const said = (text: string, speaker: ChatSpeaker | null = null): ChatEntry => ({ ...base(), role: "assistant", kind: "text", text, speaker });
-const card = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry => ({ ...base(), role: "assistant", kind: "meal", event: "logged", mealId, meal: m });
+const card = (m: MealRecord | null, mealId = m?.id ?? null, speaker: ChatSpeaker | null = null): ChatEntry =>
+  ({ ...base(), role: "assistant", kind: "meal", event: "logged", mealId, meal: m, speaker });
 
 describe("reconcilePage", () => {
   it("supersedes a 'not sent' bubble by exactly the landed line carrying its id, never by its words", () => {
@@ -235,7 +236,7 @@ describe("oneCardPerMeal — #301", () => {
   // one, each correction another — and `chatHistory` resolves every one of them to the meal as it
   // is NOW, so two cards for one meal are the same numbers printed twice.
   const upd = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry =>
-    ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m });
+    ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m, speaker: null });
 
   it("keeps only the newest card for a meal, in the newest one's place", () => {
     const first = card(meal("m1", 300));
@@ -270,7 +271,7 @@ describe("oneCardPerMeal — #301", () => {
 
   it("treats a re-date as the meal's newest mention, gone meal included", () => {
     const logged = card(meal("m1", 300));
-    const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null };
+    const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null, speaker: null };
     expect(oneCardPerMeal(fromHistory([logged, moved])).map((e) => e.id)).toEqual([moved.id]);
   });
 });
@@ -343,17 +344,29 @@ const landed: ChatResult = {
 };
 
 describe("speakerOf", () => {
-  it("names the user, Gabie on her answers, and Spud on everything else he says or shows", () => {
+  it("names the user, Gabie on every line the chat engines produce, and Spud on onboarding's", () => {
     expect(speakerOf({ id: "u1", role: "user", text: "hi" })).toBe("user");
-    // Gabie's answers are hers again (S9): a stored row that carries her speaker keeps it.
-    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: "gabie" }))).toBe("gabie");
-    // Absent or null is Spud, the host — the rule `ChatSpeaker` states.
-    expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("spud");
-    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: null }))).toBe("spud");
-    // A card, a refusal and a proposal are Spud showing something, never Gabie answering.
+    // S9 / overseer: the boards draw no Spud in Chat — every assistant line the chat and
+    // meal-edit engines write is hers, read back from the speaker stored at write time.
+    for (const result of [
+      { kind: "answered", text: "hi", speaker: "gabie" },
+      proposal, landed,
+      { kind: "expired" },
+      { kind: "not-food" },
+    ] as ChatResult[]) {
+      expect(speakerOf(spoke(result)), result.kind).toBe("gabie");
+    }
+    // A live answer before its round trip is hers the same way.
+    expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("gabie");
+    // Stored history reads its own speaker: hers was written, Spud's was not — an onboarding ask
+    // or a line the app appended by id carries no speaker and stays his.
+    expect(speakerOf(fromHistory([said("hi", "gabie")])[0]!)).toBe("gabie");
+    expect(speakerOf(fromHistory([said("hi")])[0]!)).toBe("spud");
+    // A card the engine logged is hers; one stored before the column is history — Spud's.
+    expect(speakerOf(fromHistory([card(meal("m1", 300), null, "gabie")])[0]!)).toBe("gabie");
     expect(speakerOf(fromHistory([card(meal("m1", 300))])[0]!)).toBe("spud");
-    expect(speakerOf({ id: "e1", role: "error", kind: "offline" })).toBe("spud");
-    expect(speakerOf(spoke(proposal))).toBe("spud");
+    // A moment is chat-state, and the boards give it no face — hers.
+    expect(speakerOf({ id: "e1", role: "error", kind: "offline" })).toBe("gabie");
   });
 });
 

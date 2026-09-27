@@ -243,7 +243,7 @@ async function logPhotoTurn(
       lines: [
         // A bubble that names a meal with no photo behind it is an empty frame in the thread.
         { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null, analysisId },
-        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
         // Where the DAY now stands (#306) — the sentence a correction already got, on every meal
         // that is not the account's first. The greeting carries the same arithmetic, so an empty
@@ -252,7 +252,7 @@ async function logPhotoTurn(
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
         // is delivered, then queried. There is no line kind for it, because a question that needed
         // one would be a question the Chat tab could not show when the app scrolls back to it.
-        ...(question ? [{ role: "assistant", kind: "text", text: question.text, model: deps.config.llmModel } as const] : []),
+        ...(question ? [{ role: "assistant", kind: "text", text: question.text, speaker: "gabie", model: deps.config.llmModel } as const] : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
     };
@@ -370,7 +370,7 @@ export async function editMeal(
   const changed = NUMBERS.some((k) => merged[k] !== existing[k]);
   if (opts.thread !== false) {
     await remember(deps, userId, async () => [
-      { role: "assistant", kind: "meal", mealId, event: "updated" },
+      { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
       ...(changed ? await afterCorrection(deps, userId, updated, totals) : []),
     ]);
   }
@@ -608,7 +608,7 @@ export async function confirmPendingMeal(
     return {
       // The words were kept when they were said; this is the card, and on a first meal the verdict.
       lines: [
-        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
         // The same line a photo meal gets (#306): a confirmed estimate is a landed meal.
         ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
@@ -637,7 +637,7 @@ export async function cancelPendingMeal(
   // A THUNK, so the profile read that words it sits inside `remember`'s guard: the drop has
   // already happened and a store hiccup here must not turn a cancel into a failure.
   await remember(deps, userId, async () => [{
-    role: "assistant", kind: "text",
+    role: "assistant", kind: "text", speaker: "gabie",
     text: scriptedLine("dropped", (await deps.store.getProfile(userId))?.lang ?? "en"),
   }]);
   return { kind: "cancelled" };

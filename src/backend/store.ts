@@ -110,7 +110,7 @@ export type ChatAppend =
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
   | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null; analysisId?: string | null }
   | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null }
-  | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
+  | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent; speaker?: ChatSpeaker | null };
 
 /** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
 export interface ChatMessage {

@@ -364,7 +364,7 @@ describe("the question after the card", () => {
     const last = entries[entries.length - 1]!;
     const standing = entries[entries.length - 2]!;
     const beforeIt = entries[entries.length - 3]!;
-    expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text, speaker: null });
+    expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text, speaker: "gabie" });
     expect(standing).toMatchObject({ role: "assistant", kind: "text" });
     expect(standing.kind === "text" ? standing.text : "").toMatch(/ left today, /);
     expect(beforeIt).toMatchObject({ role: "assistant", kind: "meal", mealId: res.mealId });
@@ -1296,14 +1296,13 @@ describe("the thread", () => {
       ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"],
     ]);
     expect(text(t[0]!)).toBe("two eggs and toast");
-    // The question's answer is Gabie's; the pills' headline first, then the typed caveat — Spud's
-    // lines all of them, and nobody is introduced.
+    // Every assistant line the engine wrote is Gabie's (S9, overseer): the answer, the card, the
+    // pills' headline first, then the typed caveat — she signs all of it.
     expect(t[2]).toMatchObject({ kind: "text", speaker: "gabie" });
     const headlines = Object.values(threadCopyFor("en").firstVerdict.headline);
     expect(headlines.includes(text(t[4]!)!)).toBe(true);
     expect(text(t[5]!)).toContain("Typed, not photographed");
-    for (const e of t.slice(4)) expect(e).toMatchObject({ kind: "text", speaker: null });
-    expect(JSON.stringify(t.slice(3))).not.toMatch(/gabie/i);
+    for (const e of t.slice(2)) expect(e).toMatchObject({ speaker: "gabie" });
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
