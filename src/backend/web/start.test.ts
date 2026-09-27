@@ -339,6 +339,20 @@ describe("the one control script", () => {
     // The welcome's recorded loop is same-origin media, and the CSP says so.
     expect(csp).toContain("media-src 'self'");
   });
+
+  it("parses as JavaScript — a cooked escape in the template kills every page silently", async () => {
+    // CONTROL_SCRIPT is a TEMPLATE LITERAL that emits JavaScript: `\p` inside it cooks to a
+    // plain `p` and the country's accent-folding regex ships as `/p{M}/` — a SyntaxError that
+    // disabled EVERY enhancement on every page and the suite only noticed because a live
+    // filter stopped hiding rows. So the source text is compiled here, the same failure the
+    // browser had.
+    const res = await get("/start");
+    const html = await res.text();
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1]!;
+    expect(() => new Function(script)).not.toThrow();
+    // And the specific folding regex is the doubled-backslash one, surviving to the wire.
+    expect(script).toContain("\\p{M}");
+  });
 });
 
 describe("the sign-up screen", () => {
