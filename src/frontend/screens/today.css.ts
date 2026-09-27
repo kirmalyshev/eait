@@ -22,6 +22,8 @@ export const todayCss = `
 .kcard .ktg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .kcard .kfig { font-size: 44px; font-weight: 700; letter-spacing: -.03em; display: block;
   line-height: 1.05; }
+/* The boards' two figure sizes: 48 on today's toggle card, 44 on the 96 px detail form. */
+.kcard .kfig.big { font-size: 48px; }
 .kcard .kfig .about { font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--muted);
   margin-right: 4px; }
 .kcard.over .kfig { color: var(--bad); }
@@ -49,6 +51,9 @@ export const todayCss = `
 .hsr.day .hnum { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .hsr.day .chev .ico { width: 16px; height: 16px; color: var(--muted); }
 .hsr.day .hfrom { font-size: 12px; color: var(--muted); }
+/* flex:none — the kit's .hsr .hsb{flex:1} is a row form; in this column a basis of 0% left the
+   track 0 px tall (#170). */
+.hsr.day .hsb { flex: none; }
 .hsb { height: 6px; border-radius: var(--r-bar); background: var(--hair); overflow: hidden; }
 .hsb i { display: block; height: 100%; background: var(--ink); border-radius: var(--r-bar); }
 

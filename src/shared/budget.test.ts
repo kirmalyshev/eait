@@ -183,10 +183,10 @@ describe("kcalCardState", () => {
     expect(kcalCardState(b, true)).toEqual({ figure: 2500, label: "eaten", guessed: false });
   });
 
-  test("a past day under target is 'eaten' — a finished day has nothing left (#164)", () => {
+  test("a past day under target reads 'left' — the figure is what's left, never eaten (#170)", () => {
     const b = dayBudget(day(1500, { date: "2026-09-10" }), TODAY, "lose");
     expect(b.state).toBe("under");
-    expect(kcalCardState(b, false)).toEqual({ figure: 1500, label: "eaten", guessed: false });
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "left", guessed: false });
   });
 
   test("a past day with nothing on it shows the plan that day had", () => {
