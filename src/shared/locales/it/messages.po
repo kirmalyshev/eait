@@ -326,7 +326,7 @@ msgstr "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chi
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fammi una domanda."
+msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a {coach}."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

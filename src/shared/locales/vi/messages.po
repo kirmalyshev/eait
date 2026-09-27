@@ -326,7 +326,7 @@ msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn y�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi mình một câu."
+msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi {coach} một câu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

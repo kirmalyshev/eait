@@ -326,7 +326,7 @@ msgstr "Las grasas saturadas salen altas en esta. Puntuado solo porque me lo ped
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Manda la foto de una comida, dime qué comiste, o hazme una pregunta."
+msgstr "Manda la foto de una comida, dime qué comiste, o hazle una pregunta a {coach}."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

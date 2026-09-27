@@ -326,7 +326,7 @@ msgstr "Les graisses saturées sont élevées sur celui-ci. Noté uniquement par
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Envoie la photo d'un repas, dis-moi ce que tu as mangé, ou pose-moi une question."
+msgstr "Envoie la photo d'un repas, dis-moi ce que tu as mangé, ou pose une question à {coach}."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

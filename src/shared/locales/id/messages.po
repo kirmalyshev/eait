@@ -326,7 +326,7 @@ msgstr "Lemak jenuh makanan ini tinggi. Dinilai hanya karena kamu memintanya."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya aku sesuatu."
+msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya {coach} sesuatu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

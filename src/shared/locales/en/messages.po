@@ -326,7 +326,7 @@ msgstr "Saturated fat runs high on this one. Scored only because you asked me to
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Send a photo of a meal, tell me what you ate, or ask me a question."
+msgstr "Send a photo of a meal, tell me what you ate, or ask {coach} a question."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
