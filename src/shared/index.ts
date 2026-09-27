@@ -50,3 +50,4 @@ export * from "./ui/icons.ts";
 export * from "./app/meal-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/signup-copy.ts";
+export * from "./app/home-copy.ts";

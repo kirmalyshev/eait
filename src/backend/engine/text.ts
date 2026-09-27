@@ -175,7 +175,7 @@ async function textTurn(
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           answeredBy = deps.config.llmModel;
-          return { kind: "answered", text: routed.text };
+          return { kind: "answered", text: routed.text, speaker: "gabie" };
         }
       }
 
@@ -272,7 +272,7 @@ async function keep(
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
-      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
+      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
       // #119: the ONE computed line — Gabie's — names the change and what the verdicts did. A
       // correction always carried a focus meal; `before` being null is the target-gone case,
       // which returned before this thunk.

@@ -229,8 +229,9 @@ gets its meal names in that language.
   either surface until it went — typecheck green, every unit test passing, three countries still
   on the page. A client that falls back to `prompt.options ?? []` renders an empty screen.
 
-  *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
-  `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.
+  *Chat:* `threadCopyFor` (incl. `coach.name` — Gabie), `scriptedLine`, `firstVerdictLines`,
+  `runningLine`, `startersFor`, `speakerOf`, `oneLiveProposal`, `verdictPillLabel`,
+  `pendingLine` / `pendingSteps`.
   NOT `correctionLine` — `engine/chat.ts` writes that server-side and it arrives as text.
 
   *Health:* `healthLabel`, `correlationWords`, `trendPeriods`, `trendBuckets`, `trendSummary`,

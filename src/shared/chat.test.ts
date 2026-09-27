@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
-import { LANGS, type Lang } from "./types.ts";
+import { LANGS, STRUGGLES, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { COACH_STARTERS, MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
+import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -184,11 +184,30 @@ describe("the first verdict", () => {
 
 describe("coach", () => {
   it("offers a few starters, each short enough to be a chip and worded as the user would send it", () => {
-    expect(COACH_STARTERS("en").length).toBeGreaterThanOrEqual(3);
-    for (const s of COACH_STARTERS("en")) {
+    expect(startersFor(null, "en").length).toBeGreaterThanOrEqual(3);
+    for (const s of startersFor(null, "en")) {
       expect(s.length).toBeLessThanOrEqual(MAX_SUGGESTION);
       expect(s.trim()).toBe(s);
     }
+  });
+
+  it("names her Gabie in every shipped language until the per-language table is confirmed", () => {
+    for (const lang of LANGS) expect(threadCopyFor(lang).coach.name, lang).toBe("Gabie");
+  });
+
+  it("reads the struggles: the picked ones' starters first, the rest fill to three", () => {
+    // No pick (never asked, or asked and nothing chosen): the list order's first three.
+    expect(startersFor(null, "en")).toEqual([
+      "How's my week going?", "What's a lighter swap for dinner?", "Am I getting enough protein?",
+    ]);
+    expect(startersFor([], "en")).toEqual(startersFor(null, "en"));
+    // Picked ones lead, in STRUGGLES list order rather than tap order — busy before ideas.
+    expect(startersFor(["ideas", "busy"], "en")).toEqual([
+      "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
+    ]);
+    // Every struggle has a starter, and more than three picks still answer three.
+    expect(startersFor([...STRUGGLES].reverse(), "en")).toHaveLength(3);
+    expect(startersFor(["support"], "en")[0]).toBe("Am I getting enough protein?");
   });
 
   it("keeps only the suggestions a chip can carry: strings, short, distinct, at most three", () => {

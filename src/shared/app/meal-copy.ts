@@ -115,7 +115,7 @@ export interface MealCopy {
   changeStillHighAll: string;
   changeToPlan: string;
   changeToHigh: string;
-  changeToOver: string;
+  changeToVeryHigh: string;
   changeAllOnPlan: string;
 }
 
@@ -157,7 +157,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "All still high for one meal.",
     changeToPlan: "{dim} now on plan.",
     changeToHigh: "{dim} now high for one meal.",
-    changeToOver: "{dim} now over the plan.",
+    changeToVeryHigh: "{dim} now very high for one meal.",
     changeAllOnPlan: "All on plan now.",
   },
   fr: {
@@ -197,7 +197,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Tout est toujours au-dessus pour un repas.",
     changeToPlan: "{dim} maintenant dans le plan.",
     changeToHigh: "{dim} maintenant au-dessus pour un repas.",
-    changeToOver: "{dim} maintenant au-dessus du plan.",
+    changeToVeryHigh: "{dim} maintenant trop haut pour un repas.",
     changeAllOnPlan: "Tout est dans le plan maintenant.",
   },
   de: {
@@ -237,7 +237,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Alles immer noch hoch für eine Mahlzeit.",
     changeToPlan: "{dim} jetzt im Plan.",
     changeToHigh: "{dim} jetzt hoch für eine Mahlzeit.",
-    changeToOver: "{dim} jetzt über dem Plan.",
+    changeToVeryHigh: "{dim} jetzt sehr hoch für eine Mahlzeit.",
     changeAllOnPlan: "Jetzt alles im Plan.",
   },
   it: {
@@ -277,7 +277,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Tutto ancora sopra per un pasto.",
     changeToPlan: "{dim} ora nel piano.",
     changeToHigh: "{dim} ora sopra per un pasto.",
-    changeToOver: "{dim} ora sopra il piano.",
+    changeToVeryHigh: "{dim} ora molto sopra per un pasto.",
     changeAllOnPlan: "Ora tutto nel piano.",
   },
   es: {
@@ -317,7 +317,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Todo sigue por encima para una comida.",
     changeToPlan: "{dim} ahora en el plan.",
     changeToHigh: "{dim} ahora por encima para una comida.",
-    changeToOver: "{dim} ahora por encima del plan.",
+    changeToVeryHigh: "{dim} ahora muy por encima para una comida.",
     changeAllOnPlan: "Todo en el plan ahora.",
   },
   vi: {
@@ -357,7 +357,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Tất cả vẫn cao cho một bữa.",
     changeToPlan: "{dim} đã đúng kế hoạch.",
     changeToHigh: "{dim} giờ cao cho một bữa.",
-    changeToOver: "{dim} giờ vượt kế hoạch.",
+    changeToVeryHigh: "{dim} giờ rất cao cho một bữa.",
     changeAllOnPlan: "Giờ tất cả đúng kế hoạch.",
   },
   id: {
@@ -397,7 +397,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Semua masih tinggi untuk satu kali makan.",
     changeToPlan: "{dim} kini sesuai rencana.",
     changeToHigh: "{dim} kini tinggi untuk satu kali makan.",
-    changeToOver: "{dim} kini melebihi rencana.",
+    changeToVeryHigh: "{dim} kini sangat tinggi untuk satu kali makan.",
     changeAllOnPlan: "Semua sesuai rencana sekarang.",
   },
   ru: {
@@ -437,7 +437,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     changeStillHighAll: "Всё по-прежнему много для одного приёма пищи.",
     changeToPlan: "{dim} теперь в норме.",
     changeToHigh: "{dim} теперь много для одного приёма пищи.",
-    changeToOver: "{dim} теперь выше плана.",
+    changeToVeryHigh: "{dim} теперь очень много для одного приёма пищи.",
     changeAllOnPlan: "Теперь всё в норме.",
   },
 };

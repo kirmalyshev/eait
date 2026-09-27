@@ -97,7 +97,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "good", ldl: "good", kidneys: "warn" } }),
       meal({ items: [rice(200, 260)], kcal: 605, verdicts: { weight: "good", ldl: "warn", kidneys: "bad" } }),
       { lang: "en", restrictions: ["ldl", "kidneys"] });
-    expect(line).toBe("Rice 150 → 200 g: 540 → 605 kcal. Saturated fat now high for one meal. Sodium now over the plan.");
+    expect(line).toBe("Rice 150 → 200 g: 540 → 605 kcal. Saturated fat now high for one meal. Sodium now very high for one meal.");
   });
 
   it("says 'All on plan now' when every visible dimension landed on plan", () => {
@@ -143,7 +143,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn" } }),
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn", kidneys: "bad" } }),
       { lang: "en", restrictions: ["kidneys"] });
-    expect(line).toBe("Sodium now over the plan. Calories still high for one meal.");
+    expect(line).toBe("Sodium now very high for one meal. Calories still high for one meal.");
   });
 
   it("speaks the account's language", () => {

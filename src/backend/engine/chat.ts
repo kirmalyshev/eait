@@ -109,7 +109,7 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang) }];
+  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang), speaker: "gabie" }];
 }
 
 /**
@@ -135,7 +135,7 @@ export async function firstVerdict(
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
-  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text }));
+  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
   return { lines, undo: () => deps.store.releaseFirstVerdict(userId) };
@@ -294,7 +294,7 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
   if (m.kind === "meal") {
     return {
       ...base, role: "assistant", kind: "meal", event: m.event ?? "logged", mealId: m.mealId,
-      meal: (m.mealId && meals.get(m.mealId)) || null,
+      meal: (m.mealId && meals.get(m.mealId)) || null, speaker: m.speaker,
     };
   }
   return { ...base, role: "assistant", kind: "text", text: m.text ?? "", speaker: m.speaker };
