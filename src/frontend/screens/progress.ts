@@ -12,10 +12,9 @@ import { weightCard } from "../../shared/progress.ts";
 import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { dayMonth } from "../../shared/trend.ts";
-import { countText, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonth, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
+import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
-import { bmiRangeLabel, scoresCopy } from "../../shared/scores-copy.ts";
 import type {
   DaysResponse, PlanProjection, ProfileResponse, WeightsResponse,
 } from "@eait/shared";
@@ -29,7 +28,7 @@ const LOG_WEIGHT = "#/you"; // the weigh-in lives on You (W10), the same door it
 export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const me = frame.me;
   const copy = progressCopyFor(lang);
-  const scores = scoresCopy(lang);
+  const bmi = bmiCopy(lang);
   const units: UnitSystem = me?.profile.units ?? "metric";
   const n = numbers(lang);
   const nWhole = wholeNumbers(lang);
@@ -225,7 +224,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     help.setAttribute("aria-expanded", "false");
     help.setAttribute("aria-controls", "bmi-explainer");
     help.append(el("i", "ico i-help"));
-    head.append(el("span", "lab", scores.bmi), help);
+    head.append(el("span", "lab", bmi.bmi), help);
     card.append(head);
 
     if (w.bmi === null) {
@@ -267,7 +266,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     });
     card.append(labels);
 
-    const explainer = el("div", "t12 m bmix", scores.bmiExplainer);
+    const explainer = el("div", "t12 m bmix", bmi.bmiExplainer);
     explainer.id = "bmi-explainer";
     explainer.hidden = true;
     help.addEventListener("click", () => {

@@ -76,16 +76,19 @@ test("under reduced motion every animated element is already at its end state", 
   await page.goto("/#/progress");
   await expect(page.locator(".pgraph.wl circle")).toHaveCount(3);
 
-  const animated = page.locator(".prog .rise, .prog .pop, .prog .draw");
-  const count = await animated.count();
-  expect(count).toBeGreaterThan(0);
-  for (let i = 0; i < count; i++) {
-    const style = await animated.nth(i).evaluate((e) => getComputedStyle(e));
-    expect(style.animationName).toBe("none");
-    expect(style.opacity).toBe("1"); // at the end state, not waiting at the from-state
+  // DOM names inside evaluate go in as strings — this file typechecks without the dom lib.
+  const states = JSON.parse(await page.evaluate(
+    `JSON.stringify([...document.querySelectorAll(".prog .rise, .prog .pop, .prog .draw")]
+      .map((e) => [getComputedStyle(e).animationName, getComputedStyle(e).opacity]))`,
+  )) as [string, string][];
+  expect(states.length).toBeGreaterThan(0);
+  for (const [animationName, opacity] of states) {
+    expect(animationName).toBe("none");
+    expect(opacity).toBe("1"); // at the end state, not waiting at the from-state
   }
-  const offset = await page.locator(".pgraph.wl path")
-    .evaluate((e) => getComputedStyle(e).strokeDashoffset);
+  const offset = await page.evaluate(
+    `getComputedStyle(document.querySelector(".pgraph.wl path")).strokeDashoffset`,
+  );
   expect(["0", "0px"]).toContain(offset);
 });
 
@@ -103,7 +106,7 @@ test("at 390px the four tabs hold one line and the page is axe-clean", async ({ 
     expect(b!.x).toBeGreaterThanOrEqual(0);
     expect(b!.x + b!.width).toBeLessThanOrEqual(390);
   }
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(`document.documentElement.scrollWidth`)).toBeLessThanOrEqual(390);
 
   const findings = (await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze())
     .violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s) — ${v.help}`);

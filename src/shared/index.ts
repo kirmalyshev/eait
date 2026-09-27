@@ -54,6 +54,7 @@ export * from "./ui/icons.ts";
 export * from "./app/log-copy.ts";
 export * from "./app/home-copy.ts";
 export * from "./app/meal-copy.ts";
+export * from "./app/bmi-copy.ts";
 export * from "./app/progress-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/signup-copy.ts";
