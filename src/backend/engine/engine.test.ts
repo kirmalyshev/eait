@@ -1038,6 +1038,34 @@ describe("editing the answer", () => {
     expect(out).toEqual({ kind: "target-gone", on: "correction" });
   });
 
+  it("moves the meal to the date the patch names — the surface's 'Move to yesterday' (#93)", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const yesterday = dateMinus(meal.date, 1);
+    const out = await editMeal(deps, userId, meal.mealId, { date: yesterday });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    // The result and the row name the NEW day, and its totals are the day it landed on.
+    expect(out.date).toBe(yesterday);
+    expect(out.totals.kcal).toBe(meal.analysis.kcal);
+    const moved = (await store.getMeal(userId, meal.mealId))!;
+    expect(moved.date).toBe(yesterday);
+    expect((await store.mealsForDate(userId, meal.date)).map((m) => m.id)).not.toContain(meal.mealId);
+    // A move corrects nothing: the numbers are untouched, the row is not flagged, and a pending
+    // question about the plate is nobody's answer yet.
+    expect(moved.corrected).toBe(false);
+    expect(moved.kcal).toBe(meal.analysis.kcal);
+  });
+
+  it("a move reaches only the caller's meal — another account's id is the same not-found", async () => {
+    const a = await onboard();
+    const b = await onboard();
+    const meal = await logged(a);
+    const out = await editMeal(deps, b, meal.mealId, { date: "2020-01-01" });
+    // Indistinguishable from a deleted meal — a probe learns nothing about whether it exists.
+    expect(out).toEqual({ kind: "target-gone", on: "correction" });
+    expect((await store.getMeal(a, meal.mealId))!.date).toBe(meal.date);
+  });
+
   it("applies a natural-language correction through the same write path", async () => {
     const userId = await onboard();
     const meal = await logged(userId);

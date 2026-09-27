@@ -14,6 +14,18 @@ describe("isEditMealRequest", () => {
     expect(isEditMealRequest({ items: [{ name: "egg", grams: 50 }] })).toBe(true);
   });
 
+  it("takes a calendar date for the move — and only a calendar date (#93)", () => {
+    // `date` is how "Move to yesterday" lands — a PATCH the meal's own surface sends, so the row
+    // moves without paying for a turn. It is a `YYYY-MM-DD` the server will trust like the one it
+    // computes, so anything that is not one is a bad body, not a bad day.
+    expect(isEditMealRequest({ date: "2026-09-26" })).toBe(true);
+    expect(isEditMealRequest({ date: "2026-09-26", kcal: 320 })).toBe(true);
+    expect(isEditMealRequest({ date: "yesterday" })).toBe(false);
+    expect(isEditMealRequest({ date: "2026-13-40" })).toBe(false);
+    expect(isEditMealRequest({ date: "2026-9-6" })).toBe(false);
+    expect(isEditMealRequest({ date: 20260926 })).toBe(false);
+  });
+
   it("refuses anything that is not a number where a number belongs", () => {
     expect(isEditMealRequest({ kcal: "abc" })).toBe(false);
     expect(isEditMealRequest({ sodium_mg: Number.NaN })).toBe(false);

@@ -40,6 +40,8 @@ export interface ScorePart {
 export interface HealthScore {
   /** Base 6 plus the parts, clamped to 1–10. */
   score: number;
+  /** The points every score starts from — the breakdown's "Start" row reads it, never recomputes it. */
+  base: number;
   parts: ScorePart[];
 }
 
@@ -158,6 +160,7 @@ export function healthScore(meal: ScoreMeal, restrictions: readonly string[]): H
   const raw = HEALTH_SCORE.base + parts.reduce((sum, p) => sum + p.points, 0);
   return {
     score: Math.min(HEALTH_SCORE.clamp.max, Math.max(HEALTH_SCORE.clamp.min, raw)),
+    base: HEALTH_SCORE.base,
     parts,
   };
 }
