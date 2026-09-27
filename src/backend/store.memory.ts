@@ -1334,6 +1334,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       eraseUser(userId);
     },
 
+    async pruneAbandonedAccounts(before) {
+      // Collect first, erase after: `eraseUser` deletes from `createdAt` under the iteration.
+      const gone: string[] = [];
+      for (const [userId, at] of createdAt) {
+        if (at >= before) continue;
+        // Any entitlement event disqualifies, live or lapsed — the purchase history is what a
+        // legacy anonymous account's next renewal would come back to.
+        if (entitlements.has(userId)) continue;
+        // `device` is the exception for the port's reason — it is the credential being swept.
+        if (identities.some((i) => i.userId === userId && i.provider !== "device")) continue;
+        if ([...meals.values()].some((m) => m.user_id === userId)) continue;
+        if ([...tokens.values()].some((t) => t.userId === userId && t.lastUsedAt >= before)) continue;
+        gone.push(userId);
+      }
+      for (const userId of gone) eraseUser(userId);
+      return gone.length;
+    },
+
     async close() {},
   };
 }

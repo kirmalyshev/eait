@@ -60,12 +60,22 @@ msgstr "{noun} — un peu haut"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — un peu haut"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — dans le plan"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — trop haut"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — trop haut"
 
 #. js-lingui-explicit-id
@@ -97,6 +107,11 @@ msgstr "J'ai assez de protéines ?"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Réponds d'abord aux questions du plan sur le web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calories"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -320,6 +335,11 @@ msgstr "Compte restauré — c'est bon. Une photo ou une phrase, les deux enregi
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "graisses saturées"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Graisses saturées"
 
@@ -337,6 +357,11 @@ msgstr "Envoie la photo d'un repas, dis-moi ce que tu as mangé, ou pose une que
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Se connecter"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodium"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
