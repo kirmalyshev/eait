@@ -148,6 +148,61 @@ export interface LogCopy {
     formatTitle: string;
     /** `states-format`: which formats pass, and the alternative. */
     formatNote: string;
+
+    // The controls' accessible names — the boards draw them as icons, so the words live on the
+    // a11y label alone.
+    /** `log-camera`: the shutter. */
+    shutterLabel: string;
+    /** `log-camera`: the library door beside the shutter. */
+    libraryLabel: string;
+    /** `log-camera`: a thumbnail's ✕. */
+    removeShotLabel: string;
+    /** `log-camera`: the note field — the visual is `notePlaceholder` alone. */
+    noteLabel: string;
+    /** `log-camera` edit mode: the re-read's button — the analyze CTA's own verb. */
+    editSend: string;
+    /** The sample-spent gate's heading — the paywall callout, not a `states-*` sheet. */
+    lockHeading: string;
+    /** `states-failed` charged variant: the turn WAS charged, and that was the last of the sample. */
+    failedSampleNote: string;
+
+    // The `states-*` sheets a photo turn can rest on, as title + note pairs. `not-food`,
+    // `analysis-failed` (plain) and `unsupported-image` have their own surfaces; these are every
+    // other resting state drawn over the log surface — caps by scope, the unfinished setup, the
+    // over-long note, the two device failures, the server failure and the transport one.
+    /** `cap-exceeded`, scope `global`. */
+    capGlobalTitle: string;
+    capGlobalNote: string;
+    /** `cap-exceeded`, scope `address` — NOT the reader's own allowance, and it may not read as one. */
+    capAddressTitle: string;
+    capAddressNote: string;
+    /** `cap-exceeded`, scope `user`. */
+    capUserTitle: string;
+    capUserNote: string;
+    /** `cap-exceeded`, scope absent or unrecognised — a limit is named, never an owner guessed. */
+    capUnknownTitle: string;
+    capUnknownNote: string;
+    /** `not-onboarded`. */
+    setupTitle: string;
+    setupNote: string;
+    /** `caption too long` — `{max}` is the bound, filled `wholeNumbers`. */
+    longNoteTitle: string;
+    longNoteNote: string;
+    /** `library-unavailable`. */
+    libraryFailTitle: string;
+    libraryFailNote: string;
+    /** `capture-failed`. */
+    captureFailTitle: string;
+    captureFailNote: string;
+    /** `no-photo` — a re-read asked of a meal that has none stored. */
+    noPhotoTitle: string;
+    noPhotoNote: string;
+    /** The server's own failure — a refusal that is ours, never the connection's. */
+    serverFailTitle: string;
+    serverFailNote: string;
+    /** The transport failure — nothing answered, and nothing was kept to re-send. */
+    offlineTitle: string;
+    offlineNote: string;
   };
 }
 
@@ -207,6 +262,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Try again",
       formatTitle: "That photo format can’t be read",
       formatNote: "JPEG, PNG or WebP — or photograph the plate instead.",
+      shutterLabel: "Take a photo",
+      libraryLabel: "Choose from library",
+      removeShotLabel: "Remove this shot",
+      noteLabel: "Note about this meal",
+      editSend: "Send",
+      lockHeading: "Photos need a subscription",
+      failedSampleNote: "Nothing was logged, but it still counted, and that was the last of your sample — the next photo needs a subscription.",
+      capGlobalTitle: "Out of budget for today",
+      capGlobalNote: "The shared daily analysis budget is spent. It resets at midnight.",
+      capAddressTitle: "Too many photos from this network",
+      capAddressNote: "Not your allowance — this network’s. If you are on shared or mobile internet, try again later or from another connection.",
+      capUserTitle: "That was your last photo today",
+      capUserNote: "Your daily allowance is spent. It resets at midnight — chat still works.",
+      capUnknownTitle: "That one hit a limit",
+      capUnknownNote: "Nothing was logged and nothing was counted. Try again later — chat still works.",
+      setupTitle: "Finish setting up first",
+      setupNote: "We need your goal and weight before a meal can be judged.",
+      longNoteTitle: "That note is too long",
+      longNoteNote: "Keep it under {max} characters. Nothing was logged.",
+      libraryFailTitle: "Can’t open your photos",
+      libraryFailNote: "eait needs permission to read a photo you pick. You can grant it in Settings → eait, or take the photo here instead.",
+      captureFailTitle: "The camera didn’t take that",
+      captureFailNote: "Try again.",
+      noPhotoTitle: "Take or pick a photo first",
+      noPhotoNote: "A photo of the meal is what the analysis reads.",
+      serverFailTitle: "eait hit a problem",
+      serverFailNote: "The server failed on that one, not your connection. Nothing was logged and nothing was counted.",
+      offlineTitle: "Couldn’t reach eait",
+      offlineNote: "Nothing was logged. Check your connection.",
     },
   },
   fr: {
@@ -264,6 +348,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Réessayer",
       formatTitle: "Ce format de photo est illisible",
       formatNote: "JPEG, PNG ou WebP — ou photographie l’assiette.",
+      shutterLabel: "Prendre une photo",
+      libraryLabel: "Choisir dans la bibliothèque",
+      removeShotLabel: "Retirer cette photo",
+      noteLabel: "Note sur ce repas",
+      editSend: "Envoyer",
+      lockHeading: "Les photos demandent un abonnement",
+      failedSampleNote: "Rien n’a été enregistré, mais ça a quand même compté — et c’était la dernière de ton essai. La prochaine photo demande un abonnement.",
+      capGlobalTitle: "Plus de budget aujourd’hui",
+      capGlobalNote: "Le budget d’analyses quotidien partagé est épuisé. Il repart à minuit.",
+      capAddressTitle: "Trop de photos depuis ce réseau",
+      capAddressNote: "Pas ta limite — celle du réseau. Sur un réseau partagé ou mobile, réessaie plus tard ou depuis une autre connexion.",
+      capUserTitle: "C’était ta dernière photo aujourd’hui",
+      capUserNote: "Ta limite quotidienne est atteinte. Elle repart à minuit — le chat marche toujours.",
+      capUnknownTitle: "Ça a touché une limite",
+      capUnknownNote: "Rien n’a été enregistré ni compté. Réessaie plus tard — le chat marche toujours.",
+      setupTitle: "Finis d’abord la configuration",
+      setupNote: "Il nous faut ton objectif et ton poids avant de pouvoir juger un repas.",
+      longNoteTitle: "Cette note est trop longue",
+      longNoteNote: "Reste sous {max} caractères. Rien n’a été enregistré.",
+      libraryFailTitle: "Impossible d’ouvrir tes photos",
+      libraryFailNote: "eait a besoin de l’autorisation pour lire une photo choisie. Accorde-la dans Réglages → eait, ou prends la photo ici.",
+      captureFailTitle: "L’appareil n’a pas pris celle-là",
+      captureFailNote: "Réessaie.",
+      noPhotoTitle: "Prends ou choisis d’abord une photo",
+      noPhotoNote: "C’est une photo du repas que l’analyse lit.",
+      serverFailTitle: "eait a eu un problème",
+      serverFailNote: "C’est le serveur qui a raté celle-là, pas ta connexion. Rien n’a été enregistré ni compté.",
+      offlineTitle: "Impossible de joindre eait",
+      offlineNote: "Rien n’a été enregistré. Vérifie ta connexion.",
     },
   },
   de: {
@@ -321,6 +434,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Erneut versuchen",
       formatTitle: "Dieses Fotoformat ist nicht lesbar",
       formatNote: "JPEG, PNG oder WebP — oder fotografier den Teller.",
+      shutterLabel: "Foto aufnehmen",
+      libraryLabel: "Aus der Bibliothek wählen",
+      removeShotLabel: "Dieses Bild entfernen",
+      noteLabel: "Notiz zu dieser Mahlzeit",
+      editSend: "Senden",
+      lockHeading: "Fotos brauchen ein Abo",
+      failedSampleNote: "Nichts wurde eingetragen, aber es hat trotzdem gezählt — und das war das letzte deiner Probe. Das nächste Foto braucht ein Abo.",
+      capGlobalTitle: "Budget für heute aufgebraucht",
+      capGlobalNote: "Das geteilte Tagesbudget für Analysen ist aufgebraucht. Es setzt um Mitternacht zurück.",
+      capAddressTitle: "Zu viele Fotos aus diesem Netzwerk",
+      capAddressNote: "Nicht dein Limit — das des Netzwerks. In geteilten oder mobilen Netzen später noch einmal oder über eine andere Verbindung versuchen.",
+      capUserTitle: "Das war dein letztes Foto heute",
+      capUserNote: "Dein Tageslimit ist erreicht. Es setzt um Mitternacht zurück — der Chat läuft weiter.",
+      capUnknownTitle: "Das lief auf ein Limit",
+      capUnknownNote: "Nichts wurde eingetragen oder gezählt. Versuch es später noch einmal — der Chat läuft weiter.",
+      setupTitle: "Erst die Einrichtung fertig machen",
+      setupNote: "Wir brauchen dein Ziel und dein Gewicht, bevor eine Mahlzeit beurteilt werden kann.",
+      longNoteTitle: "Die Notiz ist zu lang",
+      longNoteNote: "Bleib unter {max} Zeichen. Nichts wurde eingetragen.",
+      libraryFailTitle: "Deine Fotos lassen sich nicht öffnen",
+      libraryFailNote: "eait braucht die Erlaubnis, ein gewähltes Foto zu lesen. Erteile sie in Einstellungen → eait, oder fotografier hier.",
+      captureFailTitle: "Die Kamera hat das nicht genommen",
+      captureFailNote: "Versuch es noch einmal.",
+      noPhotoTitle: "Erst ein Foto machen oder wählen",
+      noPhotoNote: "Ein Foto der Mahlzeit ist, was die Analyse liest.",
+      serverFailTitle: "eait hatte ein Problem",
+      serverFailNote: "Der Server hat bei dem versagt, nicht deine Verbindung. Nichts wurde eingetragen oder gezählt.",
+      offlineTitle: "eait nicht erreichbar",
+      offlineNote: "Nichts wurde eingetragen. Prüf deine Verbindung.",
     },
   },
   it: {
@@ -378,6 +520,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Riprova",
       formatTitle: "Questo formato di foto non si legge",
       formatNote: "JPEG, PNG o WebP — oppure fotografa il piatto.",
+      shutterLabel: "Scatta una foto",
+      libraryLabel: "Scegli dalla libreria",
+      removeShotLabel: "Rimuovi questo scatto",
+      noteLabel: "Nota su questo pasto",
+      editSend: "Invia",
+      lockHeading: "Le foto richiedono un abbonamento",
+      failedSampleNote: "Niente è stato registrato, ma ha comunque contato — ed era l’ultima della tua prova. La prossima foto richiede un abbonamento.",
+      capGlobalTitle: "Budget di oggi esaurito",
+      capGlobalNote: "Il budget giornaliero condiviso per le analisi è esaurito. Riparte a mezzanotte.",
+      capAddressTitle: "Troppe foto da questa rete",
+      capAddressNote: "Non il tuo limite — quello della rete. Se sei su una rete condivisa o mobile, riprova più tardi o da un’altra connessione.",
+      capUserTitle: "Quella era la tua ultima foto di oggi",
+      capUserNote: "Il tuo limite giornaliero è finito. Riparte a mezzanotte — la chat funziona ancora.",
+      capUnknownTitle: "Quello ha toccato un limite",
+      capUnknownNote: "Niente è stato registrato né contato. Riprova più tardi — la chat funziona ancora.",
+      setupTitle: "Finisci prima la configurazione",
+      setupNote: "Ci servono il tuo obiettivo e il tuo peso prima di poter giudicare un pasto.",
+      longNoteTitle: "La nota è troppo lunga",
+      longNoteNote: "Resta sotto {max} caratteri. Niente è stato registrato.",
+      libraryFailTitle: "Impossibile aprire le tue foto",
+      libraryFailNote: "eait ha bisogno del permesso per leggere una foto che scegli. Concedilo in Impostazioni → eait, o scatta qui.",
+      captureFailTitle: "La fotocamera non l’ha presa",
+      captureFailNote: "Riprova.",
+      noPhotoTitle: "Scatta o scegli prima una foto",
+      noPhotoNote: "È una foto del pasto quella che l’analisi legge.",
+      serverFailTitle: "eait ha avuto un problema",
+      serverFailNote: "Il server ha fallito su quella, non la tua connessione. Niente è stato registrato né contato.",
+      offlineTitle: "Impossibile raggiungere eait",
+      offlineNote: "Niente è stato registrato. Controlla la connessione.",
     },
   },
   es: {
@@ -435,6 +606,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Reintentar",
       formatTitle: "Ese formato de foto no se puede leer",
       formatNote: "JPEG, PNG o WebP — o fotografía el plato.",
+      shutterLabel: "Hacer una foto",
+      libraryLabel: "Elegir de la biblioteca",
+      removeShotLabel: "Quitar esta foto",
+      noteLabel: "Nota sobre esta comida",
+      editSend: "Enviar",
+      lockHeading: "Las fotos necesitan una suscripción",
+      failedSampleNote: "No se registró nada, pero aun así contó — y era la última de tu prueba. La siguiente foto necesita una suscripción.",
+      capGlobalTitle: "Sin presupuesto para hoy",
+      capGlobalNote: "El presupuesto diario compartido de análisis se agotó. Se reinicia a medianoche.",
+      capAddressTitle: "Demasiadas fotos desde esta red",
+      capAddressNote: "No tu límite — el de la red. Si estás en una red compartida o móvil, inténtalo más tarde o desde otra conexión.",
+      capUserTitle: "Esa era tu última foto de hoy",
+      capUserNote: "Tu límite diario se agotó. Se reinicia a medianoche — el chat sigue funcionando.",
+      capUnknownTitle: "Esa topó con un límite",
+      capUnknownNote: "No se registró ni contó nada. Inténtalo más tarde — el chat sigue funcionando.",
+      setupTitle: "Termina primero la configuración",
+      setupNote: "Necesitamos tu objetivo y tu peso antes de poder juzgar una comida.",
+      longNoteTitle: "Esa nota es demasiado larga",
+      longNoteNote: "Quédate por debajo de {max} caracteres. No se registró nada.",
+      libraryFailTitle: "No se pueden abrir tus fotos",
+      libraryFailNote: "eait necesita permiso para leer una foto que elijas. Concédelo en Ajustes → eait, o hazla aquí.",
+      captureFailTitle: "La cámara no hizo esa",
+      captureFailNote: "Inténtalo de nuevo.",
+      noPhotoTitle: "Haz o elige primero una foto",
+      noPhotoNote: "Una foto de la comida es lo que lee el análisis.",
+      serverFailTitle: "eait tuvo un problema",
+      serverFailNote: "El servidor falló en esa, no tu conexión. No se registró ni contó nada.",
+      offlineTitle: "No se pudo contactar con eait",
+      offlineNote: "No se registró nada. Revisa tu conexión.",
     },
   },
   vi: {
@@ -492,6 +692,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Thử lại",
       formatTitle: "Định dạng ảnh đó không đọc được",
       formatNote: "JPEG, PNG hoặc WebP — hoặc chụp đĩa ăn.",
+      shutterLabel: "Chụp ảnh",
+      libraryLabel: "Chọn từ thư viện",
+      removeShotLabel: "Xoá ảnh này",
+      noteLabel: "Ghi chú về bữa này",
+      editSend: "Gửi",
+      lockHeading: "Chụp ảnh cần gói thuê bao",
+      failedSampleNote: "Chưa ghi gì, nhưng lần đó vẫn được tính — và đó là lượt dùng thử cuối cùng. Ảnh kế tiếp cần gói thuê bao.",
+      capGlobalTitle: "Hết ngân sách hôm nay",
+      capGlobalNote: "Ngân sách phân tích chung trong ngày đã hết. Quay lại lúc nửa đêm.",
+      capAddressTitle: "Quá nhiều ảnh từ mạng này",
+      capAddressNote: "Không phải hạn mức của bạn — là của mạng. Trên mạng chung hoặc di động, thử lại sau hoặc qua kết nối khác.",
+      capUserTitle: "Đó là ảnh cuối cùng của bạn hôm nay",
+      capUserNote: "Hạn mức trong ngày của bạn đã hết. Quay lại lúc nửa đêm — chat vẫn hoạt động.",
+      capUnknownTitle: "Cái đó chạm hạn mức",
+      capUnknownNote: "Chưa ghi và chưa tính gì. Thử lại sau — chat vẫn hoạt động.",
+      setupTitle: "Hoàn tất thiết lập trước đã",
+      setupNote: "Chúng tôi cần mục tiêu và cân nặng của bạn trước khi chấm một bữa.",
+      longNoteTitle: "Ghi chú đó quá dài",
+      longNoteNote: "Giữ dưới {max} ký tự. Chưa ghi gì.",
+      libraryFailTitle: "Không mở được ảnh của bạn",
+      libraryFailNote: "eait cần quyền đọc ảnh bạn chọn. Cấp quyền trong Cài đặt → eait, hoặc chụp ngay tại đây.",
+      captureFailTitle: "Máy ảnh không chụp được ảnh đó",
+      captureFailNote: "Thử lại nhé.",
+      noPhotoTitle: "Chụp hoặc chọn ảnh trước đã",
+      noPhotoNote: "Ảnh bữa ăn là thứ phân tích đọc.",
+      serverFailTitle: "eait gặp sự cố",
+      serverFailNote: "Máy chủ lỗi trên ảnh đó, không phải kết nối của bạn. Chưa ghi và chưa tính gì.",
+      offlineTitle: "Không kết nối được với eait",
+      offlineNote: "Chưa ghi gì. Kiểm tra kết nối của bạn.",
     },
   },
   id: {
@@ -549,6 +778,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Coba lagi",
       formatTitle: "Format foto itu tidak bisa dibaca",
       formatNote: "JPEG, PNG atau WebP — atau foto piringnya saja.",
+      shutterLabel: "Ambil foto",
+      libraryLabel: "Pilih dari galeri",
+      removeShotLabel: "Hapus foto ini",
+      noteLabel: "Catatan tentang makanan ini",
+      editSend: "Kirim",
+      lockHeading: "Foto butuh langganan",
+      failedSampleNote: "Tidak ada yang tercatat, tapi tetap terhitung — dan itu yang terakhir dari uji cobamu. Foto berikutnya butuh langganan.",
+      capGlobalTitle: "Anggaran hari ini habis",
+      capGlobalNote: "Anggaran analisis harian bersama sudah habis. Reset tengah malam.",
+      capAddressTitle: "Terlalu banyak foto dari jaringan ini",
+      capAddressNote: "Bukan jatahmu — jatah jaringan. Kalau di jaringan bersama atau seluler, coba lagi nanti atau lewat koneksi lain.",
+      capUserTitle: "Itu foto terakhirmu hari ini",
+      capUserNote: "Jatah harianmu sudah habis. Reset tengah malam — chat tetap jalan.",
+      capUnknownTitle: "Yang itu kena batas",
+      capUnknownNote: "Tidak ada yang tercatat atau terhitung. Coba lagi nanti — chat tetap jalan.",
+      setupTitle: "Selesaikan pengaturan dulu",
+      setupNote: "Kami butuh tujuan dan beratmu sebelum bisa menilai makanan.",
+      longNoteTitle: "Catatan itu terlalu panjang",
+      longNoteNote: "Jaga di bawah {max} karakter. Tidak ada yang tercatat.",
+      libraryFailTitle: "Fotomu tidak bisa dibuka",
+      libraryFailNote: "eait butuh izin untuk membaca foto yang kamu pilih. Beri izin di Pengaturan → eait, atau ambil foto di sini.",
+      captureFailTitle: "Kamera tidak mengambil yang itu",
+      captureFailNote: "Coba lagi.",
+      noPhotoTitle: "Ambil atau pilih foto dulu",
+      noPhotoNote: "Foto makananlah yang dibaca analisis.",
+      serverFailTitle: "eait mengalami masalah",
+      serverFailNote: "Server yang gagal pada yang itu, bukan koneksimu. Tidak ada yang tercatat atau terhitung.",
+      offlineTitle: "eait tidak bisa dihubungi",
+      offlineNote: "Tidak ada yang tercatat. Periksa koneksimu.",
     },
   },
   ru: {
@@ -606,6 +864,35 @@ export const LOG_COPY: Localized<LogCopy> = {
       tryAgain: "Ещё раз",
       formatTitle: "Этот формат фото не читается",
       formatNote: "JPEG, PNG или WebP — или сфотографируй блюдо.",
+      shutterLabel: "Сделать фото",
+      libraryLabel: "Выбрать из галереи",
+      removeShotLabel: "Убрать этот кадр",
+      noteLabel: "Заметка к этому приёму",
+      editSend: "Отправить",
+      lockHeading: "Фото доступны по подписке",
+      failedSampleNote: "Ничего не записано, но это всё же посчиталось — и это была последняя из пробной. Следующее фото уже по подписке.",
+      capGlobalTitle: "Бюджет на сегодня исчерпан",
+      capGlobalNote: "Общий дневной бюджет анализов исчерпан. Обнулится в полночь.",
+      capAddressTitle: "Слишком много фото из этой сети",
+      capAddressNote: "Не твоё ограничение — сети. Если ты в общей или мобильной сети, попробуй позже или с другого подключения.",
+      capUserTitle: "Это было последнее фото на сегодня",
+      capUserNote: "Твоё дневное ограничение исчерпано. Обнулится в полночь — чат по-прежнему работает.",
+      capUnknownTitle: "Оно уперлось в лимит",
+      capUnknownNote: "Ничего не записано и не засчитано. Попробуй позже — чат по-прежнему работает.",
+      setupTitle: "Сначала заверши настройку",
+      setupNote: "Нужны твоя цель и вес, прежде чем можно будет оценить приём.",
+      longNoteTitle: "Заметка слишком длинная",
+      longNoteNote: "Держи короче {max} знаков. Ничего не записано.",
+      libraryFailTitle: "Не удаётся открыть твои фото",
+      libraryFailNote: "eait нужно разрешение на чтение выбранного фото. Дай его в Настройках → eait или сфотографируй здесь.",
+      captureFailTitle: "Камера не сняла этот кадр",
+      captureFailNote: "Попробуй ещё раз.",
+      noPhotoTitle: "Сначала сними или выбери фото",
+      noPhotoNote: "Именно фото приёма читает анализ.",
+      serverFailTitle: "У eait что-то пошло не так",
+      serverFailNote: "Сервер не справился с этим, а не твоя связь. Ничего не записано и не засчитано.",
+      offlineTitle: "eait недоступен",
+      offlineNote: "Ничего не записано. Проверь соединение.",
     },
   },
 };
