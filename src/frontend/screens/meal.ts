@@ -17,7 +17,7 @@
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
 import { LANG_TAG, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
-import { scoreFactorLabel, scoresCopy } from "../../shared/app/scores-copy.ts";
+import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
 import type { MealRecord } from "@eait/shared";
 import type { DayResponse } from "@eait/shared/contract";
@@ -36,7 +36,7 @@ import {
 
 export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const mc = mealCopyFor(lang);
-  const sc = scoresCopy(lang);
+  const sc = scoresAppCopy(lang);
   const me = frame.me ?? await profile().catch(() => null);
   const uid = me?.profile.user_id ?? null;
   const zone = me?.timezone ?? "UTC";
@@ -86,7 +86,11 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   // refuses blob:. A data URL is what `img-src` already allows, and it needs no revocation.
   const photoUrl = async (mealId: string, index: number): Promise<string | null> => {
     try {
-      const blob = await apiBlob(`${MEAL(mealId)}/photos/${index}`);
+      // apiBlob answers an object URL; the CSP's `img-src 'self' data:` refuses `blob:`,
+      // so the same bytes are read once more into a data URL, and the object URL freed.
+      const objectUrl = await apiBlob(`${MEAL(mealId)}/photos/${index}`);
+      const blob = await (await fetch(objectUrl)).blob();
+      URL.revokeObjectURL(objectUrl);
       return await new Promise<string>((ok, no) => {
         const reader = new FileReader();
         reader.onload = () => ok(reader.result as string);

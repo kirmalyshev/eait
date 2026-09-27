@@ -143,15 +143,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return await (await call(path, init)).json() as T;
 }
 
-/**
- * A response's BYTES, for the one read that is not JSON: a meal's stored photo
- * (`GET /v1/meals/:id/photos/:n`). The bearer still goes on the request — a photo is never
- * an `src` on this origin, or the byte address would be a credential check the URL cannot pass.
- */
-export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blob> {
-  return await (await call(path, init)).blob();
-}
-
 /** The streamed shape, spelled as the contract spells it — a type import, so nothing is bundled. */
 const STREAM: typeof NDJSON = "application/x-ndjson";
 

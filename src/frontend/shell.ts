@@ -36,8 +36,6 @@ import type {
   ChatEntry, MessageResponse, OUTCOME_UNKNOWN, PendingResponse, PhotoLast,
   DayResponse, DaysResponse, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
-import { localDate, windowStart } from "../shared/dates.ts";
-import { routeBase } from "./route.ts";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
@@ -74,8 +72,7 @@ export const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 export const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 export const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
 export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
-export const DAY: Under<typeof ROUTES.day> = "/diary/day";
-export const DAYS: Under<typeof ROUTES.days> = "/diary/days";
+
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
@@ -673,8 +670,7 @@ export async function render(): Promise<void> {
   // two-column form is W4's; every surface today's code draws is the boards' one-column `one` —
   // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
   // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
-  const route = location.hash || "#/";
-  const wrap = el("div", `wmain ${routeBase(route).startsWith("#/meal/") ? "meal" : "one"}`);
+  const wrap = el("div", "wmain");
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
   wrap.append(body);
@@ -683,6 +679,7 @@ export async function render(): Promise<void> {
   // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
   // take, #93/#94).
   const route = routeBase(location.hash || "#/");
+  wrap.className = `wmain ${route.startsWith("#/meal/") ? "meal" : "one"}`;
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {
