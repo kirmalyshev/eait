@@ -19,6 +19,8 @@ const KEYS = [
   "phoneMenuReread", "phoneMenuMoveYesterday",
   "phoneCorrectTitle", "phoneSheetMeal", "phoneWasAmount", "phoneThisMeal", "phoneSaveRecheck",
   "phoneKeypadBackspace",
+  "phoneFixExample", "phoneUpdate",
+  "phoneIngredientTitle", "phoneAmount", "phoneRemoveIngredient",
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
   "webGoneTitle", "webGoneBody", "webGoneBack", "itemAmount", "menuButton",
   "changeItem", "changeTotal", "changeWithItems",

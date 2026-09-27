@@ -179,12 +179,15 @@ describe("written into the thread", () => {
     const target = explainTargets((await store.getProfile(userId))!).targets.kcal;
     const kcal = Math.round(target * 0.4), after = Math.round(target * 0.44);
     const meal0 = await plated(userId, { ...PLATE, items: [rice(150, kcal / 2), salmon(140, kcal / 2)], kcal });
-    await editMeal(deps, userId, meal0.mealId, { items: [rice(200, kcal / 2), salmon(140, kcal / 2)], kcal: after });
+    const out = await editMeal(deps, userId, meal0.mealId, { items: [rice(200, kcal / 2), salmon(140, kcal / 2)], kcal: after });
+    if (out.kind !== "updated") throw new Error(`expected updated, got ${out.kind}`);
     const t = await thread(userId);
     expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
     expect(text(last)).toBe(`Rice 150 → 200 g: ${kcal} → ${after} kcal. Calories still high for one meal.`);
+    // The result carries the SAME line — the writing screen names the change without a second read.
+    expect(out.line).toBe(text(last));
   });
 
   it("a typed correction writes the user's words, the card and the line", async () => {
@@ -192,6 +195,7 @@ describe("written into the thread", () => {
     const meal0 = await plated(userId);
     const res = await handleText(deps, userId, { text: "half that", focusMealId: meal0.mealId });
     expect(res.kind).toBe("updated");
+    if (res.kind !== "updated") throw new Error();
     const t = await thread(userId);
     expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
     const last = t.at(-1)!;
@@ -199,6 +203,7 @@ describe("written into the thread", () => {
     // The demo correction halves both items: rice 150 → 75, salmon 140 → 70, kcal 540 → 270 —
     // both under a third of the day, so no verdict tail.
     expect(text(last)).toBe("Rice 150 → 75 g and salmon 140 → 70 g: 540 → 270 kcal.");
+    expect(res.line).toBe(text(last));
   });
 
   it("a re-read that moved the numbers writes the line too", async () => {
@@ -212,11 +217,13 @@ describe("written into the thread", () => {
     if (res.kind !== "logged") throw new Error("expected logged");
     const out = await reanalyzeMeal(makeDeps({}, llm), userId, res.mealId);
     expect(out.kind).toBe("updated");
+    if (out.kind !== "updated") throw new Error();
     const t = await thread(userId);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
     // 540 kcal is 31% of the day (on plan); 605 is 35% (high) — the tail is computed, not written.
     expect(text(last)).toBe("Rice 150 → 200 g: 540 → 605 kcal. Calories now high for one meal.");
+    expect(out.line).toBe(text(last));
   });
 
   it("a re-read that changed nothing writes no line", async () => {
@@ -224,6 +231,8 @@ describe("written into the thread", () => {
     const res = await plated(userId);
     const out = await reanalyzeMeal(makeDeps({}, analyzer(PLATE)), userId, res.mealId);
     expect(out.kind).toBe("updated");
+    if (out.kind !== "updated") throw new Error();
+    expect(out.line).toBeNull();
     const t = await thread(userId);
     expect(t.at(-1)!.role === "assistant" && t.at(-1)!.kind === "text").toBe(true);
     // The line is the greeting/verdict text from logging — nothing new was appended for the re-read.
@@ -233,7 +242,9 @@ describe("written into the thread", () => {
   it("a rename writes the card and no line", async () => {
     const userId = await onboard();
     const meal0 = await plated(userId);
-    await editMeal(deps, userId, meal0.mealId, { items: [{ ...rice(150, 195), name: "basmati rice" }, salmon(140, 345)] });
+    const out = await editMeal(deps, userId, meal0.mealId, { items: [{ ...rice(150, 195), name: "basmati rice" }, salmon(140, 345)] });
+    if (out.kind !== "updated") throw new Error(`expected updated, got ${out.kind}`);
+    expect(out.line).toBeNull();
     const t = await thread(userId);
     expect(t.at(-1)!.kind).toBe("meal");
   });
