@@ -62,9 +62,6 @@ export const PERF_SCREENS = [
   "camera",
   "meal",
   "health",
-  "progress",
-  "health-compare",
-  "health-body",
 ] as const;
 
 export type PerfScreen = (typeof PERF_SCREENS)[number];
@@ -180,17 +177,6 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // One meal, seeded from the cache the diary already filled. The allowance is for the cold case:
   // opened from a chat bubble or a deep link, where there is nothing cached and it fetches.
   meal: { paintMs: 100, readyMs: 250 },
-
-  // Progress: two reads — the weigh-in log and the week's days — neither cached today, so the
-  // allowance is the cold fetch the first open always pays. After it the tab stays mounted and
-  // re-opens cost nothing.
-  progress: { paintMs: 100, readyMs: 250 },
-
-  // Both are views over the rows the Health screen already synced and cached. The allowance is
-  // for being opened cold — a deep link that lands before Health ever mounted — where the one
-  // windowed read has to happen. Warm, they are exactly the "nothing to wait for" case.
-  "health-compare": { paintMs: 100, readyMs: 250 },
-  "health-body": { paintMs: 100, readyMs: 250 },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
