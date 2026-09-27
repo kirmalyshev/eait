@@ -34,6 +34,7 @@ const WEB_MODULES = new Set([
   "outbox.ts",
   "results.ts",
   "contract.ts",
+  "progress.ts",       // the card-state rule — pure, one contract type
   "first-meal-copy.ts",
 ]);
 

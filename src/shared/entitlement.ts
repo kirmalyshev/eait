@@ -9,6 +9,8 @@
 // it was told. Neither may invent its own answer — a client that computed its own entitlement
 // would be a client that could grant itself one.
 
+import { localDate } from "./dates.ts";
+
 /**
  * The paid-tier state of one account, as told to the client.
  *
@@ -58,6 +60,14 @@ export interface Entitlement {
    * true of both people. `entitlementFor` always sends it.
    */
   lapsed?: boolean;
+  /**
+   * Which day of the free week today is — the "5" of "free week · day 5" the Subscription row
+   * shows — or null when the account is not on one. Computed server-side (`trialDay` below), so a
+   * client renders it and never counts days itself: two counters would drift apart.
+   *
+   * OPTIONAL for the reason `lapsed` is — a server older than the field sends none.
+   */
+  trialDay?: number | null;
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
@@ -86,6 +96,39 @@ export interface Entitlement {
 export const FREE_ANALYSES = 1;
 
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
+
+/**
+ * The free week's length. Written once because "day 5 of 7" and the day-5/day-6 reminder names are
+ * the same week counted two ways; a number that ever changed would have to change in one place.
+ */
+export const TRIAL_WEEK_DAYS = 7;
+
+/**
+ * Which day of the free week `today` is — the "5" of "free week · day 5" (#97).
+ *
+ * COUNTED OFF THE EXPIRY DATE, NOT THE START, for the reason `trialReminderDates` gives: the
+ * expiry is what the store can move (a billing retry extends it) and what the client is told.
+ * Anchored there, this number and the "two days to go" reminder can never disagree — day 5 IS two
+ * days before the expiry date, by both definitions. A start-counted day would need the trial's
+ * length the store never sees (RevenueCat sends no duration).
+ *
+ * Null the moment the period is not a live trial: never bought, converted to paid, lapsed, or an
+ * expiry that does not parse. Day 1 is the first day of the week and day 7 the expiry's own date;
+ * an expiry pushed beyond the week still answers 1 rather than a day 0 nobody can draw.
+ */
+export function trialDay(
+  entitlement: { active: boolean; trial?: boolean; expiresAt: string | null },
+  timezone: string,
+  now: number = Date.now(),
+): number | null {
+  if (!entitlement.active || !entitlement.trial) return null;
+  if (!entitlementActive(entitlement.expiresAt, now)) return null;
+  const expiry = localDate(timezone, new Date(Date.parse(entitlement.expiresAt!)));
+  const today = localDate(timezone, new Date(now));
+  // Calendar-day difference: both are UTC-midnight strings, so the subtraction is exact.
+  const left = Math.round((Date.parse(expiry) - Date.parse(today)) / 86_400_000);
+  return Math.max(1, TRIAL_WEEK_DAYS - left);
+}
 
 /**
  * What the app offers where the camera button and the composer were, once this account cannot log
