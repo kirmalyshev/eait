@@ -576,7 +576,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       axes: "{a} en barres, axe de gauche · {b} en courbe, axe de droite.",
       noData: "Pas assez de {period} avec {a} et {b} enregistrés pour dire comment ils sont liés.",
       periodNouns: { days: "jours", weeks: "semaines", months: "mois", years: "années" },
-      pickLabel: "{kind}: {series}",
+      pickLabel: "{kind} : {series}",
     },
     body: {
       trendDown: "▼ {d} depuis le {date} · reste {to} avant {target}",

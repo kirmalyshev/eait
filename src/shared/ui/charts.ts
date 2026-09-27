@@ -403,7 +403,7 @@ export function weekBars(
   const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
   return {
     viewBox: "0 0 320 142",
-    planLine: { x1: 8, x2: 312, y: planY, dash: "5 4" },
+    planLine: { x1: 8, x2: 312, y: planY, dash: "3 3" },
     planLabel: { x: 312, y: planY - 6 },
     bars: days.map((kcal, i) => {
       if (kcal === null) return null;
