@@ -301,15 +301,20 @@ export function formatHealthValue(
 // `intake` series' own name, joined to the counted period by a " · " — punctuation, not grammar.
 
 export interface HealthScreenCopy {
-  /** The pushed screens' titles — the body row's name is the `body` group's own label. */
-  titles: { health: string; compare: string; body: string };
+  /**
+   * The pushed screens' titles. The body screen's title is NOT here — it is `labels.body`, the
+   * `body` group's own name, which the row out of the main card reuses too.
+   */
+  titles: { health: string; compare: string };
   /** The chevron's accessible name. */
   back: string;
   /** Today's bar, on both charts. */
   today: string;
-  /** health-connect: the pitch. `reads`/`writes`/`weightOnly` are the three rows' heads. */
+  /**
+   * health-connect: the pitch. `reads`/`writes`/`weightOnly` are the three rows' heads; `cta` is
+   * the button AND the screen's title — the board writes one sentence in both places.
+   */
   connect: {
-    title: string;
     cta: string;
     reads: string;
     readsList: string;
@@ -361,8 +366,6 @@ export interface HealthScreenCopy {
     /** The figure for the longer periods — the bucket mean, "{kcal} kcal a day". */
     kcalADay: string;
   };
-  /** The two rows out of the main card. `body`'s value is the latest weigh-in, formatted. */
-  rows: { compare: string; body: string };
   compare: {
     /** The two series pickers' kind labels: the accent one and the ink one. */
     bars: string;
@@ -421,11 +424,10 @@ export interface HealthScreenCopy {
 
 export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
   en: {
-    titles: { health: "Apple Health", compare: "Compare", body: "Body" },
+    titles: { health: "Apple Health", compare: "Compare" },
     back: "Back",
     today: "Today",
     connect: {
-      title: "Connect Apple Health",
       cta: "Connect Apple Health",
       reads: "Reads",
       readsList: "weight, body, energy, activity, sleep",
@@ -467,7 +469,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal today",
       kcalADay: "{kcal} kcal a day",
     },
-    rows: { compare: "Compare", body: "Body" },
     compare: {
       bars: "Bars",
       line: "Line",
@@ -503,11 +504,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   fr: {
-    titles: { health: "Apple Health", compare: "Comparer", body: "Corps" },
+    titles: { health: "Apple Health", compare: "Comparer" },
     back: "Retour",
     today: "Aujourd'hui",
     connect: {
-      title: "Connecter Apple Health",
       cta: "Connecter Apple Health",
       reads: "Lecture",
       readsList: "poids, corps, énergie, activité, sommeil",
@@ -549,7 +549,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal aujourd'hui",
       kcalADay: "{kcal} kcal par jour",
     },
-    rows: { compare: "Comparer", body: "Corps" },
     compare: {
       bars: "Barres",
       line: "Courbe",
@@ -585,11 +584,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   de: {
-    titles: { health: "Apple Health", compare: "Vergleich", body: "Körper" },
+    titles: { health: "Apple Health", compare: "Vergleich" },
     back: "Zurück",
     today: "Heute",
     connect: {
-      title: "Apple Health verbinden",
       cta: "Apple Health verbinden",
       reads: "Liest",
       readsList: "Gewicht, Körper, Energie, Aktivität, Schlaf",
@@ -631,7 +629,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal heute",
       kcalADay: "{kcal} kcal am Tag",
     },
-    rows: { compare: "Vergleich", body: "Körper" },
     compare: {
       bars: "Balken",
       line: "Linie",
@@ -667,11 +664,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   it: {
-    titles: { health: "Apple Health", compare: "Confronto", body: "Corpo" },
+    titles: { health: "Apple Health", compare: "Confronto" },
     back: "Indietro",
     today: "Oggi",
     connect: {
-      title: "Collega Apple Health",
       cta: "Collega Apple Health",
       reads: "Legge",
       readsList: "peso, corpo, energia, attività, sonno",
@@ -713,7 +709,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal oggi",
       kcalADay: "{kcal} kcal al giorno",
     },
-    rows: { compare: "Confronto", body: "Corpo" },
     compare: {
       bars: "Barre",
       line: "Linea",
@@ -749,11 +744,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   es: {
-    titles: { health: "Apple Health", compare: "Comparar", body: "Cuerpo" },
+    titles: { health: "Apple Health", compare: "Comparar" },
     back: "Atrás",
     today: "Hoy",
     connect: {
-      title: "Conectar Apple Health",
       cta: "Conectar Apple Health",
       reads: "Lee",
       readsList: "peso, cuerpo, energía, actividad, sueño",
@@ -795,7 +789,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal hoy",
       kcalADay: "{kcal} kcal al día",
     },
-    rows: { compare: "Comparar", body: "Cuerpo" },
     compare: {
       bars: "Barras",
       line: "Línea",
@@ -831,11 +824,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   vi: {
-    titles: { health: "Apple Health", compare: "So sánh", body: "Cơ thể" },
+    titles: { health: "Apple Health", compare: "So sánh" },
     back: "Quay lại",
     today: "Hôm nay",
     connect: {
-      title: "Kết nối Apple Health",
       cta: "Kết nối Apple Health",
       reads: "Đọc",
       readsList: "cân nặng, cơ thể, năng lượng, vận động, giấc ngủ",
@@ -877,7 +869,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal hôm nay",
       kcalADay: "{kcal} kcal mỗi ngày",
     },
-    rows: { compare: "So sánh", body: "Cơ thể" },
     compare: {
       bars: "Cột",
       line: "Đường",
@@ -913,11 +904,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   id: {
-    titles: { health: "Apple Health", compare: "Bandingkan", body: "Tubuh" },
+    titles: { health: "Apple Health", compare: "Bandingkan" },
     back: "Kembali",
     today: "Hari ini",
     connect: {
-      title: "Hubungkan Apple Health",
       cta: "Hubungkan Apple Health",
       reads: "Membaca",
       readsList: "berat, tubuh, energi, aktivitas, tidur",
@@ -959,7 +949,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} kcal hari ini",
       kcalADay: "{kcal} kcal sehari",
     },
-    rows: { compare: "Bandingkan", body: "Tubuh" },
     compare: {
       bars: "Batang",
       line: "Garis",
@@ -995,11 +984,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
   },
   ru: {
-    titles: { health: "Apple Health", compare: "Сравнение", body: "Тело" },
+    titles: { health: "Apple Health", compare: "Сравнение" },
     back: "Назад",
     today: "Сегодня",
     connect: {
-      title: "Подключить Apple Health",
       cta: "Подключить Apple Health",
       reads: "Читает",
       readsList: "вес, тело, энергию, активность, сон",
@@ -1041,7 +1029,6 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       kcalToday: "{kcal} ккал сегодня",
       kcalADay: "{kcal} ккал в день",
     },
-    rows: { compare: "Сравнение", body: "Тело" },
     compare: {
       bars: "Столбики",
       line: "Линия",

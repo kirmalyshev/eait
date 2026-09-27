@@ -225,10 +225,116 @@ const W_PX_PER_KG = 46;
 const W_TOP_PAD_KG = 0.2;
 
 /**
- * Points → the polyline and its dots. y runs top-down: the top hairline (22) sits `W_TOP_PAD_KG`
- * above the highest weigh-in, at `W_PX_PER_KG` px per kg; when the span would overrun the bottom
- * hairline (94) the scale shrinks to fit — `min(46, 72 / (range + 0.2))`.
+ * One weigh-in line, two frames — `weightChart` (the Progress card, 320×112, hairlines) and
+ * `bodyWeightChart` (the Body screen, 340×130, bare). The MAPPING is one function so the scale's
+ * rule — px/kg capped, shrinking when the span would overrun the frame — cannot drift between the
+ * card that announces the trend and the screen that shows it. What differs lives in the frame:
+ * the viewBox, the axis ends, the scale's own numbers, and where the four captions anchor.
  */
+interface WeightFrame {
+  viewBox: string;
+  /** The x of the first slot and the axis' right end — the date captions read off them. */
+  x0: number;
+  x1: number;
+  /** The y the weight axis tops at — the top hairline's y, or the bare frame's top. */
+  yTop: number;
+  /** kg of headroom above the max, in BOTH the scale's reference and the range it divides. */
+  topPadKg: number;
+  /** px per kg while the data allows it. */
+  pxPerKg: number;
+  /** The pixel span the drawn range must fit inside. */
+  spanPx: number;
+  /** The smallest range the scale divides by — a flat log still needs a scale. */
+  minRange: number;
+  firstLabelY: number;
+  /** The last label sits this far under the end dot, capped by `lastLabelYMax` when a lane is open. */
+  lastLabelDy: number;
+  lastLabelYMax?: number;
+  /** The empty log's label y, at the axis' end. */
+  emptyLabelY: number;
+  dateLabelY: number;
+  /** The hairlines the frame draws — the Body board draws none. */
+  gridlines?: readonly number[];
+}
+
+const W_FRAME: WeightFrame = {
+  viewBox: W_VIEW_BOX,
+  x0: W_X0, x1: W_X1,
+  yTop: W_GRID[0]!,
+  topPadKg: W_TOP_PAD_KG,
+  pxPerKg: W_PX_PER_KG,
+  // The scale the board owns: the two-kg span between the top and bottom hairlines.
+  spanPx: W_GRID[2]! - W_GRID[0]!,
+  minRange: 0,
+  firstLabelY: 14,
+  lastLabelDy: 4,
+  emptyLabelY: 90,
+  dateLabelY: 110,
+  gridlines: W_GRID,
+};
+
+/** The same frame with the You board's bottom lane open — taller, the label capped over it. */
+const W_FRAME_LANE: WeightFrame = {
+  ...W_FRAME, viewBox: "0 0 320 120", lastLabelYMax: 88, dateLabelY: 118,
+};
+
+/** health-body.html's frame: wider, no hairlines, the board's 50 px a kg capping at a 66 px span. */
+const BW_FRAME: WeightFrame = {
+  viewBox: "0 0 340 130",
+  x0: 20, x1: 320,
+  yTop: 30,
+  topPadKg: 0,
+  pxPerKg: 50,
+  spanPx: 66,
+  minRange: 0.5,
+  firstLabelY: 18,
+  lastLabelDy: 12,
+  emptyLabelY: 100,
+  dateLabelY: 128,
+};
+
+function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
+  viewBox: string;
+  gridlines: readonly number[];
+  points: { x: number; y: number }[];
+  path: string;
+  firstLabel: { x: number; y: number };
+  lastLabel: { x: number; y: number };
+  dateLabelY: number;
+  dateLabelX: { start: number; end: number };
+} {
+  const kgs = points.map((p) => p.kg);
+  const max = kgs.length ? Math.max(...kgs) : 0;
+  const range = kgs.length ? max - Math.min(...kgs) : 0;
+  const pxPerKg = Math.min(f.pxPerKg, f.spanPx / Math.max(range + f.topPadKg, f.minRange));
+  const refKg = max + f.topPadKg;
+  const t0 = points[0]?.t ?? 0;
+  const span = (points[points.length - 1]?.t ?? 0) - t0;
+
+  const pts = points.map((p) => ({
+    x: Math.round(f.x0 + (span > 0 ? ((p.t - t0) / span) * (f.x1 - f.x0) : 0)),
+    y: Math.round(f.yTop + (refKg - p.kg) * pxPerKg),
+  }));
+
+  const last = pts[pts.length - 1];
+  return {
+    viewBox: f.viewBox,
+    gridlines: f.gridlines ?? [],
+    points: pts,
+    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
+    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
+    firstLabel: { x: f.x0, y: f.firstLabelY },
+    lastLabel: last
+      ? {
+        x: last.x - 10,
+        y: f.lastLabelYMax === undefined ? last.y + f.lastLabelDy : Math.min(last.y + f.lastLabelDy, f.lastLabelYMax),
+      }
+      : { x: f.x1, y: f.emptyLabelY },
+    dateLabelY: f.dateLabelY,
+    dateLabelX: { start: f.x0, end: f.x1 },
+  };
+}
+
 /**
  * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller
  * viewBox adds, its label above — DISPLAY, never the data scale (a 6 kg drop would sit off any
@@ -250,43 +356,14 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
   /** Where its "{w} · target" label sits, right-aligned just over the line. */
   targetLabel?: { x: number; y: number };
 } {
-  const kgs = points.map((p) => p.kg);
-  const max = kgs.length ? Math.max(...kgs) : 0;
-  const range = kgs.length ? max - Math.min(...kgs) : 0;
-  const pxPerKg = Math.min(W_PX_PER_KG, (W_GRID[2] - W_GRID[0]) / (range + W_TOP_PAD_KG));
-  const refKg = max + W_TOP_PAD_KG;
-  const t0 = points[0]?.t ?? 0;
-  const tN = points[points.length - 1]?.t ?? 0;
-  const span = tN - t0;
-
-  const pts = points.map((p) => ({
-    x: Math.round(W_X0 + (span > 0 ? ((p.t - t0) / span) * (W_X1 - W_X0) : 0)),
-    y: Math.round(W_GRID[0] + (refKg - p.kg) * pxPerKg),
-  }));
-
-  const last = pts[pts.length - 1];
-  return {
-    viewBox: withTargetLane ? "0 0 320 120" : W_VIEW_BOX,
-    gridlines: W_GRID,
-    points: pts,
-    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
-    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
-    firstLabel: { x: W_X0, y: 14 },
-    // With the lane open the label keeps clear of it: its anchor tops out above the target
-    // line (y 104) rather than writing over it when the newest point sits at the bottom of range.
-    lastLabel: last
-      ? { x: last.x - 10, y: withTargetLane ? Math.min(last.y + 4, 88) : last.y + 4 }
-      : { x: W_X1, y: 90 },
-    dateLabelY: withTargetLane ? 118 : 110,
-    dateLabelX: { start: W_X0, end: W_X1 },
-    ...(withTargetLane ? {
-      // The band the taller frame opens: the board's lane at y 104, its label above it, both the
-      // chart's inner width (24 → 296). The value lives on the label, not the axis — the line
-      // says "the aim sits here", never a scale reading.
-      targetLine: { x1: 24, x2: 296, y: 104 },
-      targetLabel: { x: 296, y: 98 },
-    } : {}),
-  };
+  const g = weightLine(points, withTargetLane ? W_FRAME_LANE : W_FRAME);
+  return withTargetLane ? {
+    ...g,
+    // The band the taller frame opens: the board's lane at y 104, its label above it. The value
+    // lives on the label, not the axis — the line says "the aim sits here", never a scale reading.
+    targetLine: { x1: 24, x2: 296, y: 104 },
+    targetLabel: { x: 296, y: 98 },
+  } : g;
 }
 
 // ── The week's intake bars ────────────────────────────────────────────────────────────────────
@@ -301,6 +378,14 @@ const BARS_BASE = 118;
 /** The board's headroom: 100 px of bar for every 1,900 kcal. */
 const BARS_BASELINE_FULL = 1900;
 
+/**
+ * The bars' one scale, shared by `weekBars` and `intakeChart`: `px` of bar for `full` kcal while
+ * the data is quiet, yielding past `largest × 1.1` so a heavy week compresses instead of clipping.
+ * Without `floor` a light week would stretch the bars to the frame and read as a record one.
+ */
+const barPxPerKcal = (px: number, floor: number, largest: number): number =>
+  px / Math.max(floor, largest * 1.1);
+
 export function weekBars(
   days: readonly (number | null)[],
   planKcal: number,
@@ -314,7 +399,7 @@ export function weekBars(
   labels: { x: number; y: number }[];
 } {
   const largest = Math.max(planKcal, ...days.map((d) => d ?? 0));
-  const pxPerKcal = 100 / Math.max(BARS_BASELINE_FULL, largest * 1.1);
+  const pxPerKcal = barPxPerKcal(100, BARS_BASELINE_FULL, largest);
   const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
   return {
     viewBox: "0 0 320 142",
@@ -404,11 +489,15 @@ export function bmiTick(value: number, range: string): number {
 // however many years the window holds — so the pitch is derived, never fixed at seven.
 
 const INTAKE = {
+  /** The frame's width — the baseline, plan line and plan label all end at it. */
+  frame: 350,
   viewBox: "0 0 350 150",
   /** The baseline every bar stands on. */
   base: 124,
   /** Pixels of bar for `max(plan, largest) × 1.1` — the headroom rule `weekBars` runs at 1900. */
   headroomPx: 114,
+  /** The drawable width the bucket pitch divides — the frame less its 8 px margins. */
+  inner: 334,
   /** The board's pitch at seven buckets: 48 px a slot, 30 px of bar, first bar at x 8. */
   pitchCap: 48,
   barCap: 30,
@@ -433,16 +522,16 @@ export function intakeChart(
   labels: { x: number; y: number }[];
 } {
   const n = values.length;
-  const pitch = Math.min(INTAKE.pitchCap, Math.round(334 / Math.max(1, n)));
+  const pitch = Math.min(INTAKE.pitchCap, Math.round(INTAKE.inner / Math.max(1, n)));
   const width = Math.min(INTAKE.barCap, Math.round(pitch * INTAKE.barFill));
   const largest = Math.max(planKcal, ...values.map((v) => v ?? 0));
-  const pxPerKcal = INTAKE.headroomPx / (Math.max(1, largest) * 1.1);
+  const pxPerKcal = barPxPerKcal(INTAKE.headroomPx, BARS_BASELINE_FULL, largest);
   const planY = Math.round(INTAKE.base - planKcal * pxPerKcal);
   return {
     viewBox: INTAKE.viewBox,
     baseline: INTAKE.base,
-    planLine: planKcal > 0 ? { x1: 0, x2: 350, y: planY, dash: "5 4" } : null,
-    planLabel: planKcal > 0 ? { x: 350, y: planY - 6 } : null,
+    planLine: planKcal > 0 ? { x1: 0, x2: INTAKE.frame, y: planY, dash: "5 4" } : null,
+    planLabel: planKcal > 0 ? { x: INTAKE.frame, y: planY - 6 } : null,
     bars: values.map((v, i) => {
       if (v === null) return null;
       const h = Math.round(v * pxPerKcal);
@@ -460,6 +549,8 @@ export function intakeChart(
 // a break in the run, for the same reason `trend.ts` keeps null apart from zero.
 
 const CMP = {
+  /** The frame's width — the plot sits between the two measured gutters inside it. */
+  frame: 350,
   viewBox: "0 0 350 164",
   top: 10,
   plotBottom: 140,
@@ -501,7 +592,7 @@ function cmpScale(values: readonly (number | null)[], kind: "bar" | "line"): Cmp
 function cmpGutter(labels: readonly string[]): number {
   const widest = labels.reduce((w, l) => Math.max(w, l.length), 0);
   const need = Math.ceil(widest * CMP.font * 0.62) + CMP.labelGap;
-  return Math.min(Math.max(need, CMP.gutter), Math.floor(350 / 3));
+  return Math.min(Math.max(need, CMP.gutter), Math.floor(CMP.frame / 3));
 }
 
 export function compareChart(
@@ -530,7 +621,7 @@ export function compareChart(
   const b = cmpScale(line, "line");
   const left = cmpGutter((a?.ticks ?? []).map(formatBars));
   const right = b ? cmpGutter(b.ticks.map(formatLine)) : CMP.labelGap;
-  const plotW = 350 - left - right;
+  const plotW = CMP.frame - left - right;
   const n = Math.max(bars.length, line.length, labels.length);
   const slot = n > 0 ? plotW / n : 0;
   const xOf = (i: number) => left + slot * (i + 0.5);
@@ -576,23 +667,12 @@ export function compareChart(
 // ── The Body screen's weigh-in line ───────────────────────────────────────────────────────────
 //
 // phone/health-body.html: the same logged-weights line as Progress's card on a wider frame —
-// 340×130 with no hairlines, the first and last values named, the date range under. `weightChart`
-// is the 320×112 card's own frame and stays it; this is the second one, not a restyle.
-
-const BW = {
-  viewBox: "0 0 340 130",
-  x0: 20,
-  x1: 320,
-  top: 30,
-  /** The board's 50 px a kg while the span allows it; shrinks so the lowest dot clears 96. */
-  pxPerKg: 50,
-  spanPx: 66,
-  firstLabelY: 18,
-  dateLabelY: 128,
-} as const;
+// 340×130 with no hairlines, the first and last values named, the date range under. Same mapping
+// as `weightChart` (`weightLine`), a different `WeightFrame` — the frame is the whole difference.
 
 export function bodyWeightChart(points: readonly WeightPoint[]): {
   viewBox: string;
+  gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
   firstLabel: { x: number; y: number };
@@ -600,25 +680,5 @@ export function bodyWeightChart(points: readonly WeightPoint[]): {
   dateLabelY: number;
   dateLabelX: { start: number; end: number };
 } {
-  const kgs = points.map((p) => p.kg);
-  const max = kgs.length ? Math.max(...kgs) : 0;
-  const range = kgs.length ? max - Math.min(...kgs) : 0;
-  const pxPerKg = Math.min(BW.pxPerKg, BW.spanPx / Math.max(range, 0.5));
-  const t0 = points[0]?.t ?? 0;
-  const span = (points[points.length - 1]?.t ?? 0) - t0;
-  const pts = points.map((p) => ({
-    x: Math.round(BW.x0 + (span > 0 ? ((p.t - t0) / span) * (BW.x1 - BW.x0) : 0)),
-    y: Math.round(BW.top + (max - p.kg) * pxPerKg),
-  }));
-  const last = pts[pts.length - 1];
-  return {
-    viewBox: BW.viewBox,
-    points: pts,
-    // `weightChart`'s own rule: one weigh-in is a dot with a date, not a trend (design-pro, #95).
-    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
-    firstLabel: { x: BW.x0, y: BW.firstLabelY },
-    lastLabel: last ? { x: last.x - 10, y: last.y + 12 } : { x: BW.x1, y: 100 },
-    dateLabelY: BW.dateLabelY,
-    dateLabelX: { start: BW.x0, end: BW.x1 },
-  };
+  return weightLine(points, BW_FRAME);
 }
