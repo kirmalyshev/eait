@@ -172,17 +172,6 @@ export const API: readonly Endpoint[] = [
     summary: "Erase the account and everything it holds.",
     responses: { 200: { type: "object", properties: { deleted: { const: true } }, required: ["deleted"] } } },
 
-  // ── The mailing list: form-encoded, for a page with no JavaScript ──
-  { route: "subscribe", method: "POST", path: "/v1/subscribe", auth: "none",
-    summary: "Join the list. Double opt-in: the address is on no list until the emailed link is followed. Redirects to the landing.",
-    request: { form: { email: "The address.", company: "Honeypot; leave empty.", source: "Where the form was." } },
-    responses: { 303: {}, 429: ERROR, 502: ERROR } },
-  { route: "subscribeConfirm", method: "GET", path: "/v1/subscribe/confirm", auth: "none",
-    summary: "The link in the confirmation email. Redirects to the landing.",
-    query: { t: "The token from the email." }, responses: { 303: {} } },
-  { route: "unsubscribe", method: "GET", path: "/v1/unsubscribe", auth: "none",
-    summary: "Leave the list. One click, no login. Redirects to the landing.",
-    query: { t: "The token from the email." }, responses: { 303: {} } },
 ];
 
 /** `ROUTES` keys that are not JSON endpoints, with the reason each is left out. */
