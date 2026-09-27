@@ -26,9 +26,7 @@ private repository this backend is developed alongside.
 
 eait is independent and self-funded. If it is useful to you, you can support its development:
 
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/kirmalyshev)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/kirmalyshev)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_a_Coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/kirmalyshev)
 
 ## Run it
 
