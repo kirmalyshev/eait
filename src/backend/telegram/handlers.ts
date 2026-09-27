@@ -12,7 +12,7 @@
 
 import {
   LANG_TAG, MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
-  verdictPillLabel, wholeNumbers,
+  threadCopyFor, verdictPillLabel, wholeNumbers,
   type Lang, type MealAnalysis, type Refusal,
 } from "@eait/shared";
 import { telegramCopyFor, type TelegramCopy } from "./copy.ts";
@@ -124,13 +124,14 @@ export function telegramHandlers(deps: EngineDeps) {
    * long as they kept sending photos. The provider comes from the account's own identities and the
    * address is masked; neither is anything Telegram told us.
    */
-  const connected = async (userId: string, copy: TelegramCopy): Promise<string> => {
+  const connected = async (userId: string, lang: Lang): Promise<string> => {
+    const copy = telegramCopyFor(lang);
     const providers = (await identitiesFor(deps, userId)).map((i) => i.provider);
     const named = providers.find((p) => p === "apple" || p === "google");
     const email = named ? await store.emailForUser(userId) : null;
     const label = named === "apple" ? "Apple" : named === "google" ? "Google" : copy.viaApp;
     return `${copy.connectedLead} ${label}${email ? `, ${maskAddress(email)}` : ""}.\n`
-      + `${copy.connectedTail}\n${copy.notYours}`;
+      + `${copy.connectedTail({ coach: threadCopyFor(lang).coach.name })}\n${copy.notYours}`;
   };
 
   /** The one thing an unconnected Telegram user is told, whatever they sent. */
@@ -160,9 +161,10 @@ export function telegramHandlers(deps: EngineDeps) {
       }
 
       const before = await account(from);
-      const copy = telegramCopyFor(await langOf(before, locale));
+      const lang = await langOf(before, locale);
+      const copy = telegramCopyFor(lang);
       if (payload.trim() === "") {
-        return before === null ? stranger(chat, copy) : chat.send(await connected(before, copy));
+        return before === null ? stranger(chat, copy) : chat.send(await connected(before, lang));
       }
       // `moved` is the recovery path and reads exactly like a fresh link: what matters to the
       // person in front of it is which account they are on now, which the line names either way.
@@ -173,7 +175,7 @@ export function telegramHandlers(deps: EngineDeps) {
       // language is the one that wins. A code spent from a German phone onto an Italian account
       // answers in Italian, which is the account somebody is about to be told they are on.
       const userId = (await account(from))!;
-      await chat.send(await connected(userId, telegramCopyFor(await langOf(userId, locale))));
+      await chat.send(await connected(userId, await langOf(userId, locale)));
     },
 
     async today(from: number, chat: Chat, locale?: string): Promise<void> {
@@ -207,7 +209,9 @@ export function telegramHandlers(deps: EngineDeps) {
       const r = await handleText(deps, userId, { text });
       switch (r.kind) {
         case "answered":
-          return chat.send(r.text);
+          // Gabie's answers go out signed — her name comes from the localized coach key, never
+          // a literal, so the confirmed per-language table lands in one place (S9).
+          return chat.send(r.speaker === "gabie" ? `${threadCopyFor(lang).coach.name}: ${r.text}` : r.text);
         case "proposed": {
           // A SECOND TEMPLATE, not a substring surgery on the first. The old line spliced " for
           // <date>" in front of an em dash, which is a claim about where a date goes in an English
