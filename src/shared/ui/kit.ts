@@ -342,8 +342,10 @@ export const twoWayChartSvg = (
 export const weightChartSvg = (
   points: readonly WeightPoint[],
   labels: { aria?: string; first: string; last: string; from: string; to: string },
+  /** you.html's target lane — `label` is the caller's "{w} · target" in the display unit. */
+  target?: { label: string },
 ): string => {
-  const g = weightChart(points);
+  const g = weightChart(points, target !== undefined);
   const grid = g.gridlines.map((y) =>
     `<line x1="20" x2="310" y1="${y}" y2="${y}" stroke="var(--hair)"/>`
   ).join("");
@@ -352,6 +354,10 @@ export const weightChartSvg = (
   ).join("");
   return `<svg class="pgraph wl" viewBox="${g.viewBox}" width="100%" role="img"${labels.aria ? ` aria-label="${esc(labels.aria)}"` : ""}>` +
     grid +
+    (g.targetLine !== undefined
+      ? `<line x1="${g.targetLine.x1}" x2="${g.targetLine.x2}" y1="${g.targetLine.y}" y2="${g.targetLine.y}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 4"/>` +
+        `<text x="${g.targetLabel!.x}" y="${g.targetLabel!.y}" text-anchor="end" fill="var(--accent)" font-size="12" font-weight="600">${esc(target!.label)}</text>`
+      : "") +
     (g.path ? `<path class="draw wl-line" d="${g.path}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "") +
     dots +
     `<text x="${g.firstLabel.x}" y="${g.firstLabel.y}" fill="var(--ink)" font-weight="600">${esc(labels.first)}</text>` +

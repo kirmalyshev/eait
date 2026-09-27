@@ -79,7 +79,8 @@ export const twoWayChartEl = (labels: Parameters<typeof twoWayChartSvg>[0]): Ele
 export const weightChartEl = (
   points: Parameters<typeof weightChartSvg>[0],
   labels: Parameters<typeof weightChartSvg>[1],
-): Element => kitEl(weightChartSvg(points, labels));
+  target?: Parameters<typeof weightChartSvg>[2],
+): Element => kitEl(weightChartSvg(points, labels, target));
 
 export const weekBarsEl = (
   days: readonly (number | null)[],

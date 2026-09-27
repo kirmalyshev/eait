@@ -229,7 +229,13 @@ const W_TOP_PAD_KG = 0.2;
  * above the highest weigh-in, at `W_PX_PER_KG` px per kg; when the span would overrun the bottom
  * hairline (94) the scale shrinks to fit — `min(46, 72 / (range + 0.2))`.
  */
-export function weightChart(points: readonly WeightPoint[]): {
+/**
+ * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller
+ * viewBox adds, its label above — DISPLAY, never the data scale (a 6 kg drop would sit off any
+ * scale the three gridlines span). Off, the geometry is the board's plain one. The lane's VALUE
+ * lives on its label, which the caller formats — the line means "the aim sits here".
+ */
+export function weightChart(points: readonly WeightPoint[], withTargetLane = false): {
   viewBox: string;
   gridlines: readonly number[];
   points: { x: number; y: number }[];
@@ -239,6 +245,10 @@ export function weightChart(points: readonly WeightPoint[]): {
   /** The y of the two date captions; their x's are the axis ends. */
   dateLabelY: number;
   dateLabelX: { start: number; end: number };
+  /** The dashed target line, when one was asked for — you.html's lane at the band's bottom. */
+  targetLine?: { x1: number; x2: number; y: number };
+  /** Where its "{w} · target" label sits, right-aligned just over the line. */
+  targetLabel?: { x: number; y: number };
 } {
   const kgs = points.map((p) => p.kg);
   const max = kgs.length ? Math.max(...kgs) : 0;
@@ -256,15 +266,22 @@ export function weightChart(points: readonly WeightPoint[]): {
 
   const last = pts[pts.length - 1];
   return {
-    viewBox: W_VIEW_BOX,
+    viewBox: withTargetLane ? "0 0 320 120" : W_VIEW_BOX,
     gridlines: W_GRID,
     points: pts,
     // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: W_X0, y: 14 },
     lastLabel: last ? { x: last.x - 10, y: last.y + 4 } : { x: W_X1, y: 90 },
-    dateLabelY: 110,
+    dateLabelY: withTargetLane ? 118 : 110,
     dateLabelX: { start: W_X0, end: W_X1 },
+    ...(withTargetLane ? {
+      // The band the taller frame opens: the board's lane at y 104, its label above it, both the
+      // chart's inner width (24 → 296). The value lives on the label, not the axis — the line
+      // says "the aim sits here", never a scale reading.
+      targetLine: { x1: 24, x2: 296, y: 104 },
+      targetLabel: { x: 296, y: 98 },
+    } : {}),
   };
 }
 

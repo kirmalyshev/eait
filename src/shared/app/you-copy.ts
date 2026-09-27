@@ -86,6 +86,13 @@ export interface YouCopy {
     proteinLeft: string;
     carbsLeft: string;
     fatLeft: string;
+    /** The Units row's label and its two options — the SYMBOLS are the same word in every
+        language (`kg · cm` / `lb · ft`), like `UNIT_KCAL`; the row label translates. */
+    units: string;
+    unitsMetric: string;
+    unitsImperial: string;
+    /** The inline editors' save button — the weigh-in's and the plan editor's. */
+    save: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -225,6 +232,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protein left",
       carbsLeft: "Carbs left",
       fatLeft: "Fat left",
+      units: "Units",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Save",
     },
     phone: {
       title: "You",
@@ -305,6 +316,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protéines restantes",
       carbsLeft: "Glucides restants",
       fatLeft: "Lipides restants",
+      units: "Unités",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Enregistrer",
     },
     phone: {
       title: "Vous",
@@ -385,6 +400,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Eiweiß übrig",
       carbsLeft: "Kohlenhydrate übrig",
       fatLeft: "Fett übrig",
+      units: "Einheiten",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Speichern",
     },
     phone: {
       title: "Du",
@@ -465,6 +484,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Proteine rimaste",
       carbsLeft: "Carboidrati rimasti",
       fatLeft: "Grassi rimasti",
+      units: "Unità",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Salva",
     },
     phone: {
       title: "Tu",
@@ -545,6 +568,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Proteína restante",
       carbsLeft: "Carbohidratos restantes",
       fatLeft: "Grasa restante",
+      units: "Unidades",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Guardar",
     },
     phone: {
       title: "Tú",
@@ -625,6 +652,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Đạm còn lại",
       carbsLeft: "Carb còn lại",
       fatLeft: "Chất béo còn lại",
+      units: "Đơn vị",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Lưu",
     },
     phone: {
       title: "Bạn",
@@ -705,6 +736,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Protein tersisa",
       carbsLeft: "Karbo tersisa",
       fatLeft: "Lemak tersisa",
+      units: "Unit",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Simpan",
     },
     phone: {
       title: "Kamu",
@@ -785,6 +820,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       proteinLeft: "Осталось белка",
       carbsLeft: "Осталось углеводов",
       fatLeft: "Осталось жиров",
+      units: "Единицы",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      save: "Сохранить",
     },
     phone: {
       title: "Вы",
