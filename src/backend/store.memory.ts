@@ -108,6 +108,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    */
   const roles = new Map<string, Role>();
   /**
+   * The sign-up consent stamps (S8). Postgres keeps them as columns on `users`; here it is a map,
+   * keyed the same way and gone when the account is. An absent entry is "never given" — the two
+   * timestamps answer null the way the columns do.
+   */
+  const consents = new Map<string, { termsAcceptedAt: string | null; marketingConsentAt: string | null }>();
+  /**
    * The stored record PLUS the two per-grant ordering clocks, which are this store's own
    * bookkeeping and never leave it — `getEntitlement` projects them away. Postgres keeps the same
    * pair in two columns; the port declares neither, because nothing outside a store may order
@@ -239,6 +245,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Same argument, same reason: a column there, a map here. An admin grant that outlived its
     // account would be handed to whoever the id belonged to next.
     roles.delete(userId);
+    // Same again (S8): consent stamps are `users` columns in Postgres and a map here — an account
+    // that consented and was deleted keeps neither the record nor the timestamp.
+    consents.delete(userId);
     freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -349,6 +358,22 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async hasAdmin() {
       for (const [id, role] of roles) if (role === "admin" && users.has(id)) return true;
       return false;
+    },
+
+    async recordConsent(userId, consent) {
+      if (!users.has(userId)) return;
+      // `terms` is stamped every time — a call only reaches this having ticked the box — and the
+      // marketing stamp only moves forward: an unticked box is no new consent, not a withdrawal.
+      const prior = consents.get(userId) ?? { termsAcceptedAt: null, marketingConsentAt: null };
+      consents.set(userId, {
+        termsAcceptedAt: new Date().toISOString(),
+        marketingConsentAt: consent.marketing ? new Date().toISOString() : prior.marketingConsentAt,
+      });
+    },
+
+    async consentOf(userId) {
+      if (!users.has(userId)) return null;
+      return consents.get(userId) ?? { termsAcceptedAt: null, marketingConsentAt: null };
     },
 
     async createUser(lang: Lang) {

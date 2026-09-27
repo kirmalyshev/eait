@@ -192,6 +192,55 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getProfile(userId)) as unknown as Record<string, unknown>).not.toHaveProperty("role");
     });
 
+    // ── Consent (S8) ───────────────────────────────────────────────────────────────────────
+    //
+    // Two columns on `users`, written ONLY by `recordConsent` — sign-up's `terms` tick and the
+    // optional marketing box. They are timestamps rather than booleans because "agreed" without a
+    // when is not an audit trail, and null is the only honest way to say "never asked".
+
+    it("starts with no consent and stamps what the tick said", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // Null stamps rather than false ones — never asked, and nobody may read "did not agree"
+      // out of "was not asked yet".
+      expect(await s.consentOf(userId)).toEqual({ termsAcceptedAt: null, marketingConsentAt: null });
+
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      const stamped = await s.consentOf(userId);
+      expect(stamped?.termsAcceptedAt).not.toBeNull();
+      expect(stamped?.marketingConsentAt).not.toBeNull();
+    });
+
+    it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {
+      // A returning sign-in sends `{ terms: true, marketing: false }` — the terms box is
+      // required and marketing simply was not ticked AGAIN. Writing null over a stamp would mean
+      // re-signing in un-consents the person, which is a consent implementation no honest one
+      // could defend.
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      await s.recordConsent(userId, { terms: true, marketing: false });
+      const consent = await s.consentOf(userId);
+      expect(consent?.termsAcceptedAt).not.toBeNull();
+      expect(consent?.marketingConsentAt).not.toBeNull();
+    });
+
+    it("cannot be written through the profile, for the same reason the role cannot", async () => {
+      // Consent is audit data, not profile data: a PATCH on it would let a client consent itself.
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.patchProfile(userId, { terms_accepted_at: "2026-01-01" } as never);
+      expect(await s.consentOf(userId)).toEqual({ termsAcceptedAt: null, marketingConsentAt: null });
+    });
+
+    it("erases the stamps with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      await s.deleteUser(userId);
+      expect(await s.consentOf(userId)).toBeNull();
+    });
+
     // ── The admin's user list ──────────────────────────────────────────────────────────────
     //
     // #374, and it is the ONE READ IN THIS PORT THAT IS NOT SCOPED TO A USER. That makes it a
