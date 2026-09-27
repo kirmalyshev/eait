@@ -2,10 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayMonthAt, genderedRussian,
-  localizedGaps, monthYear, numbers, signedWholeNumbers, timeAt, weekdayLetters,
-  acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
+  listFormat, localizedGaps, monthYear, numbers, signedWholeNumbers, timeAt,
+  weekdayLetters, acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
+import { COUNTRY_CODES, countryLabel, countryOptions } from "./onboarding.ts";
 import { localDate } from "./dates.ts";
 
 // The localization spine (#474, slice 1 of #358). Nothing user-visible ships with it: what is
@@ -155,6 +156,51 @@ describe("countText — one count, the form CLDR says its language wants", () =>
     // Russian's `many` covers 11–14 and every x5–x0; English has no `few` to give.
     expect(countText("en")(days, 2)).toBe("2 days");
     expect(countText("ru")({ one: "{n} день", other: "{n} дня" }, 11)).toBe("11 дня");
+  });
+});
+
+describe("a runtime without Intl.PluralRules / ListFormat / DisplayNames (Hermes on iOS)", () => {
+  // The constructors are assigned to `undefined`, not deleted: the helpers read `typeof` at
+  // call time, which is the same shape as a Hermes build that never defined them.
+  const without = <T extends keyof typeof Intl>(key: T, run: () => void) => {
+    const keep = Intl[key];
+    // @ts-expect-error — simulating a runtime that never defined the constructor
+    Intl[key] = undefined;
+    try { run(); } finally { Intl[key] = keep; }
+  };
+
+  it("countText still picks the right form — Russian's four included", () => {
+    without("PluralRules", () => {
+      expect(countText("en")({ one: "{n} day", other: "{n} days" }, 1)).toBe("1 day");
+      expect(countText("en")({ one: "{n} day", other: "{n} days" }, 4)).toBe("4 days");
+      expect(countText("fr")({ one: "{n} jour", other: "{n} jours" }, 0)).toBe("0 jour");
+      const dni = { one: "{n} день", few: "{n} дня", many: "{n} дней", other: "{n} дня" };
+      for (const [n, want] of [[1, "1 день"], [4, "4 дня"], [5, "5 дней"], [11, "11 дней"],
+        [21, "21 день"], [22, "22 дня"], [25, "25 дней"], [111, "111 дней"]] as const) {
+        expect(countText("ru")(dni, n)).toBe(want);
+      }
+      expect(countText("vi")({ other: "{n} ngày" }, 2)).toBe("2 ngày");
+    });
+  });
+
+  it("listFormat joins with the comma rather than throwing", () => {
+    without("ListFormat", () => {
+      expect(listFormat("en", ["a", "b", "c"])).toBe("a, b, c");
+      expect(listFormat("en", [])).toBe("");
+    });
+  });
+
+  it("countryLabel and countryOptions degrade to English names and locale order", () => {
+    without("DisplayNames", () => {
+      expect(countryLabel("de", "en")).toBe("Germany");
+      expect(countryLabel("other", "en")).toBe("other");
+    });
+    without("Collator", () => {
+      const opts = countryOptions("en");
+      expect(opts).toContain("de");
+      expect(opts[opts.length - 1]).toBe("other");
+      expect(opts).toHaveLength(COUNTRY_CODES.length);
+    });
   });
 });
 

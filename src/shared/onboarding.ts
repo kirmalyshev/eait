@@ -34,7 +34,7 @@
 // disagree about what "next" means.
 
 import type { Lang, Profile, Struggle } from "./types.ts";
-import { genderedRussian, LANG_TAG } from "./lang.ts";
+import { collatorCompare, genderedRussian, regionName } from "./lang.ts";
 import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
 import { DIETS, MEDICAL_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
@@ -424,8 +424,7 @@ export const COUNTRY_CODES = [
 ] as const;
 export type CountryCode = (typeof COUNTRY_CODES)[number];
 
-/** One `Intl.DisplayNames` per language, built on first use. Constructing one is not cheap. */
-const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
+
 
 /**
  * The country's name in the reader's language, from CLDR.
@@ -443,8 +442,9 @@ const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
  */
 export function countryLabel(code: CountryCode, lang: Lang): string {
   if (code === "other") return code;
-  const names = (REGION_NAMES[lang] ??= new Intl.DisplayNames([LANG_TAG[lang]], { type: "region" }));
-  return names.of(code.toUpperCase()) ?? code;
+  // `regionName` guards `Intl.DisplayNames` — a runtime without it (Hermes on iOS) still names
+  // the countries rather than dying on the screen this feeds.
+  return regionName(lang, code.toUpperCase()) ?? code;
 }
 
 /**
@@ -485,7 +485,7 @@ export const optionLabelIsData = (id: OnboardingScreenId, value: string): boolea
   id === "country" && value !== "other";
 
 export function countryOptions(lang: Lang): CountryCode[] {
-  const compare = new Intl.Collator(LANG_TAG[lang]).compare;
+  const compare = collatorCompare(lang);
   return [
     ...COUNTRY_CODES.filter((c) => c !== "other")
       .sort((a, b) => compare(countryLabel(a, lang), countryLabel(b, lang))),

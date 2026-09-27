@@ -271,17 +271,102 @@ export interface CountForms {
 }
 
 /**
- * Which form a count takes. The category is `Intl.PluralRules`' — a RULE (Russian's 2–4 land on
+ * THE FOUR `Intl` CONSTRUCTORS HERMES ON iOS DOES NOT SHIP: `PluralRules`, `ListFormat`,
+ * `DisplayNames` and `Collator`. `NumberFormat` and `DateTimeFormat` are the ones it does have,
+ * so the pattern below — ask the runtime, carry the fallback — is needed exactly four places.
+ * An unguarded `new Intl.X()` is `TypeError: undefined cannot be used as a constructor`, and on
+ * a render path that is a screen the error boundary catches (or a process abort where it does
+ * not): Progress and Profile both died to it on hardware. The guards are read at CALL time, so a
+ * runtime that gains the constructor starts using it without a rebuild of the app-side tables.
+ */
+const PLURAL_RULES: Partial<Record<Lang, Intl.PluralRules>> = {};
+
+/**
+ * The CLDR cardinal category for a count in `lang` — `Intl.PluralRules`' `select` where it
+ * exists, and where it does not the same rules written out for the eight languages this product
+ * speaks. It is a RULE table, not copy: Russian's 2–4 land on `few`, 5+ on `many`, and getting
+ * it wrong shows up in words (`дня` vs `дней`), not in punctuation.
+ */
+export function pluralCategory(lang: Lang, n: number): keyof CountForms {
+  if (typeof Intl.PluralRules === "function") {
+    return (PLURAL_RULES[lang] ??= new Intl.PluralRules(LANG_TAG[lang])).select(n);
+  }
+  if (!Number.isInteger(n)) return "other";
+  const abs = Math.abs(n);
+  switch (lang) {
+    case "ru": {
+      const m10 = abs % 10, m100 = abs % 100;
+      if (m10 === 1 && m100 !== 11) return "one";
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return "few";
+      if (m10 === 0 || (m10 >= 5 && m10 <= 9) || (m100 >= 11 && m100 <= 14)) return "many";
+      return "other";
+    }
+    // Vietnamese and Indonesian have a single cardinal form.
+    case "vi":
+    case "id":
+      return "other";
+    // French counts 0 and 1 with `one`.
+    case "fr":
+      return n <= 1 ? "one" : "other";
+    // en, de, it, es — one/other.
+    default:
+      return n === 1 ? "one" : "other";
+  }
+}
+
+/**
+ * Which form a count takes. The category is `pluralCategory`'s — a RULE (Russian's 2–4 land on
  * `few`, 5+ on `many`), and rules are code, not copy: the table beside this holds only wording.
  * Whole numbers, because a count of days is exact and a tenth of a day is a weight's precision.
  * Bound once per surface, like `t`.
  */
 export const countText = (lang: Lang) => {
-  const rules = new Intl.PluralRules(LANG_TAG[lang]);
   const whole = wholeNumbers(lang);
   return (forms: CountForms, n: number): string =>
-    (forms[rules.select(n)] ?? forms.other).replace("{n}", whole(n));
+    (forms[pluralCategory(lang, n)] ?? forms.other).replace("{n}", whole(n));
 };
+
+/**
+ * "a, b and c" in the reader's language — `Intl.ListFormat` where the runtime ships it, the comma
+ * the grammar would use anyway where it does not (Hermes on iOS; `chat-thread.ts` carried the
+ * same guard inline before this existed).
+ */
+export function listFormat(lang: Lang, parts: readonly string[]): string {
+  if (typeof Intl.ListFormat === "function") {
+    return new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" }).format([...parts]);
+  }
+  return parts.join(", ");
+}
+
+/**
+ * A region's name in the reader's language — `Intl.DisplayNames` where it exists.
+ *
+ * Where it does not (Hermes on iOS), a name the reader cannot parse is worse than a name in the
+ * wrong language, and a missing constructor is the failure an unguarded `new` turns into a dead
+ * screen — the country question's rows all render through this. The fallback is the English
+ * spelling from a table covering exactly `COUNTRY_CODES`; nothing else uses it, so a new country
+ * lands the code itself rather than a blank row, which is the honest degradation.
+ */
+const REGION_NAME_EN: Record<string, string> = {
+  AT: "Austria", AU: "Australia", CA: "Canada", CH: "Switzerland", DE: "Germany", ES: "Spain",
+  FR: "France", GB: "United Kingdom", ID: "Indonesia", IT: "Italy", MX: "Mexico", RU: "Russia",
+  US: "United States", VN: "Vietnam",
+};
+const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
+
+export function regionName(lang: Lang, code: string): string | undefined {
+  if (typeof Intl.DisplayNames === "function") {
+    return (REGION_NAMES[lang] ??= new Intl.DisplayNames([LANG_TAG[lang]], { type: "region" })).of(code);
+  }
+  return REGION_NAME_EN[code];
+}
+
+/** `Intl.Collator`'s `compare` where the runtime ships it, `localeCompare` where it does not. */
+export function collatorCompare(lang: Lang): (a: string, b: string) => number {
+  return typeof Intl.Collator === "function"
+    ? new Intl.Collator(LANG_TAG[lang]).compare
+    : (a, b) => a.localeCompare(b, LANG_TAG[lang]);
+}
 
 /**
  * The language tags a browser asked for, BEST FIRST.
