@@ -25,6 +25,16 @@
 
 import { lightVars } from "../../shared/palette.ts";
 import { fontFaces, motionCss } from "../../shared/design.ts";
+import { iconCss } from "../../shared/ui/icons.ts";
+// The one `<style>` block is COMPOSED (#87): the shell's own styles in `../shell.css.ts`, then one
+// string per surface from `screens/<surface>.css.ts`, so a W-package owns its surface's CSS the way
+// it owns its screen. The generated parts stay interpolations — `lightVars`, `fontFaces`,
+// `motionCss`, `iconCss` — from `shared`, never retyped into a string here.
+import { shellCss } from "../shell.css.ts";
+import { todayCss } from "../screens/today.css.ts";
+import { chatCss } from "../screens/chat.css.ts";
+import { youCss } from "../screens/you.css.ts";
+import { firstMealCss } from "../screens/first-meal.css.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -83,215 +93,14 @@ function shell(nonce: string): string {
    once in shared/assets/fonts (backend/web/page.ts), and the edge puts /start/* on this same
    origin — so font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
 ${fontFaces("/start/assets/fonts")}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 var(--display); }
-/* FOCUS IS VISIBLE (#53): a 2px ring in the text ink, offset 2px so it stands clear of the
-   control's own border. --text on these grounds is far past the 3:1 a focus indicator needs —
-   and on the accent surfaces, the offset puts the ring on the light around them. */
-:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-/* NUMBERS IN THE ONE FACE, tabular so a column of them holds still. The third face is gone: the
-   boards set figures in the main face and so does this page. The unit still sits OUTSIDE the span —
-   its space is the face's own. */
-.num { font-variant-numeric: tabular-nums; }
-
-/* THE FRAME (the boards' web layout, #52): a slim top bar — the mark, then the one row the app
-   navigates by — over a single quiet column the width a chat reads best at, the 38.75rem /start
-   already centres on. At a phone's width the column fills the viewport. */
-#app { min-height: 100vh; display: flex; flex-direction: column; }
-.wbar { display: flex; align-items: center; gap: 12px; padding: 0 26px; min-height: 60px;
-  font: 700 17px var(--display); letter-spacing: -.02em; }
-.wbar .mark { display: flex; align-items: center; gap: 8px; }
-.wbar .mark svg { width: 30px; height: 24px; display: block; }
-.wnav { display: flex; gap: 6px; margin-left: auto; }
-.wcol { width: 100%; max-width: 38.75rem; margin: 0 auto; flex: 1; padding: 18px 20px 30px;
-  background: var(--surface); border-radius: 26px 26px 0 0;
-  box-shadow: 0 -1px 0 var(--hair), 0 20px 50px -30px color-mix(in srgb, var(--ink) 40%, transparent); }
-.body { min-width: 0; }
-/* The centred title the boards draw above each screen's own column. */
-.top { text-align: center; padding: 6px 0 12px; }
-.top .tt { margin: 0; font-size: 19px; }
-
-h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
-h2 { font-size: 17px; }
-.muted { color: var(--muted); }
-.lab { font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
-.big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
-.hero { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
-.big.warn .hero { color: var(--warn); }
-/* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
-   outside the figure's own span. */
-.about { color: var(--warn); font-weight: 700; }
-/* THE FLOOR, AND NOTHING ELSE. Once per screen, as text, and never a tick on a scale. */
-.floor { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
-
-progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
-  border-radius: 3px; overflow: hidden; background: var(--line); }
-progress::-webkit-progress-bar { background: transparent; }
-progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
-progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
-.big.warn + progress::-webkit-progress-value { background: var(--warn); }
-.big.warn + progress::-moz-progress-bar { background: var(--warn); }
-
-/* The boards' panel: a light surface one step up from the ground, with the hairline and the soft
-   shadow /start's card already carries. */
-.card { padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--hair);
-  border-radius: 18px; margin-bottom: 14px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
-/* THE DATE SWITCHER (#71): a white bar at the top of the day — the chevrons at the two ends, the
-   day's name centred between them, and the ONE place the date is written. The relative day carries
-   the date as a quiet sub-line; any other day's name is the date, so nothing prints twice. */
-.daybar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 6px 10px;
-  background: var(--surface); border: 1px solid var(--hair); border-radius: 999px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
-.daybtn { flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; cursor: pointer;
-  background: none; color: var(--ink); font: inherit; font-size: 20px;
-  display: inline-flex; align-items: center; justify-content: center; }
-.daylabel { flex: 1; min-width: 0; text-align: center; }
-.dayname { margin: 0; font-size: 15px; }
-.daysub { margin: 0; font-size: 12px; }
-/* THE MACRO TONES (#71): a counter's figures carry the state against its target — care while
-   protein is still to reach, bad once a cap is passed. The label stays neutral. */
-.tone-good { color: var(--good); }
-.tone-care { color: var(--care); }
-.tone-bad { color: var(--bad); }
-.stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-
-/* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
-   controls already take. The three tabs never wrap onto a second row. */
-.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
-  /* A nav item is a tap target: the pill keeps its shape, the box grows to 44px (#53). */
-  display: inline-flex; align-items: center; min-height: 44px; }
-.tab.on { color: var(--accent); background: var(--surface); }
-/* You — the account's rows: label and control, a hairline between. */
-.you > * + * { border-top: 1px solid var(--hair); }
-.you .rowline { padding: 12px 2px; }
-.you .pick { font: inherit; font-size: 16px; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
-  min-height: 44px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-.you-act { display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--ink);
-  cursor: pointer; text-align: left; }
-.you-act::after { content: "›"; color: var(--muted); font-size: 18px; }
-.primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
-  border-radius: 999px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
-  font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-
-/* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
-   show the one guess sitting in a list of measured things, which is the strongest statement of the
-   mechanism anywhere in the product. */
-.meals { width: 100%; border-collapse: collapse; }
-.meals th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--faint); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
-.meals td { padding: 11px 12px; border-bottom: 1px solid var(--hair); }
-.meals tr:last-child td { border-bottom: 0; }
-.meals .num { text-align: right; white-space: nowrap; }
-/* The guessed row, and the only colour in the list. */
-.meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
-.meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
-/* The row's verdict pills sit under the meal's name, smaller than a card's (#52). */
-.meals .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.meals .pill { min-height: 22px; padding: 0 9px; font-size: 12px; }
-
-/* THE TRANSCRIPT (the boards' chat, #52): a quiet column — my words right in the accent green,
-   Spud's left and pale, and his face beside only his NEWEST turn. No bubble runs the column's
-   width, and the line's actions are small TEXT buttons on a 44px hit area. */
-.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.line { display: flex; flex-direction: column; align-items: flex-start; }
-.line .bub { margin: 0; padding: .55rem .9rem; width: fit-content; max-width: 86%; border-radius: 18px;
-  border-bottom-left-radius: 6px; background: var(--surface); border: 1px solid var(--hair); }
-.line.mine { align-items: flex-end; }
-.line.mine .bub { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
-  border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; max-width: 80%; }
-.line.buddy { flex-direction: row; gap: 10px; }
-.line .av { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
-  background: var(--surface); border: 1px solid var(--hair);
-  display: flex; align-items: center; justify-content: center; }
-.line .av svg { width: 30px; height: 30px; display: block; }
-.line.buddy .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
-.line .note { font-size: 12px; color: var(--faint); font-weight: 600; }
-.acts { display: flex; gap: 2px; }
-.act { background: none; border: 0; color: var(--muted); cursor: pointer;
-  font: 700 12.5px var(--display); padding: 4px 10px; min-width: 44px; min-height: 44px; }
-.error, .notice { color: var(--bad); }
-.notice { margin: 1rem 0 0; }
-/* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
-   field, the round send. It stays at the foot of the column while the thread scrolls under it. */
-.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--surface); padding: 10px 0 4px; }
-.comp-row { display: flex; align-items: center; gap: 8px; }
-.comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  font: 700 13px var(--display); }
-.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; font-size: 16px; padding: 11px 16px; border-radius: 999px;
-  min-height: 44px;
-  border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
-.comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
-  display: inline-flex; align-items: center; justify-content: center; }
-.comp-note { display: flex; align-items: center; gap: 6px; }
-.comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
-  font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--hair);
-  margin: .5rem .5rem 0 0; }
-.card button.primary { background: var(--accent); color: var(--accent-ink); }
-input:disabled, button:disabled { opacity: .5; cursor: default; }
-/* The one-meal flow (#42) — the v5 boards, in the diary's place while the account has never
-   logged: one centred column, the width a chat reads best at (styles_spec_v5_web). */
-.flow { max-width: 620px; margin: 0 auto; }
-.spk { display: flex; gap: 14px; align-items: flex-start; margin: 22px 0 18px; }
-.spk .av { flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; }
-.spk .av svg { display: block; width: 100%; height: 100%; }
-.spk-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.beat { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--good);
-  font-weight: 700; font-size: 13.5px; }
-.spk .them { color: var(--muted); line-height: 1.55; }
-.ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; margin: 0; }
-.step { display: flex; flex-direction: column; }
-.step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
-  font: inherit; font-size: 16px; min-height: 44px; padding: .55rem .8rem; border-radius: 999px; color: var(--ink); background: var(--surface);
-  border: 1px solid var(--hair); margin: .4rem 0 0; }
-.step .card .lab + .lab { margin-top: .9rem; }
-.step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
-  border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
-.cta.p { background: var(--accent); color: var(--accent-ink); }
-.cta.s { background: var(--surface); color: var(--ink); border: 1px solid var(--hair); }
-.cta.g { background: none; color: var(--muted); min-height: 44px; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
-  white-space: nowrap; }
-.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  min-height: 150px; border: 1.5px dashed var(--line); border-radius: 16px; color: var(--muted);
-  cursor: pointer; text-align: center; padding: 16px; }
-.drop.over, .drop:focus-within { border-color: var(--accent); color: var(--ink); }
-/* The input inside is clipped, so the ring goes on the zone — the visible thing focus lands in. */
-.drop:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
-.drop .drop-lead { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
-.drop small { color: var(--faint); }
-.stats { display: flex; gap: 10px; margin-top: 12px; }
-.stat-cell { flex: 1; background: var(--surface); border-radius: 12px; padding: 10px 12px; }
-.stat-num { font-size: 18px; font-weight: 800; margin-top: 2px; }
-.pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.pill { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px;
-  font-size: 12.5px; font-weight: 800; }
-.pill.good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
-.pill.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
-.pill.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
-.perks { display: flex; flex-direction: column; gap: 10px; margin: 2px 0 14px; }
-.perk { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-.perk .tick { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
-  border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 13px; flex: 0 0 22px; }
-.rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
-.rowline + .rowline { border-top: 1px solid var(--hair); }
-.rowline .when { font-weight: 700; }
-/* The plan rows are real radios — the input is native, so the keyboard works without a shim. */
-.plans { padding-top: 4px; padding-bottom: 4px; margin-bottom: 14px; }
-.plan { display: flex; align-items: center; gap: 12px; padding: 12px 2px; font-weight: 700; cursor: pointer; }
-.plan input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: 0 0 20px;
-  accent-color: var(--accent); cursor: pointer; }
-.hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
-@media (max-width: 760px) { .flow { max-width: none; } }
-/* The register's motion vocabulary, generated (#78): the six verbs, their keyframes, the stagger
-   property and the reduced-motion block — never a duration retyped into this file. */
+${shellCss}
+${todayCss}
+${chatCss}
+${youCss}
+${firstMealCss}
+/* The register's icon set, generated (#79): .ico plus an .i-<name> mask class per icon, the
+   same file the boards render with — never a glyph retyped into this page. */
+${iconCss()}
 ${motionCss()}
 </style>
 </head>

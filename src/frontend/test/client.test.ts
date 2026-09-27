@@ -9,7 +9,7 @@
 // (`backend/web/browser`, `bun run web:e2e`).
 
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const source = (name: string): string =>
@@ -19,7 +19,7 @@ const source = (name: string): string =>
  * The same file with its comments removed.
  *
  * Every rule below is about what the CODE does, and this house comments heavily — `api.ts` explains
- * at length why the bearer is not in `localStorage`, and `main.ts` says "text, never innerHTML". A
+ * at length why the bearer is not in `localStorage`, and `shell.ts` says "text, never innerHTML". A
  * check that reads those as violations is a check that forbids explaining itself, which is how a
  * comment ends up deleted to make a test pass.
  */
@@ -27,21 +27,35 @@ const code = (name: string): string => source(name)
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n");
 
+/**
+ * Every file the browser bundle is built from — since #87 that is not one `main.ts` but the shell
+ * plus `screens/` (#87's split): a rule checked on one file while the code moved to another is a
+ * rule that stopped holding. `server/`, `test/` and `dist/` are the OTHER halves; `.css.ts` modules
+ * are strings, not markup, and the surface's own test reads them through its screen.
+ */
+const CLIENT_FILES = readdirSync(join(import.meta.dir, ".."), { recursive: true })
+  .map(String)
+  .filter((f) => f.endsWith(".ts") && !f.endsWith(".css.ts"))
+  .filter((f) => !f.startsWith("server/") && !f.startsWith("test/") && !f.startsWith("dist/") && !f.startsWith("node_modules/"));
+
+const clientCode = (): string[] => CLIENT_FILES.map(code);
+const clientJoined = (): string => CLIENT_FILES.map(source).join("\n");
+
 describe("the client speaks the contract rather than a copy of it", () => {
   it("names no response shape of its own", () => {
     // `api<{ messages: ... }>(...)` is the bug that shipped: an inline structural type for a
     // response `shared/contract.ts` already describes. It typechecks and it is a second copy —
     // which is what the root AGENTS.md forbids: "if you change an endpoint and only one side
     // breaks, you changed it in the wrong place."
-    const inline = [...code("main.ts").matchAll(/api<\{([^}]*)\}>/g)].map((m: RegExpMatchArray) => m[0]);
+    const inline = clientCode().flatMap((f) => [...f.matchAll(/api<\{([^}]*)\}>/g)].map((m: RegExpMatchArray) => m[0]));
     expect(inline).toEqual([]);
   });
 
   it("takes its response types from the contract", () => {
-    const main = source("main.ts");
-    expect(main).toContain('from "@eait/shared/contract"');
+    const client = clientJoined();
+    expect(client).toContain('from "@eait/shared/contract"');
     for (const t of ["ChatHistoryResponse", "DayResponse", "ProfileResponse"]) {
-      expect(`${t}: ${main.includes(t)}`).toBe(`${t}: true`);
+      expect(`${t}: ${client.includes(t)}`).toBe(`${t}: true`);
     }
   });
 
@@ -51,7 +65,7 @@ describe("the client speaks the contract rather than a copy of it", () => {
     // CORS — a door this backend does not have and must not grow.
     const api = code("api.ts");
     expect(api).toContain('fetch(`/api/v1${path}`');
-    for (const f of [code("main.ts"), api]) {
+    for (const f of clientCode()) {
       expect(f).not.toMatch(/https?:\/\/api\./);
     }
   });
@@ -67,11 +81,12 @@ describe("the client speaks the contract rather than a copy of it", () => {
   it("builds every node through the one helper, never innerHTML", () => {
     // Everything on these screens came from a server response or from a person, and the shell's CSP
     // has no 'unsafe-inline' to fall back on.
-    const main = code("main.ts");
-    expect(main).not.toContain("innerHTML");
-    // No inline handler either: the shell is served under a nonce policy, which refuses `onclick=`
-    // outright — so one added here is a control that silently stops working.
-    expect(main).not.toMatch(/\son[a-z]+=["']/);
+    for (const f of clientCode()) {
+      expect(f).not.toContain("innerHTML");
+      // No inline handler either: the shell is served under a nonce policy, which refuses `onclick=`
+      // outright — so one added here is a control that silently stops working.
+      expect(f).not.toMatch(/\son[a-z]+=["']/);
+    }
   });
 });
 

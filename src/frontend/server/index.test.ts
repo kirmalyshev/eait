@@ -79,6 +79,17 @@ describe("the shell", () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it("still carries ONE style block — composed, not split into many", async () => {
+    // The nonce covers the one <style> the shell carries; a second one is a second thing to keep
+    // under the policy. The surfaces' CSS is per-module strings (#87) composed into it.
+    const html = await (await get(built, SHELL_PATH)).text();
+    expect(html.match(/<style/g)).toHaveLength(1);
+    // …and the composition actually happened: the generated icon set (#79) is in the block, which
+    // is the assertion that proves the strings are interpolated rather than named and forgotten.
+    expect(html).toContain(".i-protein");
+    expect(html).toContain("prefers-reduced-motion");
+  });
+
   it("has no inline handler in it at all", async () => {
     // The nonce covers <script> and <style>. It does NOT cover an `onclick=` attribute — those are
     // refused outright under a nonce policy — so one added here is a control that silently stops

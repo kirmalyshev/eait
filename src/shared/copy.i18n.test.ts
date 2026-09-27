@@ -36,7 +36,7 @@ describe("every Localized table in @eait/shared", () => {
       // test and `localizedGaps` go with it.
       // `THREAD_COPY` and `STREAM_COPY` are NOT here any more — `chat-copy.ts`'s words are in
       // the catalogs, swept by the block at the bottom of this file.
-      "CHAT_COPY", "HEALTH_COPY",
+      "CHAT_COPY", "HEALTH_COPY", "SHELL_COPY",
       "NOTIFICATION_COPY", "EVENING_PRESCRIPTIONS", "ONBOARDING_CONTENT",
     ]) {
       expect(found.has(table), `${table} is not being walked — is it exported?`).toBe(true);
