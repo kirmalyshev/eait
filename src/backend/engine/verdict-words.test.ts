@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { beforeEach } from "bun:test";
-import type { MealLogged, MealProposed, MealUpdated, PhotoEvent } from "@eait/shared";
+import type { Lang, MealProposed, PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts } from "../llm/port.ts";
@@ -42,7 +42,7 @@ function makeDeps(llm: LlmPorts = demoPorts()): EngineDeps {
   return { store, config: CONFIG, llm, push: fakePush() };
 }
 
-async function onboard(lang = "en", over: Record<string, unknown> = {}): Promise<string> {
+async function onboard(lang: Lang = "en", over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), lang);
   await store.addIdentity(userId, "google", "g-" + userId.slice(0, 8));
   const out = await patchProfile(deps, userId, {
@@ -60,9 +60,9 @@ const photo = () => ({ images: [async () => jpeg()] });
 /** A meal off plan on two axes — a verdict with something to say, in any language. */
 const BIG: AnalyzedMeal = {
   isFood: true,
-  items: [{ name: "Fries", grams: 400, kcal: 1200, protein_g: 12, carbs_g: 130, fat_g: 60, satfat_g: 30 }],
+  items: [{ name: "Fries", grams: 400, kcal: 1200, protein_g: 12, carbs_g: 130, fat_g: 60 }],
   kcal: 4000, protein_g: 12, carbs_g: 130, fat_g: 60, satfat_g: 30, fiber_g: 8, sugar_g: 5, sodium_mg: 2400,
-  confidence: "high", notes: [],
+  confidence: "high", notes: "",
 };
 
 const propose = async (userId: string, llm: LlmPorts = demoPorts()): Promise<MealProposed> => {
@@ -82,6 +82,7 @@ describe("the verdict words on the wire", () => {
     if (c.kind !== "logged") throw new Error("expected logged");
 
     const d = await day(deps, userId, c.date);
+    if (d === null) throw new Error("no day");
     const meal = d.meals.at(-1)!;
     expect(Array.isArray(meal.verdictLabels)).toBe(true);
     expect(meal.verdictInline).toBeDefined();
@@ -100,6 +101,7 @@ describe("the verdict words on the wire", () => {
     const c = await confirmPendingMeal(deps, userId, res.pendingId);
     if (c.kind !== "logged") throw new Error("expected logged");
     const d = await day(deps, userId, c.date);
+    if (d === null) throw new Error("no day");
     const meal = d.meals.at(-1)!;
     expect(meal.verdictInline).not.toBe("");
     // German words, not the English they are a translation of.
@@ -141,12 +143,12 @@ describe("the verdict words on the wire", () => {
     const userId = await onboard();
     const res = await handleText(makeDeps(bigLlm()), userId, { text: "a big plate of fries" });
     if (res.kind !== "proposed") throw new Error("expected proposed");
-    const logged: MealLogged | { kind: string } = await confirmPendingMeal(deps, userId, res.pendingId);
+    const logged = await confirmPendingMeal(deps, userId, res.pendingId);
     if (logged.kind !== "logged") throw new Error("expected logged");
     expect(Array.isArray(logged.verdictLabels)).toBe(true);
     expect(logged.verdictHeadline).toBeDefined();
 
-    const updated: MealUpdated | { kind: string } = await editMeal(deps, userId, logged.mealId, { kcal: 600 });
+    const updated = await editMeal(deps, userId, logged.mealId, { kcal: 600 });
     if (updated.kind !== "updated") throw new Error("expected updated");
     expect(Array.isArray(updated.verdictLabels)).toBe(true);
     expect(updated.verdictHeadline).toBeDefined();
@@ -179,6 +181,7 @@ describe("an on-plan day", () => {
     const c = await confirmPendingMeal(deps, userId, res.pendingId);
     if (c.kind !== "logged") throw new Error("expected logged");
     const d = await day(deps, userId, c.date);
+    if (d === null) throw new Error("no day");
     const meal = d.meals.at(-1)!;
     // The inline line is a STRING either way — empty on plan, joined warn/bad words off it.
     expect(typeof meal.verdictInline).toBe("string");

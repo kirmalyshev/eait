@@ -5,7 +5,6 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { verdictNoun, verdictPillLabel } from "../../shared/verdicts.ts";
 import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import type {
   DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
@@ -14,6 +13,7 @@ import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import {
   COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
@@ -139,7 +139,8 @@ async function diaryScreen(): Promise<HTMLElement> {
       const counters = el("div", "stats macros");
       counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
       if (day.targets.satfat_g !== undefined) {
-        counters.append(counter(verdictNoun("ldl", lang),
+        // The noun off the home copy table — the row's pills are the server's `verdictLabels`.
+        counters.append(counter(homeCopyFor(lang).macros.satFat.name,
           Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
       }
       body.append(big, bar, eaten, counters);
@@ -213,10 +214,11 @@ async function diaryScreen(): Promise<HTMLElement> {
         // The row's pills are the meal's OWN verdicts — computed by the server on the write and
         // sent on the row (#52). A client that derived its own would be the second copy
         // `verdictsFromTargets` exists to prevent.
-        const dims = renderableVerdicts(meal.verdicts);
-        if (dims.length > 0) {
+        const labels = meal.verdictLabels ?? [];
+        if (labels.length > 0) {
           const pills = el("span", "pills");
-          for (const d of dims) pills.append(el("span", `pill ${meal.verdicts[d]!}`, verdictPillLabel(d, meal.verdicts[d]!, lang)));
+          // The words arrive on the row — composed where the verdict was, never here.
+          for (const v of labels) pills.append(el("span", `pill ${v.tone}`, v.label));
           name.append(pills);
         }
         const num = document.createElement("td");
