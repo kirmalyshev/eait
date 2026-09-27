@@ -336,6 +336,20 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
 }
 
 /**
+ * The You board's target-lane dash, drawn the same on every surface — `stroke-dasharray` values in
+ * SVG units, so web's emitter and the phone's `<Line>` read one constant rather than each carrying
+ * "4 4" of their own.
+ */
+export const TARGET_LANE_DASH = "4 4";
+
+/**
+ * The weigh-in dots' entrance on the You board: dot `i` pops at `delayMs + min(i, lastIndex) *
+ * stepMs` — `.9/.10/.11/.12` on the board, so the fourth and every dot after share `lastIndex`'s
+ * delay. `pd-0..pd-3` on the web (`you.css.ts`) and the same arithmetic in the phone's kit.
+ */
+export const WEIGHT_CHART_DOTS = { delayMs: 900, stepMs: 100, lastIndex: 3 } as const;
+
+/**
  * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller
  * viewBox adds, its label above — DISPLAY, never the data scale (a 6 kg drop would sit off any
  * scale the three gridlines span). Off, the geometry is the board's plain one. The lane's VALUE
@@ -352,7 +366,7 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
   dateLabelY: number;
   dateLabelX: { start: number; end: number };
   /** The dashed target line, when one was asked for — you.html's lane at the band's bottom. */
-  targetLine?: { x1: number; x2: number; y: number };
+  targetLine?: { x1: number; x2: number; y: number; dash: string };
   /** Where its "{w} · target" label sits, right-aligned just over the line. */
   targetLabel?: { x: number; y: number };
 } {
@@ -361,7 +375,7 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
     ...g,
     // The band the taller frame opens: the board's lane at y 104, its label above it. The value
     // lives on the label, not the axis — the line says "the aim sits here", never a scale reading.
-    targetLine: { x1: 24, x2: 296, y: 104 },
+    targetLine: { x1: 24, x2: 296, y: 104, dash: TARGET_LANE_DASH },
     targetLabel: { x: 296, y: 98 },
   } : g;
 }

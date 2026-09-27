@@ -14,6 +14,7 @@
 // have. `numbers` and `monthYear` below are the only two shapes this product needs, and every
 // figure in every sentence goes through one of them rather than through a hand-written table.
 
+import { localDate } from "./dates.ts";
 import { LANGS, type Lang } from "./types.ts";
 
 /**
@@ -127,6 +128,16 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * A WHOLE NUMBER CARRYING ITS SIGN — "+450", "−500" — for the deltas the boards draw signed (the
+ * basis rows' "your days" and "your pace"). `Intl`'s `signDisplay` rather than a string stapled
+ * in front: the minus it writes is the language's own.
+ */
+export const signedWholeNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0, signDisplay: "always" });
+  return (x: number): string => format.format(Math.round(x));
+};
+
+/**
  * The step a guessed figure is rounded to: ten (#47). One number per thing, never a number and its
  * error — so a guess shows itself by its PRECISION ("about 1 820"), not by a ± or a band beside it.
  * Ten keeps a day of 1 822 reading 1 820, where fifty would move it to 1 800.
@@ -207,6 +218,28 @@ export const monthYear = (lang: Lang, at: Date): string =>
 /** "24 Aug" in the reader's language — the day-of-month axes (trend charts, the weight chart). */
 export const dayMonth = (lang: Lang) =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
+
+/**
+ * An INSTANT's day — "26 Sep", the year joining only when it is not this one — in the ACCOUNT's
+ * zone. For `YYYY-MM-DD` day strings (which are already dates, not instants) use `dayMonth` on a
+ * UTC noon anchor instead.
+ */
+export const dayMonthAt = (lang: Lang, zone: string, at: Date): string => {
+  const sameYear = localDate(zone, at).slice(0, 4) === localDate(zone).slice(0, 4);
+  return new Intl.DateTimeFormat(LANG_TAG[lang], {
+    day: "numeric", month: "short", timeZone: zone, ...(sameYear ? {} : { year: "numeric" }),
+  }).format(at);
+};
+
+/** "Sat 26 Sep" — a short weekday with the day, for "until {date}" style lines. Account's zone. */
+export const weekdayDayMonthAt = (lang: Lang, zone: string, at: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], {
+    weekday: "short", day: "numeric", month: "short", timeZone: zone,
+  }).format(at);
+
+/** "9:41" — a clock time in the account's zone, for "expires at {time}" style lines. */
+export const timeAt = (lang: Lang, zone: string, at: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "numeric", minute: "2-digit", timeZone: zone }).format(at);
 
 /**
  * The seven single letters a week is captioned with — the Today strip and Progress's bars and

@@ -9,6 +9,7 @@ function basis(over: Partial<TargetBasis> = {}): TargetBasis {
   return {
     bmr: 1780,
     tdee: 2760,
+    activityDeltaKcal: 980,
     requestedDeltaKcal: -550,
     appliedDeltaKcal: -550,
     shareCapApplied: false,
@@ -80,7 +81,7 @@ describe("projectGoal", () => {
     const p = projectGoal(
       profile({ sex: "female", weight_kg: 62, target_weight_kg: 57 }),
       basis({
-        bmr: 1320, tdee: 1584, requestedDeltaKcal: -550, appliedDeltaKcal: -84,
+        bmr: 1320, tdee: 1584, activityDeltaKcal: 264, requestedDeltaKcal: -550, appliedDeltaKcal: -84,
         floorKcal: 1500, floorApplied: true,
       }),
     );
