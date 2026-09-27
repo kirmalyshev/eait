@@ -55,6 +55,17 @@ export interface HomeCopy {
   phoneDayNote: string;
   /** phone: the month sheet's action — `phone/today-picker` "Go to Sunday 20"; `{day}` is Intl. */
   phoneGoToDay: string;
+  /** phone: the month sheet's back arrow's accessible name. */
+  pickerPrevMonth: string;
+  /** phone: the month sheet's forward arrow's accessible name. */
+  pickerNextMonth: string;
+  /** phone: the month sheet's scrim's accessible name — the tap-outside dismissal. */
+  pickerClose: string;
+  /**
+   * The guess hedge beside a figure (`today.html` "about 1,437" when the day holds a rough
+   * estimate) — the analysis's own honesty, never the target's.
+   */
+  about: string;
   /** The kcal card's toggle label — `today.html` "kcal left ⌄" (the ⌄ is the client's glyph). */
   kcalLeft: string;
   /** The toggle's other side — the issue's "toggling to eaten". */
@@ -125,6 +136,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "{n}-day streak",
     phoneDayNote: "{left} left. Keep dinner lean: {grams} g of {nutrient} to go.",
     phoneGoToDay: "Go to {day}",
+    pickerPrevMonth: "Previous month",
+    pickerNextMonth: "Next month",
+    pickerClose: "Close",
+    about: "about",
     kcalLeft: "kcal left",
     kcalEaten: "kcal eaten",
     kcalOver: "kcal over",
@@ -161,6 +176,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Série de {n} jours",
     phoneDayNote: "{left} restantes. Dîner léger : encore {grams} g de {nutrient}.",
     phoneGoToDay: "Aller au {day}",
+    pickerPrevMonth: "Mois précédent",
+    pickerNextMonth: "Mois suivant",
+    pickerClose: "Fermer",
+    about: "environ",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal consommées",
     kcalOver: "kcal en trop",
@@ -197,6 +216,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "{n} Tage in Folge",
     phoneDayNote: "Noch {left} übrig. Halte das Abendessen leicht: {nutrient} — noch {grams} g.",
     phoneGoToDay: "Zu {day} springen",
+    pickerPrevMonth: "Vorheriger Monat",
+    pickerNextMonth: "Nächster Monat",
+    pickerClose: "Schließen",
+    about: "etwa",
     kcalLeft: "kcal übrig",
     kcalEaten: "kcal gegessen",
     kcalOver: "kcal zu viel",
@@ -233,6 +256,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Serie di {n} giorni",
     phoneDayNote: "{left} rimaste. Cena leggera: ancora {grams} g di {nutrient}.",
     phoneGoToDay: "Vai a {day}",
+    pickerPrevMonth: "Mese precedente",
+    pickerNextMonth: "Mese successivo",
+    pickerClose: "Chiudi",
+    about: "circa",
     kcalLeft: "kcal rimaste",
     kcalEaten: "kcal mangiate",
     kcalOver: "kcal in più",
@@ -269,6 +296,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Racha de {n} días",
     phoneDayNote: "{left} restantes. Cena ligera: quedan {grams} g de {nutrient}.",
     phoneGoToDay: "Ir a {day}",
+    pickerPrevMonth: "Mes anterior",
+    pickerNextMonth: "Mes siguiente",
+    pickerClose: "Cerrar",
+    about: "unas",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal comidas",
     kcalOver: "kcal de más",
@@ -305,6 +336,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Chuỗi {n} ngày",
     phoneDayNote: "Còn {left}. Ăn tối nhẹ thôi: còn {grams} g {nutrient}.",
     phoneGoToDay: "Đến {day}",
+    pickerPrevMonth: "Tháng trước",
+    pickerNextMonth: "Tháng sau",
+    pickerClose: "Đóng",
+    about: "khoảng",
     kcalLeft: "kcal còn lại",
     kcalEaten: "kcal đã ăn",
     kcalOver: "kcal vượt quá",
@@ -341,6 +376,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Rangkaian {n} hari",
     phoneDayNote: "Sisa {left}. Makan malam yang ringan: tersisa {grams} g {nutrient}.",
     phoneGoToDay: "Ke {day}",
+    pickerPrevMonth: "Bulan sebelumnya",
+    pickerNextMonth: "Bulan berikutnya",
+    pickerClose: "Tutup",
+    about: "sekitar",
     kcalLeft: "kcal tersisa",
     kcalEaten: "kcal dimakan",
     kcalOver: "kcal berlebih",
@@ -377,6 +416,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     phoneStreakAria: "Серия: {n} дн.",
     phoneDayNote: "{left} осталось. На ужин — полегче: {nutrient}, ещё {grams} г.",
     phoneGoToDay: "Открыть {day}",
+    pickerPrevMonth: "Предыдущий месяц",
+    pickerNextMonth: "Следующий месяц",
+    pickerClose: "Закрыть",
+    about: "около",
     kcalLeft: "ккал осталось",
     kcalEaten: "ккал съедено",
     kcalOver: "ккал сверх плана",
