@@ -11,10 +11,10 @@
 // weekly one and say nothing about whether the user moved more. Null stays null: a bucket with no
 // reading is a gap in the line, never a zero, for the same reason `HealthDay` fields are.
 
-import { dateMinus, monthOf, monthShift, weekStart, windowStart } from "./dates.ts";
+import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
 import { HEALTH_COPY } from "./health-copy.ts";
-import { dayMonth, LANG_TAG, t } from "./lang.ts";
+import { LANG_TAG, t } from "./lang.ts";
 import type { DayTotals, Lang } from "./types.ts";
 
 /** The four x-axes, as ids. The words for them are per language — see `trendPeriods`. */
@@ -57,10 +57,6 @@ export interface TrendPoint extends TrendBucket {
 
 /** Midday UTC, so a date-only value cannot slip a day while being formatted — as `dayLabel` does. */
 const noon = (date: string) => new Date(`${date}T12:00:00Z`);
-// `dayMonth` moved to `lang.ts`, beside `monthYear` — the formatter's home — so the browser bundle
-// can read it without importing this module's server-side graph. Re-exported, unchanged.
-export { dayMonth };
-
 /**
  * The axis labels, in the reader's own language rather than in en-GB.
  *
@@ -70,6 +66,8 @@ export { dayMonth };
  * out here rather than fixed there — the date format and the unit system are different questions,
  * and `targets.ts` is the reason that distinction is kept sharp.
  */
+const dayMonth = (lang: Lang) =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
 const monthShort = (lang: Lang) =>
   new Intl.DateTimeFormat(lang === "en" ? "en-US" : LANG_TAG[lang], { timeZone: "UTC", month: "short" });
 
@@ -112,7 +110,8 @@ export function trendBuckets(
     }
     case "weeks": {
       const dayAxis = dayMonth(lang);
-      const monday = weekStart(today);
+      // getUTCDay is 0 for Sunday; shift so Monday is 0.
+      const monday = dateMinus(today, (noon(today).getUTCDay() + 6) % 7);
       return Array.from({ length: BUCKETS.weeks }, (_, i) => {
         const start = dateMinus(monday, 7 * (BUCKETS.weeks - 1 - i));
         return { start, end: dateMinus(start, -6), label: dayAxis.format(noon(start)) };

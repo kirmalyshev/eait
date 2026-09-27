@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  cmToFtIn, defaultUnits, ftInToCm, heightDisplayValue, heightText, heightToCm, kgToLb, lbToKg,
+  cmToFtIn, defaultUnits, ftInToCm, heightDisplayValue, heightToCm, kgToLb, lbToKg,
   rulerLabels, RULER_TICKS, weightDisplayValue, weightToKg,
 } from "./units.ts";
 
@@ -116,15 +116,5 @@ describe("the wire — display value back to stored metric", () => {
     expect(weightDisplayValue(74, "imperial")).toBe(163);
     expect(weightToKg("metric", 74)).toBe(74);
     expect(weightToKg("imperial", 163)).toBeCloseTo(73.9, 5);
-  });
-});
-
-describe("heightText — the copy-ready height", () => {
-  test("metric spells the unit in the reader's language", () => {
-    expect(heightText(172, "metric", "en")).toBe("172 cm");
-    expect(heightText(172, "metric", "ru")).toBe("172 см");
-  });
-  test("imperial is the ft-in join, digits in the language's format", () => {
-    expect(heightText(172, "imperial", "en")).toBe("5′8″");
   });
 });

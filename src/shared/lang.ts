@@ -204,10 +204,6 @@ export const spellUnit = (lang: Lang, unit: string): string => UNIT_SPELLING[lan
 export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
-/** "24 Aug" in the reader's language — the day-of-month axes (trend charts, the weight chart). */
-export const dayMonth = (lang: Lang) =>
-  new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
-
 /**
  * The seven single letters a week is captioned with — the Today strip and Progress's bars and
  * streak dots all draw Monday first, as the boards do. CLDR's `narrow` weekday rather than a

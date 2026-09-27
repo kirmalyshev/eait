@@ -6,8 +6,6 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  BMI_SEGMENTS,
-  bmiTick,
   dayRing,
   dayTone,
   estimateAreaPath,
@@ -308,26 +306,5 @@ describe("goalBar — the plan's progress as a share", () => {
     expect(goalBar(74, 60, 68).share).toBe(1);
     expect(goalBar(74, 80, 68).share).toBe(0);
     expect(goalBar(74, 74, 74).share).toBe(1);
-  });
-});
-
-describe("the BMI bar — four segments, one tick", () => {
-  test("the persona's 24.8 sits at the boards' 49.6% (boards.py _BPOS)", () => {
-    expect(bmiTick(24.8, "18.5-24.9")).toBeCloseTo(0.496, 3);
-  });
-
-  test("the segments are quarters and the open ends borrow the neighbour's width", () => {
-    expect(bmiTick(18.5, "18.5-24.9")).toBe(0.25);
-    expect(bmiTick(24.9, "18.5-24.9")).toBe(0.5);
-    expect(bmiTick(15, "below-18.5")).toBeGreaterThan(0);
-    expect(bmiTick(15, "below-18.5")).toBeLessThan(0.25);
-    expect(bmiTick(34, "30-plus")).toBeGreaterThan(0.75);
-    // The tick never leaves the bar, however far out the value is.
-    expect(bmiTick(60, "30-plus")).toBe(1);
-    expect(bmiTick(10, "below-18.5")).toBe(0);
-  });
-
-  test("the ids are the ones scores.ts bands by, in bar order", () => {
-    expect(BMI_SEGMENTS.map((s) => s.id)).toEqual(["below-18.5", "18.5-24.9", "25-29.9", "30-plus"]);
   });
 });

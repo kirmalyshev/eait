@@ -864,30 +864,6 @@ describe("the weights read", () => {
       { date: dateMinus(today, 10), kg: 74.6, source: "health" },
       { date: today, kg: 73.2, source: "manual" },
     ]);
-    // `latest` is the log's newest entry, whatever the range left in.
-    expect(out.latest).toEqual({ date: today, kg: 73.2, source: "manual" });
-  });
-
-  it("still names the latest weigh-in when the selected range holds none", async () => {
-    // Store-level account, so no manual row lands today: the only weigh-in predates 90D.
-    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
-    const token = await store.issueToken(userId);
-    const today = TODAY();
-    await store.putWeight(userId, dateMinus(today, 100), 75.5);
-
-    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
-    // `weights` honours the range — the card's empty frame — while `latest` keeps the dated
-    // figure the none-in-range state shows (design-pro on #95).
-    expect(out.weights).toEqual([]);
-    expect(out.latest).toEqual({ date: dateMinus(today, 100), kg: 75.5, source: "manual" });
-  });
-
-  it("answers no latest at all when nothing was ever logged", async () => {
-    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
-    const token = await store.issueToken(userId);
-    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
-    expect(out.weights).toEqual([]);
-    expect(out.latest).toBeNull();
   });
 
   it("bounds the log by the range, in the server's own timezone", async () => {

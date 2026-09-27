@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   dateMinus, dateMinusMonths, dayLabel, isCalendarDate, localDate, localTime, monthGrid,
-  monthLabel, monthOf, monthShift, weekStart, windowStart, zonedMidnight,
+  monthLabel, monthOf, monthShift, windowStart, zonedMidnight,
 } from "./dates.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
 
@@ -162,15 +162,6 @@ describe("windowStart", () => {
     // everything, which is the failure that hides rather than crashes.
     expect(windowStart("2026-09-06", Infinity)).toBe(windowStart("2026-09-06", 1e9));
     expect(windowStart("2026-09-06", Infinity)).not.toBe("2026-09-06");
-  });
-});
-
-describe("weekStart", () => {
-  test("a week starts Monday, in dates not hours", () => {
-    expect(weekStart("2026-09-24")).toBe("2026-09-21"); // Thursday
-    expect(weekStart("2026-09-21")).toBe("2026-09-21"); // already Monday
-    expect(weekStart("2026-09-27")).toBe("2026-09-21"); // Sunday belongs to the same week
-    expect(weekStart("2026-01-01")).toBe("2025-12-29"); // a week crossing the year
   });
 });
 

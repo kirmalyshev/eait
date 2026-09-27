@@ -6020,17 +6020,6 @@
             },
             "description": "Oldest first — chart order, `weightChart` reads the endpoints off the ends."
           },
-          "latest": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WeightEntry"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The newest weigh-in in the WHOLE log, whatever `range` left of it — Progress's current figure and its none-in-range state (\"weights exist, just not in this window\") need a dated entry the filtered `weights` can no longer name. `null` when nothing was ever logged."
-          },
           "projection": {
             "anyOf": [
               {
@@ -6069,7 +6058,6 @@
         },
         "required": [
           "weights",
-          "latest",
           "projection",
           "bmi"
         ],
