@@ -1,4 +1,4 @@
-import { shellCopyFor, signupCopyFor } from "@eait/shared";
+import { fill, shellCopyFor, signupCopyFor } from "@eait/shared";
 import type { Lang } from "@eait/shared";
 import { brandSvg } from "@eait/shared/ui/icons";
 import { IMG_URL_DIR } from "./board.ts";
@@ -57,7 +57,7 @@ ${v.providers.map((p) =>
 </form>
 <div class="paircard">
   <div class="row-between"><b>${escape(PAGE_COPY.pairHeading)}</b>
-    <small>${escape(PAGE_COPY.pairLead.replace("{tab}", shellCopyFor(v.lang).navProfile))}</small></div>
+    <small>${escape(fill(PAGE_COPY.pairLead, { tab: shellCopyFor(v.lang).navProfile }))}</small></div>
   <form method="post" action="/start/pair">
     <input type="text" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
       maxlength="16" placeholder="______"

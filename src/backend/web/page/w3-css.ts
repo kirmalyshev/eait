@@ -13,7 +13,9 @@ export const W3_CSS = `
 /* ── the reveal (ob-building): the count, the bar, the row ticks — all PLAN_REVEAL's data ── */
 .ob .bld { text-align: center; padding-top: 2rem; }
 .ob .bld .pct { font-size: 72px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
-.ob .bld .pct::after { content: "%"; font-size: 28px; font-weight: 600; margin-left: 4px; }
+/* The sign is the page's data-sign — Intl's percentSign for the reader's language, so this
+   stylesheet holds no glyph of its own. */
+.ob .bld .pct::after { content: attr(data-sign); font-size: 28px; font-weight: 600; margin-left: 4px; }
 .ob .bld .count { animation-duration: ${PLAN_REVEAL.durationMs / 1000}s; animation-timing-function: linear; }
 .ob .bld .bld-line { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin: 12px 0 0; }
 .ob .bld .lbar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; margin: 18px 0 26px; }
@@ -24,7 +26,7 @@ export const W3_CSS = `
 @keyframes k-tick { from { opacity: .3; } to { opacity: 1; } }
 .ob .bld .chk { display: flex; align-items: center; gap: 12px; padding: 12px 0;
   border-top: 1px solid var(--hair); font-weight: 500;
-  animation: k-tick .4s var(--ease) both; animation-delay: var(--d, 0s); }
+  animation: k-tick ${PLAN_REVEAL.rowFadeMs / 1000}s var(--ease) both; animation-delay: var(--d, 0s); }
 .ob .bld .chk:first-of-type { border-top: 0; }
 .ob .bld .chk > i { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 22px;
   background: var(--accent); position: relative; }
@@ -114,6 +116,8 @@ export const W3_CSS = `
 .ob .cty .opt .flag.any { color: var(--muted); font-weight: 600; }
 .ob .cty .opt.hide { display: none; }
 .ob .cty .cta { max-width: 360px; align-self: center; }
+/* The account-split note — quiet, under the choice it must not get in the way of. */
+.ob .cty .note { margin: .25rem 0 0; font-size: 13px; color: var(--muted); text-align: center; }
 @media (max-width: 720px) { .ob .cty .opts { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .ob .cty .opts { grid-template-columns: 1fr; } }
 `;

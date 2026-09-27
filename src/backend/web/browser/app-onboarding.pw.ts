@@ -28,6 +28,11 @@ test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back
   }
   expect(reveal).toContain("4.5;url=/start/plan");
 
+  // The reveal's own button is the way off it — clicked, not the meta refresh waited out (the
+  // refresh is the fallback, and a spec that rides it flakes inside its own timeout).
+  await page.goto("/start/building");
+  await page.getByRole("link", { name: "Show me the plan" }).click();
+
   // ── The plan ────────────────────────────────────────────────────────────────────────────
   await expect(page).toHaveURL(/\/start\/plan/);
   await expect(page.locator(".pln .goal")).toContainText("Goal: lose");
@@ -93,8 +98,10 @@ test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back
   await returning.getByRole("button", { name: /Continue with Google/i }).click();
   await returning.getByRole("textbox").fill(subject); // the same identity
   await returning.getByRole("button").click();
-  // Home — `/#/` — with no question, no reveal, no country. The account is where it was.
+  // Home — `/#/` — with no question, no reveal, no country. The account is where it was, and the
+  // app's own chrome is the assertion: the Home tab is on screen.
   await returning.waitForURL(/\/($|#)/);
+  await expect(returning.getByRole("link", { name: "Home" })).toBeVisible();
   await expect(returning.locator('input[name="prompt"]')).toHaveCount(0);
   await other.close();
 });

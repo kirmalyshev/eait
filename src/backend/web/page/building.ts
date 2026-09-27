@@ -40,16 +40,21 @@ export function building(v: BuildingView): string {
   // The button and the auto-open arrive when the count does; a run that draws more rows than
   // tick slots reuses the last mark rather than inventing one.
   const openS = (PLAN_REVEAL.durationMs + PLAN_REVEAL.autoOpenDelayMs) / 1000;
+  // The percent is a MEASUREMENT, so its accessible name and its sign come from `Intl` — "100 %"
+  // in French and German is written with the space, and Arabic's sign is not ASCII's. `data-sign`
+  // feeds the CSS `::after`, so no stylesheet holds the glyph either.
+  const percent = new Intl.NumberFormat(v.lang, { style: "percent" });
+  const pctSign = percent.formatToParts(1).find((p) => p.type === "percentSign")!.value;
   return shell(v.lines.join(" "), `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="bld">
-<div class="pct count num" style="--to:100" role="img" aria-label="100%"></div>
+<div class="pct count num" style="--to:100" data-sign="${escape(pctSign)}" role="img" aria-label="${escape(percent.format(1))}"></div>
 <p class="bld-line">${escape(v.lines.join(" "))}</p>
 <div class="lbar"><i></i></div>
 <div class="card"><span class="lab">${escape(v.cardLabel)}</span>
 ${v.rows.map((row, i) => `  <div class="chk" style="--d:${ticks[Math.min(i, ticks.length - 1)]! / 1000}s"><i></i><span class="mac"><i class="ico i-${ROW_ICON[row.id]}"></i>${escape(row.label)}</span><b class="num">${escape(row.value)}</b></div>`).join("\n")}
 </div>
-${ctaLink(v.next, v.cta).replace('class="cta p"', `class="cta p go pop" style="--d:${PLAN_REVEAL.durationMs / 1000}s"`)}
+${ctaLink(v.next, v.cta, "p go pop", ` style="--d:${PLAN_REVEAL.durationMs / 1000}s"`)}
 </div>
 </div></div>
 `, v.lang, "ob",

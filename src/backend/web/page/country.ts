@@ -28,6 +28,13 @@ export interface CountryView {
   selected: CountryCode | "other" | null;
   /** The content's own label for the sentinel ("Somewhere else"). */
   otherLabel: string;
+  /**
+   * The account-split guard's sentence, filled — `sameAccountHint` naming the provider the
+   * sign-up used, or `sameAccountHintGeneric` when the route found no web identity to name.
+   * It lives HERE — the post-sign-up handoff — because the provider buttons sat on the plan
+   * once and the note followed them onto the last `/start` screen the account still reads.
+   */
+  accountHint: string;
   /** The live `?q=` filter — what a no-script search typed. */
   query: string;
   error: string | null;
@@ -71,6 +78,7 @@ ${rows}
   </div>
   ${ctaSubmit(PAGE_COPY.continueLabel)}
 </form>
+<p class="note">${escape(v.accountHint)}</p>
 </div>
 </div></div>
 `, v.lang, "ob");

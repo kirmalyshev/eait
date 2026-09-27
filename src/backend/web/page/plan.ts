@@ -1,6 +1,6 @@
 import {
-  capNote, chatCopyFor, estimateChart, LANG_LABEL, LANGS_READY, planHeadline, projectionMonth,
-  spellUnit, weightDisplay, wholeNumbers,
+  capNote, chatCopyFor, estimateChart, fill, LANG_LABEL, LANGS_READY, PLAN_CHART_TICKS_MS,
+  planHeadline, projectionMonth, spellUnit, weightDisplay, wholeNumbers,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent,
   type Profile, type TargetBasis,
 } from "@eait/shared";
@@ -49,9 +49,6 @@ export interface PlanView {
   hasWebApp: boolean;
   lang: Lang;
 }
-
-const fill = (template: string, params: Record<string, string>): string =>
-  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
 export function plan(v: PlanView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
@@ -155,6 +152,7 @@ function chartCard(
   lang: Lang,
 ): string {
   const direction = p.goal === "gain" ? "gain" : "lose";
+  const TICKS = PLAN_CHART_TICKS_MS;
   const g = estimateChart(direction);
   const month = projectionMonth(new Date(), projection.weeks, lang);
   const from = weightDisplay(p.weight_kg!, p.units, lang);
@@ -165,11 +163,11 @@ function chartCard(
   <svg class="pgraph" viewBox="${g.viewBox}" role="img" aria-label="${escape(aria)}">
     <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1">${g.areaGradient.stops.map((s) => `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`).join("")}</linearGradient></defs>
     <line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>
-    <path d="${g.areaPath}" fill="url(#pgf)" class="rise" style="--d:.6s"/>
+    <path d="${g.areaPath}" fill="url(#pgf)" class="rise" style="--d:${TICKS.area / 1000}s"/>
     <path d="${g.linePath}" class="ln draw"/>
     <circle cx="${g.startDot.cx}" cy="${g.startDot.cy}" r="${g.startDot.r}" fill="var(--ink)"/>
-    <circle cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}" class="pop" style="--d:1.1s"/>
-    <g class="rise" style="--d:1.2s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" fill="#fff" style="font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
+    <circle cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}" class="pop" style="--d:${TICKS.endDot / 1000}s"/>
+    <g class="rise" style="--d:${TICKS.targetChip / 1000}s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" fill="#fff" style="font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
     <text x="${g.startLabel.x}" y="${g.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(from)}</text>
     <text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${escape(CHAT.chart.now)}</text>
     <text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" style="fill:var(--ink);font-weight:600">${escape(fill(CHAT.chart.monthEstimate, { month }))}</text>

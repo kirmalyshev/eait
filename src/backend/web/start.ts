@@ -21,7 +21,7 @@
 import {
   ageFrom,
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
-  countryOptions,
+  countryOptions, fill,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
   heightToCm, isAnswered, promptsFor,
@@ -1201,14 +1201,25 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
     const prompt = promptById("country")!;
     const query = url.searchParams.get("q") ?? "";
+    // WHICH BUTTON TO PRESS IN THE APP — the sentence the old plan carried, re-homed on the
+    // post-sign-up handoff this screen is. The wrong provider in the install lands in a second
+    // account `identity.ts` will never merge, and nothing downstream repairs it.
+    const signedInWith = (await ctx.store.listIdentities(userId))
+      .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
+    const PAGE_COPY = pageCopyFor(lang);
+    const accountHint = signedInWith
+      ? fill(PAGE_COPY.sameAccountHint, { provider: signedInWith === "apple" ? "Apple" : "Google" })
+      : PAGE_COPY.sameAccountHintGeneric;
     // The board is the 16-country one (W3): the ask, the search field, the flag grid with the
-    // resolved pick preselected — `country()` draws it, not the walk's `question()`.
+    // resolved pick preselected — `country()` draws it, not the walk's `question()`. The sentinel's
+    // label is the content's own — the validator requires it, so there is no English fallback.
     const ask = (error: string | null) => html(country({
       ask: askLines(prompt, { content, lang }, profile)[0] ?? "",
       placeholder: content.screens.find((s) => s.id === "country")?.asks.country?.placeholder ?? "",
       options: countryOptions(lang),
       selected: resolved.country,
-      otherLabel: screenOptions(content, "country").other?.label ?? "Somewhere else",
+      otherLabel: screenOptions(content, "country").other!.label,
+      accountHint,
       query,
       error,
       action: `${START_PREFIX}/country`,

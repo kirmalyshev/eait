@@ -74,6 +74,14 @@ export interface PageCopy {
   pairLead: string;
   pairLabel: string;
   pairButton: string;
+  /**
+   * The account-split guard on the post-sign-up handoff (the country screen — the last `/start`
+   * page a signed-in account sees). `{provider}` is the one they actually used; see the note in
+   * the English below.
+   */
+  sameAccountHint: string;
+  /** No identity to name — a state `/start/country` can only reach through a device-paired run. */
+  sameAccountHintGeneric: string;
   errorPair: string;
   continueLabel: string;
   answerRequired: string;
@@ -196,6 +204,18 @@ const EN: PageCopy = {
   pairLead: "Your phone makes one in {tab}.",
   pairLabel: "Your pairing code",
   pairButton: "Pair this browser",
+  /**
+   * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
+   * the app offers both buttons, and the other one lands in a different account with onboarding to
+   * do again and this plan — and anything bought from it — left behind on an account nothing can
+   * merge into. Naming the right button is the only thing standing in front of that.
+   */
+  sameAccountHint:
+    "Install eait for iPhone and choose Sign in with {provider}. It is the same account — your " +
+    "answers and your plan are already on it.",
+  sameAccountHintGeneric:
+    "Install eait for iPhone and sign in the same way you did here. It is the same account — " +
+    "your answers and your plan are already on it.",
   errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
   /** Three places want it and it was typed out in each. */
   continueLabel: "Continue",
@@ -277,6 +297,8 @@ const FR: PageCopy = {
   pairLead: "Ton téléphone en crée un dans {tab}.",
   pairLabel: "Ton code d'appairage",
   pairButton: "Appairer ce navigateur",
+  sameAccountHint: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
+  sameAccountHintGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
   errorPair: "Ce code n'a pas marché. Un code marche une fois, et seulement cinq minutes après sa création.",
   continueLabel: "Continuer",
   answerRequired: "Cette question attend une réponse.",
@@ -354,6 +376,8 @@ const DE: PageCopy = {
   pairLead: "Dein Telefon erstellt ihn in {tab}.",
   pairLabel: "Dein Kopplungscode",
   pairButton: "Diesen Browser koppeln",
+  sameAccountHint: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
+  sameAccountHintGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   errorPair: "Dieser Code hat nicht funktioniert. Ein Code gilt einmal und nur fünf Minuten nach seiner Erzeugung.",
   continueLabel: "Weiter",
   answerRequired: "Die hier braucht eine Antwort.",
@@ -431,6 +455,8 @@ const IT: PageCopy = {
   pairLead: "Il telefono ne crea uno in {tab}.",
   pairLabel: "Il tuo codice di collegamento",
   pairButton: "Abbina questo browser",
+  sameAccountHint: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
+  sameAccountHintGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   errorPair: "Quel codice non ha funzionato. Un codice vale una volta sola, e solo per cinque minuti da quando è stato creato.",
   continueLabel: "Continua",
   answerRequired: "Questa ha bisogno di una risposta.",
@@ -508,6 +534,8 @@ const ES: PageCopy = {
   pairLead: "Tu teléfono crea uno en {tab}.",
   pairLabel: "Tu código de vinculación",
   pairButton: "Vincular este navegador",
+  sameAccountHint: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
+  sameAccountHintGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   errorPair: "Ese código no funcionó. Un código vale una vez, y solo durante cinco minutos desde que se crea.",
   continueLabel: "Continuar",
   answerRequired: "Esa necesita una respuesta.",
@@ -585,6 +613,8 @@ const VI: PageCopy = {
   pairLead: "Điện thoại tạo một mã trong {tab}.",
   pairLabel: "Mã ghép nối của bạn",
   pairButton: "Ghép trình duyệt này",
+  sameAccountHint: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
+  sameAccountHintGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   errorPair: "Mã đó không dùng được. Mỗi mã chỉ dùng một lần, và chỉ trong năm phút kể từ khi tạo.",
   continueLabel: "Tiếp tục",
   answerRequired: "Câu này cần một câu trả lời.",
@@ -662,6 +692,8 @@ const ID: PageCopy = {
   pairLead: "Ponsel membuatnya di {tab}.",
   pairLabel: "Kode penyambungmu",
   pairButton: "Pasangkan browser ini",
+  sameAccountHint: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
+  sameAccountHintGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   errorPair: "Kode itu tidak berhasil. Kode berlaku sekali, dan hanya lima menit setelah dibuat.",
   continueLabel: "Lanjut",
   answerRequired: "Yang ini butuh jawaban.",
@@ -739,6 +771,8 @@ const RU: PageCopy = {
   pairLead: "Телефон создаёт его в разделе {tab}.",
   pairLabel: "Твой код привязки",
   pairButton: "Привязать этот браузер",
+  sameAccountHint: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
+  sameAccountHintGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
   errorPair: "Этот код не сработал. Код работает один раз и только пять минут после создания.",
   continueLabel: "Дальше",
   answerRequired: "На этот нужен ответ.",

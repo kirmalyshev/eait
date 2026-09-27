@@ -1950,6 +1950,24 @@ describe("the session account, before and after sign-up (S8)", () => {
     // The sentinel always stays — it is the honest answer to a search that finds nothing.
     expect(rendered.at(-1)).toBe("other");
   });
+
+  // THE SENTENCE THE PROVIDER PAIR EXISTS FOR — re-homed from the plan to this screen, the
+  // post-sign-up handoff: the app offers both buttons and the wrong one does not find this
+  // account — it attaches to the anonymous one the install already has, so onboarding runs
+  // again and this plan, plus anything bought from it, stays on an account nothing can merge
+  // into. `engine/identity.ts` never merges two real identities, so there is no repair
+  // downstream of getting this wrong.
+  it.each(["apple", "google"] as const)(
+    "tells a %s signup to press that same button in the app, not the other one",
+    async (name) => {
+      const session = await answerAll(undefined, ANSWERS);
+      const signed = await signIn(`sub-${name}`, name, undefined, session);
+      const html = await (await get("/start/country", signed)).text();
+      const [used, other] = name === "apple" ? ["Apple", "Google"] : ["Google", "Apple"];
+      expect(html).toContain(`Sign in with ${used}`);
+      expect(html).not.toContain(`Sign in with ${other}`);
+    },
+  );
 });
 
 describe("chat on the web: photos", () => {

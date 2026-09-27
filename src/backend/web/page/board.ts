@@ -56,8 +56,12 @@ export function say(mood: MascotMood, lines: readonly string[], lang: Lang): str
 /** The primary Continue — a submit inside the question form, or a link on the interstitials. */
 export const ctaSubmit = (label: string): string =>
   `<button class="cta p" type="submit">${escape(label)}</button>`;
-export const ctaLink = (href: string, label: string, secondary = false): string =>
-  `<a class="cta ${secondary ? "s" : "p"}" href="${href}">${escape(label)}</a>`;
+/** The board's link-shaped button. `cls` carries the full modifier list — "p" primary, "s"
+ * secondary, plus the caller's own (the reveal passes `go pop` for its entrance). `attrs` is
+ * for the rare inline custom property (an animation delay); callers never get a tag of raw HTML
+ * to compose, so a patch of the emitted string is never the way. */
+export const ctaLink = (href: string, label: string, cls = "p", attrs = ""): string =>
+  `<a class="cta ${cls}" href="${href}"${attrs}>${escape(label)}</a>`;
 
 /**
  * An option row — a real input wrapped in its label, so the row IS the control and works with no

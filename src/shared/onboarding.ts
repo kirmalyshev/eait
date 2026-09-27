@@ -693,8 +693,17 @@ export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): 
 export const PLAN_REVEAL = {
   durationMs: 3500,
   rowTicksMs: [500, 1000, 1600, 2100, 2700, 3300],
+  /** A row's own fade once its tick lands. */
+  rowFadeMs: 400,
   autoOpenDelayMs: 1000,
 } as const;
+
+/**
+ * The estimate chart's entrance marks (15-plan), as data like PLAN_REVEAL: the area rises behind
+ * the line that is already drawing, the end dot pops, the target chip follows — each a delay the
+ * page hands to the shared verbs via `--d`, never a number a renderer retypes.
+ */
+export const PLAN_CHART_TICKS_MS = { area: 600, endDot: 1100, targetChip: 1200 } as const;
 
 // ── The defaults ─────────────────────────────────────────────────────────────────────────────
 
