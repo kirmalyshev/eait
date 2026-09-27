@@ -139,6 +139,9 @@ export const RADIUS = {
   pill: 999,
 } as const;
 
+/** The card's lift — pro.css's `--shadow`, verbatim. One soft pair, shared by every surface. */
+export const SHADOW = "0 1px 2px rgba(23,25,28,.06), 0 8px 24px -16px rgba(23,25,28,.18)" as const;
+
 /** px. The gutters are the boards' own: 20 on the phone, 40 on the web. */
 export const SPACE = {
   /** Phone screen edge — every board's side padding. */
