@@ -204,6 +204,20 @@ describe("seedDevData", () => {
     expect(me!.projection!.beyondHorizon).toBe(false);
   });
 
+  test("the 'onboarded' persona is still there beside her — its name is an API (#84 review)", async () => {
+    // `only: ["onboarded"]` is how the monorepo's `scripts/eval-coach.ts` seeds its subject, and
+    // the dev-env docs name the key — a rename would break callers outside this repository.
+    const store = memoryStore();
+    const [seeded] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["onboarded"] });
+    expect(seeded).toBeDefined();
+    expect(seeded!.key).toBe("onboarded");
+    // The generated week, unchanged: three meals a day for seven days.
+    for (const date of SEEDED_WEEK) {
+      expect((await store.mealsForDate(seeded!.userId, date)).length).toBe(3);
+    }
+    expect(seeded!.meals).toBe(SEEDED_WEEK.length * 3);
+  });
+
   test("the fresh persona exists, has never onboarded, and has no meals", async () => {
     const store = memoryStore();
     const [seeded] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["fresh"] });

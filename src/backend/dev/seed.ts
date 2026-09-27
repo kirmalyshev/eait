@@ -320,11 +320,9 @@ const ANNA_BOARD: SeedBoard = {
 /**
  * The personas, in the order the seeder prints them. `anna` is first because she is the one
  * `dev-env` pins by default — the board persona, so the app opens on the screens the design
- * teams measure against.
- *
- * Anna declares `ldl` — the tag that unlocks the `ldl` verdict dimension — so seeded meals carry
- * a second verdict pill and the row that renders it is exercised by looking at the app rather
- * than only by a unit test.
+ * teams measure against. `onboarded` stays beside her, exactly as it has been: other tooling
+ * seeds it by name (the monorepo's `scripts/eval-coach.ts` does `only: ["onboarded"]` and refuses
+ * without it), and the generated week is still the fixture for an ordinary, unauthored account.
  */
 export const SEED_PERSONAS: readonly SeedPersona[] = [
   {
@@ -355,6 +353,27 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
       food_allergies: null,
       product_limitations: null,
       // onboarded_at is computed per seed run — see `seedDevData`.
+    },
+  },
+  {
+    key: "onboarded",
+    summary: "onboarded, 7 days of meals, declares an LDL restriction",
+    days: 7,
+    profile: {
+      goal: "lose",
+      sex: "male",
+      birth_year: 1990,
+      height_cm: 180,
+      weight_kg: 93,
+      target_weight_kg: 85,
+      activity: "some",
+      pace: "steady",
+      country: "de",
+      restrictions: ["ldl"],
+      medical_limitations: null,
+      food_allergies: null,
+      product_limitations: null,
+      onboarded_at: new Date("2026-01-15T09:00:00.000Z").toISOString(),
     },
   },
   {
