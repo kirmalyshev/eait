@@ -381,22 +381,21 @@ export async function editMeal(
   }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
-  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  const profile = await deps.store.getProfile(userId);
+  const lang = profile?.lang ?? "en";
+  // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
+  // that moved nothing (a rename), which keeps #49's rule: the card, and no line about it. The
+  // SAME string rides the result — the screen that made the write is where it is shown first.
+  const line = profile ? changeLine(existing, updated, profile) : null;
   if (opts.thread !== false) {
-    await remember(deps, userId, async () => {
-      // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
-      // that moved nothing (a rename), which keeps #49's rule: the card, and no line about it.
-      const profile = await deps.store.getProfile(userId);
-      const line = profile ? changeLine(existing, updated, profile) : null;
-      return [
-        { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
-        ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
-      ];
-    });
+    await remember(deps, userId, async () => [
+      { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
+      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
+    ]);
   }
   return {
     kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
-    ...verdictWordsFor(updated.verdicts, lang),
+    line, ...verdictWordsFor(updated.verdicts, lang),
   };
 }
 
@@ -669,7 +668,7 @@ export async function rewriteMeal(
   if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
-    via: "reanalysis", ...verdictWordsFor(updated.verdicts, profile.lang),
+    via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),
   };
 }
 

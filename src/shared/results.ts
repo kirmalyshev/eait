@@ -168,6 +168,12 @@ export interface MealUpdated {
   verdictLabels: VerdictLabel[];
   /** Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say. */
   verdictHeadline: string | null;
+  /**
+   * The change, named — the SAME line the engine writes into the thread ("Rice 150 → 200 g: 540 →
+   * 605 kcal. …", `changeLine`, #119), returned so the screen that made the write can show it
+   * without a second read. Null when the edit moved nothing (a rename), matching the thread.
+   */
+  line: string | null;
 }
 
 /**

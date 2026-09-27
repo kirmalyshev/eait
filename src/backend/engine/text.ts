@@ -281,6 +281,9 @@ async function keep(
       if (result.kind === "updated" && before !== null) {
         const meal = await deps.store.getMeal(userId, result.mealId);
         const line = meal ? changeLine(before, meal, profile) : null;
+        // The same string the thread keeps rides the result — the screen that sent the correction
+        // draws it without a second read.
+        result.line = line;
         if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie" });
       }
     }
