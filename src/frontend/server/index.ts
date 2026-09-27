@@ -34,6 +34,7 @@ import { kitCss } from "../../shared/ui/kit.ts";
 import { shellCss } from "../shell.css.ts";
 import { todayCss } from "../screens/today.css.ts";
 import { chatCss } from "../screens/chat.css.ts";
+import { logCss } from "../screens/log.css.ts";
 import { youCss } from "../screens/you.css.ts";
 import { firstMealCss } from "../screens/first-meal.css.ts";
 import { progressCss } from "../screens/progress.css.ts";
@@ -98,6 +99,7 @@ ${fontFaces("/start/assets/fonts")}
 ${shellCss}
 ${todayCss}
 ${chatCss}
+${logCss}
 ${youCss}
 ${firstMealCss}
 ${progressCss}

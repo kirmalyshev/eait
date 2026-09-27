@@ -7,7 +7,7 @@ import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
 import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
-  DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
+  DayResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
 import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
@@ -15,7 +15,7 @@ import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import type { Localized } from "../../shared/lang.ts";
 import {
-  COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
+  COPY, PENDING, composerRow, el, clear, firstMealDue, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
 } from "../shell.ts";
 
@@ -316,9 +316,14 @@ const SATFAT: Localized<string> = {
 };
 
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
-  if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
-    const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
-    if (marked.days.length === 0) return firstMealScreen(me);
+  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`). The profile in the
+  // frame is the session's cached read — a meal logged this session flipped `hasLoggedMeal`
+  // without the cache knowing, so a cached "first" is re-verified on a fresh read before the
+  // free-meal flow shows; a stale one silently never did (the diary for somebody who HAS logged
+  // is the failure the gate exists to prevent).
+  if (firstMealDue(me)) {
+    const fresh = await api<ProfileResponse>("/profile").catch(() => me);
+    if (firstMealDue(fresh)) return firstMealScreen(fresh);
   }
   return diaryScreen();
 }

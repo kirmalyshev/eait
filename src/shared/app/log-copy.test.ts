@@ -14,7 +14,7 @@ const SHARED = [
   "notePlaceholder", "reading", "checking", "close", "logged", "today", "waitingToSend",
   "noFood", "tryAnotherPhoto", "roughGuess", "roughAsk", "roughAbout", "roughHalf", "roughMore",
   "roughSent", "edit", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
-  "unknownTitle", "unknownNote", "satfatNoun", "verdictDetail", "dayEaten", "dayOfPlan", "dayLeft",
+  "unknownTitle", "unknownNote", "satfatNoun", "verdictDetail", "dayEaten", "dayOfPlan", "dayLeft", "dayOver",
 ] as const;
 const WEB = [
   "title", "dropHint", "chooseFile", "analyzeCta", "chatInstead", "fromPhoto",
@@ -30,7 +30,7 @@ const PHONE = [
 const FILL: Record<string, string> = {
   item: "rice", grams: "150", n: "1", total: "3",
   noun: "Saturated fat", amount: "5", target: "13", coach: "Gabie",
-  eaten: "852", plan: "1,434", left: "582",
+  eaten: "852", plan: "1,434", left: "582", over: "120",
 };
 
 describe("LOG_COPY", () => {
@@ -53,6 +53,7 @@ describe("LOG_COPY", () => {
       ["verdictDetail", ["{noun}", "{amount}", "{target}"]],
       ["dayEaten", ["{eaten}", "{plan}"]],
       ["dayOfPlan", ["{plan}"]],
+      ["dayOver", ["{over}"]],
       ["dayLeft", ["{left}"]],
     ];
     for (const lang of LANGS) {
