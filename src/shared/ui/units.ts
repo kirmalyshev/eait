@@ -119,3 +119,42 @@ export function rulerLabels(ticks: RulerTicks, from: number, to: number): number
   for (let v = first; v <= to; v += ticks.labelEvery) out.push(v);
   return out;
 }
+
+/**
+ * Where the ruler's gradient sits so a tick lands under the needle: the offset of the window's
+ * centre from the value, wrapped into one period. `major` phases the long ticks by their own
+ * period; both layers get the same raw offset modulo their own period, or the majors drift off
+ * the numbers they mark. The client script recomputes the same phase on drag (it is a hashed
+ * literal and cannot import this); the two agree because the geometry is this one function's.
+ */
+export function rulerTickPhase(ticks: RulerTicks, centre: number, val: number, major = false): number {
+  const period = ticks.pxPerUnit * (major ? ticks.majorEvery : 1);
+  const raw = centre - val * ticks.pxPerUnit;
+  return ((raw % period) + period) % period;
+}
+
+// ── The wire: display value ↔ stored metric ──────────────────────────────────────────────────
+//
+// A ruler drags and a field is typed in the DISPLAYED unit; the store stays metric. These two
+// pairs are the only conversion on the boundary — the rulers' pitch lives in `RULER_TICKS`, the
+// prose spelling in `weightDisplay` (`onboarding-chat.ts`), and nothing else converts.
+
+/** A stored height as the number the control shows: cm in metric, whole inches in imperial. */
+export function heightDisplayValue(cm: number, units: UnitSystem): number {
+  return units === "imperial" ? Math.round(cm / CM_PER_IN) : cm;
+}
+
+/** A height the control answered, back to the stored cm. Imperial's display unit is the inch. */
+export function heightToCm(units: UnitSystem, display: number): number {
+  return units === "imperial" ? ftInToCm(0, display) : display;
+}
+
+/** A stored weight as the number the control shows: kg in metric, whole lb in imperial. */
+export function weightDisplayValue(kg: number, units: UnitSystem): number {
+  return units === "imperial" ? kgToLb(kg) : kg;
+}
+
+/** A weight the control answered, back to the stored kg — the tenth `checkNumber` keeps. */
+export function weightToKg(units: UnitSystem, display: number): number {
+  return units === "imperial" ? lbToKg(display) : display;
+}
