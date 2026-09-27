@@ -120,6 +120,35 @@ export function macroLeft(target: number, eaten: number): number {
 }
 
 /**
+ * A macro card's figure-and-label pair — "{n} g" over "{Macro} left" or "{Macro} over".
+ *
+ * ONE RULE for the two screens that draw the card: Home's diary column and You's day column are
+ * the same component on the boards (#175), so a clamped "0 g left" beside a real overage is two
+ * cards disagreeing about one day. `label` is a copy slot the screen fills; over shows the
+ * overage and closes the ring, a targetless macro shows the eaten figure and draws no ring, and
+ * the share is eaten/target clamped to a full ring.
+ */
+export interface MacroCardState {
+  /** The grams the card prints — the overage when over, what's left otherwise, eaten when targetless. */
+  figure: number;
+  /** Which of the card's two label words it reads: "{Macro} left" or "{Macro} over". */
+  label: "left" | "over";
+  /** eaten / target clamped to 0…1 — absent when there is no target to be a share of. */
+  share?: number;
+}
+
+export const macroCardState = (eaten: number, target: number | undefined): MacroCardState => {
+  const e = Math.round(eaten);
+  if (target === undefined) return { figure: e, label: "left" };
+  const over = e > target;
+  return {
+    figure: over ? e - target : macroLeft(target, e),
+    label: over ? "over" : "left",
+    share: target > 0 ? Math.min(1, e / target) : 1,
+  };
+};
+
+/**
  * The W4 calorie card's figure-and-label pair — ONE choice for the screen's two forms (#164).
  *
  * `label` is a copy slot the screen fills ("kcal left"/"kcal eaten"/"kcal over" and their detail
