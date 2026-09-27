@@ -24,8 +24,10 @@
 // (react-native-svg's `SvgXml` parses it directly); pass `color` — `currentColor` means nothing off
 // the web.
 //
-// NO RENDERER. This module imports nothing: `src/shared/ui/` modules are dependency-free so the
-// browser client can pull them by relative path the way it already pulls `mascot.ts`.
+// NO RENDERER. The only import is `palette.ts` — one of the dependency-free token modules the
+// `src/shared/ui/` rule allows — and only `iconCss` reads it, for the chip colours.
+
+import { macro, type MacroName } from "../palette.ts";
 
 export type IconStyle = "line" | "solid";
 
@@ -372,4 +374,59 @@ export function iconSvg(name: IconName, opts: IconOpts = {}): string {
 /** A brand mark as an `<svg>` string — the companies' artwork, recolouring NOT offered. */
 export function brandSvg(name: BrandName, opts: Omit<IconOpts, "color" | "strokeWidth"> = {}): string {
   return svg(BRAND_ICONS[name], opts);
+}
+
+// ── The web classes ─────────────────────────────────────────────────────────────────────────────
+// The boards' own mechanism (icons.css): an `.ico` element paints `currentColor` through a mask
+// whose shape is this icon's data, and a macro chip is the glyph drawn in its ink on a circle in
+// its tint. The classes are GENERATED here from the same ICONS, because two web surfaces (/start
+// and the app shell) interpolate one string — hand-writing them per surface is the duplication
+// this issue exists to remove. The colours come from `palette.macro` (S1): baked ink would be a
+// second copy, and dark mode's inks differ.
+
+// Which chip wears which macro's ink and tint. Saturated fat wears fat's — the alias is the rule.
+const CHIPS = { kcal: "kcal", protein: "protein", carbs: "carbs", fat: "fat", satfat: "fat" } as const satisfies Record<
+  string,
+  MacroName
+>;
+
+const uri = (s: string) => `url("data:image/svg+xml,${encodeURIComponent(s)}")`;
+
+/**
+ * One glyph as a standalone `<svg>` for a mask or a chip. A mask reads only the alpha channel, so
+ * an unset colour stays `currentColor` (black in an image document, the shape opaque either way);
+ * a chip passes its macro ink.
+ */
+const glyphSvg = (spec: IconSpec, color?: string): string =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${spec.viewBox}"${
+    spec.style === "line"
+      ? ` fill="none" stroke="${color ?? "currentColor"}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`
+      : ""
+  }>${color ? spec.body.replaceAll("currentColor", color) : spec.body}</svg>`;
+
+const chipRule = (name: string, ink: string, tint: string): string =>
+  `.ico.i-${name}{-webkit-mask:none;mask:none;background:${tint} ${uri(glyphSvg(ICONS[name as IconName], ink))} center/${
+    MACRO_CHIP.glyphShare * 100
+  }% no-repeat;border-radius:50%;width:${MACRO_CHIP.sizeEm}em;height:${MACRO_CHIP.sizeEm}em;vertical-align:-.45em}`;
+
+/**
+ * The boards' icon CSS as one string: `.ico` plus an `.i-<name>` mask class for every icon, and
+ * the five macro chips — light values unscoped, dark under the same `:root[data-theme="dark"]`
+ * the surfaces' `darkVars` live under. Interpolated by `/start` and the web shell, and nowhere
+ * else written.
+ */
+export function iconCss(): string {
+  const rules = [
+    `.ico{display:inline-block;width:1em;height:1em;flex:0 0 auto;vertical-align:-.14em;background:currentColor;-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}`,
+  ];
+  for (const name of Object.keys(ICONS) as IconName[]) {
+    rules.push(`.i-${name}{--ic:${uri(glyphSvg(ICONS[name]))}}`);
+  }
+  for (const [name, m] of Object.entries(CHIPS)) {
+    rules.push(chipRule(name, macro.light[m].ink, macro.light[m].tint));
+  }
+  for (const [name, m] of Object.entries(CHIPS)) {
+    rules.push(`:root[data-theme="dark"] ${chipRule(name, macro.dark[m].ink, macro.dark[m].tint)}`);
+  }
+  return rules.join("\n");
 }

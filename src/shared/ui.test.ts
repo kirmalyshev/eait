@@ -46,7 +46,8 @@ test("the allow-list itself, so the guard below is tested code and not a hoped-f
 
 test("a module in ui/ imports only another ui/ module or the allow-listed neighbours", () => {
   if (!existsSync(UI_DIR)) return; // No modules yet — the rule binds the day one lands.
-  const files = readdirSync(UI_DIR).filter((f) => f.endsWith(".ts"));
+  // `.test.ts` files are not modules a browser can import — `bun:test` is fine there.
+  const files = readdirSync(UI_DIR).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
   for (const file of files) {
     const src = readFileSync(join(UI_DIR, file), "utf8");
     expect(offTheList(src), file).toEqual([]);

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { BRAND_ICONS, brandSvg, ICONS, iconSvg, MACRO_CHIP, type BrandName, type IconName } from "./icons.ts";
+import { macro } from "../palette.ts";
+import { BRAND_ICONS, brandSvg, ICONS, iconCss, iconSvg, MACRO_CHIP, type BrandName, type IconName } from "./icons.ts";
 
 // Every icon the boards draw, by surface — the fixed list of names this set answers to (#79,
 // extended by the overseer past the issue's minimum to every glyph the boards carry). `satfat` is
@@ -129,5 +130,41 @@ describe("the icon set", () => {
     const named = iconSvg("x", { label: "Close" });
     expect(named).toContain('role="img"');
     expect(named).toContain('aria-label="Close"');
+  });
+
+  describe("iconCss — the web classes, generated", () => {
+    const css = iconCss();
+
+    test("every icon gets an .i- mask class taking currentColor", () => {
+      expect(css).toContain(".ico{display:inline-block");
+      expect(css).toContain("background:currentColor");
+      for (const name of Object.keys(ICONS)) {
+        expect(css, `missing .i-${name}`).toContain(`.i-${name}{--ic:url("data:image/svg+xml,`);
+      }
+    });
+
+    test("the macro chips are ink-on-tint, sized by MACRO_CHIP — light and dark", () => {
+      for (const name of ["kcal", "protein", "carbs", "fat", "satfat"] as const) {
+        const m = macro.light[name === "satfat" ? "fat" : name];
+        expect(css).toContain(`.ico.i-${name}{-webkit-mask:none;mask:none;background:${m.tint} `);
+        expect(css).toContain(`center/${MACRO_CHIP.glyphShare * 100}% no-repeat`);
+        expect(css).toContain(`width:${MACRO_CHIP.sizeEm}em;height:${MACRO_CHIP.sizeEm}em`);
+        const dm = macro.dark[name === "satfat" ? "fat" : name];
+        const encodedDarkInk = encodeURIComponent(`fill="${dm.ink}"`);
+        expect(css, `no dark glyph for .i-${name}`).toContain(encodedDarkInk);
+      }
+      expect(css).toContain(':root[data-theme="dark"]');
+    });
+
+    test("every colour in the output comes from palette.macro", () => {
+      const fromPalette = new Set(
+        Object.values(macro).flatMap((t) => Object.values(t).flatMap((m) => [m.ink, m.tint])),
+      );
+      const hexes = new Set(css.match(/#[0-9a-fA-F]{3,8}/g) ?? []);
+      expect(hexes.size).toBeGreaterThan(0);
+      for (const hex of hexes) {
+        expect(fromPalette.has(hex.toUpperCase()) || fromPalette.has(hex), `colour outside palette.macro: ${hex}`).toBe(true);
+      }
+    });
   });
 });
