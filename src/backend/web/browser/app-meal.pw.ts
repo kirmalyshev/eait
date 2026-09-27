@@ -6,9 +6,19 @@
 // conversation. The "…" menu holds Edit, Re-read the photo, Move to yesterday and Delete, which
 // asks first. A deleted, moved-away or FOREIGN id reads as gone, never as somebody else's meal.
 
+import { execSync } from "node:child_process";
 import type { Page } from "@playwright/test";
 import type { DayResponse } from "@eait/shared/contract";
 import { expect, logMeal, onboardFast, sessionToken, signIn, test } from "./fixtures.ts";
+
+// The review shots (#93's gate). `test-results/` is gitignored; the names carry the sha instead
+// of the files living in the tree — and they wait out the boards' rise delays so a card is not
+// caught mid-fade.
+const SHA = execSync("git rev-parse --short HEAD").toString().trim();
+const shot = async (page: Page, name: string): Promise<void> => {
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `test-results/shots/w6-${SHA}-${name}.png`, fullPage: true });
+};
 
 /** Today's day, fetched under this page's session. */
 async function day(page: Page, date = ""): Promise<DayResponse> {
@@ -42,6 +52,7 @@ test("the meal opens: photo, kcal, macro tiles, ingredients, verdicts, score", a
   await expect(page.locator(".ing").first()).toBeVisible();
   await expect(page.locator(".ing").first()).toContainText(" g");
   await expect(page.locator(".ing b").first()).toBeVisible();
+  await shot(page, "detail");
 });
 
 test("the score row opens the breakdown, and Done closes it", async ({ inWebApp: page }) => {
@@ -52,6 +63,7 @@ test("the score row opens the breakdown, and Done closes it", async ({ inWebApp:
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Health score", { exact: true })).toBeVisible();
   await expect(dialog.locator(".hsp")).toHaveCount(6);
+  await shot(page, "score");
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
@@ -68,6 +80,7 @@ test("Correct opens the conversation on this meal; the change line is the server
   // The recomputed card and the server's "a change, named" line land in the thread.
   await expect(page.locator("p.bub", { hasText: "→" }).first()).toBeVisible();
   await expect(page.locator("p.bub", { hasText: "→" }).first()).toContainText(`${Math.round(before / 2)}`);
+  await shot(page, "chat-focus");
   // Back on the detail, the diary row and the card carry the new number.
   await page.goto(`/#/meal/${id}`);
   await expect(page.locator(".meal .kc").first()).toContainText(`${Math.round(before / 2)}`);
@@ -77,6 +90,7 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   const { id } = await openMeal(page);
   await page.locator(".mdetail .ib").last().click();
   const menu = page.locator(".mpopup");
+  await shot(page, "menu");
   await expect(menu.getByText("Edit")).toBeVisible();
   await expect(menu.getByText("Re-read the photo")).toBeVisible();
   await expect(menu.getByText("Move to yesterday")).toBeVisible();
@@ -85,7 +99,7 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   // Re-read hits the analyzer again and the meal is redrawn from the answer.
   const reread = page.waitForResponse((r) => r.url().includes(`/v1/meals/${id}/reanalyze`) && r.ok());
   await menu.getByText("Re-read the photo").click();
-  expect(((await reread.json()) as { kind: string }).kind).toBe("updated");
+  expect(((await (await reread).json()) as { kind: string }).kind).toBe("updated");
   await expect(page.locator(".hsr")).toBeVisible();
 
   // Delete asks first; cancelling keeps the meal.
@@ -93,6 +107,7 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   await page.locator(".mpopup").getByText("Delete this meal").click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await shot(page, "delete");
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".hsr")).toBeVisible();
 
@@ -109,7 +124,7 @@ test("Move to yesterday puts the meal on yesterday's diary", async ({ inWebApp: 
   await page.locator(".mdetail .ib").last().click();
   const moved = page.waitForResponse((r) => r.url().endsWith("/v1/messages") && r.request().method() === "POST" && r.ok());
   await page.locator(".mpopup").getByText("Move to yesterday").click();
-  const result = (await moved.json()) as { kind: string; date?: string };
+  const result = (await (await moved).json()) as { kind: string; date?: string };
   expect(result.kind).toBe("redated");
   const yesterday = result.date!;
   expect(yesterday).not.toBe(date);
@@ -132,6 +147,7 @@ test("another user's meal id resolves to the gone state, never to their meal", a
     await page.goto(`/#/meal/${foreignId}`);
     await expect(page.locator(".mgone")).toBeVisible();
     await expect(page.locator(".hsr")).toHaveCount(0);
+    await shot(page, "gone");
   } finally {
     await other.close();
   }
@@ -147,5 +163,5 @@ test("reduced motion: the detail is at its end state with nothing running", asyn
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openMeal(page);
   await expect(page.locator(".mcards .mcard")).toHaveCount(3);
-  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await page.evaluate<number>("document.getAnimations().length")).toBe(0);
 });

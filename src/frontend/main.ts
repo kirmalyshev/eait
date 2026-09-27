@@ -7,9 +7,11 @@
 import { screen, start } from "./shell.ts";
 import { chatScreen } from "./screens/chat.ts";
 import { youScreen } from "./screens/you.ts";
+import { mealScreen } from "./screens/meal.ts";
 import { homeScreen } from "./screens/today.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
+screen("#/meal/", (frame) => mealScreen(frame));
 screen("#/chat", () => chatScreen());
 screen("#/you", (frame) => youScreen(frame.me));
 screen("#/", (frame) => homeScreen(frame.me));
