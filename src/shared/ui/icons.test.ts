@@ -108,8 +108,8 @@ describe("the icon set", () => {
   test("brand marks keep their artwork; google keeps its four colours", () => {
     const g = brandSvg("google");
     for (const hex of ["#EA4335", "#4285F4", "#FBBC05", "#34A853"]) expect(g).toContain(hex);
-    expect(brandSvg("google", { color: "#000" })).toBe(g);
-    expect(brandSvg("apple", { color: "#fff" })).toContain('fill="#fff"');
+    // A brand mark is never recoloured: `color` is not on brandSvg's options.
+    expect(brandSvg("apple")).toContain('fill="currentColor"');
     expect(BRAND_ICONS.google.viewBox).toBe("0 0 48 48");
     expect(BRAND_ICONS.github.viewBox).toBe("0 0 16 16");
   });

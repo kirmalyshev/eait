@@ -369,7 +369,7 @@ export function iconSvg(name: IconName, opts: IconOpts = {}): string {
   return svg(ICONS[name], opts);
 }
 
-/** A brand mark as an `<svg>` string — the companies' artwork, in the same helper's frame. */
-export function brandSvg(name: BrandName, opts: IconOpts = {}): string {
+/** A brand mark as an `<svg>` string — the companies' artwork, recolouring NOT offered. */
+export function brandSvg(name: BrandName, opts: Omit<IconOpts, "color" | "strokeWidth"> = {}): string {
   return svg(BRAND_ICONS[name], opts);
 }
