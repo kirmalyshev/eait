@@ -76,10 +76,26 @@ const del = (p: string, body: unknown, token?: string) =>
 const get = (p: string, token?: string) =>
   handle(new Request(url(p), { headers: token ? { authorization: `Bearer ${token}` } : {} }));
 
-/** Register a device and complete onboarding. Returns the bearer token. */
+/** A meal on the record, bypassing the analysis path — for tests about what HOLDS one. */
+const seedMeal = (userId: string) => store.insertMeal({
+  id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: localDate("Europe/Berlin"),
+  isFood: true, items: [{ name: "Rice", grams: 200 }, { name: "Chicken", grams: 150 }],
+  kcal: 500, protein_g: 40, carbs_g: 56, fat_g: 8, satfat_g: 2, fiber_g: 1, sugar_g: 0.1,
+  sodium_mg: 400, verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false,
+  model: "test",
+});
+
+/**
+ * Register a device, sign it in with Google, and complete onboarding. Returns the bearer token.
+ *
+ * The sign-in is not ceremony: since S8 an account with no Apple or Google identity is anonymous
+ * and every analysis is refused before it is charged — the tests below are about what a signed-in
+ * account can do, so this makes one, through the same attach call the app makes at sign-up.
+ */
 async function session(): Promise<string> {
   const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
   const { token } = await res.json() as { token: string };
+  await post(ROUTES.authGoogle, { idToken: `ok:google:s-${crypto.randomUUID()}`, terms: true }, token);
   await patch(ROUTES.profile, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
     target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
@@ -1061,18 +1077,23 @@ describe("errors", () => {
 });
 
 describe("sign in with apple / google", () => {
-  /** A device session that has logged one meal. The anonymous starting point. */
+  /**
+   * A device session whose account carries a meal — seeded directly, since an anonymous account
+   * (S8) cannot log one. What the merge tests exercise is the account state they care about.
+   */
   async function anonymousWithAMeal(): Promise<{ token: string; userId: string }> {
-    const token = await session();
-    await handle(photoRequest(token));
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await res.json() as { token: string };
+    await patch(ROUTES.profile, { goal: "lose", weight_kg: 80, complete_onboarding: true }, token);
     const { profile } = await (await get(ROUTES.profile, token)).json() as { profile: { user_id: string } };
+    await seedMeal(profile.user_id);
     return { token, userId: profile.user_id };
   }
 
   const signIn = (provider: "apple" | "google", subject: string, token?: string, nonce?: string) =>
     post(
       provider === "apple" ? ROUTES.authApple : ROUTES.authGoogle,
-      { idToken: `ok:${provider}:${subject}`, ...(nonce ? { nonce } : {}) },
+      { idToken: `ok:${provider}:${subject}`, terms: true, ...(nonce ? { nonce } : {}) },
       token,
     );
 
@@ -1276,7 +1297,8 @@ describe("sign in with apple / google", () => {
   it("keeps an account whose device identity is still there", async () => {
     // Signing in from an install that has a device identity LINKS rather than switches, so the
     // device row is still a way in and removing the provider does not erase anything.
-    const token = await session();
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await res.json() as { token: string };
     const linked = await (await signIn("google", "google-keeps-device", token)).json() as
       { outcome: string };
     expect(linked.outcome).toBe("linked");
@@ -1291,7 +1313,8 @@ describe("sign in with apple / google", () => {
   it("refuses to unlink the device identity", async () => {
     // It is the anonymous credential the install was born with rather than something a person
     // linked, and dropping it would lock a signed-out session out of an account that still exists.
-    const token = await session();
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await res.json() as { token: string };
     expect((await del(ROUTES.identity("device"), {}, token)).status).toBe(404);
     const { identities } = await (await get(ROUTES.identities, token)).json() as
       { identities: { provider: string }[] };
@@ -1322,15 +1345,15 @@ describe("sign in with apple / google", () => {
   });
 
   it("401s an unverifiable token and never says why", async () => {
-    const res = await post(ROUTES.authApple, { idToken: "forged" });
+    const res = await post(ROUTES.authApple, { idToken: "forged", terms: true });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "sign-in-failed" });
   });
 
   it("401s a token minted for the other provider", async () => {
     // An Apple token replayed at the Google endpoint, and vice versa.
-    expect((await post(ROUTES.authGoogle, { idToken: "ok:apple:x" })).status).toBe(401);
-    expect((await post(ROUTES.authApple, { idToken: "ok:google:x" })).status).toBe(401);
+    expect((await post(ROUTES.authGoogle, { idToken: "ok:apple:x", terms: true })).status).toBe(401);
+    expect((await post(ROUTES.authApple, { idToken: "ok:google:x", terms: true })).status).toBe(401);
   });
 
   it("401s a nonce that does not match the one this client generated", async () => {
@@ -1340,6 +1363,40 @@ describe("sign in with apple / google", () => {
 
   it("400s a request with no idToken", async () => {
     expect((await post(ROUTES.authApple, {})).status).toBe(400);
+  });
+
+  it("400s a sign-in that did not tick the terms box — S8's required consent", async () => {
+    // Before the verifier is ever called: a sign-in without consent is not one, whatever the
+    // token would have proven.
+    const res = await post(ROUTES.authApple, { idToken: "ok:apple:no-terms" });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "terms-required" });
+    // Marketing is the OTHER box — ticking it is not agreement to the terms.
+    expect((await post(ROUTES.authGoogle, { idToken: "ok:google:no-terms", marketing: true })).status).toBe(400);
+    // And `terms: false` is a tick that was never made, not a different one.
+    expect((await post(ROUTES.authApple, { idToken: "ok:apple:no-terms", terms: false })).status).toBe(400);
+  });
+
+  it("stamps the consent boxes onto the account the sign-in lands on", async () => {
+    const res = await post(ROUTES.authGoogle, { idToken: "ok:google:consented", terms: true, marketing: true });
+    const { userId } = await res.json() as { userId: string };
+    const consent = await store.consentOf(userId);
+    expect(consent?.termsAcceptedAt).not.toBeNull();
+    expect(consent?.marketingConsentAt).not.toBeNull();
+  });
+
+  it("leaves a ticked marketing box ticked — an unticked one never erases it", async () => {
+    const first = await (await post(
+      ROUTES.authGoogle, { idToken: "ok:google:consent-keeps", terms: true, marketing: true },
+    )).json() as { userId: string };
+    // A returning sign-in without the optional box ticked must not un-consent them.
+    const again = await (await post(
+      ROUTES.authGoogle, { idToken: "ok:google:consent-keeps", terms: true },
+    )).json() as { userId: string };
+    expect(again.userId).toBe(first.userId);
+    const consent = await store.consentOf(first.userId);
+    expect(consent?.termsAcceptedAt).not.toBeNull();
+    expect(consent?.marketingConsentAt).not.toBeNull();
   });
 
   it("signs out by dropping only the calling token", async () => {
@@ -1365,7 +1422,8 @@ describe("sign in with apple / google", () => {
   });
 
   it("lists the device identity for an anonymous account", async () => {
-    const token = await session();
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await res.json() as { token: string };
     const { identities } = await (await get(ROUTES.identities, token)).json() as
       { identities: { provider: string }[] };
     expect(identities.map((i) => i.provider)).toEqual(["device"]);
@@ -1384,11 +1442,11 @@ describe("sign-out after a merge", () => {
     }, anon.token);
     await handle(photoRequest(anon.token));
 
-    const real = await (await post(ROUTES.authApple, { idToken: "ok:apple:merge-sub" })).json() as { token: string };
+    const real = await (await post(ROUTES.authApple, { idToken: "ok:apple:merge-sub", terms: true })).json() as { token: string };
     await patch(ROUTES.profile, { goal: "lose", weight_kg: 88, complete_onboarding: true }, real.token);
 
     const merged = await (await post(
-      ROUTES.authApple, { idToken: "ok:apple:merge-sub" }, anon.token,
+      ROUTES.authApple, { idToken: "ok:apple:merge-sub", terms: true }, anon.token,
     )).json() as { outcome: string; userId: string; token: string };
     expect(merged.outcome).toBe("merged");
 
@@ -1948,6 +2006,12 @@ describe("rate limits", () => {
     const onboard = async (): Promise<string> => {
       const res = await registerFrom(h, address);
       const { token } = await res.json() as { token: string };
+      // S8: a device account alone is anonymous and refused analysis — sign it in first.
+      await h(new Request(url(ROUTES.authGoogle), {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({ idToken: `ok:google:rl-${crypto.randomUUID()}`, terms: true }),
+      }));
       await h(new Request(url(ROUTES.profile), {
         method: "PATCH",
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -1986,6 +2050,12 @@ describe("rate limits", () => {
     const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
     const address = "203.0.113.10";
     const { token } = await (await registerFrom(h, address)).json() as { token: string };
+    // S8: a device account alone is anonymous and refused analysis — sign it in first.
+    await h(new Request(url(ROUTES.authGoogle), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ idToken: `ok:google:${crypto.randomUUID()}`, terms: true }),
+    }));
     await h(new Request(url(ROUTES.profile), {
       method: "PATCH",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -2016,6 +2086,12 @@ describe("rate limits", () => {
     const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
     const address = "203.0.113.11";
     const { token } = await (await registerFrom(h, address)).json() as { token: string };
+    // S8: a device account alone is anonymous and refused analysis — sign it in first.
+    await h(new Request(url(ROUTES.authGoogle), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ idToken: `ok:google:${crypto.randomUUID()}`, terms: true }),
+    }));
     await h(new Request(url(ROUTES.profile), {
       method: "PATCH",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -2303,6 +2379,12 @@ describe("the stream's keepalive", () => {
     const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
     const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
     const { token } = await res.json() as { token: string };
+    // Signed in, like every account that may analyse — an anonymous one is refused (S8).
+    await h(new Request(url(ROUTES.authGoogle), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ idToken: `ok:google:ka-${crypto.randomUUID()}`, terms: true }),
+    }));
     await patch(ROUTES.profile, {
       goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
       target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",

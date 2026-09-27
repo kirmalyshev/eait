@@ -713,6 +713,28 @@ export interface Store {
    */
   hasAdmin(): Promise<boolean>;
 
+  // ── Consent (S8) ───────────────────────────────────────────────────────────────────────────
+  //
+  // The sign-up screen's two boxes, stored as the dates they were ticked — EU consent needs the
+  // date, so these are timestamps and null is "never given". NOT part of `Profile`, for the same
+  // structural reason `role` is not: consent is not a plan input, and a `PATCH /v1/profile` must
+  // not be able to write it. Postgres allowlists `PROFILE_COLUMNS`; the memory store checks the
+  // same keys.
+
+  /**
+   * Record the consent a sign-up call carried.
+   *
+   * `terms` is the required box; a call reaches this only having ticked it (the routes refuse
+   * otherwise), so `terms_accepted_at` is written every time — the stamp is WHEN they agreed, and
+   * a re-agreement is a new agreement. `marketing` is the optional box and works one way only: a
+   * tick sets `marketing_consent_at`, an unticked box leaves it alone — the absence of a tick on a
+   * screen the box starts empty on is not a withdrawal, and a returning sign-in must not erase a
+   * consent that already stands.
+   */
+  recordConsent(userId: string, consent: { terms: boolean; marketing: boolean }): Promise<void>;
+  /** What is stored for the account, or null when there is no such account. For the audit surface and tests. */
+  consentOf(userId: string): Promise<{ termsAcceptedAt: string | null; marketingConsentAt: string | null } | null>;
+
   // ── Profile ────────────────────────────────────────────────────────────────────────────────
   getProfile(userId: string): Promise<Profile | null>;
   patchProfile(userId: string, patch: ProfilePatch): Promise<Profile>;

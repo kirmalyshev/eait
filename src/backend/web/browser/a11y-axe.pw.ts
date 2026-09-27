@@ -15,7 +15,16 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     await page.setViewportSize({ width, height });
     await page.goto("/start");
     // The welcome page, drawn — an axe run against a page that never rendered finds nothing.
-    await expect(page.getByRole("link", { name: /continue with/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Build my plan" })).toBeVisible();
+    expect(await axeFindings(page)).toEqual([]);
+  });
+
+  test(`/start/signup has no axe violations at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/start/signup");
+    // The consent screen, drawn — the two boxes and both provider buttons.
+    await expect(page.getByRole("button", { name: /continue with apple/i })).toBeVisible();
+    await expect(page.locator('input[name="terms"]')).toBeVisible();
     expect(await axeFindings(page)).toEqual([]);
   });
 

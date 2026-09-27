@@ -2922,10 +2922,18 @@
           "locale": {
             "type": "string",
             "description": "BCP-47-ish, narrowed server-side to a supported `Lang`, falling back to `en`.\n\nRead ONLY when this sign-in creates the account — a client on a fresh install that signs in before it mints a device session. Every other outcome leaves `users.lang` exactly as it is, because by then it is the user's own setting rather than a guess about their phone."
+          },
+          "terms": {
+            "type": "boolean",
+            "description": "The consent the sign-up screen collects (Kirill's decision, S8). `terms` is the required box — the server refuses the call when it is absent or not `true` — and `marketing` is the optional one. They land on the account as `terms_accepted_at` / `marketing_consent_at` (a timestamp; null means never given). EU consent needs the date, which is why a boolean is not what is stored."
+          },
+          "marketing": {
+            "type": "boolean"
           }
         },
         "required": [
-          "idToken"
+          "idToken",
+          "terms"
         ],
         "additionalProperties": false,
         "description": "Sign in with Apple / Google.\n\nThe client sends the provider's ID TOKEN. The server verifies its signature against the provider's JWKS and reads the subject out of the verified claims — it never accepts a client-asserted user id, because a client-asserted identity is not an identity.\n\nIf the request carries a bearer token, this LINKS the identity to that account instead of creating a new one. That is what lets a user try the app anonymously and keep their meals when they sign in — and it is the fix for the anonymous account's real weakness, which is that losing the device loses everything."
@@ -5344,6 +5352,19 @@
               "kind": {
                 "type": "string",
                 "const": "not-onboarded"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "identity-required"
               }
             },
             "required": [

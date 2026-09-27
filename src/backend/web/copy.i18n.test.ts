@@ -31,10 +31,17 @@ describe("what /start says for itself, in eight languages", () => {
       for (const ph of ["{step}", "{total}"]) {
         expect(copy.progress, `${lang}.progress`).toContain(ph);
       }
+      // The consent label's two placeholders are the document names — a translation that drops one
+      // renders an agreement that names half of what it means.
+      for (const ph of ["{terms}", "{privacy}"]) {
+        expect(copy.termsLabel, `${lang}.termsLabel`).toContain(ph);
+      }
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks"], `${lang}.${k}`)
-          .toContain(m[1] ?? "");
+          expect(
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy"],
+            `${lang}.${k}`,
+          ).toContain(m[1] ?? "");
         }
       }
     }

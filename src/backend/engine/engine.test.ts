@@ -36,6 +36,9 @@ function makeDeps(over: Partial<Config> = {}, llm: LlmPorts = demoPorts()): Engi
 /** A fully onboarded user. Returns the id. */
 async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+  // A real account, the S8 kind: a device session alone is anonymous, and anonymous
+  // is refused analysis. The tests below are about everything AFTER sign-up.
+  await store.addIdentity(userId, "google", "g-" + userId.slice(0, 8));
   const out = await patchProfile(deps, userId, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
     target_weight_kg: 65, activity: "some", pace: "steady", country: "de",
@@ -272,6 +275,25 @@ describe("photo logging", () => {
     });
     expect(res.kind).toBe("subscription-required");
     expect(read).toBe(false); // thunks exist precisely for this
+  });
+
+  it("refuses an account with no sign-in identity — before the charge, so the sample stays unspent (S8)", async () => {
+    // The session account is real — onboarding ran on it — but sign-up is where an identity
+    // attaches, and analysis before that is answered `identity-required` rather than charged.
+    // Photo AND text: a sentence must not be the free way around the ask, which is why the gate
+    // sits in `checkCaps` and not beside one of the two callers.
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const out = await patchProfile(deps, userId, {
+      goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+      target_weight_kg: 65, activity: "some", pace: "steady", country: "de",
+      restrictions: [], complete_onboarding: true,
+    });
+    if (!out || !out.ok) throw new Error("onboarding failed");
+    expect(await store.countUserAnalyses(userId)).toBe(0);
+    expect(await logPhotoMeal(deps, userId, photo())).toEqual({ kind: "identity-required" });
+    expect((await handleText(deps, userId, { text: "two eggs and toast" })).kind).toBe("identity-required");
+    // Charged nothing — the refusal came first, so the free meal is still this account's to have.
+    expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
   it("refuses an entitled account only at the global cap", async () => {

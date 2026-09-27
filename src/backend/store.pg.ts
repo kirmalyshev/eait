@@ -731,6 +731,14 @@ create table if not exists subscribers (
   source        text not null,
   created_at    timestamptz not null default now()
 );
+
+-- ── S8: sign-up consent ──────────────────────────────────────────────────────────────────────
+-- The sign-up screen's two boxes, stored as the dates they were ticked — EU consent needs the
+-- date, so they are timestamps and null is "never given". On the users row so deleting the
+-- account takes them with it. Deliberately absent from PROFILE_COLUMNS: consent is not a plan
+-- input, and a PATCH must not be able to write it -- recordConsent is the only writer.
+alter table users add column if not exists terms_accepted_at timestamptz;
+alter table users add column if not exists marketing_consent_at timestamptz;
 ${RLS_DDL}
 `;
 
@@ -1039,6 +1047,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putPairingCode: 0,
   roleOf: 0,
   setRole: 0,
+  // S8: the sign-up consent stamps — an account's own rows, like every other write here.
+  recordConsent: 0,
+  consentOf: 0,
   getProfile: 0,
   patchProfile: 0,
   getEntitlement: 0,
@@ -1331,6 +1342,26 @@ export async function postgresStore(
     async hasAdmin() {
       const rows = await sql`select 1 from users where role = 'admin' limit 1`;
       return rows.length > 0;
+    },
+
+    async recordConsent(userId, consent) {
+      // One statement: `terms_accepted_at` is stamped on every call that reaches this — the routes
+      // refuse one without the box ticked — and `marketing_consent_at` only ever moves forward:
+      // an unticked box is the absence of a new consent, not a withdrawal of a stored one.
+      await sql`update users set
+          terms_accepted_at = now(),
+          marketing_consent_at = case when ${consent.marketing} then now() else marketing_consent_at end
+        where id = ${userId}`;
+    },
+
+    async consentOf(userId) {
+      const rows = await sql`select terms_accepted_at, marketing_consent_at from users where id = ${userId}`;
+      const row = rows[0] as { terms_accepted_at: string | null; marketing_consent_at: string | null } | undefined;
+      if (!row) return null;
+      return {
+        termsAcceptedAt: row.terms_accepted_at === null ? null : new Date(row.terms_accepted_at).toISOString(),
+        marketingConsentAt: row.marketing_consent_at === null ? null : new Date(row.marketing_consent_at).toISOString(),
+      };
     },
 
     async createUser(lang: Lang) {

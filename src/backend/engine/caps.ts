@@ -9,6 +9,7 @@ import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { GatewayRefusal, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
+import { isAnonymous } from "./identity.ts";
 
 export type CapScope = "photo" | "text";
 
@@ -29,6 +30,12 @@ export async function checkCaps(
   scope: CapScope,
 ): Promise<Refusal | null> {
   const { store, config } = deps;
+
+  // No identity, no analysis (S8): sign-up comes before the first meal, so an account carrying no
+  // Apple or Google identity is refused here — ahead of every cap and therefore ahead of the
+  // charge, which is what keeps the free sample unspent anonymously. `charge` writes
+  // `recordAnalysis` below this, so a refusal returned now has spent nothing.
+  if (await isAnonymous(deps, userId)) return { kind: "identity-required" };
 
   if (config.globalDailyAnalysisCap > 0) {
     const global = await store.countGlobalAnalyses(date);

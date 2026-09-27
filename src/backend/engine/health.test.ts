@@ -30,6 +30,9 @@ beforeEach(() => {
 
 async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+  // A real account, the S8 kind: a device session alone is anonymous, and anonymous
+  // is refused analysis. The tests below are about everything AFTER sign-up.
+  await store.addIdentity(userId, "google", "g-" + userId.slice(0, 8));
   const out = await patchProfile(deps, userId, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
     target_weight_kg: 65, activity: "some", pace: "steady", country: "de",

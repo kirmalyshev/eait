@@ -48,14 +48,24 @@ const ANSWERS: Record<string, string> = {
   country: "de",
 };
 
-/** Sign in through the front door, as a person does. `subject` is the account: two are two people. */
+/**
+ * Sign in the way a person does under S8: the welcome's "I already have an account" door, the
+ * terms tick the button requires, and the provider's own page after it. `subject` is the
+ * account: two are two people.
+ */
 export async function signIn(page: Page, subject: string, provider: "apple" | "google" = "google") {
   await page.goto("/start");
-  await page.getByRole("link", { name: new RegExp(`Continue with ${provider}`, "i") }).click();
+  await page.getByRole("link", { name: /already have an account/i }).click();
+  await expect(page).toHaveURL(/\/start\/signup/);
+  // The consent is what the button submits — the kickoff refuses a POST without it.
+  await page.locator('input[name="terms"]').check();
+  await page.getByRole("button", { name: new RegExp(`Continue with ${provider}`, "i") }).click();
   // The demo authorize screen, standing where Apple's or Google's would be.
   await page.getByRole("textbox").fill(subject);
   await page.getByRole("button").click();
-  await expect(page).toHaveURL(/\/start\/q/);
+  // A fresh account lands back on the questions; an answered session account lands on the
+  // country screen that follows sign-up.
+  await expect(page).toHaveURL(/\/start\/(q|country)/);
 }
 
 /** Answer whatever question is open until the plan appears. `extra` overrides per prompt id —

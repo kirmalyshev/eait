@@ -14,7 +14,8 @@ import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, basalMetabolicRate, chatCopyFor, countryLabel, countryOptions, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, onboardingContentFor, projectGoal, projectionMonth,
+  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, projectGoal,
+  projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, struggleCard, suggestedTargetKg, targetSuggestionLine,
   TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
@@ -143,7 +144,10 @@ const get = (path: string, cookie?: string, headers: Record<string, string> = {}
     headers: { ...(cookie ? { cookie } : {}), ...headers },
   }));
 
-const post = (path: string, form: Record<string, string | string[]>, cookie?: string) => {
+const post = (
+  path: string, form: Record<string, string | string[]>,
+  cookie?: string, headers: Record<string, string> = {},
+) => {
   const body = new URLSearchParams();
   for (const [k, v] of Object.entries(form)) {
     for (const one of Array.isArray(v) ? v : [v]) body.append(k, one);
@@ -158,6 +162,7 @@ const post = (path: string, form: Record<string, string | string[]>, cookie?: st
       // cannot size is a body it must not buffer.
       "content-length": String(new TextEncoder().encode(encoded).length),
       ...(cookie ? { cookie } : {}),
+      ...headers,
     },
     body: encoded,
   }));
@@ -179,7 +184,12 @@ function cookieFrom(res: Response, name: string): string {
 }
 
 /**
- * Sign in the way a browser would: start, follow to Google, come back with a code.
+ * Sign in the way a browser would: POST the kickoff with the boxes ticked, follow to the
+ * provider, come back with a code.
+ *
+ * `session` is the pre-account cookie (S8): when it is handed in, the kickoff and the callback
+ * both carry it, which is what attaches the identity to the account the questions already ran
+ * on rather than creating a second one.
  *
  * `accept` is the browser's `Accept-Language`, carried on BOTH legs because it is read at account
  * creation and nothing revisits it — that was the #358 bug, and a helper that dropped it here
@@ -189,32 +199,68 @@ async function signIn(
   subject = "web-subject",
   name: WebProvider = "google",
   accept?: string,
+  session?: string,
+  marketing = false,
 ): Promise<string> {
   const headers = accept ? { "accept-language": accept } : {};
-  const start = await get(`/start/auth/${name}`, undefined, headers);
+  const start = await post(
+    `/start/auth/${name}`,
+    marketing ? { terms: "yes", marketing: "yes" } : { terms: "yes" },
+    session,
+  );
   const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
   const oauth = cookieFrom(start, "eait_oauth");
   const back = await get(
     `/start/auth/${name}/callback?code=${subject}&state=${encodeURIComponent(state)}`,
-    oauth, headers);
+    session === undefined ? oauth : `${oauth}; ${session}`, headers);
   expect(back.status).toBe(303);
   return cookieFrom(back, "eait_web");
 }
 
-/** Answer whatever question is open, until there are none left. */
-async function answerAll(session: string, answers: Record<string, string | string[]>) {
+/**
+ * Answer whatever question is open, until there are none left. Returns the session cookie —
+ * which the FIRST answer may have just created: the questions run on the session account (S8),
+ * so this works with none handed in and hands back the one it made.
+ */
+async function answerAll(
+  session: string | undefined, answers: Record<string, string | string[]>,
+): Promise<string> {
+  let cookie = session;
   for (let i = 0; i < 20; i++) {
-    const page = await get("/start/q", session);
-    if (page.status === 303) return;
+    const page = await get("/start/q", cookie);
+    if (page.status === 303) {
+      if (cookie === undefined) throw new Error("the questions never made an account");
+      return cookie;
+    }
     const html = await page.text();
     const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1];
     if (!id) throw new Error(`no prompt on the page: ${html.slice(0, 400)}`);
     const answer = answers[id];
     if (answer === undefined) throw new Error(`no answer supplied for ${id}`);
-    const res = await post("/start/q", { prompt: id, answer }, session);
+    const res = await post("/start/q", { prompt: id, answer }, cookie);
     expect(res.status).toBe(303);
+    const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
+    if (set) cookie = set.split(";")[0]!;
   }
   throw new Error("onboarding did not finish");
+}
+
+/**
+ * The S8 walk, end to end with NO sign-in first: the questions make the session account, the
+ * plan's Continue lands on the sign-up screen, Apple or Google attaches to THAT account, and the
+ * deferred country question is answered on its own screen after it.
+ */
+async function signedUp(
+  subject = "web-subject",
+  name: WebProvider = "google",
+): Promise<{ session: string; userId: string }> {
+  const session = await answerAll(undefined, ANSWERS);
+  const signed = await signIn(subject, name, undefined, session);
+  // The same account — the answers belong to it either way.
+  const userId = await webUser(signed);
+  const country = await post("/start/country", { answer: "de" }, signed);
+  expect(country.status).toBe(303);
+  return { session: signed, userId };
 }
 
 const ANSWERS: Record<string, string | string[]> = {
@@ -238,7 +284,7 @@ beforeEach(() => {
 describe("the surface is off unless it is configured", () => {
   it("404s every path when no provider is configured", async () => {
     router(CONFIG, {});
-    for (const path of ["/start", "/start/q", "/start/plan", "/start/auth/google", "/start/auth/apple"]) {
+    for (const path of ["/start", "/start/q", "/start/plan", "/start/signup", "/start/auth/google", "/start/auth/apple"]) {
       expect((await get(path)).status).toBe(404);
     }
   });
@@ -250,31 +296,25 @@ describe("the surface is off unless it is configured", () => {
     // Not a redirect back to the front door: an unconfigured provider does not exist here, which
     // is the answer every other unconfigured surface on this server gives.
     expect((await get("/start/auth/apple")).status).toBe(404);
+    expect((await post("/start/auth/apple", { terms: "yes" })).status).toBe(404);
     expect((await get("/start/auth/apple/callback?code=c&state=s")).status).toBe(404);
   });
 });
 
 describe("the front door", () => {
-  it("renders the welcome copy and one button per provider, Apple first", async () => {
+  it("renders the welcome, and two doors: the questions and the sign-up", async () => {
+    // S8: the front door is the onboarding's welcome, not a sign-in wall — the sign-up screen is
+    // where the providers and the consent boxes live, one step in for somebody who needs them.
     const res = await get("/start");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
-    expect(html).toContain("/start/auth/apple");
-    expect(html).toContain("/start/auth/google");
-    expect(html).toContain("Continue with Apple");
-    expect(html).toContain("Continue with Google");
-    // Apple first, as on the app's sign-in screen: the option that asks for the least must not be
-    // the one that looks like the afterthought.
-    expect(html.indexOf("/start/auth/apple")).toBeLessThan(html.indexOf("/start/auth/google"));
+    expect(html).toContain('href="/start/q"');
+    expect(html).toContain('href="/start/signup"');
+    expect(html).toContain(pageCopyFor("en").startCta);
+    expect(html).toContain(pageCopyFor("en").haveAccountCta);
+    expect(html).not.toContain("/start/auth/");
     expect(html).toContain("Spud");
-  });
-
-  it("offers only what is configured", async () => {
-    router(CONFIG, { apple: PROVIDERS.apple! });
-    const html = await (await get("/start")).text();
-    expect(html).toContain("Continue with Apple");
-    expect(html).not.toContain("Continue with Google");
   });
 });
 
@@ -296,11 +336,41 @@ describe("Spud types his lines out", () => {
   });
 });
 
+describe("the sign-up screen", () => {
+  it("offers one button per provider, Apple first, inside the consent form", async () => {
+    const html = await (await get("/start/signup")).text();
+    expect(html).toContain("Continue with Apple");
+    expect(html).toContain("Continue with Google");
+    expect(html.indexOf("/start/auth/apple")).toBeLessThan(html.indexOf("/start/auth/google"));
+    // The boxes, and both of them bound to the form the buttons submit (`form=` keeps them below
+    // the pairing card, where the board draws them).
+    expect(html).toContain('name="terms"');
+    expect(html).toContain('name="marketing"');
+    expect(html).toContain('form="signup"');
+    expect(html).toContain(pageCopyFor("en").signUpHeading);
+  });
+
+  it("offers only what is configured", async () => {
+    router(CONFIG, { apple: PROVIDERS.apple! });
+    const html = await (await get("/start/signup")).text();
+    expect(html).toContain("Continue with Apple");
+    expect(html).not.toContain("Continue with Google");
+  });
+
+  it("carries the pairing card, for somebody whose account is on a phone already", async () => {
+    const html = await (await get("/start/signup")).text();
+    expect(html).toContain('action="/start/pair"');
+    expect(html).toContain('method="post"');
+    expect(html).toContain('name="code"');
+  });
+});
+
 describe("signing in", () => {
   it.each(["apple", "google"] as const)(
     "sends the browser to %s asking for openid and nothing else",
     async (name) => {
-      const res = await get(`/start/auth/${name}`);
+      // A POST — the kickoff is a write, and the consent boxes are what it carries (S8).
+      const res = await post(`/start/auth/${name}`, { terms: "yes" });
       expect(res.status).toBe(303);
       const to = new URL(res.headers.get("location")!);
       expect(to.origin + to.pathname).toBe(`https://${name}.example/authorize`);
@@ -316,6 +386,21 @@ describe("signing in", () => {
     },
   );
 
+  it("starts nothing on a GET — a kickoff without consent is no kickoff", async () => {
+    const res = await get("/start/auth/google");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/signup");
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("sends a POST without the terms tick back to the screen, starting nothing", async () => {
+    const res = await post("/start/auth/google", {});
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/signup?error=terms");
+    // No state cookie minted means no callback can ever complete — the defence is structural.
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
   it("does not let a provider's own params overwrite the state or the scope", async () => {
     // The extras are spread FIRST for this reason. A provider that could overwrite `state` would
     // switch off the CSRF defence, and one that could overwrite `scope` would ask for whatever it
@@ -326,7 +411,9 @@ describe("signing in", () => {
         extraAuthorizeParams: { state: "attacker", scope: "openid email profile phone", nonce: "fixed" },
       },
     });
-    const to = new URL((await get("/start/auth/google")).headers.get("location")!);
+    const to = new URL(
+      (await post("/start/auth/google", { terms: "yes" })).headers.get("location")!,
+    );
     expect(to.searchParams.get("state")).not.toBe("attacker");
     expect(to.searchParams.get("nonce")).not.toBe("fixed");
     expect(to.searchParams.get("scope")).toBe("openid email");
@@ -354,7 +441,7 @@ describe("signing in", () => {
     });
 
     it("completes a sign-in that arrives as a POST, exactly as a GET one does", async () => {
-      const start = await get("/start/auth/apple");
+      const start = await post("/start/auth/apple", { terms: "yes" });
       const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
       const oauth = cookieFrom(start, "eait_oauth");
 
@@ -371,14 +458,14 @@ describe("signing in", () => {
     });
 
     it("still refuses a bridged callback whose state does not match the cookie", async () => {
-      const start = await get("/start/auth/apple");
+      const start = await post("/start/auth/apple", { terms: "yes" });
       const oauth = cookieFrom(start, "eait_oauth");
       const bridged = await post("/start/auth/apple/callback", { code: "c", state: "forged" });
       const back = await handle(new Request(
         new URL(bridged.headers.get("location")!, "https://api.eait.fit").toString(),
         { headers: { cookie: oauth } },
       ));
-      expect(back.headers.get("location")).toBe("/start?error=1");
+      expect(back.headers.get("location")).toBe("/start/signup?error=1");
     });
 
     it("refuses an oversized body WITHOUT reading it", async () => {
@@ -427,7 +514,7 @@ describe("signing in", () => {
   });
 
   it("writes the state cookie HttpOnly, Lax and Secure", async () => {
-    const line = (await get("/start/auth/google")).headers.getSetCookie()
+    const line = (await post("/start/auth/google", { terms: "yes" })).headers.getSetCookie()
       .find((c) => c.startsWith("eait_oauth="))!;
     expect(line).toContain("HttpOnly");
     expect(line).toContain("SameSite=Lax");
@@ -435,12 +522,12 @@ describe("signing in", () => {
   });
 
   it("refuses a callback whose state does not match the cookie", async () => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const oauth = cookieFrom(start, "eait_oauth");
     const res = await get("/start/auth/google/callback?code=x&state=not-the-one", oauth);
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toContain("/start?error=");
+    expect(res.headers.get("location")).toContain("/start/signup?error=");
   });
 
   it("refuses a callback with no cookie at all", async () => {
@@ -449,7 +536,7 @@ describe("signing in", () => {
   });
 
   it("passes the nonce it generated to the verifier", async () => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const nonce = new URL(start.headers.get("location")!).searchParams.get("nonce");
     await get(
       `/start/auth/google/callback?code=s&state=${encodeURIComponent(new URL(start.headers.get("location")!).searchParams.get("state")!)}`,
@@ -459,7 +546,7 @@ describe("signing in", () => {
   });
 
   it("mints a session for a new identity and sends it to the questions", async () => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=web-subject&state=${encodeURIComponent(state)}`,
@@ -483,7 +570,7 @@ describe("signing in", () => {
   it("bounds the callback by address, on the same allowance the app's sign-in routes take", async () => {
     router({ ...CONFIG, authRateLimitPerHour: 1 });
     await signIn("first");
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=second&state=${encodeURIComponent(state)}`,
@@ -512,14 +599,14 @@ describe("signing in", () => {
     // The provider is in the cookie as well as in the path. Without that, a state issued on the way
     // to Google is a state Apple's callback would accept — a stranger's half-finished sign-in
     // completing against whichever provider they can produce a code for.
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/apple/callback?code=whoever&state=${encodeURIComponent(state)}`,
       cookieFrom(start, "eait_oauth"),
     );
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
-    expect(res.headers.get("location")).toContain("/start?error=");
+    expect(res.headers.get("location")).toContain("/start/signup?error=");
   });
 
   it("keeps the two providers' subjects apart, even when they are the same string", async () => {
@@ -536,22 +623,54 @@ describe("signing in", () => {
   });
 
   it("sends a failed exchange back to the front door without a session", async () => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=bad-code&state=${encodeURIComponent(state)}`,
       cookieFrom(start, "eait_oauth"),
     );
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
-    expect(res.headers.get("location")).toContain("/start?error=");
+    expect(res.headers.get("location")).toContain("/start/signup?error=");
   });
 });
 
 describe("the questions", () => {
-  it("sends somebody with no session back to the front door", async () => {
+  it("opens to somebody with no session at all — the first answer is what makes the account", async () => {
+    // S8: onboarding runs on the session account, which does not exist until an answer lands.
     const res = await get("/start/q");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('name="prompt" value="goal"');
+    // No cookie is minted by a page view — an account exists only once an answer landed.
+    expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("is rate-limited like device sign-up — over the limit it is a 429 and no row", async () => {
+    // The sessionless first answer mints an account, so it takes the same per-address allowance
+    // the sign-in routes take: without it, this form is a `users` row per POST for a bot.
+    router({ ...CONFIG, authRateLimitPerHour: 1 });
+    // Spend the one allowance — a pairing attempt does it, whatever the code names.
+    await post("/start/pair", { code: "ZZZZZZZZ" });
+
+    const res = await post("/start/q", { prompt: "goal", answer: "lose" });
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    // No cookie, and more to the point no ACCOUNT — the charge stood between the answer and the
+    // row it would have made.
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
+    const { rows } = await store.adminListUsers({ limit: 10, today: localDate(CONFIG.timezone) });
+    expect(rows).toHaveLength(0);
+  });
+
+  it("makes the session account on the first answer, and hands back the cookie for it", async () => {
+    const res = await post("/start/q", { prompt: "goal", answer: "lose" });
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start");
+    const cookie = cookieFrom(res, "eait_web");
+    const userId = await webUser(cookie);
+    // The answer is the account's already — nothing about it waits for sign-up (S8).
+    expect((await store.getProfile(userId))!.goal).toBe("lose");
+    // And the account carries no identity yet — the sign-up screen is where it gets one.
+    expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual([]);
   });
 
   it("opens on the goal question, with the admin's words and every option", async () => {
@@ -574,75 +693,13 @@ describe("the questions", () => {
       asked.push(id);
       await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
     }
-    // `country` IS asked here, and only because this request says nothing about where it is from:
-    // `get` sends no `Accept-Language` and the account has no address. That is the whole rule —
-    // the question is put to exactly the clients that could not answer it (#365). A browser that
-    // does answer it is the test below, and the app applies the same rule from `getLocales()`.
+    // Country is NOT in the walk any more (S8): it waits for the sign-up and gets a screen of its
+    // own after it, at `/start/country` — the tests for that screen are with it.
     expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toEqual([]);
     expect(asked).toEqual([
       "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "target_weight_kg", "pace", "activity", "country", "restrictions",
+      "target_weight_kg", "pace", "activity", "restrictions",
     ]);
-  });
-
-  it("does not ask a browser that already says where it is, and writes what it said", async () => {
-    const session = await signIn();
-    const asked: string[] = [];
-    for (let i = 0; i < 20; i++) {
-      const page = await get("/start/q", session, { "accept-language": "de-DE,de;q=0.9,en;q=0.8" });
-      if (page.status === 303) break;
-      const html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
-      asked.push(id);
-      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
-    }
-    expect(asked).not.toContain("country");
-    // NOT ASKED IS NOT THE SAME AS NOT ANSWERED. The value is what the analyzer reads, so a
-    // question skipped because the browser knew the answer has to leave that answer behind — the
-    // whole of #359 was a country field nothing filled and nothing asked for.
-    expect((await store.getProfile(await webUser(session)))!.country).toBe("de");
-  });
-
-  it("offers the country the sign-in address names, first, when nothing else could tell", async () => {
-    const session = await signIn();
-    const userId = await webUser(session);
-    await store.setIdentityEmail(userId, "google", "web-subject", "someone@gmx.de");
-
-    // No `Accept-Language`, so the address is all there is — a HINT, which orders the options and
-    // does not answer them. Walk up to the country question rather than through it.
-    let html = "";
-    for (let i = 0; i < 20; i++) {
-      const page = await get("/start/q", session);
-      html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1];
-      if (id === undefined || id === "country") break;
-      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
-    }
-    expect(html).toContain('name="prompt" value="country"');
-    const order = [...html.matchAll(/value="(de|gb|us|ru|other)"/g)].map((m) => m[1]);
-    expect(order[0]).toBe("de");
-    // An ORDER, not an answer: the field is still empty, and it is the user who fills it.
-    expect((await store.getProfile(userId))!.country).toBeNull();
-  });
-
-  it("asks a screen the admin switches back on", async () => {
-    const enabled = {
-      ...DEFAULT_ONBOARDING_CONTENT,
-      screens: DEFAULT_ONBOARDING_CONTENT.screens.map((screen) =>
-        screen.id === "country" ? { ...screen, enabled: true } : screen),
-    };
-    expect((await saveOnboardingContent(deps, enabled, "en")).ok).toBe(true);
-    const session = await signIn();
-    const asked: string[] = [];
-    for (let i = 0; i < 20; i++) {
-      const page = await get("/start/q", session);
-      if (page.status === 303) break;
-      const html = await page.text();
-      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
-      asked.push(id);
-      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
-    }
-    expect(asked).toContain("country");
   });
 
   it("re-asks a refused answer in the server's own words, and changes nothing", async () => {
@@ -780,10 +837,10 @@ describe("the plan", () => {
     expect(html).toContain(`>−${n(Math.abs(basis.appliedDeltaKcal))}<`);
     expect(html).toContain(`>${n(basis.floorKcal)}<`);
 
-    // The primary is the first meal, into the web application; the language lives in ITS
-    // settings, so the picker is not drawn here.
-    expect(html).toContain(pageCopyFor("en").planFirstMeal);
-    expect(html).toContain('href="/"');
+    // The primary is the sign-up screen (S8): the account needs an identity before a meal can
+    // be read, and `/start/signup` is where the consent and the buttons live.
+    expect(html).toContain(pageCopyFor("en").continueLabel);
+    expect(html).toContain('href="/start/signup"');
     expect(html).not.toContain('<select name="lang"');
   });
 
@@ -866,8 +923,15 @@ describe("pairing a browser with an app account", () => {
    * is the ordinary session cookie the OAuth callback sets — the same token, in the same place,
    * read by the same line.
    */
-  it("takes a device-anonymous account's thread into a browser, and a turn lands in it", async () => {
+  it("takes a signed-in app account's thread into a browser, and a turn lands in it", async () => {
     const app = await appSession();
+    // Under S8 an anonymous account is refused analysis — a real pairing happens after the phone
+    // has signed up, so this one has a Google identity like the flow produces.
+    await handle(new Request("https://api.eait.fit/v1/auth/google", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${app}` },
+      body: JSON.stringify({ idToken: `ok:google:pair-${crypto.randomUUID()}`, terms: true }),
+    }));
     const userId = (await store.userIdForToken(app))!;
     const code = await mint(app);
 
@@ -931,20 +995,19 @@ describe("pairing a browser with an app account", () => {
 
     const second = await post("/start/pair", { code });
     expect(second.status).toBe(303);
-    expect(second.headers.get("location")).toBe("/start?error=code");
+    expect(second.headers.get("location")).toBe("/start/signup?error=code");
     expect(second.headers.getSetCookie()).toEqual([]);
   });
 
-  it("sends an unknown code to the front door with words about it, and sets no cookie", async () => {
+  it("sends an unknown code back to the sign-up screen with words about it, and sets no cookie", async () => {
     const res = await post("/start/pair", { code: "ABCD2345" });
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start?error=code");
+    expect(res.headers.get("location")).toBe("/start/signup?error=code");
     expect(res.headers.getSetCookie()).toEqual([]);
 
     // The page that redirect lands on says which thing went wrong — a code, not a sign-in.
-    const door = await (await get("/start?error=code")).text();
+    const door = await (await get("/start/signup?error=code")).text();
     expect(door).toContain(PAGE_COPY.errorPair);
-    expect(door).not.toContain(PAGE_COPY.errorSignIn);
   });
 
   it("takes the per-address sign-in allowance before it reads the body", async () => {
@@ -961,8 +1024,10 @@ describe("pairing a browser with an app account", () => {
     expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 
-  it("offers the form on the front door, and it posts", async () => {
-    const html = await (await get("/start")).text();
+  it("offers the form on the sign-up screen, and it posts", async () => {
+    // Under S8 the front door is the welcome — a person holding a code their phone minted is
+    // somebody who already has an account, which is the door the sign-up screen is for.
+    const html = await (await get("/start/signup")).text();
     expect(html).toContain('action="/start/pair"');
     expect(html).toContain('method="post"');
     expect(html).toContain('name="code"');
@@ -1028,16 +1093,17 @@ describe("the cookie is this surface's alone", () => {
     // still gets sent. A non-null assertion on the profile answered a JSON 500 on an HTML surface.
     await store.deleteUser(userId);
     const res = await get("/start/q", session);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start");
+    // A dead cookie on the pre-account surface is simply no cookie: the questions render, and no
+    // profile lookup crashes into a JSON 500 on an HTML page.
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('name="prompt" value="goal"');
   });
 
   it("does not answer 500 to a cookie that is not valid percent-encoding", async () => {
     const res = await get("/start/q", "eait_web=%");
-    // Back to the front door, like any other unusable session — `decodeURIComponent` throwing here
-    // would reach the router's outer catch and answer a JSON 500 on an HTML surface.
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start");
+    // An unusable cookie is no session, and `/start/q` is the one route that needs none — the
+    // questions render rather than a `decodeURIComponent` throw reaching the router's JSON 500.
+    expect(res.status).toBe(200);
   });
 });
 
@@ -1226,17 +1292,13 @@ describe("the reaction above the question", () => {
     expect(html).toContain(`${wholeNumbers("en")(bmr!)}`);
   });
 
-  it("carries the struggles segue onto the country question", async () => {
-    const session = await signIn();
-    const html = await walkTo(session, "country");
-    // `reactionTo("struggles")` — the line is the segue out of the beats that ran since activity.
+  it("carries the struggles segue onto the country ask, which is where it was written to sit", async () => {
+    // S8 moved country out of the walk, and the segue with it — `reactionTo("struggles")` is the
+    // line above the country question, on its own post-sign-up screen now.
+    const { session } = await signedUp("segue-subject");
+    await store.patchProfile(await webUser(session), { country: null });
+    const html = await (await get("/start/country", session)).text();
     expect(html).toContain(chatCopyFor("en").reactions.struggles);
-  });
-
-  it("says 'Nearly there' above the last question", async () => {
-    const session = await signIn();
-    const html = await walkTo(session, "restrictions");
-    expect(html).toContain(chatCopyFor("en").reactions.country);
   });
 });
 
@@ -1685,6 +1747,127 @@ const upload = (files: Uint8Array[], cookie: string, opts: { type?: string; capt
   }));
 };
 
+describe("the session account, before and after sign-up (S8)", () => {
+  it("refuses a photo on an account nobody has signed into — a notice, never an analysis", async () => {
+    // The plan was shown and the answers are all collected, but the account holds no Apple or
+    // Google identity: a photo is answered `identity-required` and the free sample is not spent.
+    const session = await answerAll(undefined, ANSWERS);
+    const res = await upload([jpegBytes(1)], session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/chat?notice=identity-required");
+    expect(await store.countUserAnalyses(await webUser(session))).toBe(0);
+    // And the notice is words the person can act on — the sign-up screen, one step back.
+    const page = await (await get("/start/chat?notice=identity-required", session)).text();
+    expect(page).toContain(PAGE_COPY.chatRefusalIdentity);
+  });
+
+  it("lets a question be asked in chat on the same terms — refused until an identity attaches", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const res = await post("/start/chat/say", { text: "two eggs and toast" }, session);
+    expect(res.headers.get("location")).toBe("/start/chat?notice=identity-required");
+    expect(await store.countUserAnalyses(await webUser(session))).toBe(0);
+  });
+
+  it("keeps every answer when the provider attaches to the session account", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const before = (await store.getProfile(await webUser(session)))!;
+    const signed = await signIn("keeps-answers", "google", undefined, session);
+    // The SAME account, with the answers still on it — that is the whole ticket.
+    const userId = await webUser(signed);
+    const after = (await store.getProfile(userId))!;
+    for (const field of ["goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg", "activity", "pace"]) {
+      expect(after[field as keyof typeof after]).toEqual(before[field as keyof typeof after]);
+    }
+    expect((await store.listIdentities(userId)).map((i) => i.provider)).toContain("google");
+  });
+
+  it("keeps the existing account's id, and merges a session's answers into it field by field", async () => {
+    // The overseer's call on #85: the account the identity already names wins — RevenueCat,
+    // Health days, consent history and pairing all hang on the id — but an account that never
+    // finished its own onboarding takes the session's answers, which are the person's CURRENT
+    // intent. A field only the stale account had is kept; an onboarded account keeps its own
+    // wholesale (the test below).
+    const earlier = await signIn("already-exists", "apple");
+    const real = await webUser(earlier);
+    // The stale account's partial profile — including a field the walk never asks.
+    await store.patchProfile(real, { sex: "male", food_allergies: "nuts" });
+
+    const session = await answerAll(undefined, { ...ANSWERS, goal: "gain", target_weight_kg: "90" });
+    const signed = await signIn("already-exists", "apple", undefined, session);
+    expect(await webUser(signed)).toBe(real);
+    const winner = (await store.getProfile(real))!;
+    // Session values won where it answered — the goal AND the stale account's own sex — and the
+    // merged profile is onboarded, so the flow lands on the deferred country question.
+    expect(winner.goal).toBe("gain");
+    expect(winner.sex).toBe("female");
+    expect(winner.food_allergies).toBe("nuts");
+    expect(winner.onboarded_at).not.toBeNull();
+    expect((await get("/start/country", signed)).status).toBe(200);
+    // The tick the person just made is stamped where they actually landed.
+    expect((await store.consentOf(real))?.termsAcceptedAt).not.toBeNull();
+    // And the session account is gone — its token resolves to nothing, answers and all.
+    expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
+  });
+
+  it("lets an ONBOARDED existing account keep its own answers wholesale", async () => {
+    // §F 8: a completed profile is the person's settled answers — the session's are dropped.
+    const earlier = await signIn("onboarded-exists", "apple");
+    const real = await webUser(earlier);
+    await store.patchProfile(real, { onboarded_at: new Date().toISOString(), goal: "lose", country: "gb" });
+
+    const session = await answerAll(undefined, { ...ANSWERS, goal: "gain", target_weight_kg: "90" });
+    const signed = await signIn("onboarded-exists", "apple", undefined, session);
+    expect(await webUser(signed)).toBe(real);
+    const winner = (await store.getProfile(real))!;
+    expect(winner.goal).toBe("lose");
+    // It had a country already, so the handoff is the product, not the question.
+    expect((await get("/start/country", signed)).status).toBe(303);
+  });
+
+  it("stamps the marketing box only when it was ticked", async () => {
+    const plain = await answerAll(undefined, ANSWERS);
+    const plainSigned = await signIn("no-marketing", "google", undefined, plain);
+    const plainConsent = await store.consentOf(await webUser(plainSigned));
+    expect(plainConsent?.termsAcceptedAt).not.toBeNull();
+    expect(plainConsent?.marketingConsentAt).toBeNull();
+
+    const opted = await answerAll(undefined, ANSWERS);
+    const optedSigned = await signIn("yes-marketing", "google", undefined, opted, true);
+    const optedConsent = await store.consentOf(await webUser(optedSigned));
+    expect(optedConsent?.marketingConsentAt).not.toBeNull();
+  });
+
+  it("lands a signed-up account on the country question, and stores only what was asked", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("deferred-country", "google", undefined, session);
+    // The callback's handoff: country is asked AFTER the account exists (S8), on its own screen.
+    const asked = await get("/start/country", signed);
+    expect(asked.status).toBe(200);
+    const userId = await webUser(signed);
+    expect((await store.getProfile(userId))!.country).toBeNull();
+    const answered = await post("/start/country", { answer: "de" }, signed);
+    expect(answered.status).toBe(303);
+    expect((await store.getProfile(userId))!.country).toBe("de");
+  });
+
+  it("refuses a country value the screen never offered", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("bad-country", "google", undefined, session);
+    const res = await post("/start/country", { answer: "atlantis" }, signed);
+    expect(res.status).toBe(200); // re-asked, not stored
+    expect((await store.getProfile(await webUser(signed)))!.country).toBeNull();
+  });
+
+  it("sends an anonymous account at the country screen back to the sign-up, not ahead of it", async () => {
+    // The one order the whole redesign rests on: country follows the identity, so an account that
+    // has not signed up must never be handed the question.
+    const session = await answerAll(undefined, ANSWERS);
+    const res = await get("/start/country", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/signup");
+  });
+});
+
 describe("chat on the web: photos", () => {
   it("logs a photographed meal, with its caption, and puts it in the thread", async () => {
     const { session, userId } = await onboarded();
@@ -1906,7 +2089,7 @@ describe("the web surface and the landing are one product", () => {
 describe("signing out of this browser", () => {
   /** Sign in and finish, then hand back the cookie and a bearer minted from it. */
   const session = async (): Promise<{ cookie: string; bearer: string; userId: string }> => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=signout-subject&state=${encodeURIComponent(state)}`,
@@ -1914,7 +2097,9 @@ describe("signing out of this browser", () => {
     );
     const cookie = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
     const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
-    await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+    // Country included: S8 asks it after sign-up, and a session resuming an account that never
+    // answered it lands back on that screen rather than past it.
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString(), country: "de" });
     const bearer = (await (await post("/start/session/token", {}, cookie)).json() as { token: string }).token;
     return { cookie, bearer, userId };
   };
@@ -1962,7 +2147,7 @@ describe("signing out of this browser", () => {
 describe("the funnel actually reaches the web application", () => {
   /** Sign in and finish onboarding, which is the state a returning person is in. */
   const onboarded = async (): Promise<string> => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=returning-subject&state=${encodeURIComponent(state)}`,
@@ -1970,7 +2155,7 @@ describe("the funnel actually reaches the web application", () => {
     );
     const cookie = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
     const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
-    await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString(), country: "de" });
     return cookie;
   };
 
@@ -1985,18 +2170,19 @@ describe("the funnel actually reaches the web application", () => {
   });
 
   it("does not send anybody to a diary that was never built", async () => {
-    // `/` answers 404 on a deployment with no bundle, and bouncing a signed-in person into that is
-    // worse than showing them the questions.
+    // `/` answers 404 on a deployment with no bundle — the resume goes to this surface's own
+    // thread instead, the product it can actually serve.
     router({ ...CONFIG }, undefined, undefined, false);
     const res = await get("/start", await onboarded());
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/chat");
   });
 
   it("leaves somebody mid-onboarding where they were", async () => {
     // Signed in is not the same as finished. A half-answered profile has no plan behind it, so the
     // diary would be a screen of zeroes and no way back to the questions.
     router({ ...CONFIG }, undefined, undefined, true);
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const cb = await get(
       `/start/auth/google/callback?code=halfway-subject&state=${encodeURIComponent(state)}`,
@@ -2011,7 +2197,7 @@ describe("the funnel actually reaches the web application", () => {
 describe("the plan page hands over to the product", () => {
   const planFor = async (webApp: boolean): Promise<string> => {
     router({ ...CONFIG }, undefined, undefined, webApp);
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const cb = await get(
       `/start/auth/google/callback?code=plan-subject&state=${encodeURIComponent(state)}`,
@@ -2026,21 +2212,12 @@ describe("the plan page hands over to the product", () => {
     return await (await get("/start/plan", cookie)).text();
   };
 
-  it("offers the diary, and offers it before the App Store", async () => {
-    // The page ended on "Now get the app", which was the only next step when the only client was an
-    // iPhone. There is a web application now, and a person who has just answered eight questions in
-    // a browser can use it in the same browser — so the handover comes first and installing is what
-    // it says after.
+  it("offers the sign-up first — the account needs an identity before a meal can be read", async () => {
+    // S8: the plan's primary is not a meal and not an app download — it is the consent screen that
+    // attaches Apple or Google to the account the questions just made. The app install stays below.
     const html = await planFor(true);
-    expect(html).toContain('href="/"');
-    expect(html.indexOf('href="/"')).toBeLessThan(html.indexOf("Now get the app"));
-  });
-
-  it("says nothing about a diary on a deployment that has none", async () => {
-    // A button to a 404 is worse than no button, and this is the same rule the front door follows.
-    const html = await planFor(false);
-    expect(html).not.toContain('href="/"');
-    expect(html).toContain("Now get the app");
+    expect(html).toContain('href="/start/signup"');
+    expect(html.indexOf('href="/start/signup"')).toBeLessThan(html.indexOf("Now get the app"));
   });
 
   it("opens the web application's chat where there is one, and its own where there is not (#499)", async () => {
@@ -2054,7 +2231,7 @@ describe("the plan page hands over to the product", () => {
 describe("handing the browser's own JavaScript a bearer", () => {
   /** Sign in for real and return the session cookie, because that is the only way to get one. */
   const signedIn = async (): Promise<string> => {
-    const start = await get("/start/auth/google");
+    const start = await post("/start/auth/google", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const res = await get(
       `/start/auth/google/callback?code=bearer-subject&state=${encodeURIComponent(state)}`,
@@ -2154,12 +2331,12 @@ describe("Sign in with Apple, in both places (#476)", () => {
         "content-type": "application/json",
         ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
       },
-      body: JSON.stringify({ idToken: `ok:apple:${subject}${email ? `:${email}` : ""}` }),
+      body: JSON.stringify({ idToken: `ok:apple:${subject}${email ? `:${email}` : ""}`, terms: true }),
     }));
 
   /** The browser's, through the real front door: authorize, then the callback with its state. */
   const webSignIn = async (subject: string, email?: string): Promise<string> => {
-    const start = await get("/start/auth/apple");
+    const start = await post("/start/auth/apple", { terms: "yes" });
     const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
     const code = `${subject}${email ? `:${email}` : ""}`;
     const res = await get(
@@ -2245,8 +2422,9 @@ describe("Sign in with Apple, in both places (#476)", () => {
   it("is offered on the page whenever its four settings are set, beside Google", async () => {
     // The browser half is dark in production for one reason and it is configuration, not code:
     // `webProviders()` registers Apple only when all four are non-empty. This is the assertion that
-    // the code half is finished — a host that sets them gets the button.
-    const html = await (await get("/start")).text();
+    // the code half is finished — a host that sets them gets the button, on the sign-up screen,
+    // which is where the provider buttons live (S8).
+    const html = await (await get("/start/signup")).text();
     expect(html).toContain("/start/auth/apple");
     expect(html).toContain("Continue with Apple");
   });
@@ -2258,7 +2436,11 @@ describe("the origin the browser is sent back to", () => {
     // host is serving them — and that is no longer the host the confirmation emails point at.
     router({ ...CONFIG, publicWebUrl: "https://app.eait.fit" });
     const res = await handle(new Request("https://app.eait.fit/start/auth/google", {
-      method: "GET", redirect: "manual",
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded", "content-length": "9",
+      },
+      body: "terms=yes",
     }));
     const to = new URL(res.headers.get("location")!);
     expect(to.searchParams.get("redirect_uri"))
@@ -2268,7 +2450,11 @@ describe("the origin the browser is sent back to", () => {
   it("falls back to the API's origin, so a host that never sets it is unchanged", async () => {
     router({ ...CONFIG, publicWebUrl: "" });
     const res = await handle(new Request("https://api.eait.fit/start/auth/google", {
-      method: "GET", redirect: "manual",
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded", "content-length": "9",
+      },
+      body: "terms=yes",
     }));
     const to = new URL(res.headers.get("location")!);
     expect(to.searchParams.get("redirect_uri"))
@@ -2283,7 +2469,7 @@ describe("a sign-in button is only drawn where it can complete", () => {
 
   it("drops Apple on an origin Apple refuses, and keeps Google on loopback", async () => {
     router({ ...CONFIG, publicApiUrl: "" });
-    const page = await (await atOrigin("http://localhost:8787", "/start")).text();
+    const page = await (await atOrigin("http://localhost:8787", "/start/signup")).text();
     // Apple wants https on a domain it can resolve; Google takes http on loopback.
     expect(page).not.toContain("Continue with Apple");
     expect(page).toContain("Continue with Google");
@@ -2300,7 +2486,7 @@ describe("a sign-in button is only drawn where it can complete", () => {
 
   it("offers both once the origin is https", async () => {
     router({ ...CONFIG, publicApiUrl: "" });
-    const page = await (await atOrigin("https://api.eait.fit", "/start")).text();
+    const page = await (await atOrigin("https://api.eait.fit", "/start/signup")).text();
     expect(page).toContain("Continue with Apple");
     expect(page).toContain("Continue with Google");
   });
@@ -2317,7 +2503,7 @@ describe("a demo server signs somebody in on a laptop", () => {
     // The whole point of a demo provider: Google is not in this flow, so Google's rule about http
     // is not the rule that applies. Without the exemption a demo server showed no buttons at all.
     router({ ...CONFIG, publicApiUrl: "" }, localProviders);
-    const page = await (await handle(new Request("http://localhost:8787/start"))).text();
+    const page = await (await handle(new Request("http://localhost:8787/start/signup"))).text();
     expect(page).toContain("Continue with Apple");
     expect(page).toContain("Continue with Google");
     expect((await handle(new Request("http://localhost:8787/start/auth/apple"))).status).toBe(303);
@@ -2390,17 +2576,17 @@ describe("Connect Telegram", () => {
 
 describe("the whole onboarding flow, in every language the app speaks", () => {
   for (const lang of LANGS) {
-    it(`asks and answers in ${lang} (${LANG_LABEL[lang]}) from the first question to the plan`, async () => {
-      // A BARE TAG WITH NO REGION, which is both what makes this test possible and a real browser:
-      // `resolveCountry` answers from a region and only asks when there is none, so `de-DE` would
-      // skip the country question — the one screen whose options this change moved.
-      const session = await signIn(`web-${lang}`, "google", lang);
+    it(`asks and answers in ${lang} (${LANG_LABEL[lang]}) from the first question past the sign-up to the country`, async () => {
+      // THE S8 WALK ITSELF: no sign-in first — the questions run on the session account that the
+      // first answer makes, the plan leads to the consent screen, Apple or Google attaches to
+      // THAT account, and the deferred country question is the last thing before the product.
       const content = onboardingContentFor(lang);
+      const headers = { "accept-language": lang };
 
       const seen: string[] = [];
-      let countryHtml = "";
+      let cookie: string | undefined;
       for (let i = 0; i < 20; i++) {
-        const page = await get("/start/q", session);
+        const page = await get("/start/q", cookie, headers);
         if (page.status === 303) break;
         const html = await page.text();
         const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
@@ -2417,7 +2603,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         if (id === "target_weight_kg") {
           // The one screen whose ask is NOT the admin's (#42): the stepper's ask is the shared
           // `targetSuggestionLine`, spoken from the suggestion itself.
-          const me = (await store.getProfile(await webUser(session)))!;
+          const me = (await store.getProfile(await webUser(cookie!)))!;
           const kg = suggestedTargetKg(me)!;
           const share = Math.round(Math.abs(kg - me.weight_kg!) / me.weight_kg! * 100);
           const said = targetSuggestionLine(kg, share, "lose", lang);
@@ -2430,16 +2616,49 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
           }
         }
 
-        if (id === "country") countryHtml = html;
-        await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+        const res = await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, cookie, headers);
+        // The first answer mints the session account — keep its cookie.
+        const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
+        if (set) cookie = set.split(";")[0]!;
       }
 
-      expect(seen, lang).toContain("country");
+      // Country is NOT a walk question (S8) — it waits for the sign-up below.
+      expect(seen, lang).not.toContain("country");
       expect(seen.at(-1), lang).toBe("restrictions");
 
-      // THE COUNTRY CHIPS, which is what this change touched. Every one of them, by the name CLDR
-      // gives it in THIS language — so a client rendering the code, or falling back to English,
-      // fails here and names the language it failed in.
+      // The plan, then the consent screen — in the language the questions were answered in,
+      // which the first answer wrote into the session account.
+      const plan = await get("/start/plan", cookie);
+      expect(plan.status, lang).toBe(200);
+      const planHtml = await plan.text();
+      expect(planHtml, lang).toContain(`<html lang="${lang}"`);
+      expect(planHtml, lang).toContain(escape(pageCopyFor(lang).planHeading));
+      const signup = await get("/start/signup", cookie);
+      const signupHtml = await signup.text();
+      expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(pageCopyFor(lang).signUpHeading));
+      // The consent line names both documents, in the language's own words — the placeholders a
+      // translation could have dropped.
+      expect(signupHtml, `${lang}.signup terms`).toContain(escape(pageCopyFor(lang).termsLink));
+      expect(signupHtml, `${lang}.signup privacy`).toContain(escape(pageCopyFor(lang).privacyLink));
+
+      // Sign up — the identity attaches to the account the answers already live on (S8).
+      const signed = await signIn(`web-${lang}`, "google", lang, cookie);
+      expect(await webUser(signed), lang).toBe(await webUser(cookie!));
+
+      // The sign-up's handoff is the deferred country question, in the account's own language.
+      const countryPage = await get("/start/country", signed, headers);
+      expect(countryPage.status, lang).toBe(200);
+      const countryHtml = await countryPage.text();
+      expect(countryHtml, `${lang}.country`).toContain(`<html lang="${lang}"`);
+
+      // THE COUNTRY CHIPS, on their own screen now. Every one of them, by the name CLDR gives it
+      // in THIS language — so a client rendering the code, or falling back to English, fails here
+      // and names the language it failed in.
+      const countryScreen = content.screens.find((x) => x.id === "country")!;
+      const ask = countryScreen.asks.country!.lines[0]!;
+      const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
+      expect(countryHtml, `${lang}.country did not ask in ${lang}`).toContain(escape(fixed));
       for (const code of COUNTRY_CODES) {
         const label = code === "other"
           ? screenOptions(content, "country").other!.label
@@ -2447,38 +2666,35 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         expect(countryHtml, `${lang}: no chip reading "${label}" (${code})`)
           .toContain(escape(label));
       }
-      // And the list is the reader's own alphabet, `other` last — the order the page renders,
-      // not the order the constant declares.
+      // The reader's own alphabet, `other` last — with the language's suggestion pulled to the
+      // top first, which is `suggestionFirst`'s whole job with a hint this strong. `resolveCountry`
+      // is the same call the page made, so the two can never disagree about what was hinted.
       const rendered = [...countryHtml.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
-      expect(rendered, lang).toEqual([...countryOptions(lang)]);
+      const hinted = resolveCountry({ languages: [lang] }).country;
+      expect(rendered, lang).toEqual([...suggestionFirst(countryOptions(lang), hinted)]);
 
-      // It finished, and the plan it lands on is in the same language it was asked in.
-      const plan = await get("/start/plan", session);
-      expect(plan.status, lang).toBe(200);
-      const planHtml = await plan.text();
-      expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      expect(planHtml, lang).toContain(escape(pageCopyFor(lang).planHeading));
-      // The account carries the language, so every later render reads it rather than a header.
-      expect((await store.getProfile(await webUser(session)))!.lang, lang).toBe(lang);
+      // Answering it is the end of the flow: the account carries the language and the country,
+      // and the handoff is the product itself.
+      const done = await post("/start/country", { answer: "de" }, signed, headers);
+      expect(done.status, lang).toBe(303);
+      const profile = (await store.getProfile(await webUser(signed)))!;
+      expect(profile.lang, lang).toBe(lang);
+      expect(profile.country, lang).toBe("de");
+      expect(profile.onboarded_at, lang).not.toBeNull();
     });
   }
 
   it("renders a different country list to a German reader than to a Russian one", async () => {
     // The guard against all eight passing because all eight are English. Two languages, the same
-    // fourteen countries, and neither the names nor the order may match.
-    const de = await signIn("web-order-de", "google", "de");
-    const ru = await signIn("web-order-ru", "google", "ru");
-    const chips = async (session: string) => {
-      for (let i = 0; i < 20; i++) {
-        const html = await (await get("/start/q", session)).text();
-        const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
-        if (id === "country") return html;
-        await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
-      }
-      throw new Error("never reached the country question");
-    };
-    const deHtml = await chips(de);
-    const ruHtml = await chips(ru);
+    // fourteen countries, and neither the names nor the order may match — on the post-sign-up
+    // screen, which is where the question lives now (S8). The account's language is what the
+    // page renders in — it is set here directly because the renderer is what is under test.
+    const de = await signedUp("web-order-de");
+    const ru = await signedUp("web-order-ru", "apple");
+    await store.patchProfile(de.userId, { country: null, lang: "de" });
+    await store.patchProfile(ru.userId, { country: null, lang: "ru" });
+    const deHtml = await (await get("/start/country", de.session)).text();
+    const ruHtml = await (await get("/start/country", ru.session)).text();
     expect(deHtml).toContain("Vereinigtes Königreich");
     expect(ruHtml).toContain("Великобритания");
     expect(deHtml).not.toContain("Великобритания");

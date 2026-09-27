@@ -425,6 +425,11 @@ msgstr "Hier ist keine Mahlzeit offen, die ich ändern könnte. Sag mir, was du 
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Dieses Konto ist noch nicht angemeldet — melde dich im Web mit Apple oder Google an und schicke es dann noch einmal."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "Das Gratis-Kontingent dieses Kontos ist aufgebraucht. Starte deine Gratiswoche im Web, um weiterzumachen."
 

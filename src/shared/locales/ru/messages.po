@@ -425,6 +425,11 @@ msgstr "Здесь нет открытого приёма пищи, которы
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "В этот аккаунт ещё не вошли — войди через Apple или Google в вебе и пришли это ещё раз."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю на сайте, чтобы продолжить."
 
