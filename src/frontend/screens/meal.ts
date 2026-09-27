@@ -15,7 +15,7 @@
 // and "no meal" are the same answer and the same panel.
 
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
-import { LANG_TAG, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
@@ -31,7 +31,7 @@ import {
   verdictListEl,
 } from "../kit.ts";
 import {
-  COPY, MEAL, clear, el, findMeal, lang, names, profile, setRedraw, takeTurn,
+  COPY, MEAL, clear, dayText, el, findMeal, lang, names, profile, setRedraw, takeTurn,
   type Frame,
 } from "../shell.ts";
 
@@ -55,10 +55,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   // Relative day names for the meta line and header ("Today · 13:05"), the date in full for the
   // diary's own label — the boards write "Thursday 24 September" over the list.
   const today = localDate(zone);
-  const dayFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
-    timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
-  });
-  const dateText = (d: string): string => dayFmt.format(new Date(`${d}T12:00:00Z`));
+  const dateText = dayText;
   const dayName = (d: string): string =>
     d === today ? COPY.today : d === dateMinus(today, 1) ? COPY.yesterday : dateText(d);
   const mealTime = (m: MealRecord): string => localTime(zone, new Date(m.ts));
