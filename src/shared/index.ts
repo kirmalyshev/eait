@@ -49,3 +49,4 @@ export * from "./ui/icons.ts";
 // every string a surface shows, in all eight languages, so no client writes its own.
 export * from "./app/shell-copy.ts";
 export * from "./app/signup-copy.ts";
+export * from "./app/progress-copy.ts";
