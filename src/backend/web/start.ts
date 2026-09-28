@@ -983,7 +983,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
           return html(stopped(card.title, card.body, UNDER_AGE_LINES(profile.lang).stopped, profile.lang));
         }
         const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
-        const answer = answerFor(open, typed, profile, units, form);
+        // The number is read in the system the PAGE carried, not a fresh resolution — the hidden
+        // `units` field is the toggle's state at render, and it is what the answer was typed in.
+        const postedUnits = form.get("units");
+        const answer = answerFor(open, typed, profile,
+          postedUnits === "metric" || postedUnits === "imperial" ? postedUnits : units, form);
         const retry = (error: string | null, actions: Action[] = []) =>
           html(renderQuestion(walk, walk.indexOf(open), profile, content, error, actions, undefined,
             typed.length > 0 ? typed : undefined, askPath, units));
@@ -1006,7 +1010,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         const wait = ctx.limitAuth();
         if (wait !== null) return tooManyAttempts(wait, profile.lang);
         const fresh = await ctx.store.createUser(profile.lang);
-        const postedUnits = form.get("units");
         const patch: PatchProfileRequest = (postedUnits === "metric" || postedUnits === "imperial")
           ? { ...answer.patch, units: postedUnits } : answer.patch;
         const outcome = await patchProfile(ctx.deps, fresh, patch);
@@ -1058,7 +1061,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       }
 
       const answers = form.getAll("answer").filter((v): v is string => typeof v === "string");
-      const answer = answerFor(open, answers, profile, units, form);
+      // Same rule as the first answer: the hidden `units` field is the toggle the page showed,
+      // and the number converts in it — a stale render must not reinterpret what was typed.
+      const postedUnits = form.get("units");
+      const answer = answerFor(open, answers, profile,
+        postedUnits === "metric" || postedUnits === "imperial" ? postedUnits : units, form);
       if (answer.kind === "missing") return retry(pageCopyFor(profile.lang).answerRequired);
       if (answer.kind === "ambiguous-age") {
         // The quick reply takes it as an age; four digits in the box take it as the year.
@@ -1087,7 +1094,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // is S8's own screen after the sign-up and never in this walk. It goes on the patch rather
       // than a second POST so a partial write can never mark a run complete.
       const lastField = walk.length - 1 - [...walk].reverse().findIndex((p) => p.field !== undefined);
-      const postedUnits = form.get("units");
       const patch: PatchProfileRequest = {
         ...(editIndex === -1 && at === lastField
           ? { ...answer.patch, complete_onboarding: true }
