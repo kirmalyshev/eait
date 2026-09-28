@@ -26,12 +26,13 @@ export const youCss = `
    is one line, so it never breaks mid-phrase. */
 .you .est { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 
-/* The identity card — the tinted disc (48px, the person mark inside) beside the fact line. */
+/* The identity card — the tinted disc (48px, the person mark inside; the board's lettered avatar
+   was fixture data — no name is stored) beside the fact line, drawn the board's t13-muted way. */
 .you .idcard { display: flex; align-items: center; gap: 14px; }
 .you .av { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%; background: var(--accent-tint);
   display: inline-flex; align-items: center; justify-content: center; }
 .you .av .ico { width: 24px; height: 24px; color: var(--accent); }
-.you .facts { font-size: 15px; font-weight: 500; }
+.you .facts { font-size: 13px; color: var(--muted); }
 
 /* Card actions drawn as text, not pills — "Log weight" is the accent link, "edit" the quiet one. */
 .you .card button.plink, .you .card button.elink { border: 0; background: none; padding: 0;

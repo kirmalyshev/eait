@@ -112,12 +112,17 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const identityCard = (): HTMLElement => {
     const card = el("div", "card idcard");
     const av = el("span", "av");
+    // An icon, never a lettered avatar, and NO name line: the board's "Anna" and its "A" were
+    // fixture data — nothing stores a name (design-pro, eait#97 / ieat-app#929).
     av.append(kitEl(`<i class="ico i-person" aria-hidden="true"></i>`));
     card.append(av, el("span", "facts", facts()));
     return card;
   };
 
-  // ── The weight card — "Log weight" writes the same weigh-in the phone's scale board does. ──
+  // ── The weight card — "Log weight" opens the inline weigh-in (an input and Save: the recorded
+  // eait#97 ruling — the board's link is the affordance, web has no you-weight screen to route
+  // to). The chart reads the WHOLE log (`range=all`, same as the phone's `client.weights("all")`)
+  // and stays dot-free (#1068); the dashed target lane opens only while target_weight_kg is set.
 
   const weightCard = (w: WeightsResponse, noticeBox: { notice: HTMLElement; tell: (w: string | null) => void }): HTMLElement => {
     const card = el("div", "card rise");
@@ -325,7 +330,10 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
-  // ── The flat card: the account rows the board draws in one quiet list. ──────────────────────
+  // ── The flat card: the account rows the board draws in one quiet list — and the web's own
+  // settings rows the recorded ruling keeps there (eait#97: Units, Language, Sign out, Connect
+  // Telegram stay; ieat-app#929: "extra rows in the same flat card"; Apple Health is read-only
+  // here and only ever drawn while `healthConnected`). ─────────────────────────────────────────
 
   const optRow = (label: string, value: string, ctl?: HTMLElement): HTMLElement => {
     const row = el("div", "opt");
