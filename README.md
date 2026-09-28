@@ -8,6 +8,8 @@ https://github.com/user-attachments/assets/3969bf68-972d-4076-98ff-e36211031c9a
 Twenty-five seconds of the demo backend — canned analyses, a fictional account — driving the same
 screens a real one would.
 
+![A meal logged from a photo in the web app: the items with their grams and kcal, the macros and the day score](docs/readme/meal-from-a-photo.jpg)
+
 Three workspaces:
 
 | Workspace | What it is |
