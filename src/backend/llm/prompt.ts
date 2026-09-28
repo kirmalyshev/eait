@@ -357,6 +357,14 @@ Rules:
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
+/**
+ * Appended to the user text of the ONE retry an empty estimate earns (#248). The model's reason
+ * for `items: []` at `isFood: true` is "too vague to itemise", and the identical prompt draws the
+ * same answer again — the retry works only because it says so out loud.
+ */
+export const EMPTY_ESTIMATE_RETRY =
+  "\n\nEstimate anyway. Where the description is vague, take one ordinary serving of each food named. An empty items list is never the right answer when the user named food.";
+
 /** The user-side text for a described meal. Deliberately just the message and who is eating. */
 export function buildTextMealText(input: {
   text: string;

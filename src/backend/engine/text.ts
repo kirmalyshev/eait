@@ -15,7 +15,8 @@ import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdict
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
-import { emptyEstimate, prepareAnalysis } from "./analysis.ts";
+import { emptyEstimate } from "../llm/port.ts";
+import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { remember } from "./chat.ts";
