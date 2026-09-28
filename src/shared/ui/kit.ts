@@ -572,6 +572,7 @@ export function kitCss(): string {
 /* The verdict — a dot and a line, never a pill. */
 .v{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted)}
 .v::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:0 0 8px}
+.v.good{color:var(--accent)}
 .v.warn{color:var(--warn)}.v.warn::before{background:var(--warn)}
 .v.bad{color:var(--bad)}.v.bad::before{background:var(--bad)}
 .vs{display:flex;gap:14px;flex-wrap:wrap}
