@@ -70,10 +70,9 @@ export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
   scripted: Record<ScriptedLineId, (v?: Record<string, string>) => string>;
   /**
-   * Who the coach is (S9). `name` is "Gabie" in every shipped language until Kirill confirms the
-   * per-language table (proposed: fr Gaby · de Gabi · it Gabriella · es Gabriela · vi Gabie ·
-   * id Gabi · ru Габи) — one key, so his confirmation changes it once, not sixteen strings. Every
-   * surface that names her — Chat's avatar line, a `{coach}` placeholder, Telegram's prefix —
+   * Who the coach is (S9). `name` is "Spud" in every shipped language — Kirill's ruling,
+   * 2026-09-28 (#1041): the chat coach is Spud, reversing the Gabie naming. One key, so every
+   * surface that names him — Chat's avatar line, a `{coach}` placeholder, Telegram's prefix —
    * fills from this, never a literal.
    */
   coach: { name: string };
@@ -142,7 +141,7 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     "onboarding-done": (v) => i18n._("thread.scripted.onboarding-done", v, { message: "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask." }),
     "dropped": (v) => i18n._("thread.scripted.dropped", v, { message: "Dropped it." }),
   },
-  coach: { name: i18n._("thread.coach.name", undefined, { message: "Gabie" }) },
+  coach: { name: i18n._("thread.coach.name", undefined, { message: "Spud" }) },
   coachStarters: {
     consistency: i18n._("thread.coachStarters.consistency", undefined, { message: "How's my week going?" }),
     habits: i18n._("thread.coachStarters.habits", undefined, { message: "What's a lighter swap for dinner?" }),

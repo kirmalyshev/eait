@@ -200,11 +200,6 @@ msgstr "Yang pertama masuk. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coach.name"
-msgstr "Gabie"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
 msgstr "Santai dulu untuk sisa hari ini."
 
@@ -372,6 +367,11 @@ msgstr "Natrium"
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Ada yang gagal, dan mungkin tetap terkirim. Cek /today sebelum mengirim ulang."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

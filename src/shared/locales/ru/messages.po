@@ -200,11 +200,6 @@ msgstr "Первый записан. {kcal} ккал — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coach.name"
-msgstr "Gabie"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
 msgstr "Не налегай на это до конца дня."
 
@@ -372,6 +367,11 @@ msgstr "Натрий"
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Что-то пошло не так, и всё же могло пройти. Загляни в /today, прежде чем отправлять снова."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -304,7 +304,7 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
 
   // ── ONE ACCOUNT'S THREAD ───────────────────────────────────────────────────────────────────
   //
-  // #376. Gabie and Spud answer in the app's chat thread, and when a reply is wrong, embarrassing
+  // #376. The coach answers in the app's chat thread, and when a reply is wrong, embarrassing
   // or just strange there was no way to read the turn back — which meant `docker compose logs` and
   // hope.
   //

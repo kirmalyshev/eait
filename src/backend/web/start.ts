@@ -1523,7 +1523,7 @@ function noticeFor(result: { kind: string; scope?: string; on?: string }): strin
  *
  * A card is resolved from the meal as it is NOW (`chatHistory` does the read), so a verdict on this
  * page never describes numbers that have since changed — and a meal that is gone says so rather
- * than rendering a stale one. `who` is the stored speaker: Gabie answers questions, and everything
+ * than rendering a stale one. `who` is the stored speaker: the coach answers questions, and everything
  * else is Spud, whose name the page does not repeat because he is the voice it opens in.
  */
 function threadLine(e: ChatEntry, lang: Lang): ChatLine {

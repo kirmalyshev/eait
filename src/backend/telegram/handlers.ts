@@ -209,7 +209,7 @@ export function telegramHandlers(deps: EngineDeps) {
       const r = await handleText(deps, userId, { text });
       switch (r.kind) {
         case "answered":
-          // Gabie's answers go out signed — her name comes from the localized coach key, never
+          // The coach's answers go out signed — the name comes from the localized coach key, never
           // a literal, so the confirmed per-language table lands in one place (S9).
           return chat.send(r.speaker === "gabie" ? `${threadCopyFor(lang).coach.name}: ${r.text}` : r.text);
         case "proposed": {

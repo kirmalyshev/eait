@@ -2697,7 +2697,7 @@
                 "type": "null"
               }
             ],
-            "description": "Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud."
+            "description": "Who answered. A coach turn is marked `gabie`, fallback included; absent or null is the app's own voice."
           },
           "suggestions": {
             "type": "array",
@@ -3217,7 +3217,7 @@
       "ChatSpeaker": {
         "type": "string",
         "const": "gabie",
-        "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who answers in Chat (S9 — she was retired by #49 and restored by the redesign)."
+        "description": "Who said an assistant line. Absent is the app's own voice; `gabie` is the coach who answers in Chat (S9). The flag kept its name — the face above it is `coach.name`'s, Spud since #1041."
       },
       "CoachFocus": {
         "type": "object",

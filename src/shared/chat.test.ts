@@ -182,8 +182,8 @@ describe("coach", () => {
     }
   });
 
-  it("names her Gabie in every shipped language until the per-language table is confirmed", () => {
-    for (const lang of LANGS) expect(threadCopyFor(lang).coach.name, lang).toBe("Gabie");
+  it("names the coach Spud in every shipped language (#1041)", () => {
+    for (const lang of LANGS) expect(threadCopyFor(lang).coach.name, lang).toBe("Spud");
   });
 
   it("reads the struggles: the picked ones' starters first, the rest fill to three", () => {

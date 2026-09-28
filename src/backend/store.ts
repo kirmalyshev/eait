@@ -127,7 +127,7 @@ export interface ChatMessage {
   clientId: string | null;
   /** On the user line of a proposal: the proposal's id, which is the meal's id once confirmed. */
   pendingId: string | null;
-  /** On an assistant text line: who said it. Null is Spud, so every line from before Gabie stays his. */
+  /** On an assistant text line: who said it. Null is the app's own voice — every line from before the coach existed. */
   speaker: ChatSpeaker | null;
   /** On a user text line the router read: what it decided the words were. Null anywhere else, and before #486. */
   intent: ChatIntent | null;
