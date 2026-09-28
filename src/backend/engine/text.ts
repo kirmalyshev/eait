@@ -275,7 +275,7 @@ async function keep(
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
       lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
-      // #119: the ONE computed line — Gabie's — names the change and what the verdicts did. A
+      // #119: the ONE computed line — the coach's — names the change and what the verdicts did. A
       // correction always carried a focus meal; `before` being null is the target-gone case,
       // which returned before this thunk.
       if (result.kind === "updated" && before !== null) {
