@@ -14,6 +14,7 @@
 // have. `numbers` and `monthYear` below are the only two shapes this product needs, and every
 // figure in every sentence goes through one of them rather than through a hand-written table.
 
+import { localDate } from "./dates.ts";
 import { LANGS, type Lang } from "./types.ts";
 
 /**
@@ -127,6 +128,26 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * ALWAYS one decimal — the opposite of `numbers`' "keeps a tenth when there is one". The BMI
+ * figure is the case (#174): a BMI is written 25.0 even when it is 25.00, because the scale's
+ * meaning lives in the decimal.
+ */
+export const decimalNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return (x: number): string => format.format(Math.round(x * 10) / 10);
+};
+
+/**
+ * A WHOLE NUMBER CARRYING ITS SIGN — "+450", "−500" — for the deltas the boards draw signed (the
+ * basis rows' "your days" and "your pace"). `Intl`'s `signDisplay` rather than a string stapled
+ * in front: the minus it writes is the language's own.
+ */
+export const signedWholeNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0, signDisplay: "always" });
+  return (x: number): string => format.format(Math.round(x));
+};
+
+/**
  * The step a guessed figure is rounded to: ten (#47). One number per thing, never a number and its
  * error — so a guess shows itself by its PRECISION ("about 1 820"), not by a ± or a band beside it.
  * Ten keeps a day of 1 822 reading 1 820, where fifty would move it to 1 800.
@@ -209,6 +230,28 @@ export const dayMonth = (lang: Lang) =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
 
 /**
+ * An INSTANT's day — "26 Sep", the year joining only when it is not this one — in the ACCOUNT's
+ * zone. For `YYYY-MM-DD` day strings (which are already dates, not instants) use `dayMonth` on a
+ * UTC noon anchor instead.
+ */
+export const dayMonthAt = (lang: Lang, zone: string, at: Date): string => {
+  const sameYear = localDate(zone, at).slice(0, 4) === localDate(zone).slice(0, 4);
+  return new Intl.DateTimeFormat(LANG_TAG[lang], {
+    day: "numeric", month: "short", timeZone: zone, ...(sameYear ? {} : { year: "numeric" }),
+  }).format(at);
+};
+
+/** "Sat 26 Sep" — a short weekday with the day, for "until {date}" style lines. Account's zone. */
+export const weekdayDayMonthAt = (lang: Lang, zone: string, at: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], {
+    weekday: "short", day: "numeric", month: "short", timeZone: zone,
+  }).format(at);
+
+/** "9:41" — a clock time in the account's zone, for "expires at {time}" style lines. */
+export const timeAt = (lang: Lang, zone: string, at: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "numeric", minute: "2-digit", timeZone: zone }).format(at);
+
+/**
  * The seven single letters a week is captioned with — the Today strip and Progress's bars and
  * streak dots all draw Monday first, as the boards do. CLDR's `narrow` weekday rather than a
  * table: the last hand-written table of period names got three languages wrong at once, and 56
@@ -238,17 +281,63 @@ export interface CountForms {
 }
 
 /**
- * Which form a count takes. The category is `Intl.PluralRules`' — a RULE (Russian's 2–4 land on
- * `few`, 5+ on `many`), and rules are code, not copy: the table beside this holds only wording.
- * Whole numbers, because a count of days is exact and a tenth of a day is a weight's precision.
- * Bound once per surface, like `t`.
+ * `Intl.PluralRules`' answer for one of the EIGHT `Lang`s, by hand — the fallback for a runtime
+ * that does not carry the constructor. Hermes, the phone's engine, ships only Collator,
+ * DateTimeFormat and NumberFormat: `new Intl.PluralRules` there is `undefined` used as a
+ * constructor, which is a process abort on whatever screen runs it (the Progress tab's streak,
+ * ieat-app#977). These are CLDR's cardinal rules over whole numbers — a rule is code, not copy,
+ * which is why it lives beside `countText` and not in a table.
+ */
+const oneIfOne = (n: number): Intl.LDMLPluralRule => (n === 1 ? "one" : "other");
+const PLURAL_CATEGORY: Record<Lang, (n: number) => Intl.LDMLPluralRule> = {
+  en: oneIfOne,
+  de: oneIfOne,
+  it: oneIfOne,
+  es: oneIfOne,
+  // French files 0 with 1.
+  fr: (n) => (n === 0 || n === 1 ? "one" : "other"),
+  // vi and id have no cardinal categories — `other` is the whole grammar.
+  vi: () => "other",
+  id: () => "other",
+  // Russian's four-way split: 1-but-not-11 takes `one`, 2–4-but-not-12–14 take `few`, and a
+  // trailing 0, 5–9 or the 11–14 teens take `many`.
+  ru: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    const i10 = i % 10;
+    const i100 = i % 100;
+    if (i10 === 1 && i100 !== 11) return "one";
+    if (i10 >= 2 && i10 <= 4 && (i100 < 12 || i100 > 14)) return "few";
+    if (i10 === 0 || (i10 >= 5 && i10 <= 9) || (i100 >= 11 && i100 <= 14)) return "many";
+    return "other";
+  },
+};
+
+/**
+ * Which form a count takes. The category is `Intl.PluralRules`' where the runtime has it, and
+ * `PLURAL_CATEGORY`'s where it does not — a RULE (Russian's 2–4 land on `few`, 5+ on `many`), and
+ * rules are code, not copy: the table beside this holds only wording. Whole numbers, because a
+ * count of days is exact and a tenth of a day is a weight's precision. Bound once per surface,
+ * like `t`.
  */
 export const countText = (lang: Lang) => {
-  const rules = new Intl.PluralRules(LANG_TAG[lang]);
+  const rules = typeof Intl.PluralRules === "function" ? new Intl.PluralRules(LANG_TAG[lang]) : null;
+  const category = rules === null ? PLURAL_CATEGORY[lang] : (n: number) => rules.select(n);
   const whole = wholeNumbers(lang);
   return (forms: CountForms, n: number): string =>
-    (forms[rules.select(n)] ?? forms.other).replace("{n}", whole(n));
+    (forms[category(n)] ?? forms.other).replace("{n}", whole(n));
 };
+
+/**
+ * Items joined the way this language lists them — "high cholesterol and kidney disease" —
+ * `Intl.ListFormat`'s conjunction where the runtime carries it. Hermes does not (#977: `new
+ * Intl.ListFormat` is the same `undefined` constructor as `PluralRules`), so there the join is
+ * the comma the grammar would use anyway — the degradation `chat-thread`'s opener already made
+ * by hand before this helper existed.
+ */
+export const listConjunction = (lang: Lang, parts: readonly string[]): string =>
+  typeof Intl.ListFormat === "function"
+    ? new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" }).format(parts)
+    : parts.join(", ");
 
 /**
  * The language tags a browser asked for, BEST FIRST.

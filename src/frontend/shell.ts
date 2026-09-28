@@ -72,7 +72,7 @@ export const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 export const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 export const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
 export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
-
+export const DAYS: Under<typeof ROUTES.days> = "/diary/days";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
 export const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
@@ -387,6 +387,15 @@ export function proposalCard(
 export const timeFmt = (d: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { hour: "2-digit", minute: "2-digit" }).format(d);
 
+/**
+ * The boards' one date form for a `YYYY-MM-DD` — "Thursday 24 September", in the surface's
+ * language. Midday UTC keeps a date-only value on its own day at either side of the date line.
+ */
+export const dayText = (d: string): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+  }).format(new Date(`${d}T12:00:00Z`));
+
 export function textField(placeholder: string): HTMLInputElement {
   const input = el("input", "") as HTMLInputElement;
   input.type = "text";
@@ -405,9 +414,9 @@ export function textField(placeholder: string): HTMLInputElement {
  * HEIC as happily as it once handed the app. The server refuses it before charging (415), and
  * that refusal is what a person reads.
  */
-export function composerRow(placeholder: string): {
+export function composerRow(placeholder: string, opts?: { camera?: boolean; multiline?: boolean }): {
   form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
-  words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
+  words: HTMLInputElement | HTMLTextAreaElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
 } {
   const shell = shellCopyFor(lang);
   const form = el("form", "comp") as HTMLFormElement;
@@ -422,13 +431,32 @@ export function composerRow(placeholder: string): {
   add.setAttribute("aria-label", shell.composerPhoto);
   add.append(el("i", "ico i-upload"));
   add.addEventListener("click", () => picker.click());
-  const words = textField(placeholder);
+  // `multiline` is a one-line textarea that WRAPS and grows (field-sizing:content) — Home's
+  // longer placeholder reads whole (#170); the plain input stays for the shorter forms.
+  const words = opts?.multiline === true
+    ? (() => {
+        const t = el("textarea", "") as HTMLTextAreaElement;
+        t.rows = 1;
+        t.placeholder = placeholder;
+        t.setAttribute("aria-label", placeholder);
+        t.addEventListener("keydown", (e) => {
+          // isComposing — an IME Enter (vi's tone marks, ja/zh) ends a composition, not the line.
+          if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+            e.preventDefault(); form.requestSubmit();
+          }
+        });
+        return t;
+      })()
+    : textField(placeholder);
   words.className = "box";
   const send = el("button", "ib p", "") as HTMLButtonElement;
   send.type = "submit";
   send.setAttribute("aria-label", shell.composerSend);
   send.append(el("i", "ico i-send"));
-  row.append(add, words, send);
+  // Home's composer is words + send only — the boards put photo upload on the "Upload a photo"
+  // CTA there (#170), and without the camera round the field takes the column.
+  if (opts?.camera !== false) row.append(add);
+  row.append(words, send);
   const count = el("span", "count", "");
   count.hidden = true;
   const cancel = el("button", "act", COPY.cancel) as HTMLButtonElement;
@@ -628,6 +656,13 @@ export async function flush(): Promise<void> {
 export interface Frame {
   me: ProfileResponse | null;
   bar: HTMLElement;
+  /**
+   * The screen's own SECOND column — the boards' two-column `wmain` (W4's Home draws the week
+   * strip and the cards there). Like `bar`: append into it or leave it empty; a column with
+   * children drops `one` off `wmain` and joins the grid. It is a `<section>` — a landmark ONLY
+   * when the screen names it (`aria-label`, from the screen's own copy table; #178).
+   */
+  side: HTMLElement;
 }
 export type ScreenFn = (frame: Frame) => Promise<HTMLElement> | HTMLElement;
 
@@ -669,7 +704,8 @@ export async function render(): Promise<void> {
   // row only once there is a session to lose it over — over the one quiet column. `wmain`'s
   // two-column form is W4's; every surface today's code draws is the boards' one-column `one` —
   // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
-  // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
+  // columns inside it (`wmain:has(.mdetail)` — the variant is selected by content because `.meal`
+  // is already the kit's row class, and classing the main with it leaked that row's padding).
   const wrap = el("div", "wmain");
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
@@ -679,7 +715,7 @@ export async function render(): Promise<void> {
   // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
   // take, #93/#94).
   const route = routeBase(location.hash || "#/");
-  wrap.className = `wmain ${route.startsWith("#/meal/") ? "meal" : "one"}`;
+  wrap.className = `wmain${route.startsWith("#/meal/") ? "" : " one"}`;
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {
@@ -690,12 +726,17 @@ export async function render(): Promise<void> {
   }
   if (mine !== drawing) return;
   const right = el("span", "wr");
+  // A `<section>` is a landmark only once a screen names it — unnamed it is just the column.
+  const side = el("section", "wcol");
   app.append(chrome(route, right), wrap);
   body.textContent = COPY.loading;
   try {
-    const screen = await screenFor(route, { me: profileCache, bar: right });
+    const screen = await screenFor(route, { me: profileCache, bar: right, side });
     if (mine !== drawing) return;
     clear(body).append(screen);
+    // A screen that filled its side column takes the boards' two-column `wmain` (W4's Home);
+    // `one` stays for everybody else.
+    if (side.childElementCount > 0) { wrap.classList.remove("one"); wrap.append(side); }
     // Whatever was kept the last time this browser had no connection, now that there is a session.
     void flush();
   } catch (err) {

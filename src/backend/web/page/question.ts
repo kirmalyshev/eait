@@ -9,7 +9,7 @@
 
 import {
   BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
-  minHealthyWeightKg, numbers, pacePreview, PACES, rulerLabels, RULER_TICKS,
+  minHealthyWeightKg, numbers, ONBOARDING_NEUTRAL, pacePreview, PACES, rulerLabels, RULER_TICKS,
   optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
   targetRange,
   weightDisplay, weightDisplayValue,
@@ -57,7 +57,7 @@ function page(v: QuestionView, opts: { seg?: string; control: string; foot?: str
     `<button class="cta s" type="submit" name="${escape(a.name)}" value="${escape(a.value)}">${escape(a.label)}</button>`,
   ).join("");
   const body = `${wtop()}
-<div class="wmain one" style="max-width:720px"><div class="wcol">
+<div class="wmain one q"><div class="wcol">
 ${dash(v.prompt.place, v.lang)}
 ${backLink(v.back, pageCopyFor(v.lang).back)}
 ${say(PLACE_MOOD[v.prompt.place] ?? "happy", v.lines, v.lang)}
@@ -111,7 +111,7 @@ function optionControl(v: QuestionView): string {
     if (place === "activity") {
       // The board's three parts: the count reads big, the name is the row's words (`hint`).
       return `<label class="opt"><input type="radio" name="answer" value="${escape(o)}"${chosen.has(o) ? " checked" : ""}>` +
-        `<span class="tile"><i class="ico i-${o}"></i></span>` +
+        `<span class="tile"><i class="ico i-${escape(o)}"></i></span>` +
         `<span><b class="d d17 num">${escape(c?.label ?? optionLabel(place as OnboardingScreenId, o, v.lang))}</b>` +
         `${c?.hint ? `<small>${escape(c.hint)}</small>` : ""}</span>` +
         `<span class="ck"><i class="ico i-check"></i></span></label>`;
@@ -180,7 +180,7 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
     : `<div class="bign num"><span class="bv">${escape(numfmt(v.lang, cfg.val))}</span><small>${escape(cfg.smalls)}</small></div>`;
   const liveShown = cfg.delta && cfg.now && cfg.val !== cfg.now.at;
   const live = cfg.delta && cfg.now
-    ? `<div class="live${liveShown ? (cfg.val < cfg.now.at! ? " dn" : " up") : ""}"${liveShown ? "" : ` style="display:none"`}>${
+    ? `<div class="live${liveShown ? (cfg.val < cfg.now.at! ? " dn" : " up") : ""}"${liveShown ? "" : " hidden"}>${
         escape(fill(cfg.val < cfg.now.at! ? cfg.delta.dn : cfg.delta.up, {
           weight: `${numfmt(v.lang, Math.abs(cfg.val - cfg.now.at!))} ${cfg.unitWord}`,
         }))}</div>`
@@ -221,7 +221,7 @@ const numInput = (v: QuestionView, val: number, min: number, max: number, step: 
 function ageControl(v: QuestionView): { control: string } {
   const copy = chatCopyFor(v.lang);
   const val = v.draft ?? (v.current[0] !== undefined ? Number(v.current[0]) : null)
-    ?? (v.profile.birth_year ? v.today.getUTCFullYear() - v.profile.birth_year : 30);
+    ?? (v.profile.birth_year ? v.today.getUTCFullYear() - v.profile.birth_year : ONBOARDING_NEUTRAL.ageYears);
   // The wheel's range runs INTO the refusal ages on purpose: 10–15 selects the under-16 stop,
   // which is the same door the typed fallback takes.
   const min = 10, max = 100;
@@ -246,7 +246,7 @@ function unitsSeg(v: QuestionView, which: "height" | "weight"): string {
 
 function heightControl(v: QuestionView): { seg: string; control: string } {
   const stored = v.current[0] !== undefined ? Number(v.current[0]) : v.profile.height_cm;
-  const cm = v.draft ?? stored ?? 170;
+  const cm = v.draft ?? stored ?? ONBOARDING_NEUTRAL.heightCm;
   const t = RULER_TICKS.height[v.units];
   const val = heightDisplayValue(cm, v.units);
   // The imperial band rounds INWARD: a value the UI admits is always inside the metric band
@@ -274,7 +274,7 @@ function heightControl(v: QuestionView): { seg: string; control: string } {
 
 function weightControl(v: QuestionView): { seg: string; control: string } {
   const stored = v.current[0] !== undefined ? Number(v.current[0]) : v.profile.weight_kg;
-  const kg = v.draft ?? stored ?? 75;
+  const kg = v.draft ?? stored ?? ONBOARDING_NEUTRAL.weightKg;
   const t = RULER_TICKS.weight[v.units];
   const val = weightDisplayValue(kg, v.units);
   const [min, max] = v.units === "imperial"
@@ -294,7 +294,7 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
   const kg = v.draft
     ?? (v.current[0] !== undefined ? Number(v.current[0]) : null)
     ?? suggestedTargetKg(v.profile)
-    ?? v.profile.weight_kg ?? 75;
+    ?? v.profile.weight_kg ?? ONBOARDING_NEUTRAL.weightKg;
   const t = RULER_TICKS.weight[v.units];
   const word = v.units === "imperial" ? "lb" : "kg";
   const val = weightDisplayValue(kg, v.units);

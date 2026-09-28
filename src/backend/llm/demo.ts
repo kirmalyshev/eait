@@ -6,7 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
-import type { AnalyzedMeal, AnalyzePhoto, Coach, GlancePhoto, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -120,6 +120,20 @@ export const DEMO_NOT_FOOD = "no food in this one";
  */
 export const DEMO_HOLD = "hold the plate";
 
+/**
+ * The caption that asks about GRAMS rather than oil (#148): "Was the rice about 250 g?", and the
+ * chips a grams correction rides on. Keyed on the caption for the reason `DEMO_NOT_FOOD` is — a
+ * fake that cannot see the picture has only the words to branch on, and this is the question kind
+ * whose chips carry a number rather than an either/or.
+ */
+export const DEMO_GRAMS_QUESTION = "about the grams";
+
+/** The grams question itself — the least-certain item's name and its own grams, verbatim. */
+const DEMO_GRAMS_Q = {
+  text: "Was the rice about 250 g?",
+  options: ["Yes, about that", "Half that", "More like 400 g"],
+};
+
 /** The beat between the pieces `analyzePhoto` writes, for this caption. */
 export function demoPieceDelayMs(caption: string | undefined): number {
   return (caption ?? "").toLowerCase().includes(DEMO_HOLD) ? 8_000 : 150;
@@ -142,9 +156,16 @@ export function demoPorts(): LlmPorts {
     // A canned answer costs nothing and says so, once per call like the real ports, so `--demo`
     // and every engine test walk the same record (#484).
     input.onCost?.(0);
-    const meal = (input.caption ?? "").toLowerCase().includes(DEMO_NOT_FOOD)
+    const caption = (input.caption ?? "").toLowerCase();
+    const meal = caption.includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
-      : plateFor(hash((input.caption ?? "") + input.images.length + (input.images[0]?.byteLength ?? 0)));
+      : caption.includes(DEMO_GRAMS_QUESTION)
+        // The grams question, canned like the seeded oil one — the analyzer's only other shape the
+        // rough card answers (#148). The low confidence rides with it: a question on a confident
+        // plate is one `mayAsk` would rightly never ask.
+        ? { ...plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0))),
+            confidence: "low" as const, question: DEMO_GRAMS_Q }
+        : plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0)));
     if (onDelta) {
       // The real analyzer writes its JSON over seconds; the pending card is visible in `--demo`
       // and under every e2e flow only if this one does too, in pieces, with a beat between them.
@@ -156,17 +177,6 @@ export function demoPorts(): LlmPorts {
       }
     }
     return meal;
-  };
-
-  const glancePhoto: GlancePhoto = async (input) => {
-    input.onCost?.(0);
-    // The analyzer's own seed for an uncaptioned photo of the same bytes, so the sentence names
-    // the plate the card will show. A short wait, so `--demo` shows the choreography rather than
-    // everything at once.
-    const seed = hash("" + input.images.length + (input.images[0]?.byteLength ?? 0));
-    await new Promise((r) => setTimeout(r, 120));
-    const names = plateFor(seed).items.slice(0, 2).map((i) => i.name.toLowerCase());
-    return `Looks like ${names.join(" and ")}.`;
   };
 
   const routeText: RouteText = async (input) => {
@@ -279,5 +289,5 @@ export function demoPorts(): LlmPorts {
   };
 
   // `canned` is what `GET /health` reports and what the screenshot walk refuses to shoot against.
-  return { analyzePhoto, glancePhoto, routeText, coach, canned: true };
+  return { analyzePhoto, routeText, coach, canned: true };
 }

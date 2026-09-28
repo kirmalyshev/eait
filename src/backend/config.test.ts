@@ -20,7 +20,7 @@ import { PKCS8_BEGIN, PKCS8_END, applePrivateKeyFromEnv, configDefaults, demoCon
  * make a test read the ambient environment again.
  */
 const VARS = [
-  "EAIT__BACKEND__LLM_GLANCE_MODEL", "EAIT__BACKEND__LLM_REASONING_EFFORT",
+  "EAIT__BACKEND__LLM_REASONING_EFFORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
@@ -42,6 +42,7 @@ const VARS = [
   "EAIT__BACKEND__APPLE_SERVICE_ID", "EAIT__BACKEND__APPLE_TEAM_ID", "EAIT__BACKEND__APPLE_KEY_ID",
   "EAIT__BACKEND__APPLE_PRIVATE_KEY",
   "EAIT__BACKEND__TELEGRAM_BOT_TOKEN",
+  "EAIT__BACKEND__DONATE_KOFI_URL", "EAIT__BACKEND__DONATE_BMC_URL", "EAIT__BACKEND__DONATE_GITHUB_URL",
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
@@ -75,14 +76,20 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_API_KEY/);
   });
 
-  it("reads the glance model and the reasoning effort, with a glance model by default and no effort by default", () => {
+  it("reads the reasoning effort, off by default since the analyzer stopped reasoning", () => {
     const d = configDefaults();
-    expect(d.llmGlanceModel).toBe("x-ai/grok-4.3");
-    expect(d.llmReasoningEffort).toBe("");
-    withRequired({ EAIT__BACKEND__LLM_GLANCE_MODEL: "", EAIT__BACKEND__LLM_REASONING_EFFORT: "low" });
+    expect(d.llmReasoningEffort).toBe("off");
+    withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "low" });
     const c = loadConfig();
-    expect(c.llmGlanceModel).toBe("");
     expect(c.llmReasoningEffort).toBe("low");
+  });
+
+  it("pins the nutrition calls to deepinfra by default — the provider SLUG, not the name — and lets env override or roam", () => {
+    expect(configDefaults().llmProviderOrder).toBe("deepinfra");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "alibaba,novita" });
+    expect(loadConfig().llmProviderOrder).toBe("alibaba,novita");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "" });
+    expect(loadConfig().llmProviderOrder).toBe("");
   });
 
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
@@ -130,6 +137,34 @@ describe("loadConfig", () => {
     expect(c.host).toBe("0.0.0.0");
   });
 
+  // The Support link (#200): three operator URLs, all empty by default, each read from its own
+  // variable — the host that sets none draws no row, and a set one must be a real http(s) URL
+  // rather than text a client would drop into an anchor.
+  it("reads the donation links — empty is off, each from its own variable", () => {
+    withRequired({
+      EAIT__BACKEND__DONATE_KOFI_URL: "https://ko-fi.com/kirmalyshev",
+      EAIT__BACKEND__DONATE_BMC_URL: "https://buymeacoffee.com/kirmalyshev",
+      EAIT__BACKEND__DONATE_GITHUB_URL: "https://github.com/sponsors/kirmalyshev",
+    });
+    const c = loadConfig();
+    expect(c.donateKofiUrl).toBe("https://ko-fi.com/kirmalyshev");
+    expect(c.donateBmcUrl).toBe("https://buymeacoffee.com/kirmalyshev");
+    expect(c.donateGithubUrl).toBe("https://github.com/sponsors/kirmalyshev");
+  });
+
+  it("defaults every donation link to off", () => {
+    withRequired();
+    const c = loadConfig();
+    expect(c.donateKofiUrl).toBe("");
+    expect(c.donateBmcUrl).toBe("");
+    expect(c.donateGithubUrl).toBe("");
+  });
+
+  it("refuses a donation link that is not an http(s) URL", () => {
+    withRequired({ EAIT__BACKEND__DONATE_KOFI_URL: "ko-fi.com/kirmalyshev" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__DONATE_KOFI_URL/);
+  });
+
   // Zero is the local idiom for "no limit" — the caps and the rate limits in this same file all
   // document it that way. It cannot mean that here: `max_tokens: 0` is a bound OF zero, so every
   // call returns nothing and the whole app is down with no startup error to explain it.
@@ -155,8 +190,8 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);
   });
 
-  // Above anything real, not merely above nothing: the glance alone is allowed 15 s and a photo
-  // analysis measured a median 37 s to its first visible token.
+  // Above anything real, not merely above nothing: a photo analysis measured a median 37 s to
+  // its first visible token.
   it("refuses a model-call budget under what a measured analysis needs", () => {
     withRequired({ EAIT__BACKEND__LLM_TIMEOUT_MS: "5000" });
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);

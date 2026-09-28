@@ -54,6 +54,18 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 .wtop .wr { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
 .wtop .wr:empty { display: none; }
 .wtop .sp { flex: 1; }
+/* The date row a screen's bar side draws (the boards' wtop right: "‹ Thursday 24 September ›") —
+   the chevrons are 32px icon buttons, the label 14/500 between them. One row for Home and You
+   (#175): the shell owns it because the day a column shows is the frame's, not a surface's. */
+.drow { display: flex; align-items: center; gap: 8px; margin-left: 14px; }
+.drow .dlabel { font-weight: 500; white-space: nowrap; }
+.darrow { width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 50%;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); display: inline-flex;
+  align-items: center; justify-content: center; cursor: pointer; color: var(--ink);
+  font: inherit; padding: 0; }
+.darrow:disabled { opacity: .4; cursor: default; }
+.darrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.darrow .ico { width: 18px; height: 18px; }
 /* THE COLUMN: pro.css's wmain verbatim — a grid, because W4's Home draws a second 360px column;
    one is the single-column form every surface takes until then. wcol's 16px gap is the board's
    spacing between a screen's ROOT blocks; inside a screen, the blocks' own margins still space
@@ -62,14 +74,16 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   padding: 28px 40px; max-width: 1160px; width: 100%; margin: 0 auto; overflow: hidden; }
 .wmain.one { grid-template-columns: 1fr; max-width: 820px; }
 /* The meal's board puts its 400px|1fr columns INSIDE the main — the screen's own .mdetail grid —
-   so the route's main is one column at the full width, not the .one variant's 820px. */
-.wmain.meal { grid-template-columns: 1fr; }
+   so the route's main is one column at the full width, not the .one variant's 820px. Selected by
+   CONTENT, never a .meal class: the kit's .meal is a list ROW, and a class here would hand
+   the main its padding (#172). */
+.wmain:has(.mdetail) { grid-template-columns: 1fr; }
 .wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   .wtop { padding: 0 16px; gap: 16px; }
   .wtop .brand { margin-right: 0; }
   .wnav { gap: 14px; }
-  .wmain { padding: 20px 16px 32px; }
+  .wmain { padding: 20px 16px 32px; grid-template-columns: 1fr; }
 }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 700; letter-spacing: -.02em; }
@@ -125,6 +139,10 @@ h2 { font-size: 17px; }
 .compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
+/* The wrapping field (composerRow's multiline): vertically padded like the input, sized by its
+   text where the engine knows field-sizing, scrollable where it does not. */
+.compose textarea.box { padding: 13px 16px; line-height: 22px; resize: none;
+  field-sizing: content; border-radius: 24px; }
 .compose .box::placeholder { color: var(--faint); }
 .compose .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .comp-note { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
@@ -135,7 +153,7 @@ h2 { font-size: 17px; }
 
 /* The coach answer's macro bar (pro.css's .mb/.bar): the number row, the track with the target
    tick at its right end, the fill growing once on arrival — the grow verb is motionCss's. */
-.bar { height: 6px; background: var(--hair); border-radius: 1px; overflow: hidden; }
+.bar { height: 6px; background: var(--hair); border-radius: var(--r-bar); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--accent); }
 .bar i.grow { transform-origin: left center; }
 .mb .row { font-size: 13px; font-weight: 600; }

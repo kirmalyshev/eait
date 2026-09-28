@@ -110,10 +110,21 @@ export interface ThreadCopy {
      * line follows), and the two share-of-day sentences for a calories pill that is high.
      */
     headline: { onPlan: string; caloriesOnPlan: string; caloriesHigh: string; caloriesVeryHigh: string };
-    sodium: string;
-    satfat: string;
     /** The camera caption, quoted back. */
     noted: (v: { note: string }) => string;
+  };
+  /**
+   * #130's logged-meal verdict line — computed, never the model's. One per cap verdict that is
+   * not on plan (saturated fat, sodium), said under the card it belongs to: "{nutrient} is high
+   * for one meal: {eaten} of your {target} {unit}." `{nutrient}` is `verdictNoun` in
+   * sentence-start case, `{unit}` the amount's symbol via `spellUnit` (g for saturated fat, mg
+   * for sodium). `easyTail` is appended when the day's remaining share is small — the rule is
+   * written down beside `capVerdictLines`.
+   */
+  capLine: {
+    high: (v: { nutrient: string; eaten: string; target: string; unit: string }) => string;
+    veryHigh: (v: { nutrient: string; eaten: string; target: string; unit: string }) => string;
+    easyTail: string;
   };
 }
 
@@ -170,9 +181,12 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
       caloriesHigh: i18n._("thread.firstVerdict.headline.caloriesHigh", undefined, { message: "A big share of your day in one meal." }),
       caloriesVeryHigh: i18n._("thread.firstVerdict.headline.caloriesVeryHigh", undefined, { message: "More than half your day in one meal." }),
     },
-    sodium: i18n._("thread.firstVerdict.sodium", undefined, { message: "Sodium runs high on this one. Scored only because you asked me to." }),
-    satfat: i18n._("thread.firstVerdict.satfat", undefined, { message: "Saturated fat runs high on this one. Scored only because you asked me to." }),
     noted: (v: { note: string }) => i18n._("thread.firstVerdict.noted", v, { message: "“{note}” — noted, it's in the numbers." }),
+  },
+  capLine: {
+    high: (v) => i18n._("thread.capLine.high", v, { message: "{nutrient} is high for one meal: {eaten} of your {target} {unit}." }),
+    veryHigh: (v) => i18n._("thread.capLine.veryHigh", v, { message: "{nutrient} is very high for one meal: {eaten} of your {target} {unit}." }),
+    easyTail: i18n._("thread.capLine.easyTail", undefined, { message: "Go easy on it for the rest of today." }),
   },
 });
 
@@ -187,7 +201,7 @@ export const threadCopyFor = (lang: Lang): ThreadCopy => THREAD(i18nFor(lang));
 // fully translated composer.
 
 export interface StreamCopy {
-  /** Shown while the analyzer works: the glance replaces it once there is one. */
+  /** Shown while the analyzer works: the first item row replaces it once one closes. */
   reading: string;
   weighing: string;
   /** The four steps of the card, in order. */
@@ -209,8 +223,8 @@ const STREAM = (i18n: I18n): StreamCopy => ({
 export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
 
 /**
- * Spud's one line while the turn is pending, and it only moves forward: a row outranks the glance
- * whichever arrived first, and a schema retry still holds a row. The stream carries nothing between
+ * Spud's one line while the turn is pending, and it only moves forward: a row outranks the reading
+ * line, and a schema retry still holds a row. The stream carries nothing between
  * the last row and the answer, so there is no later step to show — the card replaces the line.
  *
  * Moved here from `stream.ts`: the words are Lingui-backed, so they live beside their table. The
@@ -219,12 +233,12 @@ export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
  */
 export function pendingLine(p: PendingPhoto, lang: Lang): string {
   const copy = streamCopyFor(lang);
-  return p.items.length > 0 ? copy.weighing : p.glance ?? copy.reading;
+  return p.items.length > 0 ? copy.weighing : copy.reading;
 }
 
 /** The analyzer's steps as the card lists them: what is done, what is happening, what is left (#663). */
 export function pendingSteps(p: PendingPhoto, lang: Lang): { label: string; state: "done" | "now" | "next" }[] {
-  const at = p.items.length > 0 ? 2 : p.glance !== null ? 1 : 0;
+  const at = p.items.length > 0 ? 2 : 0;
   return streamCopyFor(lang).steps.map((label, i) =>
     ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
 }

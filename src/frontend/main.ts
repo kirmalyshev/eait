@@ -17,7 +17,7 @@ screen("#/meal/", (frame) => mealScreen(frame));
 screen("#/chat", () => chatScreen());
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));
-screen("#/you", (frame) => youScreen(frame.me));
-screen("#/", (frame) => homeScreen(frame.me));
+screen("#/you", (frame) => youScreen(frame));
+screen("#/", (frame) => homeScreen(frame));
 
 start();

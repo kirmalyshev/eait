@@ -16,6 +16,13 @@ export interface SignupCopy {
   /** The sign-up screen's headline — the product's promise, said once. */
   signUpHeading: string;
   /**
+   * A provider button's label: "Continue with Apple", "Continue with Google". `{provider}`
+   * holds the brand, because a language puts it where its grammar needs it — moved out of
+   * `PAGE_COPY` for the phone, whose sign-up screen draws the same buttons (ieat-app#922).
+   * Apple renders its own system label on iOS; only Google reads this there.
+   */
+  continueWith: string;
+  /**
    * The required box's label. `{terms}` and `{privacy}` hold the two document names, so a
    * translation puts them wherever its grammar needs them rather than reordering a sentence that
    * was written in English.
@@ -34,6 +41,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   en: {
     startCta: "Build my plan",
     haveAccountCta: "I already have an account",
+    continueWith: "Continue with {provider}",
     signUpHeading: "Photograph what you eat, get an honest answer",
     termsLabel: "I agree to eait's {terms} and {privacy}",
     termsLink: "Terms",
@@ -44,6 +52,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   fr: {
     startCta: "Créer mon plan",
     haveAccountCta: "J'ai déjà un compte",
+    continueWith: "Continuer avec {provider}",
     signUpHeading: "Photographie ce que tu manges, reçois une réponse honnête",
     termsLabel: "J'accepte les {terms} et la {privacy} d'eait",
     termsLink: "Conditions",
@@ -54,6 +63,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   de: {
     startCta: "Meinen Plan erstellen",
     haveAccountCta: "Ich habe schon ein Konto",
+    continueWith: "Weiter mit {provider}",
     signUpHeading: "Fotografier, was du isst, und bekomm eine ehrliche Antwort",
     termsLabel: "Ich stimme den {terms} und der {privacy} von eait zu",
     termsLink: "Nutzungsbedingungen",
@@ -64,6 +74,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   it: {
     startCta: "Crea il mio piano",
     haveAccountCta: "Ho già un account",
+    continueWith: "Continua con {provider}",
     signUpHeading: "Fotografa quello che mangi, ricevi una risposta onesta",
     termsLabel: "Accetto i {terms} e la {privacy} di eait",
     termsLink: "Termini",
@@ -74,6 +85,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   es: {
     startCta: "Crear mi plan",
     haveAccountCta: "Ya tengo una cuenta",
+    continueWith: "Continuar con {provider}",
     signUpHeading: "Fotografía lo que comes, recibe una respuesta honesta",
     termsLabel: "Acepto los {terms} y la {privacy} de eait",
     termsLink: "Términos",
@@ -84,6 +96,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   vi: {
     startCta: "Tạo kế hoạch cho tôi",
     haveAccountCta: "Tôi đã có tài khoản",
+    continueWith: "Tiếp tục với {provider}",
     signUpHeading: "Chụp món bạn ăn, nhận câu trả lời thẳng thắn",
     termsLabel: "Tôi đồng ý với {terms} và {privacy} của eait",
     termsLink: "Điều khoản",
@@ -94,6 +107,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   id: {
     startCta: "Buat rencanaku",
     haveAccountCta: "Saya sudah punya akun",
+    continueWith: "Lanjutkan dengan {provider}",
     signUpHeading: "Foto makananmu, dapatkan jawaban jujur",
     termsLabel: "Saya menyetujui {terms} dan {privacy} eait",
     termsLink: "Ketentuan",
@@ -104,6 +118,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
   ru: {
     startCta: "Собрать мой план",
     haveAccountCta: "У меня уже есть аккаунт",
+    continueWith: "Продолжить с {provider}",
     signUpHeading: "Сфотографируй еду — получи честный ответ",
     termsLabel: "Я принимаю {terms} и {privacy} eait",
     termsLink: "Условия",

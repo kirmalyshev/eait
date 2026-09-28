@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
-  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, TARGET_STEP_KG, ageFrom, basalMetabolicRate, bmi,
-  checkTargetWeight, explainTargets, suggestedTargetKg, targetRange, targetsFor,
+  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, TARGET_STEP_KG, ageFrom, basalMetabolicRate,
+  basalMetabolicRateAtAge, bmi, checkTargetWeight, explainTargets, explainTargetsAtAge,
+  suggestedTargetKg, targetRange, targetsFor,
   verdictsFromTargets, visibleVerdicts, weightRemainingKg,
 } from "./targets.ts";
 import type { Profile } from "./types.ts";
@@ -434,5 +435,41 @@ describe("the suggested target weight (v5, C3)", () => {
       .toEqual({ min: 60.5, max: 78 });
     expect(targetRange(profile({ goal: "maintain" }))).toBeNull();
     expect(targetRange(profile({ goal: "lose", weight_kg: null }))).toBeNull();
+  });
+});
+
+describe("explainTargetsAtAge — the age the server reported, not the device's clock", () => {
+  it("is the same arithmetic with the age given — identical to the clock read", () => {
+    const atAge = explainTargetsAtAge(profile(), 36);
+    const atClock = explainTargets(profile(), TODAY);
+    expect(atAge.targets).toEqual(atClock.targets);
+    expect(atAge.basis).toEqual(atClock.basis);
+  });
+
+  it("a null age reaches the same flat-band fallback an unanswered birth year does", () => {
+    const given = explainTargetsAtAge(profile(), null);
+    const unanswered = explainTargets(profile({ birth_year: null }), TODAY);
+    expect(given.basis.usedFallbackBand).toBe(true);
+    expect(given.basis.bmr).toBeNull();
+    expect(given.basis.tdee).toBeNull();
+    expect(given.basis.activityDeltaKcal).toBeNull();
+    expect(given.targets.kcal).toBe(unanswered.targets.kcal);
+  });
+
+  it("the floor still binds when the age came in as a value", () => {
+    // A 60-year-old, 150 cm, 50 kg woman at "lose"/"push": tdee ~1,172, the capped deficit lands
+    // under the floor, and the floor is the number she gets.
+    const { targets, basis } = explainTargetsAtAge(
+      profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50 }), 60,
+    );
+    expect(targets.kcal).toBe(KCAL_FLOOR.female);
+    expect(basis.floorApplied).toBe(true);
+  });
+});
+
+describe("activityDeltaKcal — the days' own share, computed where the rest of the basis is", () => {
+  it("is tdee - bmr", () => {
+    const { basis } = explainTargets(profile(), TODAY);
+    expect(basis.activityDeltaKcal).toBe(basis.tdee! - basis.bmr!);
   });
 });

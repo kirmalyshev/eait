@@ -27,10 +27,9 @@ test("first open draws Gabie's greeting and the three starters, in the struggles
   await expect(starters).toHaveText([
     "How's my week going?", "What's a lighter swap for dinner?", "Am I getting enough protein?",
   ]);
-  // Each row carries its struggle's icon — the boards' pairing.
-  const icons = page.locator(".opts .opt .ico").first();
-  await expect(page.locator(".opts .opt").first()).toContainText("week");
-  await expect(icons).toHaveCount(1);
+  // Each row carries its struggle's icon — the boards' pairing, named rather than "an icon" (#158).
+  const icons = page.locator(".opts .opt .ico:not(.chv)");
+  await expect(icons).toHaveClass([/i-consistency/, /i-habits/, /i-protein/]);
 });
 
 test("the starters follow the account's struggles, its own first", async ({ inWebApp: page }) => {
@@ -87,6 +86,13 @@ test("a meal in words is proposed first, and Log it puts it in the thread", asyn
   // The card, by its own shape — name, the d22 kcal, and the verdict dots under the hairline.
   await expect(page.locator(".thread li.them .card")).toContainText("kcal");
   await expect(page.locator(".thread li.them .card .vs")).toBeVisible();
+  // And it LANDED: Today reads one meal, carrying the server's own verdicts (#158).
+  const day = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const logged = ((await day.json()) as DayResponse).meals;
+  expect(logged).toHaveLength(1);
+  expect(logged[0]!.verdicts?.weight).toBeTruthy();
 });
 
 test("a proposal's No resolves the card and logs nothing", async ({ inWebApp: page }) => {
@@ -95,8 +101,13 @@ test("a proposal's No resolves the card and logs nothing", async ({ inWebApp: pa
   await expect(page.getByRole("button", { name: "No" })).toBeVisible();
   await page.getByRole("button", { name: "No" }).click();
   await expect(page.locator(".prop")).toHaveCount(0);
-  // Nothing was logged: no meal card in the thread, and the day stays empty on Today.
+  // Nothing was logged: no meal card in the thread, and the day — the server's own answer, not
+  // the drawn one — stays empty.
   await expect(page.locator(".thread li.them .card")).toHaveCount(0);
+  const day = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  expect(((await day.json()) as DayResponse).meals).toHaveLength(0);
 });
 
 test("a question is answered by Gabie, with her face on the newest line", async ({ inWebApp: page }) => {
@@ -113,18 +124,28 @@ test("a question is answered by Gabie, with her face on the newest line", async 
 test("the protein question draws the day's bar from the server, a week question draws none", async ({ inWebApp: page }) => {
   // The demo coach names the nutrient; the engine fills the figures — the bar shows the profile's
   // protein target against the day's eaten total, and no other answer carries one.
+  await logMeal(page);
   const res = await page.request.get("/api/v1/profile", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
   });
   const { targets } = await res.json() as ProfileResponse;
-  await page.getByPlaceholder(ASK).fill("Am I getting enough protein?");
+  const dayRes = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const { totals } = await dayRes.json() as DayResponse;
+  // The meal's line is already in the thread, so the box reads `composerThread`, not the ask.
+  await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("Am I getting enough protein?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const bar = page.locator(".thread .mb");
   await expect(bar).toBeVisible();
   await expect(bar).toContainText("Protein");
   await expect(bar).toContainText(`of ${targets.protein_g}`);
-  // The fill is capped at the track — a number over target reads true but never overflows it.
-  await expect(page.locator(".mb .bar i")).toHaveCount(1);
+  // The fill is the day's own share — eaten/target, drawn, never a shape that merely exists:
+  // a number over target reads true but never overflows the track.
+  const fillStyle = await page.locator(".mb .bar i").getAttribute("style");
+  const drawn = parseFloat(fillStyle!.match(/width:\s*([\d.]+)%/)![1]!);
+  const expected = Math.min(100, (totals.protein_g / targets.protein_g) * 100);
+  expect(Math.abs(drawn - expected)).toBeLessThan(0.6);
   await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".thread li.them", { hasText: "Demo answer" }).last()).toBeVisible();
@@ -165,7 +186,8 @@ test("a spent day, refused in the stream, is a sentence and logs nothing", async
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByPlaceholder(ASK).fill("second lunch");
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText("That was your last one today — your daily allowance resets at midnight.");
+  // LOG_COPY's wording since #231 — the same refusal the phone would read.
+  await expect(page.locator(".notice")).toHaveText("Your daily allowance is spent. It resets at midnight — chat still works.");
   // Refused, so the words stay for when it is allowed again.
   await expect(page.getByPlaceholder(ASK)).toHaveValue("second lunch");
 });

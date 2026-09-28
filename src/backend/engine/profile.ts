@@ -9,7 +9,7 @@
 import { MAX_PROFILE_TEXT,
   DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STRUGGLES, UNITS,
   checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, isDietTag, isMedicalTag, dateMinus, localDate, migrateActivityLevel, offerMath,
+  ageFrom, isAcceptableWeightKg, isDietTag, isMedicalTag, dateMinus, localDate, migrateActivityLevel, offerMath,
   paywallPrice, perMonth, threadCopyFor,
   type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
@@ -151,6 +151,9 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const entitlement = await entitlementFor(deps, userId);
   return {
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
+    // Computed HERE, in this server's zone — a client that subtracts the year itself is off by
+    // one for the hour the zones disagree, and `ageFrom` keeps the band check honest.
+    age: ageFrom(profile.birth_year, new Date(`${localDate(deps.config.timezone)}T12:00:00Z`)),
     isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     healthConnected: await healthConnected(deps, userId),
@@ -159,8 +162,16 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     paywall: paywallOf(deps, profile.lang, userId),
     coachName: threadCopyFor(profile.lang).coach.name,
     hasLoggedMeal: await hasLoggedMeal(deps, userId),
+    donate: donateOf(deps.config),
   };
 }
+
+/** The operator's donation links, per provider — null while its variable is unset (#200). */
+const donateOf = (config: EngineDeps["config"]): ProfileResponse["donate"] => ({
+  github: config.donateGithubUrl || null,
+  kofi: config.donateKofiUrl || null,
+  buyMeACoffee: config.donateBmcUrl || null,
+});
 
 /**
  * "Has this account ever logged a meal", read the way the diary reads its window — `totalsSince`
@@ -374,6 +385,7 @@ export async function patchProfile(
     ok: true,
     view: {
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
+      age: ageFrom(profile.birth_year, new Date(`${localDate(deps.config.timezone)}T12:00:00Z`)),
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
       healthConnected: await healthConnected(deps, userId),
@@ -381,6 +393,7 @@ export async function patchProfile(
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
       coachName: threadCopyFor(profile.lang).coach.name,
+      donate: donateOf(deps.config),
       hasLoggedMeal: await hasLoggedMeal(deps, userId),
     },
   };

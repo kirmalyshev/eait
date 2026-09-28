@@ -132,7 +132,7 @@ const chatNotice = (copy: PageCopy): Record<string, string> => ({
  * Apfel". Same rule as `LANG_LABEL` and the product's own name.
  */
 const providerLabel = (p: WebProvider, lang: Lang): string =>
-  pageCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
+  signupCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
 
 /** What this browser asked for, narrowed. The only language signal there is before a session. */
 const browserLang = (req: Request): Lang =>
@@ -1318,7 +1318,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // Several files are ANGLES OF ONE MEAL. Thunks, so nothing is read until the engine has
       // passed the caps — and the JPEG sniff inside it still runs before the charge, which is what
       // keeps a HEIC from spending somebody's sample. No streaming here: with no JavaScript on this
-      // page there is nothing to deliver a glance to.
+      // page there is nothing to deliver progress to.
       const result = await logPhotoMeal(ctx.deps, userId, {
         images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
         ...(caption ? { caption } : {}),

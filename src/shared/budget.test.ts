@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget, macroTone, mealIsGuessed } from "./budget.ts";
+import { dayBudget, kcalCardState, macroCardState, macroLeft, macroTone, mealIsGuessed } from "./budget.ts";
 
 const TODAY = "2026-09-16";
 const day = (
@@ -130,6 +130,24 @@ describe("dayBudget", () => {
     });
   });
 
+  describe("macroLeft", () => {
+    test("what is left of a macro's target, rounded like the card prints it", () => {
+      expect(macroLeft(120, 48)).toBe(72);
+      expect(macroLeft(120, 47.6)).toBe(72);
+      expect(macroLeft(13, 6.9)).toBe(6);
+    });
+
+    test("reached or past the target is zero, never a negative figure", () => {
+      expect(macroLeft(120, 120)).toBe(0);
+      expect(macroLeft(120, 150)).toBe(0);
+    });
+
+    test("no target means nothing left to count", () => {
+      expect(macroLeft(0, 40)).toBe(0);
+      expect(macroLeft(-20, 0)).toBe(0);
+    });
+  });
+
   describe("mealIsGuessed", () => {
     test("a plate the analyzer could not read is a guess; a typed meal arrives as one too", () => {
       expect(mealIsGuessed({ confidence: "low", corrected: false })).toBe(true);
@@ -142,5 +160,67 @@ describe("dayBudget", () => {
       // Without this half the thread goes on saying "about" about grams the person typed.
       expect(mealIsGuessed({ confidence: "low", corrected: true })).toBe(false);
     });
+  });
+});
+
+describe("kcalCardState", () => {
+  // The W4 card's figure-and-label pair is ONE choice (#164's review): today toggles "left" to
+  // "eaten"; a past day shows what WAS eaten — nothing is "left" of a day that is over — except
+  // the overage on an over day and the plan an unlogged one had.
+  test("today under target: the remaining figure under 'left'", () => {
+    const b = dayBudget(day(1500), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "left", guessed: false });
+  });
+
+  test("the toggle: same budget, eaten's figure under 'eaten'", () => {
+    const b = dayBudget(day(1500), TODAY, "lose");
+    expect(kcalCardState(b, true)).toEqual({ figure: 1500, label: "eaten", guessed: false });
+  });
+
+  test("an over day toggles 'over' to 'eaten' — never the eaten figure under 'over' (#164)", () => {
+    const b = dayBudget(day(2500), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "over", guessed: false });
+    expect(kcalCardState(b, true)).toEqual({ figure: 2500, label: "eaten", guessed: false });
+  });
+
+  test("a past day under target reads 'left' — the figure is what's left, never eaten (#170)", () => {
+    const b = dayBudget(day(1500, { date: "2026-09-10" }), TODAY, "lose");
+    expect(b.state).toBe("under");
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "left", guessed: false });
+  });
+
+  test("a past day with nothing on it shows the plan that day had", () => {
+    const b = dayBudget(day(0, { date: "2026-09-10", meals: 0 }), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 2000, label: "left", guessed: false });
+  });
+
+  test("a guessed day carries the about-marker through (#47)", () => {
+    const b = dayBudget(day(1500, { guessed: true }), TODAY, "lose");
+    expect(kcalCardState(b, false).guessed).toBe(true);
+  });
+});
+
+describe("macroCardState", () => {
+  // The one figure-and-label pair for "{n} g · {Macro} left/over" — Home's diary column and
+  // You's day column draw the same card (#175), so the rule lives here rather than on a screen.
+  test("under target: what is left, under 'left', the ring at the eaten share", () => {
+    expect(macroCardState(100, 150)).toEqual({ figure: 50, label: "left", share: 100 / 150 });
+  });
+
+  test("over target: the OVERAGE under 'over' and a closed ring — never a clamped '0 g left'", () => {
+    expect(macroCardState(155, 150)).toEqual({ figure: 5, label: "over", share: 1 });
+  });
+
+  test("exactly on target is 'left' 0, not 'over'", () => {
+    expect(macroCardState(150, 150)).toEqual({ figure: 0, label: "left", share: 1 });
+  });
+
+  test("no target: the eaten figure under 'left', and no ring to draw", () => {
+    expect(macroCardState(12, undefined)).toEqual({ figure: 12, label: "left" });
+  });
+
+  test("the eaten figure is the rounded one — a fraction is not a fact the analyzer had", () => {
+    expect(macroCardState(12.6, undefined)).toEqual({ figure: 13, label: "left" });
+    expect(macroCardState(10.4, 50)).toEqual({ figure: 40, label: "left", share: 10 / 50 });
   });
 });

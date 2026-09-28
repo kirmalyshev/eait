@@ -12,8 +12,8 @@
 // a failed or unanswered photo is kept and the person is handed to `#/chat`, where W7 draws the
 // coach card with "Send it again".
 //
-// Edit and Correct open the conversation with the meal in focus — `#/chat?focus=<id>` — the same
-// ruling the meal detail got on #93: the edit is just a chat.
+// Edit and Correct open the meal's fix panel — `#/meal/<id>?fix` (#188): the edit is Cal AI's
+// one-field sheet over the meal detail, never the chat.
 
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
@@ -32,6 +32,7 @@ import {
 } from "../shell.ts";
 import type { Frame } from "../shell.ts";
 import { outbox, type WebQueued } from "../outbox.ts";
+import { shrinkPhotos } from "../photo.ts";
 import {
   ctaEl, gramMacsEl, kitEl, optionRowEl, photoHeroEl, spudAvatarEl, verdictListEl,
 } from "../kit.ts";
@@ -87,6 +88,8 @@ export function logScreen(frame: Frame): HTMLElement {
         : null;
 
   let picked: File[] = [];
+  // Picks race each other — a slow first shrink must not overwrite a newer, faster one.
+  let pickSeq = 0;
   let photoUrl = "";
   let captured = new Date();
   let notice: HTMLElement | null = null;
@@ -98,6 +101,10 @@ export function logScreen(frame: Frame): HTMLElement {
     notice = el("p", "notice", words);
     wrap.append(notice);
   };
+
+  /** `prefers-reduced-motion`, asked live — the media list, not a value read once at mount (#148). */
+  const reducedMotion = (): boolean =>
+    typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /** A say row — the kit's avatar and the words. */
   const say = (mood: "think" | "care" | "happy", text: string, q = false): HTMLElement => {
@@ -132,8 +139,11 @@ export function logScreen(frame: Frame): HTMLElement {
   const file = el("input", "visually-hidden") as HTMLInputElement;
   file.type = "file";
   file.accept = "image/jpeg,image/png,image/webp";
+  // Several angles of one meal is what the endpoint accepts — `takeFiles` enforces the profile's
+  // own `maxPhotosPerMeal`, the same bound the chat picker and the first-meal screen pick under.
+  file.multiple = true;
   file.addEventListener("change", () => {
-    takeFiles([...file.files ?? []]);
+    void takeFiles([...file.files ?? []]);
     file.value = "";
   });
 
@@ -143,21 +153,25 @@ export function logScreen(frame: Frame): HTMLElement {
   drop.setAttribute("role", "button");
   drop.append(kitEl(icoMarkup("upload")), dropLead, el("small", "", L.web.chooseFile), file);
 
-  const takeFiles = (files: File[]): void => {
+  const takeFiles = async (files: File[]): Promise<void> => {
     notice?.remove();
     // The server's own limits, sent on the profile — a client-side default would guess.
     if (files.length > me.limits.maxPhotosPerMeal) {
       tell(fill(COPY.photosMax, { n: n(me.limits.maxPhotosPerMeal) }));
       return;
     }
-    if (files.reduce((sum, f) => sum + f.size, 0) > me.limits.maxUploadBytes) {
+    const mine = ++pickSeq;
+    // Resized BEFORE the byte check: the cap weighs what goes up, not what was picked.
+    const shrunk = await shrinkPhotos(files);
+    if (mine !== pickSeq) return;
+    if (shrunk.reduce((sum, f) => sum + f.size, 0) > me.limits.maxUploadBytes) {
       tell(COPY.photoTooLarge);
       return;
     }
-    picked = files;
+    picked = shrunk;
     dropLead.textContent = picked.map((f) => f.name).join(", ") || L.web.dropHint;
   };
-  takeFiles([]);
+  void takeFiles([]);
 
   drop.addEventListener("click", () => file.click());
   drop.addEventListener("keydown", (e) => {
@@ -168,7 +182,7 @@ export function logScreen(frame: Frame): HTMLElement {
   drop.addEventListener("drop", (e) => {
     e.preventDefault();
     drop.classList.remove("over");
-    takeFiles([...e.dataTransfer?.files ?? []]);
+    void takeFiles([...e.dataTransfer?.files ?? []]);
   });
 
   const note = el("input", "lognote") as HTMLInputElement;
@@ -193,7 +207,7 @@ export function logScreen(frame: Frame): HTMLElement {
     wrap.className = "log";
     const grid = el("div", "loggrid");
     const side = el("div", "logcol tall");
-    // The stream's progress words land on this line as they arrive — `glance` carries its own
+    // The stream's progress words land on this line as they arrive — each carries its own
     // text, `reading`/`item` carry `line`, each already worded on the server.
     const sayRow = el("div", "say logsay");
     readingWords = el("p", "", L.reading);
@@ -207,7 +221,9 @@ export function logScreen(frame: Frame): HTMLElement {
       checking,
       ctaEl({ text: L.close, kind: "g", href: "#/" }),
     );
-    grid.append(hero("", true), side);
+    // Under prefers-reduced-motion the scan is not just stopped, it is never mounted — the
+    // sheet's `.scan{display:none}` stays as the backstop for every surface that draws one.
+    grid.append(hero("", !reducedMotion()), side);
     clear(wrap).append(grid);
   };
 
@@ -236,14 +252,22 @@ export function logScreen(frame: Frame): HTMLElement {
     return card;
   };
 
-  /** The say line under the card — the detail a declared cap that ran high gets (`ldl`). */
+  /** The say line under the card — the detail a declared cap that ran high gets (ldl, kidneys). */
   const detailLine = (r: LoggedMeal): HTMLElement | null => {
-    const ldl = r.verdictLabels.find((v) => v.dimension === "ldl");
-    if (ldl === undefined || ldl.tone === "good") return null;
-    if (me.targets.satfat_g === undefined) return null;
-    return say("care", fill(L.verdictDetail, {
-      noun: L.satfatNoun, amount: n(r.analysis.satfat_g), target: n(me.targets.satfat_g),
-    }));
+    // Every dimension a declaration puts a cap on (#147): the noun is the table's, the figure the
+    // meal's own field, and the unit is spelled — "g" for saturated fat, "mg" for sodium.
+    for (const cap of [
+      { dimension: "ldl", field: "satfat_g", noun: L.satfatNoun, target: me.targets.satfat_g, unit: "g" },
+      { dimension: "kidneys", field: "sodium_mg", noun: L.sodiumNoun, target: me.targets.sodium_mg, unit: "mg" },
+    ] as const) {
+      const v = r.verdictLabels.find((x) => x.dimension === cap.dimension);
+      if (v === undefined || v.tone === "good" || cap.target === undefined) continue;
+      return say("care", fill(L.verdictDetail, {
+        noun: cap.noun, amount: n(r.analysis[cap.field]), target: n(cap.target),
+        unit: spellUnit(lang, cap.unit),
+      }));
+    }
+    return null;
   };
 
   /** The day counter — the server's day totals read through the shared day budget. */
@@ -272,7 +296,7 @@ export function logScreen(frame: Frame): HTMLElement {
   const actionsRow = (r: LoggedMeal): HTMLElement => {
     const row = el("div", "logbtns");
     row.append(
-      ctaEl({ text: L.edit, kind: "s", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
+      ctaEl({ text: L.edit, kind: "s", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
       ctaEl({ text: L.agree, kind: "p", href: "#/" }),
     );
     return row;
@@ -291,7 +315,7 @@ export function logScreen(frame: Frame): HTMLElement {
       side.append(say("happy", L.firstVerdict, true), mealCard(r, ".4s"));
       const btns = el("div", "logbtns");
       btns.append(
-        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/chat?focus=${encodeURIComponent(r.mealId)}` }),
+        ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
         // W9's plans paywall is `#/pay` — unbound until it lands; the fallthrough lands Home.
         ctaEl({ text: L.continueCta, kind: "p", href: "#/pay" }),
       );
@@ -426,7 +450,7 @@ export function logScreen(frame: Frame): HTMLElement {
         onLine: (line) => {
           const ev = line as PhotoProgress;
           // Printed, never composed — the line each event carries is already worded (#608).
-          if (readingWords !== null) readingWords.textContent = ev.kind === "glance" ? ev.text : ev.line;
+          if (readingWords !== null) readingWords.textContent = ev.line;
         },
         onResult: (r: MessageResponse | PhotoLast) => { if (r.kind === "logged") result = r; },
       });

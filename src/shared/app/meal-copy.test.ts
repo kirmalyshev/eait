@@ -18,6 +18,9 @@ const KEYS = [
   "phoneCorrect", "phoneDone", "phoneEdit",
   "phoneMenuReread", "phoneMenuMoveYesterday",
   "phoneCorrectTitle", "phoneSheetMeal", "phoneWasAmount", "phoneThisMeal", "phoneSaveRecheck",
+  "phoneKeypadBackspace",
+  "phoneFixMeal", "phoneFixExampleLead", "phoneFixExample", "phoneUpdate",
+  "phoneIngredientTitle", "phoneAmount", "phoneRemoveIngredient", "phoneGrams", "phoneMealMove",
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
   "webGoneTitle", "webGoneBody", "webGoneBack", "itemAmount", "menuButton",
   "changeItem", "changeTotal", "changeWithItems",
@@ -47,6 +50,9 @@ describe("MEAL_COPY", () => {
       itemAmount: ["{amount}", "{item}"],
       phoneSheetMeal: ["{meal}", "{time}"],
       phoneWasAmount: ["{amount}"],
+      phoneFixMeal: ["{name}", "{kcal}", "{time}"],
+      phoneGrams: ["{n}"],
+      phoneMealMove: ["{from}", "{to}"],
       changeItem: ["{item}", "{before}", "{after}", "{unit}"],
       changeTotal: ["{kcalBefore}", "{kcalAfter}", "{kcal}"],
       changeWithItems: ["{items}", "{total}"],
@@ -96,5 +102,14 @@ describe("MEAL_COPY", () => {
     expect(en.changeToHigh).toBe("{dim} now high for one meal.");
     expect(en.changeToVeryHigh).toBe("{dim} now very high for one meal.");
     expect(en.changeAllOnPlan).toBe("All on plan now.");
+    // The Cal-AI fix sheet and ingredient editor (#188 — `web/meal-fix.html`,
+    // `web/meal-ingredient.html`).
+    // The example is TWO keys — the bold lead is its own, never a slice of the sentence.
+    expect(en.phoneFixExampleLead).toBe("For example:");
+    expect(en.phoneFixExample).toBe("the rice was about 200 g, and there was no sauce.");
+    expect(en.phoneUpdate).toBe("Update");
+    expect(en.phoneIngredientTitle).toBe("Edit ingredient");
+    expect(en.phoneAmount).toBe("Amount");
+    expect(en.phoneRemoveIngredient).toBe("Remove ingredient");
   });
 });

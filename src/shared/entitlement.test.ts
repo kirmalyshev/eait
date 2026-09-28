@@ -1,6 +1,7 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent, trialDay,
+  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
+  subscriptionState, trialDay,
 } from "./entitlement.ts";
 
 const NOW = Date.parse("2026-08-24T12:00:00.000Z");
@@ -160,5 +161,36 @@ describe("trialDay", () => {
   test("a trial that just started is day 1 even when the expiry sits a little past a week out", () => {
     // Store grace can put the expiry beyond the plain seven days; day 0 is not a day.
     expect(trialDay({ ...trial, expiresAt: "2026-09-28T12:00:00.000Z" }, TZ, Date.parse("2026-09-20T09:00:00Z"))).toBe(1);
+  });
+});
+
+// The Subscription row's state — one word per entitlement shape (#175), the web row's and the
+// phone board's. `trialDay` is the server's count; "until", never "renews", because the store
+// does not say whether a paid period renews.
+describe("subscriptionState", () => {
+  test("a live trial is its day", () => {
+    expect(subscriptionState({ active: true, expiresAt: "2026-10-01T00:00:00.000Z", trial: true, trialDay: 5 }))
+      .toEqual({ kind: "trial", day: 5 });
+  });
+
+  test("a paid period is 'until' its expiry", () => {
+    expect(subscriptionState({ active: true, expiresAt: "2026-10-24T00:00:00.000Z", trial: false }))
+      .toEqual({ kind: "until", date: "2026-10-24T00:00:00.000Z" });
+  });
+
+  test("active with nothing to expire is the lifetime unlock", () => {
+    expect(subscriptionState({ active: true, expiresAt: null, trial: false }))
+      .toEqual({ kind: "lifetime" });
+  });
+
+  test("lapsed is 'ended' — dated when the record still carries one, plain otherwise", () => {
+    expect(subscriptionState({ active: false, expiresAt: "2026-09-01T00:00:00.000Z", trial: false, lapsed: true }))
+      .toEqual({ kind: "ended", date: "2026-09-01T00:00:00.000Z" });
+    expect(subscriptionState({ active: false, expiresAt: null, trial: false, lapsed: true }))
+      .toEqual({ kind: "ended", date: null });
+  });
+
+  test("never bought is 'free'", () => {
+    expect(subscriptionState(NO_ENTITLEMENT)).toEqual({ kind: "free" });
   });
 });

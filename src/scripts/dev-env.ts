@@ -258,12 +258,18 @@ export function resolveSlot(input: {
   claimOf: (worktreePath: string) => number | null;
 }): SlotResolution {
   const { worktrees, cwd, claimOf } = input;
+  const pinned = overrideSlot(input.override);
+  if (pinned !== null) {
+    // A pin answers even where detection cannot: inside the ieat-app submodule mount
+    // `git worktree list` reports the gitdir (`…/.git/…/modules/src/platform`), never the
+    // checkout's path, so no entry ever contains cwd — and none is needed for a pinned slot.
+    const entry = worktrees.find((w) => cwd === w.path || cwd.startsWith(w.path + "/"))
+      ?? { path: cwd, branch: "HEAD" };
+    return { slot: pinned, entry, mainPath: worktrees[0]?.path ?? cwd, persist: false, source: "override" };
+  }
   if (worktrees.length === 0) throw new Error("no git worktrees found");
   const entry = worktreeContaining(worktrees, cwd);
   const mainPath = worktrees[0]!.path;
-
-  const pinned = overrideSlot(input.override);
-  if (pinned !== null) return { slot: pinned, entry, mainPath, persist: false, source: "override" };
   if (entry.path === mainPath) return { slot: 0, entry, mainPath, persist: false, source: "main" };
   const claimed = claimOf(entry.path);
   if (claimed !== null && claimed > 0) return { slot: claimed, entry, mainPath, persist: false, source: "claimed" };

@@ -67,8 +67,13 @@ export interface ChatScreenCopy {
    * i18n catalog to call `verdictNoun` with (#145).
    */
   macroLabels: { protein: string; carbs: string; fat: string; kcal: string; satfat: string };
-  /** The figure beside the bar — "54 of 109 g". `{value}`/`{target}` are `wholeNumbers`. */
-  macroOfTarget: string;
+  /**
+   * The figure beside the bar as its TWO halves — the `wholeNumbers` slot, then the "of 109 g"
+   * tail — so a client composes `macroEaten` + `macroTarget` rather than splitting a template on
+   * `{value}` (a cut no translation may reorder or rewrite).
+   */
+  macroEaten: string;
+  macroTarget: string;
   /**
    * The first-open starter rows (`chat-empty.html`, both clients), keyed by the struggle each
    * asks. The words are `THREAD_COPY`'s `coachStarters` values restated as a Localized map —
@@ -80,6 +85,14 @@ export interface ChatScreenCopy {
    * "{name} — {kcal}", `names()` and `kcal()` either side, never a literal join in code.
    */
   mealLine: string;
+
+  /** The pager affordance over the thread's oldest page, both clients. */
+  earlier: string;
+  /**
+   * A card moved to another day by a correction — "Moved — now on yesterday." `{day}` is a
+   * `dayLabel` word, lower-case inside the sentence as the languages write it.
+   */
+  movedCaption: string;
 
   /** A proposal left unanswered too long (`phone/chat-expired.html`, the web's same card). */
   expired: string;
@@ -124,6 +137,95 @@ export interface ChatScreenCopy {
     typing: string;
     /** The outbox row's own words (`phone/states-not-sent.html`); M7's client reads this key. */
     notSent: string;
+    /** A turn the server answered with a refusal, kept for a purchase — never sent is not the same thing. */
+    notLogged: string;
+    /** A photo line's accessible name — alone, and with its caption in `{caption}`. */
+    photo: string;
+    photoCaption: string;
+    /** The kept turn's way out beside `sendAgain`, and the confirm the tap opens. */
+    discard: string;
+    discardQ: string;
+    discardNote: string;
+    /** The alert when the queue already took the turn a discard was meant for. */
+    onItsWayTitle: string;
+    onItsWayNote: string;
+    /**
+     * The line-menu verbs and confirms — a photo line is its meal, so it edits and its delete
+     * takes the meal; a text line only removes, and its numbers stay.
+     */
+    edit: string;
+    delete: string;
+    remove: string;
+    cancel: string;
+    deleteMealQ: string;
+    deleteMealNote: string;
+    deleteLineQ: string;
+    deleteLineNote: string;
+    /** The VoiceOver hint naming the long-press on the user's own line. */
+    holdActions: string;
+    holdDelete: string;
+    /** A photo line's accessible name when the words went as an image. */
+    photoMessage: string;
+    /** `identity-required` — the refusal's way out, as a button. */
+    signInOffer: string;
+    /** A `target-gone` answer: the meal the turn was about no longer exists. */
+    goneTitle: string;
+    goneRedateNote: string;
+    goneApplyTitle: string;
+    goneApplyNote: string;
+    /**
+     * The refusal sentences a turn rests on, said in the say column — the same decision web takes
+     * through `refusalWords`, by the refusal's kind and scope. The refusal the paywall answers
+     * (`subscription-required`) and the sign-in door (`identity-required`) carry no words here.
+     */
+    refusals: {
+      /** `not-food` — a single quiet line, no pair. */
+      notFood: string;
+      /** `cap-exceeded`, scope `global`. */
+      capGlobalTitle: string;
+      capGlobalNote: string;
+      /** `cap-exceeded`, scope `address` — NOT the reader's own allowance. */
+      capAddressTitle: string;
+      capAddressNote: string;
+      /** `cap-exceeded`, scope `user`. */
+      capUserTitle: string;
+      capUserNote: string;
+      /** `cap-exceeded`, scope absent or unrecognised — a limit is named, never an owner guessed. */
+      capUnknownTitle: string;
+      capUnknownNote: string;
+      /** `not-onboarded`. */
+      setupTitle: string;
+      setupNote: string;
+      /** `text too long` — `{max}` is the bound. */
+      longTextTitle: string;
+      longTextNote: string;
+      /** `caption too long` — a photo's note, so "nothing was logged" is said. */
+      longNoteTitle: string;
+      longNoteNote: string;
+      /** `unsupported-image`, `no photo`. */
+      unreadableTitle: string;
+      unreadableNote: string;
+      /** `too large`. */
+      tooLargeTitle: string;
+      tooLargeNote: string;
+      /** `too many photos`. */
+      tooManyTitle: string;
+      tooManyNote: string;
+      /** `analysis-failed`; the `*SampleNote` variant when the failure spent the last free meal. */
+      failedTitle: string;
+      failedNote: string;
+      failedSampleNote: string;
+      /** `unanswered` — the turn reached the server, its proposal's card never came back. */
+      unansweredTitle: string;
+      unansweredNote: string;
+      unansweredSampleNote: string;
+      /** outcome-unknown — the server may have finished the turn it never answered (#514). */
+      maybeLandedTitle: string;
+      maybeLandedNote: string;
+      /** Nothing answered at all — the connection, not the server. */
+      unreachableTitle: string;
+      unreachableNote: string;
+    };
   };
 }
 
@@ -132,6 +234,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     greeting: "Tell me what you ate, or ask me anything.",
     composerAsk: "What did you eat?",
     mealLine: "{name} — {kcal}",
+    earlier: "Earlier messages",
+    movedCaption: "Moved — now on {day}.",
     composerThread: "Tell {coach} what you ate, or ask",
     proposalCheck: "Logging to today — look right?",
     proposalAccept: "Log it",
@@ -139,7 +243,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "That one timed out. Describe it again and I'll re-read it.",
     macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat", kcal: "Calories", satfat: "Saturated fat" },
     starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?" },
-    macroOfTarget: "{value} of {target} g",
+    macroEaten: "{value}",
+    macroTarget: "of {target} g",
     loadFailed: "Couldn't load the conversation.",
     tryAgain: "Try again",
     eitherWorks: "Photograph it or tell me — either works",
@@ -156,12 +261,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Sending",
       typing: "{coach} is typing",
       notSent: "Not sent — tap to put it back in the box",
+      notLogged: "Not logged — tap to put it back in the box.",
+      photo: "Photo",
+      photoCaption: "Photo: {caption}",
+      discard: "Discard",
+      discardQ: "Discard this?",
+      discardNote: "It hasn't been logged, and it won't be.",
+      onItsWayTitle: "Already on its way",
+      onItsWayNote: "It was sent before you discarded it, so it will be logged. You can delete it from Chat once it lands.",
+      edit: "Edit",
+      delete: "Delete",
+      remove: "Remove",
+      cancel: "Cancel",
+      deleteMealQ: "Delete this meal?",
+      deleteMealNote: "Its photos and numbers go too.",
+      deleteLineQ: "Remove this message?",
+      deleteLineNote: "Numbers stay.",
+      holdActions: "Hold for Edit and Delete",
+      holdDelete: "Hold to delete",
+      photoMessage: "Your photo message",
+      signInOffer: "Sign in with Apple or Google",
+      goneTitle: "That meal is gone",
+      goneRedateNote: "It was deleted, so there is nothing to move.",
+      goneApplyTitle: "Couldn't apply that",
+      goneApplyNote: "The meal was deleted before the change landed. Log it again if you still need it.",
+      refusals: {
+        notFood: "I couldn't find any food in that.",
+        capGlobalTitle: "The instance is out of budget for today",
+        capGlobalNote: "Not you — everyone. It resets at midnight.",
+        capAddressTitle: "Too many from this network",
+        capAddressNote: "Not you — this connection. Shared and mobile networks hit this together. Try again later or from another connection.",
+        capUserTitle: "That's your last one today",
+        capUserNote: "Your daily photo allowance is spent. It resets at midnight.",
+        capUnknownTitle: "That one hit a limit",
+        capUnknownNote: "Nothing was logged. Try again later.",
+        setupTitle: "Finish setting up first",
+        setupNote: "We need your goal and weight before anything can be judged.",
+        longTextTitle: "Too long for one message",
+        longTextNote: "Keep it under {max} characters.",
+        longNoteTitle: "That note is too long",
+        longNoteNote: "Keep it under {max} characters. Nothing was logged.",
+        unreadableTitle: "That photo can't be read",
+        unreadableNote: "Nothing was logged and nothing was counted.",
+        tooLargeTitle: "That photo is too large to send",
+        tooLargeNote: "Nothing was logged and nothing was counted.",
+        tooManyTitle: "More angles than one meal takes",
+        tooManyNote: "Nothing was logged and nothing was counted.",
+        failedTitle: "That didn't go through",
+        failedNote: "Try again in a moment.",
+        failedSampleNote: "It still counted, and that was the last of your sample — the next meal needs a subscription.",
+        unansweredTitle: "That one reached me, but the answer didn't",
+        unansweredNote: "Say it again and I'll re-read it.",
+        unansweredSampleNote: "Nothing was logged, but it counted, and that was the last of your sample — the next meal needs a subscription.",
+        maybeLandedTitle: "That one reached me, but didn't finish",
+        maybeLandedNote: "It may have gone through. Check before sending it again.",
+        unreachableTitle: "Couldn't reach eait",
+        unreachableNote: "Nothing was logged. Check your connection, then send it again.",
+      },
     },
   },
   fr: {
     greeting: "Raconte-moi ce que tu as mangé, ou demande-moi n'importe quoi.",
     composerAsk: "Qu'as-tu mangé ?",
     mealLine: "{name} — {kcal}",
+    earlier: "Messages plus anciens",
+    movedCaption: "Déplacé — nouveau jour : {day}.",
     composerThread: "Dis à {coach} ce que tu as mangé, ou demande",
     proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
     proposalAccept: "Enregistrer",
@@ -169,7 +333,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
     macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides", kcal: "Calories", satfat: "Graisses saturées" },
     starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?" },
-    macroOfTarget: "{value} sur {target} g",
+    macroEaten: "{value}",
+    macroTarget: "sur {target} g",
     loadFailed: "Impossible de charger la conversation.",
     tryAgain: "Réessayer",
     eitherWorks: "Photographie-le ou raconte-le-moi — les deux marchent",
@@ -186,12 +351,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Envoi",
       typing: "{coach} écrit",
       notSent: "Non envoyé — touche pour le remettre dans la boîte",
+      notLogged: "Non enregistré — touche pour le remettre dans la boîte.",
+      photo: "Photo",
+      photoCaption: "Photo : {caption}",
+      discard: "Supprimer",
+      discardQ: "Supprimer ?",
+      discardNote: "Il n'a pas été enregistré, et il ne le sera pas.",
+      onItsWayTitle: "Déjà envoyé",
+      onItsWayNote: "Il a été envoyé avant que tu ne le supprimes — il sera enregistré. Tu pourras le supprimer dans Chat une fois arrivé.",
+      edit: "Modifier",
+      delete: "Supprimer",
+      remove: "Retirer",
+      cancel: "Annuler",
+      deleteMealQ: "Supprimer ce repas ?",
+      deleteMealNote: "Ses photos et ses chiffres partent aussi.",
+      deleteLineQ: "Retirer ce message ?",
+      deleteLineNote: "Les chiffres restent.",
+      holdActions: "Reste appuyé pour Modifier et Supprimer",
+      holdDelete: "Reste appuyé pour supprimer",
+      photoMessage: "Ton message photo",
+      signInOffer: "Se connecter avec Apple ou Google",
+      goneTitle: "Ce repas n'existe plus",
+      goneRedateNote: "Il a été supprimé — rien à déplacer.",
+      goneApplyTitle: "Impossible d'appliquer ça",
+      goneApplyNote: "Le repas a été supprimé avant que le changement n'arrive. Enregistre-le à nouveau si tu en as encore besoin.",
+      refusals: {
+        notFood: "Je n'ai trouvé aucun aliment là-dedans.",
+        capGlobalTitle: "L'instance est à court de budget aujourd'hui",
+        capGlobalNote: "Pas toi — tout le monde. Ça repart à minuit.",
+        capAddressTitle: "Trop de demandes depuis ce réseau",
+        capAddressNote: "Pas toi — cette connexion. Les réseaux partagés et mobiles l'atteignent ensemble. Réessaie plus tard ou depuis une autre connexion.",
+        capUserTitle: "C'était ta dernière aujourd'hui",
+        capUserNote: "Ton quota de photos quotidien est épuisé. Il repart à minuit.",
+        capUnknownTitle: "Celle-ci a atteint une limite",
+        capUnknownNote: "Rien n'a été enregistré. Réessaie plus tard.",
+        setupTitle: "Termine d'abord la configuration",
+        setupNote: "Il nous faut ton objectif et ton poids avant de pouvoir juger quoi que ce soit.",
+        longTextTitle: "Trop long pour un message",
+        longTextNote: "Reste sous les {max} caractères.",
+        longNoteTitle: "Cette note est trop longue",
+        longNoteNote: "Reste sous les {max} caractères. Rien n'a été enregistré.",
+        unreadableTitle: "Cette photo est illisible",
+        unreadableNote: "Rien n'a été enregistré ni compté.",
+        tooLargeTitle: "Cette photo est trop lourde pour être envoyée",
+        tooLargeNote: "Rien n'a été enregistré ni compté.",
+        tooManyTitle: "Plus d'angles qu'un repas n'en prend",
+        tooManyNote: "Rien n'a été enregistré ni compté.",
+        failedTitle: "Ça n'est pas passé",
+        failedNote: "Réessaie dans un instant.",
+        failedSampleNote: "Ça a quand même compté, et c'était la fin de ton essai — le prochain repas demande un abonnement.",
+        unansweredTitle: "Celle-ci m'est bien arrivée, mais la réponse n'est pas arrivée",
+        unansweredNote: "Redis-le et je le relis.",
+        unansweredSampleNote: "Rien n'a été enregistré, mais ça a compté, et c'était la fin de ton essai — le prochain repas demande un abonnement.",
+        maybeLandedTitle: "Celle-ci m'est arrivée, mais n'a pas abouti",
+        maybeLandedNote: "Elle a peut-être été enregistrée. Vérifie avant de la renvoyer.",
+        unreachableTitle: "Impossible de joindre eait",
+        unreachableNote: "Rien n'a été enregistré. Vérifie ta connexion, puis renvoie.",
+      },
     },
   },
   de: {
     greeting: "Sag mir, was du gegessen hast, oder frag mich, was du willst.",
     composerAsk: "Was hast du gegessen?",
     mealLine: "{name} — {kcal}",
+    earlier: "Ältere Nachrichten",
+    movedCaption: "Verschoben — neuer Tag: {day}.",
     composerThread: "Sag {coach}, was du gegessen hast, oder frag",
     proposalCheck: "Ich trage es für heute ein — passt das?",
     proposalAccept: "Eintragen",
@@ -199,7 +423,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
     macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett", kcal: "Kalorien", satfat: "Gesättigte Fette" },
     starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Eiweiß?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?" },
-    macroOfTarget: "{value} von {target} g",
+    macroEaten: "{value}",
+    macroTarget: "von {target} g",
     loadFailed: "Die Unterhaltung konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
     eitherWorks: "Fotografier es oder sag es mir — beides geht",
@@ -216,12 +441,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Wird gesendet",
       typing: "{coach} schreibt",
       notSent: "Nicht gesendet — tippe, um es zurück in die Box zu legen",
+      notLogged: "Nicht gespeichert — tippe, um es zurück in die Box zu legen.",
+      photo: "Foto",
+      photoCaption: "Foto: {caption}",
+      discard: "Verwerfen",
+      discardQ: "Verwerfen?",
+      discardNote: "Es wurde nicht gespeichert und wird es auch nicht.",
+      onItsWayTitle: "Schon unterwegs",
+      onItsWayNote: "Es wurde gesendet, bevor du es verworfen hast — es wird gespeichert. Du kannst es in Chat löschen, sobald es ankommt.",
+      edit: "Bearbeiten",
+      delete: "Löschen",
+      remove: "Entfernen",
+      cancel: "Abbrechen",
+      deleteMealQ: "Diese Mahlzeit löschen?",
+      deleteMealNote: "Fotos und Werte gehen mit.",
+      deleteLineQ: "Diese Nachricht entfernen?",
+      deleteLineNote: "Die Werte bleiben.",
+      holdActions: "Halten für Bearbeiten und Löschen",
+      holdDelete: "Zum Löschen halten",
+      photoMessage: "Deine Foto-Nachricht",
+      signInOffer: "Mit Apple oder Google anmelden",
+      goneTitle: "Diese Mahlzeit ist weg",
+      goneRedateNote: "Sie wurde gelöscht — es gibt nichts zu verschieben.",
+      goneApplyTitle: "Konnte das nicht anwenden",
+      goneApplyNote: "Die Mahlzeit wurde gelöscht, bevor die Änderung ankam. Speichere sie erneut, wenn du sie noch brauchst.",
+      refusals: {
+        notFood: "Ich konnte darin kein Essen finden.",
+        capGlobalTitle: "Die Instanz hat heute kein Budget mehr",
+        capGlobalNote: "Nicht du — alle. Es wird um Mitternacht zurückgesetzt.",
+        capAddressTitle: "Zu viele aus diesem Netzwerk",
+        capAddressNote: "Nicht du — diese Verbindung. Geteilte und mobile Netze erreichen das Limit gemeinsam. Versuch es später oder von einer anderen Verbindung.",
+        capUserTitle: "Das war deine letzte für heute",
+        capUserNote: "Dein tägliches Foto-Kontingent ist aufgebraucht. Es wird um Mitternacht zurückgesetzt.",
+        capUnknownTitle: "Das hat ein Limit erreicht",
+        capUnknownNote: "Nichts wurde gespeichert. Versuch es später.",
+        setupTitle: "Beende zuerst die Einrichtung",
+        setupNote: "Wir brauchen dein Ziel und dein Gewicht, bevor etwas bewertet werden kann.",
+        longTextTitle: "Zu lang für eine Nachricht",
+        longTextNote: "Bleib unter {max} Zeichen.",
+        longNoteTitle: "Diese Notiz ist zu lang",
+        longNoteNote: "Bleib unter {max} Zeichen. Nichts wurde gespeichert.",
+        unreadableTitle: "Dieses Foto ist nicht lesbar",
+        unreadableNote: "Nichts wurde gespeichert und nichts gezählt.",
+        tooLargeTitle: "Dieses Foto ist zu groß zum Senden",
+        tooLargeNote: "Nichts wurde gespeichert und nichts gezählt.",
+        tooManyTitle: "Mehr Blickwinkel, als eine Mahlzeit braucht",
+        tooManyNote: "Nichts wurde gespeichert und nichts gezählt.",
+        failedTitle: "Das ist nicht durchgegangen",
+        failedNote: "Versuch es gleich noch einmal.",
+        failedSampleNote: "Es hat trotzdem gezählt, und das war der Rest deiner Probe — die nächste Mahlzeit braucht ein Abo.",
+        unansweredTitle: "Die ist angekommen, aber die Antwort kam nicht an",
+        unansweredNote: "Sag es noch einmal, dann lese ich es erneut.",
+        unansweredSampleNote: "Nichts wurde gespeichert, aber es hat gezählt — und das war der Rest deiner Probe; die nächste Mahlzeit braucht ein Abo.",
+        maybeLandedTitle: "Die ist angekommen, aber nicht fertig geworden",
+        maybeLandedNote: "Sie könnte durchgegangen sein. Prüfe es, bevor du sie erneut sendest.",
+        unreachableTitle: "eait nicht erreichbar",
+        unreachableNote: "Nichts wurde gespeichert. Prüfe deine Verbindung und sende es noch einmal.",
+      },
     },
   },
   it: {
     greeting: "Dimmi cosa hai mangiato, o chiedimi quello che vuoi.",
     composerAsk: "Cosa hai mangiato?",
     mealLine: "{name} — {kcal}",
+    earlier: "Messaggi precedenti",
+    movedCaption: "Spostato — nuovo giorno: {day}.",
     composerThread: "Di' a {coach} cosa hai mangiato, o chiedi",
     proposalCheck: "Lo registro a oggi — va bene?",
     proposalAccept: "Registralo",
@@ -229,7 +513,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Quella è scaduta. Descrivila di nuovo e la rileggo.",
     macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi", kcal: "Calorie", satfat: "Grassi saturi" },
     starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?" },
-    macroOfTarget: "{value} su {target} g",
+    macroEaten: "{value}",
+    macroTarget: "su {target} g",
     loadFailed: "Impossibile caricare la conversazione.",
     tryAgain: "Riprova",
     eitherWorks: "Fotografalo o dimmelo — uno vale l'altro",
@@ -246,12 +531,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Invio",
       typing: "{coach} sta scrivendo",
       notSent: "Non inviato — tocca per rimetterlo nel box",
+      notLogged: "Non registrato — tocca per rimetterlo nel box.",
+      photo: "Foto",
+      photoCaption: "Foto: {caption}",
+      discard: "Scarta",
+      discardQ: "Scartarlo?",
+      discardNote: "Non è stato registrato, e non lo sarà.",
+      onItsWayTitle: "È già in viaggio",
+      onItsWayNote: "È stato inviato prima che lo scartassi, quindi verrà registrato. Potrai eliminarlo da Chat quando arriva.",
+      edit: "Modifica",
+      delete: "Elimina",
+      remove: "Rimuovi",
+      cancel: "Annulla",
+      deleteMealQ: "Eliminare questo pasto?",
+      deleteMealNote: "Anche le foto e i numeri se ne vanno.",
+      deleteLineQ: "Rimuovere questo messaggio?",
+      deleteLineNote: "I numeri restano.",
+      holdActions: "Tieni premuto per Modifica ed Elimina",
+      holdDelete: "Tieni premuto per eliminare",
+      photoMessage: "Il tuo messaggio foto",
+      signInOffer: "Accedi con Apple o Google",
+      goneTitle: "Quel pasto non c'è più",
+      goneRedateNote: "È stato eliminato, quindi non c'è nulla da spostare.",
+      goneApplyTitle: "Non posso applicarlo",
+      goneApplyNote: "Il pasto è stato eliminato prima che la modifica arrivasse. Registralo di nuovo se ti serve ancora.",
+      refusals: {
+        notFood: "Non ci ho trovato cibo.",
+        capGlobalTitle: "L'istanza oggi è a corto di budget",
+        capGlobalNote: "Non tu — tutti. Si azzera a mezzanotte.",
+        capAddressTitle: "Troppe richieste da questa rete",
+        capAddressNote: "Non tu — questa connessione. Le reti condivise e mobili ci arrivano insieme. Riprova più tardi o da un'altra connessione.",
+        capUserTitle: "Era l'ultima di oggi",
+        capUserNote: "Il tuo limite foto giornaliero è esaurito. Si azzera a mezzanotte.",
+        capUnknownTitle: "Questa ha raggiunto un limite",
+        capUnknownNote: "Nulla è stato registrato. Riprova più tardi.",
+        setupTitle: "Finisci prima la configurazione",
+        setupNote: "Ci servono il tuo obiettivo e il tuo peso prima di poter valutare.",
+        longTextTitle: "Troppo lungo per un messaggio",
+        longTextNote: "Resta sotto i {max} caratteri.",
+        longNoteTitle: "La nota è troppo lunga",
+        longNoteNote: "Resta sotto i {max} caratteri. Nulla è stato registrato.",
+        unreadableTitle: "La foto non si può leggere",
+        unreadableNote: "Nulla registrato e nulla contato.",
+        tooLargeTitle: "La foto è troppo grande per essere inviata",
+        tooLargeNote: "Nulla registrato e nulla contato.",
+        tooManyTitle: "Più scatti di quanti ne serva un pasto",
+        tooManyNote: "Nulla registrato e nulla contato.",
+        failedTitle: "Non è andata",
+        failedNote: "Riprova tra un attimo.",
+        failedSampleNote: "È comunque contata, ed era l'ultima della tua prova — il prossimo pasto richiede un abbonamento.",
+        unansweredTitle: "Mi è arrivata, ma la risposta no",
+        unansweredNote: "Dillo di nuovo e lo rileggo.",
+        unansweredSampleNote: "Nulla registrato, ma ha contato — ed era l'ultima della prova; il prossimo pasto richiede un abbonamento.",
+        maybeLandedTitle: "Mi è arrivata, ma non si è conclusa",
+        maybeLandedNote: "Potrebbe essere andata a buon fine. Controlla prima di inviarla di nuovo.",
+        unreachableTitle: "eait non raggiungibile",
+        unreachableNote: "Nulla è stato registrato. Controlla la connessione e invialo di nuovo.",
+      },
     },
   },
   es: {
     greeting: "Cuéntame qué has comido, o pregúntame lo que sea.",
     composerAsk: "¿Qué has comido?",
     mealLine: "{name} — {kcal}",
+    earlier: "Mensajes anteriores",
+    movedCaption: "Movido — día nuevo: {day}.",
     composerThread: "Dile a {coach} qué has comido, o pregunta",
     proposalCheck: "Lo registro en hoy — ¿te parece bien?",
     proposalAccept: "Registrarla",
@@ -259,7 +603,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
     macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa", kcal: "Calorías", satfat: "Grasas saturadas" },
     starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que comí y ya", ideas: "¿Qué ceno hoy?" },
-    macroOfTarget: "{value} de {target} g",
+    macroEaten: "{value}",
+    macroTarget: "de {target} g",
     loadFailed: "No se pudo cargar la conversación.",
     tryAgain: "Reintentar",
     eitherWorks: "Fotografíalo o cuéntamelo — cualquiera vale",
@@ -276,12 +621,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Enviando",
       typing: "{coach} está escribiendo",
       notSent: "No enviado — toca para devolverlo a la bandeja",
+      notLogged: "No registrado — toca para devolverlo a la bandeja.",
+      photo: "Foto",
+      photoCaption: "Foto: {caption}",
+      discard: "Descartar",
+      discardQ: "¿Descartarlo?",
+      discardNote: "No se ha registrado, y no se registrará.",
+      onItsWayTitle: "Ya va de camino",
+      onItsWayNote: "Se envió antes de que lo descartaras, así que se registrará. Podrás borrarlo desde Chat cuando llegue.",
+      edit: "Editar",
+      delete: "Eliminar",
+      remove: "Quitar",
+      cancel: "Cancelar",
+      deleteMealQ: "¿Eliminar esta comida?",
+      deleteMealNote: "Sus fotos y sus números también.",
+      deleteLineQ: "¿Quitar este mensaje?",
+      deleteLineNote: "Los números se quedan.",
+      holdActions: "Mantén pulsado para Editar y Eliminar",
+      holdDelete: "Mantén pulsado para eliminar",
+      photoMessage: "Tu mensaje con foto",
+      signInOffer: "Inicia sesión con Apple o Google",
+      goneTitle: "Esa comida ya no existe",
+      goneRedateNote: "Fue eliminada, así que no hay nada que mover.",
+      goneApplyTitle: "No se pudo aplicar",
+      goneApplyNote: "La comida se eliminó antes de que llegara el cambio. Vuelve a registrarla si aún la necesitas.",
+      refusals: {
+        notFood: "No encontré comida ahí.",
+        capGlobalTitle: "La instancia se quedó sin presupuesto hoy",
+        capGlobalNote: "No tú — todos. Se reinicia a medianoche.",
+        capAddressTitle: "Demasiadas desde esta red",
+        capAddressNote: "No tú — esta conexión. Las redes compartidas y móvil llegan juntas al límite. Inténtalo más tarde o desde otra conexión.",
+        capUserTitle: "Esa era tu última de hoy",
+        capUserNote: "Tu límite diario de fotos está agotado. Se reinicia a medianoche.",
+        capUnknownTitle: "Esta alcanzó un límite",
+        capUnknownNote: "No se registró nada. Inténtalo más tarde.",
+        setupTitle: "Termina primero la configuración",
+        setupNote: "Necesitamos tu objetivo y tu peso antes de poder valorar nada.",
+        longTextTitle: "Demasiado largo para un mensaje",
+        longTextNote: "Quédate por debajo de {max} caracteres.",
+        longNoteTitle: "La nota es demasiado larga",
+        longNoteNote: "Quédate por debajo de {max} caracteres. No se registró nada.",
+        unreadableTitle: "Esa foto no se puede leer",
+        unreadableNote: "No se registró ni se contó nada.",
+        tooLargeTitle: "Esa foto es demasiado grande para enviarse",
+        tooLargeNote: "No se registró ni se contó nada.",
+        tooManyTitle: "Más ángulos de los que caben en una comida",
+        tooManyNote: "No se registró ni se contó nada.",
+        failedTitle: "No salió",
+        failedNote: "Inténtalo en un momento.",
+        failedSampleNote: "Aun así contó, y era lo último de tu prueba — la siguiente comida necesita una suscripción.",
+        unansweredTitle: "Me llegó, pero la respuesta no",
+        unansweredNote: "Dilo otra vez y lo vuelvo a leer.",
+        unansweredSampleNote: "No se registró nada, pero contó — y era lo último de tu prueba; la siguiente comida necesita una suscripción.",
+        maybeLandedTitle: "Me llegó, pero no terminó",
+        maybeLandedNote: "Puede que haya pasado. Compruébalo antes de volver a enviarla.",
+        unreachableTitle: "No se pudo contactar con eait",
+        unreachableNote: "No se registró nada. Comprueba tu conexión y envíalo otra vez.",
+      },
     },
   },
   vi: {
     greeting: "Kể mình nghe bạn đã ăn gì, hoặc hỏi mình bất cứ điều gì.",
     composerAsk: "Bạn đã ăn gì?",
     mealLine: "{name} — {kcal}",
+    earlier: "Tin nhắn cũ hơn",
+    movedCaption: "Đã chuyển — ngày mới: {day}.",
     composerThread: "Kể {coach} nghe bạn đã ăn gì, hoặc hỏi",
     proposalCheck: "Ghi vào hôm nay — đúng chứ?",
     proposalAccept: "Ghi lại",
@@ -289,7 +693,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
     macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hoà" },
     starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Tôi sẽ kể tôi đã ăn gì", ideas: "Tối nay nên ăn gì?" },
-    macroOfTarget: "{value} trên {target} g",
+    macroEaten: "{value}",
+    macroTarget: "trên {target} g",
     loadFailed: "Không tải được cuộc trò chuyện.",
     tryAgain: "Thử lại",
     eitherWorks: "Chụp nó hoặc kể mình nghe — cách nào cũng được",
@@ -306,12 +711,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Đang gửi",
       typing: "{coach} đang nhập",
       notSent: "Chưa gửi — chạm để đặt lại vào hộp",
+      notLogged: "Chưa ghi — chạm để đặt lại vào hộp.",
+      photo: "Ảnh",
+      photoCaption: "Ảnh: {caption}",
+      discard: "Bỏ đi",
+      discardQ: "Bỏ tin này?",
+      discardNote: "Nó chưa được ghi, và sẽ không được ghi.",
+      onItsWayTitle: "Đã gửi đi rồi",
+      onItsWayNote: "Nó được gửi trước khi bạn bỏ, nên sẽ được ghi. Bạn có thể xoá nó trong Chat khi nó về đến.",
+      edit: "Sửa",
+      delete: "Xoá",
+      remove: "Gỡ",
+      cancel: "Huỷ",
+      deleteMealQ: "Xoá bữa này?",
+      deleteMealNote: "Ảnh và số liệu của nó cũng mất.",
+      deleteLineQ: "Gỡ tin nhắn này?",
+      deleteLineNote: "Số liệu vẫn giữ.",
+      holdActions: "Nhấn giữ để Sửa và Xoá",
+      holdDelete: "Nhấn giữ để xoá",
+      photoMessage: "Tin nhắn ảnh của bạn",
+      signInOffer: "Đăng nhập bằng Apple hoặc Google",
+      goneTitle: "Bữa đó không còn",
+      goneRedateNote: "Nó đã bị xoá, nên không còn gì để chuyển.",
+      goneApplyTitle: "Không áp dụng được",
+      goneApplyNote: "Bữa đã bị xoá trước khi thay đổi đến. Ghi lại nếu bạn vẫn cần.",
+      refusals: {
+        notFood: "Mình không tìm thấy món ăn nào trong đó.",
+        capGlobalTitle: "Hệ thống hết ngân sách hôm nay",
+        capGlobalNote: "Không phải bạn — tất cả mọi người. Nó sẽ đặt lại lúc nửa đêm.",
+        capAddressTitle: "Quá nhiều yêu cầu từ mạng này",
+        capAddressNote: "Không phải bạn — đường truyền này. Mạng dùng chung và mạng di động chạm giới hạn cùng nhau. Thử lại sau hoặc qua kết nối khác.",
+        capUserTitle: "Đó là lượt cuối hôm nay",
+        capUserNote: "Hạn mức ảnh hằng ngày của bạn đã hết. Nó đặt lại lúc nửa đêm.",
+        capUnknownTitle: "Tin này chạm một giới hạn",
+        capUnknownNote: "Chưa ghi gì. Thử lại sau.",
+        setupTitle: "Hoàn tất thiết lập trước",
+        setupNote: "Chúng mình cần mục tiêu và cân nặng của bạn trước khi nhận định được.",
+        longTextTitle: "Dài quá cho một tin nhắn",
+        longTextNote: "Giữ dưới {max} ký tự.",
+        longNoteTitle: "Ghi chú đó dài quá",
+        longNoteNote: "Giữ dưới {max} ký tự. Chưa ghi gì.",
+        unreadableTitle: "Không đọc được ảnh đó",
+        unreadableNote: "Không ghi và không tính gì.",
+        tooLargeTitle: "Ảnh đó lớn quá để gửi",
+        tooLargeNote: "Không ghi và không tính gì.",
+        tooManyTitle: "Nhiều góc hơn một bữa cần",
+        tooManyNote: "Không ghi và không tính gì.",
+        failedTitle: "Không gửi được",
+        failedNote: "Thử lại sau chút nữa.",
+        failedSampleNote: "Nó vẫn tính, và đó là lượt cuối trong phần dùng thử — bữa kế tiếp cần một gói.",
+        unansweredTitle: "Tin đã tới mình, nhưng câu trả lời chưa tới",
+        unansweredNote: "Nói lại và mình sẽ đọc lại.",
+        unansweredSampleNote: "Chưa ghi gì, nhưng đã tính — và đó là lượt cuối trong phần dùng thử; bữa kế tiếp cần một gói.",
+        maybeLandedTitle: "Tin đã tới mình, nhưng chưa xong",
+        maybeLandedNote: "Có thể nó đã được ghi. Kiểm tra trước khi gửi lại.",
+        unreachableTitle: "Không kết nối được với eait",
+        unreachableNote: "Chưa ghi gì. Kiểm tra kết nối rồi gửi lại.",
+      },
     },
   },
   id: {
     greeting: "Beri tahu aku apa yang kamu makan, atau tanyakan apa saja.",
     composerAsk: "Apa yang kamu makan?",
     mealLine: "{name} — {kcal}",
+    earlier: "Pesan sebelumnya",
+    movedCaption: "Dipindahkan — hari baru: {day}.",
     composerThread: "Beri tahu {coach} apa yang kamu makan, atau tanya",
     proposalCheck: "Kucatat untuk hari ini — benar?",
     proposalAccept: "Catat",
@@ -319,7 +783,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
     macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak jenuh" },
     starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?" },
-    macroOfTarget: "{value} dari {target} g",
+    macroEaten: "{value}",
+    macroTarget: "dari {target} g",
     loadFailed: "Tidak bisa memuat percakapan.",
     tryAgain: "Coba lagi",
     eitherWorks: "Foto atau ceritakan ke aku — dua-duanya bisa",
@@ -336,12 +801,71 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Mengirim",
       typing: "{coach} sedang mengetik",
       notSent: "Belum terkirim — ketuk untuk mengembalikannya ke kotak",
+      notLogged: "Belum tercatat — ketuk untuk mengembalikannya ke kotak.",
+      photo: "Foto",
+      photoCaption: "Foto: {caption}",
+      discard: "Buang",
+      discardQ: "Buang ini?",
+      discardNote: "Belum dicatat, dan tidak akan dicatat.",
+      onItsWayTitle: "Sudah terkirim",
+      onItsWayNote: "Terkirim sebelum kamu membuangnya, jadi akan tetap dicatat. Kamu bisa menghapusnya di Chat setelah tiba.",
+      edit: "Ubah",
+      delete: "Hapus",
+      remove: "Singkirkan",
+      cancel: "Batal",
+      deleteMealQ: "Hapus makanan ini?",
+      deleteMealNote: "Foto dan angkanya ikut terhapus.",
+      deleteLineQ: "Singkirkan pesan ini?",
+      deleteLineNote: "Angkanya tetap.",
+      holdActions: "Tahan untuk Ubah dan Hapus",
+      holdDelete: "Tahan untuk menghapus",
+      photoMessage: "Pesan foto kamu",
+      signInOffer: "Masuk dengan Apple atau Google",
+      goneTitle: "Makanan itu sudah tidak ada",
+      goneRedateNote: "Sudah dihapus, jadi tidak ada yang bisa dipindahkan.",
+      goneApplyTitle: "Tidak bisa menerapkannya",
+      goneApplyNote: "Makanan itu terhapus sebelum perubahan sampai. Catat lagi kalau masih perlu.",
+      refusals: {
+        notFood: "Saya tidak menemukan makanan di situ.",
+        capGlobalTitle: "Instans kehabisan bujet hari ini",
+        capGlobalNote: "Bukan kamu — semuanya. Direset tengah malam.",
+        capAddressTitle: "Terlalu banyak dari jaringan ini",
+        capAddressNote: "Bukan kamu — koneksi ini. Jaringan bersama dan seluler kena batas bersama. Coba lagi nanti atau dari koneksi lain.",
+        capUserTitle: "Itu yang terakhir hari ini",
+        capUserNote: "Jatah foto harianmu habis. Direset tengah malam.",
+        capUnknownTitle: "Yang itu kena batas",
+        capUnknownNote: "Tidak ada yang tercatat. Coba lagi nanti.",
+        setupTitle: "Selesaikan pengaturan dulu",
+        setupNote: "Kami perlu target dan beratmu sebelum bisa menilai apa pun.",
+        longTextTitle: "Kepanjangan untuk satu pesan",
+        longTextNote: "Jaga di bawah {max} karakter.",
+        longNoteTitle: "Catatan itu kepanjangan",
+        longNoteNote: "Jaga di bawah {max} karakter. Tidak ada yang tercatat.",
+        unreadableTitle: "Foto itu tidak bisa dibaca",
+        unreadableNote: "Tidak ada yang dicatat maupun dihitung.",
+        tooLargeTitle: "Foto itu terlalu besar untuk dikirim",
+        tooLargeNote: "Tidak ada yang dicatat maupun dihitung.",
+        tooManyTitle: "Sudut lebih banyak dari yang satu makanan butuhkan",
+        tooManyNote: "Tidak ada yang dicatat maupun dihitung.",
+        failedTitle: "Tidak berhasil",
+        failedNote: "Coba lagi sebentar lagi.",
+        failedSampleNote: "Tetap terhitung, dan itu yang terakhir dari masa coba — makanan berikutnya butuh langganan.",
+        unansweredTitle: "Yang itu sampai padaku, tapi jawabannya tidak",
+        unansweredNote: "Katakan lagi dan kubaca ulang.",
+        unansweredSampleNote: "Tidak ada yang dicatat, tapi terhitung — dan itu yang terakhir dari masa coba; makanan berikutnya butuh langganan.",
+        maybeLandedTitle: "Yang itu sampai, tapi tidak selesai",
+        maybeLandedNote: "Mungkin tetap tercatat. Periksa dulu sebelum mengirim ulang.",
+        unreachableTitle: "Tidak bisa menghubungi eait",
+        unreachableNote: "Tidak ada yang tercatat. Periksa koneksimu, lalu kirim lagi.",
+      },
     },
   },
   ru: {
     greeting: "Расскажи, что было на тарелке, или спроси о чём угодно.",
     composerAsk: "Что было на тарелке?",
     mealLine: "{name} — {kcal}",
+    earlier: "Ранние сообщения",
+    movedCaption: "Перенесено — новый день: {day}.",
     composerThread: "Расскажи {coach}, что было на тарелке, или спроси",
     proposalCheck: "Записываю на сегодня — верно?",
     proposalAccept: "Записать",
@@ -349,7 +873,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     expired: "Время вышло. Опиши ещё раз, и я перечитаю.",
     macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры", kcal: "Калории", satfat: "Насыщенные жиры" },
     starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?" },
-    macroOfTarget: "{value} из {target} г",
+    macroEaten: "{value}",
+    macroTarget: "из {target} г",
     loadFailed: "Не удалось загрузить переписку.",
     tryAgain: "Попробовать ещё раз",
     eitherWorks: "Сфотографируй или расскажи — сработает и так, и так",
@@ -366,6 +891,63 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       sending: "Отправка",
       typing: "{coach} печатает",
       notSent: "Не отправлено — нажми, чтобы вернуть в коробку",
+      notLogged: "Не записано — нажми, чтобы вернуть в коробку.",
+      photo: "Фото",
+      photoCaption: "Фото: {caption}",
+      discard: "Отменить",
+      discardQ: "Отменить отправку?",
+      discardNote: "Оно не записано — и не будет.",
+      onItsWayTitle: "Уже отправлено",
+      onItsWayNote: "Оно ушло до того, как его отменили — и будет записано. Удалить его можно в Чате, когда оно придёт.",
+      edit: "Изменить",
+      delete: "Удалить",
+      remove: "Убрать",
+      cancel: "Отмена",
+      deleteMealQ: "Удалить этот приём пищи?",
+      deleteMealNote: "Его фото и цифры тоже уйдут.",
+      deleteLineQ: "Убрать это сообщение?",
+      deleteLineNote: "Цифры останутся.",
+      holdActions: "Удерживай: Изменить и Удалить",
+      holdDelete: "Удерживай, чтобы удалить",
+      photoMessage: "Твоё сообщение с фото",
+      signInOffer: "Войти через Apple или Google",
+      goneTitle: "Этого приёма пищи больше нет",
+      goneRedateNote: "Он удалён — переносить нечего.",
+      goneApplyTitle: "Не получилось применить",
+      goneApplyNote: "Приём пищи был удалён до того, как изменение дошло. Запиши его заново, если он ещё нужен.",
+      refusals: {
+        notFood: "Я не нашла там еды.",
+        capGlobalTitle: "У инстанса кончился бюджет на сегодня",
+        capGlobalNote: "Не ты — все. Сбросится в полночь.",
+        capAddressTitle: "Слишком много запросов из этой сети",
+        capAddressNote: "Не ты — это соединение. Общие и мобильные сети упираются в лимит вместе. Попробуй позже или с другой сети.",
+        capUserTitle: "Это была последняя на сегодня",
+        capUserNote: "Дневной лимит фото исчерпан. Сбросится в полночь.",
+        capUnknownTitle: "Оно упёрлось в лимит",
+        capUnknownNote: "Ничего не записано. Попробуй позже.",
+        setupTitle: "Сначала заверши настройку",
+        setupNote: "Нужны цель и вес, прежде чем что-то можно оценить.",
+        longTextTitle: "Слишком длинно для одного сообщения",
+        longTextNote: "Уложись в {max} символов.",
+        longNoteTitle: "Заметка слишком длинная",
+        longNoteNote: "Уложись в {max} символов. Ничего не записано.",
+        unreadableTitle: "Это фото не читается",
+        unreadableNote: "Ничего не записано и не посчитано.",
+        tooLargeTitle: "Фото слишком большое для отправки",
+        tooLargeNote: "Ничего не записано и не посчитано.",
+        tooManyTitle: "Ракурсов больше, чем нужно одному приёму",
+        tooManyNote: "Ничего не записано и не посчитано.",
+        failedTitle: "Не получилось",
+        failedNote: "Попробуй чуть позже.",
+        failedSampleNote: "Оно всё равно засчитано — и это был последний пробный; следующий приём пищи просит подписку.",
+        unansweredTitle: "Оно дошло до меня, а ответ — нет",
+        unansweredNote: "Скажи ещё раз, и я прочту заново.",
+        unansweredSampleNote: "Ничего не записано, но засчитано — и это был последний пробный; следующий приём пищи просит подписку.",
+        maybeLandedTitle: "Оно дошло, но не завершилось",
+        maybeLandedNote: "Возможно, оно записано. Проверь, прежде чем отправлять ещё раз.",
+        unreachableTitle: "Не удалось связаться с eait",
+        unreachableNote: "Ничего не записано. Проверь соединение и отправь ещё раз.",
+      },
     },
   },
 };

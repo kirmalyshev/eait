@@ -99,8 +99,8 @@ export interface PhotoRead {
  * returns as a new meal; `reanalyzeMeal` and `editLine` write it over an existing one. Caps
  * first; the bytes are read after them and sniffed before the charge (the provider rejects HEIC
  * with a 400 that stays charged); the charge before the model call (a failed call still costs
- * money); the glance beside the analyzer, never awaited; the answer reconciled and gated on
- * `isFood` before anyone writes a row. A third copy of this was the reason to move it.
+ * money); the answer reconciled and gated on `isFood` before anyone writes a row. A third copy
+ * of this was the reason to move it.
  */
 export async function analyzePhotos(
   deps: EngineDeps,
@@ -134,22 +134,28 @@ export async function analyzePhotos(
 
   const { targets } = explainTargets(profile);
 
-  // THE GLANCE RUNS BESIDE THE ANALYZER, on a model that does not reason, and is the first thing
-  // the user reads. Fired only when somebody is listening and a glance model is configured; its
-  // failure is a log line and never a refusal — the analysis is what this turn is for — and its
-  // text goes through `onEvent` and nowhere else. NEVER AWAITED: the result is the analyzer's, and
-  // a glance that hangs for its whole budget must not hold a finished card back. One that lands
-  // after the route has closed the stream is dropped there, not written anywhere.
-  if (onEvent && deps.config.llmGlanceModel) {
-    void deps.llm.glancePhoto({ images, lang: profile.lang, onCost })
-      .then((text) => onEvent({ kind: "glance", text }))
-      .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
-  }
+  // The turn's own clock, for the latency the admin page reads: shutter-to-call in `queue` (the
+  // upload and the caps live in it), call-to-first-item, call-to-answer. Written ONCE, when the
+  // turn settles, and like `addCost` a write that finds no row is a log line, not a failure.
+  const clock = { calledAt: 0, firstItem: null as number | null };
+  const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
+    queue: Math.max(0, clock.calledAt - eaten.getTime()),
+    firstItem: clock.firstItem,
+    total: Date.now() - clock.calledAt,
+  }).then(
+    (landed) => { if (!landed) console.error(`[eait] timing not recorded: analysis ${analysisId} is gone`); },
+    (e: unknown) => { console.error(`[eait] timing not recorded: ${(e as Error)?.message ?? e}`); },
+  );
+
   // The weighing words ride the item events: same rule as `reading` — the line is sent, not derived.
   const weighing = streamCopyFor(profile.lang).weighing;
-  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item, line: weighing })) : undefined;
+  const onDelta = onEvent ? itemScanner((index, item) => {
+    if (clock.firstItem === null) clock.firstItem = Date.now() - clock.calledAt;
+    onEvent({ kind: "item", index, item, line: weighing });
+  }) : undefined;
 
   let analysis: AnalyzedMeal;
+  clock.calledAt = Date.now();
   try {
     analysis = await deps.llm.analyzePhoto({
       images, profile, targets, onCost,
@@ -161,6 +167,9 @@ export async function analyzePhotos(
       portionPriors: await deps.store.portionPriors(userId),
     }, onDelta);
   } catch (e) {
+    // A failure's timing is data too — a timeout IS a latency reading, and the percentile over
+    // only the survivors would flatter the model. The write lands or logs; the refusal is unchanged.
+    reportTiming();
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
@@ -171,6 +180,7 @@ export async function analyzePhotos(
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
+  reportTiming();
   // `images` is returned to the caller, which stores them after the row exists.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
@@ -193,9 +203,9 @@ export async function logPhotoMeal(
   userId: string,
   input: LogPhotoInput,
   /**
-   * The live turn's side channel: the glance, and each item as the analyzer closes it. The
-   * result is still the return value — the route writes it as the stream's last line. Without
-   * it nothing streams and no glance call is made: a JSON caller pays for exactly what it did.
+   * The live turn's side channel: each item as the analyzer closes it. The result is still the
+   * return value — the route writes it as the stream's last line. Without it nothing streams:
+   * a JSON caller pays for exactly what it did.
    */
   onEvent?: (event: PhotoEvent) => void,
 ): Promise<LogPhotoResult> {
@@ -343,16 +353,42 @@ export async function editMeal(
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
   if (!existing) return { kind: "target-gone", on: "correction" };
 
+  // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
+  // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
+  // an items-only edit (the phone's and web's ingredient editors send `{ items }` alone) left
+  // stale. A field NO item reports cannot be derived — absent is not zero — so it keeps the
+  // stored figure. An explicit total still wins over either.
+  //
+  // #196: the four fields items do NOT carry (satfat, fibre, sugar, sodium) would otherwise keep
+  // describing the old plate after a grams change — they scale by the edit's kcal ratio. The same
+  // goes for a macro only SOME items report: a silent item's share is unknown, never zero, so the
+  // stored figure scales rather than being summed without it.
+  const mergedKcal = patch.kcal
+    ?? (patch.items !== undefined && patch.items.every((i) => i.kcal !== undefined)
+      ? patch.items.reduce((s, i) => s + (i.kcal ?? 0), 0)
+      : existing.kcal);
+  const kcalRatio = patch.items !== undefined && existing.kcal !== 0
+    ? mergedKcal / existing.kcal
+    : 1;
+  const scale = (kept: number): number => Math.round(kept * kcalRatio * 10) / 10;
+  const derived = <K extends "kcal" | "protein_g" | "carbs_g" | "fat_g">(field: K, sent: number | undefined, kept: number): number => {
+    if (sent !== undefined) return sent;
+    if (patch.items === undefined) return kept;
+    if (patch.items.every((i) => i[field] !== undefined)) return patch.items.reduce((s, i) => s + (i[field] ?? 0), 0);
+    return patch.items.some((i) => i[field] !== undefined) ? scale(kept) : kept;
+  };
+  const scaled = (sent: number | undefined, kept: number): number =>
+    sent ?? (patch.items !== undefined ? scale(kept) : kept);
   const merged = {
     items: patch.items ?? existing.items,
-    kcal: patch.kcal ?? existing.kcal,
-    protein_g: patch.protein_g ?? existing.protein_g,
-    carbs_g: patch.carbs_g ?? existing.carbs_g,
-    fat_g: patch.fat_g ?? existing.fat_g,
-    satfat_g: patch.satfat_g ?? existing.satfat_g,
-    fiber_g: patch.fiber_g ?? existing.fiber_g,
-    sugar_g: patch.sugar_g ?? existing.sugar_g,
-    sodium_mg: patch.sodium_mg ?? existing.sodium_mg,
+    kcal: mergedKcal,
+    protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
+    carbs_g: derived("carbs_g", patch.carbs_g, existing.carbs_g),
+    fat_g: derived("fat_g", patch.fat_g, existing.fat_g),
+    satfat_g: scaled(patch.satfat_g, existing.satfat_g),
+    fiber_g: scaled(patch.fiber_g, existing.fiber_g),
+    sugar_g: scaled(patch.sugar_g, existing.sugar_g),
+    sodium_mg: scaled(patch.sodium_mg, existing.sodium_mg),
   };
 
   const updated = await deps.store.updateMeal(userId, mealId, {
@@ -381,22 +417,21 @@ export async function editMeal(
   }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
-  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  const profile = await deps.store.getProfile(userId);
+  const lang = profile?.lang ?? "en";
+  // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
+  // that moved nothing (a rename), which keeps #49's rule: the card, and no line about it. The
+  // SAME string rides the result — the screen that made the write is where it is shown first.
+  const line = profile ? changeLine(existing, updated, profile) : null;
   if (opts.thread !== false) {
-    await remember(deps, userId, async () => {
-      // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
-      // that moved nothing (a rename), which keeps #49's rule: the card, and no line about it.
-      const profile = await deps.store.getProfile(userId);
-      const line = profile ? changeLine(existing, updated, profile) : null;
-      return [
-        { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
-        ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
-      ];
-    });
+    await remember(deps, userId, async () => [
+      { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
+      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
+    ]);
   }
   return {
     kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
-    ...verdictWordsFor(updated.verdicts, lang),
+    line, ...verdictWordsFor(updated.verdicts, lang),
   };
 }
 
@@ -669,7 +704,7 @@ export async function rewriteMeal(
   if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
-    via: "reanalysis", ...verdictWordsFor(updated.verdicts, profile.lang),
+    via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),
   };
 }
 

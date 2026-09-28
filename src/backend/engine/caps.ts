@@ -71,8 +71,8 @@ export async function checkCaps(
  * names it (#525) — and where its calls report their cost.
  *
  * The cost arrives after the charge and is ADDED to it, because one charge pays for several calls
- * — a schema retry, the router's second call, the coach's rounds, the glance — and the glance lands
- * whenever it lands. A write that fails is a log line: the turn is paid for either way (#484).
+ * — a schema retry, the router's second call, the coach's rounds — each reporting whenever it
+ * lands. A write that fails is a log line: the turn is paid for either way (#484).
  */
 export async function charge(
   deps: EngineDeps, userId: string, date: string, scope: CapScope,
@@ -80,7 +80,7 @@ export async function charge(
   const id = await deps.store.recordAnalysis(userId, date, scope);
   return { analysisId: id, onCost: (usd) => {
     void deps.store.addCost(userId, id, usd).then(
-      // Refunded or merged away while a call was still out — the glance beside a refused analyzer.
+      // Refunded or merged away while a call was still out — a schema retry beside a refund, or a merge.
       (landed) => { if (!landed) console.error(`[eait] cost not recorded: analysis ${id} is gone (${usd ?? "unpriced"})`); },
       (e: unknown) => { console.error(`[eait] cost not recorded: ${(e as Error)?.message ?? e}`); },
     );

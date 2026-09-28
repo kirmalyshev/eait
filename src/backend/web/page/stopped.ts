@@ -16,10 +16,10 @@ export function stopped(
 ): string {
   return shell(title, `
 ${wtop()}
-<div class="wmain one"><div class="wcol" style="justify-content:center">
+<div class="wmain one"><div class="wcol mid">
 <div class="card stopcard"><div class="say"><span class="spud">${spudSvg("care", "spud-stop")}</span>
 <div><p class="d d22">${escape(title)}</p>
-<p class="muted-sub" style="margin-top:6px">${escape(body)}</p>
+<p class="muted-sub mt6">${escape(body)}</p>
 ${lines.map((l) => `<p class="muted-sub">${escape(l)}</p>`).join("")}</div></div></div>
 </div></div>
 `, lang, "ob");

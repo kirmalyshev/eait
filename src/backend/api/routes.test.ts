@@ -2044,7 +2044,7 @@ describe("the streamed photo route", () => {
     return handle(req);
   };
 
-  it("streams NDJSON when asked: the reading line, glance, items — each carrying its words — then the result as the last line", async () => {
+  it("streams NDJSON when asked: the reading line and the items — each carrying its words — then the result as the last line", async () => {
     const token = await session();
     const res = await streamed(token);
     expect(res.status).toBe(200);

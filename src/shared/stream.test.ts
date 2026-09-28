@@ -38,7 +38,7 @@ describe("streamEnd", () => {
 
 describe("lastLine", () => {
   test("is the answer a finished stream carries: its last line, past keepalives and events", () => {
-    expect(lastLine<{ kind: string }>('\n\n{"kind":"glance"}\n\n{"kind":"answered"}\n')).toEqual({ kind: "answered" });
+    expect(lastLine<{ kind: string }>('\n\n{"kind":"item"}\n\n{"kind":"answered"}\n')).toEqual({ kind: "answered" });
   });
 
   test("reads a last line the server did not terminate", () => {
@@ -67,10 +67,9 @@ describe("splitLines", () => {
 });
 
 // #607. The pending photo screen has ONE bubble, and it moves on only when the stream does: our
-// words when the request goes, the glance when it lands, the portions once the analyzer closes a
-// row. It never steps back — a glance that lands after a row is late, not news.
+// words when the request goes, the portions once the analyzer closes a row. It never steps back.
 describe("the pending photo turn", () => {
-  const start: PendingPhoto = { glance: null, items: [] };
+  const start: PendingPhoto = { items: [] };
   const rice: MealItem = { name: "Rice", grams: 150 };
   const egg: MealItem = { name: "Egg", grams: 50 };
   const run = (...events: PhotoEvent[]) => events.reduce(advancePending, start);
@@ -79,19 +78,10 @@ describe("the pending photo turn", () => {
     expect(pendingLine(start, "en")).toBe("Reading the plate…");
   });
 
-  test("the glance replaces it", () => {
-    expect(pendingLine(run({ kind: "glance", text: "Looks like rice." }), "en")).toBe("Looks like rice.");
-  });
-
   test("the first row moves it on to the portions", () => {
-    const p = run({ kind: "glance", text: "Looks like rice." }, { kind: "item", index: 0, item: rice, line: "Weighing portions…" });
+    const p = run({ kind: "item", index: 0, item: rice, line: "Weighing portions…" });
     expect(pendingLine(p, "en")).toBe("Weighing portions…");
     expect(p.items).toEqual([rice]);
-  });
-
-  test("a glance that lands after a row does not step back", () => {
-    const p = run({ kind: "item", index: 0, item: rice, line: "Weighing portions…" }, { kind: "glance", text: "Looks like rice." });
-    expect(pendingLine(p, "en")).toBe("Weighing portions…");
   });
 
   test("a schema retry resets the rows and stays on the portions", () => {
@@ -106,16 +96,13 @@ describe("the pending photo turn", () => {
 });
 
 describe("pendingSteps — what the card shows while the analyzer works (#663)", () => {
-  const start: PendingPhoto = { glance: null, items: [] };
+  const start: PendingPhoto = { items: [] };
   const states = (p: PendingPhoto) => pendingSteps(p, "en").map((s) => s.state);
   test("advances one step per kind of event and never steps back", () => {
     expect(pendingSteps(start, "en").map((s) => s.label)).toEqual(["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"]);
     expect(states(start)).toEqual(["now", "next", "next", "next"]);
-    const glanced = advancePending(start, { kind: "glance", text: "Looks like rice." });
-    expect(states(glanced)).toEqual(["done", "now", "next", "next"]);
-    const row = advancePending(glanced, { kind: "item", index: 0, item: { name: "Rice", grams: 150 }, line: "Weighing portions…" });
+    // The plate was read the moment the first row lands — steps 1 and 2 complete together.
+    const row = advancePending(start, { kind: "item", index: 0, item: { name: "Rice", grams: 150 }, line: "Weighing portions…" });
     expect(states(row)).toEqual(["done", "done", "now", "next"]);
-    // A row before any glance still means the plate was read.
-    expect(states(advancePending(start, { kind: "item", index: 0, item: { name: "Rice", grams: 150 }, line: "Weighing portions…" }))).toEqual(["done", "done", "now", "next"]);
   });
 });

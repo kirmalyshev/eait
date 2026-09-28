@@ -1,49 +1,97 @@
-// Today's own styles — the date switcher, the macro tones and the meals table. Moved whole out of
-// `server/index.ts`'s style block (#87); the register's own layout of this surface is W4's.
+// Home's own styles (W4, #91) — the boards' two-column `wmain` is the shell's; what is here is
+// this surface: the streak chip and the date nav in the bar, the calorie card's two forms, the
+// macro-card pages and their dot switcher, the health-score row and the per-day score modal,
+// the empty/failed day cards, the proposal card, and the in-diary composer.
 
 export const todayCss = `
-progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
-  border-radius: 3px; overflow: hidden; background: var(--line); }
-progress::-webkit-progress-bar { background: transparent; }
-progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
-progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
-.big.warn + progress::-webkit-progress-value { background: var(--warn); }
-.big.warn + progress::-moz-progress-bar { background: var(--warn); }
+/* The top bar's right side: the streak chip, then the shared date row (.drow/.darrow are
+   the shell's — Home and You both draw them, #175). frame.bar is a flex row already. */
 
-/* THE DATE SWITCHER (#71): a white bar at the top of the day — the chevrons at the two ends, the
-   day's name centred between them, and the ONE place the date is written. The relative day carries
-   the date as a quiet sub-line; any other day's name is the date, so nothing prints twice. */
-.daybar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 6px 10px;
-  background: var(--surface); border: 1px solid var(--hair); border-radius: 999px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
-.daybtn { flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; cursor: pointer;
-  background: none; color: var(--ink); font: inherit; font-size: 20px;
-  display: inline-flex; align-items: center; justify-content: center; }
-.daylabel { flex: 1; min-width: 0; text-align: center; }
-.dayname { margin: 0; font-size: 15px; }
-.daysub { margin: 0; font-size: 12px; }
-/* THE MACRO TONES (#71): a counter's figures carry the state against its target — care while
-   protein is still to reach, bad once a cap is passed. The label stays neutral. */
-.tone-good { color: var(--good); }
-.tone-care { color: var(--care); }
-.tone-bad { color: var(--bad); }
-.stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+/* The week's strip sits edge to edge in its column (the boards' margin:-16px bleeds). */
+.weekwrap { margin: 0 -16px; }
 
-/* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
-   show the one guess sitting in a list of measured things, which is the strongest statement of the
-   mechanism anywhere in the product. */
-.meals { width: 100%; border-collapse: collapse; }
-/* The headers are MUTED, not faint: the column is the paper now (#87's frame), and --faint
-   clears 4.5:1 only on a white surface. */
-.meals th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--muted); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
-.meals td { padding: 11px 12px; border-bottom: 1px solid var(--hair); }
-.meals tr:last-child td { border-bottom: 0; }
-.meals .num { text-align: right; white-space: nowrap; }
-/* The guessed row, and the only colour in the list. */
-.meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
-.meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
-/* The row's verdict pills sit under the meal's name, smaller than a card's (#52). */
-.meals .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.meals .pill { min-height: 22px; padding: 0 9px; font-size: 12px; }
+/* THE CALORIE CARD. Two forms: the 104 px toggle card only on today with meals logged (tap
+   flips left↔eaten), the 96 px detail card everywhere else. The past-over form colours the
+   figure --bad and reads "kcal over" — the week's rule, said in words. */
+.kcard { display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px; }
+.kcard .ktg { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none;
+  padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted);
+  cursor: pointer; }
+.kcard .ktg .ico { width: 14px; height: 14px; }
+.kcard .ktg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kcard .kfig { font-size: 44px; font-weight: 700; letter-spacing: -.03em; display: block;
+  line-height: 1.05; }
+/* The boards' two figure sizes: 48 on today's toggle card, 44 on the 96 px detail form. */
+.kcard .kfig.big { font-size: 48px; }
+.kcard .kfig .about { font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--muted);
+  margin-right: 4px; }
+.kcard.over .kfig { color: var(--bad); }
+.kcard .klab { font-size: 13px; font-weight: 600; color: var(--muted); }
+.kcard .klab .caret { display: inline-block; margin-left: 2px; }
+.kcard .mring { margin: 0; }
+
+/* The macro cards: page 1's left-aligned set, page 2's four-up nutrient set, and the compact
+   centred form the empty/logging/past boards draw. mcards.p2 is the four-column page. */
+.mcards.p2 { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+/* The dot switcher — two 6 px dots on 44 px hit areas; the active one is ink. */
+.dots { display: flex; justify-content: center; gap: 6px; margin-top: -2px; }
+.dots button { width: 44px; height: 44px; border: 0; background: none; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line);
+  pointer-events: none; }
+.dots button.on i { background: var(--ink); }
+.dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The health-score row — the DAY board's columnar form of the kit's hsr (the meal sheet's is
+   a single row; kitCss lands after this file, so the variant scopes itself to .hsr.day). */
+.hsr.day { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+.hsr.day .hline { display: flex; align-items: center; justify-content: space-between; }
+.hsr.day .hscore { font-weight: 600; }
+.hsr.day .hnum { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hsr.day .chev .ico { width: 16px; height: 16px; color: var(--muted); }
+.hsr.day .hfrom { font-size: 12px; color: var(--muted); }
+/* flex:none — the kit's .hsr .hsb{flex:1} is a row form; in this column a basis of 0% left the
+   track 0 px tall (#170). */
+.hsr.day .hsb { flex: none; }
+.hsb { height: 6px; border-radius: var(--r-bar); background: var(--hair); overflow: hidden; }
+.hsb i { display: block; height: 100%; background: var(--ink); border-radius: var(--r-bar); }
+
+/* The per-day score modal — the boards' 440 px card over a dimmed page. */
+.scorewrap { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 36%, transparent); display: flex;
+  align-items: center; justify-content: center; z-index: 40; }
+.scorecard { width: 440px; max-width: calc(100vw - 32px); padding: 24px; display: flex;
+  flex-direction: column; gap: 4px; }
+.scorecard .stitle { display: flex; align-items: center; justify-content: space-between; }
+.scorecard .stitle b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.scorecard .stitle .snum { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.scorecard .sline { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
+a.hsp { color: inherit; text-decoration: none; }
+.hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
+.scorecard .cta { margin-top: 14px; }
+
+/* The meal list's column title ("Recently uploaded" — today.html's d17 over the card). */
+.mealtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.meals .meal:first-of-type { border-top: 0; }
+
+/* The empty day — a dashed card holding the plate mark and Spud's line. */
+.emptycard { height: 420px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; background: none; box-shadow: none;
+  border: 1.5px dashed var(--line); border-radius: var(--r-card); }
+.emptycard .plate { width: 56px; height: 56px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--faint); position: relative; }
+.emptycard .plate::after { content: ""; position: absolute; inset: 16px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--faint); }
+.emptycard .say { align-items: center; }
+.emptycard .say p { font-weight: 600; font-size: 17px; margin: 0; }
+
+/* The couldn't-load day — Spud cares, one line, one retry. */
+.failcard { display: flex; justify-content: center; padding: 56px 16px; }
+.failcard p { font-weight: 600; font-size: 15px; line-height: 1.35; margin: 0; }
+.failcard .cta { width: auto; display: inline-flex; min-height: 40px; padding: 0 16px;
+  font-size: 14px; margin-top: 10px; }
+
+/* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
+   it, in chat.css) — the boards' logging state gives it the ink ring, scoped to Home. */
+.home .prop { box-shadow: 0 0 0 2px var(--ink); }
 `;

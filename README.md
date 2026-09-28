@@ -3,6 +3,11 @@
 The backend of [eait.fit](https://eait.fit) — a photo-first nutrition coach — the contract its
 clients implement, and the web application at [app.eait.fit](https://app.eait.fit).
 
+https://github.com/user-attachments/assets/3969bf68-972d-4076-98ff-e36211031c9a
+
+Twenty-five seconds of the demo backend — canned analyses, a fictional account — driving the same
+screens a real one would.
+
 Three workspaces:
 
 | Workspace | What it is |
@@ -134,3 +139,9 @@ the issue tracker. `CODE_OF_CONDUCT.md` is the Contributor Covenant.
 ## License
 
 AGPL-3.0 — see `LICENSE`.
+
+## Support eait
+
+eait is independent and self-funded. If it is useful to you, you can support its development:
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/kirmalyshev)

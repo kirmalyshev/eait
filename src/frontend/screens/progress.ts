@@ -12,7 +12,7 @@ import { weightCard } from "../../shared/progress.ts";
 import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { countText, dayMonth, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonth, decimalNumbers, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import type {
@@ -20,7 +20,7 @@ import type {
 } from "@eait/shared";
 import { api, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { kitEl, weekBarsEl, weightChartEl } from "../kit.ts";
+import { weekBarsEl, weightChartEl } from "../kit.ts";
 import { clear, el, lang, refusalWords, render, type Frame } from "../shell.ts";
 
 const LOG_WEIGHT = "#/you"; // the weigh-in lives on You (W10), the same door its "Log weight" takes.
@@ -244,32 +244,21 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     }
 
     const value = el("div", "wnum");
-    value.append(el("b", "d d28 num", n(w.bmi.value)));
+    // "25.0" — a BMI is one decimal always (Kirill's direction), so the whole-number shape
+    // `numbers` picks is wrong here.
+    value.append(el("b", "d d28 num", decimalNumbers(lang)(w.bmi.value)));
     card.append(value);
 
     const on = BMI_SEGMENTS.findIndex((s) => s.id === w.bmi!.range);
-    const W = 320, H = 18, GAP = 3, Y = 5, BH = 8, R = 4;
-    const sw = (W - GAP * 3) / 4;
-    const segs = BMI_SEGMENTS.map((s, i) => {
-      const x = Math.round((i * (sw + GAP)) * 100) / 100;
-      const w2 = Math.round(sw * 100) / 100;
-      const paint = i === on ? "var(--line)" : "var(--hair)";
-      // The end segments round only the outer corners — the board's `.bmi i` radii — so the
-      // 3px gaps between segments stay square.
-      if (i === 0) {
-        return `<path d="M${x + R} ${Y}H${x + w2}V${Y + BH}H${x + R}Q${x} ${Y + BH} ${x} ${Y + BH - R}V${Y + R}Q${x} ${Y} ${x + R} ${Y}Z" fill="${paint}"/>`;
-      }
-      if (i === BMI_SEGMENTS.length - 1) {
-        return `<path d="M${x} ${Y}H${x + w2 - R}Q${x + w2} ${Y} ${x + w2} ${Y + R}V${Y + BH - R}Q${x + w2} ${Y + BH} ${x + w2 - R} ${Y + BH}H${x}Z" fill="${paint}"/>`;
-      }
-      return `<rect x="${x}" y="${Y}" width="${w2}" height="${BH}" fill="${paint}"/>`;
-    }).join("");
-    const tickX = Math.round(bmiTick(w.bmi.value, w.bmi.range) * W * 10) / 10;
-    card.append(kitEl(
-      `<svg class="bmibar" viewBox="0 0 ${W} ${H}" width="100%" aria-hidden="true">` + segs +
-      `<rect x="${tickX - 1.5}" y="0" width="3" height="${H}" rx="1.5" fill="var(--ink)"/>` +
-      `</svg>`,
-    ));
+    // The board's .bmi: four 8px segments and an 18px tick, pixel-true at any card width —
+    // which is why it is divs and not the earlier scaling svg.
+    const scale = el("div", "bmi");
+    scale.setAttribute("aria-hidden", "true");
+    BMI_SEGMENTS.forEach((_, i) => scale.append(el("i", i === on ? "on" : "")));
+    const tick = el("b", "");
+    tick.style.left = `${Math.round(bmiTick(w.bmi.value, w.bmi.range) * 1000) / 10}%`;
+    scale.append(tick);
+    card.append(scale);
 
     const labels = el("div", "bmil");
     BMI_SEGMENTS.forEach((s, i) => {

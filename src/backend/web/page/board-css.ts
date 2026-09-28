@@ -41,6 +41,12 @@ export const BOARD_CSS = `
 .ob .sp { flex: 1; }
 .ob .wmain { flex: 1; display: flex; }
 .ob .wmain.one { justify-content: center; }
+/* The question column — the boards' own max-width on wmain one, named (#141). */
+.ob .wmain.q { max-width: 720px; }
+.ob .wcol.mid { justify-content: center; }
+.ob .mt6 { margin-top: 6px; }
+.ob .cen { text-align: center; }
+.ob .semi { font-weight: 600; }
 .ob .wcol { display: flex; flex-direction: column; gap: 18px; width: 100%; min-height: 0; padding: 8px 40px 40px; }
 .ob .wcol form { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; }
 .ob .wcol .cta { max-width: 360px; align-self: center; }
@@ -207,6 +213,20 @@ export const BOARD_CSS = `
 .ob .pict .n { position: absolute; left: 12px; bottom: 10px; width: 24px; height: 24px; border-radius: 50%;
                background: var(--ink); color: #fff; font-size: 12px; font-weight: 700;
                display: flex; align-items: center; justify-content: center; }
+/* The drawn step cards — the mini meal and the chart card share the pict frame, on surface (#141). */
+.ob .pict.solid { background: var(--surface); }
+.ob .pict.chart { background: var(--surface); flex-direction: column; align-items: stretch; padding: 10px 14px; }
+.ob .mini { width: 100%; padding: 10px; }
+.ob .mini .mimg { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+.ob .mini .grow { flex: 1; }
+.ob .mini .mrow { gap: 5px; }
+.ob .mini .mico { width: 16px; height: 16px; }
+.ob .mini .mkcal { font-size: 18px; font-weight: 700; }
+.ob .mini .vlist { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.ob .pgraph { display: block; overflow: visible; }
+.ob .pgraph .ink { fill: var(--ink); font-weight: 600; }
+.ob .card.rel { position: relative; }
+.ob .tagx.pos { position: absolute; right: 14px; bottom: 14px; }
 .ob .pt { font-size: 15px; font-weight: 600; }
 .ob .hero { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ob .vf { position: absolute; inset: 0; }
@@ -235,6 +255,9 @@ export const BOARD_CSS = `
 .ob .ptick span { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px;
                   font-weight: 600; background: var(--ink); color: #fff; padding: 4px 8px;
                   border-radius: 999px; white-space: nowrap; }
+/* The tick's seat under the mini curve's target chip — the board's own anchor, a number that
+   lives in the sheet, not in the markup (#141). */
+.ob .ptick .tgt { left: 78%; }
 .ob .ptick span::after { content: ""; position: absolute; left: 50%; top: -8px; width: 1.5px; height: 8px;
                          background: var(--ink); }
 

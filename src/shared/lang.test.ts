@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, genderedRussian, localizedGaps,
-  monthYear, numbers, weekdayLetters,
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayMonthAt, genderedRussian,
+  localizedGaps, monthYear, numbers, decimalNumbers, signedWholeNumbers, timeAt, weekdayLetters,
   acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
+import { localDate } from "./dates.ts";
 
 // The localization spine (#474, slice 1 of #358). Nothing user-visible ships with it: what is
 // pinned here is the fallback rule, because getting it wrong is a crash rather than a wart.
@@ -82,12 +83,50 @@ describe("numbers and dates", () => {
     expect(numbers("de")(92.35)).toBe("92,4");
   });
 
+  it("the BMI figure is one decimal ALWAYS — 25.0, never 25 (#174)", () => {
+    expect(decimalNumbers("en")(25.02)).toBe("25.0");
+    expect(decimalNumbers("de")(25.02)).toBe("25,0");
+    expect(decimalNumbers("ru")(30.46)).toBe("30,5");
+  });
+
   it("names a month in the reader's language, from Intl and never from a table", () => {
     const at = new Date("2026-11-15T12:00:00Z");
     expect(monthYear("en", at)).toBe("November 2026");
     expect(monthYear("de", at)).toBe("November 2026");
     expect(monthYear("fr", at)).toBe("novembre 2026");
     expect(monthYear("vi", at)).toContain("2026");
+  });
+
+
+  it("signs a whole number the locale's own way — the boards' +450 / −500 deltas", () => {
+    const signed = signedWholeNumbers("en");
+    expect(signed(450)).toBe("+450");
+    expect(signed(0)).toBe("+0");
+    // ICU writes the minus as U+2212 or a hyphen depending on the version — pin the digits and
+    // that a NON-digit sign precedes them, not the glyph.
+    expect(signed(-500)).toMatch(/^\D500$/);
+    expect(signedWholeNumbers("de")(-500)).toMatch(/^\D500$/);
+  });
+
+  it("formats an instant's day in the ACCOUNT's zone — a boundary instant lands on different days", () => {
+    // 01 Jan 2027 01:00 UTC is still 31 Dec 2026 in Honolulu and already 1 Jan in Auckland.
+    const at = new Date("2027-01-01T01:00:00Z");
+    expect(dayMonthAt("en", "Pacific/Auckland", at)).toMatch(/1 Jan 2027/);
+    expect(dayMonthAt("en", "Pacific/Honolulu", at)).toMatch(/31 Dec/);
+  });
+
+  it("joins the year only when it is not this one", () => {
+    const thisYear = new Date(`${localDate("UTC")}T12:00:00Z`);
+    expect(dayMonthAt("en", "UTC", thisYear)).not.toMatch(/\d{4}/);
+    expect(dayMonthAt("en", "UTC", new Date("2999-06-15T12:00:00Z"))).toMatch(/2999/);
+  });
+
+  it("reads the clock in the account's zone — the pairing code's expiry and a weigh-in's time", () => {
+    const at = new Date("2026-09-26T09:41:00Z");
+    expect(timeAt("en", "UTC", at)).toMatch(/9:41/);
+    expect(timeAt("en", "Pacific/Auckland", at)).toMatch(/21:41/); // UTC+12 that evening
+    expect(timeAt("de", "Europe/Berlin", at)).toMatch(/11:41/);  // CEST → UTC+2
+    expect(timeAt("de", "Europe/Berlin", at)).not.toBe(timeAt("de", "UTC", at));
   });
 
   it("names the week's seven letters, Monday first — the strip's and the Progress dots' captions", () => {

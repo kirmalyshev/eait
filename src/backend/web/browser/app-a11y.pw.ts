@@ -48,7 +48,9 @@ test("the diary: one main with one h1, 44px nav and Send, and the type floor", a
   // A meal first: a fresh account's `/#/` is the first-meal flow, not the diary.
   await logMeal(page);
   await page.goto("/#/");
-  await expect(page.locator(".big")).toBeVisible();
+  // The W4 board's one h1 is "Home", visually hidden — the kcal card is the draw's own marker.
+  await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
+  await expect(page.locator(".kcard")).toBeVisible();
   await landmark(page);
   for (const tab of await page.locator(".wnav a").all()) await tapTarget(tab);
   await tapTarget(page.getByRole("button", { name: "Send" }));
@@ -57,15 +59,14 @@ test("the diary: one main with one h1, 44px nav and Send, and the type floor", a
   expect(await fontPx(page, ".compose .box")).toBeGreaterThanOrEqual(16);
 });
 
-test("the chat: one h1, and Send and a line's Delete both at 44px", async ({ inWebApp: page }) => {
+test("the chat: one h1, and Send at 44px", async ({ inWebApp: page }) => {
   await page.goto("/#/chat");
   await landmark(page);
   await tapTarget(page.getByRole("button", { name: "Send" }));
+  // A thread line carries no action row since #173 — the only 44px control left is Send's.
   await page.getByPlaceholder("What did you eat?").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  const del = page.locator(".thread li .act", { hasText: "Delete" });
-  await expect(del).toBeVisible();
-  await tapTarget(del);
+  await expect(page.locator(".thread li.me").first()).toBeVisible();
 });
 
 test("You: one h1, and the language select at 44px with 16px type", async ({ inWebApp: page }) => {

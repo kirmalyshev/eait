@@ -3487,6 +3487,36 @@
           "vegan"
         ]
       },
+      "DonateLinks": {
+        "type": "object",
+        "properties": {
+          "github": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kofi": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "buyMeACoffee": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "github",
+          "kofi",
+          "buyMeACoffee"
+        ],
+        "additionalProperties": false,
+        "description": "The donation links a host may offer (#200) — the You surface's \"Support eait\" row.\n\nSENT, NEVER COMPILED, for the reason `limits` is: the same bundle serves self-hosted instances that take no donations, so the operator's `EAIT__BACKEND__DONATE_*_URL` variables are the only source. Each is null while its variable is unset; ALL THREE null is the off state and a client draws no row."
+      },
       "EditLineLast": {
         "anyOf": [
           {
@@ -4501,6 +4531,13 @@
               "null"
             ],
             "description": "Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say."
+          },
+          "line": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The change, named — the SAME line the engine writes into the thread (\"Rice 150 → 200 g: 540 → 605 kcal. …\", `changeLine`, #119), returned so the screen that made the write can show it without a second read. Null when the edit moved nothing (a rename), matching the thread."
           }
         },
         "required": [
@@ -4511,7 +4548,8 @@
           "date",
           "via",
           "verdictLabels",
-          "verdictHeadline"
+          "verdictHeadline",
+          "line"
         ],
         "additionalProperties": false
       },
@@ -5228,23 +5266,6 @@
             "properties": {
               "kind": {
                 "type": "string",
-                "const": "glance"
-              },
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "text"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
                 "const": "item"
               },
               "index": {
@@ -5266,7 +5287,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or one `glance` (whose model-written text IS the line) and zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
+        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
       },
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"
@@ -5546,6 +5567,13 @@
             "$ref": "#/components/schemas/TargetBasis",
             "description": "Why the targets are what they are. `basis.floorApplied` MUST be surfaced to the user."
           },
+          "age": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The account's age in whole years, computed HERE from `birth_year` in this server's timezone — `ageFrom`, the same arithmetic the target model consumes.\n\nSENT, NEVER COMPUTED BY THE CLIENT: `birth_year` is a year, not a birthday, so \"current year minus it\" is already an approximation — having the server answer it keeps every surface on the same approximation instead of each client subtracting in its own zone and disagreeing by one around the new year (#97 review). `null` when the profile holds no usable birth year; a client prints nothing then, not a guess."
+          },
           "onboarded": {
             "type": "boolean",
             "description": "Null until onboarding completes."
@@ -5592,12 +5620,17 @@
           "hasLoggedMeal": {
             "type": "boolean",
             "description": "Whether this account has ever logged a meal — any date, not just inside the diary window (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read it as the ONE \"nothing logged yet\" answer, so two clients can never disagree about which meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on this response."
+          },
+          "donate": {
+            "$ref": "#/components/schemas/DonateLinks",
+            "description": "{@link  DonateLinks }  — the operator's donation URLs, every one null when none are set."
           }
         },
         "required": [
           "profile",
           "targets",
           "basis",
+          "age",
           "onboarded",
           "isAdmin",
           "limits",
@@ -5608,7 +5641,8 @@
           "healthConnected",
           "paywall",
           "coachName",
-          "hasLoggedMeal"
+          "hasLoggedMeal",
+          "donate"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -5887,6 +5921,13 @@
             "type": "number",
             "description": "What the chosen pace asked for, signed: negative cuts, positive adds."
           },
+          "activityDeltaKcal": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "What the person's days add on top of resting — `tdee − bmr`, the activity's own share. Null when `bmr`/`tdee` are null (flat-band fallback): there is no maintenance to split it from."
+          },
           "appliedDeltaKcal": {
             "type": "number",
             "description": "What was actually applied after BOTH guards — the delta the final kcal target carries."
@@ -5912,6 +5953,7 @@
           "bmr",
           "tdee",
           "requestedDeltaKcal",
+          "activityDeltaKcal",
           "appliedDeltaKcal",
           "shareCapApplied",
           "floorKcal",

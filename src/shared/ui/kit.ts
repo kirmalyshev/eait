@@ -81,9 +81,11 @@ export const ring = (o: RingOpts): string => {
 // ── The week strip ───────────────────────────────────────────────────────────────────────────
 //
 // Seven days, the date centred in its ring. `when` arrives from the server (`DiaryDay`) — a client
-// never compares a row's date with today. Each cell is a real `<button type="button">` carrying
-// `data-date`, so a surface can delegate a tap without reaching into the markup; `type="button"`
-// because an untyped one inside a `/start` form would submit it.
+// never compares a row's date with today. Each past-or-today cell is a real `<button
+// type="button">` carrying `data-date`, so a surface can delegate a tap without reaching into the
+// markup; `type="button"` because an untyped one inside a `/start` form would submit it. A future
+// cell is markup, not a control — a day that has not happened has no diary to open. `now` names
+// the raised cell's DATE (`YYYY-MM-DD`); unsaid, it is the server's today.
 
 export interface WeekDayRow extends ChartDay {
   /** YYYY-MM-DD in the account's timezone — the server's, read straight through. */
@@ -92,13 +94,20 @@ export interface WeekDayRow extends ChartDay {
   targetKcal: number;
 }
 
-export const weekStrip = (days: readonly WeekDayRow[], lang: Lang): string => {
+export const weekStrip = (
+  days: readonly WeekDayRow[],
+  lang: Lang,
+  now?: string,
+): string => {
   const letters = weekdayLetters(lang);
   const fullDate = new Intl.DateTimeFormat(LANG_TAG[lang], { dateStyle: "full", timeZone: "UTC" });
   const cells = days.map((day) => {
     const noon = new Date(`${day.date}T12:00:00Z`);
     const ring = dayRing(day, day.targetKcal);
-    const cls = day.when === "today" ? "dy now" : day.when === "future" ? "dy fut" : "dy";
+    // `.now` raises the cell the surface is LOOKING AT, not necessarily the server's today: Home's
+    // strip follows the viewed week, so the caller names the day. Unsaid, it stays today's.
+    const isNow = now !== undefined ? day.date === now : day.when === "today";
+    const cls = isNow ? "dy now" : day.when === "future" ? "dy fut" : "dy";
     const circles = ring.dashoffset === undefined
       ? `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
       : `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
@@ -106,6 +115,10 @@ export const weekStrip = (days: readonly WeekDayRow[], lang: Lang): string => {
         `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
     const letter = esc(letters[(noon.getUTCDay() + 6) % 7]!);
     const num = Number(day.date.slice(8, 10));
+    // A future day is not a control (it has no diary yet) — the boards draw it as a dimmed cell,
+    // so it is markup, not a button with no effect.
+    if (day.when === "future" && !isNow)
+      return `<span class="${cls}">${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></span>`;
     return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
       `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;
   });
@@ -148,12 +161,21 @@ export const gramMacs = (
  * target" and there is none to show. `centred` is the meal sheet's alignment; the plan card —
 // icon, figure, label and no ring div — is `planCard`.
  */
-export const mcard = (o: {
-  macro: ChipName; value: string; label: string; share?: number; centred?: boolean;
-}): string => {
+export const mcard = (
+  o: { value: string; label: string; centred?: boolean } & (
+    | { macro: ChipName; share?: number }
+    /** Page 2's nutrient cards (W4) draw `fibre`/`sugar`/`salt` — icons with no ring, because a
+     *  ring says "of a target" and these cards carry none. The union keeps it that way — except
+     *  salt with a declared cap (kidneys), whose ring is drawn in ink: sodium has no macro colour
+     *  to borrow. */
+    | { macro: "salt"; share: number }
+    | { macro: "fibre" | "sugar" | "salt"; share?: undefined }
+  ),
+): string => {
   const pic = o.share === undefined
     ? `<div class="mring flat">${ico(o.macro)}</div>`
-    : ring({ share: o.share, tone: `macro-${o.macro}`, icon: o.macro });
+    : ring({ share: o.share,
+      tone: o.macro === "salt" ? "ink" : `macro-${o.macro}` as `macro-${ChipName}`, icon: o.macro });
   return `<div class="mcard${o.centred ? " ctr" : ""}"><b>${esc(o.value)}</b><small>${esc(o.label)}</small>${pic}</div>`;
 };
 
@@ -342,9 +364,13 @@ export const twoWayChartSvg = (
 export const weightChartSvg = (
   points: readonly WeightPoint[],
   labels: { aria?: string; first: string; last: string; from: string; to: string },
+  /** you.html's target lane — `label` is the caller's "{w} · target" in the display unit. */
+  target?: { label: string },
 ): string => {
-  const g = weightChart(points);
-  const grid = g.gridlines.map((y) =>
+  const g = weightChart(points, target !== undefined);
+  // The You board's wchart carries no hairlines — with the target lane the dashed line IS the
+  // frame's one guide; without a lane the plain chart keeps its grid.
+  const grid = g.targetLine !== undefined ? "" : g.gridlines.map((y) =>
     `<line x1="20" x2="310" y1="${y}" y2="${y}" stroke="var(--hair)"/>`
   ).join("");
   const dots = g.points.map((p, i) =>
@@ -352,6 +378,10 @@ export const weightChartSvg = (
   ).join("");
   return `<svg class="pgraph wl" viewBox="${g.viewBox}" width="100%" role="img"${labels.aria ? ` aria-label="${esc(labels.aria)}"` : ""}>` +
     grid +
+    (g.targetLine !== undefined
+      ? `<line x1="${g.targetLine.x1}" x2="${g.targetLine.x2}" y1="${g.targetLine.y}" y2="${g.targetLine.y}" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="${g.targetLine.dash}"/>` +
+        `<text x="${g.targetLabel!.x}" y="${g.targetLabel!.y}" text-anchor="end" fill="var(--accent)" font-size="12" font-weight="600">${esc(target!.label)}</text>`
+      : "") +
     (g.path ? `<path class="draw wl-line" d="${g.path}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "") +
     dots +
     `<text x="${g.firstLabel.x}" y="${g.firstLabel.y}" fill="var(--ink)" font-weight="600">${esc(labels.first)}</text>` +
@@ -382,7 +412,7 @@ export const weekBarsSvg = (
     `<text x="${p.x}" y="${p.y}" text-anchor="middle">${esc(o.letters[i] ?? "")}</text>`
   ).join("");
   return `<svg class="pgraph wb" viewBox="${g.viewBox}" width="100%" role="img">` +
-    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="3 3"/>` +
+    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="${g.planLine.dash}"/>` +
     bars + letters +
     `<text x="${g.planLabel.x}" y="${g.planLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(o.planLabel)}</text>` +
     `</svg>`;
@@ -478,7 +508,7 @@ export const optionRow = (o: {
 export function kitCss(): string {
   return `
 /* W1 — the component kit (#88). pro.css's measurements; the vars are palette.ts/design.ts's. */
-:root{--r-card:${RADIUS.card}px;--r-ctl:${RADIUS.control}px;--r-thumb:${RADIUS.thumbnail}px;--r-cta:${RADIUS.cta}px;--shadow:${SHADOW}}
+:root{--r-card:${RADIUS.card}px;--r-ctl:${RADIUS.control}px;--r-thumb:${RADIUS.thumbnail}px;--r-cta:${RADIUS.cta}px;--r-bar:${RADIUS.bar}px;--shadow:${SHADOW}}
 
 /* The ring instrument — 104/96/52 px, strokes 8/8/5, the arc drawn on entry. */
 .mring{position:relative;width:52px;height:52px;margin-top:8px;flex:0 0 auto}
@@ -501,7 +531,7 @@ export function kitCss(): string {
   border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:12px;font-weight:600;
   color:var(--muted);position:relative;cursor:pointer}
 .week .dy.now{background:var(--surface);box-shadow:var(--shadow);color:var(--ink)}
-.week .dy.fut{opacity:.45}
+.week .dy.fut{opacity:.45;cursor:default}
 .week .dy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .week svg{width:32px;height:32px;transform:rotate(-90deg)}
 .week .fg{animation:k-draw 1.2s var(--ease) both}

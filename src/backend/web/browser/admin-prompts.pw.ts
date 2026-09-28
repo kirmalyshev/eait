@@ -45,10 +45,9 @@ const EDITOR_META = {
 
 const PROMPTS = [
   { key: "analysis", text: "You estimate the nutritional content of a meal from photographs.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You estimate the nutritional content of a meal from photographs." },
-  { key: "route", text: "You are the text side of a nutrition tracker.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are the text side of a nutrition tracker." },
+  { key: "route", text: "Sort the message in two words.", version: 4, source: "admin", updated_at: "2026-09-18T11:00:00.000Z", shipped: "You are the text side of a nutrition tracker." },
   { key: "text_meal", text: "You estimate from a description.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You estimate from a description." },
   { key: "text_correction", text: "You correct a meal already logged.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You correct a meal already logged." },
-  { key: "glance", text: "Name the plate in five words.", version: 4, source: "admin", updated_at: "2026-09-18T11:00:00.000Z", shipped: "You name what is on the plate." },
   { key: "coach", text: "You are Spud.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are Spud." },
 ];
 
@@ -87,6 +86,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({
     days: [], dailyAnalysisCap: 0, headroom: 0,
     d1: { returned: 0, eligible: 0 }, d7: { returned: 0, eligible: 0 },
+    latency: { n: 0, queue: { p50: null, p95: null }, firstItem: { p50: null, p95: null }, total: { p50: null, p95: null } },
   })));
   await page.route("**/admin/api/funnel**", (r) => r.fulfill(json({
     days: 30, contentVersion: 1, sessions: 0, completed: 0, rows: [],
@@ -95,14 +95,14 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     users: [], nextCursor: null, defaultFreeAnalyses: 15,
   })));
   await page.route("**/admin/api/prompts/*/revisions", (r) => r.fulfill(json({
-    key: "glance",
+    key: "route",
     revisions: [
-      { key: "glance", version: 4, source: "admin", text: "Name the plate in five words.", updated_at: "2026-09-18T11:00:00.000Z" },
-      { key: "glance", version: 1, source: "shipped", text: "You name what is on the plate.", updated_at: "2026-09-18T10:00:00.000Z" },
+      { key: "route", version: 4, source: "admin", text: "Name the plate in five words.", updated_at: "2026-09-18T11:00:00.000Z" },
+      { key: "route", version: 1, source: "shipped", text: "You are the text side of a nutrition tracker.", updated_at: "2026-09-18T10:00:00.000Z" },
     ],
   })));
   await page.route("**/admin/api/prompts", (r) => {
-    if (r.request().method() === "PUT") return r.fulfill((over.put as never) ?? json({ key: "glance", version: 5 }));
+    if (r.request().method() === "PUT") return r.fulfill((over.put as never) ?? json({ key: "route", version: 5 }));
     return r.fulfill(json({ prompts: PROMPTS }));
   });
 }
@@ -138,7 +138,8 @@ test("the panel renders one card per prompt, and says who wrote each", async ({ 
   await openAdmin(page);
 
   const panel = page.locator("#prompts");
-  await expect(panel.locator(".card")).toHaveCount(6);
+  // Five prompts — the glance was retired in #216 and PROMPT_KEYS no longer carries it.
+  await expect(panel.locator(".card")).toHaveCount(5);
 
   // The shipped ones say a deploy keeps them current.
   await expect(panel.getByText("shipped — version 1. A deploy keeps this current.").first()).toBeVisible();
@@ -157,14 +158,14 @@ test("History opens the revisions, newest first, with the whole text of each", a
   await stubAdmin(page);
   await openAdmin(page);
 
-  const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
-  await glance.getByRole("button", { name: "History" }).click();
+  const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
+  await card.getByRole("button", { name: "History" }).click();
 
-  await expect(glance.getByText(/version 4 — admin/)).toBeVisible();
-  await expect(glance.getByText(/version 1 — shipped/)).toBeVisible();
+  await expect(card.getByText(/version 4 — admin/)).toBeVisible();
+  await expect(card.getByText(/version 1 — shipped/)).toBeVisible();
   // The append-only table's whole point: the superseded text is still readable.
-  await glance.locator("details").last().click();
-  await expect(glance.getByText("You name what is on the plate.")).toBeVisible();
+  await card.locator("details").last().click();
+  await expect(card.getByText("You are the text side of a nutrition tracker.")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -173,16 +174,16 @@ test("saving asks first, and an unchanged prompt is not a save at all", async ({
   await stubAdmin(page);
   await openAdmin(page);
 
-  const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
+  const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
   // Untouched: the button refuses without a dialog, because there is nothing to confirm.
-  await glance.getByRole("button", { name: "Save glance" }).click();
-  await expect(glance.getByText("no change")).toBeVisible();
+  await card.getByRole("button", { name: "Save route" }).click();
+  await expect(card.getByText("no change")).toBeVisible();
 
   // Changed: it confirms, and says what a save costs — every analysis after it.
   let asked = "";
   page.on("dialog", (d) => { asked = d.message(); void d.accept(); });
-  await glance.locator("textarea").fill("Two words, no more.");
-  await glance.getByRole("button", { name: "Save glance" }).click();
+  await card.locator("textarea").fill("Two words, no more.");
+  await card.getByRole("button", { name: "Save route" }).click();
   await expect.poll(() => asked).toContain("Every analysis after this is asked the new text");
   expect(errors).toEqual([]);
 });
@@ -200,11 +201,11 @@ test("a 409 lands beside the button, not in the page's error box", async ({ page
   await openAdmin(page);
 
   page.on("dialog", (d) => void d.accept());
-  const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
-  await glance.locator("textarea").fill("Two words, no more.");
-  await glance.getByRole("button", { name: "Save glance" }).click();
+  const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
+  await card.locator("textarea").fill("Two words, no more.");
+  await card.getByRole("button", { name: "Save route" }).click();
 
-  await expect(glance.getByText(/somebody else saved this prompt a moment ago/)).toBeVisible();
+  await expect(card.getByText(/somebody else saved this prompt a moment ago/)).toBeVisible();
   await expect(page.locator("#prompt-errors")).toHaveClass(/hidden/);
   expect(errors).toEqual([]);
 });

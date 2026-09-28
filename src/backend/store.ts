@@ -436,7 +436,17 @@ export interface AdminMetrics {
   days: AdminDay[];
   d1: AdminReturn;
   d7: AdminReturn;
+  /**
+   * How fast the photo turn answers, across the window: `queue` is shutter-to-analyzer-call,
+   * `firstItem` is call-to-first-item (null on rows that never streamed one — the JSON path),
+   * `total` is call-to-answer. `n` is rows carrying any timing at all; percentiles are null
+   * when nothing in the window carries that leg.
+   */
+  latency: { n: number; queue: Percentiles; firstItem: Percentiles; total: Percentiles };
 }
+
+/** A pair of percentiles, or nulls when the window held nothing to order. */
+export interface Percentiles { p50: number | null; p95: number | null }
 
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
@@ -1072,6 +1082,12 @@ export interface Store {
    * and they land in any order. Scoped `id = ? AND user_id = ?`; false when no such row is theirs.
    */
   addCost(userId: string, analysisId: string, usd: number | null): Promise<boolean>;
+  /**
+   * How long the turn behind this analysis took, written once when it settles. `queue` is shutter
+   * (or turn start) to the analyzer call; `firstItem` is call-to-first-item — null when the turn
+   * never streamed one; `total` is call-to-answer. Scoped like `addCost`; false on no such row.
+   */
+  recordTiming(userId: string, analysisId: string, timing: { queue: number; firstItem: number | null; total: number }): Promise<boolean>;
   /**
    * What each of these analyses cost, for the admin's thread (#525). Scoped: only this account's
    * rows, and an id with no row — refunded, or not theirs — is simply absent, never a zero.

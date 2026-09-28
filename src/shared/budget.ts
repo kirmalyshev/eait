@@ -107,3 +107,75 @@ export function dayBudget(
     warn: state === "over" && goal !== "gain", protein,
   };
 }
+
+/**
+ * Grams of a macro still left against its target — the figure a "{g} g left" card prints.
+ *
+ * Shared so the phone and the web card agree: both clients draw the same macro cards, and each
+ * clamping or rounding the subtraction on its own is how "0 g left" on one surface reads "-1 g"
+ * on another. A macro with no target has nothing left to count and answers 0.
+ */
+export function macroLeft(target: number, eaten: number): number {
+  return Math.max(0, Math.round(target - eaten));
+}
+
+/**
+ * A macro card's figure-and-label pair — "{n} g" over "{Macro} left" or "{Macro} over".
+ *
+ * ONE RULE for the two screens that draw the card: Home's diary column and You's day column are
+ * the same component on the boards (#175), so a clamped "0 g left" beside a real overage is two
+ * cards disagreeing about one day. `label` is a copy slot the screen fills; over shows the
+ * overage and closes the ring, a targetless macro shows the eaten figure and draws no ring, and
+ * the share is eaten/target clamped to a full ring.
+ */
+export interface MacroCardState {
+  /** The grams the card prints — the overage when over, what's left otherwise, eaten when targetless. */
+  figure: number;
+  /** Which of the card's two label words it reads: "{Macro} left" or "{Macro} over". */
+  label: "left" | "over";
+  /** eaten / target clamped to 0…1 — absent when there is no target to be a share of. */
+  share?: number;
+}
+
+export const macroCardState = (eaten: number, target: number | undefined): MacroCardState => {
+  const e = Math.round(eaten);
+  if (target === undefined) return { figure: e, label: "left" };
+  const over = e > target;
+  return {
+    figure: over ? e - target : macroLeft(target, e),
+    label: over ? "over" : "left",
+    share: target > 0 ? Math.min(1, e / target) : 1,
+  };
+};
+
+/**
+ * The W4 calorie card's figure-and-label pair — ONE choice for the screen's two forms (#164).
+ *
+ * `label` is a copy slot the screen fills ("kcal left"/"kcal eaten"/"kcal over" and their detail
+ * forms); `figure` is the number above it. The rules: today toggles `left` to `eaten`; an OVER
+ * day's figure is the overage under "over" — and toggles to eaten under "eaten", never the eaten
+ * figure under "over"; a PAST day reads like today's untoggled face — left or over against the
+ * plan that day had (#170's board: "{n} kcal over · {eaten} of {plan}"), the eaten figure lives
+ * only behind today's toggle; and a past day with nothing on it shows the plan that day had,
+ * under "left" (the boards' "0 of {n}" form). A guessed day carries the about-marker through for
+ * the figure's own mark (#47).
+ */
+export interface KcalCardState {
+  figure: number;
+  label: "left" | "eaten" | "over";
+  guessed: boolean;
+}
+
+export const kcalCardState = (budget: DayBudget, showEaten: boolean): KcalCardState => {
+  if (showEaten) {
+    return { figure: budget.eaten, label: "eaten", guessed: budget.guessed };
+  }
+  if (budget.state === "over") {
+    return { figure: budget.kcal, label: "over", guessed: budget.guessed };
+  }
+  return {
+    figure: budget.state === "unlogged" ? budget.target : budget.kcal,
+    label: "left", guessed: budget.guessed,
+  };
+};
+

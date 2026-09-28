@@ -495,17 +495,10 @@ export function buildRouteText(input: {
   return lines.join("\n");
 }
 
-// ── The glance ───────────────────────────────────────────────────────────────────────────────
-
-/**
- * One sentence, fast. Runs on a model that does not reason, in parallel with the analyzer, so the
- * user reads what Spud sees about a second after the upload. Never numbers: the numbers are the
- * analyzer's, and a figure here that the card then contradicts is a figure the user remembers.
- */
 /**
  * The one line that decides what language every generated word in this product comes out in.
  *
- * THE LARGEST TEXT SURFACE HERE IS IN NO TABLE. Meal names, the coach's answers, the glance, the
+ * THE LARGEST TEXT SURFACE HERE IS IN NO TABLE. Meal names, the coach's answers, the
  * follow-up chips: all of it is written by the model, per turn, and none of it is translated by
  * anybody. What steers it is this sentence, and it used to be the bare code — `Reply in this
  * language: vi.` A two-letter code is unambiguous to a compiler and a guess to a model, and the
@@ -522,13 +515,6 @@ export function buildRouteText(input: {
 export function languageLine(lang: string): string {
   const code = narrowLang(lang);
   return `Reply in this language: ${LANG_LABEL[code]} (${code}). Every word you write is read by somebody who asked for that language.`;
-}
-
-export const SYSTEM_GLANCE = `You name what is on the plate. Reply with ONE short sentence, at most ten words, naming the main foods you see, in the requested language. No numbers, no advice, no preamble.`;
-/** A sentence's worth. The bound is reserved against the balance before routing, so it stays small. */
-export const GLANCE_MAX_TOKENS = 60;
-export function buildGlanceText(lang: string): string {
-  return `${languageLine(lang)} Name the plate.`;
 }
 
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
@@ -720,12 +706,12 @@ export const coachLine = (text: string): string => normalizePromptText(text, MAX
 /**
  * Every prompt this code knows how to send, and the one place the set is declared.
  *
- * The Postgres check constraint spells the same six out by hand, so the two CAN drift — and
+ * The Postgres check constraint spells the same five out by hand, so the two CAN drift — and
  * `prompt.schema.test.ts` compares them and fails naming the key. That is deliberate: a constraint
- * generated from this array could never disagree with it, and could never catch a seventh prompt
- * that was added here and never given a home in the schema.
+ * generated from this array could never disagree with it, and could never catch a prompt added
+ * here and never given a home in the schema.
  */
-export const PROMPT_KEYS = ["analysis", "route", "text_meal", "text_correction", "glance", "coach"] as const;
+export const PROMPT_KEYS = ["analysis", "route", "text_meal", "text_correction", "coach"] as const;
 export type PromptKey = typeof PROMPT_KEYS[number];
 export type Prompts = Record<PromptKey, string>;
 
@@ -745,7 +731,6 @@ export const PROMPT_DEFAULTS: Prompts = {
   route: SYSTEM_ROUTE,
   text_meal: SYSTEM_TEXT_MEAL,
   text_correction: SYSTEM_TEXT_CORRECTION,
-  glance: SYSTEM_GLANCE,
   coach: SYSTEM_COACH,
 };
 

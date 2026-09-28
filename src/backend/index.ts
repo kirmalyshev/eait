@@ -57,7 +57,6 @@ if (demo && llmArg === "real") {
   config.llmProvider = "openrouter";
   config.llmModel = process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel;
   config.llmChatModel = process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel;
-  config.llmGlanceModel = process.env.EAIT__BACKEND__LLM_GLANCE_MODEL ?? d.llmGlanceModel;
 }
 
 // The session lifetime reaches the store the same way every other setting reaches the engine: as an
@@ -107,8 +106,9 @@ const deps: EngineDeps = {
         apiKey: config.llmApiKey,
         model: config.llmModel,
         chatModel: config.llmChatModel,
-        glanceModel: config.llmGlanceModel,
         reasoningEffort: config.llmReasoningEffort,
+        // Comma-separated provider names; empty disables the pin and lets OpenRouter route.
+        providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
         maxTokens: config.llmMaxTokens,

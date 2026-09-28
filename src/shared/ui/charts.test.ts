@@ -8,6 +8,8 @@ import { describe, expect, test } from "bun:test";
 import {
   BMI_SEGMENTS,
   bmiTick,
+  bodyWeightChart,
+  compareChart,
   dayRing,
   dayTone,
   estimateAreaPath,
@@ -15,10 +17,11 @@ import {
   estimateCurvePath,
   ESTIMATE_CHART_MINI,
   goalBar,
+  intakeChart,
   ringDash,
   TWO_WAYS_CHART,
   weekBars,
-  weightChart,
+  TARGET_LANE_DASH, weightChart,
   WEIGHT_RANGES,
   WEEK_RING,
 } from "./charts.ts";
@@ -241,6 +244,18 @@ describe("weightChart — logged weights over the day axis", () => {
     expect(c.path).toBe("");
   });
 
+  test("a target adds the bottom lane you.html draws — without one the geometry is unchanged", () => {
+    const c = weightChart(persona, true);
+    expect(c.viewBox).toBe("0 0 320 120");
+    expect(c.dateLabelY).toBe(118);
+    expect(c.targetLine).toEqual({ x1: 24, x2: 296, y: 104, dash: TARGET_LANE_DASH });
+    expect(c.targetLabel).toEqual({ x: 296, y: 98 });
+    const plain = weightChart(persona);
+    expect(plain.targetLine).toBeUndefined();
+    expect(plain.viewBox).toBe("0 0 320 112");
+    expect(plain.dateLabelY).toBe(110);
+  });
+
   test("the four ranges exist and are the only ones", () => {
     expect(WEIGHT_RANGES).toEqual(["90D", "6M", "1Y", "all"]);
   });
@@ -252,7 +267,7 @@ describe("weekBars — the week's intake against the plan", () => {
   test("the persona's week, as progress.html draws it", () => {
     const c = weekBars(days, 1434, 3);
     expect(c.viewBox).toBe("0 0 320 142");
-    expect(c.planLine).toEqual({ x1: 8, x2: 312, y: 43 });
+    expect(c.planLine).toEqual({ x1: 8, x2: 312, y: 43, dash: "3 3" });
     expect(c.planLabel).toEqual({ x: 312, y: 37 });
     expect(c.bars[0]).toMatchObject({ x: 14, y: 45, height: 73, tone: "accent", today: false });
     expect(c.bars[1]).toMatchObject({ x: 58, y: 43, height: 75 });
@@ -287,6 +302,19 @@ describe("weekBars — the week's intake against the plan", () => {
       expect(bar.y).toBeGreaterThanOrEqual(0);
       expect(bar.y + bar.height).toBeLessThanOrEqual(118);
     }
+  });
+
+  test("a bar reaching the label's zone lifts it clear — the label never sits on a bar (#174)", () => {
+    // Sunday (the last slot, under the right-anchored label) over plan: at the fixed planY − 6
+    // the baseline lands inside the bar. The label stays right-anchored, above the bar's top.
+    const c = weekBars([null, null, null, null, null, null, 2200], 1434, 6);
+    const last = c.bars[6]!;
+    expect(last.y).toBeLessThan(31); // tops inside the label's fixed zone (planY − 6 = 53 − text)
+    expect(c.planLabel.x).toBe(312);
+    expect(c.planLabel.y).toBeLessThanOrEqual(last.y - 6);
+    expect(c.planLabel.y).toBeGreaterThanOrEqual(0);
+    // And the board's own week — nothing near the label — keeps the board's spot.
+    expect(weekBars(days, 1434, 3).planLabel).toEqual({ x: 312, y: 37 });
   });
 });
 
@@ -329,5 +357,154 @@ describe("the BMI bar — four segments, one tick", () => {
 
   test("the ids are the ones scores.ts bands by, in bar order", () => {
     expect(BMI_SEGMENTS.map((s) => s.id)).toEqual(["below-18.5", "18.5-24.9", "25-29.9", "30-plus"]);
+  });
+});
+
+// ── Apple Health's charts (phone/health*.html, the M8 boards) ──────────────────────────────────
+
+describe("intakeChart — the Health intake card's bars against the plan", () => {
+  // The seeded week's intake, Sep 18 → today the 24th, plan 1,434 — health.html's own numbers.
+  const vals = [1386, 1522, 1308, 1908, 1572, 1580, 1066];
+  const labels = ["18", "19", "20", "21", "22", "23", "Today"];
+  const c = intakeChart(vals, 1434, 6);
+
+  test("the board's frame: 350×150, a full-width baseline at 124, labels at 142", () => {
+    expect(c.viewBox).toBe("0 0 350 150");
+    expect(c.baseline).toBe(124);
+    expect(c.labels.map((l) => l.y)).toEqual(Array(7).fill(142));
+    expect(c.labels[6]).toEqual({ x: 311, y: 142 });
+  });
+
+  test("seven days get the board's pitch: 48px slots at x 8, bars 30 wide, rx 3", () => {
+    expect(c.bars.map((b) => b?.x)).toEqual([8, 56, 104, 152, 200, 248, 296]);
+    expect(c.bars.map((b) => b?.width)).toEqual(Array(7).fill(30));
+    expect(c.bars[0]?.rx).toBe(3);
+  });
+
+  test("the dashed plan line spans the frame, label at its right end", () => {
+    expect(c.planLine).not.toBeNull();
+    expect(c.planLine!.x1).toBe(0);
+    expect(c.planLine!.x2).toBe(350);
+    expect(c.planLine!.dash).toBe("5 4");
+    expect(c.planLabel!.x).toBe(350);
+    expect(c.planLabel!.y).toBe(c.planLine!.y - 6);
+  });
+
+  test("the scale yields to the largest figure — a bar over plan clears the line", () => {
+    const tallest = c.bars[3]!; // 1,908 of 1,434 — over plan
+    expect(tallest.y + tallest.height).toBe(124);
+    expect(tallest.y).toBeLessThan(c.planLine!.y);
+    expect(tallest.y).toBeGreaterThanOrEqual(0);
+    expect(c.planLine!.y).toBeGreaterThanOrEqual(0);
+  });
+
+  test("only today carries the flag — a gap draws no bar but keeps its label slot", () => {
+    expect(c.bars.filter((b) => b?.today)).toHaveLength(1);
+    const g = intakeChart([null, 1066, null, null, null, null, null], 1434, 1);
+    expect(g.bars[0]).toBeNull();
+    expect(g.labels[0]).toEqual({ x: 23, y: 142 });
+    expect(g.bars[1]?.today).toBe(true);
+  });
+
+  test("more buckets narrow the bars — a 26-week axis still fits the frame", () => {
+    const w = intakeChart(Array(26).fill(1200), 1434);
+    expect(w.bars[25]!.x + w.bars[25]!.width).toBeLessThanOrEqual(350);
+    expect(w.bars[0]!.x).toBeGreaterThanOrEqual(0);
+    for (const b of w.bars) expect(b!.width).toBeGreaterThanOrEqual(2);
+  });
+
+  test("no plan means no line and no label", () => {
+    const c0 = intakeChart(vals, 0);
+    expect(c0.planLine).toBeNull();
+    expect(c0.planLabel).toBeNull();
+  });
+});
+
+describe("compareChart — two series on two axes", () => {
+  // health-compare.html's own numbers: intake as the bars, steps as the line.
+  const intake = [1720, 1560, 1810, 1590, 1640, 1500, 1066];
+  const steps = [8900, null, 14300, 13500, 12400, 6900];
+  const labels = ["18", "19", "20", "21", "22", "23", "Today"];
+  const fmt = (v: number) => v.toLocaleString("en-US");
+  const c = compareChart(intake, steps, labels, fmt, fmt);
+
+  test("the board's frame: 350×164, three hairlines, gutter labels on both sides", () => {
+    expect(c.viewBox).toBe("0 0 350 164");
+    expect(c.gridlines).toHaveLength(3);
+    expect(c.leftLabels.map((l) => l.text)).toEqual(["0", "1,000", "2,000"]);
+    expect(c.rightLabels.map((l) => l.text)).toEqual(["5,000", "10,000", "15,000"]);
+    // Left labels end just left of the plot; right labels start just right of it.
+    expect(c.leftLabels[0]!.x).toBeLessThan(c.plotLeft);
+    expect(c.rightLabels[0]!.x).toBeGreaterThan(c.plotLeft + c.plotWidth);
+  });
+
+  test("the bars floor at zero and the line floats in its own range", () => {
+    const s = compareChart(intake, steps, labels, fmt, fmt);
+    for (const b of s.bars) {
+      if (b === null) continue;
+      expect(b.y + b.height).toBeCloseTo(140, 0);
+      expect(b.rx).toBe(3);
+    }
+    // Steps run 6,900→14,300: the board's own axis, 5,000 to 15,000.
+    expect(s.rightLabels[0]!.text).toBe("5,000");
+    expect(s.rightLabels[2]!.text).toBe("15,000");
+  });
+
+  test("a null on the line side breaks the path into runs but the bar still draws", () => {
+    const s = compareChart(intake, steps, labels, fmt, fmt);
+    expect(s.runs.length).toBe(2); // 8,900 alone, then 14,300·15,200·12,400·6,900
+    expect(s.bars[1]).not.toBeNull();
+    expect(s.dots).toHaveLength(5);
+    for (const d of s.dots) expect(d.r).toBe(3.5);
+  });
+
+  test("a null on the bar side leaves the slot empty while the line runs through", () => {
+    const s = compareChart([1720, null, 1810, 1590, 1640, 1500, 1066], steps, labels, fmt, fmt);
+    expect(s.bars[1]).toBeNull();
+    expect(s.labels.map((l) => l.text)).toEqual(labels);
+  });
+
+  test("the gutters widen for a wide label rather than clip it", () => {
+    const wide = compareChart(intake, steps, labels, () => "8 h 30 m", fmt);
+    expect(wide.plotLeft).toBeGreaterThan(c.plotLeft);
+  });
+
+  test("x labels sit under the slot centres, oldest to newest", () => {
+    expect(c.labels.map((l) => l.y)).toEqual(Array(7).fill(160));
+    expect(c.labels[0]!.x).toBeCloseTo(c.bars[0]!.x + c.bars[0]!.width / 2, 1);
+    expect(c.labels[6]!.x).toBeCloseTo(c.bars[6]!.x + c.bars[6]!.width / 2, 1);
+  });
+});
+
+describe("bodyWeightChart — the Body screen's weigh-in line", () => {
+  // The persona's log (boards.py WEIGHTS): 74.6 on 24 Aug through 73.4 on 24 Sep.
+  const pts = [[0, 74.6], [11, 74.4], [17, 74.2], [27, 74.0], [31, 73.4]]
+    .map(([t, kg]) => ({ t: t!, kg: kg! }));
+  const c = bodyWeightChart(pts);
+
+  test("the board's frame and the persona's five dots", () => {
+    expect(c.viewBox).toBe("0 0 340 130");
+    expect(c.points).toEqual([
+      { x: 20, y: 30 }, { x: 126, y: 40 }, { x: 185, y: 50 }, { x: 281, y: 60 }, { x: 320, y: 90 },
+    ]);
+    expect(c.path).toBe("M20 30 L126 40 L185 50 L281 60 L320 90");
+  });
+
+  test("the first and last value labels and the date row sit where the board puts them", () => {
+    expect(c.firstLabel).toEqual({ x: 20, y: 18 });
+    expect(c.lastLabel).toEqual({ x: 310, y: 102 });
+    expect(c.dateLabelY).toBe(128);
+    expect(c.dateLabelX).toEqual({ start: 20, end: 320 });
+  });
+
+  test("the scale shrinks for a wide span and a lone weigh-in is a dot, not a path", () => {
+    const wide = bodyWeightChart([{ t: 0, kg: 90 }, { t: 30, kg: 70 }]);
+    for (const p of wide.points) {
+      expect(p.y).toBeGreaterThanOrEqual(30);
+      expect(p.y).toBeLessThanOrEqual(96);
+    }
+    const one = bodyWeightChart([{ t: 0, kg: 73.4 }]);
+    expect(one.path).toBe("");
+    expect(one.points).toHaveLength(1);
   });
 });

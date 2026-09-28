@@ -162,7 +162,7 @@ gets its meal names in that language.
   trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
   language with (`languageLine`), because a language's own name is the same string wherever it is
   read.
-- **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
+- **The largest text surface is in no table.** Meal names, the coach's answers and the
   follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
   of what steers them, and it reaches every prompt that produces words a user reads.
 - **A `Localized` table proves a language is PRESENT, never that it is complete.** `localizedGaps`
@@ -277,10 +277,15 @@ gets its meal names in that language.
   `reminderPlan` says WHICH reminders to schedule and the words come from the table; scheduling
   them off `DEFAULT_NOTIFICATION_COPY` is an English lock screen on an account that asked for
   Italian, and nothing on the server would ever see it.
-- **`Intl` must be real on the device.** Every figure and every month name goes through it.
-  Hermes ships full ICU on the RN versions this app is built with, and `projection.ts`'s old
-  twelve-month table was written against a build that did not — if a device ever answers a numeric
-  month or an ungrouped thousand, that is the thing to check, not these tables.
+- **`Intl` must be real on the device — and exactly three constructors of it are.** Hermes ships
+  `Collator`, `DateTimeFormat` and `NumberFormat`, nothing else: `new Intl.PluralRules`,
+  `ListFormat`, `DisplayNames`, `RelativeTimeFormat` or `Segmenter` is `undefined` used as a
+  constructor — a process abort on the phone that compiles, typechecks and passes every test on
+  Node or bun, where ICU is full. The guarded helpers own the fallbacks — `countText` and
+  `listConjunction` here, `countryLabel` in `onboarding.ts` — because this workspace runs on the
+  phone too, `app/*-copy.ts` included. `projection.ts`'s old twelve-month table was written against
+  a build that answered a numeric month, which is the thing to check if a device ever does — not
+  these tables.
 - **Admin-editable copy is stored per language in the SAME row.** `onboarding_content` and
   `notification_copy` hold a `Localized<…>` map rather than one revision: no column, no migration,
   and a row written before #358 is read as English, which is what it was. A save in one language

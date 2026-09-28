@@ -243,6 +243,32 @@ describe("onboarding", () => {
     expect((await profileView(deps, stale))!.healthConnected).toBe(false);
   });
 
+  // The You surface's fact line "32 · 172 cm · …" (#97): the age is the SERVER's arithmetic —
+  // the same `ageFrom` Mifflin-St Jeor feeds on, on the server's clock. A client doing the year
+  // subtraction itself is off by one for the one hour a year the zones disagree.
+  it("sends the account's age on the profile, and no invented number without a birth year", async () => {
+    const userId = await onboard({ birth_year: new Date().getUTCFullYear() - 32 });
+    expect((await profileView(deps, userId))!.age).toBe(32);
+    // The band is the engine's own: what Mifflin-St Jeor refuses is not an age the card may print.
+    const young = await onboard({ birth_year: new Date().getUTCFullYear() - 16 });
+    expect((await profileView(deps, young))!.age).toBe(16);
+    // Cleared is not "unknown age 0": the field goes null and the surface prints nothing.
+    const cleared = await patchProfile(deps, userId, { birth_year: null });
+    expect(cleared?.ok).toBe(true);
+    if (cleared?.ok) expect(cleared.view.age).toBeNull();
+    expect((await profileView(deps, userId))!.age).toBeNull();
+  });
+
+  it("reports the server's zone year, not UTC's, when the two disagree", async () => {
+    // A fixed clock can fake New Year only through the zone: at a UTC instant one hour into
+    // January, a server at +13 is already a year ahead of UTC — and so is the age.
+    const ahead = { ...deps, config: { ...CONFIG, timezone: "Pacific/Kiritimati" } };
+    const utcYear = new Date().getUTCFullYear();
+    const localYear = Number(localDate("Pacific/Kiritimati").slice(0, 4));
+    const userId = await onboard({ birth_year: utcYear - 32 });
+    expect((await profileView(ahead, userId))!.age).toBe(32 + (localYear - utcYear));
+  });
+
   it("sends the coach's name in the account's language, because the Lingui table cannot reach a bundle", async () => {
     const userId = await onboard();
     const view = (await profileView(deps, userId))!;
@@ -255,6 +281,23 @@ describe("onboarding", () => {
     const res = await logPhotoMeal(deps, userId, photo());
     if (!isMeal(res)) throw new Error("expected a meal");
     expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(true);
+  });
+
+  // The "Support eait" row (#200): operator variables, SENT on the profile the way `limits` is —
+  // the same bundle serves hosts that take no donations, so all three null is the default and no
+  // link is drawn.
+  it("sends the configured donation links on the profile — all null while none are set", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.donate)
+      .toEqual({ github: null, kofi: null, buyMeACoffee: null });
+    const d = { ...deps, config: { ...CONFIG,
+      donateKofiUrl: "https://ko-fi.com/kirmalyshev",
+      donateGithubUrl: "https://github.com/sponsors/kirmalyshev" } };
+    expect((await profileView(d, userId))!.donate).toEqual({
+      github: "https://github.com/sponsors/kirmalyshev",
+      kofi: "https://ko-fi.com/kirmalyshev",
+      buyMeACoffee: null,
+    });
   });
 });
 
@@ -1075,6 +1118,86 @@ describe("editing the answer", () => {
     const out = await editMeal(deps, userId, meal.mealId, { kcal: 111 });
     if (out.kind !== "updated") throw new Error("expected updated");
     expect(out.analysis.protein_g).toBe(meal.analysis.protein_g);
+  });
+
+  it("derives the totals from an items-only patch — the ingredient editor's write", async () => {
+    // The phone's (#960) and web's (#188) editors send `{ items }` alone. Until this test the meal
+    // kept the OLD totals on top of the new items; now the items are the truth and the totals are
+    // their sum.
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i, ix) =>
+      ix === 0 ? { ...i, kcal: (i.kcal ?? 0) + 100 } : i);
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const sum = (f: "kcal" | "protein_g" | "carbs_g" | "fat_g") =>
+      items.reduce((s, i) => s + (i[f] ?? 0), 0);
+    expect(out.analysis.kcal).toBe(sum("kcal"));
+    expect(out.analysis.kcal).toBe(meal.analysis.kcal + 100);
+    expect(out.analysis.protein_g).toBeCloseTo(sum("protein_g"), 5);
+    expect(out.analysis.carbs_g).toBeCloseTo(sum("carbs_g"), 5);
+    expect(out.analysis.fat_g).toBeCloseTo(sum("fat_g"), 5);
+    expect((await store.getMeal(userId, meal.mealId))!.kcal).toBe(sum("kcal"));
+  });
+
+  it("lets an explicit total beat the derivation, and a field no item reports stands", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i, ix) =>
+      ix === 0 ? { ...i, kcal: (i.kcal ?? 0) + 100 } : i);
+    const out = await editMeal(deps, userId, meal.mealId, { items, kcal: 999 });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    expect(out.analysis.kcal).toBe(999);
+  });
+
+  it("scales the item-less macros by the edit's kcal ratio — the verdict follows the plate (#196)", async () => {
+    // satfat_g, fiber_g, sugar_g, sodium_mg live on the MEAL, not the items — a grams change used
+    // to leave them describing the plate that was. They scale with the kcal the edit produced.
+    const userId = await onboard({ restrictions: ["ldl"] });
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i) => ({
+      ...i, grams: i.grams * 2, kcal: (i.kcal ?? 0) * 2,
+      protein_g: i.protein_g !== undefined ? i.protein_g * 2 : undefined,
+      carbs_g: i.carbs_g !== undefined ? i.carbs_g * 2 : undefined,
+      fat_g: i.fat_g !== undefined ? i.fat_g * 2 : undefined,
+    }));
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const ratio = out.analysis.kcal / meal.analysis.kcal;
+    for (const f of ["satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const) {
+      expect(out.analysis[f], f).toBeCloseTo(meal.analysis[f] * ratio, 1);
+    }
+    // And the verdict moved with it — this is the rule the scaling exists for.
+    expect(out.analysis.verdicts.ldl).not.toBe("good");
+  });
+
+  it("a macro only some items report scales rather than counting the silent ones zero (#196)", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    // One item stops reporting protein — that item's protein is UNKNOWN, not zero: the total
+    // tracks the kcal ratio instead of dropping the silent item's share.
+    const items = meal.analysis.items.map((i, ix) => {
+      const kcal = ix === 0 ? (i.kcal ?? 0) * 2 : i.kcal;
+      const row = { ...i, kcal };
+      if (ix === 0) delete row.protein_g;
+      return row;
+    });
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const ratio = out.analysis.kcal / meal.analysis.kcal;
+    expect(out.analysis.protein_g).toBeCloseTo(meal.analysis.protein_g * ratio, 1);
+    // NOT the zero-counted sum the items could name.
+    const partial = items.reduce((s, i) => s + (i.protein_g ?? 0), 0);
+    expect(out.analysis.protein_g).not.toBe(partial);
+  });
+
+  it("an explicit capped-nutrient figure still wins over the scaling", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i) => ({ ...i, kcal: (i.kcal ?? 0) * 2 }));
+    const out = await editMeal(deps, userId, meal.mealId, { items, satfat_g: 42 });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    expect(out.analysis.satfat_g).toBe(42);
   });
 
   it("cannot edit another user's meal", async () => {
@@ -1991,67 +2114,48 @@ describe("erasure", () => {
 });
 
 describe("the streamed photo turn", () => {
-  it("streams the glance and every item to onEvent before returning the result", async () => {
+  it("streams every item to onEvent before returning the result", async () => {
     const userId = await onboard();
     const events: PhotoEvent[] = [];
     const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
     expect(res.kind).toBe("logged");
     const kinds = events.map((e) => e.kind);
-    expect(kinds).toContain("glance");
+    expect(kinds).toContain("reading");
     expect(kinds.filter((k) => k === "item").length).toBe((res as MealLogged).analysis.items.length);
     // The streamed rows are the rows the card carries, in order.
     const streamed = events.flatMap((e) => (e.kind === "item" ? [e.item.name] : []));
     expect(streamed).toEqual((res as MealLogged).analysis.items.map((i) => i.name));
-    // The glance is live-turn only: not in the meal, not in the thread.
-    const glance = events.find((e) => e.kind === "glance") as { text: string };
-    const thread = await chatHistory(deps, userId, {});
-    expect(JSON.stringify(thread)).not.toContain(glance.text);
-    expect(JSON.stringify(res)).not.toContain(glance.text);
   });
 
-  it("makes no glance call without onEvent", async () => {
+  // The write is deliberately not awaited in the turn — a latency reading is not worth a millisecond
+  // on the card's path — so the read poll for it rather than racing it.
+  const latencyOf = async () => {
+    const today = localDate(deps.config.timezone);
+    for (let i = 0; i < 50; i++) {
+      const { latency } = await deps.store.adminMetrics({ days: 1, today, timezone: deps.config.timezone });
+      if (latency.n > 0) return latency;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    throw new Error("timing never landed on the analysis row");
+  };
+
+  it("records the turn's timing on the analysis row, first item included when one streamed", async () => {
     const userId = await onboard();
-    let called = 0;
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
-    await logPhotoMeal(makeDeps({}, llm), userId, photo());
-    expect(called).toBe(0);
+    await logPhotoMeal(deps, userId, photo(), () => {});
+    const latency = await latencyOf();
+    // The demo analyzer is faster than a clock tick, so these are PRESENT, not positive.
+    expect(latency.total.p50).not.toBeNull();
+    expect(latency.firstItem.p50).not.toBeNull();
+    // Eaten a moment ago: queue is shutter-to-call, small but present.
+    expect(latency.queue.p50).toBeGreaterThanOrEqual(0);
   });
 
-  it("makes no glance call when no glance model is configured", async () => {
+  it("records a firstItem of null on the JSON path, which never streams one", async () => {
     const userId = await onboard();
-    let called = 0;
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
-    await logPhotoMeal(makeDeps({ llmGlanceModel: "" }, llm), userId, photo(), () => {});
-    expect(called).toBe(0);
-  });
-
-  it("a glance that hangs does not hold the result back", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: () => new Promise(() => {}) };
-    const t0 = Date.now();
-    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), () => {});
-    expect(res.kind).toBe("logged");
-    // The demo analyzer streams in about a second; a result gated on the glance never returns.
-    expect(Date.now() - t0).toBeLessThan(5_000);
-  });
-
-  it("a glance that throws does not fail the turn", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { throw new Error("boom"); } };
-    const events: PhotoEvent[] = [];
-    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), (e) => events.push(e));
-    expect(res.kind).toBe("logged");
-    expect(events.some((e) => e.kind === "glance")).toBe(false);
-  });
-
-  it("a refused turn emits nothing", async () => {
-    const userId = await onboard();
-    const events: PhotoEvent[] = [];
-    const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
-    expect(res.kind).toBe("logged");
-    const refused = await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo(), (e) => events.push(e));
-    expect(refused.kind).toBe("subscription-required");
-    expect(events.filter((e) => e.kind === "glance").length).toBe(1);
+    await logPhotoMeal(deps, userId, photo());
+    const latency = await latencyOf();
+    expect(latency.total.p50).not.toBeNull();
+    expect(latency.firstItem.p50).toBeNull();
   });
 });
 
@@ -2251,20 +2355,11 @@ describe("what each analysis cost", () => {
     expect(d.unpriced).toBe(1);
   });
 
-  it("charges the glance to the photo it glanced at", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async (i) => { i.onCost?.(0.125); return "Eggs."; } };
-    await logPhotoMeal(makeDeps({ llmGlanceModel: "glance" }, llm), userId, photo(), () => {});
-    const d = await spend();
-    expect(d.analyses).toBe(1);
-    expect(d.costUsd).toBeCloseTo(0.125, 9);
-  });
-
   it("says so in the log when a cost finds no analysis left to land on", async () => {
     const userId = await onboard();
     const today = localDate(deps.config.timezone);
     const { analysisId, onCost } = await charge(deps, userId, today, "photo");
-    // Refunded while a call was still out — the glance beside a refused analyzer, or a merge.
+    // Refunded while a call was still out — a schema retry beside a refunded analysis, or a merge.
     await store.undoAnalysis(userId, analysisId);
     const errors = spyOn(console, "error").mockImplementation(() => {});
     try {

@@ -11,7 +11,7 @@ import { blankProfile } from "../store.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
-  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildGlanceText, buildRouteText,
+  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildRouteText,
   buildTextCorrectionText, buildUserText, languageLine,
 } from "./prompt.ts";
 
@@ -142,7 +142,7 @@ test("the correction prompt says the photographs are attached only when they are
 // one is a sentence the model actually reads. A rule that is only in a document is a rule the
 // model has never heard.
 
-const BASIS = { bmr: 1400, tdee: 2100, requestedDeltaKcal: -500, appliedDeltaKcal: -420, shareCapApplied: true, floorKcal: 1200, floorApplied: false, usedFallbackBand: false };
+const BASIS = { bmr: 1400, tdee: 2100, activityDeltaKcal: 700, requestedDeltaKcal: -500, appliedDeltaKcal: -420, shareCapApplied: true, floorKcal: 1200, floorApplied: false, usedFallbackBand: false };
 
 const coachInput = (over: Partial<Parameters<typeof buildCoachContext>[0]> = {}) => ({
   profile: { ...PROFILE, lang: "de" as const, goal: "lose" as const, restrictions: ["kidneys"], food_allergies: "peanuts" },
@@ -376,7 +376,6 @@ describe("the language line, which is the only thing steering the largest text s
     for (const built of [
       buildUserText(p, targets),
       buildCoachContext(coachInput({ profile: p, targets })),
-      buildGlanceText("vi"),
     ]) {
       expect(built).toContain("Tiếng Việt (vi)");
     }

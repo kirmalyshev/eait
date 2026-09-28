@@ -4,20 +4,29 @@
 // drop zone's height and the type sizes the boards set in one-off styles.
 
 export const logCss = `
-/* The centred states — the upload column at 640 px and the refusal at 560, held mid-height the
-   way the boards centre them (align-content:center on the wmain). */
+/* The centred states — the upload main at 640 px and the refusal's at 560 (columns of 560 and
+   480), held mid-height the way the boards centre them. */
 .log { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
-.log.centre { max-width: 640px; margin: 0 auto; justify-content: center; min-height: 55vh; }
-.log.refused { max-width: 560px; text-align: center; }
+/* The board narrows the MAIN on these states, not just the column: log-upload.html's
+   wmain is 640, log-refused.html's 560. The refusal's rule must follow the shared one —
+   a refused day is .log.centre.refused, and the later rule wins the tie (#171). And a
+   column-flex child's margin:auto suppresses stretch AND centres on both axes, so the
+   width has to be explicit or the column shrink-wraps to its content. */
+.wmain:has(.log.centre) { max-width: 640px; }
+.wmain:has(.log.refused) { max-width: 560px; }
+.log.centre { width: 100%; margin: auto; }
+.log.refused { text-align: center; gap: 20px; }
 .log h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
 
 /* The drop zone — the shell's .drop gains this surface's height and radius. */
 .log .drop { min-height: 300px; gap: 10px; border-radius: var(--r-card); background: var(--surface); }
 .log .drop .ico { font-size: 44px; color: var(--ink); }
 .log .drop .drop-lead { font-size: 17px; }
+/* The note is the boards' .box restyled for this column — hairline shadow, no border, no
+   vertical padding inside the 48px row. */
 .log .lognote { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px;
-  padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px;
-  background: var(--surface); color: var(--ink); }
+  min-height: 48px; padding: 0 16px; border: 0; box-shadow: 0 0 0 1px var(--hair);
+  border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); }
 
 /* The two-column results — the photo on the left, the card column on the right at the boards'
    widths; the photo's height is the surface's (the kit draws none). */
@@ -46,7 +55,7 @@ export const logCss = `
 .log .logbtns { display: flex; gap: 10px; margin-top: 8px; }
 .log .dayrow { display: flex; justify-content: space-between; font-size: 13px; }
 .log .dayrow .num b { font-size: 15px; }
-.log .bar { height: 6px; border-radius: 3px; background: var(--hair); margin-top: 10px; overflow: hidden; }
+.log .bar { height: 6px; border-radius: var(--r-bar); background: var(--hair); margin-top: 10px; overflow: hidden; }
 .log .bar i { display: block; height: 100%; background: var(--accent); }
 
 /* The refusal's empty plate — the box is drawn, never a photo. */

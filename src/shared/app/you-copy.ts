@@ -17,9 +17,10 @@
 // Weight-bearing templates come in `…Kg`/`…Lb` pairs: the unit word lives in the template and
 // the client picks by `Profile.units` — a kg figure and a lb figure are not one string.
 
-import { t, type Localized } from "../lang.ts";
+import { LANG_TAG, listConjunction, numbers, t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 import { healthLabel } from "../health-copy.ts";
+import { heightText, type UnitSystem } from "../ui/units.ts";
 import { SHELL_COPY, shellCopyFor } from "./shell-copy.ts";
 import { SIGNUP_COPY, signupCopyFor } from "./signup-copy.ts";
 
@@ -34,6 +35,10 @@ export interface YouCopy {
   headerFacts: string;
   /** The same header with nothing declared: "{age} · {height}". */
   headerFactsNoFlags: string;
+  /** A partial profile, age and flags but no height: "{age} · {flags}". */
+  headerFactsAgeFlags: string;
+  /** A partial profile, height and flags but no birth year: "{height} · {flags}". */
+  headerFactsHeightFlags: string;
   /**
    * One flag inside `{flags}`: "{condition} declared". `{condition}` is a medical option's
    * label lowercased the way this language writes a mid-sentence noun ("High cholesterol" →
@@ -63,7 +68,10 @@ export interface YouCopy {
   grams: string;
   /** "{g} g protein" — the phone's plan line spells it. */
   proteinGrams: string;
-  /** "{g} g sat fat" — the second macro the card and the phone's lines show. */
+  /**
+   * The saturated-fat macro, "{g} g {noun}" — `{noun}` is filled with `LOG_COPY.satfatNoun`
+   * so the plan names the same dimension the verdicts do, in one wording.
+   */
   satFatGrams: string;
   /** The floor marker under the plan figures: "never below {floor}" — `{floor}` is kcal. */
   floorMarker: string;
@@ -75,17 +83,29 @@ export interface YouCopy {
   subscription: string;
   /** Its trial value, lowercase on the board: "free week · day {n}". */
   freeWeekDay: string;
+  /** Its paid value: "until {date}" — the period's end; the store never says it renews. */
+  subscriptionUntil: string;
+  /** The lifetime unlock's value: "lifetime". */
+  subscriptionLifetime: string;
+  /** A lapsed period: "ended {date}" — and "ended" alone when the record keeps no date. */
+  subscriptionEnded: string;
+  subscriptionEndedNoDate: string;
+  /** Its value when the account has never bought: "free". */
+  subscriptionFree: string;
   /** The account row — and the phone's account screen title: "Account". */
   account: string;
 
-  /** What only the web board draws: the today column at the screen's right. */
+  /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
+      the same component on both surfaces, so its captions come from one table. */
   web: {
-    /** The caption under the big figure — "368" over "kcal left ⌄" (the ⌄ is a glyph). */
-    kcalLeft: string;
-    /** The three macro cards' captions: "{g} g" over "Protein left" etc. */
-    proteinLeft: string;
-    carbsLeft: string;
-    fatLeft: string;
+    /** The Units row's label and its two options — the symbols are `spellUnit`'s, spelled the
+        way the language writes them (`kg · cm` / `lb · ft`, Russian "кг · см"). */
+    units: string;
+    unitsMetric: string;
+    unitsImperial: string;
+    /** The optional Support row's label (#200) — drawn only while the operator configures a
+        donation URL; the provider names beside it are brands and stay untranslated. */
+    support: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -119,11 +139,32 @@ export interface YouCopy {
      */
     weightSourceKg: string;
     weightSourceLb: string;
+    /**
+     * `{source}` for a reading the person TYPED — "you" — filling the slot the provider's
+     * name does, so `weightSourceKg`/`weightSourceOnKg` still read honestly for a manual
+     * weigh-in: "{prev} kg · you, today {time}".
+     */
+    sourceYou: string;
+    /**
+     * The check's typed-reading variant — "{source} says" has no source to name when the
+     * person typed the figure: "You typed {w} kg. Is that right?"
+     */
+    weightCheckTypedKg: string;
+    weightCheckTypedLb: string;
+    /**
+     * The provenance line past the reading's own day — "{prev} kg · {source}, {date}",
+     * `{date}` an `Intl` short date. `weightSourceKg` is the same-day wording.
+     */
+    weightSourceOnKg: string;
+    weightSourceOnLb: string;
     /** The plan recomputing live on the weigh-in and the save: "{from} → {to} kcal a day". */
     planRevised: string;
     /** Spud's confirmation on the saved board: "{w} kg from {source}, saved". */
     savedNoteKg: string;
     savedNoteLb: string;
+    /** A typed weight's saved line — "{w} kg, saved"; there is no {source} to name. */
+    savedNoteTypedKg: string;
+    savedNoteTypedLb: string;
 
     // ── you-profile.html / you-saved.html — the editor ──
     /** Row labels; the values are the onboarding option labels and CLDR's country names. */
@@ -195,6 +236,48 @@ export interface YouCopy {
     /** The sheet's two buttons: "Keep it" and "Delete". */
     keepIt: string;
     deleteConfirm: string;
+    /**
+     * The guard over leaving the editor with changes still staged — "Discard changes?",
+     * then "Keep editing" / "Discard" (design-pro, ieat-app#929).
+     */
+    discardTitle: string;
+    discardCancel: string;
+    discardConfirm: string;
+
+    /**
+     * A sheet's scrim — the tap-outside dismissal — as VoiceOver names it: "Dismiss".
+     * (The phone's pickers and the delete sheet share it.)
+     */
+    dismiss: string;
+    /**
+     * How a flat row ANNOUNCES itself to a reader when it carries a value — "{label}: {value}" —
+     * "Language: English". The visible pieces stay separate elements; this is the label the row
+     * reads as ONE element, so the separator is the language's own punctuation, not a code join.
+     */
+    labeledValue: string;
+
+    // ── the flat card's own pickers — units' labels are `web.units*` above ──
+    /** The Language row's label — "Language". */
+    language: string;
+    /** The Appearance row's label — "Appearance" (the phone follows its own theme setting). */
+    appearance: string;
+    /** The theme picker's three answers — "Light" / "Dark" / "System". */
+    themeLight: string;
+    themeDark: string;
+    themeSystem: string;
+
+    // ── the sign-out rows' confirmations — the account board draws the rows; the questions ──
+    // ── are the phone's own guard against a one-tap sign-out ──
+    /** "Sign out?" — and what stays behind. */
+    signOutTitle: string;
+    signOutBody: string;
+    /** "Sign out everywhere?" — the everywhere one is also destructive here, so it says so. */
+    signOutEverywhereTitle: string;
+    signOutEverywhereBody: string;
+    /** The alerts' cancel. */
+    cancel: string;
+    /** The first confirm — "Sign out"; the second's is `signOutEverywhere`, same words. */
+    signOutConfirm: string;
   };
 }
 
@@ -202,6 +285,8 @@ export const YOU_COPY: Localized<YouCopy> = {
   en: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "{condition} declared",
     weightLabel: healthLabel("weight_kg", "en"),
     logWeight: "Log weight",
@@ -213,18 +298,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "a day",
     grams: "{g} g",
     proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g sat fat",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "never below {floor}",
     appleHealth: "Apple Health",
     connected: "connected",
     subscription: "Subscription",
     freeWeekDay: "free week · day {n}",
+    subscriptionUntil: "until {date}",
+    subscriptionLifetime: "lifetime",
+    subscriptionEnded: "ended {date}",
+    subscriptionEndedNoDate: "ended",
+    subscriptionFree: "free",
     account: "Account",
     web: {
-      kcalLeft: "kcal left",
-      proteinLeft: "Protein left",
-      carbsLeft: "Carbs left",
-      fatLeft: "Fat left",
+      units: "Units",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Support eait",
     },
     phone: {
       title: "You",
@@ -233,15 +323,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Your weight",
       weightCheckKg: "{source} says {w} kg. Is that right?",
       weightCheckLb: "{source} says {w} lb. Is that right?",
+      sourceYou: "you",
+      weightCheckTypedKg: "You typed {w} kg. Is that right?",
+      weightCheckTypedLb: "You typed {w} lb. Is that right?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, today {time}",
       weightSourceLb: "{prev} lb · {source}, today {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal a day",
       savedNoteKg: "{w} kg from {source}, saved",
       savedNoteLb: "{w} lb from {source}, saved",
+      savedNoteTypedKg: "{w} kg, saved",
+      savedNoteTypedLb: "{w} lb, saved",
       goalLabel: "Goal",
       targetLabel: "Target",
       activitySection: "Exercise frequency",
@@ -277,11 +374,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "This cannot be undone.",
       keepIt: "Keep it",
       deleteConfirm: "Delete",
+      language: "Language",
+      appearance: "Appearance",
+      themeLight: "Light",
+      themeDark: "Dark",
+      themeSystem: "System",
+      signOutTitle: "Sign out?",
+      signOutBody: "Your meals stay on your account. Sign in again on any device to get them back.",
+      signOutEverywhereTitle: "Sign out everywhere?",
+      signOutEverywhereBody: "Every device and browser signed into this account is signed out, including this phone. Your meals stay on your account — sign in again to get them back.",
+      cancel: "Cancel",
+      signOutConfirm: "Sign out",
+      discardTitle: "Discard changes?",
+      discardCancel: "Keep editing",
+      discardConfirm: "Discard",
+      dismiss: "Dismiss",
+      labeledValue: "{label}: {value}",
     },
   },
   fr: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "vous avez déclaré : {condition}",
     weightLabel: healthLabel("weight_kg", "fr"),
     logWeight: "Enregistrer le poids",
@@ -293,18 +408,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "par jour",
     grams: "{g} g",
     proteinGrams: "{g} g de protéines",
-    satFatGrams: "{g} g de gras saturés",
+    satFatGrams: "{g} g de {noun}",
     floorMarker: "jamais moins de {floor}",
     appleHealth: "Apple Health",
     connected: "connecté",
     subscription: "Abonnement",
     freeWeekDay: "semaine gratuite · jour {n}",
+    subscriptionUntil: "jusqu'au {date}",
+    subscriptionLifetime: "à vie",
+    subscriptionEnded: "terminé le {date}",
+    subscriptionEndedNoDate: "terminé",
+    subscriptionFree: "gratuit",
     account: "Compte",
     web: {
-      kcalLeft: "kcal restantes",
-      proteinLeft: "Protéines restantes",
-      carbsLeft: "Glucides restants",
-      fatLeft: "Lipides restants",
+      units: "Unités",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Soutenir eait",
     },
     phone: {
       title: "Vous",
@@ -313,15 +433,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Ton poids",
       weightCheckKg: "{source} indique {w} kg. C'est juste ?",
       weightCheckLb: "{source} indique {w} lb. C'est juste ?",
+      sourceYou: "ta saisie",
+      weightCheckTypedKg: "Tu as saisi {w} kg. C'est juste ?",
+      weightCheckTypedLb: "Tu as saisi {w} lb. C'est juste ?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, aujourd'hui {time}",
       weightSourceLb: "{prev} lb · {source}, aujourd'hui {time}",
+      weightSourceOnKg: "{prev} kg · {source}, le {date}",
+      weightSourceOnLb: "{prev} lb · {source}, le {date}",
       planRevised: "{from} → {to} kcal par jour",
       savedNoteKg: "{w} kg depuis {source}, enregistré",
       savedNoteLb: "{w} lb depuis {source}, enregistré",
+      savedNoteTypedKg: "{w} kg, enregistré",
+      savedNoteTypedLb: "{w} lb, enregistré",
       goalLabel: "Objectif",
       targetLabel: "Cible",
       activitySection: "Fréquence d'exercice",
@@ -357,11 +484,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "C'est irréversible.",
       keepIt: "Garder",
       deleteConfirm: "Supprimer",
+      language: "Langue",
+      appearance: "Apparence",
+      themeLight: "Clair",
+      themeDark: "Sombre",
+      themeSystem: "Système",
+      signOutTitle: "Se déconnecter ?",
+      signOutBody: "Tes repas restent sur ton compte. Reconnecte-toi sur n'importe quel appareil pour les retrouver.",
+      signOutEverywhereTitle: "Se déconnecter partout ?",
+      signOutEverywhereBody: "Tous les appareils et navigateurs connectés à ce compte sont déconnectés, y compris ce téléphone. Tes repas restent sur ton compte — reconnecte-toi pour les retrouver.",
+      cancel: "Annuler",
+      signOutConfirm: "Se déconnecter",
+      discardTitle: "Ignorer les modifications ?",
+      discardCancel: "Continuer la modification",
+      discardConfirm: "Ignorer",
+      dismiss: "Fermer",
+      labeledValue: "{label}: {value}",
     },
   },
   de: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "von dir angegeben: {condition}",
     weightLabel: healthLabel("weight_kg", "de"),
     logWeight: "Gewicht eintragen",
@@ -373,18 +518,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "am Tag",
     grams: "{g} g",
     proteinGrams: "{g} g Eiweiß",
-    satFatGrams: "{g} g gesättigte Fette",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "nie unter {floor}",
     appleHealth: "Apple Health",
     connected: "verbunden",
     subscription: "Abo",
     freeWeekDay: "Gratiswoche · Tag {n}",
+    subscriptionUntil: "bis {date}",
+    subscriptionLifetime: "lebenslang",
+    subscriptionEnded: "beendet am {date}",
+    subscriptionEndedNoDate: "beendet",
+    subscriptionFree: "kostenlos",
     account: "Konto",
     web: {
-      kcalLeft: "kcal übrig",
-      proteinLeft: "Eiweiß übrig",
-      carbsLeft: "Kohlenhydrate übrig",
-      fatLeft: "Fett übrig",
+      units: "Einheiten",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "eait unterstützen",
     },
     phone: {
       title: "Du",
@@ -393,15 +543,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Dein Gewicht",
       weightCheckKg: "{source} sagt {w} kg. Stimmt das?",
       weightCheckLb: "{source} sagt {w} lb. Stimmt das?",
+      sourceYou: "deine Eingabe",
+      weightCheckTypedKg: "Du hast {w} kg eingetragen. Stimmt das?",
+      weightCheckTypedLb: "Du hast {w} lb eingetragen. Stimmt das?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, heute {time}",
       weightSourceLb: "{prev} lb · {source}, heute {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal am Tag",
       savedNoteKg: "{w} kg von {source}, gespeichert",
       savedNoteLb: "{w} lb von {source}, gespeichert",
+      savedNoteTypedKg: "{w} kg, gespeichert",
+      savedNoteTypedLb: "{w} lb, gespeichert",
       goalLabel: "Ziel",
       targetLabel: "Zielgewicht",
       activitySection: "Trainingshäufigkeit",
@@ -437,11 +594,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Das lässt sich nicht rückgängig machen.",
       keepIt: "Behalten",
       deleteConfirm: "Löschen",
+      language: "Sprache",
+      appearance: "Erscheinungsbild",
+      themeLight: "Hell",
+      themeDark: "Dunkel",
+      themeSystem: "System",
+      signOutTitle: "Abmelden?",
+      signOutBody: "Deine Mahlzeiten bleiben auf deinem Konto. Melde dich auf einem beliebigen Gerät wieder an, um sie zurückzubekommen.",
+      signOutEverywhereTitle: "Überall abmelden?",
+      signOutEverywhereBody: "Alle Geräte und Browser, die mit diesem Konto angemeldet sind, werden abgemeldet — auch dieses Telefon. Deine Mahlzeiten bleiben auf deinem Konto — melde dich wieder an, um sie zurückzubekommen.",
+      cancel: "Abbrechen",
+      signOutConfirm: "Abmelden",
+      discardTitle: "Änderungen verwerfen?",
+      discardCancel: "Weiter bearbeiten",
+      discardConfirm: "Verwerfen",
+      dismiss: "Schließen",
+      labeledValue: "{label}: {value}",
     },
   },
   it: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "condizioni indicate: {condition}",
     weightLabel: healthLabel("weight_kg", "it"),
     logWeight: "Registra il peso",
@@ -453,18 +628,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "al giorno",
     grams: "{g} g",
     proteinGrams: "{g} g di proteine",
-    satFatGrams: "{g} g di grassi saturi",
+    satFatGrams: "{g} g di {noun}",
     floorMarker: "mai sotto {floor}",
     appleHealth: "Apple Health",
     connected: "connesso",
     subscription: "Abbonamento",
     freeWeekDay: "settimana gratis · giorno {n}",
+    subscriptionUntil: "fino al {date}",
+    subscriptionLifetime: "a vita",
+    subscriptionEnded: "terminato il {date}",
+    subscriptionEndedNoDate: "terminato",
+    subscriptionFree: "gratuito",
     account: "Account",
     web: {
-      kcalLeft: "kcal rimaste",
-      proteinLeft: "Proteine rimaste",
-      carbsLeft: "Carboidrati rimasti",
-      fatLeft: "Grassi rimasti",
+      units: "Unità",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Sostieni eait",
     },
     phone: {
       title: "Tu",
@@ -473,15 +653,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Il tuo peso",
       weightCheckKg: "{source} dice {w} kg. È giusto?",
       weightCheckLb: "{source} dice {w} lb. È giusto?",
+      sourceYou: "inserito da te",
+      weightCheckTypedKg: "Hai inserito {w} kg. È giusto?",
+      weightCheckTypedLb: "Hai inserito {w} lb. È giusto?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, oggi {time}",
       weightSourceLb: "{prev} lb · {source}, oggi {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal al giorno",
       savedNoteKg: "{w} kg da {source}, salvato",
       savedNoteLb: "{w} lb da {source}, salvato",
+      savedNoteTypedKg: "{w} kg, salvato",
+      savedNoteTypedLb: "{w} lb, salvato",
       goalLabel: "Obiettivo",
       targetLabel: "Peso obiettivo",
       activitySection: "Frequenza di allenamento",
@@ -517,11 +704,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "vengono eliminati. Non si può annullare.",
       keepIt: "Tienilo",
       deleteConfirm: "Elimina",
+      language: "Lingua",
+      appearance: "Aspetto",
+      themeLight: "Chiaro",
+      themeDark: "Scuro",
+      themeSystem: "Sistema",
+      signOutTitle: "Uscire?",
+      signOutBody: "I tuoi pasti restano sul tuo account. Accedi di nuovo su qualsiasi dispositivo per ritrovarli.",
+      signOutEverywhereTitle: "Uscire da tutti i dispositivi?",
+      signOutEverywhereBody: "Tutti i dispositivi e i browser connessi a questo account vengono disconnessi, incluso questo telefono. I tuoi pasti restano sul tuo account — accedi di nuovo per ritrovarli.",
+      cancel: "Annulla",
+      signOutConfirm: "Esci",
+      discardTitle: "Scartare le modifiche?",
+      discardCancel: "Continua a modificare",
+      discardConfirm: "Scarta",
+      dismiss: "Chiudi",
+      labeledValue: "{label}: {value}",
     },
   },
   es: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "has indicado: {condition}",
     weightLabel: healthLabel("weight_kg", "es"),
     logWeight: "Registrar el peso",
@@ -533,18 +738,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "al día",
     grams: "{g} g",
     proteinGrams: "{g} g de proteína",
-    satFatGrams: "{g} g de grasa saturada",
+    satFatGrams: "{g} g de {noun}",
     floorMarker: "nunca por debajo de {floor}",
     appleHealth: "Apple Health",
     connected: "conectado",
     subscription: "Suscripción",
     freeWeekDay: "semana gratis · día {n}",
+    subscriptionUntil: "hasta el {date}",
+    subscriptionLifetime: "de por vida",
+    subscriptionEnded: "terminada el {date}",
+    subscriptionEndedNoDate: "terminada",
+    subscriptionFree: "gratis",
     account: "Cuenta",
     web: {
-      kcalLeft: "kcal restantes",
-      proteinLeft: "Proteína restante",
-      carbsLeft: "Carbohidratos restantes",
-      fatLeft: "Grasa restante",
+      units: "Unidades",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Apoyar eait",
     },
     phone: {
       title: "Tú",
@@ -553,15 +763,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Tu peso",
       weightCheckKg: "{source} dice {w} kg. ¿Es correcto?",
       weightCheckLb: "{source} dice {w} lb. ¿Es correcto?",
+      sourceYou: "tu registro",
+      weightCheckTypedKg: "Escribiste {w} kg. ¿Es correcto?",
+      weightCheckTypedLb: "Escribiste {w} lb. ¿Es correcto?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hoy {time}",
       weightSourceLb: "{prev} lb · {source}, hoy {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal al día",
       savedNoteKg: "{w} kg de {source}, guardado",
       savedNoteLb: "{w} lb de {source}, guardado",
+      savedNoteTypedKg: "{w} kg, guardado",
+      savedNoteTypedLb: "{w} lb, guardado",
       goalLabel: "Objetivo",
       targetLabel: "Peso objetivo",
       activitySection: "Frecuencia de ejercicio",
@@ -597,11 +814,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "No se puede deshacer.",
       keepIt: "Conservar",
       deleteConfirm: "Eliminar",
+      language: "Idioma",
+      appearance: "Apariencia",
+      themeLight: "Claro",
+      themeDark: "Oscuro",
+      themeSystem: "Sistema",
+      signOutTitle: "¿Cerrar sesión?",
+      signOutBody: "Tus comidas se quedan en tu cuenta. Vuelve a iniciar sesión en cualquier dispositivo para recuperarlas.",
+      signOutEverywhereTitle: "¿Cerrar sesión en todas partes?",
+      signOutEverywhereBody: "Todos los dispositivos y navegadores conectados a esta cuenta se desconectan, incluido este teléfono. Tus comidas se quedan en tu cuenta — vuelve a iniciar sesión para recuperarlas.",
+      cancel: "Cancelar",
+      signOutConfirm: "Cerrar sesión",
+      discardTitle: "¿Descartar los cambios?",
+      discardCancel: "Seguir editando",
+      discardConfirm: "Descartar",
+      dismiss: "Cerrar",
+      labeledValue: "{label}: {value}",
     },
   },
   vi: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "đã khai báo: {condition}",
     weightLabel: healthLabel("weight_kg", "vi"),
     logWeight: "Ghi cân nặng",
@@ -613,18 +848,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "một ngày",
     grams: "{g} g",
     proteinGrams: "{g} g đạm",
-    satFatGrams: "{g} g chất béo bão hòa",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "không dưới {floor}",
     appleHealth: "Apple Health",
     connected: "đã kết nối",
     subscription: "Gói đăng ký",
     freeWeekDay: "tuần miễn phí · ngày {n}",
+    subscriptionUntil: "đến {date}",
+    subscriptionLifetime: "trọn đời",
+    subscriptionEnded: "đã kết thúc {date}",
+    subscriptionEndedNoDate: "đã kết thúc",
+    subscriptionFree: "miễn phí",
     account: "Tài khoản",
     web: {
-      kcalLeft: "kcal còn lại",
-      proteinLeft: "Đạm còn lại",
-      carbsLeft: "Carb còn lại",
-      fatLeft: "Chất béo còn lại",
+      units: "Đơn vị",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Ủng hộ eait",
     },
     phone: {
       title: "Bạn",
@@ -633,15 +873,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Cân nặng của bạn",
       weightCheckKg: "{source} báo {w} kg. Đúng không?",
       weightCheckLb: "{source} báo {w} lb. Đúng không?",
+      sourceYou: "bạn",
+      weightCheckTypedKg: "Bạn đã nhập {w} kg. Đúng không?",
+      weightCheckTypedLb: "Bạn đã nhập {w} lb. Đúng không?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hôm nay {time}",
       weightSourceLb: "{prev} lb · {source}, hôm nay {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal một ngày",
       savedNoteKg: "{w} kg từ {source}, đã lưu",
       savedNoteLb: "{w} lb từ {source}, đã lưu",
+      savedNoteTypedKg: "{w} kg, đã lưu",
+      savedNoteTypedLb: "{w} lb, đã lưu",
       goalLabel: "Mục tiêu",
       targetLabel: "Cân nặng mục tiêu",
       activitySection: "Tần suất tập luyện",
@@ -677,11 +924,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Không thể hoàn tác.",
       keepIt: "Giữ lại",
       deleteConfirm: "Xóa",
+      language: "Ngôn ngữ",
+      appearance: "Giao diện",
+      themeLight: "Sáng",
+      themeDark: "Tối",
+      themeSystem: "Hệ thống",
+      signOutTitle: "Đăng xuất?",
+      signOutBody: "Các bữa ăn của bạn vẫn nằm trong tài khoản. Đăng nhập lại trên bất kỳ thiết bị nào để lấy lại chúng.",
+      signOutEverywhereTitle: "Đăng xuất ở mọi nơi?",
+      signOutEverywhereBody: "Mọi thiết bị và trình duyệt đang đăng nhập vào tài khoản này đều bị đăng xuất, kể cả chiếc điện thoại này. Các bữa ăn của bạn vẫn nằm trong tài khoản — đăng nhập lại để lấy lại chúng.",
+      cancel: "Huỷ",
+      signOutConfirm: "Đăng xuất",
+      discardTitle: "Bỏ các thay đổi?",
+      discardCancel: "Tiếp tục chỉnh sửa",
+      discardConfirm: "Bỏ",
+      dismiss: "Đóng",
+      labeledValue: "{label}: {value}",
     },
   },
   id: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "{condition} (dinyatakan)",
     weightLabel: healthLabel("weight_kg", "id"),
     logWeight: "Catat berat",
@@ -693,18 +958,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "sehari",
     grams: "{g} g",
     proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g lemak jenuh",
+    satFatGrams: "{g} g {noun}",
     floorMarker: "tidak di bawah {floor}",
     appleHealth: "Apple Health",
     connected: "terhubung",
     subscription: "Langganan",
     freeWeekDay: "minggu gratis · hari {n}",
+    subscriptionUntil: "sampai {date}",
+    subscriptionLifetime: "seumur hidup",
+    subscriptionEnded: "berakhir {date}",
+    subscriptionEndedNoDate: "berakhir",
+    subscriptionFree: "gratis",
     account: "Akun",
     web: {
-      kcalLeft: "kcal tersisa",
-      proteinLeft: "Protein tersisa",
-      carbsLeft: "Karbo tersisa",
-      fatLeft: "Lemak tersisa",
+      units: "Unit",
+      unitsMetric: "kg · cm",
+      unitsImperial: "lb · ft",
+      support: "Dukung eait",
     },
     phone: {
       title: "Kamu",
@@ -713,15 +983,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Beratmu",
       weightCheckKg: "{source} bilang {w} kg. Benar?",
       weightCheckLb: "{source} bilang {w} lb. Benar?",
+      sourceYou: "catatanmu",
+      weightCheckTypedKg: "Kamu memasukkan {w} kg. Benar?",
+      weightCheckTypedLb: "Kamu memasukkan {w} lb. Benar?",
       weightKg: "{w} kg",
       weightLb: "{w} lb",
       weightFromKg: "{w} kg · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} kg · {source}, hari ini {time}",
       weightSourceLb: "{prev} lb · {source}, hari ini {time}",
+      weightSourceOnKg: "{prev} kg · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} kcal sehari",
       savedNoteKg: "{w} kg dari {source}, tersimpan",
       savedNoteLb: "{w} lb dari {source}, tersimpan",
+      savedNoteTypedKg: "{w} kg, tersimpan",
+      savedNoteTypedLb: "{w} lb, tersimpan",
       goalLabel: "Tujuan",
       targetLabel: "Berat target",
       activitySection: "Frekuensi olahraga",
@@ -757,11 +1034,29 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Ini tidak bisa dibatalkan.",
       keepIt: "Simpan",
       deleteConfirm: "Hapus",
+      language: "Bahasa",
+      appearance: "Tampilan",
+      themeLight: "Terang",
+      themeDark: "Gelap",
+      themeSystem: "Sistem",
+      signOutTitle: "Keluar?",
+      signOutBody: "Makananmu tetap ada di akunmu. Masuk lagi di perangkat apa pun untuk mendapatkannya kembali.",
+      signOutEverywhereTitle: "Keluar di semua perangkat?",
+      signOutEverywhereBody: "Semua perangkat dan browser yang masuk ke akun ini dikeluarkan, termasuk ponsel ini. Makananmu tetap ada di akunmu — masuk lagi untuk mendapatkannya kembali.",
+      cancel: "Batal",
+      signOutConfirm: "Keluar",
+      discardTitle: "Buang perubahan?",
+      discardCancel: "Lanjutkan mengedit",
+      discardConfirm: "Buang",
+      dismiss: "Tutup",
+      labeledValue: "{label}: {value}",
     },
   },
   ru: {
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
+    headerFactsAgeFlags: "{age} · {flags}",
+    headerFactsHeightFlags: "{height} · {flags}",
     flagDeclared: "указано: {condition}",
     weightLabel: healthLabel("weight_kg", "ru"),
     logWeight: "Записать вес",
@@ -773,18 +1068,23 @@ export const YOU_COPY: Localized<YouCopy> = {
     perDay: "в день",
     grams: "{g} г",
     proteinGrams: "{g} г белка",
-    satFatGrams: "{g} г насыщенных жиров",
+    satFatGrams: "{g} г {noun}",
     floorMarker: "не ниже {floor}",
     appleHealth: "Apple Health",
     connected: "подключено",
     subscription: "Подписка",
     freeWeekDay: "бесплатная неделя · день {n}",
+    subscriptionUntil: "до {date}",
+    subscriptionLifetime: "пожизненная",
+    subscriptionEnded: "закончилась {date}",
+    subscriptionEndedNoDate: "закончилась",
+    subscriptionFree: "бесплатно",
     account: "Аккаунт",
     web: {
-      kcalLeft: "ккал осталось",
-      proteinLeft: "Осталось белка",
-      carbsLeft: "Осталось углеводов",
-      fatLeft: "Осталось жиров",
+      units: "Единицы",
+      unitsMetric: "кг · см",
+      unitsImperial: "lb · ft",
+      support: "Поддержать eait",
     },
     phone: {
       title: "Вы",
@@ -793,15 +1093,22 @@ export const YOU_COPY: Localized<YouCopy> = {
       weightTitle: "Твой вес",
       weightCheckKg: "{source} сообщает: {w} кг. Всё верно?",
       weightCheckLb: "{source} сообщает: {w} lb. Всё верно?",
+      sourceYou: "твоя запись",
+      weightCheckTypedKg: "Твоя последняя запись — {w} кг. Всё верно?",
+      weightCheckTypedLb: "Твоя последняя запись — {w} lb. Всё верно?",
       weightKg: "{w} кг",
       weightLb: "{w} lb",
       weightFromKg: "{w} кг · {source}",
       weightFromLb: "{w} lb · {source}",
       weightSourceKg: "{prev} кг · {source}, сегодня {time}",
       weightSourceLb: "{prev} lb · {source}, сегодня {time}",
+      weightSourceOnKg: "{prev} кг · {source}, {date}",
+      weightSourceOnLb: "{prev} lb · {source}, {date}",
       planRevised: "{from} → {to} ккал в день",
       savedNoteKg: "{w} кг из {source} — сохранено",
       savedNoteLb: "{w} lb из {source} — сохранено",
+      savedNoteTypedKg: "{w} кг, сохранено",
+      savedNoteTypedLb: "{w} lb, сохранено",
       goalLabel: "Цель",
       targetLabel: "Целевой вес",
       activitySection: "Частота тренировок",
@@ -837,8 +1144,71 @@ export const YOU_COPY: Localized<YouCopy> = {
         "Это необратимо.",
       keepIt: "Оставить",
       deleteConfirm: "Удалить",
+      language: "Язык",
+      appearance: "Внешний вид",
+      themeLight: "Светлая",
+      themeDark: "Тёмная",
+      themeSystem: "Как в системе",
+      signOutTitle: "Выйти?",
+      signOutBody: "Твои приёмы пищи остаются в аккаунте. Войди снова на любом устройстве, чтобы вернуть их.",
+      signOutEverywhereTitle: "Выйти везде?",
+      signOutEverywhereBody: "Все устройства и браузеры, вошедшие в этот аккаунт, выходят из него — включая этот телефон. Твои приёмы пищи остаются в аккаунте — войди снова, чтобы вернуть их.",
+      cancel: "Отмена",
+      signOutConfirm: "Выйти",
+      discardTitle: "Сбросить изменения?",
+      discardCancel: "Продолжить",
+      discardConfirm: "Сбросить",
+      dismiss: "Закрыть",
+      labeledValue: "{label}: {value}",
     },
   },
 };
 
 export const youCopyFor = (lang: Lang): YouCopy => t(lang)(YOU_COPY);
+
+/** The tables' own `{placeholder}` fill — a key with nothing to fill it left alone. */
+const fill = (template: string, params: Record<string, string>): string =>
+  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+/**
+ * The identity card's fact line — "32 · 172 cm · high cholesterol declared" — assembled HERE so
+ * the web and the phone build the same line off the same pieces (#97 review).
+ *
+ * `age` is the SERVER's `ProfileResponse.age` — a surface never subtracts years itself; `null`
+ * prints nothing, not a guess. `heightCm` goes through `heightText`, so the unit follows
+ * `units`. The flags are the medical options' labels joined the way this language lists two
+ * things — `Intl.ListFormat` — inside ONE `flagDeclared` fill: "high cholesterol and kidney
+ * disease declared". A template that LEADS with `{condition}` reads the noun mid-sentence, and
+ * lowering it is the locale's own operation over the whole phrase — `toLocaleLowerCase`, never
+ * a character slice.
+ */
+export function youFacts(
+  lang: Lang,
+  facts: {
+    age: number | null;
+    heightCm: number | null;
+    restrictions: readonly string[];
+    medicalOptions: Record<string, { label: string }>;
+    units: UnitSystem;
+  },
+): string {
+  const you = youCopyFor(lang);
+  const labels = facts.restrictions
+    .filter((r) => r !== "none" && r in facts.medicalOptions)
+    .map((r) => facts.medicalOptions[r]!.label);
+  const joined = listConjunction(lang, labels);
+  const flags = labels.length
+    ? fill(you.flagDeclared, {
+        condition: you.flagDeclared.startsWith("{condition}")
+          ? joined.toLocaleLowerCase(LANG_TAG[lang])
+          : joined,
+      })
+    : "";
+  const age = facts.age !== null ? numbers(lang)(facts.age) : null;
+  const height = facts.heightCm !== null ? heightText(facts.heightCm, facts.units, lang) : null;
+  if (age !== null && height !== null)
+    return flags ? fill(you.headerFacts, { age, height, flags }) : fill(you.headerFactsNoFlags, { age, height });
+  if (age !== null) return flags ? fill(you.headerFactsAgeFlags, { age, flags }) : age;
+  if (height !== null) return flags ? fill(you.headerFactsHeightFlags, { height, flags }) : height;
+  return flags;
+}

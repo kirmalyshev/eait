@@ -1,69 +1,30 @@
-// The web APPLICATION's diary says where the weight behind today's target came from (#609).
+// The web application's Home — the W4 board (#91, built under #164): the week strip, the calorie
+// card with its left/eaten toggle, the macro cards the dots page between, and the meal rows that
+// open `#/meal/:id`. All of it drawn from the server's day read.
 //
-// The phone syncs a weight from Apple Health on every launch and a newer one moves the target this
-// page shows. The profile already carries the weight and when it was weighed; these read them back.
-// What the demo server cannot be made to hold on demand — a weighing days old, no weight at all —
-// is answered at the network, in the profile's own shape.
+// What the pre-redesign diary pinned that no longer exists: the `.big` headline is the card's
+// `.kfig` over its `.klab` label, the `.daybar` is the top bar's `.drow`, the `.macros .stat-num`
+// counters are `.mcard`s, and the weight-source line (#609) is not on this board at all — W4
+// dropped it, so its four specs went with it rather than re-assert a sentence nobody draws.
 import type { Page } from "@playwright/test";
 import type { DayResponse, ProfileResponse } from "@eait/shared/contract";
 import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
-/** The diary, drawn fresh from a profile edited on its way to the page. */
-async function diaryWith(page: Page, edit: (p: ProfileResponse["profile"]) => void): Promise<void> {
-  // A diary these specs may read exists only once a meal does — before any, `/#/` is the
-  // first-meal flow (#42).
-  await logMeal(page);
-  await page.route("**/api/v1/profile", async (route) => {
-    const res = await route.fetch();
-    const body = (await res.json()) as ProfileResponse;
-    edit(body.profile);
-    await route.fulfill({ response: res, json: body });
-  });
-  await page.goto("/#/");
-  // The profile is memoised per tab, so the edited one arrives with a fresh page.
-  await page.reload();
-}
+/** Grouped the reader's way — "1,896" in English, "1.896" in German — same formatter the page uses. */
+const n = (tag: string) => (x: number) => new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(x);
 
-test("the diary names the weight behind the target, and when it was weighed", async ({ inWebApp: page }) => {
-  await logMeal(page);
-  await page.goto("/#/");
-  // `onboardFast` typed 98 kg a moment ago, which the server stamps as weighed now.
-  await expect(page.getByText("Weight 98 kg, updated today.")).toBeVisible();
-  // Nothing on the server says where a weight came from, so the page does not guess.
-  await expect(page.locator(".card").first()).not.toContainText("Apple Health");
-});
-
-test("an older weighing is dated in days", async ({ inWebApp: page }) => {
-  await diaryWith(page, (p) => {
-    p.weight_kg = 72.349;
-    p.weight_measured_at = new Date(Date.now() - 3 * 86_400_000).toISOString();
-  });
-  await expect(page.getByText("Weight 72.3 kg, updated 3 days ago.")).toBeVisible();
-});
-
-test("an unreadable weighing drops the date, not the diary", async ({ inWebApp: page }) => {
-  await diaryWith(page, (p) => {
-    p.weight_measured_at = "not a time";
-  });
-  await expect(page.getByText("Weight 98 kg.", { exact: true })).toBeVisible();
-});
-
-test("no weight: the diary says how to keep one current", async ({ inWebApp: page }) => {
-  await diaryWith(page, (p) => {
-    p.weight_kg = null;
-    p.weight_measured_at = null;
-  });
-  await expect(
-    page.getByText("Connect Apple Health in the eait iPhone app and your weight keeps this target current."),
-  ).toBeVisible();
-});
-
-/** Today's diary, with what was eaten set to `target + delta` on its way to the page. */
+/**
+ * Today's diary, with what was eaten set to `target + delta` on its way to the page.
+ *
+ * THE GLOB IS ANCHORED AT THE QUERY — `day?*`, not `day*`: the week strip reads `/diary/days`
+ * (`DaysResponse`, no `targets`/`totals`) in the same draw, and the unanchored pattern used to
+ * catch it and throw inside this helper's own edit (#168).
+ */
 async function dayAt(page: Page, delta: number): Promise<number> {
-  // Same reason as `diaryWith`: no meal on the account and `/#/` is the first-meal flow.
+  // No meal on the account and `/#/` is the first-meal flow (#42), not the diary.
   await logMeal(page);
   let target = 0;
-  await page.route("**/api/v1/diary/day*", async (route) => {
+  await page.route("**/api/v1/diary/day?*", async (route) => {
     const res = await route.fetch();
     const body = (await res.json()) as DayResponse;
     target = body.targets.kcal;
@@ -72,20 +33,53 @@ async function dayAt(page: Page, delta: number): Promise<number> {
   });
   await page.goto("/#/");
   await page.reload();
-  await expect(page.locator(".big")).toBeVisible();
+  await expect(page.locator(".kfig")).toBeVisible();
   return target;
 }
 
-test("the headline is what is LEFT today, with eaten and target under it", async ({ inWebApp: page }) => {
+test("the calorie card says what is LEFT today, and a tap turns it to what was eaten", async ({ inWebApp: page }) => {
   const target = await dayAt(page, -550);
-  await expect(page.locator(".big")).toHaveText("550 kcal left");
-  await expect(page.locator(".big")).not.toHaveClass(/warn/);
-  // GROUPED THE READER'S WAY (#358): "1,896 of 2,446 kcal eaten" in English, "1.896 von 2.446" in
-  // German. The account here is English, so the expectation is built with the same formatter the
-  // page uses rather than with string interpolation — which is what it was, and what made the page
-  // and the test agree only for targets under a thousand.
-  const n = (x: number) => new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(x);
-  await expect(page.getByText(`${n(target - 550)} of ${n(target)} kcal eaten`)).toBeVisible();
+  const card = page.locator(".kcard");
+  await expect(card).not.toHaveClass(/over/);
+  // The board's pair: the figure over its label — "550" over "kcal left", not one sentence.
+  await expect(card.locator(".kfig")).toHaveText("550");
+  const toggle = card.locator("button.klab");
+  await expect(toggle).toHaveText(/kcal left/);
+  // The toggle's other face is the eaten figure under "kcal eaten".
+  await toggle.click();
+  await expect(card.locator(".kfig")).toHaveText(n("en-GB")(target - 550));
+  await expect(toggle).toHaveText(/kcal eaten/);
+});
+
+test("a past day draws the compact card — the figure over 'eaten of plan', no toggle", async ({ inWebApp: page }) => {
+  // A meal moved to yesterday is a REAL past day: `Move to yesterday` is the re-date route.
+  await logMeal(page);
+  const first = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const today = (await first.json()) as DayResponse;
+  const mealId = today.meals[0]!.id;
+  const moved = await page.request.post(`/v1/meals/${mealId}/redate`, {
+    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
+    data: { dayOffset: 1 },
+  });
+  const yesterday = ((await moved.json()) as { date: string }).date;
+
+  await page.goto("/#/");
+  await page.getByRole("button", { name: "Previous day" }).click();
+  await expect(page.locator(".dlabel")).toHaveText(fullDate(yesterday));
+
+  const res = await page.request.get(`/api/v1/diary/day?date=${yesterday}`, {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const day = (await res.json()) as DayResponse;
+  const card = page.locator(".kcard");
+  const en = n("en-GB");
+  // "kcal left · 703 of 2,446" — the numbers grouped by the account's formatter, in ONE label.
+  await expect(card.locator(".kfig")).toHaveText(en(Math.round(day.targets.kcal) - Math.round(day.totals.kcal)));
+  await expect(card.locator(".klab")).toHaveText(`kcal left · ${en(day.totals.kcal)} of ${en(day.targets.kcal)}`);
+  // The left/eaten toggle exists only on today-with-meals — a finished day has nothing left to spend.
+  await expect(card.locator("button.klab")).toHaveCount(0);
 });
 
 test("the diary is grouped and worded in the account's language, not the browser's", async ({ inWebApp: page }) => {
@@ -100,9 +94,18 @@ test("the diary is grouped and worded in the account's language, not the browser
     await route.fulfill({ response: res, json: body });
   });
   const target = await dayAt(page, -550);
-  await expect(page.locator(".big")).toHaveText("550 kcal übrig");
-  const de = (x: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(x);
-  await expect(page.getByText(`${de(target - 550)} von ${de(target)} kcal gegessen`, { exact: false })).toBeVisible();
+  await expect(page.locator(".kfig")).toHaveText("550");
+  await expect(page.locator(".kcard .klab")).toHaveText(/kcal übrig/);
+  const de = n("de-DE");
+  await page.locator(".kcard .klab").click();
+  await expect(page.locator(".kfig")).toHaveText(de(target - 550));
+  await expect(page.locator(".kcard .klab")).toHaveText(/kcal gegessen/);
+  // The bar names the viewed day in the account's language too — "Montag 28 September".
+  await expect(page.locator(".dlabel")).toHaveText(
+    new Intl.DateTimeFormat("de-DE", {
+      timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+    }).format(new Date(`${await serverToday(page)}T12:00:00Z`)),
+  );
   // And the document says which language it is in, because a screen reader picks a voice from it.
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   // The picker lives on You since #52, showing the language being read — and in it.
@@ -112,11 +115,13 @@ test("the diary is grouped and worded in the account's language, not the browser
 
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {
   await dayAt(page, 310);
-  await expect(page.locator(".big")).toHaveText("310 kcal over");
-  await expect(page.locator(".big")).toHaveClass(/warn/);
+  // The over day's figure is the OVERAGE under "kcal over", the card carrying the warn state.
+  await expect(page.locator(".kfig")).toHaveText("310");
+  await expect(page.locator(".kcard .klab")).toHaveText(/kcal over/);
+  await expect(page.locator(".kcard")).toHaveClass(/over/);
 });
 
-// ── The date switcher and the macro counters (#71) ────────────────────────────────────────────
+// ── The bar's date row and the week strip (#71, #164) ─────────────────────────────────────────
 
 /** The full date as the page writes it, for a `YYYY-MM-DD` — midday UTC, like `dateText`. */
 const fullDate = (d: string): string => new Intl.DateTimeFormat("en-GB", {
@@ -134,71 +139,113 @@ async function serverToday(page: Page): Promise<string> {
   }).format(new Date());
 }
 
-test("the date is written once: the switcher's name, and the date as a quiet sub-line", async ({ inWebApp: page }) => {
+test("the bar names the viewed day in full, and today has no 'next'", async ({ inWebApp: page }) => {
   await logMeal(page);
   const date = fullDate(await serverToday(page));
   await page.goto("/#/");
-  const bar = page.locator(".daybar");
-  await expect(bar).toBeVisible();
-  await expect(bar.locator(".dayname")).toHaveText("Today");
-  await expect(bar.locator(".daysub")).toHaveText(date);
-  // Nowhere else on the screen repeats it.
+  // The boards' wtop: the screen's own right side carries the date between its two chevrons.
+  const bar = page.locator("header.wtop .drow");
+  await expect(bar.locator(".dlabel")).toHaveText(date);
+  await expect(page.getByRole("button", { name: "Previous day" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+  // On today-with-meals the left column is "Recently uploaded" — the date is written once.
+  await expect(page.locator(".mealtitle")).toHaveText("Recently uploaded");
   await expect(page.getByText(date, { exact: true })).toHaveCount(1);
 });
 
-test("the switcher walks back days; a day that is already a date shows it alone", async ({ inWebApp: page }) => {
+test("the switcher and the week strip both move the viewed day", async ({ inWebApp: page }) => {
   await logMeal(page);
   const today = await serverToday(page);
   await page.goto("/#/");
-  const bar = page.locator(".daybar");
-  // Chevrons at the two ends of a raised bar, the centred label between them — and no tomorrow.
-  await expect(bar.locator("button.daybtn")).toHaveCount(2);
-  await expect(bar.locator(".daylabel")).toHaveCSS("text-align", "center");
-  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+
+  const label = page.locator(".dlabel");
   await page.getByRole("button", { name: "Previous day" }).click();
-  await expect(bar.locator(".dayname")).toHaveText("Yesterday");
-  await page.getByRole("button", { name: "Previous day" }).click();
-  // Two days back the label is already the date, so nothing prints twice — no sub-line.
-  const twoBack = new Date(`${today}T12:00:00Z`);
-  twoBack.setUTCDate(twoBack.getUTCDate() - 2);
-  await expect(bar.locator(".dayname")).toHaveText(fullDate(twoBack.toISOString().slice(0, 10)));
-  await expect(bar.locator(".daysub")).toHaveCount(0);
+  const oneBack = new Date(`${today}T12:00:00Z`);
+  oneBack.setUTCDate(oneBack.getUTCDate() - 1);
+  const d1 = oneBack.toISOString().slice(0, 10);
+  await expect(label).toHaveText(fullDate(d1));
+  // The strip's raised cell follows the day being looked at.
+  await expect(page.locator(`.week .dy.now[data-date="${d1}"]`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Next day" })).toBeEnabled();
+
+  // The strip's own cell is the other door — tap a day and the whole board follows it. The cell
+  // is read, not computed: the strip always holds the VIEWED week, so "yesterday" is not always
+  // in it (a Monday's is not), but a past sibling of the raised cell always is.
+  await page.getByRole("button", { name: "Next day" }).click();
+  await expect(label).toHaveText(fullDate(today));
+  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+  const cell = page.locator(".week button.dy[data-date]").first();
+  const picked = (await cell.getAttribute("data-date"))!;
+  await cell.click();
+  await expect(label).toHaveText(fullDate(picked));
+  await expect(page.locator(`.week .dy.now[data-date="${picked}"]`)).toBeVisible();
 });
 
-test("the protein and saturated-fat counters wear their tone, never plain black", async ({ inWebApp: page }) => {
+// ── The macro cards and their page dots ───────────────────────────────────────────────────────
+
+test("a macro under its target reads 'left', over its cap reads 'over' — ringed in its own tone", async ({ inWebApp: page }) => {
   await logMeal(page);
-  await page.route("**/api/v1/diary/day*", async (route) => {
+  let proteinTarget = 0;
+  await page.route("**/api/v1/diary/day?*", async (route) => {
     const res = await route.fetch();
     const body = (await res.json()) as DayResponse;
-    body.totals.protein_g = 10; // under the target → care
+    proteinTarget = body.targets.protein_g;
+    body.totals.protein_g = 10; // under the target → "{n} g" over "Protein left"
     body.targets.satfat_g = 20; // declared cap
-    body.totals.satfat_g = 30; // over it → bad
+    body.totals.satfat_g = 30; // over it → "Sat fat over"
     await route.fulfill({ response: res, json: body });
   });
   await page.goto("/#/");
   await page.reload();
-  const counters = page.locator(".macros");
-  await expect(counters.locator(".macro", { hasText: "Protein" }).locator(".stat-num")).toHaveClass(/tone-care/);
-  await expect(counters.locator(".macro", { hasText: "Saturated fat" }).locator(".stat-num")).toHaveClass(/tone-bad/);
+
+  // Page 1 is protein/carbs/fat: the under-target card prints what's left and rings in the
+  // macro's own colour — never plain black. The figure's expectation is built once the mocked
+  // draw is up: `proteinTarget` is the handler's own read of the answer it edited.
+  const protein = page.locator(".mcard", { hasText: "Protein left" });
+  await expect(protein.locator("b")).toBeVisible();
+  await expect(protein.locator("b")).toHaveText(`${n("en-GB")(Math.round(proteinTarget) - 10)} g`);
+  await expect(protein.locator(".mring circle.fg")).toHaveAttribute("stroke", "var(--macro-protein)");
+
+  // Page 2 — saturated fat, fibre, sugar, sodium — sits behind the second dot. Sat fat rings in
+  // the fat hue: `macro-satfat` is the kit's alias for `macro-fat`, not a colour of its own.
+  await page.getByRole("button", { name: "Page 2 of 2" }).click();
+  const satfat = page.locator(".mcard", { hasText: "Sat fat over" });
+  await expect(satfat.locator("b")).toHaveText("10 g"); // the overage, not the total
+  await expect(satfat.locator(".mring circle.fg")).toHaveAttribute("stroke", "var(--macro-fat)");
 });
 
-test("protein reached is good, under a cap is good — and no 'tap a meal' caption exists", async ({ inWebApp: page }) => {
+test("a macro past its target reads 'over', under a cap reads 'left' — and no 'tap a meal' caption exists", async ({ inWebApp: page }) => {
   await logMeal(page);
-  await page.route("**/api/v1/diary/day*", async (route) => {
+  await page.route("**/api/v1/diary/day?*", async (route) => {
     const res = await route.fetch();
     const body = (await res.json()) as DayResponse;
-    body.totals.protein_g = 9_999; // past the target → good
+    body.totals.protein_g = 9_999; // past the target → "Protein over", ring closed
     body.targets.satfat_g = 40;
-    body.totals.satfat_g = 5; // under the cap → good
+    body.totals.satfat_g = 5; // under the cap → "Sat fat left"
     await route.fulfill({ response: res, json: body });
   });
   await page.goto("/#/");
   await page.reload();
-  await expect(page.locator(".macros .macro", { hasText: "Protein" }).locator(".stat-num")).toHaveClass(/tone-good/);
-  await expect(page.locator(".macros .macro", { hasText: "Saturated fat" }).locator(".stat-num")).toHaveClass(/tone-good/);
+  const protein = page.locator(".mcard", { hasText: "Protein over" });
+  await expect(protein.locator("b")).toHaveText(/ g$/);
+  await page.getByRole("button", { name: "Page 2 of 2" }).click();
+  await expect(page.locator(".mcard", { hasText: "Sat fat left" }).locator("b")).toHaveText("35 g");
   // The phone's "Tap a meal to check or fix the numbers" line never existed here, and stays absent.
   await expect(page.getByText(/tap a meal/i)).toHaveCount(0);
+});
+
+test("a meal row opens its own detail on the viewed day", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  const res = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const day = (await res.json()) as DayResponse;
+  const id = day.meals[0]!.id;
+  await page.goto("/#/");
+  const row = page.locator(".meals a.meal").first();
+  await expect(row).toHaveAttribute("href", `#/meal/${id}?d=${day.date}`);
+  await row.click();
+  await expect(page).toHaveURL(new RegExp(`#\\/meal\\/${id}`));
 });
 
 test("a tab change while the first draw is still loading draws one page, not two", async ({ inWebApp: page }) => {
@@ -218,7 +265,7 @@ test("a tab change while the first draw is still loading draws one page, not two
   await page.evaluate(`location.hash = "#/"`);
   release();
 
-  await expect(page.locator(".big")).toBeVisible();
+  await expect(page.locator(".kfig")).toBeVisible();
   await expect(page.locator("nav")).toHaveCount(1);
   // The column IS the main landmark since #87's split — `.wcol`, the class `main` carries.
   await expect(page.locator("main.wcol")).toHaveCount(1);

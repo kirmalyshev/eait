@@ -225,11 +225,137 @@ const W_PX_PER_KG = 46;
 const W_TOP_PAD_KG = 0.2;
 
 /**
- * Points → the polyline and its dots. y runs top-down: the top hairline (22) sits `W_TOP_PAD_KG`
- * above the highest weigh-in, at `W_PX_PER_KG` px per kg; when the span would overrun the bottom
- * hairline (94) the scale shrinks to fit — `min(46, 72 / (range + 0.2))`.
+ * One weigh-in line, two frames — `weightChart` (the Progress card, 320×112, hairlines) and
+ * `bodyWeightChart` (the Body screen, 340×130, bare). The MAPPING is one function so the scale's
+ * rule — px/kg capped, shrinking when the span would overrun the frame — cannot drift between the
+ * card that announces the trend and the screen that shows it. What differs lives in the frame:
+ * the viewBox, the axis ends, the scale's own numbers, and where the four captions anchor.
  */
-export function weightChart(points: readonly WeightPoint[]): {
+interface WeightFrame {
+  viewBox: string;
+  /** The x of the first slot and the axis' right end — the date captions read off them. */
+  x0: number;
+  x1: number;
+  /** The y the weight axis tops at — the top hairline's y, or the bare frame's top. */
+  yTop: number;
+  /** kg of headroom above the max, in BOTH the scale's reference and the range it divides. */
+  topPadKg: number;
+  /** px per kg while the data allows it. */
+  pxPerKg: number;
+  /** The pixel span the drawn range must fit inside. */
+  spanPx: number;
+  /** The smallest range the scale divides by — a flat log still needs a scale. */
+  minRange: number;
+  firstLabelY: number;
+  /** The last label sits this far under the end dot, capped by `lastLabelYMax` when a lane is open. */
+  lastLabelDy: number;
+  lastLabelYMax?: number;
+  /** The empty log's label y, at the axis' end. */
+  emptyLabelY: number;
+  dateLabelY: number;
+  /** The hairlines the frame draws — the Body board draws none. */
+  gridlines?: readonly number[];
+}
+
+const W_FRAME: WeightFrame = {
+  viewBox: W_VIEW_BOX,
+  x0: W_X0, x1: W_X1,
+  yTop: W_GRID[0]!,
+  topPadKg: W_TOP_PAD_KG,
+  pxPerKg: W_PX_PER_KG,
+  // The scale the board owns: the two-kg span between the top and bottom hairlines.
+  spanPx: W_GRID[2]! - W_GRID[0]!,
+  minRange: 0,
+  firstLabelY: 14,
+  lastLabelDy: 4,
+  emptyLabelY: 90,
+  dateLabelY: 110,
+  gridlines: W_GRID,
+};
+
+/** The same frame with the You board's bottom lane open — taller, the label capped over it. */
+const W_FRAME_LANE: WeightFrame = {
+  ...W_FRAME, viewBox: "0 0 320 120", lastLabelYMax: 88, dateLabelY: 118,
+};
+
+/** health-body.html's frame: wider, no hairlines, the board's 50 px a kg capping at a 66 px span. */
+const BW_FRAME: WeightFrame = {
+  viewBox: "0 0 340 130",
+  x0: 20, x1: 320,
+  yTop: 30,
+  topPadKg: 0,
+  pxPerKg: 50,
+  spanPx: 66,
+  minRange: 0.5,
+  firstLabelY: 18,
+  lastLabelDy: 12,
+  emptyLabelY: 100,
+  dateLabelY: 128,
+};
+
+function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
+  viewBox: string;
+  gridlines: readonly number[];
+  points: { x: number; y: number }[];
+  path: string;
+  firstLabel: { x: number; y: number };
+  lastLabel: { x: number; y: number };
+  dateLabelY: number;
+  dateLabelX: { start: number; end: number };
+} {
+  const kgs = points.map((p) => p.kg);
+  const max = kgs.length ? Math.max(...kgs) : 0;
+  const range = kgs.length ? max - Math.min(...kgs) : 0;
+  const pxPerKg = Math.min(f.pxPerKg, f.spanPx / Math.max(range + f.topPadKg, f.minRange));
+  const refKg = max + f.topPadKg;
+  const t0 = points[0]?.t ?? 0;
+  const span = (points[points.length - 1]?.t ?? 0) - t0;
+
+  const pts = points.map((p) => ({
+    x: Math.round(f.x0 + (span > 0 ? ((p.t - t0) / span) * (f.x1 - f.x0) : 0)),
+    y: Math.round(f.yTop + (refKg - p.kg) * pxPerKg),
+  }));
+
+  const last = pts[pts.length - 1];
+  return {
+    viewBox: f.viewBox,
+    gridlines: f.gridlines ?? [],
+    points: pts,
+    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
+    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
+    firstLabel: { x: f.x0, y: f.firstLabelY },
+    lastLabel: last
+      ? {
+        x: last.x - 10,
+        y: f.lastLabelYMax === undefined ? last.y + f.lastLabelDy : Math.min(last.y + f.lastLabelDy, f.lastLabelYMax),
+      }
+      : { x: f.x1, y: f.emptyLabelY },
+    dateLabelY: f.dateLabelY,
+    dateLabelX: { start: f.x0, end: f.x1 },
+  };
+}
+
+/**
+ * The You board's target-lane dash, drawn the same on every surface — `stroke-dasharray` values in
+ * SVG units, so web's emitter and the phone's `<Line>` read one constant rather than each carrying
+ * "4 4" of their own.
+ */
+export const TARGET_LANE_DASH = "4 4";
+
+/**
+ * The weigh-in dots' entrance on the You board: dot `i` pops at `delayMs + min(i, lastIndex) *
+ * stepMs` — `.9/.10/.11/.12` on the board, so the fourth and every dot after share `lastIndex`'s
+ * delay. `pd-0..pd-3` on the web (`you.css.ts`) and the same arithmetic in the phone's kit.
+ */
+export const WEIGHT_CHART_DOTS = { delayMs: 900, stepMs: 100, lastIndex: 3 } as const;
+
+/**
+ * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller
+ * viewBox adds, its label above — DISPLAY, never the data scale (a 6 kg drop would sit off any
+ * scale the three gridlines span). Off, the geometry is the board's plain one. The lane's VALUE
+ * lives on its label, which the caller formats — the line means "the aim sits here".
+ */
+export function weightChart(points: readonly WeightPoint[], withTargetLane = false): {
   viewBox: string;
   gridlines: readonly number[];
   points: { x: number; y: number }[];
@@ -239,33 +365,19 @@ export function weightChart(points: readonly WeightPoint[]): {
   /** The y of the two date captions; their x's are the axis ends. */
   dateLabelY: number;
   dateLabelX: { start: number; end: number };
+  /** The dashed target line, when one was asked for — you.html's lane at the band's bottom. */
+  targetLine?: { x1: number; x2: number; y: number; dash: string };
+  /** Where its "{w} · target" label sits, right-aligned just over the line. */
+  targetLabel?: { x: number; y: number };
 } {
-  const kgs = points.map((p) => p.kg);
-  const max = kgs.length ? Math.max(...kgs) : 0;
-  const range = kgs.length ? max - Math.min(...kgs) : 0;
-  const pxPerKg = Math.min(W_PX_PER_KG, (W_GRID[2] - W_GRID[0]) / (range + W_TOP_PAD_KG));
-  const refKg = max + W_TOP_PAD_KG;
-  const t0 = points[0]?.t ?? 0;
-  const tN = points[points.length - 1]?.t ?? 0;
-  const span = tN - t0;
-
-  const pts = points.map((p) => ({
-    x: Math.round(W_X0 + (span > 0 ? ((p.t - t0) / span) * (W_X1 - W_X0) : 0)),
-    y: Math.round(W_GRID[0] + (refKg - p.kg) * pxPerKg),
-  }));
-
-  const last = pts[pts.length - 1];
-  return {
-    viewBox: W_VIEW_BOX,
-    gridlines: W_GRID,
-    points: pts,
-    // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
-    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
-    firstLabel: { x: W_X0, y: 14 },
-    lastLabel: last ? { x: last.x - 10, y: last.y + 4 } : { x: W_X1, y: 90 },
-    dateLabelY: 110,
-    dateLabelX: { start: W_X0, end: W_X1 },
-  };
+  const g = weightLine(points, withTargetLane ? W_FRAME_LANE : W_FRAME);
+  return withTargetLane ? {
+    ...g,
+    // The band the taller frame opens: the board's lane at y 104, its label above it. The value
+    // lives on the label, not the axis — the line says "the aim sits here", never a scale reading.
+    targetLine: { x1: 24, x2: 296, y: 104, dash: TARGET_LANE_DASH },
+    targetLabel: { x: 296, y: 98 },
+  } : g;
 }
 
 // ── The week's intake bars ────────────────────────────────────────────────────────────────────
@@ -280,38 +392,55 @@ const BARS_BASE = 118;
 /** The board's headroom: 100 px of bar for every 1,900 kcal. */
 const BARS_BASELINE_FULL = 1900;
 
+/**
+ * The bars' one scale, shared by `weekBars` and `intakeChart`: `px` of bar for `full` kcal while
+ * the data is quiet, yielding past `largest × 1.1` so a heavy week compresses instead of clipping.
+ * Without `floor` a light week would stretch the bars to the frame and read as a record one.
+ */
+const barPxPerKcal = (px: number, floor: number, largest: number): number =>
+  px / Math.max(floor, largest * 1.1);
+
 export function weekBars(
   days: readonly (number | null)[],
   planKcal: number,
   todayIndex = -1,
 ): {
   viewBox: string;
-  planLine: { x1: number; x2: number; y: number };
+  planLine: { x1: number; x2: number; y: number; dash: string };
   planLabel: { x: number; y: number };
   bars: ({ x: number; y: number; width: number; height: number; rx: number; tone: DayTone; today: boolean } | null)[];
   /** The day-letter captions, one per day whether it has a bar or not. */
   labels: { x: number; y: number }[];
 } {
   const largest = Math.max(planKcal, ...days.map((d) => d ?? 0));
-  const pxPerKcal = 100 / Math.max(BARS_BASELINE_FULL, largest * 1.1);
+  const pxPerKcal = barPxPerKcal(100, BARS_BASELINE_FULL, largest);
   const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
+  const bars = days.map((kcal, i) => {
+    if (kcal === null) return null;
+    const h = Math.round(kcal * pxPerKcal);
+    return {
+      x: 14 + i * 44,
+      y: BARS_BASE - h,
+      width: 26,
+      height: h,
+      rx: 4,
+      tone: dayTone({ kcal, logged: true, when: i === todayIndex ? "today" : "past" }, planKcal),
+      today: i === todayIndex,
+    };
+  });
+  // The label hangs off the line's right end — but ABOVE any bar tall enough to reach into its
+  // zone (the board's weekend is empty; a real Sunday bar can top right where "1,434" sits, #174).
+  // At 12px a glyph is ~7px, so the label needs its own width of room back from x 312.
+  const labelLeft = 312 - (String(Math.round(planKcal)).length + Math.floor((String(Math.round(planKcal)).length - 1) / 3)) * 7;
+  let labelY = planY - 6;
+  for (const b of bars) {
+    if (b !== null && b.x + b.width > labelLeft) labelY = Math.min(labelY, b.y - 6);
+  }
   return {
     viewBox: "0 0 320 142",
-    planLine: { x1: 8, x2: 312, y: planY },
-    planLabel: { x: 312, y: planY - 6 },
-    bars: days.map((kcal, i) => {
-      if (kcal === null) return null;
-      const h = Math.round(kcal * pxPerKcal);
-      return {
-        x: 14 + i * 44,
-        y: BARS_BASE - h,
-        width: 26,
-        height: h,
-        rx: 4,
-        tone: dayTone({ kcal, logged: true, when: i === todayIndex ? "today" : "past" }, planKcal),
-        today: i === todayIndex,
-      };
-    }),
+    planLine: { x1: 8, x2: 312, y: planY, dash: "3 3" },
+    planLabel: { x: 312, y: labelY },
+    bars,
     labels: days.map((_, i) => ({ x: 14 + i * 44 + 13, y: 136 })),
   };
 }
@@ -372,4 +501,209 @@ export function bmiTick(value: number, range: string): number {
   const lo = seg.lo ?? seg.hi! - wLow;
   const hi = seg.hi ?? seg.lo! + wHigh;
   return (i + clamp01((value - lo) / (hi - lo))) / BMI_SEGMENTS.length;
+}
+
+// ── Apple Health's intake bars ────────────────────────────────────────────────────────────────
+//
+// phone/health.html's "Intake · this week" card: a bar per bucket on a full-width baseline and a
+// dashed ink line at the plan — `weekBars`' bigger sibling on its own frame. Two differences,
+// both the board's: a day over plan stays accent rather than going `bad` (the card reads as a
+// record, not a verdict), and the bucket count is the caller's — 7 days, 26 weeks, 12 months or
+// however many years the window holds — so the pitch is derived, never fixed at seven.
+
+const INTAKE = {
+  /** The frame's width — the baseline, plan line and plan label all end at it. */
+  frame: 350,
+  viewBox: "0 0 350 150",
+  /** The baseline every bar stands on. */
+  base: 124,
+  /** Pixels of bar for `max(plan, largest) × 1.1` — the headroom rule `weekBars` runs at 1900. */
+  headroomPx: 114,
+  /** The drawable width the bucket pitch divides — the frame less its 8 px margins. */
+  inner: 334,
+  /** The board's pitch at seven buckets: 48 px a slot, 30 px of bar, first bar at x 8. */
+  pitchCap: 48,
+  barCap: 30,
+  barFill: 0.625, // 30 / 48
+  labelY: 142,
+} as const;
+
+export function intakeChart(
+  values: readonly (number | null)[],
+  planKcal: number,
+  todayIndex = -1,
+): {
+  viewBox: string;
+  /** The frame's width — the baseline runs to it edge to edge. */
+  frame: number;
+  /** The y the bars stand on — a full-width hairline. */
+  baseline: number;
+  /** The dashed plan line, or null when the account has no plan to draw. */
+  planLine: { x1: number; x2: number; y: number; dash: string } | null;
+  planLabel: { x: number; y: number } | null;
+  bars: ({ x: number; y: number; width: number; height: number; rx: number; today: boolean } | null)[];
+  /** One caption per bucket, centred on the slot — a bucket with no bar still names itself. */
+  labels: { x: number; y: number }[];
+} {
+  const n = values.length;
+  const pitch = Math.min(INTAKE.pitchCap, Math.round(INTAKE.inner / Math.max(1, n)));
+  const width = Math.min(INTAKE.barCap, Math.round(pitch * INTAKE.barFill));
+  const largest = Math.max(planKcal, ...values.map((v) => v ?? 0));
+  const pxPerKcal = barPxPerKcal(INTAKE.headroomPx, BARS_BASELINE_FULL, largest);
+  const planY = Math.round(INTAKE.base - planKcal * pxPerKcal);
+  return {
+    viewBox: INTAKE.viewBox,
+    frame: INTAKE.frame,
+    baseline: INTAKE.base,
+    planLine: planKcal > 0 ? { x1: 0, x2: INTAKE.frame, y: planY, dash: "5 4" } : null,
+    planLabel: planKcal > 0 ? { x: INTAKE.frame, y: planY - 6 } : null,
+    bars: values.map((v, i) => {
+      if (v === null) return null;
+      const h = Math.round(v * pxPerKcal);
+      return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex };
+    }),
+    labels: values.map((_, i) => ({ x: 8 + i * pitch + Math.round(width / 2), y: INTAKE.labelY })),
+  };
+}
+
+// ── The compare chart: bars against a line on two axes ────────────────────────────────────────
+//
+// phone/health-compare.html: intake-shaped bars on the left axis, a second series as an ink line
+// with hollow dots on the right, three hairlines, bucket captions under the slots. A gap on
+// either side is drawn, not smoothed — a null on the bars side is an empty slot, on the line side
+// a break in the run, for the same reason `trend.ts` keeps null apart from zero.
+
+const CMP = {
+  /** The frame's width — the plot sits between the two measured gutters inside it. */
+  frame: 350,
+  viewBox: "0 0 350 164",
+  top: 10,
+  plotBottom: 140,
+  /** The floor for the derived gutters — wider axis words widen them, never clip them. */
+  gutter: 44,
+  labelGap: 6,
+  font: 12,
+  barCap: 20,
+  barFill: 0.55,
+  xLabelY: 160,
+} as const;
+
+interface CmpScale { lo: number; hi: number; ticks: number[] }
+
+/**
+ * One axis with round ends. Bars floor at zero — a bar is a quantity — and a floating series
+ * rounds its own extremes out to the step, so the value at the end is never ON the frame.
+ * Only a flat series is padded (without it the rounding collapses to a line at its own edge).
+ */
+function cmpScale(values: readonly (number | null)[], kind: "bar" | "line"): CmpScale | null {
+  const known = values.flatMap((v) => (v === null ? [] : [v]));
+  if (known.length === 0) return null;
+  let lo = kind === "bar" ? 0 : Math.min(...known);
+  let hi = Math.max(...known);
+  if (lo === hi) {
+    const pad = (Math.abs(hi) || 1) * 0.15;
+    lo -= pad;
+    hi += pad;
+  }
+  const raw = (hi - lo) / 2;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw)!;
+  lo = kind === "bar" ? 0 : Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  return { lo, hi, ticks: [lo, (lo + hi) / 2, hi] };
+}
+
+/** One gutter, measured from the labels that go in it — see `chart.tsx`'s `axisPad` for why. */
+function cmpGutter(labels: readonly string[]): number {
+  const widest = labels.reduce((w, l) => Math.max(w, l.length), 0);
+  const need = Math.ceil(widest * CMP.font * 0.62) + CMP.labelGap;
+  return Math.min(Math.max(need, CMP.gutter), Math.floor(CMP.frame / 3));
+}
+
+export function compareChart(
+  bars: readonly (number | null)[],
+  line: readonly (number | null)[],
+  labels: readonly string[],
+  formatBars: (v: number) => string,
+  formatLine: (v: number) => string,
+): {
+  viewBox: string;
+  plotLeft: number;
+  plotWidth: number;
+  /** The y's of the three hairlines — the bars axis' lo, mid and hi. */
+  gridlines: number[];
+  leftLabels: { x: number; y: number; text: string }[];
+  rightLabels: { x: number; y: number; text: string }[];
+  bars: ({ x: number; y: number; width: number; height: number; rx: number } | null)[];
+  /** One path per run of consecutive known line points — a gap is a break, not a bridge. */
+  runs: string[];
+  /** A hollow dot per known line point; the caller gives it the surface fill and ink stroke. */
+  dots: { x: number; y: number; r: number }[];
+  labels: { x: number; y: number; text: string }[];
+} {
+  const plotH = CMP.plotBottom - CMP.top;
+  const a = cmpScale(bars, "bar");
+  const b = cmpScale(line, "line");
+  const left = cmpGutter((a?.ticks ?? []).map(formatBars));
+  const right = b ? cmpGutter(b.ticks.map(formatLine)) : CMP.labelGap;
+  const plotW = CMP.frame - left - right;
+  const n = Math.max(bars.length, line.length, labels.length);
+  const slot = n > 0 ? plotW / n : 0;
+  const xOf = (i: number) => left + slot * (i + 0.5);
+  const yOf = (sc: CmpScale, v: number) => CMP.top + plotH - ((v - sc.lo) / (sc.hi - sc.lo)) * plotH;
+  const barW = Math.min(CMP.barCap, slot * CMP.barFill);
+
+  const runs: string[] = [];
+  let run: { x: number; y: number }[] = [];
+  line.forEach((v, i) => {
+    if (v === null || b === null) {
+      if (run.length) runs.push(run.map((p, j) => `${j === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" "));
+      run = [];
+    } else run.push({ x: xOf(i), y: Math.round(yOf(b, v) * 10) / 10 });
+  });
+  if (run.length) runs.push(run.map((p, j) => `${j === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" "));
+
+  return {
+    viewBox: CMP.viewBox,
+    plotLeft: left,
+    plotWidth: plotW,
+    gridlines: (a?.ticks ?? []).map((t) => Math.round(yOf(a!, t))),
+    leftLabels: (a?.ticks ?? []).map((t) => ({ x: left - CMP.labelGap, y: Math.round(yOf(a!, t)) + 4, text: formatBars(t) })),
+    rightLabels: (b?.ticks ?? []).map((t) => ({ x: left + plotW + CMP.labelGap, y: Math.round(yOf(b!, t)) + 4, text: formatLine(t) })),
+    bars: bars.map((v, i) => {
+      if (v === null || a === null) return null;
+      // The height comes from the ROUNDED top, not the other way: y + height is exactly the
+      // baseline this way, where two independent roundings drifted a half pixel off it.
+      const y = Math.round(yOf(a, v) * 10) / 10;
+      return {
+        x: Math.round((xOf(i) - barW / 2) * 10) / 10,
+        y,
+        width: Math.round(barW * 10) / 10,
+        height: Math.max(0, CMP.plotBottom - y),
+        rx: 3,
+      };
+    }),
+    runs,
+    dots: line.flatMap((v, i) => (v === null || b === null ? [] : [{ x: xOf(i), y: Math.round(yOf(b, v) * 10) / 10, r: 3.5 }])),
+    labels: labels.map((text, i) => ({ x: Math.round(xOf(i) * 10) / 10, y: CMP.xLabelY, text })),
+  };
+}
+
+// ── The Body screen's weigh-in line ───────────────────────────────────────────────────────────
+//
+// phone/health-body.html: the same logged-weights line as Progress's card on a wider frame —
+// 340×130 with no hairlines, the first and last values named, the date range under. Same mapping
+// as `weightChart` (`weightLine`), a different `WeightFrame` — the frame is the whole difference.
+
+export function bodyWeightChart(points: readonly WeightPoint[]): {
+  viewBox: string;
+  gridlines: readonly number[];
+  points: { x: number; y: number }[];
+  path: string;
+  firstLabel: { x: number; y: number };
+  lastLabel: { x: number; y: number };
+  dateLabelY: number;
+  dateLabelX: { start: number; end: number };
+} {
+  return weightLine(points, BW_FRAME);
 }

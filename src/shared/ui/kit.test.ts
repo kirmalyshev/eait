@@ -85,12 +85,28 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(m).toContain(">M<svg");
   });
 
-  test("every day is a real button with a spoken name", () => {
+  test("a past-or-today day is a real button; a future day is markup, not a control", () => {
     const m = weekStrip(days, "en");
-    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(7);
+    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(4);
+    expect(m.match(/<span class="dy fut"/g)).toHaveLength(3);
+    expect(m.match(/aria-hidden="true"/g)).toHaveLength(3); // the fut cells' rings are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
     expect(m).toContain('viewBox="0 0 30 30"');
     expect(m).toContain('stroke-width="2.4"');
+  });
+
+  test("now raises the VIEWED day, not the server's today — and falls back without it", () => {
+    // Home's strip follows the viewed week (#91): .now marks the day the caller is looking at.
+    const m = weekStrip(days, "en", "2026-09-21");
+    expect(m.match(/class="dy now"/g)).toHaveLength(1);
+    expect(m).toContain('class="dy now" data-date="2026-09-21"');
+    // The server's today loses the raise — it is a plain past-or-today cell.
+    expect(m).toContain('class="dy" data-date="2026-09-24"');
+    // Unnamed, nothing changes: today's own row keeps the raise.
+    const fallback = weekStrip(days, "en");
+    expect(fallback).toContain('class="dy now" data-date="2026-09-24"');
+    // A future cell named now is still a control — the viewed day can always be returned to.
+    expect(weekStrip(days, "en", "2026-09-26")).toContain('class="dy now" data-date="2026-09-26"');
   });
 });
 
@@ -263,6 +279,17 @@ describe("the charts", () => {
     expect(m).toContain(">73.4</text>");
     expect(m).toContain(">24 Aug</text>");
     expect(m.match(/<circle/g)!.length).toBe(3);
+  });
+
+  test("weightChartSvg draws the target lane you.html marks under the points", () => {
+    const m = weightChartSvg(
+      [{ t: 0, kg: 74.6 }, { t: 1, kg: 74 }, { t: 2, kg: 73.4 }],
+      { first: "74.6", last: "73.4", from: "24 Aug", to: "24 Sep" },
+      { label: "68 kg · target" },
+    );
+    expect(m).toContain('viewBox="0 0 320 120"');
+    expect(m).toContain('stroke-dasharray="4 4"');
+    expect(m).toContain(">68 kg · target</text>");
   });
 
   test("weekBarsSvg: empty days have no bar, today is the tinted one", () => {

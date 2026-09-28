@@ -40,22 +40,40 @@ test("the weight card's ranges switch what the chart draws", async ({ inWebApp: 
   await expect(dots).toHaveCount(2);
 });
 
-test("a weight typed on the account appears on the chart", async ({ inWebApp: page }) => {
+test("a weigh-in typed on You lands on the chart", async ({ inWebApp: page }) => {
   await seedWeight(page, 20, 74.6);
   await page.goto("/#/progress");
   await expect(page.locator(".prog .wnum .d28").first()).toHaveText("98");
 
-  // W10's write path — a typed weight lands as today's manual row and becomes the newest point.
-  const res = await page.request.patch("/v1/profile", {
-    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
-    data: { weight_kg: 80 },
-  });
-  expect(res.status()).toBe(200);
-  // The way a person arrives: from You, where the weigh-in was typed — a hash hop re-renders.
+  // W10's write path, driven the way a person drives it (#155): You's "Log weight" opens the
+  // inline field, Save writes the weigh-in — `PATCH /v1/profile` under it either way.
   await page.goto("/#/you");
+  await page.getByRole("button", { name: "Log weight" }).click();
+  await page.getByRole("spinbutton", { name: "Weight" }).fill("80");
+  await page.getByRole("button", { name: "Save" }).click();
   await page.goto("/#/progress");
   await expect(page.locator(".prog .wnum .d28").first()).toHaveText("80");
   await expect(page.locator(".pgraph.wl circle")).toHaveCount(2);
+});
+
+test("an account whose log is empty draws the empty card — a dash, not a phantom trend", async ({ inWebApp: page }) => {
+  // `empty` is unreachable on an onboarded account — the typed weigh-in IS a log row (#84) — so
+  // the state is answered at the wire: the shape `/v1/weights` gives an account with nothing
+  // (#155's missing browser cover for `weightCard`'s `empty` branch).
+  await page.route("**/api/v1/weights?*", (r) => r.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ weights: [], latest: null, projection: null, bmi: null }),
+  }));
+  await page.goto("/#/progress");
+  await expect(page.locator(".prog .wnum .d28").first()).toHaveText("—");
+  // The frame draws, and not one dot is invented.
+  await expect(page.locator(".pgraph.wl")).toBeVisible();
+  await expect(page.locator(".pgraph.wl circle")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Log a weight to see your trend" }))
+    .toHaveAttribute("href", "#/you");
+  // The BMI card's own empty half reads the same invitation.
+  await expect(page.getByRole("link", { name: "Log a weight to see your BMI" }))
+    .toHaveAttribute("href", "#/you");
 });
 
 test("a fresh account draws the one-dot card — no invented trend", async ({ inWebApp: page }) => {

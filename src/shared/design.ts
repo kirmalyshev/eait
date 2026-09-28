@@ -189,6 +189,8 @@ export const MOTION = {
   dash: 600,
   /** The photo scan's loop — the only looping animation besides the welcome demo. */
   scan: 1600,
+  /** The thread's line-by-line delay step — the boards stagger a line's rise by this (#158). */
+  stagger: 100,
   /** The welcome demo's full pass. */
   welcomeDemo: 7000,
   /** The plan reveal's 0 → 100 % (see S5). */

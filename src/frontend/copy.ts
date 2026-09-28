@@ -12,7 +12,9 @@
 // `node_modules/@eait/shared`, which exists only after `bun install`, and `deploy/Dockerfile.web`
 // builds this bundle with neither. `@eait/shared` stays TYPES ONLY in this workspace.
 
-import { t, type CountForms, type Localized } from "../shared/lang.ts";
+import { logCopyFor } from "../shared/app/log-copy.ts";
+import { MAX_USER_LINE } from "../shared/contract.ts";
+import { t, wholeNumbers, type CountForms, type Localized } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 export interface WebCopy {
@@ -68,11 +70,6 @@ export interface WebCopy {
   weightLineWhen: string;
   nothingToday: string;
   meal: string;
-  photo: string;
-  edit: string;
-  delete: string;
-  confirmDeleteMeal: string;
-  confirmDeleteLine: string;
   noMessages: string;
   sentReload: string;
   proposalLead: string;
@@ -93,8 +90,6 @@ export interface WebCopy {
   cancel: string;
   choosePhotoFirst: string;
   photoTooLarge: string;
-  messageGone: string;
-  messageNotEditable: string;
   mealGone: string;
   loading: string;
   somethingWrong: string;
@@ -161,8 +156,6 @@ export interface WebCopy {
   offerLater: string;
   /** `{n}` — the photo bound off `ProfileResponse.limits`. */
   photosMax: string;
-  /** `{n}` — photos already on the meal being re-read. */
-  photosOnMeal: string;
   /** The picker's chosen count under the composer — plural by rule, not a "(s)". */
   photosCount: CountForms;
   /** `{text}` — a queued photo's caption. */
@@ -193,11 +186,6 @@ const EN: WebCopy = {
   weightLineWhen: "Weight {kg} kg, updated {when}.",
   nothingToday: "Nothing logged yet today.",
   meal: "Meal",
-  photo: "Photo",
-  edit: "Edit",
-  delete: "Delete",
-  confirmDeleteMeal: "Delete this meal? Its photos and numbers go too.",
-  confirmDeleteLine: "Remove this message? Numbers stay.",
   noMessages: "No messages yet.",
   sentReload: "Sent. Reload to see the conversation.",
   proposalLead: "Logging this — look right?",
@@ -216,8 +204,6 @@ const EN: WebCopy = {
   cancel: "Cancel",
   choosePhotoFirst: "Choose a photo first.",
   photoTooLarge: "That photo is too large to send.",
-  messageGone: "That message is gone.",
-  messageNotEditable: "That message cannot be edited.",
   mealGone: "A meal that is no longer logged",
   loading: "Loading…",
   somethingWrong: "Something went wrong. Try again.",
@@ -259,28 +245,20 @@ const EN: WebCopy = {
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
-  photosOnMeal: "Photos: {n} · add angles:",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
     "subscription-required": "This account's free sample is used up. Start your free week to carry on.",
-    "cap-user": "That was your last one today — your daily allowance resets at midnight.",
-    "cap-global": "Everyone has used today's allowance. Tomorrow is a fresh number.",
-    "cap-address": "Too many from this network — not you, this connection. Try again later.",
-    "rate-limited": "Too many from this network — not you, this connection. Try again later.",
     "unsupported-image": "That file is not a photo this can read. JPEG, PNG or WebP.",
     "not-food": "That did not look like food.",
     "analysis-failed": "That did not come back. Try it again.",
-    "not-onboarded": "Answer the plan questions first.",
     "identity-required": "Sign in with Apple or Google to keep going — a photo can't be read without one.",
     expired: "That one is no longer being held. Say it again.",
     "target-gone": "There is no meal open here to change. Open it in the app, or say what you ate and log it again.",
     "too many photos": "That is more angles than one meal can have.",
     "too large": "That photo is too large to send.",
     "text too long": "That message is too long to send.",
-    "caption too long": "That message is too long to send.",
-    "cap-unknown": "That's the limit for now. Try again later.",
     "maybe-landed": "No answer came back, and it may still have gone through. Reload to check before sending it again.",
     unclear: "That did not finish cleanly, and it may still have been logged. Reload to check before sending it again.",
   },
@@ -303,9 +281,7 @@ const FR: WebCopy = {
   weightLine: "Poids {kg} kg.",
   weightLineWhen: "Poids {kg} kg, mis à jour {when}.",
   nothingToday: "Rien d'enregistré aujourd'hui.",
-  meal: "Repas", photo: "Photo", edit: "Modifier", delete: "Supprimer",
-  confirmDeleteMeal: "Supprimer ce repas ? Ses photos et ses chiffres seront supprimés aussi.",
-  confirmDeleteLine: "Retirer ce message ? Les chiffres restent.",
+  meal: "Repas",
   noMessages: "Aucun message pour l'instant.",
   sentReload: "Envoyé. Recharge pour voir la conversation.",
   proposalLead: "J'enregistre ça — ça te va ?", logIt: "Enregistrer", notThis: "Pas ça",
@@ -319,8 +295,6 @@ const FR: WebCopy = {
   sendPhoto: "Envoyer la photo", cancel: "Annuler",
   choosePhotoFirst: "Choisis d'abord une photo.",
   photoTooLarge: "Cette photo est trop lourde à envoyer.",
-  messageGone: "Ce message n'existe plus.",
-  messageNotEditable: "Ce message ne peut pas être modifié.",
   mealGone: "Un repas qui n'est plus enregistré",
   loading: "Chargement…", somethingWrong: "Un problème est survenu. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
@@ -359,28 +333,20 @@ const FR: WebCopy = {
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
-  photosOnMeal: "Photos : {n} · ajoute des angles :",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
     "subscription-required": "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine gratuite pour continuer.",
-    "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien se réinitialise à minuit.",
-    "cap-global": "Tout le monde a épuisé le quota du jour. Demain, on repart de zéro.",
-    "cap-address": "Trop de demandes depuis ce réseau — pas toi, cette connexion. Réessaie plus tard.",
-    "rate-limited": "Trop de demandes depuis ce réseau — pas toi, cette connexion. Réessaie plus tard.",
     "unsupported-image": "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP.",
     "not-food": "Ça ne ressemblait pas à de la nourriture.",
     "analysis-failed": "Pas de réponse. Réessaie.",
-    "not-onboarded": "Réponds d'abord aux questions du plan.",
     "identity-required": "Connecte-toi avec Apple ou Google pour continuer — sans compte, rien n'est lu.",
     expired: "Cette proposition a expiré. Redis-moi ce que tu as mangé.",
     "target-gone": "Aucun repas n'est ouvert ici à modifier. Ouvre-le dans l'appli, ou dis ce que tu as mangé et enregistre-le à nouveau.",
     "too many photos": "Ça fait plus d'angles qu'un repas ne peut en avoir.",
     "too large": "Cette photo est trop lourde à envoyer.",
     "text too long": "Ce message est trop long pour être envoyé.",
-    "caption too long": "Ce message est trop long pour être envoyé.",
-    "cap-unknown": "C'est la limite pour l'instant. Réessaie plus tard.",
     "maybe-landed": "Aucune réponse, et c'est peut-être quand même passé. Recharge pour vérifier avant de renvoyer.",
     unclear: "Ça ne s'est pas terminé proprement, et ça a peut-être été enregistré. Recharge pour vérifier avant de renvoyer.",
   },
@@ -403,9 +369,7 @@ const DE: WebCopy = {
   weightLine: "Gewicht {kg} kg.",
   weightLineWhen: "Gewicht {kg} kg, aktualisiert {when}.",
   nothingToday: "Heute noch nichts eingetragen.",
-  meal: "Mahlzeit", photo: "Foto", edit: "Bearbeiten", delete: "Löschen",
-  confirmDeleteMeal: "Diese Mahlzeit löschen? Ihre Fotos und Zahlen gehen mit.",
-  confirmDeleteLine: "Diese Nachricht entfernen? Die Zahlen bleiben.",
+  meal: "Mahlzeit",
   noMessages: "Noch keine Nachrichten.",
   sentReload: "Gesendet. Lad neu, um das Gespräch zu sehen.",
   proposalLead: "Ich trage das ein — passt das?", logIt: "Eintragen", notThis: "Doch nicht",
@@ -419,8 +383,6 @@ const DE: WebCopy = {
   sendPhoto: "Foto senden", cancel: "Abbrechen",
   choosePhotoFirst: "Wähl zuerst ein Foto.",
   photoTooLarge: "Dieses Foto ist zu groß zum Senden.",
-  messageGone: "Diese Nachricht gibt es nicht mehr.",
-  messageNotEditable: "Diese Nachricht lässt sich nicht bearbeiten.",
   mealGone: "Eine Mahlzeit, die nicht mehr eingetragen ist",
   loading: "Lädt…", somethingWrong: "Etwas ist schiefgegangen. Versuch es noch einmal.",
   connectTelegram: "Telegram verbinden", telegramFailed: "Diesmal kein Telegram-Link. Versuch es noch einmal.",
@@ -459,28 +421,20 @@ const DE: WebCopy = {
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
-  photosOnMeal: "Fotos: {n} · weitere Blickwinkel:",
   photosCount: { one: "{n} Foto", few: "{n} Fotos", many: "{n} Fotos", other: "{n} Fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
     "subscription-required": "Das Gratis-Kontingent dieses Kontos ist aufgebraucht. Starte deine Gratiswoche, um weiterzumachen.",
-    "cap-user": "Das war heute deine letzte — dein Tageskontingent setzt um Mitternacht zurück.",
-    "cap-global": "Das Tageskontingent ist für alle aufgebraucht. Morgen ist eine frische Zahl.",
-    "cap-address": "Zu viele aus diesem Netz — nicht du, diese Verbindung. Versuch es später noch einmal.",
-    "rate-limited": "Zu viele aus diesem Netz — nicht du, diese Verbindung. Versuch es später noch einmal.",
     "unsupported-image": "Diese Datei ist kein Foto, das hier gelesen werden kann. JPEG, PNG oder WebP.",
     "not-food": "Das sah nicht nach Essen aus.",
     "analysis-failed": "Da kam nichts zurück. Versuch es noch einmal.",
-    "not-onboarded": "Beantworte zuerst die Planfragen.",
     "identity-required": "Melde dich mit Apple oder Google an, um weiterzumachen — ohne Konto wird nichts gelesen.",
     expired: "Das wird nicht mehr vorgehalten. Sag es noch einmal.",
     "target-gone": "Hier ist keine Mahlzeit offen, die sich ändern ließe. Öffne sie in der App, oder sag, was du gegessen hast, und trag es neu ein.",
     "too many photos": "Das sind mehr Blickwinkel, als eine Mahlzeit haben kann.",
     "too large": "Dieses Foto ist zu groß zum Senden.",
     "text too long": "Diese Nachricht ist zu lang zum Senden.",
-    "caption too long": "Diese Nachricht ist zu lang zum Senden.",
-    "cap-unknown": "Das ist erst einmal die Grenze. Versuch es später noch einmal.",
     "maybe-landed": "Es kam keine Antwort, und es kann trotzdem durchgegangen sein. Lad neu und schau nach, bevor du es noch einmal schickst.",
     unclear: "Das ist nicht sauber zu Ende gegangen, und es kann trotzdem eingetragen worden sein. Lad neu und schau nach, bevor du es noch einmal schickst.",
   },
@@ -503,9 +457,7 @@ const IT: WebCopy = {
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, aggiornato {when}.",
   nothingToday: "Oggi non è ancora stato registrato niente.",
-  meal: "Pasto", photo: "Foto", edit: "Modifica", delete: "Elimina",
-  confirmDeleteMeal: "Eliminare questo pasto? Vanno via anche le sue foto e i suoi numeri.",
-  confirmDeleteLine: "Togliere questo messaggio? I numeri restano.",
+  meal: "Pasto",
   noMessages: "Ancora nessun messaggio.",
   sentReload: "Inviato. Ricarica per vedere la conversazione.",
   proposalLead: "Sto registrando questo — ti torna?", logIt: "Registra", notThis: "Non questo",
@@ -519,8 +471,6 @@ const IT: WebCopy = {
   sendPhoto: "Invia la foto", cancel: "Annulla",
   choosePhotoFirst: "Scegli prima una foto.",
   photoTooLarge: "Quella foto è troppo grande da inviare.",
-  messageGone: "Quel messaggio non c'è più.",
-  messageNotEditable: "Quel messaggio non si può modificare.",
   mealGone: "Un pasto che non è più registrato",
   loading: "Caricamento…", somethingWrong: "Qualcosa è andato storto. Riprova.",
   connectTelegram: "Collega Telegram", telegramFailed: "Niente link Telegram stavolta. Riprova.",
@@ -559,28 +509,20 @@ const IT: WebCopy = {
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
-  photosOnMeal: "Foto: {n} · aggiungi angolazioni:",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
     "subscription-required": "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis per continuare.",
-    "cap-user": "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte.",
-    "cap-global": "Il limite di oggi è esaurito per tutti. Domani è un numero nuovo.",
-    "cap-address": "Troppe richieste da questa rete — non sei tu, è questa connessione. Riprova più tardi.",
-    "rate-limited": "Troppe richieste da questa rete — non sei tu, è questa connessione. Riprova più tardi.",
     "unsupported-image": "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",
     "not-food": "Non sembrava cibo.",
     "analysis-failed": "Non è tornato niente. Riprova.",
-    "not-onboarded": "Prima rispondi alle domande del piano.",
     "identity-required": "Accedi con Apple o Google per continuare — senza account non si legge nulla.",
     expired: "Quello non è più in attesa. Ridimmelo.",
     "target-gone": "Qui non c'è nessun pasto aperto da cambiare. Aprilo nell'app, oppure di' cosa hai mangiato e registralo di nuovo.",
     "too many photos": "Sono più angolazioni di quante un pasto possa averne.",
     "too large": "Quella foto è troppo grande da inviare.",
     "text too long": "Questo messaggio è troppo lungo da inviare.",
-    "caption too long": "Questo messaggio è troppo lungo da inviare.",
-    "cap-unknown": "Per ora il limite è questo. Riprova più tardi.",
     "maybe-landed": "Non è arrivata risposta, e potrebbe comunque essere passato. Ricarica e controlla prima di rimandarlo.",
     unclear: "Non si è chiuso in modo pulito, e potrebbe comunque essere stato registrato. Ricarica e controlla prima di rimandarlo.",
   },
@@ -603,9 +545,7 @@ const ES: WebCopy = {
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, actualizado {when}.",
   nothingToday: "Hoy todavía no hay nada registrado.",
-  meal: "Comida", photo: "Foto", edit: "Editar", delete: "Eliminar",
-  confirmDeleteMeal: "¿Eliminar esta comida? Sus fotos y sus números se van también.",
-  confirmDeleteLine: "¿Quitar este mensaje? Los números se quedan.",
+  meal: "Comida",
   noMessages: "Todavía no hay mensajes.",
   sentReload: "Enviado. Recarga para ver la conversación.",
   proposalLead: "Voy a registrar esto — ¿te cuadra?", logIt: "Registrar", notThis: "Esto no",
@@ -619,8 +559,6 @@ const ES: WebCopy = {
   sendPhoto: "Enviar la foto", cancel: "Cancelar",
   choosePhotoFirst: "Elige primero una foto.",
   photoTooLarge: "Esa foto es demasiado grande para enviarla.",
-  messageGone: "Ese mensaje ya no está.",
-  messageNotEditable: "Ese mensaje no se puede editar.",
   mealGone: "Una comida que ya no está registrada",
   loading: "Cargando…", somethingWrong: "Algo salió mal. Inténtalo otra vez.",
   connectTelegram: "Conectar Telegram", telegramFailed: "Sin enlace de Telegram esta vez. Inténtalo otra vez.",
@@ -659,28 +597,20 @@ const ES: WebCopy = {
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
-  photosOnMeal: "Fotos: {n} · añade ángulos:",
   photosCount: { one: "{n} foto", few: "{n} fotos", many: "{n} fotos", other: "{n} fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
     "subscription-required": "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis para seguir.",
-    "cap-user": "Esa fue la última de hoy — tu cupo diario se reinicia a medianoche.",
-    "cap-global": "El cupo de hoy se ha agotado para todos. Mañana es un número nuevo.",
-    "cap-address": "Demasiadas desde esta red — no eres tú, es esta conexión. Inténtalo más tarde.",
-    "rate-limited": "Demasiadas desde esta red — no eres tú, es esta conexión. Inténtalo más tarde.",
     "unsupported-image": "Ese archivo no es una foto que se pueda leer aquí. JPEG, PNG o WebP.",
     "not-food": "Eso no parecía comida.",
     "analysis-failed": "No volvió nada. Inténtalo otra vez.",
-    "not-onboarded": "Responde primero a las preguntas del plan.",
     "identity-required": "Inicia sesión con Apple o Google para continuar — sin cuenta no se lee nada.",
     expired: "Ese ya no está en espera. Vuelve a decírmelo.",
     "target-gone": "Aquí no hay ninguna comida abierta que cambiar. Ábrela en la app, o di qué comiste y regístrala otra vez.",
     "too many photos": "Son más ángulos de los que puede tener una comida.",
     "too large": "Esa foto es demasiado grande para enviarla.",
     "text too long": "Ese mensaje es demasiado largo para enviarlo.",
-    "caption too long": "Ese mensaje es demasiado largo para enviarlo.",
-    "cap-unknown": "Ese es el límite por ahora. Inténtalo más tarde.",
     "maybe-landed": "No llegó respuesta, y aun así puede haber pasado. Recarga y comprueba antes de volver a enviarlo.",
     unclear: "No terminó limpiamente, y aun así puede haberse registrado. Recarga y comprueba antes de volver a enviarlo.",
   },
@@ -703,9 +633,7 @@ const VI: WebCopy = {
   weightLine: "Cân nặng {kg} kg.",
   weightLineWhen: "Cân nặng {kg} kg, cập nhật {when}.",
   nothingToday: "Hôm nay chưa ghi gì cả.",
-  meal: "Bữa ăn", photo: "Ảnh", edit: "Sửa", delete: "Xoá",
-  confirmDeleteMeal: "Xoá bữa này? Ảnh và các con số của nó cũng đi luôn.",
-  confirmDeleteLine: "Bỏ tin nhắn này? Các con số vẫn giữ nguyên.",
+  meal: "Bữa ăn",
   noMessages: "Chưa có tin nhắn nào.",
   sentReload: "Đã gửi. Tải lại để xem cuộc trò chuyện.",
   proposalLead: "Mình ghi cái này nhé — có đúng không?", logIt: "Ghi lại", notThis: "Không phải",
@@ -719,8 +647,6 @@ const VI: WebCopy = {
   sendPhoto: "Gửi ảnh", cancel: "Huỷ",
   choosePhotoFirst: "Chọn một tấm ảnh trước đã.",
   photoTooLarge: "Ảnh đó lớn quá, không gửi được.",
-  messageGone: "Tin nhắn đó không còn nữa.",
-  messageNotEditable: "Tin nhắn đó không sửa được.",
   mealGone: "Một bữa ăn không còn được ghi nữa",
   loading: "Đang tải…", somethingWrong: "Có gì đó trục trặc. Thử lại nhé.",
   connectTelegram: "Kết nối Telegram", telegramFailed: "Lần này chưa có liên kết Telegram. Thử lại nhé.",
@@ -759,28 +685,20 @@ const VI: WebCopy = {
   startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
-  photosOnMeal: "Ảnh: {n} · thêm góc chụp:",
   photosCount: { one: "{n} bức ảnh", few: "{n} bức ảnh", many: "{n} bức ảnh", other: "{n} bức ảnh" },
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
   refusals: {
     "subscription-required": "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí để tiếp tục.",
-    "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
-    "cap-global": "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới.",
-    "cap-address": "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
-    "rate-limited": "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
     "unsupported-image": "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP.",
     "not-food": "Cái đó trông không giống đồ ăn.",
     "analysis-failed": "Không có gì trả về. Thử lại nhé.",
-    "not-onboarded": "Hãy trả lời các câu hỏi lập kế hoạch trước.",
     "identity-required": "Đăng nhập bằng Apple hoặc Google để tiếp tục — không có tài khoản thì không đọc được gì.",
     expired: "Cái đó không còn được giữ nữa. Nói lại giúp mình.",
     "target-gone": "Ở đây không có bữa nào đang mở để sửa. Mở nó trong ứng dụng, hoặc kể bạn đã ăn gì rồi ghi lại.",
     "too many photos": "Một bữa ăn không thể có nhiều góc chụp đến vậy.",
     "too large": "Ảnh đó lớn quá, không gửi được.",
     "text too long": "Tin nhắn này dài quá, không gửi được.",
-    "caption too long": "Tin nhắn này dài quá, không gửi được.",
-    "cap-unknown": "Tạm thời đó là giới hạn. Thử lại sau nhé.",
     "maybe-landed": "Không có phản hồi, và cũng có thể nó vẫn đi qua. Tải lại để kiểm tra trước khi gửi lần nữa.",
     unclear: "Việc này chưa kết thúc gọn ghẽ, và cũng có thể đã được ghi. Tải lại để kiểm tra trước khi gửi lần nữa.",
   },
@@ -803,9 +721,7 @@ const ID: WebCopy = {
   weightLine: "Berat {kg} kg.",
   weightLineWhen: "Berat {kg} kg, diperbarui {when}.",
   nothingToday: "Hari ini belum ada yang dicatat.",
-  meal: "Makanan", photo: "Foto", edit: "Ubah", delete: "Hapus",
-  confirmDeleteMeal: "Hapus makanan ini? Foto dan angkanya ikut hilang.",
-  confirmDeleteLine: "Hapus pesan ini? Angkanya tetap.",
+  meal: "Makanan",
   noMessages: "Belum ada pesan.",
   sentReload: "Terkirim. Muat ulang untuk melihat percakapannya.",
   proposalLead: "Aku catat ini — sudah benar?", logIt: "Catat", notThis: "Bukan ini",
@@ -819,8 +735,6 @@ const ID: WebCopy = {
   sendPhoto: "Kirim fotonya", cancel: "Batal",
   choosePhotoFirst: "Pilih fotonya dulu.",
   photoTooLarge: "Foto itu terlalu besar untuk dikirim.",
-  messageGone: "Pesan itu sudah tidak ada.",
-  messageNotEditable: "Pesan itu tidak bisa diubah.",
   mealGone: "Makanan yang sudah tidak tercatat lagi",
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
@@ -859,28 +773,20 @@ const ID: WebCopy = {
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
-  photosOnMeal: "Foto: {n} · tambah sudut:",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
   refusals: {
     "subscription-required": "Jatah gratis akun ini sudah habis. Mulai minggu gratismu untuk melanjutkan.",
-    "cap-user": "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam.",
-    "cap-global": "Jatah hari ini sudah habis untuk semua orang. Besok angkanya baru lagi.",
-    "cap-address": "Terlalu banyak dari jaringan ini — bukan kamu, tapi koneksinya. Coba lagi nanti.",
-    "rate-limited": "Terlalu banyak dari jaringan ini — bukan kamu, tapi koneksinya. Coba lagi nanti.",
     "unsupported-image": "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP.",
     "not-food": "Itu tidak kelihatan seperti makanan.",
     "analysis-failed": "Tidak ada jawaban yang kembali. Coba lagi.",
-    "not-onboarded": "Jawab dulu pertanyaan rencananya.",
     "identity-required": "Masuk dengan Apple atau Google untuk lanjut — tanpa akun tidak ada yang terbaca.",
     expired: "Yang itu sudah kedaluwarsa. Sebutkan sekali lagi.",
     "target-gone": "Tidak ada makanan yang sedang terbuka di sini untuk diubah. Buka di aplikasi, atau sebutkan apa yang kamu makan dan catat lagi.",
     "too many photos": "Satu makanan tidak bisa punya sudut sebanyak itu.",
     "too large": "Foto itu terlalu besar untuk dikirim.",
     "text too long": "Pesan ini terlalu panjang untuk dikirim.",
-    "caption too long": "Pesan ini terlalu panjang untuk dikirim.",
-    "cap-unknown": "Untuk sekarang itu batasnya. Coba lagi nanti.",
     "maybe-landed": "Tidak ada jawaban, dan mungkin tetap terkirim. Muat ulang untuk mengecek sebelum mengirim lagi.",
     unclear: "Ini tidak selesai dengan bersih, dan mungkin tetap tercatat. Muat ulang untuk mengecek sebelum mengirim lagi.",
   },
@@ -903,9 +809,7 @@ const RU: WebCopy = {
   weightLine: "Вес {kg} кг.",
   weightLineWhen: "Вес {kg} кг, обновлён {when}.",
   nothingToday: "Сегодня пока ничего не записано.",
-  meal: "Приём пищи", photo: "Фото", edit: "Изменить", delete: "Удалить",
-  confirmDeleteMeal: "Удалить этот приём пищи? Его фото и цифры уйдут вместе с ним.",
-  confirmDeleteLine: "Убрать это сообщение? Цифры останутся.",
+  meal: "Приём пищи",
   noMessages: "Сообщений пока нет.",
   sentReload: "Отправлено. Обнови страницу, чтобы увидеть разговор.",
   proposalLead: "Записываю вот это — всё верно?", logIt: "Записать", notThis: "Не это",
@@ -919,8 +823,6 @@ const RU: WebCopy = {
   sendPhoto: "Отправить фото", cancel: "Отмена",
   choosePhotoFirst: "Сначала выбери фото.",
   photoTooLarge: "Это фото слишком большое для отправки.",
-  messageGone: "Этого сообщения больше нет.",
-  messageNotEditable: "Это сообщение нельзя изменить.",
   mealGone: "Приём пищи, которого больше нет в дневнике",
   loading: "Загрузка…", somethingWrong: "Что-то пошло не так. Попробуй ещё раз.",
   connectTelegram: "Подключить Telegram", telegramFailed: "В этот раз ссылка на Telegram не вышла. Попробуй ещё раз.",
@@ -959,28 +861,20 @@ const RU: WebCopy = {
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
-  photosOnMeal: "Фото: {n} · добавь ракурсы:",
   photosCount: { one: "{n} фото", few: "{n} фото", many: "{n} фото", other: "{n} фото" },
   photoWithCaption: "Фото: {text}",
   statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {
     "subscription-required": "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю, чтобы продолжить.",
-    "cap-user": "Это была последняя на сегодня — дневной лимит обнулится в полночь.",
-    "cap-global": "Сегодняшний лимит израсходован всеми. Завтра цифра свежая.",
-    "cap-address": "Слишком много из этой сети — дело не в тебе, а в соединении. Попробуй позже.",
-    "rate-limited": "Слишком много из этой сети — дело не в тебе, а в соединении. Попробуй позже.",
     "unsupported-image": "Этот файл — не фото, которое здесь можно прочитать. JPEG, PNG или WebP.",
     "not-food": "Это не похоже на еду.",
     "analysis-failed": "Ничего не вернулось. Попробуй ещё раз.",
-    "not-onboarded": "Сначала ответь на вопросы плана.",
     "identity-required": "Войди через Apple или Google, чтобы продолжить — без аккаунта фото не читается.",
     expired: "Это больше не держится. Скажи ещё раз.",
     "target-gone": "Здесь нет открытого приёма пищи, который можно было бы изменить. Открой его в приложении или скажи, что было на тарелке, и запиши заново.",
     "too many photos": "Это больше ракурсов, чем может быть у одного приёма пищи.",
     "too large": "Это фото слишком большое для отправки.",
     "text too long": "Это сообщение слишком длинное, чтобы его отправить.",
-    "caption too long": "Это сообщение слишком длинное, чтобы его отправить.",
-    "cap-unknown": "Пока это предел. Попробуй позже.",
     "maybe-landed": "Ответа не пришло, и всё же могло пройти. Обнови страницу и проверь, прежде чем отправлять снова.",
     unclear: "Это не завершилось чисто, и всё же могло записаться. Обнови страницу и проверь, прежде чем отправлять снова.",
   },
@@ -989,12 +883,32 @@ const RU: WebCopy = {
 /** Every sentence this client writes for itself, keyed by language. */
 export const WEB_COPY: Localized<WebCopy> = { en: EN, fr: FR, de: DE, it: IT, es: ES, vi: VI, id: ID, ru: RU };
 
-/** This client's own words in one language. English for one nobody has written yet. */
-export const webCopyFor = (lang: Lang): WebCopy => t(lang)(WEB_COPY);
-
-/** The English, under its old name, for the two callers that have no language: the claims gate. */
-export const COPY = EN;
-
 /** `{placeholder}` per declared key. Nothing here is user text, so an unfilled one is a bug. */
 export const fillCopy = (template: string, params: Record<string, string>): string =>
   template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+/** This client's own words in one language. English for one nobody has written yet. */
+// The refusal sentences LOG_COPY owns (#177): the same refusal reads the same on the phone and
+// here — the table is the single place they live, and `{max}` on the caption bound is the
+// contract's number, spelled in the reader's language.
+const sharedRefusals = (lang: Lang): Record<string, string> => {
+  const L = logCopyFor(lang).phone;
+  return {
+    "cap-user": L.capUserNote,
+    "cap-global": L.capGlobalNote,
+    "cap-address": L.capAddressNote,
+    "rate-limited": L.capAddressNote,
+    "cap-unknown": L.capUnknownNote,
+    "not-onboarded": L.setupNote,
+    "caption too long": fillCopy(L.longNoteNote, { max: wholeNumbers(lang)(MAX_USER_LINE) }),
+  };
+};
+
+export const webCopyFor = (lang: Lang): WebCopy => {
+  const copy = t(lang)(WEB_COPY);
+  return { ...copy, refusals: { ...copy.refusals, ...sharedRefusals(lang) } };
+};
+
+/** The English, under its old name, for the two callers that have no language: the claims gate. */
+export const COPY: WebCopy = { ...EN, refusals: { ...EN.refusals, ...sharedRefusals("en") } };
+
