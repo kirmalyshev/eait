@@ -91,7 +91,9 @@ h2 { font-size: 17px; }
 .muted { color: var(--muted); }
 .lab { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
-.hero { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
+/* The big figure's \`.hero\` — scoped to \`.big\`: the kit's \`.hero\` is the photo block, and this
+   display type otherwise landed on the chat photo's stamp as cramped letter-spacing. */
+.big .hero { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
 .big.warn .hero { color: var(--warn); }
 /* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
    outside the figure's own span. */
