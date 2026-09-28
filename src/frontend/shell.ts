@@ -343,7 +343,10 @@ export function proposalCard(
     return wrap;
   }
   const actions = el("div", "row pl-actions");
-  for (const [verb, label, kind] of [["confirm", words.accept, "p"], ["cancel", words.decline, "s"]] as const) {
+  // The negative answers from the left, the affirmative from the right — the order every other
+  // action row draws (`log-logged`, `log-rough`, `first-verdict`), which this card alone had
+  // backwards (ieat-app#1064).
+  for (const [verb, label, kind] of [["cancel", words.decline, "s"], ["confirm", words.accept, "p"]] as const) {
     const b = ctaEl({ text: label, kind }) as HTMLButtonElement;
     b.addEventListener("click", () => turn(async () => {
       let r: PendingResponse;
