@@ -449,6 +449,13 @@ export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number,
 };
 
 /**
+ * Where a control opens when neither the draft, the stored answer nor the profile holds a value —
+ * the boards' neutral rider (170 cm, 75 kg, 30). Named so the three screens share the person
+ * rather than each typing their own (#141).
+ */
+export const ONBOARDING_NEUTRAL = { heightCm: 170, weightKg: 75, ageYears: 30 } as const;
+
+/**
  * copy.md § Step 05 — the wrong-direction check.
  *
  * The tree remembers what was chosen at step 02. Asking to "gain" to a number below the current

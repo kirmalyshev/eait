@@ -1,4 +1,5 @@
 import type { Lang, OnboardingWelcomeContent } from "@eait/shared";
+import { fill, wholeNumbers } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
 import { ctaLink, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
@@ -6,6 +7,9 @@ import { escape, shell } from "./shell.ts";
 /** The recorded demo's files, served by the route beside `FONT_URL_DIR`. */
 export const WELCOME_URL_DIR = "/start/assets/welcome";
 export const WELCOME_FILES = ["demo.mp4", "still.webp"] as const;
+
+/** The verdict figure the recorded demo lands on — the alt text's "{kcal}" reads it (#141). */
+export const WELCOME_DEMO_KCAL = 281;
 
 /**
  * The front door — `onboarding/web/00-welcome.html`: the product's loop (a recorded run of the
@@ -22,7 +26,7 @@ export function frontDoor(
   lang: Lang,
 ): string {
   const PAGE_COPY = pageCopyFor(lang);
-  const alt = escape(PAGE_COPY.welcomeDemoAlt);
+  const alt = escape(fill(PAGE_COPY.welcomeDemoAlt, { kcal: wholeNumbers(lang)(WELCOME_DEMO_KCAL) }));
   return shell(PAGE_COPY.titleStart, `
 ${wtop()}
 <div class="wcenter"><div class="wdemo">

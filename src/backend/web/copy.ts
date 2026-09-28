@@ -153,7 +153,7 @@ const EN: PageCopy = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
   welcomeDemoAlt:
-    "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the verdict: 281 kcal, calories on plan",
+    "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the verdict: {kcal} kcal, calories on plan",
   chatHeading: "Your chat",
   chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
   chatMealGone: "That meal is no longer in the diary.",
@@ -258,7 +258,7 @@ const EN: PageCopy = {
 const FR: PageCopy = {
   frontDoorLead: "Crée ton compte ici, puis ouvre l'appli : la session sera déjà ouverte. Ça prend environ trois minutes.",
   welcomeDemoAlt:
-    "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et le verdict : 281 kcal, calories dans le plan",
+    "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et le verdict : {kcal} kcal, calories dans le plan",
   chatHeading: "Ton chat",
   chatEmpty: "Rien ici pour l'instant. Ce que tu dis dans l'appli apparaît ici, et inversement.",
   chatMealGone: "Ce repas n'est plus dans le journal.",
@@ -336,7 +336,7 @@ const FR: PageCopy = {
 const DE: PageCopy = {
   frontDoorLead: "Richte dein Konto hier ein und öffne die App dann bereits angemeldet. Dauert etwa drei Minuten.",
   welcomeDemoAlt:
-    "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und das Urteil: 281 kcal, Kalorien im Plan",
+    "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und das Urteil: {kcal} kcal, Kalorien im Plan",
   chatHeading: "Dein Chat",
   chatEmpty: "Hier ist noch nichts. Was du in der App sagst, taucht hier auf — und umgekehrt.",
   chatMealGone: "Diese Mahlzeit ist nicht mehr im Tagebuch.",
@@ -414,7 +414,7 @@ const DE: PageCopy = {
 const IT: PageCopy = {
   frontDoorLead: "Prepara qui il tuo account, poi apri l'app con la sessione già aperta. Ci vogliono circa tre minuti.",
   welcomeDemoAlt:
-    "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e il verdetto: 281 kcal, calorie nel piano",
+    "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e il verdetto: {kcal} kcal, calorie nel piano",
   chatHeading: "La tua chat",
   chatEmpty: "Qui non c'è ancora niente. Quello che dici nell'app compare qui, e viceversa.",
   chatMealGone: "Quel pasto non è più nel diario.",
@@ -492,7 +492,7 @@ const IT: PageCopy = {
 const ES: PageCopy = {
   frontDoorLead: "Prepara tu cuenta aquí y luego abre la app ya con la sesión iniciada. Son unos tres minutos.",
   welcomeDemoAlt:
-    "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y el veredicto: 281 kcal, calorías dentro del plan",
+    "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y el veredicto: {kcal} kcal, calorías dentro del plan",
   chatHeading: "Tu chat",
   chatEmpty: "Aquí todavía no hay nada. Lo que dices en la app aparece aquí, y al revés.",
   chatMealGone: "Esa comida ya no está en el diario.",
@@ -570,7 +570,7 @@ const ES: PageCopy = {
 const VI: PageCopy = {
   frontDoorLead: "Tạo tài khoản ở đây, rồi mở ứng dụng là đã đăng nhập sẵn. Mất khoảng ba phút.",
   welcomeDemoAlt:
-    "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và đánh giá: 281 kcal, calo trong kế hoạch",
+    "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và đánh giá: {kcal} kcal, calo trong kế hoạch",
   chatHeading: "Khung chat của bạn",
   chatEmpty: "Ở đây chưa có gì. Những gì bạn nói trong ứng dụng sẽ hiện ở đây, và ngược lại.",
   chatMealGone: "Bữa đó không còn trong nhật ký nữa.",
@@ -648,7 +648,7 @@ const VI: PageCopy = {
 const ID: PageCopy = {
   frontDoorLead: "Siapkan akunmu di sini, lalu buka aplikasinya dalam keadaan sudah masuk. Perlu sekitar tiga menit.",
   welcomeDemoAlt:
-    "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan hasilnya: 281 kkal, kalori sesuai rencana",
+    "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan hasilnya: {kcal} kkal, kalori sesuai rencana",
   chatHeading: "Chat-mu",
   chatEmpty: "Belum ada apa-apa di sini. Apa yang kamu tulis di aplikasi muncul di sini, dan sebaliknya.",
   chatMealGone: "Makanan itu sudah tidak ada di buku harian.",
