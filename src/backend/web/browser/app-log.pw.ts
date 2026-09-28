@@ -51,7 +51,10 @@ test("a picked photo lands on the account's first verdict", async ({ inWebApp: p
   // The card: meal name, kcal, the three macro chips, the computed verdict lines.
   await expect(page.locator(".card")).toContainText("kcal");
   await expect(page.locator(".vs .v").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Correct" })).toHaveAttribute("href", /#\/chat\?focus=.+/);
+  // Correct opens the meal's own fix panel — the meal's own id in the href, not a pattern (#148).
+  const logged = (await server<DayResponse>(page, "/diary/day")).meals;
+  await expect(page.getByRole("link", { name: "Correct" }))
+    .toHaveAttribute("href", `#/meal/${logged.at(-1)!.id}?fix`);
   await shot(page, "log-first-verdict");
 
   // Continue leads to the plans paywall — W9's route (#96). Until it binds, the hash is where the
@@ -72,8 +75,9 @@ test("a second photo draws the logged card, and Agree goes Home", async ({ inWeb
   // The day counter is the server's own totals: "… of 1,434 kcal" and "… left".
   await expect(page.getByText(/of [\d.,]+ kcal/)).toBeVisible();
   await expect(page.getByText(/left$/)).toBeVisible();
-  // Edit is the chat-with-focus handoff — `#/chat?focus=<mealId>`, the meal's own id.
-  await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", /#\/chat\?focus=.+/);
+  // Edit is the meal's fix panel — `#/meal/<id>?fix`, this meal's own id (#148).
+  const second = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
+  await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", `#/meal/${second}?fix`);
   await shot(page, "log-logged");
 
   await page.getByRole("link", { name: "Agree" }).click();
@@ -111,12 +115,13 @@ test("the rough-guess card asks the server's question and chips correct the meal
   await expect(page.getByRole("button", { name: "In oil" })).toBeVisible();
   await shot(page, "log-rough");
 
+  const mealId = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
   const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/api/v1/messages"));
   await page.getByRole("button", { name: "In oil" }).click();
   const req = await sent;
   const body = req.postDataJSON() as { text?: string; focusMealId?: string };
-  // The chip is the one correction path — a text turn with this meal in focus, never a PATCH.
-  expect(body.focusMealId).toBeTruthy();
+  // The chip is the one correction path — a text turn with THIS meal in focus, never a PATCH.
+  expect(body.focusMealId).toBe(mealId);
   expect(body.text).toBe("In oil");
 });
 
@@ -126,6 +131,9 @@ test("a photo with no food is refused, and that is not a failure", async ({ inWe
 
   await expect(page.getByRole("heading", { name: "No food in that one" })).toBeVisible();
   await shot(page, "log-refused");
+  // Refused means refused: nothing is logged, and the day is the server's to say it — this one
+  // runs the REAL analyzer, so the empty day is its answer rather than a mock's (#148).
+  expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(0);
   // Uncharged: the sample is still the account's to spend.
   expect((await server<ProfileResponse>(page, "/profile")).limits.sampleUsed).toBe(false);
   await page.getByRole("button", { name: "Try another photo" }).click();
@@ -148,15 +156,26 @@ test("a failed analysis keeps the photo and hands it to Chat", async ({ inWebApp
   await expect(page.locator(".thread")).toContainText("That did not come back. Try it again.");
   await expect(page.getByRole("button", { name: "Send again" })).toBeVisible();
   await shot(page, "log-failed-kept");
-  // Nothing was logged and the sample was given back — a failed free meal is a free retry.
-  expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(0);
-  expect((await server<ProfileResponse>(page, "/profile")).limits.sampleUsed).toBe(false);
+  // What the mocked stream CAN prove is the keep: the turn is in the outbox, held, its failure
+  // marked. "Nothing logged" is the server's word — the real-refusal spec above reads it.
+  // A string, because this file is typechecked without the DOM: the browser is where it runs.
+  const kept = await page.evaluate<number>(`new Promise((resolve) => {
+    const open = indexedDB.open("eait");
+    open.onsuccess = () => {
+      const get = open.result.transaction("outbox").objectStore("outbox").get("entries");
+      get.onsuccess = () => resolve(Array.isArray(get.result) ? get.result.length : 0);
+    };
+    open.onerror = () => resolve(-1);
+  })`);
+  expect(kept).toBe(1);
 });
 
 test("with reduced motion the surface lands on its end state", async ({ inWebApp: page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await uploadView(page);
   await pick(page);
+  // The scan is never part of the page while the photo is read — absent, not parked (#148).
+  expect(await page.locator(".scan").count()).toBe(0);
   await expect(page.getByText("Your first verdict")).toBeVisible();
 
   // The scan does not run and nothing animates: every element sits at its end state.
@@ -167,4 +186,84 @@ test("with reduced motion the surface lands on its end state", async ({ inWebApp
   expect(animating).toEqual([]);
   await expect(page.locator(".hero .co").first()).toBeVisible();
   await shot(page, "log-first-verdict-reduced");
+});
+
+test("the grams question's chips send its text with the meal in focus", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  await uploadView(page);
+  // "about the grams" is the canned question's other shape — a number where the oil one is an
+  // either/or (DEMO_GRAMS_QUESTION, the caption being the only channel a blind fake has).
+  await pick(page, "about the grams");
+  await expect(page.getByText("Was the rice about 250 g?")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Half that" })).toBeVisible();
+
+  const mealId = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
+  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/api/v1/messages"));
+  await page.getByRole("button", { name: "Half that" }).click();
+  expect((await sent).postDataJSON()).toMatchObject({ text: "Half that", focusMealId: mealId });
+});
+
+test("a plate over its declared cap says the detail under the card", async ({ inWebApp: page }) => {
+  // The line lives on the logged-state card, so the account's first verdict is already done.
+  await logMeal(page);
+  // An `ldl` declaration sets the 13 g saturated-fat cap; the fixture plate measures 7.8 — a
+  // share past BAD_SHARE, so the `verdictDetail` line owes the numbers it names.
+  const res = await page.request.patch("/v1/profile", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
+    data: { medical: ["ldl"] },
+  });
+  expect(res.status()).toBe(200);
+  // The profile the log surface caches was fetched before the patch — reload so `me` reads it.
+  await page.reload();
+  await uploadView(page);
+  await pick(page);
+  await expect(page.getByText(/Saturated fat is high for one meal/)).toBeVisible();
+});
+
+test("an outcome the server does not name is kept, not dropped", async ({ inWebApp: page }) => {
+  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
+    status: 200,
+    contentType: "application/x-ndjson",
+    body: JSON.stringify({ kind: "outcome-unknown" }) + "\n",
+  }));
+  await uploadView(page);
+  await pick(page, "a lunch that may have gone");
+  // states-unknown (W7's card): the doubt worded as doubt, the turn held with a way out.
+  await expect(page).toHaveURL(/#\/chat/);
+  await expect(page.locator(".thread")).toContainText("a lunch that may have gone");
+  await expect(page.locator(".thread")).toContainText(
+    "That did not finish cleanly, and it may still have been logged. Reload to check before sending it again.");
+  await expect(page.getByRole("button", { name: "Send again" })).toBeVisible();
+});
+
+test("a refused photo is not kept — the cap and the unreadable image are words, not drafts", async ({ inWebApp: page }) => {
+  for (const [last, words] of [
+    [{ kind: "cap-exceeded", scope: "user" }, "That was your last one today — your daily allowance resets at midnight."],
+    [{ kind: "unsupported-image" }, "That file is not a photo this can read. JPEG, PNG or WebP."],
+  ] as const) {
+    await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
+      status: 200,
+      contentType: "application/x-ndjson",
+      body: JSON.stringify(last) + "\n",
+    }));
+    await uploadView(page);
+    await pick(page);
+    // Words on the upload view — kept turns would land on Chat instead, and nothing does.
+    await expect(page).toHaveURL(/#\/log/);
+    await expect(page.locator(".notice")).toHaveText(words);
+    await page.unroute("**/api/v1/meals/photo");
+    await page.goto("/#/chat");
+    await expect(page.getByRole("button", { name: "Send again" })).toHaveCount(0);
+  }
+});
+
+test("more photos than a meal may hold are refused before upload", async ({ inWebApp: page }) => {
+  await uploadView(page);
+  // Five files against the four the server sent on `limits` — the tell is the bound's own words.
+  await page.locator('input[type="file"]').setInputFiles(
+    Array.from({ length: 5 }, (_, i) => ({
+      name: `angle-${i}.png`, mimeType: "image/png", buffer: readFileSync(FIXTURE),
+    })),
+  );
+  await expect(page.locator(".notice")).toHaveText("One meal takes up to 4 photos.");
 });
