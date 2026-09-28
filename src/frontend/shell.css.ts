@@ -153,7 +153,7 @@ h2 { font-size: 17px; }
 
 /* The coach answer's macro bar (pro.css's .mb/.bar): the number row, the track with the target
    tick at its right end, the fill growing once on arrival — the grow verb is motionCss's. */
-.bar { height: 6px; background: var(--hair); border-radius: 1px; overflow: hidden; }
+.bar { height: 6px; background: var(--hair); border-radius: var(--r-bar); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--accent); }
 .bar i.grow { transform-origin: left center; }
 .mb .row { font-size: 13px; font-weight: 600; }

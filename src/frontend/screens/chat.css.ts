@@ -4,6 +4,8 @@
 // `.gabie`, `.gname`, `.macs`, `.vs`, `.opt`, `.card.flat`, `.hero`, `.stamp` arrive from
 // `kitCss()`; the verbs (`rise`, `grow`) are `motionCss`'s.
 
+import { MOTION } from "../../shared/design.ts";
+
 export const chatCss = `
 /* The column: the thread scrolls under a bottom-anchored stack — \`li:first-child\`'s margin is
    the reliable bottom-anchor (a scrolling flex container's justify-content:flex-end strands the
@@ -13,15 +15,15 @@ export const chatCss = `
 .thread { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 12px; }
 .thread > li:first-child { margin-top: auto; }
-${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${(i * 0.1).toFixed(1)}s; }`).join("\n")}
+${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.stagger}ms; }`).join("\n")}
 
 /* The lines: mine right in the accent tint, the app's left — and a photo's own bubble is the
    hero, corners 12/9 px, its stamp inside. */
 .me { align-self: flex-end; max-width: 78%; background: var(--accent-tint); color: var(--ink);
-  border-radius: 14px; border-bottom-right-radius: 4px; padding: 10px 14px; font-weight: 500; }
+  border-radius: var(--r-cta); border-bottom-right-radius: 4px; padding: 10px 14px; font-weight: 500; }
 .me .ts { text-align: right; }
 .me.dim { opacity: .55; }
-.me.pic { padding: 4px; border-radius: 12px; }
+.me.pic { padding: 4px; border-radius: var(--r-card); }
 .me.pic .hero { width: min(200px, 58vw); aspect-ratio: 4 / 3; border-radius: 9px; }
 .me.pic .cap { margin: 0; padding: 6px 10px 4px; font-size: 14px; }
 .them { align-self: flex-start; max-width: 86%; }
@@ -71,7 +73,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${(i * 0.1).toF
 .cta.s.sm .ico { width: 16px; height: 16px; }
 
 /* The focus sheet's card thumbnail (web/meal-edit.html): the meal's own photo at 52px. */
-.f-thumb { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 8px; object-fit: cover;
+.f-thumb { width: 52px; height: 52px; flex: 0 0 52px; border-radius: var(--r-thumb); object-fit: cover;
   background: var(--hair); margin-right: 4px; }
 .frow { display: flex; gap: 10px; align-items: flex-start; }
 .fcol { flex: 1; min-width: 0; }

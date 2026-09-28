@@ -448,7 +448,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     if (me !== null && files.length > 0) {
       const { maxPhotosPerMeal } = me.limits;
       const stored = focusMeal?.photos ?? 0;
-      if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
+      if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: wholeNumbers(lang)(maxPhotosPerMeal) })); return; }
     }
     turn(async () => {
       liveAnswer = null;

@@ -157,7 +157,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       // The server's numbers off the profile, exactly as the composer reads them — never a
       // constant of ours.
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
-      if (picked.length > maxPhotosPerMeal) { say(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
+      if (picked.length > maxPhotosPerMeal) { say(fill(COPY.photosMax, { n: wholeNumbers(lang)(maxPhotosPerMeal) })); return; }
       const files = picked;
       run(async () => {
         // What goes up is the resized frame — the byte cap weighs it, not what was picked.
