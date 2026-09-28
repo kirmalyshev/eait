@@ -41,31 +41,25 @@ import { readFileSync } from "node:fs";
  * account anybody who reads this file can log into on any host that ever ran the seeder.
  */
 /**
- * The photograph every seeded meal has: a 16×16 solid square in the product's accent colour.
- *
- * SMALL AND REAL, in that order. It is 79 bytes, so seeding is not slower for it; it is a valid PNG
- * rather than a placeholder string, because `imageMime` sniffs magic bytes and a browser has to
- * render it. Nothing about it looks like food, deliberately — a fixture that looked like a
- * photograph of a meal is a fixture somebody eventually ships in a screenshot.
- */
-const SEED_PHOTO = Uint8Array.from(Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mM48T2QJMQwqmFUw/DVAAApdxAfIDFTpwAAAABJRU5ErkJggg==",
-  "base64",
-));
-
-/**
- * The persona's meal photographs — real, licensed images (#84), because the boards these fixtures
- * reproduce show real ones.
+ * The persona's meal photographs — real, licensed images (#84, #1060), because the boards these
+ * fixtures reproduce show real ones, and because a fixture that does not look like food is one
+ * the real analyzer answers "not food" for.
  *
  * Files on disk rather than inline base64: 20 KB of webp is a picture, not a constant, and the
- * licences ride beside them in `img/LICENSES.md` — the same three rows `product/design/pro/img`
- * carries, which is where the squares were cropped from. Loaded lazily so the module stays cheap
- * to import (the test and the seeder are its only callers).
+ * licences ride beside them in `img/LICENSES.md` — the same rows `product/design/pro/img`
+ * carries, which is where the squares were cropped from. One key per file in `img/`: the set is
+ * the landing's licensed pool, so the screenshot capture picks from it too. Loaded lazily so the
+ * module stays cheap to import (the test and the seeder are its only callers).
  */
 const BOARD_PHOTO_FILES = {
+  grainbowl: "grainbowl-sq.webp",
+  pesto: "pesto-sq.webp",
   porridge: "porridge-sq.webp",
   salmon: "salmon-sq.webp",
   flatwhite: "flatwhite-sq.webp",
+  waffle: "waffle-sq.webp",
+  shortcake: "shortcake-sq.webp",
+  cake: "cake-sq.webp",
 } as const;
 type BoardPhoto = keyof typeof BOARD_PHOTO_FILES;
 
@@ -126,8 +120,8 @@ export interface SeedMeal {
   at: string;
   /** "photo" puts a photo line in the thread and a picture on the card; "typed" puts the words. */
   via: "photo" | "typed";
-  /** Which licensed image backs the card. Absent → the neutral square. */
-  photo?: BoardPhoto;
+  /** Which licensed image backs the card — every seeded meal carries a real photograph. */
+  photo: BoardPhoto;
   items: readonly MealItem[];
   kcal: number;
   protein_g: number;
@@ -185,6 +179,7 @@ const ANNA_BOARD: SeedBoard = {
       meals: [
         {
           name: "Avocado toast with eggs", name_en: "avocado toast", at: "08:10", via: "photo",
+          photo: "waffle",
           kcal: 430, protein_g: 16, carbs_g: 32, fat_g: 24, satfat_g: 5, fiber_g: 7, sugar_g: 3,
           sodium_mg: 540, confidence: "high",
           items: [
@@ -194,6 +189,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Chicken quinoa bowl", name_en: "chicken quinoa bowl", at: "13:15", via: "photo",
+          photo: "grainbowl",
           kcal: 620, protein_g: 40, carbs_g: 52, fat_g: 24, satfat_g: 4, fiber_g: 9, sugar_g: 6,
           sodium_mg: 720, confidence: "high",
           items: [
@@ -203,6 +199,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Tomato pasta, side salad", name_en: "pasta", at: "19:40", via: "photo",
+          photo: "pesto",
           kcal: 336, protein_g: 11, carbs_g: 44, fat_g: 12, satfat_g: 2.5, fiber_g: 6, sugar_g: 8,
           sodium_mg: 480, confidence: "high",
           items: [
@@ -218,6 +215,7 @@ const ANNA_BOARD: SeedBoard = {
       meals: [
         {
           name: "Skyr with granola", name_en: "skyr bowl", at: "07:50", via: "photo",
+          photo: "porridge",
           kcal: 400, protein_g: 22, carbs_g: 46, fat_g: 13, satfat_g: 5, fiber_g: 5, sugar_g: 22,
           sodium_mg: 180, confidence: "high",
           items: [
@@ -226,6 +224,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Sushi set", name_en: "sushi", at: "13:00", via: "photo",
+          photo: "salmon",
           kcal: 610, protein_g: 28, carbs_g: 82, fat_g: 16, satfat_g: 3, fiber_g: 4, sugar_g: 9,
           sodium_mg: 1150, confidence: "high",
           items: [
@@ -234,6 +233,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Lentil soup and bread", name_en: "lentil soup", at: "19:20", via: "photo",
+          photo: "porridge",
           kcal: 419, protein_g: 17, carbs_g: 56, fat_g: 14, satfat_g: 2, fiber_g: 11, sugar_g: 5,
           sodium_mg: 890, confidence: "high",
           items: [
@@ -249,6 +249,7 @@ const ANNA_BOARD: SeedBoard = {
       meals: [
         {
           name: "Scrambled eggs on rye", name_en: "scrambled eggs", at: "08:05", via: "photo",
+          photo: "waffle",
           kcal: 360, protein_g: 21, carbs_g: 24, fat_g: 19, satfat_g: 6, fiber_g: 4, sugar_g: 2,
           sodium_mg: 430, confidence: "high",
           items: [
@@ -258,6 +259,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Burrito bowl", name_en: "burrito bowl", at: "13:10", via: "photo",
+          photo: "grainbowl",
           kcal: 640, protein_g: 36, carbs_g: 68, fat_g: 22, satfat_g: 6, fiber_g: 12, sugar_g: 7,
           sodium_mg: 980, confidence: "high",
           items: [
@@ -266,6 +268,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           name: "Greek salad with feta", name_en: "greek salad", at: "19:30", via: "photo",
+          photo: "grainbowl",
           kcal: 308, protein_g: 13, carbs_g: 14, fat_g: 21, satfat_g: 8, fiber_g: 4, sugar_g: 9,
           sodium_mg: 640, confidence: "high",
           items: [
@@ -502,16 +505,18 @@ interface Plate {
  * day lands on the user's calorie target rather than somewhere arbitrary — which is what makes the
  * verdicts on the cards mean something when you look at them.
  */
-const SLOTS: readonly { name: string; hour: number; share: number; plates: readonly Plate[] }[] = [
+const SLOTS: readonly {
+  name: string; hour: number; share: number; photo: BoardPhoto; plates: readonly Plate[];
+}[] = [
   {
-    name: "breakfast", hour: 8, share: 0.25,
+    name: "breakfast", hour: 8, share: 0.25, photo: "porridge",
     plates: [
       { name: "Porridge with berries", name_en: "oat porridge", share: 0.6 },
       { name: "Greek yoghurt", name_en: "greek yoghurt", share: 0.4 },
     ],
   },
   {
-    name: "lunch", hour: 13, share: 0.4,
+    name: "lunch", hour: 13, share: 0.4, photo: "grainbowl",
     plates: [
       { name: "Grilled chicken breast", name_en: "chicken breast", share: 0.45 },
       { name: "Brown rice", name_en: "brown rice", share: 0.35 },
@@ -519,7 +524,7 @@ const SLOTS: readonly { name: string; hour: number; share: number; plates: reado
     ],
   },
   {
-    name: "dinner", hour: 19, share: 0.35,
+    name: "dinner", hour: 19, share: 0.35, photo: "salmon",
     plates: [
       { name: "Baked salmon", name_en: "salmon fillet", share: 0.5 },
       { name: "Roast potatoes", name_en: "roast potato", share: 0.3 },
@@ -630,10 +635,9 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
             model: "seed",
           };
           await store.insertMeal(record);
-          // A real, licensed photograph where the board shows one — see `img/LICENSES.md`.
-          await store.putPhotos(userId, record.id, spec.photo
-            ? [{ mime: "image/webp", bytes: boardPhoto(spec.photo) }]
-            : [{ mime: "image/png", bytes: SEED_PHOTO }]);
+          // A real, licensed photograph on every card — see `img/LICENSES.md`.
+          await store.putPhotos(userId, record.id,
+            [{ mime: "image/webp", bytes: boardPhoto(spec.photo) }]);
           // The thread line matches the door the meal came in by: the picture she sent, or the
           // words she typed.
           thread.push({ back: day.back, record, lines: [
@@ -712,7 +716,8 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         // seeded at all — with no bytes behind it, so the Chat tab's photo bubble and (since #375)
         // the admin's diary both point at a 404. A fake may be poorer than the real thing and never
         // different in a way a test or a screen can see.
-        await store.putPhotos(userId, record.id, [{ mime: "image/png", bytes: SEED_PHOTO }]);
+        await store.putPhotos(userId, record.id,
+          [{ mime: "image/webp", bytes: boardPhoto(slot.photo) }]);
         // The thread is what the Chat tab opens on; a persona with a diary and no thread would open
         // Chat on its empty state, which is the one thing a fixture must not do. Collected here and
         // written after the loop, oldest day first — this loop runs newest-first, and seq is the
