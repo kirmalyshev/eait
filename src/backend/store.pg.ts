@@ -224,6 +224,12 @@ alter table users add column if not exists struggles text[];
 update users set activity = 'few'  where activity in ('sedentary', 'light');
 update users set activity = 'some' where activity in ('moderate', 'active');
 update users set activity = 'many' where activity = 'athlete';
+-- #1078: three bands became four — 0 / 1–2 / 3–4 / 5+ — and 'few' moved from "0–2" to "1–2". A
+-- stored 'few' keeps its multiplier only at 'none' (both are 1.2), so no stored profile's target
+-- moves; 'some' and 'many' keep their ids and their factors. Runs AFTER the v2 lines so a host
+-- still holding 'sedentary'/'light' rows lands them on 'none' in one boot. A 'few' written in the
+-- window by an old build is the one case this cannot reach — see migrateActivityLevel.
+update users set activity = 'none' where activity = 'few';
 
 -- The paid tier, on the user row rather than in a subscriptions table.
 --
