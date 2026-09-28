@@ -572,6 +572,7 @@ export function kitCss(): string {
 /* The verdict — a dot and a line, never a pill. */
 .v{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted)}
 .v::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent);flex:0 0 8px}
+.v.good{color:var(--accent)}
 .v.warn{color:var(--warn)}.v.warn::before{background:var(--warn)}
 .v.bad{color:var(--bad)}.v.bad::before{background:var(--bad)}
 .vs{display:flex;gap:14px;flex-wrap:wrap}
@@ -678,9 +679,11 @@ ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:$
   border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
 .opt:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .opts{display:flex;flex-direction:column;gap:10px}
-.opts .opt{border-top:0;background:var(--surface);border-radius:var(--r-card);padding:12px 16px;
+/* A DIRECT child only: the chat's \`.card.flat\` of \`.opt\` rows sits inside an \`li.opts\` and must
+   not be carded a second time over. */
+.opts>.opt{border-top:0;background:var(--surface);border-radius:var(--r-card);padding:12px 16px;
   box-shadow:0 0 0 1px var(--hair);font-size:16px}
-.opts .opt.sel{box-shadow:0 0 0 2px var(--ink)}
+.opts>.opt.sel{box-shadow:0 0 0 2px var(--ink)}
 .card.flat{box-shadow:0 0 0 1px var(--hair)}
 
 /* The boards' type utilities and the hairline rule, verbatim from pro.css — display weight and

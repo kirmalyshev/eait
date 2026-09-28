@@ -91,7 +91,9 @@ h2 { font-size: 17px; }
 .muted { color: var(--muted); }
 .lab { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
-.hero { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
+/* The big figure's \`.hero\` — scoped to \`.big\`: the kit's \`.hero\` is the photo block, and this
+   display type otherwise landed on the chat photo's stamp as cramped letter-spacing. */
+.big .hero { font-size: 44px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; }
 .big.warn .hero { color: var(--warn); }
 /* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
    outside the figure's own span. */
@@ -136,6 +138,9 @@ h2 { font-size: 17px; }
 .compose .ib { width: 44px; height: 44px; flex-basis: 44px; }
 .compose .ib .ico { width: 20px; height: 20px; }
 .compose .ib.p { background: var(--accent); box-shadow: none; color: var(--accent-ink); }
+/* The glyph is the masked .ico — painted by the kit's \`.ib .ico\` in ink — so the send arrow takes
+   the button's ink explicitly; the camera round's own glyph keeps it. */
+.compose .ib.p .ico { background: var(--accent-ink); }
 .compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
@@ -162,7 +167,7 @@ h2 { font-size: 17px; }
 .mb .bar::after { content: ""; position: absolute; right: 0; top: -3px; width: 2px; height: 12px;
   background: var(--ink); }
 
-.card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
+.card button:not(.opt) { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
   font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--hair);
   margin: .5rem .5rem 0 0; }
 .card button.primary { background: var(--accent); color: var(--accent-ink); }
