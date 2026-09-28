@@ -17,7 +17,7 @@ import {
   explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planHeadline,
   projectGoal, projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
-  TYPE_MS_PER_CHAR, signupCopyFor, weightDisplay, wholeNumbers, type Profile,
+  signupCopyFor, weightDisplay, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -2185,6 +2185,16 @@ describe("the web surface and the landing are one product", () => {
     const front = await get("/start");
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
   });
+
+  it("404s a name none of the asset routes ships — the allowlist, not the filesystem, answers", async () => {
+    for (const path of [
+      "/start/assets/welcome/nope.mp4",
+      "/start/assets/img/nope.webp",
+      "/start/assets/fonts/montserrat-italic.woff2",
+    ]) {
+      expect((await get(path)).status, path).toBe(404);
+    }
+  });
 });
 
 describe("signing out of this browser", () => {
@@ -2895,6 +2905,41 @@ describe("the counter and Back (#53)", () => {
     expect((await store.getProfile(userId))!.sex).toBe("male");
     // …and the walk resumes where it was.
     expect(await (await get("/start/q", session)).text()).toContain('name="prompt" value="height_cm"');
+  });
+
+  it("bounces every show that is not the next beat — an unknown id, or a card not due yet", async () => {
+    const session = await signIn("show-refuse");
+    // Nothing answered: `how` sits AFTER the open question (goal), `ontrack` after it again,
+    // and "nope" is no beat at all — each redirects into the walk rather than serving.
+    for (const bad of ["nope", "how", "ontrack"]) {
+      const res = await get(`/start/q?show=${bad}`, session);
+      expect(res.status, bad).toBe(303);
+      expect(res.headers.get("location"), bad).toBe("/start/q");
+    }
+    // And once `how` is served in its turn, the card after it still is not due.
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    expect((await get("/start/q?show=how", session)).status).toBe(200);
+    const late = await get("/start/q?show=ontrack", session);
+    expect(late.status).toBe(303);
+    expect(late.headers.get("location")).toBe("/start/q");
+  });
+
+  it("'none' clears the medical tags picked before it — the row it ticked wins by meaning", async () => {
+    const session = await signIn("medical-none-clears");
+    await walkTo(session, "medical");
+    const picked = await post("/start/q", { prompt: "medical", answer: ["ldl"] }, session);
+    expect(picked.status).toBe(303);
+    expect((await store.getProfile(await webUser(session)))!.restrictions)
+      .toEqual(expect.arrayContaining(["ldl"]));
+    // Back into the question (#53's edit), tick "none of these" — a no-script browser could
+    // send it beside a real tag, and the only honest read of both is none.
+    const edit = await get("/start/q?edit=medical", session);
+    expect(edit.status).toBe(200);
+    const res = await post("/start/q", { prompt: "medical", answer: ["ldl", "none"] }, session);
+    expect(res.status).toBe(303);
+    const p = (await store.getProfile(await webUser(session)))!;
+    // The diet tag survives; every medical tag is gone.
+    expect(p.restrictions).toEqual(["mediterranean"]);
   });
 
   it("refuses to edit a question not yet answered, or one that does not exist", async () => {
