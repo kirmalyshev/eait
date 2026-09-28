@@ -41,7 +41,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .say .t13 { margin-top: 3px; }
 
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
-.prop-li { align-self: flex-start; width: 100%; max-width: 560px; margin-left: 38px; }
+.prop-li { align-self: flex-start; width: calc(100% - 38px); max-width: 560px; margin-left: 38px; }
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
 .prop .pl-expired { margin: 10px 0 0 2px; font-weight: 500; }
 .prop .card { margin-bottom: 0; }
@@ -54,7 +54,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 
 /* The starter and suggestion rows — the boards' .card.flat of .opt rows, indented to the
    say column, each with its icon and the chevron where .opt's check disc would sit. */
-.opts, .sug { align-self: flex-start; width: 100%; max-width: 560px; margin-left: 38px; }
+.opts, .sug { align-self: flex-start; width: calc(100% - 38px); max-width: 560px; margin-left: 38px; }
 .opts .card.flat, .sug .card.flat { padding: 2px 16px; margin-bottom: 0; }
 .opts .opt, .sug .opt { font-size: 15px; padding: 13px 0; gap: 12px; }
 .opts .opt .ico, .sug .opt .ico { width: 20px; height: 20px; }
