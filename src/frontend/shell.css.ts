@@ -162,7 +162,7 @@ h2 { font-size: 17px; }
 .mb .bar::after { content: ""; position: absolute; right: 0; top: -3px; width: 2px; height: 12px;
   background: var(--ink); }
 
-.card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
+.card button:not(.opt) { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
   font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--hair);
   margin: .5rem .5rem 0 0; }
 .card button.primary { background: var(--accent); color: var(--accent-ink); }
