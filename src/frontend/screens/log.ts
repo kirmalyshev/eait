@@ -102,6 +102,10 @@ export function logScreen(frame: Frame): HTMLElement {
     wrap.append(notice);
   };
 
+  /** `prefers-reduced-motion`, asked live — the media list, not a value read once at mount (#148). */
+  const reducedMotion = (): boolean =>
+    typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   /** A say row — the kit's avatar and the words. */
   const say = (mood: "think" | "care" | "happy", text: string, q = false): HTMLElement => {
     const row = el("div", `say logsay${q ? " q" : ""}`);
@@ -135,6 +139,9 @@ export function logScreen(frame: Frame): HTMLElement {
   const file = el("input", "visually-hidden") as HTMLInputElement;
   file.type = "file";
   file.accept = "image/jpeg,image/png,image/webp";
+  // Several angles of one meal is what the endpoint accepts — `takeFiles` enforces the profile's
+  // own `maxPhotosPerMeal`, the same bound the chat picker and the first-meal screen pick under.
+  file.multiple = true;
   file.addEventListener("change", () => {
     void takeFiles([...file.files ?? []]);
     file.value = "";
@@ -214,7 +221,9 @@ export function logScreen(frame: Frame): HTMLElement {
       checking,
       ctaEl({ text: L.close, kind: "g", href: "#/" }),
     );
-    grid.append(hero("", true), side);
+    // Under prefers-reduced-motion the scan is not just stopped, it is never mounted — the
+    // sheet's `.scan{display:none}` stays as the backstop for every surface that draws one.
+    grid.append(hero("", !reducedMotion()), side);
     clear(wrap).append(grid);
   };
 

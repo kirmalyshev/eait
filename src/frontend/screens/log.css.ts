@@ -26,7 +26,7 @@ export const logCss = `
    vertical padding inside the 48px row. */
 .log .lognote { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px;
   min-height: 48px; padding: 0 16px; border: 0; box-shadow: 0 0 0 1px var(--hair);
-  border-radius: 10px; background: var(--surface); color: var(--ink); }
+  border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); }
 
 /* The two-column results — the photo on the left, the card column on the right at the boards'
    widths; the photo's height is the surface's (the kit draws none). */
@@ -55,7 +55,7 @@ export const logCss = `
 .log .logbtns { display: flex; gap: 10px; margin-top: 8px; }
 .log .dayrow { display: flex; justify-content: space-between; font-size: 13px; }
 .log .dayrow .num b { font-size: 15px; }
-.log .bar { height: 6px; border-radius: 3px; background: var(--hair); margin-top: 10px; overflow: hidden; }
+.log .bar { height: 6px; border-radius: var(--r-bar); background: var(--hair); margin-top: 10px; overflow: hidden; }
 .log .bar i { display: block; height: 100%; background: var(--accent); }
 
 /* The refusal's empty plate — the box is drawn, never a photo. */
