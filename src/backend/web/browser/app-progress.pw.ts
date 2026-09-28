@@ -31,13 +31,14 @@ test("the weight card's ranges switch what the chart draws", async ({ inWebApp: 
   await page.goto("/#/progress");
 
   const dots = page.locator(".pgraph.wl circle");
-  await expect(dots).toHaveCount(2); // the onboarding weigh-in and the −20d one
+  // No dots on the line since #1068 — only a lone weigh-in keeps its one.
+  await expect(dots).toHaveCount(0);
   const all = page.getByRole("button", { name: "All" });
   await all.click();
-  await expect(dots).toHaveCount(3);
+  await expect(dots).toHaveCount(0);
   await expect(all).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "90D" }).click();
-  await expect(dots).toHaveCount(2);
+  await expect(dots).toHaveCount(0);
 });
 
 test("a weigh-in typed on You lands on the chart", async ({ inWebApp: page }) => {
@@ -53,7 +54,7 @@ test("a weigh-in typed on You lands on the chart", async ({ inWebApp: page }) =>
   await page.getByRole("button", { name: "Save" }).click();
   await page.goto("/#/progress");
   await expect(page.locator(".prog .wnum .d28").first()).toHaveText("80");
-  await expect(page.locator(".pgraph.wl circle")).toHaveCount(2);
+  await expect(page.locator(".pgraph.wl circle")).toHaveCount(0);
 });
 
 test("an account whose log is empty draws the empty card — a dash, not a phantom trend", async ({ inWebApp: page }) => {
@@ -92,7 +93,7 @@ test("under reduced motion every animated element is already at its end state", 
   await seedWeight(page, 20, 74.6);
   await seedWeight(page, 10, 74.0);
   await page.goto("/#/progress");
-  await expect(page.locator(".pgraph.wl circle")).toHaveCount(3);
+  await expect(page.locator(".pgraph.wl circle")).toHaveCount(0);
 
   // DOM names inside evaluate go in as strings — this file typechecks without the dom lib.
   const states = JSON.parse(await page.evaluate(

@@ -357,9 +357,10 @@ export const twoWayChartSvg = (
   `</svg>`;
 
 /**
- * The logged-weight line (`weightChart`): hairline rows, the polyline through the weigh-ins, a dot
- * per point, the first and last values and the two dates. `points` are `{t, kg}` — epoch ms or day
- * indexes, one unit throughout.
+ * The logged-weight line (`weightChart`): hairline rows, the polyline through the weigh-ins —
+ * no point markers (#1068); a lone weigh-in keeps its dot, the mark IS the chart when no line
+ * can be drawn (#95) — the first and last values and the two dates. `points` are `{t, kg}` —
+ * epoch ms or day indexes, one unit throughout.
  */
 export const weightChartSvg = (
   points: readonly WeightPoint[],
@@ -373,9 +374,11 @@ export const weightChartSvg = (
   const grid = g.targetLine !== undefined ? "" : g.gridlines.map((y) =>
     `<line x1="20" x2="310" y1="${y}" y2="${y}" stroke="var(--hair)"/>`
   ).join("");
-  const dots = g.points.map((p, i) =>
-    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="var(--ink)" class="pop pd-${Math.min(i, 12)}"/>`
-  ).join("");
+  // The line alone, no per-point dots (#1068) — except a lone weigh-in, whose dot is the whole
+  // mark; `pd-0` is the kit's pop-delay class, re-timed per board (`you.css.ts`).
+  const dots = g.points.length === 1
+    ? `<circle cx="${g.points[0]!.x}" cy="${g.points[0]!.y}" r="4" fill="var(--ink)" class="pop pd-0"/>`
+    : "";
   return `<svg class="pgraph wl" viewBox="${g.viewBox}" width="100%" role="img"${labels.aria ? ` aria-label="${esc(labels.aria)}"` : ""}>` +
     grid +
     (g.targetLine !== undefined
@@ -641,8 +644,9 @@ ${(Object.keys(MOUTHS) as MascotMood[]).map((m) =>
    out-ranks the fill attribute and the chip reads muted-on-ink (~3.6:1). */
 .pgraph .chip text{fill:#fff}
 /* Staggered entries, by data index rather than DOM position — a sparse week keeps its delays.
-   Inline styles are not an option (the app's CSP), so the delay arrives as a generated class. */
-${Array.from({ length: 13 }, (_, i) => `.pgraph.wl circle.pd-${i}{animation-delay:${(0.8 + i * 0.08).toFixed(2)}s}`).join("\n")}
+   Inline styles are not an option (the app's CSP), so the delay arrives as a generated class.
+   pd-0 is the lone weigh-in's dot — the only one the weight line keeps (#1068). */
+.pgraph.wl circle.pd-0{animation-delay:.8s}
 ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:${(i * 0.06).toFixed(2)}s}`).join("\n")}
 
 /* The one button — 16/600 on accent, radius 14, never uppercase. The .card rule's legacy
