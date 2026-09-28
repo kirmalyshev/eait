@@ -726,18 +726,18 @@ describe("the provider pin", () => {
 
   test("pins the schema calls to the named providers with no fallback", async () => {
     const { impl, bodies } = fakeFetch([MEAL]);
-    await streamPorts(impl, { providerOrder: ["DeepInfra"] }).analyzePhoto(PHOTO_INPUT);
-    expect(bodies[0]!.provider).toEqual({ order: ["DeepInfra"], allow_fallbacks: false });
+    await streamPorts(impl, { providerOrder: ["deepinfra"] }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false });
   });
 
   test("rides on every nutrition call — analyzer, router and correction — never the coach", async () => {
     const { impl, bodies } = fakeFetch([MEAL, { intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
-    const llm = streamPorts(impl, { providerOrder: ["DeepInfra"] });
+    const llm = streamPorts(impl, { providerOrder: ["deepinfra"] });
     await llm.analyzePhoto(PHOTO_INPUT);
     await llm.routeText(ROUTE_INPUT);
-    for (const b of bodies) expect(b.provider).toEqual({ order: ["DeepInfra"], allow_fallbacks: false });
+    for (const b of bodies) expect(b.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false });
 
-    const { llm: withCoach, bodies: coachBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }], 5000, { providerOrder: ["DeepInfra"] });
+    const { llm: withCoach, bodies: coachBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }], 5000, { providerOrder: ["deepinfra"] });
     await withCoach.coach(COACH_INPUT, {});
     expect(coachBodies[0]!.provider).toBeUndefined();
   });

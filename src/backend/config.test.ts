@@ -84,10 +84,10 @@ describe("loadConfig", () => {
     expect(c.llmReasoningEffort).toBe("low");
   });
 
-  it("pins the nutrition calls to DeepInfra by default, and lets env override or roam", () => {
-    expect(configDefaults().llmProviderOrder).toBe("DeepInfra");
-    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "Alibaba,Novita" });
-    expect(loadConfig().llmProviderOrder).toBe("Alibaba,Novita");
+  it("pins the nutrition calls to deepinfra by default — the provider SLUG, not the name — and lets env override or roam", () => {
+    expect(configDefaults().llmProviderOrder).toBe("deepinfra");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "alibaba,novita" });
+    expect(loadConfig().llmProviderOrder).toBe("alibaba,novita");
     withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "" });
     expect(loadConfig().llmProviderOrder).toBe("");
   });

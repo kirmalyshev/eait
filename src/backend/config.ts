@@ -493,7 +493,9 @@ export function configDefaults(): Config {
     llmReasoningEffort: "off",
     // DeepInfra is the named provider for the shipped analyzer — the pin the privacy page's
     // "OpenRouter plus the serving provider" promise is written around. Empty would roam.
-    llmProviderOrder: "DeepInfra",
+    // provider.order takes the endpoint's SLUG (`deepinfra`, the part before the `/fp8` tag),
+    // not the display name — "DeepInfra" matches no provider and would fail every call.
+    llmProviderOrder: "deepinfra",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
