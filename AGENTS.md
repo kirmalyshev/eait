@@ -115,6 +115,12 @@ them. Ported from the private monorepo with its iOS, Metro and landing halves re
   path that produces a kcal target, it goes through `explainTargets`.
 - **TDD.** Write the failing test, watch it fail, implement, watch it pass. One logical change per
   commit.
+- **API first.** A screen's server and contract delta is its own backend-only PR, merged before any
+  UI — the client then implements a contract that already exists, and no UI PR carries a contract
+  review inside it.
+- **A stale test dies in the PR that replaces its surface.** A PR that replaces a surface updates or
+  deletes the tests pinning it, in the same PR — never "the tests, later". A check that is
+  un-required in the meantime names an issue and an expiry date.
 
 ## The store port
 

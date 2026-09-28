@@ -73,6 +73,12 @@ the exclude is written so a new file in this directory is browser code by defaul
 - **No inline handler, ever — `addEventListener` only.** The page is served under a nonce policy,
   which refuses `onclick=` attributes outright. One added here is a control that silently stops
   working rather than an error somebody sees.
+- **The `src/shared` modules you may reach run on Hermes too.** The phone mounts this workspace's
+  `app/*-copy.ts` and its helpers, and Hermes carries `Intl.Collator`, `DateTimeFormat` and
+  `NumberFormat` only: `PluralRules`, `ListFormat`, `DisplayNames`, `RelativeTimeFormat` and
+  `Segmenter` are `undefined` there, and `new` on one is a process abort a browser never shows.
+  `countText`, `listConjunction` (`lang.ts`) and `countryLabel` (`onboarding.ts`) own the
+  fallbacks — the full rule is in `src/shared/AGENTS.md`.
 
 ## Signing in
 
