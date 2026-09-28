@@ -75,12 +75,11 @@ describe("the logged-meal verdict line", () => {
     const res = await logPhotoMeal(deps, userId, photo());
     expect(res.kind).toBe("logged");
     const t = await thread(userId);
-    const last = t.slice(-2).map(text);
-    // The verdict line sits under the card, before the day's arithmetic.
-    expect(last[0]).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
-    expect(last[1]).toContain("left today");
-    expect(t.at(-3)!).toMatchObject({ role: "assistant", kind: "meal", event: "logged" });
-    for (const e of t.slice(-3)) expect(e).toMatchObject({ speaker: "gabie" });
+    // The verdict line sits under the card, and nothing follows it — #1066 retired the day's
+    // arithmetic, so the cap line is the last thing said.
+    expect(text(t.at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
+    expect(t.at(-2)!).toMatchObject({ role: "assistant", kind: "meal", event: "logged" });
+    for (const e of t.slice(-2)) expect(e).toMatchObject({ speaker: "gabie" });
   });
 
   it("says sodium in mg when the kidneys cap is the one that ran high", async () => {
@@ -88,7 +87,7 @@ describe("the logged-meal verdict line", () => {
     const userId = await onboard({ restrictions: ["kidneys"] });
     await logPhotoMeal(deps, userId, photo());
     await logPhotoMeal(deps, userId, photo());
-    expect((await thread(userId)).slice(-2).map(text)[0]).toBe("Sodium is high for one meal: 900 of your 2,000 mg.");
+    expect(text((await thread(userId)).at(-1)!)).toBe("Sodium is high for one meal: 900 of your 2,000 mg.");
   });
 
   it("says 'very high' when the share passes the bad line, and one line per off-plan cap", async () => {
@@ -97,10 +96,9 @@ describe("the logged-meal verdict line", () => {
     await logPhotoMeal(deps, userId, photo());
     await logPhotoMeal(deps, userId, photo());
     const t = await thread(userId);
-    expect(t.slice(-3).map(text)).toEqual([
+    expect(t.slice(-2).map(text)).toEqual([
       "Sodium is very high for one meal: 1,100 of your 2,000 mg.",
       "Saturated fat is very high for one meal: 8 of your 13 g.",
-      expect.stringContaining("left today") as unknown as string,
     ]);
   });
 
@@ -113,7 +111,7 @@ describe("the logged-meal verdict line", () => {
     // First meal: 8 of 13 g still open — the line, and no advice yet.
     expect((await thread(userId)).map(text)).toContain("Saturated fat is high for one meal: 5 of your 13 g.");
     await logPhotoMeal(deps, userId, photo());
-    expect((await thread(userId)).slice(-2).map(text)[0]).toBe(
+    expect(text((await thread(userId)).at(-1)!)).toBe(
       "Saturated fat is high for one meal: 5 of your 13 g. Go easy on it for the rest of today.");
 
     // The reverse does not: the day's kcal nearly spent (1,940 of 1,724 eaten) but the cap wide
@@ -122,17 +120,17 @@ describe("the logged-meal verdict line", () => {
     const early = await onboard({ restrictions: ["ldl"] });
     await logPhotoMeal(deps, early, photo());
     await logPhotoMeal(deps, early, photo());
-    expect((await thread(early)).slice(-2).map(text)[0]).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
+    expect(text((await thread(early)).at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
   });
 
-  it("is silent when no cap is declared or none ran high — the card and the running line stand alone", async () => {
+  it("is silent when no cap is declared or none ran high — the card stands alone", async () => {
     deps = makeDeps(plates([8, 1500]));
     const userId = await onboard(); // no restrictions: the caps were never declared
     await logPhotoMeal(deps, userId, photo());
     await logPhotoMeal(deps, userId, photo());
-    const t = (await thread(userId)).slice(-1).map(text);
-    expect(t[0]).toContain("left today");
-    for (const e of (await thread(userId)).slice(-4)) expect(text(e)).not.toContain("one meal:");
+    const t = await thread(userId);
+    expect(t.at(-1)!.kind).toBe("meal");
+    for (const e of t.slice(-4)) expect(text(e)).not.toContain("one meal:");
   });
 
   it("is scoped like every other write: one account's caps never land in another's thread", async () => {

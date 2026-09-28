@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
 import { LANGS, STRUGGLES, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, capVerdictLines, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
+import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, capVerdictLines, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -57,8 +57,8 @@ describe("the first verdict", () => {
       goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
     }, "en");
     // #49: the headline comes first, and it is the pills' verdict said in words — no pill, no
-    // claim; the arithmetic after it states the day and passes no judgement of its own.
-    expect(lines[0]).toBe("First one in. 612 kcal — that leaves 842 of your 1,454 for the rest of today, and 38 of the 110 g protein.");
+    // claim; the meal's number is the card's, said once (#1066: no day's arithmetic).
+    expect(lines[0]).toBe("First one in. 612 kcal.");
     expect(lines[1]).toContain("If anything's off, say so");
     expect(lines).toHaveLength(2);
   });
@@ -74,72 +74,19 @@ describe("the first verdict", () => {
     ]) for (const line of lines) expect(line).not.toMatch(/gabie/i);
   });
 
-  it("says how far over the day is, as a number with a direction — never a bare negative", () => {
-    // "-146 of your 1,454 left" is a sign in front of a remainder: honest, and read as a typo by
-    // the person it is for (review recording, 13 Sep 2026: "-569 of your 2,393 left today"). The
-    // gain branch already says "over your"; the lose/maintain one says it the same way.
-    const lines = firstVerdictLines({
-      goal: "maintain", targets, meal: { ...meal, kcal: 1600 }, eatenToday: { kcal: 1600, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
-    }, "en");
-    expect(lines[0]).toBe("First one in. 1,600 kcal — that puts you 146 over your 1,454 for today, and 38 of the 110 g protein. Tomorrow is a fresh number.");
-  });
-
-  it("says where the day stands in ONE sentence, whatever put the meal there (#306)", () => {
-    // The clause a correction already ended with, on its own. A log had nothing after its card, so
-    // one meal in the thread was followed by the day's arithmetic and the next by silence.
-    expect(runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
-      .toBe("1,148 of your 1,454 left today, 19 of the 110 g protein.");
-  });
-
-  it("says the overshoot as an overshoot when the day is over, as the first verdict does", () => {
-    // The same arithmetic as the first verdict, worded the same way: a number and a direction.
-    expect(runningLine({ targets, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
-      .toBe("146 over your 1,454 today, 38 of the 110 g protein.");
-  });
-
-  it("fills rather than leaves for a gain goal", () => {
-    const lines = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
-    }, "en");
-    expect(lines[0]).toBe("First one in. 612 kcal — 2,288 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
-  });
-
   it("is honest about a rough read and asks for the grams instead", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
     }, "en");
     expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 480 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
-    expect(lines[1]).toBe("Even rough, it counts: about 974 of your 1,454 left today.");
-    expect(lines).toHaveLength(2);
-    // Rule 1 holds on this branch too: a gain plan is filled, not left.
-    const gain = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
-    }, "en");
-    expect(gain[1]).toBe("Even rough, it counts: about 2,420 of your 2,900 still to fill today.");
-    // Past the target on a gain plan is not "still to fill": rule 1, the branch taken.
-    const past = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 3100, protein_g: 160, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
-    }, "en");
-    expect(past[1]).toBe("Even rough, it counts: about 200 over your 2,900 today.");
-    const sure = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 480 }, eatenToday: { kcal: 3100, protein_g: 160, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {},
-    }, "en");
-    expect(sure[0]).toBe("First one in. 480 kcal — 200 over your 2,900 today, and 160 of the 150 g protein. Past it is the point on a gain plan; tomorrow is a fresh number.");
-    // Over target reads as an overshoot, like the confident branch — no clamp to zero, no bare sign.
-    const over = firstVerdictLines({ goal: "lose", targets, meal: { ...meal, kcal: 1600, confidence: "low" }, eatenToday: { kcal: 1600, protein_g: 21, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {} }, "en");
-    expect(over[1]).toBe("Even rough, it counts: about 146 over your 1,454 today. Tomorrow is a fresh number.");
+    expect(lines).toHaveLength(1);
   });
 
   it("says a typed meal is a guess at the portions", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal: { ...meal, kcal: 540 }, eatenToday: { kcal: 540, protein_g: 30, satfat_g: 0, sodium_mg: 0 }, via: "text", verdicts: {},
     }, "en");
-    expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it.");
-    expect(lines[1]).toBe("That leaves 914 of your 1,454 for the rest of today, and 30 of the 110 g protein.");
-    const gain = firstVerdictLines({
-      goal: "gain", targets: { kcal: 2900, protein_g: 150, fat_g: 97, carbs_g: 238 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "text", verdicts: {},
-    }, "en");
-    expect(gain[1]).toBe("2,288 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
+    expect(lines).toEqual(["Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it."]);
   });
 
   it("quotes the camera note back first, in the user's own words", () => {

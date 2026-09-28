@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
-  SCRIPTED_LINES, firstVerdictLines, runningLine,
+  SCRIPTED_LINES, capVerdictLines, firstVerdictLines,
   scriptedLine, startersFor, type ScriptedLineId,
 } from "./chat.ts";
 
@@ -28,12 +28,9 @@ describe("the thread in eight languages", () => {
     }
   });
 
-  it("says the day's arithmetic in every language and on every branch", () => {
+  it("says the first verdict in every language and on every branch", () => {
     for (const lang of LANGS) {
-      const said: string[] = [
-        runningLine({ targets: TARGETS, eatenToday: EATEN }, lang),
-        runningLine({ targets: TARGETS, eatenToday: { kcal: 2100, protein_g: 120 } }, lang),
-      ];
+      const said: string[] = [];
       for (const goal of ["gain", "lose", "maintain"] as const) {
         for (const via of ["photo", "text"] as const) {
           for (const confidence of ["high", "low"] as const) {
@@ -56,12 +53,15 @@ describe("the thread in eight languages", () => {
 
   it("writes its figures in the reader's grouping, and rounds them", () => {
     // The thread's figures are estimates from a photo: whole numbers, in the reader's own
-    // separators. 74.8 g of protein is a precision the analyzer does not have.
-    const en = runningLine({ targets: TARGETS, eatenToday: EATEN }, "en");
-    expect(en).toContain("1,724");
-    expect(en).toContain("75");
-    expect(en).not.toContain("74.8");
-    expect(runningLine({ targets: TARGETS, eatenToday: EATEN }, "de")).toContain("1.724");
+    // separators. 74.8 g of saturated fat is a precision the analyzer does not have.
+    const line = (lang: (typeof LANGS)[number]) => capVerdictLines({
+      meal: { satfat_g: 74.8, sodium_mg: 0 }, targets: TARGETS,
+      verdicts: { ldl: "bad" }, eatenToday: { satfat_g: 74.8, sodium_mg: 0 },
+    }, lang)[0]!;
+    expect(line("en")).toContain("75");
+    expect(line("en")).toContain("13");
+    expect(line("en")).not.toContain("74.8");
+    expect(line("de")).toContain("75");
   });
 
   it("says something DIFFERENT in each of the eight, rather than eight copies of a fallback", () => {
@@ -74,7 +74,7 @@ describe("the thread in eight languages", () => {
     for (const sample of [
       (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
       (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.headline.caloriesHigh,
-      (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
+      (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.firstIn({ kcal: "612" }),
       (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
       (l: (typeof LANGS)[number]) => startersFor(null, l)[0]!,
     ]) {

@@ -6,7 +6,7 @@
 // in the product, so change the design first.
 
 import { spellUnit, wholeNumbers } from "./lang.ts";
-import { threadCopyFor, type Figures } from "./chat-copy.ts";
+import { threadCopyFor } from "./chat-copy.ts";
 import { STRUGGLES } from "./types.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
@@ -204,32 +204,6 @@ export function cleanSuggestions(raw: unknown): string[] {
 }
 
 /**
- * WHERE THE DAY STANDS, said the same way whatever put the meal there (#306).
- *
- * copy.md § Step 14's arithmetic clause, on its own. It was once reachable only through the old
- * correction line (#119 retired it — the change line names the edit, not the day), so a corrected
- * meal was followed by the day's numbers and a logged one by nothing — #301's "three consecutive
- * meals look like three different features", in the half #301 did not touch. Worse, the account's
- * FIRST meal does say the arithmetic (`firstVerdictLines`), so the very next meal broke an
- * expectation the product had just set.
- *
- * NO VERB, AND NO MEAL KCAL. The card under it already carries the meal's own numbers, and #301
- * removed the "Logged." caption for exactly that reason — `LandedMeal` says the running arithmetic
- * "must not come here … a caption repeating any part of it is a second place for numbers that have
- * to agree". This sentence is the day, and only the day.
- *
- * Over target it says the overshoot, in the first verdict's words — never a signed remainder (#663).
- */
-export function runningLine(
-  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang,
-): string {
-  const copy = threadCopyFor(lang).running;
-  const left = i.targets.kcal - i.eatenToday.kcal;
-  return (left >= 0 ? copy.left : copy.over)(figures(i, lang));
-}
-
-/**
  * #130: the logged-meal verdict line — the coach's reply to a meal that landed, ONE PER CAP VERDICT
  * that is not on plan. Only the caps exist here: saturated fat for `ldl`, sodium for `kidneys`;
  * calories have a plan, not a cap, so `weight` never speaks in this line. "Saturated fat is high
@@ -273,28 +247,6 @@ export function capVerdictLines(
 }
 
 /**
- * The bare numbers every sentence in this file interpolates, grouped the reader's way.
- *
- * Typed `Figures` rather than `Record<string, string>` since the copy became ICU templates: the
- * four arithmetic branches are chosen at runtime and all five keys must be present whichever one
- * wins, so the compiler is the right place to say so.
- */
-function figures(
-  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang,
-): Figures {
-  const n = wholeNumbers(lang);
-  const left = i.targets.kcal - i.eatenToday.kcal;
-  return {
-    left: n(Math.max(0, left)),
-    over: n(Math.max(0, -left)),
-    plan: n(i.targets.kcal),
-    protein: n(i.eatenToday.protein_g),
-    proteinTarget: n(i.targets.protein_g),
-  };
-}
-
-/**
  * A user's words, fit to be quoted inside Spud's bubble: whitespace flattened, cut at a word inside
  * the scripted-parameter bound and marked as cut, and never split inside a character — a quote
  * attributed to somebody must read as one thing they said.
@@ -312,7 +264,7 @@ export interface FirstVerdictInput {
   goal: Goal;
   targets: FoodTargets;
   meal: { kcal: number; satfat_g: number; sodium_mg: number; confidence: string };
-  /** The day's totals AFTER this meal, which is what "left today" and the cap tails are measured from. */
+  /** The day's totals AFTER this meal, which is what the cap tails are measured from. */
   eatenToday: { kcal: number; protein_g: number; satfat_g: number; sodium_mg: number };
   via: "photo" | "text";
   verdicts: MealVerdicts;
@@ -345,37 +297,25 @@ export function verdictHeadline(verdicts: MealVerdicts, lang: Lang): string | nu
  * is never asked for a verdict, and neither is it asked for these sentences.
  *
  * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN THE CATALOGS (`chat-copy.ts` names the ids).
- * Which of them a meal takes is a claim about that meal's arithmetic; the wording is not, and a
- * translator moving a branch would be moving a rule. The old code produced the sentence-initial
- * form of the arithmetic by running `.replace(/^that/, "That")` over it — an English
- * capitalisation rule living inside a string operation, correct in exactly one language.
- * `arithmeticAlone` is that same pair, said out loud.
+ * Which of them a meal takes is a claim about that meal; the wording is not, and a translator
+ * moving a branch would be moving a rule.
+ *
+ * NO DAY'S ARITHMETIC anywhere in it (#1066): the card already carries the meal's numbers and the
+ * day's remainder, so the thread does not restate them. What remains is the greeting, the fix
+ * hint, and any declared-cap warning — a nutrient line is not a calorie remark.
  */
 export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;
-  const f = figures(i, lang);
   const kcal = wholeNumbers(lang)(i.meal.kcal);
-  const left = i.targets.kcal - i.eatenToday.kcal;
   const lines: string[] = [];
-
-  // Over target says the overshoot ("146 over your 1,454"), never a signed remainder (#663).
-  const branch = i.goal === "gain"
-    ? (left >= 0 ? "gainLeft" : "gainOver")
-    : (left >= 0 ? "otherLeft" : "otherOver");
 
   if (i.via === "text") {
     lines.push(copy.typed({ kcal }));
-    lines.push(copy.arithmeticAlone[branch](f));
   } else if (i.meal.confidence === "low") {
     // The design's "— sauce over everything" is an example reason; nothing here can name one.
     lines.push(copy.lowConfidence({ kcal }));
-    lines.push((
-      left < 0
-        ? (i.goal === "gain" ? copy.lowOverGain : copy.lowOverOther)
-        : (i.goal === "gain" ? copy.lowLeftGain : copy.lowLeftOther)
-    )(f));
   } else {
-    lines.push(copy.firstIn({ kcal, arithmetic: copy.arithmetic[branch](f) }));
+    lines.push(copy.firstIn({ kcal }));
     lines.push(copy.fixHint);
   }
 

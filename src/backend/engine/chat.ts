@@ -8,7 +8,7 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
-  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, capVerdictLines, explainTargets, firstVerdictLines, runningLine,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, capVerdictLines, explainTargets, firstVerdictLines,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams, verdictInlineText, verdictLabels,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
@@ -67,12 +67,10 @@ export async function remember(
 }
 
 /**
- * The day's numbers a thread line needs, or null when there is nothing true to say about today.
+ * The day's numbers a cap line needs, or null when there is nothing true to say about today.
  *
- * Both guards belong to the SENTENCE rather than to either caller: every line built from this says
- * "left today", so a meal on another day has nothing to say and an unreadable profile has no
- * targets to say it against. Written once because the two callers must never disagree about when
- * the thread stays quiet.
+ * Both guards belong to the lines built from this rather than to the caller: a meal on another
+ * day has nothing to say about today, and an unreadable profile has no targets to say it against.
  */
 async function dayStanding(
   deps: EngineDeps,
@@ -93,13 +91,13 @@ async function dayStanding(
 }
 
 /**
- * Where the day stands after a meal LANDED (#306) — a sentence a correction no longer gets: #119's
- * change line names the edit itself and says nothing about the day's remainder.
+ * What a landed meal still says under its card: the coach's computed cap lines (#130), one per
+ * declared cap verdict that is not on plan. No day's standing — #1066 retired the running
+ * arithmetic; the card already carries the numbers.
  *
- * NOT ON THE ACCOUNT'S FIRST MEAL: `firstVerdictLines` carries the same arithmetic inside the
- * greeting, and saying it twice under one card is the defect this fixes wearing the other hat. The
- * callers pass this only when the greeting produced no lines, which is exactly "the greeting is
- * spent" — one condition, read where it is already known, rather than a second claim lookup here.
+ * NOT ON THE ACCOUNT'S FIRST MEAL: the greeting is speaking there. The callers pass this only when
+ * the greeting produced no lines, which is exactly "the greeting is spent" — one condition, read
+ * where it is already known, rather than a second claim lookup here.
  */
 export async function afterLog(
   deps: EngineDeps,
@@ -109,13 +107,8 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  // #130: a cap that is not on plan gets the coach's computed verdict line under the card, ahead of
-  // the day's standing — the specific first, then the summary, as the board draws them.
-  const caps = capVerdictLines({ meal, targets: day.targets, verdicts: meal.verdicts, eatenToday: day.eatenToday }, day.lang);
-  return [
-    ...caps.map((text) => ({ role: "assistant" as const, kind: "text" as const, text, speaker: "gabie" as const })),
-    { role: "assistant" as const, kind: "text" as const, text: runningLine(day, day.lang), speaker: "gabie" as const },
-  ];
+  return capVerdictLines({ meal, targets: day.targets, verdicts: meal.verdicts, eatenToday: day.eatenToday }, day.lang)
+    .map((text) => ({ role: "assistant" as const, kind: "text" as const, text, speaker: "gabie" as const }));
 }
 
 /**
