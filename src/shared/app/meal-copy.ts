@@ -88,8 +88,6 @@ export interface MealCopy {
   phoneCorrectTitle: string;
   /** The keypad's subtitle under the ingredient name — "{meal} · {time}" (`phone/meal-keypad.html`). */
   phoneSheetMeal: string;
-  /** Under the keypad's big number — "was {amount}", with `{amount}` the previous grams ("150 g"). */
-  phoneWasAmount: string;
   /** The totals card's label on the keypad. */
   phoneThisMeal: string;
   /** The keypad's commit button. */
@@ -120,8 +118,8 @@ export interface MealCopy {
   phoneAmount: string;
   phoneRemoveIngredient: string;
   /**
-   * The joins a grams figure and a moving total take — "{n} g" for the amount pill (and inside
-   * `phoneWasAmount`'s "{amount}"), "{from} → {to} kcal" for the meal's total answering. Templates,
+   * The joins a grams figure and a moving total take — "{n} g" for the amount pill,
+   * "{from} → {to} kcal" for the meal's total answering. Templates,
    * not spans, so a language can reorder them.
    */
   phoneGrams: string;
@@ -192,7 +190,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Move to yesterday",
     phoneCorrectTitle: "Correct the meal",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "was {amount}",
     phoneThisMeal: "This meal",
     phoneSaveRecheck: "Save and recheck",
     phoneKeypadBackspace: "Backspace",
@@ -247,7 +244,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Déplacer à hier",
     phoneCorrectTitle: "Corriger le repas",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "était {amount}",
     phoneThisMeal: "Ce repas",
     phoneSaveRecheck: "Enregistrer et revérifier",
     phoneKeypadBackspace: "Effacer",
@@ -302,7 +298,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Auf gestern verschieben",
     phoneCorrectTitle: "Mahlzeit korrigieren",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "vorher {amount}",
     phoneThisMeal: "Diese Mahlzeit",
     phoneSaveRecheck: "Speichern und neu prüfen",
     phoneKeypadBackspace: "Löschen",
@@ -357,7 +352,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Sposta a ieri",
     phoneCorrectTitle: "Correggi il pasto",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "era {amount}",
     phoneThisMeal: "Questo pasto",
     phoneSaveRecheck: "Salva e ricontrolla",
     phoneKeypadBackspace: "Elimina",
@@ -412,7 +406,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Mover a ayer",
     phoneCorrectTitle: "Corregir la comida",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "antes {amount}",
     phoneThisMeal: "Esta comida",
     phoneSaveRecheck: "Guardar y revisar",
     phoneKeypadBackspace: "Borrar",
@@ -467,7 +460,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Chuyển sang hôm qua",
     phoneCorrectTitle: "Sửa bữa ăn",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "trước là {amount}",
     phoneThisMeal: "Bữa này",
     phoneSaveRecheck: "Lưu và kiểm tra lại",
     phoneKeypadBackspace: "Xóa",
@@ -522,7 +514,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Pindahkan ke kemarin",
     phoneCorrectTitle: "Koreksi makanan",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "tadinya {amount}",
     phoneThisMeal: "Makanan ini",
     phoneSaveRecheck: "Simpan dan periksa lagi",
     phoneKeypadBackspace: "Hapus",
@@ -577,7 +568,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneMenuMoveYesterday: "Перенести на вчера",
     phoneCorrectTitle: "Исправить приём пищи",
     phoneSheetMeal: "{meal} · {time}",
-    phoneWasAmount: "было {amount}",
     phoneThisMeal: "Этот приём пищи",
     phoneSaveRecheck: "Сохранить и перепроверить",
     phoneKeypadBackspace: "Стереть",

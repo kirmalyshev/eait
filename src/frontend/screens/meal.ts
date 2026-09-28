@@ -317,21 +317,18 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     pill.append(grams, document.createTextNode(` ${spellUnit(lang, "g")}`), kitEl(ico("pencil")));
     const amountRow = el("div", "row between");
     amountRow.append(el("span", "amlab", mc.phoneAmount), pill);
-    const wasG = el("span", "t12 m ingwas",
-      fill(mc.phoneWasAmount, { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }));
-    dlg.append(amountRow, wasG);
+    dlg.append(amountRow);
 
-    // Calories, live off the item's own density; "was" keeps the figure the edit started from. An
-    // item that reports no kcal draws no card — the preview has nothing to scale.
+    // Calories, live off the item's own density. An item that reports no kcal draws no card — the
+    // preview has nothing to scale.
     const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "");
     if (item.kcal !== undefined) {
       const kcalLeft = el("div", "");
       const kcalRow = el("div", "row ingkrow");
       kcalRow.append(kitEl(ico("kcal")), kcalNow);
       kcalLeft.append(el("span", "t12 m", cc.macroLabels.kcal), kcalRow);
-      const kcalCard = el("div", "card row between ingkcal");
-      kcalCard.append(kcalLeft, el("span", "t13 m num",
-        fill(mc.phoneWasAmount, { amount: `${n(item.kcal)} ${UNIT_KCAL[lang]}` })));
+      const kcalCard = el("div", "card ingkcal");
+      kcalCard.append(kcalLeft);
       dlg.append(kcalCard);
     }
 
