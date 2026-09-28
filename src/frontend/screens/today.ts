@@ -1,8 +1,8 @@
 // Today — Home (`web/today.html`, W4 #91). The boards' two-column diary: the left column holds
 // the day label, the meal card, a proposal the composer is holding, and the empty/failed cards;
-// the right column (the frame's `side`) holds the week strip, the calorie card, the macro cards
-// with their dot switcher and page-2 nutrient set, the health-score row, and — on today — the
-// upload CTA plus the in-diary composer.
+// the right column (the frame's `side`) holds the week strip, the two-page card track — the
+// calorie card over the macro set on page 1, the nutrient set and the day's score on page 2 —
+// panned by its dot switcher (#1025), and — on today — the upload CTA plus the in-diary composer.
 //
 // EVERY WORD THE CARDS DRAW ARRIVES FROM THE SERVER OR FROM `home-copy.ts` — the bundle holds no
 // i18n catalog: a meal row's verdict line is `verdictInline`, the proposal's pills are
@@ -57,7 +57,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   // `/v1/diary/day` answers for any date, so the only bound is the future, which has no diary yet.
   let viewing = today;
   /** The macro page the right column is on: 0 the left-form set, 1 the nutrient set (the dots). */
-  let page = 0;
+  let page: 0 | 1 = 0;
   /** The calorie toggle's other side on today-with-meals: left, or eaten after a tap. */
   let showEaten = false;
   /** A turn in flight — the logging state hides the upload CTA while one runs. */
@@ -217,15 +217,22 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     });
   };
 
-  /** The two-dot page switcher — real buttons on 44 px areas, the active one ink. */
-  const dots = (): HTMLElement => {
+  /** The two-dot page switcher — real buttons on 44 px areas, the active one ink. A tap slides
+   *  the track through `onSwitch` rather than redrawing: a rebuild would mount the next page at
+   *  its end state and the pan (#1025) would never run. */
+  const dots = (onSwitch: (to: 0 | 1) => void): HTMLElement => {
     const row = el("div", "dots");
     for (const p of [0, 1] as const) {
       const b = el("button", p === page ? "on" : "") as HTMLButtonElement;
       b.type = "button";
       b.setAttribute("aria-label", fill(L.webPage, { n: n(p + 1), total: n(2) }));
       b.append(el("i", ""));
-      b.addEventListener("click", () => { page = p; void draw(); });
+      b.addEventListener("click", () => {
+        if (p === page) return;
+        for (const sib of row.querySelectorAll("button")) sib.classList.remove("on");
+        b.classList.add("on");
+        onSwitch(p);
+      });
       row.append(b);
     }
     return row;
@@ -405,61 +412,81 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       right.push(strip);
     }
 
-    // Page 2 replaces the WHOLE card area (today-page2.html: strip, four tiles, the day's score,
-    // dots, Upload) — the calorie card and the composer are page 1's (#170).
-    if (page === 0) right.push(kcalCard(day, rich));
-
-    if (day === null) {
-      // The failed day's dashes — flat icons, "— g", bare names.
-      const mcards = el("div", "mcards");
-      for (const [macro, copy] of [
-        ["protein", L.macros.protein], ["carbs", L.macros.carbs], ["satfat", L.macros.satFat],
-      ] as const) {
-        mcards.append(mcardEl({ macro, centred: true, value: fill(L.grams, { n: "—" }), label: copy.name }));
-      }
-      right.push(mcards);
-    } else if (rich) {
-      if (page === 0) {
+    // The card area is a two-page track (#1025): page 1 is the calorie card over the macro set,
+    // page 2 the nutrient set and the day's score (today-page2.html). BOTH pages stay mounted in
+    // one clipped row — its height is the taller page's, so a turn moves nothing below it — and
+    // the dots slide the row rather than redraw; the off-screen page is inert and out of the
+    // accessibility tree. Every other state draws the calorie card and its own cards unpaged.
+    if (rich && day !== null) {
+      const clip = el("div", "mclip");
+      const track = el("div", "mtrack");
+      const pageOne = el("div", "mpage");
+      const pageTwo = el("div", "mpage");
+      /** The page turn — a dot's tap lands here; a draw on page 2 opens already slid. */
+      const show = (to: 0 | 1): void => {
+        page = to;
+        track.style.transform = to === 1 ? "translateX(-100%)" : "";
+        pageOne.setAttribute("aria-hidden", String(to !== 0));
+        pageTwo.setAttribute("aria-hidden", String(to !== 1));
+        pageOne.toggleAttribute("inert", to !== 0);
+        pageTwo.toggleAttribute("inert", to !== 1);
+        comp.form.hidden = to !== 0;
+      };
+      const mcardsOne = el("div", "mcards");
+      mcardsOne.append(
+        macroCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
+        macroCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), day.targets.carbs_g),
+        macroCard("fat", L.macros.fat, Math.round(day.totals.fat_g), day.targets.fat_g),
+      );
+      pageOne.append(kcalCard(day, rich), mcardsOne);
+      // Page 2 — the nutrient cards: saturated fat ringed when the marker is declared, fibre,
+      // sugar and sodium flat (sodium ringed only when kidneys are declared).
+      const mcardsTwo = el("div", "mcards p2");
+      mcardsTwo.append(
+        macroCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
+        flatCard("fibre", gram(Math.round(day.totals.fiber_g)), L.macros.fibre.name),
+        flatCard("sugar", gram(Math.round(day.totals.sugar_g)), L.macros.sugar.name),
+        sodiumCard(Math.round(day.totals.sodium_mg), day.targets.sodium_mg),
+      );
+      pageTwo.append(mcardsTwo);
+      const hsr = scoreRow(day);
+      if (hsr !== null) pageTwo.append(hsr);
+      track.append(pageOne, pageTwo);
+      clip.append(track);
+      show(page);
+      right.push(clip, dots(show));
+    } else {
+      right.push(kcalCard(day, rich));
+      if (day === null) {
+        // The failed day's dashes — flat icons, "— g", bare names.
+        const mcards = el("div", "mcards");
+        for (const [macro, copy] of [
+          ["protein", L.macros.protein], ["carbs", L.macros.carbs], ["satfat", L.macros.satFat],
+        ] as const) {
+          mcards.append(mcardEl({ macro, centred: true, value: fill(L.grams, { n: "—" }), label: copy.name }));
+        }
+        right.push(mcards);
+      } else if (isToday) {
+        // The compact of-target set — the empty and the logging boards' form. A past day draws no
+        // macro cards at all (today-past.html).
         const mcards = el("div", "mcards");
         mcards.append(
-          macroCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
-          macroCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), day.targets.carbs_g),
-          macroCard("fat", L.macros.fat, Math.round(day.totals.fat_g), day.targets.fat_g),
+          ofTargetCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
+          ofTargetCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), undefined),
+          ofTargetCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
         );
         right.push(mcards);
-      } else {
-        // Page 2 — the nutrient cards: saturated fat ringed when the marker is declared, fibre,
-        // sugar and sodium flat (sodium ringed only when kidneys are declared).
-        const mcards = el("div", "mcards p2");
-        mcards.append(
-          macroCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
-          flatCard("fibre", gram(Math.round(day.totals.fiber_g)), L.macros.fibre.name),
-          flatCard("sugar", gram(Math.round(day.totals.sugar_g)), L.macros.sugar.name),
-          sodiumCard(Math.round(day.totals.sodium_mg), day.targets.sodium_mg),
-        );
-        right.push(mcards);
-        const hsr = scoreRow(day);
-        if (hsr !== null) right.push(hsr);
       }
-      right.push(dots());
-    } else if (isToday) {
-      // The compact of-target set — the empty and the logging boards' form. A past day draws no
-      // macro cards at all (today-past.html).
-      const mcards = el("div", "mcards");
-      mcards.append(
-        ofTargetCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
-        ofTargetCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), undefined),
-        ofTargetCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
-      );
-      right.push(mcards);
     }
 
     // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
     // (today-logging draws compose with no CTA) — and the composer. The failed board draws
-    // neither: its right column ends at the dash cards.
+    // neither: its right column ends at the dash cards. The composer is page 1's (#170): hidden
+    // on page 2 rather than gone, so a drafted line survives the turn.
     if (isToday && day !== null) {
       if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
-      if (page === 0) right.push(comp.form);
+      comp.form.hidden = page !== 0;
+      right.push(comp.form);
     }
 
     clear(wrap).append(h1, ...left, notice);

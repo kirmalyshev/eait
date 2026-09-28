@@ -1,7 +1,9 @@
 // Home's own styles (W4, #91) — the boards' two-column `wmain` is the shell's; what is here is
 // this surface: the streak chip and the date nav in the bar, the calorie card's two forms, the
-// macro-card pages and their dot switcher, the health-score row and the per-day score modal,
+// paged card track and its dot switcher, the health-score row and the per-day score modal,
 // the empty/failed day cards, the proposal card, and the in-diary composer.
+
+import { MOTION } from "../../shared/design.ts";
 
 export const todayCss = `
 /* The top bar's right side: the streak chip, then the shared date row (.drow/.darrow are
@@ -30,6 +32,16 @@ export const todayCss = `
 .kcard .klab { font-size: 13px; font-weight: 600; color: var(--muted); }
 .kcard .klab .caret { display: inline-block; margin-left: 2px; }
 .kcard .mring { margin: 0; }
+
+/* THE PAGED TRACK (#1025). Page 1 is the calorie card over the macro set, page 2 the nutrient
+   set and the day's score — BOTH mounted in one clipped row, so the row's height is the taller
+   page's and a turn moves nothing below it. The track is one clip-width wide and translateX
+   pans it one page; the pan runs the settle duration on the register's easing, and the
+   generated reduced-motion block settles it instantly. mpage is a wcol-shaped column so a
+   card inside it keeps the spacing it had as a root child. */
+.mclip { overflow: hidden; }
+.mtrack { display: flex; transition: transform ${MOTION.settle / 1000}s var(--ease); }
+.mpage { flex: 0 0 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
 /* The macro cards: page 1's left-aligned set, page 2's four-up nutrient set, and the compact
    centred form the empty/logging/past boards draw. mcards.p2 is the four-column page. */
