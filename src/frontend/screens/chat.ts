@@ -1,8 +1,8 @@
-// Chat — Gabie's thread and the shared composer (`#/chat`, W7 #94).
+// Chat — Spud's thread and the shared composer (`#/chat`, W7 #94).
 //
 // The boards are `product/design/pro/web/chat*.html` + `states-*.html`: a quiet column of lines —
-// mine right and tinted, the app's left — with Gabie's `.say` block carrying her name on her
-// FIRST line and her disc beside her NEWEST one; a meal as a card of name, kcal and verdict dots;
+// mine right and tinted, the app's left — with the coach's `.say` block carrying his name on
+// his FIRST line and his disc beside his NEWEST one; a meal as a card of name, kcal and verdict dots;
 // a proposal as `Logging to today — look right?` with `Log it`/`No`; a coach answer's macro bar
 // when the server sends `focus`; and the kept turns' photos dimmed under an "couldn't reach"
 // line that offers `Send again`. The turn machinery is `shell.ts`'s — this file is the drawing.
@@ -20,7 +20,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { blobSrc, gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
+import { blobSrc, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, spudAvatarEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
@@ -48,7 +48,7 @@ export async function chatScreen(): Promise<HTMLElement> {
   const coachName = (): string | null => me?.coachName ?? null;
   const wrap = el("section", "chat");
   // `#/chat?focus=<mealId>` — the meal-edit entry W5's logged card and W6's "…" both take
-  // (`meal-edit.html`): the meal's own card leads, Gabie names what she read, and the composer
+  // (`meal-edit.html`): the meal's own card leads, the coach names what he read, and the composer
   // corrects it — every send carries `focusMealId` so the turn is a correction, not a new meal.
   const focusId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("focus");
   const focusMeal = focusId === null || me === null ? null
@@ -99,8 +99,8 @@ export async function chatScreen(): Promise<HTMLElement> {
     const heldTimedOut = held !== null && Date.parse(held.expiresAt) <= Date.now();
 
     const list = el("ul", "thread");
-    // Gabie's presence, the boards' rule: her name line above her FIRST line, her disc beside her
-    // NEWEST — a run of her lines keeps one face, and a kept turn's error line is a line of hers too.
+    // The coach's presence, the boards' rule: his name line above his FIRST line, his disc beside his
+    // NEWEST — a run of his lines keeps one face, and a kept turn's error line is a line of his too.
     const gabieLine = (e: ChatEntry): boolean => e.role === "assistant" && e.kind === "text" && e.speaker === "gabie";
     const firstGabie = entries.findIndex(gabieLine);
     const lastGabie = entries.findLastIndex(gabieLine);
@@ -133,8 +133,8 @@ export async function chatScreen(): Promise<HTMLElement> {
         li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
         list.append(li);
       } else {
-        // An assistant line: Gabie's `.say` when the speaker is hers, the app's plain line else
-        // (`states-offline`'s stored line draws neither her disc nor her name).
+        // An assistant line: the coach's `.say` when the speaker is his, the app's plain line else
+        // (`states-offline`'s stored line draws neither his disc nor his name).
         const li = el("li", `them${rise(entry.id, idx++)}`);
         if (entry.speaker === "gabie") {
           const live = liveAnswer !== null && i === lastGabie && entry.text === liveAnswer.text ? liveAnswer : null;
@@ -178,7 +178,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     }
 
     // KEPT FOR LATER, in the order they go, under everything the server has (#708): the photo or
-    // words dimmed, then Gabie's line — the reachability wording for a turn still out, the server's
+    // words dimmed, then the coach's line — the reachability wording for a turn still out, the server's
     // own refusal words for a held one, with Send again beside it.
     for (const e of keptLines) {
       // Held is the same dimmed bubble but marked — a waiting turn is pending, a held one has its
@@ -196,7 +196,7 @@ export async function chatScreen(): Promise<HTMLElement> {
         li.append(e.text ?? "", el("div", "ts", timeFmt(new Date(e.capturedAt))));
       }
       list.append(li);
-      // A kept turn's error is Gabie's line: her name when no line of hers is above, her disc on
+      // A kept turn's error is the coach's line: his name when no line of his is above, his disc on
       // the last one, per the same first/newest rule the stored lines follow.
       const isLastKept = e === keptLines[keptLines.length - 1];
       const say = el("li", `them${rise(`${e.id}:err`, idx++)}`);
@@ -219,12 +219,12 @@ export async function chatScreen(): Promise<HTMLElement> {
           actsRow.append(drop);
         }
         col.append(actsRow);
-      }));
+      }, "care"));
       list.append(say);
     }
 
-    // The FIRST OPEN (`chat-empty`): Gabie's greeting and the three starters, only while the stored
-    // thread holds nothing — the greeting's say is a line of hers too, first AND newest then.
+    // The FIRST OPEN (`chat-empty`): the coach's greeting and the three starters, only while the stored
+    // thread holds nothing — the greeting's say is a line of his too, first AND newest then.
     if (entries.length === 0 && keptLines.length === 0) {
       const hi = el("li", `them${rise("greeting", idx++)}`);
       hi.append(sayBlock(true, true, (col) => col.append(el("p", "d say-hi", copy().greeting))),
@@ -267,7 +267,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       col.append(el("p", "saytitle", copy().loadFailed));
       const again = smallCta(copy().tryAgain, () => turn(async () => {}));
       col.append(again);
-      say.append(gabieAvatarEl(), col);
+      say.append(spudAvatarEl("care"), col);
       fail.append(say);
       clear(thread).append(fail);
       throw unread;
@@ -295,12 +295,14 @@ export async function chatScreen(): Promise<HTMLElement> {
 
   // ── The pieces ────────────────────────────────────────────────────────────────────────────
 
-  /** Gabie's say block: her name on the first of her lines, her disc beside the newest, a spacer
-      where neither is asked for so the words keep one column. `fill` appends the line's content. */
-  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void): HTMLElement => {
+  /** The coach's say block: his name on the first of his lines, his disc beside the newest, a spacer
+      where neither is asked for so the words keep one column. `fill` appends the line's content.
+      The disc follows the answer (DIRECTION §6): a failure face is `care`, everything else `happy`. */
+  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void,
+    mood: Parameters<typeof spudAvatarEl>[0] = "happy"): HTMLElement => {
     const say = el("div", "say");
     const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
-    say.append(faced ? gabieAvatarEl() : gap);
+    say.append(faced ? spudAvatarEl(mood) : gap);
     const col = el("div", "");
     const n = coachName();
     if (named && n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));

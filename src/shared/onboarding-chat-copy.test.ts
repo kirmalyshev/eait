@@ -27,16 +27,16 @@ describe("every language's chat copy", () => {
   });
 
   it("names the coach through {coach} on the two captions that promise Chat, never a literal", () => {
-    // S9: the support and ideas captions answer "who do I ask" with `coach.name`, so the day the
-    // per-language name table lands it changes one key rather than sixteen strings. No caption
-    // may name Spud as the one who answers in Chat — he signs, she answers.
+    // S9: the support and ideas captions answer "who do I ask" with `coach.name`, so a rename
+    // changes one key rather than sixteen strings. No caption may name the coach literally —
+    // the day the name changes again, every one of these still fills from `coach.name`.
     for (const lang of LANGS) {
       const captions = chatCopyFor(lang).ontrack.captions;
       expect(captions.support, `${lang}.support`).toContain("{coach}");
       expect(captions.ideas, `${lang}.ideas`).toContain("{coach}");
       for (const s of STRUGGLES) {
         const said = ontrackCaption([s], lang)!;
-        expect(said, `${lang}.${s}`).not.toMatch(/\{coach\}|Spud|Спад/);
+        expect(said, `${lang}.${s}`).not.toMatch(/\{coach\}|Gabie|Габи/);
       }
       expect(ontrackCaption(["support"], lang), lang).toContain(threadCopyFor(lang).coach.name);
       expect(ontrackCaption(["ideas"], lang), lang).toContain(threadCopyFor(lang).coach.name);

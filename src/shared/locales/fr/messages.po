@@ -200,11 +200,6 @@ msgstr "Premier repas enregistré. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coach.name"
-msgstr "Gabie"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
 msgstr "Vas-y doucement pour le reste de la journée."
 
@@ -372,6 +367,11 @@ msgstr "Sodium"
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Un problème est survenu, mais c'est peut-être quand même passé. Vérifie /today avant de renvoyer."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -41,7 +41,7 @@ export type ThreadEntry =
       queued?: { photos: string[]; held?: RefusedTurn };
     }
   | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
-  /** A card from the stored thread: the meal as it is NOW, or gone. `speaker` as stored — engine cards are Gabie's (S9). */
+  /** A card from the stored thread: the meal as it is NOW, or gone. `speaker` as stored — engine cards are the coach's (S9). */
   | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true; speaker?: ChatSpeaker | null }
   /**
    * A moment: the notice a turn earned, derived from the bubble it answers, gone with the next page.
@@ -365,17 +365,16 @@ export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
 }
 
 /**
- * Who a row belongs to: the user, Gabie on her answers, and Spud on everything else he says or
- * shows. Gabie returned as Chat's coach (S9, redesign): a stored row carrying `speaker: "gabie"`
- * is hers, whether it was written before or after the #49 interval that read it as his.
+ * Who a row belongs to: the user, the coach on his answers, and the app's own voice on
+ * everything else it says or shows. A stored row carrying `speaker: "gabie"` is the coach's —
+ * the flag kept its name; the name drawn above it is `coach.name`'s, Spud since #1041.
  */
 export function speakerOf(entry: ThreadEntry): "user" | "spud" | "gabie" {
   if (entry.role === "user") return "user";
-  // The boards draw no Spud in Chat (S9, overseer): every assistant line the chat and meal-edit
-  // engines write is Gabie's — a live turn result before its round trip, a card, a moment. What
-  // STORED lines say is read off the speaker written with them: hers was written, and onboarding's
-  // asks and the app's scripted beats carry none, so an older account's onboarding conversation
-  // stays Spud's.
+  // Every assistant line the chat and meal-edit engines write is the coach's — a live turn
+  // result before its round trip, a card, a moment. What STORED lines say is read off the
+  // speaker written with them: the coach's was written, and onboarding's asks and the app's
+  // scripted beats carry none, so an older account's onboarding conversation stays unlabelled.
   if (entry.role === "assistant")
     return entry.stored
       ? entry.result.kind === "answered" && entry.result.speaker === "gabie" ? "gabie" : "spud"

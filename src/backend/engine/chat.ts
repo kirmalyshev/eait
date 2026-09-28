@@ -109,7 +109,7 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  // #130: a cap that is not on plan gets Gabie's computed verdict line under the card, ahead of
+  // #130: a cap that is not on plan gets the coach's computed verdict line under the card, ahead of
   // the day's standing — the specific first, then the summary, as the board draws them.
   const caps = capVerdictLines({ meal, targets: day.targets, verdicts: meal.verdicts, eatenToday: day.eatenToday }, day.lang);
   return [

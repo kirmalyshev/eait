@@ -16,7 +16,7 @@ test("the chat asks its one question, and the photo input lives behind a labelle
   expect(box!.height).toBeLessThanOrEqual(1);
 });
 
-test("Gabie's disc sits beside her newest line only, and mine are right-side lines", async ({ inWebApp: page }) => {
+test("Spud's disc sits beside his newest line only, and mine are right-side lines", async ({ inWebApp: page }) => {
   const words = page.locator(".compose .box");
   await page.goto("/#/chat");
   await words.fill("how did my week go?");
@@ -27,11 +27,11 @@ test("Gabie's disc sits beside her newest line only, and mine are right-side lin
   await expect(page.locator(".thread li.them .say-p")).toHaveCount(2);
 
   // One disc, on the LAST of her lines — the older one keeps her column's spacer in its place.
-  await expect(page.locator(".thread .gabie")).toHaveCount(1);
-  await expect(page.locator(".thread li.them:has(.say)").last().locator(".gabie")).toHaveCount(1);
+  await expect(page.locator(".thread .spud")).toHaveCount(1);
+  await expect(page.locator(".thread li.them:has(.say)").last().locator(".spud")).toHaveCount(1);
   await expect(page.locator(".thread .saygap")).toHaveCount(1);
   // And her name above the FIRST of them — the boards' rule (design-pro, #94).
-  await expect(page.locator(".thread li.them .gname").first()).toHaveText("Gabie · nutritionist");
+  await expect(page.locator(".thread li.them .gname").first()).toHaveText("Spud");
   await expect(page.locator(".thread .gname")).toHaveCount(1);
   // Mine are right-side lines in the accent tint, not full-width blocks.
   const mine = page.locator(".thread li.me").first();

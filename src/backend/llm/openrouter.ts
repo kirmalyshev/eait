@@ -13,9 +13,9 @@
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
 import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
-import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
+import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, emptyEstimate, imageMime } from "./port.ts";
 import {
-  COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, PROMPT_DEFAULTS,
+  COACH_TOOL_DEFS, CoachReplySchema, EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, PROMPT_DEFAULTS,
   RouteSchema, buildCoachContext, buildRouteText, buildTextCorrectionText,
   buildTextMealText, buildUserText, coachLine, type Prompts,
 } from "./prompt.ts";
@@ -364,7 +364,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // every time — is what actually produces the numbers.
     //
     // Deliberately not the default path: a router that supplies the analysis costs one call, and
-    // this only spends a second one when the first came back without it.
+    // this only spends a second one when the first came back without it — or with the degenerate
+    // version of one (`isFood` true, not one item), which the same focused call replaces (#248).
     //
     // A CORRECTION GETS ITS OWN PROMPT, and the difference is not cosmetic. The meal prompt carries
     // the user's message and nothing else, so a chip's "In oil" analysed as a meal is a plate
@@ -372,7 +373,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // actually ate. The correction prompt is handed the plate and the standing question instead.
     // With no focus meal there is nothing to correct, the switch below degrades to `answer`
     // whatever comes back, and buying an analysis first is buying one to throw away.
-    if (out.intent === "correction" && !out.analysis && input.focusMeal) {
+    if (out.intent === "correction" && (!out.analysis || emptyEstimate(out.analysis)) && input.focusMeal) {
       // The stored photographs ride along as image parts, and ONLY here: the routing call above
       // runs on every text turn from a meal screen and must not pay for images. A meal with none
       // sends the plain string it always did.
@@ -383,15 +384,15 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ...(input.question !== undefined ? { question: input.question } : {}),
         ...(images.length ? { photos: images.length } : {}),
       });
-      const content: Content = images.length
+      const withImages = (t: string): Content => images.length
         ? [
-          { type: "text", text: correction },
+          { type: "text", text: t },
           ...images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
         ]
-        : correction;
-      const analysis = await complete(
+        : t;
+      let analysis = await complete(
         P.text_correction,
-        content,
+        withImages(correction),
         MealAnalysisSchema,
         "text-correction",
         // The router call above already generated and was billed — the same rule as the meal branch.
@@ -400,11 +401,16 @@ export function openRouterPorts(opts: Options): LlmPorts {
         deadline,
         input.onCost,
       );
+      // One more draw on the degenerate answer — see the meal branch below.
+      if (emptyEstimate(analysis)) {
+        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, undefined, deadline, input.onCost);
+      }
       out = { ...out, analysis };
-    } else if (out.intent === "meal" && !out.analysis) {
-      const analysis = await complete(
+    } else if (out.intent === "meal" && (!out.analysis || emptyEstimate(out.analysis))) {
+      const mealText = buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets });
+      let analysis = await complete(
         P.text_meal,
-        buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets }),
+        mealText,
         MealAnalysisSchema,
         "text-meal",
         // The router call above already generated and was billed, so a gateway refusal on this one
@@ -414,6 +420,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
         deadline,
         input.onCost,
       );
+      // The degenerate answer to a description it will not itemise is `isFood` with NOT ONE ITEM
+      // (#248): schema-valid, and refusing it hands the user a failure over a real meal. One more
+      // draw — with the emptiness named in the prompt this time — lands the items; a second empty
+      // is still refused by the caller, never retried forever.
+      if (emptyEstimate(analysis)) {
+        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, undefined, deadline, input.onCost);
+      }
       out = { ...out, analysis };
     }
 

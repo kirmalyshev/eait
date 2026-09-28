@@ -28,7 +28,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import { clampDayOffset, imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -194,6 +194,12 @@ export async function analyzePhotos(
     // An answer, but no verdict: not the meal on us (#44).
     await releaseSample(deps, userId, analysisId);
     return { kind: "not-food" };
+  }
+  if (emptyEstimate(analysis)) {
+    // The model claimed food and itemised none of it — a failed read, not an empty plate (#248).
+    // Same rule as the gate above: nothing reached the person, so the sample is still theirs.
+    await releaseSample(deps, userId, analysisId);
+    return { kind: "analysis-failed" };
   }
   return { kind: "read", analysis, question: prepared.question, images, analysisId };
 }
@@ -756,6 +762,11 @@ export async function confirmPendingMeal(
   // The drop is the claim. A confirm and a cancel racing on one proposal must reach ONE outcome,
   // so whichever removes the row decides it; the other finds it gone and answers with what stands.
   if (!(await deps.store.dropPending(userId, pendingId))) return (await alreadyLogged()) ?? { kind: "expired" };
+
+  // A proposal written before the empty-estimate gate (#248), or by a deploy that did not have it:
+  // whatever the row claims, an analysis with no items is never recorded. The claim has already
+  // dropped it, so a retry meets "expired" rather than being offered the same nothing again.
+  if (!pending.analysis.isFood || pending.analysis.items.length === 0) return { kind: "analysis-failed" };
 
   let record: MealRecord;
   let inserted: boolean;

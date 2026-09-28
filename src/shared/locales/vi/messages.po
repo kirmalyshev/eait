@@ -200,11 +200,6 @@ msgstr "Bữa đầu tiên đã vào. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coach.name"
-msgstr "Gabie"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
 msgstr "Nhẹ tay với nó trong phần còn lại của hôm nay."
 
@@ -372,6 +367,11 @@ msgstr "Natri"
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

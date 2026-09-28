@@ -200,11 +200,6 @@ msgstr "La primera está dentro. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coach.name"
-msgstr "Gabie"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
 msgstr "Ve con calma con eso el resto del día."
 
@@ -372,6 +367,11 @@ msgstr "Sodio"
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Algo salió mal, y aun así puede haber pasado. Mira /today antes de volver a mandarlo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

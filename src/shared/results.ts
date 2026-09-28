@@ -110,8 +110,8 @@ export interface MealProposed {
 }
 
 /**
- * Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who
- * answers in Chat (S9 — she was retired by #49 and restored by the redesign).
+ * Who said an assistant line. Absent is the app's own voice; `gabie` is the coach who answers in Chat
+ * (S9). The flag kept its name — the face above it is `coach.name`'s, Spud since #1041.
  */
 export type ChatSpeaker = "gabie";
 
@@ -144,7 +144,7 @@ export interface Answered {
   kind: "answered";
   /** Model prose in the user's language. Content, not copy — it passes through unrendered. */
   text: string;
-  /** Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud. */
+  /** Who answered. A coach turn is marked `gabie`, fallback included; absent or null is the app's own voice. */
   speaker?: ChatSpeaker | null;
   /**
    * What the user might ask next, in their own words, as chips under the answer. Live turn only:

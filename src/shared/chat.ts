@@ -230,7 +230,7 @@ export function runningLine(
 }
 
 /**
- * #130: the logged-meal verdict line — Gabie's reply to a meal that landed, ONE PER CAP VERDICT
+ * #130: the logged-meal verdict line — the coach's reply to a meal that landed, ONE PER CAP VERDICT
  * that is not on plan. Only the caps exist here: saturated fat for `ldl`, sodium for `kidneys`;
  * calories have a plan, not a cap, so `weight` never speaks in this line. "Saturated fat is high
  * for one meal: 5 of your 13 g." — computed from the stored row against the declared caps; the
