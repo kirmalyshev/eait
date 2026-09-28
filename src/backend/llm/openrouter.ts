@@ -40,6 +40,14 @@ interface Options {
    * is what measured at a median 37 s to first token on grok-4.5 (2026-09-05, docs/ACCURACY.md).
    */
   reasoningEffort?: string | undefined;
+  /**
+   * Pins the nutrition calls — the analyzer, the router, every correction, all running on `model` —
+   * to these OpenRouter providers, with no fallback. The privacy page promises the photo reaches
+   * OpenRouter and the provider serving our model and NOBODY ELSE, so routing may not roam to
+   * whoever is cheapest that hour. The coach (`chatModel`) is deliberately not pinned: it has its
+   * own provider list and its own privacy story. From `EAIT__BACKEND__LLM_PROVIDER_ORDER`.
+   */
+  providerOrder?: string[] | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
   /**
@@ -260,6 +268,10 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ...(opts.reasoningEffort === "off"
           ? { reasoning: { enabled: false } }
           : opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
+        // Pinned, when configured: the privacy page names OpenRouter + the serving provider and
+        // nobody else, so the request may not fall back to a provider it does not name.
+        ...(opts.providerOrder && opts.providerOrder.length > 0
+          ? { provider: { order: opts.providerOrder, allow_fallbacks: false } } : {}),
         messages: attempt === 0 ? messages : [
           ...messages,
           {

@@ -59,6 +59,14 @@ export interface Config {
    * docs/ACCURACY.md).
    */
   llmReasoningEffort: string;
+  /**
+   * Pins the nutrition calls — analyzer, router, corrections — to these OpenRouter providers,
+   * comma-separated, with fallbacks refused (`provider.order` + `allow_fallbacks: false`). The
+   * privacy page names OpenRouter and the serving provider and nobody else, so routing may not
+   * roam. Empty lets OpenRouter choose. Must name providers that serve `llmModel`, or every call
+   * fails at routing. The coach (`llmChatModel`) is not pinned.
+   */
+  llmProviderOrder: string;
   llmApiKey: string;
   /**
    * Where the chat-completions call goes. Env-configurable so a test instance can point at a proxy, a
@@ -483,6 +491,9 @@ export function configDefaults(): Config {
     llmModel: "qwen/qwen3-vl-235b-a22b-instruct",
     llmChatModel: "x-ai/grok-4.6",
     llmReasoningEffort: "off",
+    // DeepInfra is the named provider for the shipped analyzer — the pin the privacy page's
+    // "OpenRouter plus the serving provider" promise is written around. Empty would roam.
+    llmProviderOrder: "DeepInfra",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
@@ -628,6 +639,7 @@ export function loadConfig(): Config {
     llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
     llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
     llmReasoningEffort,
+    llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),

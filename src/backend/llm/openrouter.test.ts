@@ -449,12 +449,12 @@ function fakeCoachFetch(payloads: CoachPayload[]) {
   return { impl, bodies };
 }
 
-function coachPorts(payloads: CoachPayload[], timeoutMs = 5000) {
+function coachPorts(payloads: CoachPayload[], timeoutMs = 5000, over: { providerOrder?: string[] } = {}) {
   const { impl, bodies } = fakeCoachFetch(payloads);
   const llm = openRouterPorts({
     apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
     baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs, maxTokens: 4321,
-    fetchImpl: impl,
+    fetchImpl: impl, ...over,
   });
   return { llm, bodies };
 }
@@ -656,7 +656,7 @@ function sseFetch(chunks: string[], finish = "stop") {
   return { impl, bodies };
 }
 
-const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string } = {}) => openRouterPorts({
+const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; providerOrder?: string[] } = {}) => openRouterPorts({
   apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
   baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
   fetchImpl: impl, ...over,
@@ -714,6 +714,32 @@ describe("reasoning effort", () => {
     const { impl, bodies } = fakeFetch([MEAL]);
     await streamPorts(impl, { reasoningEffort: "off" }).analyzePhoto(PHOTO_INPUT);
     expect(bodies[0]!.reasoning).toEqual({ enabled: false });
+  });
+});
+
+describe("the provider pin", () => {
+  test("is absent from the body unless configured", async () => {
+    const { bodies, llm } = ports([MEAL]);
+    await llm.analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.provider).toBeUndefined();
+  });
+
+  test("pins the schema calls to the named providers with no fallback", async () => {
+    const { impl, bodies } = fakeFetch([MEAL]);
+    await streamPorts(impl, { providerOrder: ["DeepInfra"] }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.provider).toEqual({ order: ["DeepInfra"], allow_fallbacks: false });
+  });
+
+  test("rides on every nutrition call — analyzer, router and correction — never the coach", async () => {
+    const { impl, bodies } = fakeFetch([MEAL, { intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
+    const llm = streamPorts(impl, { providerOrder: ["DeepInfra"] });
+    await llm.analyzePhoto(PHOTO_INPUT);
+    await llm.routeText(ROUTE_INPUT);
+    for (const b of bodies) expect(b.provider).toEqual({ order: ["DeepInfra"], allow_fallbacks: false });
+
+    const { llm: withCoach, bodies: coachBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }], 5000, { providerOrder: ["DeepInfra"] });
+    await withCoach.coach(COACH_INPUT, {});
+    expect(coachBodies[0]!.provider).toBeUndefined();
   });
 });
 

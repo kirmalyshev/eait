@@ -84,6 +84,14 @@ describe("loadConfig", () => {
     expect(c.llmReasoningEffort).toBe("low");
   });
 
+  it("pins the nutrition calls to DeepInfra by default, and lets env override or roam", () => {
+    expect(configDefaults().llmProviderOrder).toBe("DeepInfra");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "Alibaba,Novita" });
+    expect(loadConfig().llmProviderOrder).toBe("Alibaba,Novita");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "" });
+    expect(loadConfig().llmProviderOrder).toBe("");
+  });
+
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
     withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "lo" });
     expect(() => loadConfig()).toThrow(/LLM_REASONING_EFFORT/);
