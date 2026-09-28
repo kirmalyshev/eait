@@ -186,7 +186,8 @@ test("a spent day, refused in the stream, is a sentence and logs nothing", async
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByPlaceholder(ASK).fill("second lunch");
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText("That was your last one today — your daily allowance resets at midnight.");
+  // LOG_COPY's wording since #231 — the same refusal the phone would read.
+  await expect(page.locator(".notice")).toHaveText("Your daily allowance is spent. It resets at midnight — chat still works.");
   // Refused, so the words stay for when it is allowed again.
   await expect(page.getByPlaceholder(ASK)).toHaveValue("second lunch");
 });

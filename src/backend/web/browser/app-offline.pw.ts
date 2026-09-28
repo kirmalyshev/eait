@@ -233,7 +233,8 @@ test("the chat opens offline, from another tab, with what it last had and a comp
   await say(page, "how did my week go?");
   await expect(page.locator(".thread li.me")).toHaveCount(before + 1);
   await page.getByRole("link", { name: "Home" }).click();
-  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  // The board's h1 is "Home", visually hidden — the draw being up is what proves the tab landed.
+  await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
   await page.context().setOffline(true);
   await page.getByRole("link", { name: "Chat" }).click();
   await expect(page.locator(".compose .box")).toBeVisible();

@@ -40,10 +40,15 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
 
     await page.goto("/#/you");
     await expect(page.locator("select.pick")).toBeVisible();
+    // The `.dayhero` arrives on `rise` — mid-fade it reads low-contrast to axe (#228), so the
+    // check waits for the end state like the chat's does.
+    await settle(page);
     expect(await axeFindings(page), "you").toEqual([]);
 
     await page.goto("/#/");
-    await expect(page.locator(".big")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
+    await expect(page.locator(".kcard")).toBeVisible();
+    await settle(page);
     expect(await axeFindings(page), "diary").toEqual([]);
   });
 }

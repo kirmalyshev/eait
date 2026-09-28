@@ -3,7 +3,6 @@
 // never by screenshots.
 
 import type { DayResponse } from "@eait/shared/contract";
-import { renderableVerdicts, verdictPillLabel } from "@eait/shared";
 import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 test("the chat asks its one question, and the photo input lives behind a labelled button", async ({ inWebApp: page }) => {
@@ -44,18 +43,8 @@ test("Gabie's disc sits beside her newest line only, and mine are right-side lin
   expect(Math.abs(row.right - row.colRight)).toBeLessThan(22);
 });
 
-test("a line's Delete is a small text button with a name and a 44px hit area", async ({ inWebApp: page }) => {
-  await page.goto("/#/chat");
-  await page.locator(".compose .box").fill("how did my week go?");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  const del = page.locator(".thread li .act", { hasText: "Delete" });
-  await expect(del).toBeVisible();
-  // Named for its line, so a reader never hears a bare "Delete".
-  await expect(del).toHaveAttribute("aria-label", /Delete: how did my week go\?/);
-  const box = await del.boundingBox();
-  expect(box!.width).toBeGreaterThanOrEqual(44);
-  expect(box!.height).toBeGreaterThanOrEqual(44);
-});
+// A thread line carries no action row since #173 — an edit is the meal detail's Correct, a
+// delete its menu — so the spec that pinned the Delete button's shape died with the control.
 
 test("Home · Progress · Chat · Profile hold ONE row at 390px, and the account's controls live in Profile", async ({ inWebApp: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -82,32 +71,38 @@ test("Home · Progress · Chat · Profile hold ONE row at 390px, and the account
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 });
 
-test("a diary row wears the meal's own verdict pills, and the composer at the bottom logs one", async ({ inWebApp: page }) => {
+test("a diary row wears the meal's own verdict line, and the composer on Home logs one", async ({ inWebApp: page }) => {
+  // An OFF-PLAN meal — the row's `.v` line exists only for one (an on-plan meal's `verdictInline`
+  // is empty by design). The `ldl` declaration sets the saturated-fat cap, and the fixture plate's
+  // sat fat is past its warn share — declared before the log so the engine computes it.
+  const patched = await page.request.patch("/v1/profile", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
+    data: { medical: ["ldl"] },
+  });
+  expect(patched.status()).toBe(200);
   await logMeal(page);
   await page.goto("/#/");
-  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
 
-  // The pills are READ BACK from the server — the meal's own computed verdicts, never recomputed
-  // on the page. Asserted against the API's copy of the day, not a guess at it.
+  // The line is READ BACK from the server — the meal's own `verdictInline`, never recomputed on
+  // the page. Asserted against the API's copy of the day, not a guess at it.
   const res = await page.request.get("/api/v1/diary/day", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
   });
   const day = await res.json() as DayResponse;
   const meal = day.meals[0]!;
-  const dims = renderableVerdicts(meal.verdicts);
-  expect(dims.length).toBeGreaterThan(0);
-  const pills = page.locator(".meals tbody tr").first().locator(".pill");
-  await expect(pills).toHaveCount(dims.length);
-  for (const [i, d] of dims.entries()) {
-    await expect(pills.nth(i)).toHaveText(verdictPillLabel(d, meal.verdicts[d]!, "en"));
-    await expect(pills.nth(i)).toHaveClass(new RegExp(`\\bpill ${meal.verdicts[d]!}\\b`));
-  }
+  expect(meal.verdictInline).toBeTruthy();
+  const row = page.locator(".meals a.meal").first();
+  await expect(row.locator(".v")).toHaveText(meal.verdictInline!);
+  // The tone is the day's worst verdict — the same rule `verdictRow` draws it by.
+  const bad = (meal.verdictLabels ?? []).some((v) => v.tone === "bad");
+  await expect(row.locator(".v")).toHaveClass(new RegExp(`\\bv ${bad ? "bad" : "warn"}\\b`));
+  await expect(row).toHaveAttribute("href", `#/meal/${meal.id}?d=${day.date}`);
 
-  // The same composer the chat has, at the bottom of Today — a typed meal proposes, and Log it
-  // lands it as a row.
+  // The same composer the chat has, on Home — a typed meal proposes, and Log it lands it as a row.
   await page.getByPlaceholder("Tell Spud what you ate, or drop a photo").fill("a handful of almonds");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
-  await expect(page.locator(".meals tbody tr")).toHaveCount(2);
+  await expect(page.locator(".meals a.meal")).toHaveCount(2);
 });

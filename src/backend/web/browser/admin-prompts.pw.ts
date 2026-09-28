@@ -138,7 +138,8 @@ test("the panel renders one card per prompt, and says who wrote each", async ({ 
   await openAdmin(page);
 
   const panel = page.locator("#prompts");
-  await expect(panel.locator(".card")).toHaveCount(6);
+  // Five prompts — the glance was retired in #216 and PROMPT_KEYS no longer carries it.
+  await expect(panel.locator(".card")).toHaveCount(5);
 
   // The shipped ones say a deploy keeps them current.
   await expect(panel.getByText("shipped — version 1. A deploy keeps this current.").first()).toBeVisible();
