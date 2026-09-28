@@ -256,11 +256,8 @@ export const CONTROL_SCRIPT = `(function () {
       var draft = seg.querySelector("input[name='draft']");
       var ans = q && q.querySelector("input[name='answer']");
       if (draft && ans) draft.value = ans.value;
-      if (q) {
-        var u = q.querySelector("input[name='units']");
-        var b = document.activeElement;
-        if (u && b && b.name === "setunits") u.value = b.value;
-      }
+      // The qform's hidden "units" is NOT touched: this POST navigates away, and a restored page
+      // must keep the field at the system its toggle still shows.
     });
   });
 })();`;
