@@ -136,6 +136,9 @@ h2 { font-size: 17px; }
 .compose .ib { width: 44px; height: 44px; flex-basis: 44px; }
 .compose .ib .ico { width: 20px; height: 20px; }
 .compose .ib.p { background: var(--accent); box-shadow: none; color: var(--accent-ink); }
+/* The glyph is the masked .ico — painted by the kit's \`.ib .ico\` in ink — so the send arrow takes
+   the button's ink explicitly; the camera round's own glyph keeps it. */
+.compose .ib.p .ico { background: var(--accent-ink); }
 .compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
