@@ -1318,7 +1318,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // Several files are ANGLES OF ONE MEAL. Thunks, so nothing is read until the engine has
       // passed the caps — and the JPEG sniff inside it still runs before the charge, which is what
       // keeps a HEIC from spending somebody's sample. No streaming here: with no JavaScript on this
-      // page there is nothing to deliver a glance to.
+      // page there is nothing to deliver progress to.
       const result = await logPhotoMeal(ctx.deps, userId, {
         images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
         ...(caption ? { caption } : {}),

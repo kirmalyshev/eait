@@ -514,6 +514,12 @@ create index if not exists analyses_user_date_idx on analyses(user_id, date, sco
 -- priced. unpriced_calls counts the calls that ended without a price, which makes the sum a floor.
 alter table analyses add column if not exists cost_usd double precision;
 alter table analyses add column if not exists unpriced_calls integer not null default 0;
+-- How long the turn took, written once when it settles: shutter-to-call in ms_queue, call to
+-- the first streamed item in ms_first_item (null on the JSON path, which never sees one), call to
+-- answer in ms_total. Old rows keep nulls — they predate the clock, not report zero.
+alter table analyses add column if not exists ms_queue integer;
+alter table analyses add column if not exists ms_first_item integer;
+alter table analyses add column if not exists ms_total integer;
 -- Whether this analysis counts against the account's SAMPLE (#44): the sample counts value
 -- delivered, not attempts. Every row already here counted, which is what the default says; a turn
 -- that delivers nothing clears it (releaseSample) and keeps the row, its cost and its budget.
@@ -677,8 +683,10 @@ alter table llm_prompts add constraint llm_prompts_source_check
 -- key while the code sent it. Re-adding it here is idempotent, and a row that violates a narrowed
 -- list fails the migration loudly rather than being discovered by an admin's save.
 alter table llm_prompts drop constraint if exists llm_prompts_key_check;
+-- The glance's rows go WITH the retirement: leaving them would fail the re-added check.
+delete from llm_prompts where key = 'glance';
 alter table llm_prompts add constraint llm_prompts_key_check
-  check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'glance', 'coach'));
+  check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'coach'));
 
 -- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
 -- of numbers per day, and a per-second heart rate series would be a large pile of special-category
@@ -1046,6 +1054,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setFreeAnalyses: 0,
   recordAnalysis: 0,
   addCost: 0,
+  recordTiming: 0,
   analysisCosts: 0,
   undoAnalysis: 0,
   releaseSample: 0,
@@ -1665,6 +1674,28 @@ export async function postgresStore(
 
       // Sequential, like the three above and for the same reason.
       const [d1, d7] = await Promise.all([cohort(1), cohort(7)]);
+
+      // How fast the photo turn answered, over the same window the days series covers. Nearest-rank
+      // percentiles — percentile_disc — so the memory store's version returns the same number.
+      const timing = await sql`
+        select count(*) filter (where ms_total is not null)::int as n,
+               percentile_disc(0.5) within group (order by ms_queue)::double precision as q50,
+               percentile_disc(0.95) within group (order by ms_queue)::double precision as q95,
+               percentile_disc(0.5) within group (order by ms_first_item)::double precision as f50,
+               percentile_disc(0.95) within group (order by ms_first_item)::double precision as f95,
+               percentile_disc(0.5) within group (order by ms_total)::double precision as t50,
+               percentile_disc(0.95) within group (order by ms_total)::double precision as t95
+          from analyses where date >= ${from} and date <= ${today}`;
+      const t = timing[0]!;
+      const leg = (p50: unknown, p95: unknown) =>
+        ({ p50: p50 === null ? null : num(p50), p95: p95 === null ? null : num(p95) });
+      const latency = {
+        n: num(t.n),
+        queue: leg(t.q50, t.q95),
+        firstItem: leg(t.f50, t.f95),
+        total: leg(t.t50, t.t95),
+      };
+
       return {
         // EVERY DAY GETS A ROW, including the empty ones. A `group by` produces no row for a day
         // with nothing on it — the trap `AGENTS.md` names about `totalsSince` — and a chart with
@@ -1679,6 +1710,7 @@ export async function postgresStore(
         })),
         d1,
         d7,
+        latency,
       };
     },
 
@@ -2502,6 +2534,13 @@ export async function postgresStore(
                      where id = ${analysisId} and user_id = ${userId} returning id`
         : await sql`update analyses set cost_usd = coalesce(cost_usd, 0) + ${usd}::float8
                      where id = ${analysisId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+
+    async recordTiming(userId, analysisId, timing) {
+      const rows = await sql`update analyses
+                set ms_queue = ${timing.queue}, ms_first_item = ${timing.firstItem}, ms_total = ${timing.total}
+               where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },
 

@@ -26,10 +26,10 @@ test("a fresh store already HOLDS the shipped prompts, as rows", async () => {
 
 test("an admin edit is marked as one, and outranks the shipped text", async () => {
   const d = deps();
-  await savePrompt(d, "glance", "Name the plate in five words.");
-  const glance = (await livePrompts(d)).find((p) => p.key === "glance")!;
-  expect(glance.source).toBe("admin");
-  expect(glance.version).toBe(2);
+  await savePrompt(d, "route", "Sort the message. Two words.");
+  const route = (await livePrompts(d)).find((p) => p.key === "route")!;
+  expect(route.source).toBe("admin");
+  expect(route.version).toBe(2);
 });
 
 // ── Syncing the shipped text ─────────────────────────────────────────────────────────────────
@@ -40,11 +40,11 @@ test("an admin edit is marked as one, and outranks the shipped text", async () =
 
 test("a changed constant reaches a store whose row nobody has edited", async () => {
   const d = deps();
-  await d.store.putPrompt("glance", "what an older build shipped", "shipped");
+  await d.store.putPrompt("route", "what an older build shipped", "shipped");
   await syncShippedPrompts(d.store);
-  const glance = (await livePrompts(d)).find((p) => p.key === "glance")!;
-  expect(glance.text).toBe(PROMPT_DEFAULTS.glance);
-  expect(glance.source).toBe("shipped");
+  const route = (await livePrompts(d)).find((p) => p.key === "route")!;
+  expect(route.text).toBe(PROMPT_DEFAULTS.route);
+  expect(route.source).toBe("shipped");
 });
 
 test("a changed constant NEVER overwrites an admin's edit", async () => {
@@ -95,17 +95,17 @@ test("a sync that cannot write is not a failed boot", async () => {
 
 test("a saved prompt is served, versioned above the shipped one, and marked as the admin's", async () => {
   const d = deps();
-  const saved = await savePrompt(d, "glance", "Name the plate in five words.");
+  const saved = await savePrompt(d, "route", "Sort the message. Two words.");
   expect(saved.ok).toBe(true);
   // 2, not 1: revision 1 is the shipped text every store comes up with.
   if (saved.ok) expect(saved.version).toBe(2);
 
-  const glance = (await livePrompts(d)).find((p) => p.key === "glance")!;
-  expect(glance.text).toBe("Name the plate in five words.");
-  expect(glance.version).toBe(2);
-  expect(glance.source).toBe("admin");
+  const route = (await livePrompts(d)).find((p) => p.key === "route")!;
+  expect(route.text).toBe("Sort the message. Two words.");
+  expect(route.version).toBe(2);
+  expect(route.source).toBe("admin");
   // And it is what the transport would be handed.
-  expect((await loadPrompts(d.store)).glance).toBe("Name the plate in five words.");
+  expect((await loadPrompts(d.store)).route).toBe("Sort the message. Two words.");
 });
 
 test("saving twice keeps both revisions and serves the newer", async () => {
@@ -154,10 +154,10 @@ test("a store that throws on write reports it and leaves the compiled-in prompt 
       putPrompt: async () => { throw new Error("connection refused"); },
     },
   } as unknown as EngineDeps;
-  const result = await savePrompt(broken, "glance", "Two words.");
+  const result = await savePrompt(broken, "route", "Two words.");
   expect(result.ok).toBe(false);
   if (!result.ok) expect(result.errors.join(" ")).toContain("could not be saved");
-  expect((await loadPrompts(broken.store)).glance).toBe(PROMPT_DEFAULTS.glance);
+  expect((await loadPrompts(broken.store)).route).toBe(PROMPT_DEFAULTS.route);
 });
 
 test("an unreachable store still lists every prompt, from the compiled-in text", async () => {

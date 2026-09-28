@@ -5266,23 +5266,6 @@
             "properties": {
               "kind": {
                 "type": "string",
-                "const": "glance"
-              },
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "kind",
-              "text"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
                 "const": "item"
               },
               "index": {
@@ -5304,7 +5287,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or one `glance` (whose model-written text IS the line) and zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
+        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
       },
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"

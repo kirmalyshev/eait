@@ -42,17 +42,16 @@ export function streamEnd<T extends { kind: string }>(
 }
 
 /**
- * A photo turn between Analyze and the card, as the phone draws it (#607): the glance, once one
- * landed, and the rows the analyzer has closed so far.
+ * A photo turn between Analyze and the card, as the phone draws it (#607): the rows the analyzer
+ * has closed so far.
  */
-export interface PendingPhoto { glance: string | null; items: MealItem[] }
+export interface PendingPhoto { items: MealItem[] }
 
 /**
  * One stream event applied. `index: 0` after others is the analyzer starting over (a schema
  * retry): replace, never append.
  */
 export function advancePending(p: PendingPhoto, e: PhotoEvent): PendingPhoto {
-  if (e.kind === "glance") return { ...p, glance: e.text };
   if (e.kind === "item") return { ...p, items: [...(e.index === 0 ? [] : p.items.slice(0, e.index)), e.item] };
   return p;
 }

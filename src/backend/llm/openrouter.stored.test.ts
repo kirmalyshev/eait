@@ -28,7 +28,6 @@ function ports(payloads: unknown[], prompts?: Partial<Prompts>) {
   return {
     llm: openRouterPorts({
       apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
-      glanceModel: "test-glance-model",
       baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
       fetchImpl: impl,
       ...(prompts ? { prompts: async () => ({ ...PROMPT_DEFAULTS, ...prompts }) } : {}),
@@ -80,14 +79,6 @@ describe("a stored prompt reaches the model", () => {
     expect(JSON.stringify(msgs[1]!.content)).toContain("image_url");
     // And the schema the reply must satisfy is still the code's.
     expect(JSON.stringify(bodies[0]!.response_format)).toContain("meal_analysis");
-  });
-
-  test("a stored glance prompt is used, and the compiled-in one is not", async () => {
-    const { llm, bodies } = ports([{}], { glance: "Two words." });
-    // The glance is not a schema call — it returns the raw line, and an empty one throws. What is
-    // under test is the request, so the rejection is swallowed.
-    await llm.glancePhoto({ lang: "en", images: [new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0])] }).catch(() => {});
-    expect(messagesOf(bodies[0]!)[0]!.content).toBe("Two words.");
   });
 
   test("a stored coach prompt is the persona; the context under it is still computed", async () => {

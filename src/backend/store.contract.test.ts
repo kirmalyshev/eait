@@ -464,6 +464,27 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(m.days.length).toBeLessThanOrEqual(400);
     });
 
+    it("reports the analysis timings the window holds, as percentiles", async () => {
+      const s2 = await open();
+      const { userId } = await s2.upsertDeviceUser(device(), "en");
+      const today = new Date().toISOString().slice(0, 10);
+      const before = (await s2.adminMetrics({ days: 7, today, timezone: "UTC" })).latency.n;
+
+      const a = await s2.recordAnalysis(userId, today, "photo");
+      const b = await s2.recordAnalysis(userId, today, "photo");
+      expect(await s2.recordTiming(userId, a, { queue: 100, firstItem: 1000, total: 3000 })).toBe(true);
+      // A JSON-path turn never streamed an item: queue and total, no firstItem.
+      expect(await s2.recordTiming(userId, b, { queue: 300, firstItem: null, total: 5000 })).toBe(true);
+      // A write to a row that is not there (or not this user's) lands nowhere.
+      expect(await s2.recordTiming(userId, "999999999", { queue: 1, firstItem: 1, total: 1 })).toBe(false);
+
+      const m = await s2.adminMetrics({ days: 7, today, timezone: "UTC" });
+      expect(m.latency.n).toBe(before + 2);
+      expect(m.latency.firstItem.p50).toBe(1000);
+      expect(m.latency.total.p95).toBeGreaterThanOrEqual(m.latency.total.p50 ?? 0);
+      expect(m.latency.queue.p50).toBeGreaterThan(0);
+    });
+
     // ── The paid tier ──────────────────────────────────────────────────────────────────────
     //
     // Both implementations must agree here for the same reason they must agree about merging: the
@@ -2305,15 +2326,15 @@ function contract(name: string, make: () => Promise<Store>) {
       // The whole reason this table is append-only. "What prompt produced this analysis" is
       // unanswerable the moment an edit overwrites its predecessor, and a prompt edit that changes
       // model behaviour with no record is the failure this storage exists to prevent.
-      const first = await s.putPrompt("glance", `first ${RUN}`, "admin");
-      const second = await s.putPrompt("glance", `second ${RUN}`, "admin");
+      const first = await s.putPrompt("route", `first ${RUN}`, "admin");
+      const second = await s.putPrompt("route", `second ${RUN}`, "admin");
       expect(second).toBe(first + 1);
 
-      const live = (await s.getPrompts()).find((p) => p.key === "glance");
+      const live = (await s.getPrompts()).find((p) => p.key === "route");
       expect(live!.text).toBe(`second ${RUN}`);
       expect(live!.version).toBe(second);
 
-      const history = await s.promptRevisions("glance");
+      const history = await s.promptRevisions("route");
       expect(history[0]!.version).toBe(second);
       expect(history.map((r) => r.text)).toContain(`first ${RUN}`);
       // Newest first, and each revision carries when it went live.

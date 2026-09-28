@@ -162,7 +162,7 @@ gets its meal names in that language.
   trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
   language with (`languageLine`), because a language's own name is the same string wherever it is
   read.
-- **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
+- **The largest text surface is in no table.** Meal names, the coach's answers and the
   follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
   of what steers them, and it reaches every prompt that produces words a user reads.
 - **A `Localized` table proves a language is PRESENT, never that it is complete.** `localizedGaps`

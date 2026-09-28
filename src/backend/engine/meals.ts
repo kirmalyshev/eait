@@ -99,8 +99,8 @@ export interface PhotoRead {
  * returns as a new meal; `reanalyzeMeal` and `editLine` write it over an existing one. Caps
  * first; the bytes are read after them and sniffed before the charge (the provider rejects HEIC
  * with a 400 that stays charged); the charge before the model call (a failed call still costs
- * money); the glance beside the analyzer, never awaited; the answer reconciled and gated on
- * `isFood` before anyone writes a row. A third copy of this was the reason to move it.
+ * money); the answer reconciled and gated on `isFood` before anyone writes a row. A third copy
+ * of this was the reason to move it.
  */
 export async function analyzePhotos(
   deps: EngineDeps,
@@ -134,22 +134,28 @@ export async function analyzePhotos(
 
   const { targets } = explainTargets(profile);
 
-  // THE GLANCE RUNS BESIDE THE ANALYZER, on a model that does not reason, and is the first thing
-  // the user reads. Fired only when somebody is listening and a glance model is configured; its
-  // failure is a log line and never a refusal — the analysis is what this turn is for — and its
-  // text goes through `onEvent` and nowhere else. NEVER AWAITED: the result is the analyzer's, and
-  // a glance that hangs for its whole budget must not hold a finished card back. One that lands
-  // after the route has closed the stream is dropped there, not written anywhere.
-  if (onEvent && deps.config.llmGlanceModel) {
-    void deps.llm.glancePhoto({ images, lang: profile.lang, onCost })
-      .then((text) => onEvent({ kind: "glance", text }))
-      .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
-  }
+  // The turn's own clock, for the latency the admin page reads: shutter-to-call in `queue` (the
+  // upload and the caps live in it), call-to-first-item, call-to-answer. Written ONCE, when the
+  // turn settles, and like `addCost` a write that finds no row is a log line, not a failure.
+  const clock = { calledAt: 0, firstItem: null as number | null };
+  const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
+    queue: Math.max(0, clock.calledAt - eaten.getTime()),
+    firstItem: clock.firstItem,
+    total: Date.now() - clock.calledAt,
+  }).then(
+    (landed) => { if (!landed) console.error(`[eait] timing not recorded: analysis ${analysisId} is gone`); },
+    (e: unknown) => { console.error(`[eait] timing not recorded: ${(e as Error)?.message ?? e}`); },
+  );
+
   // The weighing words ride the item events: same rule as `reading` — the line is sent, not derived.
   const weighing = streamCopyFor(profile.lang).weighing;
-  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item, line: weighing })) : undefined;
+  const onDelta = onEvent ? itemScanner((index, item) => {
+    if (clock.firstItem === null) clock.firstItem = Date.now() - clock.calledAt;
+    onEvent({ kind: "item", index, item, line: weighing });
+  }) : undefined;
 
   let analysis: AnalyzedMeal;
+  clock.calledAt = Date.now();
   try {
     analysis = await deps.llm.analyzePhoto({
       images, profile, targets, onCost,
@@ -161,6 +167,9 @@ export async function analyzePhotos(
       portionPriors: await deps.store.portionPriors(userId),
     }, onDelta);
   } catch (e) {
+    // A failure's timing is data too — a timeout IS a latency reading, and the percentile over
+    // only the survivors would flatter the model. The write lands or logs; the refusal is unchanged.
+    reportTiming();
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
@@ -171,6 +180,7 @@ export async function analyzePhotos(
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
+  reportTiming();
   // `images` is returned to the caller, which stores them after the row exists.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
@@ -193,9 +203,9 @@ export async function logPhotoMeal(
   userId: string,
   input: LogPhotoInput,
   /**
-   * The live turn's side channel: the glance, and each item as the analyzer closes it. The
-   * result is still the return value — the route writes it as the stream's last line. Without
-   * it nothing streams and no glance call is made: a JSON caller pays for exactly what it did.
+   * The live turn's side channel: each item as the analyzer closes it. The result is still the
+   * return value — the route writes it as the stream's last line. Without it nothing streams:
+   * a JSON caller pays for exactly what it did.
    */
   onEvent?: (event: PhotoEvent) => void,
 ): Promise<LogPhotoResult> {

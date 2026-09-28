@@ -403,7 +403,7 @@ describe("editing the system prompts", () => {
     expect(res.status).toBe(200);
     const { prompts } = await res.json() as { prompts: { key: string; version: number; source: string; text: string }[] };
     expect(prompts.map((p) => p.key).sort()).toEqual(
-      ["analysis", "coach", "glance", "route", "text_correction", "text_meal"],
+      ["analysis", "coach", "route", "text_correction", "text_meal"],
     );
     // Rows, not a fallback: the store holds the shipped text from the moment it exists, so this
     // screen shows the same thing the transport reads.
@@ -412,14 +412,14 @@ describe("editing the system prompts", () => {
   });
 
   it("saves an edit, and serves it back as a stored revision", async () => {
-    expect((await admin("PUT", "/admin/api/prompts", { key: "glance", text: "Name the plate. Five words." })).status).toBe(200);
+    expect((await admin("PUT", "/admin/api/prompts", { key: "route", text: "Sort the message. Two words." })).status).toBe(200);
     const { prompts } = await (await admin("GET", "/admin/api/prompts")).json() as { prompts: { key: string; version: number; source: string; text: string }[] };
-    const glance = prompts.find((p) => p.key === "glance")!;
-    expect(glance.text).toBe("Name the plate. Five words.");
+    const route = prompts.find((p) => p.key === "route")!;
+    expect(route.text).toBe("Sort the message. Two words.");
     // 2: the shipped revision is 1, and an admin's edit is the one that outranks it — including
     // against the next deploy, which is what `source` buys.
-    expect(glance.version).toBe(2);
-    expect(glance.source).toBe("admin");
+    expect(route.version).toBe(2);
+    expect(route.source).toBe("admin");
   });
 
   it("422s a prompt carrying characters a reviewer could not see", async () => {
@@ -435,14 +435,14 @@ describe("editing the system prompts", () => {
   });
 
   it("serves the revisions of one prompt, newest first", async () => {
-    await admin("PUT", "/admin/api/prompts", { key: "glance", text: "Name the plate. Five words." });
-    const res = await admin("GET", "/admin/api/prompts/glance/revisions");
+    await admin("PUT", "/admin/api/prompts", { key: "route", text: "Sort the message. Two words." });
+    const res = await admin("GET", "/admin/api/prompts/route/revisions");
     expect(res.status).toBe(200);
     const { revisions } = await res.json() as { revisions: { version: number; source: string; text: string }[] };
     // The admin's edit, then the shipped row the store booted with. Append-only, so both are here.
     expect(revisions.map((r) => r.version)).toEqual([2, 1]);
     expect(revisions.map((r) => r.source)).toEqual(["admin", "shipped"]);
-    expect(revisions[0]!.text).toBe("Name the plate. Five words.");
+    expect(revisions[0]!.text).toBe("Sort the message. Two words.");
   });
 
   it("404s the revisions of a prompt this server does not send", async () => {
@@ -1032,6 +1032,7 @@ describe("the numbers past the funnel", () => {
     d7: { eligible: number; returned: number };
     dailyAnalysisCap: number;
     headroom: number | null;
+    latency: { n: number; queue: { p50: number | null; p95: number | null }; firstItem: { p50: number | null; p95: number | null }; total: { p50: number | null; p95: number | null } };
   };
 
   it("answers a row per day, the two return cohorts, and the instance's budget", async () => {
@@ -1047,6 +1048,9 @@ describe("the numbers past the funnel", () => {
     expect(today.analyses).toBeGreaterThanOrEqual(1);
     expect(body.d1.eligible).toBe(0);
     expect(body.dailyAnalysisCap).toBe(base.globalDailyAnalysisCap);
+    // The turn's clock is written when it settles, not charged — a bare recordAnalysis has none.
+    expect(body.latency.n).toBe(0);
+    expect(body.latency.total.p50).toBeNull();
   });
 
   it("says there is no budget rather than saying there is none LEFT", async () => {

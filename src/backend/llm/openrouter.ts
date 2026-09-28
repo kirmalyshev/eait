@@ -12,11 +12,11 @@
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
-import type { AnalyzePhoto, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
+import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
-  COACH_TOOL_DEFS, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, PROMPT_DEFAULTS,
-  RouteSchema, buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText,
+  COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, PROMPT_DEFAULTS,
+  RouteSchema, buildCoachContext, buildRouteText, buildTextCorrectionText,
   buildTextMealText, buildUserText, coachLine, type Prompts,
 } from "./prompt.ts";
 
@@ -26,12 +26,6 @@ interface Options {
   model: string;
   /** The coach. Text only, and its own setting — `EAIT__BACKEND__LLM_CHAT_MODEL`. */
   chatModel: string;
-  /**
-   * The glance — one sentence while the analyzer works, on a model that does NOT reason.
-   * `EAIT__BACKEND__LLM_GLANCE_MODEL`; empty or absent disables the port (it throws, and the
-   * engine never calls it then).
-   */
-  glanceModel?: string | undefined;
   /** Where the chat-completions call goes. From `EAIT__BACKEND__LLM_BASE_URL`; the composition root supplies it. */
   baseUrl: string;
   /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
@@ -39,15 +33,17 @@ interface Options {
   /** The completion bound for one call. From `EAIT__BACKEND__LLM_MAX_TOKENS`. */
   maxTokens: number;
   /**
-   * Sent as `reasoning: { effort }` on every schema call when set. From
-   * `EAIT__BACKEND__LLM_REASONING_EFFORT`; empty means the model decides, which is what measured
-   * at a median 37 s to first token on grok-4.5 (2026-09-05, docs/ACCURACY.md).
+   * Sent as `reasoning: { effort }` on every schema call when set — and as
+   * `reasoning: { enabled: false }` when set to `off`, the only shape a model that can reason
+   * cannot talk its way around (`{ effort: "none" }` is not a value OpenRouter honours on every
+   * provider). From `EAIT__BACKEND__LLM_REASONING_EFFORT`; empty means the model decides, which
+   * is what measured at a median 37 s to first token on grok-4.5 (2026-09-05, docs/ACCURACY.md).
    */
   reasoningEffort?: string | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
   /**
-   * Where the six system prompts come from, resolved once per turn.
+   * Where the five system prompts come from, resolved once per turn.
    *
    * ABSENT MEANS THE COMPILED-IN ONES, which is what this transport sent before there was a table
    * and is what every test that does not care gets. The composition root supplies
@@ -84,9 +80,6 @@ interface Choice { finish_reason?: string; message?: { content?: string | null; 
  */
 const UNROUTED = new Set([401, 402, 429, 503]);
 
-/** How long the glance may take. Measured at 0.9 s; past this the card has long overtaken it. */
-const GLANCE_TIMEOUT_MS = 15_000;
-
 /**
  * Data URL for one image. The mime type is read from the magic bytes rather than trusted from the
  * upload's filename: a client that mislabels a PNG as JPEG gets a silent model-side decode failure,
@@ -114,9 +107,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   /**
    * ONE RESOLUTION PER PORT CALL, not per HTTP request: `routeText` can make two model calls and
    * resolves once, so a prompt edit landing between them cannot analyse a meal under different
-   * instructions from the ones that classified it. A streamed photo turn is the one place two
-   * resolutions happen — `glancePhoto` and `analyzePhoto` are separate ports on separate models,
-   * and an edit landing between them changes a sentence nobody stores. Never throws:
+   * instructions from the ones that classified it. Never throws:
    * `loadPrompts` answers with the compiled-in prompts on any failure.
    */
   const prompts = opts.prompts ?? (async () => PROMPT_DEFAULTS);
@@ -266,7 +257,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // Named on every call, so the provider's own default cannot drift under us: every call
         // this app makes wants the same answer twice.
         temperature: 0.2,
-        ...(opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
+        ...(opts.reasoningEffort === "off"
+          ? { reasoning: { enabled: false } }
+          : opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
         messages: attempt === 0 ? messages : [
           ...messages,
           {
@@ -332,34 +325,6 @@ export function openRouterPorts(opts: Options): LlmPorts {
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
     return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost);
-  };
-
-  const glancePhoto: GlancePhoto = async (input) => {
-    if (!opts.glanceModel) throw new Error("glance disabled");
-    const { glance } = await prompts();
-    const body = {
-      model: opts.glanceModel,
-      max_tokens: GLANCE_MAX_TOKENS,
-      temperature: 0.2,
-      // The whole point of this call. A model that reasons here answers after the analyzer does;
-      // grok-4.3 with this off measured 0.9 s to first token, grok-4.5 refuses the setting.
-      reasoning: { enabled: false },
-      messages: [
-        { role: "system" as const, content: glance },
-        { role: "user" as const, content: [
-          { type: "text" as const, text: buildGlanceText(input.lang) },
-          ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
-        ] },
-      ],
-    };
-    // `billed: true`: the analysis beside this call is charged whatever this one does, so a gateway
-    // status here is a plain error and refunds nothing. Its own budget, well under the analyzer's:
-    // a glance that has not answered in fifteen seconds is one nobody is waiting for any more, and
-    // the call is holding the image bytes until it settles.
-    const raw = (await send(body, true, GLANCE_TIMEOUT_MS, undefined, input.onCost)).choices?.[0]?.message?.content ?? "";
-    const line = raw.split("\n")[0]!.trim();
-    if (line === "") throw new Error("glance returned nothing");
-    return line;
   };
 
   const routeText: RouteText = async (input) => {
@@ -558,7 +523,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   };
 
   // Not canned: these answers cost money and describe the photograph. `GET /health` reports it.
-  return { analyzePhoto, glancePhoto, routeText, coach, canned: false };
+  return { analyzePhoto, routeText, coach, canned: false };
 }
 
 /**

@@ -1236,9 +1236,8 @@ export const SERVER_LLM_TIMEOUT_MS = 90_000;
  * `llmMaxTokensFromEnv` exists because `int()` accepted a bound of zero and `eval-photos.ts`
  * shipped `max_tokens: 0` on every billed call.
  *
- * Ten seconds is below anything real rather than merely above nothing: the glance alone is allowed
- * fifteen, and a photo analysis measured a median 37 s to its first visible token
- * (`docs/ACCURACY.md`, 2026-09-05).
+ * Ten seconds is below anything real rather than merely above nothing: a photo analysis measured
+ * a median 37 s to its first visible token (`docs/ACCURACY.md`, 2026-09-05).
  */
 export const MIN_MODEL_CALL_TIMEOUT_MS = 10_000;
 
@@ -1255,8 +1254,7 @@ const TRANSFER_MARGIN_MS = 20_000;
  * count FUNCTIONS, not HTTP calls: `complete()` shares one deadline with its own schema retry, and
  * `routeText` shares one across the routing call and the focused analysis behind it.
  *
- * `POST /v1/meals/photo` and `POST /v1/meals/:id/reanalyze` are one `analyzePhoto`, so ONE. The
- * glance runs on its own fifteen-second budget beside it and is never the long pole.
+ * `POST /v1/meals/photo` and `POST /v1/meals/:id/reanalyze` are one `analyzePhoto`, so ONE.
  *
  * `POST /v1/messages` is `routeText`, and behind an `answer` intent also `coach` — which has
  * bounded its whole turn with one deadline since it was written. Two functions, two deadlines, so
@@ -1305,12 +1303,11 @@ export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_
 /**
  * The stream's progress lines, each carrying its own words: `reading` fires first — "Reading the
  * plate…" in the account's language, so the client prints rather than composes it — then zero or
- * one `glance` (whose model-written text IS the line) and zero or more `item` events, each with
- * the weighing line alongside the row. Shared by the photo turn and an edit (#608).
+ * more `item` events, each with the weighing line alongside the row. Shared by the photo turn and
+ * an edit (#608).
  */
 export type PhotoProgress =
   | { kind: "reading"; line: string }
-  | { kind: "glance"; text: string }
   | { kind: "item"; index: number; item: MealItem; line: string };
 /**
  * One line of the photo stream. Progress, then `PhotoLast` as the LAST line — refusals included,

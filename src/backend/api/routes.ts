@@ -87,7 +87,7 @@ export interface RouterOptions {
 
 /**
  * THE MODEL IS SILENT FOR TENS OF SECONDS, AND AN IDLE CONNECTION IS ONE SOMETHING WILL CALL DEAD.
- * After the glance (~2 s) grok-4.5 reasons for 10–40 s with nothing on the wire, and a routed text
+ * A photo analysis can reason for 10–40 s with nothing on the wire, and a routed text
  * turn with the coach behind it can be as quiet. iOS gives up on a request idle for 60 s. Measured
  * 2026-09-05: the phone reported "the analysis didn't come back" at 12 s while the server, whose
  * `line()` swallows a gone reader, went on to log the meal — a charged turn the user was told
@@ -174,7 +174,7 @@ export function createRouter(
    * A billed turn as a STREAM: `200` at once, a blank line every `STREAM_KEEPALIVE_MS` while the
    * model is silent, and the result as the LAST line — refusals included, because the status went
    * out with the first byte. `run` may write lines of its own before it returns (the photo route's
-   * glance and items); the text route writes none (#508). ONE of these for both routes, because the
+   * items); the text route writes none (#508). ONE of these for both routes, because the
    * idle connection it exists for is the same for both.
    */
   const stream = (req: Request, pathname: string, run: (line: (e: unknown) => void) => Promise<unknown>): Response => {
@@ -619,7 +619,7 @@ export function createRouter(
           ...(typeof caption === "string" && caption ? { caption } : {}),
           ...turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt")),
         };
-        // THE STREAM. One JSON object per line — the glance, each item as the analyzer closes it
+        // THE STREAM. One JSON object per line — each item as the analyzer closes it
         // — and the result LAST, refusals included, because the 200 has gone out with the first
         // byte. Everything refused above this point is still an HTTP status: nothing has been
         // written yet. Without the header this is the JSON route it always was.

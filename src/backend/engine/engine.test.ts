@@ -2067,67 +2067,48 @@ describe("erasure", () => {
 });
 
 describe("the streamed photo turn", () => {
-  it("streams the glance and every item to onEvent before returning the result", async () => {
+  it("streams every item to onEvent before returning the result", async () => {
     const userId = await onboard();
     const events: PhotoEvent[] = [];
     const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
     expect(res.kind).toBe("logged");
     const kinds = events.map((e) => e.kind);
-    expect(kinds).toContain("glance");
+    expect(kinds).toContain("reading");
     expect(kinds.filter((k) => k === "item").length).toBe((res as MealLogged).analysis.items.length);
     // The streamed rows are the rows the card carries, in order.
     const streamed = events.flatMap((e) => (e.kind === "item" ? [e.item.name] : []));
     expect(streamed).toEqual((res as MealLogged).analysis.items.map((i) => i.name));
-    // The glance is live-turn only: not in the meal, not in the thread.
-    const glance = events.find((e) => e.kind === "glance") as { text: string };
-    const thread = await chatHistory(deps, userId, {});
-    expect(JSON.stringify(thread)).not.toContain(glance.text);
-    expect(JSON.stringify(res)).not.toContain(glance.text);
   });
 
-  it("makes no glance call without onEvent", async () => {
+  // The write is deliberately not awaited in the turn — a latency reading is not worth a millisecond
+  // on the card's path — so the read poll for it rather than racing it.
+  const latencyOf = async () => {
+    const today = localDate(deps.config.timezone);
+    for (let i = 0; i < 50; i++) {
+      const { latency } = await deps.store.adminMetrics({ days: 1, today, timezone: deps.config.timezone });
+      if (latency.n > 0) return latency;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    throw new Error("timing never landed on the analysis row");
+  };
+
+  it("records the turn's timing on the analysis row, first item included when one streamed", async () => {
     const userId = await onboard();
-    let called = 0;
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
-    await logPhotoMeal(makeDeps({}, llm), userId, photo());
-    expect(called).toBe(0);
+    await logPhotoMeal(deps, userId, photo(), () => {});
+    const latency = await latencyOf();
+    // The demo analyzer is faster than a clock tick, so these are PRESENT, not positive.
+    expect(latency.total.p50).not.toBeNull();
+    expect(latency.firstItem.p50).not.toBeNull();
+    // Eaten a moment ago: queue is shutter-to-call, small but present.
+    expect(latency.queue.p50).toBeGreaterThanOrEqual(0);
   });
 
-  it("makes no glance call when no glance model is configured", async () => {
+  it("records a firstItem of null on the JSON path, which never streams one", async () => {
     const userId = await onboard();
-    let called = 0;
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
-    await logPhotoMeal(makeDeps({ llmGlanceModel: "" }, llm), userId, photo(), () => {});
-    expect(called).toBe(0);
-  });
-
-  it("a glance that hangs does not hold the result back", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: () => new Promise(() => {}) };
-    const t0 = Date.now();
-    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), () => {});
-    expect(res.kind).toBe("logged");
-    // The demo analyzer streams in about a second; a result gated on the glance never returns.
-    expect(Date.now() - t0).toBeLessThan(5_000);
-  });
-
-  it("a glance that throws does not fail the turn", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { throw new Error("boom"); } };
-    const events: PhotoEvent[] = [];
-    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), (e) => events.push(e));
-    expect(res.kind).toBe("logged");
-    expect(events.some((e) => e.kind === "glance")).toBe(false);
-  });
-
-  it("a refused turn emits nothing", async () => {
-    const userId = await onboard();
-    const events: PhotoEvent[] = [];
-    const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
-    expect(res.kind).toBe("logged");
-    const refused = await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo(), (e) => events.push(e));
-    expect(refused.kind).toBe("subscription-required");
-    expect(events.filter((e) => e.kind === "glance").length).toBe(1);
+    await logPhotoMeal(deps, userId, photo());
+    const latency = await latencyOf();
+    expect(latency.total.p50).not.toBeNull();
+    expect(latency.firstItem.p50).toBeNull();
   });
 });
 
@@ -2327,20 +2308,11 @@ describe("what each analysis cost", () => {
     expect(d.unpriced).toBe(1);
   });
 
-  it("charges the glance to the photo it glanced at", async () => {
-    const userId = await onboard();
-    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async (i) => { i.onCost?.(0.125); return "Eggs."; } };
-    await logPhotoMeal(makeDeps({ llmGlanceModel: "glance" }, llm), userId, photo(), () => {});
-    const d = await spend();
-    expect(d.analyses).toBe(1);
-    expect(d.costUsd).toBeCloseTo(0.125, 9);
-  });
-
   it("says so in the log when a cost finds no analysis left to land on", async () => {
     const userId = await onboard();
     const today = localDate(deps.config.timezone);
     const { analysisId, onCost } = await charge(deps, userId, today, "photo");
-    // Refunded while a call was still out — the glance beside a refused analyzer, or a merge.
+    // Refunded while a call was still out — a schema retry beside a refunded analysis, or a merge.
     await store.undoAnalysis(userId, analysisId);
     const errors = spyOn(console, "error").mockImplementation(() => {});
     try {

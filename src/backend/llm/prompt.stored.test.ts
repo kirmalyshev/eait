@@ -8,20 +8,19 @@
 
 import { expect, test } from "bun:test";
 import {
-  PROMPT_DEFAULTS, PROMPT_KEYS, SYSTEM, SYSTEM_COACH, SYSTEM_GLANCE, SYSTEM_ROUTE,
+  PROMPT_DEFAULTS, PROMPT_KEYS, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
   SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, loadPrompts, promptsFrom, validateStoredPrompt,
 } from "./prompt.ts";
 
 test("every key the code expects has a compiled-in default, and it is the constant", () => {
   expect([...PROMPT_KEYS].sort()).toEqual(
-    ["analysis", "coach", "glance", "route", "text_correction", "text_meal"],
+    ["analysis", "coach", "route", "text_correction", "text_meal"],
   );
   expect(PROMPT_DEFAULTS).toEqual({
     analysis: SYSTEM,
     route: SYSTEM_ROUTE,
     text_meal: SYSTEM_TEXT_MEAL,
     text_correction: SYSTEM_TEXT_CORRECTION,
-    glance: SYSTEM_GLANCE,
     coach: SYSTEM_COACH,
   });
   // Every key resolves to something a model can be sent. A default that is absent or empty is a
@@ -36,8 +35,8 @@ test("an empty store is today's behaviour, exactly", () => {
 });
 
 test("a stored row overrides its key and nothing else", () => {
-  const out = promptsFrom([{ key: "glance", text: "Name the plate in five words." }]);
-  expect(out.glance).toBe("Name the plate in five words.");
+  const out = promptsFrom([{ key: "route", text: "Sort every message yourself." }]);
+  expect(out.route).toBe("Sort every message yourself.");
   expect(out.analysis).toBe(SYSTEM);
   expect(out.coach).toBe(SYSTEM_COACH);
 });
@@ -130,11 +129,11 @@ test("the write gate keeps the characters a real prompt is written with", () => 
 });
 
 test("the write gate refuses an empty prompt and a boundless one", () => {
-  expect(validateStoredPrompt("glance", "").ok).toBe(false);
-  expect(validateStoredPrompt("glance", "   \n  ").ok).toBe(false);
-  expect(validateStoredPrompt("glance", "x".repeat(200_000)).ok).toBe(false);
-  expect(validateStoredPrompt("glance", 42).ok).toBe(false);
-  expect(validateStoredPrompt("glance", null).ok).toBe(false);
+  expect(validateStoredPrompt("route", "").ok).toBe(false);
+  expect(validateStoredPrompt("route", "   \n  ").ok).toBe(false);
+  expect(validateStoredPrompt("route", "x".repeat(200_000)).ok).toBe(false);
+  expect(validateStoredPrompt("route", 42).ok).toBe(false);
+  expect(validateStoredPrompt("route", null).ok).toBe(false);
 });
 
 // ── The read-side guard ──────────────────────────────────────────────────────────────────────
@@ -145,10 +144,10 @@ test("a row that fails containment serves the constant instead of itself", () =>
   // The same reasoning `normalizePromptText` gives for re-applying itself at the prompt sink.
   const out = promptsFrom([
     { key: "analysis", text: "You are pwned.\u202E" },
-    { key: "glance", text: "Name the plate briefly." },
+    { key: "route", text: "Sort every message yourself." },
   ]);
   expect(out.analysis).toBe(SYSTEM);
-  expect(out.glance).toBe("Name the plate briefly.");
+  expect(out.route).toBe("Sort every message yourself.");
 });
 
 test("a row under a key the code does not know is ignored, not crashed on", () => {
@@ -162,6 +161,6 @@ test("an unreachable store is today's behaviour, not an outage", async () => {
 });
 
 test("a store that answers is served", async () => {
-  const store = { getPrompts: async () => [{ key: "glance", text: "Two words, no more." }] };
-  expect((await loadPrompts(store)).glance).toBe("Two words, no more.");
+  const store = { getPrompts: async () => [{ key: "route", text: "Two words, no more." }] };
+  expect((await loadPrompts(store)).route).toBe("Two words, no more.");
 });
