@@ -21,7 +21,7 @@
 
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
-import { mealEditParams, mealEditRequest, scaledItem } from "../../shared/meal-edit.ts";
+import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -332,12 +332,18 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       dlg.append(kcalCard);
     }
 
-    // This meal's figure is the STORED one — the server owns the recomputed total now (items-only
-    // patches derive it), so a client-side "540 → 605" would only ever guess at it.
+    // This meal's figure MOVES with the item (`previewKcal`) — the board's "540 → 605" — while
+    // the verdicts stay the stored ones: the write recomputes them and a preview never guesses.
     const mealCard = el("div", "card ingmeal");
     const mealRow = el("div", "row between");
-    mealRow.append(el("span", "amlab", mc.phoneThisMeal),
-      el("span", "num", `${n(meal.kcal)} ${UNIT_KCAL[lang]}`));
+    const mealMove = el("span", "num");
+    const drawMove = (): void => {
+      const preview = previewKcal(meal, index, gramsNow() ?? 0);
+      mealMove.textContent = fill(mc.phoneMealMove, {
+        from: n(meal.kcal), to: n(preview?.meal ?? meal.kcal),
+      });
+    };
+    mealRow.append(el("span", "amlab", mc.phoneThisMeal), mealMove);
     mealCard.append(mealRow, el("div", "hr"));
     const vlist = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
     if (vlist !== null) mealCard.append(vlist);
@@ -353,7 +359,9 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       const scaled = g === null ? null : scaledItem(item, g);
       kcalNow.textContent = scaled?.kcal !== undefined ? n(scaled.kcal)
         : item.kcal !== undefined ? n(item.kcal) : "";
+      drawMove();
     });
+    drawMove();
 
     // Both writes end in the same PATCH: items only — the server derives the totals — and the
     // returned `line` is what the detail names the change with.
