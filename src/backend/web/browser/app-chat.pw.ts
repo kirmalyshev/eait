@@ -1,5 +1,5 @@
 // The web APPLICATION's chat (#493) — the SPA at `/`, not `/start/chat`. W7 (#94) drew it
-// Register P: the thread column, Gabie's say lines, the proposal card, the coach bar, the
+// Register P: the thread column, Spud's say lines, the proposal card, the coach bar, the
 // kept turns' dimmed photo with Send again — all of it under the shared composer.
 //
 // It only read the thread until this: no photo picker, no text box, no send. These drive its
@@ -18,11 +18,11 @@ const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 /** The empty thread's prompt — `composerAsk`; a populated one reads `composerThread`. */
 const ASK = "What did you eat?";
 
-test("first open draws Gabie's greeting and the three starters, in the struggles' order", async ({ inWebApp: page }) => {
+test("first open draws Spud's greeting and the three starters, in the struggles' order", async ({ inWebApp: page }) => {
   // An empty stored thread is the boards' `chat-empty`: the greeting is her first AND newest line.
-  await expect(page.locator(".thread .say .gname")).toHaveText("Gabie · nutritionist");
+  await expect(page.locator(".thread .say .gname")).toHaveText("Spud");
   await expect(page.locator(".thread")).toContainText("Tell me what you ate, or ask me anything.");
-  await expect(page.locator(".thread .gabie")).toHaveCount(1);
+  await expect(page.locator(".thread .spud")).toHaveCount(1);
   const starters = page.locator(".opts .opt .ot");
   await expect(starters).toHaveText([
     "How's my week going?", "What's a lighter swap for dinner?", "Am I getting enough protein?",
@@ -110,14 +110,14 @@ test("a proposal's No resolves the card and logs nothing", async ({ inWebApp: pa
   expect(((await day.json()) as DayResponse).meals).toHaveLength(0);
 });
 
-test("a question is answered by Gabie, with her face on the newest line", async ({ inWebApp: page }) => {
+test("a question is answered by Spud, with his face on the newest line", async ({ inWebApp: page }) => {
   await page.getByPlaceholder(ASK).fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const answer = page.locator(".thread li.them", { hasText: "Demo answer" });
   await expect(answer).toBeVisible();
   await expect(answer.locator(".say")).toBeVisible();
   // Her disc sits beside her newest line — the one just answered; her name was on the first.
-  await expect(answer.locator(".gabie")).toHaveCount(1);
+  await expect(answer.locator(".spud")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
 });
 
@@ -138,7 +138,7 @@ test("the protein question draws the day's bar from the server, a week question 
   // the meal — which is also what makes the box read `composerThread`, not the ask.
   await page.reload();
   await expect(page.locator(".thread li.me.pic")).toHaveCount(1);
-  await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("Am I getting enough protein?");
+  await page.getByPlaceholder("Tell Spud what you ate, or ask").fill("Am I getting enough protein?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const bar = page.locator(".thread .mb");
   await expect(bar).toBeVisible();
@@ -150,7 +150,7 @@ test("the protein question draws the day's bar from the server, a week question 
   const drawn = parseFloat(fillStyle!.match(/width:\s*([\d.]+)%/)![1]!);
   const expected = Math.min(100, (totals.protein_g / targets.protein_g) * 100);
   expect(Math.abs(drawn - expected)).toBeLessThan(0.6);
-  await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("how did my week go?");
+  await page.getByPlaceholder("Tell Spud what you ate, or ask").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".thread li.them", { hasText: "Demo answer" }).last()).toBeVisible();
   // The bar is the LIVE answer's own (`focus` is live-only, like `suggestions` — the stored line
@@ -250,7 +250,7 @@ test("dropping a proposal the server no longer holds is what was asked, and says
 
 test("a turn whose answer never arrived keeps the photo and offers Send again", async ({ inWebApp: page }) => {
   // The connection went with the turn still running: the server may have logged it. Since #708 the
-  // page keeps the photo — dimmed, under Gabie's "Couldn't reach eait." with the resend beside it.
+  // page keeps the photo — dimmed, under Spud's "Couldn't reach eait." with the resend beside it.
   await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
@@ -286,7 +286,7 @@ test("a thread that cannot be loaded says so, and Try again asks again", async (
   await page.reload();
   await expect(page.locator(".chatfail")).toBeVisible();
   await expect(page.locator(".chatfail")).toContainText("Couldn't load the conversation.");
-  await expect(page.locator(".chatfail .gname")).toHaveText("Gabie · nutritionist");
+  await expect(page.locator(".chatfail .gname")).toHaveText("Spud");
   await page.unroute("**/api/v1/messages?*");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.locator(".chatfail")).toHaveCount(0);
@@ -348,7 +348,7 @@ test("#/chat?focus= opens the meal's correction — its card, her opener, the wo
   });
   const mealId = ((await day.json()) as DayResponse).meals[0]!.id;
   await page.goto(`/#/chat?focus=${mealId}`);
-  // The meal's card first — thumb, name, kcal, dots — then Gabie naming what she read.
+  // The meal's card first — thumb, name, kcal, dots — then Spud naming what he read.
   const card = page.locator(".thread li.focus-meal .card");
   await expect(card).toBeVisible();
   await expect(card).toContainText("kcal");

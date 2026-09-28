@@ -63,7 +63,7 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
   On `/start/plan` it is a POST to `/start/telegram`, which returns a 303 to `t.me`. That is why the
   `/start` CSP `form-action` names `https://t.me`. In the web app, the tap calls `POST /v1/auth/pair`.
   In both, the code is minted at the tap, because it lives for 5 min.
-- **The bot sends the turn's RESULT as plain text.** Gabie's answers start with `Gabie: `. Lines
+- **The bot sends the turn's RESULT as plain text.** The coach's answers start with `Spud: `. Lines
   that the engine only writes to the thread are not sent here: the first verdict, the "day so far"
   line, and Spud's question. The app and the web show them. The bot never sends a focus meal, so
   a correction typed here reaches the router without one.

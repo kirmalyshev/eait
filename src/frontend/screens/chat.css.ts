@@ -1,7 +1,7 @@
 // Chat's own styles — the boards' transcript (`web/chat*.html`, `states-*.html`; pro.css's
 // `.thread`/`.me`/`.them`/`.ts`/`.mb` measurements verbatim). What the boards share — the
 // composer row, `.ib`, `.bar`, the type helpers, `.card` — is `shell.css.ts`'s; the kit's `.say`,
-// `.gabie`, `.gname`, `.macs`, `.vs`, `.opt`, `.card.flat`, `.hero`, `.stamp` arrive from
+// `.spud`, `.gname`, `.macs`, `.vs`, `.opt`, `.card.flat`, `.hero`, `.stamp` arrive from
 // `kitCss()`; the verbs (`rise`, `grow`) are `motionCss`'s.
 
 import { MOTION } from "../../shared/design.ts";
@@ -31,7 +31,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .them p { margin: 0; }
 .ts { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 4px; }
 
-/* Gabie's say block: the spacer keeps the words' column where no disc is asked for. */
+/* The coach's say block: the spacer keeps the words' column where no disc is asked for. */
 .say > div { flex: 1; min-width: 0; }
 .say .saygap { width: 28px; flex: 0 0 28px; }
 .say .say-p { margin: 0; }
@@ -78,6 +78,6 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .frow { display: flex; gap: 10px; align-items: flex-start; }
 .fcol { flex: 1; min-width: 0; }
 
-/* The load failure ("states-chat-failed"): Gabie's line centred in the column's room. */
+/* The load failure ("states-chat-failed"): the coach's line centred in the column's room. */
 .chatfail { flex: 1; display: flex; align-items: center; justify-content: center; }
 `;

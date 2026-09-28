@@ -23,7 +23,7 @@
 // `UNIT_KCAL`.
 //
 // ONE DEVIATION, flagged rather than adjusted: `phone/chat-busy.html`'s aria-label says "Spud is
-// typing", but the direction gives Chat's voice to Gabie — `phone.typing` is "{coach} is typing".
+// typing" — the direction's coach is Spud (#1041): `phone.typing` is "{coach} is typing".
 //
 // RUSSIAN: no past-tense verb may describe the reader (`genderedRussian` walks this table), so the
 // composer's "What did you eat?" asks about the plate, not about "ты ел". The gram beside a figure
@@ -34,7 +34,7 @@ import { STRUGGLES, type Lang, type Struggle } from "../types.ts";
 import type { IconName } from "../ui/icons.ts";
 
 export interface ChatScreenCopy {
-  /** First open (web + phone `chat-empty.html`, `chat-coach.html`): Gabie's opening line. */
+  /** First open (web + phone `chat-empty.html`, `chat-coach.html`): the coach's opening line. */
   greeting: string;
   /**
    * The composer's short prompt (web + phone `chat-empty.html`, `chat-proposal.html`,
@@ -133,7 +133,7 @@ export interface ChatScreenCopy {
   phone: {
     /** The send spinner's caption and aria-label (`phone/chat-busy.html`). */
     sending: string;
-    /** The typing indicator's aria-label (`phone/chat-busy.html` — the board's literal reads "Spud", the direction's coach is Gabie: `{coach}`). */
+    /** The typing indicator's aria-label (`phone/chat-busy.html` — the board's literal reads "Spud", which is the coach since #1041: `{coach}`). */
     typing: string;
     /** The outbox row's own words (`phone/states-not-sent.html`); M7's client reads this key. */
     notSent: string;

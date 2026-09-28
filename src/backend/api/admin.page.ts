@@ -212,7 +212,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
     reviewed — what you save is what the next analysis is asked. The five are what the server sends:
     the photo analyzer, the text router and the two prompts behind it, and
-    Gabie. They are stored as rows, so a save takes effect on the next request with no deploy.
+    the coach. They are stored as rows, so a save takes effect on the next request with no deploy.
   </p>
   <p class="muted">
     A prompt marked <em>shipped</em> is the text this build was written with, and a deploy keeps it
@@ -972,8 +972,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     row.className = "line " + (e.role === "user" ? "them" : "us");
     var who = document.createElement("span");
     who.className = "who";
-    // "speaker" is the whole of who answered: null is Spud, so every line from before Gabie stays
-    // his rather than becoming hers.
+    // "speaker" is the whole of who answered: null is the app's own voice — every line from
+    // before the coach existed stays unlabelled rather than becoming his.
     who.textContent = e.role === "user" ? "them"
       : (e.kind === "meal" ? "card" : (e.speaker || "spud"));
     row.appendChild(who);

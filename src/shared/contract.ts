@@ -780,7 +780,7 @@ export type ChatEntry =
   | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
   /** `speaker`: who said it. Null is Spud — onboarding's asks and scripted beats; `gabie` is an engine line, and the app draws her face on it (S9). */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string; speaker: ChatSpeaker | null }
-  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. `speaker`: the engines' card is Gabie's; a row from before the column reads null. */
+  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. `speaker`: the engines' card is the coach's; a row from before the column reads null. */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; speaker: ChatSpeaker | null };
 
 export interface ChatHistoryResponse {

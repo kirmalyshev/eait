@@ -17,7 +17,7 @@ describe("the free meal's words", () => {
     for (const lang of LANGS) expect(FIRST_MEAL_COPY[lang]).toBeDefined();
   });
 
-  it("names the coach — the button opens Chat, and she is the one who answers there (S9)", () => {
+  it("names the coach — the button opens Chat, and he is the one who answers there (S9, #1041)", () => {
     // The overseer's ruling is `{coach}` filled from `coach.name`, but this table stays
     // DEPENDENCY-FREE — the browser imports it raw and `src/frontend`'s reader renders `tell`
     // unfilled — so the name is written per language, and this assertion is the tether: the day
@@ -25,7 +25,7 @@ describe("the free meal's words", () => {
     // that still names the old one fails by name. A test is how a frozen table takes a variable.
     for (const lang of LANGS) {
       expect(FIRST_MEAL_COPY[lang]!.tell, lang).toContain(threadCopyFor(lang).coach.name);
-      expect(FIRST_MEAL_COPY[lang]!.tell, lang).not.toMatch(/Spud|Спад/);
+      expect(FIRST_MEAL_COPY[lang]!.tell, lang).not.toMatch(/Gabie|Габи/);
     }
   });
 

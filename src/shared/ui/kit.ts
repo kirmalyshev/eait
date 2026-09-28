@@ -422,17 +422,17 @@ export const weekBarsSvg = (
 //
 // Spud is the 28 px tinted disc the boards draw beside a `.say` (36 px `.lg`); the face art per
 // mood is mascot.ts's own, data-urled into a `--face` variable by kitCss — never a copy
-// transcribed into a string here. Gabie is the lettered accent disc, and her name line is
-// `.gname` — the "Gabie · nutritionist" the correction boards carry.
+// transcribed into a string here. The lettered accent disc and the name line `.gname` — the
+// "{coach} · nutritionist" the correction boards carry.
 
 /** Spud at 28 px, mood-named, decorative beside its `.say` text. `large` is the 36 px variant. */
 export const spudAvatar = (mood: MascotMood, o: { large?: boolean } = {}): string =>
   `<span class="spud ${mood}${o.large ? " lg" : ""}" aria-hidden="true"></span>`;
 
-/** Gabie's lettered disc — the letter itself is `.gabie::before`, so the markup carries none. */
+/** The lettered accent disc — the letter itself is `.gabie::before`, so the markup carries none. */
 export const gabieAvatar = (): string => `<span class="gabie" aria-hidden="true"></span>`;
 
-/** Her name line above a `.say` turn's words — the caller composes the words, escaped here. */
+/** The coach's name line above a `.say` turn's words — the caller composes the words, escaped here. */
 export const gabieName = (name: string): string => `<div class="gname">${esc(name)}</div>`;
 
 /**

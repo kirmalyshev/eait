@@ -9,7 +9,7 @@
 // `verdictPillLabel`/`verdictNoun` (`verdicts.ts`); the kcal under a meal's figure is `UNIT_KCAL`;
 // every number is `wholeNumbers`/`numbers`, every date and weekday and the picker's month are
 // `Intl` off `LANG_TAG` — none of those are copy. `{coach}` is not needed on this surface: Home is
-// where the boards still draw Spud (DIRECTION: the coach's Gabie rename covers Chat, not Home).
+// where the boards still draw Spud — and since #1041 the coach IS Spud, so the names agree.
 //
 // THE {n} RULE: the boards draw a figure and its label as two elements ("368" over "kcal left",
 // "55 g" over "Protein left"), so the LABEL is a string here and the figure is `wholeNumbers` —
