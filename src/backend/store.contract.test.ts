@@ -3265,17 +3265,22 @@ if (PG_URL) {
       const store = await migrate();
       const rows: [string, ActivityLevel][] = [];
       for (const [stored, expected] of [
-        ["sedentary", "few"], ["light", "few"], ["moderate", "some"],
+        ["sedentary", "none"], ["light", "none"], ["moderate", "some"],
         ["active", "some"], ["athlete", "many"], ["some", "some"],
       ] as const) {
         const { userId } = await store.upsertDeviceUser(`act-${stored}-${device()}`, "en");
         await sql`update users set activity = ${stored} where id = ${userId}`;
         rows.push([userId, expected]);
       }
+      // #1078: 'few' is a live id again (1–2), so the backfill of the OLD 'few' is one-shot —
+      // a 1–2 answered after the migration must still say 'few' after the next reboot.
+      const { userId: answered } = await store.upsertDeviceUser(`act-few-${device()}`, "en");
+      await store.patchProfile(answered, { activity: "few" });
       const redeployed = await migrate();
       for (const [userId, expected] of rows) {
         expect((await redeployed.getProfile(userId))!.activity, `stored value`).toBe(expected);
       }
+      expect((await redeployed.getProfile(answered))!.activity).toBe("few");
       await sql.end();
       await store.close();
       await redeployed.close();
