@@ -2096,8 +2096,9 @@ describe("the streamed photo turn", () => {
     const userId = await onboard();
     await logPhotoMeal(deps, userId, photo(), () => {});
     const latency = await latencyOf();
-    expect(latency.total.p50).toBeGreaterThan(0);
-    expect(latency.firstItem.p50).toBeGreaterThan(0);
+    // The demo analyzer is faster than a clock tick, so these are PRESENT, not positive.
+    expect(latency.total.p50).not.toBeNull();
+    expect(latency.firstItem.p50).not.toBeNull();
     // Eaten a moment ago: queue is shutter-to-call, small but present.
     expect(latency.queue.p50).toBeGreaterThanOrEqual(0);
   });
@@ -2106,7 +2107,7 @@ describe("the streamed photo turn", () => {
     const userId = await onboard();
     await logPhotoMeal(deps, userId, photo());
     const latency = await latencyOf();
-    expect(latency.total.p50).toBeGreaterThan(0);
+    expect(latency.total.p50).not.toBeNull();
     expect(latency.firstItem.p50).toBeNull();
   });
 });
