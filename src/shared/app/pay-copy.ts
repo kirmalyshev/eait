@@ -43,6 +43,13 @@ export interface PayCopy {
   startTrial: string;
   /** pay-plans: the line under the CTA — `{days}` and `{price}` are the trial and the yearly price. */
   trialNote: string;
+  /** pay-plans: the CTA when the selected plan carries no trial — monthly, or yearly for a
+      subscriber the store says gets no intro offer. */
+  continueCta: string;
+  /** pay-plans: the auto-renew line under `continueCta`, yearly — `{price}` is the yearly price. */
+  renewNoteYearly: string;
+  /** pay-plans: the auto-renew line under `continueCta`, monthly — `{price}` is the monthly price. */
+  renewNoteMonthly: string;
   /** pay-gift (web + phone): the decline interstitial's headline. */
   giftTitle: string;
   /** pay-gift: the gift artwork's accessible name. */
@@ -123,6 +130,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} a month",
     startTrial: "Start my free week",
     trialNote: "{days} days free, then {price} a year. Cancel any time.",
+    continueCta: "Continue",
+    renewNoteYearly: "{price} a year. Renews automatically. Cancel any time.",
+    renewNoteMonthly: "{price} a month. Renews automatically. Cancel any time.",
     giftTitle: "We have a gift for you",
     giftAlt: "A wrapped gift box",
     giftNote: "One offer, shown only this once.",
@@ -166,6 +176,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} par mois",
     startTrial: "Commencer ma semaine offerte",
     trialNote: "{days} jours offerts, puis {price} par an. Résiliable à tout moment.",
+    continueCta: "Continuer",
+    renewNoteYearly: "{price} par an. Se renouvelle automatiquement. Résiliable à tout moment.",
+    renewNoteMonthly: "{price} par mois. Se renouvelle automatiquement. Résiliable à tout moment.",
     giftTitle: "On a un cadeau pour toi",
     giftAlt: "Une boîte cadeau emballée",
     giftNote: "Une seule offre, affichée uniquement cette fois-ci.",
@@ -209,6 +222,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} im Monat",
     startTrial: "Meine Gratiswoche starten",
     trialNote: "{days} Tage kostenlos, danach {price} im Jahr. Jederzeit kündbar.",
+    continueCta: "Weiter",
+    renewNoteYearly: "{price} im Jahr. Verlängert sich automatisch. Jederzeit kündbar.",
+    renewNoteMonthly: "{price} im Monat. Verlängert sich automatisch. Jederzeit kündbar.",
     giftTitle: "Wir haben ein Geschenk für dich",
     giftAlt: "Ein verpacktes Geschenk",
     giftNote: "Ein Angebot, nur dieses eine Mal gezeigt.",
@@ -252,6 +268,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} al mese",
     startTrial: "Inizia la mia settimana gratis",
     trialNote: "{days} giorni gratis, poi {price} all'anno. Disdici quando vuoi.",
+    continueCta: "Continua",
+    renewNoteYearly: "{price} all'anno. Si rinnova automaticamente. Disdici quando vuoi.",
+    renewNoteMonthly: "{price} al mese. Si rinnova automaticamente. Disdici quando vuoi.",
     giftTitle: "Abbiamo un regalo per te",
     giftAlt: "Un pacco regalo",
     giftNote: "Un'offerta, mostrata solo questa volta.",
@@ -295,6 +314,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} al mes",
     startTrial: "Empezar mi semana gratis",
     trialNote: "{days} días gratis, luego {price} al año. Cancela cuando quieras.",
+    continueCta: "Continuar",
+    renewNoteYearly: "{price} al año. Se renueva automáticamente. Cancela cuando quieras.",
+    renewNoteMonthly: "{price} al mes. Se renueva automáticamente. Cancela cuando quieras.",
     giftTitle: "Tenemos un regalo para ti",
     giftAlt: "Una caja de regalo envuelta",
     giftNote: "Una oferta, mostrada solo esta vez.",
@@ -338,6 +360,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} một tháng",
     startTrial: "Bắt đầu tuần miễn phí của tôi",
     trialNote: "Miễn phí {days} ngày, sau đó {price} một năm. Huỷ bất cứ lúc nào.",
+    continueCta: "Tiếp tục",
+    renewNoteYearly: "{price} một năm. Tự gia hạn. Huỷ bất cứ lúc nào.",
+    renewNoteMonthly: "{price} một tháng. Tự gia hạn. Huỷ bất cứ lúc nào.",
     giftTitle: "Chúng tôi có quà cho bạn",
     giftAlt: "Hộp quà được gói",
     giftNote: "Một ưu đãi, chỉ hiện lần này thôi.",
@@ -381,6 +406,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} sebulan",
     startTrial: "Mulai minggu gratis saya",
     trialNote: "Gratis {days} hari, lalu {price} setahun. Batal kapan saja.",
+    continueCta: "Lanjut",
+    renewNoteYearly: "{price} setahun. Diperpanjang otomatis. Batal kapan saja.",
+    renewNoteMonthly: "{price} sebulan. Diperpanjang otomatis. Batal kapan saja.",
     giftTitle: "Kami punya hadiah untukmu",
     giftAlt: "Kotak hadiah terbungkus",
     giftNote: "Satu penawaran, hanya ditampilkan kali ini.",
@@ -424,6 +452,9 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerMonth: "{price} в месяц",
     startTrial: "Начать бесплатную неделю",
     trialNote: "{days} дней бесплатно, затем {price} в год. Отмена в любой момент.",
+    continueCta: "Продолжить",
+    renewNoteYearly: "{price} в год. Продлевается автоматически. Отмена в любой момент.",
+    renewNoteMonthly: "{price} в месяц. Продлевается автоматически. Отмена в любой момент.",
     giftTitle: "У нас есть подарок для тебя",
     giftAlt: "Упакованный подарок",
     giftNote: "Одно предложение — показываем только один раз.",
