@@ -27,7 +27,7 @@ import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
-  setRedraw, takeCarried, takeTurn, timeFmt, unclear, names,
+  setRedraw, takeCarried, takeTurn, timeFmt, names,
 } from "../shell.ts";
 
 const copy = () => chatScreenCopyFor(lang);
@@ -196,29 +196,46 @@ export async function chatScreen(): Promise<HTMLElement> {
         li.append(e.text ?? "", el("div", "ts", timeFmt(new Date(e.capturedAt))));
       }
       list.append(li);
+      // states-unknown's mark under the kept bubble — the board draws the "Waiting to send" badge
+      // on that state alone.
+      const unknown = e.held !== undefined && outcomeUnknown(e.held.kind);
+      const failed = e.held?.kind === "analysis-failed";
+      if (unknown) {
+        const wts = el("li", "wts");
+        wts.append(el("i", "ico i-clock"), copy().waitingToSend);
+        list.append(wts);
+      }
       // A kept turn's error is the coach's line: his name when no line of his is above, his disc on
       // the last one, per the same first/newest rule the stored lines follow.
       const isLastKept = e === keptLines[keptLines.length - 1];
       const say = el("li", `them${rise(`${e.id}:err`, idx++)}`);
       say.append(sayBlock(firstGabie === -1 && e === keptLines[0], isLastKept, (col) => {
-        // A turn the server may still have run is worded as the doubt it is, never as "try again"
-        // beside a button that re-sends it.
+        // The boards' words: states-offline for a turn still out, states-unknown for one the server
+        // may still have run (worded as the doubt it is — never "try again"), states-failed for the
+        // analysis's own failure; any other hold gets the server's refusal words.
         col.append(el("p", "saytitle", e.held === undefined
           ? copy().offlineTitle
-          : (outcomeUnknown(e.held.kind) ? unclear()
-            : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held")))));
+          : unknown ? copy().unknownTitle
+          : failed ? copy().analysisFailed
+          : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
         if (e.held === undefined) col.append(el("p", "t13 m", copy().offlineBody));
-        const actsRow = el("div", "row");
-        actsRow.append(smallCta(copy().sendAgain, () =>
-          turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
-        if (e.held !== undefined) {
-          const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
-          drop.type = "button";
-          // Discarding a held head lets whatever waited behind it go.
-          drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-          actsRow.append(drop);
+        else if (unknown) col.append(el("p", "t13 m", copy().unknownBody));
+        else if (failed) col.append(el("p", "t13 m", copy().analysisKept));
+        // states-unknown draws no way out — it re-sends on its own — and states-failed offers the
+        // resend alone; the other holds keep Send again beside Discard.
+        if (!unknown) {
+          const actsRow = el("div", "row");
+          actsRow.append(smallCta(failed ? copy().web.sendItAgain : copy().sendAgain, () =>
+            turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
+          if (e.held !== undefined && !failed) {
+            const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
+            drop.type = "button";
+            // Discarding a held head lets whatever waited behind it go.
+            drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
+            actsRow.append(drop);
+          }
+          col.append(actsRow);
         }
-        col.append(actsRow);
       }, "care"));
       list.append(say);
     }

@@ -66,6 +66,12 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .mb .mb-num b { color: var(--ink); font-weight: 700; font-size: 17px; }
 .est { color: var(--warn); font-weight: 600; }
 
+/* states-unknown's mark under the kept bubble — the board's right-aligned muted line, a clock
+   glyph and "Waiting to send", tucked up against the bubble it belongs to. */
+.thread .wts { align-self: flex-end; display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--muted); margin-top: -6px; }
+.thread .wts .ico { width: 14px; height: 14px; }
+
 /* The kept line's resend — the boards' small secondary, inline under the words. The board draws
    40 px; the app's tap floor is 44 (the a11y gate measures the box), so the floor wins the pixel. */
 .cta.s.sm { width: auto; display: inline-flex; min-height: 44px; padding: 0 16px; font-size: 14px;
