@@ -238,7 +238,7 @@ test("an outcome the server does not name is kept, not dropped", async ({ inWebA
 
 test("a refused photo is not kept — the cap and the unreadable image are words, not drafts", async ({ inWebApp: page }) => {
   for (const [last, words] of [
-    [{ kind: "cap-exceeded", scope: "user" }, "That was your last one today — your daily allowance resets at midnight."],
+    [{ kind: "cap-exceeded", scope: "user" }, "Your daily allowance is spent. It resets at midnight — chat still works."],
     [{ kind: "unsupported-image" }, "That file is not a photo this can read. JPEG, PNG or WebP."],
   ] as const) {
     await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
