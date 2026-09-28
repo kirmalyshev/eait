@@ -99,7 +99,6 @@ button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   text-align:right;min-width:2ch}
 .amtin:focus-visible{outline:none}
 .amtpill:focus-within{box-shadow:0 0 0 2px var(--accent)}
-.ingwas{align-self:flex-end;margin-top:-6px}
 .ingkcal{padding:16px 18px}
 .ingkrow{gap:8px;margin-top:2px}
 .ingkrow .ico{width:26px;height:26px}
