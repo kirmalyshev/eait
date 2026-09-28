@@ -45,23 +45,78 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "Oggi ti restano {left} delle tue {plan}, {protein} dei {proteinTarget} g di proteine."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "Oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "Oggi {over} sopra le tue {plan}, {protein} dei {proteinTarget} g di proteine."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "Oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "Anche grezzo conta: oggi ti restano circa {left} delle tue {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "Anche grezzo conta: oggi restano circa {left} delle tue {plan} da riempire."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}. Domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "Così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "Così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — preso nota, è nei numeri."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.running.left"
-msgstr "Oggi ti restano {left} delle tue {plan}, {protein} dei {proteinTarget} g di proteine."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmetic.gainLeft"
-msgstr "oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -97,21 +152,6 @@ msgstr "{nutrient} è sopra in un pasto: {eaten} dei tuoi {target} {unit}."
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
 msgstr "{nutrient} è molto sopra in un pasto: {eaten} dei tuoi {target} {unit}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.running.over"
-msgstr "Oggi {over} sopra le tue {plan}, {protein} dei {proteinTarget} g di proteine."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmetic.gainOver"
-msgstr "oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "Oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -164,26 +204,6 @@ msgid "thread.scripted.dropped"
 msgstr "Scartato."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Anche grezzo conta: oggi ti restano circa {left} delle tue {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Anche grezzo conta: oggi restano circa {left} delle tue {plan} da riempire."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}. Domani è un numero nuovo."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
 msgstr "Il limite di oggi è esaurito per tutti. Domani è un numero nuovo."
@@ -196,7 +216,7 @@ msgstr "Grassi"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "Il primo è dentro. {kcal} kcal — {arithmetic}"
+msgstr "Il primo è dentro. {kcal} kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -394,16 +414,6 @@ msgid "tg.refusal.unsupported-image"
 msgstr "Quel file non è una foto leggibile qui. JPEG, PNG o WebP."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmetic.otherLeft"
-msgstr "così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Quel link è scaduto. Apri il tuo piano sul web e premi di nuovo Collega Telegram."
@@ -437,16 +447,6 @@ msgstr "Quella foto non è arrivata. Rimandala."
 #: src/backend/telegram/copy.ts
 msgid "tg.tooLarge"
 msgstr "Quella foto è troppo grande da inviare."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmetic.otherOver"
-msgstr "così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
