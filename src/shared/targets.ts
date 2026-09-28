@@ -100,7 +100,8 @@ export function isAcceptableWeightKg(kg: number): boolean {
 }
 
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
-  few: 1.2,
+  none: 1.2,
+  few: 1.375,
   some: 1.55,
   many: 1.725,
 };
@@ -285,7 +286,7 @@ export function explainTargetsAtAge(profile: Profile, age: number | null): Targe
     };
   }
 
-  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "few"]);
+  const tdee = Math.round(bmrValue * ACTIVITY_FACTOR[profile.activity ?? "none"]);
   const goal = profile.goal ?? "maintain";
   const pace = profile.pace ?? "steady";
 
