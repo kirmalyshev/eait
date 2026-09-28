@@ -2035,7 +2035,7 @@ describe("diary", () => {
     expect(view.targets.kcal).toBeGreaterThan(0);
   });
 
-  it("lists a day in the order of the clock times its rows show, not the instants they were logged", async () => {
+  it("lists a day newest first by the clock times its rows show, not the instants they were logged", async () => {
     // A meal logged for yesterday ("I had ramen yesterday", or "move to yesterday") keeps the instant
     // it was logged, so ordering by instant put this morning's 09:00 after last night's dinner.
     const userId = await onboard();
@@ -2053,7 +2053,7 @@ describe("diary", () => {
     await at("2026-07-31T22:15:00.000Z"); // 00:15 — this day in Berlin, still the previous one in UTC
     const view = (await day(deps, userId, on))!;
     expect(view.meals.map((m) => localTime("Europe/Berlin", new Date(m.ts))))
-      .toEqual(["00:15", "08:00", "09:00", "19:00", "22:30"]);
+      .toEqual(["22:30", "19:00", "09:00", "08:00", "00:15"]);
   });
 
   it("never shows one user another's meals", async () => {
@@ -2079,7 +2079,7 @@ describe("diary", () => {
     await put(`${date}T08:00:00.000Z`, { kcal: 312, protein_g: 11, carbs_g: 52, fat_g: 7, satfat_g: 1.8, fiber_g: 7, sugar_g: 18, sodium_mg: 160 });
     await put(`${date}T17:00:00.000Z`, { kcal: 214, protein_g: 9, carbs_g: 34, fat_g: 5, satfat_g: 3, fiber_g: 3, sugar_g: 26, sodium_mg: 120 });
     const view = (await day(deps, userId))!;
-    expect(view.meals.map((m) => m.healthScore?.score)).toEqual([8, 5]);
+    expect(view.meals.map((m) => m.healthScore?.score)).toEqual([5, 8]);
     expect(view.healthScore).toBe(7);
   });
 
