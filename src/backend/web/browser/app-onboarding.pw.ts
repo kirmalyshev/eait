@@ -56,7 +56,12 @@ test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back
   // (identity.test.ts asserts `marketing_consent_at`; here the tick rides the real submit).
   await page.locator('input[name="terms"]').check();
   await page.locator('input[name="marketing"]').check();
+  // The tick is read back on the wire (#162): `form.get("marketing")` on the kickoff POST is what
+  // mints the consent cookie's "m" segment, and the callback turns it into `marketing_consent_at`
+  // — `identity.test.ts` owns the stamp; this proves the tick left the page.
+  const kickoff = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/start/auth/google"));
   await page.getByRole("button", { name: /Continue with Google/i }).click();
+  expect((await kickoff).postData() ?? "").toContain("marketing");
   const subject = `pw-w3-${Date.now()}`;
   await page.getByRole("textbox").fill(subject);
   await page.getByRole("button").click();

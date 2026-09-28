@@ -9,6 +9,7 @@
 import { execSync } from "node:child_process";
 import type { Page } from "@playwright/test";
 import type { DayResponse } from "@eait/shared/contract";
+import type { MealUpdated } from "@eait/shared/results";
 import { expect, logMeal, onboardFast, sessionToken, signIn, test } from "./fixtures.ts";
 
 // The review shots (#93's gate). `test-results/` is gitignored; the names carry the sha instead
@@ -45,8 +46,17 @@ test("the meal opens: photo, kcal, macro tiles, ingredients, verdicts, score", a
   await expect(page.locator(".meal").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Correct this meal" })).toBeVisible();
   // The health score row is drawn from the server's MealRecord.healthScore, never computed here.
-  const score = (await day(page)).meals.find((m) => m.id === id)!.healthScore!;
-  await expect(page.locator(".hsr")).toContainText(`${score.score}/10`);
+  const record = (await day(page)).meals.find((m) => m.id === id)!;
+  await expect(page.locator(".hsr")).toContainText(`${record.healthScore!.score}/10`);
+  // The verdict dots are the server's `verdictLabels`, read back off the API's day — words AND
+  // tone, never recomputed on the page (#152).
+  const labels = record.verdictLabels ?? [];
+  const dots = page.locator(".msheet .vs .v");
+  await expect(dots).toHaveCount(labels.length);
+  for (const [i, v] of labels.entries()) {
+    await expect(dots.nth(i)).toHaveText(v.label);
+    await expect(dots.nth(i)).toHaveClass(new RegExp(`\\bv ${v.tone}\\b`));
+  }
   // The macro tiles name their macros; the ingredient rows carry grams and their own kcal.
   await expect(page.locator(".mcards .mcard")).toHaveCount(3);
   await expect(page.locator(".ing").first()).toBeVisible();
@@ -61,21 +71,38 @@ test("the score row opens the breakdown, and Done closes it", async ({ inWebApp:
   // The overlay names every part: the start, the five nutrients, each with its points.
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Health score", { exact: true })).toBeVisible();
+  // The score's name since #223 — "Day score", not the retired "Health score".
+  await expect(dialog.getByText("Day score", { exact: true })).toBeVisible();
   await expect(dialog.locator(".hsp")).toHaveCount(6);
   await shot(page, "score");
   await dialog.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("Correct opens the conversation on this meal — W7 renders the focus", async ({ inWebApp: page }) => {
+test("Correct opens the meal's fix panel — the Cal-AI sheet, not a chat (#188)", async ({ inWebApp: page }) => {
   const { id } = await openMeal(page);
+  // `?fix` is the deep link the OTHER surfaces take into this panel: going straight to it opens
+  // the same dialog over the detail.
   await page.getByRole("link", { name: "Correct this meal" }).click();
-  // The seam is the navigation: the focused conversation — card, opener, the change line — is
-  // W7's surface (#157), and its spec asserts it.
-  await expect(page).toHaveURL(new RegExp(`#\\/chat\\?focus=${id}`));
-  await expect(page.locator(".thread")).toBeVisible();
-  await shot(page, "chat-focus");
+  const dialog = page.getByRole("dialog", { name: "Correct this meal" });
+  await expect(dialog).toBeVisible();
+  // The param is consumed once and stripped — a redraw must not reopen a panel already closed.
+  await expect(page).toHaveURL(new RegExp(`#\\/meal\\/${id}\\?d=`));
+  await shot(page, "fix");
+
+  // Update sends the sentence as the correction turn — `focusMealId`, the contract unchanged —
+  // and the recomputed answer lands the tinted change line on the detail behind it.
+  const field = dialog.locator(".fixfield");
+  await expect(field).toHaveAttribute("placeholder", "Say what was wrong");
+  const update = dialog.getByRole("button", { name: "Update" });
+  await expect(update).toBeDisabled();
+  await field.fill("half that");
+  await expect(update).toBeEnabled();
+  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/messages"));
+  await update.click();
+  expect((await sent).postDataJSON()).toMatchObject({ focusMealId: id, text: "half that" });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".chgline")).toBeVisible();
 });
 
 test("the menu: re-read recomputes in place, and delete asks first", async ({ inWebApp: page }) => {
@@ -91,8 +118,21 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   // Re-read hits the analyzer again and the meal is redrawn from the answer.
   const reread = page.waitForResponse((r) => r.url().includes(`/v1/meals/${id}/reanalyze`) && r.ok());
   await menu.getByText("Re-read the photo").click();
-  expect(((await (await reread).json()) as { kind: string }).kind).toBe("updated");
+  const updated = (await (await reread).json()) as MealUpdated;
+  expect(updated.kind).toBe("updated");
   await expect(page.locator(".hsr")).toBeVisible();
+  // The redrawn figures ARE the response's — the kcal it re-measured and the verdicts it
+  // recomputed, not the card's old numbers (#152).
+  await expect(page.locator(".msheet .kfig .num")).toHaveText(
+    new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(updated.analysis.kcal),
+  );
+  const relabelled = updated.verdictLabels ?? [];
+  const dots = page.locator(".msheet .vs .v");
+  await expect(dots).toHaveCount(relabelled.length);
+  for (const [i, v] of relabelled.entries()) {
+    await expect(dots.nth(i)).toHaveText(v.label);
+    await expect(dots.nth(i)).toHaveClass(new RegExp(`\\bv ${v.tone}\\b`));
+  }
 
   // Delete asks first; cancelling keeps the meal.
   await page.locator(".mdetail .ib").last().click();
@@ -157,4 +197,10 @@ test("reduced motion: the detail is at its end state with nothing running", asyn
   await openMeal(page);
   await expect(page.locator(".mcards .mcard")).toHaveCount(3);
   expect(await page.evaluate<number>("document.getAnimations().length")).toBe(0);
+  // And the drawn elements sit AT that end state — getAnimations() == 0 alone can't tell an
+  // opacity:0 that never ran from a card that is up (#152).
+  const states = await page.evaluate<string[]>(`[...document.querySelectorAll(".mdetail .card, .mdetail .hero, .mdetail .rise, .mdetail .co")]
+    .map((e) => getComputedStyle(e).opacity + ":" + getComputedStyle(e).transform)`);
+  expect(states.length).toBeGreaterThan(0);
+  for (const s of states) expect(s).toBe("1:none");
 });
