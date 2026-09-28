@@ -15,7 +15,7 @@ import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdict
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
-import { prepareAnalysis } from "./analysis.ts";
+import { emptyEstimate, prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { remember } from "./chat.ts";
@@ -143,7 +143,10 @@ async function textTurn(
   let answeredBy: string | null = null;
   const result = await route();
   // Every branch that fails ends here as `analysis-failed`: charged, and nothing delivered (#44).
-  if (result.kind === "analysis-failed") await releaseSample(deps, userId, analysisId);
+  // `not-food` joins it for the reason `analyzePhotos` releases the same answer: an answer, no meal.
+  if (result.kind === "analysis-failed" || result.kind === "not-food") {
+    await releaseSample(deps, userId, analysisId);
+  }
   // ONE QUESTION, ONE FRAMED TURN. Spent by the turn that was framed as its answer, whatever the
   // router made of it — a correction clears it through `editMeal` anyway, and every other intent
   // would otherwise leave the framing standing over the next message, and the one after that.
@@ -192,6 +195,13 @@ async function textTurn(
         // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        // The router's intent names food, but the analysis behind it may still answer otherwise —
+        // or claim food while naming not one item of it (#248: the analyzer declining a vague
+        // description with `items: []` at `isFood: true`). The first is the photo path's own
+        // refusal; the second is a failed estimate. Refused before the pending is written, or a
+        // confirm logs a 0 kcal "Meal" whose every verdict reads on plan.
+        if (!reconciled.isFood) return { kind: "not-food" };
+        if (emptyEstimate(reconciled)) return { kind: "analysis-failed" };
         const verdicts = await gatedVerdicts(deps, userId, reconciled);
         const analysis: MealAnalysis = {
           ...reconciled,
@@ -229,6 +239,9 @@ async function textTurn(
         // recomputes them from the stored row like every other write. The totals still need
         // reconciling — a correction is an analysis like any other.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        // The same gate a fresh meal takes (#248): a correction that comes back not-food or with no
+        // items is a failed estimate, and writing it would zero the meal it claims to fix.
+        if (!reconciled.isFood || emptyEstimate(reconciled)) return { kind: "analysis-failed" };
         return applyCorrection(deps, userId, focus.id, reconciled);
       }
 
