@@ -143,6 +143,25 @@ describe("the outbox", () => {
     expect(h.sent).toEqual(["a", "b"]);
   });
 
+  it("a drain asked for while one runs is not the one that is running — it gets its own pass", async () => {
+    // The in-flight drain's send is a connection that is still dead; the call made under it is
+    // Send again's `flush`, whose whole point is an attempt the running drain already lost.
+    // Folding it into that run keeps the turn until the next interval (#239).
+    const h = harness([photo("a")]);
+    await h.box.ready;
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    h.answer(async () => { await gate; throw new Failed({ kind: "offline" }); });
+    const one = h.box.drain("u1");
+    while (h.box.sending !== "a") await new Promise((r) => setTimeout(r, 0));
+    const two = h.box.drain("u1");
+    h.answer(async () => ({ kind: "logged" }));
+    release();
+    await Promise.all([one, two]);
+    expect(h.sent).toEqual(["a", "a"]);
+    expect(h.box.entries).toEqual([]);
+  });
+
   it("forgets everything, photos included, on sign-out", async () => {
     const h = harness([photo("a"), text("b", "hi")]);
     await h.box.ready;

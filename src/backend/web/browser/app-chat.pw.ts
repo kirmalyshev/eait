@@ -133,7 +133,11 @@ test("the protein question draws the day's bar from the server, a week question 
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
   });
   const { totals } = await dayRes.json() as DayResponse;
-  // The meal's line is already in the thread, so the box reads `composerThread`, not the ask.
+  // The open screen's own draw may have read `/messages` before the seed landed (#239): re-open
+  // the chat the way a returning account arrives, and the pic line is the thread saying it has
+  // the meal — which is also what makes the box read `composerThread`, not the ask.
+  await page.reload();
+  await expect(page.locator(".thread li.me.pic")).toHaveCount(1);
   await page.getByPlaceholder("Tell Gabie what you ate, or ask").fill("Am I getting enough protein?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const bar = page.locator(".thread .mb");
