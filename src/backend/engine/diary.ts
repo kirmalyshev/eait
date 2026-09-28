@@ -35,11 +35,11 @@ export async function day(
   // NEWEST FIRST BY THE CLOCK TIME EACH ROW SHOWS, not by the instant it was logged. The two agree
   // for a meal logged on its own day, and disagree for one that was not: "I had ramen yesterday"
   // typed at 09:00, or a meal moved to another day, keeps the instant it was logged — so ordering
-  // by instant would interleave those. A tie on the shown minute falls to the logged instant,
-  // newest first as well.
+  // by instant would interleave those. A tie on the shown minute falls to the meal's ts, newest
+  // first as well.
   const meals = (await deps.store.mealsForDate(userId, on))
     .map((m) => ({ m, at: localTime(deps.config.timezone, new Date(m.ts)) }))
-    .sort((a, b) => (a.at > b.at ? -1 : a.at < b.at ? 1 : b.m.ts > a.m.ts ? -1 : b.m.ts < a.m.ts ? 1 : 0))
+    .sort((a, b) => (a.at > b.at ? -1 : a.at < b.at ? 1 : a.m.ts > b.m.ts ? -1 : a.m.ts < b.m.ts ? 1 : 0))
     .map(({ m }) => m)
     // The row's own words, worded HERE — the web bundle carries no i18n catalog, so a meal's
     // verdict reaches the page already composed ("calories high · saturated fat high", "" when

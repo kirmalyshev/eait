@@ -76,7 +76,7 @@ test("a second photo draws the logged card, and Agree goes Home", async ({ inWeb
   await expect(page.getByText(/of [\d.,]+ kcal/)).toBeVisible();
   await expect(page.getByText(/left$/)).toBeVisible();
   // Edit is the meal's fix panel — `#/meal/<id>?fix`, this meal's own id (#148).
-  const second = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
+  const second = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;
   await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", `#/meal/${second}?fix`);
   await shot(page, "log-logged");
 
@@ -115,7 +115,7 @@ test("the rough-guess card asks the server's question and chips correct the meal
   await expect(page.getByRole("button", { name: "In oil" })).toBeVisible();
   await shot(page, "log-rough");
 
-  const mealId = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
+  const mealId = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;
   const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/api/v1/messages"));
   await page.getByRole("button", { name: "In oil" }).click();
   const req = await sent;
@@ -197,7 +197,7 @@ test("the grams question's chips send its text with the meal in focus", async ({
   await expect(page.getByText("Was the rice about 250 g?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Half that" })).toBeVisible();
 
-  const mealId = (await server<DayResponse>(page, "/diary/day")).meals.at(-1)!.id;
+  const mealId = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;
   const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().includes("/api/v1/messages"));
   await page.getByRole("button", { name: "Half that" }).click();
   expect((await sent).postDataJSON()).toMatchObject({ text: "Half that", focusMealId: mealId });
