@@ -2134,16 +2134,16 @@ describe("chat on the web: a turn that needs a meal in focus", () => {
 });
 
 describe("chat on the web: who said it", () => {
-  it("names Gabie on her answers and nobody else — Spud's lines carry no name", async () => {
+  it("names Spud on his answers and nobody else — the app's own lines carry no name", async () => {
     const { session, userId } = await onboarded();
     await store.appendChat(userId, [
       { role: "assistant", kind: "text", text: "First one in. 612 kcal." },
       { role: "user", kind: "text", text: "how much protein have I had?" },
-      // S9: a coach answer is Gabie's, and the page says so — his lines stay unlabelled.
+      // S9: a coach answer is the coach's, and the page says so — the app's lines stay unlabelled.
       { role: "assistant", kind: "text", text: "About 40 g so far.", speaker: "gabie" },
     ]);
     const page = await (await get("/start/chat", session)).text();
-    expect(page).toContain('<p class="who">Gabie</p><p class="bubble">About 40 g so far.</p>');
+    expect(page).toContain('<p class="who">Spud</p><p class="bubble">About 40 g so far.</p>');
     expect(page).toContain('<p class="bubble">First one in. 612 kcal.</p>');
     expect(page.match(/class="who"/g)).toHaveLength(1);
   });

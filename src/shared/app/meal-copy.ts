@@ -43,9 +43,9 @@ export interface MealCopy {
   macroFat: string;
 
   /**
-   * The coach's signature above her line on the correct sheet (web + phone
-   * `meal-{edit,edited}.html`): "{coach} · nutritionist". `{coach}` is `THREAD_COPY`'s
-   * `coach.name`, never a literal.
+   * The coach's name line above his line on the correct sheet (web + phone
+   * `meal-{edit,edited}.html`): just the name, no role — "Spud", not a credential (#1041).
+   * `{coach}` is `THREAD_COPY`'s `coach.name`, never a literal.
    */
   coachLine: string;
   /**
@@ -173,7 +173,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "protein",
     macroCarbs: "carbs",
     macroFat: "fat",
-    coachLine: "{coach} · nutritionist",
+    coachLine: "{coach}",
     correctOpener: "I read {items}. Tell me what I got wrong.",
     itemAmount: "{amount} of {item}",
     composeHint: "Say what was wrong",
@@ -227,7 +227,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "protéines",
     macroCarbs: "glucides",
     macroFat: "lipides",
-    coachLine: "{coach} · nutritionniste",
+    coachLine: "{coach}",
     correctOpener: "J’ai lu {items}. Dis-moi ce que j’ai raté.",
     itemAmount: "{amount} de {item}",
     composeHint: "Dis ce qui n’allait pas",
@@ -281,7 +281,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "Protein",
     macroCarbs: "Kohlenhydrate",
     macroFat: "Fett",
-    coachLine: "{coach} · Ernährungsberaterin",
+    coachLine: "{coach}",
     correctOpener: "Ich habe {items} gelesen. Sag mir, was ich falsch erkannt habe.",
     itemAmount: "{amount} {item}",
     composeHint: "Sag, was nicht stimmte",
@@ -335,7 +335,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "proteine",
     macroCarbs: "carboidrati",
     macroFat: "grassi",
-    coachLine: "{coach} · nutrizionista",
+    coachLine: "{coach}",
     correctOpener: "Ho letto {items}. Dimmi cosa ho sbagliato.",
     itemAmount: "{amount} di {item}",
     composeHint: "Dimmi cosa non andava",
@@ -389,7 +389,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "proteína",
     macroCarbs: "carbohidratos",
     macroFat: "grasa",
-    coachLine: "{coach} · nutricionista",
+    coachLine: "{coach}",
     correctOpener: "Leí {items}. Dime en qué me equivoqué.",
     itemAmount: "{amount} de {item}",
     composeHint: "Di qué estaba mal",
@@ -443,7 +443,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "đạm",
     macroCarbs: "tinh bột",
     macroFat: "chất béo",
-    coachLine: "{coach} · chuyên gia dinh dưỡng",
+    coachLine: "{coach}",
     correctOpener: "Tôi đọc được {items}. Hãy nói tôi sai chỗ nào.",
     itemAmount: "{amount} {item}",
     composeHint: "Nói xem chỗ nào chưa đúng",
@@ -497,7 +497,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "protein",
     macroCarbs: "karbohidrat",
     macroFat: "lemak",
-    coachLine: "{coach} · ahli gizi",
+    coachLine: "{coach}",
     correctOpener: "Saya membaca {items}. Beri tahu apa yang saya lewatkan.",
     itemAmount: "{amount} {item}",
     composeHint: "Bilang apa yang keliru",
@@ -551,7 +551,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     macroProtein: "белок",
     macroCarbs: "углеводы",
     macroFat: "жиры",
-    coachLine: "{coach} · нутрициолог",
+    coachLine: "{coach}",
     correctOpener: "Я прочитала {items}. Скажи, где я ошиблась.",
     itemAmount: "{amount} {item}",
     composeHint: "Напиши, что не так",
