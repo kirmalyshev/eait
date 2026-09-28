@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -454,16 +454,12 @@ describe("the question after the card", () => {
     expect(res.question).toEqual(QUESTION);
     // On the ROW, because the answer arrives as a separate turn and has to find the question again.
     expect((await store.getMeal(userId, res.mealId))!.question).toEqual(QUESTION);
-    // Last in the thread, after this meal's card: the estimate is delivered before it is queried.
-    // The day's standing sits between them (#306) — this is a second meal, so it earns that line,
-    // and it is part of delivering the estimate rather than part of querying it.
+    // Last in the thread, right after this meal's card — nothing sits between them, because
+    // #1066 retired the day's-standing line. The estimate is delivered before it is queried.
     const { entries } = await chatHistory(d, userId, { limit: 10 });
     const last = entries[entries.length - 1]!;
-    const standing = entries[entries.length - 2]!;
-    const beforeIt = entries[entries.length - 3]!;
+    const beforeIt = entries[entries.length - 2]!;
     expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text, speaker: "gabie" });
-    expect(standing).toMatchObject({ role: "assistant", kind: "text" });
-    expect(standing.kind === "text" ? standing.text : "").toMatch(/ left today, /);
     expect(beforeIt).toMatchObject({ role: "assistant", kind: "meal", mealId: res.mealId });
   });
 
@@ -1521,7 +1517,7 @@ describe("the thread", () => {
     await confirmPendingMeal(deps, userId, res.pendingId);
     const t = await thread(userId);
     expect(t.map((e) => [e.role, e.kind])).toEqual([
-      ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"],
+      ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"],
     ]);
     expect(text(t[0]!)).toBe("two eggs and toast");
     // Every assistant line the engine wrote is Gabie's (S9, overseer): the answer, the card, the
@@ -1682,18 +1678,16 @@ describe("the thread", () => {
     if (first.kind !== "logged") throw new Error("expected logged");
     const t = await thread(userId);
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
-    // #49: the pills' headline first; the arithmetic after it passes no judgement of its own.
+    // #49: the pills' headline first; the meal's own number once, and no day's arithmetic (#1066).
     expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(t[2]!)!)).toBe(true);
-    expect(text(t[3]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
+    expect(text(t[3]!)).toMatch(/^First one in\. [\d,]+ kcal\.$/);
     expect(text(t[4]!)).toContain("If anything's off");
-    // The VERDICT is never said again — but the day's standing is, on every meal past the first
-    // (#306), which is the one line the greeting's own arithmetic stands in for.
+    // The VERDICT is never said again — and nothing else is said under the second card either:
+    // the card already carries the numbers, so the thread adds no line at all (#1066).
     const second = await logPhotoMeal(d, userId, photo());
     if (second.kind !== "logged") throw new Error("expected logged");
     const after = await thread(userId);
-    expect(after.slice(5).map((e) => e.kind)).toEqual(["photo", "meal", "text"]);
-    expect(text(after.at(-1)!)).not.toMatch(/^First one in\./);
-    expect(text(after.at(-1)!)).toMatch(/ left today, [\d,]+ of the [\d,]+ g protein\.$/);
+    expect(after.slice(5).map((e) => e.kind)).toEqual(["photo", "meal"]);
   });
 
   it("does not fail a turn because the thread could not be written — nor because its lines could not be built", async () => {
@@ -1727,25 +1721,15 @@ describe("the thread", () => {
     expect(text(t.at(-1)!)).toContain("→ 100 kcal");
   });
 
-  it("says where the day stands after EVERY landed meal, not only after a correction (#306)", async () => {
-    // The account's first meal spends the greeting, which already carries the arithmetic; the
-    // second had a card and then silence, so two consecutive meals read as two different features.
+  it("says nothing about the day after a landed meal — the card carries the numbers (#1066)", async () => {
     const userId = await onboard();
     const first = await logPhotoMeal(deps, userId, photo());
     if (first.kind !== "logged") throw new Error("expected logged");
-    const greeted = await thread(userId);
-    // Not said twice on the first meal: the verdict's own clause is the day's arithmetic.
-    expect(greeted.filter((e) => (text(e) ?? "").startsWith(String(first.totals.kcal)))).toHaveLength(0);
 
     const second = await logPhotoMeal(deps, userId, photo());
     if (second.kind !== "logged") throw new Error("expected logged");
     const t = await thread(userId);
-    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
-    const profile = (await deps.store.getProfile(userId))!;
-    expect(text(t.at(-1)!)).toBe(runningLine({
-      targets: explainTargets(profile).targets,
-      eatenToday: { kcal: second.totals.kcal, protein_g: second.totals.protein_g },
-    }, "en"));
+    expect(t.at(-1)!.kind).toBe("meal");
 
     // A confirmed text meal is a landed meal too, and reads the same.
     const typed = await handleText(deps, userId, { text: "an apple" });
@@ -1753,16 +1737,12 @@ describe("the thread", () => {
     const third = await confirmPendingMeal(deps, userId, typed.pendingId);
     if (third.kind !== "logged") throw new Error("expected logged");
     const after = await thread(userId);
-    expect(after.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
-    expect(text(after.at(-1)!)).toBe(runningLine({
-      targets: explainTargets(profile).targets,
-      eatenToday: { kcal: third.totals.kcal, protein_g: third.totals.protein_g },
-    }, "en"));
+    expect(after.at(-1)!.kind).toBe("meal");
   });
 
   it("says nothing about today for a meal logged to another day", async () => {
-    // The sentence is "left TODAY". A back-dated meal has nothing to say about it — `dayStanding`
-    // still gates `runningLine`; #119's change line speaks of the edit instead, not the day.
+    // A back-dated meal gets no cap lines either — `dayStanding` still gates on today; #119's
+    // change line speaks of the edit instead, not the day.
     const userId = await onboard();
     await logPhotoMeal(deps, userId, photo()); // spends the greeting
     const back = await handleText(deps, userId, { text: "a banana yesterday" });
@@ -1798,14 +1778,13 @@ describe("the thread", () => {
     const sure: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => ({ ...(await demoPorts().analyzePhoto(i)), confidence: "high" }) };
     await logPhotoMeal(makeDeps({}, sure), userId, photo());
     const spoken = (await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant");
-    // #49: the pills' headline leads the verdict; the arithmetic follows it.
+    // #49: the pills' headline leads the verdict; the meal's number once.
     expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(spoken[0]!)!)).toBe(true);
     expect(text(spoken[1]!)).toMatch(/^First one in\./);
     await logPhotoMeal(makeDeps({}, sure), userId, photo());
-    // One more line, and it is the day's standing rather than the verdict again (#306).
+    // No new line: the card carries the numbers, and the verdict is not said twice (#1066).
     const now = (await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant");
-    expect(now).toHaveLength(spoken.length + 1);
-    expect(text(now.at(-1)!)).toMatch(/ left today, [\d,]+ of the [\d,]+ g protein\.$/);
+    expect(now).toHaveLength(spoken.length);
     expect(now.filter((e) => (text(e) ?? "").startsWith("First one in."))).toHaveLength(1);
   });
 
@@ -1942,7 +1921,7 @@ describe("the thread", () => {
     const askedInGerman = onboardingContentFor("de").screens.find((x) => x.id === "goal")!.asks.goal!.lines[0]!;
     expect((await thread(userId)).map(text)).toContain(askedInGerman);
 
-    // The first verdict, and then the running line every later meal gets.
+    // The first verdict; a later meal adds no line at all (#1066 — the card carries the numbers).
     const first = await logPhotoMeal(deps, userId, photo());
     if (first.kind !== "logged") throw new Error("expected logged");
     const spoken = (await thread(userId)).map(text).join("\n");
@@ -1951,18 +1930,8 @@ describe("the thread", () => {
 
     const second = await logPhotoMeal(deps, userId, photo(9));
     if (second.kind !== "logged") throw new Error("expected logged");
-    const after = (await thread(userId)).map(text).join("\n");
-    // The German template with its figures in, and not a word of the English one. Rendered with
-    // empty figures and matched on its longest literal run: the words are ICU templates now, so
-    // there is no raw `{` in the string to split on — and a run of prose between two arguments is
-    // a stronger match than the prefix before the first one, which some languages do not have.
-    const german = de.running.left({ left: "", over: "", plan: "", protein: "", proteinTarget: "" })
-      .split(/\s{2,}|[,.]/).map((part) => part.trim())
-      .reduce((longest, part) => (part.length > longest.length ? part : longest), "");
-    expect(german.length, "no literal run to match on").toBeGreaterThan(8);
-    expect(after).toContain(german);
-    expect(after).not.toContain("of your");
-    expect(after).not.toContain("left today");
+    const after = await thread(userId);
+    expect(after.at(-1)!.kind).toBe("meal");
   });
 
   it("words the goal-weight question for the goal that was chosen", async () => {
