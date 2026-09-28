@@ -196,15 +196,13 @@ export async function chatScreen(): Promise<HTMLElement> {
         li.append(e.text ?? "", el("div", "ts", timeFmt(new Date(e.capturedAt))));
       }
       list.append(li);
-      // states-unknown's mark under the kept bubble — the board draws the "Waiting to send" badge
-      // on that state alone.
+      // Every kept turn wears the board's "Waiting to send" mark under its bubble (states-unknown),
+      // held or still out — the same line the phone draws under each queued bubble.
       const unknown = e.held !== undefined && outcomeUnknown(e.held.kind);
       const failed = e.held?.kind === "analysis-failed";
-      if (unknown) {
-        const wts = el("li", "wts");
-        wts.append(el("i", "ico i-clock"), copy().waitingToSend);
-        list.append(wts);
-      }
+      const wts = el("li", "wts");
+      wts.append(el("i", "ico i-clock"), copy().waitingToSend);
+      list.append(wts);
       // A kept turn's error is the coach's line: his name when no line of his is above, his disc on
       // the last one, per the same first/newest rule the stored lines follow.
       const isLastKept = e === keptLines[keptLines.length - 1];
@@ -221,21 +219,20 @@ export async function chatScreen(): Promise<HTMLElement> {
         if (e.held === undefined) col.append(el("p", "t13 m", copy().offlineBody));
         else if (unknown) col.append(el("p", "t13 m", copy().unknownBody));
         else if (failed) col.append(el("p", "t13 m", copy().analysisKept));
-        // states-unknown draws no way out — it re-sends on its own — and states-failed offers the
-        // resend alone; the other holds keep Send again beside Discard.
-        if (!unknown) {
-          const actsRow = el("div", "row");
-          actsRow.append(smallCta(failed ? copy().web.sendItAgain : copy().sendAgain, () =>
-            turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
-          if (e.held !== undefined && !failed) {
-            const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
-            drop.type = "button";
-            // Discarding a held head lets whatever waited behind it go.
-            drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-            actsRow.append(drop);
-          }
-          col.append(actsRow);
+        // A HELD turn keeps both ways out — it never re-sends on its own and it stops the queue
+        // behind it (heldAhead), so without Discard it would sit forever. states-failed's resend
+        // reads "Send it again" on web.
+        const actsRow = el("div", "row");
+        actsRow.append(smallCta(failed ? copy().web.sendItAgain : copy().sendAgain, () =>
+          turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
+        if (e.held !== undefined) {
+          const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
+          drop.type = "button";
+          // Discarding a held head lets whatever waited behind it go.
+          drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
+          actsRow.append(drop);
         }
+        col.append(actsRow);
       }, "care"));
       list.append(say);
     }
