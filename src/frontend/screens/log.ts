@@ -252,14 +252,22 @@ export function logScreen(frame: Frame): HTMLElement {
     return card;
   };
 
-  /** The say line under the card — the detail a declared cap that ran high gets (`ldl`). */
+  /** The say line under the card — the detail a declared cap that ran high gets (ldl, kidneys). */
   const detailLine = (r: LoggedMeal): HTMLElement | null => {
-    const ldl = r.verdictLabels.find((v) => v.dimension === "ldl");
-    if (ldl === undefined || ldl.tone === "good") return null;
-    if (me.targets.satfat_g === undefined) return null;
-    return say("care", fill(L.verdictDetail, {
-      noun: L.satfatNoun, amount: n(r.analysis.satfat_g), target: n(me.targets.satfat_g),
-    }));
+    // Every dimension a declaration puts a cap on (#147): the noun is the table's, the figure the
+    // meal's own field, and the unit is spelled — "g" for saturated fat, "mg" for sodium.
+    for (const cap of [
+      { dimension: "ldl", field: "satfat_g", noun: L.satfatNoun, target: me.targets.satfat_g, unit: "g" },
+      { dimension: "kidneys", field: "sodium_mg", noun: L.sodiumNoun, target: me.targets.sodium_mg, unit: "mg" },
+    ] as const) {
+      const v = r.verdictLabels.find((x) => x.dimension === cap.dimension);
+      if (v === undefined || v.tone === "good" || cap.target === undefined) continue;
+      return say("care", fill(L.verdictDetail, {
+        noun: cap.noun, amount: n(r.analysis[cap.field]), target: n(cap.target),
+        unit: spellUnit(lang, cap.unit),
+      }));
+    }
+    return null;
   };
 
   /** The day counter — the server's day totals read through the shared day budget. */

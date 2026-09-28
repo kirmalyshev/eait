@@ -50,7 +50,7 @@ describe("LOG_COPY", () => {
       ["roughAsk", ["{item}", "{grams}"]],
       ["roughMore", ["{grams}"]],
       ["roughSent", ["{item}", "{grams}"]],
-      ["verdictDetail", ["{noun}", "{amount}", "{target}"]],
+      ["verdictDetail", ["{noun}", "{amount}", "{target}", "{unit}"]],
       ["dayEaten", ["{eaten}", "{plan}"]],
       ["dayOfPlan", ["{plan}"]],
       ["dayOver", ["{over}"]],
