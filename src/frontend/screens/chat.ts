@@ -219,7 +219,7 @@ export async function chatScreen(): Promise<HTMLElement> {
           actsRow.append(drop);
         }
         col.append(actsRow);
-      }));
+      }, "care"));
       list.append(say);
     }
 
@@ -267,7 +267,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       col.append(el("p", "saytitle", copy().loadFailed));
       const again = smallCta(copy().tryAgain, () => turn(async () => {}));
       col.append(again);
-      say.append(spudAvatarEl("happy"), col);
+      say.append(spudAvatarEl("care"), col);
       fail.append(say);
       clear(thread).append(fail);
       throw unread;
@@ -296,11 +296,13 @@ export async function chatScreen(): Promise<HTMLElement> {
   // ── The pieces ────────────────────────────────────────────────────────────────────────────
 
   /** The coach's say block: his name on the first of his lines, his disc beside the newest, a spacer
-      where neither is asked for so the words keep one column. `fill` appends the line's content. */
-  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void): HTMLElement => {
+      where neither is asked for so the words keep one column. `fill` appends the line's content.
+      The disc follows the answer (DIRECTION §6): a failure face is `care`, everything else `happy`. */
+  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void,
+    mood: Parameters<typeof spudAvatarEl>[0] = "happy"): HTMLElement => {
     const say = el("div", "say");
     const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
-    say.append(faced ? spudAvatarEl("happy") : gap);
+    say.append(faced ? spudAvatarEl(mood) : gap);
     const col = el("div", "");
     const n = coachName();
     if (named && n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));

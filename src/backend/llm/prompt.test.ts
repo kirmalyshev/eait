@@ -179,8 +179,8 @@ test("the coach prompt states Spud's rules, as the thread's one voice", () => {
     "tomorrow is a fresh number",
     // A character, not an adjective (#362). One clause of persona — "warm and direct" — is a
     // persona the model rounds to the neutral register the user called "very formal, lots of
-    // numbers"; the backstory is what she answers FROM and never something she answers ABOUT.
-    "twenty years of other people's kitchens",
+    // numbers"; the backstory is what he answers FROM and never something he answers ABOUT.
+    "pans and portions",
     "a bad day is a Tuesday, not a confession",
     "you never talk about yourself",
     // #362: asked what to do, the answer is the smallest change to the food already on the table.
