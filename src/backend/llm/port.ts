@@ -43,6 +43,17 @@ export type AnalyzedMeal = Omit<MealAnalysis, "verdicts" | "healthScore"> & {
 // field with nothing to say.
 
 /**
+ * The analyzer's degenerate answer: `isFood` true and not one item named. The schema admits it —
+ * `items` may be empty and every total is honestly nonnegative — so nothing downstream refused it
+ * either, and a vague description reached the diary as a 0 kcal "Meal" whose every verdict read on
+ * plan (#248, the qwen analyzer on a text it would not itemise). It is a failed estimate, not an
+ * empty plate: the port retried once (#248), and every path that would still record it refuses it.
+ */
+export function emptyEstimate(analysis: AnalyzedMeal): boolean {
+  return analysis.isFood && analysis.items.length === 0;
+}
+
+/**
  * The gateway refused before any tokens were generated, so the call was billed NOTHING.
  *
  * The engine charges an analysis BEFORE the model is asked, because a call that ran costs money
