@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
 import { LANGS, STRUGGLES, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
+import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, capVerdictLines, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -262,5 +262,35 @@ describe("verdictHeadline", () => {
       }
     }
     expect(verdictHeadline({}, "en")).toBeNull();
+  });
+});
+
+describe("capVerdictLines", () => {
+  // The chat twin of the logged card's detail line — the sentence that printed "13 {unit}." on a
+  // phone when its filler forgot `unit` (kirmalyshev-org/ieat-app#1010). `unit` is a required key
+  // here; the check is that nothing rendered carries a raw placeholder, in any language.
+  it("renders a fully filled line for every cap verdict, in every language", () => {
+    for (const lang of LANGS) {
+      const lines = capVerdictLines({
+        meal: { satfat_g: 14, sodium_mg: 900 },
+        targets: { kcal: 2000, protein_g: 100, fat_g: 70, carbs_g: 250, satfat_g: 13, sodium_mg: 500 },
+        verdicts: { ldl: "bad", kidneys: "warn" },
+        eatenToday: { satfat_g: 14, sodium_mg: 900 },
+      }, lang);
+      expect(lines, lang).toHaveLength(2);
+      for (const line of lines) {
+        expect(line, `${lang}: ${line}`).not.toContain("{");
+        expect(line, `${lang}: ${line}`).not.toContain("}");
+      }
+    }
+    expect(capVerdictLines({
+      meal: { satfat_g: 14, sodium_mg: 900 },
+      targets: { kcal: 2000, protein_g: 100, fat_g: 70, carbs_g: 250, satfat_g: 13, sodium_mg: 500 },
+      verdicts: { ldl: "bad", kidneys: "warn" },
+      eatenToday: { satfat_g: 14, sodium_mg: 900 },
+    }, "en")).toEqual([
+      "Sodium is high for one meal: 900 of your 500 mg. Go easy on it for the rest of today.",
+      "Saturated fat is very high for one meal: 14 of your 13 g. Go easy on it for the rest of today.",
+    ]);
   });
 });

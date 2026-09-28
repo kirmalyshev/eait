@@ -15,7 +15,7 @@
 // Edit and Correct open the meal's fix panel — `#/meal/<id>?fix` (#188): the edit is Cal AI's
 // one-field sheet over the meal detail, never the chat.
 
-import { logCopyFor } from "../../shared/app/log-copy.ts";
+import { logCopyFor, verdictDetailLine } from "../../shared/app/log-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
 import { dayBudget, type DayBudget } from "../../shared/budget.ts";
 import { localDate } from "../../shared/dates.ts";
@@ -254,20 +254,12 @@ export function logScreen(frame: Frame): HTMLElement {
 
   /** The say line under the card — the detail a declared cap that ran high gets (ldl, kidneys). */
   const detailLine = (r: LoggedMeal): HTMLElement | null => {
-    // Every dimension a declaration puts a cap on (#147): the noun is the table's, the figure the
-    // meal's own field, and the unit is spelled — "g" for saturated fat, "mg" for sodium.
-    for (const cap of [
-      { dimension: "ldl", field: "satfat_g", noun: L.satfatNoun, target: me.targets.satfat_g, unit: "g" },
-      { dimension: "kidneys", field: "sodium_mg", noun: L.sodiumNoun, target: me.targets.sodium_mg, unit: "mg" },
-    ] as const) {
-      const v = r.verdictLabels.find((x) => x.dimension === cap.dimension);
-      if (v === undefined || v.tone === "good" || cap.target === undefined) continue;
-      return say("care", fill(L.verdictDetail, {
-        noun: cap.noun, amount: n(r.analysis[cap.field]), target: n(cap.target),
-        unit: spellUnit(lang, cap.unit),
-      }));
-    }
-    return null;
+    // The composition is shared (`verdictDetailLine`): the noun, the figure and the spelled unit
+    // are filled in one place, so no renderer can leave a placeholder raw (#1010's root fix).
+    const line = verdictDetailLine(lang, {
+      verdictLabels: r.verdictLabels, meal: r.analysis, targets: me.targets,
+    });
+    return line === null ? null : say("care", line);
   };
 
   /** The day counter — the server's day totals read through the shared day budget. */

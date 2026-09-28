@@ -8,13 +8,14 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "../types.ts";
 import { lintCopy } from "../claims.ts";
-import { LOG_COPY, logCopyFor } from "./log-copy.ts";
+import { fill } from "../lang.ts";
+import { LOG_COPY, logCopyFor, verdictDetailLine } from "./log-copy.ts";
 
 const SHARED = [
   "notePlaceholder", "reading", "checking", "close", "logged", "today", "waitingToSend",
   "noFood", "tryAnotherPhoto", "roughGuess", "roughAsk", "roughAbout", "roughHalf", "roughMore",
   "roughSent", "edit", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
-  "unknownTitle", "unknownNote", "satfatNoun", "verdictDetail", "dayEaten", "dayOfPlan", "dayLeft", "dayOver",
+  "unknownTitle", "unknownNote", "satfatNoun", "verdictDetailTemplate", "dayEaten", "dayOfPlan", "dayLeft", "dayOver",
 ] as const;
 const WEB = [
   "title", "dropHint", "chooseFile", "analyzeCta", "chatInstead", "fromPhoto",
@@ -50,7 +51,7 @@ describe("LOG_COPY", () => {
       ["roughAsk", ["{item}", "{grams}"]],
       ["roughMore", ["{grams}"]],
       ["roughSent", ["{item}", "{grams}"]],
-      ["verdictDetail", ["{noun}", "{amount}", "{target}", "{unit}"]],
+      ["verdictDetailTemplate", ["{noun}", "{amount}", "{target}", "{unit}"]],
       ["dayEaten", ["{eaten}", "{plan}"]],
       ["dayOfPlan", ["{plan}"]],
       ["dayOver", ["{over}"]],
@@ -128,6 +129,58 @@ describe("LOG_COPY", () => {
       }
       const violations = lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`);
       expect(violations, lang).toEqual([]);
+    }
+  });
+});
+
+describe("verdictDetailLine", () => {
+  // The bug this exists for (kirmalyshev-org/ieat-app#1010): a client filled the template by
+  // hand, forgot `unit`, and a phone shipped "14 of your 13 {unit}." — so the composition lives
+  // here now, and a renderer can no longer reach the template without going through it.
+  const satfat = {
+    verdictLabels: [{ dimension: "ldl", tone: "bad", label: "Saturated fat very high" }],
+    meal: { satfat_g: 14, sodium_mg: 0 },
+    targets: { satfat_g: 13 },
+  } as const;
+  const sodium = {
+    verdictLabels: [{ dimension: "kidneys", tone: "warn", label: "Sodium high" }],
+    meal: { satfat_g: 0, sodium_mg: 900 },
+    targets: { sodium_mg: 500 },
+  } as const;
+
+  it("renders every placeholder in every language — a raw '{' can never reach the screen", () => {
+    for (const lang of LANGS) {
+      for (const line of [verdictDetailLine(lang, satfat), verdictDetailLine(lang, sodium)]) {
+        expect(line, lang).not.toBeNull();
+        expect(line!, lang).not.toContain("{");
+        expect(line!, lang).not.toContain("}");
+      }
+    }
+    expect(verdictDetailLine("en", satfat)).toBe(
+      "Saturated fat is high for one meal: 14 of your 13 g. Go easy on it for the rest of today.");
+    expect(verdictDetailLine("en", sodium)).toBe(
+      "Sodium is high for one meal: 900 of your 500 mg. Go easy on it for the rest of today.");
+    // The spelled unit is the language's own — Russian reads г and мг, never the SI letters.
+    expect(verdictDetailLine("ru", satfat)).toContain("г.");
+    expect(verdictDetailLine("ru", sodium)).toContain("мг");
+  });
+
+  it("is the reason the raw template is not the API — filling it without `unit` leaves the brace", () => {
+    // `fill` is honest about an unfilled key on purpose ("a brace on screen is a bug somebody
+    // reports"), which is exactly the failure the phone shipped. `verdictDetailLine` is the only
+    // caller that may fill this template.
+    expect(fill(LOG_COPY.en.verdictDetailTemplate,
+      { noun: "Saturated fat", amount: "14", target: "13" })).toContain("{unit}");
+  });
+
+  it("stays quiet where no capped dimension ran hot", () => {
+    const good = { verdictLabels: [{ dimension: "ldl", tone: "good", label: "Saturated fat on plan" }], meal: satfat.meal, targets: satfat.targets } as const;
+    const noCap = { verdictLabels: satfat.verdictLabels, meal: satfat.meal, targets: {} } as const;
+    const none = { verdictLabels: [], meal: satfat.meal, targets: satfat.targets } as const;
+    for (const lang of LANGS) {
+      expect(verdictDetailLine(lang, good), lang).toBeNull();
+      expect(verdictDetailLine(lang, noCap), lang).toBeNull();
+      expect(verdictDetailLine(lang, none), lang).toBeNull();
     }
   });
 });

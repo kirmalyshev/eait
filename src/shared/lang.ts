@@ -215,6 +215,21 @@ const UNIT_SPELLING: Partial<Record<Lang, Record<string, string>>> = {
 export const spellUnit = (lang: Lang, unit: string): string => UNIT_SPELLING[lang]?.[unit] ?? unit;
 
 /**
+ * One `{placeholder}` per declared key, and a key with nothing to fill it left alone.
+ *
+ * Left alone rather than blanked, because a brace on screen is a bug somebody reports and a silent
+ * gap in a sentence is one nobody does. The copy tables' own tests assert every table fills.
+ *
+ * It was born in `onboarding-chat.ts` and copied privately into three more modules; it lives here
+ * now so a copy table can fill a template without importing that file's whole graph — a phone
+ * shipped "13 {unit}" because the only formatter cheap enough to reach took a `Record` that let
+ * the caller forget a key (kirmalyshev-org/ieat-app#1010). A template that must not ship raw is
+ * filled by ONE function beside its table, not by callers holding this.
+ */
+export const fill = (template: string, params: Record<string, string>): string =>
+  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+/**
  * A month and a year, as the plan's projection names one: "November 2026", "novembre 2026".
  *
  * `Intl.DateTimeFormat` rather than a table of month names. `projection.ts` used to carry twelve
