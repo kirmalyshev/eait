@@ -41,11 +41,10 @@ export const youCss = `
 .you .card button.plink:hover, .you .card button.elink:hover { text-decoration: underline; }
 
 /* The weight chart's own tempo (the board's, not the Progress card's): the line draws, then the
-   points pop on WEIGHT_CHART_DOTS' stagger — pd-N is the kit's delay class, re-timed here for
-   this board, the timings read off the shared constant rather than retyped. */
+   lone weigh-in's dot pops on WEIGHT_CHART_DOTS' delay — pd-0 is the kit's delay class, re-timed
+   here for this board, the timing read off the shared constant rather than retyped (#1068). */
 .you .wchart { margin-top: 8px; }
-${Array.from({ length: WEIGHT_CHART_DOTS.lastIndex + 1 }, (_, i) => `.you .pgraph.wl circle.pd-${i} { animation-delay: ${(WEIGHT_CHART_DOTS.delayMs + i * WEIGHT_CHART_DOTS.stepMs) / 1000}s; }`).join("\n")}
-.you .pgraph.wl circle { animation-delay: ${(WEIGHT_CHART_DOTS.delayMs + WEIGHT_CHART_DOTS.lastIndex * WEIGHT_CHART_DOTS.stepMs) / 1000}s; }
+.you .pgraph.wl circle.pd-0 { animation-delay: ${WEIGHT_CHART_DOTS.delayMs / 1000}s; }
 
 /* The inline editors — the weigh-in and the plan edit sit inside their card, rows of
    label + control like the flat card's rows. */

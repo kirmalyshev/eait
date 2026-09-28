@@ -343,11 +343,12 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
 export const TARGET_LANE_DASH = "4 4";
 
 /**
- * The weigh-in dots' entrance on the You board: dot `i` pops at `delayMs + min(i, lastIndex) *
- * stepMs` — `.9/.10/.11/.12` on the board, so the fourth and every dot after share `lastIndex`'s
- * delay. `pd-0..pd-3` on the web (`you.css.ts`) and the same arithmetic in the phone's kit.
+ * The lone weigh-in's entrance on the You board: one point is the whole chart — no line can be
+ * drawn through it, so its dot stays (#95) and pops at `delayMs`, 0.9 s in on the board. Every
+ * other chart draws the line alone (#1068). `you.css.ts` re-times the kit's `pd-0` to this; the
+ * phone reads `delayMs` directly.
  */
-export const WEIGHT_CHART_DOTS = { delayMs: 900, stepMs: 100, lastIndex: 3 } as const;
+export const WEIGHT_CHART_DOTS = { delayMs: 900 } as const;
 
 /**
  * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller

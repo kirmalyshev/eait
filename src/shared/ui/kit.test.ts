@@ -278,7 +278,7 @@ describe("the charts", () => {
     expect(m).toContain(">74.6</text>");
     expect(m).toContain(">73.4</text>");
     expect(m).toContain(">24 Aug</text>");
-    expect(m.match(/<circle/g)!.length).toBe(3);
+    expect(m.match(/<circle/g)).toBeNull();
   });
 
   test("weightChartSvg draws the target lane you.html marks under the points", () => {
