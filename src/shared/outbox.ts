@@ -151,7 +151,14 @@ export function createOutbox<Photo>(ports: OutboxPorts<Photo>): Outbox<Photo> {
     return run;
   };
   let draining: Promise<void> | null = null;
-  const drain = (userId: string): Promise<void> => (draining ??= (async () => {
+  const drain = (userId: string): Promise<void> => {
+    // Asked for while one runs is NOT the one that is running: this call may be provoked by what
+    // the running pass already decided without seeing (a Send again under an attempt that cannot
+    // get through, a resend that unheld the head). Folding it into the in-flight run drops the ask
+    // and the turn waits for the next interval — so it queues a pass of its own, still one at a
+    // time: the `finally` below clears `draining` before the promise settles.
+    if (draining !== null) return draining.then(() => drain(userId));
+    const run = (async () => {
     try {
       await ready;
       for (;;) {
@@ -190,7 +197,10 @@ export function createOutbox<Photo>(ports: OutboxPorts<Photo>): Outbox<Photo> {
       if (sending !== null) sendingNow(null);
       draining = null;
     }
-  })());
+    })();
+    draining = run;
+    return run;
+  };
 
   return {
     get entries() { return entries; },
