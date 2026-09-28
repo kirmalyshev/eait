@@ -200,7 +200,7 @@ export function logScreen(frame: Frame): HTMLElement {
     wrap.className = "log";
     const grid = el("div", "loggrid");
     const side = el("div", "logcol tall");
-    // The stream's progress words land on this line as they arrive — `glance` carries its own
+    // The stream's progress words land on this line as they arrive — each carries its own
     // text, `reading`/`item` carry `line`, each already worded on the server.
     const sayRow = el("div", "say logsay");
     readingWords = el("p", "", L.reading);
@@ -433,7 +433,7 @@ export function logScreen(frame: Frame): HTMLElement {
         onLine: (line) => {
           const ev = line as PhotoProgress;
           // Printed, never composed — the line each event carries is already worded (#608).
-          if (readingWords !== null) readingWords.textContent = ev.kind === "glance" ? ev.text : ev.line;
+          if (readingWords !== null) readingWords.textContent = ev.line;
         },
         onResult: (r: MessageResponse | PhotoLast) => { if (r.kind === "logged") result = r; },
       });

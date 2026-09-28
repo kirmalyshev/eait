@@ -11,7 +11,7 @@ import { blankProfile } from "../store.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
-  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildGlanceText, buildRouteText,
+  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildRouteText,
   buildTextCorrectionText, buildUserText, languageLine,
 } from "./prompt.ts";
 
@@ -376,7 +376,6 @@ describe("the language line, which is the only thing steering the largest text s
     for (const built of [
       buildUserText(p, targets),
       buildCoachContext(coachInput({ profile: p, targets })),
-      buildGlanceText("vi"),
     ]) {
       expect(built).toContain("Tiếng Việt (vi)");
     }

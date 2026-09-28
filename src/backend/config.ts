@@ -53,17 +53,10 @@ export interface Config {
    */
   llmChatModel: string;
   /**
-   * The glance — one sentence about the plate while the analyzer works. A model that does NOT
-   * reason, because the whole point is a first line in about a second (grok-4.3 with reasoning
-   * off: 0.9 s measured 2026-09-05; grok-4.5 refuses to switch reasoning off). Empty disables the
-   * glance and the pending screen keeps its scripted line.
-   */
-  llmGlanceModel: string;
-  /**
-   * `reasoning: { effort }` on every schema call, or nothing when empty. Empty is the model's own
-   * choice, which on grok-4.5 measured a median 37 s to first token (0–4433 reasoning tokens on
-   * the same photo). `low` measured 5 s and a worse kcal error at n = 8 — docs/ACCURACY.md. The
-   * n = 30 bake-off decides; until then this ships empty.
+   * `reasoning: { effort }` on every schema call — `reasoning: { enabled: false }` on `off` — or
+   * nothing when empty. Ships `off`: reasoning is where the wait was — a median 47.7 s to first
+   * item on grok-4.5, 3.6 s on qwen3-vl-235b with it off, at the same kcal error (n = 60,
+   * docs/ACCURACY.md).
    */
   llmReasoningEffort: string;
   llmApiKey: string;
@@ -444,7 +437,7 @@ export function int(name: string, fallback: number): number {
 export function llmTimeoutMsFromEnv(fallback: number): number {
   const value = int("EAIT__BACKEND__LLM_TIMEOUT_MS", fallback);
   if (value < MIN_MODEL_CALL_TIMEOUT_MS) {
-    throw new Error(`[eait] EAIT__BACKEND__LLM_TIMEOUT_MS must be at least ${MIN_MODEL_CALL_TIMEOUT_MS}; the glance alone is allowed 15s and a photo analysis measured a median 37s to its first token, and 0 is a budget of nothing rather than 'unbounded'`);
+    throw new Error(`[eait] EAIT__BACKEND__LLM_TIMEOUT_MS must be at least ${MIN_MODEL_CALL_TIMEOUT_MS}; a photo analysis measured a median 37s to its first token, and 0 is a budget of nothing rather than 'unbounded'`);
   }
   return value;
 }
@@ -487,10 +480,9 @@ export function configDefaults(): Config {
     databaseUrl: "",
     databaseMaxConnections: 25,
     llmProvider: "openrouter",
-    llmModel: "x-ai/grok-4.5",
+    llmModel: "qwen/qwen3-vl-235b-a22b-instruct",
     llmChatModel: "x-ai/grok-4.6",
-    llmGlanceModel: "x-ai/grok-4.3",
-    llmReasoningEffort: "",
+    llmReasoningEffort: "off",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
@@ -620,8 +612,8 @@ export function loadConfig(): Config {
   // A value the provider rejects is a 400 on EVERY schema call — charged, because a 400 is not a
   // gateway refusal — so a typo here would spend every user's sample on nothing. Refused at boot.
   const llmReasoningEffort = process.env.EAIT__BACKEND__LLM_REASONING_EFFORT ?? d.llmReasoningEffort;
-  if (!["", "low", "medium", "high"].includes(llmReasoningEffort)) {
-    throw new Error(`[eait] EAIT__BACKEND__LLM_REASONING_EFFORT must be low, medium or high (or empty), not "${llmReasoningEffort}"`);
+  if (!["", "low", "medium", "high", "off"].includes(llmReasoningEffort)) {
+    throw new Error(`[eait] EAIT__BACKEND__LLM_REASONING_EFFORT must be low, medium, high or off (or empty), not "${llmReasoningEffort}"`);
   }
 
   const eveningLineTime = eveningLineTimeFromEnv();
@@ -635,7 +627,6 @@ export function loadConfig(): Config {
     llmProvider: process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider,
     llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
     llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
-    llmGlanceModel: process.env.EAIT__BACKEND__LLM_GLANCE_MODEL ?? d.llmGlanceModel,
     llmReasoningEffort,
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
@@ -825,7 +816,7 @@ export function demoConfig(): Config {
     port: Number(process.env.EAIT__BACKEND__PORT ?? 8484),
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
-    llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmGlanceModel: "demo", llmApiKey: "unused",
+    llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
     // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account — and
     // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
     // against RevenueCat's Test Store, not here.

@@ -6,7 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
-import type { AnalyzedMeal, AnalyzePhoto, Coach, GlancePhoto, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -158,17 +158,6 @@ export function demoPorts(): LlmPorts {
     return meal;
   };
 
-  const glancePhoto: GlancePhoto = async (input) => {
-    input.onCost?.(0);
-    // The analyzer's own seed for an uncaptioned photo of the same bytes, so the sentence names
-    // the plate the card will show. A short wait, so `--demo` shows the choreography rather than
-    // everything at once.
-    const seed = hash("" + input.images.length + (input.images[0]?.byteLength ?? 0));
-    await new Promise((r) => setTimeout(r, 120));
-    const names = plateFor(seed).items.slice(0, 2).map((i) => i.name.toLowerCase());
-    return `Looks like ${names.join(" and ")}.`;
-  };
-
   const routeText: RouteText = async (input) => {
     input.onCost?.(0);
     const text = input.text.toLowerCase();
@@ -279,5 +268,5 @@ export function demoPorts(): LlmPorts {
   };
 
   // `canned` is what `GET /health` reports and what the screenshot walk refuses to shoot against.
-  return { analyzePhoto, glancePhoto, routeText, coach, canned: true };
+  return { analyzePhoto, routeText, coach, canned: true };
 }

@@ -90,11 +90,7 @@ route. A route that computes is a rule the tests cannot reach.
   a zero is a claim the query never made.
 - **A cap is charged before the model call, not after.** A cap counting only successes is one a
   retry loop walks through. Except a `GatewayRefusal` — a status that provably generated nothing
-  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. One
-  exception is accepted (#523): on a streamed photo turn the glance runs beside the analyzer on its
-  own model and may already be billed when the analyzer is refused. The analysis is given back
-  anyway — one bounded glance is worth less than a user's analysis — and the glance's cost, finding
-  no row, reaches only the `cost not recorded` log line. Charge
+  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. Charge
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
@@ -435,15 +431,14 @@ naming it too.
   only thing that found it was posting the form at the deployed server.
 - **The photo route streams when asked, and the last line is the answer.** `POST /v1/meals/photo`
   with `accept: application/x-ndjson` answers `200` at once and writes one JSON object per line:
-  zero or one `glance` (a separate call on a model that does NOT reason,
-  `EAIT__BACKEND__LLM_GLANCE_MODEL`, its text never stored anywhere), an `item` per object the
+  a `reading` line, an `item` per object the
   analyzer closes inside `items` (`llm/partial.ts`, a scanner over the streamed JSON), and the
   `LogPhotoResult` LAST — refusals included, because the status went out with the first byte.
   Everything the route rejects BEFORE the engine runs is still an HTTP status. Without the header
-  it is the JSON route it always was, and `logPhotoMeal` without `onEvent` makes no glance call.
+  it is the JSON route it always was, and `logPhotoMeal` without `onEvent` streams nothing.
   The pending card renders item NAME and GRAMS only; the kcal, the macros and the verdicts are the
   final card's, so nothing provisional is a number the product later contradicts. Measured
   2026-09-05 (`docs/ACCURACY.md`): the 30 s wait was grok-4.5's reasoning — a median 37 s to first
   visible token, 0 to 4433 reasoning tokens on the SAME photo — and that endpoint refuses to switch
-  reasoning off. `EAIT__BACKEND__LLM_REASONING_EFFORT` is the knob and ships unset until the n=30
-  bake-off says otherwise; the glance is what puts a sentence on the screen in about a second.
+  reasoning off, which is why the analyzer runs a model that does not reason and
+  `EAIT__BACKEND__LLM_REASONING_EFFORT` ships `off`.

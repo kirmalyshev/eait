@@ -156,7 +156,7 @@ const STREAM: typeof NDJSON = "application/x-ndjson";
  * POST whose body was read. Measured 2026-09-10, #508.) Read to the end, the last line is the result
  * — refusals included, because the 200 went out with the first byte.
  *
- * Every line before the last goes to `onLine` AS IT ARRIVES (#608): the glance and the rows,
+ * Every line before the last goes to `onLine` AS IT ARRIVES (#608): the progress words and the rows,
  * which the phone has drawn since #508 and this page now draws under the composer. Read with the
  * body's reader rather than `text()`, or nothing arrives until everything has.
  */

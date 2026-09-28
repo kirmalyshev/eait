@@ -201,7 +201,7 @@ export const threadCopyFor = (lang: Lang): ThreadCopy => THREAD(i18nFor(lang));
 // fully translated composer.
 
 export interface StreamCopy {
-  /** Shown while the analyzer works: the glance replaces it once there is one. */
+  /** Shown while the analyzer works: the first item row replaces it once one closes. */
   reading: string;
   weighing: string;
   /** The four steps of the card, in order. */
@@ -223,8 +223,8 @@ const STREAM = (i18n: I18n): StreamCopy => ({
 export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
 
 /**
- * Spud's one line while the turn is pending, and it only moves forward: a row outranks the glance
- * whichever arrived first, and a schema retry still holds a row. The stream carries nothing between
+ * Spud's one line while the turn is pending, and it only moves forward: a row outranks the reading
+ * line, and a schema retry still holds a row. The stream carries nothing between
  * the last row and the answer, so there is no later step to show — the card replaces the line.
  *
  * Moved here from `stream.ts`: the words are Lingui-backed, so they live beside their table. The
@@ -233,12 +233,12 @@ export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
  */
 export function pendingLine(p: PendingPhoto, lang: Lang): string {
   const copy = streamCopyFor(lang);
-  return p.items.length > 0 ? copy.weighing : p.glance ?? copy.reading;
+  return p.items.length > 0 ? copy.weighing : copy.reading;
 }
 
 /** The analyzer's steps as the card lists them: what is done, what is happening, what is left (#663). */
 export function pendingSteps(p: PendingPhoto, lang: Lang): { label: string; state: "done" | "now" | "next" }[] {
-  const at = p.items.length > 0 ? 2 : p.glance !== null ? 1 : 0;
+  const at = p.items.length > 0 ? 2 : 0;
   return streamCopyFor(lang).steps.map((label, i) =>
     ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
 }

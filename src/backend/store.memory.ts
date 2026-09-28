@@ -169,6 +169,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
     /** Counts against the sample until `releaseSample` says the turn delivered nothing. */
     sample: boolean;
+    /** Settled-turn timings, written by `recordTiming`; undefined until one lands. */
+    msQueue?: number; msFirstItem?: number | null; msTotal?: number;
   }[] = [];
   let analysisSeq = 0;
   // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
@@ -594,6 +596,23 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         })),
         d1: cohort(1),
         d7: cohort(7),
+        latency: (() => {
+          // The percentile math Postgres does with percentile_cont, over the rows the window
+          // holds — same rule the days series gets: outside the window is invisible.
+          const inWindow = analyses.filter((a) => a.date >= dates[0]! && a.date <= today);
+          const at = (p: number, xs: number[]) =>
+            xs.length === 0 ? null : xs[Math.min(xs.length - 1, Math.max(0, Math.ceil(p * xs.length) - 1))]!;
+          const legs = (pick: (a: typeof inWindow[number]) => number | null | undefined) => {
+            const xs = inWindow.map(pick).filter((x): x is number => typeof x === "number").sort((a, b) => a - b);
+            return { p50: at(0.5, xs), p95: at(0.95, xs) };
+          };
+          return {
+            n: inWindow.filter((a) => a.msTotal !== undefined).length,
+            queue: legs((a) => a.msQueue),
+            firstItem: legs((a) => a.msFirstItem),
+            total: legs((a) => a.msTotal),
+          };
+        })(),
       };
     },
 
@@ -1189,6 +1208,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!a) return false;
       if (usd === null) a.unpricedCalls++;
       else a.costUsd = (a.costUsd ?? 0) + usd;
+      return true;
+    },
+
+    async recordTiming(userId, analysisId, timing) {
+      const a = analyses.find((x) => x.id === analysisId && x.userId === userId);
+      if (!a) return false;
+      a.msQueue = timing.queue;
+      a.msFirstItem = timing.firstItem;
+      a.msTotal = timing.total;
       return true;
     },
 

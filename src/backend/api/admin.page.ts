@@ -210,8 +210,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <h2>System prompts</h2>
   <p class="muted">
     <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
-    reviewed — what you save is what the next analysis is asked. The six are what the server sends:
-    the photo analyzer, the text router and the two prompts behind it, the one-line glance, and
+    reviewed — what you save is what the next analysis is asked. The five are what the server sends:
+    the photo analyzer, the text router and the two prompts behind it, and
     Gabie. They are stored as rows, so a save takes effect on the next request with no deploy.
   </p>
   <p class="muted">
@@ -569,6 +569,9 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     return whole ? Math.round((part / whole) * 100) + "%" : "—";
   }
 
+  // Milliseconds as seconds, "—" for a leg nothing in the window carried.
+  function secs(ms) { return ms === null ? "—" : (ms / 1000).toFixed(1) + "s"; }
+
   // What the provider priced — a floor while any analysis that day went unpriced (#484).
   function spend(d) {
     var usd = d.costUsd === null ? "—" : "$" + d.costUsd.toFixed(4);
@@ -584,7 +587,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         : today.analyses + " analyses today · no instance cap";
       $("metrics-summary").textContent = budget
         + " · came back next day " + m.d1.returned + "/" + m.d1.eligible + " (" + pct(m.d1.returned, m.d1.eligible) + ")"
-        + " · on day 7 " + m.d7.returned + "/" + m.d7.eligible + " (" + pct(m.d7.returned, m.d7.eligible) + ")";
+        + " · on day 7 " + m.d7.returned + "/" + m.d7.eligible + " (" + pct(m.d7.returned, m.d7.eligible) + ")"
+        + " · photo turn p50 " + secs(m.latency.queue.p50) + " to the call"
+        + ", " + secs(m.latency.firstItem.p50) + " to first item"
+        + ", " + secs(m.latency.total.p50) + " done (p95 " + secs(m.latency.total.p95) + ", n=" + m.latency.n + ")";
       var body = $("metrics").querySelector("tbody");
       body.textContent = "";
       // Newest first on screen; the server sends oldest first because that is the order a window is.

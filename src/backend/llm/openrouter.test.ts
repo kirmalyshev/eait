@@ -656,7 +656,7 @@ function sseFetch(chunks: string[], finish = "stop") {
   return { impl, bodies };
 }
 
-const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; glanceModel?: string } = {}) => openRouterPorts({
+const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string } = {}) => openRouterPorts({
   apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
   baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
   fetchImpl: impl, ...over,
@@ -709,37 +709,11 @@ describe("reasoning effort", () => {
     await streamPorts(impl, { reasoningEffort: "low" }).analyzePhoto(PHOTO_INPUT);
     expect(bodies[0]!.reasoning).toEqual({ effort: "low" });
   });
-});
 
-// ── The glance ───────────────────────────────────────────────────────────────────────────────
-
-describe("glancePhoto", () => {
-  const reply = (content: string) => (async (_url: string, init: RequestInit) => {
-    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
-    return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
-  }) as unknown as typeof fetch;
-  const bodies: Record<string, unknown>[] = [];
-  const GLANCE_INPUT = { images: [new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], lang: "de" };
-
-  test("asks the glance model, reasoning off, a small bound, no stream, in the user's language", async () => {
-    bodies.length = 0;
-    const llm = streamPorts(reply("Steak und Fleischbällchen."), { glanceModel: "glance-model" });
-    expect(await llm.glancePhoto(GLANCE_INPUT)).toBe("Steak und Fleischbällchen.");
-    const body = bodies[0]!;
-    expect(body.model).toBe("glance-model");
-    expect(body.reasoning).toEqual({ enabled: false });
-    expect(body.max_tokens).toBe(60);
-    expect(body.stream).toBeUndefined();
-    expect(JSON.stringify(body.messages)).toContain("Reply in this language: Deutsch (de)");
-  });
-
-  test("returns the trimmed first line of the reply", async () => {
-    const llm = streamPorts(reply("  Grilled steak and meatballs. \nSecond line"), { glanceModel: "g" });
-    expect(await llm.glancePhoto(GLANCE_INPUT)).toBe("Grilled steak and meatballs.");
-  });
-
-  test("throws when no glance model is configured", async () => {
-    await expect(streamPorts(reply("x")).glancePhoto(GLANCE_INPUT)).rejects.toThrow(/disabled/);
+  test(`"off" sends {enabled: false}, not an effort the model maps`, async () => {
+    const { impl, bodies } = fakeFetch([MEAL]);
+    await streamPorts(impl, { reasoningEffort: "off" }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.reasoning).toEqual({ enabled: false });
   });
 });
 
@@ -806,10 +780,4 @@ describe("cost", () => {
     expect(seen).toEqual([0.25, 0.5]);
   });
 
-  test("the glance reports", async () => {
-    const { seen, onCost } = collect();
-    await streamPorts(replies([() => answer({ content: "Eggs." }, 0.125)]), { glanceModel: "g" })
-      .glancePhoto({ images: PHOTO_INPUT.images, lang: "en", onCost });
-    expect(seen).toEqual([0.125]);
-  });
 });

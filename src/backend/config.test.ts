@@ -20,7 +20,7 @@ import { PKCS8_BEGIN, PKCS8_END, applePrivateKeyFromEnv, configDefaults, demoCon
  * make a test read the ambient environment again.
  */
 const VARS = [
-  "EAIT__BACKEND__LLM_GLANCE_MODEL", "EAIT__BACKEND__LLM_REASONING_EFFORT",
+  "EAIT__BACKEND__LLM_REASONING_EFFORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
@@ -76,13 +76,11 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_API_KEY/);
   });
 
-  it("reads the glance model and the reasoning effort, with a glance model by default and no effort by default", () => {
+  it("reads the reasoning effort, off by default since the analyzer stopped reasoning", () => {
     const d = configDefaults();
-    expect(d.llmGlanceModel).toBe("x-ai/grok-4.3");
-    expect(d.llmReasoningEffort).toBe("");
-    withRequired({ EAIT__BACKEND__LLM_GLANCE_MODEL: "", EAIT__BACKEND__LLM_REASONING_EFFORT: "low" });
+    expect(d.llmReasoningEffort).toBe("off");
+    withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "low" });
     const c = loadConfig();
-    expect(c.llmGlanceModel).toBe("");
     expect(c.llmReasoningEffort).toBe("low");
   });
 
@@ -184,8 +182,8 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);
   });
 
-  // Above anything real, not merely above nothing: the glance alone is allowed 15 s and a photo
-  // analysis measured a median 37 s to its first visible token.
+  // Above anything real, not merely above nothing: a photo analysis measured a median 37 s to
+  // its first visible token.
   it("refuses a model-call budget under what a measured analysis needs", () => {
     withRequired({ EAIT__BACKEND__LLM_TIMEOUT_MS: "5000" });
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);

@@ -163,8 +163,8 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // What goes up is the resized frame — the byte cap weighs it, not what was picked.
         const shrunk = await shrinkPhotos(files);
         if (shrunk.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { say(COPY.photoTooLarge); return; }
-        // The stream carries its own progress words — a glance is its own line; `reading`/`item`
-        // carry `line` already worded. Printed, never composed: this bundle holds no catalog.
+        // The stream carries its own progress words — `reading`/`item` carry `line` already
+        // worded. Printed, never composed: this bundle holds no catalog.
         try {
           // A PROPERTY, not a local: writes from the callback must survive `await` without a
           // compiler that has already decided `null`.
@@ -176,7 +176,6 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
                 const ev = line as PhotoProgress;
                 // Progress kinds only — the stream's last line is a result, not a line to print.
                 if (ev.kind === "reading" || ev.kind === "item") sayProgress(ev.line);
-                else if (ev.kind === "glance") sayProgress(ev.text);
               },
               onResult: (r) => { if (r.kind === "logged") got.logged = r; },
             },
