@@ -107,6 +107,10 @@ export const W3_CSS = `
   border-radius: var(--r-ctl); box-shadow: 0 0 0 1px var(--line); background: var(--surface);
   padding: 0 14px; }
 .ob .cty .srch .ico { color: var(--muted); width: 18px; height: 18px; }
+/* The magnifier is the search's submit — a GET on the same form, so the pick rides along.
+   shell.ts's base button style is a full-width pill; this one is the icon's size and no more. */
+.ob .cty .srch .srchgo { border: 0; background: none; padding: 0; margin: 0; cursor: pointer;
+  color: var(--muted); display: inline-flex; width: auto; font: inherit; border-radius: 0; }
 .ob .cty .srch input { flex: 1; border: 0; background: none; font: inherit; color: var(--ink);
   font-size: 15px; outline: none; }
 .ob .cty form { display: flex; flex-direction: column; gap: 14px; }
@@ -116,8 +120,8 @@ export const W3_CSS = `
 .ob .cty .opt .flag.any { color: var(--muted); font-weight: 600; }
 .ob .cty .opt.hide { display: none; }
 .ob .cty .cta { max-width: 360px; align-self: center; }
-/* The account-split note — quiet, under the choice it must not get in the way of. */
-.ob .cty .note { margin: .25rem 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+/* The account-split note — a small muted caption under the pick, not a paragraph block. */
+.ob .cty .note { margin: 0; font-size: 13px; color: var(--muted); }
 @media (max-width: 720px) { .ob .cty .opts { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .ob .cty .opts { grid-template-columns: 1fr; } }
 `;

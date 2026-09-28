@@ -241,7 +241,8 @@ export const CONTROL_SCRIPT = `(function () {
       var q = fold(ctySrch.value).trim();
       ctyRows.forEach(function (row) {
         var code = row.querySelector("input[name='answer']").value;
-        // "Somewhere else" stays: a filter that hid it would dead-end a real place.
+        // "Somewhere else" stays: a filter that hid it would dead-end a real place. A hidden
+        // checked row still posts its answer — hiding is not unchecking.
         var match = q === "" || code === "other" ||
           fold(row.textContent).indexOf(q) !== -1;
         row.classList.toggle("hide", !match);
