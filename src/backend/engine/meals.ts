@@ -358,20 +358,37 @@ export async function editMeal(
   // an items-only edit (the phone's and web's ingredient editors send `{ items }` alone) left
   // stale. A field NO item reports cannot be derived — absent is not zero — so it keeps the
   // stored figure. An explicit total still wins over either.
-  const derived = <K extends "kcal" | "protein_g" | "carbs_g" | "fat_g">(field: K, sent: number | undefined, kept: number): number =>
-    sent ?? (patch.items !== undefined && patch.items.some((i) => i[field] !== undefined)
-      ? patch.items.reduce((s, i) => s + (i[field] ?? 0), 0)
-      : kept);
+  //
+  // #196: the four fields items do NOT carry (satfat, fibre, sugar, sodium) would otherwise keep
+  // describing the old plate after a grams change — they scale by the edit's kcal ratio. The same
+  // goes for a macro only SOME items report: a silent item's share is unknown, never zero, so the
+  // stored figure scales rather than being summed without it.
+  const mergedKcal = patch.kcal
+    ?? (patch.items !== undefined && patch.items.every((i) => i.kcal !== undefined)
+      ? patch.items.reduce((s, i) => s + (i.kcal ?? 0), 0)
+      : existing.kcal);
+  const kcalRatio = patch.items !== undefined && existing.kcal !== 0
+    ? mergedKcal / existing.kcal
+    : 1;
+  const scale = (kept: number): number => Math.round(kept * kcalRatio * 10) / 10;
+  const derived = <K extends "kcal" | "protein_g" | "carbs_g" | "fat_g">(field: K, sent: number | undefined, kept: number): number => {
+    if (sent !== undefined) return sent;
+    if (patch.items === undefined) return kept;
+    if (patch.items.every((i) => i[field] !== undefined)) return patch.items.reduce((s, i) => s + (i[field] ?? 0), 0);
+    return patch.items.some((i) => i[field] !== undefined) ? scale(kept) : kept;
+  };
+  const scaled = (sent: number | undefined, kept: number): number =>
+    sent ?? (patch.items !== undefined ? scale(kept) : kept);
   const merged = {
     items: patch.items ?? existing.items,
-    kcal: derived("kcal", patch.kcal, existing.kcal),
+    kcal: mergedKcal,
     protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
     carbs_g: derived("carbs_g", patch.carbs_g, existing.carbs_g),
     fat_g: derived("fat_g", patch.fat_g, existing.fat_g),
-    satfat_g: patch.satfat_g ?? existing.satfat_g,
-    fiber_g: patch.fiber_g ?? existing.fiber_g,
-    sugar_g: patch.sugar_g ?? existing.sugar_g,
-    sodium_mg: patch.sodium_mg ?? existing.sodium_mg,
+    satfat_g: scaled(patch.satfat_g, existing.satfat_g),
+    fiber_g: scaled(patch.fiber_g, existing.fiber_g),
+    sugar_g: scaled(patch.sugar_g, existing.sugar_g),
+    sodium_mg: scaled(patch.sodium_mg, existing.sodium_mg),
   };
 
   const updated = await deps.store.updateMeal(userId, mealId, {
