@@ -1084,10 +1084,10 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "эту неделю", counted: { other: "эту неделю" } },
+        days: { one: "за эту неделю", counted: { other: "эту неделю" } },
         weeks: { one: "за прошлую неделю", counted: { one: "за последние {n} неделю", few: "за последние {n} недели", many: "за последние {n} недель", other: "за последние {n} недели" } },
         months: { one: "за прошлый месяц", counted: { one: "за последние {n} месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" } },
-        years: { one: "этот год", counted: { one: "за последние {n} год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" } },
+        years: { one: "за этот год", counted: { one: "за последние {n} год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" } },
       },
       kcalToday: "{kcal} ккал сегодня",
       kcalADay: "{kcal} ккал в день",
