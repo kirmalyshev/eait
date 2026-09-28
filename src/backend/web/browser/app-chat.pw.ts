@@ -75,7 +75,7 @@ test("a meal in words is proposed first, and Log it puts it in the thread", asyn
   await words.fill("two boiled eggs and a slice of rye bread");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   // Confirm-first: a meal nobody photographed is one we inferred. The boards' card leads with
-  // "Logging to today — look right?" and answers Log it / No.
+  // "Logging to today — look right?" and answers No / Log it.
   await expect(page.locator(".prop")).toContainText("Logging to today — look right?");
   // The card carries its own numbers — the name, the d22 kcal, the dots.
   await expect(page.locator(".prop .card")).toContainText("kcal");
