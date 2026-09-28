@@ -39,7 +39,7 @@ import {
   DIETS, MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MEDICAL_TAGS, MIN_AGE, MIN_WEIGHT_KG, dietOf,
   explainTargets, medicalOf, minHealthyWeightKg,
 } from "./targets.ts";
-import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
+import { fill, numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth, previewProjection } from "./projection.ts";
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
@@ -336,15 +336,6 @@ export const UNDER_AGE_LINES = (lang: Lang) => {
 export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard {
   return filled(chatCopyFor(lang).belowHealthy, { kg: numbers(lang)(minHealthyKg) });
 }
-
-/**
- * One `{placeholder}` per declared key, and a key with nothing to fill it left alone.
- *
- * Left alone rather than blanked, because a brace on screen is a bug somebody reports and a silent
- * gap in a sentence is one nobody does. `onboarding-chat-copy.test.ts` asserts every table fills.
- */
-export const fill = (template: string, params: Record<string, string>): string =>
-  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
 /** A card with its numbers in. `source` is absent on the ones that are statements, not citations. */
 const filled = (card: CardCopy, params: Record<string, string>): SupportCard => ({

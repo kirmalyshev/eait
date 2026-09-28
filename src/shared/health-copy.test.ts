@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fill } from "./onboarding-chat.ts";
+import { fill } from "./lang.ts";
 import { countText } from "./lang.ts";
 import { LANGS, PACES } from "./types.ts";
 import { HEALTH_FIELDS, HEALTH_GROUPS } from "./health.ts";

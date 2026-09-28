@@ -15,8 +15,8 @@
 // a sentence's unit spelled — so the Russian strings write г and ккал themselves rather than
 // taking a symbol from code.
 
-import { t, type Localized } from "../lang.ts";
-import type { Lang } from "../types.ts";
+import { fill, spellUnit, t, wholeNumbers, type Localized } from "../lang.ts";
+import type { Lang, VerdictLabel } from "../types.ts";
 
 export interface LogCopy {
   /** `log-upload` + `log-camera`: the note field's placeholder — "sausage, not zucchini". */
@@ -81,14 +81,17 @@ export interface LogCopy {
   /** The sodium noun for the same line — `{noun}` when the declared cap is on sodium. */
   sodiumNoun: string;
   /**
-   * `log-logged`: the one-line explanation under a warn verdict. `{noun}` is `satfatNoun`
-   * ("Saturated fat") or `sodiumNoun` ("Sodium") — whichever cap the verdict names — `{amount}`
-   * the meal's figure, `{target}` the day's cap, and `{unit}` the spelled unit (g/mg, filled
-   * with `spellUnit` on the composing side, never a letter in the template). The translations
-   * that cannot agree an adjective with a placeholder noun restructure around it ("For one meal,
-   * that is a lot: …").
+   * `log-logged`: the TEMPLATE `verdictDetailLine` composes, never a string a client fills.
+   * `{noun}` is `satfatNoun` ("Saturated fat") or `sodiumNoun` ("Sodium") — whichever cap the
+   * verdict names — `{amount}` the meal's figure, `{target}` the day's cap, and `{unit}` the
+   * spelled unit (g/mg, filled with `spellUnit` inside the formatter, never a letter in the
+   * template). A `string` and not the line itself because the words stay editable like every
+   * other entry in this table; the FORMATTER is the only filler, because the call that used to
+   * fill this by hand shipped "13 {unit}" on a phone (kirmalyshev-org/ieat-app#1010). The
+   * translations that cannot agree an adjective with a placeholder noun restructure around it
+   * ("For one meal, that is a lot: …").
    */
-  verdictDetail: string;
+  verdictDetailTemplate: string;
   /** `log-logged`, `log-rough`: the day counter — "{eaten} of {plan} kcal". */
   dayEaten: string;
   /**
@@ -235,7 +238,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Nothing was logged. Your photo is kept.",
     unknownTitle: "That didn't finish cleanly.",
     unknownNote: "Kept, and re-sent on its own — sending again is safe.",
-    verdictDetail: "{noun} is high for one meal: {amount} of your {target} {unit}. Go easy on it for the rest of today.",
+    verdictDetailTemplate: "{noun} is high for one meal: {amount} of your {target} {unit}. Go easy on it for the rest of today.",
     satfatNoun: "Saturated fat",
     sodiumNoun: "Sodium",
     dayEaten: "{eaten} of {plan} kcal",
@@ -322,7 +325,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Rien n’a été enregistré. Ta photo est gardée.",
     unknownTitle: "Ça ne s’est pas terminé proprement.",
     unknownNote: "Gardé, et renvoyé tout seul — le renvoyer est sans risque.",
-    verdictDetail: "Pour un repas, c’est beaucoup : {noun} {amount} sur {target} {unit}. Vas-y doucement pour le reste de la journée.",
+    verdictDetailTemplate: "Pour un repas, c’est beaucoup : {noun} {amount} sur {target} {unit}. Vas-y doucement pour le reste de la journée.",
     satfatNoun: "Graisses saturées",
     sodiumNoun: "Sodium",
     dayEaten: "{eaten} sur {plan} kcal",
@@ -409,7 +412,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Nichts wurde eingetragen. Dein Foto bleibt gespeichert.",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownNote: "Behalten und wird von selbst erneut gesendet — erneutes Senden ist sicher.",
-    verdictDetail: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target} {unit}. Nimm es für den Rest des Tages lockerer.",
+    verdictDetailTemplate: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target} {unit}. Nimm es für den Rest des Tages lockerer.",
     satfatNoun: "Gesättigte Fette",
     sodiumNoun: "Natrium",
     dayEaten: "{eaten} von {plan} kcal",
@@ -496,7 +499,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Niente è stato registrato. La tua foto è conservata.",
     unknownTitle: "Non si è concluso bene.",
     unknownNote: "Conservato e rispedito da solo — rispedire è sicuro.",
-    verdictDetail: "Per un pasto è tanto: {noun} {amount} su {target} {unit}. Vacci piano per il resto di oggi.",
+    verdictDetailTemplate: "Per un pasto è tanto: {noun} {amount} su {target} {unit}. Vacci piano per il resto di oggi.",
     satfatNoun: "Grassi saturi",
     sodiumNoun: "Sodio",
     dayEaten: "{eaten} di {plan} kcal",
@@ -583,7 +586,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "No se registró nada. Tu foto se conserva.",
     unknownTitle: "Eso no terminó bien.",
     unknownNote: "Se conserva y se reenvía solo — reenviarlo es seguro.",
-    verdictDetail: "Para una comida es mucho: {noun} {amount} de {target} {unit}. Ve con calma el resto del día.",
+    verdictDetailTemplate: "Para una comida es mucho: {noun} {amount} de {target} {unit}. Ve con calma el resto del día.",
     satfatNoun: "Grasas saturadas",
     sodiumNoun: "Sodio",
     dayEaten: "{eaten} de {plan} kcal",
@@ -670,7 +673,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Chưa ghi gì. Ảnh của bạn vẫn được giữ.",
     unknownTitle: "Lần đó chưa hoàn tất trọn vẹn.",
     unknownNote: "Đã giữ lại và tự gửi lại — gửi lại vẫn an toàn.",
-    verdictDetail: "{noun} cao cho một bữa: {amount} trong {target} {unit} của bạn. Hãy nhẹ tay phần còn lại của hôm nay.",
+    verdictDetailTemplate: "{noun} cao cho một bữa: {amount} trong {target} {unit} của bạn. Hãy nhẹ tay phần còn lại của hôm nay.",
     satfatNoun: "Chất béo bão hoà",
     sodiumNoun: "Natri",
     dayEaten: "{eaten} trên {plan} kcal",
@@ -757,7 +760,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Tidak ada yang tercatat. Fotomu tetap disimpan.",
     unknownTitle: "Yang tadi tidak selesai dengan bersih.",
     unknownNote: "Disimpan, dan dikirim ulang sendiri — mengirim ulang aman.",
-    verdictDetail: "{noun} tinggi untuk satu kali makan: {amount} dari {target} {unit} milikmu. Ringankan sisa hari ini.",
+    verdictDetailTemplate: "{noun} tinggi untuk satu kali makan: {amount} dari {target} {unit} milikmu. Ringankan sisa hari ini.",
     satfatNoun: "Lemak jenuh",
     sodiumNoun: "Natrium",
     dayEaten: "{eaten} dari {plan} kcal",
@@ -844,7 +847,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Ничего не записано. Фото сохранено.",
     unknownTitle: "Это не завершилось чисто.",
     unknownNote: "Сохранено и отправится само — повторная отправка безопасна.",
-    verdictDetail: "Для одного приёма пищи это много: {noun} — {amount} из {target} {unit}. Остаток дня — умереннее.",
+    verdictDetailTemplate: "Для одного приёма пищи это много: {noun} — {amount} из {target} {unit}. Остаток дня — умереннее.",
     satfatNoun: "Насыщенные жиры",
     sodiumNoun: "Натрий",
     dayEaten: "{eaten} из {plan} ккал",
@@ -910,3 +913,40 @@ export const LOG_COPY: Localized<LogCopy> = {
 };
 
 export const logCopyFor = (lang: Lang): LogCopy => t(lang)(LOG_COPY);
+
+/**
+ * `log-logged`: the one-line explanation under a cap verdict that is not on plan — "Saturated fat
+ * is high for one meal: 14 of your 13 g. Go easy on it for the rest of today." One line per meal,
+ * for the first capped dimension that ran hot.
+ *
+ * THE ONLY WAY `verdictDetailTemplate` is filled, and the reason it takes the DATA rather than the
+ * words: the dimension→noun→field→unit mapping lived in each client once, and the phone's copy of
+ * the `fill` call forgot `unit` — "14 of your 13 {unit}." shipped
+ * (kirmalyshev-org/ieat-app#1010). Composed here, a caller cannot leave a placeholder raw: the
+ * unit is computed inside, not asked for.
+ *
+ * `null` when nothing a declaration caps ran hot — the same rule the clients each carried.
+ */
+export function verdictDetailLine(
+  lang: Lang,
+  i: {
+    verdictLabels: readonly Pick<VerdictLabel, "dimension" | "tone">[];
+    meal: { satfat_g: number; sodium_mg: number };
+    targets: { satfat_g?: number; sodium_mg?: number };
+  },
+): string | null {
+  const L = logCopyFor(lang);
+  const n = wholeNumbers(lang);
+  for (const cap of [
+    { dimension: "ldl", field: "satfat_g", noun: L.satfatNoun, target: i.targets.satfat_g, unit: "g" },
+    { dimension: "kidneys", field: "sodium_mg", noun: L.sodiumNoun, target: i.targets.sodium_mg, unit: "mg" },
+  ] as const) {
+    const v = i.verdictLabels.find((x) => x.dimension === cap.dimension);
+    if (v === undefined || v.tone === "good" || cap.target === undefined) continue;
+    return fill(L.verdictDetailTemplate, {
+      noun: cap.noun, amount: n(i.meal[cap.field]), target: n(cap.target),
+      unit: spellUnit(lang, cap.unit),
+    });
+  }
+  return null;
+}
