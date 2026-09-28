@@ -1148,9 +1148,56 @@ describe("editing the answer", () => {
     const out = await editMeal(deps, userId, meal.mealId, { items, kcal: 999 });
     if (out.kind !== "updated") throw new Error("expected updated");
     expect(out.analysis.kcal).toBe(999);
-    // satfat: no item carries it — a field the items cannot tell keeps the stored figure rather
-    // than being zeroed by a sum over absent values.
-    expect(out.analysis.satfat_g).toBe(meal.analysis.satfat_g);
+  });
+
+  it("scales the item-less macros by the edit's kcal ratio — the verdict follows the plate (#196)", async () => {
+    // satfat_g, fiber_g, sugar_g, sodium_mg live on the MEAL, not the items — a grams change used
+    // to leave them describing the plate that was. They scale with the kcal the edit produced.
+    const userId = await onboard({ restrictions: ["ldl"] });
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i) => ({
+      ...i, grams: i.grams * 2, kcal: (i.kcal ?? 0) * 2,
+      protein_g: i.protein_g !== undefined ? i.protein_g * 2 : undefined,
+      carbs_g: i.carbs_g !== undefined ? i.carbs_g * 2 : undefined,
+      fat_g: i.fat_g !== undefined ? i.fat_g * 2 : undefined,
+    }));
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const ratio = out.analysis.kcal / meal.analysis.kcal;
+    for (const f of ["satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const) {
+      expect(out.analysis[f], f).toBeCloseTo(meal.analysis[f] * ratio, 1);
+    }
+    // And the verdict moved with it — this is the rule the scaling exists for.
+    expect(out.analysis.verdicts.ldl).not.toBe("good");
+  });
+
+  it("a macro only some items report scales rather than counting the silent ones zero (#196)", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    // One item stops reporting protein — that item's protein is UNKNOWN, not zero: the total
+    // tracks the kcal ratio instead of dropping the silent item's share.
+    const items = meal.analysis.items.map((i, ix) => {
+      const kcal = ix === 0 ? (i.kcal ?? 0) * 2 : i.kcal;
+      const row = { ...i, kcal };
+      if (ix === 0) delete row.protein_g;
+      return row;
+    });
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const ratio = out.analysis.kcal / meal.analysis.kcal;
+    expect(out.analysis.protein_g).toBeCloseTo(meal.analysis.protein_g * ratio, 1);
+    // NOT the zero-counted sum the items could name.
+    const partial = items.reduce((s, i) => s + (i.protein_g ?? 0), 0);
+    expect(out.analysis.protein_g).not.toBe(partial);
+  });
+
+  it("an explicit capped-nutrient figure still wins over the scaling", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i) => ({ ...i, kcal: (i.kcal ?? 0) * 2 }));
+    const out = await editMeal(deps, userId, meal.mealId, { items, satfat_g: 42 });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    expect(out.analysis.satfat_g).toBe(42);
   });
 
   it("cannot edit another user's meal", async () => {
