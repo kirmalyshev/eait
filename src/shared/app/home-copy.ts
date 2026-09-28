@@ -48,9 +48,10 @@ export interface HomeCopy {
   phoneStreakAria: string;
   /**
    * phone: Spud's one line under the meals — `phone/today-picker` draws it behind the sheet.
-   * `{nutrient}` is the constraining macro's name as the sentence wants it (`verdictNoun`), `{left}`
-   * and `{grams}` are figures; the wording is the board's and it is one fixed shape, not a lever
-   * the copy picks per case.
+   * `{nutrient}` is the constraining macro's name as the sentence wants it (`verdictNoun`) and
+   * `{grams}` its figure; the kcal-left figure is the card's alone — the line carries the advice
+   * (#1000), so the day total is stated once on the screen. One fixed shape, not a lever the copy
+   * picks per case.
    */
   phoneDayNote: string;
   /** phone: the month sheet's action — `phone/today-picker` "Go to Sunday 20"; `{day}` is Intl. */
@@ -143,7 +144,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   en: {
     phoneToday: "Today",
     phoneStreakAria: "{n}-day streak",
-    phoneDayNote: "{left} left. Keep dinner lean: {grams} g of {nutrient} to go.",
+    phoneDayNote: "Keep dinner lean: {grams} g of {nutrient} to go.",
     phoneGoToDay: "Go to {day}",
     pickerPrevMonth: "Previous month",
     pickerNextMonth: "Next month",
@@ -186,7 +187,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   fr: {
     phoneToday: "Aujourd'hui",
     phoneStreakAria: "Série de {n} jours",
-    phoneDayNote: "{left} restantes. Dîner léger : encore {grams} g de {nutrient}.",
+    phoneDayNote: "Dîner léger : encore {grams} g de {nutrient}.",
     phoneGoToDay: "Aller au {day}",
     pickerPrevMonth: "Mois précédent",
     pickerNextMonth: "Mois suivant",
@@ -229,7 +230,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   de: {
     phoneToday: "Heute",
     phoneStreakAria: "{n} Tage in Folge",
-    phoneDayNote: "Noch {left} übrig. Halte das Abendessen leicht: {nutrient} — noch {grams} g.",
+    phoneDayNote: "Halte das Abendessen leicht: {nutrient} — noch {grams} g.",
     phoneGoToDay: "Zu {day} springen",
     pickerPrevMonth: "Vorheriger Monat",
     pickerNextMonth: "Nächster Monat",
@@ -272,7 +273,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   it: {
     phoneToday: "Oggi",
     phoneStreakAria: "Serie di {n} giorni",
-    phoneDayNote: "{left} rimaste. Cena leggera: ancora {grams} g di {nutrient}.",
+    phoneDayNote: "Cena leggera: ancora {grams} g di {nutrient}.",
     phoneGoToDay: "Vai a {day}",
     pickerPrevMonth: "Mese precedente",
     pickerNextMonth: "Mese successivo",
@@ -315,7 +316,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   es: {
     phoneToday: "Hoy",
     phoneStreakAria: "Racha de {n} días",
-    phoneDayNote: "{left} restantes. Cena ligera: quedan {grams} g de {nutrient}.",
+    phoneDayNote: "Cena ligera: quedan {grams} g de {nutrient}.",
     phoneGoToDay: "Ir a {day}",
     pickerPrevMonth: "Mes anterior",
     pickerNextMonth: "Mes siguiente",
@@ -358,7 +359,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   vi: {
     phoneToday: "Hôm nay",
     phoneStreakAria: "Chuỗi {n} ngày",
-    phoneDayNote: "Còn {left}. Ăn tối nhẹ thôi: còn {grams} g {nutrient}.",
+    phoneDayNote: "Ăn tối nhẹ thôi: còn {grams} g {nutrient}.",
     phoneGoToDay: "Đến {day}",
     pickerPrevMonth: "Tháng trước",
     pickerNextMonth: "Tháng sau",
@@ -401,7 +402,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   id: {
     phoneToday: "Hari ini",
     phoneStreakAria: "Rangkaian {n} hari",
-    phoneDayNote: "Sisa {left}. Makan malam yang ringan: tersisa {grams} g {nutrient}.",
+    phoneDayNote: "Makan malam yang ringan: tersisa {grams} g {nutrient}.",
     phoneGoToDay: "Ke {day}",
     pickerPrevMonth: "Bulan sebelumnya",
     pickerNextMonth: "Bulan berikutnya",
@@ -444,7 +445,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   ru: {
     phoneToday: "Сегодня",
     phoneStreakAria: "Серия: {n} дн.",
-    phoneDayNote: "{left} осталось. На ужин — полегче: {nutrient}, ещё {grams} г.",
+    phoneDayNote: "На ужин — полегче: {nutrient}, ещё {grams} г.",
     phoneGoToDay: "Открыть {day}",
     pickerPrevMonth: "Предыдущий месяц",
     pickerNextMonth: "Следующий месяц",
