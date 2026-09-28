@@ -61,7 +61,7 @@ test("the score row opens the breakdown, and Done closes it", async ({ inWebApp:
   // The overlay names every part: the start, the five nutrients, each with its points.
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Health score", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Day score", { exact: true })).toBeVisible();
   await expect(dialog.locator(".hsp")).toHaveCount(6);
   await shot(page, "score");
   await dialog.getByRole("button", { name: "Done" }).click();

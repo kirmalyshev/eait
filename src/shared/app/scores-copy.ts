@@ -29,14 +29,14 @@ export interface ScoreAppCopy {
   notRead: string;
   /** The whole-card state when fewer than three of the five nutrients were read. */
   insufficient: string;
-  /** The today-score board's headline — "Today's health score {n}/10". */
+  /** The today-score board's headline — "Today's score {n}/10". */
   todayTitle: string;
   /**
    * "From today's meal" / "From today's {n} meals" — `countText(lang)` picks the form CLDR names
    * for the count; the singular is a whole template because a one is said, not numbered.
    */
   todayFromMeals: CountForms;
-  /** The day breakdown's own title — "Today's health score", the score itself elsewhere. */
+  /** The day breakdown's own title — "Today's score", the score itself elsewhere. */
   breakdownTitle: string;
   /** Under the breakdown's title: what the day's number IS. */
   breakdownLine: string;
@@ -61,15 +61,15 @@ export interface ScoreAppCopy {
 
 export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   en: {
-    title: "Health score",
+    title: "Day score",
     outOf: "{n}/10",
     dayLabel: "Today",
     method: "From protein, fibre, saturated fat, sugar and salt, per calorie.",
     notRead: "not read",
     insufficient: "Not enough read to score",
-    todayTitle: "Today's health score {n}/10",
+    todayTitle: "Today's score {n}/10",
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
-    breakdownTitle: "Today's health score",
+    breakdownTitle: "Today's score",
     breakdownLine: "The mean of today's meals, weighted by their calories.",
     factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
     startRow: "Start",
@@ -81,15 +81,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "high cholesterol", kidneys: "kidney condition", lowsugar: "diabetes risk" },
   },
   fr: {
-    title: "Score santé",
+    title: "Score du jour",
     outOf: "{n}/10",
     dayLabel: "Aujourd'hui",
     method: "À partir des protéines, des fibres, des graisses saturées, du sucre et du sel, par calorie.",
     notRead: "non lu",
     insufficient: "Lecture insuffisante pour un score",
-    todayTitle: "Score santé d'aujourd'hui : {n}/10",
+    todayTitle: "Score du jour : {n}/10",
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
-    breakdownTitle: "Score santé d'aujourd'hui",
+    breakdownTitle: "Score du jour",
     breakdownLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
     factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
     startRow: "Base",
@@ -101,15 +101,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "cholestérol élevé", kidneys: "maladie rénale", lowsugar: "risque de diabète" },
   },
   de: {
-    title: "Gesundheitsscore",
+    title: "Tageswert",
     outOf: "{n}/10",
     dayLabel: "Heute",
     method: "Aus Protein, Ballaststoffen, gesättigten Fettsäuren, Zucker und Salz — pro Kalorie.",
     notRead: "nicht erkannt",
     insufficient: "Zu wenig erkannt für einen Score",
-    todayTitle: "Heutiger Gesundheitsscore: {n}/10",
+    todayTitle: "Tageswert heute: {n}/10",
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
-    breakdownTitle: "Heutiger Gesundheitsscore",
+    breakdownTitle: "Tageswert heute",
     breakdownLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
     factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
     startRow: "Basis",
@@ -121,15 +121,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "hohes Cholesterin", kidneys: "Nierenerkrankung", lowsugar: "Diabetesrisiko" },
   },
   it: {
-    title: "Punteggio di salute",
+    title: "Punteggio del giorno",
     outOf: "{n}/10",
     dayLabel: "Oggi",
     method: "Da proteine, fibre, grassi saturi, zuccheri e sale, per caloria.",
     notRead: "non letto",
     insufficient: "Dati insufficienti per un punteggio",
-    todayTitle: "Punteggio di salute di oggi: {n}/10",
+    todayTitle: "Punteggio di oggi: {n}/10",
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
-    breakdownTitle: "Punteggio di salute di oggi",
+    breakdownTitle: "Punteggio di oggi",
     breakdownLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
     factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
     startRow: "Base",
@@ -141,15 +141,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "colesterolo alto", kidneys: "malattia renale", lowsugar: "rischio di diabete" },
   },
   es: {
-    title: "Puntuación de salud",
+    title: "Puntuación del día",
     outOf: "{n}/10",
     dayLabel: "Hoy",
     method: "A partir de proteínas, fibra, grasas saturadas, azúcar y sal, por caloría.",
     notRead: "sin lectura",
     insufficient: "Lectura insuficiente para una puntuación",
-    todayTitle: "Puntuación de salud de hoy: {n}/10",
+    todayTitle: "Puntuación de hoy: {n}/10",
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
-    breakdownTitle: "Puntuación de salud de hoy",
+    breakdownTitle: "Puntuación de hoy",
     breakdownLine: "La media de las comidas de hoy, ponderada por sus calorías.",
     factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
@@ -161,15 +161,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "colesterol alto", kidneys: "enfermedad renal", lowsugar: "riesgo de diabetes" },
   },
   vi: {
-    title: "Điểm sức khỏe",
+    title: "Điểm trong ngày",
     outOf: "{n}/10",
     dayLabel: "Hôm nay",
     method: "Từ đạm, chất xơ, chất béo bão hòa, đường và muối, trên mỗi calo.",
     notRead: "không đọc được",
     insufficient: "Chưa đủ dữ liệu để chấm điểm",
-    todayTitle: "Điểm sức khỏe hôm nay: {n}/10",
+    todayTitle: "Điểm hôm nay: {n}/10",
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
-    breakdownTitle: "Điểm sức khỏe hôm nay",
+    breakdownTitle: "Điểm hôm nay",
     breakdownLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
     factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
     startRow: "Điểm gốc",
@@ -181,15 +181,15 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "cholesterol cao", kidneys: "bệnh thận", lowsugar: "nguy cơ tiểu đường" },
   },
   id: {
-    title: "Skor kesehatan",
+    title: "Skor harian",
     outOf: "{n}/10",
     dayLabel: "Hari ini",
     method: "Dari protein, serat, lemak jenuh, gula, dan garam, per kalori.",
     notRead: "tidak terbaca",
     insufficient: "Data terbaca kurang untuk skor",
-    todayTitle: "Skor kesehatan hari ini: {n}/10",
+    todayTitle: "Skor hari ini: {n}/10",
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
-    breakdownTitle: "Skor kesehatan hari ini",
+    breakdownTitle: "Skor hari ini",
     breakdownLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
     factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
     startRow: "Awal",
@@ -201,20 +201,20 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     limits: { ldl: "kolesterol tinggi", kidneys: "penyakit ginjal", lowsugar: "risiko diabetes" },
   },
   ru: {
-    title: "Оценка здоровья",
+    title: "Оценка дня",
     outOf: "{n}/10",
     dayLabel: "Сегодня",
     method: "Из белка, клетчатки, насыщенных жиров, сахара и соли — на калорию.",
     notRead: "не считано",
     insufficient: "Недостаточно данных для оценки",
-    todayTitle: "Оценка здоровья за сегодня: {n}/10",
+    todayTitle: "Оценка за сегодня: {n}/10",
     todayFromMeals: {
       one: "Из {n} сегодняшнего приёма пищи",
       few: "Из {n} сегодняшних приёма пищи",
       many: "Из {n} сегодняшних приёмов пищи",
       other: "Из {n} сегодняшних приёмов пищи",
     },
-    breakdownTitle: "Оценка здоровья за сегодня",
+    breakdownTitle: "Оценка за сегодня",
     breakdownLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
     factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
     startRow: "База",
