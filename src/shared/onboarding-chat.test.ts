@@ -169,7 +169,7 @@ describe("what Spud asks", () => {
 describe("the answer a resumed run draws back", () => {
   it("writes an enumerated answer the way it was labelled", () => {
     expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), { content, lang: "en" })).toBe("Lose weight");
-    expect(answerLabel(promptById("activity"), profile({ activity: "some" }), { content, lang: "en" })).toBe("3–5");
+    expect(answerLabel(promptById("activity"), profile({ activity: "some" }), { content, lang: "en" })).toBe("3–4");
   });
 
   it("writes a number the way it was typed", () => {
@@ -532,9 +532,9 @@ describe("the age question (C2)", () => {
 });
 
 describe("the activity choices (C4)", () => {
-  it("asks in plain frequencies, on the three levels in order", () => {
+  it("asks in plain frequencies, on the four levels in order", () => {
     const labels = screenOptions(content, "activity");
-    expect(ACTIVITY_LEVELS.map((l) => labels[l]!.label)).toEqual(["0–2", "3–5", "6+"]);
+    expect(ACTIVITY_LEVELS.map((l) => labels[l]!.label)).toEqual(["0", "1–2", "3–4", "5+"]);
   });
 });
 

@@ -71,9 +71,10 @@ const FR: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["À quel point tes journées sont-elles actives ?"] } },
       options: {
-        few: { label: "0–2", hint: "Une séance de temps en temps" },
-        some: { label: "3–5", hint: "Quelques séances par semaine" },
-        many: { label: "6+", hint: "Athlète confirmé" },
+        none: { label: "0", hint: "Pas de séance" },
+        few: { label: "1–2", hint: "Une séance de temps en temps" },
+        some: { label: "3–4", hint: "Quelques séances par semaine" },
+        many: { label: "5+", hint: "Athlète confirmé" },
       },
     },
     {
@@ -195,9 +196,10 @@ const DE: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["Wie aktiv sind deine Tage?"] } },
       options: {
-        few: { label: "0–2", hint: "Ab und zu ein Workout" },
-        some: { label: "3–5", hint: "Ein paar Workouts pro Woche" },
-        many: { label: "6+", hint: "Fast täglich Training" },
+        none: { label: "0", hint: "Kein Training" },
+        few: { label: "1–2", hint: "Ab und zu ein Workout" },
+        some: { label: "3–4", hint: "Ein paar Workouts pro Woche" },
+        many: { label: "5+", hint: "Fast täglich Training" },
       },
     },
     {
@@ -319,9 +321,10 @@ const IT: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["Quanto sono attive le tue giornate?"] } },
       options: {
-        few: { label: "0–2", hint: "Un allenamento ogni tanto" },
-        some: { label: "3–5", hint: "Qualche allenamento a settimana" },
-        many: { label: "6+", hint: "Quasi tutti i giorni" },
+        none: { label: "0", hint: "Nessun allenamento" },
+        few: { label: "1–2", hint: "Un allenamento ogni tanto" },
+        some: { label: "3–4", hint: "Qualche allenamento a settimana" },
+        many: { label: "5+", hint: "Quasi tutti i giorni" },
       },
     },
     {
@@ -443,9 +446,10 @@ const ES: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["¿Qué tan activos son tus días?"] } },
       options: {
-        few: { label: "0–2", hint: "Algún entrenamiento de vez en cuando" },
-        some: { label: "3–5", hint: "Unos entrenamientos a la semana" },
-        many: { label: "6+", hint: "Casi todos los días" },
+        none: { label: "0", hint: "Sin entrenamientos" },
+        few: { label: "1–2", hint: "Algún entrenamiento de vez en cuando" },
+        some: { label: "3–4", hint: "Unos entrenamientos a la semana" },
+        many: { label: "5+", hint: "Casi todos los días" },
       },
     },
     {
@@ -567,9 +571,10 @@ const VI: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["Ngày của bạn vận động thế nào?"] } },
       options: {
-        few: { label: "0–2", hint: "Thỉnh thoảng tập" },
-        some: { label: "3–5", hint: "Vài buổi tập mỗi tuần" },
-        many: { label: "6+", hint: "Vận động viên thực thụ" },
+        none: { label: "0", hint: "Không tập" },
+        few: { label: "1–2", hint: "Thỉnh thoảng tập" },
+        some: { label: "3–4", hint: "Vài buổi tập mỗi tuần" },
+        many: { label: "5+", hint: "Vận động viên thực thụ" },
       },
     },
     {
@@ -691,9 +696,10 @@ const ID: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["Seberapa aktif harimu?"] } },
       options: {
-        few: { label: "0–2", hint: "Olahraga sesekali" },
-        some: { label: "3–5", hint: "Beberapa kali olahraga seminggu" },
-        many: { label: "6+", hint: "Atlet berdedikasi" },
+        none: { label: "0", hint: "Tidak olahraga" },
+        few: { label: "1–2", hint: "Olahraga sesekali" },
+        some: { label: "3–4", hint: "Beberapa kali olahraga seminggu" },
+        many: { label: "5+", hint: "Atlet berdedikasi" },
       },
     },
     {
@@ -815,9 +821,10 @@ const RU: OnboardingContent = {
       id: "activity",
       asks: { activity: { lines: ["Насколько активны ваши дни?"] } },
       options: {
-        few: { label: "0–2", hint: "Тренировки время от времени" },
-        some: { label: "3–5", hint: "Несколько тренировок в неделю" },
-        many: { label: "6+", hint: "Почти каждый день" },
+        none: { label: "0", hint: "Без тренировок" },
+        few: { label: "1–2", hint: "Тренировки время от времени" },
+        some: { label: "3–4", hint: "Несколько тренировок в неделю" },
+        many: { label: "5+", hint: "Почти каждый день" },
       },
     },
     {

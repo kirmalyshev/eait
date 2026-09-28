@@ -96,7 +96,7 @@ describe("projectGoal", () => {
     // −550/day; the share cap applies −359 → 0.326 kg/week, and January 2027 is 18 weeks out.
     const p = profile({
       sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
-      target_weight_kg: 68, goal: "lose", activity: "few", pace: "steady",
+      target_weight_kg: 68, goal: "lose", activity: "none", pace: "steady",
     });
     const projection = projectGoal(p, explainTargets(p, new Date("2026-08-01T12:00:00Z")).basis);
     expect(projection).not.toBeNull();
@@ -112,7 +112,7 @@ describe("projectGoal", () => {
     // is 25.
     const p = profile({
       sex: "female", birth_year: 1986, height_cm: 160, weight_kg: 58,
-      target_weight_kg: 52, activity: "few", pace: "push",
+      target_weight_kg: 52, activity: "none", pace: "push",
     });
     const basis = explainTargets(p, new Date("2026-08-01T12:00:00Z")).basis;
     expect(basis.appliedDeltaKcal).toBe(basis.floorKcal - basis.tdee!);
@@ -200,7 +200,7 @@ describe("previewProjection", () => {
     // Small, barely-active female: "push" asks 825 kcal/day, the share cap allows ~20% of a ~1,535
     // kcal TDEE. The preview must show the capped rate, not 0.75 kg/week.
     const p = previewProjection(
-      profile({ sex: "female", height_cm: 160, weight_kg: 62, activity: "few",
+      profile({ sex: "female", height_cm: 160, weight_kg: 62, activity: "none",
         target_weight_kg: null, pace: null }),
       57, "push",
     );

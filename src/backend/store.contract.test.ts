@@ -1573,15 +1573,15 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(p.onboarded_at).toBe("2026-01-01T00:00:00.000Z");
     });
 
-    it("reads a stored legacy activity level migrated to the nearest of the three", async () => {
-      // The five-level vocabulary became three in targets v2 (decision 7). The write path is typed
-      // — the cast is what a row written by an older binary looks like — and the read must answer
-      // the new vocabulary either way, because a legacy row can outlive the boot-time backfill by
-      // being written while an old build is still up.
+    it("reads a stored legacy activity level migrated to the nearest of the four", async () => {
+      // The five-level vocabulary became three in targets v2 (decision 7), four in #1078. The
+      // write path is typed — the cast is what a row written by an older binary looks like — and
+      // the read must answer the new vocabulary either way, because a legacy row can outlive the
+      // boot-time backfill by being written while an old build is still up.
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
       await s.patchProfile(u, { activity: "sedentary" as ActivityLevel });
-      expect((await s.getProfile(u))!.activity).toBe("few");
+      expect((await s.getProfile(u))!.activity).toBe("none");
       await s.patchProfile(u, { activity: "athlete" as ActivityLevel });
       expect((await s.getProfile(u))!.activity).toBe("many");
       await s.patchProfile(u, { activity: "some" });
@@ -3265,17 +3265,22 @@ if (PG_URL) {
       const store = await migrate();
       const rows: [string, ActivityLevel][] = [];
       for (const [stored, expected] of [
-        ["sedentary", "few"], ["light", "few"], ["moderate", "some"],
+        ["sedentary", "none"], ["light", "none"], ["moderate", "some"],
         ["active", "some"], ["athlete", "many"], ["some", "some"],
       ] as const) {
         const { userId } = await store.upsertDeviceUser(`act-${stored}-${device()}`, "en");
         await sql`update users set activity = ${stored} where id = ${userId}`;
         rows.push([userId, expected]);
       }
+      // #1078: 'few' is a live id again (1–2), so the backfill of the OLD 'few' is one-shot —
+      // a 1–2 answered after the migration must still say 'few' after the next reboot.
+      const { userId: answered } = await store.upsertDeviceUser(`act-few-${device()}`, "en");
+      await store.patchProfile(answered, { activity: "few" });
       const redeployed = await migrate();
       for (const [userId, expected] of rows) {
         expect((await redeployed.getProfile(userId))!.activity, `stored value`).toBe(expected);
       }
+      expect((await redeployed.getProfile(answered))!.activity).toBe("few");
       await sql.end();
       await store.close();
       await redeployed.close();

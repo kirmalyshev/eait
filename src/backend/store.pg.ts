@@ -217,13 +217,32 @@ alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
--- stored value moves to the nearest of them. Idempotent rather than guarded: the new ids match no
--- WHERE clause here, so the hundredth boot rewrites nothing, and the one place the mapping is
--- authored is migrateActivityLevel in shared — a row written in the window between this backfill
--- and an old build still serving is coerced by rowToProfile instead of migrated here.
-update users set activity = 'few'  where activity in ('sedentary', 'light');
+-- stored value moves to the nearest of them; #1078 made it four — none / few / some / many — so
+-- the bottom pair lands on 'none' now, which carries the same 1.2 the old 'few' did. Idempotent
+-- rather than guarded: none of these WHERE clauses matches a live id, so the hundredth boot
+-- rewrites nothing, and the one place the mapping is authored is migrateActivityLevel in shared —
+-- a row written in the window between this backfill and an old build still serving is coerced by
+-- rowToProfile instead of migrated here.
+update users set activity = 'none' where activity in ('sedentary', 'light');
 update users set activity = 'some' where activity in ('moderate', 'active');
 update users set activity = 'many' where activity = 'athlete';
+-- #1078's own hop is different: 'few' is a LIVE id (it now means 1–2), so an unguarded rewrite
+-- would clobber a genuine 1–2 answer on every boot that follows. ONE-SHOT, then, marked by a
+-- comment on the column — the same marker idea POLICY_VERSION uses. A stored 'few' keeps its
+-- multiplier only at 'none' (both are 1.2), so no stored profile's target moves; 'some' and
+-- 'many' keep their ids and their factors. A 'few' written by an old build in the window after
+-- this has run is the one case no rule can reach — see migrateActivityLevel.
+do $do$
+begin
+  if (select col_description('users'::regclass, (
+        select attnum from pg_attribute
+        where attrelid = 'users'::regclass and attname = 'activity')))
+      is distinct from 'activity-bands-4' then
+    update users set activity = 'none' where activity = 'few';
+    comment on column users.activity is 'activity-bands-4';
+  end if;
+end
+$do$;
 
 -- The paid tier, on the user row rather than in a subscriptions table.
 --

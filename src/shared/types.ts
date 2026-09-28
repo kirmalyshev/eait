@@ -24,16 +24,20 @@ export type Sex = (typeof SEXES)[number];
 /**
  * Activity multipliers applied to BMR. Standard Harris-Benedict/Mifflin bands.
  *
- * THREE coarse buckets — 0–2, 3–5 and 6+ workouts a week (targets v2, decision 7) — id'd after the
- * icons that draw them. A wrong multiplier moves the target by hundreds of kcal, and a user who
- * self-reports a bucket is giving a better estimate than a phone that counted one pocket's steps.
+ * FOUR coarse buckets — 0, 1–2, 3–4 and 5+ workouts a week (targets v2, decision 7; the four-band
+ * split is #1078) — id'd after the icons that draw them. A wrong multiplier moves the target by
+ * hundreds of kcal, and a user who self-reports a bucket is giving a better estimate than a phone
+ * that counted one pocket's steps.
  */
-export const ACTIVITY_LEVELS = ["few", "some", "many"] as const;
+export const ACTIVITY_LEVELS = ["none", "few", "some", "many"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
 
 /**
- * The one mapping from the five stored values to the three current ones (decision 7):
- * `sedentary`/`light` → `few`, `moderate`/`active` → `some`, `athlete` → `many`.
+ * The one mapping from retired ids to the current ones. From the five-level vocabulary (decision
+ * 7): `sedentary`/`light` → `none`, `moderate`/`active` → `some`, `athlete` → `many`. And from the
+ * three-band one that #1078 replaced: a stored `few` was "0–2", which the boot-time backfill moved
+ * to `none`. It cannot be mapped here — `few` is a live key again (1–2) — so a straggler write of
+ * it lands one band high, which is the irreducible cost of the key being reused.
  *
  * Every path an old id can still travel reads this: the schema's boot-time backfill covers rows
  * already stored, this covers the rest — a row written by a build still on the old vocabulary, and
@@ -42,8 +46,8 @@ export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
  */
 export function migrateActivityLevel(value: string | null | undefined): ActivityLevel | null {
   switch (value) {
-    case "few": case "some": case "many": return value;
-    case "sedentary": case "light": return "few";
+    case "none": case "few": case "some": case "many": return value;
+    case "sedentary": case "light": return "none";
     case "moderate": case "active": return "some";
     case "athlete": return "many";
     default: return null;

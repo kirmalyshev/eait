@@ -791,7 +791,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
   // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
   // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
-  version: 15,
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this.
+  version: 16,
   welcome: {
     lines: ["Snap a meal. Know if it fits."],
     cta: "Build my plan",
@@ -856,11 +859,12 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         },
       },
       options: {
-        // Targets v2: three levels id'd by their icons — the range is the label, the line beneath
-        // is the hint.
-        few: { label: "0–2", hint: "Workouts now and then" },
-        some: { label: "3–5", hint: "A few workouts a week" },
-        many: { label: "6+", hint: "Dedicated athlete" },
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "No workouts" },
+        few: { label: "1–2", hint: "Workouts now and then" },
+        some: { label: "3–4", hint: "A few workouts a week" },
+        many: { label: "5+", hint: "Dedicated athlete" },
       },
     },
     {
@@ -1281,6 +1285,21 @@ export function usableContent(
     for (const field of SCREEN_FIELDS[id]) {
       const ask = asks[field];
       if (!ask || !Array.isArray(ask.lines) || ask.lines.length === 0) return fallback;
+    }
+    // The option labels are the vocabulary's too. A revision from before a key existed renders the
+    // bare id for it — and a REUSED key keeps its old label, which is worse: a stored v15 `few`
+    // still reads "0–2" where it now means 1–2 (#1078). Same rule the write validator holds.
+    const vocabulary = SCREEN_OPTIONS[id];
+    if (vocabulary) {
+      const opts = screen.options;
+      if (typeof opts !== "object" || opts === null) return fallback;
+      for (const key of vocabulary) {
+        if (optionLabelIsData(id, key)) continue;
+        const o = opts[key];
+        if (typeof o !== "object" || o === null || typeof o.label !== "string" || o.label === "") {
+          return fallback;
+        }
+      }
     }
   }
   return {
