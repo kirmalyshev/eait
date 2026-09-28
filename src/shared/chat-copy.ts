@@ -42,30 +42,6 @@ import type { PendingPhoto } from "./stream.ts";
 // compile error instead of a TypeError inside a chat bubble.
 import type { ScriptedLineId } from "./chat.ts";
 
-/**
- * The bare figures every sentence about the day interpolates.
- *
- * ONE TYPE FOR ALL OF THEM, because the four arithmetic branches are chosen at runtime and a
- * caller cannot know which it will land on. `left` and `over` are both always present and one of
- * them is always "0" — `figures()` in `chat.ts` clamps, so a branch never has to ask.
- */
-// A `type` and not an `interface`, and that is load-bearing rather than stylistic: Lingui's
-// `_(id, values)` takes `Record<string, unknown>`, and TypeScript gives an object type alias an
-// implicit index signature while an interface gets none. As an interface this does not compile.
-export type Figures = {
-  left: string;
-  over: string;
-  plan: string;
-  protein: string;
-  proteinTarget: string;
-};
-
-/** The four branches of the running arithmetic: the goal, crossed with whether the day is spent. */
-export type ArithmeticCopy = Record<
-  "gainLeft" | "gainOver" | "otherLeft" | "otherOver",
-  (v: Figures) => string
->;
-
 export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
   scripted: Record<ScriptedLineId, (v?: Record<string, string>) => string>;
@@ -86,22 +62,12 @@ export interface ThreadCopy {
    * one parameter, which is an English genitive compiled into the code and unreachable by any
    * translation.
    */
-  running: { left: (v: Figures) => string; over: (v: Figures) => string };
   firstVerdict: {
-    /** After a dash, so English leads lowercase. */
-    arithmetic: ArithmeticCopy;
-    /** The same four as a sentence of their own. */
-    arithmeticAlone: ArithmeticCopy;
     /** A typed meal, where the portions are a guess. */
     typed: (v: { kcal: string }) => string;
     /** The analyzer could not read the plate. */
     lowConfidence: (v: { kcal: string }) => string;
-    /** The rough-but-it-counts follow-up, per goal and per side of the plan. */
-    lowOverGain: (v: Figures) => string;
-    lowOverOther: (v: Figures) => string;
-    lowLeftGain: (v: Figures) => string;
-    lowLeftOther: (v: Figures) => string;
-    firstIn: (v: { kcal: string; arithmetic: string }) => string;
+    firstIn: (v: { kcal: string }) => string;
     fixHint: string;
     /**
      * THE HEADLINE (#49): the pills' verdict in words, spoken first. `onPlan` only when every pill
@@ -149,30 +115,10 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     busy: i18n._("thread.coachStarters.busy", undefined, { message: "I'll just tell you what I ate" }),
     ideas: i18n._("thread.coachStarters.ideas", undefined, { message: "What should I eat tonight?" }),
   },
-  running: {
-    left: (v: Figures) => i18n._("thread.running.left", v, { message: "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
-    over: (v: Figures) => i18n._("thread.running.over", v, { message: "{over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),
-  },
   firstVerdict: {
-    arithmetic: {
-      gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),
-      gainOver: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainOver", v, { message: "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number." }),
-      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.otherLeft", v, { message: "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein." }),
-      otherOver: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.otherOver", v, { message: "that puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number." }),
-    },
-    arithmeticAlone: {
-      gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),
-      gainOver: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.gainOver", v, { message: "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number." }),
-      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherLeft", v, { message: "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein." }),
-      otherOver: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherOver", v, { message: "That puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number." }),
-    },
     typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it." }),
     lowConfidence: (v: { kcal: string }) => i18n._("thread.firstVerdict.lowConfidence", v, { message: "Honest answer: I couldn't read that plate well. Take {kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps." }),
-    lowOverGain: (v: Figures) => i18n._("thread.firstVerdict.lowOverGain", v, { message: "Even rough, it counts: about {over} over your {plan} today." }),
-    lowOverOther: (v: Figures) => i18n._("thread.firstVerdict.lowOverOther", v, { message: "Even rough, it counts: about {over} over your {plan} today. Tomorrow is a fresh number." }),
-    lowLeftGain: (v: Figures) => i18n._("thread.firstVerdict.lowLeftGain", v, { message: "Even rough, it counts: about {left} of your {plan} still to fill today." }),
-    lowLeftOther: (v: Figures) => i18n._("thread.firstVerdict.lowLeftOther", v, { message: "Even rough, it counts: about {left} of your {plan} left today." }),
-    firstIn: (v: { kcal: string; arithmetic: string }) => i18n._("thread.firstVerdict.firstIn", v, { message: "First one in. {kcal} kcal — {arithmetic}" }),
+    firstIn: (v: { kcal: string }) => i18n._("thread.firstVerdict.firstIn", v, { message: "First one in. {kcal} kcal." }),
     fixHint: i18n._("thread.firstVerdict.fixHint", undefined, { message: "If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams." }),
     headline: {
       onPlan: i18n._("thread.firstVerdict.headline.onPlan", undefined, { message: "On plan." }),

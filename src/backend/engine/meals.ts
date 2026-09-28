@@ -276,9 +276,8 @@ async function logPhotoTurn(
         { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null, analysisId },
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
-        // Where the DAY now stands (#306) — the sentence a correction already got, on every meal
-        // that is not the account's first. The greeting carries the same arithmetic, so an empty
-        // greeting is exactly the condition for saying it here, and it is already known.
+        // A declared cap that ran high still gets its line (#130); an empty greeting is exactly
+        // the condition for saying it here — the greeting is spent — and it is already known.
         ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
         // is delivered, then queried. There is no line kind for it, because a question that needed
@@ -811,7 +810,7 @@ export async function confirmPendingMeal(
       lines: [
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
         ...greeting.lines,
-        // The same line a photo meal gets (#306): a confirmed estimate is a landed meal.
+        // The same cap lines a photo meal gets: a confirmed estimate is a landed meal.
         ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
