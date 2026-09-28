@@ -34,35 +34,35 @@ function howCards(lang: Lang, units: UnitSystem): string {
     `<div class="vf"><i></i><i></i><i></i><i></i></div><span class="n">1</span></div>` +
     `<div class="pt">${escape(s1!)}</div></div>`;
   // Step 2 — a verdict card, with the persona's drawn lunch and its two warn verdicts.
-  const card2 = `<div class="card"><div class="pict" style="background:var(--surface)">` +
-    `<div style="width:100%;padding:10px"><div class="row">` +
-    `<img src="${IMG_URL_DIR}/salmon-sq.webp" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover">` +
-    `<div style="flex:1"><b class="d d17">${escape(copy.how.meal)}</b></div>` +
-    `<span class="row" style="gap:5px"><i class="ico i-${KCAL_CHIP}" style="width:16px;height:16px"></i>` +
-    `<b class="num" style="font-size:18px;font-weight:700">${w(HOW_DEMO.meal.kcal)}</b></span></div>` +
+  const card2 = `<div class="card"><div class="pict solid">` +
+    `<div class="mini"><div class="row">` +
+    `<img class="mimg" src="${IMG_URL_DIR}/salmon-sq.webp" alt="">` +
+    `<div class="grow"><b class="d d17">${escape(copy.how.meal)}</b></div>` +
+    `<span class="row mrow"><i class="ico i-${KCAL_CHIP} mico"></i>` +
+    `<b class="num mkcal">${w(HOW_DEMO.meal.kcal)}</b></span></div>` +
     `<div class="macs">${MACS.map((m) =>
       `<span class="mac ${m.cls}"><i class="ico i-${m.icon}"></i>${n(m.of(HOW_DEMO.meal))} g</span>`,
     ).join("")}</div>` +
-    `<div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">${HOW_DEMO.verdicts.map((vv) =>
+    `<div class="vlist">${HOW_DEMO.verdicts.map((vv) =>
       `<span class="v ${vv.verdict}"><i></i>${escape(verdictPillLabel(vv.dimension, vv.verdict, lang))}</span>`,
     ).join("")}</div></div><span class="n">2</span></div>` +
     `<div class="pt">${escape(s2!)}</div></div>`;
   // Step 3 — the mini estimate curve, fixed to the boards' persona figure (74 → 68).
-  const card3 = `<div class="card"><div class="pict" style="background:var(--surface);flex-direction:column;align-items:stretch;padding:10px 14px">` +
-    `<div class="row between"><b class="t13" style="font-weight:600">${escape(copy.chart.estimatedProgress)}</b>` +
+  const card3 = `<div class="card"><div class="pict chart">` +
+    `<div class="row between"><b class="t13 semi">${escape(copy.chart.estimatedProgress)}</b>` +
     `<span class="est">${escape(copy.chart.estimate)}</span></div>` +
-    `<svg class="pgraph" viewBox="${mini.viewBox}" width="100%" style="display:block;overflow:visible" role="img" aria-hidden="true">` +
+    `<svg class="pgraph" viewBox="${mini.viewBox}" width="100%" role="img" aria-hidden="true">` +
     `<defs><linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">` +
     mini.areaGradient.stops.map((s) =>
-      `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`,
+      `<stop offset="${s.offset}" stop-color="var(--accent)" stop-opacity="${s.opacity}"/>`,
     ).join("") + `</linearGradient></defs>` +
     `<path d="${mini.areaPath}" fill="url(#hgrad)"/>` +
     `<path d="${mini.linePath}" class="ln draw"/>` +
     `<circle cx="${mini.startDot.cx}" cy="${mini.startDot.cy}" r="${mini.startDot.r}" fill="var(--ink)"/>` +
     `<circle cx="${mini.endDot.cx}" cy="${mini.endDot.cy}" r="${mini.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${mini.endDot.strokeWidth}"/>` +
-    `<text x="${mini.startLabel.x}" y="${mini.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(weightDisplay(HOW_DEMO.startKg, units, lang))}</text>` +
+    `<text class="ink" x="${mini.startLabel.x}" y="${mini.startLabel.y}">${escape(weightDisplay(HOW_DEMO.startKg, units, lang))}</text>` +
     `</svg>` +
-    `<div class="ptick"><span style="left:78%">${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, units, lang) }))}</span></div>` +
+    `<div class="ptick"><span class="tgt">${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, units, lang) }))}</span></div>` +
     `<span class="n">3</span></div>` +
     `<div class="pt">${escape(s3!)}</div></div>`;
   return `<div class="cards c3">${card1}${card2}${card3}</div>`;
@@ -72,7 +72,7 @@ function howCards(lang: Lang, units: UnitSystem): string {
 function ontrackChart(lang: Lang): string {
   const copy = chatCopyFor(lang);
   const c = TWO_WAYS_CHART;
-  return `<svg class="pgraph" viewBox="${c.viewBox}" width="100%" style="display:block;overflow:visible" role="img" aria-label="${escape(copy.chart.twoWays)}">` +
+  return `<svg class="pgraph" viewBox="${c.viewBox}" width="100%" role="img" aria-label="${escape(copy.chart.twoWays)}">` +
     `<line x1="${c.baseline.x1}" y1="${c.baseline.y}" x2="${c.baseline.x2}" y2="${c.baseline.y}" stroke="var(--hair)"/>` +
     `<path d="${c.withoutPath}" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4" class="draw" style="--d:.2s"/>` +
     `<path d="${c.withPath}" class="ln draw" style="--d:.5s"/>` +
@@ -94,17 +94,17 @@ export function interstitial(
   const copy = chatCopyFor(lang);
   const inner = place === "how"
     ? howCards(lang, profile.units ?? "metric")
-    : `<div class="card" style="position:relative">` +
+    : `<div class="card rel">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
       `${ontrackChart(lang)}` +
-      `<div class="tagx" style="position:absolute;right:14px;bottom:14px"><span class="wm" aria-hidden="true">${spudSvg("happy", "spud-tag")}</span>${escape(copy.chart.byEait)}</div>` +
+      `<div class="tagx pos"><span class="wm" aria-hidden="true">${spudSvg("happy", "spud-tag")}</span>${escape(copy.chart.byEait)}</div>` +
       `</div>` +
       (ontrackCaption(profile.struggles, lang)
-        ? `<p class="muted-sub" style="text-align:center">${escape(ontrackCaption(profile.struggles, lang)!)}</p>`
+        ? `<p class="muted-sub cen">${escape(ontrackCaption(profile.struggles, lang)!)}</p>`
         : "");
   const title = place === "how" ? copy.how.title : copy.ontrack.title;
   const body = `${wtop()}
-<div class="wmain one" style="max-width:720px"><div class="wcol">
+<div class="wmain one q"><div class="wcol">
 ${dash(place, lang)}
 ${say(PLACE_MOOD[place] ?? "happy", [title], lang)}
 <div class="qcol">${inner}${ctaLink(continueHref, copy.continueLabel)}</div>

@@ -61,7 +61,7 @@ export const ctaSubmit = (label: string): string =>
  * for the rare inline custom property (an animation delay); callers never get a tag of raw HTML
  * to compose, so a patch of the emitted string is never the way. */
 export const ctaLink = (href: string, label: string, cls = "p", attrs = ""): string =>
-  `<a class="cta ${cls}" href="${href}"${attrs}>${escape(label)}</a>`;
+  `<a class="cta ${escape(cls)}" href="${escape(href)}"${attrs}>${escape(label)}</a>`;
 
 /**
  * An option row — a real input wrapped in its label, so the row IS the control and works with no
