@@ -137,13 +137,14 @@ describe("verdictMood", () => {
   });
 });
 
-// The activity vocabulary went from five levels to three (targets v2, decision 7): the stored
-// values of every existing account are the old ids, and this is the ONE mapping that moves them —
-// the schema backfill, the row reader and the patch validator all read it.
+// The activity vocabulary went from five levels to three (targets v2, decision 7) and then to
+// four (#1078): the stored values of existing accounts are the old ids, and this is the ONE
+// mapping that moves them — the schema backfill, the row reader and the patch validator all
+// read it.
 describe("migrateActivityLevel", () => {
-  it("maps each of the five stored ids to the nearest of the three", () => {
-    expect(migrateActivityLevel("sedentary")).toBe("few");
-    expect(migrateActivityLevel("light")).toBe("few");
+  it("maps each of the five stored ids to the nearest of the four", () => {
+    expect(migrateActivityLevel("sedentary")).toBe("none");
+    expect(migrateActivityLevel("light")).toBe("none");
     expect(migrateActivityLevel("moderate")).toBe("some");
     expect(migrateActivityLevel("active")).toBe("some");
     expect(migrateActivityLevel("athlete")).toBe("many");

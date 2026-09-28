@@ -138,7 +138,7 @@ describe("the calorie floor", () => {
     // cut of 263 kcal/day. Every reader (the projection, the plan card, the coach prompt) treats
     // `appliedDeltaKcal` as the post-floor delta, so the basis must not keep the pre-floor −293.
     const p = profile({
-      sex: "female", goal: "lose", pace: "push", activity: "few",
+      sex: "female", goal: "lose", pace: "push", activity: "none",
       height_cm: 160, weight_kg: 58, birth_year: 1986,
     });
     const { targets, basis } = explainTargets(p, TODAY);
@@ -184,11 +184,12 @@ describe("the deficit share cap", () => {
   });
 });
 
-describe("the three activity levels (targets v2, decision 7)", () => {
-  it("prices 0–2 / 3–5 / 6+ workouts a week at 1.2 / 1.55 / 1.725", () => {
-    // The ids are the icon names. Against the design persona's 1,494 BMR: 1,793 / 2,316 / 2,577.
+describe("the four activity levels (targets v2, decision 7; #1078)", () => {
+  it("prices 0 / 1–2 / 3–4 / 5+ workouts a week at 1.2 / 1.375 / 1.55 / 1.725", () => {
+    // The ids are the icon names. Against the design persona's 1,494 BMR: 1,793 / 2,054 / 2,316 / 2,577.
     const base = { sex: "female" as const, birth_year: 1994, height_cm: 172, weight_kg: 74 };
-    expect(explainTargets(profile({ ...base, activity: "few" }), TODAY).basis.tdee).toBe(1793);
+    expect(explainTargets(profile({ ...base, activity: "none" }), TODAY).basis.tdee).toBe(1793);
+    expect(explainTargets(profile({ ...base, activity: "few" }), TODAY).basis.tdee).toBe(2054);
     expect(explainTargets(profile({ ...base, activity: "some" }), TODAY).basis.tdee).toBe(2316);
     expect(explainTargets(profile({ ...base, activity: "many" }), TODAY).basis.tdee).toBe(2577);
   });
@@ -196,15 +197,15 @@ describe("the three activity levels (targets v2, decision 7)", () => {
   it("defaults an unanswered activity to the lowest factor", () => {
     // The target is a promise; overshooting a lazy user is the harmful direction.
     expect(explainTargets(profile({ activity: null }), TODAY).basis.tdee)
-      .toBe(explainTargets(profile({ activity: "few" }), TODAY).basis.tdee);
+      .toBe(explainTargets(profile({ activity: "none" }), TODAY).basis.tdee);
   });
 });
 
 describe("the design persona (issue #81)", () => {
-  // 32, 172 cm, 74 → 68 kg, 0–2 workouts a week, steady — the row every board is drawn from.
+  // 32, 172 cm, 74 → 68 kg, 0 workouts a week, steady — the row every board is drawn from.
   const persona = () => profile({
     sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74, target_weight_kg: 68,
-    goal: "lose", activity: "few", pace: "steady", restrictions: ["ldl"],
+    goal: "lose", activity: "none", pace: "steady", restrictions: ["ldl"],
   });
 
   it("computes the plan the boards draw: rest 1,494 + days 299 − pace 359 → 1,434 kcal", () => {

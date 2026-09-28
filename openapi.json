@@ -2672,6 +2672,7 @@
       "ActivityLevel": {
         "type": "string",
         "enum": [
+          "none",
           "few",
           "some",
           "many"
