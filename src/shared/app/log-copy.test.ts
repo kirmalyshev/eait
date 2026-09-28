@@ -63,6 +63,8 @@ describe("LOG_COPY", () => {
       }
       expect(copy.phone.shotCount, `${lang}.phone.shotCount`).toContain("{n}");
       expect(copy.phone.shotCount, `${lang}.phone.shotCount`).toContain("{total}");
+      // The bound the caption refusal names — the contract's number, never a hole (#177).
+      expect(copy.phone.longNoteNote, `${lang}.phone.longNoteNote`).toContain("{max}");
       // The coach is `{coach}`, never a literal name — S9 owns what fills it.
       expect(copy.web.chatInstead, `${lang}.web.chatInstead`).toContain("{coach}");
       expect(copy.web.chatInstead, `${lang}.web.chatInstead`).not.toContain("Gabie");
