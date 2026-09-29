@@ -11,6 +11,7 @@
 // photos as file URIs; the browser keeps both in IndexedDB. The order, the holds and what counts as
 // "try again later" are decided here once, where `bun test` reaches them.
 
+import { OUTCOME_UNKNOWN, SERVER_LLM_TIMEOUT_MS, TEXT_MODEL_CALLS, clientModelTimeoutMs } from "./contract.ts";
 import { UNANSWERED, type RefusedTurn } from "./results.ts";
 
 export interface Queued<Photo> {
@@ -48,6 +49,15 @@ export const attemptOf = (failure: RefusedTurn): Attempt =>
   failure.kind === "offline" || failure.kind === UNANSWERED ? "retry" : "hold";
 
 /**
+ * A send's bound when the port names none: the LONGEST a model-bound request may legitimately
+ * take — the default per-call budget spent by the route that spends the most of them.
+ */
+const SEND_DEADLINE_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, TEXT_MODEL_CALLS);
+
+/** What the drain's deadline rejects with: the send's own words are `OUTCOME_UNKNOWN`, not a thrown transport error. */
+const SEND_DEADLINE = Symbol("send-deadline");
+
+/**
  * Whether a turn said now joins the END of `userId`'s queue rather than going out live: whenever
  * anything of the account's is WAITING anywhere in it, held head or not. Sent live, it would reach the
  * server first, and the waiting turn's estimate would later replace the one just asked for. With only
@@ -68,8 +78,21 @@ export interface OutboxPorts<Photo> {
   load(): Promise<Queued<Photo>[]>;
   /** Throws when it could not: nothing is believed that was not saved. */
   save(entries: Queued<Photo>[]): Promise<void>;
-  /** One attempt. Resolves with the server's result; throws whatever else happened, refusals included. */
-  send(entry: Queued<Photo>): Promise<{ kind: string }>;
+  /**
+   * One attempt. Resolves with the server's result; throws whatever else happened, refusals
+   * included. `signal` is the drain's deadline (#327): a port that can abort its request with it
+   * frees the connection instead of leaving it hung; one that cannot is still bounded — the drain
+   * stops waiting at the deadline whether or not the attempt underneath ever settles.
+   */
+  send(entry: Queued<Photo>, signal?: AbortSignal): Promise<{ kind: string }>;
+  /**
+   * How long ONE send may go unanswered before the drain calls it unknown, in ms — per entry,
+   * because a photo turn and a text turn spend different model budgets. Absent, the bound is the
+   * widest the server can legitimately take: the default per-call budget spent by the longest
+   * route (`clientModelTimeoutMs`). Sourced from `Limits.modelCallTimeoutMs` where a profile has
+   * landed, because that is the budget the running server actually has.
+   */
+  sendDeadlineMs?(entry: Queued<Photo>): number;
   /** What a thrown value was, in the client's vocabulary: `offline`, `UNANSWERED`, or what the server said. */
   failureOf(e: unknown): RefusedTurn;
   /** Delete what the entry keeps at rest: its photos. Called once the server has the turn, or it is discarded. */
@@ -165,11 +188,23 @@ export function createOutbox<Photo>(ports: OutboxPorts<Photo>): Outbox<Photo> {
         // What storage holds now: a turn another tab kept goes too, and one it sent does not go twice.
         const next = await pick(userId);
         if (!next || next.held) return;
+        // BOUNDED (#327): a fetch that neither resolves nor rejects — a request a proxy or a
+        // stalled connection left hanging — used to wait here forever, wedging every turn behind
+        // it for the rest of the session. The deadline makes it the honest unknown instead:
+        // the server may still be running it, which is exactly the OUTCOME_UNKNOWN the hold words.
+        const abort = typeof AbortController === "undefined" ? undefined : new AbortController();
+        const deadline = ports.sendDeadlineMs?.(next) ?? SEND_DEADLINE_MS;
         let result: { kind: string };
         try {
-          result = await ports.send(next);
+          result = await new Promise<{ kind: string }>((resolve, reject) => {
+            const timer = setTimeout(() => { abort?.abort(); reject(SEND_DEADLINE); }, deadline);
+            // Whichever way the attempt settles after the deadline, this race is already lost —
+            // and the handlers attached now keep a late rejection from surfacing unhandled.
+            Promise.resolve(ports.send(next, abort?.signal))
+              .then(resolve, reject).finally(() => clearTimeout(timer));
+          });
         } catch (e) {
-          const failure = ports.failureOf(e);
+          const failure = e === SEND_DEADLINE ? { kind: OUTCOME_UNKNOWN } : ports.failureOf(e);
           if (attemptOf(failure) === "retry") { sendingNow(null); return; }
           // Onto the entry as storage holds it NOW, not the copy sent: a merge may have moved it meanwhile.
           await change((prev) => {

@@ -10,6 +10,9 @@
 // path for the reason `main.ts` gives for `stream.ts`.
 
 import { createOutbox, type Outbox, type Queued } from "../shared/outbox.ts";
+import {
+  PHOTO_MODEL_CALLS, SERVER_LLM_TIMEOUT_MS, TEXT_MODEL_CALLS, clientModelTimeoutMs,
+} from "../shared/contract.ts";
 import type { RefusedTurn } from "../shared/results.ts";
 import type { IDEMPOTENCY_KEY, MessageRequest, MessageResponse, OUTCOME_UNKNOWN, PhotoLast, ROUTES } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream } from "./api.ts";
@@ -25,17 +28,36 @@ const IDEMPOTENCY: typeof IDEMPOTENCY_KEY = "idempotency-key";
 export type WebQueued = Queued<File>;
 
 /**
- * ONE SEND, live and queued alike. A refusal the stream carries in-band is thrown as the `ApiError`
- * the JSON path throws, so a caller has one catch for everything that is not a result.
+ * The per-call model budget the RUNNING server has — `Limits.modelCallTimeoutMs` once a profile
+ * has landed (`setModelCallTimeout` below), the shared default before. It sizes how long the
+ * drain's deadline gives one send, so a request the server could still be working on is never
+ * called unknown early.
  */
-export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => void): Promise<MessageResponse | PhotoLast> {
+let modelCallTimeoutMs = SERVER_LLM_TIMEOUT_MS;
+export const setModelCallTimeout = (ms: number): void => { modelCallTimeoutMs = ms; };
+
+/**
+ * How long ONE send may go unanswered before it is called unknown (#327) — the wait its route can
+ * legitimately take: the running server's per-call budget spent by the calls that route makes,
+ * plus the round trip (`clientModelTimeoutMs`). Past it, an entry the drain owns is held as the
+ * unknown it is and the drain moves on; a LIVE send that outlives it is kept held the same way.
+ */
+export const sendDeadlineMs = (entry: WebQueued): number =>
+  clientModelTimeoutMs(modelCallTimeoutMs, entry.kind === "photo" ? PHOTO_MODEL_CALLS : TEXT_MODEL_CALLS);
+
+/**
+ * ONE SEND, live and queued alike. A refusal the stream carries in-band is thrown as the `ApiError`
+ * the JSON path throws, so a caller has one catch for everything that is not a result. `signal` is
+ * the drain's deadline (#327): reaching the fetch is what frees the connection it bounds.
+ */
+export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => void, signal?: AbortSignal): Promise<MessageResponse | PhotoLast> {
   if (entry.kind === "photo") {
     const form = new FormData();
     for (const f of entry.photos) form.append("photo", f);
     if (entry.text) form.append("caption", entry.text);
     form.append("clientId", entry.id);
     form.append("capturedAt", entry.capturedAt);
-    const r = await apiStream<PhotoLast>(PHOTO, { method: "POST", body: form, headers: { [IDEMPOTENCY]: entry.id } }, onLine);
+    const r = await apiStream<PhotoLast>(PHOTO, { method: "POST", body: form, signal: signal ?? null, headers: { [IDEMPOTENCY]: entry.id } }, onLine);
     if (r.kind !== "logged") throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `photo: ${r.kind}`);
     return r;
   }
@@ -44,7 +66,7 @@ export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => voi
     ...(entry.focusMealId ? { focusMealId: entry.focusMealId } : {}),
   };
   return await api<MessageResponse>(MESSAGES, {
-    method: "POST", headers: { "content-type": "application/json", [IDEMPOTENCY]: entry.id }, body: JSON.stringify(body),
+    method: "POST", headers: { "content-type": "application/json", [IDEMPOTENCY]: entry.id }, body: JSON.stringify(body), signal: signal ?? null,
   });
 }
 
@@ -99,7 +121,8 @@ async function idb<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => I
 export const outbox: Outbox<File> = createOutbox<File>({
   load: async () => (await idb<WebQueued[] | undefined>("readonly", (s) => s.get(KEY))) ?? [],
   save: async (entries) => { await idb("readwrite", (s) => s.put(entries, KEY)); },
-  send: sendTurn,
+  send: (entry, signal) => sendTurn(entry, undefined, signal),
+  sendDeadlineMs,
   failureOf,
   // The Blobs are IN the record, so saving the list without the entry is what lets go of them.
   release: () => {},
