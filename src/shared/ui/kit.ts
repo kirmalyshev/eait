@@ -236,8 +236,11 @@ export interface MealRowSpec {
   verdicts?: readonly { tone: VerdictTone; words: string }[];
   /** A second clause after the time — "rough estimate" for a typed meal, say. */
   note?: string;
-  /** The photo's src; anything else draws the chat tile. */
+  /** The photo's src; anything else draws the no-photo tile. */
   photo?: { src: string; alt?: string } | null;
+  /** The no-photo tile: the accent chat mark on today's "Recently uploaded" row (a typed meal),
+   *  the two-ring plate the compact rows of the past-day and logging boards draw. */
+  tile?: "chat" | "plate";
   href?: string;
   /** Carried on `data-meal` so a tap handler can name the row it was tapped on. */
   id?: string;
@@ -247,7 +250,9 @@ export const mealRow = (o: MealRowSpec, lang: Lang): string => {
   const n = wholeNumbers(lang);
   const photo = o.photo?.src !== undefined
     ? `<img class="ph" src="${esc(o.photo.src)}" alt="${esc(o.photo.alt ?? "")}">`
-    : `<div class="ph chat">${ico("chat")}</div>`;
+    : o.tile === "plate"
+      ? `<div class="ph plate">${ico("target")}</div>`
+      : `<div class="ph chat">${ico("chat")}</div>`;
   // The words only when not on plan, one dot for the row, the worst tone's colour on it.
   const spoken = (o.verdicts ?? []).filter((v) => v.tone !== "good");
   const tag = o.href !== undefined ? "a" : "div";
@@ -564,6 +569,8 @@ export function kitCss(): string {
 .meal .ph{width:56px;height:56px;flex:0 0 56px;border-radius:var(--r-thumb);object-fit:cover;background:var(--hair)}
 .meal .ph.chat{display:flex;align-items:center;justify-content:center;background:var(--accent-tint)}
 .meal .ph.chat .ico{width:22px;height:22px;color:var(--accent)}
+.meal .ph.plate{display:flex;align-items:center;justify-content:center}
+.meal .ph.plate .ico{width:24px;height:24px;color:var(--muted)}
 .meal .mm{flex:1;min-width:0}
 .meal .mm b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meal .mm small{display:block;font-size:12px;color:var(--muted);margin-top:2px}

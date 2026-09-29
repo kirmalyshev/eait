@@ -52,6 +52,22 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .prop .num.row { gap: 5px; }
 .prop .num.row .ico { width: 18px; height: 18px; }
 
+/* The diary's proposal (web/today-logging, #260): the card IS the offer — the question is its
+   .lab inside it, a hairline row per ingredient under the name, the sat-fat chip joins the macro
+   row as plain muted text, the turn's time rides the verdicts row, and the answers sit inside. */
+.prop.day .card > .lab { display: block; }
+.prop.day .pl-head { margin: 8px 0 10px; }
+.prop.day .pl-title { font-size: 19px; }
+.prop.day .pl-ing { padding: 8px 0; border-top: 1px solid var(--hair); font-weight: 500; }
+.prop.day .pl-ing .m { font-weight: 400; }
+.prop.day .pl-igk { font-weight: 600; }
+.prop.day .mac.m { font-weight: 500; }
+.prop.day .pl-when { margin-left: auto; }
+.prop.day .pl-expired { margin-left: 0; }
+.prop.day .pl-actions { gap: 10px; margin-top: 14px; }
+.prop.day .pl-actions .cta.s { flex: 0 0 120px; }
+.prop.day .pl-actions .cta.p { flex: 1; }
+
 /* The starter and suggestion rows — the boards' .card.flat of .opt rows, indented to the
    say column, each with its icon and the chevron where .opt's check disc would sit. */
 .opts, .sug { align-self: flex-start; width: calc(100% - 38px); max-width: 560px; margin-left: 38px; }

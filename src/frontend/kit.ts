@@ -152,19 +152,23 @@ export function verdictRow(meal: MealRecord): { tone: VerdictTone; words: string
 /**
  * A MealRecord as the diary's `.meal` row: first-two-items name (shell.ts's `names`, the same
  * words a chat line uses), formatted time, the row's verdict words only when not on plan (the
- * shared builder's filter), macro chips and kcal.
+ * shared builder's filter), macro chips and kcal. `compact` is the past-day / logging boards'
+ * row: no macro chips, and the two-ring plate rather than the chat mark when there is no photo.
  * `photo.src` is resolved by the screen — a blob object URL off the bearer fetch.
  */
 export function mealRowEl(
   meal: MealRecord,
-  o: { time: string; photo?: { src: string; alt?: string } | null; note?: string; href?: string },
+  o: { time: string; photo?: { src: string; alt?: string } | null; note?: string; href?: string;
+    compact?: boolean },
 ): Element {
   const spec: MealRowSpec = {
     id: meal.id,
     name: names(meal.items),
     time: o.time,
     kcal: meal.kcal,
-    grams: { protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g },
+    ...(o.compact === true ? { tile: "plate" as const } : {
+      grams: { protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g },
+    }),
     verdicts: verdictRow(meal),
     photo: o.photo ?? null,
     ...(o.note !== undefined ? { note: o.note } : {}),

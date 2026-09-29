@@ -354,10 +354,11 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (!rich) page = 0;
 
     // ── The left column: the label, the meals, the proposal, the empty/failed card ──
-    // The boards' own twist: the column's label is "Recently uploaded" on today-with-meals and
-    // the VIEWED DATE everywhere else (empty, logging, past, failed).
-    const left: Element[] = [el("span", isToday && hasMeals ? "mealtitle" : "lab",
-      isToday && hasMeals ? L.recentlyUploaded : dateText(viewing))];
+    // The boards' own twist: the column's label is "Recently uploaded" only while today holds
+    // meals and nothing is in flight (`rich`) — empty, logging, past and failed all read the
+    // VIEWED DATE (today-logging.html).
+    const left: Element[] = [el("span", rich ? "mealtitle" : "lab",
+      rich ? L.recentlyUploaded : dateText(viewing))];
     if (day === null) {
       const card = el("div", "card failcard");
       const say = el("div", "say");
@@ -382,7 +383,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     } else {
       const card = el("div", "card meals");
       for (const meal of day.meals) {
-        card.append(mealRow(meal));
+        card.append(mealRow(meal, !rich));
       }
       left.push(card);
     }
@@ -394,7 +395,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         }),
         accept: L.webLogIt,
         decline: L.webProposalNo,
-      });
+        // The sat-fat chip follows the declared marker — `day.targets.satfat_g` is set only
+        // when the account declared ldl.
+      }, { diary: true, satFat: day?.targets.satfat_g !== undefined });
       card.classList.add("rise");
       left.push(card);
     }
@@ -494,12 +497,14 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     clear(frame.side).append(...right);
   }
 
-  /** A meal row: the photo or the chat tile, the time, the verdict line, the gram chips. */
-  const mealRow = (meal: MealRecord): Element => {
+  /** A meal row: the photo or the no-photo tile, the time, the verdict line — the gram chips
+   *  only on the "Recently uploaded" form (`compact` is the past-day and logging boards' row). */
+  const mealRow = (meal: MealRecord, compact: boolean): Element => {
     // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
     // prefix. The board draws `.meal` without a glyph; the link is the affordance.
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
+      compact,
       ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
       href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
     });
