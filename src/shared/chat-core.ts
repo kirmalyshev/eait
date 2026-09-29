@@ -281,14 +281,18 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       }
       // A stored typed line whose proposal the server no longer holds, with no card and nothing
       // answering it, expired unanswered: it gets the expired line, not a bare bubble (#1144).
-      // Not while a turn is out: its line can land before its proposal does.
+      // Not while a turn is out: its line can land before its proposal does. And not when a LATER
+      // stored typed line carries a pendingId of its own — that proposal retired this one, so it
+      // was superseded, not timed out (#282).
       if (inflight > 0) return next;
+      const lastTyped = next.reduce((last, x, j) => x.role === "user" && x.stored && x.pendingId ? j : last, -1);
       const expired = next.flatMap((e, i): ThreadEntry[] => {
         const id = e.role === "user" && e.stored ? e.pendingId : null;
         if (!id || held.has(id) || settledPendings.has(id)) return [e];
         const after = next[i + 1]?.role;
         if (after === "assistant" || after === "error") return [e];
         if (next.some((x) => pendingIdOf(x) === id || mealIdOf(x) === id)) return [e];
+        if (i < lastTyped) return [e];
         return [e, { id: `expired:${e.id}`, role: "assistant", result: { kind: "expired" } }];
       });
       return expired.length === next.length ? next : expired;
