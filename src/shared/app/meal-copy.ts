@@ -118,8 +118,15 @@ export interface MealCopy {
   phoneAmount: string;
   phoneRemoveIngredient: string;
   /**
-   * The joins a grams figure and a moving total take — "{n} g" for the amount pill,
-   * "{from} → {to} kcal" for the meal's total answering. Templates,
+   * The pre-edit figure the editor draws once the typed amount moves off the stored one —
+   * "was {amount}" under the grams row and beside the live kcal figure on both boards
+   * (`phone/meal-ingredient.html`, `web/meal-ingredient.html`). `{amount}` is the stored figure
+   * spelled through its own join — grams via `phoneGrams` ("was 150 g"), kcal bare ("was 195").
+   */
+  phoneWasAmount: string;
+  /**
+   * The joins a grams figure and a moving total take — "{n} g" for the amount pill (and inside
+   * `phoneWasAmount`'s "{amount}"), "{from} → {to} kcal" for the meal's total answering. Templates,
    * not spans, so a language can reorder them.
    */
   phoneGrams: string;
@@ -200,6 +207,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Edit ingredient",
     phoneAmount: "Amount",
     phoneRemoveIngredient: "Remove ingredient",
+    phoneWasAmount: "was {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Not on today’s diary",
@@ -254,6 +262,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Modifier un ingrédient",
     phoneAmount: "Quantité",
     phoneRemoveIngredient: "Supprimer l’ingrédient",
+    phoneWasAmount: "était {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
@@ -308,6 +317,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Zutat bearbeiten",
     phoneAmount: "Menge",
     phoneRemoveIngredient: "Zutat entfernen",
+    phoneWasAmount: "vorher {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
@@ -362,6 +372,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Modifica ingrediente",
     phoneAmount: "Quantità",
     phoneRemoveIngredient: "Rimuovi ingrediente",
+    phoneWasAmount: "era {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Non è nel diario di oggi",
@@ -416,6 +427,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Editar ingrediente",
     phoneAmount: "Cantidad",
     phoneRemoveIngredient: "Eliminar ingrediente",
+    phoneWasAmount: "antes {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "No está en el diario de hoy",
@@ -470,6 +482,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Sửa nguyên liệu",
     phoneAmount: "Lượng",
     phoneRemoveIngredient: "Bỏ nguyên liệu",
+    phoneWasAmount: "trước là {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
@@ -524,6 +537,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Edit bahan",
     phoneAmount: "Jumlah",
     phoneRemoveIngredient: "Hapus bahan",
+    phoneWasAmount: "tadinya {amount}",
     phoneGrams: "{n} g",
     phoneMealMove: "{from} → {to} kcal",
     phoneGoneTitle: "Tidak ada di catatan hari ini",
@@ -578,6 +592,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneIngredientTitle: "Редактировать ингредиент",
     phoneAmount: "Количество",
     phoneRemoveIngredient: "Удалить ингредиент",
+    phoneWasAmount: "было {amount}",
     phoneGrams: "{n} г",
     phoneMealMove: "{from} → {to} ккал",
     phoneGoneTitle: "Нет в дневнике за сегодня",
