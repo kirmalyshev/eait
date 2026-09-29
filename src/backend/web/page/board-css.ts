@@ -239,8 +239,13 @@ export const BOARD_CSS = `
 .ob .mbox .est { font-size: 12px; font-weight: 600; }
 .ob .pgraph { display: block; overflow: visible; }
 .ob .pgraph .ink { fill: var(--ink); font-weight: 600; font-size: 11px; }
-.ob .card.rel { position: relative; }
-.ob .tagx.pos { position: absolute; right: 14px; bottom: 14px; }
+/* the on-track card (12-cards): the board's own padding, and the tag anchored to the chart so
+   it rides just above the axis' right end at any width (the board's bottom:84 card-relative
+   is this calc at the board's size) */
+.ob .card.rel { position: relative; padding: 24px 28px; }
+.ob .chartw { position: relative; }
+.ob .tagx.pos { position: absolute; right: 2px; bottom: calc(17.65% + 5px); }
+.ob .mom .muted-sub.cen { font-weight: 500; margin: -8px 4px 0; }
 .ob .hero { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ob .vf { position: absolute; inset: 14% 22%; }
 .ob .vf i { position: absolute; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 5px; }
@@ -258,11 +263,12 @@ export const BOARD_CSS = `
 .ob .v.good { color: var(--accent); }
 .ob .v.warn { color: var(--warn); } .ob .v.warn::before { background: var(--warn); }
 .ob .v.bad { color: var(--bad); } .ob .v.bad::before { background: var(--bad); }
-.ob .tagx { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
-            letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
-            background: var(--bg); padding: 5px 10px; border-radius: 999px; }
+.ob .tagx { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
+            color: var(--ink); background: var(--surface); padding: 3px 9px 3px 4px;
+            border-radius: 999px; box-shadow: 0 1px 3px rgb(23 25 28 / .16); white-space: nowrap; }
+.ob .tagx .wm { width: 18px; height: 18px; }
 .ob .pgraph text { fill: var(--muted); font-size: 12px; font-family: var(--sans); }
-.ob .pgraph .ln { stroke: var(--ink); stroke-width: 3; fill: none; stroke-linecap: round; }
+.ob .pgraph .ln { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
 
 /* ── the no-script number fields (the boards' rulers need the script; the field is the same answer) ── */
 .ob .numalt { display: flex; gap: 10px; align-items: center; justify-content: center; }

@@ -73,10 +73,10 @@ function ontrackChart(lang: Lang): string {
   const c = TWO_WAYS_CHART;
   return `<svg class="pgraph" viewBox="${c.viewBox}" width="100%" role="img" aria-label="${escape(copy.chart.twoWays)}">` +
     `<line x1="${c.baseline.x1}" y1="${c.baseline.y}" x2="${c.baseline.x2}" y2="${c.baseline.y}" stroke="var(--hair)"/>` +
-    `<path d="${c.withoutPath}" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 4" class="draw" style="--d:.2s"/>` +
+    `<path d="${c.withoutPath}" fill="none" stroke="var(--faint)" stroke-width="2.5" stroke-linecap="round" class="draw" style="--d:.2s"/>` +
     `<path d="${c.withPath}" class="ln draw" style="--d:.5s"/>` +
     `<circle cx="${c.startDot.cx}" cy="${c.startDot.cy}" r="${c.startDot.r}" fill="var(--ink)"/>` +
-    `<text x="${c.withoutLabel.x}" y="${c.withoutLabel.y}" text-anchor="end">${escape(copy.chart.without)}</text>` +
+    `<text x="${c.withoutLabel.x}" y="${c.withoutLabel.y}" text-anchor="end" style="font-size:13px;font-weight:600">${escape(copy.chart.without)}</text>` +
     `<text x="${c.nowLabel.x}" y="${c.nowLabel.y}">${escape(copy.chart.now)}</text>` +
     `<text x="${c.laterLabel.x}" y="${c.laterLabel.y}" text-anchor="end">${escape(copy.chart.later)}</text>` +
     `</svg>`;
@@ -95,8 +95,8 @@ export function interstitial(
     ? howCards(lang, profile.units ?? "metric")
     : `<div class="card rel">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
-      `${ontrackChart(lang)}` +
-      `<div class="tagx pos"><span class="wm" aria-hidden="true">${spudSvg("happy", "spud-tag")}</span>${escape(copy.chart.byEait)}</div>` +
+      `<div class="chartw">${ontrackChart(lang)}` +
+      `<div class="tagx pos"><span class="wm" aria-hidden="true">${spudSvg("happy", "spud-tag")}</span>${escape(copy.chart.byEait)}</div></div>` +
       `</div>` +
       (ontrackCaption(profile.struggles, lang)
         ? `<p class="muted-sub cen">${escape(ontrackCaption(profile.struggles, lang)!)}</p>`
