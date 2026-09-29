@@ -83,11 +83,14 @@ export const BOARD_CSS = `
 .ob .cta.p[disabled] { opacity: .45; cursor: default; }
 
 /* ── the unit toggle ── */
-.ob .seg { display: flex; background: var(--surface); box-shadow: 0 0 0 1px var(--hair); border-radius: 12px;
-           padding: 3px; align-self: center; }
-.ob .seg button { border: 0; padding: 7px 18px; border-radius: 9px; font-size: 13px; font-weight: 600;
-                  color: var(--muted); background: none; cursor: pointer; font-family: var(--sans); }
-.ob .seg button.on { background: var(--ink); color: #fff; }
+.ob .seg { display: flex; background: var(--hair); border-radius: 10px;
+           padding: 3px; gap: 2px; width: 150px; align-self: center; }
+/* .wcol form stacks and stretches every form for the one-form screens — the toggle is a row
+   the size of its two options, so the column rule is taken back where it would apply. */
+.ob .wcol .seg { flex-direction: row; flex: none; gap: 2px; }
+.ob .seg button { flex: 1; border: 0; padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 600;
+                  text-align: center; color: var(--muted); background: none; cursor: pointer; font-family: var(--sans); }
+.ob .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 
 /* ── option rows ── */
 .ob .opts { display: grid; gap: 10px; }
