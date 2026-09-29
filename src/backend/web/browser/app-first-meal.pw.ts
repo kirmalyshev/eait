@@ -26,7 +26,7 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
 
   // The verdict: the meal's card, its kcal, and the verdict pills the SERVER computed — read back
   // off the server's own diary, so what is asserted is what was stored.
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
   const kcal = Number(await page.locator(".hero").innerText());
   const diary = await page.request.get("/api/v1/diary/day", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
@@ -54,7 +54,7 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   expect(body.kcal).toBe(Math.round(kcal * 1.25));
 
   // The recheck is a new card drawn from what the PATCH returned — including its recomputed verdicts.
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
   await expect(page.locator(".hero")).toHaveText(`${Math.round(kcal * 1.25)}`);
   await expect(page.locator(".pill").first()).toBeVisible();
   // The WHOLE card is the new one: the old figure is nowhere on the page (#49).
@@ -89,7 +89,7 @@ test("a meal told in words reaches the same first verdict", async ({ inWebApp: p
   const confirmed = page.waitForRequest((r) => r.method() === "POST" && /\/meals\/pending\/[^/]+\/confirm$/.test(r.url()));
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await confirmed;
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
   await expect(page.locator(".hero")).toContainText(/\d/);
   await expect(page.locator(".pill").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Correct meal" })).toBeVisible();

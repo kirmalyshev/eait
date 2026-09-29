@@ -44,7 +44,7 @@ test("a picked photo lands on the account's first verdict", async ({ inWebApp: p
   await shot(page, "log-upload");
   await pick(page);
 
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
   // Callouts are the analyzer's grams — two or more on the demo plate, each naming an item.
   await expect(page.locator(".hero .co").first()).toBeVisible();
   expect(await page.locator(".hero .co").count()).toBeGreaterThanOrEqual(2);
@@ -176,7 +176,7 @@ test("with reduced motion the surface lands on its end state", async ({ inWebApp
   await pick(page);
   // The scan is never part of the page while the photo is read — absent, not parked (#148).
   expect(await page.locator(".scan").count()).toBe(0);
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
 
   // The scan does not run and nothing animates: every element sits at its end state.
   const animating = await page.evaluate<string[]>(`(() =>
