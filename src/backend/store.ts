@@ -1036,6 +1036,13 @@ export interface Store {
   /** True when this call removed a LIVE row. The drop is the CLAIM on a proposal: confirm and cancel both take it first, and whoever gets false lost the race — or found it expired, which nobody may claim. */
   dropPending(userId: string, pendingId: string): Promise<boolean>;
   /**
+   * Rewrite a live proposal — a correction on an offer still standing amends it rather than
+   * logging over it (#1117). Scoped like every write here, and live-only like `dropPending`:
+   * a row that expired or was claimed between the read and this call is absent, and false is
+   * the caller's cue to answer that race honestly.
+   */
+  updatePending(userId: string, pending: PendingMeal): Promise<boolean>;
+  /**
    * Delete every proposal past its expiry. Returns how many went. A proposal nobody confirmed or
    * cancelled is never read again, so `getPending`'s lazy delete never reaches it; the rows are an
    * analysis and a date that stopped meaning anything. Swept at startup and with every new

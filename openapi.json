@@ -4601,7 +4601,7 @@
           "text"
         ],
         "additionalProperties": false,
-        "description": "`POST /v1/messages`. `focusMealId` names the meal a correction applies to."
+        "description": "`POST /v1/messages`. `focusMealId` names the meal — or the live proposal — a correction applies to."
       },
       "MessageResponse": {
         "$ref": "#/components/schemas/HandleTextResult"

@@ -835,7 +835,7 @@ export const MAX_CLIENT_ID = 64;
  */
 export const IDEMPOTENCY_KEY = "idempotency-key";
 
-/** `POST /v1/messages`. `focusMealId` names the meal a correction applies to. */
+/** `POST /v1/messages`. `focusMealId` names the meal — or the live proposal — a correction applies to. */
 export interface MessageRequest {
   text: string;
   /**

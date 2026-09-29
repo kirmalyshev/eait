@@ -359,7 +359,11 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     const asked = uid();
     // Taken at the tap, with the focus: a turn that ends up queued is sent later as it was said.
     const capturedAt = new Date().toISOString();
-    const focus = focusMealId ?? undefined;
+    // The offer still standing IS the meal under discussion (#1117): a pending's id is the id its
+    // meal is confirmed under, so the engine resolves it against the live proposal and amends it.
+    // Newest card wins — `oneLiveProposal` has already retired every older one.
+    const live = livePendings(state.entries);
+    const focus = live.length > 0 ? live[live.length - 1]! : (focusMealId ?? undefined);
     const said = deps.profile()?.profile?.user_id ?? null;
     inflightIds.add(asked);
     push({ id: asked, role: "user", text: body });
