@@ -260,6 +260,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
+    let retried429 = false;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
@@ -297,7 +298,19 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
-      const payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff);
+      let payload: Awaited<ReturnType<typeof send>>;
+      try {
+        payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff);
+      } catch (e) {
+        // An unrouted 429 generated nothing: one jittered retry inside this same deadline (#1144).
+        if (!(e instanceof GatewayRefusal && e.status === 429) || retried429) throw e;
+        retried429 = true;
+        const wait = 1500 + Math.random() * 1500;
+        if (deadline - Date.now() - wait <= 0) throw e;
+        console.error(`[eait] llm 429 on ${schemaName}; retrying once in ${Math.round(wait)}ms`);
+        await new Promise((r) => setTimeout(r, wait));
+        payload = await send(body, billed || attempt > 0, deadline - Date.now(), onDelta, onCost, cutoff);
+      }
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
