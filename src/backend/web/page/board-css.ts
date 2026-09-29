@@ -50,7 +50,6 @@ export const BOARD_CSS = `
 .ob .wcol { display: flex; flex-direction: column; gap: 18px; width: 100%; min-height: 0; padding: 8px 40px 40px; }
 .ob .wcol form { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; }
 .ob .wcol .cta { max-width: 360px; align-self: center; }
-.ob .qcol { display: flex; flex-direction: column; gap: 18px; align-items: center; margin: auto 0; }
 
 /* Back (#53): the boards draw no arrow; the walk keeps a quiet labelled link instead */
 .ob .wback { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 4px;
@@ -205,62 +204,58 @@ export const BOARD_CSS = `
 .ob.js .pacerows { display: none; }
 
 /* ── cards & chips (how / ontrack) ── */
+/* The interstitials' own frame: the boards pad the top 24 (the wcol's 8 plus this) and centre the
+   say + figure + button as ONE group, so the ask travels with the cards (#291). how runs the
+   boards' 1080 — the three cards need it; ontrack keeps the question column's 720. */
+.ob .wmain.mom { padding-top: 16px; margin: 0 auto; width: 100%; }
+.ob .wmain.wide { max-width: 1080px; }
+.ob .igroup { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 24px;
+              min-height: 0; }
 .ob .card { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 16px; }
-.ob .cards { display: grid; gap: 12px; }
+.ob .cards { display: grid; gap: 16px; align-items: start; }
 .ob .cards.c3 { grid-template-columns: repeat(3, 1fr); }
-.ob .pict { height: 150px; border-radius: var(--r-ctl); background: var(--bg); margin-bottom: 12px;
-            display: flex; align-items: center; justify-content: center; position: relative;
-            overflow: hidden; }
-.ob .pict .n { position: absolute; left: 12px; bottom: 10px; width: 24px; height: 24px; border-radius: 50%;
-               background: var(--ink); color: #fff; font-size: 12px; font-weight: 700;
-               display: flex; align-items: center; justify-content: center; }
-/* The drawn step cards — the mini meal and the chart card share the pict frame, on surface (#141). */
-.ob .pict.solid { background: var(--surface); }
-.ob .pict.chart { background: var(--surface); flex-direction: column; align-items: stretch; padding: 10px 14px; }
-.ob .mini { width: 100%; padding: 10px; }
-.ob .mini .mimg { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
-.ob .mini .grow { flex: 1; }
-.ob .mini .mrow { gap: 5px; }
-.ob .mini .mico { width: 16px; height: 16px; }
-.ob .mini .mkcal { font-size: 18px; font-weight: 700; }
-.ob .mini .vlist { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.ob .cards .card { padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 10px; }
+/* The step's head — the badge sits in the card's header row beside its name, never over the
+   figure (#291: an absolute badge once covered the verdict it was numbering). */
+.ob .chead .n { width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%;
+                background: var(--ink); color: #fff; font-size: 13px; font-weight: 700;
+                display: flex; align-items: center; justify-content: center; }
+.ob .pict { height: 230px; border-radius: var(--r-ctl); background: #DDD8CE;
+            position: relative; overflow: hidden; }
+/* The step cards' drawn contents sit in the boards' hairline box (#141). */
+.ob .mbox { border-radius: var(--r-ctl); box-shadow: 0 0 0 1px var(--hair); padding: 10px 12px; }
+.ob .mbox.chart { padding-bottom: 6px; }
+.ob .mimg { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 8px; object-fit: cover; }
+.ob .grow { flex: 1; min-width: 0; }
+.ob .mname { font-size: 14px; font-weight: 600; }
+.ob .mkcal { font-size: 18px; }
+.ob .mbox .est { font-size: 12px; font-weight: 600; }
 .ob .pgraph { display: block; overflow: visible; }
-.ob .pgraph .ink { fill: var(--ink); font-weight: 600; }
+.ob .pgraph .ink { fill: var(--ink); font-weight: 600; font-size: 11px; }
 .ob .card.rel { position: relative; }
 .ob .tagx.pos { position: absolute; right: 14px; bottom: 14px; }
-.ob .pt { font-size: 15px; font-weight: 600; }
 .ob .hero { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ob .vf { position: absolute; inset: 0; }
-.ob .vf i { position: absolute; width: 22px; height: 22px; border: 2px solid #fff; }
-.ob .vf i:nth-child(1) { top: 14px; left: 14px; border-right: 0; border-bottom: 0; }
-.ob .vf i:nth-child(2) { top: 14px; right: 14px; border-left: 0; border-bottom: 0; }
-.ob .vf i:nth-child(3) { bottom: 14px; left: 14px; border-right: 0; border-top: 0; }
-.ob .vf i:nth-child(4) { bottom: 14px; right: 14px; border-left: 0; border-top: 0; }
-.ob .macs { display: flex; gap: 6px; margin-top: 6px; }
-.ob .mac { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
-           color: var(--macro-ink, var(--ink)); background: var(--macro-tint, var(--bg));
-           padding: 4px 9px; border-radius: 8px; }
-.ob .mac .ico { width: 13px; height: 13px; }
-.ob .mac.m-protein { --macro-ink: var(--macro-protein); --macro-tint: var(--macro-protein-t); }
-.ob .mac.m-carbs { --macro-ink: var(--macro-carbs); --macro-tint: var(--macro-carbs-t); }
-.ob .mac.m-fat { --macro-ink: var(--macro-fat); --macro-tint: var(--macro-fat-t); }
-.ob .v { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
-.ob .v i { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
-.ob .v.good i { background: var(--good); } .ob .v.warn i { background: var(--warn); } .ob .v.bad i { background: var(--bad); }
+.ob .vf { position: absolute; inset: 14% 22%; }
+.ob .vf i { position: absolute; width: 22px; height: 22px; border: 3px solid #fff; border-radius: 5px; }
+.ob .vf i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.ob .vf i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.ob .vf i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.ob .vf i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.ob .macs { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin-top: 4px; }
+.ob .mac { display: inline-flex; align-items: center; gap: 5px; font-weight: 600;
+           font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* The verdict — a dot and a line, never a pill; the tone colours the words too (the board's .v). */
+.ob .vs { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+.ob .v { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.ob .v::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: 0 0 8px; }
+.ob .v.good { color: var(--accent); }
+.ob .v.warn { color: var(--warn); } .ob .v.warn::before { background: var(--warn); }
+.ob .v.bad { color: var(--bad); } .ob .v.bad::before { background: var(--bad); }
 .ob .tagx { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
             letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
             background: var(--bg); padding: 5px 10px; border-radius: 999px; }
 .ob .pgraph text { fill: var(--muted); font-size: 12px; font-family: var(--sans); }
 .ob .pgraph .ln { stroke: var(--ink); stroke-width: 3; fill: none; stroke-linecap: round; }
-.ob .ptick { position: relative; height: 30px; margin-top: 6px; }
-.ob .ptick span { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px;
-                  font-weight: 600; background: var(--ink); color: #fff; padding: 4px 8px;
-                  border-radius: 999px; white-space: nowrap; }
-/* The tick's seat under the mini curve's target chip — the board's own anchor, a number that
-   lives in the sheet, not in the markup (#141). */
-.ob .ptick .tgt { left: 78%; }
-.ob .ptick span::after { content: ""; position: absolute; left: 50%; top: -8px; width: 1.5px; height: 8px;
-                         background: var(--ink); }
 
 /* ── the no-script number fields (the boards' rulers need the script; the field is the same answer) ── */
 .ob .numalt { display: flex; gap: 10px; align-items: center; justify-content: center; }

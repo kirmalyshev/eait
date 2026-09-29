@@ -7,49 +7,48 @@
 // chart and a caption that knows the struggles just ticked.
 
 import {
-  chatCopyFor, ESTIMATE_CHART_MINI, fill, HOW_DEMO, numbers, ontrackCaption, TWO_WAYS_CHART,
-  verdictPillLabel, weightDisplay, wholeNumbers,
+  chatCopyFor, ESTIMATE_CHART_MINI, fill, HOW_DEMO, ontrackCaption, TWO_WAYS_CHART,
+  UNIT_KCAL, verdictPillLabel, weightDisplay, wholeNumbers,
 } from "@eait/shared";
 import type { Lang, Profile, UnitSystem } from "@eait/shared";
 import { spudSvg } from "@eait/shared/mascot";
+import { gramMacs, verdictList } from "@eait/shared/ui/kit";
 import { ctaLink, dash, IMG_URL_DIR, PLACE_MOOD, say, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
-const KCAL_CHIP = "kcal";
-const MACS: readonly { icon: string; cls: string; of: (m: typeof HOW_DEMO.meal) => number }[] = [
-  { icon: "protein", cls: "m-protein", of: (m) => m.proteinG },
-  { icon: "carbs", cls: "m-carbs", of: (m) => m.carbsG },
-  { icon: "fat", cls: "m-fat", of: (m) => m.fatG },
-];
+/** A step's head — the number badge beside the step's name, as the board's cards draw it. */
+const stepHead = (n: number, label: string): string =>
+  `<div class="row chead"><span class="n">${n}</span><b class="d d17">${escape(label)}</b></div>`;
 
 function howCards(lang: Lang, units: UnitSystem): string {
   const copy = chatCopyFor(lang);
-  const n = numbers(lang);
   const w = wholeNumbers(lang);
   const [s1, s2, s3] = copy.how.steps;
   const mini = ESTIMATE_CHART_MINI;
   // Step 1 — the plate in the viewfinder (the same grain bowl the welcome demo reads).
-  const card1 = `<div class="card"><div class="pict">` +
+  const card1 = `<div class="card">${stepHead(1, s1!)}<div class="pict">` +
     `<img class="hero" src="${IMG_URL_DIR}/hero.webp" alt="${escape(copy.how.photoAlt)}">` +
-    `<div class="vf"><i></i><i></i><i></i><i></i></div><span class="n">1</span></div>` +
-    `<div class="pt">${escape(s1!)}</div></div>`;
+    `<div class="vf"><i></i><i></i><i></i><i></i></div></div></div>`;
   // Step 2 — a verdict card, with the persona's drawn lunch and its two warn verdicts.
-  const card2 = `<div class="card"><div class="pict solid">` +
-    `<div class="mini"><div class="row">` +
+  const card2 = `<div class="card">${stepHead(2, s2!)}<div class="mbox">` +
+    `<div class="row">` +
     `<img class="mimg" src="${IMG_URL_DIR}/salmon-sq.webp" alt="">` +
-    `<div class="grow"><b class="d d17">${escape(copy.how.meal)}</b></div>` +
-    `<span class="row mrow"><i class="ico i-${KCAL_CHIP} mico"></i>` +
-    `<b class="num mkcal">${w(HOW_DEMO.meal.kcal)}</b></span></div>` +
-    `<div class="macs">${MACS.map((m) =>
-      `<span class="mac ${m.cls}"><i class="ico i-${m.icon}"></i>${n(m.of(HOW_DEMO.meal))} g</span>`,
-    ).join("")}</div>` +
-    `<div class="vlist">${HOW_DEMO.verdicts.map((vv) =>
-      `<span class="v ${vv.verdict}"><i></i>${escape(verdictPillLabel(vv.dimension, vv.verdict, lang))}</span>`,
-    ).join("")}</div></div><span class="n">2</span></div>` +
-    `<div class="pt">${escape(s2!)}</div></div>`;
+    `<div class="grow"><div class="row between"><b class="mname">${escape(copy.how.meal)}</b>` +
+    `<span class="num"><b class="d mkcal">${w(HOW_DEMO.meal.kcal)}</b> ` +
+    `<span class="m t12">${escape(UNIT_KCAL[lang])}</span></span></div>` +
+    gramMacs(
+      { protein: HOW_DEMO.meal.proteinG, carbs: HOW_DEMO.meal.carbsG, fat: HOW_DEMO.meal.fatG },
+      lang,
+    ) +
+    `</div></div>` +
+    verdictList(HOW_DEMO.verdicts.map((vv) => ({
+      tone: vv.verdict,
+      words: verdictPillLabel(vv.dimension, vv.verdict, lang),
+    }))) +
+    `</div></div>`;
   // Step 3 — the mini estimate curve, fixed to the boards' persona figure (74 → 68).
-  const card3 = `<div class="card"><div class="pict chart">` +
-    `<div class="row between"><b class="t13 semi">${escape(copy.chart.estimatedProgress)}</b>` +
+  const card3 = `<div class="card">${stepHead(3, s3!)}<div class="mbox chart">` +
+    `<div class="row between"><span class="t13 semi">${escape(copy.chart.estimatedProgress)}</span>` +
     `<span class="est">${escape(copy.chart.estimate)}</span></div>` +
     `<svg class="pgraph" viewBox="${mini.viewBox}" width="100%" role="img" aria-hidden="true">` +
     `<defs><linearGradient id="hgrad" x1="0" y1="0" x2="0" y2="1">` +
@@ -57,14 +56,14 @@ function howCards(lang: Lang, units: UnitSystem): string {
       `<stop offset="${s.offset}" stop-color="var(--accent)" stop-opacity="${s.opacity}"/>`,
     ).join("") + `</linearGradient></defs>` +
     `<path d="${mini.areaPath}" fill="url(#hgrad)"/>` +
-    `<path d="${mini.linePath}" class="ln draw"/>` +
+    `<path d="${mini.linePath}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" class="draw"/>` +
     `<circle cx="${mini.startDot.cx}" cy="${mini.startDot.cy}" r="${mini.startDot.r}" fill="var(--ink)"/>` +
     `<circle cx="${mini.endDot.cx}" cy="${mini.endDot.cy}" r="${mini.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${mini.endDot.strokeWidth}"/>` +
+    `<rect x="${mini.targetChip.x}" y="${mini.targetChip.y}" width="${mini.targetChip.width}" height="${mini.targetChip.height}" rx="${mini.targetChip.rx}" fill="var(--ink)"/>` +
+    `<text x="${mini.targetChip.textX}" y="${mini.targetChip.textY}" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">` +
+    `${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, units, lang) }))}</text>` +
     `<text class="ink" x="${mini.startLabel.x}" y="${mini.startLabel.y}">${escape(weightDisplay(HOW_DEMO.startKg, units, lang))}</text>` +
-    `</svg>` +
-    `<div class="ptick"><span class="tgt">${escape(fill(copy.chart.target, { weight: weightDisplay(HOW_DEMO.targetKg, units, lang) }))}</span></div>` +
-    `<span class="n">3</span></div>` +
-    `<div class="pt">${escape(s3!)}</div></div>`;
+    `</svg></div></div>`;
   return `<div class="cards c3">${card1}${card2}${card3}</div>`;
 }
 
@@ -104,10 +103,13 @@ export function interstitial(
         : "");
   const title = place === "how" ? copy.how.title : copy.ontrack.title;
   const body = `${wtop()}
-<div class="wmain one q"><div class="wcol">
+<div class="wmain one q mom${place === "how" ? " wide" : ""}"><div class="wcol">
 ${dash(place, lang)}
+<div class="igroup">
 ${say(PLACE_MOOD[place] ?? "happy", [title], lang)}
-<div class="qcol">${inner}${ctaLink(continueHref, copy.continueLabel)}</div>
+${inner}
+${ctaLink(continueHref, copy.continueLabel)}
+</div>
 </div></div>`;
   return shell("eait", body, lang, "ob");
 }
