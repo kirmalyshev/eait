@@ -13,9 +13,9 @@ import {
 } from "@eait/shared";
 import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
-import type { ChatAppend, ChatIntent } from "../store.ts";
+import type { ChatAppend, ChatIntent, PendingMeal } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
-import { emptyEstimate } from "../llm/port.ts";
+import { clampDayOffset, emptyEstimate, type AnalyzedMeal } from "../llm/port.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
@@ -46,11 +46,12 @@ function isOneOf(text: string, options: readonly string[]): boolean {
 export interface HandleTextInput {
   text: string;
   /**
-   * The meal a correction or re-date applies to.
+   * The meal a correction or re-date applies to — or the proposal still standing, whose id IS the
+   * meal's id the moment it is confirmed.
    *
    * Safe to accept from the client because every store read is user-scoped: naming someone else's
-   * meal resolves to null rather than to their row, and the intents that need a focus meal are
-   * refused when it is absent. Asserted by test.
+   * meal or proposal resolves to null rather than to their row, and the intents that need a focus
+   * are refused when it is absent. Asserted by test.
    */
   focusMealId?: string;
   /** The phone's id for this turn, stored on the user line: a second request carrying it is answered from the first (#708). */
@@ -90,6 +91,20 @@ async function textTurn(
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)
     : null;
+  // A proposal is a meal that has not logged yet: its id is the id the meal is written under, so
+  // a client naming it means this row — and when nothing was named, the offer still standing is
+  // the plate "only half the bread" talks about (#1117). Both lookups refuse an expired row, so a
+  // stale id degrades the same as none.
+  let focusPending: PendingMeal | null = null;
+  if (focus === null) {
+    focusPending = input.focusMealId !== undefined
+      ? await deps.store.getPending(userId, input.focusMealId)
+      : null;
+    focusPending ??= (await deps.store.pendingsFor(userId)).at(-1) ?? null;
+  }
+  const focusAnalysis: MealAnalysis | null = focus !== null
+    ? toAnalysis(focus)
+    : focusPending?.analysis ?? null;
   // The stored photos, for the correction call only — `routeText` decides where they go.
   const loadFocusImages = focus && (focus.photos ?? 0) > 0
     ? () => deps.store.getPhotos(userId, focus.id).then((ps) => ps.map((p) => p.bytes))
@@ -123,7 +138,7 @@ async function textTurn(
         items: m.items.map((i) => i.name), kcal: m.kcal, protein_g: m.protein_g,
       })),
       week,
-      ...(focus ? { focusMeal: toAnalysis(focus) } : {}),
+      ...(focusAnalysis ? { focusMeal: focusAnalysis } : {}),
       ...(loadFocusImages ? { loadFocusImages } : {}),
       // A chip's words are two of them. "In oil" says nothing on its own, and without the question
       // beside it the router reads it as a new meal or as small talk.
@@ -157,7 +172,7 @@ async function textTurn(
       console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
     });
   }
-  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId }, focus, profile);
+  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId }, focus, focusPending, profile);
   return result;
 
   async function route(): Promise<HandleTextResult> {
@@ -231,11 +246,12 @@ async function textTurn(
       }
 
       case "correction": {
-        // Unreachable without a focus meal — the provider degrades the intent to `answer` when none
-        // was supplied — but guarded anyway, because that guarantee lives in another file. A refusal
+        // Unreachable without a focus — the provider degrades the intent to `answer` when none was
+        // supplied — but guarded anyway, because that guarantee lives in another file. A refusal
         // the screen can word, never an empty 200: the analysis is charged by now, and a turn that
-        // renders nothing leaves the user with a spent sample and no idea why.
-        if (!focus) return { kind: "target-gone", on: "correction" };
+        // renders nothing leaves the user with a spent sample and no idea why. The focus may be a
+        // logged meal or the live proposal — a pending is the meal it names, one write early.
+        if (!focus && !focusPending) return { kind: "target-gone", on: "correction" };
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
         // recomputes them from the stored row like every other write. The totals still need
         // reconciling — a correction is an analysis like any other.
@@ -243,18 +259,72 @@ async function textTurn(
         // The same gate a fresh meal takes (#248): a correction that comes back not-food or with no
         // items is a failed estimate, and writing it would zero the meal it claims to fix.
         if (!reconciled.isFood || emptyEstimate(reconciled)) return { kind: "analysis-failed" };
-        return applyCorrection(deps, userId, focus.id, reconciled);
+        return focus !== null
+          ? applyCorrection(deps, userId, focus.id, reconciled)
+          : amendPending(deps, userId, focusPending!, reconciled, profile);
       }
 
       case "redate": {
-        if (!focus) return { kind: "target-gone", on: "redate" };
+        if (!focus && !focusPending) return { kind: "target-gone", on: "redate" };
         // The ONE sanctioned way a meal's date changes, shared with `POST /v1/meals/:id/redate`:
         // an offset against the day the turn was TYPED — a queued turn sent tomorrow still means
         // its own "yesterday". Macros untouched; a manual edit cannot reach this field at all.
-        return redateMeal(deps, userId, focus.id, routed.dayOffset, { at: eatenAt(input.capturedAt) });
+        if (focus !== null) {
+          return redateMeal(deps, userId, focus.id, routed.dayOffset, { at: eatenAt(input.capturedAt) });
+        }
+        // Same move on an offer still standing: the pending's day shifts, nothing else. Settled
+        // mid-turn, the row's meal carries the correction the way `amendPending`'s race does.
+        const date = dateMinus(today, clampDayOffset(routed.dayOffset));
+        if (await deps.store.updatePending(userId, { ...focusPending!, date })) {
+          return {
+            kind: "proposed", pendingId: focusPending!.id, analysis: focusPending!.analysis, date,
+            expiresAt: new Date(focusPending!.expiresAt).toISOString(),
+            verdictInline: verdictInlineText(focusPending!.analysis.verdicts, profile.lang),
+            verdictLabels: verdictLabels(focusPending!.analysis.verdicts, profile.lang),
+          } satisfies MealProposed;
+        }
+        const meal = await deps.store.getMeal(userId, focusPending!.id);
+        return meal !== null
+          ? redateMeal(deps, userId, meal.id, routed.dayOffset, { at: eatenAt(input.capturedAt) })
+          : { kind: "target-gone", on: "redate" };
       }
     }
   }
+}
+
+/**
+ * The "Wrong? Just say so" turn on an offer still standing (#1117): the pending is rewritten with
+ * the corrected analysis and re-proposed under its own id — the card keeps its place, the meal it
+ * is confirmed into keeps the id, and the one confirm still lands once. The verdicts and score are
+ * recomputed here exactly as a fresh proposal computes them, because the analyzer never supplies
+ * them and this result never passes through a store row that would.
+ */
+async function amendPending(
+  deps: EngineDeps, userId: string, held: PendingMeal, reconciled: AnalyzedMeal, profile: Profile,
+): Promise<HandleTextResult> {
+  const verdicts = await gatedVerdicts(deps, userId, reconciled);
+  const analysis: MealAnalysis = {
+    ...reconciled,
+    confidence: "low",
+    verdicts,
+    healthScore: healthScore({ ...reconciled, verdicts }, profile.restrictions),
+  };
+  // A corrected offer is a new offer — its clock starts over, like the first one's did.
+  const expiresAt = Date.now() + deps.config.pendingTtlMs;
+  if (!(await deps.store.updatePending(userId, { ...held, analysis, expiresAt }))) {
+    // The offer settled while the turn ran: confirmed — and the meal carrying its id still owns
+    // the correction — or expired or cancelled, which is the gone it honestly is.
+    const meal = await deps.store.getMeal(userId, held.id);
+    return meal !== null
+      ? applyCorrection(deps, userId, held.id, reconciled)
+      : { kind: "target-gone", on: "correction" };
+  }
+  return {
+    kind: "proposed", pendingId: held.id, analysis, date: held.date,
+    expiresAt: new Date(expiresAt).toISOString(),
+    verdictInline: verdictInlineText(analysis.verdicts, profile.lang),
+    verdictLabels: verdictLabels(analysis.verdicts, profile.lang),
+  } satisfies MealProposed;
 }
 
 /**
@@ -268,9 +338,10 @@ async function keep(
   // #486: the router's decision rides on the words it read, the model on the words it wrote.
   // #525: and the words name the analysis that paid for the turn.
   how: { intent: ChatIntent; model: string | null; analysisId: string },
-  // The focus meal as it stood BEFORE this turn — the change line's "before" (#119) — and the
-  // profile for its language and declared restrictions.
-  before: MealRecord | null, profile: Profile,
+  // The focus meal as it stood BEFORE this turn — the change line's "before" (#119) — the pending
+  // the turn amended (so its line does not steal the offer's carrier line), and the profile for
+  // its language and declared restrictions.
+  before: MealRecord | null, amended: PendingMeal | null, profile: Profile,
 ): Promise<void> {
   // A refusal never was a turn; a correction whose meal is gone changed nothing, and the app says
   // so in a notice that is not a line.
@@ -282,8 +353,10 @@ async function keep(
     // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
     const lines: ChatAppend[] = [{
       role: "user", kind: "text", text, clientId, intent: how.intent, analysisId: how.analysisId,
-      // A proposal's line names its proposal; the meal takes that id when confirmed.
-      pendingId: result.kind === "proposed" ? result.pendingId : null,
+      // A proposal's line names its proposal; the meal takes that id when confirmed. An AMENDED
+      // proposal's line names nothing — the id already has its carrier line, and a second one
+      // would hand the correction's words to the meal screen as the meal's caption.
+      pendingId: result.kind === "proposed" && result.pendingId !== amended?.id ? result.pendingId : null,
     }];
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
