@@ -36,8 +36,18 @@ export const W3_CSS = `
 .ob .bld .go { max-width: 360px; margin: 1.5rem auto 0; }
 
 /* ── the plan (15-plan) ── */
-.ob .pln { max-width: 720px; margin: 0 auto; width: 100%; }
-.ob .pln .goal { font-size: 20px; font-weight: 700; line-height: 1.25; margin: 0 0 4px; }
+/* The board's shape: the dash pinned to the top of the column, and everything after it one
+   group centred in what is left — its own 24 px gaps. The q cap on wmain gives the column the
+   boards' 720 incl. padding, anchored under the header like every other page of the walk (#293). */
+.ob .pln { width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; row-gap: 16px; }
+.ob .pln-body { margin: auto 0; display: flex; flex-direction: column; gap: 24px; min-height: 0; }
+.ob .pln .goal { font-size: 20px; font-weight: 700; line-height: 1.25; margin: 0; }
+.ob .pln .est-card { padding: 18px 24px; }
+.ob .pln .est-card .row > b { font-weight: 600; }
+/* The board caps the graph at 400 px centred — full-bleed it reads twice the board's height. */
+.ob .pln .egraph { margin: 10px auto 0; max-width: 400px; }
+/* Three macro cards (no cap declared) fill a four-cell row — never a trailing empty slot. */
+.ob .pln .kgrid.m3 { grid-template-columns: 1.6fr repeat(3, 1fr); }
 .ob .pln .tagx { display: inline-flex; align-items: center; gap: 5px; background: var(--surface);
   border-radius: 999px; padding: 3px 9px 3px 4px; font-size: 12px; font-weight: 600;
   letter-spacing: 0; text-transform: none; color: var(--ink);
@@ -54,8 +64,6 @@ export const W3_CSS = `
 .ob .pln .est-more > summary { cursor: pointer; list-style: none; }
 .ob .pln .est-more > summary::-webkit-details-marker { display: none; }
 .ob .pln .est-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: .4rem 0 0; }
-.ob .pln .est-foot { font-size: 12px; font-weight: 600; margin-top: 10px; }
-.ob .pln .est-foot > span:first-child { color: var(--muted); }
 .ob .pln .mcard { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
   padding: 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ob .pln .mcard .ico { width: 20px; height: 20px; }
@@ -64,7 +72,7 @@ export const W3_CSS = `
 .ob .pln .mcard .i-protein { color: var(--macro-protein); }
 .ob .pln .mcard .i-carbs { color: var(--macro-carbs); }
 .ob .pln .mcard .i-fat, .ob .pln .mcard .i-satfat { color: var(--macro-fat); }
-@media (max-width: 720px) { .ob .pln .kgrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 720px) { .ob .pln .kgrid, .ob .pln .kgrid.m3 { grid-template-columns: 1fr 1fr; } }
 
 /* ── the sign-up (pay-signin): the app icon, the two provider buttons, the pairing card ── */
 .ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }

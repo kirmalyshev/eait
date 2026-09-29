@@ -93,13 +93,14 @@ export function plan(v: PlanView): string {
   ];
 
   return shell(PAGE_COPY.titlePlan, `${wtop()}
-<div class="wmain one"><div class="wcol">
+<div class="wmain one q"><div class="wcol">
 <div class="pln">
 ${dash("summary", v.lang)}
+<div class="pln-body">
 ${say("happy", summary.lines, v.lang)}
 ${headline ? `<p class="goal num">${escape(headline)}</p>` : ""}
 ${chart}
-<div class="kgrid">
+<div class="kgrid${macros.length === 3 ? " m3" : ""}">
   <div class="card kcal">
     <div class="big"><i class="ico i-kcal"></i><b class="num">${n(v.targets.kcal)}</b> <small>${escape(summary.kcalLabel)}</small></div>
     ${marker}
@@ -108,6 +109,7 @@ ${macros.map((m) => `  <div class="mcard"><i class="ico i-${m.icon}"></i><b clas
 </div>
 ${ctaLink(v.next, PAGE_COPY.continueLabel)}
 ${v.hasWebApp ? "" : languagePicker(v.lang)}
+</div>
 </div>
 </div></div>
 `, v.lang, "ob");
@@ -159,19 +161,18 @@ function chartCard(
   const to = weightDisplay(p.target_weight_kg!, p.units, lang);
   const aria = fill(CHAT.chart.estimateAria, { from, to, month });
   return `<div class="card est-card">
-  <div class="row between"><span class="lab">${escape(CHAT.chart.estimatedProgress)}</span><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
-  <svg class="pgraph" viewBox="${g.viewBox}" role="img" aria-label="${escape(aria)}">
+  <div class="row between"><b>${escape(CHAT.chart.estimatedProgress)}</b><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
+  <div class="egraph"><svg class="pgraph" viewBox="${g.viewBox}" width="100%" role="img" aria-label="${escape(aria)}">
     <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1">${g.areaGradient.stops.map((s) => `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`).join("")}</linearGradient></defs>
     <line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>
     <path d="${g.areaPath}" fill="url(#pgf)" class="rise" style="--d:${TICKS.area / 1000}s"/>
     <path d="${g.linePath}" class="ln draw"/>
     <circle cx="${g.startDot.cx}" cy="${g.startDot.cy}" r="${g.startDot.r}" fill="var(--ink)"/>
     <circle cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}" class="pop" style="--d:${TICKS.endDot / 1000}s"/>
-    <g class="rise" style="--d:${TICKS.targetChip / 1000}s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" fill="#fff" style="font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
+    <g class="rise" style="--d:${TICKS.targetChip / 1000}s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" style="fill:#fff;font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
     <text x="${g.startLabel.x}" y="${g.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(from)}</text>
     <text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${escape(CHAT.chart.now)}</text>
     <text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" style="fill:var(--ink);font-weight:600">${escape(fill(CHAT.chart.monthEstimate, { month }))}</text>
-  </svg>
-  <div class="row between est-foot"><span>${escape(CHAT.chart.estimate)}</span><span class="num">${escape(from)} → ${escape(to)}</span></div>
+  </svg></div>
 </div>`;
 }
