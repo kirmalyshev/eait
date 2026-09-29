@@ -280,17 +280,22 @@ export const BOARD_CSS = `
 .ob .pacesel { display: none; }
 
 /* ── the welcome (00) ── */
-.ob .wcenter { flex: 1; display: flex; align-items: center; justify-content: center; padding-bottom: 60px; }
-.ob .wdemo { display: flex; align-items: center; justify-content: center; gap: 72px; }
+.ob .wcenter { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 80px 60px; }
+.ob .wdemo { display: flex; align-items: center; justify-content: center; gap: 88px; }
 .ob .vdemo { width: 290px; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow);
              background: var(--surface); display: block; }
 .ob .vdemo video, .ob .vdemo img { display: block; width: 100%; height: auto; aspect-ratio: 9/19.5; object-fit: cover; }
 .ob .vdemo .still { display: none; }
-.ob .whead { max-width: 420px; display: flex; flex-direction: column; gap: 22px; }
-.ob .whead h1 { font-size: 52px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin: 0; }
-.ob .whead .cta { max-width: 300px; }
-.ob .whead .cta.s { max-width: 300px; }
-@media (max-width: 940px) { .ob .wdemo { flex-direction: column; gap: 28px; } .ob .whead h1 { font-size: 34px; } .ob .wcenter { padding-bottom: 0; } }
+.ob .whead { max-width: 440px; display: flex; flex-direction: column; gap: 26px; }
+.ob .whead h1 { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; text-wrap: balance; margin: 0; }
+/* The two doors sit side by side, the secondary an outlined button — the board's .row
+   of .cta p + .cta s; on a narrow screen they stack, and .wdemo keeps the side gutter
+   .wtop and .wcol use at the same widths. */
+.ob .wctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.ob .wctas .cta { width: auto; padding: 0 28px; }
+.ob .wctas .cta.s { padding: 0 22px; height: 56px; background: var(--surface); color: var(--ink);
+                    box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 940px) { .ob .wcenter { padding: 0; } .ob .wdemo { flex-direction: column; gap: 28px; padding: 0 40px; } .ob .whead h1 { font-size: 34px; } .ob .wctas { flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) {
   .ob .vdemo video { display: none; }
   .ob .vdemo .still { display: block; }
@@ -302,6 +307,7 @@ export const BOARD_CSS = `
 @media (max-width: 720px) {
   .ob .wtop { padding: 0 20px; height: 56px; }
   .ob .wcol { padding: 4px 20px 28px; }
+  .ob .wdemo { padding: 0 20px; }
   .ob .opts.c3 { grid-template-columns: 1fr; }
   .ob .opts.c3 .opt { flex-direction: row; align-items: center; }
   .ob .opts.c3 .opt .ck { align-self: center; }
