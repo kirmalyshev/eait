@@ -28,6 +28,8 @@ export interface SignUpView {
   /** `id` picks the provider's brand mark; `action` is the kickoff POST's formaction. */
   providers: readonly { id: "apple" | "google"; action: string; label: string }[];
   error: string | null;
+  /** The published terms, or null where the operator published none. */
+  termsHref: string | null;
   /** The published privacy policy, or null where no landing is configured to publish one. */
   privacyHref: string | null;
   lang: Lang;
@@ -37,13 +39,14 @@ export function signUp(v: SignUpView): string {
   const SIGNUP_COPY = signupCopyFor(v.lang);
   const PAGE_COPY = pageCopyFor(v.lang);
   // The consent line names the two documents, and {terms}/{privacy} sit inside the sentence so a
-  // translation can put them wherever its grammar needs them. Terms has nothing published to
-  // point at — underlined text, as the board draws it; the policy links when a landing exists.
+  // translation can put them wherever its grammar needs them. Each links where the operator
+  // published it and stays underlined text, as the board draws it, where nothing was published.
+  const docLink = (href: string | null, label: string) => href === null
+    ? `<u>${escape(label)}</u>`
+    : `<a href="${escape(href)}"><u>${escape(label)}</u></a>`;
   const termsLabel = escape(SIGNUP_COPY.termsLabel)
-    .replace("{terms}", `<u>${escape(SIGNUP_COPY.termsLink)}</u>`)
-    .replace("{privacy}", v.privacyHref === null
-      ? `<u>${escape(SIGNUP_COPY.privacyLink)}</u>`
-      : `<a href="${escape(v.privacyHref)}"><u>${escape(SIGNUP_COPY.privacyLink)}</u></a>`);
+    .replace("{terms}", docLink(v.termsHref, SIGNUP_COPY.termsLink))
+    .replace("{privacy}", docLink(v.privacyHref, SIGNUP_COPY.privacyLink));
   return shell(SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
