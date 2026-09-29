@@ -43,7 +43,7 @@ export function signUp(v: SignUpView): string {
     .replace("{terms}", `<u>${escape(SIGNUP_COPY.termsLink)}</u>`)
     .replace("{privacy}", v.privacyHref === null
       ? `<u>${escape(SIGNUP_COPY.privacyLink)}</u>`
-      : `<a href="${escape(v.privacyHref)}">${escape(SIGNUP_COPY.privacyLink)}</a>`);
+      : `<a href="${escape(v.privacyHref)}"><u>${escape(SIGNUP_COPY.privacyLink)}</u></a>`);
   return shell(SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
