@@ -28,7 +28,7 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     await page.getByRole("button", { name: "Upload a photo" }).click();
     await page.locator('input[type="file"]').setInputFiles(FIXTURE);
     await page.getByRole("button", { name: "Analyse my meal" }).click();
-    await expect(page.getByText("Your first verdict")).toBeVisible();
+    await expect(page.getByText("Your first macros")).toBeVisible();
     await page.getByRole("button", { name: "Keep going" }).click();
     await expect(page.getByText("Every meal, like that one")).toBeVisible();
     expect(await axeFindings(page), "offer").toEqual([]);

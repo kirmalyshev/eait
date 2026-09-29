@@ -81,7 +81,7 @@ describe("LOG_COPY", () => {
     expect(en.roughGuess).toBe("Rough guess");
     expect(en.roughAbout).toBe("About that");
     expect(en.roughHalf).toBe("Half that");
-    expect(en.firstVerdict).toBe("Your first verdict");
+    expect(en.firstVerdict).toBe("Your first macros");
     expect(en.correct).toBe("Correct");
     expect(en.continueCta).toBe("Continue");
     expect(en.analysisFailedNote).toBe("Nothing was logged. Your photo is kept.");

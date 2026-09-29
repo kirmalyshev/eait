@@ -296,7 +296,7 @@ msgstr "Gọi tên món trong đĩa"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Không có camera cũng không sao. Chọn ảnh từ thư viện, hoặc cứ kể mình nghe bạn đã ăn gì — cả hai đều có nhận xét."
+msgstr "Không có camera cũng không sao. Chọn ảnh từ thư viện, hoặc cứ kể mình nghe bạn đã ăn gì — cả hai đều có macro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

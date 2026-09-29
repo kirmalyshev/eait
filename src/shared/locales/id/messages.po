@@ -296,7 +296,7 @@ msgstr "Menyebutkan isinya"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Tidak ada kamera, tidak masalah. Pilih foto dari galerimu, atau cukup ceritakan apa yang kamu makan — dua-duanya dapat penilaian."
+msgstr "Tidak ada kamera, tidak masalah. Pilih foto dari galerimu, atau cukup ceritakan apa yang kamu makan — dua-duanya dapat makro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

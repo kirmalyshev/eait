@@ -103,7 +103,7 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     "camera-primer": (v) => i18n._("thread.scripted.camera-primer", v, { message: "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is kept with the meal so you can see it in your diary, and erased with your account." }),
     "fix-prompt": (v) => i18n._("thread.scripted.fix-prompt", v, { message: "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\" all work. Or open the card and edit the grams yourself." }),
     "already-in": (v) => i18n._("thread.scripted.already-in", v, { message: "Good. I'm here in Chat whenever — a photo or a sentence both log a meal." }),
-    "camera-denied": (v) => i18n._("thread.scripted.camera-denied", v, { message: "No camera, no problem. Pick a photo from your library, or just tell me what you ate — both get a verdict." }),
+    "camera-denied": (v) => i18n._("thread.scripted.camera-denied", v, { message: "No camera, no problem. Pick a photo from your library, or just tell me what you ate — both get macros." }),
     "onboarding-done": (v) => i18n._("thread.scripted.onboarding-done", v, { message: "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask." }),
     "dropped": (v) => i18n._("thread.scripted.dropped", v, { message: "Dropped it." }),
   },

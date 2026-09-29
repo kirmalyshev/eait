@@ -296,7 +296,7 @@ msgstr "Identification des aliments"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Pas d'appareil photo, pas de problème. Choisis une photo dans ta galerie, ou dis-moi simplement ce que tu as mangé — les deux donnent un verdict."
+msgstr "Pas d'appareil photo, pas de problème. Choisis une photo dans ta galerie, ou dis-moi simplement ce que tu as mangé — les deux donnent des macros."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

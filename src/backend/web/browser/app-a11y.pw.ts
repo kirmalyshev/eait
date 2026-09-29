@@ -83,7 +83,7 @@ test("the offer: one h1, and Correct meal / Not now at 44px", async ({ inWebApp:
   await page.getByRole("button", { name: "Upload a photo" }).click();
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Analyse my meal" }).click();
-  await expect(page.getByText("Your first verdict")).toBeVisible();
+  await expect(page.getByText("Your first macros")).toBeVisible();
   await tapTarget(page.getByRole("button", { name: "Correct meal" }));
   await page.getByRole("button", { name: "Keep going" }).click();
   await expect(page.getByText("Every meal, like that one")).toBeVisible();
