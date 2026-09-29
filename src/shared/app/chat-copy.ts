@@ -114,7 +114,14 @@ export interface ChatScreenCopy {
   /** `states-unknown.html`, both clients: outcome unknown — kept, and re-sent on its own. */
   waitingToSend: string;
   unknownTitle: string;
+  /** The UNANSWERED row's line — that turn does go out again on its own (`attemptOf`: retry). */
   unknownBody: string;
+  /**
+   * A HELD outcome-unknown turn is never re-sent on its own, and its resend mints a new id —
+   * so "re-sent on its own" would be false, and "sending again is safe" could log a turn that
+   * ran twice. It says what is actually known and hands the decision over (#1106).
+   */
+  unknownHeldBody: string;
 
   /**
    * The analysis's failure, drawn INSIDE chat on web (`web/states-failed.html`) and as the log
@@ -254,6 +261,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Waiting to send",
     unknownTitle: "That didn't finish cleanly.",
     unknownBody: "Kept, and re-sent on its own — sending again is safe.",
+    unknownHeldBody: "We couldn't confirm this went through. Check your day before sending it again, or discard it.",
     analysisFailed: "The analysis didn't come back.",
     analysisKept: "Nothing was logged. Your photo is kept.",
     web: { sendItAgain: "Send it again" },
@@ -344,6 +352,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "En attente d'envoi",
     unknownTitle: "Ça ne s'est pas terminé proprement.",
     unknownBody: "Conservé, et renvoyé tout seul — renvoyer toi-même est sans risque.",
+    unknownHeldBody: "Impossible de confirmer que c'est bien passé. Regarde ta journée avant de le renvoyer, ou supprime-le.",
     analysisFailed: "L'analyse n'est pas revenue.",
     analysisKept: "Rien n'a été enregistré. Ta photo est conservée.",
     web: { sendItAgain: "La renvoyer" },
@@ -434,6 +443,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Wartet auf den Versand",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownBody: "Gespeichert und wird von selbst nochmal gesendet — selbst erneut senden ist sicher.",
+    unknownHeldBody: "Wir konnten nicht bestätigen, dass es durchgegangen ist. Sieh in deinem Tag nach, bevor du es erneut sendest, oder verwirf es.",
     analysisFailed: "Die Analyse ist nicht zurückgekommen.",
     analysisKept: "Es wurde nichts eingetragen. Dein Foto ist gespeichert.",
     web: { sendItAgain: "Nochmal senden" },
@@ -524,6 +534,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "In attesa di invio",
     unknownTitle: "Non si è concluso correttamente.",
     unknownBody: "Conservato, e rispedito da solo — inviare di nuovo è sicuro.",
+    unknownHeldBody: "Non siamo riusciti a confermare che sia andato a buon fine. Controlla il tuo giorno prima di inviarlo di nuovo, oppure scartalo.",
     analysisFailed: "L'analisi non è tornata.",
     analysisKept: "Non è stato registrato nulla. La tua foto è conservata.",
     web: { sendItAgain: "Inviala di nuovo" },
@@ -614,6 +625,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Esperando para enviar",
     unknownTitle: "No terminó de salir limpio.",
     unknownBody: "Guardado, y se reenvía solo — volver a enviar es seguro.",
+    unknownHeldBody: "No pudimos confirmar que se haya enviado. Revisa tu día antes de volver a enviarlo, o descártalo.",
     analysisFailed: "El análisis no volvió.",
     analysisKept: "No se registró nada. Tu foto queda guardada.",
     web: { sendItAgain: "Enviarla de nuevo" },
@@ -704,6 +716,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Đang chờ gửi",
     unknownTitle: "Việc gửi chưa kết thúc trọn vẹn.",
     unknownBody: "Đã giữ lại, và sẽ tự gửi lại — gửi lại vẫn an toàn.",
+    unknownHeldBody: "Mình không xác nhận được là nó đã gửi thành công. Hãy kiểm tra lại ngày của bạn trước khi gửi lại, hoặc bỏ nó đi.",
     analysisFailed: "Phân tích không trả về.",
     analysisKept: "Chưa có gì được ghi lại. Ảnh của bạn được giữ.",
     web: { sendItAgain: "Gửi nó lại" },
@@ -794,6 +807,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Menunggu untuk dikirim",
     unknownTitle: "Tidak selesai dengan baik.",
     unknownBody: "Disimpan, dan terkirim ulang sendiri — mengirim ulang tetap aman.",
+    unknownHeldBody: "Aku tidak bisa memastikan pesan ini terkirim. Cek harimu sebelum mengirimnya lagi, atau buang saja.",
     analysisFailed: "Analisisnya tidak kembali.",
     analysisKept: "Tidak ada yang tercatat. Fotomu disimpan.",
     web: { sendItAgain: "Kirim lagi" },
@@ -884,6 +898,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     waitingToSend: "Ждёт отправки",
     unknownTitle: "Отправка не завершилась до конца.",
     unknownBody: "Сохранено и отправится само — отправить ещё раз безопасно.",
+    unknownHeldBody: "Не удалось подтвердить, что сообщение дошло. Проверь свой день, прежде чем отправить его ещё раз, или отмени.",
     analysisFailed: "Анализ не вернулся.",
     analysisKept: "Ничего не записалось. Фото сохранено.",
     web: { sendItAgain: "Отправить ещё раз" },
