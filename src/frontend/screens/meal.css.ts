@@ -46,8 +46,8 @@ export const mealCss = `
 .mscrim{position:fixed;inset:0;background:color-mix(in srgb, var(--ink) 36%, transparent);display:flex;align-items:center;
   justify-content:center;z-index:50}
 .mscrim.hard{background:color-mix(in srgb, var(--ink) 42%, transparent)}
-.mscore{width:440px;max-height:80vh;overflow:auto;padding:24px;margin:0;display:flex;
-  flex-direction:column}
+.mscore{width:440px;max-width:calc(100vw - 32px);max-height:80vh;overflow:auto;padding:24px;
+  margin:0;display:flex;flex-direction:column}
 .mscore .mnote{margin:6px 0 10px}
 .mscore .cta{margin-top:16px}
 .mdel{width:380px;padding:24px;text-align:center;margin:0}
