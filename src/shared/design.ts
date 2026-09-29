@@ -136,6 +136,8 @@ export const RADIUS = {
   bar: 1,
   /** The meal sheet's top corners, and the dots, avatars and FAB: full round. */
   sheet: 20,
+  /** The `.rise` overlay card's top corners — the date picker and the delete confirm. */
+  overlay: 16,
   pill: 999,
 } as const;
 
