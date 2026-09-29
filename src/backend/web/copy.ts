@@ -153,7 +153,7 @@ const EN: PageCopy = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
   welcomeDemoAlt:
-    "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the verdict: {kcal} kcal, calories on plan",
+    "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the macros: {kcal} kcal, calories on plan",
   chatHeading: "Your chat",
   chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
   chatMealGone: "That meal is no longer in the diary.",
@@ -231,7 +231,7 @@ const EN: PageCopy = {
   topBarNote: "Set up on the web · finish on your phone any time",
   offerBeat: "You've done the hard part",
   offerTitleElse: "Every meal, judged against your plan",
-  offerPerkVerdict: "An honest verdict on every meal",
+  offerPerkVerdict: "Honest macros on every meal",
   offerPerkPlan: "Your plan moves when your weight does",
   offerPerkSpud: "Spud, any time you ask",
   offerWhenToday: "Today",
@@ -258,7 +258,7 @@ const EN: PageCopy = {
 const FR: PageCopy = {
   frontDoorLead: "Crée ton compte ici, puis ouvre l'appli : la session sera déjà ouverte. Ça prend environ trois minutes.",
   welcomeDemoAlt:
-    "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et le verdict : {kcal} kcal, calories dans le plan",
+    "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et les macros : {kcal} kcal, calories dans le plan",
   chatHeading: "Ton chat",
   chatEmpty: "Rien ici pour l'instant. Ce que tu dis dans l'appli apparaît ici, et inversement.",
   chatMealGone: "Ce repas n'est plus dans le journal.",
@@ -310,7 +310,7 @@ const FR: PageCopy = {
   topBarNote: "Commencé sur le web · à finir sur ton téléphone quand tu veux",
   offerBeat: "Tu as fait le plus dur",
   offerTitleElse: "Chaque repas, évalué par rapport à ton plan",
-  offerPerkVerdict: "Un verdict honnête sur chaque repas",
+  offerPerkVerdict: "Des macros honnêtes pour chaque repas",
   offerPerkPlan: "Ton plan bouge quand ton poids bouge",
   offerPerkSpud: "Spud, quand tu veux",
   offerWhenToday: "Aujourd'hui",
@@ -336,7 +336,7 @@ const FR: PageCopy = {
 const DE: PageCopy = {
   frontDoorLead: "Richte dein Konto hier ein und öffne die App dann bereits angemeldet. Dauert etwa drei Minuten.",
   welcomeDemoAlt:
-    "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und das Urteil: {kcal} kcal, Kalorien im Plan",
+    "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und die Makros: {kcal} kcal, Kalorien im Plan",
   chatHeading: "Dein Chat",
   chatEmpty: "Hier ist noch nichts. Was du in der App sagst, taucht hier auf — und umgekehrt.",
   chatMealGone: "Diese Mahlzeit ist nicht mehr im Tagebuch.",
@@ -388,7 +388,7 @@ const DE: PageCopy = {
   topBarNote: "Im Browser einrichten · am Telefon jederzeit weiter",
   offerBeat: "Den schweren Teil hast du schon geschafft",
   offerTitleElse: "Jede Mahlzeit, gemessen an deinem Plan",
-  offerPerkVerdict: "Ein ehrliches Urteil zu jeder Mahlzeit",
+  offerPerkVerdict: "Ehrliche Makros zu jeder Mahlzeit",
   offerPerkPlan: "Dein Plan bewegt sich mit deinem Gewicht",
   offerPerkSpud: "Spud, wann immer du fragst",
   offerWhenToday: "Heute",
@@ -414,7 +414,7 @@ const DE: PageCopy = {
 const IT: PageCopy = {
   frontDoorLead: "Prepara qui il tuo account, poi apri l'app con la sessione già aperta. Ci vogliono circa tre minuti.",
   welcomeDemoAlt:
-    "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e il verdetto: {kcal} kcal, calorie nel piano",
+    "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e i macro: {kcal} kcal, calorie nel piano",
   chatHeading: "La tua chat",
   chatEmpty: "Qui non c'è ancora niente. Quello che dici nell'app compare qui, e viceversa.",
   chatMealGone: "Quel pasto non è più nel diario.",
@@ -466,7 +466,7 @@ const IT: PageCopy = {
   topBarNote: "Imposta sul web · finisci sul telefono quando vuoi",
   offerBeat: "Hai fatto la parte difficile",
   offerTitleElse: "Ogni pasto, giudicato sul tuo piano",
-  offerPerkVerdict: "Un verdetto onesto su ogni pasto",
+  offerPerkVerdict: "Macro onesti per ogni pasto",
   offerPerkPlan: "Il tuo piano si muove con il tuo peso",
   offerPerkSpud: "Spud, quando vuoi",
   offerWhenToday: "Oggi",
@@ -492,7 +492,7 @@ const IT: PageCopy = {
 const ES: PageCopy = {
   frontDoorLead: "Prepara tu cuenta aquí y luego abre la app ya con la sesión iniciada. Son unos tres minutos.",
   welcomeDemoAlt:
-    "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y el veredicto: {kcal} kcal, calorías dentro del plan",
+    "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y los macros: {kcal} kcal, calorías dentro del plan",
   chatHeading: "Tu chat",
   chatEmpty: "Aquí todavía no hay nada. Lo que dices en la app aparece aquí, y al revés.",
   chatMealGone: "Esa comida ya no está en el diario.",
@@ -544,7 +544,7 @@ const ES: PageCopy = {
   topBarNote: "Configura en la web · termina en tu teléfono cuando quieras",
   offerBeat: "Ya hiciste la parte difícil",
   offerTitleElse: "Cada comida, juzgada contra tu plan",
-  offerPerkVerdict: "Un veredicto honesto de cada comida",
+  offerPerkVerdict: "Macros honestos en cada comida",
   offerPerkPlan: "Tu plan se mueve con tu peso",
   offerPerkSpud: "Spud, cuando preguntes",
   offerWhenToday: "Hoy",
@@ -570,7 +570,7 @@ const ES: PageCopy = {
 const VI: PageCopy = {
   frontDoorLead: "Tạo tài khoản ở đây, rồi mở ứng dụng là đã đăng nhập sẵn. Mất khoảng ba phút.",
   welcomeDemoAlt:
-    "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và đánh giá: {kcal} kcal, calo trong kế hoạch",
+    "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và macro: {kcal} kcal, calo trong kế hoạch",
   chatHeading: "Khung chat của bạn",
   chatEmpty: "Ở đây chưa có gì. Những gì bạn nói trong ứng dụng sẽ hiện ở đây, và ngược lại.",
   chatMealGone: "Bữa đó không còn trong nhật ký nữa.",
@@ -622,7 +622,7 @@ const VI: PageCopy = {
   topBarNote: "Cài đặt trên web · tiếp tục trên điện thoại bất cứ lúc nào",
   offerBeat: "Bạn đã qua phần khó rồi",
   offerTitleElse: "Mỗi bữa ăn, so với kế hoạch của bạn",
-  offerPerkVerdict: "Đánh giá thật lòng cho mỗi bữa ăn",
+  offerPerkVerdict: "Macro trung thực cho mỗi bữa ăn",
   offerPerkPlan: "Kế hoạch đổi theo cân nặng của bạn",
   offerPerkSpud: "Spud, bất cứ lúc nào bạn hỏi",
   offerWhenToday: "Hôm nay",
@@ -648,7 +648,7 @@ const VI: PageCopy = {
 const ID: PageCopy = {
   frontDoorLead: "Siapkan akunmu di sini, lalu buka aplikasinya dalam keadaan sudah masuk. Perlu sekitar tiga menit.",
   welcomeDemoAlt:
-    "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan hasilnya: {kcal} kkal, kalori sesuai rencana",
+    "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan makronya: {kcal} kkal, kalori sesuai rencana",
   chatHeading: "Chat-mu",
   chatEmpty: "Belum ada apa-apa di sini. Apa yang kamu tulis di aplikasi muncul di sini, dan sebaliknya.",
   chatMealGone: "Makanan itu sudah tidak ada di buku harian.",
@@ -700,7 +700,7 @@ const ID: PageCopy = {
   topBarNote: "Atur di web · lanjutkan di ponsel kapan saja",
   offerBeat: "Bagian beratnya sudah kamu lewati",
   offerTitleElse: "Setiap makanan, dinilai dari rencanamu",
-  offerPerkVerdict: "Penilaian jujur untuk setiap makanan",
+  offerPerkVerdict: "Makro jujur untuk setiap makanan",
   offerPerkPlan: "Rencanamu ikut berubah saat beratmu berubah",
   offerPerkSpud: "Spud, kapan pun kamu tanya",
   offerWhenToday: "Hari ini",
@@ -726,7 +726,7 @@ const ID: PageCopy = {
 const RU: PageCopy = {
   frontDoorLead: "Заведи аккаунт здесь, а потом открой приложение уже с входом. Займёт минуты три.",
   welcomeDemoAlt:
-    "eait в работе: фото боула, три ингредиента распознаны с ккал, и вердикт: {kcal} ккал, калории в пределах плана",
+    "eait в работе: фото боула, три ингредиента распознаны с ккал, и макросы: {kcal} ккал, калории в пределах плана",
   chatHeading: "Твой чат",
   chatEmpty: "Здесь пока пусто. Что ты говоришь в приложении, появляется тут, и наоборот.",
   chatMealGone: "Этого приёма пищи больше нет в дневнике.",
@@ -778,7 +778,7 @@ const RU: PageCopy = {
   topBarNote: "Настройка в браузере · продолжи на телефоне в любой момент",
   offerBeat: "Самое трудное уже позади",
   offerTitleElse: "Каждый приём пищи — оценка по твоему плану",
-  offerPerkVerdict: "Честная оценка каждого приёма пищи",
+  offerPerkVerdict: "Честные макросы для каждого приёма пищи",
   offerPerkPlan: "План меняется вместе с твоим весом",
   offerPerkSpud: "Spud, когда спросишь",
   offerWhenToday: "Сегодня",

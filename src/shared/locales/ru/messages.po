@@ -296,7 +296,7 @@ msgstr "Назвать, что на ней"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Нет камеры — не беда. Выбери фото из галереи или просто скажи, что было на тарелке, — вердикт будет в обоих случаях."
+msgstr "Нет камеры — не беда. Выбери фото из галереи или просто скажи, что было на тарелке, — макросы будут в обоих случаях."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

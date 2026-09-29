@@ -296,7 +296,7 @@ msgstr "Nombrar lo que hay"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Sin cámara, sin problema. Elige una foto de tu galería, o dime simplemente qué comiste — las dos reciben un veredicto."
+msgstr "Sin cámara, sin problema. Elige una foto de tu galería, o dime simplemente qué comiste — las dos reciben macros."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
