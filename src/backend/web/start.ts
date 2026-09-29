@@ -646,6 +646,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
         : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
         : null,
+      termsHref: config.termsUrl === "" ? null : config.termsUrl,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
       lang,
     }), 200, {

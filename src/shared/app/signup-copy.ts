@@ -28,7 +28,7 @@ export interface SignupCopy {
    * was written in English.
    */
   termsLabel: string;
-  /** The document names inside `termsLabel` — "Terms" has no published page, only "Privacy" links. */
+  /** The document names inside `termsLabel` — each links where the operator published it. */
   termsLink: string;
   privacyLink: string;
   /** The optional box. Unticked means nothing is recorded — the stamp is a date, not a boolean. */

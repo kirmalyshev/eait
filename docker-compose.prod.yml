@@ -192,6 +192,7 @@ services:
       EAIT__BACKEND__WEB_CHECKOUT_URL: ${EAIT__BACKEND__WEB_CHECKOUT_URL:-}
 
       EAIT__BACKEND__LANDING_URL: ${EAIT__BACKEND__LANDING_URL:-}
+      EAIT__BACKEND__TERMS_URL: ${EAIT__BACKEND__TERMS_URL:-}
 
       # The optional "Support eait" links (#200) — all empty is off.
       EAIT__BACKEND__DONATE_GITHUB_URL: ${EAIT__BACKEND__DONATE_GITHUB_URL:-}
