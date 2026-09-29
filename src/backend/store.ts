@@ -1080,6 +1080,8 @@ export interface Store {
   countUserPhotos(userId: string, date: string): Promise<number>;
   /** Every analysis the instance has spent on `date`, whatever its scope — see `recordAnalysis`. */
   countGlobalAnalyses(date: string): Promise<number>;
+  /** App Clip estimates the instance has charged on `date` (UTC), for `clipDailyMax`. */
+  countClipAnalyses(date: string): Promise<number>;
   /**
    * The analyses that count against this account's SAMPLE, photo or text, over its lifetime. The
    * sample rule reads it: `freeAnalyses` without an entitlement, then refusal. Both scopes on
@@ -1101,7 +1103,7 @@ export interface Store {
   /** Set this account's own sample size, or clear it with null. False when there is no such user. */
   setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
   /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
-  recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<string>;
+  recordAnalysis(userId: string, date: string, scope: "photo" | "text" | "clip"): Promise<string>;
   /**
    * Add what one model call cost to the analysis that paid for it, as the provider reported it —
    * or, given null, count a call it did not price. ADDED, because one charge pays for several calls

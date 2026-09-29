@@ -11,7 +11,8 @@ import { GatewayRefusal, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { isAnonymous } from "./identity.ts";
 
-export type CapScope = "photo" | "text";
+/** `clip` is the App Clip's anonymous estimate: its own daily ceiling, and no identity required. */
+export type CapScope = "photo" | "text" | "clip";
 
 /**
  * Null when the request may proceed, a refusal when it may not.
@@ -35,11 +36,17 @@ export async function checkCaps(
   // Apple or Google identity is refused here — ahead of every cap and therefore ahead of the
   // charge, which is what keeps the free sample unspent anonymously. `charge` writes
   // `recordAnalysis` below this, so a refusal returned now has spent nothing.
-  if (await isAnonymous(deps, userId)) return { kind: "identity-required" };
+  if (scope !== "clip" && await isAnonymous(deps, userId)) return { kind: "identity-required" };
 
   if (config.globalDailyAnalysisCap > 0) {
     const global = await store.countGlobalAnalyses(date);
     if (global >= config.globalDailyAnalysisCap) return { kind: "cap-exceeded", scope: "global" };
+  }
+
+  // The clip's circuit breaker: anonymous accounts are free to mint and addresses rotate, so the
+  // clip's total is bounded here, per UTC day, before any charge. Zero is the clip switched off.
+  if (scope === "clip" && (config.clipDailyMax <= 0 || await store.countClipAnalyses(date) >= config.clipDailyMax)) {
+    return { kind: "cap-exceeded", scope: "global" };
   }
 
   // Read from the store on every request rather than carried in the session, and that is the

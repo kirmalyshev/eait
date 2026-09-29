@@ -3516,7 +3516,7 @@ if (PG_URL) {
         .sort();
       expect(unscoped).toEqual([
         "adminListUsers", "adminMetrics", "claimPairingCode",
-        "countGlobalAnalyses", "createUser", "forgetTurnOutcomes",
+        "countClipAnalyses", "countGlobalAnalyses", "createUser", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
         "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
