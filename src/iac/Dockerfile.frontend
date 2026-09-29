@@ -17,7 +17,7 @@
 # `../shared/budget.ts`) — which is why the `COPY src/shared` below is load-bearing rather than
 # belt-and-braces for the types.
 
-FROM oven/bun:1.4.0-alpine AS build
+FROM oven/bun:1.4.2-alpine AS build
 WORKDIR /app
 
 COPY package.json bun.lock ./
@@ -32,7 +32,7 @@ RUN cd src/frontend && bun build ./main.ts --outdir ./dist --target browser --mi
  && test -s ./dist/main.js
 
 
-FROM oven/bun:1.4.0-alpine AS runtime
+FROM oven/bun:1.4.2-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
