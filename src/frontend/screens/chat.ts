@@ -217,7 +217,9 @@ export async function chatScreen(): Promise<HTMLElement> {
           : failed ? copy().analysisFailed
           : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
         if (e.held === undefined) col.append(el("p", "t13 m", copy().offlineBody));
-        else if (unknown) col.append(el("p", "t13 m", copy().unknownBody));
+        // A HELD outcome-unknown: nothing re-sends it on its own, so it says what is actually
+        // known (`unknownHeldBody`, #1106) — "re-sent on its own" is the unheld unanswered row's.
+        else if (unknown) col.append(el("p", "t13 m", copy().unknownHeldBody));
         else if (failed) col.append(el("p", "t13 m", copy().analysisKept));
         // A HELD turn keeps both ways out — it never re-sends on its own and it stops the queue
         // behind it (heldAhead), so without Discard it would sit forever. states-failed's resend
