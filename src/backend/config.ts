@@ -225,6 +225,13 @@ export interface Config {
    */
   analysisRateLimitPerDay: number;
   /**
+   * The App Clip's circuit breaker: clip estimates the whole instance may spend per UTC day,
+   * counted in the store and checked before the charge. Zero turns the clip route off. Server-only.
+   */
+  clipDailyMax: number;
+  /** Clip estimates per address per day, on top of `analysisRateLimitPerDay`. Zero disables it. */
+  clipPerAddressDay: number;
+  /**
    * Health-sync posts per hour, per address.
    *
    * The heaviest write this API accepts: up to `MAX_HEALTH_DAYS_PER_BATCH` upserts inside one
@@ -510,6 +517,8 @@ export function configDefaults(): Config {
     sessionTtlDays: DEFAULT_SESSION_TTL_MS / (24 * 60 * 60 * 1000),
     authRateLimitPerHour: 20,
     analysisRateLimitPerDay: 60,
+    clipDailyMax: 500,
+    clipPerAddressDay: 3,
     healthSyncRateLimitPerHour: 120,
     linesRateLimitPerHour: 120,
     appleAudiences: [],
@@ -657,6 +666,8 @@ export function loadConfig(): Config {
     sessionTtlDays,
     authRateLimitPerHour: int("EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
     analysisRateLimitPerDay: int("EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
+    clipDailyMax: int("EAIT__BACKEND__CLIP_DAILY_MAX", d.clipDailyMax),
+    clipPerAddressDay: int("EAIT__BACKEND__CLIP_PER_ADDRESS_DAY", d.clipPerAddressDay),
     healthSyncRateLimitPerHour: int("EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
     linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),

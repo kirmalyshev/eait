@@ -113,13 +113,13 @@ export async function analyzePhotos(
   onEvent?: (event: PhotoEvent) => void,
   /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
   eaten: Date = new Date(),
-  anonymousOk = false,
+  scope: "photo" | "clip" = "photo",
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
   // prints it; it never composes it: the web bundle holds no i18n catalog.
   onEvent?.({ kind: "reading", line: streamCopyFor(profile.lang).reading });
-  const refusal = await checkCaps(deps, userId, date, "photo", anonymousOk);
+  const refusal = await checkCaps(deps, userId, date, scope);
   if (refusal) return refusal;
 
   // Sniffed AFTER the cap (a refused account never has its bytes read) and BEFORE the charge: the
@@ -132,7 +132,7 @@ export async function analyzePhotos(
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
-  const { analysisId, onCost } = await charge(deps, userId, date, "photo");
+  const { analysisId, onCost } = await charge(deps, userId, date, scope);
 
   const { targets } = explainTargets(profile);
 
@@ -218,8 +218,9 @@ export async function estimatePhoto(
   if (!(await isAnonymous(deps, userId))) return { kind: "not-anonymous" };
   const profile = await deps.store.getProfile(userId);
   if (!profile) return { kind: "not-onboarded" };
-  const read = await analyzePhotos(deps, userId, profile, localDate(deps.config.timezone),
-    () => Promise.all(images.map((r) => r())), undefined, undefined, new Date(), true);
+  // Charged on the UTC day, which is the day `clipDailyMax` counts.
+  const read = await analyzePhotos(deps, userId, profile, new Date().toISOString().slice(0, 10),
+    () => Promise.all(images.map((r) => r())), undefined, undefined, new Date(), "clip");
   if (read.kind !== "read") return read;
   const { items, kcal, protein_g, carbs_g, fat_g, confidence } = read.analysis;
   return { kind: "estimated", estimate: { items, kcal, protein_g, carbs_g, fat_g, confidence } };

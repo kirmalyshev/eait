@@ -637,6 +637,9 @@ export function createRouter(
       }
 
       if (req.method === "POST" && pathname === ROUTES.clipEstimate) {
+        // The clip's own per-address allowance, on top of the analysis limit above.
+        const wait = limit(req, peer, "clip", deps.config.clipPerAddressDay, DAY);
+        if (wait !== null) return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
         const upload = await readPhotoForm(req);
         if (upload instanceof Response) return upload;
         const result = await estimatePhoto(deps, userId,

@@ -524,7 +524,7 @@ create table if not exists analyses (
   id      bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
   date    text not null,
-  -- 'photo' | 'text'. The per-user cap counts photos only; the global budget counts both.
+  -- 'photo' | 'text' | 'clip'. The per-user cap counts photos only; the global budget counts all.
   scope   text not null default 'photo'
 );
 create index if not exists analyses_date_idx on analyses(date);
@@ -994,6 +994,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   adminMetrics: "unscoped",
   onboardingFunnel: "unscoped",
   countGlobalAnalyses: "unscoped",
+  countClipAnalyses: "unscoped",
   usersWithPushTokens: "unscoped",
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
@@ -2532,6 +2533,11 @@ export async function postgresStore(
 
     async countGlobalAnalyses(date) {
       const rows = await sql`select count(*)::int as n from analyses where date = ${date}`;
+      return num(rows[0].n);
+    },
+
+    async countClipAnalyses(date) {
+      const rows = await sql`select count(*)::int as n from analyses where date = ${date} and scope = 'clip'`;
       return num(rows[0].n);
     },
 

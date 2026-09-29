@@ -166,7 +166,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
   const analyses: {
-    id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
+    id: string; userId: string; date: string; scope: "photo" | "text" | "clip"; costUsd: number | null; unpricedCalls: number;
     /** Counts against the sample until `releaseSample` says the turn delivered nothing. */
     sample: boolean;
     /** Settled-turn timings, written by `recordTiming`; undefined until one lands. */
@@ -1188,6 +1188,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async countGlobalAnalyses(date) {
       return analyses.filter((a) => a.date === date).length;
+    },
+
+    async countClipAnalyses(date) {
+      return analyses.filter((a) => a.date === date && a.scope === "clip").length;
     },
 
     async countUserAnalyses(userId) {
