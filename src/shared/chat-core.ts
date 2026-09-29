@@ -20,13 +20,13 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { scriptedLine } from "./chat.ts";
-import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
+import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { Lang } from "./types.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import { attemptOf } from "./outbox.ts";
-import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
+import type { ConfirmMealResult, HandleTextResult, MealLogged, MealProposed, TargetGone } from "./results.ts";
 import {
-  fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, livePendings,
+  fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, pendingIdOf, reconcilePage, livePendings,
   threadReducer, type ThreadEntry,
 } from "./thread.ts";
 
@@ -36,6 +36,12 @@ export interface ChatClient {
   sendMessage(text: string, focusMealId?: string, clientId?: string, capturedAt?: string): Promise<HandleTextResult>;
   confirmPending(pendingId: string): Promise<ConfirmMealResult>;
   cancelPending(pendingId: string): Promise<{ kind: "cancelled" | "expired" } | MealLogged>;
+  /**
+   * `GET /v1/meals/pending` (#530): the proposals the server still holds. The one way a proposal
+   * comes back once its turn's answer was never seen — a page cannot carry one, because the card
+   * exists only after a confirm.
+   */
+  pendings(): Promise<PendingMealsResponse>;
   /** `DELETE /v1/messages/:id` (#608). A 409 `target-gone` comes back as the typed result, like `sendMessage`'s. */
   deleteLine(id: string): Promise<DeleteLineResponse | TargetGone>;
 }
@@ -221,9 +227,53 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // focus), undefined (no card on this page — say nothing).
       const focus = lastMealId(page.entries, deps.today());
       if (focus !== undefined) focusMealId = focus;
+      // A page cannot carry a proposal — no card exists for one until it is confirmed — so the
+      // proposals the server still holds are read back alongside it (#530, #1116).
+      await restorePendings(isLive);
     } catch {
       if (isLive()) set({ failed: true }); // the seeded list stands; a tap or the next focus retries
     }
+  };
+
+  /**
+   * The proposals the server still holds that this list does not, restored the way a live turn's
+   * own arrives (#360): under its own line when the page carried it — the stored line keeps the
+   * turn's `pendingId` — and at the end when it did not, as the web draws its held one. Without
+   * this a proposal answered while the app was away (backgrounded, reloaded, relaunched) left the
+   * user's words with nothing under them, and the screen acted as though the turn had never come
+   * back.
+   *
+   * `oneLiveProposal` retires every older offer to the words the "No" button writes, and those are
+   * cancelled for real — the same rule `send` and `landed` keep: the server never expires a
+   * proposal early, so the retiree this side drew would stay confirmable on another.
+   */
+  const restorePendings = async (isLive: () => boolean): Promise<void> => {
+    let proposals: MealProposed[];
+    try {
+      ({ proposals } = await deps.client().pendings());
+    } catch {
+      return; // a failed read is no card — the same fallback the web's `.catch(() => null)` takes
+    }
+    if (!isLive() || proposals.length === 0) return;
+    const retired: string[] = [];
+    edit((prev) => {
+      let next = prev;
+      for (const proposal of proposals) {
+        // Held on screen already (a live turn's own or an earlier restore), or confirmed while this
+        // ran — the meal takes the proposal's id, so the card says there is nothing to restore.
+        if (next.some((e) => pendingIdOf(e) === proposal.pendingId
+          || (e.role === "card" && e.mealId === proposal.pendingId))) continue;
+        const entry: ThreadEntry = { id: uid(), role: "assistant", result: proposal };
+        const at = next.findIndex((e) => e.role === "user" && e.pendingId === proposal.pendingId);
+        next = at < 0 ? [...next, entry] : [...next.slice(0, at + 1), entry, ...next.slice(at + 1)];
+      }
+      if (next === prev) return prev;
+      const collapsed = oneLiveProposal(next, lang());
+      const kept = new Set(livePendings(collapsed));
+      for (const id of livePendings(next)) if (!kept.has(id)) retired.push(id);
+      return collapsed;
+    });
+    for (const id of retired) void deps.client().cancelPending(id).catch(() => {});
   };
 
   // Loads run one after another, never dropped: a turn that awaits its page must get a page fetched
