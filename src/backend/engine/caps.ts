@@ -28,6 +28,8 @@ export async function checkCaps(
   userId: string,
   date: string,
   scope: CapScope,
+  /** Only the App Clip's estimate passes true: it is the one analysis an anonymous account may spend. */
+  anonymousOk = false,
 ): Promise<Refusal | null> {
   const { store, config } = deps;
 
@@ -35,7 +37,7 @@ export async function checkCaps(
   // Apple or Google identity is refused here — ahead of every cap and therefore ahead of the
   // charge, which is what keeps the free sample unspent anonymously. `charge` writes
   // `recordAnalysis` below this, so a refusal returned now has spent nothing.
-  if (await isAnonymous(deps, userId)) return { kind: "identity-required" };
+  if (!anonymousOk && await isAnonymous(deps, userId)) return { kind: "identity-required" };
 
   if (config.globalDailyAnalysisCap > 0) {
     const global = await store.countGlobalAnalyses(date);

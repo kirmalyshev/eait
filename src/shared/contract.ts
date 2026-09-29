@@ -248,6 +248,12 @@ export const ROUTES = {
    */
   photo: "/v1/meals/photo",
   /**
+   * POST, multipart: `photo` (one to `maxPhotosPerMeal` angles). The iOS App Clip's estimate: an
+   * ANONYMOUS device account only (403 `anonymous-only` otherwise), charged to its sample, nothing
+   * stored but the charge. Answers {@link ClipEstimateResponse}.
+   */
+  clipEstimate: "/v1/clip/estimate",
+  /**
    * POST — one turn; with `accept: NDJSON` it STREAMS (#508): a blank keepalive line while the model
    * is silent, then the {@link MessageResponse} as the last line, refusals and `target-gone` included.
    * GET `?before=<seq>&limit=N` — the thread, newest page first.
@@ -367,6 +373,16 @@ export interface AuthDeviceRequest {
   /** BCP-47-ish; the server narrows it to a supported `Lang` and falls back to `en`. */
   locale?: string;
 }
+/** The App Clip's answer: what is on the plate, and nothing that needs a profile to judge. */
+export interface ClipEstimateResponse {
+  items: MealItem[];
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  confidence: string;
+}
+
 export interface AuthDeviceResponse {
   token: string;
   userId: string;

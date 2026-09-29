@@ -11,7 +11,7 @@
 //     verdict can never describe numbers that have since changed.
 
 import {
-  type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
+  type ClipEstimateResponse, type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
   type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
@@ -31,6 +31,7 @@ import { scriptedLine } from "@eait/shared";
 import { clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
+import { isAnonymous } from "./identity.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
@@ -112,12 +113,13 @@ export async function analyzePhotos(
   onEvent?: (event: PhotoEvent) => void,
   /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
   eaten: Date = new Date(),
+  anonymousOk = false,
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
   // prints it; it never composes it: the web bundle holds no i18n catalog.
   onEvent?.({ kind: "reading", line: streamCopyFor(profile.lang).reading });
-  const refusal = await checkCaps(deps, userId, date, "photo");
+  const refusal = await checkCaps(deps, userId, date, "photo", anonymousOk);
   if (refusal) return refusal;
 
   // Sniffed AFTER the cap (a refused account never has its bytes read) and BEFORE the charge: the
@@ -202,6 +204,25 @@ export async function analyzePhotos(
     return { kind: "analysis-failed" };
   }
   return { kind: "read", analysis, question: prepared.question, images, analysisId };
+}
+
+/**
+ * The App Clip's estimate: an anonymous device account's sample, read and answered, nothing stored
+ * but the charge. No meal, no photos, no verdicts — the account has no targets to judge against.
+ */
+export async function estimatePhoto(
+  deps: EngineDeps,
+  userId: string,
+  images: (() => Promise<Uint8Array>)[],
+): Promise<{ kind: "estimated"; estimate: ClipEstimateResponse } | { kind: "not-anonymous" } | Refusal> {
+  if (!(await isAnonymous(deps, userId))) return { kind: "not-anonymous" };
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return { kind: "not-onboarded" };
+  const read = await analyzePhotos(deps, userId, profile, localDate(deps.config.timezone),
+    () => Promise.all(images.map((r) => r())), undefined, undefined, new Date(), true);
+  if (read.kind !== "read") return read;
+  const { items, kcal, protein_g, carbs_g, fat_g, confidence } = read.analysis;
+  return { kind: "estimated", estimate: { items, kcal, protein_g, carbs_g, fat_g, confidence } };
 }
 
 export async function logPhotoMeal(

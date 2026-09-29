@@ -16,7 +16,7 @@
 
 import {
   IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest, isRedateMealRequest,
-  type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
+  type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
@@ -33,7 +33,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
-  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
+  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
@@ -146,6 +146,35 @@ export function createRouter(
     // The bucket is part of the key, so an hour of sign-ins and a day of analyses are counted
     // separately for the same address rather than sharing one allowance.
     return limiter.check(`${bucket}:${address}`, { limit: perWindow, windowMs });
+  };
+
+  /** The photo routes' upload guards, before and after the body is buffered. A Response is a refusal. */
+  const readPhotoForm = async (req: Request) => {
+    // Checked BEFORE parsing. `req.formData()` buffers the whole body into memory, so a size
+    // check after it has run protects nothing — the allocation it was meant to prevent has
+    // already happened. `maxRequestBodySize` on the server is the real backstop (a client can
+    // lie about Content-Length); this is the early, cheap, honest-client rejection.
+    //
+    // ABSENT IS REFUSED, NOT READ AS ZERO. `Number(null)` is 0, so a `Transfer-Encoding:
+    // chunked` body with no length passed this guard and went straight into `formData()` —
+    // exactly the buffering above (#208). The same call `web/start.ts` already makes on the
+    // Apple callback, and 411 rather than 413 because the size is unknown rather than known
+    // to be too big: a 413 in a log would read as a user's photo being oversized.
+    const length = req.headers.get("content-length");
+    const declared = length === null ? NaN : Number(length);
+    if (!Number.isFinite(declared)) return json({ error: "length required" }, 411);
+    if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+
+    const form = await req.formData();
+    // flatMap rather than a filter predicate: it narrows the element type without asserting
+    // one, so a string-valued "photo" field is simply dropped as the malformed input it is.
+    const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
+    if (files.length === 0) return json({ error: "no photo" }, 400);
+    if (files.length > deps.config.maxPhotosPerMeal) return json({ error: "too many photos" }, 400);
+    const uploadBytes = files.reduce((n, f) => n + f.size, 0);
+    if (uploadBytes > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+    console.log(`[eait] photo upload: ${files.length} file(s), ${uploadBytes} B`);
+    return { form, files };
   };
 
   const tooManyRequests = (retryAfter: number, body: Record<string, unknown>): Response =>
@@ -460,7 +489,7 @@ export function createRouter(
       // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
       // the refusal path the app already renders — and is worded as what it is. Saying "your daily
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
-      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.clipEstimate || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
         || (req.method === "PATCH" && MESSAGE_PATH.test(pathname))) {
         // A RE-SENT TURN IS NOT COUNTED (#708): it is answered from the claim and calls no model, and
         // one refused here is asked again by its client under a NEW id — a second meal. Only on the
@@ -584,30 +613,9 @@ export function createRouter(
 
       // ── Photo ─────────────────────────────────────────────────────────────────────────────
       if (req.method === "POST" && pathname === ROUTES.photo) {
-        // Checked BEFORE parsing. `req.formData()` buffers the whole body into memory, so a size
-        // check after it has run protects nothing — the allocation it was meant to prevent has
-        // already happened. `maxRequestBodySize` on the server is the real backstop (a client can
-        // lie about Content-Length); this is the early, cheap, honest-client rejection.
-        //
-        // ABSENT IS REFUSED, NOT READ AS ZERO. `Number(null)` is 0, so a `Transfer-Encoding:
-        // chunked` body with no length passed this guard and went straight into `formData()` —
-        // exactly the buffering above (#208). The same call `web/start.ts` already makes on the
-        // Apple callback, and 411 rather than 413 because the size is unknown rather than known
-        // to be too big: a 413 in a log would read as a user's photo being oversized.
-        const length = req.headers.get("content-length");
-        const declared = length === null ? NaN : Number(length);
-        if (!Number.isFinite(declared)) return json({ error: "length required" }, 411);
-        if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
-
-        const form = await req.formData();
-        // flatMap rather than a filter predicate: it narrows the element type without asserting
-        // one, so a string-valued "photo" field is simply dropped as the malformed input it is.
-        const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
-        if (files.length === 0) return json({ error: "no photo" }, 400);
-        if (files.length > deps.config.maxPhotosPerMeal) return json({ error: "too many photos" }, 400);
-        const uploadBytes = files.reduce((n, f) => n + f.size, 0);
-        if (uploadBytes > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
-        console.log(`[eait] photo upload: ${files.length} file(s), ${uploadBytes} B`);
+        const upload = await readPhotoForm(req);
+        if (upload instanceof Response) return upload;
+        const { form, files } = upload;
         const caption = form.get("caption");
         // A caption is a line in the thread; the shared cap the app applies is enforced here.
         if (typeof caption === "string" && caption.length > MAX_USER_LINE) return json({ error: "caption too long" }, 400);
@@ -626,6 +634,15 @@ export function createRouter(
         if (wantsStream(req)) return stream(req, pathname, (line) => logPhotoMeal(deps, userId, input, line));
         const result = await logPhotoMeal(deps, userId, input);
         return isRefusal(result) ? refusal(result) : json(result);
+      }
+
+      if (req.method === "POST" && pathname === ROUTES.clipEstimate) {
+        const upload = await readPhotoForm(req);
+        if (upload instanceof Response) return upload;
+        const result = await estimatePhoto(deps, userId,
+          upload.files.map((f) => async () => new Uint8Array(await f.arrayBuffer())));
+        if (result.kind === "not-anonymous") return json({ error: "anonymous-only" }, 403);
+        return isRefusal(result) ? refusal(result) : json(result.estimate satisfies ClipEstimateResponse);
       }
 
       // ── Push tokens ───────────────────────────────────────────────────────────────────────
