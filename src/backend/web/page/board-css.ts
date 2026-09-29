@@ -82,11 +82,14 @@ export const BOARD_CSS = `
 .ob .cta.p[disabled] { opacity: .45; cursor: default; }
 
 /* ── the unit toggle ── */
-.ob .seg { display: flex; background: var(--surface); box-shadow: 0 0 0 1px var(--hair); border-radius: 12px;
-           padding: 3px; align-self: center; }
-.ob .seg button { border: 0; padding: 7px 18px; border-radius: 9px; font-size: 13px; font-weight: 600;
-                  color: var(--muted); background: none; cursor: pointer; font-family: var(--sans); }
-.ob .seg button.on { background: var(--ink); color: #fff; }
+.ob .seg { display: flex; background: var(--hair); border-radius: 10px;
+           padding: 3px; gap: 2px; width: 150px; align-self: center; }
+/* .wcol form stacks and stretches every form for the one-form screens — the toggle is a row
+   the size of its two options, so the column rule is taken back where it would apply. */
+.ob .wcol .seg { flex-direction: row; flex: none; gap: 2px; }
+.ob .seg button { flex: 1; border: 0; padding: 6px 0; border-radius: 8px; font-size: 13px; font-weight: 600;
+                  text-align: center; color: var(--muted); background: none; cursor: pointer; font-family: var(--sans); }
+.ob .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 
 /* ── option rows ── */
 .ob .opts { display: grid; gap: 10px; }
@@ -119,7 +122,7 @@ export const BOARD_CSS = `
 .ob .bign { font-size: 56px; font-weight: 700; letter-spacing: -.03em; line-height: 1; display: flex;
             align-items: baseline; gap: 6px; justify-content: center; }
 .ob .bign small { font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
-.ob .vpick { display: flex; gap: 28px; align-items: center; justify-content: center; }
+.ob .vpick { display: flex; gap: 56px; align-items: center; justify-content: center; }
 
 /* the age wheel: a scrollable column, snap-centred — the script drives it, the rows are real */
 .ob .wheelbox { position: relative; }
@@ -138,33 +141,37 @@ export const BOARD_CSS = `
 .ob .wheel .wr.on { font-size: 28px; font-weight: 700; color: var(--ink); }
 
 /* the vertical ruler (height) */
-.ob .vruler { width: 150px; height: 380px; position: relative;
+.ob .vruler { width: 88px; height: 380px; position: relative;
               -webkit-mask-image: linear-gradient(180deg, transparent, #000 60px, #000 calc(100% - 60px), transparent);
               mask-image: linear-gradient(180deg, transparent, #000 60px, #000 calc(100% - 60px), transparent);
               touch-action: none; cursor: ns-resize; }
-.ob .vruler .now { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
-                   border-top: 2px solid var(--accent); }
-.ob .vruler .lbl { position: absolute; left: 0; top: 50%; transform: translateY(-50%); font-size: 13px;
-                   font-weight: 600; color: var(--ink); }
+.ob .vruler .now { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--accent);
+                   transform: translateY(-1px); }
+.ob .vruler .now::before { content: ""; position: absolute; left: -2px; top: -5px; width: 12px; height: 12px;
+                           border-radius: 50%; background: var(--accent); }
+.ob .vruler .lbl { position: absolute; right: 48px; top: 50%; transform: translateY(-50%); font-size: 13px;
+                   font-weight: 500; color: var(--muted); }
 
 /* the horizontal ruler (weight, target) */
-.ob .ruler { height: 64px; position: relative; width: 100%; max-width: 630px; margin: 0 auto;
+.ob .ruler { height: 72px; position: relative; width: 100%; max-width: 630px; margin: 22px auto 0;
              -webkit-mask-image: linear-gradient(90deg, transparent, #000 60px, #000 calc(100% - 60px), transparent);
              mask-image: linear-gradient(90deg, transparent, #000 60px, #000 calc(100% - 60px), transparent);
              touch-action: pan-y; cursor: ew-resize; }
-.ob .ruler .now { position: absolute; left: 50%; top: 0; width: 2px; height: 26px; background: var(--ink);
-                  transform: translateX(-50%); }
-.ob .ruler .lbl { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12px;
-                  color: var(--muted); white-space: nowrap; }
-.ob .ruler .lbl.lo { color: var(--warn); font-weight: 600; }
+.ob .ruler .now { position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: var(--accent);
+                  transform: translateX(-1px); }
+.ob .ruler .now::before { content: ""; position: absolute; left: -5px; top: -2px; width: 12px; height: 12px;
+                          border-radius: 50%; background: var(--accent); }
+.ob .ruler .lbl { position: absolute; bottom: 44px; transform: translateX(-50%); font-size: 12px;
+                  font-weight: 500; color: var(--muted); white-space: nowrap; }
+.ob .ruler .lbl.lo { transform: translateX(-100%); padding-right: 6px; color: var(--bad); font-weight: 500; }
 .ob .ruler .lbl.hi { color: var(--ink); font-weight: 600; }
-.ob .ruler .tint { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px 0 0 8px;
+.ob .ruler .tint { position: absolute; left: 0; bottom: 0; height: 38px;
                    background: linear-gradient(90deg, var(--bad-tint), transparent); pointer-events: none; }
 
-/* the live delta card under the target ruler */
-.ob .live { position: relative; margin: 0 auto; background: var(--surface); box-shadow: var(--shadow);
-            border-radius: var(--r-ctl); padding: 8px 14px; font-size: 15px; font-weight: 700; }
-.ob .live.up { color: var(--good); } .ob .live.dn { color: var(--bad); }
+/* the live delta pill under the target ruler */
+.ob .live { position: relative; width: fit-content; margin: 0 auto; background: var(--accent-tint);
+            border-radius: var(--r-card); padding: 14px 28px; font-size: 28px; font-weight: 700;
+            letter-spacing: -.02em; color: var(--ink); }
 
 /* ── pace: the three stops, the slider, the result ── */
 .ob .stops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;
@@ -269,7 +276,7 @@ export const BOARD_CSS = `
 /* the controls the script drives — hidden until it runs, so a blocked script never draws a dead one */
 .ob .ctl { display: none; }
 .ob.js .ctl { display: block; }
-.ob.js .numalt { display: none; }
+.ob.js .numalt, .ob.js .altline { display: none; }
 .ob.js .pacerows { display: none; }
 .ob.js .pacesel { display: block; }
 .ob .pacesel { display: none; }

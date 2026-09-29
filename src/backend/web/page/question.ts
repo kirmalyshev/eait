@@ -147,6 +147,9 @@ interface RulerCfg {
   now?: { at: number; label: string } | undefined;
   delta?: { dn: string; up: string } | undefined;
   settle?: boolean | undefined;
+  /** `marks` draws the marker labels INSTEAD of the numbered scale — the target board, where the
+      "lowest" and "now" words would overprint the numbers. */
+  marks?: boolean | undefined;
 }
 
 /** A display number on a ruler — integers as integers, halves formatted in the page's language. */
@@ -163,7 +166,7 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
   const centre = cfg.vertical ? 190 : 330;
   const halfSpan = (cfg.vertical ? 380 : 660) / 2 / t.pxPerUnit;
   const at = (u: number) => Math.round(centre + (cfg.vertical ? cfg.val - u : u - cfg.val) * t.pxPerUnit);
-  const labels = rulerLabels(t, Math.ceil(cfg.val - halfSpan), Math.floor(cfg.val + halfSpan))
+  const labels = cfg.marks ? "" : rulerLabels(t, Math.ceil(cfg.val - halfSpan), Math.floor(cfg.val + halfSpan))
     .map((lv) => {
       const pos = cfg.vertical ? `top:${at(lv)}px` : `left:${at(lv)}px`;
       return `<span class="lbl" style="${pos}">${escape(cfg.fmt === "ftin" ? t.format(lv) : numfmt(v.lang, lv))}</span>`;
@@ -179,31 +182,39 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
     ? `<div class="bign num"><span class="bv">${cmToFtIn(cfg.val * 2.54).ft}′</span><small>ft</small> ` +
       `<span class="bv bv2">${cmToFtIn(cfg.val * 2.54).in}″</span><small>in</small></div>`
     : `<div class="bign num"><span class="bv">${escape(numfmt(v.lang, cfg.val))}</span><small>${escape(cfg.smalls)}</small></div>`;
-  const liveShown = cfg.delta && cfg.now && cfg.val !== cfg.now.at;
+  // `hidden` would pin the pill shut for the script, which shows it by style alone — the markup
+  // draws the delta the page opened on, empty when the needle sits on `now`.
+  const delta = cfg.delta && cfg.now ? cfg.val - cfg.now.at! : 0;
   const live = cfg.delta && cfg.now
-    ? `<div class="live${liveShown ? (cfg.val < cfg.now.at! ? " dn" : " up") : ""}"${liveShown ? "" : " hidden"}>${
-        escape(fill(cfg.val < cfg.now.at! ? cfg.delta.dn : cfg.delta.up, {
-          weight: `${numfmt(v.lang, Math.abs(cfg.val - cfg.now.at!))} ${cfg.unitWord}`,
+    ? `<div class="live${delta < 0 ? " dn" : delta > 0 ? " up" : ""}">${
+        delta === 0 ? "" : escape(fill(delta < 0 ? cfg.delta!.dn : cfg.delta!.up, {
+          weight: `${numfmt(v.lang, Math.abs(delta))} ${cfg.unitWord}`,
         }))}</div>`
     : "";
+  // The board's tick scale: a short line per unit, a longer one per `majorEvery` — the vertical
+  // ruler runs them 22/40 px deep from its right edge, the horizontal one 22/38 px up from its
+  // floor. The script shifts the same two layers by the same phases when the value moves.
   const bg = cfg.vertical
     ? `${tickMinor} 100% ${rulerTickPhase(t, centre, cfg.val)}px/22px 100% no-repeat,` +
-      `${tickMajor} 100% ${rulerTickPhase(t, centre, cfg.val, true)}px/22px 100% no-repeat`
+      `${tickMajor} 100% ${rulerTickPhase(t, centre, cfg.val, true)}px/40px 100% no-repeat`
     : `${tickMinor} ${rulerTickPhase(t, centre, cfg.val)}px 100%/100% 22px repeat-x,` +
-      `${tickMajor} ${rulerTickPhase(t, centre, cfg.val, true)}px 100%/100% 22px repeat-x`;
-  return `<div class="ctl" data-ctl="ruler" data-min="${cfg.min}" data-max="${cfg.max}"` +
-    ` data-val="${cfg.val}" data-px="${t.pxPerUnit}" data-every="${t.labelEvery}"` +
-    ` data-step="${cfg.step}" data-fmt="${cfg.fmt}" data-unitword="${escape(cfg.unitWord)}"` +
-    (cfg.floor ? ` data-floor="${cfg.floor.at}"` : "") +
-    (cfg.now ? ` data-now="${cfg.now.at}"` : "") +
-    (cfg.delta ? ` data-dn="${escape(cfg.delta.dn)}" data-up="${escape(cfg.delta.up)}"` : "") +
-    `><div class="vpick">${bign}` +
-    `<div class="${cfg.vertical ? "vruler" : "ruler"}" role="slider" tabindex="0"` +
+      `${tickMajor} ${rulerTickPhase(t, centre, cfg.val, true)}px 100%/100% 38px repeat-x`;
+  const ruler = `<div class="${cfg.vertical ? "vruler" : "ruler"}" role="slider" tabindex="0"` +
     ` aria-label="${escape(v.lines[v.lines.length - 1] ?? "")}"` +
     ` aria-valuemin="${cfg.min}" aria-valuemax="${cfg.max}" aria-valuenow="${cfg.val}"` +
     ` aria-orientation="${cfg.vertical ? "vertical" : "horizontal"}"` +
-    ` style="background:${bg}">${tint}<div class="lbls">${labels}</div>${markers}` +
-    `<div class="now${cfg.settle ? " settle" : ""}"></div></div></div>${cfg.vertical ? "" : live}` +
+    ` style="background:${bg}">${tint}${cfg.marks ? "" : `<div class="lbls">${labels}</div>`}${markers}` +
+    `<div class="now${cfg.settle ? " settle" : ""}"></div></div>`;
+  // The height board pairs the number with its standing ruler (`.vpick`); the weight boards sit
+  // the number ABOVE a full-width ruler with the delta pill under it — one row, two layouts.
+  return `<div class="ctl" data-ctl="ruler" data-min="${cfg.min}" data-max="${cfg.max}"` +
+    ` data-val="${cfg.val}" data-px="${t.pxPerUnit}" data-every="${t.labelEvery}"` +
+    ` data-major="${t.majorEvery}" data-step="${cfg.step}" data-fmt="${cfg.fmt}" data-unitword="${escape(cfg.unitWord)}"` +
+    (cfg.floor ? ` data-floor="${cfg.floor.at}"` : "") +
+    (cfg.now ? ` data-now="${cfg.now.at}"` : "") +
+    (cfg.delta ? ` data-dn="${escape(cfg.delta.dn)}" data-up="${escape(cfg.delta.up)}"` : "") +
+    `>` +
+    (cfg.vertical ? `<div class="vpick">${bign}${ruler}</div>` : `${bign}${ruler}${live}`) +
     `</div>`;
 }
 
@@ -316,6 +327,7 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
   const ctl = rulerControl(v, {
     ticks: t, val, min, max, step: 0.5,
     fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: spellUnit(v.lang, word), settle: true,
+    marks: true,
     floor: floorAt !== undefined && lowest !== null ? { at: floorAt, label: lowest } : undefined,
     now: now !== undefined
       ? { at: now, label: fill(copy.target.now, { weight: weightDisplay(nowKg!, v.units, v.lang) }) }
