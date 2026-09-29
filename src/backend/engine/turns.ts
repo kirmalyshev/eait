@@ -12,8 +12,15 @@ import type { EngineDeps } from "./deps.ts";
 
 /** How often a replay looks for the answer of a first attempt still running. */
 const REPLAY_POLL_MS = 250;
-/** Past the turn's own model budget: the store writes, the thread, a busy pool. */
-const SETTLE_MARGIN_MS = 30_000;
+/**
+ * Past a turn's model budgets: the caps, the store writes, the thread, a busy pool — and the whole
+ * of what bounds one. An attempt that has not answered by `calls` budgets plus this settles as
+ * `OUTCOME_UNKNOWN` rather than holding the request open past what the client waits
+ * (`clientModelTimeoutMs` adds the round trip on top of the same budgets), which was the
+ * correction that sat on "Sending" forever (#1108). A replay reads the same bound off
+ * `claimedAt`, so its own answer — real or unknown — always lands inside the wait it has.
+ */
+const TURN_WORK_MARGIN_MS = 10_000;
 /**
  * How long a turn's answer is kept for a replay. A lost answer is asked for again the next time the
  * phone has a connection — minutes, at worst hours. The answer is a copy of a result (a meal's
@@ -29,9 +36,17 @@ const OLDEST_CAPTURE_MS = 365 * 24 * 60 * 60 * 1000;
 /** A replay whose first attempt failed mid-turn, or never answered: nobody knows what it did. */
 export class TurnUnsettled extends Error {}
 
+/** A turn that outran every budget it was given — wedged in the model, the store, or between. */
+class TurnOverran extends Error {}
+
+/** Rejects after `ms`, so a turn that never resolves still resolves the request holding it. */
+const overruns = (ms: number): Promise<never> =>
+  new Promise((_, reject) => setTimeout(reject, ms, new TurnOverran("turn outran its budgets")));
+
 /**
  * Run `run` at most once per `(userId, clientId)`. `calls` is how many model budgets the turn may
- * spend, which bounds how long a replay waits for a first attempt that is still running.
+ * spend, which bounds the turn's whole clock and how long a replay waits for a first attempt that
+ * is still running.
  *
  * THE FIRST ATTEMPT'S THROW IS SETTLED AS `OUTCOME_UNKNOWN`: the throw can come after the meal was
  * inserted (#514), so its replay throws too, and the route words it as the unknown it is.
@@ -43,7 +58,8 @@ export async function once<R extends object>(
   calls: number,
   run: () => Promise<R>,
 ): Promise<R> {
-  if (clientId === undefined) return run();
+  const bound = calls * deps.config.llmTimeoutMs + TURN_WORK_MARGIN_MS;
+  if (clientId === undefined) return Promise.race([run(), overruns(bound)]);
   const settle = (outcome: object) => deps.store.settleTurn(userId, clientId, outcome).catch((e: unknown) => {
     // The turn is done and the user has their answer; only a replay of it is worse off, and it
     // reads an unanswered claim as the unknown it then is.
@@ -51,11 +67,15 @@ export async function once<R extends object>(
   });
 
   if (await deps.store.claimTurn(userId, clientId)) {
+    // `run` is not awaited so the bound can hold the promise it is racing: a turn cut off here
+    // keeps running, and a real outcome that lands late is still the truest thing a replay can get.
+    const working = run();
     let result: R;
     try {
-      result = await run();
+      result = await Promise.race([working, overruns(bound)]);
     } catch (e) {
       await settle({ kind: OUTCOME_UNKNOWN });
+      void working.then(settle).catch(() => {});
       throw e;
     }
     await settle(result);
@@ -70,7 +90,7 @@ export async function once<R extends object>(
       if ((turn.outcome as { kind?: unknown }).kind === OUTCOME_UNKNOWN) throw new TurnUnsettled("replayed turn failed mid-turn");
       return turn.outcome as R;
     }
-    if (!turn || Date.now() > turn.claimedAt + calls * deps.config.llmTimeoutMs + SETTLE_MARGIN_MS) {
+    if (!turn || Date.now() > turn.claimedAt + bound) {
       throw new TurnUnsettled("replayed turn never settled");
     }
     await new Promise((r) => setTimeout(r, REPLAY_POLL_MS));
