@@ -173,22 +173,25 @@ export const BOARD_CSS = `
             border-radius: var(--r-card); padding: 14px 28px; font-size: 28px; font-weight: 700;
             letter-spacing: -.02em; color: var(--ink); }
 
-/* ── pace: the three stops, the slider, the result ── */
-.ob .stops { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center;
-             font-size: 13px; font-weight: 600; color: var(--muted); width: 100%; max-width: 480px; margin: 0 auto; }
-.ob .stops > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.ob .stops > div.on { color: var(--ink); }
-.ob .stops .ico { width: 26px; height: 26px; }
-.ob .slider { position: relative; height: 30px; width: 100%; max-width: 480px; margin: 6px auto 0; }
-.ob .slider::before { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; height: 2px;
-                      background: var(--line); transform: translateY(-50%); }
-.ob .slider i { position: absolute; left: 12px; top: 50%; height: 2px; background: var(--ink); transform: translateY(-50%); }
-.ob .slider b { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%;
-                background: var(--ink); border: 3px solid var(--bg); transform: translate(-50%, -50%);
+/* ── pace: the three stops, the slider, the result (10-pace) — 110px stops spread the column,
+   a hairline track inset half a stop, a white thumb, the bold computed line under it ── */
+.ob .pacevarbox { margin-bottom: 24px; }
+.ob .pacevar .bign { font-size: 72px; }
+.ob .pacevar .bign small { font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.ob .stops { display: flex; justify-content: space-between; text-align: center;
+             font-size: 13px; font-weight: 500; color: var(--muted); width: 100%; }
+.ob .stops > div { width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ob .stops > div.on { color: var(--accent); font-weight: 600; }
+.ob .stops .ico { width: 48px; height: 48px; }
+.ob .slider { position: relative; height: 6px; background: var(--hair); border-radius: 3px;
+              margin: 18px 55px 0; touch-action: pan-y; }
+.ob .slider i { position: absolute; left: 0; top: 0; height: 100%; background: var(--ink); border-radius: 3px; }
+.ob .slider b { position: absolute; top: 50%; width: 28px; height: 28px; border-radius: 50%;
+                background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .25); transform: translate(-50%, -50%);
                 cursor: ew-resize; }
-.ob .est { color: var(--muted); font-size: 13px; display: block; }
+.ob .est { color: var(--muted); font-size: 12px; font-weight: 600; display: block; }
 .ob .paceres { text-align: center; }
-.ob .paceres .res { color: var(--muted); font-size: 15px; }
+.ob .paceresbox { margin-top: 24px; }
 .ob .cap { text-align: center; }
 .ob .cap summary { list-style: none; cursor: pointer; display: inline-block; }
 .ob .cap summary::-webkit-details-marker { display: none; }
