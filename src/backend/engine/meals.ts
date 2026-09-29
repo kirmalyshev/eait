@@ -215,7 +215,7 @@ export async function logPhotoMeal(
    */
   onEvent?: (event: PhotoEvent) => void,
 ): Promise<LogPhotoResult> {
-  return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, () => logPhotoTurn(deps, userId, input, onEvent));
+  return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, (d) => logPhotoTurn(d, userId, input, onEvent));
 }
 
 async function logPhotoTurn(

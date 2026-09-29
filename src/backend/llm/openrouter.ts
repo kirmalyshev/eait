@@ -144,12 +144,16 @@ export function openRouterPorts(opts: Options): LlmPorts {
     onDelta?: (text: string) => void,
     /** Told what the provider said this call cost — once, however the call ends. */
     onCost?: OnCost,
+    /** The turn's own cutoff, when this call is part of one — fires earlier than `budgetMs` only
+     *  when the request the call serves is already settled unknown (#276). */
+    cutoff?: AbortSignal,
   ): Promise<{ choices?: Choice[] }> {
     // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
     // answers, and holds the request, the photo and a worker slot until the process restarts.
     // Vision inference is slow, so the budget is generous — but it is finite.
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), budgetMs);
+    const signal = cutoff === undefined ? abort.signal : AbortSignal.any([abort.signal, cutoff]);
     let res: Response;
     let cost: number | null = null;
     try {
@@ -161,7 +165,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
           "x-title": "eait",
         },
         body: JSON.stringify(onDelta ? { ...(body as object), stream: true } : body),
-        signal: abort.signal,
+        signal,
       });
 
       if (!res.ok) {
@@ -216,6 +220,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
       if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
+      // The turn's cutoff, not this call's budget: the reason names the stage the turn died in.
+      if (cutoff?.aborted) throw cutoff.reason ?? e;
       throw e;
     } finally {
       clearTimeout(timer);
@@ -249,6 +255,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     /** When the whole turn must be done. Defaults to one budget for this `complete()` alone. */
     deadline = Date.now() + opts.timeoutMs,
     onCost?: OnCost,
+    /** The turn's cutoff, forwarded to every HTTP call this makes (#276). */
+    cutoff?: AbortSignal,
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
@@ -289,7 +297,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
-      const payload = await send(body, billed || attempt > 0, left, onDelta, onCost);
+      const payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -336,7 +344,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost);
+    return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost, input.signal);
   };
 
   const routeText: RouteText = async (input) => {
@@ -353,7 +361,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // never had, and the argument after it is the deadline.
     const deadline = Date.now() + opts.timeoutMs;
     const P = await prompts();
-    let out = await complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost);
+    let out = await complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal);
 
     // The decision and the work, separated — but only when the model made us.
     //
@@ -400,10 +408,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
         undefined,
         deadline,
         input.onCost,
+        input.signal,
       );
       // One more draw on the degenerate answer — see the meal branch below.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, undefined, deadline, input.onCost);
+        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, undefined, deadline, input.onCost, input.signal);
       }
       out = { ...out, analysis };
     } else if (out.intent === "meal" && (!out.analysis || emptyEstimate(out.analysis))) {
@@ -419,13 +428,14 @@ export function openRouterPorts(opts: Options): LlmPorts {
         undefined,
         deadline,
         input.onCost,
+        input.signal,
       );
       // The degenerate answer to a description it will not itemise is `isFood` with NOT ONE ITEM
       // (#248): schema-valid, and refusing it hands the user a failure over a real meal. One more
       // draw — with the emptiness named in the prompt this time — lands the items; a second empty
       // is still refused by the caller, never retried forever.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, undefined, deadline, input.onCost);
+        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, undefined, deadline, input.onCost, input.signal);
       }
       out = { ...out, analysis };
     }
@@ -510,7 +520,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       };
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
-      const choice = (await send(body, true, left, undefined, input.onCost)).choices?.[0];
+      const choice = (await send(body, true, left, undefined, input.onCost, input.signal)).choices?.[0];
       const calls = choice?.message?.tool_calls ?? [];
       if (calls.length > 0 && !last) {
         messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });

@@ -114,6 +114,11 @@ export interface PhotoInput {
    */
   portionPriors?: readonly PortionPrior[];
   onCost?: OnCost | undefined;
+  /**
+   * The turn's cutoff, set by `once` — the fetch aborts with it, so a call nobody is waiting for
+   * stops holding the socket and the budget (#276). Never the caller's to write.
+   */
+  signal?: AbortSignal | undefined;
 }
 
 /**
@@ -166,6 +171,8 @@ export interface TextInput {
    */
   recent?: CoachHistoryLine[];
   onCost?: OnCost | undefined;
+  /** The turn's cutoff — every fetch the route makes aborts with it (#276). Set by `once`. */
+  signal?: AbortSignal | undefined;
 }
 
 export type RouteText = (input: TextInput) => Promise<RouteResult>;
@@ -204,6 +211,8 @@ export interface CoachInput {
   /** Oldest first, and never including the message itself. */
   history: CoachHistoryLine[];
   onCost?: OnCost | undefined;
+  /** The turn's cutoff — every round's fetch aborts with it (#276). Set by `once`. */
+  signal?: AbortSignal | undefined;
 }
 
 /**

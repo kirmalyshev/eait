@@ -8,6 +8,8 @@
 // replay does calls a model, charges an analysis or writes a meal.
 
 import { OUTCOME_UNKNOWN } from "@eait/shared";
+import type { LlmPorts } from "../llm/port.ts";
+import { storeDeadline, type StoreDeadline } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
 /** How often a replay looks for the answer of a first attempt still running. */
@@ -39,14 +41,103 @@ export class TurnUnsettled extends Error {}
 /** A turn that outran every budget it was given — wedged in the model, the store, or between. */
 class TurnOverran extends Error {}
 
-/** Rejects after `ms`, so a turn that never resolves still resolves the request holding it. */
-const overruns = (ms: number): Promise<never> =>
-  new Promise((_, reject) => setTimeout(reject, ms, new TurnOverran("turn outran its budgets")));
+/**
+ * The clock inside a turn, armed by `once` (#276).
+ *
+ * `Promise.race` can stop WAITING on a turn; it cannot make the turn stop, and one cut off that
+ * way kept running — its model call still holding the fetch, its store calls still taking pooled
+ * connections, one per overrun, until the wedge ended. The deadline therefore lives INSIDE `run`:
+ * the attempt's `deps.llm` is re-pointed so each port call hands `signal` to the fetch inside it,
+ * and `storeDeadline` carries the same signal to the store, which refuses a call made past the
+ * bound and sets `statement_timeout` from it for the ones still running.
+ *
+ * `stage` names the call in flight — `llm.routeText`, `store.insertMeal` — which is the whole of
+ * what the overrun's log line gets to say about why. Method names, never user content.
+ */
+class TurnDeadline implements StoreDeadline {
+  readonly #controller = new AbortController();
+  /** The call the attempt is in — written at every call, read when the bound fires. */
+  stage = "opening";
+  #gaveUp: Promise<never> | null = null;
+
+  /** `at` is epoch ms — `Date.now() + bound`, the same bound the race below waits on. */
+  constructor(readonly at: number) {}
+
+  get signal(): AbortSignal {
+    return this.#controller.signal;
+  }
+
+  /**
+   * `fn()` as the named stage, abandoned the moment the bound fires — the call itself is owed the
+   * abort; this only stops the TURN waiting on it. A call made past the bound is refused outright.
+   */
+  call<T>(stage: string, fn: () => Promise<T>): Promise<T> {
+    this.stage = stage;
+    if (this.signal.aborted) return Promise.reject(this.signal.reason);
+    this.#gaveUp ??= new Promise((_, reject) =>
+      this.signal.addEventListener("abort", () => reject(this.signal.reason), { once: true }));
+    return Promise.race([fn(), this.#gaveUp]);
+  }
+
+  /** The bound passed: in-flight calls abandon, the fetch aborts, the store stops the rest. */
+  outrun(): TurnOverran {
+    const e = new TurnOverran(`turn outran its budgets in ${this.stage}`);
+    this.#controller.abort(e);
+    return e;
+  }
+}
+
+/**
+ * Every call on `impl` run as a named, abandonable stage: the overrun's log line reads
+ * `<kind>.<method>` of the call in flight, and a call the turn makes past its bound is refused
+ * without reaching the implementation.
+ */
+const staged = <T extends object>(impl: T, kind: string, cutoff: TurnDeadline): T =>
+  new Proxy(impl, {
+    get: (target, prop) => {
+      const fn = Reflect.get(target, prop);
+      if (typeof fn !== "function") return fn;
+      return (...args: unknown[]) =>
+        cutoff.call(`${kind}.${String(prop)}`, () =>
+          (fn as (...a: unknown[]) => Promise<unknown>).apply(target, args));
+    },
+  });
+
+/**
+ * `deps.llm`, staged like the rest and additionally carrying `signal` into each port's input — so
+ * the abort reaches the fetch inside the call, not only the promise wrapping it.
+ */
+const boundedLlm = (llm: LlmPorts, cutoff: TurnDeadline): LlmPorts =>
+  new Proxy(llm, {
+    get: (target, prop) => {
+      const port = Reflect.get(target, prop);
+      if (typeof port !== "function") return port;
+      return (input: unknown, ...rest: unknown[]) =>
+        cutoff.call(`llm.${String(prop)}`, () =>
+          (port as (input: unknown, ...rest: unknown[]) => Promise<unknown>)
+            .call(
+              target,
+              // Every port's first argument is its input object; a future one that is not gets
+              // passed through untouched rather than spread into nothing.
+              typeof input === "object" && input !== null ? { ...input, signal: cutoff.signal } : input,
+              ...rest,
+            ));
+    },
+  });
+
+/** Rejects after `ms` with the abort already fired, so the request resolves AND the turn stops. */
+const overruns = (ms: number, cutoff: TurnDeadline): Promise<never> =>
+  new Promise((_, reject) => setTimeout(() => reject(cutoff.outrun()), ms));
 
 /**
  * Run `run` at most once per `(userId, clientId)`. `calls` is how many model budgets the turn may
  * spend, which bounds the turn's whole clock and how long a replay waits for a first attempt that
  * is still running.
+ *
+ * `run` gets a `deps` answering to the attempt's own deadline: when the bound fires, the request
+ * settles `OUTCOME_UNKNOWN` AND the attempt is stopped — its model call's fetch aborted, its
+ * store calls refused or time-bounded — instead of running on abandoned, holding a pooled
+ * connection for the length of the wedge (#276).
  *
  * THE FIRST ATTEMPT'S THROW IS SETTLED AS `OUTCOME_UNKNOWN`: the throw can come after the meal was
  * inserted (#514), so its replay throws too, and the route words it as the unknown it is.
@@ -56,10 +147,16 @@ export async function once<R extends object>(
   userId: string,
   clientId: string | undefined,
   calls: number,
-  run: () => Promise<R>,
+  run: (deps: EngineDeps) => Promise<R>,
 ): Promise<R> {
   const bound = calls * deps.config.llmTimeoutMs + TURN_WORK_MARGIN_MS;
-  if (clientId === undefined) return Promise.race([run(), overruns(bound)]);
+  const cutoff = new TurnDeadline(Date.now() + bound);
+  // The attempt, under `storeDeadline` so the store can refuse or time-bound what an abandoned
+  // turn leaves behind, and against an `llm` whose every call carries the same signal to its fetch.
+  const attempt = () =>
+    storeDeadline.run(cutoff, () =>
+      run({ ...deps, store: staged(deps.store, "store", cutoff), llm: boundedLlm(deps.llm, cutoff) }));
+  if (clientId === undefined) return Promise.race([attempt(), overruns(bound, cutoff)]);
   const settle = (outcome: object) => deps.store.settleTurn(userId, clientId, outcome).catch((e: unknown) => {
     // The turn is done and the user has their answer; only a replay of it is worse off, and it
     // reads an unanswered claim as the unknown it then is.
@@ -67,12 +164,13 @@ export async function once<R extends object>(
   });
 
   if (await deps.store.claimTurn(userId, clientId)) {
-    // `run` is not awaited so the bound can hold the promise it is racing: a turn cut off here
-    // keeps running, and a real outcome that lands late is still the truest thing a replay can get.
-    const working = run();
+    // `run` is not awaited so the bound can hold the promise it is racing: a turn cut off here is
+    // abandoned at whatever stage it named, and a real outcome that lands late is still the truest
+    // thing a replay can get.
+    const working = attempt();
     let result: R;
     try {
-      result = await Promise.race([working, overruns(bound)]);
+      result = await Promise.race([working, overruns(bound, cutoff)]);
     } catch (e) {
       await settle({ kind: OUTCOME_UNKNOWN });
       void working.then(settle).catch(() => {});
