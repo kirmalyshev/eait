@@ -58,6 +58,26 @@ export function mealEditRequest(
 }
 
 /**
+ * The ingredient editor's live figures (`meal-ingredient`'s "540 → 605"): the item's own kcal at
+ * the new grams, and the meal's total moved by that delta — the meal's kcal is its items' sum
+ * (the one doctrine `prepareAnalysis` writes), so the item's own move is the meal's move. A
+ * preview moves a number, never a verdict: the write recomputes those. `null` when the item
+ * carries no kcal — a guessed figure is worse than none, and the saved answer is the server's
+ * either way.
+ */
+export function previewKcal(
+  meal: { kcal: number; items: readonly MealItem[] },
+  index: number,
+  grams: number,
+): { item: number; meal: number } | null {
+  const target = meal.items[index];
+  if (target === undefined) return null;
+  const next = scaledItem(target, grams);
+  if (target.kcal === undefined || next.kcal === undefined) return null;
+  return { item: next.kcal, meal: meal.kcal + (next.kcal - target.kcal) };
+}
+
+/**
  * The `#/meal/<id>` deep links' query (#188): `fix` opens the fix sheet, `item=<n>` the
  * ingredient's editor. `item` accepts digits only — `parseInt("1abc")` must not open a row.
  */
