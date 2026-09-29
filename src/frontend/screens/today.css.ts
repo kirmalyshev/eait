@@ -104,6 +104,7 @@ a.hsp { color: inherit; text-decoration: none; }
   font-size: 14px; margin-top: 10px; }
 
 /* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
-   it, in chat.css) — the boards' logging state gives it the ink ring, scoped to Home. */
-.home .prop { box-shadow: 0 0 0 2px var(--ink); }
+   it, in chat.css) — the boards' logging state draws the ink ring ON the card, where it
+   follows the card's radius; on .prop itself it renders as two straight rules (#301). */
+.home .prop .card { box-shadow: 0 0 0 2px var(--ink); }
 `;
