@@ -364,7 +364,7 @@ function paceControl(v: QuestionView): string {
   const variants = PACES.map((p, i) => {
     const r = rateOf(i);
     return `<div class="pacevar${i === selIdx ? " on" : ""}" data-i="${i}">` +
-      `<div class="bign num"><span class="bv">${escape(r.num)}</span><small>${escape(r.rest)}</small></div></div>`;
+      `<div class="bign num rise"><span class="bv">${escape(r.num)}</span><small>${escape(r.rest)}</small></div></div>`;
   }).join("");
   const stops = PACES.map((p, i) =>
     `<div class="${i === selIdx ? "on" : ""}" data-i="${i}"><i class="ico i-${PACE_ICON[p] ?? "steady"}"></i>` +
@@ -378,7 +378,7 @@ function paceControl(v: QuestionView): string {
         `<p>${escape(capNote(v.content.summary.capNote, v.profile.goal, pr.ratePerWeek, v.lang))}</p></details>`
       : "";
     return `<div class="paceres${i === selIdx ? " on" : ""}" data-i="${i}">` +
-      `${pr?.line ? `<p class="res">${escape(pr.line)}</p>` : ""}${mark}</div>`;
+      `${pr?.line ? `<p class="res d d17 num rise">${escape(pr.line)}</p>` : ""}${mark}</div>`;
   }).join("");
   // Without the script the three rows ARE the computed previews — "three computed pace rows, each
   // previewProjection". The radios in them are the form's truth: the slider only marks one on.
@@ -395,7 +395,7 @@ function paceControl(v: QuestionView): string {
   return `<div class="pacesel ctl" data-ctl="slider" data-val="${selIdx}">` +
     `<div class="pacevarbox">${variants}</div>` +
     `<div class="stops">${stops}</div>` +
-    `<div class="slider"><i></i><b></b></div>` +
+    `<div class="slider"><i></i><b class="settle"></b></div>` +
     `<div class="paceresbox">${results}</div></div>` +
     `<div class="pacerows">${rows}</div>`;
 }

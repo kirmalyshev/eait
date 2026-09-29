@@ -192,9 +192,9 @@ export const CONTROL_SCRIPT = `(function () {
         if (res[k]) res[k].className = "paceres" + (k === i ? " on" : "");
       }
       if (radios[i]) radios[i].checked = true;
-      var w = track.clientWidth - 24, x = 12 + w * i / (stops.length - 1);
+      var x = track.clientWidth * i / (stops.length - 1);
       knob.style.left = x + "px";
-      fill.style.width = (x - 12) + "px";
+      fill.style.width = x + "px";
     }
     for (var i = 0; i < stops.length; i++) (function (i) {
       stops[i].addEventListener("click", function () { pick(i); });
@@ -202,7 +202,7 @@ export const CONTROL_SCRIPT = `(function () {
     var drag = false;
     function atX(e) {
       var r = track.getBoundingClientRect();
-      var f = Math.max(0, Math.min(1, (e.clientX - r.left - 12) / (r.width - 24)));
+      var f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
       pick(Math.round(f * (stops.length - 1)));
     }
     track.addEventListener("pointerdown", function (e) {
