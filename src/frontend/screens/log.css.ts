@@ -14,6 +14,10 @@ export const logCss = `
    width has to be explicit or the column shrink-wraps to its content. */
 .wmain:has(.log.centre) { max-width: 640px; }
 .wmain:has(.log.refused) { max-width: 560px; }
+/* …and the result views the WIDE one: the boards draw the photo in the full 1160px main's 1fr
+   column, and the .one variant's 820px cap is what squeezed it to a portrait strip (#300). Same
+   tie-break as above — this rule follows the shared .wmain and wins. */
+.wmain:has(.loggrid) { max-width: 1160px; }
 .log.centre { width: 100%; margin: auto; }
 .log.refused { text-align: center; gap: 20px; }
 .log h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
