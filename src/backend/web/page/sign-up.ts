@@ -11,8 +11,8 @@ import { escape, shell } from "./shell.ts";
  * account — or present one that already has an account, which is the same mechanism in the
  * other direction.
  *
- * The board's pieces: the photograph on top (`IMG_URL_DIR/hero.webp` — served by the route,
- * whitelisted like the fonts so `img-src 'self'` holds), the heading's promise, the two provider
+ * The board's pieces: the app icon on top (`IMG_URL_DIR/icon.webp`, centred at a modest size —
+ * served by the route, whitelisted like the fonts so `img-src 'self'` holds), the heading's promise, the two provider
  * buttons — Apple in black with its own mark, Google on the surface with the four-colour G —
  * the pairing card for the browser that already has a phone account, and the two consent boxes,
  * tickable but never pre-ticked.
@@ -47,7 +47,7 @@ export function signUp(v: SignUpView): string {
   return shell(SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
-<div class="hero"><img src="${IMG_URL_DIR}/hero.webp" alt="" loading="lazy"></div>
+<div class="hero"><img src="${IMG_URL_DIR}/icon.webp" alt="" loading="lazy"></div>
 <h1>${escape(SIGNUP_COPY.signUpHeading)}</h1>
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form id="signup" method="post">

@@ -110,8 +110,9 @@ export const hidden = (name: string, value: string): string =>
   `<input type="hidden" name="${name}" value="${escape(value)}">`;
 
 /**
- * The photographs the boards draw — `shared/assets/img/`, licensed (LICENSES.md beside them).
- * Served by the route in `start.ts`, whitelisted here by name like the font files are.
+ * The photographs the boards draw, and the app icon the sign-up centres — `shared/assets/img/`,
+ * licensed (LICENSES.md beside them). Served by the route in `start.ts`, whitelisted here by
+ * name like the font files are.
  */
 export const IMG_URL_DIR = "/start/assets/img";
-export const IMG_FILES = ["hero.webp", "salmon-sq.webp"] as const;
+export const IMG_FILES = ["hero.webp", "salmon-sq.webp", "icon.webp"] as const;
