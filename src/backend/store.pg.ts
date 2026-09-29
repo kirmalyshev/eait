@@ -24,7 +24,7 @@ import {
 import { syncShippedPrompts } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
-  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
   type StoreOptions, type StoredPhoto,
@@ -2730,6 +2730,11 @@ export async function postgresStore(
           `row-level security will refuse every row it asks for`,
         );
       }
+      // The turn's cutoff, when this call is part of one (#276): a store call a dead turn left
+      // running — a method body still unwinding inside a race the request already lost — is
+      // refused rather than handed a pooled connection to hold.
+      const deadline = storeDeadline.getStore();
+      if (deadline?.signal.aborted) throw deadline.signal.reason;
       // ALREADY INSIDE A STORE CALL — one method reaching another. Joining that transaction is
       // right: a second one would take a second connection and its own snapshot, and a method that
       // holds one connection while waiting for another deadlocks the pool at saturation.
@@ -2769,6 +2774,14 @@ export async function postgresStore(
       }
 
       return await pool.begin(async (tx) => {
+        // The caller may have given up while this queued for a connection: the reservation rolls
+        // straight back rather than being spent on a result nobody is waiting for.
+        if (deadline?.signal.aborted) throw deadline.signal.reason;
+        // Postgres's own bound on every statement below, from the turn's remaining clock: a wedged
+        // statement dies at the bound and the transaction rolls back — the release a pooled
+        // connection held by a wedged query cannot get from a promise race (#276).
+        if (deadline !== undefined)
+          await tx`select set_config('statement_timeout', ${String(Math.max(1, deadline.at - Date.now()))}, true)`;
         if (how === "unscoped") await tx`select set_config('app.unscoped', 'on', true)`;
         else await tx`select set_config('app.user_id', ${typeof userId === "string" ? userId : ""}, true)`;
         return await active.run(tx, () => call(...args));
