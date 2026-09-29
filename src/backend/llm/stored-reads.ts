@@ -27,23 +27,23 @@ export const SENTENCES: Partial<Record<Lang, string>> = {
 /** The notes, localised like the names: the model's meaning and figures, nothing added. */
 const NOTES: Partial<Record<Lang, Record<Meal, string>>> = {
   de: {
-    grainbowl: "Alle Zutaten gut sichtbar und anhand eines Standardtellers von 26 cm portioniert. Dressing aus dem Glanz auf dem Gemüse geschlossen.",
+    grainbowl: "Alle Zutaten gut sichtbar; Portionen anhand eines Standardtellers von 26 cm geschätzt. Dressing aus dem Glanz auf dem Gemüse geschlossen.",
     eggs: "Übliche gekochte Eier und eine typische deutsche Scheibe Roggenbrot (40g) angenommen. Kein zusätzliches Fett und keine Beläge erwähnt.",
-    salmon: "Der Teller ist ein Standard-Speiseteller von 26 cm. Glasur auf dem Lachs und Brokkoli deuten auf etwas Öl beim Anbraten hin. Portionsgrößen aus Tellerbedeckung und Höhe geschätzt.",
+    salmon: "Der Teller ist ein Standard-Speiseteller von 26 cm. Die Glasur auf dem Lachs und der Brokkoli deuten auf etwas Öl beim Anbraten hin. Portionsgrößen aus Tellerbedeckung und Höhe geschätzt.",
   },
   fr: {
-    grainbowl: "Tous les aliments sont bien visibles et portionnés d'après une assiette standard de 26 cm. Assaisonnement déduit de la brillance des légumes.",
-    eggs: "Œufs durs standard et une tranche typique de pain de seigle allemand (40g) supposés. Aucune matière grasse ni garniture ajoutée mentionnée.",
-    salmon: "L'assiette est une assiette plate standard de 26 cm. Le glaçage du saumon et le brocoli suggèrent un peu d'huile de cuisson au wok. Portions estimées d'après la surface couverte et l'épaisseur.",
+    grainbowl: "Tous les aliments sont bien visibles ; portions évaluées d'après une assiette standard de 26 cm. Assaisonnement déduit de la brillance des légumes.",
+    eggs: "On suppose des œufs durs standard et une tranche typique de pain de seigle allemand (40g). Aucune matière grasse ni garniture ajoutée n'est mentionnée.",
+    salmon: "L'assiette est une assiette plate standard de 26 cm. Le glaçage du saumon et le brocoli suggèrent un peu d'huile pour faire sauter. Portions estimées d'après la surface couverte et l'épaisseur.",
   },
   it: {
-    grainbowl: "Tutti gli alimenti ben visibili e porzionati rispetto a un piatto standard da 26 cm. Condimento dedotto dalla lucentezza delle verdure.",
+    grainbowl: "Tutti gli alimenti ben visibili; porzioni valutate rispetto a un piatto standard da 26 cm. Condimento dedotto dalla lucentezza delle verdure.",
     eggs: "Si presumono uova sode standard e una tipica fetta di pane di segale tedesco (40g). Nessun grasso aggiunto o condimento indicato.",
     salmon: "Il piatto è un piatto piano standard da 26 cm. La glassa del salmone e i broccoli suggeriscono un po' di olio per la saltatura. Porzioni stimate dalla superficie occupata e dallo spessore.",
   },
   es: {
-    grainbowl: "Todos los alimentos se ven con claridad y se han racionado según un plato estándar de 26 cm. Aliño deducido por el brillo de las verduras.",
-    eggs: "Se suponen huevos duros estándar y una rebanada típica de pan de centeno alemán (40g). No se mencionan grasas añadidas ni coberturas.",
+    grainbowl: "Todos los alimentos se ven con claridad; raciones calculadas según un plato estándar de 26 cm. Aliño deducido por el brillo de las verduras.",
+    eggs: "Se suponen huevos duros estándar y una rebanada típica de pan de centeno alemán (40g). No se mencionan grasas añadidas ni ingredientes extra.",
     salmon: "El plato es un plato llano estándar de 26 cm. El glaseado del salmón y el brócoli sugieren un poco de aceite al saltear. Raciones estimadas por la superficie cubierta y la altura.",
   },
 };
@@ -68,7 +68,7 @@ const NAMES: Partial<Record<Lang, Record<Meal, readonly string[]>>> = {
   es: {
     grainbowl: ["Quinoa", "Brócoli", "Pimiento rojo", "Pepino", "Zanahoria", "Tomate cherry", "Apio", "Aceite de oliva (aliño)"],
     eggs: ["Dos huevos duros", "Rebanada de pan de centeno"],
-    salmon: ["Filete de salmón", "Arroz blanco", "Floretes de brócoli", "Salsa de soja (glaseado)", "Aceite de sésamo (para cocinar)"],
+    salmon: ["Filete de salmón", "Arroz blanco", "Ramilletes de brócoli", "Salsa de soja (glaseado)", "Aceite de sésamo (para cocinar)"],
   },
 };
 
