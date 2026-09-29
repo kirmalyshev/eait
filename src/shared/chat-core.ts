@@ -257,7 +257,8 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     } catch {
       return; // a failed read is no card — the same fallback the web's `.catch(() => null)` takes
     }
-    if (!isLive() || proposals.length === 0) return;
+    if (!isLive()) return;
+    const held = new Set(proposals.map((p) => p.pendingId));
     const retired: string[] = [];
     edit((prev) => {
       let next = prev;
@@ -272,11 +273,25 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         const at = next.findIndex((e) => e.role === "user" && e.pendingId === proposal.pendingId);
         next = at < 0 ? [...next, entry] : [...next.slice(0, at + 1), entry, ...next.slice(at + 1)];
       }
-      if (next === prev) return prev;
-      const collapsed = oneLiveProposal(next, lang());
-      const kept = new Set(livePendings(collapsed));
-      for (const id of livePendings(next)) if (!kept.has(id)) retired.push(id);
-      return collapsed;
+      if (next !== prev) {
+        const collapsed = oneLiveProposal(next, lang());
+        const kept = new Set(livePendings(collapsed));
+        for (const id of livePendings(next)) if (!kept.has(id)) retired.push(id);
+        next = collapsed;
+      }
+      // A stored typed line whose proposal the server no longer holds, with no card and nothing
+      // answering it, expired unanswered: it gets the expired line, not a bare bubble (#1144).
+      // Not while a turn is out: its line can land before its proposal does.
+      if (inflight > 0) return next;
+      const expired = next.flatMap((e, i): ThreadEntry[] => {
+        const id = e.role === "user" && e.stored ? e.pendingId : null;
+        if (!id || held.has(id) || settledPendings.has(id)) return [e];
+        const after = next[i + 1]?.role;
+        if (after === "assistant" || after === "error") return [e];
+        if (next.some((x) => pendingIdOf(x) === id || mealIdOf(x) === id)) return [e];
+        return [e, { id: `expired:${e.id}`, role: "assistant", result: { kind: "expired" } }];
+      });
+      return expired.length === next.length ? next : expired;
     });
     for (const id of retired) {
       settledPendings.add(id);
