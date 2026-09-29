@@ -65,7 +65,7 @@ export async function handleText(
   userId: string,
   input: HandleTextInput,
 ): Promise<HandleTextResult> {
-  return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, () => textTurn(deps, userId, input));
+  return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, (d) => textTurn(d, userId, input));
 }
 
 async function textTurn(
