@@ -1526,7 +1526,7 @@ describe("the soft offer after the plan", () => {
     const session = await toPlan();
     const html = await (await get("/start/offer", session)).text();
     for (const perk of [
-      "An honest verdict on every meal",
+      "Honest macros on every meal",
       "Your plan moves when your weight does",
       "Spud, any time you ask",
     ]) expect(html).toContain(escape(perk));
