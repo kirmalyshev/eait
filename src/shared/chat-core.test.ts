@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createChatCore, type ChatClient, type ChatCore, type Failure, type QueuedTurn } from "./chat-core.ts";
-import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
+import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { HandleTextResult, TargetGone } from "./results.ts";
 import type { ThreadEntry } from "./thread.ts";
 
@@ -38,6 +38,7 @@ function harness(o: {
   pages?: (ChatHistoryResponse | Promise<ChatHistoryResponse>)[];
   profile?: ProfileResponse | null;
   del?: (id: string) => Promise<DeleteLineResponse | TargetGone>;
+  pendings?: () => Promise<PendingMealsResponse>;
   enqueue?: (turn: QueuedTurn) => Promise<void>;
   waiting?: () => boolean;
   profileFn?: () => ProfileResponse | null;
@@ -48,6 +49,7 @@ function harness(o: {
     sendMessage: o.send ?? (() => Promise.resolve({ kind: "answered", text: "ok" })),
     confirmPending: () => Promise.reject(new Error("not in these tests")),
     cancelPending: (id) => { fake.cancelled.push(id); return Promise.resolve({ kind: "cancelled" }); },
+    pendings: o.pendings ?? (() => Promise.resolve({ proposals: [] })),
     deleteLine: o.del ?? (() => Promise.reject(new Error("not in these tests"))),
   };
   const profile = o.profile ?? null;

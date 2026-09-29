@@ -20,13 +20,13 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { scriptedLine } from "./chat.ts";
-import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
+import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { Lang } from "./types.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import { attemptOf } from "./outbox.ts";
-import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
+import type { ConfirmMealResult, HandleTextResult, MealLogged, MealProposed, TargetGone } from "./results.ts";
 import {
-  fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, livePendings,
+  fromHistory, keepsItsWords, landedLine, lastMealId, mealIdOf, oneLiveProposal, pendingIdOf, reconcilePage, livePendings,
   threadReducer, type ThreadEntry,
 } from "./thread.ts";
 
@@ -36,6 +36,12 @@ export interface ChatClient {
   sendMessage(text: string, focusMealId?: string, clientId?: string, capturedAt?: string): Promise<HandleTextResult>;
   confirmPending(pendingId: string): Promise<ConfirmMealResult>;
   cancelPending(pendingId: string): Promise<{ kind: "cancelled" | "expired" } | MealLogged>;
+  /**
+   * `GET /v1/meals/pending` (#530): the proposals the server still holds. The one way a proposal
+   * comes back once its turn's answer was never seen — a page cannot carry one, because the card
+   * exists only after a confirm.
+   */
+  pendings(): Promise<PendingMealsResponse>;
   /** `DELETE /v1/messages/:id` (#608). A 409 `target-gone` comes back as the typed result, like `sendMessage`'s. */
   deleteLine(id: string): Promise<DeleteLineResponse | TargetGone>;
 }
@@ -172,6 +178,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
 
   // The local bubbles whose turn has not come back yet — kept across a refresh, not on the server yet.
   const inflightIds = new Set<string>();
+  // Proposals a confirm, cancel or retirement has already settled (#1116): a `/v1/meals/pending`
+  // read that started before the settle must not bring the offer back over its own answer.
+  const settledPendings = new Set<string>();
   // What makes "half that" work: the most recent meal in the thread, so a correction has something
   // to correct without the user having to say which meal they mean.
   let focusMealId: string | null = lastMealId(deps.seed ?? [], deps.today()) ?? null;
@@ -221,8 +230,57 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // focus), undefined (no card on this page — say nothing).
       const focus = lastMealId(page.entries, deps.today());
       if (focus !== undefined) focusMealId = focus;
+      // A page cannot carry a proposal — no card exists for one until it is confirmed — so the
+      // proposals the server still holds are read back alongside it (#530, #1116).
+      await restorePendings(isLive);
     } catch {
       if (isLive()) set({ failed: true }); // the seeded list stands; a tap or the next focus retries
+    }
+  };
+
+  /**
+   * The proposals the server still holds that this list does not, restored the way a live turn's
+   * own arrives (#360): under its own line when the page carried it — the stored line keeps the
+   * turn's `pendingId` — and at the end when it did not, as the web draws its held one. Without
+   * this a proposal answered while the app was away (backgrounded, reloaded, relaunched) left the
+   * user's words with nothing under them, and the screen acted as though the turn had never come
+   * back.
+   *
+   * `oneLiveProposal` retires every older offer to the words the "No" button writes, and those are
+   * cancelled for real — the same rule `send` and `landed` keep: the server never expires a
+   * proposal early, so the retiree this side drew would stay confirmable on another.
+   */
+  const restorePendings = async (isLive: () => boolean): Promise<void> => {
+    let proposals: MealProposed[];
+    try {
+      ({ proposals } = await deps.client().pendings());
+    } catch {
+      return; // a failed read is no card — the same fallback the web's `.catch(() => null)` takes
+    }
+    if (!isLive() || proposals.length === 0) return;
+    const retired: string[] = [];
+    edit((prev) => {
+      let next = prev;
+      for (const proposal of proposals) {
+        // Held on screen already (a live turn's own or an earlier restore), settled while this read
+        // was out — a confirm or a cancel landed first — or already confirmed, which a card or a
+        // live `logged`/`updated` result says: the meal takes the proposal's id (`mealIdOf`).
+        if (settledPendings.has(proposal.pendingId)
+          || next.some((e) => pendingIdOf(e) === proposal.pendingId
+            || mealIdOf(e) === proposal.pendingId)) continue;
+        const entry: ThreadEntry = { id: uid(), role: "assistant", result: proposal };
+        const at = next.findIndex((e) => e.role === "user" && e.pendingId === proposal.pendingId);
+        next = at < 0 ? [...next, entry] : [...next.slice(0, at + 1), entry, ...next.slice(at + 1)];
+      }
+      if (next === prev) return prev;
+      const collapsed = oneLiveProposal(next, lang());
+      const kept = new Set(livePendings(collapsed));
+      for (const id of livePendings(next)) if (!kept.has(id)) retired.push(id);
+      return collapsed;
+    });
+    for (const id of retired) {
+      settledPendings.add(id);
+      void deps.client().cancelPending(id).catch(() => {});
     }
   };
 
@@ -339,17 +397,25 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         if ("mealId" in result) focusMealId = result.date === deps.today() ? result.mealId : null;
         if (stillLive || result.kind === "proposed") {
           // AND AT MOST ONE LIVE ESTIMATE (#360). The rule and its reasoning are `oneLiveProposal`;
-          // here because this is the only place a proposal enters the list, and a proposed turn
-          // fetches no page.
+          // a proposed turn fetches no page, so live offers enter the list here and in
+          // `restorePendings` — which can have restored THIS result while the turn was out. Its own
+          // id is never stale: cancelling it would leave the card below offering a pending the
+          // server just dropped, beside a "Dropped it." line for that very offer.
           //
           // A new estimate cancels every older one for real; a question leaves them alone.
           if (result.kind === "proposed") {
             for (const stale of livePendings(state.entries)) {
+              if (stale === result.pendingId) continue;
+              settledPendings.add(stale);
               void deps.client().cancelPending(stale).catch(() => {});
             }
           }
           const entry: ThreadEntry = { id: uid(), role: "assistant", result };
-          edit((prev) => oneLiveProposal([...prev, entry], lang()));
+          edit((prev) => oneLiveProposal([
+            // The restored copy of this same offer is removed, not retired — one card.
+            ...(result.kind === "proposed" ? prev.filter((e) => pendingIdOf(e) !== result.pendingId) : prev),
+            entry,
+          ], lang()));
           deps.onAnswer?.();
           // The server wrote Spud's line after the card ("Updated — …"); only a page shows it.
           // Awaited, so the composer stays busy until it lands and nothing typed meanwhile is dropped.
@@ -434,6 +500,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     begin();
     try {
       const res = await deps.client().confirmPending(pendingId);
+      // Resolved is settled — `logged` consumed the offer and `expired` says it was already gone;
+      // a refusal throws instead, leaving it live and restorable.
+      settledPendings.add(pendingId);
       if ("mealId" in res) focusMealId = res.date === deps.today() ? res.mealId : null;
       replace(entryId, { id: entryId, role: "assistant", result: res });
       // A first typed meal comes with Spud's verdict, written server-side; fetch it.
@@ -456,6 +525,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     begin();
     try {
       const res = await deps.client().cancelPending(pendingId);
+      settledPendings.add(pendingId); // settled whichever it answered — the offer is spent either way
       if (res.kind === "logged") {
         // Already confirmed, and that response was lost: the meal is logged and stays so.
         focusMealId = res.date === deps.today() ? res.mealId : null;
@@ -511,8 +581,16 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // The same rule as a live proposal (#360): one live estimate, and the older ones cancelled for
       // real. A kept turn cannot land after a newer live one — a turn said while kept ones wait joins
       // their end (`waiting`) — so the newest to land is the newest asked for, a Send again included.
-      for (const stale of livePendings(state.entries)) void deps.client().cancelPending(stale).catch(() => {});
-      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }], lang()));
+      // The result's OWN id is skipped the way `send`'s is: a refresh may have restored it already.
+      for (const stale of livePendings(state.entries)) {
+        if (stale === result.pendingId) continue;
+        settledPendings.add(stale);
+        void deps.client().cancelPending(stale).catch(() => {});
+      }
+      edit((prev) => oneLiveProposal([
+        ...prev.filter((e) => pendingIdOf(e) !== result.pendingId),
+        { id: uid(), role: "assistant", result },
+      ], lang()));
     } else if (result.kind === "target-gone") {
       // The server keeps no line for it, so no page would say it — and a page would drop a live
       // notice: the notice a live turn gets, and no reload behind it.
