@@ -57,6 +57,7 @@ export const PERF_SCREENS = [
   "signin",
   "onboarding",
   "today",
+  "progress",
   "chat",
   "settings",
   "you-weight",
@@ -169,6 +170,12 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // more. It is deliberately not generous: this screen opened on a spinner on every launch until
   // the cache existed, and the budget is what stops that coming back.
   today: { paintMs: 100, readyMs: 250 },
+
+  // The Progress tab — the weight card, the goal bar, the week's bars and the streak. Nothing is
+  // seeded: the screen's own two reads (`/v1/weights?range=` and `/v1/diary/days`, fired in
+  // parallel on every focus) are the content, so `ready` answers once both have landed and the
+  // allowance is those two requests and nothing more.
+  progress: { paintMs: 100, readyMs: 250 },
 
   // The thread, seeded from the cache's last page. The allowance is for the cold case: first open
   // of the session, nothing cached, one page fetched. Same shape and number as the diary.
