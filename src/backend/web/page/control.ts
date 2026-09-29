@@ -100,7 +100,8 @@ export const CONTROL_SCRIPT = `(function () {
       }
       if (lbls) lbls.innerHTML = out;
       if (tint && !isNaN(floor)) tint.style.width = Math.max(0, pxAt(floor, size)) + "px";
-      if (lo && !isNaN(floor)) lo.style.left = pxAt(floor, size) + "px";
+      // .lo ends AT the floor tick; clamped so a floor near the edge keeps the words on it.
+      if (lo && !isNaN(floor)) lo.style.left = Math.max(pxAt(floor, size), lo.offsetWidth + 4) + "px";
       if (hi && !isNaN(nowV)) hi.style.left = pxAt(nowV, size) + "px";
       if (live && !isNaN(nowV)) {
         var d = Math.round((val - nowV) * 10) / 10;
