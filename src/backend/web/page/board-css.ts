@@ -128,7 +128,7 @@ export const BOARD_CSS = `
   transform: translateY(-50%); border-top: 1px solid var(--hair);
   border-bottom: 1px solid var(--hair); pointer-events: none; }
 .ob .wheel { height: 308px; width: 140px; overflow-y: auto; scroll-snap-type: y mandatory;
-  padding: 132px 0; box-sizing: content-box;
+  padding: 132px 0; box-sizing: border-box;
   -webkit-mask: linear-gradient(transparent, #000 22%, #000 78%, transparent);
   mask: linear-gradient(transparent, #000 22%, #000 78%, transparent);
              scrollbar-width: none; -webkit-mask-image: linear-gradient(180deg, transparent, #000 38px, #000 calc(100% - 38px), transparent);
