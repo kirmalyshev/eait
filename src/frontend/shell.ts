@@ -25,6 +25,7 @@
 // file they live in costs nothing the Dockerfile does not already pay for.
 import { shellCopyFor } from "../shared/app/shell-copy.ts";
 import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
+import { homeCopyFor } from "../shared/app/home-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
@@ -314,32 +315,73 @@ export function takeTurn(
 /**
  * The proposal a text turn is holding, until it is logged or dropped — one card, on whichever
  * screen is up (the thread's, or beside the diary's own composer since #52).
+ *
+ * TWO BOARDS DRAW IT. The thread's (`chat-proposal`): the question over the card, the card —
+ * name, kcal, the macro chips, the verdict dots — then the two ctas and the turn's time. The
+ * diary's (`today-logging`, `opts.diary`): the card IS the offer — the question is the `.lab`
+ * inside it, one hairline row per ingredient (name, amount, kcal), a sat-fat chip joins the
+ * macros, the turn's time rides the verdicts row, and the answers sit inside the card. An
+ * EXPIRED one keeps the card but its offers are gone — the timed-out line stands where they sat
+ * (`phone/chat-expired.html`'s draw), because a dead button is worse than the words.
  */
 export function proposalCard(
   p: MealProposed,
   turn: (write: () => Promise<string | void>) => void,
   words: { lead: string; accept: string; decline: string; expired?: string },
+  opts?: { diary?: boolean },
 ): HTMLElement {
-  // The boards' proposal (`chat-proposal`): the question over the card, the card — name, kcal,
-  // the macro chips, the verdict dots — then the two ctas and the turn's time. An EXPIRED one
-  // keeps the card but its offers are gone — the timed-out line stands where they sat
-  // (`phone/chat-expired.html`'s draw), because a dead button is worse than the words.
   const wrap = el("div", "prop");
-  const lead = el("div", "t13 m pl-lead", words.lead);
+  const diary = opts?.diary === true;
+  if (diary) wrap.classList.add("day");
+  const n = wholeNumbers(lang);
+  const lead = el(diary ? "span" : "div", diary ? "lab" : "t13 m pl-lead", words.lead);
   const card = el("div", "card");
-  const head = el("div", "row between");
+  const head = el("div", diary ? "row between pl-head" : "row between");
   const num = el("span", "num row");
-  num.append(el("i", "ico i-kcal"), el("b", "d d22", wholeNumbers(lang)(p.analysis.kcal)),
-    el("span", "m t12", UNIT_KCAL[lang]));
-  head.append(el("b", "pl-name", names(p.analysis.items)), num);
+  num.append(el("i", "ico i-kcal"), el("b", diary ? "d d28" : "d d22", n(p.analysis.kcal)),
+    el("span", diary ? "m t13" : "m t12", UNIT_KCAL[lang]));
+  head.append(el("b", diary ? "d pl-title" : "pl-name", names(p.analysis.items)), num);
+  if (diary) card.append(lead);
+  card.append(head);
+  if (diary) {
+    // A row per ingredient — the name, its amount muted, its own kcal on the right — then the
+    // boards' fourth chip: sat fat, plain text, muted.
+    const HC = homeCopyFor(lang);
+    for (const item of p.analysis.items) {
+      const line = el("div", "row between pl-ing");
+      const what = el("span", "pl-ign");
+      what.append(document.createTextNode(item.name),
+        el("span", "m", ` ${fill(HC.grams, { n: n(item.grams) })}`));
+      line.append(what);
+      if (item.kcal !== undefined) line.append(el("span", "num pl-igk", n(item.kcal)));
+      card.append(line);
+    }
+  }
   const macs = el("div", "pl-macs");
-  macs.append(gramMacsEl({ protein: p.analysis.protein_g, carbs: p.analysis.carbs_g, fat: p.analysis.fat_g }));
-  card.append(head, macs);
+  const chips = gramMacsEl({ protein: p.analysis.protein_g, carbs: p.analysis.carbs_g, fat: p.analysis.fat_g });
+  if (diary) chips.append(el("span", "mac m",
+    fill(homeCopyFor(lang).macros.satFat.chip, { n: n(p.analysis.satfat_g) })));
+  macs.append(chips);
+  card.append(macs);
   // The dots' words are the payload's own — the bundle holds no catalog to compose them (#145).
   const vs = verdictListEl((p.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
-  if (vs !== null) card.append(el("div", "hr"), vs);
+  if (diary) {
+    // The board's `.vs` carries the turn's time on its right and is always drawn — the row
+    // exists for it even when the meal produced no verdict words.
+    const row = vs ?? el("div", "vs");
+    row.append(el("span", "t12 m pl-when", timeFmt(new Date())));
+    card.append(el("div", "hr"), row);
+  } else if (vs !== null) {
+    card.append(el("div", "hr"), vs);
+  }
   if (words.expired !== undefined) {
-    wrap.append(lead, card, el("p", "t13 m pl-expired", words.expired), el("div", "ts", timeFmt(new Date())));
+    const timed = el("p", "t13 m pl-expired", words.expired);
+    if (diary) {
+      card.append(timed);
+      wrap.append(card);
+    } else {
+      wrap.append(lead, card, timed, el("div", "ts", timeFmt(new Date())));
+    }
     return wrap;
   }
   const actions = el("div", "row pl-actions");
@@ -382,7 +424,12 @@ export function proposalCard(
     }));
     actions.append(b);
   }
-  wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
+  if (diary) {
+    card.append(actions);
+    wrap.append(card);
+  } else {
+    wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
+  }
   return wrap;
 }
 

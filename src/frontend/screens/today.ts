@@ -395,7 +395,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         }),
         accept: L.webLogIt,
         decline: L.webProposalNo,
-      });
+      }, { diary: true });
       card.classList.add("rise");
       left.push(card);
     }
