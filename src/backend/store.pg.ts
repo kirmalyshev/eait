@@ -1067,6 +1067,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getPending: 0,
   pendingsFor: 0,
   dropPending: 0,
+  updatePending: 0,
   countUserPhotos: 0,
   countUserAnalyses: 0,
   getFreeAnalyses: 0,
@@ -2330,6 +2331,16 @@ export async function postgresStore(
         insert into pendings (id, user_id, analysis, date, expires_at)
         values (${p.id}, ${p.userId}, ${JSON.stringify(p.analysis)}, ${p.date},
                 ${new Date(p.expiresAt).toISOString()})`;
+    },
+
+    async updatePending(userId, p: PendingMeal) {
+      const rows = await sql`
+        update pendings
+        set analysis = ${JSON.stringify(p.analysis)}::jsonb,
+            date = ${p.date}, expires_at = ${new Date(p.expiresAt).toISOString()}
+        where id = ${p.id} and user_id = ${userId} and expires_at > ${new Date(now())}
+        returning id`;
+      return rows.length > 0;
     },
 
     async getPending(userId, pendingId) {

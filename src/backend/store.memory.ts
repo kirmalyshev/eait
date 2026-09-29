@@ -1074,6 +1074,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return p !== undefined && p.userId === userId && p.expiresAt > now() && pendings.delete(pendingId);
     },
 
+    async updatePending(userId, pending) {
+      const p = pendings.get(pending.id);
+      if (!p || p.userId !== userId || p.expiresAt <= now()) return false;
+      pendings.set(pending.id, clone(pending));
+      return true;
+    },
+
     async putPairingCode(userId, codeHash, expiresAt) {
       // The account's previous code and every expired one, then the insert — the same order and
       // the same lazy sweep as the Postgres statement.
