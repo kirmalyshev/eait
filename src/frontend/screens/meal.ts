@@ -317,18 +317,27 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     pill.append(grams, document.createTextNode(` ${spellUnit(lang, "g")}`), kitEl(ico("pencil")));
     const amountRow = el("div", "row between");
     amountRow.append(el("span", "amlab", mc.phoneAmount), pill);
-    dlg.append(amountRow);
+    // The "was" figures the board draws once the field moves off the stored value — under the
+    // amount row and beside the live kcal. Hidden until then: "was 150 g" under an untouched
+    // "150 g" is the duplication ieat-app#1019 removed.
+    const wasG = el("span", "t12 m ingwas",
+      fill(mc.phoneWasAmount, { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }));
+    wasG.hidden = true;
+    dlg.append(amountRow, wasG);
 
-    // Calories, live off the item's own density. An item that reports no kcal draws no card — the
-    // preview has nothing to scale.
+    // Calories, live off the item's own density; "was" keeps the figure the edit started from. An
+    // item that reports no kcal draws no card — the preview has nothing to scale.
     const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "");
+    let wasK: HTMLElement | null = null;
     if (item.kcal !== undefined) {
       const kcalLeft = el("div", "");
       const kcalRow = el("div", "row ingkrow");
       kcalRow.append(kitEl(ico("kcal")), kcalNow);
       kcalLeft.append(el("span", "t12 m", cc.macroLabels.kcal), kcalRow);
-      const kcalCard = el("div", "card ingkcal");
-      kcalCard.append(kcalLeft);
+      wasK = el("span", "t13 m num", fill(mc.phoneWasAmount, { amount: `${n(item.kcal)}` }));
+      wasK.hidden = true;
+      const kcalCard = el("div", "card row between ingkcal");
+      kcalCard.append(kcalLeft, wasK);
       dlg.append(kcalCard);
     }
 
@@ -356,6 +365,9 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     grams.addEventListener("input", () => {
       size();
       const g = gramsNow();
+      const edited = g !== null && g !== item.grams;
+      wasG.hidden = !edited;
+      if (wasK !== null) wasK.hidden = !edited;
       const scaled = g === null ? null : scaledItem(item, g);
       kcalNow.textContent = scaled?.kcal !== undefined ? n(scaled.kcal)
         : item.kcal !== undefined ? n(item.kcal) : "";
