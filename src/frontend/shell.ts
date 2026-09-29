@@ -28,6 +28,7 @@ import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { homeCopyFor } from "../shared/app/home-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
+import { outcomeUnknown } from "../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
 import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
 import { localDate, windowStart } from "../shared/dates.ts";
@@ -40,7 +41,7 @@ import type {
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
+import { failureOf, noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
 
 /**
@@ -644,8 +645,11 @@ export function answered(r: { kind: string }): void {
 /**
  * Send a turn, or KEEP it when it got no answer (#708): offline, a reset connection, an edge with
  * nothing in its 5xx. Kept, it goes out under the SAME id, so a first attempt that did reach the
- * server and only lost its answer is answered from it rather than run twice. Anything the server
- * answered is thrown for the caller to word, as before.
+ * server and only lost its answer is answered from it rather than run twice. An answer that came
+ * back unreadable (#302) is kept HELD instead: the server may have run the whole turn, so the
+ * thread draws the board's kept bubble ("That didn't finish cleanly" with Send again and Discard,
+ * `states-unknown`) rather than a bare notice, and the drain never sends it again on its own.
+ * Anything else the server answered is thrown for the caller to word, as before.
  */
 export async function sendOrKeep(
   entry: WebQueued,
@@ -663,7 +667,14 @@ export async function sendOrKeep(
       hooks?.onResult?.(r);
       return;
     } catch (err) {
-      if (entry.userId === "" || !noAnswer(err)) throw err;
+      if (entry.userId === "") throw err;
+      // An answer that arrived but could not be read — an unparseable 200, a 500 `internal`, the
+      // stream's own `outcome-unknown` — means the turn may have run to the end. Kept HELD, the way
+      // a drain that fails on one holds it (`attemptOf`): the kept bubble says so and offers its
+      // ways out, and a resend mints a new id rather than replaying one that may be spent.
+      const failure = failureOf(err);
+      if (outcomeUnknown(failure.kind)) entry = { ...entry, held: failure };
+      else if (!noAnswer(err)) throw err;
     }
   }
   try {
