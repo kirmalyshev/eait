@@ -305,6 +305,8 @@ export const BOARD_CSS = `
   .ob .opts.c3 { grid-template-columns: 1fr; }
   .ob .opts.c3 .opt { flex-direction: row; align-items: center; }
   .ob .opts.c3 .opt .ck { align-self: center; }
+  /* Long labels ("Unhealthy eating habits") can't halve — two columns overflow the viewport. */
+  .ob .opts.c2 { grid-template-columns: 1fr; }
   /* Four tiles stay tiles on a phone — 2×2 rather than a column of rows. */
   .ob .opts.c4 { grid-template-columns: repeat(2, 1fr); }
   .ob .cards.c3 { grid-template-columns: 1fr; }
