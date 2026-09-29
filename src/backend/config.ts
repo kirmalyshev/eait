@@ -389,6 +389,16 @@ export interface Config {
   landingUrl: string;
 
   /**
+   * The document the sign-up's "I agree to eait's Terms" links (#311). Unlike `landingUrl` this
+   * is the href itself, not an origin a path is appended to — the terms live wherever the
+   * operator published them, not necessarily on a landing of theirs.
+   *
+   * Empty is the same supported state: the consent line then renders the document's name as
+   * underlined text, which is all a host with no published terms can honestly do.
+   */
+  termsUrl: string;
+
+  /**
    * The donation links an operator may offer — the You surface's "Support eait" row (#200).
    * ALL EMPTY IS THE DEFAULT AND THE OFF STATE: a host that takes no donations draws no row,
    * and `ProfileResponse.donate` is how the bundle learns the ones that are set — sent, like
@@ -549,6 +559,7 @@ export function configDefaults(): Config {
     telegramBotUsername: "",
     adminBootstrapUserId: "",
     landingUrl: "",
+    termsUrl: "",
     donateKofiUrl: "",
     donateBmcUrl: "",
     donateGithubUrl: "",
@@ -690,6 +701,8 @@ export function loadConfig(): Config {
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
+    // The href itself, so no trailing-slash trim — stripping one off `…/stdeula/` is a broken link.
+    termsUrl: process.env.EAIT__BACKEND__TERMS_URL ?? d.termsUrl,
     donateKofiUrl: donateUrl("EAIT__BACKEND__DONATE_KOFI_URL", process.env.EAIT__BACKEND__DONATE_KOFI_URL),
     donateBmcUrl: donateUrl("EAIT__BACKEND__DONATE_BMC_URL", process.env.EAIT__BACKEND__DONATE_BMC_URL),
     donateGithubUrl: donateUrl("EAIT__BACKEND__DONATE_GITHUB_URL", process.env.EAIT__BACKEND__DONATE_GITHUB_URL),
@@ -895,6 +908,8 @@ export function demoConfig(): Config {
     // Same argument — "works in demo, untested in production" is the shape of every configuration
     // bug that ships. The privacy link `/start` renders comes off this.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
+    // And the consent line's terms link beside it.
+    termsUrl: process.env.EAIT__BACKEND__TERMS_URL ?? "",
     // Same argument once more for the donation links (#200): off unless the operator sets one,
     // and settable here so the Support row is the same code the production server sends.
     donateKofiUrl: donateUrl("EAIT__BACKEND__DONATE_KOFI_URL", process.env.EAIT__BACKEND__DONATE_KOFI_URL),
