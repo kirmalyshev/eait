@@ -91,6 +91,7 @@ export const BOARD_CSS = `
 
 /* ── option rows ── */
 .ob .opts { display: grid; gap: 10px; }
+.ob .opts.c4 { grid-template-columns: repeat(4, 1fr); }
 .ob .opts.c3 { grid-template-columns: repeat(3, 1fr); }
 .ob .opts.c2 { grid-template-columns: repeat(2, 1fr); }
 .ob .opt { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
@@ -112,8 +113,8 @@ export const BOARD_CSS = `
 .ob .opt small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
 .ob .opt:has(input:checked) small { color: var(--muted); font-weight: 400; }
 .ob .ico { display: inline-flex; width: 22px; height: 22px; flex: 0 0 auto; }
-.ob .opts.c3 .opt { flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; }
-.ob .opts.c3 .opt .ck { margin-left: 0; align-self: flex-end; }
+.ob .opts.c3 .opt, .ob .opts.c4 .opt { flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; }
+.ob .opts.c3 .opt .ck, .ob .opts.c4 .opt .ck { margin-left: 0; align-self: flex-end; }
 
 /* ── the big number + pickers ── */
 .ob .bign { font-size: 56px; font-weight: 700; letter-spacing: -.03em; line-height: 1; display: flex;
@@ -304,6 +305,8 @@ export const BOARD_CSS = `
   .ob .opts.c3 { grid-template-columns: 1fr; }
   .ob .opts.c3 .opt { flex-direction: row; align-items: center; }
   .ob .opts.c3 .opt .ck { align-self: center; }
+  /* Four tiles stay tiles on a phone — 2×2 rather than a column of rows. */
+  .ob .opts.c4 { grid-template-columns: repeat(2, 1fr); }
   .ob .cards.c3 { grid-template-columns: 1fr; }
   .ob .vpick { flex-direction: column; gap: 12px; }
   .ob .vruler { height: 300px; }

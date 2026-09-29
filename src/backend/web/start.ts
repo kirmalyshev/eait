@@ -31,7 +31,7 @@ import {
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor, weightToKg,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
-  type ChatEntry, type ChatPrompt, type ChatPromptId, type Diet, type Goal, type Lang,
+  type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
   type Profile, type Struggle, type UnitSystem,
 } from "@eait/shared";
@@ -1207,6 +1207,15 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
     const prompt = promptById("country")!;
     const query = url.searchParams.get("q") ?? "";
+    // The offer list, once: the POST below validates against it, and so does the `answer` a
+    // no-script search carries back — the same form's checked radio, re-arriving as a query param.
+    const offeredValues = optionsFor(prompt, content, lang).map((o) => o.value);
+    // A filtered page keeps its pick: `answer` in the query beats the resolved hint, but only
+    // once it has proven to be one of the offered values.
+    const asked = url.searchParams.get("answer");
+    const selected: CountryCode = asked !== null && offeredValues.includes(asked)
+      ? asked as CountryCode
+      : resolved.country;
     // WHICH BUTTON TO PRESS IN THE APP — the sentence the old plan carried, re-homed on the
     // post-sign-up handoff this screen is. The wrong provider in the install lands in a second
     // account `identity.ts` will never merge, and nothing downstream repairs it.
@@ -1223,7 +1232,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       ask: askLines(prompt, { content, lang }, profile)[0] ?? "",
       placeholder: content.screens.find((s) => s.id === "country")?.asks.country?.placeholder ?? "",
       options: countryOptions(lang),
-      selected: resolved.country,
+      selected,
       otherLabel: screenOptions(content, "country").other!.label,
       accountHint,
       query,
@@ -1238,7 +1247,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const chosen = form?.get("answer");
       // Only what the screen offered — the answer is a country code or `other`, and anything else
       // is the question re-asked rather than a value stored.
-      const offeredValues = optionsFor(prompt, content, lang).map((o) => o.value);
       if (typeof chosen !== "string" || !offeredValues.includes(chosen)) {
         return ask(pageCopyFor(lang).answerRequired);
       }

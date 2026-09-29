@@ -105,7 +105,8 @@ function optionControl(v: QuestionView): string {
       `<span class="ck"><i class="ico i-check"></i></span></label>`,
     ).join("") + `</div>`;
   }
-  const cols = place === "sex" || place === "activity" ? 3 : 2;
+  // Four workout bands (0 / 1–2 / 3–4 / 5+) lay out as four tiles up — a c3 grid wraps them 3+1.
+  const cols = place === "activity" ? 4 : place === "sex" ? 3 : 2;
   return `<div class="opts c${cols}">` + values.map((o) => {
     const c = opts[o];
     if (place === "activity") {
