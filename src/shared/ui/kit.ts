@@ -670,7 +670,9 @@ ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:$
 .cta:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .card button.cta{font:inherit;font-size:16px;font-weight:600;padding:0;border:0;margin:0;
   border-radius:var(--r-cta);min-height:52px}
-.card button.cta.g{min-height:44px;font-weight:500}
+.card button.cta.p{background:var(--accent);color:var(--accent-ink)}
+.card button.cta.s{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.card button.cta.g{background:none;color:var(--muted);min-height:44px;font-weight:500}
 
 /* The option row — a hairline and a check disc, no chips. */
 .opt{display:flex;align-items:center;gap:14px;width:100%;padding:16px 0;
