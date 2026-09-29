@@ -247,9 +247,8 @@ interface WeightFrame {
   /** The smallest range the scale divides by — a flat log still needs a scale. */
   minRange: number;
   firstLabelY: number;
-  /** The last label sits this far under the end dot, capped by `lastLabelYMax` when a lane is open. */
+  /** The last label sits this far under the end dot. */
   lastLabelDy: number;
-  lastLabelYMax?: number;
   /** The empty log's label y, at the axis' end. */
   emptyLabelY: number;
   dateLabelY: number;
@@ -273,9 +272,13 @@ const W_FRAME: WeightFrame = {
   gridlines: W_GRID,
 };
 
-/** The same frame with the You board's bottom lane open — taller, the label capped over it. */
+/**
+ * The same frame with the You board's bottom lane open — taller, and its drawn range compressed
+ * to the top band (the board's line spans y 30–54, nowhere near the lane at 104): the end label
+ * drops the board's 18 under its point and never meets the lane's own label (#303).
+ */
 const W_FRAME_LANE: WeightFrame = {
-  ...W_FRAME, viewBox: "0 0 320 120", lastLabelYMax: 88, dateLabelY: 118,
+  ...W_FRAME, viewBox: "0 0 320 120", spanPx: 32, lastLabelDy: 18, dateLabelY: 118,
 };
 
 /** health-body.html's frame: wider, no hairlines, the board's 50 px a kg capping at a 66 px span. */
@@ -325,10 +328,7 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: f.x0, y: f.firstLabelY },
     lastLabel: last
-      ? {
-        x: last.x - 10,
-        y: f.lastLabelYMax === undefined ? last.y + f.lastLabelDy : Math.min(last.y + f.lastLabelDy, f.lastLabelYMax),
-      }
+      ? { x: last.x - 10, y: last.y + f.lastLabelDy }
       : { x: f.x1, y: f.emptyLabelY },
     dateLabelY: f.dateLabelY,
     dateLabelX: { start: f.x0, end: f.x1 },
