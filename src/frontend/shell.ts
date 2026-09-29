@@ -41,7 +41,7 @@ import type {
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { failureOf, noAnswer, outbox, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
+import { failureOf, noAnswer, outbox, sendDeadlineMs, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
 
 /**
@@ -661,8 +661,13 @@ export async function sendOrKeep(
   // rather than reaching the server ahead of turns said before it (`joinsQueue`).
   const attempted = entry.userId === "" || !joinsQueue(outbox.entries, entry.userId);
   if (attempted) {
+    // BOUNDED like the drain's send (#327): a request that never settles used to hold every
+    // control until reload. Its deadline aborts the fetch, `failureOf` reads that as the unknown
+    // it is, and the entry is kept HELD below — the server may still be running it.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), sendDeadlineMs(entry));
     try {
-      const r = await sendTurn(entry, hooks?.onLine);
+      const r = await sendTurn(entry, hooks?.onLine, abort.signal);
       answered(r);
       // The first-meal flow needs the result itself — a logged meal IS its next screen, and a
       // proposal is confirmed on the spot rather than left as a card nobody is looking at.
@@ -677,6 +682,8 @@ export async function sendOrKeep(
       const failure = failureOf(err);
       if (outcomeUnknown(failure.kind)) entry = { ...entry, held: failure };
       else if (!noAnswer(err)) throw err;
+    } finally {
+      clearTimeout(timer);
     }
   }
   try {

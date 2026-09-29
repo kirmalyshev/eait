@@ -37,6 +37,15 @@ let modelCallTimeoutMs = SERVER_LLM_TIMEOUT_MS;
 export const setModelCallTimeout = (ms: number): void => { modelCallTimeoutMs = ms; };
 
 /**
+ * How long ONE send may go unanswered before it is called unknown (#327) — the wait its route can
+ * legitimately take: the running server's per-call budget spent by the calls that route makes,
+ * plus the round trip (`clientModelTimeoutMs`). Past it, an entry the drain owns is held as the
+ * unknown it is and the drain moves on; a LIVE send that outlives it is kept held the same way.
+ */
+export const sendDeadlineMs = (entry: WebQueued): number =>
+  clientModelTimeoutMs(modelCallTimeoutMs, entry.kind === "photo" ? PHOTO_MODEL_CALLS : TEXT_MODEL_CALLS);
+
+/**
  * ONE SEND, live and queued alike. A refusal the stream carries in-band is thrown as the `ApiError`
  * the JSON path throws, so a caller has one catch for everything that is not a result. `signal` is
  * the drain's deadline (#327): reaching the fetch is what frees the connection it bounds.
@@ -113,10 +122,7 @@ export const outbox: Outbox<File> = createOutbox<File>({
   load: async () => (await idb<WebQueued[] | undefined>("readonly", (s) => s.get(KEY))) ?? [],
   save: async (entries) => { await idb("readwrite", (s) => s.put(entries, KEY)); },
   send: (entry, signal) => sendTurn(entry, undefined, signal),
-  // The wait each route can legitimately take: the running server's per-call budget spent by the
-  // calls that route makes, plus the round trip (`clientModelTimeoutMs`). Past it, the entry is
-  // held as the unknown it is and the drain moves on.
-  sendDeadlineMs: (entry) => clientModelTimeoutMs(modelCallTimeoutMs, entry.kind === "photo" ? PHOTO_MODEL_CALLS : TEXT_MODEL_CALLS),
+  sendDeadlineMs,
   failureOf,
   // The Blobs are IN the record, so saving the list without the entry is what lets go of them.
   release: () => {},
