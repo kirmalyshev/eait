@@ -328,7 +328,7 @@ export function proposalCard(
   p: MealProposed,
   turn: (write: () => Promise<string | void>) => void,
   words: { lead: string; accept: string; decline: string; expired?: string },
-  opts?: { diary?: boolean },
+  opts?: { diary?: boolean; satFat?: boolean },
 ): HTMLElement {
   const wrap = el("div", "prop");
   const diary = opts?.diary === true;
@@ -344,8 +344,7 @@ export function proposalCard(
   if (diary) card.append(lead);
   card.append(head);
   if (diary) {
-    // A row per ingredient — the name, its amount muted, its own kcal on the right — then the
-    // boards' fourth chip: sat fat, plain text, muted.
+    // A row per ingredient — the name, its amount muted, its own kcal on the right.
     const HC = homeCopyFor(lang);
     for (const item of p.analysis.items) {
       const line = el("div", "row between pl-ing");
@@ -359,7 +358,9 @@ export function proposalCard(
   }
   const macs = el("div", "pl-macs");
   const chips = gramMacsEl({ protein: p.analysis.protein_g, carbs: p.analysis.carbs_g, fat: p.analysis.fat_g });
-  if (diary) chips.append(el("span", "mac m",
+  // The boards' fourth chip — sat fat, plain muted text — only where the marker is declared
+  // (ldl → targets.satfat_g), the plan card's own rule.
+  if (diary && opts?.satFat === true) chips.append(el("span", "mac m",
     fill(homeCopyFor(lang).macros.satFat.chip, { n: n(p.analysis.satfat_g) })));
   macs.append(chips);
   card.append(macs);

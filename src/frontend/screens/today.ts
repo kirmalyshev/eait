@@ -395,7 +395,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         }),
         accept: L.webLogIt,
         decline: L.webProposalNo,
-      }, { diary: true });
+        // The sat-fat chip follows the declared marker — `day.targets.satfat_g` is set only
+        // when the account declared ldl.
+      }, { diary: true, satFat: day?.targets.satfat_g !== undefined });
       card.classList.add("rise");
       left.push(card);
     }
