@@ -10,12 +10,31 @@
 // as an ARGUMENT resolved from credentials — never from a request body, a model output, or a tool
 // call. There is no method here that can reach a row without being told whose it is.
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
+
+/**
+ * The turn's cutoff, when a call is part of one — carried as async context because adding it to
+ * ninety-nine method signatures would be a seam everyone routes around. `engine/turns.ts` sets it
+ * for the length of an attempt; `store.pg.ts` reads it to refuse a body whose caller already gave
+ * up and to set `statement_timeout` from the bound — Postgres's own kill on a wedged statement,
+ * the release a pooled connection held by one cannot get from a promise race (#276). The memory
+ * store has no pool to leak and reads nothing.
+ */
+export interface StoreDeadline {
+  /** Fires when the turn's bound passes; `reason` is the `TurnOverran` the request settled on. */
+  readonly signal: AbortSignal;
+  /** The bound itself, epoch ms — what a turn-scoped `statement_timeout` is set from, so a wedged
+   *  statement dies with the turn rather than holding its pooled connection past it. */
+  readonly at: number;
+}
+
+export const storeDeadline = new AsyncLocalStorage<StoreDeadline>();
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
