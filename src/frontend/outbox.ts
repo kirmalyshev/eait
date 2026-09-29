@@ -58,7 +58,7 @@ export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => voi
 export const noAnswer = (err: unknown): boolean =>
   err instanceof TypeError || (err instanceof ApiError && err.status >= 500 && typeof err.body?.error !== "string");
 
-function failureOf(err: unknown): RefusedTurn {
+export function failureOf(err: unknown): RefusedTurn {
   // No session yet is not an answer either: the entry waits for one, like everything else here.
   if (noAnswer(err) || err instanceof Unauthenticated) return { kind: "offline" };
   if (err instanceof ApiError && typeof err.body?.error === "string") {
