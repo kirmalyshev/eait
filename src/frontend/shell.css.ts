@@ -80,9 +80,22 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 .wmain:has(.mdetail) { grid-template-columns: 1fr; }
 .wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
-  .wtop { padding: 0 16px; gap: 16px; }
+  /* The bar is TWO rows at phone width: the screen's .wr side (the streak chip and the day
+     switcher, ~270px) cannot share one row with the wordmark and four tabs, and a row that
+     overflows clips it off the right edge (#299). Row 1 is the board's row — brand, nav, the
+     spacer; .wr takes row 2 whole and right-aligns, as the boards put it right. A screen with
+     an empty .wr keeps the one-row bar. */
+  .wtop { flex-wrap: wrap; height: auto; min-height: 56px; padding: 8px 16px; gap: 6px 16px; }
   .wtop .brand { margin-right: 0; }
-  .wnav { gap: 14px; }
+  /* The nav never wraps and never hides a tab: too narrow a row scrolls it sideways instead. */
+  .wnav { gap: 14px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .wnav::-webkit-scrollbar { display: none; }
+  /* The link's own height is the row's tap target now that nothing else stretches it. */
+  .wnav a { min-height: 44px; }
+  /* A scrollable nav clips what pokes out, so the active mark moves onto the row's own bottom
+     edge instead of 2px past it, where it met the bar's hairline. */
+  .wnav a.on .lbl::after { bottom: 0; }
+  .wtop .wr { flex: 0 0 100%; justify-content: flex-end; }
   .wmain { padding: 20px 16px 32px; grid-template-columns: 1fr; }
 }
 
