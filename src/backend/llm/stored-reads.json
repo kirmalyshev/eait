@@ -1,0 +1,197 @@
+{
+  "grainbowl": {
+    "isFood": true,
+    "items": [
+      {
+        "name": "Quinoa",
+        "grams": 85,
+        "kcal": 110,
+        "protein_g": 4,
+        "carbs_g": 20,
+        "fat_g": 1.8,
+        "kcal_per_100g": 129,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Broccoli",
+        "grams": 70,
+        "kcal": 25,
+        "protein_g": 2.5,
+        "carbs_g": 4,
+        "fat_g": 0,
+        "kcal_per_100g": 35,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Red bell pepper",
+        "grams": 60,
+        "kcal": 15,
+        "protein_g": 0,
+        "carbs_g": 3,
+        "fat_g": 0,
+        "kcal_per_100g": 25,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Cucumber",
+        "grams": 65,
+        "kcal": 8,
+        "protein_g": 0,
+        "carbs_g": 1.5,
+        "fat_g": 0,
+        "kcal_per_100g": 12,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Carrot",
+        "grams": 50,
+        "kcal": 20,
+        "protein_g": 0,
+        "carbs_g": 4.5,
+        "fat_g": 0,
+        "kcal_per_100g": 40,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Cherry tomato",
+        "grams": 75,
+        "kcal": 15,
+        "protein_g": 0,
+        "carbs_g": 3,
+        "fat_g": 0,
+        "kcal_per_100g": 20,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Celery",
+        "grams": 60,
+        "kcal": 7,
+        "protein_g": 0,
+        "carbs_g": 1.5,
+        "fat_g": 0,
+        "kcal_per_100g": 12,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Olive oil (dressing)",
+        "grams": 10,
+        "kcal": 89,
+        "protein_g": 0,
+        "carbs_g": 0,
+        "fat_g": 10,
+        "kcal_per_100g": 890,
+        "role": "cooking-fat"
+      }
+    ],
+    "kcal": 289,
+    "protein_g": 6.5,
+    "carbs_g": 37.5,
+    "fat_g": 11.8,
+    "satfat_g": 1.5,
+    "fiber_g": 7,
+    "sugar_g": 8,
+    "sodium_mg": 150,
+    "confidence": "high",
+    "notes": "All items clearly visible and portioned against a standard 26 cm plate. Dressing inferred from sheen on vegetables."
+  },
+  "eggs": {
+    "isFood": true,
+    "items": [
+      {
+        "name": "Two boiled eggs",
+        "grams": 100,
+        "kcal": 155,
+        "protein_g": 13,
+        "carbs_g": 1,
+        "fat_g": 11,
+        "kcal_per_100g": 155,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Slice of rye bread",
+        "grams": 40,
+        "kcal": 80,
+        "protein_g": 3,
+        "carbs_g": 15,
+        "fat_g": 1,
+        "kcal_per_100g": 200,
+        "role": "cooking-fat"
+      }
+    ],
+    "kcal": 235,
+    "protein_g": 16,
+    "carbs_g": 16,
+    "fat_g": 12,
+    "satfat_g": 3,
+    "fiber_g": 2,
+    "sugar_g": 1,
+    "sodium_mg": 120,
+    "confidence": "high",
+    "notes": "Standard boiled eggs and a typical German rye bread slice (40g) assumed. No added fat or toppings mentioned."
+  },
+  "salmon": {
+    "isFood": true,
+    "items": [
+      {
+        "name": "Salmon fillet",
+        "grams": 180,
+        "kcal": 288,
+        "protein_g": 32,
+        "carbs_g": 0,
+        "fat_g": 18,
+        "kcal_per_100g": 160,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "White rice",
+        "grams": 220,
+        "kcal": 264,
+        "protein_g": 4,
+        "carbs_g": 58,
+        "fat_g": 0,
+        "kcal_per_100g": 120,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Broccoli florets",
+        "grams": 150,
+        "kcal": 45,
+        "protein_g": 3,
+        "carbs_g": 8,
+        "fat_g": 0,
+        "kcal_per_100g": 30,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Soy sauce (glaze)",
+        "grams": 15,
+        "kcal": 10,
+        "protein_g": 0,
+        "carbs_g": 2,
+        "fat_g": 0,
+        "kcal_per_100g": 60,
+        "role": "cooking-fat"
+      },
+      {
+        "name": "Sesame oil (cooking)",
+        "grams": 5,
+        "kcal": 45,
+        "protein_g": 0,
+        "carbs_g": 0,
+        "fat_g": 5,
+        "kcal_per_100g": 884,
+        "role": "cooking-fat"
+      }
+    ],
+    "kcal": 652,
+    "protein_g": 39,
+    "carbs_g": 68,
+    "fat_g": 23,
+    "satfat_g": 3,
+    "fiber_g": 5,
+    "sugar_g": 3,
+    "sodium_mg": 500,
+    "confidence": "high",
+    "notes": "Plate is standard 26 cm dinner plate. Salmon glaze and broccoli suggest light stir-fry oil use. Portion sizes estimated from plate coverage and depth."
+  }
+}
