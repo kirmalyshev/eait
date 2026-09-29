@@ -41,7 +41,7 @@ import type {
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
 import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { failureOf, noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
+import { failureOf, noAnswer, outbox, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
 
 /**
@@ -124,6 +124,8 @@ export const profile = async (): Promise<ProfileResponse> => {
     lang = profileCache.profile.lang;
     COPY = webCopyFor(lang);
     document.documentElement.lang = lang;
+    // The deadline a queued send is bounded by reads this: the per-call budget THIS server runs.
+    setModelCallTimeout(profileCache.limits.modelCallTimeoutMs);
   }
   return profileCache;
 };
