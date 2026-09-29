@@ -382,7 +382,7 @@ describe("the sign-up screen", () => {
   it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
     const html = await (await get("/start/signup")).text();
     // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
-    expect(html).toContain('/start/assets/img/hero.webp');
+    expect(html).toContain('/start/assets/img/icon.webp');
     // Apple in black, Google secondary — the buttons carry the brands' own artwork.
     expect(html).toContain('class="cta apple"');
     expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));

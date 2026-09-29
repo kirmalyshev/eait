@@ -46,7 +46,7 @@ test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back
   // ── The sign-up: terms required, marketing optional ─────────────────────────────────────
   await page.getByRole("link", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(/\/start\/signup/);
-  await expect(page.locator(".hero img")).toHaveAttribute("src", "/start/assets/img/hero.webp");
+  await expect(page.locator(".hero img")).toHaveAttribute("src", "/start/assets/img/icon.webp");
   await expect(page.locator('input[name="terms"]')).not.toBeChecked();
   await expect(page.locator('input[name="marketing"]')).not.toBeChecked();
   // Unticked goes nowhere.

@@ -66,11 +66,10 @@ export const W3_CSS = `
 .ob .pln .mcard .i-fat, .ob .pln .mcard .i-satfat { color: var(--macro-fat); }
 @media (max-width: 720px) { .ob .pln .kgrid { grid-template-columns: 1fr 1fr; } }
 
-/* ── the sign-up (pay-signin): the plate, the two provider buttons, the pairing card ── */
+/* ── the sign-up (pay-signin): the app icon, the two provider buttons, the pairing card ── */
 .ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }
-.ob .sup .hero { border-radius: var(--r-card); overflow: hidden; box-shadow: var(--shadow);
-  aspect-ratio: 16 / 10; background: var(--hair); }
-.ob .sup .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ob .sup .hero { display: flex; justify-content: center; }
+.ob .sup .hero img { width: 96px; height: 96px; border-radius: 22%; box-shadow: var(--shadow); display: block; }
 .ob .sup h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.12; margin: 0; }
 .ob .sup form { display: flex; flex-direction: column; gap: 8px; }
 .ob .sup .cta svg { width: 20px; height: 20px; }
