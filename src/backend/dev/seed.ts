@@ -642,7 +642,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
           // words she typed.
           thread.push({ back: day.back, record, lines: [
             spec.via === "photo"
-              ? { role: "user", kind: "photo", text: null }
+              ? { role: "user", kind: "photo", text: null, mealId: record.id }
               : { role: "user", kind: "text", text: spec.name },
             { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
           ] });
@@ -723,7 +723,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         // written after the loop, oldest day first — this loop runs newest-first, and seq is the
         // thread's order.
         thread.push({ back, record, lines: [
-          { role: "user", kind: "photo", text: null },
+          { role: "user", kind: "photo", text: null, mealId: record.id },
           { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
         ] });
         meals++;
