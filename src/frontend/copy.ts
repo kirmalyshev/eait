@@ -100,9 +100,7 @@ export interface WebCopy {
   /** The picker in Settings. Its options are `LANG_LABEL` — endonyms, never translated. */
   language: string;
   settings: string;
-  /** The outbox (#708): a turn kept on the device, and the two ways on from a held one. */
-  waitingToSend: string;
-  sendAgain: string;
+  /** The outbox (#708): the way out beside resend for a held turn the boards give both to. */
   discard: string;
   /** Said once under the composer when a turn is kept. No cause — offline and an edge are both this. */
   kept: string;
@@ -211,8 +209,6 @@ const EN: WebCopy = {
   telegramFailed: "No Telegram link this time. Try again.",
   language: "Language",
   settings: "Settings",
-  waitingToSend: "Waiting to send",
-  sendAgain: "Send again",
   discard: "Discard",
   kept: "Saved on this device. It goes on its own as soon as it can.",
   keptBehind: "Saved on this device. It goes once the message above that is waiting for you has been sent again or discarded.",
@@ -299,8 +295,6 @@ const FR: WebCopy = {
   loading: "Chargement…", somethingWrong: "Un problème est survenu. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
   language: "Langue", settings: "Réglages",
-  waitingToSend: "En attente d'envoi",
-  sendAgain: "Renvoyer",
   discard: "Abandonner",
   kept: "Enregistré sur cet appareil. Ça partira tout seul dès que possible.",
   keptBehind: "Enregistré sur cet appareil. Ça partira une fois que le message au-dessus, qui t'attend, aura été renvoyé ou abandonné.",
@@ -387,8 +381,6 @@ const DE: WebCopy = {
   loading: "Lädt…", somethingWrong: "Etwas ist schiefgegangen. Versuch es noch einmal.",
   connectTelegram: "Telegram verbinden", telegramFailed: "Diesmal kein Telegram-Link. Versuch es noch einmal.",
   language: "Sprache", settings: "Einstellungen",
-  waitingToSend: "Wartet aufs Senden",
-  sendAgain: "Erneut senden",
   discard: "Verwerfen",
   kept: "Auf diesem Gerät gespeichert. Es geht von selbst raus, sobald es geht.",
   keptBehind: "Auf diesem Gerät gespeichert. Es geht raus, sobald die Nachricht darüber, die auf dich wartet, erneut gesendet oder verworfen wurde.",
@@ -475,8 +467,6 @@ const IT: WebCopy = {
   loading: "Caricamento…", somethingWrong: "Qualcosa è andato storto. Riprova.",
   connectTelegram: "Collega Telegram", telegramFailed: "Niente link Telegram stavolta. Riprova.",
   language: "Lingua", settings: "Impostazioni",
-  waitingToSend: "In attesa di invio",
-  sendAgain: "Invia di nuovo",
   discard: "Scarta",
   kept: "Salvato su questo dispositivo. Partirà da solo appena possibile.",
   keptBehind: "Salvato su questo dispositivo. Partirà quando il messaggio qui sopra, che ti aspetta, sarà stato inviato di nuovo o scartato.",
@@ -563,8 +553,6 @@ const ES: WebCopy = {
   loading: "Cargando…", somethingWrong: "Algo salió mal. Inténtalo otra vez.",
   connectTelegram: "Conectar Telegram", telegramFailed: "Sin enlace de Telegram esta vez. Inténtalo otra vez.",
   language: "Idioma", settings: "Ajustes",
-  waitingToSend: "Pendiente de envío",
-  sendAgain: "Enviar otra vez",
   discard: "Descartar",
   kept: "Guardado en este dispositivo. Saldrá solo en cuanto pueda.",
   keptBehind: "Guardado en este dispositivo. Saldrá cuando el mensaje de arriba, que te está esperando, se haya enviado otra vez o descartado.",
@@ -651,8 +639,6 @@ const VI: WebCopy = {
   loading: "Đang tải…", somethingWrong: "Có gì đó trục trặc. Thử lại nhé.",
   connectTelegram: "Kết nối Telegram", telegramFailed: "Lần này chưa có liên kết Telegram. Thử lại nhé.",
   language: "Ngôn ngữ", settings: "Cài đặt",
-  waitingToSend: "Đang chờ gửi",
-  sendAgain: "Gửi lại",
   discard: "Bỏ đi",
   kept: "Đã lưu trên máy này. Nó sẽ tự gửi ngay khi có thể.",
   keptBehind: "Đã lưu trên máy này. Nó sẽ gửi sau khi tin nhắn phía trên — cái đang chờ bạn quyết định — được gửi lại hoặc bỏ đi.",
@@ -739,8 +725,6 @@ const ID: WebCopy = {
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
   language: "Bahasa", settings: "Pengaturan",
-  waitingToSend: "Menunggu dikirim",
-  sendAgain: "Kirim lagi",
   discard: "Buang",
   kept: "Tersimpan di perangkat ini. Akan terkirim sendiri begitu bisa.",
   keptBehind: "Tersimpan di perangkat ini. Akan terkirim setelah pesan di atas, yang menunggu keputusanmu, dikirim lagi atau dibuang.",
@@ -827,8 +811,6 @@ const RU: WebCopy = {
   loading: "Загрузка…", somethingWrong: "Что-то пошло не так. Попробуй ещё раз.",
   connectTelegram: "Подключить Telegram", telegramFailed: "В этот раз ссылка на Telegram не вышла. Попробуй ещё раз.",
   language: "Язык", settings: "Настройки",
-  waitingToSend: "Ждёт отправки",
-  sendAgain: "Отправить снова",
   discard: "Отбросить",
   kept: "Сохранено на этом устройстве. Уйдёт само, как только сможет.",
   keptBehind: "Сохранено на этом устройстве. Уйдёт, когда сообщение выше — то, что ждёт твоего решения — будет отправлено снова или отброшено.",
