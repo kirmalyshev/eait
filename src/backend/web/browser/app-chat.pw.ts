@@ -265,12 +265,18 @@ test("a turn whose answer never arrived keeps the photo and offers Send again", 
 test("Send again re-sends the kept photo, and the meal is logged exactly once", async ({ inWebApp: page }) => {
   // The connection died before the server ever saw it — never `r.fetch()` on a file-backed
   // multipart (Playwright truncates the body; the count-asserting spec in app-offline says why).
-  // Send again drains it under the same client id, so one card is the whole proof.
-  await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
+  // The route stays and falls through rather than `unroute`ing: an unroute that lands while a
+  // request is mid-interception leaves it neither continued nor aborted — the page's fetch never
+  // settles, and the drain behind it waits forever (the `li.me.dim` stuck at 1 this spec
+  // intermittently died to, #266).
+  let posts = 0;
+  await page.route("**/api/v1/meals/photo", (r) => (++posts <= 2 ? r.abort("connectionreset") : r.fallback()));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
-  await page.unroute("**/api/v1/meals/photo");
+  // A kept turn goes again on its own the moment it is kept — the second refusal is that retry
+  // landing, not this press. Wait for it, or Send again's own send can be the one still refused.
+  await expect.poll(() => posts).toBe(2);
   // force: the kept line is still rising when it can be pressed, and the outbox's own redraw
   // swaps the node under the click — the tap is the point, the stagger is decoration.
   await page.getByRole("button", { name: "Send again" }).click({ force: true });
