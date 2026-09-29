@@ -97,11 +97,10 @@ a.hsp { color: inherit; text-decoration: none; }
 .emptycard .say { align-items: center; }
 .emptycard .say p { font-weight: 600; font-size: 17px; margin: 0; }
 
-/* The couldn't-load day — Spud cares, one line, one retry. */
+/* The couldn't-load day — Spud cares, one line, one retry. The retry is the chat's \`.cta.s.sm\`;
+   a \`.failcard\`-scoped rule cannot out-rank \`.card button.cta\` (#304). */
 .failcard { display: flex; justify-content: center; padding: 56px 16px; }
 .failcard p { font-weight: 600; font-size: 15px; line-height: 1.35; margin: 0; }
-.failcard .cta { width: auto; display: inline-flex; min-height: 40px; padding: 0 16px;
-  font-size: 14px; margin-top: 10px; }
 
 /* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
    it, in chat.css) — the boards' logging state draws the ink ring ON the card, where it

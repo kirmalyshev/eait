@@ -364,9 +364,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       const say = el("div", "say");
       const words = el("div", "");
       words.append(el("p", "", L.diaryFailed));
-      const retry = el("button", "cta s") as HTMLButtonElement;
-      retry.type = "button";
-      retry.append(kitEl(ico("retry")), document.createTextNode(L.tryAgain));
+      // The boards' small secondary is the chat's `.cta.s.sm` — `.failcard` rules alone lose
+      // to `.card button.cta` on specificity and the label ran into the pill's border (#304).
+      const retry = ctaEl({ text: L.tryAgain, kind: "s", icon: "retry" }) as HTMLButtonElement;
+      retry.classList.add("sm");
       retry.addEventListener("click", () => { void draw(); });
       words.append(retry);
       say.append(spudAvatarEl("care"), words);
