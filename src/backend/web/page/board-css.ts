@@ -74,7 +74,7 @@ export const BOARD_CSS = `
               font-size: 14px; line-height: 1.45; }
 
 /* ── the primary button / secondary link ── */
-.ob .cta { display: flex; align-items: center; justify-content: center; height: 56px; padding: 0 32px;
+.ob .cta { display: flex; align-items: center; justify-content: center; gap: 8px; height: 56px; padding: 0 32px;
            border-radius: var(--r-cta); font-weight: 600; font-size: 16px; border: 0; cursor: pointer;
            font-family: var(--sans); width: 100%; }
 .ob .cta.p { background: var(--ink); color: #fff; }
