@@ -21,8 +21,11 @@ const realFetch = globalThis.fetch;
 beforeEach(() => {
   calls = [];
   forget();
-  globalThis.fetch = ((input: string, init: RequestInit = {}) => {
-    const call = { url: String(input), method: init.method ?? "GET" };
+  // Only relative app paths are mocked; bun interleaves files, so absolute URLs go to real fetch (#252).
+  globalThis.fetch = ((input: string | URL | Request, init: RequestInit = {}) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith("/") || url.startsWith("//")) return realFetch(input as never, init);
+    const call = { url, method: init.method ?? "GET" };
     calls.push(call);
     return Promise.resolve(answer(call, calls.length));
   }) as unknown as typeof fetch;
