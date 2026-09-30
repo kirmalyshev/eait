@@ -897,9 +897,6 @@ const MEAL_COLUMNS: Record<string, string> = {
   question: "question", model: "model", confidence: "confidence",
 };
 
-/** Columns that are `jsonb` and must be cast as such in a dynamic update. */
-const JSON_COLUMNS = new Set(["items", "verdicts", "question"]);
-
 /**
  * A JS array → a Postgres array literal, e.g. `{"ldl","kidneys"}`.
  *
@@ -925,9 +922,10 @@ function toPgTextArray(values: readonly string[]): string {
 /**
  * jsonb → JS, tolerating a value that was stored double-encoded.
  *
- * The write paths now cast correctly, but a row written before that fix holds a jsonb string, and
- * reading it as an array would hand the app a string it renders as nothing. Parsing defensively
- * here repairs those rows on read instead of requiring a migration to find them.
+ * The write paths bind the objects themselves (the driver encodes a value bound to a jsonb
+ * parameter), but a row written before #339 holds a jsonb string, and reading it as an array
+ * would hand the app a string it renders as nothing. Parsing defensively here repairs those
+ * rows on read instead of requiring a migration to find them.
  */
 function json<T>(v: unknown, fallback: T): T {
   if (v === null || v === undefined) return fallback;
@@ -2138,15 +2136,16 @@ export async function postgresStore(
     },
 
     async insertMeal(m) {
+      // The jsonb columns bind as OBJECTS — `JSON.stringify` stored their text as jsonb strings; see `putNotificationCopy`.
       const rows = await sql`
         insert into meals (id, user_id, ts, date, is_food, items, kcal, protein_g, carbs_g, fat_g,
                            satfat_g, fiber_g, sugar_g, sodium_mg, verdicts, confidence, notes,
                            corrected, model, question)
         values (${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.isFood},
-                ${JSON.stringify(m.items)}, ${m.kcal}, ${m.protein_g}, ${m.carbs_g}, ${m.fat_g},
+                ${m.items}, ${m.kcal}, ${m.protein_g}, ${m.carbs_g}, ${m.fat_g},
                 ${m.satfat_g}, ${m.fiber_g}, ${m.sugar_g}, ${m.sodium_mg},
-                ${JSON.stringify(m.verdicts)}, ${m.confidence}, ${m.notes}, ${m.corrected},
-                ${m.model}, ${JSON.stringify(m.question ?? null)})
+                ${m.verdicts}, ${m.confidence}, ${m.notes}, ${m.corrected},
+                ${m.model}, ${m.question ?? null})
         on conflict (id) do nothing returning id`;
       return rows.length > 0;
     },
@@ -2181,23 +2180,10 @@ export async function postgresStore(
       if (!UUID.test(mealId)) return null;
       const entries = Object.keys(MEAL_COLUMNS)
         .filter((k) => (patch as Record<string, unknown>)[k] !== undefined)
-        .map((k) => {
-          const v = (patch as Record<string, unknown>)[k];
-          // Asked of the COLUMN, not of a second list of key names: `question` is patchable and
-          // jsonb, and a hand-kept list of which keys to stringify is one edit away from writing
-          // `[object Object]` into a column that round-trips it without complaint.
-          const col = MEAL_COLUMNS[k]!;
-          return [col, JSON_COLUMNS.has(col) ? JSON.stringify(v) : v] as const;
-        });
+        .map((k) => [MEAL_COLUMNS[k]!, (patch as Record<string, unknown>)[k]] as const);
       if (entries.length > 0) {
-        // `::jsonb` for the JSON columns, same reason as `::text[]` above: an untyped parameter in
-        // a dynamic statement is text, so a JSON string lands in a jsonb column as a jsonb STRING
-        // rather than as the array it encodes. It round-trips without error and comes back as
-        // `"[{...}]"` instead of `[{...}]` — a meal whose items render as nothing after an edit,
-        // which is the single most-used path in this app.
-        const assignments = entries
-          .map(([c], i) => (JSON_COLUMNS.has(c) ? `${c} = $${i + 3}::jsonb` : `${c} = $${i + 3}`))
-          .join(", ");
+        // Values bound as-is: Postgres types each parameter from its column, so no `::jsonb` and no `JSON.stringify` (which stored text).
+        const assignments = entries.map(([c], i) => `${c} = $${i + 3}`).join(", ");
         await sql.unsafe(
           `update meals set ${assignments} where id = $1 and user_id = $2`,
           [mealId, userId, ...entries.map(([, v]) => v)],
@@ -2328,16 +2314,17 @@ export async function postgresStore(
     },
 
     async putPending(p: PendingMeal) {
+      // `analysis` bound as the object — see `insertMeal` for why `JSON.stringify` stored text.
       await sql`
         insert into pendings (id, user_id, analysis, date, expires_at)
-        values (${p.id}, ${p.userId}, ${JSON.stringify(p.analysis)}, ${p.date},
+        values (${p.id}, ${p.userId}, ${p.analysis}, ${p.date},
                 ${new Date(p.expiresAt).toISOString()})`;
     },
 
     async updatePending(userId, p: PendingMeal) {
       const rows = await sql`
         update pendings
-        set analysis = ${JSON.stringify(p.analysis)}::jsonb,
+        set analysis = ${p.analysis},
             date = ${p.date}, expires_at = ${new Date(p.expiresAt).toISOString()}
         where id = ${p.id} and user_id = ${userId} and expires_at > ${new Date(now())}
         returning id`;
@@ -2625,7 +2612,7 @@ export async function postgresStore(
 
     async settleTurn(userId, clientId, outcome) {
       await sql`
-        update turns set outcome = ${JSON.stringify(outcome)}::jsonb
+        update turns set outcome = ${outcome}
         where user_id = ${userId} and client_id = ${clientId}`;
     },
 
