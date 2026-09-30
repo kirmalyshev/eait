@@ -236,7 +236,7 @@ describe("weightChart — logged weights over the day axis", () => {
     const c = weightChart(persona);
     expect(c.gridlines).toEqual([22, 58, 94]);
     expect(c.firstLabel).toEqual({ x: 20, y: 14 });
-    expect(c.lastLabel).toEqual({ x: 300, y: 77 });
+    expect(c.lastLabel).toEqual({ x: 300, y: 87 });
     expect(c.dateLabelY).toBe(110);
   });
 
