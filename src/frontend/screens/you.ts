@@ -15,7 +15,7 @@ import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
 import { weightChart } from "../../shared/ui/charts.ts";
-import { dayMonth, dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { dayMonthAt, dayMonthOn, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
@@ -133,8 +133,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const body = el("div", "wbody");
     card_.append(head, body, noticeBox.notice);
 
-    const dm = dayMonth(lang);
-    const fmt = (d: string): string => dm.format(new Date(`${d}T12:00:00Z`));
+    const fmt = (d: string): string => dayMonthOn(lang, d, localDate(me!.timezone));
 
     const target = me!.profile.target_weight_kg;
     const targetLane = target === null ? undefined : {
