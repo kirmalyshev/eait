@@ -81,6 +81,11 @@ export async function recordHealthDays(
   if (!isNewerMeasurement(measuredAt, profile.weight_measured_at)) {
     return { accepted: clean.length };
   }
+  // A weigh-in typed on a LATER day beats an older-dated import whatever its stamp says, as it
+  // does in `mergedWeights` (ieat-app#1233); a same-day tie is still `weight_measured_at`'s.
+  if ((await deps.store.weightsSince(userId, newest.date)).some((w) => w.date > newest.date)) {
+    return { accepted: clean.length };
+  }
 
   await deps.store.patchProfile(userId, {
     weight_kg: newest.weight_kg,
