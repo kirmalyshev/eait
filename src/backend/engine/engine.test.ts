@@ -905,6 +905,30 @@ describe("the repertoire", () => {
     expect(seen).toContain("basmati rice");
     expect(seen).not.toContain("cooking oil");
   });
+
+  it("still feeds the prior from rows written while the mark failed open", async () => {
+    // #317 — qwen3-vl marked every item on every read it made, and those rows stay stored that
+    // way. The read applies the same test `prepareAnalysis` now applies on the write: the mark is
+    // believed only where the row's own numbers make the item essentially a fat, so the poisoned
+    // rows feed the prior again without a migration.
+    const userId = await onboard();
+    const { scale: _s, question: _q, ...analysis } = FATTY;
+    await store.insertMeal({
+      ...analysis, id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(),
+      date: localDate(CONFIG.timezone), verdicts: {}, healthScore: null, corrected: false,
+      model: "test",
+      items: FATTY.items.map((i) => ({ ...i, role: "cooking-fat" as const })),
+    });
+
+    let seen: readonly string[] | undefined;
+    const spy: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => { seen = i.repertoire; return FATTY; },
+    };
+    await logPhotoMeal(makeDeps({}, spy), userId, photo(9));
+    expect(seen).toContain("basmati rice");
+    expect(seen).not.toContain("cooking oil");
+  });
 });
 
 // A window under a constant named N must be N days long, and nothing asserted that until now —
