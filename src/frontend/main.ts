@@ -11,6 +11,7 @@ import { progressScreen } from "./screens/progress.ts";
 import { youScreen } from "./screens/you.ts";
 import { mealScreen } from "./screens/meal.ts";
 import { homeScreen } from "./screens/today.ts";
+import { acceptDrops } from "./queue.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
 screen("#/meal/", (frame) => mealScreen(frame));
@@ -21,3 +22,4 @@ screen("#/you", (frame) => youScreen(frame));
 screen("#/", (frame) => homeScreen(frame));
 
 start();
+acceptDrops();

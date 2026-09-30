@@ -117,4 +117,34 @@ a.hsp { color: inherit; text-decoration: none; }
    it, in chat.css) — the boards' logging state draws the ink ring ON the card, where it
    follows the card's radius; on .prop itself it renders as two straight rules (#301). */
 .home .prop .card { box-shadow: 0 0 0 2px var(--ink); }
+
+/* The photo queue's row (#1318, web/log-queue-rows): a meal row's frame, the photo under a veil. */
+.qth { position: relative; width: 56px; height: 56px; flex: 0 0 56px; border-radius: var(--r-thumb); overflow: hidden; }
+.qth img { width: 56px; height: 56px; object-fit: cover; display: block; }
+.qth .veil { position: absolute; inset: 0; transition: background 200ms ease-out; }
+.qth .qr { position: absolute; left: 8px; top: 8px; width: 40px; height: 40px; fill: none; }
+.qth .qr circle { transition: stroke-dasharray 600ms ease-out; }
+.qth b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.qth > svg:not(.qr) { position: absolute; left: 17px; top: 17px; width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.qth .qr + svg { left: 18px; top: 18px; width: 20px; height: 20px; }
+.meal.q .mm b { display: block; }
+.qtitle { padding: 3px 0 5px; }
+.sk { display: block; border-radius: 5px; background: linear-gradient(90deg, var(--hair) 0%, var(--surface) 50%, var(--hair) 100%); background-size: 200% 100%; animation: k-shim 1.4s linear infinite; }
+.qstep { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.qstep::before { content: ""; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: 0 0 6px; animation: k-pulse 1.2s ease-in-out infinite; }
+.qstep.still::before { display: none; }
+.qstep.ink { color: var(--ink); }
+.qchips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.qchips span { font-size: 11px; font-weight: 600; background: var(--macro-kcal-t); border-radius: 6px; padding: 2px 6px; animation: k-rise 180ms ease-out; }
+.qact { display: flex; gap: 14px; margin-top: 6px; }
+.card .qact button:not(.opt) { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; margin: 0; padding: 6px 0; min-height: 0; border-radius: 0; box-shadow: none; cursor: pointer; }
+.card .qact button:not(.opt) + button:not(.opt) { color: var(--muted); }
+.qpill { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 3px 9px; text-decoration: none; }
+.qkc { width: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.qdrop { position: fixed; inset: 12px; z-index: 50; border: 3px dashed var(--accent); border-radius: 16px; background: color-mix(in srgb, var(--accent-tint) 72%, transparent); display: flex; align-items: center; justify-content: center; text-align: center; color: var(--accent); pointer-events: none; }
+.qdrop b { display: block; font-size: 20px; font-weight: 700; }
+.qdrop small { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
+@keyframes k-shim { from { background-position: 200% 0; } to { background-position: 0 0; } }
+@keyframes k-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .sk, .qstep::before, .qchips span { animation: none; } }
 `;
