@@ -42,6 +42,9 @@ export interface ScoreAppCopy {
   breakdownTitle: string;
   /** Under the breakdown's title: what the day's number IS. */
   breakdownLine: string;
+  /** `todayFromMeals` and `breakdownLine` for any day but today, which is never "today's" (#1222). */
+  dayFromMeals: CountForms;
+  dayBreakdownLine: string;
   /** The four factor names nothing else names — `satfat` reads LOG_COPY's `satfatNoun`. */
   factors: Record<Exclude<ScoreFactor, "satfat">, string>;
   /** The breakdown's opening row — the base points every score starts from. */
@@ -74,6 +77,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
     breakdownTitle: "Today's score",
     breakdownLine: "The mean of today's meals, weighted by their calories.",
+    dayFromMeals: { one: "From the day's meal", other: "From the day's {n} meals" },
+    dayBreakdownLine: "The mean of the day's meals, weighted by their calories.",
     factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
     startRow: "Start",
     partPctOfKcal: "{n}% of kcal",
@@ -95,6 +100,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     breakdownTitle: "Score du jour",
     breakdownLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
+    dayFromMeals: { one: "Du repas de la journée", other: "Des {n} repas de la journée" },
+    dayBreakdownLine: "La moyenne des repas de la journée, pondérée par leurs calories.",
     factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
     startRow: "Base",
     partPctOfKcal: "{n} % des kcal",
@@ -116,6 +123,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     breakdownTitle: "Tageswert heute",
     breakdownLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
+    dayFromMeals: { one: "Aus der Mahlzeit des Tages", other: "Aus den {n} Mahlzeiten des Tages" },
+    dayBreakdownLine: "Der Mittelwert der Mahlzeiten des Tages, nach Kalorien gewichtet.",
     factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
     startRow: "Basis",
     partPctOfKcal: "{n} % der kcal",
@@ -137,6 +146,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     breakdownTitle: "Punteggio di oggi",
     breakdownLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
+    dayFromMeals: { one: "Dal pasto della giornata", other: "Dai {n} pasti della giornata" },
+    dayBreakdownLine: "La media dei pasti della giornata, ponderata per le loro calorie.",
     factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
     startRow: "Base",
     partPctOfKcal: "{n}% delle kcal",
@@ -158,6 +169,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     breakdownTitle: "Puntuación de hoy",
     breakdownLine: "La media de las comidas de hoy, ponderada por sus calorías.",
+    dayFromMeals: { one: "De la comida del día", other: "De las {n} comidas del día" },
+    dayBreakdownLine: "La media de las comidas del día, ponderada por sus calorías.",
     factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
     partPctOfKcal: "{n}% de las kcal",
@@ -179,6 +192,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
     breakdownTitle: "Điểm hôm nay",
     breakdownLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
+    dayFromMeals: { other: "Từ {n} bữa trong ngày" },
+    dayBreakdownLine: "Trung bình các bữa trong ngày, theo trọng số calo.",
     factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
     startRow: "Điểm gốc",
     partPctOfKcal: "{n}% của kcal",
@@ -200,6 +215,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
     breakdownTitle: "Skor hari ini",
     breakdownLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
+    dayFromMeals: { other: "Dari {n} santapan hari itu" },
+    dayBreakdownLine: "Rata-rata santapan hari itu, dibobot menurut kalorinya.",
     factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
     startRow: "Awal",
     partPctOfKcal: "{n}% dari kcal",
@@ -226,6 +243,13 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     },
     breakdownTitle: "Оценка за сегодня",
     breakdownLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
+    dayFromMeals: {
+      one: "Из {n} приёма пищи за день",
+      few: "Из {n} приёмов пищи за день",
+      many: "Из {n} приёмов пищи за день",
+      other: "Из {n} приёмов пищи за день",
+    },
+    dayBreakdownLine: "Среднее по приёмам пищи за день, взвешенное по калориям.",
     factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
     startRow: "База",
     partPctOfKcal: "{n}% от ккал",
