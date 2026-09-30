@@ -15,13 +15,11 @@
 // server would reject. `validateOnboardingContent` is where that boundary is enforced, and it is
 // enforced on the WRITE, so bad copy never reaches a phone.
 //
-// WHAT IS *NOT* HERE, AND WHY. The conversation AROUND the questions — Spud's reply to each answer,
-// the stop cards, the branch logic that makes a reply speak to the branch taken — lives in
-// `onboarding-chat.ts`, compiled in, under test, and NOT admin-editable: a reply is chosen BY the
-// branch, and a text box can hold a sentence but not the branch that chose it. The figures inside
-// the replies are computed rather than typed — the share cap's percentage is READ from
-// `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE`. `product/design/onboarding/copy.md` is the source of
-// truth for both halves.
+// WHAT IS *NOT* HERE, AND WHY. The conversation AROUND the questions — Spud's reply to each answer
+// and the branch logic that makes a reply speak to the branch taken — lives in `onboarding-chat.ts`,
+// compiled in, under test, and NOT admin-editable. An admin text box in front of a health statistic
+// is an unsubstantiated claim with no gate in front of it — the `claims.ts` reasoning — so a cited
+// figure stays code. `product/design/onboarding/copy.md` is the source of truth for both halves.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
 // FIELD-DERIVED, NOT A STEP COUNTER. The current question is whichever field is still null. A

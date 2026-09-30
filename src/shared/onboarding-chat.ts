@@ -5,14 +5,13 @@
 //
 // SHARED, because it is where the branch logic lives, and branch logic is exactly the part that
 // `bun test` has to be able to reach without a simulator. The on-track caption reads the struggles
-// picked one beat earlier and lets the first of them write it; the pace result reads the
-// projection's computed rate. Those are rules, and a rule nobody can run is a rule that drifts.
+// picked one beat earlier; that is a rule, and a rule nobody can run is a rule that drifts.
 //
-// NOT EDITABLE, because which line a case takes IS this file, and the figures inside the lines are
-// computed — the share cap's percentage is READ from `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE`, the
-// healthy-weight floor from `minHealthyWeightKg` — never typed. An admin text box can hold a
-// sentence; it cannot hold the branch that chose it. The QUESTIONS Spud asks are editable
-// (`onboarding.ts`, `asks`); the conversation around them is code.
+// NOT EDITABLE, because which line a case takes IS this file — a text box can hold a sentence but
+// not the branch that chose it. A cited figure stays code for the `claims.ts` reason: an
+// admin-editable health statistic is an unsubstantiated claim with no gate in front of it. The
+// QUESTIONS Spud asks are editable (`onboarding.ts`, `asks`); the conversation around them is
+// code.
 //
 // THE THREE RULES EVERY REPLY OBEYS (copy.md § Context model), each with a test:
 //   1. Speak to the branch taken, never to "whatever" was chosen. A reply that works for any goal
