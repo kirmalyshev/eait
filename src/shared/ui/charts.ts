@@ -248,7 +248,12 @@ interface WeightFrame {
   /** The smallest range the scale divides by — a flat log still needs a scale. */
   minRange: number;
   firstLabelY: number;
-  /** The last label sits this far under the end dot. */
+  /**
+   * The end label's baseline offset from the endpoint, on the side the stroke leaves free
+   * (#331): under it when the line arrives from above, over it — the start label's own side —
+   * when it arrives from below or level. Sized so the 12px glyphs' nearer edge clears the
+   * 2.5px stroke, never sits on it; the lane frame's 18 is the board's own.
+   */
   lastLabelDy: number;
   /** The empty log's label y, at the axis' end. */
   emptyLabelY: number;
@@ -267,7 +272,7 @@ const W_FRAME: WeightFrame = {
   spanPx: W_GRID[2]! - W_GRID[0]!,
   minRange: 0,
   firstLabelY: 14,
-  lastLabelDy: 4,
+  lastLabelDy: 14,
   emptyLabelY: 90,
   dateLabelY: 110,
   gridlines: W_GRID,
@@ -373,6 +378,7 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
   }));
 
   const last = pts[pts.length - 1];
+  const prev = pts[pts.length - 2];
   return {
     viewBox: f.viewBox,
     gridlines: f.gridlines ?? [],
@@ -383,7 +389,12 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: f.x0, y: f.firstLabelY },
     lastLabel: last
-      ? { x: last.x - 10, y: last.y + f.lastLabelDy }
+      ? {
+        x: last.x - 10,
+        // Off the stroke (#331): under the endpoint when the line drops to it, over it —
+        // the start label's own side — when the line climbs to it or runs level.
+        y: last.y + (prev !== undefined && prev.y < last.y ? f.lastLabelDy : -f.lastLabelDy),
+      }
       : { x: f.x1, y: f.emptyLabelY },
     dateLabelY: f.dateLabelY,
     dateLabelX: { start: f.x0, end: f.x1 },
