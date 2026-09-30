@@ -49,9 +49,11 @@ const FAT = solid(
   '<path fill="currentColor" d="M12 2.5c3.7 4.7 6.6 8.5 6.6 12.2a6.6 6.6 0 0 1-13.2 0c0-3.7 2.9-7.5 6.6-12.2z"/>',
 );
 
-// The Cal AI flame, once — the kcal card's icon and the streak chip wear the same shape.
+// The Cal AI flame, once — a flame.fill-style glyph: an outer body with the second tongue cut
+// out of it (evenodd), not a second colour. The kcal card's icon and the streak chip wear it.
 const FLAME = solid(
-  '<path fill="currentColor" d="M12 1.8c.6 3.2 4 5.4 5.8 8.6 1.2 2.1 1.5 3.9 1.2 5.6-.7 3.7-3.6 6.2-7 6.2s-6.3-2.5-7-6.2c-.4-2.2.3-4.4 1.6-6.1.3 1.5 1.1 2.7 2.3 3.3-.6-3.8 1-8.6 3.1-11.4z"/>',
+  '<path fill="currentColor" fill-rule="evenodd" d="M13.9 1.8c2.1 3 4.7 6.1 5.2 10.1.4 3.6-2.1 7.4-6.1 9.1-.4.2-.8.3-1.3.3-4.1-.2-7.3-2.9-7.3-6.9 0-2 .8-3.8 2.1-5.2 1-1 1.7-2.1 1.9-3.9-.2 1.5.1 3 1.1 4.5 1.3-2.4 2.7-5.2 4.4-8z' +
+    'M12.2 11.9c1.5 1.8 2.6 3.4 2.5 5 0 1.7-1.4 2.8-3.1 2.8-1.8 0-2.8-1.3-2.7-2.8.1-1.2.8-2.3 1.6-3.2-.1.8.1 1.6.7 2.2-.3-1.4.2-2.8 1-4z"/>',
 );
 
 export const ICONS = {
