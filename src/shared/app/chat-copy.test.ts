@@ -41,7 +41,7 @@ describe("CHAT_SCREEN_COPY", () => {
     const withPlaceholders: Record<string, string[]> = {
       composerThread: ["{coach}"],
       macroEaten: ["{value}"],
-      macroTarget: ["{target}"],
+      macroTarget: ["{target}", "{unit}"],
       movedCaption: ["{day}"],
       "phone.photoCaption": ["{caption}"],
       "phone.refusals.longTextNote": ["{max}"],
