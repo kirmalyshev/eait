@@ -116,12 +116,7 @@ export async function analyzePhotos(
   /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
   eaten: Date = new Date(),
   scope: "photo" | "clip" = "photo",
-  /**
-   * When the request carrying the turn arrived — the queue leg's zero. It cannot come off
-   * `capturedAt`/`eaten`: a turn kept in an outbox and sent hours later would report its whole
-   * offline wait as queue and drag the p95 with it (#220). The default is this call's own
-   * entry — receipt enough for callers whose turns are never kept.
-   */
+  /** When the request arrived — the queue leg's zero: `eaten` is hours old on a kept turn (#220). */
   receivedAt: number = Date.now(),
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;

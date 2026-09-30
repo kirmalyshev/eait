@@ -613,8 +613,7 @@ export function createRouter(
 
       // ── Photo ─────────────────────────────────────────────────────────────────────────────
       if (req.method === "POST" && pathname === ROUTES.photo) {
-        // Stamped before the form is read so the upload stays inside the queue leg — a kept turn's
-        // `capturedAt` can be hours old and would report its offline wait instead (#220).
+        // Receipt, not `capturedAt`: a kept turn's capture is hours old and would inflate the queue p95 (#220).
         const receivedAt = Date.now();
         const upload = await readPhotoForm(req);
         if (upload instanceof Response) return upload;
