@@ -8,6 +8,7 @@
 import { dateMinus } from "@eait/shared";
 import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
+import { storedPhotoRead, storedTextRead } from "./stored-reads.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
 function hash(s: string): number {
@@ -157,7 +158,7 @@ export function demoPorts(): LlmPorts {
     // and every engine test walk the same record (#484).
     input.onCost?.(0);
     const caption = (input.caption ?? "").toLowerCase();
-    const meal = caption.includes(DEMO_NOT_FOOD)
+    const meal = storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
       : caption.includes(DEMO_GRAMS_QUESTION)
         // The grams question, canned like the seeded oil one — the analyzer's only other shape the
@@ -165,7 +166,7 @@ export function demoPorts(): LlmPorts {
         // plate is one `mayAsk` would rightly never ask.
         ? { ...plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0))),
             confidence: "low" as const, question: DEMO_GRAMS_Q }
-        : plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0)));
+        : plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0))));
     if (onDelta) {
       // The real analyzer writes its JSON over seconds; the pending card is visible in `--demo`
       // and under every e2e flow only if this one does too, in pieces, with a beat between them.
@@ -181,6 +182,8 @@ export function demoPorts(): LlmPorts {
 
   const routeText: RouteText = async (input) => {
     input.onCost?.(0);
+    const stored = storedTextRead(input.text, input.profile.lang);
+    if (stored) return { intent: "meal", analysis: stored, dayOffset: 0 };
     const text = input.text.toLowerCase();
     const asks = /\?|how much|how many|what|why|should i|сколько|что|wie viel|was /.test(text);
 
