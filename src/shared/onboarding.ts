@@ -15,13 +15,11 @@
 // server would reject. `validateOnboardingContent` is where that boundary is enforced, and it is
 // enforced on the WRITE, so bad copy never reaches a phone.
 //
-// WHAT IS *NOT* HERE, AND WHY. The conversation AROUND the questions — Spud's reply to each answer,
-// the support cards and their sourced statistics, the branch logic that makes a reply speak to the
-// branch taken — lives in `onboarding-chat.ts`, compiled in, under test, and NOT admin-editable.
-// Those cards carry citations ("about 42% of adults", "n = 1.18M"), and an admin who edits a
-// statistic ships an unsubstantiated health claim to every phone with no gate in front of it. The
-// same reasoning that puts `claims.ts` in front of the landing page's copy keeps those sentences in
-// code. `product/design/onboarding/copy.md` is the source of truth for both halves.
+// WHAT IS *NOT* HERE, AND WHY. The conversation AROUND the questions — Spud's reply to each answer
+// and the branch logic that makes a reply speak to the branch taken — lives in `onboarding-chat.ts`,
+// compiled in, under test, and NOT admin-editable. An admin text box in front of a health statistic
+// is an unsubstantiated claim with no gate in front of it — the `claims.ts` reasoning — so a cited
+// figure stays code. `product/design/onboarding/copy.md` is the source of truth for both halves.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
 // FIELD-DERIVED, NOT A STEP COUNTER. The current question is whichever field is still null. A
