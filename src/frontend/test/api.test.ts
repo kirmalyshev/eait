@@ -21,8 +21,14 @@ const realFetch = globalThis.fetch;
 beforeEach(() => {
   calls = [];
   forget();
-  globalThis.fetch = ((input: string, init: RequestInit = {}) => {
-    const call = { url: String(input), method: init.method ?? "GET" };
+  // Only the app's own RELATIVE paths are this mock's to answer — `api.ts` never calls an
+  // absolute URL (the hard rule in AGENTS.md). Bun runs files' tests interleaved in one process,
+  // so while this mock is installed another file's real fetch — push/expo.test.ts's stub server —
+  // arrives here too; passing it through is what keeps the mock scoped to this test.
+  globalThis.fetch = ((input: string | URL | Request, init: RequestInit = {}) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!url.startsWith("/") || url.startsWith("//")) return realFetch(input as never, init);
+    const call = { url, method: init.method ?? "GET" };
     calls.push(call);
     return Promise.resolve(answer(call, calls.length));
   }) as unknown as typeof fetch;
