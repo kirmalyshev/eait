@@ -25,6 +25,7 @@ import {
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
+  MAX_FOOD_QUERY, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
 } from "@eait/shared";
 import { narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
@@ -38,6 +39,7 @@ import {
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
   reanalyzeMeal, redateMeal,
+  foodSearch, productByBarcode,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -856,6 +858,31 @@ export function createRouter(
         const res = await confirmPendingMeal(deps, userId, id);
         if (res.kind === "expired") return json({ error: "expired" }, 410);
         return isRefusal(res) ? refusal(res) : json(res);
+      }
+
+      // ── The food catalog ──────────────────────────────────────────────────────────────────
+      //
+      // Global reference data — the rows belong to nobody, so `userId` goes nowhere near the
+      // engine calls below; the bearer is only the door every route here stands behind. Unbilled,
+      // so per-address bounded like the other unbilled surfaces.
+      if (req.method === "GET" && pathname === ROUTES.foods) {
+        const wait = limit(req, peer, "food-search", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        // An absent or empty `q` is a client bug, not an empty answer: it would be a scan with no
+        // predicate, and nothing should silently answer it.
+        const q = url.searchParams.get("q");
+        if (q === null || q.trim() === "") return json({ error: "q required" }, 400);
+        if (q.length > MAX_FOOD_QUERY) return json({ error: "q too long" }, 400);
+        const askLimit = Number(url.searchParams.get("limit"));
+        return json(await foodSearch(deps, q, Number.isInteger(askLimit) && askLimit > 0 ? askLimit : undefined) satisfies FoodSearchResponse);
+      }
+      const productMatch = /^\/v1\/products\/([^/]+)$/.exec(pathname);
+      if (req.method === "GET" && productMatch) {
+        const wait = limit(req, peer, "food-product", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const barcode = normalizeBarcode(decodeURIComponent(productMatch[1]!));
+        if (barcode === null) return json({ error: "bad-barcode" }, 400);
+        return json(await productByBarcode(deps, barcode) satisfies ProductResponse);
       }
 
       // ── Diary ─────────────────────────────────────────────────────────────────────────────

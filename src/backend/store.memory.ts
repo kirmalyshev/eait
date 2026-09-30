@@ -6,7 +6,8 @@
 
 import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
-  DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
+  DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
+  OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
 } from "@eait/shared";
 import {
@@ -187,6 +188,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `${userId}\n${date}` -> the typed weigh-in. One row per day — `putWeight` upserts, the last
   // write of a day winning, which is `on conflict` on Postgres and a `set` here.
   const weights = new Map<string, { userId: string; date: string; kg: number }>();
+  // The food catalog — global reference data, keyed on the row's own ids: food_ref on
+  // `<source>:<code>`, off_product on the barcode itself.
+  const foodRefs = new Map<string, FoodRef>();
+  const offProducts = new Map<string, OffProduct>();
   // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
   // rather than validated, because the whole point of those shapes is that no current type fits.
   let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
@@ -891,6 +896,47 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async putNotificationCopy(lang, copy) {
       // Merged and migrated, for `putOnboardingContent`'s reasons.
       notificationCopy = clone({ ...legacyLanguageMap(notificationCopy), [lang]: copy }) as typeof notificationCopy;
+    },
+
+    // ── The food catalog ────────────────────────────────────────────────────────────────────
+
+    async searchFoods(query, limit) {
+      // Same match and same order as Postgres: case-insensitive substring in any of the three
+      // name columns, earliest position first, then shortest name, then alphabetical.
+      const needle = query.toLowerCase();
+      const score = (f: FoodRef) =>
+        Math.min(...[f.name, f.name_de, f.name_en]
+          .filter((n): n is string => n !== null)
+          .map((n) => { const i = n.toLowerCase().indexOf(needle); return i < 0 ? Infinity : i; }));
+      return [...foodRefs.values()]
+        .filter((f) => score(f) !== Infinity)
+        .sort((a, b) =>
+          score(a) - score(b) || a.name.length - b.name.length || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+        .slice(0, limit)
+        .map(clone);
+    },
+
+    async offProductByBarcode(barcode) {
+      const row = offProducts.get(barcode);
+      return row ? clone(row) : null;
+    },
+
+    async putFoodRefs(foodRows) {
+      for (const row of foodRows) foodRefs.set(row.id, clone(row));
+      return foodRows.length;
+    },
+
+    async putOffProducts(products) {
+      let written = 0;
+      for (const row of products) {
+        const existing = offProducts.get(row.barcode);
+        // The Postgres `where` clause, stated the same way: an `off` row may replace a
+        // `label-ocr` row only when the dump row carries a calorie figure.
+        if (existing && row.source === "off" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
+        offProducts.set(row.barcode, clone(row));
+        written++;
+      }
+      return written;
     },
 
     async recordOnboardingEvents(userId, events) {

@@ -20,6 +20,7 @@ import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
+import type { FoodAttribution, FoodRef, OffProduct } from "./foods.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
 export const API_VERSION = "v1";
@@ -337,6 +338,20 @@ export const ROUTES = {
   healthTrend: "/v1/health",
   /** POST — a batch of daily health aggregates read off the phone's health store. Upserted. */
   healthDays: "/v1/health/days",
+
+  /**
+   * GET `?q=` — the generic-food catalog (`food_ref`), matched by name in any language the source
+   * carries. `limit` is bounded server-side at {@link FOOD_SEARCH_MAX_LIMIT}; the answer carries
+   * the citations the sources of the returned rows owe.
+   * Answers {@link FoodSearchResponse}.
+   */
+  foods: "/v1/foods",
+  /**
+   * GET — the barcoded product the catalog knows (`off_product`), or `product: null` on a miss.
+   * A miss is an ordinary answer, not an error: the scan flow's next step is reading the label.
+   * Answers {@link ProductResponse}.
+   */
+  product: (barcode: string) => `/v1/products/${encodeURIComponent(barcode)}`,
 
   /**
    * The browser onboarding, and the ONE route here that is not part of the JSON API.
@@ -1356,3 +1371,30 @@ export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind
 export interface PendingMealsResponse {
   proposals: MealProposed[];
 }
+
+// ── The food catalog ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * `GET /v1/foods`: the generic foods whose names contain `q`, ranked closest-first, capped server-
+ * side. `attributions` carries the citation each source in the result owes — the client renders
+ * them rather than knowing which databases it searched.
+ */
+export interface FoodSearchResponse {
+  foods: FoodRef[];
+  attributions: FoodAttribution[];
+}
+/**
+ * `GET /v1/products/:barcode`. `product` is null on a miss — an ordinary answer, since a miss is
+ * where the label-read path begins — and `attribution` is null with it, so the two can never be
+ * drawn apart.
+ */
+export interface ProductResponse {
+  product: OffProduct | null;
+  attribution: FoodAttribution | null;
+}
+/** Longest `q` the search accepts — a UUID-length term cannot match a name anyway. */
+export const MAX_FOOD_QUERY = 200;
+/** Page size when `limit` is absent. */
+export const FOOD_SEARCH_LIMIT = 25;
+/** The server never answers with more than this many rows, whatever the client asks for. */
+export const FOOD_SEARCH_MAX_LIMIT = 50;
