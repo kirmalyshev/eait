@@ -139,12 +139,17 @@ export const decimalNumbers = (lang: Lang) => {
 
 /**
  * A WHOLE NUMBER CARRYING ITS SIGN — "+450", "−500" — for the deltas the boards draw signed (the
- * basis rows' "your days" and "your pace"). `Intl`'s `signDisplay` rather than a string stapled
- * in front: the minus it writes is the language's own.
+ * basis rows' "your days" and "your pace"). Hermes' `Intl.NumberFormat` silently ignores
+ * `signDisplay` (#333), so the sign is stapled on here — "+" for a gain, U+2212 for a loss — and
+ * `Intl` is asked only for the magnitude, which it does localize. A small cut keeps its sign: a
+ * pace of −0.3 rounds to −0 and reads "−0", exactly as `signDisplay: "always"` drew it.
  */
 export const signedWholeNumbers = (lang: Lang) => {
-  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0, signDisplay: "always" });
-  return (x: number): string => format.format(Math.round(x));
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0 });
+  return (x: number): string => {
+    const rounded = Math.round(x);
+    return (rounded < 0 || Object.is(rounded, -0) ? "−" : "+") + format.format(Math.abs(rounded));
+  };
 };
 
 /**
