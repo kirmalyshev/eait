@@ -49,11 +49,14 @@ const FAT = solid(
   '<path fill="currentColor" d="M12 2.5c3.7 4.7 6.6 8.5 6.6 12.2a6.6 6.6 0 0 1-13.2 0c0-3.7 2.9-7.5 6.6-12.2z"/>',
 );
 
+// The Cal AI flame, once — the kcal card's icon and the streak chip wear the same shape.
+const FLAME = solid(
+  '<path fill="currentColor" d="M12 1.8c.6 3.2 4 5.4 5.8 8.6 1.2 2.1 1.5 3.9 1.2 5.6-.7 3.7-3.6 6.2-7 6.2s-6.3-2.5-7-6.2c-.4-2.2.3-4.4 1.6-6.1.3 1.5 1.1 2.7 2.3 3.3-.6-3.8 1-8.6 3.1-11.4z"/>',
+);
+
 export const ICONS = {
   // ── The macro set — the filled set, each drawn in its macro colour on a tinted circle ──
-  kcal: solid(
-    '<path fill="currentColor" d="M12 2.2c1 3.2 5.2 5.4 5.2 10.4A5.2 5.2 0 0 1 12 21.8a5.2 5.2 0 0 1-5.2-5.4c0-2.4 1.3-4 2.5-5.2.2 1.7 1 2.7 2.1 3.1-.4-3.3.1-7.5.6-12.1z"/>',
-  ),
+  kcal: FLAME,
   protein: solid(
     '<g fill="currentColor"><ellipse cx="14.3" cy="9.7" rx="6.3" ry="5.4" transform="rotate(-45 14.3 9.7)"/>' +
       '<path d="M10.6 13.4 6.9 17.1" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
@@ -72,10 +75,8 @@ export const ICONS = {
   fat: FAT,
   satfat: FAT,
 
-  // ── The streak chip's flame (Today, the health-sync board) — a full filled flame, drawn here ──
-  streak: solid(
-    '<path fill="currentColor" d="M12 1.8c.6 3.2 4 5.4 5.8 8.6 1.2 2.1 1.5 3.9 1.2 5.6-.7 3.7-3.6 6.2-7 6.2s-6.3-2.5-7-6.2c-.4-2.2.3-4.4 1.6-6.1.3 1.5 1.1 2.7 2.3 3.3-.6-3.8 1-8.6 3.1-11.4z"/>',
-  ),
+  // ── The streak chip's flame (Today, the health-sync board) — the Cal AI flame ──
+  streak: FLAME,
 
   // ── Sex ──
   male: line('<path d="M16 3h5v5"/><path d="m21 3-6.75 6.75"/><circle cx="10" cy="14" r="6"/>'),
