@@ -208,7 +208,10 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     cancel!.addEventListener("click", closeOverlay);
     del!.addEventListener("click", () => {
       closeOverlay();
-      turn(() => api(`${MEAL(meal.id)}`, { method: "DELETE" }));
+      turn(async () => {
+        await api(`${MEAL(meal.id)}`, { method: "DELETE" });
+        closeToDiary();
+      });
     });
     dlg.append(buttons);
     scrim.append(dlg);
