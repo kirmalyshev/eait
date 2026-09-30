@@ -135,9 +135,10 @@ h2 { font-size: 17px; }
 .m { color: var(--muted); } .f { color: var(--faint); }
 .hr { height: 1px; background: var(--hair); }
 
-/* THE ONE COMPOSER (pro.css ".compose"), on Chat and on Today alike: the camera round, the pill
-   field, the send round. ".ib" is the boards' 36 px icon button; the composer wears it at 44 —
-   the tap floor. The ".box" is the boards' field as a real input — at 16 px, not the board's 15:
+/* THE ONE COMPOSER (pro.css ".compose"), on Chat and on Today alike: the camera button, the field,
+   the send button — all at the control radius, never discs or a pill (DIRECTION §5). ".ib" is the
+   boards' 36 px icon button; the composer wears it at 44 — the tap floor. The ".box" is the
+   boards' field as a real input — at 16 px, not the board's 15:
    the floor that keeps iOS from zooming on focus (the a11y gate measures the box). */
 .comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--bg); padding: 6px 0 4px; }
 .compose { display: flex; gap: 10px; align-items: center; }
@@ -146,19 +147,19 @@ h2 { font-size: 17px; }
   border: 0; padding: 0; cursor: pointer; color: var(--ink); }
 .ib .ico { width: 18px; height: 18px; }
 .ib:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.compose .ib { width: 44px; height: 44px; flex-basis: 44px; }
+.compose .ib { width: 44px; height: 44px; flex-basis: 44px; border-radius: var(--r-ctl); }
 .compose .ib .ico { width: 20px; height: 20px; }
 .compose .ib.p { background: var(--accent); box-shadow: none; color: var(--accent-ink); }
 /* The glyph is the masked .ico — painted by the kit's \`.ib .ico\` in ink — so the send arrow takes
-   the button's ink explicitly; the camera round's own glyph keeps it. */
+   the button's ink explicitly; the camera button's own glyph keeps it. */
 .compose .ib.p .ico { background: var(--accent-ink); }
-.compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
+.compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: var(--r-ctl); background: var(--surface);
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
 /* The wrapping field (composerRow's multiline): vertically padded like the input, sized by its
    text where the engine knows field-sizing, capped at five lines and scrolling past them. */
 .compose textarea.box { padding: 13px 16px; line-height: 22px; resize: none;
-  field-sizing: content; border-radius: 24px; max-height: 136px; }
+  field-sizing: content; border-radius: var(--r-ctl); max-height: 136px; }
 .compose .box::placeholder { color: var(--faint); }
 .compose .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .comp-note { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
