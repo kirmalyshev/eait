@@ -12,7 +12,7 @@ import { weightCard } from "../../shared/progress.ts";
 import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { countText, dayMonth, decimalNumbers, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonthOn, decimalNumbers, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import type {
@@ -32,14 +32,12 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const units: UnitSystem = me?.profile.units ?? "metric";
   const n = numbers(lang);
   const nWhole = wholeNumbers(lang);
-  const dm = dayMonth(lang);
   const letters = weekdayLetters(lang);
 
   /** A kg figure the way this account reads it — converted at display, never written back. */
   const wnum = (kg: number): string => n(units === "imperial" ? kgToLb(kg) : kg);
-  const fmtDate = (d: string): string => dm.format(new Date(`${d}T12:00:00Z`));
-
   const zone = me?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const fmtDate = (d: string): string => dayMonthOn(lang, d, localDate(zone));
   const monday = weekStart(localDate(zone));
   const sunday = dateMinus(monday, -6);
 
