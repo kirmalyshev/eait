@@ -72,7 +72,7 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
       for (let i = 0; i < messages.length; i += BATCH) {
         const chunk = messages.slice(i, i + BATCH);
         const payload = chunk.map((m: PushMessage) => ({
-          to: m.to, title: m.title, body: m.body, sound: "default",
+          to: m.to, title: m.title, body: m.body, sound: "default", ...(m.data ? { data: m.data } : {}),
         }));
         // PER CHUNK, because the earlier chunks have already been ACCEPTED by Expo and will be
         // delivered. A throw escaping this loop would report them as failed — and would lose their

@@ -15,6 +15,8 @@ export interface PushMessage {
   to: string;
   title: string;
   body: string;
+  /** What a tap opens, read by the app (ieat-app#1318: `{ mealId }`). */
+  data?: Record<string, string>;
 }
 
 /**

@@ -119,6 +119,11 @@ msgid "thread.firstVerdict.noted"
 msgstr "« {note} » — noté, c'est dans les chiffres."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} kcal"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — un peu haut"
@@ -200,6 +205,21 @@ msgstr "Ce Telegram est connecté au compte eait ouvert avec"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "C'est compté. Il reste {left} kcal aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "C'est compté. {over} kcal au-dessus aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "Calcul des nutriments · 4 sur 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Annulé."
 
@@ -212,6 +232,11 @@ msgstr "Tout le monde a épuisé le quota du jour. Demain, on repart de zéro."
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.fat"
 msgstr "Lipides"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "Repérage des aliments · 2 sur 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -510,8 +535,18 @@ msgstr "Corrigé."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "Envoi de la photo · 1 sur 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "stream.steps.2"
 msgstr "Pesée des portions"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "Estimation des portions · 3 sur 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

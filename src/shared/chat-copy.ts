@@ -151,9 +151,17 @@ export interface StreamCopy {
   weighing: string;
   /** The four steps of the card, in order. */
   steps: readonly [string, string, string, string];
+  /** A queued photo's step line, 1 to 4 (ieat-app#1318). */
+  queue: readonly [string, string, string, string];
 }
 
 const STREAM = (i18n: I18n): StreamCopy => ({
+  queue: [
+    i18n._("stream.queue.0", undefined, { message: "Uploading photo · 1 of 4" }),
+    i18n._("stream.queue.1", undefined, { message: "Finding the food · 2 of 4" }),
+    i18n._("stream.queue.2", undefined, { message: "Weighing portions · 3 of 4" }),
+    i18n._("stream.queue.3", undefined, { message: "Counting nutrients · 4 of 4" }),
+  ],
   reading: i18n._("stream.reading", undefined, { message: "Reading the plate…" }),
   weighing: i18n._("stream.weighing", undefined, { message: "Weighing portions…" }),
   steps: [
@@ -166,6 +174,17 @@ const STREAM = (i18n: I18n): StreamCopy => ({
 
 /** The analyzer's progress words, in one language. */
 export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
+
+/** The one push when a queued photo is counted with the app closed (ieat-app#1318). Figures arrive formatted. */
+export function queuedPushCopy(lang: Lang, v: { names: string; kcal: string; left: string | null; over: string | null }): { title: string; body: string } {
+  const i18n = i18nFor(lang);
+  return {
+    title: i18n._("stream.push.title", { names: v.names, kcal: v.kcal }, { message: "{names} · {kcal} kcal" }),
+    body: v.over !== null
+      ? i18n._("stream.push.over", { over: v.over }, { message: "Counted. {over} kcal over today." })
+      : i18n._("stream.push.left", { left: v.left }, { message: "Counted. {left} kcal left today." }),
+  };
+}
 
 /**
  * Spud's one line while the turn is pending, and it only moves forward: a row outranks the reading
