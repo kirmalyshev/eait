@@ -148,6 +148,23 @@ export function reconcilePage(
     if (!e.failed) continue;
     shaped = withUnanswered(shaped, e.id, scope);
   }
+  // A live answer's focus card and suggestions are not stored (#1229): the page's line for the
+  // same turn — after the user line carrying the bubble's id — or the same line again, keeps them.
+  const kept = new Map<string, ChatResult>();
+  prev.forEach((a, i) => {
+    if (a.role !== "assistant" || a.result.kind !== "answered") return;
+    if (a.stored) { kept.set(a.id, a.result); return; }
+    const u = prev[i - 1];
+    if (u?.role !== "user") return;
+    const at = page.findIndex((f) => f.role === "user" && f.kind === "text" && f.clientId === u.id);
+    const line = page[at + 1];
+    if (at >= 0 && line?.role === "assistant" && line.kind === "text") kept.set(line.id, a.result);
+  });
+  shaped = shaped.map((e) => {
+    const r = e.role === "assistant" ? kept.get(e.id) : undefined;
+    return r !== undefined && e.role === "assistant" && r.kind === "answered" && e.result.kind === "answered" && r.text === e.result.text
+      ? { ...e, result: r } : e;
+  });
   const settled = new Set(inflight);
   for (const e of superseded) settled.delete(e.id);
   const base = prev.filter((e) => !superseded.includes(e));
