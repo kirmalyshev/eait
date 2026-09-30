@@ -31,6 +31,7 @@ const WEB_MODULES = new Set([
   "dates.ts",
   "budget.ts",
   "meal-edit.ts",      // the grams→kcal rescale and the PATCH body (#188) — pure, contract+types
+  "meal-names.ts",     // what a meal is called on one line — pure
   "stream.ts",         // the NDJSON path only — its Lingui-fed readers live in chat-copy.ts
   "outbox.ts",
   "results.ts",
