@@ -646,11 +646,12 @@ export function intakeChart(
       const h = Math.round(v * pxPerKcal);
       return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex };
     }),
-    // Clamped inside the frame, so the newest (bold) caption is not cut at the right edge.
-    labels: values.map((_, i) => ({
-      x: Math.min(8 + i * pitch + Math.round(width / 2), INTAKE.frame - Math.ceil((captions[i]?.length ?? 0) * 12 * 0.66 / 2)),
-      y: INTAKE.labelY, ...skip(i, n),
-    })),
+    // Clamped inside the frame, so neither end caption is cut at the edge.
+    labels: values.map((_, i) => {
+      const half = Math.ceil((captions[i]?.length ?? 0) * 12 * 0.66 / 2);
+      const x = 8 + i * pitch + Math.round(width / 2);
+      return { x: Math.max(half, Math.min(x, INTAKE.frame - half)), y: INTAKE.labelY, ...skip(i, n) };
+    }),
   };
 }
 
