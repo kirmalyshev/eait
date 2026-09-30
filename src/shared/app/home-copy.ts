@@ -106,6 +106,13 @@ export interface HomeCopy {
    * says every surface must make visible.
    */
   floorNote: string;
+  /**
+   * The day note's `{nutrient}` for the saturated-fat constraint — the sentence noun
+   * ("saturated fat"), not the card's short name ("sat fat"). Protein/carbs read their
+   * `name` as-is. The verdicts' inline noun says the same thing through the Lingui catalog,
+   * which the browser bundle may not reach — this is the surface's own copy of the word.
+   */
+  dayNoteSatFat: string;
 
   /** The macro cards, paged: protein/carbs/fat on one, saturated fat/fibre/sugar/sodium on two. */
   macros: {
@@ -197,6 +204,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} left", gramOver: "{grams} over",
     floorNote: "never below {floor}",
+    dayNoteSatFat: "saturated fat",
 
     macros: {
       protein: { name: "protein", left: "Protein left", over: "Protein over", ofTarget: "of {target} protein", chip: "protein {n} g" },
@@ -260,6 +268,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} restants", gramOver: "{grams} en trop",
     floorNote: "jamais en dessous de {floor}",
+    dayNoteSatFat: "graisses saturées",
 
     macros: {
       protein: { name: "protéines", left: "Protéines restantes", over: "Protéines en trop", ofTarget: "protéines sur {target}", chip: "protéines {n} g" },
@@ -323,6 +332,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} übrig", gramOver: "{grams} zu viel",
     floorNote: "nie unter {floor}",
+    dayNoteSatFat: "gesättigte Fette",
 
     macros: {
       protein: { name: "Eiweiß", left: "Eiweiß übrig", over: "Eiweiß zu viel", ofTarget: "Eiweiß von {target}", chip: "Eiweiß {n} g" },
@@ -386,6 +396,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} rimasti", gramOver: "{grams} in eccesso",
     floorNote: "mai sotto {floor}",
+    dayNoteSatFat: "grassi saturi",
 
     macros: {
       protein: { name: "proteine", left: "Proteine rimaste", over: "Proteine in eccesso", ofTarget: "proteine su {target}", chip: "proteine {n} g" },
@@ -449,6 +460,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} restantes", gramOver: "{grams} de más",
     floorNote: "nunca por debajo de {floor}",
+    dayNoteSatFat: "grasas saturadas",
 
     macros: {
       protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "proteína de {target}", chip: "proteína {n} g" },
@@ -512,6 +524,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} còn lại", gramOver: "{grams} vượt quá",
     floorNote: "không bao giờ thấp hơn {floor}",
+    dayNoteSatFat: "chất béo bão hoà",
 
     macros: {
       protein: { name: "đạm", left: "Đạm còn lại", over: "Đạm vượt quá", ofTarget: "trong {target} đạm", chip: "đạm {n} g" },
@@ -575,6 +588,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} mg",
     gramLeft: "{grams} tersisa", gramOver: "{grams} berlebih",
     floorNote: "tidak pernah di bawah {floor}",
+    dayNoteSatFat: "lemak jenuh",
 
     macros: {
       protein: { name: "protein", left: "Protein tersisa", over: "Protein berlebih", ofTarget: "protein dari {target}", chip: "protein {n} g" },
@@ -638,6 +652,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     milligrams: "{n} мг",
     gramLeft: "{grams} осталось", gramOver: "{grams} сверх нормы",
     floorNote: "никогда не ниже {floor}",
+    dayNoteSatFat: "насыщенные жиры",
 
     macros: {
       protein: { name: "белки", left: "Белков осталось", over: "Белков больше нормы", ofTarget: "белков из {target}", chip: "белки {n} г" },

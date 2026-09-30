@@ -1,82 +1,149 @@
-// Home's own styles (W4, #91) — the boards' two-column `wmain` is the shell's; what is here is
-// this surface: the streak chip and the date nav in the bar, the calorie card's two forms, the
-// paged card track and its dot switcher, the health-score row and the per-day score modal,
-// the empty/failed day cards, the proposal card, and the in-diary composer.
-
-import { MOTION } from "../../shared/design.ts";
+// Home's own styles (W4, #91; the F layout, #335) — the boards' two-column `wmain` is the
+// shell's; what is here is this surface: the calendar button in the bar, the week strip's
+// three-week clip, the F day card (the hero, the hairline, the bar rows, the dots inside),
+// the diary column's list/empty/failed states and the day note, the per-day score modal, the
+// photo queue (#1318), and the in-diary composer.
 
 export const todayCss = `
-/* The top bar's right side: the streak chip, then the shared date row (.drow/.darrow are
-   the shell's — Home and You both draw them, #175). frame.bar is a flex row already. */
-
-/* The week's strip sits edge to edge in its column (the boards' margin:-16px bleeds). */
-.weekwrap { margin: 0 -16px; }
-
-/* THE CALORIE CARD. Two forms: the 104 px toggle card only on today with meals logged (tap
-   flips left↔eaten), the 96 px detail card everywhere else. The past-over form colours the
-   figure --bad and reads "kcal over" — the week's rule, said in words. */
-.kcard { display: flex; align-items: center; justify-content: space-between;
-  padding: 18px 20px; }
-.kcard .ktg { display: inline-flex; align-items: center; gap: 3px; border: 0; background: none;
-  padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted);
+/* The top bar's right side: the streak chip, then the boards' calendar button (.calb — 36 px,
+   radius 10, the hairline ring). The ‹ › arrows are gone — the week moves by strip drag, wheel
+   and keys (F, #335). */
+.calb { width: 36px; height: 36px; border: 0; border-radius: 10px; box-shadow: 0 0 0 1px var(--hair);
+  display: flex; align-items: center; justify-content: center; background: var(--surface);
   cursor: pointer; }
-.kcard .ktg .ico { width: 14px; height: 14px; }
-.kcard .ktg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.kcard .kfig { font-size: 44px; font-weight: 700; letter-spacing: -.03em; display: block;
-  line-height: 1.05; }
-/* The boards' two figure sizes: 48 on today's toggle card, 44 on the 96 px detail form. */
-.kcard .kfig.big { font-size: 48px; }
-.kcard.over .kfig { color: var(--bad); }
-.kcard .klab { font-size: 13px; font-weight: 600; color: var(--muted); }
-.kcard .klab .caret { display: inline-block; margin-left: 2px; }
-.kcard .mring { margin: 0; }
+.calb .ico { width: 18px; height: 18px; color: var(--ink); }
+.calb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* THE PAGED TRACK (#1025). Page 1 is the calorie card over the macro set, page 2 the nutrient
-   set and the day's score — BOTH mounted in one clipped row, so the row's height is the taller
-   page's and a turn moves nothing below it. The track is one clip-width wide and translateX
-   pans it one page; the pan runs the settle duration on the register's easing, and the
-   generated reduced-motion block settles it instantly. mpage is a wcol-shaped column so a
-   card inside it keeps the spacing it had as a root child. */
-.mclip { overflow: hidden; }
-/* The side column scrolls; its blocks keep their height rather than shrink into it (a clip's
-   overflow drops its min-height to zero, and page 1 was cut mid-card at phone width). */
-.wcol > .mclip, .wcol > .mcards, .wcol > .kcard, .wcol > .weekwrap { flex-shrink: 0; }
-/* The strip swipes and holds: vertical scroll stays the browser's, the long press is ours. */
-.weekwrap { touch-action: pan-y; -webkit-touch-callout: none; user-select: none; }
-.mtrack { display: flex; transition: transform ${MOTION.settle / 1000}s var(--ease); }
-.mpage { flex: 0 0 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
-/* The pages share the taller one's height, so the shorter one's card row grows to the same
-   bottom edge (#1241): the grid's single row stretches and the cards with it, and the slack
-   lands between the caption and the ring, which stays pinned to the card's bottom. With no
-   slack — the taller page — the auto margin is zero and nothing moves. */
-.mpage > .mcards { flex: 1; }
-.mpage .mcard > small { margin-bottom: auto; }
+/* THE WEEK STRIP — the boards' flat-tint row, the kit's .week/.wtint inside a one-week clip.
+   The strip mounts once: .wtrack carries previous|current|next so a drag pulls the neighbour
+   in — the translateX is in column-widths (-100% is the current week); under the finger the
+   transition is off, past 40 px the 260 ms ease-out slides the week home, short of it the same
+   transition springs back. .rest on a rebuilt week silences the rings' draw-in. */
+.weekwrap { margin: 0 -16px; overflow: hidden; flex-shrink: 0;
+  touch-action: pan-y; -webkit-touch-callout: none; user-select: none; }
+.wtrack { display: flex; transform: translateX(-100%); transition: transform .26s var(--ease); }
+.wtrack > .week { flex: 0 0 100%; box-sizing: border-box; }
+.wtrack > .week.rest .fg { animation: none; }
 
-/* The macro cards: page 1's left-aligned set, page 2's four-up nutrient set, and the compact
-   centred form the empty/logging/past boards draw. mcards.p2 is the four-column page. */
-.mcards.p2 { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-/* The dot switcher — two 6 px dots on 44 px hit areas; the active one is ink. */
-.dots { display: flex; justify-content: center; gap: 6px; margin-top: -2px; }
-.dots button { width: 44px; height: 44px; border: 0; background: none; padding: 0;
+/* THE DAY CARD — one card, two pages in its own clip (the boards' .dayc): the 128 px hero, the
+   hairline, the fixed 160 px row area, the dots inside. .dayw is the .mtip's positioning box. */
+.dayw { position: relative; flex-shrink: 0; }
+.dayc { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
+  overflow: hidden; touch-action: pan-y; }
+.dtrack { display: flex; transition: transform .26s var(--ease); }
+.dpage { flex: 0 0 100%; min-width: 0; box-sizing: border-box; }
+
+/* The kcal hero — 128 px, the figure and the label beside the 96 px ring. The whole band is a
+   button only on today-with-meals (the swap arrows in the label toggle left↔eaten, the 150 ms
+   crossfade on the figure block). Over reads in --over, the unread day dashes, the floor
+   marker rides under the label when the server applied it. */
+.hk { height: 128px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left; }
+button.hk { cursor: pointer; }
+.hk > div { min-width: 0; transition: filter .15s ease; }
+.hk > div.xfd { filter: opacity(0); }
+.hk .fig { display: block; font-size: 48px; font-weight: 700; letter-spacing: -.02em;
+  line-height: 1.05; font-variant-numeric: tabular-nums; }
+.hk .lbl { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--muted); margin-top: 2px; }
+.hk .lbl svg { width: 12px; height: 12px; }
+.hk .floor { display: flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12px;
+  font-weight: 600; color: var(--muted); }
+.hk .floor::before { content: ""; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); }
+.hk.over .fig, .hk.over .lbl { color: var(--over); }
+.hk.dash .fig { color: var(--line); }
+.hk:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.kr { position: relative; width: 96px; height: 96px; flex: 0 0 96px; display: flex;
+  align-items: center; justify-content: center; }
+.kr svg.r { position: absolute; inset: 0; transform: rotate(-90deg); }
+.kr svg.r circle { fill: none; }
+.kr .fl { color: var(--ink); }
+.hk.over .kr .fl { color: var(--over); }
+.hk.dash .kr .fl { color: var(--line); }
+
+/* The score hero — page 2's 128 px band: "Day score · {n}/10 ›" over the ink bar; a real
+   button while the day has a score — it opens the breakdown sheet (the score row is gone). */
+.hsc { height: 128px; display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left; }
+button.hsc { cursor: pointer; }
+.hsc .hrow { display: flex; align-items: center; justify-content: space-between; }
+.hsc .hsct { font-size: 15px; font-weight: 600; }
+.hsc .fig { font-size: 34px; font-weight: 700; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; }
+.hsc .fig small { font-size: 15px; font-weight: 600; color: var(--muted); }
+.hsc.dash .fig { color: var(--line); }
+.hsc:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hsb { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.hsb i { display: block; height: 100%; background: var(--ink); border-radius: 3px; }
+
+/* The hairline between the hero and the rows. */
+.dayc .hl { height: 1px; background: var(--hair); margin: 0 20px; }
+
+/* The row area — fixed 160 px, three or four rows share it evenly, so a page pan never moves
+   the dots or anything under the card. */
+.rows { height: 160px; padding: 16px 20px; display: flex; flex-direction: column;
+  justify-content: space-between; }
+.mrow { display: block; width: 100%; border: 0; background: none; padding: 0; font: inherit;
+  text-align: left; border-radius: 8px; }
+.mrow .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.mrow .h .ico { width: 16px; height: 16px; flex: 0 0 16px; }
+.mrow .h > span { flex: 1; font-weight: 600; }
+.mrow .h b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mrow .h b small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.mrow.ov .h b small { font-weight: 600; color: var(--ink); }
+.mrow .bar { display: block; margin-top: 6px; height: 6px; border-radius: 1px;
+  background: var(--hair); overflow: hidden; }
+.mrow .bar i { display: block; height: 6px; border-radius: 1px; }
+/* A tippable row takes the hovered pill while its tip is open (.hover) or the pointer is on it. */
+.mrow.tip { cursor: pointer; }
+.mrow.tip:hover, .mrow.tip.hover { background: var(--hair); margin: -4px -8px; padding: 4px 8px; }
+.mrow.tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The dots inside the card — two 6 px dots, the active one ink; .none keeps the space on the
+   failed read (the card's height never changes) while the switcher stays out of the tab order. */
+.dayc .dots { display: flex; justify-content: center; gap: 12px; padding: 0 0 14px; }
+.dayc .dots button { width: 24px; height: 24px; border: 0; background: none; padding: 0;
   display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line);
+.dayc .dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line);
   pointer-events: none; }
-.dots button.on i { background: var(--ink); }
-.dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dayc .dots button.on i { background: var(--ink); }
+.dayc .dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dayc .dots.none { visibility: hidden; }
 
-/* The health-score row — the DAY board's columnar form of the kit's hsr (the meal sheet's is
-   a single row; kitCss lands after this file, so the variant scopes itself to .hsr.day). */
-.hsr.day { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
-.hsr.day .hline { display: flex; align-items: center; justify-content: space-between; }
-.hsr.day .hscore { font-weight: 600; }
-.hsr.day .hnum { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hsr.day .chev .ico { width: 16px; height: 16px; color: var(--muted); }
-.hsr.day .hfrom { font-size: 12px; color: var(--muted); }
-/* flex:none — the kit's .hsr .hsb{flex:1} is a row form; in this column a basis of 0% left the
-   track 0 px tall (#170). */
-.hsr.day .hsb { flex: none; }
-.hsb { height: 6px; border-radius: var(--r-bar); background: var(--hair); overflow: hidden; }
-.hsb i { display: block; height: 100%; background: var(--ink); border-radius: var(--r-bar); }
+/* THE DIARY COLUMN — the boards' .hsec title, the .dlist meal card, the .hnote line, the
+   .hempty panel (solid, the log-a-meal door), the .herr retry. The column is a 16-gap flex
+   stack; .home is the element the wcol holds. */
+.home { display: flex; flex-direction: column; gap: 16px; }
+.hsec { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.dlist { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
+  padding: 4px 16px; }
+/* Inside the card's own 4 px the rows keep their 12 px — the kit's first/last padding
+   collapse would clip them otherwise (the boards' dlist .meal set). */
+.dlist .meal, .dlist .meal:first-child, .dlist .meal:last-child { padding: 12px 0; }
+/* The queue box is a child of the list: empty it collapses, and the first meal under it
+   draws no separator over nothing. */
+.dlist .queue:empty { display: none; }
+.dlist .queue:empty + .meal { border-top: 0; }
+.hnote { margin-top: -4px; padding: 0 4px; font-size: 13px; line-height: 18px; color: var(--muted); }
+.hempty { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
+  padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.hempty:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hempty .plate { width: 64px; height: 64px; }
+.herr { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 600; }
+.herr button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  border-radius: 999px; padding: 9px 18px; background: none; font: inherit; font-size: 14px;
+  font-weight: 600; color: var(--ink); cursor: pointer; }
+.herr button .ico { width: 16px; height: 16px; }
+.herr button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The diary column's spinner — the boards' .spin while a day switch fetches. */
+.spin { display: flex; justify-content: center; padding: 28px 0; }
+.spin i { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--hair);
+  border-top-color: var(--muted); animation: k-spin .9s linear infinite; }
+@keyframes k-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin i { animation-duration: 1.6s; } }
 
 /* The per-day score modal — the boards' 440 px card over a dimmed page. */
 .scorewrap { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 36%, transparent); display: flex;
@@ -90,28 +157,6 @@ export const todayCss = `
 a.hsp { color: inherit; text-decoration: none; }
 .hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
 .scorecard .cta { margin-top: 14px; }
-
-/* The meal list's column title ("Recently uploaded" — today.html's d17 over the card). */
-.mealtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
-.meals .meal:first-of-type { border-top: 0; }
-
-/* The empty day — a dashed panel, the plate over one line, centred; the whole panel logs a meal. */
-.emptycard { min-height: 240px; flex: 1 0 auto; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 16px; background: none; box-shadow: none;
-  border: 1.5px dashed var(--line); border-radius: var(--r-card); color: var(--ink);
-  text-decoration: none; text-align: center; padding: 24px; cursor: pointer; }
-.emptycard:hover { border-color: var(--faint); }
-.emptycard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.emptycard .plate { width: 56px; height: 56px; border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--faint); position: relative; }
-.emptycard .plate::after { content: ""; position: absolute; inset: 16px; border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--faint); }
-.emptycard p { font-weight: 600; font-size: 17px; margin: 0; }
-
-/* The couldn't-load day — Spud cares, one line, one retry. The retry is the chat's \`.cta.s.sm\`;
-   a \`.failcard\`-scoped rule cannot out-rank \`.card button.cta\` (#304). */
-.failcard { display: flex; justify-content: center; padding: 56px 16px; }
-.failcard p { font-weight: 600; font-size: 15px; line-height: 1.35; margin: 0; }
 
 /* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
    it, in chat.css) — the boards' logging state draws the ink ring ON the card, where it
@@ -139,6 +184,8 @@ a.hsp { color: inherit; text-decoration: none; }
 .qact { display: flex; gap: 14px; margin-top: 6px; }
 .card .qact button:not(.opt) { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; margin: 0; padding: 6px 0; min-height: 0; border-radius: 0; box-shadow: none; cursor: pointer; }
 .card .qact button:not(.opt) + button:not(.opt) { color: var(--muted); }
+.dlist .qact button { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; margin: 0; padding: 6px 0; min-height: 0; border-radius: 0; box-shadow: none; cursor: pointer; }
+.dlist .qact button + button { color: var(--muted); }
 .qpill { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 3px 9px; text-decoration: none; }
 .qkc { width: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .qdrop { position: fixed; inset: 12px; z-index: 50; border: 3px dashed var(--accent); border-radius: 16px; background: color-mix(in srgb, var(--accent-tint) 72%, transparent); display: flex; align-items: center; justify-content: center; text-align: center; color: var(--accent); pointer-events: none; }
