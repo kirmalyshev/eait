@@ -125,10 +125,11 @@ export interface PushToken {
 export type ChatIntent = RouteResult["intent"];
 
 export type ChatAppend =
-  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null; intent?: ChatIntent | null; analysisId?: string | null }
+  /** `mealId` on a text line: the meal it is about (a correction and its change line), so deleting the meal takes it too (#1227). */
+  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null; intent?: ChatIntent | null; analysisId?: string | null; mealId?: string | null }
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
   | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null; analysisId?: string | null }
-  | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null }
+  | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null; mealId?: string | null }
   | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent; speaker?: ChatSpeaker | null };
 
 /** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
@@ -1031,7 +1032,7 @@ export interface Store {
   carrierLineFor(userId: string, mealId: string): Promise<ChatMessage | null>;
   /** True when this call removed the caller's line. */
   deleteLine(userId: string, lineId: string): Promise<boolean>;
-  /** Every `kind: "meal"` line for the caller's meal; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
+  /** Every non-photo line naming the caller's meal — its cards and what was said about it; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
   deleteMealLines(userId: string, mealId: string): Promise<number>;
   /** True when the caller's line existed and now holds `text`. */
   updateLineText(userId: string, lineId: string, text: string | null): Promise<boolean>;

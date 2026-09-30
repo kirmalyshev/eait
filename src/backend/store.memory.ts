@@ -1105,7 +1105,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         chat.push({
           id: crypto.randomUUID(), userId, seq: ++chatSeq, ts, role: line.role, kind: line.kind,
           text: "text" in line ? line.text : null,
-          mealId: line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null,
+          mealId: line.kind === "meal" ? line.mealId : line.mealId ?? null,
           event: line.kind === "meal" ? line.event : null,
           clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
           pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,
@@ -1161,7 +1161,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       let n = 0;
       for (let i = chat.length - 1; i >= 0; i--) {
         const m = chat[i]!;
-        if (m.userId === userId && m.kind === "meal" && m.mealId === mealId) { chat.splice(i, 1); n++; }
+        if (m.userId === userId && m.kind !== "photo" && m.mealId === mealId) { chat.splice(i, 1); n++; }
       }
       return n;
     },
