@@ -446,8 +446,10 @@ export async function chatScreen(): Promise<HTMLElement> {
   };
 
   // THE ONE COMPOSER (the boards' row): the camera round, the pill field, the send round.
+  // `multiline` — the same opt-in Home takes (#170): the field wraps and grows to the
+  // `.compose textarea.box` cap, then scrolls (ieat-app#1289).
   const comp = composerRow(coachName() !== null
-    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk);
+    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk, { multiline: true });
   const { picker, words, send, count } = comp;
   /** The composer as the mode says: count the picked photos, and name Send for what it sends. */
   const arm = (): void => {
