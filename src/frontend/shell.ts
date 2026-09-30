@@ -629,6 +629,8 @@ export const keptNotice = (uid: string | null): string | null =>
 /** The screen's own redraw while it is up, so a queued turn answered in the background shows. */
 let redraw: (() => Promise<void>) | null = null;
 export const setRedraw = (fn: (() => Promise<void>) | null): void => { redraw = fn; };
+/** Redraw whatever screen is up — the photo queue's rows landing as meals (#1318). */
+export const redrawScreen = (): void => { void redraw?.().catch(() => {}); };
 
 /**
  * What a turn's answer changes on this page: a proposal is held until it is logged or dropped. A

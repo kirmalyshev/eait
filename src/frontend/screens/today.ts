@@ -12,6 +12,7 @@ import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroCardState, macroLeft } from "../../shared/budget.ts";
 import { LANG_TAG, countText, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
+import { enqueue, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { ico, tagx, type ChipName, type WeekDayRow } from "../../shared/ui/kit.ts";
@@ -311,6 +312,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
    *  also leaves the field the full column so its whole placeholder reads. */
   const comp = composerRow(L.webComposerPlaceholder, { camera: false, multiline: true });
   const { words } = comp;
+  words.addEventListener("paste", (e) => {
+    const files = [...(e as ClipboardEvent).clipboardData?.files ?? []].filter((f) => f.type.startsWith("image/"));
+    if (files.length === 0) return;
+    e.preventDefault();
+    viewing = today;
+    void enqueue(files);
+  });
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = words.value.trim();
@@ -358,7 +366,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     }
 
     const isToday = viewing === today;
-    const hasMeals = day !== null && day.meals.length > 0;
+    const queued = isToday && queueLength() > 0;
+    const hidden = queuedMealIds();
+    const shown = day?.meals.filter((m) => !hidden.has(m.id)) ?? [];
+    const hasMeals = shown.length > 0 || queued;
     const logging = heldProposal() !== null || turning;
     // The toggle card and "Recently uploaded" are today-with-meals only; the pages are every day's.
     const rich = isToday && hasMeals && !logging;
@@ -381,7 +392,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       say.append(words);
       card.append(say);
       left.push(card);
-    } else if (day.meals.length === 0) {
+    } else if (!hasMeals) {
       // The whole panel is the log-a-meal action — the upload CTA's own route.
       const card = el("a", "emptycard rise") as HTMLAnchorElement;
       card.href = "#/log";
@@ -392,7 +403,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       left.push(card);
     } else {
       const card = el("div", "card meals");
-      for (const meal of day.meals) {
+      if (isToday) card.append(queueEl());
+      for (const meal of shown) {
         card.append(mealRow(meal, !rich));
       }
       left.push(card);
@@ -501,7 +513,19 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // neither: its right column ends at the dash cards. The composer is page 1's (#170): hidden
     // on page 2 rather than gone, so a drafted line survives the turn.
     if (isToday && day !== null) {
-      if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
+      if (!logging) {
+        // "Upload a photo" joins the queue (#1318); `#/log` stays the empty card's read-in-place flow.
+        const pick = el("input", "visually-hidden") as HTMLInputElement;
+        pick.type = "file";
+        pick.accept = "image/jpeg,image/png,image/webp";
+        pick.multiple = true;
+        pick.tabIndex = -1;
+        pick.setAttribute("aria-label", L.webUploadPhoto);
+        pick.addEventListener("change", () => { viewing = today; void enqueue([...pick.files ?? []]); pick.value = ""; });
+        const upload = ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload" });
+        upload.addEventListener("click", () => pick.click());
+        right.push(upload, pick);
+      }
       comp.form.hidden = page !== 0;
       right.push(comp.form);
     }
