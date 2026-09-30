@@ -576,9 +576,9 @@ export function bmiTick(value: number, range: string): number {
 // ── Apple Health's intake bars ────────────────────────────────────────────────────────────────
 //
 // phone/health.html's "Intake · this week" card: a bar per bucket on a full-width baseline and a
-// dashed ink line at the plan — `weekBars`' bigger sibling on its own frame. Two differences,
-// both the board's: a day over plan stays accent rather than going `bad` (the card reads as a
-// record, not a verdict), and the bucket count is the caller's — 7 days, 26 weeks, 12 months or
+// dashed ink line at the plan — `weekBars`' bigger sibling on its own frame. A bucket over plan
+// reads `bad` as Progress's week does (ieat-app#1231: the same day was red there, green here), and
+// the bucket count is the caller's — 7 days, 26 weeks, 12 months or
 // however many years the window holds — so the pitch is derived, never fixed at seven.
 
 const INTAKE = {
@@ -611,7 +611,7 @@ export function intakeChart(
   /** The dashed plan line, or null when the account has no plan to draw. */
   planLine: { x1: number; x2: number; y: number; dash: string } | null;
   planLabel: { x: number; y: number } | null;
-  bars: ({ x: number; y: number; width: number; height: number; rx: number; today: boolean } | null)[];
+  bars: ({ x: number; y: number; width: number; height: number; rx: number; today: boolean; over: boolean } | null)[];
   /** One caption per bucket, centred on the slot — a bucket with no bar still names itself. */
   labels: { x: number; y: number }[];
 } {
@@ -630,7 +630,7 @@ export function intakeChart(
     bars: values.map((v, i) => {
       if (v === null) return null;
       const h = Math.round(v * pxPerKcal);
-      return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex };
+      return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex, over: planKcal > 0 && v > planKcal };
     }),
     labels: values.map((_, i) => ({ x: 8 + i * pitch + Math.round(width / 2), y: INTAKE.labelY })),
   };
