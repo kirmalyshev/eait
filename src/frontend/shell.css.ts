@@ -156,9 +156,9 @@ h2 { font-size: 17px; }
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
 /* The wrapping field (composerRow's multiline): vertically padded like the input, sized by its
-   text where the engine knows field-sizing, scrollable where it does not. */
+   text where the engine knows field-sizing, capped at five lines and scrolling past them. */
 .compose textarea.box { padding: 13px 16px; line-height: 22px; resize: none;
-  field-sizing: content; border-radius: 24px; }
+  field-sizing: content; border-radius: 24px; max-height: 136px; }
 .compose .box::placeholder { color: var(--faint); }
 .compose .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .comp-note { display: flex; align-items: center; gap: 6px; padding-top: 6px; }
