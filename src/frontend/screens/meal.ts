@@ -365,6 +365,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     grams.addEventListener("input", () => {
       size();
       const g = gramsNow();
+      // Every item at 0 g is no meal (ieat-app#1224); the bin is the way to take the last one off.
+      done.disabled = g === 0 && meal.items.every((it, i) => i === index || it.grams === 0);
       const edited = g !== null && g !== item.grams;
       wasG.hidden = !edited;
       if (wasK !== null) wasK.hidden = !edited;
