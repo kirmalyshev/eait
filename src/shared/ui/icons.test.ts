@@ -86,22 +86,22 @@ describe("the icon set", () => {
     const stroked = iconSvg("send", { color: "#1E6B3C" });
     expect(stroked).toContain('stroke="#1E6B3C"');
     expect(stroked).not.toContain("currentColor");
-    // A solid glyph repaints too — the stem of the drumstick is stroked inside its filled group.
-    const solidGlyph = iconSvg("protein", { color: "#D9483F" });
+    // A solid glyph repaints too — the flame is the set's remaining filled artwork.
+    const solidGlyph = iconSvg("kcal", { color: "#D9483F" });
     expect(solidGlyph).toContain('fill="#D9483F"');
-    expect(solidGlyph).toContain('stroke="#D9483F"');
     expect(solidGlyph).not.toContain("currentColor");
   });
 
   test("nothing bakes a colour: the macro set and the streak take theirs from the caller", () => {
     for (const name of ["kcal", "protein", "carbs", "fat", "satfat", "streak"] as IconName[]) {
       expect(ICONS[name].body, `${name} bakes a hex`).not.toMatch(/#[0-9a-fA-F]{3,8}/);
-      expect(iconSvg(name)).toContain('fill="currentColor"');
+      // F drew the macro set as line glyphs — the parameter is the stroke there, the fill on solids.
+      expect(iconSvg(name)).toContain("currentColor");
     }
   });
 
-  test("saturated fat wears the fat glyph", () => {
-    expect(ICONS.satfat.body).toBe(ICONS.fat.body);
+  test("saturated fat is the fat drop plus its level line", () => {
+    expect(ICONS.satfat.body.startsWith(ICONS.fat.body)).toBe(true);
   });
 
   test("the macro chip is one size, exported once", () => {
@@ -152,7 +152,8 @@ describe("the icon set", () => {
         expect(css).toContain(`center/${MACRO_CHIP.glyphShare * 100}% no-repeat`);
         expect(css).toContain(`width:${MACRO_CHIP.sizeEm}em;height:${MACRO_CHIP.sizeEm}em`);
         const dm = macro.dark[name === "satfat" ? "fat" : name];
-        const encodedDarkInk = encodeURIComponent(`fill="${dm.ink}"`);
+        // The ink lands on `stroke` for a line glyph (F's macro set) and `fill` on a solid (kcal).
+        const encodedDarkInk = encodeURIComponent(`${ICONS[name].style === "line" ? "stroke" : "fill"}="${dm.ink}"`);
         expect(css, `no dark glyph for .i-${name}`).toContain(encodedDarkInk);
       }
       expect(css).toContain(':root[data-theme="dark"]');
