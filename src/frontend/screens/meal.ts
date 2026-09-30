@@ -155,8 +155,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const dlg = el("div", "card mscore rise");
     dlg.setAttribute("role", "dialog");
     dlg.setAttribute("aria-modal", "true");
-    dlg.setAttribute("aria-label", sc.title);
-    const head = kitEl(`<div class="row between"><b class="d d22">${esc(sc.title)}</b>` +
+    dlg.setAttribute("aria-label", sc.mealTitle);
+    const head = kitEl(`<div class="row between"><b class="d d22">${esc(sc.mealTitle)}</b>` +
       `<b class="d d28 num">${esc(fill(sc.outOf, { n: n(hs.score) }))}</b></div>`);
     dlg.append(head, el("p", "t13 m mnote", sc.method));
     dlg.append(scorePartEl({ name: sc.startRow, points: n(hs.base) }));
@@ -524,7 +524,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     // The health score is the SERVER'S (`MealRecord.healthScore`, S10): drawn, never computed here.
     if (meal.healthScore !== null) {
       const row = scoreRowEl({
-        label: sc.title,
+        label: sc.mealTitle,
         score: fill(sc.outOf, { n: n(meal.healthScore.score) }),
         pct: meal.healthScore.score * 10,
       });
