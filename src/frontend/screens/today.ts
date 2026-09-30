@@ -92,8 +92,12 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   picker.tabIndex = -1;
   picker.setAttribute("aria-hidden", "true");
   picker.addEventListener("change", () => {
-    if (picker.value === "" || picker.value > today) return;
-    viewing = picker.value;
+    // The date as a number, never the field's text: `viewing` reaches hrefs and request paths.
+    const ms = picker.valueAsNumber;
+    if (Number.isNaN(ms)) return;
+    const picked = new Date(ms).toISOString().slice(0, 10);
+    if (picked > today) return;
+    viewing = picked;
     void draw();
   });
   const openPicker = (): void => {

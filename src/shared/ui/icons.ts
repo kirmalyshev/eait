@@ -385,9 +385,9 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").repl
 function svg(spec: IconSpec, opts: IconOpts): string {
   const attrs =
     (spec.style === "line"
-      ? ` fill="none" stroke="currentColor" stroke-width="${opts.strokeWidth ?? 1.75}" stroke-linecap="round" stroke-linejoin="round"`
+      ? ` fill="none" stroke="currentColor" stroke-width="${Number(opts.strokeWidth ?? 1.75)}" stroke-linecap="round" stroke-linejoin="round"`
       : ``) +
-    (opts.size !== undefined ? ` width="${opts.size}" height="${opts.size}"` : "") +
+    (opts.size !== undefined ? ` width="${Number(opts.size)}" height="${Number(opts.size)}"` : "") +
     (opts.class ? ` class="${esc(opts.class)}"` : "") +
     (opts.label
       ? ` role="img" aria-label="${esc(opts.label)}"`
