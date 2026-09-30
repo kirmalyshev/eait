@@ -106,12 +106,21 @@ test("a photo the server already logged under its id is not logged again when th
   expect(first.status()).toBe(200);
   expect(await remaining(page)).toBe(before - 1);
 
-  let posts = 0;
-  await page.route("**/api/v1/meals/photo", (r) => (++posts === 1 ? r.abort("connectionreset") : r.fallback()));
+  // Sent turns are counted AT THE NETWORK LAYER, not inside a route — a request can slip past
+  // interception entirely (the resend once reached the server and was answered while a route-side
+  // counter stayed at 1 — the flake this spec died to, #326). The dead first attempt is the
+  // browser's own offline for the same reason: no interception can miss it.
+  const posts: string[] = [];
+  page.on("request", (r) => { if (r.method() === "POST" && /\/meals\/photo$/.test(r.url())) posts.push(new URL(r.url()).pathname); });
+  await page.context().setOffline(true);
   await photo(page, "one lunch, once");
+  // Kept is the gate for going back online: the attempt is dead and queued, never still leaving.
+  await expect(waiting(page)).toHaveCount(1);
+  await page.context().setOffline(false);
+
   await expect(page.locator(".thread")).toContainText("kcal");
   await expect(waiting(page)).toHaveCount(0);
-  expect(posts).toBe(2);
+  expect(posts).toEqual(["/api/v1/meals/photo", "/api/v1/meals/photo"]);
   expect(await userLines(page)).toEqual(["photo:one lunch, once"]);
   expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(1);
   expect(await remaining(page)).toBe(before - 1);
