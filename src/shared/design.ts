@@ -206,12 +206,7 @@ export const MOTION = {
  *
  * `.count` renders an integer into an EMPTY element via the `--n` property counting to `--to`; a
  * unit goes outside it, and decimals and months do not count. Stagger is the `--d` custom property.
- *
- * The fades run on `filter:opacity()`, never the `opacity` property: the frames drawn are the
- * same, but axe's contrast pass reads `opacity` mid-flight as a blended foreground and reports
- * the resting palette as a violation (#362; the `settle` waits in app-a11y-axe exist for #228's
- * same read). `filter` would be the one containing-block side-effect `opacity` never had, and the
- * `transform` in the same keyframes already confers it while the animation runs.
+ * Fades use `filter:opacity()` so axe reads settled colours mid-animation (#362).
  */
 export function motionCss(): string {
   const ease = `cubic-bezier(${MOTION.ease.map((n) => String(n).replace(/^0\./, ".")).join(",")})`;
