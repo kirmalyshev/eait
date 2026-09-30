@@ -294,6 +294,16 @@ export const weekdayLetters = (lang: Lang): string[] => {
 };
 
 /**
+ * The seven SHORT weekday names the F week strip captions its cells with — "Mon"…"Sun",
+ * uppercased by the stylesheet's rule (MON…SUN, #1288). Same reasoning as `weekdayLetters`:
+ * CLDR's `short`, never a table, the UTC-noon anchor holding the day.
+ */
+export const weekdayShort = (lang: Lang): string[] => {
+  const fmt = new Intl.DateTimeFormat(LANG_TAG[lang], { weekday: "short", timeZone: "UTC" });
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2026, 8, 21 + i, 12))));
+};
+
+/**
  * The forms one counted noun needs, keyed by CLDR plural category. `other` is required because
  * every language has it and it is the fallback for a category the writer did not fill; the rest
  * are only the ones the language's own grammar asks for (`vi` and `id` have just `other`, `ru`

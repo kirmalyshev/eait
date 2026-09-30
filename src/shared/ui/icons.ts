@@ -237,6 +237,8 @@ export const ICONS = {
   "chevron-right": line('<path d="M9 5l7 7-7 7"/>'),
   "chevron-down": line('<path d="M6 9l6 6 6-6"/>'),
   "chevron-up": line('<path d="M6 15l6-6 6 6"/>'),
+  /** The F kcal hero's ring centre — the boards' stroked flame, not the Cal-AI filled one. */
+  flame: line('<path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/>'),
   /** The kcal hero's toggle (F, ieat-app#1291): an up-arrow beside a down-arrow — "this swaps". */
   swap: line('<path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/>'),
   x: line('<path d="M6 6l12 12M18 6L6 18"/>'),

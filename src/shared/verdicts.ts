@@ -100,6 +100,15 @@ export function verdictNoun(dimension: VerdictDimension, lang: Lang): string {
 }
 
 /**
+ * The INLINE noun alone — `verdictInlineLabel`'s first word with no verdict — mid-sentence case
+ * ("saturated fat"). Home's day note names the constraining nutrient inside a sentence, where
+ * the standalone noun's capital would sit wrong (`"{grams} g of {nutrient} to go"`, F's `.hnote`).
+ */
+export function verdictInlineNoun(dimension: VerdictDimension, lang: Lang): string {
+  return INLINE_NOUN[dimension](i18nFor(lang));
+}
+
+/**
  * One verdict inside a diary row — "calories high", "saturated fat very high" — the pill's words
  * in mid-sentence case. `verdict.bad` stays "very high" everywhere it already reads: `bad` is a
  * share of the day's allowance (`shareVerdict`), never a claim that the plan was exceeded.

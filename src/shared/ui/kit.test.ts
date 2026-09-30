@@ -74,22 +74,26 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     // `when` drives the classes: today is .now, future is .fut, an empty past day is neither.
     expect(m).toContain('class="dy now"');
     expect(m.match(/class="dy fut"/g)).toHaveLength(3);
-    // A logged day carries the tone dayRing computed — the 1500-kcal day is over the 1434 plan.
+    // A logged day carries the tone dayRing computed — the 1500-kcal day is over the 1434 plan —
+    // and F draws the over ring in `--over`, the calmer dark red, never `--bad`.
     const over = dayRing(days[1]!, 1434);
     expect(over.tone).toBe("bad");
-    expect(m).toContain('stroke="var(--bad)"');
+    expect(m).toContain('stroke="var(--over)"');
     // The empty past day is the dotted placeholder; the future ones are the same, at .fut.
     expect(m).toContain('stroke-dasharray="2 3"');
-    // The date number sits centred in the ring, the weekday letter above it.
+    // The date number sits centred in the ring, the SHORT weekday name above it (F: MON…SUN,
+    // uppercased by the stylesheet, not the single letter).
     expect(m).toContain("<b>24</b>");
-    expect(m).toContain(">M<svg");
+    expect(m).toContain('class="dl">Mon</span><svg');
+    // The raised cell is the ONE flat tint — `a3` marks THU's left edge — not a raised button.
+    expect(m).toContain('<i class="wtint a3" aria-hidden="true"></i><button');
   });
 
   test("a past-or-today day is a real button; a future day is markup, not a control", () => {
     const m = weekStrip(days, "en");
     expect(m.match(/<button type="button" class="dy/g)).toHaveLength(4);
     expect(m.match(/<span class="dy fut"/g)).toHaveLength(3);
-    expect(m.match(/aria-hidden="true"/g)).toHaveLength(3); // the fut cells' rings are decorative
+    expect(m.match(/aria-hidden="true"/g)).toHaveLength(4); // the fut cells' rings and the tint are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
     expect(m).toContain('viewBox="0 0 30 30"');
     expect(m).toContain('stroke-width="2.4"');
@@ -387,7 +391,10 @@ describe("kitCss — the numbers the boards measure", () => {
     expect(css).toContain(".week svg{width:32px;height:32px");
     // The 2.4 stroke itself is a markup attribute (checked on weekStrip above), not a rule.
     expect(rule(".week .dy b")).toContain("position:absolute");
-    expect(rule(".week .dy.now")).toContain("background:var(--surface)");
+    // F's raised cell is the flat `.wtint` — the kcal tint, radius 12, no shadow — so `.now`
+    // inks the lettering and nothing more; the tint is what `background`s.
+    expect(rule(".week .dy.now")).toContain("color:var(--ink)");
+    expect(rule(".week .wtint")).toContain("background:var(--macro-kcal-t)");
     expect(rule(".week .dy.fut")).toContain("opacity:.45");
   });
 
