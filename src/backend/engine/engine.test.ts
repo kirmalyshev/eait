@@ -13,7 +13,7 @@ import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, redateMeal, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, redateMeal, stepApplies, type EngineDeps,
 } from "./index.ts";
 import { MAX_DAY_OFFSET } from "../llm/port.ts";
 
@@ -2085,14 +2085,6 @@ describe("diary", () => {
     const entry = (await chatHistory(deps, userId, { limit: 10 })).entries.find((e) => e.kind === "meal");
     if (entry === undefined || entry.kind !== "meal") throw new Error("no meal entry");
     expect(entry.meal?.healthScore?.score).toBe(res.analysis.healthScore!.score);
-  });
-
-  it("returns per-day sums for the week", async () => {
-    const userId = await onboard();
-    await logPhotoMeal(deps, userId, photo());
-    const days = (await week(deps, userId, 7))!;
-    expect(days).toHaveLength(1);
-    expect(days[0]!.date).toBe(localDate("Europe/Berlin"));
   });
 });
 

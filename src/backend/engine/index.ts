@@ -17,7 +17,7 @@ export { handleText, type HandleTextInput } from "./text.ts";
 export { deleteLine, deleteMealById, editLine, type EditLineInput } from "./lines.ts";
 export { coachTurn, coachTools, recentLines, COACH_HISTORY_LINES } from "./coach.ts";
 export { appendLines, chatHistory } from "./chat.ts";
-export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
+export { day, days } from "./diary.ts";
 export { weights, mergedWeights } from "./weights.ts";
 export {
   collectPushReceipts, dailyNotification, eveningSweep, msUntilNextEveningLine, notificationCopy,

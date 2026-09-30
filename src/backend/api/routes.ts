@@ -31,11 +31,11 @@ import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
+  appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
-  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
+  recordHealthDays, recordOnboardingEvents, signInWithProvider, weights, type EngineDeps,
   attachPhotos,
   reanalyzeMeal, redateMeal,
 } from "../engine/index.ts";
@@ -868,15 +868,6 @@ export function createRouter(
         }
         const view = await day(deps, userId, date ?? undefined);
         return view ? json(view) : json({ error: "not-onboarded" }, 403);
-      }
-
-      if (req.method === "GET" && pathname === ROUTES.week) {
-        const days = Number(url.searchParams.get("days") ?? 7);
-        if (!Number.isInteger(days) || days < 1 || days > MAX_WINDOW_DAYS) {
-          return json({ error: `days must be an integer in [1, ${MAX_WINDOW_DAYS}]` }, 400);
-        }
-        const totals = await week(deps, userId, days);
-        return totals ? json({ days: totals }) : json({ error: "not-onboarded" }, 403);
       }
 
       if (req.method === "GET" && pathname === ROUTES.days) {

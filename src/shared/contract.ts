@@ -102,20 +102,6 @@ export interface Limits {
    */
   sampleRemaining: number;
   /**
-   * How many days back the diary can be asked about, counting today.
-   *
-   * IT BOUNDS THE MARKS, NOT THE DAYS. The date picker draws a month at a time and marks the days
-   * that have meals on them; the marks come from `GET /v1/diary/week`, which refuses a window
-   * wider than this. `GET /v1/diary/day` refuses nothing — it validates the shape of a date and
-   * no more — so a day outside this window is still perfectly viewable, and the picker still
-   * offers it. What the picker cannot do out there is say whether it has meals on it.
-   *
-   * Sent rather than compiled in, because that boundary is where the app is most tempted to
-   * invent: a month drawn with no dots is indistinguishable from a month nobody ate in, and
-   * neither the label nor the footer may claim the second when it only knows the first.
-   */
-  diaryWindowDays: number;
-  /**
    * The server's budget for ONE model call, in ms — `EAIT__BACKEND__LLM_TIMEOUT_MS` as this server
    * is actually running it.
    *
@@ -158,18 +144,6 @@ export const MAX_PHOTOS_PER_MEAL = 4;
  * stops one date being stored twice; it does nothing about a client that simply never repeats one.
  */
 export const HEALTH_RETENTION_DAYS = 5 * 365 + 1;
-
-/**
- * How far back the diary answers for. THE AUTHORITY, imported by the route that enforces it and
- * sent to the app in `Limits.diaryWindowDays` — one number, not a matched pair. Tied to the
- * health horizon for the reason given there.
- *
- * DEPRECATED (#103) with the `days`-window read it bounds — see {@link ROUTES.week}. The range
- * read's bound is {@link DIARY_RANGE_MAX_DAYS}, a contract constant rather than a sent limit for
- * the same reason `MAX_HEALTH_DAYS_PER_BATCH` is one: it is not env-configured, so the shared
- * package is already the single authority on both sides.
- */
-export const DIARY_WINDOW_DAYS = HEALTH_RETENTION_DAYS;
 
 /**
  * The widest span `GET /v1/diary/days` answers, in calendar days. Thirty-one is a month: the
@@ -310,12 +284,6 @@ export const ROUTES = {
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
   pending: "/v1/meals/pending",
   day: "/v1/diary/day",
-  /**
-   * DEPRECATED (#103), still served. The App Store binary in the field calls it for the picker's
-   * marks and the health screen's intake series, and that binary outlives this deploy. New work
-   * asks {@link ROUTES.days}, which answers a `from`/`to` range with a streak attached.
-   */
-  week: "/v1/diary/week",
   /**
    * GET `?from=YYYY-MM-DD&to=YYYY-MM-DD` — every calendar day of the range, at most
    * {@link DIARY_RANGE_MAX_DAYS} of them, plus the logged-day streak. Future days inside the
@@ -1110,11 +1078,6 @@ export interface DayResponse {
    * #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored.
    */
   healthScore: number | null;
-}
-
-/** DEPRECATED with {@link ROUTES.week} (#103) — superseded by {@link DaysResponse}. */
-export interface WeekResponse {
-  days: DayTotals[];
 }
 
 /**

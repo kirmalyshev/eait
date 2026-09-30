@@ -167,7 +167,7 @@ describe("auth", () => {
   });
 
   it("401s every other route without a token", async () => {
-    for (const p of [ROUTES.profile, ROUTES.day, ROUTES.week]) {
+    for (const p of [ROUTES.profile, ROUTES.day, ROUTES.days]) {
       expect((await get(p)).status).toBe(401);
     }
     expect((await post(ROUTES.messages, { text: "hi" })).status).toBe(401);
@@ -724,14 +724,6 @@ describe("diary", () => {
     expect((await get(`${ROUTES.day}?date=2026-02-31`, token)).status).toBe(400);
     expect((await get(`${ROUTES.day}?date=nope`, token)).status).toBe(400);
   });
-
-  it("400s an out-of-range week window", async () => {
-    const token = await session();
-    expect((await get(`${ROUTES.week}?days=0`, token)).status).toBe(400);
-    expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS + 1}`, token)).status).toBe(400);
-    // The intake series on the health screen covers the same span as the health rows.
-    expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS}`, token)).status).toBe(200);
-  });
 });
 
 // ── The range reads (#84) ───────────────────────────────────────────────────────────────────
@@ -831,8 +823,8 @@ describe("the days read", () => {
     expect((await get(`${ROUTES.days}?from=${dateMinus(today, 31)}&to=${today}`, token)).status).toBe(400);
     expect((await get(`${ROUTES.days}?from=${dateMinus(today, 30)}&to=${today}`, token)).status).toBe(200);
 
-    // A fresh account answers like the sibling diary reads: an empty diary is not a refusal —
-    // `day` and `week` both answer one, and so does this: every row empty, streak zero.
+    // A fresh account answers like the sibling diary read: an empty diary is not a refusal —
+    // `day` answers one, and so does this: every row empty, streak zero.
     const { token: fresh } = await (await post(ROUTES.authDevice, {
       deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en",
     })).json() as { token: string };

@@ -1,27 +1,13 @@
-// The diary reads — one day, the (deprecated) rolling window, and the `from`/`to` range the
-// Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
+// The diary reads — one day, and the `from`/`to` range the Register P boards draw: Home's week
+// strip, Progress's "This week" bars, and the streak.
 
 import {
-  dateMinus, dayHealthScore, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
-  verdictLabels, windowStart,
-  type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
+  dateMinus, dayHealthScore, explainTargets, HEALTH_RETENTION_DAYS, localDate, localTime,
+  verdictInlineText, verdictLabels, windowStart,
+  type DayResponse, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
-
-/**
- * Longest window the week view will return.
- *
- * Re-exported from the contract rather than declared here, because the app is TOLD this number —
- * `Limits.diaryWindowDays` — so the diary's date picker knows where its marks stop being real.
- * It bounds the MARKS and not the days: `day` below answers for any date, and the picker offers
- * every past one. Two copies of a bound one side enforces and the other draws is a picker that
- * claims "nothing logged" about days this query never covered.
- *
- * DEPRECATED (#103) with the route it bounds — kept for the App Store binary in the field. New
- * work reads the `from`/`to` range below.
- */
-export const MAX_WINDOW_DAYS = DIARY_WINDOW_DAYS;
 
 /** One day. Null when the user has no profile — the surface turns that into a 403. */
 export async function day(
@@ -54,21 +40,6 @@ export async function day(
 }
 
 /**
- * DEPRECATED (#103). The rolling per-day totals the old picker and health screen read — days that
- * have meals, newest first, over the last `days` days. The range read below supersedes it.
- */
-export async function week(
-  deps: EngineDeps,
-  userId: string,
-  days: number,
-): Promise<DayTotals[] | null> {
-  const profile = await deps.store.getProfile(userId);
-  if (!profile) return null;
-  const today = localDate(deps.config.timezone);
-  return deps.store.totalsSince(userId, windowStart(today, days));
-}
-
-/**
  * The range read (#84): every calendar day of `[from, to]` — logged days carrying their kcal,
  * empty past days zeroed, future days null — the account's logged-day streak, and its calorie
  * target sent once.
@@ -96,7 +67,7 @@ export async function days(
   const today = localDate(zone);
   const targetKcal = explainTargets(profile).targets.kcal;
 
-  const rows = await deps.store.totalsSince(userId, windowStart(today, DIARY_WINDOW_DAYS));
+  const rows = await deps.store.totalsSince(userId, windowStart(today, HEALTH_RETENTION_DAYS));
   const totals = new Map(rows.filter((r) => r.date <= to && r.date >= from).map((r) => [r.date, r]));
 
   const out: DiaryDay[] = [];

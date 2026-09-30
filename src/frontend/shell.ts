@@ -75,7 +75,6 @@ type Under<P extends string> = P extends `/v1${infer R}` ? R : never;
 export const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 export const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 export const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
-export const WEEK: Under<typeof ROUTES.week> = "/diary/week";
 export const DAYS: Under<typeof ROUTES.days> = "/diary/days";
 // The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
 // still the path `ROUTES` spells, under `/api/v1`.
