@@ -84,7 +84,11 @@ export function normalizePromptText(raw: string, maxLen = 300): string {
 export const MealItemSchema = z.object({
   name: z.string().min(1),
   grams: z.number().nonnegative(),
-  name_en: z.string().optional(),
+  // Optional in the SHAPE — a missing one must not reject the analysis — but the description is
+  // the ask: a single-value enum and an optional string are both fields a weak model reads as
+  // "fill me everywhere / never", and qwen3-vl did exactly that on all nine audited reads (#317).
+  name_en: z.string().optional()
+    .describe("Canonical English name for lookups, never displayed. Set it on every item."),
   kcal: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
   carbs_g: z.number().nonnegative(),
@@ -92,7 +96,8 @@ export const MealItemSchema = z.object({
   kcal_per_100g: z.number().nonnegative(),
   // Cooking fat is an ITEM, never a silent addition to another item's numbers. The user has to be
   // able to see it before they can take it off.
-  role: z.enum(["cooking-fat"]).optional(),
+  role: z.enum(["cooking-fat"]).optional()
+    .describe("Set ONLY on the one item that is the fat the meal was cooked in. Omit on every other item."),
 });
 
 /**
@@ -176,8 +181,8 @@ Rules:
 - If ONE answer from the eater would change the numbers most, put it in question — the question in the reply language, 2–4 short options, the most likely first. Examples: cooked in oil or dry; small, medium or large plate; chicken or turkey. Otherwise null. Never ask about the user's body or goals.
 - Weights are grams of the food as served. Liquids in grams too.
 - Large or heaped portions are usually under-read: food behind the front row is hidden. When items overlap or the plate is heaped, estimate depth, not just area.
-- When you infer cooking fat from sheen, frying or dressing, list it as its own item with role: "cooking-fat" (for example name "Olive oil (cooking)", name_en "cooking oil"), never folded silently into another item's numbers.
-- name is what the user reads, and it MUST be written in the requested reply language — whatever country the user eats in, and whatever language the food's name comes from. A user reading English gets "Roast chicken", never "Gebratenes Hähnchen". name_en is a separate canonical English name used only for lookups and is never displayed.
+- When you infer cooking fat from sheen, frying or dressing, list it as its own item with role: "cooking-fat" (for example name "Olive oil (cooking)", name_en "cooking oil"), never folded silently into another item's numbers. That mark belongs to that one row alone — no other item carries a role.
+- name is what the user reads, and it MUST be written in the requested reply language — whatever country the user eats in, and whatever language the food's name comes from. A user reading English gets "Roast chicken", never "Gebratenes Hähnchen". name_en is a separate canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
@@ -319,11 +324,11 @@ Rules:
 Producing an analysis (for "meal" and "correction"):
 1. Identify every distinct food and drink they named. Name each one in the user's language.
 2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight. Where they gave no quantity, use one ordinary serving.
-3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise.
+3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 - Do not invent food they did not mention, and do not drop food they did.
 - Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
-- name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed.
+- name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences. No preamble, no advice, no disclaimers.
 - Estimate. Do not refuse and do not ask questions — you will never get an answer.`;
 
@@ -344,7 +349,7 @@ export const SYSTEM_TEXT_MEAL = `You estimate the nutritional content of a meal 
 Work in this order:
 1. Identify every distinct food and drink they named. Name each one in the user's language.
 2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight for that item. Where they gave no quantity at all, use one ordinary serving.
-3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise.
+3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 
 Rules:
@@ -353,7 +358,7 @@ Rules:
 - Do not invent food they did not mention, and do not drop food they did.
 - Weights are grams of the food as served. Liquids in grams too.
 - Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
-- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
+- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
@@ -404,7 +409,7 @@ Rules:
 - Do not invent food they did not mention, and do not drop food they did not take off.
 - Weights are grams of the food as served. Liquids in grams too.
 - Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. scale is null unless a photograph is attached and gives one.
-- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
+- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
