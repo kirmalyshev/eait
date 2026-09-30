@@ -310,7 +310,9 @@ const W_TREND_WEEKLY_SPAN_DAYS = 120;
  * noise. `t` is epoch ms or a day index — the constants are days, scaled by whichever the caller
  * sent (a day index is never a billion; an epoch-ms reading always is). Sparse logs come through
  * untouched — a window holding one reading returns it — and the endpoints keep their dates, so
- * the line still runs first weigh-in to last and the end labels still name real values.
+ * the line still runs first weigh-in to last. The labels at the ends name what the line ends ON
+ * (`firstValue`/`lastValue`), never the raw readings; the card's big figure stays the latest
+ * weigh-in, which the callers hold separately.
  *
  * A rolling mean smooths without thinning: a daily log stays one point a day, and past
  * `W_TREND_MAX_POINTS` the frame cannot carry them — so a crowded series is sampled back to a
@@ -345,6 +347,13 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /**
+   * The drawn endpoints' values, in the caller's own unit — what the end labels must name
+   * (#1114): the TREND's first and last points, so a label anchored to the line's end can never
+   * quote a reading the line no longer ends at. Null on an empty log.
+   */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   dateLabelY: number;
@@ -368,6 +377,8 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
     viewBox: f.viewBox,
     gridlines: f.gridlines ?? [],
     points: pts,
+    firstValue: points[0]?.kg ?? null,
+    lastValue: points[points.length - 1]?.kg ?? null,
     // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: f.x0, y: f.firstLabelY },
@@ -405,6 +416,9 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /** The trend's first and last values — what the end labels name (#1114). Null when empty. */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   /** The y of the two date captions; their x's are the axis ends. */
@@ -747,6 +761,9 @@ export function bodyWeightChart(points: readonly WeightPoint[]): {
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /** The trend's first and last values — what the end labels name (#1114). Null when empty. */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   dateLabelY: number;

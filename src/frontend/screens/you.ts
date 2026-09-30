@@ -14,6 +14,7 @@ import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
+import { weightChart } from "../../shared/ui/charts.ts";
 import { dayMonth, dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
@@ -147,10 +148,13 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       }));
       const first = w.weights[0], last = w.weights.at(-1);
       const chart = el("div", "wchart");
+      // The end labels name the TREND's endpoints — the values the line actually ends on
+      // (#1114); the card's own figures still read the real weigh-ins.
+      const trend = weightChart(points, targetLane !== undefined);
       chart.append(weightChartEl(points, {
         aria: you.weightLabel,
-        first: first ? wnum(first.kg) : "",
-        last: last && w.weights.length > 1 ? wnum(last.kg) : "",
+        first: first && trend.firstValue !== null ? n(trend.firstValue) : "",
+        last: last && w.weights.length > 1 && trend.lastValue !== null ? n(trend.lastValue) : "",
         from: first ? fmt(first.date) : "",
         to: last && w.weights.length > 1 ? fmt(last.date) : "",
       }, targetLane));
