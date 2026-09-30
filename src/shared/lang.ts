@@ -432,7 +432,7 @@ export const ALL_LANGS: readonly Lang[] = LANGS;
 
 /** One table that claims to speak a language it has no words in. */
 export interface LocalizedGap {
-  /** Where it is, as a path through the module's exports: `GOAL_CARDS.lose`. */
+  /** Where it is, as a path through the module's exports: `CHAT_COPY`. */
   table: string;
   lang: Lang;
 }

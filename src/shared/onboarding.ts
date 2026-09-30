@@ -16,12 +16,12 @@
 // enforced on the WRITE, so bad copy never reaches a phone.
 //
 // WHAT IS *NOT* HERE, AND WHY. The conversation AROUND the questions — Spud's reply to each answer,
-// the support cards and their sourced statistics, the branch logic that makes a reply speak to the
-// branch taken — lives in `onboarding-chat.ts`, compiled in, under test, and NOT admin-editable.
-// Those cards carry citations ("about 42% of adults", "n = 1.18M"), and an admin who edits a
-// statistic ships an unsubstantiated health claim to every phone with no gate in front of it. The
-// same reasoning that puts `claims.ts` in front of the landing page's copy keeps those sentences in
-// code. `product/design/onboarding/copy.md` is the source of truth for both halves.
+// the stop cards, the branch logic that makes a reply speak to the branch taken — lives in
+// `onboarding-chat.ts`, compiled in, under test, and NOT admin-editable: a reply is chosen BY the
+// branch, and a text box can hold a sentence but not the branch that chose it. The figures inside
+// the replies are computed rather than typed — the share cap's percentage is READ from
+// `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE`. `product/design/onboarding/copy.md` is the source of
+// truth for both halves.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
 // FIELD-DERIVED, NOT A STEP COUNTER. The current question is whichever field is still null. A

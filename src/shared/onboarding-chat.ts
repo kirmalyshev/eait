@@ -4,16 +4,15 @@
 // WHY THIS IS SHARED AND PURE, AND WHY IT IS NOT ADMIN-EDITABLE
 //
 // SHARED, because it is where the branch logic lives, and branch logic is exactly the part that
-// `bun test` has to be able to reach without a simulator. The support card for "diets that didn't
-// stick" reads the goal chosen six steps earlier and swaps its citation for one that is about the
-// direction taken; that is a rule, and a rule nobody can run is a rule that drifts.
+// `bun test` has to be able to reach without a simulator. The on-track caption reads the struggles
+// picked one beat earlier and lets the first of them write it; the pace result reads the
+// projection's computed rate. Those are rules, and a rule nobody can run is a rule that drifts.
 //
-// NOT EDITABLE, because these sentences carry SOURCED STATISTICS — "about 42% of adults", "n =
-// 1.18M", "2.8% of adults meet the criteria". `product/design/onboarding/copy.md` states the rule
-// as "never bend a citation". An admin text box in front of a health statistic is an
-// unsubstantiated health claim one typo away from every phone, with no gate in front of it — the
-// thing `landing/claims.ts` exists to stop happening in public copy. The QUESTIONS Spud asks are
-// editable (`onboarding.ts`, `asks`); the conversation around them is code.
+// NOT EDITABLE, because which line a case takes IS this file, and the figures inside the lines are
+// computed — the share cap's percentage is READ from `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE`, the
+// healthy-weight floor from `minHealthyWeightKg` — never typed. An admin text box can hold a
+// sentence; it cannot hold the branch that chose it. The QUESTIONS Spud asks are editable
+// (`onboarding.ts`, `asks`); the conversation around them is code.
 //
 // THE THREE RULES EVERY REPLY OBEYS (copy.md § Context model), each with a test:
 //   1. Speak to the branch taken, never to "whatever" was chosen. A reply that works for any goal
@@ -33,7 +32,7 @@
 //
 // THERE WERE FOUR. "Why now", "the hardest moment" and "eating out" were cut on 2026-08-26 under
 // rule 2: each wrote a value — a bucket, a moment, a frequency — that nothing in `src/` ever read
-// back. `struggles` stayed because it picks the support cards that appear one sentence later.
+// back. `struggles` stayed because it picks the on-track caption that appears one beat later.
 
 import {
   DIETS, MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MEDICAL_TAGS, MIN_AGE, MIN_WEIGHT_KG, dietOf,

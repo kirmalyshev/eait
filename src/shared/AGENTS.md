@@ -351,13 +351,12 @@ will ever use it, it does not belong here — put it in that side and keep this 
   backend admin. `validateOnboardingContent` enforces that boundary ON THE WRITE, so bad copy never
   reaches a phone; an admin can rewrite every question and cannot produce a target computed from a
   value nobody chose.
-- **The REPLIES and the support cards are code, not copy.** `src/shared/onboarding-chat.ts` holds
-  the branch logic and every sourced statistic ("about 42% of adults", "n = 1.18M"). An admin text
-  box in front of a health statistic is an unsubstantiated claim one typo away from every phone,
-  with no gate in front of it — the thing `landing/claims.ts` exists to stop in public copy. Two
-  percentages in that file are READ from `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE` rather than typed.
-  Three rules hold over every reply and each has a test: speak to the branch taken, deliver a stat
-  once, and never lean on structure the user cannot see.
+- **The REPLIES are code, not copy.** `src/shared/onboarding-chat.ts` holds the branch logic —
+  which line a case takes — and the figures inside the lines are computed: the share cap's
+  percentage is READ from `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE` rather than typed. An admin text
+  box can hold a sentence, not the branch that chose it. Three rules hold over every reply and each
+  has a test: speak to the branch taken, a question earns its place by having a reader, and never
+  lean on structure the user cannot see.
 - **Onboarding content is fetched at runtime, so both directions of drift are normal.** A shipped
   app outlives its server. The app walks `CHAT_PROMPTS`, which is compiled in, so a screen from a
   newer server is carried and never rendered; `usableContent` discards a whole revision from an
