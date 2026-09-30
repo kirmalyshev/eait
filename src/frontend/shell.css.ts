@@ -95,6 +95,9 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   .wnav a.on .lbl::after { bottom: 0; }
   .wtop .wr { flex: 0 0 100%; justify-content: flex-end; }
   .wmain { padding: 20px 16px 32px; grid-template-columns: 1fr; }
+  /* One column, the phone's order (F, #335): the side column's strip, day card, CTA and
+     composer come first, then the diary column's list. */
+  .wmain > section.wcol { order: -1; }
 }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 700; letter-spacing: -.02em; }

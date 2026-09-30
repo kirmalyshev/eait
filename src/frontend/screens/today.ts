@@ -27,7 +27,7 @@ import {
   blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, weekStripEl,
 } from "../kit.ts";
 import {
-  COPY, DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
+  DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
   keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
@@ -114,8 +114,37 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     viewing = next;
     void draw();
   };
+  /** The day card's page pan — bound when the card mounts; arrows do days until then. */
+  let cardPan: (d: -1 | 1) => boolean = () => false;
+  /** A day back or forward — never past today, so a future day is never asked for. */
+  const shiftDay = (by: -1 | 1): void => {
+    const to = dateMinus(viewing, -by);
+    if (to > today || to === viewing) return;
+    viewing = to;
+    void draw();
+  };
 
-  // ── The bar: the streak chip, then the week's arrows around the calendar ─────────────────
+  // ←/→ move the day, Shift+←/→ move the week — the strip's own moves, on keys (F, #335).
+  // While the day card has focus they pan its pages instead. A drawn-over screen drops the
+  // listener itself: `wrap` is gone from the document, so the first event after unmount
+  // removes it.
+  const onKey = (e: KeyboardEvent): void => {
+    if (!wrap.isConnected) {
+      document.removeEventListener("keydown", onKey);
+      return;
+    }
+    const t = e.target as HTMLElement | null;
+    if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const d = e.key === "ArrowLeft" ? -1 : 1;
+    if (t !== null && t.closest(".dcard") !== null && cardPan(d)) return;
+    if (e.shiftKey) shiftWeek(d); else shiftDay(d);
+  };
+  document.addEventListener("keydown", onKey);
+
+  // ── The bar: the streak chip, then the calendar — the week moves by strip swipe and keys ──
 
   let barStreak = 0;
   const barRow = (): void => {
@@ -129,18 +158,12 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       })));
     }
     const row = el("span", "drow");
-    const arrow = (label: string, icon: "chevron-left" | "chevron-right" | "calendar", onClick: () => void) => {
-      const b = el("button", "darrow") as HTMLButtonElement;
-      b.type = "button";
-      b.setAttribute("aria-label", label);
-      b.append(kitEl(ico(icon)));
-      b.addEventListener("click", onClick);
-      return b;
-    };
-    const next = arrow(COPY.weekNext, "chevron-right", () => shiftWeek(1));
-    next.disabled = mondayOf(viewing) >= mondayOf(today);
-    row.append(arrow(COPY.weekPrev, "chevron-left", () => shiftWeek(-1)),
-      arrow(L.pickDay, "calendar", openPicker), next);
+    const cal = el("button", "darrow") as HTMLButtonElement;
+    cal.type = "button";
+    cal.setAttribute("aria-label", L.pickDay);
+    cal.append(kitEl(ico("calendar")));
+    cal.addEventListener("click", openPicker);
+    row.append(cal);
     frame.bar.append(row);
   };
 
