@@ -68,11 +68,6 @@ export interface HomeCopy {
   pickerDayLogged: string;
   /** phone: an empty day's accessible name in the sheet. */
   pickerDayUnlogged: string;
-  /**
-   * The guess hedge beside a figure (`today.html` "about 1,437" when the day holds a rough
-   * estimate) — the analysis's own honesty, never the target's.
-   */
-  about: string;
   /** The kcal card's toggle label — `today.html` "kcal left ⌄" (the ⌄ is the client's glyph). */
   kcalLeft: string;
   /** The toggle's other side — the issue's "toggling to eaten". */
@@ -154,7 +149,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Choose a day",
     pickerDayLogged: "{day}, has meals",
     pickerDayUnlogged: "{day}, nothing logged",
-    about: "about",
     kcalLeft: "kcal left",
     kcalEaten: "kcal eaten",
     kcalOver: "kcal over",
@@ -198,7 +192,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Choisir un jour",
     pickerDayLogged: "{day}, repas notés",
     pickerDayUnlogged: "{day}, rien de noté",
-    about: "environ",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal consommées",
     kcalOver: "kcal en trop",
@@ -242,7 +235,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Tag auswählen",
     pickerDayLogged: "{day}, Mahlzeiten erfasst",
     pickerDayUnlogged: "{day}, nichts erfasst",
-    about: "etwa",
     kcalLeft: "kcal übrig",
     kcalEaten: "kcal gegessen",
     kcalOver: "kcal zu viel",
@@ -286,7 +278,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Scegli un giorno",
     pickerDayLogged: "{day}, pasti registrati",
     pickerDayUnlogged: "{day}, niente registrato",
-    about: "circa",
     kcalLeft: "kcal rimaste",
     kcalEaten: "kcal mangiate",
     kcalOver: "kcal in più",
@@ -330,7 +321,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Elegir un día",
     pickerDayLogged: "{day}, con comidas",
     pickerDayUnlogged: "{day}, sin registros",
-    about: "unas",
     kcalLeft: "kcal restantes",
     kcalEaten: "kcal comidas",
     kcalOver: "kcal de más",
@@ -374,7 +364,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Chọn ngày",
     pickerDayLogged: "{day}, đã ghi bữa ăn",
     pickerDayUnlogged: "{day}, chưa ghi gì",
-    about: "khoảng",
     kcalLeft: "kcal còn lại",
     kcalEaten: "kcal đã ăn",
     kcalOver: "kcal vượt quá",
@@ -418,7 +407,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Pilih hari",
     pickerDayLogged: "{day}, ada catatan makan",
     pickerDayUnlogged: "{day}, belum ada catatan",
-    about: "sekitar",
     kcalLeft: "kcal tersisa",
     kcalEaten: "kcal dimakan",
     kcalOver: "kcal berlebih",
@@ -462,7 +450,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickDay: "Выбрать день",
     pickerDayLogged: "{day}, записаны приёмы пищи",
     pickerDayUnlogged: "{day}, ничего не записано",
-    about: "около",
     kcalLeft: "ккал осталось",
     kcalEaten: "ккал съедено",
     kcalOver: "ккал сверх плана",

@@ -26,8 +26,6 @@ export const todayCss = `
   line-height: 1.05; }
 /* The boards' two figure sizes: 48 on today's toggle card, 44 on the 96 px detail form. */
 .kcard .kfig.big { font-size: 48px; }
-.kcard .kfig .about { font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--muted);
-  margin-right: 4px; }
 .kcard.over .kfig { color: var(--bad); }
 .kcard .klab { font-size: 13px; font-weight: 600; color: var(--muted); }
 .kcard .klab .caret { display: inline-block; margin-left: 2px; }

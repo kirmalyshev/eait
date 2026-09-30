@@ -165,7 +165,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // The figure-and-label pair is `kcalCardState`'s one choice: the toggle's two faces, the
     // past day's "eaten" — a finished day has nothing "left" — and the overage under "over".
     const state = kcalCardState(budget, interactive && showEaten);
-    if (state.guessed) kfig.append(el("span", "about", COPY.about));
     kfig.append(document.createTextNode(n(state.figure)));
     left.append(kfig);
     if (budget.warn) card.classList.add("over");
