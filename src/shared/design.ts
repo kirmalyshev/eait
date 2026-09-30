@@ -206,16 +206,17 @@ export const MOTION = {
  *
  * `.count` renders an integer into an EMPTY element via the `--n` property counting to `--to`; a
  * unit goes outside it, and decimals and months do not count. Stagger is the `--d` custom property.
+ * Fades use `filter:opacity()` so axe reads settled colours mid-animation (#362).
  */
 export function motionCss(): string {
   const ease = `cubic-bezier(${MOTION.ease.map((n) => String(n).replace(/^0\./, ".")).join(",")})`;
   const s = (ms: number) => `${ms / 1000}s`;
   return `:root{--ease:${ease}}
 @keyframes k-grow{from{transform:scaleX(0)}}
-@keyframes k-rise{from{opacity:0;transform:translateY(${MOTION.riseDy}px)}}
+@keyframes k-rise{from{filter:opacity(0);transform:translateY(${MOTION.riseDy}px)}}
 @keyframes k-draw{from{stroke-dashoffset:1200}}
 @keyframes k-settle{from{transform:translate(-160%,-50%)}}
-@keyframes k-pop{from{opacity:0;transform:scale(${MOTION.popFrom})}}
+@keyframes k-pop{from{filter:opacity(0);transform:scale(${MOTION.popFrom})}}
 @property --n{syntax:'<integer>';initial-value:0;inherits:false}
 @keyframes k-count{to{--n:var(--to)}}
 .grow{transform-origin:left center;animation:k-grow ${s(MOTION.grow)} var(--ease) both;animation-delay:var(--d,0s)}
