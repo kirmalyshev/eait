@@ -613,6 +613,8 @@ export function createRouter(
 
       // ── Photo ─────────────────────────────────────────────────────────────────────────────
       if (req.method === "POST" && pathname === ROUTES.photo) {
+        // Receipt, not `capturedAt`: a kept turn's capture is hours old and would inflate the queue p95 (#220).
+        const receivedAt = Date.now();
         const upload = await readPhotoForm(req);
         if (upload instanceof Response) return upload;
         const { form, files } = upload;
@@ -624,6 +626,7 @@ export function createRouter(
           // Several files are ANGLES OF ONE MEAL, not several meals. Thunks, so nothing is read
           // until the engine has passed the caps.
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
+          receivedAt,
           ...(typeof caption === "string" && caption ? { caption } : {}),
           ...turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt")),
         };

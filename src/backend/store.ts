@@ -457,7 +457,7 @@ export interface AdminMetrics {
   d1: AdminReturn;
   d7: AdminReturn;
   /**
-   * How fast the photo turn answers, across the window: `queue` is shutter-to-analyzer-call,
+   * How fast the photo turn answers, across the window: `queue` is receipt-to-analyzer-call,
    * `firstItem` is call-to-first-item (null on rows that never streamed one — the JSON path),
    * `total` is call-to-answer. `n` is rows carrying any timing at all; percentiles are null
    * when nothing in the window carries that leg.
@@ -1112,8 +1112,8 @@ export interface Store {
    */
   addCost(userId: string, analysisId: string, usd: number | null): Promise<boolean>;
   /**
-   * How long the turn behind this analysis took, written once when it settles. `queue` is shutter
-   * (or turn start) to the analyzer call; `firstItem` is call-to-first-item — null when the turn
+   * How long the turn behind this analysis took, written once when it settles. `queue` is receipt
+   * (turn start) to the analyzer call; `firstItem` is call-to-first-item — null when the turn
    * never streamed one; `total` is call-to-answer. Scoped like `addCost`; false on no such row.
    */
   recordTiming(userId: string, analysisId: string, timing: { queue: number; firstItem: number | null; total: number }): Promise<boolean>;

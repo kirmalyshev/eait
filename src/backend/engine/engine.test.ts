@@ -2139,7 +2139,7 @@ describe("the streamed photo turn", () => {
     // The demo analyzer is faster than a clock tick, so these are PRESENT, not positive.
     expect(latency.total.p50).not.toBeNull();
     expect(latency.firstItem.p50).not.toBeNull();
-    // Eaten a moment ago: queue is shutter-to-call, small but present.
+    // Eaten a moment ago: queue is receipt-to-call, small but present.
     expect(latency.queue.p50).toBeGreaterThanOrEqual(0);
   });
 

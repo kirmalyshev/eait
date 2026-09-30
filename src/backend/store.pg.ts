@@ -533,7 +533,7 @@ create index if not exists analyses_user_date_idx on analyses(user_id, date, sco
 -- priced. unpriced_calls counts the calls that ended without a price, which makes the sum a floor.
 alter table analyses add column if not exists cost_usd double precision;
 alter table analyses add column if not exists unpriced_calls integer not null default 0;
--- How long the turn took, written once when it settles: shutter-to-call in ms_queue, call to
+-- How long the turn took, written once when it settles: receipt-to-call in ms_queue, call to
 -- the first streamed item in ms_first_item (null on the JSON path, which never sees one), call to
 -- answer in ms_total. Old rows keep nulls — they predate the clock, not report zero.
 alter table analyses add column if not exists ms_queue integer;
