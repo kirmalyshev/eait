@@ -1,5 +1,5 @@
 // Today — Home (`web/today.html`, W4 #91). The boards' two-column diary: the left column holds
-// the day label, the meal card, a proposal the composer is holding, and the empty/failed cards;
+// the meal card, a proposal the composer is holding, and the empty/failed cards;
 // the right column (the frame's `side`) holds the week strip, the two-page card track — the
 // calorie card over the macro set on page 1, the nutrient set and the day's score on page 2 —
 // panned by its dot switcher (#1025), and — on today — the upload CTA plus the in-diary composer.
@@ -23,7 +23,7 @@ import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import {
-  blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
+  blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, weekStripEl,
 } from "../kit.ts";
 import {
   COPY, DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
@@ -65,8 +65,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   /** Queued draws collapse to the newest, as `drawing` does for `render()`. */
   let dayDrawing = 0;
 
-  // The boards' date formats: "Thursday 24 September" on the bar and the column's label; the
-  // row's time is the account's timezone — the server's figures are already zoned.
+  // The boards' date format, "Thursday 24 September", for the proposal's day; the row's time is the account's timezone — the server's figures are already zoned.
   const dateText = dayText;
   const timeFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
     timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
@@ -86,7 +85,36 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     notice.hidden = words === null;
   };
 
-  // ── The bar: the streak chip, then the date and its arrows ──────────────────────────────
+  // ── The picker: the browser's own date input, opened by the bar's calendar button and by a
+  // long press or right click on the strip (the phone's long press). Never past today.
+  const picker = el("input", "visually-hidden") as HTMLInputElement;
+  picker.type = "date";
+  picker.tabIndex = -1;
+  picker.setAttribute("aria-hidden", "true");
+  picker.addEventListener("change", () => {
+    // The date as a number, never the field's text: `viewing` reaches hrefs and request paths.
+    const ms = picker.valueAsNumber;
+    if (Number.isNaN(ms)) return;
+    const picked = new Date(ms).toISOString().slice(0, 10);
+    if (picked > today) return;
+    viewing = picked;
+    void draw();
+  });
+  const openPicker = (): void => {
+    picker.max = today;
+    picker.value = viewing;
+    try { picker.showPicker(); } catch { picker.click(); }
+  };
+  /** A week back or forward, the selected weekday kept — never past today. */
+  const shiftWeek = (by: -1 | 1): void => {
+    const to = dateMinus(viewing, -7 * by);
+    const next = to > today ? today : to;
+    if (next === viewing) return;
+    viewing = next;
+    void draw();
+  };
+
+  // ── The bar: the streak chip, then the week's arrows around the calendar ─────────────────
 
   let barStreak = 0;
   const barRow = (): void => {
@@ -100,22 +128,18 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       })));
     }
     const row = el("span", "drow");
-    const prev = el("button", "darrow") as HTMLButtonElement;
-    prev.type = "button";
-    prev.setAttribute("aria-label", COPY.dayPrev);
-    prev.append(kitEl(ico("chevron-left")));
-    prev.addEventListener("click", () => { viewing = dateMinus(viewing, 1); void draw(); });
-    const next = el("button", "darrow") as HTMLButtonElement;
-    next.type = "button";
-    next.setAttribute("aria-label", COPY.dayNext);
-    next.disabled = viewing >= today;
-    next.append(kitEl(ico("chevron-right")));
-    next.addEventListener("click", () => {
-      if (viewing >= today) return;
-      viewing = dateMinus(viewing, -1);
-      void draw();
-    });
-    row.append(prev, el("span", "dlabel", dateText(viewing)), next);
+    const arrow = (label: string, icon: "chevron-left" | "chevron-right" | "calendar", onClick: () => void) => {
+      const b = el("button", "darrow") as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("aria-label", label);
+      b.append(kitEl(ico(icon)));
+      b.addEventListener("click", onClick);
+      return b;
+    };
+    const next = arrow(COPY.weekNext, "chevron-right", () => shiftWeek(1));
+    next.disabled = mondayOf(viewing) >= mondayOf(today);
+    row.append(arrow(COPY.weekPrev, "chevron-left", () => shiftWeek(-1)),
+      arrow(L.pickDay, "calendar", openPicker), next);
     frame.bar.append(row);
   };
 
@@ -184,18 +208,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       ...(s.share !== undefined ? { share: s.share } : {}),
     });
   };
-
-  /**
-   * The compact centred card the empty and logging boards draw — the eaten figure over
-   * "of {target} {macro}", ringed where a target exists, the flat icon where it does not.
-   */
-  const ofTargetCard = (macro: ChipName, copy: HomeTargetMacroCopy,
-    eaten: number, target: number | undefined): Element =>
-    mcardEl({
-      macro, centred: true, value: gram(eaten),
-      label: target !== undefined ? fill(copy.ofTarget, { target: n(target) }) : copy.name,
-      ...(target !== undefined ? { share: target > 0 ? Math.min(1, eaten / target) : 0 } : {}),
-    });
 
   /** A flat nutrient card — page 2's fibre/sugar/sodium carry no ring (no declared cap). */
   const flatCard = (icon: "fibre" | "sugar" | "salt", value: string, label: string): Element =>
@@ -349,16 +361,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const isToday = viewing === today;
     const hasMeals = day !== null && day.meals.length > 0;
     const logging = heldProposal() !== null || turning;
-    // Page 2 exists only where its dots do — today with logged meals, nothing in flight.
+    // The toggle card and "Recently uploaded" are today-with-meals only; the pages are every day's.
     const rich = isToday && hasMeals && !logging;
-    if (!rich) page = 0;
 
     // ── The left column: the label, the meals, the proposal, the empty/failed card ──
-    // The boards' own twist: the column's label is "Recently uploaded" only while today holds
-    // meals and nothing is in flight (`rich`) — empty, logging, past and failed all read the
-    // VIEWED DATE (today-logging.html).
-    const left: Element[] = [el("span", rich ? "mealtitle" : "lab",
-      rich ? L.recentlyUploaded : dateText(viewing))];
+    // "Recently uploaded" only while today holds meals; every other state names no date — the
+    // strip's marked cell already says which day this is.
+    const left: Element[] = rich ? [el("span", "mealtitle", L.recentlyUploaded)] : [];
     if (day === null) {
       const card = el("div", "card failcard");
       const say = el("div", "say");
@@ -370,16 +379,17 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       retry.classList.add("sm");
       retry.addEventListener("click", () => { void draw(); });
       words.append(retry);
-      say.append(spudAvatarEl("care"), words);
+      say.append(words);
       card.append(say);
       left.push(card);
     } else if (day.meals.length === 0) {
-      const card = el("div", "emptycard");
+      // The whole panel is the log-a-meal action — the upload CTA's own route.
+      const card = el("a", "emptycard rise") as HTMLAnchorElement;
+      card.href = "#/log";
+      card.setAttribute("aria-label", `${L.nothingLogged} ${S.logMeal}`);
       const plate = el("span", "plate");
       plate.setAttribute("aria-hidden", "true");
-      const say = el("div", "say rise");
-      say.append(spudAvatarEl("happy"), el("p", "", L.nothingLogged));
-      card.append(plate, say);
+      card.append(plate, el("p", "", L.nothingLogged));
       left.push(card);
     } else {
       const card = el("div", "card meals");
@@ -408,11 +418,26 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (daysR.ok) {
       const strip = el("div", "weekwrap");
       const rows: WeekDayRow[] = daysR.d.days.map((d) => ({ ...d, targetKcal: daysR.d.targetKcal }));
+      // A horizontal swipe turns the week; a held press (or a right click) opens the picker. The
+      // click that ends either one is swallowed, so it never also picks the cell under it.
+      let from: { x: number; y: number; t: number } | null = null;
+      let swallow = false;
+      strip.addEventListener("pointerdown", (e) => { from = { x: e.clientX, y: e.clientY, t: e.timeStamp }; swallow = false; });
+      strip.addEventListener("pointerup", (e) => {
+        if (from === null) return;
+        const dx = e.clientX - from.x, dy = e.clientY - from.y;
+        if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy)) { swallow = true; shiftWeek(dx < 0 ? 1 : -1); }
+        else if (e.button === 0 && e.timeStamp - from.t >= 500 && Math.hypot(dx, dy) < 10) { swallow = true; openPicker(); }
+        from = null;
+      });
+      strip.addEventListener("pointercancel", () => { from = null; });
+      strip.addEventListener("contextmenu", (e) => { e.preventDefault(); openPicker(); });
       strip.append(weekStripEl(rows, (date) => {
+        if (swallow) { swallow = false; return; }
         if (date > today) return; // future cells carry no `data-date` — this is belt and braces
         viewing = date;
         void draw();
-      }, viewing));
+      }, viewing), picker);
       right.push(strip);
     }
 
@@ -420,8 +445,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // page 2 the nutrient set and the day's score (today-page2.html). BOTH pages stay mounted in
     // one clipped row — its height is the taller page's, so a turn moves nothing below it — and
     // the dots slide the row rather than redraw; the off-screen page is inert and out of the
-    // accessibility tree. Every other state draws the calorie card and its own cards unpaged.
-    if (rich && day !== null) {
+    // accessibility tree. Every loaded day is paged — empty, past and logging too; only the
+    // failed read draws its dashes unpaged.
+    if (day !== null) {
       const clip = el("div", "mclip");
       const track = el("div", "mtrack");
       const pageOne = el("div", "mpage");
@@ -460,27 +486,15 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       show(page);
       right.push(clip, dots(show));
     } else {
+      // The failed day's dashes — flat icons, "— g", bare names.
       right.push(kcalCard(day, rich));
-      if (day === null) {
-        // The failed day's dashes — flat icons, "— g", bare names.
-        const mcards = el("div", "mcards");
-        for (const [macro, copy] of [
-          ["protein", L.macros.protein], ["carbs", L.macros.carbs], ["satfat", L.macros.satFat],
-        ] as const) {
-          mcards.append(mcardEl({ macro, centred: true, value: fill(L.grams, { n: "—" }), label: copy.name }));
-        }
-        right.push(mcards);
-      } else if (isToday) {
-        // The compact of-target set — the empty and the logging boards' form. A past day draws no
-        // macro cards at all (today-past.html).
-        const mcards = el("div", "mcards");
-        mcards.append(
-          ofTargetCard("protein", L.macros.protein, Math.round(day.totals.protein_g), day.targets.protein_g),
-          ofTargetCard("carbs", L.macros.carbs, Math.round(day.totals.carbs_g), undefined),
-          ofTargetCard("satfat", L.macros.satFat, Math.round(day.totals.satfat_g), day.targets.satfat_g),
-        );
-        right.push(mcards);
+      const mcards = el("div", "mcards");
+      for (const [macro, copy] of [
+        ["protein", L.macros.protein], ["carbs", L.macros.carbs], ["satfat", L.macros.satFat],
+      ] as const) {
+        mcards.append(mcardEl({ macro, centred: true, value: fill(L.grams, { n: "—" }), label: copy.name }));
       }
+      right.push(mcards);
     }
 
     // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held

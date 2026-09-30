@@ -28,13 +28,11 @@ body { margin: 0; background: var(--bg); color: var(--ink);
 #app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .wtop { display: flex; align-items: center; gap: 28px; padding: 0 40px; height: 64px;
   background: var(--surface); border-bottom: 1px solid var(--hair); }
-/* The wordmark: eait in the register's weight, Spud at 20px on the accent tint — a signature,
-   not the app icon (DIRECTION §6). */
+/* The wordmark: eait in the register's weight after the app icon's bowl, 24px. */
 .wtop .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px;
   letter-spacing: -.02em; margin-right: 12px; }
-.wtop .wm { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-tint);
-  display: flex; align-items: center; justify-content: center; }
-.wtop .wm svg { width: 78%; height: 78%; display: block; }
+.wtop .wm { width: 24px; height: 24px; display: flex; }
+.wtop .wm svg { width: 100%; height: 100%; display: block; }
 /* The tabs are TEXT, never pills: muted at rest, ink and underlined on the screen they name. The
    link fills the bar's height — the underline lands on its bottom edge, and the box is the tap
    target (#53). */

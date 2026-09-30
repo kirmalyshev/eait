@@ -66,8 +66,9 @@ test("a past day draws the compact card — the figure over 'eaten of plan', no 
   const yesterday = ((await moved.json()) as { date: string }).date;
 
   await page.goto("/#/");
-  await page.getByRole("button", { name: "Previous day" }).click();
-  await expect(page.locator(".dlabel")).toHaveText(fullDate(yesterday));
+  if (await page.locator(`.week [data-date="${yesterday}"]`).count() === 0) await page.getByRole("button", { name: "Previous week" }).click();
+  await page.locator(`.week [data-date="${yesterday}"]`).click();
+  await expect(page.locator(`.week .dy.now[data-date="${yesterday}"]`)).toBeVisible();
 
   const res = await page.request.get(`/api/v1/diary/day?date=${yesterday}`, {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
@@ -101,9 +102,9 @@ test("the diary is grouped and worded in the account's language, not the browser
   await expect(page.locator(".kfig")).toHaveText(de(target - 550));
   await expect(page.locator(".kcard .klab")).toHaveText(/kcal gegessen/);
   // The bar names the viewed day in the account's language too — "Montag 28 September".
-  await expect(page.locator(".dlabel")).toHaveText(
+  await expect(page.locator(".week .dy.now")).toHaveAttribute("aria-label",
     new Intl.DateTimeFormat("de-DE", {
-      timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+      timeZone: "UTC", dateStyle: "full",
     }).format(new Date(`${await serverToday(page)}T12:00:00Z`)),
   );
   // And the document says which language it is in, because a screen reader picks a voice from it.
@@ -145,12 +146,12 @@ test("the bar names the viewed day in full, and today has no 'next'", async ({ i
   await page.goto("/#/");
   // The boards' wtop: the screen's own right side carries the date between its two chevrons.
   const bar = page.locator("header.wtop .drow");
-  await expect(bar.locator(".dlabel")).toHaveText(date);
-  await expect(page.getByRole("button", { name: "Previous day" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+  await expect(page.locator(`.week .dy.now[data-date="${await serverToday(page)}"]`)).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Previous week" })).toBeEnabled();
+  await expect(bar.getByRole("button", { name: "Next week" })).toBeDisabled();
   // On today-with-meals the left column is "Recently uploaded" — the date is written once.
   await expect(page.locator(".mealtitle")).toHaveText("Recently uploaded");
-  await expect(page.getByText(date, { exact: true })).toHaveCount(1);
+  await expect(page.getByText(date, { exact: true })).toHaveCount(0);
 });
 
 test("the switcher and the week strip both move the viewed day", async ({ inWebApp: page }) => {
@@ -158,26 +159,26 @@ test("the switcher and the week strip both move the viewed day", async ({ inWebA
   const today = await serverToday(page);
   await page.goto("/#/");
 
-  const label = page.locator(".dlabel");
-  await page.getByRole("button", { name: "Previous day" }).click();
+  const label = page.locator(".week .dy.now");
+  await page.getByRole("button", { name: "Previous week" }).click();
   const oneBack = new Date(`${today}T12:00:00Z`);
-  oneBack.setUTCDate(oneBack.getUTCDate() - 1);
+  oneBack.setUTCDate(oneBack.getUTCDate() - 7);
   const d1 = oneBack.toISOString().slice(0, 10);
-  await expect(label).toHaveText(fullDate(d1));
+  await expect(label).toHaveAttribute("data-date", d1);
   // The strip's raised cell follows the day being looked at.
   await expect(page.locator(`.week .dy.now[data-date="${d1}"]`)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Next day" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Next week" })).toBeEnabled();
 
   // The strip's own cell is the other door — tap a day and the whole board follows it. The cell
   // is read, not computed: the strip always holds the VIEWED week, so "yesterday" is not always
   // in it (a Monday's is not), but a past sibling of the raised cell always is.
-  await page.getByRole("button", { name: "Next day" }).click();
-  await expect(label).toHaveText(fullDate(today));
-  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+  await page.getByRole("button", { name: "Next week" }).click();
+  await expect(label).toHaveAttribute("data-date", today);
+  await expect(page.getByRole("button", { name: "Next week" })).toBeDisabled();
   const cell = page.locator(".week button.dy[data-date]").first();
   const picked = (await cell.getAttribute("data-date"))!;
   await cell.click();
-  await expect(label).toHaveText(fullDate(picked));
+  await expect(label).toHaveAttribute("data-date", picked);
   await expect(page.locator(`.week .dy.now[data-date="${picked}"]`)).toBeVisible();
 });
 

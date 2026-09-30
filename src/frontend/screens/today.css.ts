@@ -40,6 +40,11 @@ export const todayCss = `
    generated reduced-motion block settles it instantly. mpage is a wcol-shaped column so a
    card inside it keeps the spacing it had as a root child. */
 .mclip { overflow: hidden; }
+/* The side column scrolls; its blocks keep their height rather than shrink into it (a clip's
+   overflow drops its min-height to zero, and page 1 was cut mid-card at phone width). */
+.wcol > .mclip, .wcol > .mcards, .wcol > .kcard, .wcol > .weekwrap { flex-shrink: 0; }
+/* The strip swipes and holds: vertical scroll stays the browser's, the long press is ours. */
+.weekwrap { touch-action: pan-y; -webkit-touch-callout: none; user-select: none; }
 .mtrack { display: flex; transition: transform ${MOTION.settle / 1000}s var(--ease); }
 .mpage { flex: 0 0 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
@@ -86,16 +91,18 @@ a.hsp { color: inherit; text-decoration: none; }
 .mealtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
 .meals .meal:first-of-type { border-top: 0; }
 
-/* The empty day — a dashed card holding the plate mark and Spud's line. */
-.emptycard { height: 420px; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 16px; background: none; box-shadow: none;
-  border: 1.5px dashed var(--line); border-radius: var(--r-card); }
+/* The empty day — a dashed panel, the plate over one line, centred; the whole panel logs a meal. */
+.emptycard { min-height: 240px; flex: 1 0 auto; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px; background: none; box-shadow: none;
+  border: 1.5px dashed var(--line); border-radius: var(--r-card); color: var(--ink);
+  text-decoration: none; text-align: center; padding: 24px; cursor: pointer; }
+.emptycard:hover { border-color: var(--faint); }
+.emptycard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .emptycard .plate { width: 56px; height: 56px; border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px var(--faint); position: relative; }
 .emptycard .plate::after { content: ""; position: absolute; inset: 16px; border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px var(--faint); }
-.emptycard .say { align-items: center; }
-.emptycard .say p { font-weight: 600; font-size: 17px; margin: 0; }
+.emptycard p { font-weight: 600; font-size: 17px; margin: 0; }
 
 /* The couldn't-load day — Spud cares, one line, one retry. The retry is the chat's \`.cta.s.sm\`;
    a \`.failcard\`-scoped rule cannot out-rank \`.card button.cta\` (#304). */

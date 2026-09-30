@@ -27,6 +27,7 @@ import { shellCopyFor } from "../shared/app/shell-copy.ts";
 import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { homeCopyFor } from "../shared/app/home-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
+import { brandSvg } from "../shared/ui/icons.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { outcomeUnknown } from "../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
@@ -161,7 +162,7 @@ const activeTab = (route: string): string =>
   ["#/chat", "#/you", "#/progress"].includes(routeBase(route)) ? routeBase(route) : "#/";
 
 /**
- * The boards' top bar (Register P): the `eait` wordmark — Spud's happy face at 20px — then the ONE
+ * The boards' top bar (Register P): the `eait` wordmark — the app icon's bowl — then the ONE
  * row the app navigates by, text links underlined on the active one. A null `active` is the
  * signed-out screen's bar: the mark alone, because the row's destinations are all behind a session.
  */
@@ -169,7 +170,7 @@ function chrome(route: string | null, right?: HTMLElement): HTMLElement {
   const bar = el("header", "wtop");
   const brand = el("span", "brand");
   const wm = el("span", "wm");
-  wm.append(spudFace("happy"));
+  wm.append(new DOMParser().parseFromString(brandSvg("eait"), "image/svg+xml").documentElement);
   brand.append(wm, "eait");
   bar.append(brand);
   if (route === null) return bar;
