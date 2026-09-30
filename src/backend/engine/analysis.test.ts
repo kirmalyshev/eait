@@ -44,7 +44,7 @@ describe("reconciling totals against the items", () => {
   });
 
   test("a total outside the tolerance costs the analysis a step of confidence", () => {
-    // It was wrong about something it could check itself. The card says "rough estimate" louder and
+    // It was wrong about something it could check itself. The card marks low confidence louder and
     // the correction nudge gets louder with it — which is the whole point of the field.
     for (const [before, after] of [["high", "medium"], ["medium", "low"], ["low", "low"]] as const) {
       const { analysis } = prepareAnalysis(plate({ kcal: 500, confidence: before }));

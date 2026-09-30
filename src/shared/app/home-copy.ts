@@ -105,8 +105,6 @@ export interface HomeCopy {
   };
   /** The meal list's title — `today.html` "Recently uploaded", both clients. */
   recentlyUploaded: string;
-  /** A typed meal's tag on its row — "rough estimate". */
-  roughEstimate: string;
   /** The macro tips (F, ieat-app#1291): a tapped protein/carbs/sat-fat row's Callout — the state
    * line, then what to eat or skip for the rest of today. `{g}` takes the row's own figure. */
   tips: {
@@ -197,7 +195,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Recently uploaded",
-    roughEstimate: "rough estimate",
 
 
     nothingLogged: "Nothing logged yet.",
@@ -257,7 +254,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Récemment ajoutés",
-    roughEstimate: "estimation approximative",
 
 
     nothingLogged: "Rien d'enregistré pour l'instant.",
@@ -317,7 +313,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Zuletzt hochgeladen",
-    roughEstimate: "grobe Schätzung",
 
 
     nothingLogged: "Noch nichts eingetragen.",
@@ -377,7 +372,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Aggiunti di recente",
-    roughEstimate: "stima approssimativa",
 
 
     nothingLogged: "Niente di registrato, per ora.",
@@ -437,7 +431,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Subidos recientemente",
-    roughEstimate: "estimación aproximada",
 
 
     nothingLogged: "Nada registrado todavía.",
@@ -497,7 +490,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Mới tải lên",
-    roughEstimate: "ước tính sơ bộ",
 
 
     nothingLogged: "Chưa có gì được ghi.",
@@ -557,7 +549,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Baru diunggah",
-    roughEstimate: "perkiraan kasar",
 
 
     nothingLogged: "Belum ada yang dicatat.",
@@ -617,7 +608,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
     },
     recentlyUploaded: "Недавно добавлено",
-    roughEstimate: "грубая оценка",
 
 
     nothingLogged: "Пока ничего не записано.",

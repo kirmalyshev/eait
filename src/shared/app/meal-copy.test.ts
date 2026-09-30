@@ -10,7 +10,7 @@ import { LANGS, type Lang } from "../types.ts";
 import { MEAL_COPY, mealCopyFor } from "./meal-copy.ts";
 
 const KEYS = [
-  "metaPhoto", "sheetWhen", "roughEstimate",
+  "metaPhoto", "sheetWhen",
   "macroProtein", "macroCarbs", "macroFat",
   "coachLine", "correctOpener", "itemAmount", "composeHint",
   "deleteTitle", "deleteBody", "deleteCta", "cancelCta",

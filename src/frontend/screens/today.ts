@@ -519,7 +519,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
       compact,
-      ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
       href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
     });
     // The photo rides behind the bearer — `apiBlob`'s bytes through `blobSrc`, a data URL: the

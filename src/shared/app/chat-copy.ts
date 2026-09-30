@@ -12,8 +12,8 @@
 // under `web`/`phone` (the claim rule on #94).
 //
 // WHAT IS NOT HERE, and whose table it is instead: the nav labels and the "Log a meal" fab are
-// `SHELL_COPY`; the coach's signature "{coach} · nutritionist", the "rough estimate" badge and the
-// macro TILE labels are `MEAL_COPY`'s (`coachLine`, `roughEstimate`, `macro*` — #116 fills `{coach}`
+// `SHELL_COPY`; the coach's signature "{coach} · nutritionist" and the
+// macro TILE labels are `MEAL_COPY`'s (`coachLine`, `macro*` — #116 fills `{coach}`
 // from `THREAD_COPY`'s `coach.name`, S9); the card's verdict lines ("Calories high") are
 // `verdicts.ts`'s, computed and never reworded per surface; the running line and the starters are
 // `THREAD_COPY`'s; the coach's ANSWERS are model-written or engine-scripted — the largest text

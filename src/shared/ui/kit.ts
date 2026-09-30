@@ -234,7 +234,7 @@ export interface MealRowSpec {
   grams?: { protein: number; carbs: number; fat: number };
   /** The meal's renderable verdicts. Good ones are filtered — the row speaks only off-plan. */
   verdicts?: readonly { tone: VerdictTone; words: string }[];
-  /** A second clause after the time — "rough estimate" for a typed meal, say. */
+  /** A second clause after the time. */
   note?: string;
   /** The photo's src; anything else draws the no-photo tile. */
   photo?: { src: string; alt?: string } | null;

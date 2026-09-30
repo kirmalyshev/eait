@@ -209,7 +209,7 @@ async function textTurn(
         // card the user confirms carries the same judgement as the card they were shown; the write
         // itself recomputes anyway, since the caps can move while a proposal sits.
         // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
-        // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
+        // sure the model is of the dish — the card's low-confidence read uses this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
         // The router's intent names food, but the analysis behind it may still answer otherwise —
         // or claim food while naming not one item of it (#248: the analyzer declining a vague
