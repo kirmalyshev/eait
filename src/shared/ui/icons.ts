@@ -77,6 +77,12 @@ export const ICONS = {
   // alias, so its spec is the drop's body plus the stroke.
   satfat: line(FAT.body + '<path d="M8.8 16.5h6.4"/>'),
 
+  // The F hero's flame — the boards' `.fl`: a LINE flame inside the day ring, stroked like the
+  // macro set so `over`/`line` can recolour it. `kcal`/`streak` stay the solid Cal AI flame.
+  flame: line(
+    '<path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4"/>',
+  ),
+
   // ── The streak chip's flame (Today, the health-sync board) — the Cal AI flame ──
   streak: FLAME,
 
