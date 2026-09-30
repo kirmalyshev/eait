@@ -365,7 +365,7 @@ export async function editMeal(
   deps: EngineDeps,
   userId: string,
   mealId: string,
-  patch: EditMealRequest,
+  request: EditMealRequest,
   // The chat path writes its own card AFTER the user's words; the editor has no words, so the card
   // is written here. One write path, two thread shapes — copy.md offers both corrections as equals.
   //
@@ -379,6 +379,11 @@ export async function editMeal(
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
   if (!existing) return { kind: "target-gone", on: "correction" };
+  // Every item at 0 g is no meal, whichever path sent it (ieat-app#1224): those items are ignored
+  // rather than stored as a 0 kcal meal that still counts. One item zeroed is a real edit.
+  const { items: sentItems, ...sentTotals } = request;
+  const patch: EditMealRequest = sentItems !== undefined && sentItems.length > 0 && sentItems.every((i) => i.grams === 0)
+    ? sentTotals : request;
 
   // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
   // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
