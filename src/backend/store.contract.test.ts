@@ -423,20 +423,25 @@ function contract(name: string, make: () => Promise<Store>) {
 
     it("counts a return as an analysis on the day after signing up", async () => {
       const s2 = await open();
-      const { userId } = await s2.upsertDeviceUser(device(), "en");
       const today = new Date().toISOString().slice(0, 10);
       const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-      await s2.recordAnalysis(userId, tomorrow, "photo");
-
       // The account signed up today and logged something "tomorrow", so from a vantage point two
       // days on it is a D1 return.
       const after = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+      // A BASELINE AT THAT VANTAGE, because `adminMetrics` counts the WHOLE database and this suite
+      // shares one (#17): every earlier run's accounts are still in it, so each number below is a
+      // delta and never an absolute — the `d7.returned === 0` this replaces was the same flake the
+      // `eligible` baseline in the next test was put in for.
+      const before = await s2.adminMetrics({ days: 30, today: after, timezone: "UTC" });
+
+      const { userId } = await s2.upsertDeviceUser(device(), "en");
+      await s2.recordAnalysis(userId, tomorrow, "photo");
       const m = await s2.adminMetrics({ days: 30, today: after, timezone: "UTC" });
-      expect(m.d1.returned).toBeGreaterThanOrEqual(1);
-      expect(m.d1.eligible).toBeGreaterThanOrEqual(1);
+      expect(m.d1.returned - before.d1.returned).toBe(1);
+      expect(m.d1.eligible - before.d1.eligible).toBe(1);
       expect(m.d1.returned).toBeLessThanOrEqual(m.d1.eligible);
-      // Nothing on day 7, so it counts as eligible-and-did-not rather than as a return.
-      expect(m.d7.returned).toBe(0);
+      // Its seventh day has not ARRIVED at this vantage, so the run adds no day-7 return.
+      expect(m.d7.returned).toBe(before.d7.returned);
     });
 
     it("does not count an account that has not HAD its second day yet", async () => {
