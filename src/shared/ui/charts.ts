@@ -573,6 +573,18 @@ export function bmiTick(value: number, range: string): number {
   return (i + clamp01((value - lo) / (hi - lo))) / BMI_SEGMENTS.length;
 }
 
+/**
+ * Whether bucket `i` of `n` keeps its caption: every Nth, counted back from the newest, N wide
+ * enough that the widest caption clears its neighbour — 26 weeks or 12 months in one row overprint
+ * otherwise (#1232). `skip` rides on the caption so the renderer indexes captions as before.
+ */
+function captionSkip(captions: readonly string[], pitch: number, font = 12): (i: number, n: number) => { skip?: true } {
+  // The widest pair of neighbours, not the widest caption: "Today" beside "29" still fits a slot.
+  const pair = captions.reduce((w, l, i) => Math.max(w, (l.length + (captions[i + 1]?.length ?? 0)) / 2), 0);
+  const stride = Math.max(1, Math.ceil((pair * font * 0.66 + 10) / Math.max(1, pitch)));
+  return (i, n) => ((n - 1 - i) % stride === 0 ? {} : { skip: true });
+}
+
 // ── Apple Health's intake bars ────────────────────────────────────────────────────────────────
 //
 // phone/health.html's "Intake · this week" card: a bar per bucket on a full-width baseline and a
@@ -602,6 +614,8 @@ export function intakeChart(
   values: readonly (number | null)[],
   planKcal: number,
   todayIndex = -1,
+  /** The captions the caller will draw — only their widths are read, to thin them. */
+  captions: readonly string[] = [],
 ): {
   viewBox: string;
   /** The frame's width — the baseline runs to it edge to edge. */
@@ -613,7 +627,7 @@ export function intakeChart(
   planLabel: { x: number; y: number } | null;
   bars: ({ x: number; y: number; width: number; height: number; rx: number; today: boolean; over: boolean } | null)[];
   /** One caption per bucket, centred on the slot — a bucket with no bar still names itself. */
-  labels: { x: number; y: number }[];
+  labels: { x: number; y: number; skip?: true }[];
 } {
   const n = values.length;
   const pitch = Math.min(INTAKE.pitchCap, Math.round(INTAKE.inner / Math.max(1, n)));
@@ -621,6 +635,7 @@ export function intakeChart(
   const largest = Math.max(planKcal, ...values.map((v) => v ?? 0));
   const pxPerKcal = barPxPerKcal(INTAKE.headroomPx, BARS_BASELINE_FULL, largest);
   const planY = Math.round(INTAKE.base - planKcal * pxPerKcal);
+  const skip = captionSkip(captions, pitch);
   return {
     viewBox: INTAKE.viewBox,
     frame: INTAKE.frame,
@@ -632,7 +647,12 @@ export function intakeChart(
       const h = Math.round(v * pxPerKcal);
       return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex, over: planKcal > 0 && v > planKcal };
     }),
-    labels: values.map((_, i) => ({ x: 8 + i * pitch + Math.round(width / 2), y: INTAKE.labelY })),
+    // Clamped inside the frame, so neither end caption is cut at the edge.
+    labels: values.map((_, i) => {
+      const half = Math.ceil((captions[i]?.length ?? 0) * 12 * 0.66 / 2);
+      const x = 8 + i * pitch + Math.round(width / 2);
+      return { x: Math.max(half, Math.min(x, INTAKE.frame - half)), y: INTAKE.labelY, ...skip(i, n) };
+    }),
   };
 }
 
@@ -709,7 +729,7 @@ export function compareChart(
   runs: string[];
   /** A hollow dot per known line point; the caller gives it the surface fill and ink stroke. */
   dots: { x: number; y: number; r: number }[];
-  labels: { x: number; y: number; text: string }[];
+  labels: { x: number; y: number; text: string; skip?: true }[];
 } {
   const plotH = CMP.plotBottom - CMP.top;
   const a = cmpScale(bars, "bar");
@@ -722,6 +742,7 @@ export function compareChart(
   const xOf = (i: number) => left + slot * (i + 0.5);
   const yOf = (sc: CmpScale, v: number) => CMP.top + plotH - ((v - sc.lo) / (sc.hi - sc.lo)) * plotH;
   const barW = Math.min(CMP.barCap, slot * CMP.barFill);
+  const skip = captionSkip(labels, slot, CMP.font);
 
   const runs: string[] = [];
   let run: { x: number; y: number }[] = [];
@@ -755,7 +776,7 @@ export function compareChart(
     }),
     runs,
     dots: line.flatMap((v, i) => (v === null || b === null ? [] : [{ x: xOf(i), y: Math.round(yOf(b, v) * 10) / 10, r: 3.5 }])),
-    labels: labels.map((text, i) => ({ x: Math.round(xOf(i) * 10) / 10, y: CMP.xLabelY, text })),
+    labels: labels.map((text, i) => ({ x: Math.round(xOf(i) * 10) / 10, y: CMP.xLabelY, text, ...skip(i, labels.length) })),
   };
 }
 
