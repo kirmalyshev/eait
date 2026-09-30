@@ -19,6 +19,8 @@ import type { Lang } from "../types.ts";
 export interface ScoreAppCopy {
   /** The card's title. */
   title: string;
+  /** The meal sheet's own title — it scores that one meal (#337). */
+  mealTitle: string;
   /** "{n}/10" — the score as a fraction, `{n}` already formatted. */
   outOf: string;
   /** The day's label where the day's score stands (Home's page 2). */
@@ -62,6 +64,7 @@ export interface ScoreAppCopy {
 export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   en: {
     title: "Day score",
+    mealTitle: "Meal score",
     outOf: "{n}/10",
     dayLabel: "Today",
     method: "From protein, fibre, saturated fat, sugar and salt, per calorie.",
@@ -82,6 +85,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   fr: {
     title: "Score du jour",
+    mealTitle: "Score du repas",
     outOf: "{n}/10",
     dayLabel: "Aujourd'hui",
     method: "À partir des protéines, des fibres, des graisses saturées, du sucre et du sel, par calorie.",
@@ -102,6 +106,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   de: {
     title: "Tageswert",
+    mealTitle: "Mahlzeitenwert",
     outOf: "{n}/10",
     dayLabel: "Heute",
     method: "Aus Protein, Ballaststoffen, gesättigten Fettsäuren, Zucker und Salz — pro Kalorie.",
@@ -122,6 +127,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   it: {
     title: "Punteggio del giorno",
+    mealTitle: "Punteggio del pasto",
     outOf: "{n}/10",
     dayLabel: "Oggi",
     method: "Da proteine, fibre, grassi saturi, zuccheri e sale, per caloria.",
@@ -142,6 +148,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   es: {
     title: "Puntuación del día",
+    mealTitle: "Puntuación de la comida",
     outOf: "{n}/10",
     dayLabel: "Hoy",
     method: "A partir de proteínas, fibra, grasas saturadas, azúcar y sal, por caloría.",
@@ -162,6 +169,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   vi: {
     title: "Điểm trong ngày",
+    mealTitle: "Điểm bữa ăn",
     outOf: "{n}/10",
     dayLabel: "Hôm nay",
     method: "Từ đạm, chất xơ, chất béo bão hòa, đường và muối, trên mỗi calo.",
@@ -182,6 +190,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   id: {
     title: "Skor harian",
+    mealTitle: "Skor santapan",
     outOf: "{n}/10",
     dayLabel: "Hari ini",
     method: "Dari protein, serat, lemak jenuh, gula, dan garam, per kalori.",
@@ -202,6 +211,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
   },
   ru: {
     title: "Оценка дня",
+    mealTitle: "Оценка приёма пищи",
     outOf: "{n}/10",
     dayLabel: "Сегодня",
     method: "Из белка, клетчатки, насыщенных жиров, сахара и соли — на калорию.",
