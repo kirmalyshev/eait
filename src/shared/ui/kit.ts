@@ -45,7 +45,7 @@ export type ChipName = "kcal" | "protein" | "carbs" | "fat" | "satfat";
 // second copy the kit exists to prevent.
 
 export type RingTone =
-  | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line"
+  | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line" | "over"
   | `macro-${ChipName}`;
 
 const RING_SPEC = {
