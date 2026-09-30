@@ -636,6 +636,7 @@ ${(Object.keys(MOUTHS) as MascotMood[]).map((m) =>
   box-shadow:0 1px 3px rgba(23,25,28,.16);white-space:nowrap}
 .tagx .wm{width:18px;height:18px;flex-basis:18px}
 .tagx .ico{width:16px;height:16px}
+.tagx .i-streak{color:var(--macro-carbs)}
 .tagx.ic{padding:4px 10px}
 
 /* The chart frame — overflow:visible so an end dot can sit on the edge. */

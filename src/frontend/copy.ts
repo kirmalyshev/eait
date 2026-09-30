@@ -30,6 +30,10 @@ export interface WebCopy {
   /** The switcher chevrons' accessible names — the buttons themselves carry only a glyph. */
   dayPrev: string;
   dayNext: string;
+  /** Home's week arrows and the calendar button between them. */
+  weekPrev: string;
+  weekNext: string;
+  pickDay: string;
   /**
    * The word after the headline figure — `dayBudget`'s state, in words.
    *
@@ -171,6 +175,7 @@ const EN: WebCopy = {
   signIn: "Sign in",
   today: "Today",
   yesterday: "Yesterday", dayPrev: "Previous day", dayNext: "Next day",
+  weekPrev: "Previous week", weekNext: "Next week", pickDay: "Choose a day",
   budgetLeft: "left", budgetOver: "over", budgetUnder: "under",
   targetLine: "Target {target} · {protein} g protein",
   eatenLine: "{eaten} of {target} eaten",
@@ -265,6 +270,7 @@ const FR: WebCopy = {
   signedOutLead: "Photographie un repas, reçois les chiffres. Connecte-toi pour retrouver ton journal.",
   signIn: "Se connecter", today: "Aujourd'hui",
   yesterday: "Hier", dayPrev: "Jour précédent", dayNext: "Jour suivant",
+  weekPrev: "Semaine précédente", weekNext: "Semaine suivante", pickDay: "Choisir un jour",
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
   targetLine: "Objectif {target} · {protein} g de protéines",
   eatenLine: "{eaten} consommées sur {target}",
@@ -351,6 +357,7 @@ const DE: WebCopy = {
   signedOutLead: "Fotografier eine Mahlzeit, bekomm die Zahlen. Melde dich an, um dein Tagebuch weiterzuführen.",
   signIn: "Anmelden", today: "Heute",
   yesterday: "Gestern", dayPrev: "Vorheriger Tag", dayNext: "Nächster Tag",
+  weekPrev: "Vorherige Woche", weekNext: "Nächste Woche", pickDay: "Tag auswählen",
   budgetLeft: "übrig", budgetOver: "drüber", budgetUnder: "darunter",
   targetLine: "Ziel {target} · {protein} g Eiweiß",
   eatenLine: "{eaten} von {target} gegessen",
@@ -437,6 +444,7 @@ const IT: WebCopy = {
   signedOutLead: "Fotografa un pasto, ricevi i numeri. Accedi per riprendere il tuo diario.",
   signIn: "Accedi", today: "Oggi",
   yesterday: "Ieri", dayPrev: "Giorno precedente", dayNext: "Giorno successivo",
+  weekPrev: "Settimana precedente", weekNext: "Settimana successiva", pickDay: "Scegli un giorno",
   budgetLeft: "rimaste", budgetOver: "sopra", budgetUnder: "sotto",
   targetLine: "Obiettivo {target} · {protein} g di proteine",
   eatenLine: "{eaten} di {target} mangiate",
@@ -523,6 +531,7 @@ const ES: WebCopy = {
   signedOutLead: "Fotografía una comida, recibe los números. Entra para seguir con tu diario.",
   signIn: "Entrar", today: "Hoy",
   yesterday: "Ayer", dayPrev: "Día anterior", dayNext: "Día siguiente",
+  weekPrev: "Semana anterior", weekNext: "Semana siguiente", pickDay: "Elegir un día",
   budgetLeft: "restantes", budgetOver: "por encima", budgetUnder: "por debajo",
   targetLine: "Objetivo {target} · {protein} g de proteína",
   eatenLine: "{eaten} de {target} consumidas",
@@ -609,6 +618,7 @@ const VI: WebCopy = {
   signedOutLead: "Chụp một bữa ăn, nhận các con số. Đăng nhập để tiếp tục nhật ký của bạn.",
   signIn: "Đăng nhập", today: "Hôm nay",
   yesterday: "Hôm qua", dayPrev: "Ngày trước", dayNext: "Ngày sau",
+  weekPrev: "Tuần trước", weekNext: "Tuần sau", pickDay: "Chọn ngày",
   budgetLeft: "còn lại", budgetOver: "vượt", budgetUnder: "thiếu",
   targetLine: "Mục tiêu {target} · {protein} g đạm",
   eatenLine: "Đã ăn {eaten} trên {target}",
@@ -695,6 +705,7 @@ const ID: WebCopy = {
   signedOutLead: "Foto sebuah makanan, dapat angkanya. Masuk untuk melanjutkan buku harianmu.",
   signIn: "Masuk", today: "Hari ini",
   yesterday: "Kemarin", dayPrev: "Hari sebelumnya", dayNext: "Hari berikutnya",
+  weekPrev: "Minggu sebelumnya", weekNext: "Minggu berikutnya", pickDay: "Pilih hari",
   budgetLeft: "tersisa", budgetOver: "lebih", budgetUnder: "kurang",
   targetLine: "Target {target} · {protein} g protein",
   eatenLine: "{eaten} dari {target} dimakan",
@@ -781,6 +792,7 @@ const RU: WebCopy = {
   signedOutLead: "Сфотографируй еду — получи цифры. Войди, чтобы продолжить свой дневник.",
   signIn: "Войти", today: "Сегодня",
   yesterday: "Вчера", dayPrev: "Предыдущий день", dayNext: "Следующий день",
+  weekPrev: "Предыдущая неделя", weekNext: "Следующая неделя", pickDay: "Выбрать день",
   budgetLeft: "осталось", budgetOver: "сверх", budgetUnder: "ниже",
   targetLine: "Цель {target} · белка {protein} г",
   eatenLine: "Съедено {eaten} из {target}",

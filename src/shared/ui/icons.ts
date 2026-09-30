@@ -72,9 +72,9 @@ export const ICONS = {
   fat: FAT,
   satfat: FAT,
 
-  // ── The streak chip's flame (Today, the health-sync board) ──
+  // ── The streak chip's flame (Today, the health-sync board) — a full filled flame, drawn here ──
   streak: solid(
-    '<path fill="currentColor" d="M12 2c.6 3.2-1.4 5-3 6.8C7.4 10.6 6 12.5 6 15a6 6 0 0 0 12 0c0-2.4-1.1-4.3-2.4-5.6.1 1.6-.5 2.9-1.6 3.4.4-3.6-.6-7.9-2-10.8z"/>',
+    '<path fill="currentColor" d="M12 1.8c.6 3.2 4 5.4 5.8 8.6 1.2 2.1 1.5 3.9 1.2 5.6-.7 3.7-3.6 6.2-7 6.2s-6.3-2.5-7-6.2c-.4-2.2.3-4.4 1.6-6.1.3 1.5 1.1 2.7 2.3 3.3-.6-3.8 1-8.6 3.1-11.4z"/>',
   ),
 
   // ── Sex ──
@@ -244,6 +244,7 @@ export const ICONS = {
   pencil: line('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
   trash: line('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   backspace: line('<path d="M9 6h11v12H9l-6-6z"/><path d="M12 10l4 4M16 10l-4 4"/>'),
+  calendar: line('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   "calendar-back": line(
     '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M14 15.5h-5M11 13l-2.5 2.5L11 18"/>',
   ),
@@ -340,6 +341,16 @@ export const BRAND_ICONS = {
   github: spec(
     '<path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>',
     "0 0 16 16",
+  ),
+  /** eait's own mark: the app icon's bowl on its green tile, as the landing favicon draws it (#1139). */
+  eait: spec(
+    '<rect width="1024" height="1024" rx="224" fill="#1E6B3C"/>' +
+      '<g transform="matrix(1.4 0 0 1.4 -241.2 -196.4)">' +
+      '<circle cx="410" cy="506" r="92" fill="#5BB37E"/><circle cx="614" cy="500" r="96" fill="#D9483F"/><circle cx="512" cy="456" r="104" fill="#D48A1C"/>' +
+      '<path d="M292 536H732A220 204 0 0 1 292 536Z" fill="#FFFFFF"/><rect x="432" y="728" width="160" height="34" rx="17" fill="#FFFFFF"/>' +
+      '<path d="M560 420L740 262M600 438L772 300" stroke="#1E6B3C" stroke-width="50" stroke-linecap="round"/>' +
+      '<path d="M560 420L740 262M600 438L772 300" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round"/></g>',
+    "0 0 1024 1024",
   ),
 } satisfies Record<string, IconSpec>;
 
