@@ -9,7 +9,7 @@
 // (design-pro's ruling on the issue).
 
 import { weightCard } from "../../shared/progress.ts";
-import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, type WeightRange } from "../../shared/ui/charts.ts";
+import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { countText, dayMonth, decimalNumbers, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
@@ -135,10 +135,13 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     // the log's latest, and a single point draws alone with its value and date, no invented second.
     wBody.append(weightFigure(w.latest!.kg, copy.weightNowTail[units]));
     const first = w.weights[0]!, last = w.weights.at(-1)!;
+    // The end labels name the TREND's endpoints, not the raw readings they once did — a label at
+    // the line's end quotes the value the line ends at (#1114). The figure above stays `latest`.
+    const trend = weightChart(points);
     wBody.append(weightChartEl(points, {
       aria: copy.weightChartName,
-      first: wnum(first.kg),
-      last: state.kind === "trend" ? wnum(last.kg) : "",
+      first: trend.firstValue === null ? "" : wnum(trend.firstValue),
+      last: state.kind === "trend" && trend.lastValue !== null ? wnum(trend.lastValue) : "",
       from: fmtDate(first.date),
       to: state.kind === "trend" ? fmtDate(last.date) : "",
     }));

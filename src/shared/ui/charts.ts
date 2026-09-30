@@ -201,8 +201,9 @@ export const TWO_WAYS_CHART = {
 
 // ── The logged-weight line chart ─────────────────────────────────────────────────────────────
 //
-// Progress's "Weight" card: points from data (a weigh-in is a dot, never interpolated), a polyline
-// through them, three hairline rows, the first and last values written at their ends and the dates
+// Progress's "Weight" card: the line draws the TREND of the weigh-ins — a 7-day rolling mean,
+// never the raw samples, which a daily log polylines into scribbles a few px apart (#1114) —
+// with three hairline rows, the first and last values written at their ends and the dates
 // underneath. The 90D · 6M · 1Y · All segments pick which logged points reach this function; the
 // axis itself always spans first-to-last point, which is what the board draws.
 
@@ -296,11 +297,63 @@ const BW_FRAME: WeightFrame = {
   dateLabelY: 128,
 };
 
+/** The trend's window: the trailing 7 days a daily scale's ±0.3 kg swing is averaged over. */
+const W_TREND_WINDOW_DAYS = 7;
+/** Past this drawn-point count the polyline is ink, not shape — under ~7 px a point on the axis. */
+const W_TREND_MAX_POINTS = 40;
+/** A span this short or shorter thins to a weekly sample of the trend; longer goes monthly. */
+const W_TREND_WEEKLY_SPAN_DAYS = 120;
+
+/**
+ * The trend a weigh-in line draws (#1114): each point re-valued as the mean of the readings in
+ * the 7 days up to it, so the line follows where the weight is going rather than every day's
+ * noise. `t` is epoch ms or a day index — the constants are days, scaled by whichever the caller
+ * sent (a day index is never a billion; an epoch-ms reading always is). Sparse logs come through
+ * untouched — a window holding one reading returns it — and the endpoints keep their dates, so
+ * the line still runs first weigh-in to last. The labels at the ends name what the line ends ON
+ * (`firstValue`/`lastValue`), never the raw readings; the card's big figure stays the latest
+ * weigh-in, which the callers hold separately.
+ *
+ * A rolling mean smooths without thinning: a daily log stays one point a day, and past
+ * `W_TREND_MAX_POINTS` the frame cannot carry them — so a crowded series is sampled back to a
+ * weekly step on a ~4-month span or shorter (the 90D segment) and a monthly one past it (6M, 1Y,
+ * the whole log), each kept point still the trailing mean at its own date, the ends pinned.
+ */
+function weightTrend(points: readonly WeightPoint[]): WeightPoint[] {
+  if (points.length < 3) return [...points];
+  const day = points[points.length - 1]!.t >= 1_000_000_000 ? 86_400_000 : 1;
+  const window = W_TREND_WINDOW_DAYS * day;
+  const mean = points.map((p, i) => {
+    let sum = 0, n = 0;
+    for (let j = i; j >= 0 && p.t - points[j]!.t <= window; j--) {
+      sum += points[j]!.kg;
+      n++;
+    }
+    return { t: p.t, kg: sum / n };
+  });
+  if (mean.length <= W_TREND_MAX_POINTS) return mean;
+  const step = ((mean[mean.length - 1]!.t - mean[0]!.t) / day <= W_TREND_WEEKLY_SPAN_DAYS
+    ? 7 : 30) * day;
+  const out = [mean[0]!];
+  for (const p of mean.slice(1, -1)) {
+    if (p.t - out[out.length - 1]!.t >= step) out.push(p);
+  }
+  out.push(mean[mean.length - 1]!);
+  return out;
+}
+
 function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
   viewBox: string;
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /**
+   * The drawn endpoints' values, in the caller's own unit — what the end labels must name
+   * (#1114): the TREND's first and last points, so a label anchored to the line's end can never
+   * quote a reading the line no longer ends at. Null on an empty log.
+   */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   dateLabelY: number;
@@ -324,6 +377,8 @@ function weightLine(points: readonly WeightPoint[], f: WeightFrame): {
     viewBox: f.viewBox,
     gridlines: f.gridlines ?? [],
     points: pts,
+    firstValue: points[0]?.kg ?? null,
+    lastValue: points[points.length - 1]?.kg ?? null,
     // A line needs two points: one weigh-in is a dot with its date, not a trend (design-pro, #95).
     path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
     firstLabel: { x: f.x0, y: f.firstLabelY },
@@ -361,6 +416,9 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /** The trend's first and last values — what the end labels name (#1114). Null when empty. */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   /** The y of the two date captions; their x's are the axis ends. */
@@ -371,7 +429,7 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
   /** Where its "{w} · target" label sits, right-aligned just over the line. */
   targetLabel?: { x: number; y: number };
 } {
-  const g = weightLine(points, withTargetLane ? W_FRAME_LANE : W_FRAME);
+  const g = weightLine(weightTrend(points), withTargetLane ? W_FRAME_LANE : W_FRAME);
   return withTargetLane ? {
     ...g,
     // The band the taller frame opens: the board's lane at y 104, its label above it. The value
@@ -694,17 +752,22 @@ export function compareChart(
 //
 // phone/health-body.html: the same logged-weights line as Progress's card on a wider frame —
 // 340×130 with no hairlines, the first and last values named, the date range under. Same mapping
-// as `weightChart` (`weightLine`), a different `WeightFrame` — the frame is the whole difference.
+// as `weightChart` (`weightLine`), a different `WeightFrame` — the frame is the whole difference,
+// and the same trend: the Body screen's line is `weightTrend` too, because the two surfaces
+// cannot disagree about where the weight is going (#1114 — the scribbles were reported HERE).
 
 export function bodyWeightChart(points: readonly WeightPoint[]): {
   viewBox: string;
   gridlines: readonly number[];
   points: { x: number; y: number }[];
   path: string;
+  /** The trend's first and last values — what the end labels name (#1114). Null when empty. */
+  firstValue: number | null;
+  lastValue: number | null;
   firstLabel: { x: number; y: number };
   lastLabel: { x: number; y: number };
   dateLabelY: number;
   dateLabelX: { start: number; end: number };
 } {
-  return weightLine(points, BW_FRAME);
+  return weightLine(weightTrend(points), BW_FRAME);
 }
