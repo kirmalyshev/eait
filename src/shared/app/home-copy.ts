@@ -62,6 +62,8 @@ export interface HomeCopy {
   pickerNextMonth: string;
   /** phone: the month sheet's scrim's accessible name — the tap-outside dismissal. */
   pickerClose: string;
+  /** What a long press on the week strip does — the month sheet, named for VoiceOver and the web's calendar button. */
+  pickDay: string;
   /** phone: a marked day's accessible name in the sheet — `{day}` is `dayLabel`'s. */
   pickerDayLogged: string;
   /** phone: an empty day's accessible name in the sheet. */
@@ -149,6 +151,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Previous month",
     pickerNextMonth: "Next month",
     pickerClose: "Close",
+    pickDay: "Choose a day",
     pickerDayLogged: "{day}, has meals",
     pickerDayUnlogged: "{day}, nothing logged",
     about: "about",
@@ -192,6 +195,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mois précédent",
     pickerNextMonth: "Mois suivant",
     pickerClose: "Fermer",
+    pickDay: "Choisir un jour",
     pickerDayLogged: "{day}, repas notés",
     pickerDayUnlogged: "{day}, rien de noté",
     about: "environ",
@@ -235,6 +239,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Vorheriger Monat",
     pickerNextMonth: "Nächster Monat",
     pickerClose: "Schließen",
+    pickDay: "Tag auswählen",
     pickerDayLogged: "{day}, Mahlzeiten erfasst",
     pickerDayUnlogged: "{day}, nichts erfasst",
     about: "etwa",
@@ -278,6 +283,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mese precedente",
     pickerNextMonth: "Mese successivo",
     pickerClose: "Chiudi",
+    pickDay: "Scegli un giorno",
     pickerDayLogged: "{day}, pasti registrati",
     pickerDayUnlogged: "{day}, niente registrato",
     about: "circa",
@@ -321,6 +327,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Mes anterior",
     pickerNextMonth: "Mes siguiente",
     pickerClose: "Cerrar",
+    pickDay: "Elegir un día",
     pickerDayLogged: "{day}, con comidas",
     pickerDayUnlogged: "{day}, sin registros",
     about: "unas",
@@ -364,6 +371,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Tháng trước",
     pickerNextMonth: "Tháng sau",
     pickerClose: "Đóng",
+    pickDay: "Chọn ngày",
     pickerDayLogged: "{day}, đã ghi bữa ăn",
     pickerDayUnlogged: "{day}, chưa ghi gì",
     about: "khoảng",
@@ -407,6 +415,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Bulan sebelumnya",
     pickerNextMonth: "Bulan berikutnya",
     pickerClose: "Tutup",
+    pickDay: "Pilih hari",
     pickerDayLogged: "{day}, ada catatan makan",
     pickerDayUnlogged: "{day}, belum ada catatan",
     about: "sekitar",
@@ -450,6 +459,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerPrevMonth: "Предыдущий месяц",
     pickerNextMonth: "Следующий месяц",
     pickerClose: "Закрыть",
+    pickDay: "Выбрать день",
     pickerDayLogged: "{day}, записаны приёмы пищи",
     pickerDayUnlogged: "{day}, ничего не записано",
     about: "около",

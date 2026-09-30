@@ -135,7 +135,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const next = arrow(COPY.weekNext, "chevron-right", () => shiftWeek(1));
     next.disabled = mondayOf(viewing) >= mondayOf(today);
     row.append(arrow(COPY.weekPrev, "chevron-left", () => shiftWeek(-1)),
-      arrow(COPY.pickDay, "calendar", openPicker), next);
+      arrow(L.pickDay, "calendar", openPicker), next);
     frame.bar.append(row);
   };
 
