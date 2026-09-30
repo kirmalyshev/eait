@@ -382,7 +382,10 @@ export async function chatScreen(): Promise<HTMLElement> {
     // `macroEaten` then `macroTarget`, and no split on the template itself.
     const figure = el("span", "num mb-num");
     figure.append(el("b", "", fill(copy().macroEaten, { value: wholeNumbers(lang)(focus.eaten) })),
-      " ", fill(copy().macroTarget, { target: wholeNumbers(lang)(focus.target) }));
+      " ", fill(copy().macroTarget, {
+        target: wholeNumbers(lang)(focus.target),
+        unit: focus.nutrient === "kcal" ? UNIT_KCAL[lang] : spellUnit(lang, "g"),
+      }));
     head.append(name, figure);
     const bar = el("div", "bar");
     const fillEl = el("i", "grow");
