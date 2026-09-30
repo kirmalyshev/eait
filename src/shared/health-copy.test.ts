@@ -85,7 +85,7 @@ describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
 
   it("titles the intake card by period, counted in the reader's own forms", () => {
     const s = healthScreenCopyFor("en");
-    expect(s.intake.periods.days.one).toBe("this week");
+    expect(s.intake.periods.days.one).toBe("the last 7 days");
     expect(countText("en")(s.intake.periods.weeks.counted, 26)).toBe("the last 26 weeks");
     expect(s.intake.periods.years.one).toBe("this year");
     const ru = healthScreenCopyFor("ru");

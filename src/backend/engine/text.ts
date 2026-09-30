@@ -357,6 +357,7 @@ async function keep(
       // proposal's line names nothing — the id already has its carrier line, and a second one
       // would hand the correction's words to the meal screen as the meal's caption.
       pendingId: result.kind === "proposed" && result.pendingId !== amended?.id ? result.pendingId : null,
+      mealId: result.kind === "updated" || result.kind === "redated" ? result.mealId : null,
     }];
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
@@ -369,7 +370,7 @@ async function keep(
         const meal = await deps.store.getMeal(userId, result.mealId);
         const line = meal ? changeLine(before, meal, profile) : null;
         result.line = line;
-        if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie" });
+        if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId: result.mealId });
       }
     }
     return lines;

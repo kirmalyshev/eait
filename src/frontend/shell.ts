@@ -33,6 +33,7 @@ import { outcomeUnknown } from "../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
 import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
 import { localDate, windowStart } from "../shared/dates.ts";
+import { mealNames } from "../shared/meal-names.ts";
 import type { Lang } from "../shared/types.ts";
 import type { MealAnalysis, MealProposed, MealRecord } from "@eait/shared";
 import type {
@@ -571,9 +572,8 @@ export function refusalWords(err: unknown): string {
   return said(code) ?? (err.status >= 500 ? maybeLanded() : COPY.somethingWrong);
 }
 
-/** What a meal is called on one line: its first two items. */
-export const names = (items: readonly { name: string }[]): string =>
-  items.slice(0, 2).map((i) => i.name).join(", ") || COPY.meal;
+/** What a meal is called on one line — `mealNames`, or the untitled word. */
+export const names = (items: readonly { name: string }[]): string => mealNames(items) || COPY.meal;
 
 /**
  * One meal by id, wherever the diary window holds it — today first, then the logged days behind

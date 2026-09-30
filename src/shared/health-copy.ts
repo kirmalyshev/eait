@@ -475,7 +475,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "this week", counted: { other: "this week" } },
+        days: { one: "the last 7 days", counted: { other: "the last 7 days" } },
         weeks: { one: "last week", counted: { other: "the last {n} weeks" } },
         months: { one: "last month", counted: { other: "the last {n} months" } },
         years: { one: "this year", counted: { other: "the last {n} years" } },
@@ -562,7 +562,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "cette semaine", counted: { other: "cette semaine" } },
+        days: { one: "les 7 derniers jours", counted: { other: "les 7 derniers jours" } },
         weeks: { one: "la semaine dernière", counted: { other: "les {n} dernières semaines" } },
         months: { one: "le mois dernier", counted: { other: "les {n} derniers mois" } },
         years: { one: "cette année", counted: { other: "les {n} dernières années" } },
@@ -649,7 +649,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "diese Woche", counted: { other: "diese Woche" } },
+        days: { one: "die letzten 7 Tage", counted: { other: "die letzten 7 Tage" } },
         weeks: { one: "letzte Woche", counted: { other: "die letzten {n} Wochen" } },
         months: { one: "letzten Monat", counted: { other: "die letzten {n} Monate" } },
         years: { one: "dieses Jahr", counted: { other: "die letzten {n} Jahre" } },
@@ -736,7 +736,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "questa settimana", counted: { other: "questa settimana" } },
+        days: { one: "gli ultimi 7 giorni", counted: { other: "gli ultimi 7 giorni" } },
         weeks: { one: "la settimana scorsa", counted: { other: "le ultime {n} settimane" } },
         months: { one: "il mese scorso", counted: { other: "gli ultimi {n} mesi" } },
         years: { one: "quest'anno", counted: { other: "gli ultimi {n} anni" } },
@@ -823,7 +823,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "esta semana", counted: { other: "esta semana" } },
+        days: { one: "los últimos 7 días", counted: { other: "los últimos 7 días" } },
         weeks: { one: "la semana pasada", counted: { other: "las últimas {n} semanas" } },
         months: { one: "el mes pasado", counted: { other: "los últimos {n} meses" } },
         years: { one: "este año", counted: { other: "los últimos {n} años" } },
@@ -910,7 +910,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "tuần này", counted: { other: "tuần này" } },
+        days: { one: "7 ngày qua", counted: { other: "7 ngày qua" } },
         weeks: { one: "tuần trước", counted: { other: "{n} tuần gần đây" } },
         months: { one: "tháng trước", counted: { other: "{n} tháng gần đây" } },
         years: { one: "năm nay", counted: { other: "{n} năm gần đây" } },
@@ -997,7 +997,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "minggu ini", counted: { other: "minggu ini" } },
+        days: { one: "7 hari terakhir", counted: { other: "7 hari terakhir" } },
         weeks: { one: "minggu lalu", counted: { other: "{n} minggu terakhir" } },
         months: { one: "bulan lalu", counted: { other: "{n} bulan terakhir" } },
         years: { one: "tahun ini", counted: { other: "{n} tahun terakhir" } },
@@ -1084,7 +1084,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     },
     intake: {
       periods: {
-        days: { one: "за эту неделю", counted: { other: "эту неделю" } },
+        days: { one: "за последние 7 дней", counted: { other: "последние 7 дней" } },
         weeks: { one: "за прошлую неделю", counted: { one: "за последние {n} неделю", few: "за последние {n} недели", many: "за последние {n} недель", other: "за последние {n} недели" } },
         months: { one: "за прошлый месяц", counted: { one: "за последние {n} месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" } },
         years: { one: "за этот год", counted: { one: "за последние {n} год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" } },

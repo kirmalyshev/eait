@@ -268,7 +268,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     fillEl.style.width = `${Math.max(0, Math.min(100, day.healthScore * 10))}%`;
     track.append(fillEl);
     const scored = day.meals.filter((m) => m.healthScore !== null).length;
-    a.append(line, track, el("span", "hfrom", count(SC.todayFromMeals, scored)));
+    a.append(line, track, el("span", "hfrom", count(day.date === today ? SC.todayFromMeals : SC.dayFromMeals, scored)));
     a.addEventListener("click", () => openScore(day));
     return a;
   };
@@ -279,10 +279,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const card = el("div", "card scorecard");
     const title = el("div", "stitle");
     title.append(
-      el("b", "", SC.breakdownTitle),
+      el("b", "", day.date === today ? SC.breakdownTitle : SC.title),
       el("b", "snum", fill(SC.outOf, { n: n(day.healthScore ?? 0) })),
     );
-    card.append(title, el("p", "sline", SC.breakdownLine));
+    card.append(title, el("p", "sline", day.date === today ? SC.breakdownLine : SC.dayBreakdownLine));
     for (const meal of day.meals) {
       if (meal.healthScore === null) continue;
       const row = el("a", "hsp") as HTMLAnchorElement;

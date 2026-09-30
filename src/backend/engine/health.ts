@@ -17,6 +17,10 @@ import {
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
+import { mergedWeights } from "./weights.ts";
+
+/** The share a scale reading may move from the one before it before it needs confirming. */
+const MAX_WEIGHT_JUMP = 0.1;
 
 // How far back a day may be dated and still be accepted, and the widest trend a client may read,
 // are ONE bound: `windowStart(today, HEALTH_RETENTION_DAYS)`, so every day accepted is servable
@@ -79,6 +83,16 @@ export async function recordHealthDays(
 
   const measuredAt = measurementInstant(weightMeasuredAt, newest.date);
   if (!isNewerMeasurement(measuredAt, profile.weight_measured_at)) {
+    return { accepted: clean.length };
+  }
+  // A weigh-in typed on the same day or later beats the import, as it does in `mergedWeights`
+  // (ieat-app#1233: one bad scale sample replaced a typed 96 kg with 70.2 and moved the plan).
+  if ((await deps.store.weightsSince(userId, newest.date)).length > 0) {
+    return { accepted: clean.length };
+  }
+  // A jump of over 10% from the reading before it is held: the next reading near it confirms it.
+  const previous = (await mergedWeights(deps, userId, "0001-01-01")).filter((w) => w.date < newest.date).at(-1);
+  if (previous && Math.abs(newest.weight_kg! - previous.kg) > previous.kg * MAX_WEIGHT_JUMP) {
     return { accepted: clean.length };
   }
 

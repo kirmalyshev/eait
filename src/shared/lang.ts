@@ -250,6 +250,15 @@ export const dayMonth = (lang: Lang) =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
 
 /**
+ * A `YYYY-MM-DD` day as "24 Aug", the year joining when it is not `today`'s: an "All" axis that
+ * began "21 May" read as later than 1Y's "3 Oct" when it was a year earlier (ieat-app#1230).
+ */
+export const dayMonthOn = (lang: Lang, date: string, today: string): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: "UTC", day: "numeric", month: "short", ...(date.slice(0, 4) === today.slice(0, 4) ? {} : { year: "numeric" }),
+  }).format(new Date(`${date}T12:00:00Z`));
+
+/**
  * An INSTANT's day — "26 Sep", the year joining only when it is not this one — in the ACCOUNT's
  * zone. For `YYYY-MM-DD` day strings (which are already dates, not instants) use `dayMonth` on a
  * UTC noon anchor instead.

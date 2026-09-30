@@ -224,8 +224,15 @@ describe("counting a first sync as landed", () => {
 });
 
 describe("weight sync", () => {
+  // Onboarded yesterday: the weigh-in typed at onboarding outranks an import dated the same day.
+  async function onboardYesterday(): Promise<string> {
+    const typed = deps.store;
+    deps = { ...deps, store: { ...store, putWeight: (u, _d, kg) => store.putWeight(u, ago(1), kg) } };
+    try { return await onboard(); } finally { deps = { ...deps, store: typed }; }
+  }
+
   it("moves the profile weight, and therefore the calorie target", async () => {
-    const userId = await onboard();
+    const userId = await onboardYesterday();
     const before = (await store.getProfile(userId))!.weight_kg;
     expect(before).toBe(70);
 
@@ -241,7 +248,7 @@ describe("weight sync", () => {
   });
 
   it("takes the weight from the MOST RECENT day in the batch", async () => {
-    const userId = await onboard();
+    const userId = await onboardYesterday();
     await recordHealthDays(deps, userId, [
       day(ago(2), { weight_kg: 72 }),
       day(ago(0), { weight_kg: 69 }),
@@ -264,14 +271,14 @@ describe("weight sync", () => {
     expect((await store.getProfile(userId))!.weight_kg).toBe(66);
   });
 
-  it("does overwrite when the measurement is newer than the typed one", async () => {
+  it("does NOT overwrite a weight typed the same day, however new the import's stamp", async () => {
+    // ieat-app#1233: a scale sample of 70.2 kg replaced a typed 96 kg the same day.
     const userId = await onboard();
     await patchProfile(deps, userId, { weight_kg: 66 });
-    const typedAt = (await store.getProfile(userId))!.weight_measured_at!;
 
-    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 71 })], await measuredNow());
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 67 })], await measuredNow());
 
-    expect((await store.getProfile(userId))!.weight_kg).toBe(71);
+    expect((await store.getProfile(userId))!.weight_kg).toBe(66);
   });
 
   it("refuses to stamp a measurement in the future, so a bad clock cannot lock the sync out", async () => {
@@ -280,7 +287,7 @@ describe("weight sync", () => {
     // measurement that follows it, so Apple Health weight sync stops working from that moment on,
     // silently, with nothing on any screen to say why. A measurement cannot have been taken later
     // than now; the server holds it to that.
-    const userId = await onboard();
+    const userId = await onboardYesterday();
     const wayAhead = new Date(Date.now() + 365 * 86_400_000).toISOString();
     await Bun.sleep(2);
     await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 71 })], wayAhead);
@@ -296,7 +303,7 @@ describe("weight sync", () => {
   it("ignores a measurement stamp that is not a time at all", async () => {
     // Falls back to the day's own end rather than to `now()`: a batch replayed later must not be
     // able to beat a correction the user typed in the meantime.
-    const userId = await onboard();
+    const userId = await onboardYesterday();
     await Bun.sleep(2); // so the fallback instant is strictly after the stamp onboarding wrote
     await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 68 })], "whenever");
     expect((await store.getProfile(userId))!.weight_kg).toBe(68);
