@@ -47,6 +47,12 @@ export const todayCss = `
 .weekwrap { touch-action: pan-y; -webkit-touch-callout: none; user-select: none; }
 .mtrack { display: flex; transition: transform ${MOTION.settle / 1000}s var(--ease); }
 .mpage { flex: 0 0 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+/* The pages share the taller one's height, so the shorter one's card row grows to the same
+   bottom edge (#1241): the grid's single row stretches and the cards with it, and the slack
+   lands between the caption and the ring, which stays pinned to the card's bottom. With no
+   slack — the taller page — the auto margin is zero and nothing moves. */
+.mpage > .mcards { flex: 1; }
+.mpage .mcard > small { margin-bottom: auto; }
 
 /* The macro cards: page 1's left-aligned set, page 2's four-up nutrient set, and the compact
    centred form the empty/logging/past boards draw. mcards.p2 is the four-column page. */
