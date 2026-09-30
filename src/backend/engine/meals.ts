@@ -458,7 +458,7 @@ export async function editMeal(
   if (opts.thread !== false) {
     await remember(deps, userId, async () => [
       { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
-      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
+      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId } as const] : []),
     ]);
   }
   return {
@@ -733,7 +733,7 @@ export async function rewriteMeal(
   // #119: a re-read is an edit like any other — the same computed line names what it changed,
   // written only when the read actually moved something.
   const line = changeLine(existing, updated, profile);
-  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
+  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId: existing.id }]);
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
     via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),
