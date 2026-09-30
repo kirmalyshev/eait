@@ -285,6 +285,8 @@ const W_FRAME: WeightFrame = {
  */
 const W_FRAME_LANE: WeightFrame = {
   ...W_FRAME, viewBox: "0 0 320 120", spanPx: 32, lastLabelDy: 18, dateLabelY: 118,
+  // Without the bottom hairline: at y 94 it ran through the lane's label (#1236).
+  gridlines: W_GRID.slice(0, 2),
 };
 
 /** health-body.html's frame: wider, no hairlines, the board's 50 px a kg capping at a 66 px span. */
