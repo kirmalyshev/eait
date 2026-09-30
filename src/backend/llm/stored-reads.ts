@@ -42,7 +42,7 @@ const NOTES: Partial<Record<Lang, Record<Meal, string>>> = {
     salmon: "Il piatto è un piatto piano standard da 26 cm. La glassa del salmone e i broccoli suggeriscono un po' di olio per la saltatura. Porzioni stimate dalla superficie occupata e dallo spessore.",
   },
   es: {
-    grainbowl: "Diámetro del plato estimado en 26 cm. Raciones calculadas a ojo. Aceite de oliva deducido por el brillo de las verduras.",
+    grainbowl: "Diámetro del plato estimado en 26 cm. Raciones calculadas a ojo. Aceite de oliva deducido del brillo de las verduras.",
     eggs: "Se suponen huevos duros estándar y una rebanada típica de pan de centeno alemán (40g). No se mencionan grasas añadidas ni ingredientes extra.",
     salmon: "El plato es un plato llano estándar de 26 cm. El glaseado del salmón y el brócoli sugieren un poco de aceite al saltear. Raciones estimadas por la superficie cubierta y la altura.",
   },
