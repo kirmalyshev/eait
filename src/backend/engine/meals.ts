@@ -24,7 +24,7 @@ import {
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
-import { prepareAnalysis } from "./analysis.ts";
+import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -912,7 +912,10 @@ async function buildRepertoire(deps: EngineDeps, userId: string, today: string):
         // Fat inferred from a sheen is in every meal and chosen in none of them. Fed back as a
         // frequent food it becomes the top of the list, and a prior meant to help identify what is
         // on the plate starts arguing for oil on plates that have none.
-        if (item.role === "cooking-fat") continue;
+        // The mark is re-tested here, not just trusted: rows written while a model filled the
+        // single-value enum on every item (#317) are still stored that way, and skipping them
+        // would keep those users' repertoires empty until the rows aged out.
+        if (isCookingFat(item)) continue;
         const key = item.name_en ?? item.name;
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }

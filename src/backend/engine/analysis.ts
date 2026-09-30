@@ -10,6 +10,31 @@ import type { AnalyzedMeal } from "../llm/port.ts";
 const SUMMED = ["kcal", "protein_g", "carbs_g", "fat_g"] as const;
 
 /**
+ * How much of an item's energy must come from fat before a `cooking-fat` mark on it can be true.
+ * Oils, ghee and lard are ~100% fat-kcal, butter and margarine ~99%; the fatty FOODS a mark could
+ * be wrongly hung on — eggs ~60%, salmon ~55%, nuts, avocado, cheese ~70-80% — all sit below.
+ */
+const FAT_KCAL_SHARE = 0.85;
+
+/**
+ * Whether a `cooking-fat` mark on this item is one the item could really carry.
+ *
+ * The mark means "the fat this meal was cooked in, listed as its own row" — the ONE inferred row
+ * `buildRepertoire` keeps out of the foods-this-person-eats prior. But to the schema `role` is a
+ * single-value enum, and a model can fill a field rather than decide it: qwen3-vl marked EVERY
+ * item on all nine production reads it was audited on (#317), and a plate whose every row is
+ * marked feeds an empty repertoire to the next call. So the mark fails CLOSED — it survives only
+ * where the item's own numbers say the thing is essentially pure fat, and a mark those numbers
+ * contradict, or cannot confirm because the shared type keeps them optional, goes rather than
+ * being believed.
+ */
+export function isCookingFat(item: { role?: string | undefined; kcal?: number | undefined; fat_g?: number | undefined }): boolean {
+  if (item.role !== "cooking-fat") return false;
+  if (typeof item.kcal !== "number" || typeof item.fat_g !== "number" || item.kcal <= 0) return false;
+  return item.fat_g * 9 >= item.kcal * FAT_KCAL_SHARE;
+}
+
+/**
  * How far a total may sit from the sum of its items before the card says the model disagreed with
  * its own working. The items are the totals either way; this decides only the confidence.
  *
@@ -40,7 +65,16 @@ export function prepareAnalysis(analysis: AnalyzedMeal): {
   analysis: AnalyzedMeal;
   question: { text: string; options: string[] } | null;
 } {
-  const { scale: _scale, question, ...meal } = analysis;
+  const { scale: _scale, question, ...rest } = analysis;
+  // A mark the item's own numbers cannot support is not stored either — `isCookingFat` argues why.
+  const meal = {
+    ...rest,
+    items: rest.items.map((it) => {
+      if (it.role !== "cooking-fat" || isCookingFat(it)) return it;
+      const { role: _role, ...stripped } = it;
+      return stripped;
+    }),
+  };
   const out = { analysis: meal, question: question ?? null };
 
   // Nothing to reconcile against. A model that returned totals and no items has failed to itemise,

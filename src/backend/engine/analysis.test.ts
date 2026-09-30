@@ -148,3 +148,24 @@ describe("the prompt-side fields", () => {
     expect(analysis).not.toHaveProperty("question");
   });
 });
+
+describe("the cooking-fat mark", () => {
+  // #317 — to the schema `role` is a single-value enum, and a model can fill a field rather than
+  // decide it: qwen3-vl marked EVERY item on every production read, and `buildRepertoire` skips
+  // marked rows, so the prior those users' next calls were fed was empty. The mark fails closed:
+  // it survives only where the item's own numbers say it is essentially pure fat, which is the
+  // only thing "the fat this was cooked in" can mean. A row that is quinoa keeps its name and its
+  // place; the one that is oil keeps the mark.
+  test("survives only on the row that IS a fat", () => {
+    const { analysis } = prepareAnalysis(plate({
+      items: [
+        item(160, { name: "Quinoa", fat_g: 2.8, role: "cooking-fat" }),
+        item(89, { name: "Olive oil (cooking)", protein_g: 0, carbs_g: 0, fat_g: 10, role: "cooking-fat" }),
+        // And where the numbers are absent there is nothing to judge by — the mark goes with them.
+        { ...item(200, { name: "A pastry", role: "cooking-fat" }), fat_g: undefined },
+      ],
+    }));
+    expect(analysis.items.map((i) => i.role)).toEqual([undefined, "cooking-fat", undefined]);
+    expect(analysis.items.map((i) => i.name)).toEqual(["Quinoa", "Olive oil (cooking)", "A pastry"]);
+  });
+});
