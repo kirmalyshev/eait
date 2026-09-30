@@ -579,8 +579,9 @@ export function bmiTick(value: number, range: string): number {
  * otherwise (#1232). `skip` rides on the caption so the renderer indexes captions as before.
  */
 function captionSkip(captions: readonly string[], pitch: number, font = 12): (i: number, n: number) => { skip?: true } {
-  const widest = captions.reduce((w, l) => Math.max(w, l.length), 0);
-  const stride = Math.max(1, Math.ceil((widest * font * 0.66 + 10) / Math.max(1, pitch)));
+  // The widest pair of neighbours, not the widest caption: "Today" beside "29" still fits a slot.
+  const pair = captions.reduce((w, l, i) => Math.max(w, (l.length + (captions[i + 1]?.length ?? 0)) / 2), 0);
+  const stride = Math.max(1, Math.ceil((pair * font * 0.66 + 10) / Math.max(1, pitch)));
   return (i, n) => ((n - 1 - i) % stride === 0 ? {} : { skip: true });
 }
 
