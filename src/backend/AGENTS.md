@@ -275,7 +275,9 @@ naming it too.
 - **One health metric has an effect, and it is weight.** It updates `profile.weight_kg` server-side
   through the same range guard the manual form uses, and only when its measurement is NEWER than
   `weight_measured_at` — otherwise a sync firing seconds after the user types their weight silently
-  reverts it. Activity, energy and sleep are stored, shown, and change nothing: the activity
+  reverts it. A weight TYPED for the same day or later outranks it whatever its stamp, as it does
+  in the merged log, and a reading over 10% from the one before it waits for the next to confirm
+  it (ieat-app#1233: one bad sample replaced a typed 96 kg with 70.2). Activity, energy and sleep are stored, shown, and change nothing: the activity
   multiplier already prices activity into TDEE, so adding active energy on top double-counts it and
   erases the deficit. `targets.ts` is untouched by health.
 - **The chat thread is stored on the server, and the engine writes it.** `chat_messages` /
