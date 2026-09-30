@@ -91,6 +91,15 @@ export interface HomeCopy {
   grams: string;
   /** A milligram figure — sodium is measured in mg (`sodium_mg`), so its card and chip read so. */
   milligrams: string;
+  /**
+   * The F bar row's figure line under the target — "{grams} left" (`web/today*.html`,
+   * `phone/today*.html`). The row splits the template at `{grams}` so the figure keeps its weight
+   * and the word stays light; `{grams}` is the formatted "{n} g" / "{n} mg" figure, and the word
+   * agrees with the grams, not the macro (grammes are masculine plural where the language inflects).
+   */
+  gramLeft: string;
+  /** The same figure line past the target — "{grams} over". */
+  gramOver: string;
   /** The macro cards, paged: protein/carbs/fat on one, saturated fat/fibre/sugar/sodium on two. */
   macros: {
     protein: HomeTargetMacroCopy;
@@ -179,6 +188,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal over · {eaten} of {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} left", gramOver: "{grams} over",
     macros: {
       protein: { name: "protein", left: "Protein left", over: "Protein over", ofTarget: "of {target} protein", chip: "protein {n} g" },
       carbs: { name: "carbs", left: "Carbs left", over: "Carbs over", ofTarget: "of {target} carbs", chip: "carbs {n} g" },
@@ -239,6 +249,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal en trop · {eaten} sur {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} restants", gramOver: "{grams} en trop",
     macros: {
       protein: { name: "protéines", left: "Protéines restantes", over: "Protéines en trop", ofTarget: "protéines sur {target}", chip: "protéines {n} g" },
       carbs: { name: "glucides", left: "Glucides restants", over: "Glucides en trop", ofTarget: "glucides sur {target}", chip: "glucides {n} g" },
@@ -299,6 +310,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal zu viel · {eaten} von {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} übrig", gramOver: "{grams} zu viel",
     macros: {
       protein: { name: "Eiweiß", left: "Eiweiß übrig", over: "Eiweiß zu viel", ofTarget: "Eiweiß von {target}", chip: "Eiweiß {n} g" },
       carbs: { name: "Kohlenhydrate", left: "Kohlenhydrate übrig", over: "Kohlenhydrate zu viel", ofTarget: "Kohlenhydrate von {target}", chip: "Kohlenhydrate {n} g" },
@@ -359,6 +371,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal in più · {eaten} di {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} rimasti", gramOver: "{grams} in eccesso",
     macros: {
       protein: { name: "proteine", left: "Proteine rimaste", over: "Proteine in eccesso", ofTarget: "proteine su {target}", chip: "proteine {n} g" },
       carbs: { name: "carboidrati", left: "Carboidrati rimasti", over: "Carboidrati in eccesso", ofTarget: "carboidrati su {target}", chip: "carboidrati {n} g" },
@@ -419,6 +432,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal de más · {eaten} de {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} restantes", gramOver: "{grams} de más",
     macros: {
       protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "proteína de {target}", chip: "proteína {n} g" },
       carbs: { name: "carbohidratos", left: "Carbohidratos restantes", over: "Carbohidratos de más", ofTarget: "carbohidratos de {target}", chip: "carbohidratos {n} g" },
@@ -479,6 +493,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal vượt quá · {eaten} trên {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} còn lại", gramOver: "{grams} vượt quá",
     macros: {
       protein: { name: "đạm", left: "Đạm còn lại", over: "Đạm vượt quá", ofTarget: "trong {target} đạm", chip: "đạm {n} g" },
       carbs: { name: "bột đường", left: "Bột đường còn lại", over: "Bột đường vượt quá", ofTarget: "trong {target} bột đường", chip: "bột đường {n} g" },
@@ -539,6 +554,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "kcal berlebih · {eaten} dari {plan}",
     grams: "{n} g",
     milligrams: "{n} mg",
+    gramLeft: "{grams} tersisa", gramOver: "{grams} berlebih",
     macros: {
       protein: { name: "protein", left: "Protein tersisa", over: "Protein berlebih", ofTarget: "protein dari {target}", chip: "protein {n} g" },
       carbs: { name: "karbohidrat", left: "Karbohidrat tersisa", over: "Karbohidrat berlebih", ofTarget: "karbohidrat dari {target}", chip: "karbohidrat {n} g" },
@@ -599,6 +615,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalOverDetail: "ккал сверх плана · {eaten} из {plan}",
     grams: "{n} г",
     milligrams: "{n} мг",
+    gramLeft: "{grams} осталось", gramOver: "{grams} сверх нормы",
     macros: {
       protein: { name: "белки", left: "Белков осталось", over: "Белков больше нормы", ofTarget: "белков из {target}", chip: "белки {n} г" },
       carbs: { name: "углеводы", left: "Углеводов осталось", over: "Углеводов больше нормы", ofTarget: "углеводов из {target}", chip: "углеводы {n} г" },
