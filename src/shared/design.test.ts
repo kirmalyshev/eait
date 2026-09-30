@@ -46,6 +46,8 @@ describe("the palettes are the register's", () => {
       warnTint: "#FBEEDB",
       bad: "#B3261E",
       badTint: "#FBE4E1",
+      // The day's "over plan" — F's dark red, calmer than bad (ieat-app#1291).
+      over: "#7A1A14",
       care: "#2F6FB0",
     });
   });
@@ -71,6 +73,8 @@ describe("the palettes are the register's", () => {
       // keeps macro colours apart from warn/bad.
       bad: "#FF5A52",
       badTint: "#3A2221",
+      // The same dark red in the dark theme — calmer than dark bad on purpose (#1291).
+      over: "#D46C64",
       care: "#5AA9FF",
     });
   });
@@ -99,6 +103,7 @@ describe("text tokens clear 4.5:1 on their grounds", () => {
     ["light accentInk on accent", light.accentInk, light.accent],
     ["light warn on warnTint", light.warn, light.warnTint],
     ["light bad on badTint", light.bad, light.badTint],
+    ["light over on surface", light.over, light.surface],
     ["light care on surface", light.care, light.surface],
     ["dark ink on bg", dark.ink, dark.bg],
     ["dark ink on surface", dark.ink, dark.surface],
@@ -109,6 +114,7 @@ describe("text tokens clear 4.5:1 on their grounds", () => {
     ["dark accentInk on accent", dark.accentInk, dark.accent],
     ["dark warn on warnTint", dark.warn, dark.warnTint],
     ["dark bad on badTint", dark.bad, dark.badTint],
+    ["dark over on surface", dark.over, dark.surface],
     ["dark care on surface", dark.care, dark.surface],
   ];
   for (const [name, ink, ground] of pairs) {
@@ -153,7 +159,7 @@ describe("the CSS variables", () => {
     for (const name of [
       "--bg", "--surface", "--ink", "--muted", "--faint", "--hair", "--line",
       "--accent", "--accent-ink", "--accent-tint", "--good", "--warn", "--warn-tint",
-      "--bad", "--bad-tint", "--care",
+      "--bad", "--bad-tint", "--over", "--care",
       "--macro-kcal", "--macro-kcal-t", "--macro-protein", "--macro-protein-t",
       "--macro-carbs", "--macro-carbs-t", "--macro-fat", "--macro-fat-t",
     ]) {

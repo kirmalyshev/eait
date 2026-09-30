@@ -51,7 +51,6 @@ describe("HOME_COPY", () => {
     expect(en.macros.carbs.left).toBe("Carbs left");
     expect(en.macros.fat.left).toBe("Fat left");
     expect(en.recentlyUploaded).toBe("Recently uploaded");
-    expect(en.roughEstimate).toBe("rough estimate");
     // the compact cards — today-empty, today-picker, today-logging, states-diary-failed
     expect(en.kcalLeftDetail).toBe("kcal left · {eaten} of {plan}");
     expect(en.macros.protein.ofTarget).toBe("of {target} protein");

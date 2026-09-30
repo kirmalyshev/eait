@@ -31,12 +31,6 @@ export interface MealCopy {
    * `phone/meal-{menu,delete,edit,edited}.html`.
    */
   sheetWhen: string;
-  /**
-   * A typed meal's provenance where "from a photo" would lie (`web/meal.html` draws it on the
-   * diary row behind the detail).
-   */
-  roughEstimate: string;
-
   /** The three macro tiles' labels (web + phone `meal.html`), under each figure. */
   macroProtein: string;
   macroCarbs: string;
@@ -176,7 +170,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   en: {
     metaPhoto: "{day} · {time} · from a photo",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "rough estimate",
     macroProtein: "protein",
     macroCarbs: "carbs",
     macroFat: "fat",
@@ -231,7 +224,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   fr: {
     metaPhoto: "{day} · {time} · d’après une photo",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "estimation approximative",
     macroProtein: "protéines",
     macroCarbs: "glucides",
     macroFat: "lipides",
@@ -286,7 +278,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   de: {
     metaPhoto: "{day} · {time} · von einem Foto",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "grobe Schätzung",
     macroProtein: "Protein",
     macroCarbs: "Kohlenhydrate",
     macroFat: "Fett",
@@ -341,7 +332,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   it: {
     metaPhoto: "{day} · {time} · da una foto",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "stima approssimativa",
     macroProtein: "proteine",
     macroCarbs: "carboidrati",
     macroFat: "grassi",
@@ -396,7 +386,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   es: {
     metaPhoto: "{day} · {time} · de una foto",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "estimación aproximada",
     macroProtein: "proteína",
     macroCarbs: "carbohidratos",
     macroFat: "grasa",
@@ -451,7 +440,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   vi: {
     metaPhoto: "{day} · {time} · từ một bức ảnh",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "ước tính gần đúng",
     macroProtein: "đạm",
     macroCarbs: "tinh bột",
     macroFat: "chất béo",
@@ -506,7 +494,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   id: {
     metaPhoto: "{day} · {time} · dari foto",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "perkiraan kasar",
     macroProtein: "protein",
     macroCarbs: "karbohidrat",
     macroFat: "lemak",
@@ -561,7 +548,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
   ru: {
     metaPhoto: "{day} · {time} · по фото",
     sheetWhen: "{day} · {time}",
-    roughEstimate: "примерная оценка",
     macroProtein: "белок",
     macroCarbs: "углеводы",
     macroFat: "жиры",

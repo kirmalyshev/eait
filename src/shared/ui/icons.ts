@@ -1,24 +1,25 @@
 // The icon set — every icon the Register P boards draw, in the workspace both clients implement.
 //
 // THE GEOMETRY IS TRANSCRIBED, NOT AUTHORED. The sources are `product/design/pro/` on ieat-app main
-// (d3fe6ef8): the `.i-*` masks in `icons.css` — where the LAST definition of each name wins, so the
-// macro set is the filled "simpler" set drawn for eait (icons.css:48-52, Kirill 02:15) and pace is
-// walk · bike · car over workouts' armchair · dumbbell · trophy — the `ic-*` tab icons in `pro.css`,
-// and the inline glyphs of `boards.py` and every board page. If the boards move, this file moves;
-// do not redraw here. Where one icon was drawn twice at trivially different geometry (the two `x`
-// and `send` paths, today's plate at r5 and r4.5), the dominant drawing stands; the slashed plates
-// of `meal-gone` and `log-refused` are one `no-food`.
+// (d3fe6ef8): the `.i-*` masks in `icons.css` — where the LAST definition of each name wins — the
+// `ic-*` tab icons in `pro.css`, and the inline glyphs of `boards.py` and every board page. If the
+// boards move, this file moves; do not redraw here. Where one icon was drawn twice at trivially
+// different geometry (the two `x` and `send` paths, today's plate at r5 and r4.5), the dominant
+// drawing stands; the slashed plates of `meal-gone` and `log-refused` are one `no-food`.
+// The macro set went from the filled set to the line glyphs of ieat-app#1291's F — protein's
+// drumstick, carbs' grain ear, the fat drop (satfat adds its level line) and sugar's candy are
+// transcribed from that page ahead of its icons.css edit landing in the design PR.
 //
 // EVERY ICON IS A SINGLE-COLOUR SHAPE. Nothing here bakes a hex: the colour arrives through
 // `iconSvg(name, { color })` — from the macro tokens on a macro chip, `currentColor` everywhere
 // else. "line" icons are Lucide v1.48.0 path data — ISC, and the chevrons, x, search, plus and
 // upload among them are Feather-derived and MIT, credited the way `img/LICENSES.md` in the design
 // folder credits them — stroked at 1.75 with round caps and joins. "solid" icons are the boards'
-// filled artwork (the macro set, the streak chip's flame, `dots`). Brand marks are the companies'
+// filled artwork (the streak chip's flame, `dots`). Brand marks are the companies'
 // artwork in `BRAND_ICONS`, a separate group, never redrawn as line icons.
 //
-// SATURATED FAT WEARS THE FAT GLYPH. `satfat` is an alias key so a caller rendering the saturated-
-// fat figure does not re-encode that rule.
+// SATURATED FAT WEARS THE FAT GLYPH. `satfat` is the fat drop plus its level line, so a caller
+// rendering the saturated-fat figure does not re-encode that rule.
 //
 // THE SAME DATA SERVES `react-native-svg` ON THE PHONE: `iconSvg` returns a complete `<svg>` string
 // (react-native-svg's `SvgXml` parses it directly); pass `color` — `currentColor` means nothing off
@@ -44,9 +45,9 @@ const line = (body: string): IconSpec => ({ body, style: "line", viewBox: V });
 const solid = (body: string): IconSpec => ({ body, style: "solid", viewBox: V });
 const spec = (body: string, viewBox: string): IconSpec => ({ body, style: "solid", viewBox });
 
-// The fat glyph, once — saturated fat wears it.
-const FAT = solid(
-  '<path fill="currentColor" d="M12 2.5c3.7 4.7 6.6 8.5 6.6 12.2a6.6 6.6 0 0 1-13.2 0c0-3.7 2.9-7.5 6.6-12.2z"/>',
+// The fat drop, once — saturated fat wears it under its level line (F, ieat-app#1291).
+const FAT = line(
+  '<path d="M12 5.5c0 0-5.5 6-5.5 9.5a5.5 5.5 0 0 0 11 0c0-3.5-5.5-9.5-5.5-9.5z"/>',
 );
 
 // The Cal AI flame, once — a flame.fill-style glyph: an outer body with the second tongue cut
@@ -57,25 +58,24 @@ const FLAME = solid(
 );
 
 export const ICONS = {
-  // ── The macro set — the filled set, each drawn in its macro colour on a tinted circle ──
+  // ── The macro set — line glyphs drawn in the macro's own ink (F, ieat-app#1291). No tint
+  //    disc and no progress ring on the glyph itself; the surface frames it.
   kcal: FLAME,
-  protein: solid(
-    '<g fill="currentColor"><ellipse cx="14.3" cy="9.7" rx="6.3" ry="5.4" transform="rotate(-45 14.3 9.7)"/>' +
-      '<path d="M10.6 13.4 6.9 17.1" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
-      '<circle cx="4.9" cy="17.6" r="2"/><circle cx="6.4" cy="19.1" r="2"/></g>',
+  // A drumstick: the meat, the bone, and the two-lobed knuckle it needs to not read as a loupe.
+  protein: line(
+    '<path d="M10.4 13.6c-1.1-1.1-1.2-3.6.2-5.4 1.6-2 4.8-2.2 6.3-.7s1 4.5-1.1 5.9c-1.8 1.2-4.3 1.3-5.4.2z"/>' +
+      '<path d="M10.4 13.6 8.5 15.5"/><circle cx="7.3" cy="15.3" r="1.2"/><circle cx="8.7" cy="16.7" r="1.2"/>',
   ),
-  carbs: solid(
-    '<g fill="currentColor"><path d="M12 22V9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' +
-      '<ellipse cx="12" cy="5.2" rx="1.7" ry="2.8"/>' +
-      '<ellipse cx="9.5" cy="9.6" rx="1.6" ry="2.6" transform="rotate(-38 9.5 9.6)"/>' +
-      '<ellipse cx="14.5" cy="9.6" rx="1.6" ry="2.6" transform="rotate(38 14.5 9.6)"/>' +
-      '<ellipse cx="9.5" cy="13.4" rx="1.6" ry="2.6" transform="rotate(-38 9.5 13.4)"/>' +
-      '<ellipse cx="14.5" cy="13.4" rx="1.6" ry="2.6" transform="rotate(38 14.5 13.4)"/>' +
-      '<ellipse cx="9.5" cy="17.2" rx="1.6" ry="2.6" transform="rotate(-38 9.5 17.2)"/>' +
-      '<ellipse cx="14.5" cy="17.2" rx="1.6" ry="2.6" transform="rotate(38 14.5 17.2)"/></g>',
+  // A grain ear: the stalk with two pairs of looped grains.
+  carbs: line(
+    '<path d="M12 19V8"/>' +
+      '<path d="M12 9Q9 9.5 9 7.5Q9 5.5 12 6.5Q12 8 12 9"/><path d="M12 9Q15 9.5 15 7.5Q15 5.5 12 6.5Q12 8 12 9"/>' +
+      '<path d="M12 13Q9 13.5 9 11.5Q9 9.5 12 10.5Q12 12 12 13"/><path d="M12 13Q15 13.5 15 11.5Q15 9.5 12 10.5Q12 12 12 13"/>',
   ),
   fat: FAT,
-  satfat: FAT,
+  // Saturated fat is the fat drop with a level line across its lower third — no longer the bare
+  // alias, so its spec is the drop's body plus the stroke.
+  satfat: line(FAT.body + '<path d="M8.8 16.5h6.4"/>'),
 
   // ── The streak chip's flame (Today, the health-sync board) — the Cal AI flame ──
   streak: FLAME,
@@ -187,12 +187,10 @@ export const ICONS = {
     '<path d="M2 22c1.25-.987 2.27-1.975 3.9-2.2a5.56 5.56 0 0 1 3.8 1.5 4 4 0 0 0 6.187-2.353 3.5 3.5 0 0 0 3.69-5.116A3.5 3.5 0 0 0 20.95 8 3.5 3.5 0 1 0 16 3.05a3.5 3.5 0 0 0-5.831 1.373 3.5 3.5 0 0 0-5.116 3.69 4 4 0 0 0-2.348 6.155C3.499 15.42 4.409 16.712 4.2 18.1 3.926 19.743 3.014 20.732 2 22"/>' +
       '<path d="M2 22 17 7"/>',
   ),
-  /** Lucide candy. */
+  /** The wrapped candy (F, ieat-app#1291) — the plain version; the striped one does not read at 13 px. */
   sugar: line(
-    '<path d="M10 7v10.9"/><path d="M14 6.1V17"/>' +
-      '<path d="M16 7V3a1 1 0 0 1 1.707-.707 2.5 2.5 0 0 0 2.152.717 1 1 0 0 1 1.131 1.131 2.5 2.5 0 0 0 .717 2.152A1 1 0 0 1 21 8h-4"/>' +
-      '<path d="M16.536 7.465a5 5 0 0 0-7.072 0l-2 2a5 5 0 0 0 0 7.07 5 5 0 0 0 7.072 0l2-2a5 5 0 0 0 0-7.07"/>' +
-      '<path d="M8 17v4a1 1 0 0 1-1.707.707 2.5 2.5 0 0 0-2.152-.717 1 1 0 0 1-1.131-1.131 2.5 2.5 0 0 0-.717-2.152A1 1 0 0 1 3 16h4"/>',
+    '<rect x="7" y="8" width="10" height="8" rx="4"/>' +
+      '<path d="M7 12 2.5 8.2v7.6z"/><path d="M17 12l4.5-3.8v7.6z"/>',
   ),
   /** Lucide circle-question-mark. */
   help: line('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>'),
@@ -233,6 +231,8 @@ export const ICONS = {
   "chevron-right": line('<path d="M9 5l7 7-7 7"/>'),
   "chevron-down": line('<path d="M6 9l6 6 6-6"/>'),
   "chevron-up": line('<path d="M6 15l6-6 6 6"/>'),
+  /** The kcal hero's toggle (F, ieat-app#1291): an up-arrow beside a down-arrow — "this swaps". */
+  swap: line('<path d="M7 4v16M7 4 3.5 7.5M7 4l3.5 3.5M17 20V4M17 20l-3.5-3.5M17 20l3.5-3.5"/>'),
   x: line('<path d="M6 6l12 12M18 6L6 18"/>'),
   dots: solid(
     '<circle cx="6" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18" cy="12" r="1.2" fill="currentColor"/>',

@@ -126,7 +126,7 @@ describe("seedDevData", () => {
     // 1,434 / 109 / 142 / 48 plan.
     expect({ kcal: 1434 - 1066, protein_g: 109 - sum("protein_g"), carbs_g: 142 - sum("carbs_g"), fat_g: 48 - sum("fat_g") })
       .toEqual({ kcal: 368, protein_g: 55, carbs_g: 8, fat_g: 13 });
-    // The typed one is a rough estimate; the photographed two are not.
+    // The typed one is low-confidence; the photographed two are not.
     const flatWhite = today.find((m) => m.items[0]?.name === "Flat white")!;
     expect(flatWhite.confidence).toBe("low");
   });

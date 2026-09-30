@@ -358,14 +358,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     // table, not a retyped template here.
     const grams = gramMacsEl({ protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g });
     const macs = el("div", "pl-macs");
-    const estimate = meal.confidence === "low" && !meal.corrected;
-    if (estimate) {
-      const est = el("div", "row between");
-      est.append(grams, el("b", "t12 est", mealCopyFor(lang).roughEstimate));
-      macs.append(est);
-    } else {
-      macs.append(grams);
-    }
+    macs.append(grams);
     if (col !== null) col.append(head, macs); else card.append(macs);
     // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
     const vs = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));

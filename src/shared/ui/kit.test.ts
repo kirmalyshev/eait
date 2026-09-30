@@ -192,9 +192,9 @@ describe("mealRow — photo, name, verdict words, chips, kcal", () => {
   });
 
   test("a name from the model is escaped, and a note follows the time", () => {
-    const m = mealRow({ ...base, name: '<b onmouseover="x">', note: "rough estimate", photo: null }, "en");
+    const m = mealRow({ ...base, name: '<b onmouseover="x">', note: "picked up", photo: null }, "en");
     expect(m).not.toContain("<b onmouseover");
-    expect(m).toContain("13:05 · rough estimate");
+    expect(m).toContain("13:05 · picked up");
   });
 });
 

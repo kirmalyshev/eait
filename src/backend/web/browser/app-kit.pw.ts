@@ -50,7 +50,7 @@ async function kitSheet(page: Page): Promise<void> {
       photo: { src: PIXEL, alt: "" },
     }, "en"),
     mealRow({
-      name: "Flat white", time: "16:10", kcal: 95, note: "rough estimate", photo: null,
+      name: "Flat white", time: "16:10", kcal: 95, note: "picked up", photo: null,
       grams: { protein: 6, carbs: 9, fat: 4 },
     }, "en"),
     verdictList([

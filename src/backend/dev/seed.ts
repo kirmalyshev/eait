@@ -304,7 +304,7 @@ const ANNA_BOARD: SeedBoard = {
           ],
         },
         {
-          // Typed, not photographed — the "rough estimate" chip is `confidence: "low"` behind
+          // Typed, not photographed — the low-confidence read is `confidence: "low"` behind
           // `mealIsGuessed`, not a field the seed gets to invent.
           name: "Flat white and a banana", name_en: "flat white", at: "16:10", via: "typed",
           photo: "flatwhite",

@@ -499,7 +499,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const mid = el("div", "mh");
     mid.append(
       el("b", "", fill(mc.sheetWhen, { day: dayName(meal.date), time: mealTime(meal) })),
-      el("small", "", (meal.photos ?? 0) > 0 ? mc.webLoggedPhoto : mc.roughEstimate),
+      ...((meal.photos ?? 0) > 0 ? [el("small", "", mc.webLoggedPhoto)] : []),
     );
     head.append(close, mid, menuButton(meal));
     card.append(head);
@@ -580,7 +580,6 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       const row = mealRowEl(m, {
         time: mealTime(m),
         photo: src !== null ? { src } : null,
-        ...(m.confidence === "low" && !m.corrected ? { note: mc.roughEstimate } : {}),
         href: `#/meal/${encodeURIComponent(m.id)}?d=${day.date}`,
       });
       if (m.id === meal?.id) row.classList.add("sel");
