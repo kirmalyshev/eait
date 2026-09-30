@@ -368,6 +368,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     grams.addEventListener("input", () => {
       size();
       const g = gramsNow();
+      // Every item at 0 g is no meal (ieat-app#1224); the bin is the way to take the last one off.
+      done.disabled = g === 0 && meal.items.every((it, i) => i === index || it.grams === 0);
       const edited = g !== null && g !== item.grams;
       wasG.hidden = !edited;
       if (wasK !== null) wasK.hidden = !edited;
@@ -428,14 +430,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
         const r = await api<MealUpdated>(`${MEAL(meal.id)}/reanalyze`, { method: "POST" });
         void r;
       }));
-    // Nothing to re-read without a photo — the row is present but inert, never a dead tap.
-    if ((meal.photos ?? 0) === 0) reread.disabled = true;
     const del = item("trash", mc.deleteCta, () => openOverlay(deleteDialog(meal)));
     del.classList.add("bad");
     popup.append(
       // "Edit" is the Cal-AI fix sheet (#188) — a panel over this detail, not the chat.
       item("pencil", mc.phoneEdit, () => openPanel(fixPanel(meal))),
-      reread,
+      // Nothing to re-read without a photo, so a typed meal is not offered it (ieat-app#1225).
+      ...((meal.photos ?? 0) > 0 ? [reread] : []),
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>
         turn(async () => {
           // A move is the re-date route (#150), not a billed turn of words — the same scoping an

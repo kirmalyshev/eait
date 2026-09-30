@@ -2451,7 +2451,7 @@ export async function postgresStore(
             insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id)
             values (${crypto.randomUUID()}, ${userId}, ${new Date(now())}, ${line.role}, ${line.kind},
                     ${"text" in line ? line.text : null},
-                    ${line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null},
+                    ${line.kind === "meal" ? line.mealId : line.mealId ?? null},
                     ${line.kind === "meal" ? line.event : null},
                     ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null},
@@ -2504,7 +2504,7 @@ export async function postgresStore(
     },
     async deleteMealLines(userId, mealId) {
       if (!UUID.test(mealId)) return 0;
-      const rows = await sql`delete from chat_messages where user_id = ${userId} and kind = 'meal' and meal_id = ${mealId} returning id`;
+      const rows = await sql`delete from chat_messages where user_id = ${userId} and kind <> 'photo' and meal_id = ${mealId} returning id`;
       return rows.length;
     },
     async updateLineText(userId, lineId, text) {

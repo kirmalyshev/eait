@@ -365,7 +365,7 @@ export async function editMeal(
   deps: EngineDeps,
   userId: string,
   mealId: string,
-  patch: EditMealRequest,
+  request: EditMealRequest,
   // The chat path writes its own card AFTER the user's words; the editor has no words, so the card
   // is written here. One write path, two thread shapes — copy.md offers both corrections as equals.
   //
@@ -379,6 +379,11 @@ export async function editMeal(
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
   if (!existing) return { kind: "target-gone", on: "correction" };
+  // Every item at 0 g is no meal, whichever path sent it (ieat-app#1224): those items are ignored
+  // rather than stored as a 0 kcal meal that still counts. One item zeroed is a real edit.
+  const { items: sentItems, ...sentTotals } = request;
+  const patch: EditMealRequest = sentItems !== undefined && sentItems.length > 0 && sentItems.every((i) => i.grams === 0)
+    ? sentTotals : request;
 
   // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
   // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
@@ -453,7 +458,7 @@ export async function editMeal(
   if (opts.thread !== false) {
     await remember(deps, userId, async () => [
       { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
-      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie" } as const] : []),
+      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId } as const] : []),
     ]);
   }
   return {
@@ -728,7 +733,7 @@ export async function rewriteMeal(
   // #119: a re-read is an edit like any other — the same computed line names what it changed,
   // written only when the read actually moved something.
   const line = changeLine(existing, updated, profile);
-  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
+  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId: existing.id }]);
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
     via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),

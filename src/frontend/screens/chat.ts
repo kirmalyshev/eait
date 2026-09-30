@@ -32,6 +32,12 @@ import {
 
 const copy = () => chatScreenCopyFor(lang);
 
+// The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
+// wrote: the stored entry keeps only the words, so the answer's own result carries them until a
+// newer turn retires them. Matched onto the newest assistant line of the same words.
+// Module-scoped so it outlives the screen: coming back from another tab keeps them (#1229).
+let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
+
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
   // thread drawn below already holds what it did.
@@ -65,10 +71,6 @@ export async function chatScreen(): Promise<HTMLElement> {
 
 
 
-  // The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
-  // wrote: the stored entry keeps only the words, so the answer's own result carries them until a
-  // newer turn retires them. Matched onto the newest assistant line of the same words.
-  let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
 
   // Which stored lines the rise has already played for — a redraw animates what is NEW, not the
   // whole thread again (the boards play the column once, on arrival).
@@ -382,7 +384,10 @@ export async function chatScreen(): Promise<HTMLElement> {
     // `macroEaten` then `macroTarget`, and no split on the template itself.
     const figure = el("span", "num mb-num");
     figure.append(el("b", "", fill(copy().macroEaten, { value: wholeNumbers(lang)(focus.eaten) })),
-      " ", fill(copy().macroTarget, { target: wholeNumbers(lang)(focus.target) }));
+      " ", fill(copy().macroTarget, {
+        target: wholeNumbers(lang)(focus.target),
+        unit: focus.nutrient === "kcal" ? UNIT_KCAL[lang] : spellUnit(lang, "g"),
+      }));
     head.append(name, figure);
     const bar = el("div", "bar");
     const fillEl = el("i", "grow");
