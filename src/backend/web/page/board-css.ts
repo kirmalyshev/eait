@@ -77,7 +77,7 @@ export const BOARD_CSS = `
 .ob .cta { display: flex; align-items: center; justify-content: center; gap: 8px; height: 56px; padding: 0 32px;
            border-radius: var(--r-cta); font-weight: 600; font-size: 16px; border: 0; cursor: pointer;
            font-family: var(--sans); width: 100%; }
-.ob .cta.p { background: var(--ink); color: #fff; }
+.ob .cta.p { background: var(--accent); color: var(--accent-ink); }
 .ob .cta.s { background: none; color: var(--ink); height: 44px; }
 .ob .cta.p[disabled] { opacity: .45; cursor: default; }
 
