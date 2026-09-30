@@ -36,6 +36,8 @@ export const light = {
   warnTint: "#FBEEDB",
   bad: "#B3261E",
   badTint: "#FBE4E1",
+  /** The day's "over plan" — darker and calmer than `bad` (F, ieat-app#1291). 10.6:1 on white. */
+  over: "#7A1A14",
   /** The calorie floor, and nothing else. */
   care: "#2F6FB0",
 } as const;
@@ -57,6 +59,8 @@ export const dark = {
   warnTint: "#3A2E1A",
   bad: "#FF5A52",
   badTint: "#3A2221",
+  /** Deliberately calmer than dark `bad`: 4.99:1 on the dark surface (design, ieat-app#1291). */
+  over: "#D46C64",
   care: "#5AA9FF",
 } as const;
 
@@ -109,6 +113,7 @@ export const vars = (t: Record<ColorName, string>, scheme: ThemeName) => {
   --warn-tint: ${t.warnTint};
   --bad: ${t.bad};
   --bad-tint: ${t.badTint};
+  --over: ${t.over};
   --care: ${t.care};
   --macro-kcal: ${m.kcal.ink};
   --macro-kcal-t: ${m.kcal.tint};
