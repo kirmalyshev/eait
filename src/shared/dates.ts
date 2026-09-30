@@ -209,10 +209,10 @@ const MAX_WINDOW_DAYS = 100 * 366;
  * diary window, another thirty days for a row's arrow; a default meant `windowStart(today)` read
  * as "the obvious window" at four call sites that did not agree on which one that was.
  *
- * CLAMPED AT BOTH ENDS, AND THE VALUE IS SERVER-SUPPLIED. `days` reaches here from
- * `Limits.diaryWindowDays`, read during render on the diary tab, and per the root AGENTS.md an
- * unhandled render error is a PROCESS ABORT in a Release build — a crash to springboard whose
- * report names an innocent subsystem. Measured, all from this function:
+ * CLAMPED AT BOTH ENDS. `days` reaches here from whichever window the caller names, some of them
+ * during render — and per the root AGENTS.md an unhandled render error is a PROCESS ABORT in a
+ * Release build, a crash to springboard whose report names an innocent subsystem. Measured, all
+ * from this function:
  *
  *   0            tomorrow, a boundary in the future. `mergeSince` cannot double a row on that (it
  *                excludes every date the fresh read returned, deliberately) but it keeps every

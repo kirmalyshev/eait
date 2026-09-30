@@ -578,10 +578,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 /**
  * The diary, or — while the account has never logged — the one-meal flow (#42).
  *
- * THE GATE IS A READ, not a flag: `/v1/diary/week` answers only days that have meals on them
- * ("empty means absent, not zero"), so an empty window over the whole diary horizon the server
- * will reach back to IS "nothing logged yet" — asked at the server's own `diaryWindowDays`, never
- * a compiled-in copy.
+ * The gate is `hasLoggedMeal`, computed on the server over the whole diary horizon — "any meal,
+ * ever" IS "nothing logged yet", and no client counts days to answer it.
  *
  * The free meal is offered to exactly the account that still has it: onboarded, not entitled, the
  * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing

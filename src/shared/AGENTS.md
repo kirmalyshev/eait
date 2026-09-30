@@ -32,12 +32,12 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 - **A limit the server enforces is SENT, never compiled into both sides.** `Limits` is the carrier
   and `configDefaults()` the source. A constant here that also exists as a server bound is two
   numbers that will eventually disagree — and the user meets that as a refusal after they have
-  already acted. `MAX_UPLOAD_BYTES`, `MAX_PHOTOS_PER_MEAL` and `DIARY_WINDOW_DAYS` are FALLBACKS for
-  a client with no profile yet; the server is the authority.
-- **A bound means exactly what its comment says it bounds.** `DIARY_WINDOW_DAYS` bounds
-  `/v1/diary/week` — which days can be MARKED. It does not bound `/v1/diary/day`, which answers for
-  any date. Using it to gate anything else is how the date picker came to refuse days the server
-  would happily return.
+  already acted. `MAX_UPLOAD_BYTES` and `MAX_PHOTOS_PER_MEAL` are FALLBACKS for a client with no
+  profile yet; the server is the authority.
+- **A bound means exactly what its comment says it bounds.** `DIARY_RANGE_MAX_DAYS` bounds
+  `/v1/diary/days` — the widest `from`/`to` span answered. It does not bound `/v1/diary/day`,
+  which answers for any date. Using it to gate anything else is how the date picker came to
+  refuse days the server would happily return.
 - **`signsIn` says which providers put somebody INTO an account**, and it lives here because both
   sides of the identity graph read it: the store's deletion rule and the engine's merge rule.
   `telegram` is a transport and answers false. A rule that counts identity rows instead asks a
@@ -312,9 +312,9 @@ will ever use it, it does not belong here — put it in that side and keep this 
 
 - **`HEALTH_RETENTION_DAYS` is one number with four jobs, and they must agree.** How old a health
   row may be and still be stored, the widest trend a client may read, how far the phone's first
-  sync reaches, and — through `DIARY_WINDOW_DAYS` — how far the diary's per-day totals go, because
-  the health screen draws intake on the same axis as energy burned. It was three constants on two
-  sides once; the year view is what made the drift visible.
+  sync reaches, and how far back the diary's streak can run — the health screen draws intake on
+  the same axis as energy burned. It was three constants on two sides once; the year view is what
+  made the drift visible.
 - **Every number on a health chart is `src/shared/trend.ts`.** `trendBuckets` (Monday weeks,
   calendar months, every stored year), `bucketSeries` (the MEAN of the days with a reading — a
   weekly total and a monthly total do not share an axis, an average per day does — and null stays

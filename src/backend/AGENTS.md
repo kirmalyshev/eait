@@ -138,10 +138,11 @@ route. A route that computes is a rule the tests cannot reach.
 
 ## Windows and bounds
 
-`/v1/diary/week` is bounded (`MAX_WINDOW_DAYS`, re-exported from the contract so the app can be
-TOLD it). `/v1/diary/day` is **not** bounded — it validates the shape of a date and nothing else.
-When you read or write a comment about either, say which one it constrains: a bound described as
-covering more than it does is how a client comes to refuse something the server would have answered.
+`/v1/diary/days` is bounded (`DIARY_RANGE_MAX_DAYS`, a contract constant — see
+`src/shared/contract.ts`). `/v1/diary/day` is **not** bounded — it validates the shape of a date
+and nothing else. When you read or write a comment about either, say which one it constrains: a
+bound described as covering more than it does is how a client comes to refuse something the server
+would have answered.
 
 ## Testing
 

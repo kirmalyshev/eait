@@ -135,7 +135,7 @@ describe("windowStart", () => {
   });
 
   test("never returns a future date, however bad the number it is given", () => {
-    // `days` reaches this from `Limits.diaryWindowDays`, which the SERVER supplies. A zero used to
+    // `days` reaches this from whichever window the caller names. A zero used to
     // return tomorrow, and `mergeSince` keeps every cached row older than its boundary — so a
     // boundary in the future resurrects days the fresh read has since deleted. Clamped, not
     // thrown: a bad number from a server is not a reason to take a screen down.
@@ -148,7 +148,7 @@ describe("windowStart", () => {
 
   test("and never a non-date or a throw, however LARGE the number it is given", () => {
     // The top end is the one that crashes rather than merely misbehaving, and it is reached from
-    // the same server-supplied `diaryWindowDays` — during render, where an unhandled error is a
+    // a caller's window during render, where an unhandled error is a
     // process abort in a Release build. Measured before the clamp: 1e6 gave "-000712-10", which
     // is not a date and compares wrong under the string comparisons every caller uses, and 1e9
     // and 2^31 both threw `RangeError: Invalid Date`.
