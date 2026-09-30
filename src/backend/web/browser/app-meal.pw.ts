@@ -143,11 +143,11 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(page.locator(".hsr")).toBeVisible();
 
-  // Confirming deletes it: the detail reads gone, the row is off the day.
+  // Confirming deletes it and closes to the diary (ieat-app#1226), and the row is off the day.
   await page.locator(".mdetail .ib").last().click();
   await page.locator(".mpopup").getByText("Delete this meal").click();
   await dialog.getByRole("button", { name: "Delete this meal" }).click();
-  await expect(page.locator(".mgone")).toBeVisible();
+  await expect(page).toHaveURL(/#\/$/);
   expect((await day(page)).meals).toHaveLength(0);
 });
 
