@@ -787,6 +787,219 @@
         ]
       }
     },
+    "/v1/meals/photo/queue": {
+      "post": {
+        "operationId": "post_photoQueue",
+        "summary": "Queue a photo meal: 202 once the upload is in; the analysis runs on server-side. `clientId` is required and is the job id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "caption": {
+                    "type": "string"
+                  },
+                  "clientId": {
+                    "type": "string"
+                  },
+                  "capturedAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "202",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoQueuedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "411": {
+            "description": "Length required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/photo/queue/{id}": {
+      "get": {
+        "operationId": "get_photoJob",
+        "summary": "A queued photo's state. Streams a snapshot per change with `accept: application/x-ndjson`, the settled one last.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accept",
+            "in": "header",
+            "required": false,
+            "description": "`application/x-ndjson` streams one JSON object per line; the last line is the response body.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/x-ndjson",
+                "application/json"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoJob"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoJob"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "delete_photoJob",
+        "summary": "Remove a queued photo: cancels a running job's meal, deletes a logged one's.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoJob"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/clip/estimate": {
       "post": {
         "operationId": "post_clipEstimate",
@@ -5431,6 +5644,112 @@
         "additionalProperties": false,
         "description": "`GET /v1/meals/pending`: the caller's live proposals, oldest first, each as its turn sent it (#530)."
       },
+      "PhotoJob": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "running"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "step": {
+                "$ref": "#/components/schemas/PhotoJobStep"
+              },
+              "line": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MealItem"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "step",
+              "line",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "settled"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "result": {
+                "$ref": "#/components/schemas/PhotoLast"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "result"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "removed"
+              },
+              "jobId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A queued photo (ieat-app#1318). `running` carries the step, its words in the account's language, and the foods found so far (name and grams only, like the pending card); `settled` the photo turn's own last line; `removed` a job the caller removed."
+      },
+      "PhotoJobStep": {
+        "type": "number",
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "description": "The queued row's step, the server's half: 1 is the client's own upload, so a job starts at 2."
+      },
+      "PhotoLast": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/LogPhotoResult"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "outcome-unknown"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`)."
+      },
       "PhotoProgress": {
         "anyOf": [
           {
@@ -5477,6 +5796,24 @@
           }
         ],
         "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
+      },
+      "PhotoQueuedResponse": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "queued"
+          },
+          "jobId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "jobId"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/meals/photo/queue`: the upload is in and the job runs on without the client."
       },
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"

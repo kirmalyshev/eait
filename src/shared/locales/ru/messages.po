@@ -119,6 +119,11 @@ msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — записал, это в цифрах."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} ккал"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — много"
@@ -200,6 +205,21 @@ msgstr "Подключено к аккаунту eait, вход выполнен
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "Учтено. На сегодня осталось {left} ккал."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "Учтено. Сегодня на {over} ккал больше плана."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "Считаем нутриенты · 4 из 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Убрал."
 
@@ -212,6 +232,11 @@ msgstr "Сегодняшний лимит израсходован всеми. �
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.fat"
 msgstr "Жиры"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "Ищем, что на тарелке · 2 из 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -510,8 +535,18 @@ msgstr "Обновил."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "Загрузка фото · 1 из 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "stream.steps.2"
 msgstr "Взвесить порции"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "Оцениваем порции · 3 из 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -444,3 +444,8 @@ naming it too.
   visible token, 0 to 4433 reasoning tokens on the SAME photo — and that endpoint refuses to switch
   reasoning off, which is why the analyzer runs a model that does not reason and
   `EAIT__BACKEND__LLM_REASONING_EFFORT` ships `off`.
+- **A queued photo is the same turn, answered later** (ieat-app#1318). `POST /v1/meals/photo/queue`
+  answers 202 once the upload is in and runs `logPhotoMeal` under the `clientId`, which is the job
+  id: the outcome is the one `turns` keeps, and only the progress (`engine/photo-queue.ts`) is in
+  process, so a restart loses the step and never the meal. A follower on `GET …/queue/:id` counts as
+  the app being open; the one push goes only when nobody was following.

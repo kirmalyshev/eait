@@ -248,6 +248,17 @@ export const ROUTES = {
    */
   photo: "/v1/meals/photo",
   /**
+   * POST, multipart like `photo`, `clientId` REQUIRED (the `idempotency-key` header or the field):
+   * it is the job's id. Answers 202 {@link PhotoQueuedResponse} once the upload is in; the analysis
+   * runs to the end server-side whether or not the client stays (ieat-app#1318).
+   */
+  photoQueue: "/v1/meals/photo/queue",
+  /**
+   * GET — the job as a {@link PhotoJob}; with `accept: NDJSON` one snapshot per change, the settled
+   * one last. DELETE — remove it: a running job's meal is dropped when it lands, a logged one's now.
+   */
+  photoJob: (id: string) => `/v1/meals/photo/queue/${encodeURIComponent(id)}`,
+  /**
    * POST, multipart: `photo` (one to `maxPhotosPerMeal` angles). The iOS App Clip's estimate: an
    * ANONYMOUS device account only (403 `anonymous-only` otherwise), charged to its sample, nothing
    * stored but the charge. Answers {@link ClipEstimateResponse}.
@@ -1335,6 +1346,20 @@ export type PhotoProgress =
 export type PhotoEvent = PhotoProgress | PhotoLast;
 /** The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`). */
 export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
+
+/** `POST /v1/meals/photo/queue`: the upload is in and the job runs on without the client. */
+export interface PhotoQueuedResponse { kind: "queued"; jobId: string }
+/** The queued row's step, the server's half: 1 is the client's own upload, so a job starts at 2. */
+export type PhotoJobStep = 1 | 2 | 3 | 4;
+/**
+ * A queued photo (ieat-app#1318). `running` carries the step, its words in the account's language,
+ * and the foods found so far (name and grams only, like the pending card); `settled` the photo
+ * turn's own last line; `removed` a job the caller removed.
+ */
+export type PhotoJob =
+  | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[] }
+  | { kind: "settled"; jobId: string; result: PhotoLast }
+  | { kind: "removed"; jobId: string };
 /**
  * `PATCH /v1/messages/:id` (#608): the same progress, then one of these last. `bad-request` is a
  * line that cannot be edited (text, or not the caller's kind); `too-many` is the photo bound the

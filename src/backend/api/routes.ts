@@ -37,7 +37,7 @@ import {
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
-  reanalyzeMeal, redateMeal,
+  reanalyzeMeal, redateMeal, followPhotoJob, photoJob, queuePhoto, removePhotoJob,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -107,6 +107,8 @@ const REDATE_PATH = /^\/v1\/meals\/([^/]+)\/redate$/;
 const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 /** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
 const MESSAGE_PATH = /^\/v1\/messages\/([^/]+)$/;
+/** `GET` / `DELETE /v1/meals/photo/queue/:id` (ieat-app#1318). */
+const PHOTO_JOB_PATH = /^\/v1\/meals\/photo\/queue\/([^/]+)$/;
 
 export function createRouter(
   deps: EngineDeps,
@@ -489,14 +491,14 @@ export function createRouter(
       // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
       // the refusal path the app already renders — and is worded as what it is. Saying "your daily
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
-      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.clipEstimate || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.photoQueue || pathname === ROUTES.clipEstimate || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
         || (req.method === "PATCH" && MESSAGE_PATH.test(pathname))) {
         // A RE-SENT TURN IS NOT COUNTED (#708): it is answered from the claim and calls no model, and
         // one refused here is asked again by its client under a NEW id — a second meal. Only on the
         // two routes that run under `once`, only for a key this account has already claimed, and it
         // is the key the handler then runs under. A re-analysis or an edit runs the model every time,
         // so a claimed key there buys nothing.
-        const key = req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages) ? turnKey(req) : undefined;
+        const key = req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.photoQueue || pathname === ROUTES.messages) ? turnKey(req) : undefined;
         const replay = key !== undefined && (await store.getTurn(userId, key)) !== null;
         const wait = replay ? null : limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
         if (wait !== null) {
@@ -637,6 +639,31 @@ export function createRouter(
         if (wantsStream(req)) return stream(req, pathname, (line) => logPhotoMeal(deps, userId, input, line));
         const result = await logPhotoMeal(deps, userId, input);
         return isRefusal(result) ? refusal(result) : json(result);
+      }
+
+      // ── The photo queue (ieat-app#1318) ─────────────────────────────────────────────────────
+      if (req.method === "POST" && pathname === ROUTES.photoQueue) {
+        const upload = await readPhotoForm(req);
+        if (upload instanceof Response) return upload;
+        const { form, files } = upload;
+        const caption = form.get("caption");
+        if (typeof caption === "string" && caption.length > MAX_USER_LINE) return json({ error: "caption too long" }, 400);
+        const fields = turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt"));
+        if (fields.clientId === undefined) return json({ error: "clientId required" }, 400);
+        return json(await queuePhoto(deps, userId, {
+          images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
+          ...(typeof caption === "string" && caption ? { caption } : {}),
+          ...fields, clientId: fields.clientId,
+        }), 202);
+      }
+      const jobMatch = PHOTO_JOB_PATH.exec(pathname);
+      if (jobMatch && (req.method === "GET" || req.method === "DELETE")) {
+        const jobId = decodeURIComponent(jobMatch[1]!);
+        const job = await photoJob(deps, userId, jobId);
+        if (!job) return json({ error: "not found" }, 404);
+        if (req.method === "DELETE") return json(await removePhotoJob(deps, userId, jobId));
+        if (wantsStream(req)) return stream(req, pathname, (line) => followPhotoJob(deps, userId, jobId, line, req.signal));
+        return json(job);
       }
 
       if (req.method === "POST" && pathname === ROUTES.clipEstimate) {

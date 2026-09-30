@@ -240,8 +240,10 @@ export async function logPhotoMeal(
    * a JSON caller pays for exactly what it did.
    */
   onEvent?: (event: PhotoEvent) => void,
+  /** The read is in and the meal is being written: the queue's step 4 (ieat-app#1318). */
+  onCounting?: () => void,
 ): Promise<LogPhotoResult> {
-  return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, (d) => logPhotoTurn(d, userId, input, onEvent));
+  return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, (d) => logPhotoTurn(d, userId, input, onEvent, onCounting));
 }
 
 async function logPhotoTurn(
@@ -249,6 +251,7 @@ async function logPhotoTurn(
   userId: string,
   input: LogPhotoInput,
   onEvent?: (event: PhotoEvent) => void,
+  onCounting?: () => void,
 ): Promise<LogPhotoResult> {
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
@@ -264,6 +267,7 @@ async function logPhotoTurn(
     () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten,
     "photo", input.receivedAt);
   if (read.kind !== "read") return read;
+  onCounting?.();
   const { analysis, images, analysisId } = read;
   const question = await mayAsk(deps, userId, today, analysis, read.question);
 
