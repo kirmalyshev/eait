@@ -2136,10 +2136,7 @@ export async function postgresStore(
     },
 
     async insertMeal(m) {
-      // `items`, `verdicts` and `question` are bound as the OBJECTS they are. Bun.sql already
-      // JSON-encodes a value bound to a jsonb parameter, so `JSON.stringify` here stored the
-      // array's TEXT as a jsonb string — the same defect #358 fixed on `notification_copy`, which
-      // `json()` on the read had been repairing invisibly. See `putNotificationCopy`.
+      // The jsonb columns bind as OBJECTS — `JSON.stringify` stored their text as jsonb strings; see `putNotificationCopy`.
       const rows = await sql`
         insert into meals (id, user_id, ts, date, is_food, items, kcal, protein_g, carbs_g, fat_g,
                            satfat_g, fiber_g, sugar_g, sodium_mg, verdicts, confidence, notes,
@@ -2185,11 +2182,7 @@ export async function postgresStore(
         .filter((k) => (patch as Record<string, unknown>)[k] !== undefined)
         .map((k) => [MEAL_COLUMNS[k]!, (patch as Record<string, unknown>)[k]] as const);
       if (entries.length > 0) {
-        // The values go in AS BOUND, objects and arrays included: Postgres types each parameter
-        // from the column it is assigned to, and Bun.sql encodes the value for that type — so a
-        // `items = $n::jsonb` cast adds nothing, while the `JSON.stringify` it once sat beside
-        // stored the array's text as a jsonb string. (`text[]` is the opposite problem — the
-        // driver flattens a JS array there, hence `toPgTextArray`.)
+        // Values bound as-is: Postgres types each parameter from its column, so no `::jsonb` and no `JSON.stringify` (which stored text).
         const assignments = entries.map(([c], i) => `${c} = $${i + 3}`).join(", ");
         await sql.unsafe(
           `update meals set ${assignments} where id = $1 and user_id = $2`,
