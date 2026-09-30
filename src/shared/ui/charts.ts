@@ -580,7 +580,7 @@ export function bmiTick(value: number, range: string): number {
  */
 function captionSkip(captions: readonly string[], pitch: number, font = 12): (i: number, n: number) => { skip?: true } {
   const widest = captions.reduce((w, l) => Math.max(w, l.length), 0);
-  const stride = Math.max(1, Math.ceil((widest * font * 0.62 + 6) / Math.max(1, pitch)));
+  const stride = Math.max(1, Math.ceil((widest * font * 0.66 + 10) / Math.max(1, pitch)));
   return (i, n) => ((n - 1 - i) % stride === 0 ? {} : { skip: true });
 }
 
