@@ -41,6 +41,8 @@ export interface LogPhotoInput {
   clientId?: string;
   /** When the photo was taken. The meal is dated by it; the analysis is charged today. */
   capturedAt?: string;
+  /** When the request carrying the turn arrived; the queue leg's zero. Absent on calls whose turn came another way. */
+  receivedAt?: number;
 }
 
 /** Sum a day's meals. The single place totals are produced, so two views cannot disagree. */
@@ -114,6 +116,13 @@ export async function analyzePhotos(
   /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
   eaten: Date = new Date(),
   scope: "photo" | "clip" = "photo",
+  /**
+   * When the request carrying the turn arrived — the queue leg's zero. It cannot come off
+   * `capturedAt`/`eaten`: a turn kept in an outbox and sent hours later would report its whole
+   * offline wait as queue and drag the p95 with it (#220). The default is this call's own
+   * entry — receipt enough for callers whose turns are never kept.
+   */
+  receivedAt: number = Date.now(),
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
@@ -136,12 +145,12 @@ export async function analyzePhotos(
 
   const { targets } = explainTargets(profile);
 
-  // The turn's own clock, for the latency the admin page reads: shutter-to-call in `queue` (the
+  // The turn's own clock, for the latency the admin page reads: receipt-to-call in `queue` (the
   // upload and the caps live in it), call-to-first-item, call-to-answer. Written ONCE, when the
   // turn settles, and like `addCost` a write that finds no row is a log line, not a failure.
   const clock = { calledAt: 0, firstItem: null as number | null };
   const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
-    queue: Math.max(0, clock.calledAt - eaten.getTime()),
+    queue: Math.max(0, clock.calledAt - receivedAt),
     firstItem: clock.firstItem,
     total: Date.now() - clock.calledAt,
   }).then(
@@ -257,7 +266,8 @@ async function logPhotoTurn(
   const today = localDate(deps.config.timezone);
 
   const read = await analyzePhotos(deps, userId, profile, today,
-    () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten);
+    () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten,
+    "photo", input.receivedAt);
   if (read.kind !== "read") return read;
   const { analysis, images, analysisId } = read;
   const question = await mayAsk(deps, userId, today, analysis, read.question);

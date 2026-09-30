@@ -613,6 +613,9 @@ export function createRouter(
 
       // ── Photo ─────────────────────────────────────────────────────────────────────────────
       if (req.method === "POST" && pathname === ROUTES.photo) {
+        // Stamped before the form is read so the upload stays inside the queue leg — a kept turn's
+        // `capturedAt` can be hours old and would report its offline wait instead (#220).
+        const receivedAt = Date.now();
         const upload = await readPhotoForm(req);
         if (upload instanceof Response) return upload;
         const { form, files } = upload;
@@ -624,6 +627,7 @@ export function createRouter(
           // Several files are ANGLES OF ONE MEAL, not several meals. Thunks, so nothing is read
           // until the engine has passed the caps.
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
+          receivedAt,
           ...(typeof caption === "string" && caption ? { caption } : {}),
           ...turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt")),
         };
