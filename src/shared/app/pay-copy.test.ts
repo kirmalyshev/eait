@@ -13,6 +13,8 @@ import { PAY_COPY, payCopyFor } from "./pay-copy.ts";
 const KEYS = [
   "plansTitle", "plansHeroAlt",
   "planYearly", "planMonthly", "trialBadge", "pricePerYear", "pricePerMonth",
+  "yearlySub", "perMonthCaption", "benefitPhoto", "benefitPlan", "benefitChat",
+  "freeMealLabel",
   "startTrial", "trialNote",
   "giftTitle", "giftAlt", "giftNote", "giftOpen",
   "offerTitle", "offerAlt", "offerOff", "offerPrice", "offerPerMonth",
@@ -45,6 +47,7 @@ describe("PAY_COPY", () => {
       trialBadge: ["{days}"],
       pricePerYear: ["{price}"],
       pricePerMonth: ["{price}"],
+      yearlySub: ["{trial}", "{price}"],
       trialNote: ["{days}", "{price}"],
       offerOff: ["{percent}"],
       offerPrice: ["{price}"],
@@ -72,6 +75,13 @@ describe("PAY_COPY", () => {
     expect(en.trialBadge).toBe("{days} days free");
     expect(en.pricePerYear).toBe("{price} a year");
     expect(en.pricePerMonth).toBe("{price} a month");
+    // pay-paywall (phone): the benefits, the yearly sub-line, the captions, the free-meal card
+    expect(en.benefitPhoto).toBe("One photo logs a meal");
+    expect(en.benefitPlan).toBe("Every meal checked against your plan");
+    expect(en.benefitChat).toBe("Ask Spud about your day");
+    expect(en.yearlySub).toBe("{trial}, then {price} a year");
+    expect(en.perMonthCaption).toBe("a month");
+    expect(en.freeMealLabel).toBe("Your free meal");
     expect(en.startTrial).toBe("Start my free week");
     expect(en.trialNote).toBe("{days} days free, then {price} a year. Cancel any time.");
     // pay-gift

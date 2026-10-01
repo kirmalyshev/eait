@@ -248,6 +248,8 @@ export const ICONS = {
   plus: line('<path d="M12 5v14M5 12h14"/>'),
   search: line('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
   check: line('<path d="M5 12l5 5 9-10"/>'),
+  /** pay-paywall's "checked against your plan" benefit — the circle, with the tick inside it. */
+  "check-circle": line('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/>'),
   retry: line('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>'),
   sparkle: line('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>'),
   pencil: line('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
