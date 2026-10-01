@@ -31,6 +31,8 @@ export interface ScoreAppCopy {
   notRead: string;
   /** The whole-card state when fewer than three of the five nutrients were read. */
   insufficient: string;
+  /** The score-less day hero's a11y tail — "Day score, not yet" (ieat-app#1331). */
+  notYet: string;
   /** The today-score board's headline — "Today's score {n}/10". */
   todayTitle: string;
   /**
@@ -73,6 +75,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "From protein, fibre, saturated fat, sugar and salt, per calorie.",
     notRead: "not read",
     insufficient: "Not enough read to score",
+    notYet: "not yet",
     todayTitle: "Today's score {n}/10",
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
     breakdownTitle: "Today's score",
@@ -96,6 +99,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "À partir des protéines, des fibres, des graisses saturées, du sucre et du sel, par calorie.",
     notRead: "non lu",
     insufficient: "Lecture insuffisante pour un score",
+    notYet: "pas encore",
     todayTitle: "Score du jour : {n}/10",
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     breakdownTitle: "Score du jour",
@@ -119,6 +123,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "Aus Protein, Ballaststoffen, gesättigten Fettsäuren, Zucker und Salz — pro Kalorie.",
     notRead: "nicht erkannt",
     insufficient: "Zu wenig erkannt für einen Score",
+    notYet: "noch nicht",
     todayTitle: "Tageswert heute: {n}/10",
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     breakdownTitle: "Tageswert heute",
@@ -142,6 +147,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "Da proteine, fibre, grassi saturi, zuccheri e sale, per caloria.",
     notRead: "non letto",
     insufficient: "Dati insufficienti per un punteggio",
+    notYet: "non ancora",
     todayTitle: "Punteggio di oggi: {n}/10",
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     breakdownTitle: "Punteggio di oggi",
@@ -165,6 +171,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "A partir de proteínas, fibra, grasas saturadas, azúcar y sal, por caloría.",
     notRead: "sin lectura",
     insufficient: "Lectura insuficiente para una puntuación",
+    notYet: "aún no",
     todayTitle: "Puntuación de hoy: {n}/10",
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     breakdownTitle: "Puntuación de hoy",
@@ -188,6 +195,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "Từ đạm, chất xơ, chất béo bão hòa, đường và muối, trên mỗi calo.",
     notRead: "không đọc được",
     insufficient: "Chưa đủ dữ liệu để chấm điểm",
+    notYet: "chưa có",
     todayTitle: "Điểm hôm nay: {n}/10",
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
     breakdownTitle: "Điểm hôm nay",
@@ -211,6 +219,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "Dari protein, serat, lemak jenuh, gula, dan garam, per kalori.",
     notRead: "tidak terbaca",
     insufficient: "Data terbaca kurang untuk skor",
+    notYet: "belum ada",
     todayTitle: "Skor hari ini: {n}/10",
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
     breakdownTitle: "Skor hari ini",
@@ -234,6 +243,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     method: "Из белка, клетчатки, насыщенных жиров, сахара и соли — на калорию.",
     notRead: "не считано",
     insufficient: "Недостаточно данных для оценки",
+    notYet: "пока нет",
     todayTitle: "Оценка за сегодня: {n}/10",
     todayFromMeals: {
       one: "Из {n} сегодняшнего приёма пищи",

@@ -574,7 +574,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     ) as HTMLElement;
     const row = el("span", "hrow");
     const fig = el("b", "fig num");
-    if (score === null) fig.textContent = "—";
+    // The dash read is "— /10" — the phone's hero draws the same (#1331).
+    if (score === null) fig.append(document.createTextNode("—"), el("small", "", "/10"));
     else {
       fig.append(document.createTextNode(n(score)), el("small", "", "/10 ›"));
     }
@@ -588,6 +589,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (score !== null) {
       (hero as HTMLButtonElement).type = "button";
       hero.addEventListener("click", () => openScore(day!));
+    } else {
+      hero.setAttribute("role", "group");
+      hero.setAttribute("aria-label", `${SC.title}, ${SC.notYet}`);
     }
     return hero;
   };
