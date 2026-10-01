@@ -59,7 +59,7 @@ export const W3_CSS = `
 .ob .pln .kcal { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
 .ob .pln .kcal .big { display: flex; align-items: center; gap: 8px; }
 .ob .pln .kcal .big b { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
-.ob .pln .kcal .big .ico { color: var(--accent); }
+.ob .pln .kcal .big .ico { width: 24px; height: 24px; }
 .ob .pln .est-more { margin-top: 4px; }
 .ob .pln .est-more > summary { cursor: pointer; list-style: none; }
 .ob .pln .est-more > summary::-webkit-details-marker { display: none; }
@@ -69,9 +69,6 @@ export const W3_CSS = `
 .ob .pln .mcard .ico { width: 20px; height: 20px; }
 .ob .pln .mcard b { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ob .pln .mcard small { font-size: 12px; color: var(--muted); font-weight: 500; }
-.ob .pln .mcard .i-protein { color: var(--macro-protein); }
-.ob .pln .mcard .i-carbs { color: var(--macro-carbs); }
-.ob .pln .mcard .i-fat, .ob .pln .mcard .i-satfat { color: var(--macro-fat); }
 @media (max-width: 720px) { .ob .pln .kgrid, .ob .pln .kgrid.m3 { grid-template-columns: 1fr 1fr; } }
 
 /* ── the sign-up (pay-signin): the app icon, the two provider buttons, the pairing card ── */

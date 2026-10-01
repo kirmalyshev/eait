@@ -83,12 +83,6 @@ button.hsc { cursor: pointer; }
   text-align: left; border-radius: 8px; }
 .mrow .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .mrow .h .ico { width: 16px; height: 16px; flex: 0 0 16px; }
-.mrow .h .ico { vertical-align: baseline; border-radius: 0; background: currentColor;
-  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
-/* F's bar rows draw the BARE line glyph — the kit's tinted chip circle is for the chips elsewhere. */
-.mrow .h .ico.i-protein { color: var(--macro-protein); }
-.mrow .h .ico.i-carbs { color: var(--macro-carbs); }
-.mrow .h .ico.i-fat, .mrow .h .ico.i-satfat { color: var(--macro-fat); }
 .mrow .h > span { flex: 1; font-weight: 600; }
 .mrow .h b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .mrow .h b small { font-size: 13px; font-weight: 400; color: var(--muted); }

@@ -11,7 +11,7 @@
 // transcribed from that page ahead of its icons.css edit landing in the design PR.
 //
 // EVERY ICON IS A SINGLE-COLOUR SHAPE. Nothing here bakes a hex: the colour arrives through
-// `iconSvg(name, { color })` — from the macro tokens on a macro chip, `currentColor` everywhere
+// `iconSvg(name, { color })` — the macro's ink on a macro glyph, `currentColor` everywhere
 // else. "line" icons are Lucide v1.48.0 path data — ISC, and the chevrons, x, search, plus and
 // upload among them are Feather-derived and MIT, credited the way `img/LICENSES.md` in the design
 // folder credits them — stroked at 1.75 with round caps and joins. "solid" icons are the boards'
@@ -26,7 +26,7 @@
 // the web.
 //
 // NO RENDERER. The only import is `palette.ts` — one of the dependency-free token modules the
-// `src/shared/ui/` rule allows — and only `iconCss` reads it, for the chip colours.
+// `src/shared/ui/` rule allows — and only `iconCss` reads it, for the macro inks.
 
 import { macro, type MacroName } from "../palette.ts";
 
@@ -302,18 +302,6 @@ export const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 /**
- * The macro chip — the tinted circle a macro glyph sits on. The tint and the glyph's colour are the
- * S1 macro tokens; this is the one place the CHIP's geometry is defined, so the phone, the web
- * surfaces and the landing draw the same circle: 1.6 em across, the glyph at 58 % of it.
- */
-export const MACRO_CHIP = {
-  /** The chip's diameter, in em. */
-  sizeEm: 1.6,
-  /** The glyph's share of the chip (icons.css `center/58%`). */
-  glyphShare: 0.58,
-} as const;
-
-/**
  * The companies' own marks — official artwork, kept as drawn and never rebuilt as a line icon.
  * `apple` and `github` are single-colour marks (their `currentColor` is the parameter, as with
  * icons); `google` carries its four brand colours and ignores `color`. iOS keeps its native Apple
@@ -420,42 +408,34 @@ export function brandSvg(name: BrandName, opts: Omit<IconOpts, "color" | "stroke
 
 // ── The web classes ─────────────────────────────────────────────────────────────────────────────
 // The boards' own mechanism (icons.css): an `.ico` element paints `currentColor` through a mask
-// whose shape is this icon's data, and a macro chip is the glyph drawn in its ink on a circle in
-// its tint. The classes are GENERATED here from the same ICONS, because two web surfaces (/start
-// and the app shell) interpolate one string — hand-writing them per surface is the duplication
-// this issue exists to remove. The colours come from `palette.macro` (S1): baked ink would be a
-// second copy, and dark mode's inks differ.
+// whose shape is this icon's data, and a macro glyph is the BARE line icon in its macro's ink —
+// no tinted disc, no circle behind it (ieat-app#1362). The classes are GENERATED here from the
+// same ICONS, because two web surfaces (/start and the app shell) interpolate one string —
+// hand-writing them per surface is the duplication this issue exists to remove. The inks come
+// from `palette.macro` (S1): a baked hex would be a second copy, and dark mode's inks differ.
 
-// Which chip wears which macro's ink and tint. Saturated fat wears fat's — the alias is the rule.
-const CHIPS = { kcal: "kcal", protein: "protein", carbs: "carbs", fat: "fat", satfat: "fat" } as const satisfies Record<
+// Which class wears which macro's ink. Saturated fat wears fat's — the alias is the rule.
+const MACRO_INK = { kcal: "kcal", protein: "protein", carbs: "carbs", fat: "fat", satfat: "fat" } as const satisfies Record<
   string,
   MacroName
 >;
 
 const uri = (s: string) => `url("data:image/svg+xml,${encodeURIComponent(s)}")`;
 
-/**
- * One glyph as a standalone `<svg>` for a mask or a chip. A mask reads only the alpha channel, so
- * an unset colour stays `currentColor` (black in an image document, the shape opaque either way);
- * a chip passes its macro ink.
- */
-const glyphSvg = (spec: IconSpec, color?: string): string =>
+/** One glyph as a standalone `<svg>` for an `.i-*` mask — a mask reads only the alpha channel. */
+const glyphSvg = (spec: IconSpec): string =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${spec.viewBox}"${
     spec.style === "line"
-      ? ` fill="none" stroke="${color ?? "currentColor"}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`
+      ? ` fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`
       : ""
-  }>${color ? spec.body.replaceAll("currentColor", color) : spec.body}</svg>`;
-
-const chipRule = (name: string, ink: string, tint: string): string =>
-  `.ico.i-${name}{-webkit-mask:none;mask:none;background:${tint} ${uri(glyphSvg(ICONS[name as IconName], ink))} center/${
-    MACRO_CHIP.glyphShare * 100
-  }% no-repeat;border-radius:50%;width:${MACRO_CHIP.sizeEm}em;height:${MACRO_CHIP.sizeEm}em;vertical-align:-.45em}`;
+  }>${spec.body}</svg>`;
 
 /**
  * The boards' icon CSS as one string: `.ico` plus an `.i-<name>` mask class for every icon, and
- * the five macro chips — light values unscoped, dark under the same `:root[data-theme="dark"]`
- * the surfaces' `darkVars` live under. Interpolated by `/start` and the web shell, and nowhere
- * else written.
+ * the macro ink for the five — `.ico` already paints `currentColor` through the mask, so a macro
+ * class sets `color` and nothing else, leaving the surface's own size rules to stand. Light
+ * values unscoped, dark under the same `:root[data-theme="dark"]` the surfaces' `darkVars` live
+ * under. Interpolated by `/start` and the web shell, and nowhere else written.
  */
 export function iconCss(): string {
   const rules = [
@@ -464,11 +444,11 @@ export function iconCss(): string {
   for (const name of Object.keys(ICONS) as IconName[]) {
     rules.push(`.i-${name}{--ic:${uri(glyphSvg(ICONS[name]))}}`);
   }
-  for (const [name, m] of Object.entries(CHIPS)) {
-    rules.push(chipRule(name, macro.light[m].ink, macro.light[m].tint));
+  for (const [name, m] of Object.entries(MACRO_INK)) {
+    rules.push(`.ico.i-${name}{color:${macro.light[m].ink}}`);
   }
-  for (const [name, m] of Object.entries(CHIPS)) {
-    rules.push(`:root[data-theme="dark"] ${chipRule(name, macro.dark[m].ink, macro.dark[m].tint)}`);
+  for (const [name, m] of Object.entries(MACRO_INK)) {
+    rules.push(`:root[data-theme="dark"] .ico.i-${name}{color:${macro.dark[m].ink}}`);
   }
   return rules.join("\n");
 }
