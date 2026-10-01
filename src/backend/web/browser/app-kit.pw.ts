@@ -123,7 +123,7 @@ test("the kit's measurements are pro.css's", async ({ page }) => {
   await expect(page.locator(".dy.fut")).toHaveCount(3);
   await expect(page.locator(".dy.fut").first()).toHaveCSS("opacity", "0.45");
   // The over-plan day takes `bad`, straight from dayRing's tone — never a client-side compare.
-  await expect(page.locator(".dy").nth(1).locator(".fg")).toHaveAttribute("stroke", "var(--bad)");
+  await expect(page.locator(".dy").nth(1).locator(".fg")).toHaveAttribute("stroke", "var(--over)");
 
   // The meal row: 56 px photo (r-thumb 8), the chips, kcal at the end, verdict words off-plan.
   await expect(page.locator(".meal .ph").first()).toHaveCSS("width", "56px");

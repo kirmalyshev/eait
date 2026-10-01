@@ -47,7 +47,7 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
 
     await page.goto("/#/");
     await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
-    await expect(page.locator(".kcard")).toBeVisible();
+    await expect(page.locator(".dayc .hk")).toBeVisible();
     await settle(page);
     expect(await axeFindings(page), "diary").toEqual([]);
   });

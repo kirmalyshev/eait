@@ -23,7 +23,7 @@ import {
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
 import { RADIUS, SHADOW } from "../design.ts";
-import { LANG_TAG, spellUnit, UNIT_KCAL, weekdayLetters, wholeNumbers, type Lang } from "../lang.ts";
+import { LANG_TAG, spellUnit, UNIT_KCAL, weekdayShort, wholeNumbers, type Lang } from "../lang.ts";
 import { MOUTHS, spudSvg, type MascotMood } from "../mascot.ts";
 
 /** Text or an attribute value, made inert. The one escaper both surfaces get. */
@@ -45,7 +45,7 @@ export type ChipName = "kcal" | "protein" | "carbs" | "fat" | "satfat";
 // second copy the kit exists to prevent.
 
 export type RingTone =
-  | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line"
+  | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line" | "over"
   | `macro-${ChipName}`;
 
 const RING_SPEC = {
@@ -99,7 +99,7 @@ export const weekStrip = (
   lang: Lang,
   now?: string,
 ): string => {
-  const letters = weekdayLetters(lang);
+  const letters = weekdayShort(lang);
   const fullDate = new Intl.DateTimeFormat(LANG_TAG[lang], { dateStyle: "full", timeZone: "UTC" });
   const cells = days.map((day) => {
     const noon = new Date(`${day.date}T12:00:00Z`);
@@ -108,21 +108,28 @@ export const weekStrip = (
     // strip follows the viewed week, so the caller names the day. Unsaid, it stays today's.
     const isNow = now !== undefined ? day.date === now : day.when === "today";
     const cls = isNow ? "dy now" : day.when === "future" ? "dy fut" : "dy";
+    // An over day's ring is dark red (F) — `--over`, calmer than `--bad` in both themes.
+    const tone = ring.tone === "bad" ? "over" : ring.tone;
     const circles = ring.dashoffset === undefined
       ? `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
       : `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
-        `<circle class="fg" cx="15" cy="15" r="12" fill="none" stroke="var(--${ring.tone})" stroke-width="2.4" ` +
+        `<circle class="fg" cx="15" cy="15" r="12" fill="none" stroke="var(--${tone})" stroke-width="2.4" ` +
         `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
-    const letter = esc(letters[(noon.getUTCDay() + 6) % 7]!);
+    const letter = `<span class="dl">${esc(letters[(noon.getUTCDay() + 6) % 7]!)}</span>`;
     const num = Number(day.date.slice(8, 10));
     // A future day is not a control (it has no diary yet) — the boards draw it as a dimmed cell,
-    // so it is markup, not a button with no effect.
+    // so it is a DISABLED button: inactive, never focusable, and exempt from the contrast rule (WCAG 1.4.3).
     if (day.when === "future" && !isNow)
-      return `<span class="${cls}">${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></span>`;
+      return `<button type="button" class="${cls}" disabled aria-label="${esc(fullDate.format(noon))}">` +
+        `${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></button>`;
     return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
       `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;
   });
-  return `<div class="week">${cells.join("")}</div>`;
+  // The raised cell's flat tint is ONE element (`a0`…`a6` are the cells' left edges) so a client
+  // that keeps the strip mounted can glide it to the tapped day instead of rebuilding.
+  const at = days.findIndex((d) => (now !== undefined ? d.date === now : d.when === "today"));
+  const tint = at === -1 ? "" : `<i class="wtint a${at}" aria-hidden="true"></i>`;
+  return `<div class="week">${tint}${cells.join("")}</div>`;
 };
 
 // ── Macro chips and cards ────────────────────────────────────────────────────────────────────
@@ -192,6 +199,21 @@ export const verdictDot = (tone: VerdictTone, words: string): string =>
 /** The `.vs` stack on a card — one dot-and-line per verdict, its own tone on each. */
 export const verdictList = (items: readonly { tone: VerdictTone; words: string }[]): string =>
   items.length ? `<div class="vs">${items.map((v) => verdictDot(v.tone, v.words)).join("")}</div>` : "";
+
+// ── The macro tip (F) ──────────────────────────────────────────────────────────
+//
+// The bubble a tippable macro row opens over the day card — the boards' `.mtip`: the title
+// line's coloured dot, then the sentence, on the raised roundrect with the rotated-square
+// arrow underneath. `.t-<macro>` names the dot's colour; `over` is the dark-red pair (a macro
+// past its target reads in ink on the card but in the over tone inside the tip). Position —
+// bottom over the row, the arrow's `--ax` under the icon — is the surface's: the anchor is the
+// element that knows where the icon sits.
+
+export type TipTone = "protein" | "carbs" | "satfat" | "over";
+
+export const tip = (o: { tone: TipTone; title: string; body: string }): string =>
+  `<div class="mtip t-${esc(o.tone)}${o.tone === "over" ? " ov" : ""}" role="tooltip">` +
+  `<b><i></i>${esc(o.title)}</b><p>${esc(o.body)}</p></div>`;
 
 // ── The health score ─────────────────────────────────────────────────────────────────────────
 //
@@ -533,12 +555,19 @@ export function kitCss(): string {
 .mring.flat{display:flex;align-items:center;justify-content:center}
 .mring.flat .ico{position:static;transform:none;width:34px;height:34px}
 
-/* The week strip — seven days, the date centred in a 32 px ring of stroke 2.4. */
-.week{display:flex;justify-content:space-between;padding:0 16px}
+/* The week strip — seven days, the date centred in a 32 px ring of stroke 2.4. F's raised cell
+   is ONE flat tint (the kcal tint, radius 12, no shadow) that a mounted strip glides between
+   cells; the a0…a6 classes are the cells' left edges in the padded row, so the markup-only
+   surfaces place it right too. */
+.week{position:relative;display:flex;justify-content:space-between;padding:0 16px}
+.week .wtint{position:absolute;top:0;bottom:0;width:44px;left:16px;border-radius:12px;
+  background:var(--macro-kcal-t);transition:left .22s var(--ease);pointer-events:none}
+${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(16px + ${i}*(100% - 76px)/6)}`).join("\n")}
 .week .dy{display:flex;flex-direction:column;align-items:center;gap:5px;width:44px;padding:6px 0 7px;
   border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:12px;font-weight:600;
   color:var(--muted);position:relative;cursor:pointer}
-.week .dy.now{background:var(--surface);box-shadow:var(--shadow);color:var(--ink)}
+.week .dy .dl{font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.week .dy.now{color:var(--ink)}
 .week .dy.fut{opacity:.45;cursor:default}
 .week .dy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .week svg{width:32px;height:32px;transform:rotate(-90deg)}
@@ -586,6 +615,24 @@ export function kitCss(): string {
 .v.warn{color:var(--warn)}.v.warn::before{background:var(--warn)}
 .v.bad{color:var(--bad)}.v.bad::before{background:var(--bad)}
 .vs{display:flex;gap:14px;flex-wrap:wrap}
+
+/* The macro tip — the boards' .mtip: raised surface, the title's 8 px dot in the macro's
+   colour (dark red and titled when .ov), the sentence, and the rotated-square arrow the
+   surface slides under the row's icon with --ax. 260 wide; left/bottom are the anchor's call. */
+.mtip{position:absolute;width:260px;background:var(--surface);border-radius:12px;z-index:5;
+  padding:12px 14px;box-shadow:0 6px 24px rgba(23,25,28,.18),0 1px 3px rgba(23,25,28,.1);
+  animation:k-tip .18s var(--ease) both}
+@keyframes k-tip{from{filter:opacity(0);transform:translateY(4px) scale(.97)}to{filter:opacity(1);transform:none}}
+.mtip b{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
+.mtip b i{width:8px;height:8px;border-radius:4px;flex:0 0 8px}
+.mtip.t-protein b i{background:var(--macro-protein)}
+.mtip.t-carbs b i{background:var(--macro-carbs)}
+.mtip.t-satfat b i{background:var(--macro-fat)}
+.mtip.t-over b i{background:var(--over)}
+.mtip.ov b{color:var(--over)}
+.mtip p{margin:4px 0 0;font-size:13px;line-height:18px;color:var(--muted)}
+.mtip::after{content:"";position:absolute;bottom:-6px;left:var(--ax,18px);width:12px;height:12px;
+  background:var(--surface);transform:rotate(45deg);box-shadow:3px 3px 4px rgba(23,25,28,.06)}
 
 /* The photo hero — image, corner callouts, the stamp; height is the surface's own. */
 .hero{position:relative;overflow:hidden;background:#DDD8CE}

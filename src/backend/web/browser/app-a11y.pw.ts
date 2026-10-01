@@ -50,7 +50,7 @@ test("the diary: one main with one h1, 44px nav and Send, and the type floor", a
   await page.goto("/#/");
   // The W4 board's one h1 is "Home", visually hidden — the kcal card is the draw's own marker.
   await expect(page.getByRole("heading", { name: "Home" })).toBeAttached();
-  await expect(page.locator(".kcard")).toBeVisible();
+  await expect(page.locator(".dayc .hk")).toBeVisible();
   await landmark(page);
   for (const tab of await page.locator(".wnav a").all()) await tapTarget(tab);
   await tapTarget(page.getByRole("button", { name: "Send" }));
