@@ -312,11 +312,11 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const fig = el("div", "planfig");
     fig.append(
       kitEl(`<i class="ico i-kcal" aria-hidden="true"></i>`),
-      el("b", "d d22 num", `${nWhole(t.kcal)} ${UNIT_KCAL[lang]}`),
+      el("b", "d d22 num", `${nWhole(t.kcal)}${UNIT_KCAL[lang]}`),
       // The space lives INSIDE the span — adjacent elements carry no whitespace.
       el("span", "t13 m", ` ${you.perDay}`),
     );
-    // The board's single row: "109 g · 13 g sat fat" — the icon carries the macro's name, the
+    // The board's single row: "109g · 13g sat fat" — the icon carries the macro's name, the
     // text is grams; sat fat takes the short noun the macro cards use, not the verdict's long one.
     const chips = [
       { name: "protein" as const, text: fill(you.grams, { g: nWhole(t.protein_g) }) },
@@ -508,7 +508,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
     const budget = dayBudget(day, today, me!.profile.goal);
     // ONE card on both surfaces: the figure-and-label pair is `kcalCardState`'s choice, the
-    // over day reads "{overage} kcal over" in --bad with a closed --bad ring, as Home's does.
+    // over day reads "{overage}kcal over" in --bad with a closed --bad ring, as Home's does.
     const state = kcalCardState(budget, false);
     const hero = el("div", "card dayhero rise rc-2");
     if (budget.warn) hero.classList.add("over");
@@ -528,7 +528,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     hero.append(left, ringEl({ share: budget.fill, size: 104, tone: budget.warn ? "bad" : "ink", icon: "kcal" }));
 
     // The macro cards are Home's too: `macroCardState` picks overage/"over" over a clamped
-    // "0 g left", and the words are HOME_COPY's — one component, one table.
+    // "0g left", and the words are HOME_COPY's — one component, one table.
     const cards = el("div", "mcards");
     const mac = (macro: ChipName, copy: HomeTargetMacroCopy, eaten: number, target: number | undefined): Element => {
       const s = macroCardState(eaten, target);

@@ -421,7 +421,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   // changes — the switching and failed reads draw the same card dashed.
 
   /** "{grams} left|over" split at the placeholder — the figure keeps its weight, the word
-   *  reads light (the boards' `<b>55 g<small> left</small></b>`). */
+   *  reads light (the boards' `<b>55g<small> left</small></b>`). */
   const figureBits = (b: HTMLElement, tpl: string, grams: string): void => {
     const [pre = "", post = ""] = tpl.split("{grams}");
     if (pre !== "") b.append(el("small", "", pre));
@@ -435,7 +435,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const macroRow = (o: {
     icon: IconName;
     name: string;
-    /** The "55 g" / "835 mg" figure, already formatted — "— g" on the dashed reads. */
+    /** The "55g" / "835mg" figure, already formatted — "—g" on the dashed reads. */
     grams: string;
     /** eaten÷target, raw — unset is the targetless row (the total alone); >1 is over. */
     share?: number;
@@ -608,7 +608,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // which the browser bundle never reaches (#145).
     if ((t.satfat_g ?? 0) > 0) rows.push({ share: day.totals.satfat_g / t.satfat_g!, noun: L.dayNoteSatFat, left: macroLeft(t.satfat_g!, day.totals.satfat_g) });
     // A target already met or over names nothing — the note only ever asks to eat LESS later,
-    // never "0 g to go".
+    // never "0g to go".
     const pick = rows.filter((r) => r.left > 0).sort((a, b) => a.share - b.share)[0];
     if (pick === undefined) return null;
     const note = el("div", "hnote");

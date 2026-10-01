@@ -276,7 +276,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     });
     card.append(explainer);
 
-    // "From 73.4 kg and 172 cm" — the weigh-in the figure was computed on, and the profile's height.
+    // "From 73.4kg and 172cm" — the weigh-in the figure was computed on, and the profile's height.
     const heightCm = me?.profile.height_cm ?? null;
     const kg = w.latest?.kg ?? me?.profile.weight_kg ?? null;
     if (heightCm !== null && kg !== null) {

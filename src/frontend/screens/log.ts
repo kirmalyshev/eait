@@ -117,7 +117,7 @@ export function logScreen(frame: Frame): HTMLElement {
   const callouts = (items: readonly MealItem[]): HeroCallout[] => {
     const corners = ["tl", "bl", "br", "tr"] as const;
     return items.filter((it) => it.grams > 0).slice(0, corners.length).map((it, i) => ({
-      text: `${it.name} ${n(it.grams)} ${g}`,
+      text: `${it.name} ${n(it.grams)}${g}`,
       ...(it.kcal === undefined ? {} : { value: n(it.kcal) }),
       corner: corners[i]!,
       // The bottom-right callout lifts off the stamp lane, as the boards draw it.

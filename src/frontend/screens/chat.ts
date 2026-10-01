@@ -268,7 +268,7 @@ export async function chatScreen(): Promise<HTMLElement> {
         const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
           [...focusMeal.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
             .map((i) => fill(mealCopyFor(lang).itemAmount, {
-              amount: `${wholeNumbers(lang)(i.grams)} ${spellUnit(lang, "g")}`, item: i.name,
+              amount: `${wholeNumbers(lang)(i.grams)}${spellUnit(lang, "g")}`, item: i.name,
             })));
         col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
       }));
@@ -336,7 +336,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     const head = el("div", "row between");
     head.append(el("b", "", names(meal.items)));
     const num = el("span", "num");
-    num.append(el("b", "d d22", wholeNumbers(lang)(meal.kcal)), el("span", "m t12", ` ${UNIT_KCAL[lang]}`));
+    num.append(el("b", "d d22", wholeNumbers(lang)(meal.kcal)), el("span", "m t12", `${UNIT_KCAL[lang]}`));
     head.append(num);
     // The focus sheet draws the meal's photo at 52px in a row beside the name-and-macs block;
     // the dots run full-width under it (meal-edit.html).
@@ -354,7 +354,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     } else {
       card.append(head);
     }
-    // The chips' figures come from the kit's `gramChips` — "34 g" spelled by the kit's own unit
+    // The chips' figures come from the kit's `gramChips` — "34g" spelled by the kit's own unit
     // table, not a retyped template here.
     const grams = gramMacsEl({ protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g });
     const macs = el("div", "pl-macs");
@@ -366,14 +366,14 @@ export async function chatScreen(): Promise<HTMLElement> {
     return card;
   };
 
-  /** The coach bar (`chat-coach`): the macro's chip and label, "54 of 109 g", the fill capped. */
+  /** The coach bar (`chat-coach`): the macro's chip and label, "54 of 109g", the fill capped. */
   const focusBar = (focus: CoachFocus): HTMLElement => {
     const noun = copy().macroLabels[focus.nutrient];
     const mb = el("div", "mb");
     const head = el("div", "row between");
     const name = el("span", "row mb-name");
     name.append(el("i", `ico i-${focus.nutrient}`), noun);
-    // "{value} of {target} g" as the table's two halves, the eaten figure bold like the board's:
+    // "{value} of {target}g" as the table's two halves, the eaten figure bold like the board's:
     // `macroEaten` then `macroTarget`, and no split on the template itself.
     const figure = el("span", "num mb-num");
     figure.append(el("b", "", fill(copy().macroEaten, { value: wholeNumbers(lang)(focus.eaten) })),

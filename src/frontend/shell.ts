@@ -221,9 +221,9 @@ function signInScreen(): HTMLElement {
   return box;
 }
 
-// Grouped the reader's way — "1.724 kcal" in German — rounded, because a kcal from a photo is an
+// Grouped the reader's way — "1.724kcal" in German — rounded, because a kcal from a photo is an
 // estimate, and with the language's own spelling of the unit beside it.
-export const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}`;
+export const kcal = (n: number): string => `${wholeNumbers(lang)(n)}${UNIT_KCAL[lang]}`;
 
 /**
  * The proposal a text turn is holding, until it is logged or dropped.
