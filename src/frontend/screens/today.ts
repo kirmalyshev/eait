@@ -427,8 +427,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       row.classList.add("open");
       const rows = row.parentElement as HTMLElement;
       if (!rows.classList.contains("open")) {
+        // A row's footprint is offsetHeight + its (possibly negative) margins: the hover pill
+        // and the open state pad a row 4 px and take it back in margin.
         const kids = [...rows.children] as HTMLElement[];
-        const free = rows.clientHeight - kids.reduce((s, k) => s + k.offsetHeight, 0);
+        const free = rows.clientHeight - kids.reduce((s, k) => {
+          const m = getComputedStyle(k);
+          return s + k.offsetHeight + parseFloat(m.marginTop) + parseFloat(m.marginBottom);
+        }, 0);
         rows.style.gap = `${Math.max(0, free / Math.max(1, kids.length - 1))}px`;
         rows.classList.add("open");
       }
@@ -640,6 +645,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
    *  page keeps across draws (`page` is the screen's), and the failed read keeps the card's
    *  shape with every figure a dash and the switcher hidden (`.dots none`). */
   const dayCard = (day: DayResponse | null, rich: boolean): HTMLElement => {
+    // A redraw discards the card whole — the tip refs would point at detached nodes.
+    tipEl = null;
+    tipRow = null;
     const dayw = el("div", "dayw");
     const card = el("div", "dayc");
     const track = el("div", "dtrack");

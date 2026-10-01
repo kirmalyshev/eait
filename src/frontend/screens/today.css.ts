@@ -90,9 +90,12 @@ button.hsc { cursor: pointer; }
 .mrow .bar { display: block; margin-top: 6px; height: 6px; border-radius: 1px;
   background: var(--hair); overflow: hidden; }
 .mrow .bar i { display: block; height: 6px; border-radius: 1px; }
-/* A tippable row takes the hovered pill while its tip is shut; open it wears none. */
+/* A tippable row takes the hovered pill while its tip is shut; open it wears none — the same
+   vertical margin/padding keeps the tapped row's text exactly where the pill left it, while
+   the panel inside stays flush with the bar. */
 .mrow.tip { cursor: pointer; }
 .mrow.tip:not(.open):hover { background: var(--hair); margin: -4px -8px; padding: 4px 8px; }
+.mrow.tip.open { margin: -4px 0; padding: 4px 0; }
 .mrow.tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* The macro tip — the boards' .tipa: an inline panel INSIDE the row under its bar, the macro's
