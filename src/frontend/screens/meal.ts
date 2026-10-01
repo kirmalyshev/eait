@@ -11,7 +11,7 @@
 // THE EDIT IS CAL AI'S LAYOUT, not a chat (#188, Kirill 21:58). "Correct this meal" and the
 // menu's Edit open `web/meal-fix.html` — a PANEL over this detail: one field, an example, Update,
 // which sends the sentence as the correction turn (the contract's `focusMealId`, unchanged) and
-// returns here recomputed with the change named in one tinted line (`MealUpdated.line`).
+// returns here recomputed (ieat-app#1374 — no change line).
 // An ingredient row opens `web/meal-ingredient.html` — grams, the item's and the meal's kcal live, a bin that
 // removes it, Done — a `PATCH /v1/meals/:id`, the same write the first-meal editor sends. Other
 // surfaces deep-link in: `#/meal/<id>?fix` opens the fix panel, `#/meal/<id>?item=<n>` the
@@ -27,7 +27,7 @@ import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
 import type { MealItem, MealRecord } from "@eait/shared";
-import type { DayResponse, MessageResponse, PhotoLast } from "@eait/shared/contract";
+import type { DayResponse } from "@eait/shared/contract";
 import type { MealRedated, MealUpdated, TargetGone } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
@@ -108,13 +108,6 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     focus?.focus();
   };
   const openPanel = (p: { node: HTMLElement; focus: HTMLElement }): void => openOverlay(p.node, p.focus);
-
-  // The tinted line the detail carries after a fix landed (`meal-fixed.html`): `MealUpdated.line`
-  // is the engine's `changeLine` — the same sentence the thread gets — null when nothing moved.
-  let changedNote: { id: string; text: string } | null = null;
-  const noteChange = (mealId: string, line: string | null): void => {
-    changedNote = line === null ? null : { id: mealId, text: line };
-  };
 
   // The photo bytes arrive under the bearer, so they cannot be an <img>'s URL — and the CSP
   // refuses both a blob: src and a fetch OF a blob: URL, so `blobSrc`'s data URL is the one form
@@ -223,7 +216,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
    * `web/meal-fix.html` (#188): X, the sparkle and "Correct this meal", the meal named beside its
    * thumb, the one field ("Say what was wrong" — `composeHint`), the example card, Update. Update
    * sends the sentence as the correction turn — `focusMealId`, the contract unchanged — and the
-   * recomputed answer lands the tinted line on the detail behind the closing panel.
+   * recomputed answer is what the detail re-reads behind the closing panel.
    */
   const fixPanel = (meal: MealRecord): { node: HTMLElement; focus: HTMLElement } => {
     const scrim = el("div", "mscrim");
@@ -268,15 +261,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       const text = field.value.trim();
       if (text === "") return;
       turn(async () => {
-        // The result rides `onResult` — a kept (offline) turn answers none, and the redraw picks
-        // the meal up when the outbox drains.
-        const got: { r: MessageResponse | PhotoLast | null } = { r: null };
+        // A kept (offline) turn answers nothing here — the redraw picks the meal up when the
+        // outbox drains.
         const saved = await sendOrKeep({
           id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
           capturedAt: new Date().toISOString(), focusMealId: meal.id,
-        }, { onResult: (r) => { got.r = r; } });
+        });
         closeOverlay();
-        if (got.r?.kind === "updated") noteChange(meal.id, got.r.line);
         return saved;
       });
     });
@@ -381,17 +372,16 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     });
     drawMove();
 
-    // Both writes end in the same PATCH: items only — the server derives the totals — and the
-    // returned `line` is what the detail names the change with.
+    // Both writes end in the same PATCH: items only — the server derives the totals, and the
+    // detail re-reads them on the redraw.
     const applyItems = (items: MealItem[]): void => {
       const req = mealEditRequest(meal, items);
       if (req === null) { closeOverlay(); return; }
       turn(async () => {
-        const r = await api<MealUpdated | TargetGone>(MEAL(meal.id), {
+        await api<MealUpdated | TargetGone>(MEAL(meal.id), {
           method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(req),
         });
         closeOverlay();
-        if (r.kind === "updated") noteChange(meal.id, r.line);
       });
     };
     const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
@@ -508,12 +498,6 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const split = el("div", "msplit");
     split.append(hero(meal));
     const sheet = el("div", "msheet");
-    // `meal-fixed.html`'s one tinted line, above the name row — the change the last fix made.
-    if (changedNote?.id === meal.id) {
-      const line = el("div", "chgline");
-      line.append(el("i", "chgdot"), document.createTextNode(changedNote.text));
-      sheet.append(line);
-    }
     sheet.append(kitEl(`<div class="row between"><div><b class="d d22">${esc(names(meal.items))}</b>` +
       `<div class="t13 m mmeta">${esc(meta(meal))}</div></div>` +
       `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(kn(meal.kcal))}</b></span></div>`));

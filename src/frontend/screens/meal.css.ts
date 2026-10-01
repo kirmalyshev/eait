@@ -79,11 +79,6 @@ export const mealCss = `
 .fixfield::placeholder{color:var(--faint)}
 .fixex{padding:14px 16px;background:var(--hair);box-shadow:none;font-size:15px;line-height:1.45}
 
-/* The recomputed detail's one tinted line (meal-fixed.html) — the change, named. */
-.chgline{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
-  background:var(--accent-tint);font-size:14px;font-weight:600}
-.chgdot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--accent)}
-
 /* The ingredient rows open their editor — a button wrapping the kit's .ing row. */
 button.ingbtn{display:block;width:100%;border:0;background:none;padding:0;font:inherit;
   color:inherit;cursor:pointer;text-align:left;border-radius:var(--r-ctl)}
