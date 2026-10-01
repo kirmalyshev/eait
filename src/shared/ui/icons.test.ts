@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { macro } from "../palette.ts";
-import { BRAND_ICONS, brandSvg, ICONS, iconCss, iconSvg, MACRO_CHIP, type BrandName, type IconName } from "./icons.ts";
+import { BRAND_ICONS, brandSvg, ICONS, iconCss, iconSvg, type BrandName, type IconName } from "./icons.ts";
 
 // Every icon the boards draw, by surface — the fixed list of names this set answers to (#79,
 // extended by the overseer past the issue's minimum to every glyph the boards carry). `satfat` is
 // the one name no board writes: saturated fat wears the fat glyph, and the alias is that rule.
 const BOARD_ICONS: IconName[] = [
-  // The macro set — filled glyphs, each in its tinted circle.
+  // The macro set — the bare line glyphs in each macro's ink.
   "kcal", "protein", "carbs", "fat",
   // The streak chip (Today, the health-sync board).
   "streak",
@@ -104,10 +104,6 @@ describe("the icon set", () => {
     expect(ICONS.satfat.body.startsWith(ICONS.fat.body)).toBe(true);
   });
 
-  test("the macro chip is one size, exported once", () => {
-    expect(MACRO_CHIP).toEqual({ sizeEm: 1.6, glyphShare: 0.58 });
-  });
-
   test("brand marks keep their artwork; google keeps its four colours", () => {
     const g = brandSvg("google");
     for (const hex of ["#EA4335", "#4285F4", "#FBBC05", "#34A853"]) expect(g).toContain(hex);
@@ -145,18 +141,15 @@ describe("the icon set", () => {
       }
     });
 
-    test("the macro chips are ink-on-tint, sized by MACRO_CHIP — light and dark", () => {
+    test("the macro glyphs are bare, each in its macro's ink — light and dark (ieat-app#1362)", () => {
       for (const name of ["kcal", "protein", "carbs", "fat", "satfat"] as const) {
         const m = macro.light[name === "satfat" ? "fat" : name];
-        expect(css).toContain(`.ico.i-${name}{-webkit-mask:none;mask:none;background:${m.tint} `);
-        expect(css).toContain(`center/${MACRO_CHIP.glyphShare * 100}% no-repeat`);
-        expect(css).toContain(`width:${MACRO_CHIP.sizeEm}em;height:${MACRO_CHIP.sizeEm}em`);
+        expect(css).toContain(`.ico.i-${name}{color:${m.ink}}`);
         const dm = macro.dark[name === "satfat" ? "fat" : name];
-        // The ink lands on `stroke` for a line glyph (F's macro set) and `fill` on a solid (kcal).
-        const encodedDarkInk = encodeURIComponent(`${ICONS[name].style === "line" ? "stroke" : "fill"}="${dm.ink}"`);
-        expect(css, `no dark glyph for .i-${name}`).toContain(encodedDarkInk);
+        expect(css).toContain(`:root[data-theme="dark"] .ico.i-${name}{color:${dm.ink}}`);
       }
-      expect(css).toContain(':root[data-theme="dark"]');
+      // No tinted disc and no circle survives in a macro rule.
+      expect(css).not.toContain("border-radius:50%");
     });
 
     test("every colour in the output comes from palette.macro", () => {
