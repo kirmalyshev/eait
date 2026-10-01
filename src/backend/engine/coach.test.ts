@@ -114,17 +114,17 @@ describe("the coach turn", () => {
       { role: "assistant", kind: "meal", mealId: gone.id, event: "updated" },
       { role: "assistant", kind: "text", text: "First one in." },
       { role: "user", kind: "text", text: "thanks" },
-      { role: "assistant", kind: "text", text: "About 40 g.", speaker: "gabie" },
+      { role: "assistant", kind: "text", text: "About 40g.", speaker: "gabie" },
     ]);
     await handleText(d, userId, { text: "what did I eat?" });
     const h = seen[0]!.input.history;
     expect(h).toStrictEqual([
       { role: "user", text: "[photo] with sauce" },
-      { role: "assistant", text: `[logged: Rice, Chicken — 500 kcal, 40 g protein, ${today()}]` },
+      { role: "assistant", text: `[logged: Rice, Chicken — 500kcal, 40g protein, ${today()}]` },
       { role: "assistant", text: "[a meal that was later deleted]" },
       { role: "assistant", text: "First one in." },
       { role: "user", text: "thanks" },
-      { role: "assistant", text: "About 40 g.", speaker: "gabie" },
+      { role: "assistant", text: "About 40g.", speaker: "gabie" },
     ]);
     // And the router saw the tail too, so a follow-up can route as one.
     expect(routed[0]!.recent).toEqual(h.slice(-6));
@@ -175,17 +175,17 @@ describe("the coach turn", () => {
     const llm: LlmPorts = {
       ...demoPorts(),
       coach: async (i) => ({
-        reply: "54 g so far — the aim is 109.", suggestions: [],
+        reply: "54g so far — the aim is 109.", suggestions: [],
         ...(i.text.includes("protein") ? { focus: "protein" } : {}),
       }),
     };
     const d = makeDeps(llm);
     const userId = await onboard();
-    await store.insertMeal(meal(userId)); // 40 g protein of the fixture's own numbers
+    await store.insertMeal(meal(userId)); // 40g protein of the fixture's own numbers
     const res = await handleText(d, userId, { text: "am I getting enough protein?" });
     const { targets } = explainTargets((await store.getProfile(userId))!);
     expect(res).toEqual({
-      kind: "answered", text: "54 g so far — the aim is 109.", suggestions: [], speaker: "gabie",
+      kind: "answered", text: "54g so far — the aim is 109.", suggestions: [], speaker: "gabie",
       focus: { nutrient: "protein", eaten: 40, target: targets.protein_g },
     });
     // And the turn's own words stay out of it: a nutrient the model said nothing about is absent.

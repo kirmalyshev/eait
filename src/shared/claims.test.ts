@@ -44,24 +44,24 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ru: ["Гарантированное похудение.", "Результат гарантирован."],
   },
   "weight-promise": {
-    en: ["Lose weight fast.", "Lose 5 kg this month."],
-    fr: ["Perdez du poids vite.", "Perdre 5 kg ce mois-ci.", "Tu perdras du poids.",
+    en: ["Lose weight fast.", "Lose 5kg this month."],
+    fr: ["Perdez du poids vite.", "Perdre 5kg ce mois-ci.", "Tu perdras du poids.",
       "Maigrir sans effort.", "Mincir durablement.", "Amincissement rapide."],
-    de: ["Nimm 5 kg ab.", "Gewicht verlieren, schnell.",
+    de: ["Nimm 5kg ab.", "Gewicht verlieren, schnell.",
       // `\bab\b` has no boundary inside `abnehmen`, so only the SEPARABLE form fired.
-      "Mit eait 5 kg abnehmen.", "Gewichtsabnahme ohne Hunger."],
-    it: ["Perdi peso in fretta.", "Dimagrire di 5 kg.", "Perderai peso.",
-      "Perdi 5 kg in un mese."],
-    es: ["Pierde peso rápido.", "Adelgazar 5 kg.", "Perderás peso.",
-      "Baja de peso sin esfuerzo.", "Pierde 5 kg en un mes."],
-    vi: ["Giảm cân nhanh.", "Giảm 5 kg trong tháng này.", "Giảm 5 ký trong tháng này."],
+      "Mit eait 5kg abnehmen.", "Gewichtsabnahme ohne Hunger."],
+    it: ["Perdi peso in fretta.", "Dimagrire di 5kg.", "Perderai peso.",
+      "Perdi 5kg in un mese."],
+    es: ["Pierde peso rápido.", "Adelgazar 5kg.", "Perderás peso.",
+      "Baja de peso sin esfuerzo.", "Pierde 5kg en un mes."],
+    vi: ["Giảm cân nhanh.", "Giảm 5kg trong tháng này.", "Giảm 5 ký trong tháng này."],
     id: ["Turunkan berat badan dengan cepat.",
       // me- ASSIMILATES the t, so `menurunkan` contains no `turun` at all — and this is the
       // standard Indonesian phrase AND the shipped goal button.
       "Menurunkan berat badan dengan cepat.", "Penurunan berat badan terjamin."],
-    ru: ["Похудей быстро.", "Сбросить 5 кг за месяц.",
+    ru: ["Похудей быстро.", "Сбросить 5кг за месяц.",
       // The standard Russian marketing noun. `потеря веса` is the calque nobody writes.
-      "Снижение веса за месяц.", "Скинуть вес быстро.", "Минус 10 кг за месяц."],
+      "Снижение веса за месяц.", "Скинуть вес быстро.", "Минус 10кг за месяц."],
   },
   "lowers-marker": {
     en: ["Lowers cholesterol."],
@@ -101,7 +101,7 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
  */
 const FINE = [
   // Naming the plan, not promising an outcome.
-  "1.100 von 1.900 kcal heute. Morgen startet wieder bei 1.900.",
+  "1.100 von 1.900kcal heute. Morgen startet wieder bei 1.900.",
   "Твой профицит ограничен примерно 20% сверх того, что тело сжигает за день.",
   "Il tuo obiettivo è al minimo che questa app possa proporre.",
   // `guarantee`'s neighbours: a warranty-free promise about behaviour, not about a result.
@@ -133,8 +133,8 @@ const FINE = [
   "Abbassa la pressione del lavoro, non quella del sangue.",
   // Describing what is happening, not promising it. The progressive is the descriptive form in
   // both, which is why the stems stop short of it.
-  "Estás adelgazando a 0,5 kg por semana.",
-  "Stai dimagrendo di 0,5 kg a settimana.",
+  "Estás adelgazando a 0,5kg por semana.",
+  "Stai dimagrendo di 0,5kg a settimana.",
 ];
 
 describe("the claims gate reads all eight languages", () => {
@@ -249,7 +249,7 @@ describe("every sentence this product ships", () => {
 
 // ── The one exemption (S6) ───────────────────────────────────────────────────────────────────
 //
-// "Goal: lose 6 kg by January 2027" is drawn above the plan graph — the user's own stated goal,
+// "Goal: lose 6kg by January 2027" is drawn above the plan graph — the user's own stated goal,
 // restated with the plan's own projection. `weight-promise` cannot tell it from a marketing
 // claim, so `claims.ts` exempts exactly one field name, `CHAT_COPY.planGoal`, and these tests
 // prove both halves: the key passes, and the same words anywhere else are still refused.
@@ -258,7 +258,7 @@ describe("the plan headline's claims exemption", () => {
   const SEP_24 = new Date("2026-09-24T12:00:00Z");
   const KEY = "CHAT_COPY.planGoal";
 
-  /** The sentence the plan graph draws, filled the way `planHeadline` fills it (6 kg ≈ 13 lb). */
+  /** The sentence the plan graph draws, filled the way `planHeadline` fills it (6kg ≈ 13lb). */
   const filled = (lang: (typeof LANGS)[number], units: "metric" | "imperial"): string =>
     chatCopyFor(lang).planGoal[units]
       .replace("{n}", units === "metric" ? "6" : "13")
@@ -273,7 +273,7 @@ describe("the plan headline's claims exemption", () => {
   });
 
   it("applies weight-promise alone — every other rule still reads the field", () => {
-    expect(lintCopy({ [KEY]: "Goal: lose 6 kg by January 2027, guaranteed results" })
+    expect(lintCopy({ [KEY]: "Goal: lose 6kg by January 2027, guaranteed results" })
       .map((v) => v.pattern)).toContain("guarantee");
   });
 

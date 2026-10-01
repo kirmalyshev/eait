@@ -215,7 +215,7 @@ async function textTurn(
         // or claim food while naming not one item of it (#248: the analyzer declining a vague
         // description with `items: []` at `isFood: true`). The first is the photo path's own
         // refusal; the second is a failed estimate. Refused before the pending is written, or a
-        // confirm logs a 0 kcal "Meal" whose every verdict reads on plan.
+        // confirm logs a 0kcal "Meal" whose every verdict reads on plan.
         if (!reconciled.isFood) return { kind: "not-food" };
         if (emptyEstimate(reconciled)) return { kind: "analysis-failed" };
         const verdicts = await gatedVerdicts(deps, userId, reconciled);

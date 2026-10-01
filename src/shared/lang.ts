@@ -100,7 +100,7 @@ export const LANG_TAG: Record<Lang, string> = {
  * Every figure in every sentence this product writes.
  *
  * ONE SHAPE, because the thread only ever writes one: a whole number, or one decimal place when
- * there is one to keep ("92.4 kg", never "92.40 kg" and never "1454"). It was
+ * there is one to keep ("92.4kg", never "92.40kg" and never "1454"). It was
  * `toLocaleString("en-US")` in four files, which is a German reading their own weight with a
  * decimal point and their calorie target with a comma for a thousand.
  *
@@ -117,8 +117,8 @@ export const numbers = (lang: Lang) => {
  * A figure ROUNDED TO A WHOLE NUMBER, which is what the thread and the 20:30 line write.
  *
  * TWO HELPERS AND NOT ONE, because the two are about different things. A WEIGHT keeps its tenth —
- * "93.5 kg" is a number somebody typed and 93 is a different weight. A kcal or a gram of protein
- * does not: they are estimates from a photo, and "74.8 of the 104 g protein" claims a precision the
+ * "93.5kg" is a number somebody typed and 93 is a different weight. A kcal or a gram of protein
+ * does not: they are estimates from a photo, and "74.8 of the 104g protein" claims a precision the
  * analyzer does not have. That distinction was two private `n()` helpers in two files before #358,
  * and unifying them on the wrong one is how the protein figure grew a decimal point.
  */
@@ -180,8 +180,8 @@ export const toGuessStep = (x: number): number => Math.round(x / GUESS_STEP) * G
  *
  * WHY IT EXISTS AT ALL. Every sentence that mentions kcal carries the word in its own template, so
  * this is only for the figures code builds: the plan card's headline, the diary's, and a Telegram
- * meal line. Those sat next to translated prose — a Russian plan card read "1 500 kcal" with
- * "Порог — 1500 ккал." two lines under it, on one card.
+ * meal line. Those sat next to translated prose — a Russian plan card read "1 500kcal" with
+ * "Порог — 1500ккал." two lines under it, on one card.
  *
  * A CHART AXIS IS STILL NOT PROSE. `HEALTH_FIELDS.unit` stays SI (`kg`, `km`, `ms`, `ml/kg/min`)
  * and this does not license changing it: an axis label is a symbol beside a scale, and what made

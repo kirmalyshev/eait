@@ -12,8 +12,8 @@
 // where the boards still draw Spud — and since #1041 the coach IS Spud, so the names agree.
 //
 // THE {n} RULE: the boards draw a figure and its label as two elements ("368" over "kcal left",
-// "55 g" over "Protein left"), so the LABEL is a string here and the figure is `wholeNumbers` —
-// except `grams`, the "{n} g" the figure element itself needs, and the `· {eaten} of {plan}`
+// "55g" over "Protein left"), so the LABEL is a string here and the figure is `wholeNumbers` —
+// except `grams`, the "{n}g" the figure element itself needs, and the `· {eaten} of {plan}`
 // detail forms, where the numbers ride inside the label and are placeholders like everywhere
 // else. A figure that is not there yet — the diary-failed "—" — is the client's `—` fed through
 // the same template, not a separate string.
@@ -39,7 +39,7 @@ export interface HomeTargetMacroCopy {
   over: string;
   /** "of {target} {macro}" — the compact card's label when a ring is drawn (empty/picker/logging boards). */
   ofTarget: string;
-  /** "{macro} {n} g" — the named macro chip on the web proposal ("sat fat 3 g"). */
+  /** "{macro} {n}g" — the named macro chip on the web proposal ("sat fat 3g"). */
   chip: string;
 }
 
@@ -87,14 +87,14 @@ export interface HomeCopy {
   kcalEatenDetail: string;
   /** `today-past` — "kcal over · 1,812 of 1,434". */
   kcalOverDetail: string;
-  /** A gram figure — the macro cards' "55 g" and "0 g", and "— g" when the diary did not load. */
+  /** A gram figure — the macro cards' "55g" and "0g", and "— g" when the diary did not load. */
   grams: string;
   /** A milligram figure — sodium is measured in mg (`sodium_mg`), so its card and chip read so. */
   milligrams: string;
   /**
    * The F bar row's figure line under the target — "{grams} left" (`web/today*.html`,
    * `phone/today*.html`). The row splits the template at `{grams}` so the figure keeps its weight
-   * and the word stays light; `{grams}` is the formatted "{n} g" / "{n} mg" figure, and the word
+   * and the word stays light; `{grams}` is the formatted "{n}g" / "{n}mg" figure, and the word
    * agrees with the grams, not the macro (grammes are masculine plural where the language inflects).
    */
   gramLeft: string;
@@ -180,7 +180,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   en: {
     phoneToday: "Today",
     phoneStreakAria: "{n}-day streak",
-    phoneDayNote: "Keep dinner lean: {grams} g of {nutrient} to go.",
+    phoneDayNote: "Keep dinner lean: {grams}g of {nutrient} to go.",
     phoneGoToDay: "Go to {day}",
     pickerPrevMonth: "Previous month",
     pickerNextMonth: "Next month",
@@ -194,19 +194,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal left · {eaten} of {plan}",
     kcalEatenDetail: "kcal eaten · {eaten} of {plan}",
     kcalOverDetail: "kcal over · {eaten} of {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} left", gramOver: "{grams} over",
     dayNoteSatFat: "saturated fat",
 
     macros: {
-      protein: { name: "protein", left: "Protein left", over: "Protein over", ofTarget: "of {target} protein", chip: "protein {n} g" },
-      carbs: { name: "carbs", left: "Carbs left", over: "Carbs over", ofTarget: "of {target} carbs", chip: "carbs {n} g" },
-      fat: { name: "fat", left: "Fat left", over: "Fat over", ofTarget: "of {target} fat", chip: "fat {n} g" },
-      satFat: { name: "sat fat", left: "Sat fat left", over: "Sat fat over", ofTarget: "of {target} sat fat", chip: "sat fat {n} g" },
-      sodium: { name: "Sodium", left: "Sodium left", over: "Sodium over", ofTarget: "of {target} sodium", chip: "sodium {n} mg" },
-      fibre: { name: "Fibre", chip: "fibre {n} g" },
-      sugar: { name: "Sugar", chip: "sugar {n} g" },
+      protein: { name: "protein", left: "Protein left", over: "Protein over", ofTarget: "of {target} protein", chip: "protein {n}g" },
+      carbs: { name: "carbs", left: "Carbs left", over: "Carbs over", ofTarget: "of {target} carbs", chip: "carbs {n}g" },
+      fat: { name: "fat", left: "Fat left", over: "Fat over", ofTarget: "of {target} fat", chip: "fat {n}g" },
+      satFat: { name: "sat fat", left: "Sat fat left", over: "Sat fat over", ofTarget: "of {target} sat fat", chip: "sat fat {n}g" },
+      sodium: { name: "Sodium", left: "Sodium left", over: "Sodium over", ofTarget: "of {target} sodium", chip: "sodium {n}mg" },
+      fibre: { name: "Fibre", chip: "fibre {n}g" },
+      sugar: { name: "Sugar", chip: "sugar {n}g" },
     },
     tips: {
       protein: {
@@ -243,7 +243,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   fr: {
     phoneToday: "Aujourd'hui",
     phoneStreakAria: "Série de {n} jours",
-    phoneDayNote: "Dîner léger : encore {grams} g de {nutrient}.",
+    phoneDayNote: "Dîner léger : encore {grams}g de {nutrient}.",
     phoneGoToDay: "Aller au {day}",
     pickerPrevMonth: "Mois précédent",
     pickerNextMonth: "Mois suivant",
@@ -257,19 +257,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal restantes · {eaten} sur {plan}",
     kcalEatenDetail: "kcal consommées · {eaten} sur {plan}",
     kcalOverDetail: "kcal en trop · {eaten} sur {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} restants", gramOver: "{grams} en trop",
     dayNoteSatFat: "graisses saturées",
 
     macros: {
-      protein: { name: "protéines", left: "Protéines restantes", over: "Protéines en trop", ofTarget: "protéines sur {target}", chip: "protéines {n} g" },
-      carbs: { name: "glucides", left: "Glucides restants", over: "Glucides en trop", ofTarget: "glucides sur {target}", chip: "glucides {n} g" },
-      fat: { name: "lipides", left: "Lipides restants", over: "Lipides en trop", ofTarget: "lipides sur {target}", chip: "lipides {n} g" },
-      satFat: { name: "graisses saturées", left: "Gras sat. restants", over: "Gras sat. en trop", ofTarget: "graisses saturées sur {target}", chip: "graisses saturées {n} g" },
-      sodium: { name: "Sodium", left: "Sodium restant", over: "Sodium en trop", ofTarget: "sodium sur {target}", chip: "sodium {n} mg" },
-      fibre: { name: "Fibres", chip: "fibres {n} g" },
-      sugar: { name: "Sucres", chip: "sucres {n} g" },
+      protein: { name: "protéines", left: "Protéines restantes", over: "Protéines en trop", ofTarget: "protéines sur {target}", chip: "protéines {n}g" },
+      carbs: { name: "glucides", left: "Glucides restants", over: "Glucides en trop", ofTarget: "glucides sur {target}", chip: "glucides {n}g" },
+      fat: { name: "lipides", left: "Lipides restants", over: "Lipides en trop", ofTarget: "lipides sur {target}", chip: "lipides {n}g" },
+      satFat: { name: "graisses saturées", left: "Gras sat. restants", over: "Gras sat. en trop", ofTarget: "graisses saturées sur {target}", chip: "graisses saturées {n}g" },
+      sodium: { name: "Sodium", left: "Sodium restant", over: "Sodium en trop", ofTarget: "sodium sur {target}", chip: "sodium {n}mg" },
+      fibre: { name: "Fibres", chip: "fibres {n}g" },
+      sugar: { name: "Sucres", chip: "sucres {n}g" },
     },
     tips: {
       protein: {
@@ -306,7 +306,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   de: {
     phoneToday: "Heute",
     phoneStreakAria: "{n} Tage in Folge",
-    phoneDayNote: "Halte das Abendessen leicht: {nutrient} — noch {grams} g.",
+    phoneDayNote: "Halte das Abendessen leicht: {nutrient} — noch {grams}g.",
     phoneGoToDay: "Zu {day} springen",
     pickerPrevMonth: "Vorheriger Monat",
     pickerNextMonth: "Nächster Monat",
@@ -320,19 +320,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal übrig · {eaten} von {plan}",
     kcalEatenDetail: "kcal gegessen · {eaten} von {plan}",
     kcalOverDetail: "kcal zu viel · {eaten} von {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} übrig", gramOver: "{grams} zu viel",
     dayNoteSatFat: "gesättigte Fette",
 
     macros: {
-      protein: { name: "Eiweiß", left: "Eiweiß übrig", over: "Eiweiß zu viel", ofTarget: "Eiweiß von {target}", chip: "Eiweiß {n} g" },
-      carbs: { name: "Kohlenhydrate", left: "Kohlenhydrate übrig", over: "Kohlenhydrate zu viel", ofTarget: "Kohlenhydrate von {target}", chip: "Kohlenhydrate {n} g" },
-      fat: { name: "Fett", left: "Fett übrig", over: "Fett zu viel", ofTarget: "Fett von {target}", chip: "Fett {n} g" },
-      satFat: { name: "gesättigte Fette", left: "Ges. Fette übrig", over: "Ges. Fette zu viel", ofTarget: "gesättigte Fette von {target}", chip: "gesättigte Fette {n} g" },
-      sodium: { name: "Natrium", left: "Natrium übrig", over: "Natrium zu viel", ofTarget: "Natrium von {target}", chip: "Natrium {n} mg" },
-      fibre: { name: "Ballaststoffe", chip: "Ballaststoffe {n} g" },
-      sugar: { name: "Zucker", chip: "Zucker {n} g" },
+      protein: { name: "Eiweiß", left: "Eiweiß übrig", over: "Eiweiß zu viel", ofTarget: "Eiweiß von {target}", chip: "Eiweiß {n}g" },
+      carbs: { name: "Kohlenhydrate", left: "Kohlenhydrate übrig", over: "Kohlenhydrate zu viel", ofTarget: "Kohlenhydrate von {target}", chip: "Kohlenhydrate {n}g" },
+      fat: { name: "Fett", left: "Fett übrig", over: "Fett zu viel", ofTarget: "Fett von {target}", chip: "Fett {n}g" },
+      satFat: { name: "gesättigte Fette", left: "Ges. Fette übrig", over: "Ges. Fette zu viel", ofTarget: "gesättigte Fette von {target}", chip: "gesättigte Fette {n}g" },
+      sodium: { name: "Natrium", left: "Natrium übrig", over: "Natrium zu viel", ofTarget: "Natrium von {target}", chip: "Natrium {n}mg" },
+      fibre: { name: "Ballaststoffe", chip: "Ballaststoffe {n}g" },
+      sugar: { name: "Zucker", chip: "Zucker {n}g" },
     },
     tips: {
       protein: {
@@ -369,7 +369,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   it: {
     phoneToday: "Oggi",
     phoneStreakAria: "Serie di {n} giorni",
-    phoneDayNote: "Cena leggera: ancora {grams} g di {nutrient}.",
+    phoneDayNote: "Cena leggera: ancora {grams}g di {nutrient}.",
     phoneGoToDay: "Vai a {day}",
     pickerPrevMonth: "Mese precedente",
     pickerNextMonth: "Mese successivo",
@@ -383,19 +383,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal rimaste · {eaten} di {plan}",
     kcalEatenDetail: "kcal mangiate · {eaten} di {plan}",
     kcalOverDetail: "kcal in più · {eaten} di {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} rimasti", gramOver: "{grams} in eccesso",
     dayNoteSatFat: "grassi saturi",
 
     macros: {
-      protein: { name: "proteine", left: "Proteine rimaste", over: "Proteine in eccesso", ofTarget: "proteine su {target}", chip: "proteine {n} g" },
-      carbs: { name: "carboidrati", left: "Carboidrati rimasti", over: "Carboidrati in eccesso", ofTarget: "carboidrati su {target}", chip: "carboidrati {n} g" },
-      fat: { name: "grassi", left: "Grassi rimasti", over: "Grassi in eccesso", ofTarget: "grassi su {target}", chip: "grassi {n} g" },
-      satFat: { name: "grassi saturi", left: "Grassi sat. rimasti", over: "Grassi sat. in eccesso", ofTarget: "grassi saturi su {target}", chip: "grassi saturi {n} g" },
-      sodium: { name: "Sodio", left: "Sodio rimasto", over: "Sodio in eccesso", ofTarget: "sodio su {target}", chip: "sodio {n} mg" },
-      fibre: { name: "Fibre", chip: "fibre {n} g" },
-      sugar: { name: "Zuccheri", chip: "zuccheri {n} g" },
+      protein: { name: "proteine", left: "Proteine rimaste", over: "Proteine in eccesso", ofTarget: "proteine su {target}", chip: "proteine {n}g" },
+      carbs: { name: "carboidrati", left: "Carboidrati rimasti", over: "Carboidrati in eccesso", ofTarget: "carboidrati su {target}", chip: "carboidrati {n}g" },
+      fat: { name: "grassi", left: "Grassi rimasti", over: "Grassi in eccesso", ofTarget: "grassi su {target}", chip: "grassi {n}g" },
+      satFat: { name: "grassi saturi", left: "Grassi sat. rimasti", over: "Grassi sat. in eccesso", ofTarget: "grassi saturi su {target}", chip: "grassi saturi {n}g" },
+      sodium: { name: "Sodio", left: "Sodio rimasto", over: "Sodio in eccesso", ofTarget: "sodio su {target}", chip: "sodio {n}mg" },
+      fibre: { name: "Fibre", chip: "fibre {n}g" },
+      sugar: { name: "Zuccheri", chip: "zuccheri {n}g" },
     },
     tips: {
       protein: {
@@ -432,7 +432,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   es: {
     phoneToday: "Hoy",
     phoneStreakAria: "Racha de {n} días",
-    phoneDayNote: "Cena ligera: quedan {grams} g de {nutrient}.",
+    phoneDayNote: "Cena ligera: quedan {grams}g de {nutrient}.",
     phoneGoToDay: "Ir a {day}",
     pickerPrevMonth: "Mes anterior",
     pickerNextMonth: "Mes siguiente",
@@ -446,19 +446,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal restantes · {eaten} de {plan}",
     kcalEatenDetail: "kcal comidas · {eaten} de {plan}",
     kcalOverDetail: "kcal de más · {eaten} de {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} restantes", gramOver: "{grams} de más",
     dayNoteSatFat: "grasas saturadas",
 
     macros: {
-      protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "proteína de {target}", chip: "proteína {n} g" },
-      carbs: { name: "carbohidratos", left: "Carbohidratos restantes", over: "Carbohidratos de más", ofTarget: "carbohidratos de {target}", chip: "carbohidratos {n} g" },
-      fat: { name: "grasas", left: "Grasas restantes", over: "Grasas de más", ofTarget: "grasas de {target}", chip: "grasas {n} g" },
-      satFat: { name: "grasas saturadas", left: "Grasas sat. restantes", over: "Grasas sat. de más", ofTarget: "grasas saturadas de {target}", chip: "grasas saturadas {n} g" },
-      sodium: { name: "Sodio", left: "Sodio restante", over: "Sodio de más", ofTarget: "sodio de {target}", chip: "sodio {n} mg" },
-      fibre: { name: "Fibra", chip: "fibra {n} g" },
-      sugar: { name: "Azúcar", chip: "azúcar {n} g" },
+      protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "proteína de {target}", chip: "proteína {n}g" },
+      carbs: { name: "carbohidratos", left: "Carbohidratos restantes", over: "Carbohidratos de más", ofTarget: "carbohidratos de {target}", chip: "carbohidratos {n}g" },
+      fat: { name: "grasas", left: "Grasas restantes", over: "Grasas de más", ofTarget: "grasas de {target}", chip: "grasas {n}g" },
+      satFat: { name: "grasas saturadas", left: "Grasas sat. restantes", over: "Grasas sat. de más", ofTarget: "grasas saturadas de {target}", chip: "grasas saturadas {n}g" },
+      sodium: { name: "Sodio", left: "Sodio restante", over: "Sodio de más", ofTarget: "sodio de {target}", chip: "sodio {n}mg" },
+      fibre: { name: "Fibra", chip: "fibra {n}g" },
+      sugar: { name: "Azúcar", chip: "azúcar {n}g" },
     },
     tips: {
       protein: {
@@ -495,7 +495,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   vi: {
     phoneToday: "Hôm nay",
     phoneStreakAria: "Chuỗi {n} ngày",
-    phoneDayNote: "Ăn tối nhẹ thôi: còn {grams} g {nutrient}.",
+    phoneDayNote: "Ăn tối nhẹ thôi: còn {grams}g {nutrient}.",
     phoneGoToDay: "Đến {day}",
     pickerPrevMonth: "Tháng trước",
     pickerNextMonth: "Tháng sau",
@@ -509,19 +509,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal còn lại · {eaten} trên {plan}",
     kcalEatenDetail: "kcal đã ăn · {eaten} trên {plan}",
     kcalOverDetail: "kcal vượt quá · {eaten} trên {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} còn lại", gramOver: "{grams} vượt quá",
     dayNoteSatFat: "chất béo bão hoà",
 
     macros: {
-      protein: { name: "đạm", left: "Đạm còn lại", over: "Đạm vượt quá", ofTarget: "trong {target} đạm", chip: "đạm {n} g" },
-      carbs: { name: "bột đường", left: "Bột đường còn lại", over: "Bột đường vượt quá", ofTarget: "trong {target} bột đường", chip: "bột đường {n} g" },
-      fat: { name: "chất béo", left: "Chất béo còn lại", over: "Chất béo vượt quá", ofTarget: "trong {target} chất béo", chip: "chất béo {n} g" },
-      satFat: { name: "chất béo bão hoà", left: "Béo bão hoà còn lại", over: "Béo bão hoà vượt quá", ofTarget: "trong {target} chất béo bão hoà", chip: "chất béo bão hoà {n} g" },
-      sodium: { name: "Natri", left: "Natri còn lại", over: "Natri vượt quá", ofTarget: "trong {target} natri", chip: "natri {n} mg" },
-      fibre: { name: "Chất xơ", chip: "chất xơ {n} g" },
-      sugar: { name: "Đường", chip: "đường {n} g" },
+      protein: { name: "đạm", left: "Đạm còn lại", over: "Đạm vượt quá", ofTarget: "trong {target} đạm", chip: "đạm {n}g" },
+      carbs: { name: "bột đường", left: "Bột đường còn lại", over: "Bột đường vượt quá", ofTarget: "trong {target} bột đường", chip: "bột đường {n}g" },
+      fat: { name: "chất béo", left: "Chất béo còn lại", over: "Chất béo vượt quá", ofTarget: "trong {target} chất béo", chip: "chất béo {n}g" },
+      satFat: { name: "chất béo bão hoà", left: "Béo bão hoà còn lại", over: "Béo bão hoà vượt quá", ofTarget: "trong {target} chất béo bão hoà", chip: "chất béo bão hoà {n}g" },
+      sodium: { name: "Natri", left: "Natri còn lại", over: "Natri vượt quá", ofTarget: "trong {target} natri", chip: "natri {n}mg" },
+      fibre: { name: "Chất xơ", chip: "chất xơ {n}g" },
+      sugar: { name: "Đường", chip: "đường {n}g" },
     },
     tips: {
       protein: {
@@ -558,7 +558,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   id: {
     phoneToday: "Hari ini",
     phoneStreakAria: "Rangkaian {n} hari",
-    phoneDayNote: "Makan malam yang ringan: tersisa {grams} g {nutrient}.",
+    phoneDayNote: "Makan malam yang ringan: tersisa {grams}g {nutrient}.",
     phoneGoToDay: "Ke {day}",
     pickerPrevMonth: "Bulan sebelumnya",
     pickerNextMonth: "Bulan berikutnya",
@@ -572,19 +572,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "kcal tersisa · {eaten} dari {plan}",
     kcalEatenDetail: "kcal dimakan · {eaten} dari {plan}",
     kcalOverDetail: "kcal berlebih · {eaten} dari {plan}",
-    grams: "{n} g",
-    milligrams: "{n} mg",
+    grams: "{n}g",
+    milligrams: "{n}mg",
     gramLeft: "{grams} tersisa", gramOver: "{grams} berlebih",
     dayNoteSatFat: "lemak jenuh",
 
     macros: {
-      protein: { name: "protein", left: "Protein tersisa", over: "Protein berlebih", ofTarget: "protein dari {target}", chip: "protein {n} g" },
-      carbs: { name: "karbohidrat", left: "Karbohidrat tersisa", over: "Karbohidrat berlebih", ofTarget: "karbohidrat dari {target}", chip: "karbohidrat {n} g" },
-      fat: { name: "lemak", left: "Lemak tersisa", over: "Lemak berlebih", ofTarget: "lemak dari {target}", chip: "lemak {n} g" },
-      satFat: { name: "lemak jenuh", left: "Lemak jenuh tersisa", over: "Lemak jenuh berlebih", ofTarget: "lemak jenuh dari {target}", chip: "lemak jenuh {n} g" },
-      sodium: { name: "Natrium", left: "Natrium tersisa", over: "Natrium berlebih", ofTarget: "natrium dari {target}", chip: "natrium {n} mg" },
-      fibre: { name: "Serat", chip: "serat {n} g" },
-      sugar: { name: "Gula", chip: "gula {n} g" },
+      protein: { name: "protein", left: "Protein tersisa", over: "Protein berlebih", ofTarget: "protein dari {target}", chip: "protein {n}g" },
+      carbs: { name: "karbohidrat", left: "Karbohidrat tersisa", over: "Karbohidrat berlebih", ofTarget: "karbohidrat dari {target}", chip: "karbohidrat {n}g" },
+      fat: { name: "lemak", left: "Lemak tersisa", over: "Lemak berlebih", ofTarget: "lemak dari {target}", chip: "lemak {n}g" },
+      satFat: { name: "lemak jenuh", left: "Lemak jenuh tersisa", over: "Lemak jenuh berlebih", ofTarget: "lemak jenuh dari {target}", chip: "lemak jenuh {n}g" },
+      sodium: { name: "Natrium", left: "Natrium tersisa", over: "Natrium berlebih", ofTarget: "natrium dari {target}", chip: "natrium {n}mg" },
+      fibre: { name: "Serat", chip: "serat {n}g" },
+      sugar: { name: "Gula", chip: "gula {n}g" },
     },
     tips: {
       protein: {
@@ -621,7 +621,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   ru: {
     phoneToday: "Сегодня",
     phoneStreakAria: "Серия: {n} дн.",
-    phoneDayNote: "На ужин — полегче: {nutrient}, ещё {grams} г.",
+    phoneDayNote: "На ужин — полегче: {nutrient}, ещё {grams}г.",
     phoneGoToDay: "Открыть {day}",
     pickerPrevMonth: "Предыдущий месяц",
     pickerNextMonth: "Следующий месяц",
@@ -635,19 +635,19 @@ export const HOME_COPY: Localized<HomeCopy> = {
     kcalLeftDetail: "ккал осталось · {eaten} из {plan}",
     kcalEatenDetail: "ккал съедено · {eaten} из {plan}",
     kcalOverDetail: "ккал сверх плана · {eaten} из {plan}",
-    grams: "{n} г",
-    milligrams: "{n} мг",
+    grams: "{n}г",
+    milligrams: "{n}мг",
     gramLeft: "{grams} осталось", gramOver: "{grams} сверх нормы",
     dayNoteSatFat: "насыщенные жиры",
 
     macros: {
-      protein: { name: "белки", left: "Белков осталось", over: "Белков больше нормы", ofTarget: "белков из {target}", chip: "белки {n} г" },
-      carbs: { name: "углеводы", left: "Углеводов осталось", over: "Углеводов больше нормы", ofTarget: "углеводов из {target}", chip: "углеводы {n} г" },
-      fat: { name: "жиры", left: "Жиров осталось", over: "Жиров больше нормы", ofTarget: "жиров из {target}", chip: "жиры {n} г" },
-      satFat: { name: "нас. жиры", left: "Нас. жиров осталось", over: "Нас. жиров больше нормы", ofTarget: "насыщенных жиров из {target}", chip: "нас. жиры {n} г" },
-      sodium: { name: "Натрий", left: "Натрия осталось", over: "Натрия больше нормы", ofTarget: "натрия из {target}", chip: "натрий {n} мг" },
-      fibre: { name: "Клетчатка", chip: "клетчатка {n} г" },
-      sugar: { name: "Сахар", chip: "сахар {n} г" },
+      protein: { name: "белки", left: "Белков осталось", over: "Белков больше нормы", ofTarget: "белков из {target}", chip: "белки {n}г" },
+      carbs: { name: "углеводы", left: "Углеводов осталось", over: "Углеводов больше нормы", ofTarget: "углеводов из {target}", chip: "углеводы {n}г" },
+      fat: { name: "жиры", left: "Жиров осталось", over: "Жиров больше нормы", ofTarget: "жиров из {target}", chip: "жиры {n}г" },
+      satFat: { name: "нас. жиры", left: "Нас. жиров осталось", over: "Нас. жиров больше нормы", ofTarget: "насыщенных жиров из {target}", chip: "нас. жиры {n}г" },
+      sodium: { name: "Натрий", left: "Натрия осталось", over: "Натрия больше нормы", ofTarget: "натрия из {target}", chip: "натрий {n}мг" },
+      fibre: { name: "Клетчатка", chip: "клетчатка {n}г" },
+      sugar: { name: "Сахар", chip: "сахар {n}г" },
     },
     tips: {
       protein: {
@@ -692,7 +692,7 @@ export const homeCopyFor = (lang: Lang): HomeCopy => t(lang)(HOME_COPY);
 export type MacroTipKind = "protein" | "carbs" | "satfat";
 
 export interface MacroTip {
-  /** The Callout's first line — "Protein: 55 g to go". */
+  /** The Callout's first line — "Protein: 55g to go". */
   title: string;
   /** The Callout's second line — what the number means for the rest of today. */
   body: string;
@@ -701,7 +701,7 @@ export interface MacroTip {
 /**
  * The words a macro row's tip speaks, once for phone and web (F, ieat-app#1291). `share` is the
  * day's eaten÷target — `> 1` is the over branch — and `grams` the row's OWN figure already
- * formatted by the caller ("55 g"), so the shared layer holds words and the client holds numbers.
+ * formatted by the caller ("55g"), so the shared layer holds words and the client holds numbers.
  * Protein names three states (to go, reached, over); carbs and sat fat two (left, over). The `over`
  * colour is the caller's `share > 1` — the same compare it already made for the row.
  */

@@ -1,5 +1,5 @@
 // #130: a meal LOGGED in Chat gets Gabie's computed verdict line for each cap verdict that is
-// not on plan — "Saturated fat is high for one meal: 5 of your 13 g." The numbers and the
+// not on plan — "Saturated fat is high for one meal: 5 of your 13g." The numbers and the
 // verdict are computed from the stored row against the account's caps, never the model's, and
 // the "Go easy on it for the rest of today." tail speaks only when that nutrient's share of its
 // cap is nearly spent — under a third still open (the PR review's ruling: "it" is the line's
@@ -44,7 +44,7 @@ const text = (e: { kind: string }) => ("text" in e ? (e as { text: string | null
 
 // The analyzer's answer is a prop: the LINE'S numbers are the stored meal's, so the test pins a
 // fixed plate rather than trusting the demo seed. Each call reads the next plate so a second log
-// can differ from the first. This account's caps are 13 g saturated fat (ldl) and 2,000 mg
+// can differ from the first. This account's caps are 13g saturated fat (ldl) and 2,000mg
 // sodium (kidneys); its kcal plan is 1,724.
 const plates = (...ps: [satfat: number, sodium: number, kcal?: number][]): LlmPorts => {
   let i = 0;
@@ -77,7 +77,7 @@ describe("the logged-meal verdict line", () => {
     const t = await thread(userId);
     // The verdict line sits under the card, and nothing follows it — #1066 retired the day's
     // arithmetic, so the cap line is the last thing said.
-    expect(text(t.at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
+    expect(text(t.at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13g.");
     expect(t.at(-2)!).toMatchObject({ role: "assistant", kind: "meal", event: "logged" });
     for (const e of t.slice(-2)) expect(e).toMatchObject({ speaker: "gabie" });
   });
@@ -87,7 +87,7 @@ describe("the logged-meal verdict line", () => {
     const userId = await onboard({ restrictions: ["kidneys"] });
     await logPhotoMeal(deps, userId, photo());
     await logPhotoMeal(deps, userId, photo());
-    expect(text((await thread(userId)).at(-1)!)).toBe("Sodium is high for one meal: 900 of your 2,000 mg.");
+    expect(text((await thread(userId)).at(-1)!)).toBe("Sodium is high for one meal: 900 of your 2,000mg.");
   });
 
   it("says 'very high' when the share passes the bad line, and one line per off-plan cap", async () => {
@@ -97,30 +97,30 @@ describe("the logged-meal verdict line", () => {
     await logPhotoMeal(deps, userId, photo());
     const t = await thread(userId);
     expect(t.slice(-2).map(text)).toEqual([
-      "Sodium is very high for one meal: 1,100 of your 2,000 mg.",
-      "Saturated fat is very high for one meal: 8 of your 13 g.",
+      "Sodium is very high for one meal: 1,100 of your 2,000mg.",
+      "Saturated fat is very high for one meal: 8 of your 13g.",
     ]);
   });
 
   it("adds the 'go easy' tail only when the NUTRIENT's share of its cap is nearly spent — under a third left", async () => {
-    // 5 g a meal against a 13 g cap: after the second, 3 g (23%) remain — the advice lands even
+    // 5g a meal against a 13g cap: after the second, 3g (23%) remain — the advice lands even
     // though the day's calories are wide open. "It" is the line's nutrient, not the day (review).
     deps = makeDeps(plates([5, 300]));
     const userId = await onboard({ restrictions: ["ldl"] });
     await logPhotoMeal(deps, userId, photo());
-    // First meal: 8 of 13 g still open — the line, and no advice yet.
-    expect((await thread(userId)).map(text)).toContain("Saturated fat is high for one meal: 5 of your 13 g.");
+    // First meal: 8 of 13g still open — the line, and no advice yet.
+    expect((await thread(userId)).map(text)).toContain("Saturated fat is high for one meal: 5 of your 13g.");
     await logPhotoMeal(deps, userId, photo());
     expect(text((await thread(userId)).at(-1)!)).toBe(
-      "Saturated fat is high for one meal: 5 of your 13 g. Go easy on it for the rest of today.");
+      "Saturated fat is high for one meal: 5 of your 13g. Go easy on it for the rest of today.");
 
     // The reverse does not: the day's kcal nearly spent (1,940 of 1,724 eaten) but the cap wide
-    // open (5 of 13 g, 62% left) is no reason to go easy ON IT.
+    // open (5 of 13g, 62% left) is no reason to go easy ON IT.
     store = memoryStore(); deps = makeDeps(plates([0, 0, 1400], [5, 300]));
     const early = await onboard({ restrictions: ["ldl"] });
     await logPhotoMeal(deps, early, photo());
     await logPhotoMeal(deps, early, photo());
-    expect(text((await thread(early)).at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13 g.");
+    expect(text((await thread(early)).at(-1)!)).toBe("Saturated fat is high for one meal: 5 of your 13g.");
   });
 
   it("is silent when no cap is declared or none ran high — the card stands alone", async () => {

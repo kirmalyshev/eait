@@ -10,7 +10,7 @@
 // "kg a week", the plan graph, Progress).
 //
 // THE ONE RULE: switching units RELABELS the value and never writes it. The round trips drift —
-// 172 cm → 5′8″ → 173 cm, and 74 kg → 163 lb → 73.9 kg — so a toggle that wrote back what it
+// 172cm → 5′8″ → 173cm, and 74kg → 163lb → 73.9kg — so a toggle that wrote back what it
 // displayed would move the stored number on its own. The stored cm or kg changes only when the
 // user moves the control.
 //
@@ -26,7 +26,7 @@ import { numbers, spellUnit, type Lang } from "../lang.ts";
 const CM_PER_IN = 2.54;
 const LB_PER_KG = 2.2046226218;
 
-/** cm → feet and inches, the inch rounded first so 172 cm reads 5 ft 8 in, not 5 ft 7.7 in. */
+/** cm → feet and inches, the inch rounded first so 172cm reads 5 ft 8 in, not 5 ft 7.7 in. */
 export function cmToFtIn(cm: number): { ft: number; in: number } {
   const totalIn = Math.round(cm / CM_PER_IN);
   return { ft: Math.floor(totalIn / 12), in: totalIn % 12 };
@@ -67,7 +67,7 @@ export function defaultUnits(region: string): UnitSystem {
  * kg/lb on the horizontal weight ruler. `majorEvery`/`labelEvery` count UNITS between the long
  * ticks and the printed labels.
  *
- * There is deliberately no `min`/`max` here: the 165–180 cm on the height board is the WINDOW the
+ * There is deliberately no `min`/`max` here: the 165–180cm on the height board is the WINDOW the
  * drawing shows around the persona's 172 (`span`), not what the control accepts. The bounds a
  * consumer clamps to are the profile validator's limits, passed in by the consumer — this module
  * may not reach the validator, and copying its numbers would be a second definition of them.
@@ -93,7 +93,7 @@ const lbLabel = (lb: number) => `${lb}`;
 const ftInLabel = (totalIn: number) => `${Math.floor(totalIn / 12)}′${totalIn % 12}″`;
 
 /**
- * A person's height the way copy needs it — "172 cm" metric, "5′8″" imperial — the unit spelled
+ * A person's height the way copy needs it — "172cm" metric, "5′8″" imperial — the unit spelled
  * and the figures formatted in the reader's language (`spellUnit`, `numbers`), so Progress's
  * "From {w} and {h}" prints "см" in Russian and no screen retypes the ′″ join.
  */
@@ -103,14 +103,14 @@ export function heightText(cm: number, system: UnitSystem, lang: Lang): string {
     const { ft, in: inch } = cmToFtIn(cm);
     return `${n(ft)}′${n(inch)}″`;
   }
-  return `${n(cm)} ${spellUnit(lang, "cm")}`;
+  return `${n(cm)}${spellUnit(lang, "cm")}`;
 }
 
 /**
  * The two rulers and their two systems, as `product/design/pro` draws them.
  *
- * Height (vertical, `06-height`/`06b`): the board's window is 15 cm / 16 in tall, labels every
- * 5 cm / 4 in. Weight (horizontal, `07`/`07b`): labels every 10 kg or 10 lb and a long tick every
+ * Height (vertical, `06-height`/`06b`): the board's window is 15cm / 16 in tall, labels every
+ * 5cm / 4 in. Weight (horizontal, `07`/`07b`): labels every 10kg or 10lb and a long tick every
  * 5; the window slides with the value and is sized by the viewport, so it carries no `span`.
  */
 export const RULER_TICKS = {

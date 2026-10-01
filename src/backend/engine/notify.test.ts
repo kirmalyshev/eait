@@ -82,7 +82,7 @@ describe("the 20:30 line", () => {
     expect(out.id).toBe("evening");
     expect(out.body).toContain("1,600");
     // The plan, as the same function that computes the diary's target computes it.
-    expect(out.body).toMatch(/of your [\d,]+ kcal today/);
+    expect(out.body).toMatch(/of your [\d,]+kcal today/);
     expect(out.body).not.toContain("{");
   });
 

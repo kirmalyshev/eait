@@ -188,7 +188,7 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
   const live = cfg.delta && cfg.now
     ? `<div class="live${delta < 0 ? " dn" : delta > 0 ? " up" : ""}">${
         delta === 0 ? "" : escape(fill(delta < 0 ? cfg.delta!.dn : cfg.delta!.up, {
-          weight: `${numfmt(v.lang, Math.abs(delta))} ${cfg.unitWord}`,
+          weight: `${numfmt(v.lang, Math.abs(delta))}${cfg.unitWord}`,
         }))}</div>`
     : "";
   // The board's tick scale: a short line per unit, a longer one per `majorEvery` — the vertical
@@ -315,7 +315,7 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
   const range = targetRange(v.profile);
   const disp = (k: number) => weightDisplayValue(k, v.units);
   // The refused zone has to be VISIBLE to be refused honestly: the ruler's lower margin shows the
-  // ~10 kg under the healthy floor, tinted — the line the app will not cross is drawn on the
+  // ~10kg under the healthy floor, tinted — the line the app will not cross is drawn on the
   // ruler itself, not only enforced in the POST.
   const min = Math.round(Math.max(disp(minHealthy ?? 30) - (v.units === "imperial" ? 22 : 10), disp(30)));
   const max = Math.round(disp(Math.max(range?.max ?? 0, (nowKg ?? 0) + 20, val + 10)));
@@ -350,14 +350,14 @@ function paceControl(v: QuestionView): string {
   const previews = PACES.map((p) => pacePreview(v.profile, p, v.today, v.lang));
   const selIdx = Math.max(0, PACES.indexOf((v.current[0] ?? v.profile.pace ?? "steady") as never));
   // The big number is the COMPUTED rate, not the nominal pace — split for the bign's two sizes.
+  const word = v.units === "imperial" ? "lb" : "kg";
   const rateOf = (i: number) => {
     const pr = previews[i];
     const disp = pr?.ratePerWeek == null ? null : weightDisplay(pr.ratePerWeek, v.units, v.lang);
-    const cut = disp?.split(" ") ?? null;
-    const unit = cut && cut.length > 1 ? cut[cut.length - 1]! : "";
     return {
-      num: cut ? cut.slice(0, -1).join(" ") || "–" : "–",
-      rest: `${unit} ${copy.pace.rateSuffix}`,
+      num: pr?.ratePerWeek == null ? "–"
+        : numbers(v.lang)(Math.round(weightDisplayValue(pr.ratePerWeek, v.units) * 10) / 10),
+      rest: `${disp === null ? "" : spellUnit(v.lang, word)} ${copy.pace.rateSuffix}`,
       disp,
     };
   };

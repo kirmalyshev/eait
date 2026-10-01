@@ -45,7 +45,7 @@ import { PACE_KG_PER_WEEK } from "./targets.ts";
 import type { Goal, Pace } from "./types.ts";
 
 /**
- * The ladder's midpoint boundaries: below `easy` lands the bottom rung too (0.125 kg/week is a
+ * The ladder's midpoint boundaries: below `easy` lands the bottom rung too (0.125kg/week is a
  * half-step below it), and above `push` extends it symmetrically, so every rate lands on a rung.
  */
 const RUNG_RATES = [PACE_KG_PER_WEEK.easy, PACE_KG_PER_WEEK.steady, PACE_KG_PER_WEEK.push];
@@ -87,7 +87,7 @@ const DAY_MS = 86400000;
  * The body card's arithmetic, once: the span's delta, its weekly rate, the distance left to the
  * target, and which of the pace words that rate earns.
  *
- * `flat` — a maintainer, no goal, or a span that moved less than a scale's precision (0.05 kg).
+ * `flat` — a maintainer, no goal, or a span that moved less than a scale's precision (0.05kg).
  * `drift` — movement away from the goal's direction.
  * Otherwise the observed rung is set beside the pace the plan was built on: below it is `slow`,
  * on it `on-pace`, above it `fast` — the last is the care case, a crash pace is a thing to say.

@@ -179,7 +179,7 @@ describe("onboarding", () => {
 
   it("surfaces the floor through the profile view", async () => {
     // A small, older, barely-active woman on the fastest pace — the shape that produced the
-    // incumbent's 569 kcal review.
+    // incumbent's 569kcal review.
     const userId = await onboard({
       sex: "female", birth_year: 1958, height_cm: 152, weight_kg: 48, target_weight_kg: 45,
       activity: "few", pace: "push", goal: "lose",
@@ -243,7 +243,7 @@ describe("onboarding", () => {
     expect((await profileView(deps, stale))!.healthConnected).toBe(false);
   });
 
-  // The You surface's fact line "32 · 172 cm · …" (#97): the age is the SERVER's arithmetic —
+  // The You surface's fact line "32 · 172cm · …" (#97): the age is the SERVER's arithmetic —
   // the same `ageFrom` Mifflin-St Jeor feeds on, on the server's clock. A client doing the year
   // subtraction itself is off by one for the one hour a year the zones disagree.
   it("sends the account's age on the profile, and no invented number without a birth year", async () => {
@@ -808,7 +808,7 @@ describe("verdict gating", () => {
 // whose rows add up to one number under a header saying another — and the diary agrees with the
 // header, so the whole day is wrong from a plate the user could see was right.
 describe("reconciling what the model answered", () => {
-  /** Itemised correctly, then totalled as something else. The rows come to 557 kcal. */
+  /** Itemised correctly, then totalled as something else. The rows come to 557kcal. */
   const DISAGREEING: AnalyzedMeal = {
     isFood: true,
     items: [
@@ -845,7 +845,7 @@ describe("reconciling what the model answered", () => {
 
   it("leaves a demo correction alone when its items carry no numbers to sum", async () => {
     // `--demo`'s correction maps over the STORED items, so an item that never carried a kcal comes
-    // back without one. Summed as zero, halving a 320 kcal soup would delete its calories instead.
+    // back without one. Summed as zero, halving a 320kcal soup would delete its calories instead.
     const bare: LlmPorts = {
       ...demoPorts(),
       analyzePhoto: async () => ({ ...DISAGREEING, items: [{ name: "Soup", grams: 400 }], kcal: 320 }),
@@ -1031,7 +1031,7 @@ describe("the correction-learned portion prior", () => {
 
   it("learns nothing from a natural-language correction, which is another estimator", async () => {
     // "no oil" comes back as a whole re-analysis from the TEXT model, against a plate the PHOTO
-    // model read. The oil going to zero is the user; the rice moving 100 -> 115 g in the same reply
+    // model read. The oil going to zero is the user; the rice moving 100 -> 115g in the same reply
     // is one estimator disagreeing with the other, and stored as a portion it would teach the
     // prompt to move grams that nobody ever weighed.
     const userId = await onboard();
@@ -1505,7 +1505,7 @@ describe("the thread", () => {
     expect(t.slice(before).map(text).filter((x) => x?.includes("→"))).toEqual([]);
     expect(t.slice(before).some((e) => e.kind === "meal")).toBe(true);
     await editMeal(deps, userId, res.mealId, { kcal: res.analysis.kcal + 100 });
-    expect((await thread(userId)).map(text).some((x) => x?.includes(`→ ${res.analysis.kcal + 100} kcal`))).toBe(true);
+    expect((await thread(userId)).map(text).some((x) => x?.includes(`→ ${res.analysis.kcal + 100}kcal`))).toBe(true);
   });
 
   it("keeps a question and its answer, oldest first", async () => {
@@ -1704,7 +1704,7 @@ describe("the thread", () => {
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
     // #49: the pills' headline first; the meal's own number once, and no day's arithmetic (#1066).
     expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(t[2]!)!)).toBe(true);
-    expect(text(t[3]!)).toMatch(/^First one in\. [\d,]+ kcal\.$/);
+    expect(text(t[3]!)).toMatch(/^First one in\. [\d,]+kcal\.$/);
     expect(text(t[4]!)).toContain("If anything's off");
     // The VERDICT is never said again — and nothing else is said under the second card either:
     // the card already carries the numbers, so the thread adds no line at all (#1066).
@@ -1742,7 +1742,7 @@ describe("the thread", () => {
     t = await thread(userId);
     expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
     expect(t.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
-    expect(text(t.at(-1)!)).toContain("→ 100 kcal");
+    expect(text(t.at(-1)!)).toContain("→ 100kcal");
   });
 
   it("says nothing about the day after a landed meal — the card carries the numbers (#1066)", async () => {
@@ -2057,7 +2057,7 @@ describe("diary", () => {
   });
 
   it("carries the score on each meal and the kcal-weighted mean on the day (#118)", async () => {
-    // The pinned persona: porridge scores 8, the flat white 5, and 312/214 kcal of them weigh the
+    // The pinned persona: porridge scores 8, the flat white 5, and 312/214kcal of them weigh the
     // day to 6.8 — which is 7 rounded.
     const userId = await onboard();
     const date = localDate(CONFIG.timezone);

@@ -388,8 +388,8 @@ export async function editMeal(
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
   if (!existing) return { kind: "target-gone", on: "correction" };
-  // Every item at 0 g is no meal, whichever path sent it (ieat-app#1224): those items are ignored
-  // rather than stored as a 0 kcal meal that still counts. One item zeroed is a real edit.
+  // Every item at 0g is no meal, whichever path sent it (ieat-app#1224): those items are ignored
+  // rather than stored as a 0kcal meal that still counts. One item zeroed is a real edit.
   const { items: sentItems, ...sentTotals } = request;
   const patch: EditMealRequest = sentItems !== undefined && sentItems.length > 0 && sentItems.every((i) => i.grams === 0)
     ? sentTotals : request;

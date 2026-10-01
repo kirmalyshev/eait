@@ -82,7 +82,7 @@ describe("the compiled catalogs, held to the rules the tables are held to", () =
 
   it("takes the same arguments in every language — `--strict` does not check this", () => {
     // MEASURED, NOT ASSUMED. Dropping `{plan}` from the German `/today` header compiles clean
-    // under `lingui compile --strict` and renders "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence
+    // under `lingui compile --strict` and renders "Heute: 1kcal, 3 von 4g Eiweiß" — a sentence
     // about a plan with no plan in it. `--strict` means every message is TRANSLATED, not that
     // every translation takes the same arguments.
     //

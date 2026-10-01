@@ -431,7 +431,7 @@ export function checkNumber(
 
 export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number]> = {
   height_cm: [120, 230],
-  // The design says 25 kg; the server refuses anything under `MIN_WEIGHT_KG`, so the lower bound is
+  // The design says 25kg; the server refuses anything under `MIN_WEIGHT_KG`, so the lower bound is
   // the server's. A band the client is looser than is a band whose refusals have no words.
   weight_kg: [MIN_WEIGHT_KG, 300],
   target_weight_kg: [MIN_WEIGHT_KG, 300],
@@ -439,7 +439,7 @@ export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number,
 
 /**
  * Where a control opens when neither the draft, the stored answer nor the profile holds a value —
- * the boards' neutral rider (170 cm, 75 kg, 30). Named so the three screens share the person
+ * the boards' neutral rider (170cm, 75kg, 30). Named so the three screens share the person
  * rather than each typing their own (#141).
  */
 export const ONBOARDING_NEUTRAL = { heightCm: 170, weightKg: 75, ageYears: 30 } as const;
@@ -600,7 +600,7 @@ export function answerLabel(
  * `checkDirection` answers "do these three disagree"; this answers "and so what", which is a
  * different question at every one of the three edit sites and was previously answered only inside
  * onboarding's chat flow. Settings edits the same fields later, so it needs the same answers — and
- * the server validates RANGES but not COHERENCE, so nothing else is going to stop "gain to 80 kg"
+ * the server validates RANGES but not COHERENCE, so nothing else is going to stop "gain to 80kg"
  * from 94.
  *
  * The three cases differ because the fields differ in kind:
@@ -656,7 +656,7 @@ export const MOMENT_POSES = ["cheer", "lift", "think", "heart"] as const;
 export type MomentPose = (typeof MOMENT_POSES)[number];
 
 /**
- * The target prompt's suggestion line: "I suggest {kg} kg, about {pct}% down, a good first goal".
+ * The target prompt's suggestion line: "I suggest {kg}kg, about {pct}% down, a good first goal".
  * `pct` is the caller's computed share off the current weight, whole — the arithmetic is
  * `suggestedTargetKg`'s caller's, the words are this table's.
  */
@@ -675,7 +675,7 @@ export function targetSuggestionLine(
 }
 
 /**
- * A weight written the way the user's toggle spells it — "68 kg" or "150 lb". Storage is always
+ * A weight written the way the user's toggle spells it — "68kg" or "150lb". Storage is always
  * metric; this is the display. ONE conversion lives here so a ruler, a chart and a reply cannot
  * disagree about what a kilogram reads as.
  */
@@ -683,7 +683,7 @@ const LB_PER_KG = 2.20462;
 export function weightDisplay(kg: number, units: Units | null, lang: Lang): string {
   const v = units === "imperial" ? kg * LB_PER_KG : kg;
   const u = units === "imperial" ? "lb" : "kg";
-  return `${numbers(lang)(Math.round(v * 10) / 10)} ${spellUnit(lang, u)}`;
+  return `${numbers(lang)(Math.round(v * 10) / 10)}${spellUnit(lang, u)}`;
 }
 
 /**
@@ -727,7 +727,7 @@ export const HOW_DEMO = {
  */
 export interface PacePreview {
   ratePerWeek: number | null;
-  /** "{target} around {month} · {kcal} kcal a day" — null where the projection honestly has none. */
+  /** "{target} around {month} · {kcal}kcal a day" — null where the projection honestly has none. */
   line: string | null;
   marker: "cap" | "floor" | null;
   markerText: string | null;
@@ -787,9 +787,9 @@ export function planRows(
   const n = numbers(lang);
   const rows: PlanRow[] = [
     { id: "calories", label: b.rows.calories, value: n(targets.kcal) },
-    { id: "protein", label: b.rows.protein, value: `${n(targets.protein_g)} g` },
-    { id: "carbs", label: b.rows.carbs, value: `${n(targets.carbs_g)} g` },
-    { id: "fat", label: b.rows.fat, value: `${n(targets.fat_g)} g` },
+    { id: "protein", label: b.rows.protein, value: `${n(targets.protein_g)}g` },
+    { id: "carbs", label: b.rows.carbs, value: `${n(targets.carbs_g)}g` },
+    { id: "fat", label: b.rows.fat, value: `${n(targets.fat_g)}g` },
     {
       id: "diet", label: b.rows.diet,
       value: screenOptions(content, "diet")[dietOf(p.restrictions)]?.label ?? dietOf(p.restrictions),
@@ -808,7 +808,7 @@ export function planRows(
 }
 
 /**
- * The plan card's own goal line: "Goal: lose 6 kg by January 2027" — the user's stated direction
+ * The plan card's own goal line: "Goal: lose 6kg by January 2027" — the user's stated direction
  * and delta beside the plan's OWN projection month (same rule `offerHeadline` holds: a computed
  * month, or none). A maintainer's plan says "keep my weight" instead, and a projection past the
  * horizon honestly names no month.
@@ -826,7 +826,7 @@ export function planGoalLine(p: Profile, today: Date, lang: Lang): string | null
 }
 
 /**
- * The soft offer's title after the plan: "Get to 68 kg by January 2027".
+ * The soft offer's title after the plan: "Get to 68kg by January 2027".
  *
  * Null wherever the plan itself names no arrival — maintaining, no target, a projection
  * `projectGoal` will not make, or one past the horizon where the plan says "over two years" — so
@@ -844,7 +844,7 @@ export function offerHeadline(p: Profile, today: Date, lang: Lang): string | nul
 }
 
 /**
- * The plan headline over the progress graph (S6; board `15-plan`): "Goal: lose 6 kg by January
+ * The plan headline over the progress graph (S6; board `15-plan`): "Goal: lose 6kg by January
  * 2027" — the goal the user already stated, restated with the plan's own projection.
  *
  * LOSE ONLY, and only where `projectGoal` names an arrival: maintain, gain, a missing target and

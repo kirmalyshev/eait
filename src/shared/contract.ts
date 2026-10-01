@@ -929,7 +929,7 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
   }
   if (b.items !== undefined) {
     if (!Array.isArray(b.items) || b.items.length > MAX_MEAL_ITEMS) return false;
-    // Every item at 0 g is no meal: it saved a 0 kcal meal that still counted (ieat-app#1224).
+    // Every item at 0g is no meal: it saved a 0kcal meal that still counted (ieat-app#1224).
     if (b.items.length > 0 && b.items.every((i) => (i as { grams?: unknown })?.grams === 0)) return false;
     for (const i of b.items as unknown[]) {
       if (typeof i !== "object" || i === null) return false;

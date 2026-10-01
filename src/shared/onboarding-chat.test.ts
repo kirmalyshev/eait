@@ -217,7 +217,7 @@ describe("the numbers", () => {
   it("takes a plain number and a comma decimal", () => {
     expect(checkNumber("weight_kg", "93", "en", today)).toEqual({ ok: true, value: 93 });
     expect(checkNumber("weight_kg", "93,5", "en", today)).toEqual({ ok: true, value: 93.5 });
-    expect(checkNumber("height_cm", "183 cm", "en", today)).toEqual({ ok: true, value: 183 });
+    expect(checkNumber("height_cm", "183cm", "en", today)).toEqual({ ok: true, value: 183 });
   });
 
   it("refuses in the design's words rather than the server's", () => {
@@ -315,14 +315,14 @@ describe("the plan's computed words", () => {
   });
 
   it("shows the pace the GUARDS produced, never the one that was asked", () => {
-    // Steady requests 0.5 kg/wk; the persona's deficit cap hands back less — and the pace
+    // Steady requests 0.5kg/wk; the persona's deficit cap hands back less — and the pace
     // screen's big number is the computed `kgPerWeek` rounded, not `PACE_KG_PER_WEEK`. A screen
     // that printed the asked rate would describe a plan that does not exist.
     const p = pacePreview(her, "steady", SEP_24, "en")!;
     expect(p.ratePerWeek).not.toBe(0.5);
     expect(p.ratePerWeek).not.toBeNull();
     expect(Math.abs(p.ratePerWeek! * 10 - Math.round(p.ratePerWeek! * 10))).toBe(0);
-    expect(p.line).toContain("68 kg");
+    expect(p.line).toContain("68kg");
     expect(p.line).toContain("kcal a day");
     expect(p.line).not.toContain("{");
   });
@@ -411,11 +411,11 @@ describe("the on-track caption", () => {
 
 describe("the units toggle", () => {
   it("writes the stored kilograms in the user's own spelling", () => {
-    expect(weightDisplay(68, null, "en")).toBe("68 kg");
+    expect(weightDisplay(68, null, "en")).toBe("68kg");
     expect(weightDisplay(68, "imperial", "en")).toContain("lb");
     expect(weightDisplay(68, "imperial", "en")).not.toContain("kg");
-    // One decimal, locale-formatted — the pace screen's "0.9 lb a week".
-    expect(Number(weightDisplay(68, "imperial", "en").split(" ")[0])).toBeCloseTo(149.9, 0);
+    // One decimal, locale-formatted — the pace screen's "0.9lb a week".
+    expect(parseFloat(weightDisplay(68, "imperial", "en"))).toBeCloseTo(149.9, 0);
   });
 });
 
@@ -566,7 +566,7 @@ describe("the soft offer's headline", () => {
   const SEP_24 = new Date("2026-09-24T12:00:00Z");
 
   it("names the target and the month the plan's own projection reaches it", () => {
-    expect(offerHeadline(her, SEP_24, "en")).toBe("Get to 68 kg by January 2027");
+    expect(offerHeadline(her, SEP_24, "en")).toBe("Get to 68kg by January 2027");
   });
 
   it("is null wherever the plan names no arrival: maintaining, or no target", () => {
@@ -589,7 +589,7 @@ describe("the soft offer's headline", () => {
 });
 
 describe("planHeadline", () => {
-  // The same persona the soft-offer tests use: 74 → 68 kg is a promise to lose 6 kg.
+  // The same persona the soft-offer tests use: 74 → 68kg is a promise to lose 6kg.
   const her = profile({
     goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
     target_weight_kg: 68, pace: "steady", activity: "few",
@@ -597,8 +597,8 @@ describe("planHeadline", () => {
   const SEP_24 = new Date("2026-09-24T12:00:00Z");
 
   it("names the amount to lose and the month the plan's own projection reaches it", () => {
-    // The board's own numbers: the persona at 74 → 68 kg reads "lose 6 kg by January 2027".
-    expect(planHeadline(her, SEP_24, "metric", "en")).toBe("Goal: lose 6 kg by January 2027");
+    // The board's own numbers: the persona at 74 → 68kg reads "lose 6kg by January 2027".
+    expect(planHeadline(her, SEP_24, "metric", "en")).toBe("Goal: lose 6kg by January 2027");
   });
 
   it("says it in the reader's units — pounds, never a stored one rewritten", () => {
@@ -606,9 +606,9 @@ describe("planHeadline", () => {
   });
 
   it("writes Russian pounds as the symbol, because the word declines wrong for 1 and 2–4", () => {
-    // A 1 kg loss is 2 lb: "минус 2 lb", never "минус 2 фунтов".
+    // A 1kg loss is 2lb: "минус 2lb", never "минус 2 фунтов".
     const near = profile({ ...her, target_weight_kg: 73 });
-    expect(planHeadline(near, SEP_24, "imperial", "ru")).toContain("минус 2 lb");
+    expect(planHeadline(near, SEP_24, "imperial", "ru")).toContain("минус 2lb");
   });
 
   it("is null wherever the plan draws no such headline: maintaining, gaining, or no target", () => {

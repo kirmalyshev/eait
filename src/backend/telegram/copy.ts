@@ -26,7 +26,7 @@
 //
 // What that does NOT buy is a compiler check. `lingui compile --strict` means "every message is
 // translated", not "every translation takes the same arguments": dropping `{plan}` from the
-// German header compiles clean and ships "Heute: 1 kcal, 3 von 4 g Eiweiß". The guard is
+// German header compiles clean and ships "Heute: 1kcal, 3 von 4g Eiweiß". The guard is
 // `catalogArgs` in `shared/copy.i18n.test.ts`, which compares every language's argument set
 // against the source and fails naming the id — written because this comment first claimed
 // `--strict` did it and the claim was tested and was false.
@@ -93,7 +93,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
   targetGone: i18n._("tg.targetGone", undefined, { message: "There is no meal open here to change. Say what you ate and log it again." }),
   downloadFailed: i18n._("tg.downloadFailed", undefined, { message: "That photo did not come through from Telegram. Send it again." }),
   tooLarge: i18n._("tg.tooLarge", undefined, { message: "That photo is too large to send." }),
-  todayHead: (v: { eaten: string, plan: string, protein: string, proteinTarget: string }) => i18n._("tg.todayHead", v, { message: "Today: {eaten} of {plan} kcal, {protein} of {proteinTarget} g protein" }),
+  todayHead: (v: { eaten: string, plan: string, protein: string, proteinTarget: string }) => i18n._("tg.todayHead", v, { message: "Today: {eaten} of {plan}kcal, {protein} of {proteinTarget}g protein" }),
   todayEmpty: i18n._("tg.todayEmpty", undefined, { message: "Nothing logged today yet." }),
   meal: i18n._("tg.meal", undefined, { message: "Meal" }),
   failed: i18n._("tg.failed", undefined, { message: "Something went wrong, and it may still have gone through. Check /today before sending it again." }),

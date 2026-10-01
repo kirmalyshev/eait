@@ -75,7 +75,7 @@ describe("basalMetabolicRate (Mifflin-St Jeor)", () => {
 });
 
 describe("the calorie floor", () => {
-  // The regression this whole module exists for. Cal AI shipped 569/900/1250 kcal targets and
+  // The regression this whole module exists for. Cal AI shipped 569/900/1250kcal targets and
   // collected one-star reviews citing Harvard; see the header of targets.ts.
   it("never returns below the female floor, however aggressive the inputs", () => {
     const p = profile({
@@ -133,9 +133,9 @@ describe("the calorie floor", () => {
   });
 
   it("reports appliedDeltaKcal as the delta the FINAL target carries, floor included (#75)", () => {
-    // The issue's persona: female, 1986, 160 cm, 58 kg, 0–2 workouts, push. bmr 1219, tdee 1463;
+    // The issue's persona: female, 1986, 160cm, 58kg, 0–2 workouts, push. bmr 1219, tdee 1463;
     // push asks −825, the share cap allows −293, and the floor stops the target at 1,200 — a real
-    // cut of 263 kcal/day. Every reader (the projection, the plan card, the coach prompt) treats
+    // cut of 263kcal/day. Every reader (the projection, the plan card, the coach prompt) treats
     // `appliedDeltaKcal` as the post-floor delta, so the basis must not keep the pre-floor −293.
     const p = profile({
       sex: "female", goal: "lose", pace: "push", activity: "none",
@@ -202,17 +202,17 @@ describe("the four activity levels (targets v2, decision 7; #1078)", () => {
 });
 
 describe("the design persona (issue #81)", () => {
-  // 32, 172 cm, 74 → 68 kg, 0 workouts a week, steady — the row every board is drawn from.
+  // 32, 172cm, 74 → 68kg, 0 workouts a week, steady — the row every board is drawn from.
   const persona = () => profile({
     sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74, target_weight_kg: 68,
     goal: "lose", activity: "none", pace: "steady", restrictions: ["ldl"],
   });
 
-  it("computes the plan the boards draw: rest 1,494 + days 299 − pace 359 → 1,434 kcal", () => {
+  it("computes the plan the boards draw: rest 1,494 + days 299 − pace 359 → 1,434kcal", () => {
     const { targets, basis } = explainTargets(persona(), TODAY);
     expect(basis.bmr).toBe(1494);
     expect(basis.tdee).toBe(1793); // "your days" draw +299
-    expect(basis.requestedDeltaKcal).toBe(-550); // steady asks 0.5 kg/wk
+    expect(basis.requestedDeltaKcal).toBe(-550); // steady asks 0.5kg/wk
     expect(basis.appliedDeltaKcal).toBe(-359); // the 20 % share cap decides
     expect(basis.shareCapApplied).toBe(true);
     expect(basis.floorKcal).toBe(1200);
@@ -220,7 +220,7 @@ describe("the design persona (issue #81)", () => {
     expect(targets.kcal).toBe(1434);
     expect(targets.protein_g).toBe(109); // anchored to the goal weight: 68 × 1.6
     expect(targets.satfat_g).toBe(13); // declared
-    // The split the plan card draws (decision 3): fat 30 % of 1,434 → 430 kcal → 48 g; carbs take
+    // The split the plan card draws (decision 3): fat 30 % of 1,434 → 430kcal → 48g; carbs take
     // the rest — (1434 − 4·109 − 9·48) ÷ 4 = 141.5 → 142.
     expect(targets.fat_g).toBe(48);
     expect(targets.carbs_g).toBe(142);
@@ -229,7 +229,7 @@ describe("the design persona (issue #81)", () => {
 
 describe("the carbs and fat targets (targets v2, decision 3)", () => {
   it("splits the fallback band the same way — the macro math is explainTargets', not the path's", () => {
-    // maintain 2,100, 112 g protein (the fixture's 70 kg) → fat 70 g (630 kcal);
+    // maintain 2,100, 112g protein (the fixture's 70kg) → fat 70g (630kcal);
     // carbs (2100 − 448 − 630) ÷ 4 = 255.5 → 256.
     const t = explainTargets(profile({ sex: null, birth_year: null, height_cm: null }), TODAY).targets;
     expect(t.kcal).toBe(2100);
@@ -238,7 +238,7 @@ describe("the carbs and fat targets (targets v2, decision 3)", () => {
   });
 
   it("never answers a negative gram, whatever the protein asks", () => {
-    // The clamp is unreachable while protein caps at 180 g and kcal floors at 1,200 — pin it
+    // The clamp is unreachable while protein caps at 180g and kcal floors at 1,200 — pin it
     // anyway: the day either bound moves, the remainder is what pays.
     const t = explainTargets(profile({
       goal: "lose", pace: "push", weight_kg: 200, target_weight_kg: 180,
@@ -394,7 +394,7 @@ describe("weightRemainingKg", () => {
 
 describe("the suggested target weight (v5, C3)", () => {
   it("suggests a reachable first goal — the spec's persona lands on 68", () => {
-    // female, 32, 172 cm, 74 kg, lose: 74 × 0.92 = 68.08 → 68 on the half-kg step.
+    // female, 32, 172cm, 74kg, lose: 74 × 0.92 = 68.08 → 68 on the half-kg step.
     const her = profile({ goal: "lose", birth_year: 1994, height_cm: 172, weight_kg: 74 });
     expect(suggestedTargetKg(her)).toBe(68);
   });
@@ -408,12 +408,12 @@ describe("the suggested target weight (v5, C3)", () => {
   });
 
   it("never suggests below the healthy floor for the height", () => {
-    // 70 kg at 190 cm wants 64.4 → 64.5, but the lowest healthy weight there is 67.
+    // 70kg at 190cm wants 64.4 → 64.5, but the lowest healthy weight there is 67.
     expect(suggestedTargetKg(profile({ goal: "lose", weight_kg: 70, height_cm: 190 }))).toBe(67);
   });
 
   it("suggests nothing, and offers no stepper, to someone already at the healthy floor who asked to lose", () => {
-    // 66 kg at 190 cm: the floor is 67, so there is no weight below this one the app will set.
+    // 66kg at 190cm: the floor is 67, so there is no weight below this one the app will set.
     // `checkTargetWeight` refuses anything they could type; a suggestion at or above today's weight
     // would be the wrong direction, and a range of 67 … 65.5 is not a range.
     const atFloor = profile({ goal: "lose", weight_kg: 66, height_cm: 190 });
@@ -428,7 +428,7 @@ describe("the suggested target weight (v5, C3)", () => {
   });
 
   it("bounds the stepper inside the design's range", () => {
-    // lose: minHealthyKg … weight − 0.5. At 172 cm the floor is ceil(18.5 × 1.72²) = 55.
+    // lose: minHealthyKg … weight − 0.5. At 172cm the floor is ceil(18.5 × 1.72²) = 55.
     expect(targetRange(profile({ goal: "lose", weight_kg: 74, height_cm: 172 })))
       .toEqual({ min: 55, max: 73.5 });
     // gain: weight + 0.5 … weight × 1.3.
@@ -458,7 +458,7 @@ describe("explainTargetsAtAge — the age the server reported, not the device's 
   });
 
   it("the floor still binds when the age came in as a value", () => {
-    // A 60-year-old, 150 cm, 50 kg woman at "lose"/"push": tdee ~1,172, the capped deficit lands
+    // A 60-year-old, 150cm, 50kg woman at "lose"/"push": tdee ~1,172, the capped deficit lands
     // under the floor, and the floor is the number she gets.
     const { targets, basis } = explainTargetsAtAge(
       profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50 }), 60,

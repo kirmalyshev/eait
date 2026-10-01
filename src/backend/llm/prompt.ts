@@ -228,7 +228,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
 } = {}): string {
   const lines = [
     languageLine(profile.lang),
-    `The user's daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
+    `The user's daily targets: ${targets.kcal}kcal, ${targets.protein_g}g protein.`,
   ];
   if (opts.localTime) lines.push(`Local time when the photo was taken: ${opts.localTime}.`);
   if (opts.caption) lines.push(`The user says about this meal: "${normalizePromptText(opts.caption)}"`);
@@ -466,22 +466,22 @@ export function buildRouteText(input: {
   const { profile, targets } = input;
   const lines = [
     languageLine(profile.lang),
-    `Daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
+    `Daily targets: ${targets.kcal}kcal, ${targets.protein_g}g protein.`,
   ];
-  if (targets.satfat_g !== undefined) lines.push(`Saturated fat cap: ${targets.satfat_g} g.`);
-  if (targets.sodium_mg !== undefined) lines.push(`Sodium cap: ${targets.sodium_mg} mg.`);
+  if (targets.satfat_g !== undefined) lines.push(`Saturated fat cap: ${targets.satfat_g}g.`);
+  if (targets.sodium_mg !== undefined) lines.push(`Sodium cap: ${targets.sodium_mg}mg.`);
 
   lines.push(
     input.todayMeals.length > 0
       ? `Today so far:\n${input.todayMeals
-          .map((m) => `- ${m.items.join(", ")} — ${Math.round(m.kcal)} kcal, ${Math.round(m.protein_g)} g protein`)
+          .map((m) => `- ${m.items.join(", ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`)
           .join("\n")}`
       : "Today so far: nothing logged.",
   );
   if (input.week.length > 0) {
     lines.push(
       `Last days:\n${input.week
-        .map((d) => `- ${d.date}: ${Math.round(d.kcal)} kcal, ${Math.round(d.protein_g)} g protein`)
+        .map((d) => `- ${d.date}: ${Math.round(d.kcal)}kcal, ${Math.round(d.protein_g)}g protein`)
         .join("\n")}`,
     );
   }
@@ -560,10 +560,11 @@ Who else is in the thread: nobody — every earlier assistant line is yours, and
 
 How to answer:
 - Reply in the user's language, as a chat message: short, plain sentences, usually two to five of them. No markdown, no headers, no bullet symbols — a short list only when you are listing options, one per line.
-- Lead with the answer, then the one concrete thing to do about it. Concrete is a food, an amount and a slot — "Protein ran 40 g short — eggs or skyr at breakfast closes it" — never "let's adjust". Approval is a number, not praise: "On plan." Over is "Over for today — tomorrow is a fresh number." No cheering and no shame: no "great", no "keep it up", no "on track", no exclamation marks.
+- Lead with the answer, then the one concrete thing to do about it. Concrete is a food, an amount and a slot — "Protein ran 40g short — eggs or skyr at breakfast closes it" — never "let's adjust". Approval is a number, not praise: "On plan." Over is "Over for today — tomorrow is a fresh number." No cheering and no shame: no "great", no "keep it up", no "on track", no exclamation marks.
 - Asked what to do — about a plate they have described, a day that went wrong, the food already in their kitchen — the answer is the smallest change to THAT food, in their own words for it: leave the butter out, bake them instead of frying, half the rice, drop the second slice. One or two changes, and say which one carries most of it. A meal they have not mentioned is not an answer to that question: offer one when they ask for an idea, or after the change, never instead of it.
 - Write a figure of four digits or more with the user's language's thousands separator, as the app does: 1,287 in English, 1 287 in French or Russian, 1.287 in German.
-- Numbers are the plan's, not the conversation's. One in a reply is usually enough and none is often right; several only when they asked for numbers, and a range when one estimate is genuinely wide. A cap or a target is the REASON for a change, said once — never the change itself. "The frying is where most of it went" is an answer; "you are at 12 g of your 13 g cap" is a receipt.
+- A figure and its unit are written together, as the app shows them: 34g, 540kcal, 900mg — a weight too (74kg, 165lb), and in Russian 55г, 540ккал.
+- Numbers are the plan's, not the conversation's. One in a reply is usually enough and none is often right; several only when they asked for numbers, and a range when one estimate is genuinely wide. A cap or a target is the REASON for a change, said once — never the change itself. "The frying is where most of it went" is an answer; "you are at 12g of your 13g cap" is a receipt.
 - Speak to THIS person's plan — their goal, their pace, their targets, and how the number was arrived at (the calc is given below). When the floor is the reason for their target, say so rather than presenting it as arithmetic.
 - Never invent a number. The context below carries today's meals and the recent days as kcal and protein only, with what is left today already subtracted. Anything about a specific meal — its dishes, grams, saturated fat, sodium, fibre, sugar, its verdict — needs get_meals, today included. The profile weight is one reading: any trend, and any sleep, steps or energy, needs get_health. A day or a week is answered from the rows here, and with get_meals when you name what to change. Estimates of food you have not seen are estimates: say roughly, and give a range when it is wide.
 - A logged meal's verdict is the one in its row: report it, never overrule it. Your own judgement is for food not yet logged, and when a cap is declared a dish is judged against it as well as kcal.
@@ -634,7 +635,7 @@ const MEDICAL_WORDS: Record<MedicalTag, string> = {
  *
  * THE ARITHMETIC IS DONE HERE. "Left today" and each day's distance from the target are computed
  * in code and stated, because a model handed two numbers and asked what is left will get it wrong
- * often enough — and a coach that says "fits well within your targets" over a day already 194 g
+ * often enough — and a coach that says "fits well within your targets" over a day already 194g
  * of protein in has invented a number in the one way a reader cannot catch.
  */
 export function buildCoachContext(c: CoachContext): string {
@@ -643,8 +644,8 @@ export function buildCoachContext(c: CoachContext): string {
   const lines = [
     languageLine(profile.lang),
     `Today is ${c.today}, local time ${c.localTime}.`,
-    `Goal: ${profile.goal ?? "unknown"}${profile.pace ? `, pace ${profile.pace}` : ""}${profile.target_weight_kg !== null ? `, target weight ${profile.target_weight_kg} kg` : ""}${profile.weight_kg !== null ? `, last known weight ${profile.weight_kg} kg (measured ${weighed}; the trend is in get_health)` : ""}.`,
-    `Daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
+    `Goal: ${profile.goal ?? "unknown"}${profile.pace ? `, pace ${profile.pace}` : ""}${profile.target_weight_kg !== null ? `, target weight ${profile.target_weight_kg}kg` : ""}${profile.weight_kg !== null ? `, last known weight ${profile.weight_kg}kg (measured ${weighed}; the trend is in get_health)` : ""}.`,
+    `Daily targets: ${targets.kcal}kcal, ${targets.protein_g}g protein.`,
   ];
 
   // Every declaration, named — a vegan told nothing is scored was still offered chicken. Diet is
@@ -663,8 +664,8 @@ export function buildCoachContext(c: CoachContext): string {
   ];
   lines.push(`Declared restrictions: ${declared.length > 0 ? declared.join(", ") : "none"}.`);
   const scored = [
-    ...(targets.satfat_g !== undefined ? [`saturated fat at most ${targets.satfat_g} g a day (high cholesterol)`] : []),
-    ...(targets.sodium_mg !== undefined ? [`sodium at most ${targets.sodium_mg} mg a day (kidney condition)`] : []),
+    ...(targets.satfat_g !== undefined ? [`saturated fat at most ${targets.satfat_g}g a day (high cholesterol)`] : []),
+    ...(targets.sodium_mg !== undefined ? [`sodium at most ${targets.sodium_mg}mg a day (kidney condition)`] : []),
   ];
   lines.push(`Scored against them: ${scored.length > 0 ? scored.join("; ") : "nothing beyond kcal and protein"}.`);
 
@@ -673,10 +674,10 @@ export function buildCoachContext(c: CoachContext): string {
   if (basis.usedFallbackBand) {
     lines.push("The kcal target is a flat band for the goal: the profile lacked what a personal calculation needs.");
   } else {
-    const calc = [`How the target was computed: at rest about ${basis.bmr} kcal, with activity about ${basis.tdee} kcal`];
-    if (basis.appliedDeltaKcal !== 0) calc.push(`${basis.appliedDeltaKcal > 0 ? "plus" : "minus"} ${Math.abs(basis.appliedDeltaKcal)} kcal for the pace${basis.shareCapApplied ? " (capped: the requested pace was more than is safe to sustain)" : ""}`);
+    const calc = [`How the target was computed: at rest about ${basis.bmr}kcal, with activity about ${basis.tdee}kcal`];
+    if (basis.appliedDeltaKcal !== 0) calc.push(`${basis.appliedDeltaKcal > 0 ? "plus" : "minus"} ${Math.abs(basis.appliedDeltaKcal)}kcal for the pace${basis.shareCapApplied ? " (capped: the requested pace was more than is safe to sustain)" : ""}`);
     lines.push(calc.join(", ") + ".");
-    if (basis.floorApplied) lines.push(`The target sits at the floor of ${basis.floorKcal} kcal: the arithmetic wanted to go lower and this app does not set targets below it.`);
+    if (basis.floorApplied) lines.push(`The target sits at the floor of ${basis.floorKcal}kcal: the arithmetic wanted to go lower and this app does not set targets below it.`);
   }
   if (c.projection) {
     lines.push(`The plan's arithmetic says the target weight is reached ${c.projection} at this pace — a projection from the plan, not a forecast from their readings; whether they are on track needs get_health.`);
@@ -686,14 +687,14 @@ export function buildCoachContext(c: CoachContext): string {
   const eatenProtein = c.todayMeals.reduce((n, m) => n + m.protein_g, 0);
   lines.push(
     c.todayMeals.length > 0
-      ? `Today so far:\n${c.todayMeals.map((m) => `- ${m.items.map((i) => normalizePromptText(i, 60)).join(", ")} — ${Math.round(m.kcal)} kcal, ${Math.round(m.protein_g)} g protein`).join("\n")}`
+      ? `Today so far:\n${c.todayMeals.map((m) => `- ${m.items.map((i) => normalizePromptText(i, 60)).join(", ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`).join("\n")}`
       : "Today so far: nothing logged.",
   );
-  lines.push(`Left today: ${Math.round(targets.kcal - eaten)} kcal, ${Math.round(targets.protein_g - eatenProtein)} g protein.`);
+  lines.push(`Left today: ${Math.round(targets.kcal - eaten)}kcal, ${Math.round(targets.protein_g - eatenProtein)}g protein.`);
   if (c.week.length > 0) {
     const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
     lines.push(`Recent days (kcal against the target, protein):\n${c.week
-      .map((d) => `- ${d.date}: ${Math.round(d.kcal)} kcal (${signed(Math.round(d.kcal - targets.kcal))} vs target), ${Math.round(d.protein_g)} g protein`)
+      .map((d) => `- ${d.date}: ${Math.round(d.kcal)}kcal (${signed(Math.round(d.kcal - targets.kcal))} vs target), ${Math.round(d.protein_g)}g protein`)
       .join("\n")}`);
   }
   if (c.focusMeal) lines.push(`The meal most recently discussed:\n${JSON.stringify(c.focusMeal)}`);

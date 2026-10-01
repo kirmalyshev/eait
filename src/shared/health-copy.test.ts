@@ -67,8 +67,8 @@ describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
   it("exists complete in all eight, with every template filling", () => {
     const params: Record<string, string> = {
       i: "Intake", n: "26", kcal: "1,066", avg: "1,467", target: "1,434", old: "1,434",
-      new: "1,429", d: "1.2 kg", to: "5.4 kg", date: "24 Aug", when: "today 18:30",
-      kg: "1.2 kg", pace: "steady", days: "2 days", a: "Intake", b: "Steps", period: "weeks",
+      new: "1,429", d: "1.2kg", to: "5.4kg", date: "24 Aug", when: "today 18:30",
+      kg: "1.2kg", pace: "steady", days: "2 days", a: "Intake", b: "Steps", period: "weeks",
       kind: "Bars", series: "Intake", time: "18:30",
     };
     const fields = (o: unknown, at = ""): string[] =>
@@ -103,7 +103,7 @@ describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
       const n = (x: number) => x.toLocaleString("en-US");
       expect(fill(s.weekLine.allInside, { target: n(1434) })).not.toMatch(/\{/);
       expect(fill(s.weekLine.overButOk, { days: countText(lang)(s.weekLine.days, 2), avg: n(1467) })).not.toMatch(/\{/);
-      expect(fill(s.body.lineDrift, { target: "68 kg", pace: s.body.paces.steady })).not.toMatch(/\{/);
+      expect(fill(s.body.lineDrift, { target: "68kg", pace: s.body.paces.steady })).not.toMatch(/\{/);
       for (const p of PACES) expect(s.body.paces[p], `${lang}.${p}`).toBeTruthy();
     }
   });

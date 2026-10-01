@@ -981,7 +981,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     if (e.kind === "meal") {
       body.textContent = e.meal
         ? (e.event || "logged") + ": " + (e.meal.items || []).map(function (i) { return i.name; }).join(", ")
-          + " — " + Math.round(e.meal.kcal) + " kcal"
+          + " — " + Math.round(e.meal.kcal) + "kcal"
         : (e.event || "logged") + ": (the meal is gone)";
     } else if (e.kind === "photo") {
       body.textContent = e.text || "(a photograph)";
@@ -1133,8 +1133,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       // The plan the verdicts were judged by. Recomputed from the profile as it is NOW, which is
       // said out loud rather than left for somebody to assume it was stored per meal.
       var plan = view.targets
-        ? " · plan today: " + Math.round(view.targets.kcal) + " kcal, "
-          + Math.round(view.targets.protein_g) + " g protein"
+        ? " · plan today: " + Math.round(view.targets.kcal) + "kcal, "
+          + Math.round(view.targets.protein_g) + "g protein"
         : " · not onboarded";
       $("diary-status").textContent = view.meals.length === 0
         ? "Nothing logged in that window." + plan

@@ -53,7 +53,7 @@ describe("the thread in eight languages", () => {
 
   it("writes its figures in the reader's grouping, and rounds them", () => {
     // The thread's figures are estimates from a photo: whole numbers, in the reader's own
-    // separators. 74.8 g of saturated fat is a precision the analyzer does not have.
+    // separators. 74.8g of saturated fat is a precision the analyzer does not have.
     const line = (lang: (typeof LANGS)[number]) => capVerdictLines({
       meal: { satfat_g: 74.8, sodium_mg: 0 }, targets: TARGETS,
       verdicts: { ldl: "bad" }, eatenToday: { satfat_g: 74.8, sodium_mg: 0 },

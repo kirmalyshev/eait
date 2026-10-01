@@ -11,7 +11,7 @@
 // instead of a TypeError inside a chat bubble — and why the ids live in `chat.ts`, not here.
 //
 // THE ARITHMETIC HAS TWO FORMS PER BRANCH, and that is not redundancy. English says "First one in.
-// 520 kcal — that leaves 930 of your 1,450" after a dash and "That leaves…" as its own sentence,
+// 520kcal — that leaves 930 of your 1,450" after a dash and "That leaves…" as its own sentence,
 // and the old code got the second by running a regex over the first. A regex over prose is a rule
 // about English grammar hiding in a string operation; four more strings are cheaper than eight
 // languages' worth of capitalisation quirks, and the seven translations are free to make the pair
@@ -81,7 +81,7 @@ export interface ThreadCopy {
   /**
    * #130's logged-meal verdict line — computed, never the model's. One per cap verdict that is
    * not on plan (saturated fat, sodium), said under the card it belongs to: "{nutrient} is high
-   * for one meal: {eaten} of your {target} {unit}." `{nutrient}` is `verdictNoun` in
+   * for one meal: {eaten} of your {target}{unit}." `{nutrient}` is `verdictNoun` in
    * sentence-start case, `{unit}` the amount's symbol via `spellUnit` (g for saturated fat, mg
    * for sodium). `easyTail` is appended when the day's remaining share is small — the rule is
    * written down beside `capVerdictLines`.
@@ -118,7 +118,7 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
   firstVerdict: {
     typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it." }),
     lowConfidence: (v: { kcal: string }) => i18n._("thread.firstVerdict.lowConfidence", v, { message: "Honest answer: I couldn't read that plate well. Take {kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps." }),
-    firstIn: (v: { kcal: string }) => i18n._("thread.firstVerdict.firstIn", v, { message: "First one in. {kcal} kcal." }),
+    firstIn: (v: { kcal: string }) => i18n._("thread.firstVerdict.firstIn", v, { message: "First one in. {kcal}kcal." }),
     fixHint: i18n._("thread.firstVerdict.fixHint", undefined, { message: "If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams." }),
     headline: {
       onPlan: i18n._("thread.firstVerdict.headline.onPlan", undefined, { message: "On plan." }),
@@ -129,8 +129,8 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     noted: (v: { note: string }) => i18n._("thread.firstVerdict.noted", v, { message: "“{note}” — noted, it's in the numbers." }),
   },
   capLine: {
-    high: (v) => i18n._("thread.capLine.high", v, { message: "{nutrient} is high for one meal: {eaten} of your {target} {unit}." }),
-    veryHigh: (v) => i18n._("thread.capLine.veryHigh", v, { message: "{nutrient} is very high for one meal: {eaten} of your {target} {unit}." }),
+    high: (v) => i18n._("thread.capLine.high", v, { message: "{nutrient} is high for one meal: {eaten} of your {target}{unit}." }),
+    veryHigh: (v) => i18n._("thread.capLine.veryHigh", v, { message: "{nutrient} is very high for one meal: {eaten} of your {target}{unit}." }),
     easyTail: i18n._("thread.capLine.easyTail", undefined, { message: "Go easy on it for the rest of today." }),
   },
 });
@@ -179,10 +179,10 @@ export const streamCopyFor = (lang: Lang): StreamCopy => STREAM(i18nFor(lang));
 export function queuedPushCopy(lang: Lang, v: { names: string; kcal: string; left: string | null; over: string | null }): { title: string; body: string } {
   const i18n = i18nFor(lang);
   return {
-    title: i18n._("stream.push.title", { names: v.names, kcal: v.kcal }, { message: "{names} · {kcal} kcal" }),
+    title: i18n._("stream.push.title", { names: v.names, kcal: v.kcal }, { message: "{names} · {kcal}kcal" }),
     body: v.over !== null
-      ? i18n._("stream.push.over", { over: v.over }, { message: "Counted. {over} kcal over today." })
-      : i18n._("stream.push.left", { left: v.left }, { message: "Counted. {left} kcal left today." }),
+      ? i18n._("stream.push.over", { over: v.over }, { message: "Counted. {over}kcal over today." })
+      : i18n._("stream.push.left", { left: v.left }, { message: "Counted. {left}kcal left today." }),
   };
 }
 

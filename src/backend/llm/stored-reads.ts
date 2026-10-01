@@ -27,24 +27,24 @@ export const SENTENCES: Partial<Record<Lang, string>> = {
 /** The notes, localised like the names: the model's meaning and figures, nothing added. */
 const NOTES: Partial<Record<Lang, Record<Meal, string>>> = {
   de: {
-    grainbowl: "Tellerdurchmesser auf 26 cm geschätzt. Portionsgrößen nach Augenmaß skaliert. Olivenöl aus dem Glanz auf dem Gemüse geschlossen.",
+    grainbowl: "Tellerdurchmesser auf 26cm geschätzt. Portionsgrößen nach Augenmaß skaliert. Olivenöl aus dem Glanz auf dem Gemüse geschlossen.",
     eggs: "Übliche gekochte Eier und eine typische deutsche Scheibe Roggenbrot (40g) angenommen. Kein zusätzliches Fett und keine Beläge erwähnt.",
-    salmon: "Der Teller ist ein Standard-Speiseteller von 26 cm. Die Glasur auf dem Lachs und der Brokkoli deuten auf etwas Öl beim Anbraten hin. Portionsgrößen aus Tellerbedeckung und Höhe geschätzt.",
+    salmon: "Der Teller ist ein Standard-Speiseteller von 26cm. Die Glasur auf dem Lachs und der Brokkoli deuten auf etwas Öl beim Anbraten hin. Portionsgrößen aus Tellerbedeckung und Höhe geschätzt.",
   },
   fr: {
-    grainbowl: "Diamètre de l'assiette estimé à 26 cm. Portions évaluées visuellement. Huile d'olive déduite de la brillance des légumes.",
+    grainbowl: "Diamètre de l'assiette estimé à 26cm. Portions évaluées visuellement. Huile d'olive déduite de la brillance des légumes.",
     eggs: "On suppose des œufs durs standard et une tranche typique de pain de seigle allemand (40g). Aucune matière grasse ni garniture ajoutée n'est mentionnée.",
-    salmon: "L'assiette est une assiette plate standard de 26 cm. Le glaçage du saumon et le brocoli suggèrent un peu d'huile pour faire sauter. Portions estimées d'après la surface couverte et l'épaisseur.",
+    salmon: "L'assiette est une assiette plate standard de 26cm. Le glaçage du saumon et le brocoli suggèrent un peu d'huile pour faire sauter. Portions estimées d'après la surface couverte et l'épaisseur.",
   },
   it: {
-    grainbowl: "Diametro del piatto stimato in 26 cm. Porzioni valutate a occhio. Olio d'oliva dedotto dalla lucentezza delle verdure.",
+    grainbowl: "Diametro del piatto stimato in 26cm. Porzioni valutate a occhio. Olio d'oliva dedotto dalla lucentezza delle verdure.",
     eggs: "Si presumono uova sode standard e una tipica fetta di pane di segale tedesco (40g). Nessun grasso aggiunto o condimento indicato.",
-    salmon: "Il piatto è un piatto piano standard da 26 cm. La glassa del salmone e i broccoli suggeriscono un po' di olio per la saltatura. Porzioni stimate dalla superficie occupata e dallo spessore.",
+    salmon: "Il piatto è un piatto piano standard da 26cm. La glassa del salmone e i broccoli suggeriscono un po' di olio per la saltatura. Porzioni stimate dalla superficie occupata e dallo spessore.",
   },
   es: {
-    grainbowl: "Diámetro del plato estimado en 26 cm. Raciones calculadas a ojo. Aceite de oliva deducido del brillo de las verduras.",
+    grainbowl: "Diámetro del plato estimado en 26cm. Raciones calculadas a ojo. Aceite de oliva deducido del brillo de las verduras.",
     eggs: "Se suponen huevos duros estándar y una rebanada típica de pan de centeno alemán (40g). No se mencionan grasas añadidas ni ingredientes extra.",
-    salmon: "El plato es un plato llano estándar de 26 cm. El glaseado del salmón y el brócoli sugieren un poco de aceite al saltear. Raciones estimadas por la superficie cubierta y la altura.",
+    salmon: "El plato es un plato llano estándar de 26cm. El glaseado del salmón y el brócoli sugieren un poco de aceite al saltear. Raciones estimadas por la superficie cubierta y la altura.",
   },
 };
 

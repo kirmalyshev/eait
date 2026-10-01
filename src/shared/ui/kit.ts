@@ -135,7 +135,7 @@ export const weekStrip = (
 // ── Macro chips and cards ────────────────────────────────────────────────────────────────────
 //
 // `.mac` is icon + number + unit; `.macs` is the row of them. `gramMacs` writes the boards'
-// "{n} g" in the surface's language — the formatter is shared so a chip in German cannot drift.
+// "{n}g" in the surface's language — the formatter is shared so a chip in German cannot drift.
 
 export const mac = (name: ChipName, text: string): string =>
   `<span class="mac">${ico(name)}${esc(text)}</span>`;
@@ -143,7 +143,7 @@ export const mac = (name: ChipName, text: string): string =>
 export const macs = (chips: readonly { name: ChipName; text: string }[], cls = ""): string =>
   `<span class="macs${cls ? ` ${cls}` : ""}">${chips.map((c) => mac(c.name, c.text)).join("")}</span>`;
 
-/** A meal's three macro chips, "{n} g" in the surface's language — never a hand-written " g". */
+/** A meal's three macro chips, "{n}g" in the surface's language — never a hand-written "g". */
 export const gramChips = (
   grams: { protein: number; carbs: number; fat: number },
   lang: Lang,
@@ -151,9 +151,9 @@ export const gramChips = (
   const n = wholeNumbers(lang);
   const g = spellUnit(lang, "g");
   return [
-    { name: "protein", text: `${n(grams.protein)} ${g}` },
-    { name: "carbs", text: `${n(grams.carbs)} ${g}` },
-    { name: "fat", text: `${n(grams.fat)} ${g}` },
+    { name: "protein", text: `${n(grams.protein)}${g}` },
+    { name: "carbs", text: `${n(grams.carbs)}${g}` },
+    { name: "fat", text: `${n(grams.fat)}${g}` },
   ];
 };
 

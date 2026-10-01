@@ -44,24 +44,24 @@ describe("bodyTrend — the weigh-in span read against the plan's pace ladder", 
   });
 
   it("carries the delta, its weekly rate, and the distance to the target", () => {
-    // 74.6 → 73.4 over seven days is 1.2 kg a week — a rate the ladder reads as past push.
+    // 74.6 → 73.4 over seven days is 1.2kg a week — a rate the ladder reads as past push.
     const t = bodyTrend(wk("2026-09-01", "2026-09-08", 74.6, 73.4), "lose", 68, "steady");
     expect(t).toMatchObject({ deltaKg: -1.2, kgPerWeek: 1.2, toTargetKg: 5.4 });
   });
 
   it("a partial week is a rate, not a week", () => {
-    // −0.6 kg in four days reads as 1.05 kg/week — faster than the steady rung it was asked for.
+    // −0.6kg in four days reads as 1.05kg/week — faster than the steady rung it was asked for.
     expect(bodyTrend(wk("2026-09-01", "2026-09-05", 74.0, 73.4), "lose", 68, "steady")!.reading)
       .toBe("fast");
   });
 
   it("classifies against the rung the plan was built on, not a multiplier of it", () => {
-    // −0.25 kg/week: on easy's own rung; below steady's; far below push's.
+    // −0.25kg/week: on easy's own rung; below steady's; far below push's.
     const span = wk("2026-09-01", "2026-09-29", 74.6, 73.6);
     expect(bodyTrend(span, "lose", 68, "easy")!.reading).toBe("on-pace");
     expect(bodyTrend(span, "lose", 68, "steady")!.reading).toBe("slow");
     expect(bodyTrend(span, "lose", 68, "push")!.reading).toBe("slow");
-    // −0.5 kg/week on steady is on pace; the same rate on easy is faster than asked.
+    // −0.5kg/week on steady is on pace; the same rate on easy is faster than asked.
     const half = wk("2026-09-01", "2026-09-15", 74.0, 73.0);
     expect(bodyTrend(half, "lose", 68, "steady")!.reading).toBe("on-pace");
     expect(bodyTrend(half, "lose", 68, "easy")!.reading).toBe("fast");

@@ -810,11 +810,11 @@ describe("the plan reveal", () => {
     expect(html).toContain("--to:100");
     // The card's title and each row's label are the content's; every VALUE is computed.
     expect(html).toContain("Your daily plan");
-    for (const value of [n(targets.kcal), `${n(targets.protein_g)} g`, `${n(targets.carbs_g)} g`, `${n(targets.fat_g)} g`, "Mediterranean"]) {
+    for (const value of [n(targets.kcal), `${n(targets.protein_g)}g`, `${n(targets.carbs_g)}g`, `${n(targets.fat_g)}g`, "Mediterranean"]) {
       expect(html).toContain(`<b class="num">${value}</b>`);
     }
     // The declared cap is a row of its own (the seventh), filled from the same targets.
-    expect(html).toContain(`sat fat ≤ ${n(targets.satfat_g!)} g`);
+    expect(html).toContain(`sat fat ≤ ${n(targets.satfat_g!)}g`);
     // Six rows at S5's marks; a seventh shares the last tick.
     for (const d of ["0.5s", "1s", "1.6s", "2.1s", "2.7s", "3.3s"]) {
       expect(html).toContain(`--d:${d}`);
@@ -933,11 +933,11 @@ describe("the plan", () => {
 
     // The four figures are `explainTargets`' — a page that drifts fails on its own numbers.
     expect(html).toContain(`<b class="num">${n(targets.kcal)}</b>`);
-    expect(html).toContain(`${n(targets.protein_g)} g`);
-    expect(html).toContain(`${n(targets.carbs_g)} g`);
-    expect(html).toContain(`${n(targets.fat_g)} g`);
+    expect(html).toContain(`${n(targets.protein_g)}g`);
+    expect(html).toContain(`${n(targets.carbs_g)}g`);
+    expect(html).toContain(`${n(targets.fat_g)}g`);
     // The declared cap is a card of its own — and ONLY because it was declared.
-    expect(html).toContain(`${n(targets.satfat_g!)} g`);
+    expect(html).toContain(`${n(targets.satfat_g!)}g`);
     expect(html).toContain("Saturated fat");
 
     // The primary is the sign-up screen (S8): the account needs an identity before a meal can
@@ -1439,13 +1439,13 @@ describe("the v2 questions that write the new fields", () => {
 });
 
 describe("the target-weight ruler", () => {
-  /** 80 kg at 170 cm → the suggested target is 73.5, the healthy floor about 53.5. */
+  /** 80kg at 170cm → the suggested target is 73.5, the healthy floor about 53.5. */
   it("opens on the shared suggestion, said as the ask, with the refused zone drawn", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
     // `targetSuggestionLine` is Spud's ask here, per the design — the admin's own ask is not
     // ALSO said, or the screen is two questions at once.
-    expect(html).toContain("I suggest 73.5 kg");
+    expect(html).toContain("I suggest 73.5kg");
     // The control is the ruler: the suggestion is its needle, carried as data-val AND as the
     // plain input's value — the same number with or without the script.
     expect(html).toContain('data-ctl="ruler"');
@@ -1457,7 +1457,7 @@ describe("the target-weight ruler", () => {
     expect(html).toContain("lowest we set");
     // The live delta says how far the needle sits from now, in the copy's own words — a
     // placeholder left unfilled would print "{weight}" raw inside the live line.
-    expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5 kg<\//);
+    expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5kg<\//);
     expect(html).not.toMatch(/<div class="live[^>]*>[^<]*\{weight\}/);
   });
 
@@ -1471,7 +1471,7 @@ describe("the target-weight ruler", () => {
   });
 
   it("refuses below the floor, drawn or typed — the bound is the server's", async () => {
-    // 170 cm tall at 56 kg: the healthy floor is ~53.5, so the suggestion IS the floor.
+    // 170cm tall at 56kg: the healthy floor is ~53.5, so the suggestion IS the floor.
     const session = await signIn();
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
     await post("/start/q", { prompt: "sex", answer: "female" }, session);
@@ -1485,11 +1485,11 @@ describe("the target-weight ruler", () => {
     // A crafted POST does no better: the refusal is `checkNumber`'s, not the markup's.
     const res = await post("/start/q", { prompt: "target_weight_kg", answer: "50" }, session);
     expect(res.status).toBe(200);
-    expect(await res.text()).toContain("The lowest target we can plan for at your height is 54 kg");
+    expect(await res.text()).toContain("The lowest target we can plan for at your height is 54kg");
   });
 
   it("still draws the ruler when there is nothing to suggest", async () => {
-    // At the floor already (54 kg at 170 cm) a lose target has no suggestion — today's behaviour.
+    // At the floor already (54kg at 170cm) a lose target has no suggestion — today's behaviour.
     const session = await signIn();
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
     await post("/start/q", { prompt: "sex", answer: "female" }, session);
@@ -1518,8 +1518,8 @@ describe("the soft offer after the plan", () => {
   it("heads the offer with the computed target and month, never literals", async () => {
     const session = await toPlan();
     const html = await (await get("/start/offer", session)).text();
-    // offerHeadline(): 80 kg → 70 by a named month — a claim the projection stands behind.
-    expect(html).toContain("Get to 70 kg by");
+    // offerHeadline(): 80kg → 70 by a named month — a claim the projection stands behind.
+    expect(html).toContain("Get to 70kg by");
   });
 
   it("says the three perks and the honest timeline, with no invented price", async () => {
@@ -2137,14 +2137,14 @@ describe("chat on the web: who said it", () => {
   it("names Spud on his answers and nobody else — the app's own lines carry no name", async () => {
     const { session, userId } = await onboarded();
     await store.appendChat(userId, [
-      { role: "assistant", kind: "text", text: "First one in. 612 kcal." },
+      { role: "assistant", kind: "text", text: "First one in. 612kcal." },
       { role: "user", kind: "text", text: "how much protein have I had?" },
       // S9: a coach answer is the coach's, and the page says so — the app's lines stay unlabelled.
-      { role: "assistant", kind: "text", text: "About 40 g so far.", speaker: "gabie" },
+      { role: "assistant", kind: "text", text: "About 40g so far.", speaker: "gabie" },
     ]);
     const page = await (await get("/start/chat", session)).text();
-    expect(page).toContain('<p class="who">Spud</p><p class="bubble">About 40 g so far.</p>');
-    expect(page).toContain('<p class="bubble">First one in. 612 kcal.</p>');
+    expect(page).toContain('<p class="who">Spud</p><p class="bubble">About 40g so far.</p>');
+    expect(page).toContain('<p class="bubble">First one in. 612kcal.</p>');
     expect(page.match(/class="who"/g)).toHaveLength(1);
   });
 });

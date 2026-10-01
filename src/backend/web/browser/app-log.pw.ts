@@ -73,7 +73,7 @@ test("a second photo draws the logged card, and Agree goes Home", async ({ inWeb
   await expect(page.locator(".card").first()).toContainText("kcal");
   await expect(page.locator(".vs .v").first()).toBeVisible();
   // The day counter is the server's own totals: "… of 1,434 kcal" and "… left".
-  await expect(page.getByText(/of [\d.,]+ kcal/)).toBeVisible();
+  await expect(page.getByText(/of [\d.,]+ ?kcal/)).toBeVisible();
   await expect(page.getByText(/left$/)).toBeVisible();
   // Edit is the meal's fix panel — `#/meal/<id>?fix`, this meal's own id (#148).
   const second = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;
@@ -194,7 +194,7 @@ test("the grams question's chips send its text with the meal in focus", async ({
   // "about the grams" is the canned question's other shape — a number where the oil one is an
   // either/or (DEMO_GRAMS_QUESTION, the caption being the only channel a blind fake has).
   await pick(page, "about the grams");
-  await expect(page.getByText("Was the rice about 250 g?")).toBeVisible();
+  await expect(page.getByText("Was the rice about 250g?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Half that" })).toBeVisible();
 
   const mealId = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;

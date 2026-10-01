@@ -107,7 +107,7 @@ export const CONTROL_SCRIPT = `(function () {
         var d = Math.round((val - nowV) * 10) / 10;
         var tpl = d < 0 ? dnT : d > 0 ? upT : null;
         live.style.display = tpl ? "" : "none";
-        if (tpl) live.textContent = tpl.replace("{weight}", fmtN(Math.abs(d)) + " " + (ctl.dataset.unitword || ""));
+        if (tpl) live.textContent = tpl.replace("{weight}", fmtN(Math.abs(d)) + (ctl.dataset.unitword || ""));
         live.className = "live" + (d < 0 ? " dn" : d > 0 ? " up" : "");
       }
       bigSet(ctl, fmt, val);

@@ -264,7 +264,7 @@ export const healthLabel = (key: string, lang: Lang): string =>
  * One reading, as a person reads it.
  *
  * Minutes are the unit HealthKit stores sleep in and they are not a unit anybody thinks in: the
- * screen printed "Asleep 387 min" and "In bed 427 min", which is a subtraction and a division away
+ * screen printed "Asleep 387min" and "In bed 427min", which is a subtraction and a division away
  * from the two numbers the user came for. Everything else keeps its own unit — 11 minutes of
  * exercise is 11 minutes, and a step count is a count.
  */
@@ -273,19 +273,19 @@ export function formatHealthValue(
   value: number,
   lang: Lang,
 ): string {
-  // `toFixed` and a raw `spec.unit` are what this used to be, which put `93.8 kg` in front of the
+  // `toFixed` and a raw `spec.unit` are what this used to be, which put `93.8kg` in front of the
   // six languages that group with a decimal comma and `h`/`m` in front of all seven. It is also
   // what a caller would naturally hand `trendSummary` as its `format`, so the obligation stated in
   // that function's doc was unmeetable until this took a language.
   const hm = t(lang)(HEALTH_COPY).hm;
   if (spec.unit === "min" && value >= 60) {
     const whole = Math.round(value);
-    return `${Math.floor(whole / 60)} ${hm.h} ${whole % 60} ${hm.m}`;
+    return `${Math.floor(whole / 60)}${hm.h} ${whole % 60}${hm.m}`;
   }
   const n = new Intl.NumberFormat(LANG_TAG[lang], {
     minimumFractionDigits: spec.decimals, maximumFractionDigits: spec.decimals,
   }).format(value);
-  return `${n}${spec.unit ? ` ${spellUnit(lang, spec.unit)}` : ""}`;
+  return `${n}${spec.unit ? `${spellUnit(lang, spec.unit)}` : ""}`;
 }
 
 // ── The phone's Apple Health screens ──────────────────────────────────────────────────────────
@@ -364,9 +364,9 @@ export interface HealthScreenCopy {
      * plural forms, including ru's counted one ("за последние 21 неделю").
      */
     periods: Record<TrendPeriod, { one: string; counted: CountForms }>;
-    /** The figure for the days period — "{kcal} kcal today". */
+    /** The figure for the days period — "{kcal}kcal today". */
     kcalToday: string;
-    /** The figure for the longer periods — the bucket mean, "{kcal} kcal a day". */
+    /** The figure for the longer periods — the bucket mean, "{kcal}kcal a day". */
     kcalADay: string;
   };
   compare: {
@@ -388,7 +388,7 @@ export interface HealthScreenCopy {
     trendUp: string;
     trendUpSolo: string;
     trendFlat: string;
-    /** The plan row's label and its two value shapes — moved ("{old} → {new} kcal") or not. */
+    /** The plan row's label and its two value shapes — moved ("{old} → {new}kcal") or not. */
     plan: string;
     planValue: string;
     planMoved: string;
@@ -480,8 +480,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "last month", counted: { other: "the last {n} months" } },
         years: { one: "this year", counted: { other: "the last {n} years" } },
       },
-      kcalToday: "{kcal} kcal today",
-      kcalADay: "{kcal} kcal a day",
+      kcalToday: "{kcal}kcal today",
+      kcalADay: "{kcal}kcal a day",
     },
     compare: {
       bars: "Bars",
@@ -498,8 +498,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} since {date}",
       trendFlat: "Level since {date}",
       plan: "Plan",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "today {time}",
       fromHealth: "From Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -567,8 +567,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "le mois dernier", counted: { other: "les {n} derniers mois" } },
         years: { one: "cette année", counted: { other: "les {n} dernières années" } },
       },
-      kcalToday: "{kcal} kcal aujourd'hui",
-      kcalADay: "{kcal} kcal par jour",
+      kcalToday: "{kcal}kcal aujourd'hui",
+      kcalADay: "{kcal}kcal par jour",
     },
     compare: {
       bars: "Barres",
@@ -585,8 +585,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} depuis le {date}",
       trendFlat: "Stable depuis le {date}",
       plan: "Plan",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "aujourd'hui à {time}",
       fromHealth: "Depuis Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -654,8 +654,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "letzten Monat", counted: { other: "die letzten {n} Monate" } },
         years: { one: "dieses Jahr", counted: { other: "die letzten {n} Jahre" } },
       },
-      kcalToday: "{kcal} kcal heute",
-      kcalADay: "{kcal} kcal am Tag",
+      kcalToday: "{kcal}kcal heute",
+      kcalADay: "{kcal}kcal am Tag",
     },
     compare: {
       bars: "Balken",
@@ -672,8 +672,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} seit dem {date}",
       trendFlat: "Stabil seit dem {date}",
       plan: "Plan",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "heute um {time}",
       fromHealth: "Von Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -741,8 +741,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "il mese scorso", counted: { other: "gli ultimi {n} mesi" } },
         years: { one: "quest'anno", counted: { other: "gli ultimi {n} anni" } },
       },
-      kcalToday: "{kcal} kcal oggi",
-      kcalADay: "{kcal} kcal al giorno",
+      kcalToday: "{kcal}kcal oggi",
+      kcalADay: "{kcal}kcal al giorno",
     },
     compare: {
       bars: "Barre",
@@ -759,8 +759,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} dal {date}",
       trendFlat: "Stabile dal {date}",
       plan: "Piano",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "oggi alle {time}",
       fromHealth: "Da Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -828,8 +828,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "el mes pasado", counted: { other: "los últimos {n} meses" } },
         years: { one: "este año", counted: { other: "los últimos {n} años" } },
       },
-      kcalToday: "{kcal} kcal hoy",
-      kcalADay: "{kcal} kcal al día",
+      kcalToday: "{kcal}kcal hoy",
+      kcalADay: "{kcal}kcal al día",
     },
     compare: {
       bars: "Barras",
@@ -846,8 +846,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} desde el {date}",
       trendFlat: "Estable desde el {date}",
       plan: "Plan",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "hoy a las {time}",
       fromHealth: "Desde Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -915,8 +915,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "tháng trước", counted: { other: "{n} tháng gần đây" } },
         years: { one: "năm nay", counted: { other: "{n} năm gần đây" } },
       },
-      kcalToday: "{kcal} kcal hôm nay",
-      kcalADay: "{kcal} kcal mỗi ngày",
+      kcalToday: "{kcal}kcal hôm nay",
+      kcalADay: "{kcal}kcal mỗi ngày",
     },
     compare: {
       bars: "Cột",
@@ -933,8 +933,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} từ {date}",
       trendFlat: "Giữ nguyên từ {date}",
       plan: "Kế hoạch",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "hôm nay lúc {time}",
       fromHealth: "Từ Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -1002,8 +1002,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "bulan lalu", counted: { other: "{n} bulan terakhir" } },
         years: { one: "tahun ini", counted: { other: "{n} tahun terakhir" } },
       },
-      kcalToday: "{kcal} kcal hari ini",
-      kcalADay: "{kcal} kcal sehari",
+      kcalToday: "{kcal}kcal hari ini",
+      kcalADay: "{kcal}kcal sehari",
     },
     compare: {
       bars: "Batang",
@@ -1020,8 +1020,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} sejak {date}",
       trendFlat: "Stabil sejak {date}",
       plan: "Rencana",
-      planValue: "{kcal} kcal",
-      planMoved: "{old} → {new} kcal",
+      planValue: "{kcal}kcal",
+      planMoved: "{old} → {new}kcal",
       todayAt: "hari ini {time}",
       fromHealth: "Dari Apple Health, {when}",
       deltaUp: "▲ {n}",
@@ -1089,8 +1089,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
         months: { one: "за прошлый месяц", counted: { one: "за последние {n} месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" } },
         years: { one: "за этот год", counted: { one: "за последние {n} год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" } },
       },
-      kcalToday: "{kcal} ккал сегодня",
-      kcalADay: "{kcal} ккал в день",
+      kcalToday: "{kcal}ккал сегодня",
+      kcalADay: "{kcal}ккал в день",
     },
     compare: {
       bars: "Столбики",
@@ -1107,8 +1107,8 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       trendUpSolo: "▲ {d} с {date}",
       trendFlat: "Без изменений с {date}",
       plan: "План",
-      planValue: "{kcal} ккал",
-      planMoved: "{old} → {new} ккал",
+      planValue: "{kcal}ккал",
+      planMoved: "{old} → {new}ккал",
       todayAt: "сегодня в {time}",
       fromHealth: "Из Apple Health, {when}",
       deltaUp: "▲ {n}",

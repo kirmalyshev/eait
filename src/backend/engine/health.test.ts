@@ -272,7 +272,7 @@ describe("weight sync", () => {
   });
 
   it("does NOT overwrite a weight typed the same day, however new the import's stamp", async () => {
-    // ieat-app#1233: a scale sample of 70.2 kg replaced a typed 96 kg the same day.
+    // ieat-app#1233: a scale sample of 70.2kg replaced a typed 96kg the same day.
     const userId = await onboard();
     await patchProfile(deps, userId, { weight_kg: 66 });
 

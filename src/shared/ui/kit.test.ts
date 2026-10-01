@@ -116,44 +116,44 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
 
 describe("mac — the chip and its row", () => {
   test("a chip is icon, number, unit", () => {
-    expect(mac("protein", "34 g")).toBe('<span class="mac"><i class="ico i-protein"></i>34 g</span>');
+    expect(mac("protein", "34g")).toBe('<span class="mac"><i class="ico i-protein"></i>34g</span>');
     // Saturated fat aliases fat's look — one chip rule, never retyped.
-    expect(mac("satfat", "9 g")).toContain("i-satfat");
+    expect(mac("satfat", "9g")).toContain("i-satfat");
   });
 
   test("macs is the row of them", () => {
-    const m = macs([{ name: "protein", text: "34 g" }, { name: "carbs", text: "52 g" }]);
+    const m = macs([{ name: "protein", text: "34g" }, { name: "carbs", text: "52g" }]);
     expect(m.startsWith('<span class="macs">')).toBe(true);
     expect(m.match(/class="mac"/g)).toHaveLength(2);
   });
 
-  test("gramMacs writes {n} g in the surface's language", () => {
+  test("gramMacs writes {n}g in the surface's language", () => {
     const m = gramMacs({ protein: 34.4, carbs: 52, fat: 12 }, "en");
-    expect(m).toContain("34 g");
+    expect(m).toContain("34g");
     expect(m).toContain("i-fat");
   });
 });
 
 describe("mcard — the macro card", () => {
   test("with a target it carries the ring", () => {
-    const m = mcard({ macro: "protein", value: "55 g", label: "Protein left", share: 0.4 });
+    const m = mcard({ macro: "protein", value: "55g", label: "Protein left", share: 0.4 });
     expect(m).toContain('class="mcard"');
-    expect(m).toContain("<b>55 g</b>");
+    expect(m).toContain("<b>55g</b>");
     expect(m).toContain("<small>Protein left</small>");
     expect(m).toContain('class="mring"');
     expect(m).toContain('stroke="var(--macro-protein)"');
   });
 
   test("with none it centres the icon — no invented ring for carbs or fat", () => {
-    const m = mcard({ macro: "carbs", value: "132 g", label: "Carbs" });
+    const m = mcard({ macro: "carbs", value: "132g", label: "Carbs" });
     expect(m).toContain('class="mring flat"');
     expect(m).not.toContain("stroke-dasharray");
   });
 
   test("the plan card is chip, figure, label — no ring at all", () => {
-    const m = planCard({ macro: "fat", value: "48 g", label: "Fat" });
+    const m = planCard({ macro: "fat", value: "48g", label: "Fat" });
     expect(m).toContain('class="mcard"');
-    expect(m.indexOf("i-fat")).toBeLessThan(m.indexOf("48 g"));
+    expect(m.indexOf("i-fat")).toBeLessThan(m.indexOf("48g"));
     expect(m).not.toContain("mring");
   });
 });
@@ -219,15 +219,15 @@ describe("photoHero — the photo and its callouts", () => {
     const m = photoHero({
       src: "/salmon.webp", alt: "Salmon, rice and broccoli", stamp: "13:04",
       callouts: [
-        { text: "Salmon 140 g", value: "290", corner: "tl" },
-        { text: "Broccoli 90 g", value: "55", corner: "br", lift: true },
+        { text: "Salmon 140g", value: "290", corner: "tl" },
+        { text: "Broccoli 90g", value: "55", corner: "br", lift: true },
       ],
     });
     expect(m).toContain('class="hero"');
     expect(m).toContain('alt="Salmon, rice and broccoli"');
     expect(m).toContain('class="co tl"');
     expect(m).toContain('class="co br lift"');
-    expect(m).toContain("Salmon 140 g <span>290</span>");
+    expect(m).toContain("Salmon 140g <span>290</span>");
     expect(m).toContain('class="stamp">13:04<');
   });
   test("no callouts, no callout nodes — the analyzer's list is the list", () => {
@@ -240,7 +240,7 @@ describe("the charts", () => {
   test("estimateChartSvg renders its header row — a chart cannot ship labelless", () => {
     const g = estimateChart("lose");
     const m = estimateChartSvg("lose", {
-      aria: "Weight trend to target", start: "74 kg", target: "Target 68 kg",
+      aria: "Weight trend to target", start: "74kg", target: "Target 68kg",
       now: "Now", month: "January 2027 · estimate",
       label: "Estimated progress", byEait: "eait analysis",
     });
@@ -252,7 +252,7 @@ describe("the charts", () => {
     expect(m).toContain('aria-label="Weight trend to target"');
     expect(m).toContain(`d="${g.linePath}"`);
     expect(m).toContain(`cx="${g.startDot.cx}"`);
-    expect(m).toContain(">Target 68 kg</text>");
+    expect(m).toContain(">Target 68kg</text>");
     expect(m).toContain(">January 2027 · estimate</text>");
   });
 
@@ -289,11 +289,11 @@ describe("the charts", () => {
     const m = weightChartSvg(
       [{ t: 0, kg: 74.6 }, { t: 1, kg: 74 }, { t: 2, kg: 73.4 }],
       { first: "74.6", last: "73.4", from: "24 Aug", to: "24 Sep" },
-      { label: "68 kg · target" },
+      { label: "68kg · target" },
     );
     expect(m).toContain('viewBox="0 0 320 120"');
     expect(m).toContain('stroke-dasharray="4 4"');
-    expect(m).toContain(">68 kg · target</text>");
+    expect(m).toContain(">68kg · target</text>");
   });
 
   test("weekBarsSvg: empty days have no bar, today is the tinted one", () => {

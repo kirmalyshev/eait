@@ -252,7 +252,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     named.append(thumb, el("span", "t13 m",
       // `phoneFixMeal` — "{name} · {kcal} · {time}", the {kcal} spelled with its unit.
       fill(mc.phoneFixMeal, {
-        name: names(meal.items), kcal: `${n(meal.kcal)} ${UNIT_KCAL[lang]}`, time: mealTime(meal),
+        name: names(meal.items), kcal: `${n(meal.kcal)}${UNIT_KCAL[lang]}`, time: mealTime(meal),
       })));
     const field = el("textarea", "fixfield") as HTMLTextAreaElement;
     field.placeholder = mc.composeHint;
@@ -317,12 +317,12 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const size = (): void => { grams.style.width = `${Math.max(2, grams.value.length)}ch`; };
     size();
     const pill = el("label", "amtpill");
-    pill.append(grams, document.createTextNode(` ${spellUnit(lang, "g")}`), kitEl(ico("pencil")));
+    pill.append(grams, document.createTextNode(`${spellUnit(lang, "g")}`), kitEl(ico("pencil")));
     const amountRow = el("div", "row between");
     amountRow.append(el("span", "amlab", mc.phoneAmount), pill);
     // The "was" figures the board draws once the field moves off the stored value — under the
-    // amount row and beside the live kcal. Hidden until then: "was 150 g" under an untouched
-    // "150 g" is the duplication ieat-app#1019 removed.
+    // amount row and beside the live kcal. Hidden until then: "was 150g" under an untouched
+    // "150g" is the duplication ieat-app#1019 removed.
     const wasG = el("span", "t12 m ingwas",
       fill(mc.phoneWasAmount, { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }));
     wasG.hidden = true;
@@ -368,7 +368,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     grams.addEventListener("input", () => {
       size();
       const g = gramsNow();
-      // Every item at 0 g is no meal (ieat-app#1224); the bin is the way to take the last one off.
+      // Every item at 0g is no meal (ieat-app#1224); the bin is the way to take the last one off.
       done.disabled = g === 0 && meal.items.every((it, i) => i === index || it.grams === 0);
       const edited = g !== null && g !== item.grams;
       wasG.hidden = !edited;
@@ -518,9 +518,9 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(n(meal.kcal))}</b></span></div>`));
     const tiles = el("div", "mcards");
     for (const [macro, value, label] of [
-      ["protein", `${n(meal.protein_g)} ${spellUnit(lang, "g")}`, mc.macroProtein],
-      ["carbs", `${n(meal.carbs_g)} ${spellUnit(lang, "g")}`, mc.macroCarbs],
-      ["fat", `${n(meal.fat_g)} ${spellUnit(lang, "g")}`, mc.macroFat],
+      ["protein", `${n(meal.protein_g)}${spellUnit(lang, "g")}`, mc.macroProtein],
+      ["carbs", `${n(meal.carbs_g)}${spellUnit(lang, "g")}`, mc.macroCarbs],
+      ["fat", `${n(meal.fat_g)}${spellUnit(lang, "g")}`, mc.macroFat],
     ] as const) {
       tiles.append(mcardEl({ macro, value, label, centred: true }));
     }

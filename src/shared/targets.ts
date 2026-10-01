@@ -35,7 +35,7 @@ import type {
  * The absolute daily floor, by sex. Nothing in this module may return below it, whatever the
  * arithmetic upstream produced.
  *
- * These are the widely-published minimums for unsupervised dieting (1200 kcal for women, 1500 for
+ * These are the widely-published minimums for unsupervised dieting (1200kcal for women, 1500 for
  * men) — the same 1200 figure the reviewer above cited Harvard for. They are a POLICY FLOOR, not a
  * clinical judgement about any individual: a supervised very-low-calorie diet is a real thing, and
  * this app is not supervision. `other` takes the higher one — the same call `KCAL_FLOOR_UNKNOWN`
@@ -62,7 +62,7 @@ export const MAX_SURPLUS_SHARE = 0.15;
 export const PACE_KG_PER_WEEK: Record<Pace, number> = { easy: 0.25, steady: 0.5, push: 0.75 };
 
 /**
- * Energy in one kg of body mass. The classic 7700 kcal/kg figure.
+ * Energy in one kg of body mass. The classic 7700kcal/kg figure.
  *
  * Exported for `projection.ts`, which must divide by the SAME constant this file multiplies by —
  * a projection derived from a different figure would disagree with the pace it is projecting.
@@ -123,7 +123,7 @@ const KCAL_BY_GOAL = { lose: 1800, maintain: 2100, gain: 2400 } as const;
 /**
  * Everything behind the number, so the app can show its work.
  *
- * This is not diagnostics. A user who is told "1,450 kcal" and nothing else has been handed an
+ * This is not diagnostics. A user who is told "1,450kcal" and nothing else has been handed an
  * assertion; a user who is told "your maintenance is 2,100, we subtracted 20%, and we stopped at
  * your floor of 1,200" has been handed a reason. The second is the honest product and it is also
  * the defensible one — `floorApplied` is what the UI reads to explain itself.
@@ -295,7 +295,7 @@ export function explainTargetsAtAge(profile: Profile, age: number | null): Targe
   const magnitude = Math.round((weeklyKg * KCAL_PER_KG) / 7);
   const requestedDeltaKcal = goal === "lose" ? -magnitude : goal === "gain" ? magnitude : 0;
 
-  // Guard 1 — the share cap. Scales with the person, so a 55 kg woman and a 110 kg man are not
+  // Guard 1 — the share cap. Scales with the person, so a 55kg woman and a 110kg man are not
   // handed the same absolute deficit for the same requested rate.
   const limit = Math.round(tdee * (requestedDeltaKcal < 0 ? MAX_DEFICIT_SHARE : MAX_SURPLUS_SHARE));
   const cappedDeltaKcal = clampMagnitude(requestedDeltaKcal, limit);
@@ -321,7 +321,7 @@ export function explainTargetsAtAge(profile: Profile, age: number | null): Targe
 }
 
 /**
- * The macro cards the plan draws (decision 3): fat takes 30 % of the kcal, at 9 kcal a gram; carbs
+ * The macro cards the plan draws (decision 3): fat takes 30 % of the kcal, at 9kcal a gram; carbs
  * take what protein and fat leave, at 4. Computed HERE and nowhere else — a second split anywhere
  * would be two numbers that eventually disagree on one card. The remainder clamps at zero: a
  * protein target at its cap beside a floored kcal may exhaust the budget, and a negative gram is a
@@ -344,7 +344,7 @@ function clampMagnitude(value: number, limit: number): number {
 }
 
 /**
- * Protein target. Unchanged from eait: 1.6 g/kg, anchored to the GOAL weight when cutting (a
+ * Protein target. Unchanged from eait: 1.6g/kg, anchored to the GOAL weight when cutting (a
  * deficit risks lean mass, so protein tracks where the user is heading), clamped so an extreme
  * bodyweight cannot produce an absurd number.
  */

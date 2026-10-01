@@ -104,7 +104,7 @@ describe("deleteLine", () => {
 
   it("a text line whose proposal was LOGGED takes the meal with it, like a photo line (#608: a line is its meal)", async () => {
     // Review recording, 13 Sep 2026: long-press on the typed meal bubble offered "Remove this
-    // message? Numbers stay." and left the 388 kcal yogurt in the diary. The confirmed meal carries
+    // message? Numbers stay." and left the 388kcal yogurt in the diary. The confirmed meal carries
     // the proposal's id, so the line names its meal exactly as a photo line does.
     const userId = await onboard();
     await handleText(deps, userId, { text: "two eggs and toast" });

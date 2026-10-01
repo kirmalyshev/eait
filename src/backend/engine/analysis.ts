@@ -39,8 +39,8 @@ export function isCookingFat(item: { role?: string | undefined; kcal?: number | 
  * its own working. The items are the totals either way; this decides only the confidence.
  *
  * A percentage alone flags an olive against a rounding difference; a flat number alone lets a
- * 900 kcal plate drift by a fifth. The floor is what stops a 40 kcal snack being downgraded over
- * 6 kcal nobody got wrong.
+ * 900kcal plate drift by a fifth. The floor is what stops a 40kcal snack being downgraded over
+ * 6kcal nobody got wrong.
  */
 const TOLERANCE_SHARE = 0.15;
 const TOLERANCE_FLOOR_KCAL = 30;

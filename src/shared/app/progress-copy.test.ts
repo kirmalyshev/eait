@@ -55,10 +55,10 @@ describe("PROGRESS_COPY", () => {
     expect(en.title).toBe("Progress");
     expect(en.weightLabel).toBe("Weight");
     expect(en.ranges).toEqual({ "90D": "90D", "6M": "6M", "1Y": "1Y", all: "All" });
-    expect(en.weightNow.metric).toBe("{n} kg");
-    expect(en.goalLine.metric).toBe("{from} → {to} kg");
+    expect(en.weightNow.metric).toBe("{n}kg");
+    expect(en.goalLine.metric).toBe("{from} → {to}kg");
     expect(en.goalEstimate).toBe("around {month} · estimate");
-    expect(en.goalDown.metric).toBe("{n} kg down");
+    expect(en.goalDown.metric).toBe("{n}kg down");
     expect(en.goalToGo.metric).toBe("{n} to go");
     expect(en.weekLabel).toBe("This week");
     expect(en.weekPlan).toBe("kcal a day · plan {plan}");
@@ -94,7 +94,7 @@ describe("PROGRESS_COPY", () => {
 
   it("carries no claim the gate would refuse, in any of the eight", () => {
     // The templates themselves, unfilled — the corpus rule the other sweeps run. A filled
-    // "минус 5 кг" reads as description of what already happened, exactly the `planGoal` case.
+    // "минус 5кг" reads as description of what already happened, exactly the `planGoal` case.
     for (const lang of LANGS) {
       const named: Record<string, string> = {};
       for (const [k, v] of Object.entries(fields(PROGRESS_COPY[lang]!))) named[`PROGRESS_COPY.${k}`] = v;

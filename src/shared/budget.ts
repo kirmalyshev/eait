@@ -2,7 +2,7 @@
 //
 // ONE PLACE FOR THE ARITHMETIC, because the two clients draw the same number in the largest type
 // on the screen and a rounding that differs between them is a disagreement anybody can see. The
-// words stay with each client; the state is named so that `${kcal} kcal ${state}` reads.
+// words stay with each client; the state is named so that `${kcal}kcal ${state}` reads.
 //
 // THE WEB PAGE IMPORTS THIS BY RELATIVE PATH (`web/AGENTS.md`, #608), and so does the one value it
 // now takes: `toGuessStep` from `lang.ts`, which that bundle already loads for its formatters.
@@ -109,10 +109,10 @@ export function dayBudget(
 }
 
 /**
- * Grams of a macro still left against its target — the figure a "{g} g left" card prints.
+ * Grams of a macro still left against its target — the figure a "{g}g left" card prints.
  *
  * Shared so the phone and the web card agree: both clients draw the same macro cards, and each
- * clamping or rounding the subtraction on its own is how "0 g left" on one surface reads "-1 g"
+ * clamping or rounding the subtraction on its own is how "0g left" on one surface reads "-1g"
  * on another. A macro with no target has nothing left to count and answers 0.
  */
 export function macroLeft(target: number, eaten: number): number {
@@ -120,10 +120,10 @@ export function macroLeft(target: number, eaten: number): number {
 }
 
 /**
- * A macro card's figure-and-label pair — "{n} g" over "{Macro} left" or "{Macro} over".
+ * A macro card's figure-and-label pair — "{n}g" over "{Macro} left" or "{Macro} over".
  *
  * ONE RULE for the two screens that draw the card: Home's diary column and You's day column are
- * the same component on the boards (#175), so a clamped "0 g left" beside a real overage is two
+ * the same component on the boards (#175), so a clamped "0g left" beside a real overage is two
  * cards disagreeing about one day. `label` is a copy slot the screen fills; over shows the
  * overage and closes the ring, a targetless macro shows the eaten figure and draws no ring, and
  * the share is eaten/target clamped to a full ring.
@@ -155,7 +155,7 @@ export const macroCardState = (eaten: number, target: number | undefined): Macro
  * forms); `figure` is the number above it. The rules: today toggles `left` to `eaten`; an OVER
  * day's figure is the overage under "over" — and toggles to eaten under "eaten", never the eaten
  * figure under "over"; a PAST day reads like today's untoggled face — left or over against the
- * plan that day had (#170's board: "{n} kcal over · {eaten} of {plan}"), the eaten figure lives
+ * plan that day had (#170's board: "{n}kcal over · {eaten} of {plan}"), the eaten figure lives
  * only behind today's toggle; and a past day with nothing on it shows the plan that day had,
  * under "left" (the boards' "0 of {n}" form). A guessed day carries the about-marker through for
  * the figure's own mark (#47).

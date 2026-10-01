@@ -87,7 +87,7 @@ describe("a stored prompt reaches the model", () => {
     const system = String(messagesOf(bodies[0]!)[0]!.content);
     expect(system.startsWith("You are terse.")).toBe(true);
     // `buildCoachContext` still ran, and it is still the only source of the numbers.
-    expect(system).toContain("Daily targets: 2393 kcal, 141 g protein.");
+    expect(system).toContain("Daily targets: 2393kcal, 141g protein.");
     expect(system).toContain("Today is 2026-09-02");
   });
 });

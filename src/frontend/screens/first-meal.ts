@@ -246,13 +246,13 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
     if (analysis.confidence === "low") big.append(el("span", "about", `${COPY.about} `));
-    big.append(el("span", "hero num", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
+    big.append(el("span", "hero num", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", `${UNIT_KCAL[lang]}`));
     card.append(big);
     const stats = el("div", "stats");
     for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {
       const cell = el("div", "stat-cell");
-      // Whole grams, as the thread says them (#49: "37.4 g" on the card beside "37 g" in the text).
-      cell.append(el("div", "lab", label), el("div", "stat-num num", `${wholeNumbers(lang)(v)} g`));
+      // Whole grams, as the thread says them (#49: "37.4g" on the card beside "37g" in the text).
+      cell.append(el("div", "lab", label), el("div", "stat-num num", `${wholeNumbers(lang)(v)}g`));
       stats.append(cell);
     }
     card.append(stats);

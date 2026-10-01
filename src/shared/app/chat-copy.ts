@@ -27,7 +27,7 @@
 //
 // RUSSIAN: no past-tense verb may describe the reader (`genderedRussian` walks this table), so the
 // composer's "What did you eat?" asks about the plate, not about "ты ел". The gram beside a figure
-// is a symbol inside the template — "{n} г" — never a declined word.
+// is a symbol inside the template — "{n}г" — never a declined word.
 
 import { t, type Localized } from "../lang.ts";
 import { STRUGGLES, type Lang, type Struggle } from "../types.ts";
@@ -68,7 +68,7 @@ export interface ChatScreenCopy {
    */
   macroLabels: { protein: string; carbs: string; fat: string; kcal: string; satfat: string };
   /**
-   * The figure beside the bar as its TWO halves — the `wholeNumbers` slot, then the "of 109 g"
+   * The figure beside the bar as its TWO halves — the `wholeNumbers` slot, then the "of 109g"
    * tail, `{unit}` being kcal on the calories bar — so a client composes `macroEaten` +
    * `macroTarget` rather than splitting a template on `{value}` (a cut no translation may reorder
    * or rewrite).
@@ -252,7 +252,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Protein", carbs: "Carbs", fat: "Fat", kcal: "Calories", satfat: "Saturated fat" },
     starters: { consistency: "How's my week going?", habits: "What's a lighter swap for dinner?", support: "Am I getting enough protein?", busy: "I'll just tell you what I ate", ideas: "What should I eat tonight?" },
     macroEaten: "{value}",
-    macroTarget: "of {target} {unit}",
+    macroTarget: "of {target}{unit}",
     loadFailed: "Couldn't load the conversation.",
     tryAgain: "Try again",
     eitherWorks: "Photograph it or tell me — either works",
@@ -343,7 +343,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Protéines", carbs: "Glucides", fat: "Lipides", kcal: "Calories", satfat: "Graisses saturées" },
     starters: { consistency: "Ma semaine se passe comment ?", habits: "Une alternative plus légère pour le dîner ?", support: "J'ai assez de protéines ?", busy: "Je te dis juste ce que j'ai mangé", ideas: "Je mange quoi ce soir ?" },
     macroEaten: "{value}",
-    macroTarget: "sur {target} {unit}",
+    macroTarget: "sur {target}{unit}",
     loadFailed: "Impossible de charger la conversation.",
     tryAgain: "Réessayer",
     eitherWorks: "Photographie-le ou raconte-le-moi — les deux marchent",
@@ -434,7 +434,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett", kcal: "Kalorien", satfat: "Gesättigte Fette" },
     starters: { consistency: "Wie läuft meine Woche?", habits: "Wie mache ich das Abendessen leichter?", support: "Bekomme ich genug Eiweiß?", busy: "Ich sage dir einfach, was ich gegessen habe", ideas: "Was soll ich heute Abend essen?" },
     macroEaten: "{value}",
-    macroTarget: "von {target} {unit}",
+    macroTarget: "von {target}{unit}",
     loadFailed: "Die Unterhaltung konnte nicht geladen werden.",
     tryAgain: "Erneut versuchen",
     eitherWorks: "Fotografier es oder sag es mir — beides geht",
@@ -525,7 +525,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Proteine", carbs: "Carboidrati", fat: "Grassi", kcal: "Calorie", satfat: "Grassi saturi" },
     starters: { consistency: "Come sta andando la settimana?", habits: "Un'alternativa più leggera per cena?", support: "Sto prendendo abbastanza proteine?", busy: "Ti dico solo cosa ho mangiato", ideas: "Cosa mangio stasera?" },
     macroEaten: "{value}",
-    macroTarget: "su {target} {unit}",
+    macroTarget: "su {target}{unit}",
     loadFailed: "Impossibile caricare la conversazione.",
     tryAgain: "Riprova",
     eitherWorks: "Fotografalo o dimmelo — uno vale l'altro",
@@ -616,7 +616,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa", kcal: "Calorías", satfat: "Grasas saturadas" },
     starters: { consistency: "¿Cómo va mi semana?", habits: "¿Una alternativa más ligera para la cena?", support: "¿Estoy tomando suficiente proteína?", busy: "Te digo lo que comí y ya", ideas: "¿Qué ceno hoy?" },
     macroEaten: "{value}",
-    macroTarget: "de {target} {unit}",
+    macroTarget: "de {target}{unit}",
     loadFailed: "No se pudo cargar la conversación.",
     tryAgain: "Reintentar",
     eitherWorks: "Fotografíalo o cuéntamelo — cualquiera vale",
@@ -707,7 +707,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hoà" },
     starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Tôi sẽ kể tôi đã ăn gì", ideas: "Tối nay nên ăn gì?" },
     macroEaten: "{value}",
-    macroTarget: "trên {target} {unit}",
+    macroTarget: "trên {target}{unit}",
     loadFailed: "Không tải được cuộc trò chuyện.",
     tryAgain: "Thử lại",
     eitherWorks: "Chụp nó hoặc kể mình nghe — cách nào cũng được",
@@ -798,7 +798,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Protein", carbs: "Karbohidrat", fat: "Lemak", kcal: "Kalori", satfat: "Lemak jenuh" },
     starters: { consistency: "Bagaimana mingguku?", habits: "Ada alternatif lebih ringan untuk makan malam?", support: "Proteinku sudah cukup belum?", busy: "Aku kasih tahu saja apa yang kumakan", ideas: "Malam ini sebaiknya makan apa?" },
     macroEaten: "{value}",
-    macroTarget: "dari {target} {unit}",
+    macroTarget: "dari {target}{unit}",
     loadFailed: "Tidak bisa memuat percakapan.",
     tryAgain: "Coba lagi",
     eitherWorks: "Foto atau ceritakan ke aku — dua-duanya bisa",
@@ -889,7 +889,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     macroLabels: { protein: "Белок", carbs: "Углеводы", fat: "Жиры", kcal: "Калории", satfat: "Насыщенные жиры" },
     starters: { consistency: "Как у меня идёт неделя?", habits: "Как сделать ужин полегче?", support: "Мне хватает белка?", busy: "Просто скажу, что было на тарелке", ideas: "Что съесть сегодня вечером?" },
     macroEaten: "{value}",
-    macroTarget: "из {target} {unit}",
+    macroTarget: "из {target}{unit}",
     loadFailed: "Не удалось загрузить переписку.",
     tryAgain: "Попробовать ещё раз",
     eitherWorks: "Сфотографируй или расскажи — сработает и так, и так",

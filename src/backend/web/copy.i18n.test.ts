@@ -189,7 +189,7 @@ describe("the plan card's two figures", () => {
     html.replace(/<style>[\s\S]*?<\/style>/g, "").replace(/<[^>]+>/g, " ").replace(/class="[^"]*"/g, "");
 
   it("spell the kilocalorie the same way, on one card, in every language", () => {
-    // A Russian plan card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. The
+    // A Russian plan card read "1 500kcal" with "Порог — 1500ккал." two lines under it. The
     // kcal card's caption is the content's own (`kcalLabel`), so the spelling beside the figure
     // is the language's and there is nothing else on the card to disagree with it.
     for (const lang of LANGS) {
@@ -207,8 +207,8 @@ describe("the plan card's two figures", () => {
 
   it("writes a MEAL CARD's figures in the reader's language too, not only the plan's", () => {
     // `plan()` was localized and these two were not, in the same file: the proposal card and every
-    // card in the thread interpolated `${kcal} kcal · ${proteinG} g protein` raw. A Russian reader
-    // got `1450 kcal · 30 g protein` underneath a plan page reading `Порог — 1 500 ккал.` — the
+    // card in the thread interpolated `${kcal}kcal · ${proteinG}g protein` raw. A Russian reader
+    // got `1450kcal · 30g protein` underneath a plan page reading `Порог — 1 500ккал.` — the
     // wrong unit and the wrong grouping, on the surface where the number is the whole point.
     const card = { title: "Овсянка", kcal: 1450, proteinG: 30, verdicts: [] };
     for (const lang of LANGS) {

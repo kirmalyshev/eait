@@ -80,7 +80,7 @@ describe("reconcilePage", () => {
     const { next } = reconcilePage([card(meal("m1", 200))], [stale], new Set(), true);
     const first = next[0];
     expect(first && first.role === "card" && first.meal?.kcal).toBe(200);
-    // A disappearance propagates too: one meal must not read as gone on one card and as 100 kcal on another.
+    // A disappearance propagates too: one meal must not read as gone on one card and as 100kcal on another.
     const gone = reconcilePage([card(null, "m1")], [stale], new Set(), true).next[0];
     expect(gone && gone.role === "card" && gone.meal).toBeNull();
   });
@@ -125,9 +125,9 @@ describe("mergeThread", () => {
 
 describe("fromHistory", () => {
   it("keeps who said an assistant line, so Gabie's answers wear her face after a reload", () => {
-    const [spud, gabie] = fromHistory([said("Logged."), said("About 40 g.", "gabie")]);
+    const [spud, gabie] = fromHistory([said("Logged."), said("About 40g.", "gabie")]);
     expect(spud).toMatchObject({ role: "assistant", stored: true, result: { kind: "answered", text: "Logged.", speaker: null } });
-    expect(gabie).toMatchObject({ role: "assistant", stored: true, result: { kind: "answered", text: "About 40 g.", speaker: "gabie" } });
+    expect(gabie).toMatchObject({ role: "assistant", stored: true, result: { kind: "answered", text: "About 40g.", speaker: "gabie" } });
   });
 });
 

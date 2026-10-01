@@ -49,7 +49,7 @@ describe("firstMealEdit", () => {
     expect(edit.kcal).toBe(696);
   });
 
-  it("never scales a density — kcal_per_100g is per 100 g whatever the portion", () => {
+  it("never scales a density — kcal_per_100g is per 100g whatever the portion", () => {
     const edit = firstMealEdit(MEAL, mealTitle(MEAL.items), "small")!;
     expect(edit.items?.[0]?.kcal_per_100g).toBe(165);
   });

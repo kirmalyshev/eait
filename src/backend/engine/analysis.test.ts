@@ -16,7 +16,7 @@ const item = (kcal: number, over: Partial<AnalyzedMeal["items"][number]> = {}) =
   kcal_per_100g: kcal, ...over,
 });
 
-/** A plate whose items sum to 400 kcal, 40 g protein, 80 g carbs, 20 g fat. */
+/** A plate whose items sum to 400kcal, 40g protein, 80g carbs, 20g fat. */
 const plate = (over: Partial<AnalyzedMeal> = {}): AnalyzedMeal => ({
   isFood: true,
   items: [item(300), item(100)],
@@ -36,7 +36,7 @@ describe("reconciling totals against the items", () => {
   });
 
   test("a total inside the tolerance is summed too, and keeps its confidence", () => {
-    // 50 kcal out over a 400 kcal plate is inside 15%. The header is still the rows — there is only
+    // 50kcal out over a 400kcal plate is inside 15%. The header is still the rows — there is only
     // ever one number on the card — but a gap this size is not worth saying anything about.
     const { analysis } = prepareAnalysis(plate({ kcal: 450, confidence: "medium" }));
     expect(analysis.kcal).toBe(400);
@@ -68,7 +68,7 @@ describe("reconciling totals against the items", () => {
   });
 
   test("small plates get a floor, not a percentage", () => {
-    // 15% of a 40 kcal snack is 6 kcal, which is inside the noise of any estimate of anything. A
+    // 15% of a 40kcal snack is 6kcal, which is inside the noise of any estimate of anything. A
     // percentage alone would downgrade the confidence of a plate nobody got wrong.
     const snack = { items: [item(40)], protein_g: 4, carbs_g: 8, fat_g: 2 };
     const at = (kcal: number) => prepareAnalysis(plate({ ...snack, kcal })).analysis;

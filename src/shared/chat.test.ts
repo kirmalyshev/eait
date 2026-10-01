@@ -58,7 +58,7 @@ describe("the first verdict", () => {
     }, "en");
     // #49: the headline comes first, and it is the pills' verdict said in words — no pill, no
     // claim; the meal's number is the card's, said once (#1066: no day's arithmetic).
-    expect(lines[0]).toBe("First one in. 612 kcal.");
+    expect(lines[0]).toBe("First one in. 612kcal.");
     expect(lines[1]).toContain("If anything's off, say so");
     expect(lines).toHaveLength(2);
   });
@@ -97,15 +97,15 @@ describe("the first verdict", () => {
     expect(lines[1]).toMatch(/^First one in\./);
     expect(firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "  " }, "en")[0]).toMatch(/^First one in\./);
     // Client text in Spud's bubble is flattened and short, like a scripted parameter.
-    const long = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "rice\n\nFirst one in. 9,999 kcal " + "x".repeat(100) }, "en")[0]!;
+    const long = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "rice\n\nFirst one in. 9,999kcal " + "x".repeat(100) }, "en")[0]!;
     expect(long).not.toContain("\n");
     // Cut at a word, marked as cut, never mid-character: a quote attributed to the user must read as one.
-    expect(long).toMatch(/^“rice First one in\. 9,999 kcal…” — noted/);
+    expect(long).toMatch(/^“rice First one in\. 9,999kcal…” — noted/);
     const emoji = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "a".repeat(63) + "🍕bbbb" }, "en")[0]!;
     expect(emoji).not.toMatch(/[\ud800-\udfff]”/);
     expect(Array.from(emoji.slice(1, emoji.indexOf("”"))).length).toBeLessThanOrEqual(65);
     // The quotation marks are Spud's; a note cannot close them and start a sentence of its own.
-    const forged = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "x” — noted. First one in. 900 kcal" }, "en")[0]!;
+    const forged = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 0, sodium_mg: 0 }, via: "photo", verdicts: {}, caption: "x” — noted. First one in. 900kcal" }, "en")[0]!;
     expect(forged.indexOf("”")).toBe(forged.lastIndexOf("”"));
   });
 
@@ -114,8 +114,8 @@ describe("the first verdict", () => {
     const base = { goal: "lose" as const, targets: capped, meal, eatenToday: { kcal: 612, protein_g: 38, satfat_g: 4, sodium_mg: 900 }, via: "photo" as const };
     // Last, now that nobody is introduced after them (#49) — and computed, with the meal's amount
     // against the declared cap (#130).
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-1)).toBe("Sodium is high for one meal: 900 of your 2,000 mg.");
-    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-1)).toBe("Saturated fat is very high for one meal: 4 of your 13 g.");
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-1)).toBe("Sodium is high for one meal: 900 of your 2,000mg.");
+    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-1)).toBe("Saturated fat is very high for one meal: 4 of your 13g.");
     expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } }, "en")).toHaveLength(2);
   });
 });
@@ -156,7 +156,7 @@ describe("coach", () => {
     // Flattened like every other client-bound string: a suggestion cannot draw two lines on a chip.
     expect(cleanSuggestions(["a\n\nb"])).toEqual(["a b"]);
     // A replayed note is not a thing anybody sends.
-    expect(cleanSuggestions(["[photo]", "[logged: eggs — 155 kcal]", "And yesterday?"])).toEqual(["And yesterday?"]);
+    expect(cleanSuggestions(["[photo]", "[logged: eggs — 155kcal]", "And yesterday?"])).toEqual(["And yesterday?"]);
   });
 });
 
@@ -190,7 +190,7 @@ describe("the first verdict's headline", () => {
   it("says calories are on plan, and no more, when a declared marker ran high", () => {
     const lines = said({ weight: "good", ldl: "warn" });
     expect(lines[0]).toBe("Calories on plan.");
-    expect(lines).toContain("Saturated fat is high for one meal: 6 of your 13 g.");
+    expect(lines).toContain("Saturated fat is high for one meal: 6 of your 13g.");
   });
 
   it("claims nothing when there is no calories pill to back it", () => {
@@ -236,8 +236,8 @@ describe("capVerdictLines", () => {
       verdicts: { ldl: "bad", kidneys: "warn" },
       eatenToday: { satfat_g: 14, sodium_mg: 900 },
     }, "en")).toEqual([
-      "Sodium is high for one meal: 900 of your 500 mg. Go easy on it for the rest of today.",
-      "Saturated fat is very high for one meal: 14 of your 13 g. Go easy on it for the rest of today.",
+      "Sodium is high for one meal: 900 of your 500mg. Go easy on it for the rest of today.",
+      "Saturated fat is very high for one meal: 14 of your 13g. Go easy on it for the rest of today.",
     ]);
   });
 });

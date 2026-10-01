@@ -27,7 +27,7 @@ export type HealthGroup = (typeof HEALTH_GROUPS)[number]["id"];
  * How a day's samples become one number.
  *
  * `last`  — the most recent reading of the day wins. Correct for anything measured rather than
- *           accumulated: a mean of this morning's 94 kg and this evening's 92 kg reports 93 kg,
+ *           accumulated: a mean of this morning's 94kg and this evening's 92kg reports 93kg,
  *           a weight the scale never showed and the user never had.
  * `sum`   — the day's total. Correct for anything accumulated: energy, steps, distance, minutes.
  * `count` — how many samples there were, ignoring their values. Workouts.
@@ -160,7 +160,7 @@ export function fieldsInGroup(group: HealthGroup): readonly HealthFieldSpec[] {
  * always the one to hand. Choosing what to render from the newest day alone drops all of them the
  * moment that day happens to carry only steps — which is most days, and always the ones before the
  * user has weighed in. The row itself then shows the most recent reading it has, so the screen says
- * "92.1 kg" from yesterday rather than saying nothing about weight at all.
+ * "92.1kg" from yesterday rather than saying nothing about weight at all.
  *
  * The other direction still holds: a metric no day in the window carries is dropped, because a card
  * of rows the user has never recorded is a screen that looks broken.

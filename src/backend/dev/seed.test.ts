@@ -96,7 +96,7 @@ describe("seedDevData", () => {
 
     const profile = await store.getProfile(seeded!.userId);
     expect(profile?.onboarded_at).not.toBeNull();
-    // The profile the boards are drawn against: 74 kg typed, 68 to reach, a 1,434 plan.
+    // The profile the boards are drawn against: 74kg typed, 68 to reach, a 1,434 plan.
     expect(profile?.weight_kg).toBe(74);
     expect(profile?.target_weight_kg).toBe(68);
     expect(profile?.restrictions).toContain("ldl");
@@ -122,7 +122,7 @@ describe("seedDevData", () => {
     expect(today.map((m) => m.kcal)).toEqual([312, 540, 214]);
     const sum = (key: "protein_g" | "carbs_g" | "fat_g") =>
       today.reduce((n, m) => n + m[key], 0);
-    // The board's own words: 368 kcal, 55 g protein, 8 g carbs and 13 g fat left of a
+    // The board's own words: 368kcal, 55g protein, 8g carbs and 13g fat left of a
     // 1,434 / 109 / 142 / 48 plan.
     expect({ kcal: 1434 - 1066, protein_g: 109 - sum("protein_g"), carbs_g: 142 - sum("carbs_g"), fat_g: 48 - sum("fat_g") })
       .toEqual({ kcal: 368, protein_g: 55, carbs_g: 8, fat_g: 13 });

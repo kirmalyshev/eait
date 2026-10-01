@@ -92,7 +92,7 @@ export function catalogText(lang: Lang): Record<string, string> {
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  * `lingui compile --strict` DOES NOT CHECK THIS, and that was measured rather than assumed.
  * Dropping `{plan}` from the German `/today` header compiles clean and ships
- * "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence about a plan with no plan in it. `--strict`
+ * "Heute: 1kcal, 3 von 4g Eiweiß" — a sentence about a plan with no plan in it. `--strict`
  * means "every message is translated", not "every translation takes the same arguments".
  *
  * A missing argument is the worst kind of translation bug: the sentence still reads, still parses

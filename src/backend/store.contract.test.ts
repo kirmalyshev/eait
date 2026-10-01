@@ -1074,7 +1074,7 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(got.healthScore!.score).toBe(6);
       expect(got.healthScore!.parts.map((p) => p.factor))
         .toEqual(["protein", "fibre", "satfat", "sugar", "salt"]);
-      // 3000 mg on 260 kcal is past the salt band's top: −2, and the score moves with the numbers.
+      // 3000mg on 260kcal is past the salt band's top: −2, and the score moves with the numbers.
       const updated = (await s.updateMeal(u, m.id, { sodium_mg: 3000 }))!;
       expect(updated.healthScore!.parts.find((p) => p.factor === "salt")!.points).toBe(-2);
       expect(updated.healthScore!.score).toBe(4);

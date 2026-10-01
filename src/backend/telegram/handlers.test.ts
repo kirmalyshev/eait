@@ -241,7 +241,7 @@ describe("text", () => {
 
     const [proposal] = chat.sent;
     expect(proposal!.text).toStartWith(TELEGRAM_COPY.proposalLead);
-    expect(proposal!.text).toMatch(/\d+ kcal/);
+    expect(proposal!.text).toMatch(/\d+kcal/);
     const [pending] = await store.pendingsFor(userId);
     expect(proposal!.buttons).toEqual([
       { text: TELEGRAM_COPY.logIt, data: `ok:${pending!.id}` },
@@ -329,7 +329,7 @@ describe("photos", () => {
     await h.photos(from, [async () => jpeg()], "lunch", chat);
     expect(chat.sent).toHaveLength(1);
     expect(chat.sent[0]!.text).toStartWith(TELEGRAM_COPY.logged);
-    expect(chat.sent[0]!.text).toMatch(/\d+ kcal/);
+    expect(chat.sent[0]!.text).toMatch(/\d+kcal/);
     expect(await store.countUserAnalyses(userId)).toBe(1);
   });
 
@@ -376,7 +376,7 @@ describe("/today", () => {
     expect(chat.sent).toHaveLength(1);
     // Grouped, because every figure goes through `wholeNumbers` now: "1,724" in English and
     // "1.724" in German. The plan target used to print raw and was the one ungrouped number here.
-    expect(chat.sent[0]!.text).toMatch(/^Today: [\d,]+ of [\d,]+ kcal, [\d,]+ of [\d,]+ g protein\n\d\d:\d\d .+ — [\d,]+ kcal$/);
+    expect(chat.sent[0]!.text).toMatch(/^Today: [\d,]+ of [\d,]+kcal, [\d,]+ of [\d,]+g protein\n\d\d:\d\d .+ — [\d,]+kcal$/);
   });
 
   it("says so when nothing is logged", async () => {

@@ -31,7 +31,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Обновил — {kcal} ккал. {day}"
+#~ msgstr "Обновил — {kcal}ккал. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -46,32 +46,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Сегодня осталось {left} из {plan}, белка {protein} из {proteinTarget} г."
+#~ msgstr "Сегодня осталось {left} из {plan}, белка {protein} из {proteinTarget}г."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
+#~ msgstr "сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget}г. Продолжай."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
+#~ msgstr "Сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget}г. Продолжай."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "Сегодня {over} сверх {plan}, белка {protein} из {proteinTarget} г."
+#~ msgstr "Сегодня {over} сверх {plan}, белка {protein} из {proteinTarget}г."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+#~ msgstr "сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget}г. На наборе перебор — это и есть смысл; завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "Сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+#~ msgstr "Сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget}г. На наборе перебор — это и есть смысл; завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -96,22 +96,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г."
+#~ msgstr "остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget}г."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г."
+#~ msgstr "Остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget}г."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
+#~ msgstr "получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget}г. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
+#~ msgstr "Получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget}г. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -121,7 +121,7 @@ msgstr "«{note}» — записал, это в цифрах."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal} ккал"
+msgstr "{names} · {kcal}ккал"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -151,12 +151,12 @@ msgstr "{noun} — очень много"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} — много для одного приёма пищи: {eaten} из твоих {target} {unit}."
+msgstr "{nutrient} — много для одного приёма пищи: {eaten} из твоих {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} — очень много для одного приёма пищи: {eaten} из твоих {target} {unit}."
+msgstr "{nutrient} — очень много для одного приёма пищи: {eaten} из твоих {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -206,12 +206,12 @@ msgstr "Подключено к аккаунту eait, вход выполнен
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Учтено. На сегодня осталось {left} ккал."
+msgstr "Учтено. На сегодня осталось {left}ккал."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Учтено. Сегодня на {over} ккал больше плана."
+msgstr "Учтено. Сегодня на {over}ккал больше плана."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Ищем, что на тарелке · 2 из 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "Первый записан. {kcal} ккал."
+msgstr "Первый записан. {kcal}ккал."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -511,7 +511,7 @@ msgstr "Это новый eait. Твои приёмы пищи и фотогра
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Сегодня: {eaten} из {plan} ккал, белка {protein} из {proteinTarget} г"
+msgstr "Сегодня: {eaten} из {plan}ккал, белка {protein} из {proteinTarget}г"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

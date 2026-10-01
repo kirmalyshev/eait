@@ -14,12 +14,12 @@ import { escape, shell } from "./shell.ts";
  *
  *   the walk's dash, all of it behind now      — `dash("summary")`: the plan IS the last segment
  *   the say-line                               — the summary block's own words, Spud at 28 px
- *   "Goal: lose 6 kg by January 2027"          — `planHeadline`, THE S6-exempt sentence, and the
+ *   "Goal: lose 6kg by January 2027"          — `planHeadline`, THE S6-exempt sentence, and the
  *                                                reason this file is on claims.test.ts's caller
  *                                                list: the only claim-shaped line, computed
  *   the estimated-progress graph               — `estimateChart`'s geometry verbatim (the #112
  *                                                chip position), its labels localized
- *   "1,434 kcal a day"                         — the computed target, never a typed number
+ *   "1,434kcal a day"                         — the computed target, never a typed number
  *   the macro row                              — protein/carbs/fat always, and saturated fat
  *                                                ONLY when it was asked for: the card is drawn
  *                                                because the cap was declared, so an undeclared
@@ -59,7 +59,7 @@ export function plan(v: PlanView): string {
   const units = v.profile.units ?? "metric";
 
   // THE HEADLINE IS THE EXEMPTION (S6): the only sentence on this page the claims gate would
-  // otherwise refuse — "lose 6 kg by January 2027" is claim-shaped. `planHeadline` is the shared
+  // otherwise refuse — "lose 6kg by January 2027" is claim-shaped. `planHeadline` is the shared
   // computation, and this file's call to it is what claims.test.ts's caller list guards.
   const headline = planHeadline(v.profile, today, units, v.lang);
 
@@ -81,14 +81,14 @@ export function plan(v: PlanView): string {
 
   const gram = spellUnit(v.lang, "g");
   const macros = [
-    { icon: "protein", value: `${n(v.targets.protein_g)} ${gram}`, label: summary.macros.protein },
-    { icon: "carbs", value: `${n(v.targets.carbs_g)} ${gram}`, label: summary.macros.carbs },
-    { icon: "fat", value: `${n(v.targets.fat_g)} ${gram}`, label: summary.macros.fat },
+    { icon: "protein", value: `${n(v.targets.protein_g)}${gram}`, label: summary.macros.protein },
+    { icon: "carbs", value: `${n(v.targets.carbs_g)}${gram}`, label: summary.macros.carbs },
+    { icon: "fat", value: `${n(v.targets.fat_g)}${gram}`, label: summary.macros.fat },
     // "Saturated fat · you asked" — the label is literal about it: the card exists because the
     // cap was DECLARED (`targets.satfat_g` is set exactly then), never for a profile that did
     // not ask. `planRows` holds the same rule for the reveal's rows.
     ...(v.targets.satfat_g !== undefined && v.targets.satfat_g !== null
-      ? [{ icon: "satfat", value: `${n(v.targets.satfat_g)} ${gram}`, label: summary.macros.satfat }]
+      ? [{ icon: "satfat", value: `${n(v.targets.satfat_g)}${gram}`, label: summary.macros.satfat }]
       : []),
   ];
 

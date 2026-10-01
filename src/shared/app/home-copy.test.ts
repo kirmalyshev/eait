@@ -56,9 +56,9 @@ describe("HOME_COPY", () => {
     expect(en.macros.protein.ofTarget).toBe("of {target} protein");
     expect(en.macros.satFat.ofTarget).toBe("of {target} sat fat");
     expect(en.macros.carbs.name).toBe("carbs");
-    // sodium counts in mg — the board's "sodium 835 mg", never a gram
-    expect(en.macros.sodium.chip).toBe("sodium {n} mg");
-    expect(en.milligrams).toBe("{n} mg");
+    // sodium counts in mg — the board's "sodium 835mg", never a gram
+    expect(en.macros.sodium.chip).toBe("sodium {n}mg");
+    expect(en.milligrams).toBe("{n}mg");
     // today-past — the over day
     expect(en.kcalOverDetail).toBe("kcal over · {eaten} of {plan}");
     // the empty and the failed days
@@ -82,7 +82,7 @@ describe("HOME_COPY", () => {
     // `localizedGaps` cannot see, so the headline keys are pinned per language here.
     expect(homeCopyFor("de" as Lang).nothingLogged).not.toBe(HOME_COPY.en.nothingLogged);
     expect(homeCopyFor("ru" as Lang).diaryFailed).toMatch(/[а-яё]/i);
-    expect(homeCopyFor("ru" as Lang).grams.replace("{n}", "5")).toBe("5 г");
+    expect(homeCopyFor("ru" as Lang).grams.replace("{n}", "5")).toBe("5г");
     expect(homeCopyFor("vi" as Lang).kcalLeft).not.toBe(HOME_COPY.en.kcalLeft);
   });
 
