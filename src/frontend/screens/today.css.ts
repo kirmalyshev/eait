@@ -184,6 +184,11 @@ a.hsp { color: inherit; text-decoration: none; }
 .dlist .qact button + button { color: var(--muted); }
 .qpill { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 3px 9px; text-decoration: none; }
 .qkc { width: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+/* The landing move (#1354): the row grows in while the fixed flyer carries the image into its thumbnail. */
+.meal.q.qnew { overflow: hidden; animation: k-qnew .22s var(--ease) both; }
+@keyframes k-qnew { from { max-height: 0; padding-top: 0; padding-bottom: 0; filter: opacity(0); }
+  to { max-height: 120px; } }
+.qfly { position: fixed; z-index: 60; object-fit: cover; border-radius: var(--r-thumb); pointer-events: none; }
 .qdrop { position: fixed; inset: 12px; z-index: 50; border: 3px dashed var(--accent); border-radius: 16px; background: color-mix(in srgb, var(--accent-tint) 72%, transparent); display: flex; align-items: center; justify-content: center; text-align: center; color: var(--accent); pointer-events: none; }
 .qdrop b { display: block; font-size: 20px; font-weight: 700; }
 .qdrop small { display: block; font-size: 14px; color: var(--muted); margin-top: 4px; }
