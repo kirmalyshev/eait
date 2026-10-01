@@ -1,43 +1,22 @@
 import {
-  capNote, chatCopyFor, estimateChart, fill, LANG_LABEL, LANGS_READY, PLAN_CHART_TICKS_MS,
-  planHeadline, projectionMonth, spellUnit, kcalNumbers, weightDisplay, wholeNumbers,
-  type FoodTargets, type GoalProjection, type Lang, type OnboardingContent,
-  type Profile, type TargetBasis,
+  fill, kcalNumbers, LANG_LABEL, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
+  planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
+  wholeNumbers, youCopyFor,
+  type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
+  type TargetBasis,
 } from "@eait/shared";
-import { ctaLink, dash, say, wtop } from "./board.ts";
-import { spudSvg } from "@eait/shared/mascot";
+import { dash, wtop } from "./board.ts";
 import { pageCopyFor } from "../copy.ts";
 import { escape, shell } from "./shell.ts";
 
-/**
- * The plan (board `onboarding/web/15-plan.html`), drawn for W3 (issue #90):
- *
- *   the walk's dash, all of it behind now      — `dash("summary")`: the plan IS the last segment
- *   the say-line                               — the summary block's own words, Spud at 28 px
- *   "Goal: lose 6kg by January 2027"          — `planHeadline`, THE S6-exempt sentence, and the
- *                                                reason this file is on claims.test.ts's caller
- *                                                list: the only claim-shaped line, computed
- *   the estimated-progress graph               — `estimateChart`'s geometry verbatim (the #112
- *                                                chip position), its labels localized
- *   "1434kcal a day"                          — the computed target, never a typed number
- *   the macro row                              — protein/carbs/fat always, and saturated fat
- *                                                ONLY when it was asked for: the card is drawn
- *                                                because the cap was declared, so an undeclared
- *                                                profile shows nothing
- *   Continue                                   — the sign-up is next (S8)
- *
- * Gone with the old card: the arithmetic breakdown (that disclosure belongs to the pace
- * question's Why), the get-the-app paragraph (the web application IS the app), the chat link and
- * the Telegram controls — none of them are on the board, and the board is the design.
- */
-
+/** The plan reveal (#402): three cards and the Continue button, every figure the engine's. */
 export interface PlanView {
   profile: Profile;
   targets: FoodTargets;
   basis: TargetBasis;
-  /** `projectGoal`'s answer — null means no projection, and no graph card (horizon or no goal). */
+  /** `projectGoal`'s answer — null draws no journey (maintain, the flat band, no arrival). */
   projection: GoalProjection | null;
-  /** `onboardingContent` — the say-line, the macro labels, the marker and its note. */
+  /** `onboardingContent` — the kcal label and the macro names. */
   content: OnboardingContent;
   /** Where Continue goes — `/start/signup`. */
   next: string;
@@ -50,66 +29,38 @@ export interface PlanView {
   lang: Lang;
 }
 
+const T = PLAN_TIMELINE;
+/** A signed kcal delta with no thousands separator, like every kcal figure. */
+const signedKcal = (lang: Lang) => (x: number): string => (Math.round(x) < 0 ? "−" : "+") + kcalNumbers(lang)(Math.abs(x));
+const sec = (n: number): string => `${+n.toFixed(2)}s`;
+
 export function plan(v: PlanView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
-  const CHAT = chatCopyFor(v.lang);
-  const summary = v.content.summary;
-  const n = wholeNumbers(v.lang);
-  const today = new Date();
-  const units = v.profile.units ?? "metric";
-
-  // THE HEADLINE IS THE EXEMPTION (S6): the only sentence on this page the claims gate would
-  // otherwise refuse — "lose 6kg by January 2027" is claim-shaped. `planHeadline` is the shared
-  // computation, and this file's call to it is what claims.test.ts's caller list guards.
-  const headline = planHeadline(v.profile, today, units, v.lang);
-
-  // The estimate graph rides on a projection that lands inside the horizon — a maintain goal
-  // draws no card (there is nowhere to arrive), and "80 weeks away" names no month.
-  const chart = v.projection === null || v.projection.beyondHorizon ? "" : chartCard(
-    v.profile, v.projection, CHAT, summary, v.lang,
-  );
-
-  // The marker is drawn when the share cap or the floor decided the number — the line is the
-  // flag, and its note sits one tap behind, unspoken until asked for (DIRECTION §5's "why").
-  let marker = "";
-  if (v.basis.shareCapApplied || v.basis.floorApplied) {
-    const note = v.basis.floorApplied
-      ? `<b>${escape(v.content.building.floorTitle)}</b> ${escape(fill(v.content.building.floorBody, { floor: kcalNumbers(v.lang)(v.basis.floorKcal) }))}`
-      : escape(capNote(summary.capNote, v.profile.goal, v.projection?.kgPerWeek ?? null, v.lang));
-    marker = `<details class="est-more"><summary class="est">${escape(fill(summary.floorMarker, { floor: kcalNumbers(v.lang)(v.basis.floorKcal) }))}</summary><p class="est-note">${note}</p></details>`;
-  }
-
-  const gram = spellUnit(v.lang, "g");
-  const macros = [
-    { icon: "protein", value: `${n(v.targets.protein_g)}${gram}`, label: summary.macros.protein },
-    { icon: "carbs", value: `${n(v.targets.carbs_g)}${gram}`, label: summary.macros.carbs },
-    { icon: "fat", value: `${n(v.targets.fat_g)}${gram}`, label: summary.macros.fat },
-    // "Saturated fat · you asked" — the label is literal about it: the card exists because the
-    // cap was DECLARED (`targets.satfat_g` is set exactly then), never for a profile that did
-    // not ask. `planRows` holds the same rule for the reveal's rows.
-    ...(v.targets.satfat_g !== undefined && v.targets.satfat_g !== null
-      ? [{ icon: "satfat", value: `${n(v.targets.satfat_g)}${gram}`, label: summary.macros.satfat }]
-      : []),
-  ];
+  const COPY = planCopyFor(v.lang);
+  const maintain = v.profile.goal === "maintain";
+  const arrives = !maintain && v.projection !== null && !v.projection.beyondHorizon;
+  const bars = maintain ? null : planWaterfall(v.basis, v.targets.kcal);
+  const balance = maintain ? planBalance(v.basis, v.targets.kcal) : null;
+  const short = maintain || bars === null && !arrives;
+  const left = arrives ? journeyCard(v, COPY) : balance ? balanceCard(v, COPY, balance) : "";
 
   return shell(PAGE_COPY.titlePlan, `${wtop()}
-<div class="wmain one q"><div class="wcol">
-<div class="pln">
+<div class="wmain one pw"><div class="wcol">
+<div class="pln rv">
 ${dash("summary", v.lang)}
-<div class="pln-body">
-${say("happy", summary.lines, v.lang)}
-${headline ? `<p class="goal num">${escape(headline)}</p>` : ""}
-${chart}
-<div class="kgrid${macros.length === 3 ? " m3" : ""}">
-  <div class="card kcal">
-    <div class="big"><i class="ico i-kcal"></i><b class="num">${kcalNumbers(v.lang)(v.targets.kcal)}</b> <small>${escape(summary.kcalLabel)}</small></div>
-    ${marker}
-  </div>
-${macros.map((m) => `  <div class="mcard"><i class="ico i-${m.icon}"></i><b class="num">${escape(m.value)}</b><small>${escape(m.label)}</small></div>`).join("\n")}
+<h1 class="d d28">${escape(v.content.summary.lines[0] ?? "")}</h1>
+<div class="pgrid${left ? "" : " solo"}">
+${left}
+<div class="pcol">
+${outcomeCard(v)}
+${bars ? waterfallCard(v, bars) : ""}
 </div>
-${ctaLink(v.next, PAGE_COPY.continueLabel)}
+</div>
+<div class="pfoot"><div class="slot">
+<div class="gone" style="--d:${sec(short ? T.maintain.count : T.lose.count)}" role="status"><div class="row between"><span>${escape(COPY.building)}</span><span class="num"><b class="count" style="--to:100;--d:0s;animation-duration:${sec(short ? T.maintain.count : T.lose.count)};animation-timing-function:linear"></b>%</span></div><div class="lbar"><i style="animation-duration:${sec(short ? T.maintain.count : T.lose.count)}"></i></div></div>
+<a class="cta p fade" href="${escape(v.next)}" style="--d:${sec(short ? T.maintain.continue : T.lose.continue)};animation-duration:.3s">${escape(PAGE_COPY.continueLabel)}</a>
+</div></div>
 ${v.hasWebApp ? "" : languagePicker(v.lang)}
-</div>
 </div>
 </div></div>
 `, v.lang, "ob");
@@ -140,39 +91,112 @@ function languagePicker(lang: Lang): string {
 </form>`;
 }
 
-/**
- * The estimate graph card (15-plan): the area, the curve drawing itself, the end dot's pop, the
- * target chip's rise — the delays are the board's own (.6 s area, 1.1 s dot, 1.2 s chip) over the
- * shared verbs. EVERY number is the profile's: start weight, target weight, the month the
- * projection lands on. The geometry is `estimateChart`'s — #112's chip fix included — verbatim.
- */
-function chartCard(
-  p: Profile,
-  projection: GoalProjection,
-  CHAT: ReturnType<typeof chatCopyFor>,
-  summary: OnboardingContent["summary"],
-  lang: Lang,
-): string {
-  const direction = p.goal === "gain" ? "gain" : "lose";
-  const TICKS = PLAN_CHART_TICKS_MS;
-  const g = estimateChart(direction);
-  const month = projectionMonth(new Date(), projection.weeks, lang);
-  const from = weightDisplay(p.weight_kg!, p.units, lang);
-  const to = weightDisplay(p.target_weight_kg!, p.units, lang);
-  const aria = fill(CHAT.chart.estimateAria, { from, to, month });
-  return `<div class="card est-card">
-  <div class="row between"><b>${escape(CHAT.chart.estimatedProgress)}</b><span class="tagx"><span class="wm">${spudSvg("happy", "spud-tag")}</span>${escape(CHAT.chart.byEait)}</span></div>
-  <div class="egraph"><svg class="pgraph" viewBox="${g.viewBox}" width="100%" role="img" aria-label="${escape(aria)}">
-    <defs><linearGradient id="pgf" x1="0" y1="0" x2="0" y2="1">${g.areaGradient.stops.map((s) => `<stop offset="${s.offset}" style="stop-color:var(--accent);stop-opacity:${s.opacity}"/>`).join("")}</linearGradient></defs>
-    <line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>
-    <path d="${g.areaPath}" fill="url(#pgf)" class="rise" style="--d:${TICKS.area / 1000}s"/>
-    <path d="${g.linePath}" class="ln draw"/>
-    <circle cx="${g.startDot.cx}" cy="${g.startDot.cy}" r="${g.startDot.r}" fill="var(--ink)"/>
-    <circle cx="${g.endDot.cx}" cy="${g.endDot.cy}" r="${g.endDot.r}" fill="var(--accent)" stroke="var(--surface)" stroke-width="${g.endDot.strokeWidth}" class="pop" style="--d:${TICKS.endDot / 1000}s"/>
-    <g class="rise" style="--d:${TICKS.targetChip / 1000}s"><rect x="${g.targetChip.x}" y="${g.targetChip.y}" width="${g.targetChip.width}" height="${g.targetChip.height}" rx="${g.targetChip.rx}" fill="var(--ink)"/><text x="${g.targetChip.textX}" y="${g.targetChip.textY}" text-anchor="middle" style="fill:#fff;font-size:14px;font-weight:700">${escape(fill(CHAT.chart.target, { weight: to }))}</text></g>
-    <text x="${g.startLabel.x}" y="${g.startLabel.y}" style="fill:var(--ink);font-weight:600">${escape(from)}</text>
-    <text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${escape(CHAT.chart.now)}</text>
-    <text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" style="fill:var(--ink);font-weight:600">${escape(fill(CHAT.chart.monthEstimate, { month }))}</text>
-  </svg></div>
+
+/** The kcal and the protein, then carbs / fat / the declared sat-fat limit, as the board lays them. */
+function outcomeCard(v: PlanView): string {
+  const summary = v.content.summary;
+  const COPY = planCopyFor(v.lang);
+  const n = wholeNumbers(v.lang);
+  const gram = spellUnit(v.lang, "g");
+  const col = (icon: string, figure: string, label: string) =>
+    `<div><span class="row mfig"><i class="ico i-${icon}"></i><span class="num">${escape(figure)}</span></span>${label ? `<div class="t12 m">${escape(label)}</div>` : ""}</div>`;
+  const satfat = v.targets.satfat_g;
+  return `<div class="card oc">
+<div class="row between top">
+<div><span class="row"><i class="ico i-kcal big"></i><span class="d num kfig"><b class="count num" style="--to:${Math.round(v.targets.kcal)};--d:${sec(T.kcal.delay)};animation-duration:${sec(T.kcal.duration)}"></b></span></span><div class="t13 m">${escape(summary.kcalLabel)}</div></div>
+<div class="r"><span class="row"><i class="ico i-protein pic"></i><span class="d d28 num"><b class="count num" style="--to:${Math.round(v.targets.protein_g)};--d:${sec(T.protein.delay)};animation-duration:${sec(T.protein.duration)}"></b>${escape(gram)}</span></span><div class="t13 m">${escape(summary.macros.protein)}</div></div>
+</div>
+<div class="hr"></div>
+<div class="fade mrow" style="--d:${sec(T.macros)}">
+${col("carbs", `${n(v.targets.carbs_g)}${gram}`, summary.macros.carbs)}
+${col("fat", `${n(v.targets.fat_g)}${gram}`, summary.macros.fat)}
+${satfat !== undefined && satfat !== null ? col("satfat", `≤ ${n(satfat)}${gram}`, COPY.satFat) : ""}
+</div>
+</div>`;
+}
+
+/** The title and the curve with its date axis (`planJourney`); lose falls, gain rises. */
+function journeyCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
+  const p = v.profile;
+  const projection = v.projection!;
+  const from = weightDisplay(p.weight_kg!, p.units, v.lang);
+  const to = weightDisplay(p.target_weight_kg!, p.units, v.lang);
+  const month = projectionMonth(new Date(), projection.weeks, v.lang);
+  const j = planJourney(p.goal === "gain" ? "gain" : "lose", new Date(), projection.weeks, v.lang, to.length);
+  const aria = `${from} → ${to}`;
+  const ticks = j.ticks.map((t) => {
+    const label = t.kind === "today" ? COPY.today : t.label;
+    const anchor = t.kind === "today" ? "" : t.kind === "end" ? ` text-anchor="end"` : ` text-anchor="middle"`;
+    const x = t.kind === "end" ? j.end.x : t.x;
+    const line = t.kind === "month"
+      ? `<line class="fade" style="--d:${sec(t.delay)}" x1="${t.x}" x2="${t.x}" y1="${j.tickY[0]}" y2="${j.tickY[1]}" stroke="var(--line)"/>`
+      : "";
+    return `${line}<text class="fade ax${t.kind === "end" ? " end" : ""}" style="--d:${sec(t.delay)}" x="${x}" y="${j.axisY}"${anchor}>${escape(label)}</text>`;
+  }).join("");
+  return `<div class="card jc">
+<b class="d d22 goal">${escape(fill(COPY.goalLine, { kg: to, month }))}</b>
+<div class="jg"><svg class="pgraph" viewBox="${j.viewBox}" width="100%" role="img" aria-label="${escape(aria)}">
+<defs><linearGradient id="pj" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.18"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>
+<path d="${j.areaPath}" fill="url(#pj)" class="fade" style="--d:${sec(T.fill.delay)};animation-duration:${sec(T.fill.duration)}"/>
+<path d="${j.linePath}" pathLength="1" class="ln draw1" style="--d:${sec(T.curve.delay)}"/>
+<circle cx="${j.start.x}" cy="${j.start.y}" r="6" fill="var(--ink)" stroke="var(--surface)" stroke-width="2.5"/>
+<text x="${j.start.x}" y="${j.start.labelY}" class="ink15">${escape(from)}</text>
+<circle cx="${j.end.x}" cy="${j.end.y}" r="7" fill="var(--accent)" stroke="var(--surface)" stroke-width="3" class="pop" style="--d:${sec(T.targetDot)}"/>
+<g class="rise" style="--d:${sec(T.targetPill)}"><rect x="${j.pill.x}" y="${j.pill.y}" width="${j.pill.width}" height="${j.pill.height}" rx="14" fill="var(--accent)"/><text x="${j.pill.textX}" y="${j.pill.textY}" text-anchor="middle" class="pill">${escape(to)}</text></g>
+${ticks}
+</svg></div>
+</div>`;
+}
+
+/** Maintain: "You burn" (at rest | your days) and "Your plan" grown to the same length, an ink tick where they meet. */
+function balanceCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>, b: NonNullable<ReturnType<typeof planBalance>>): string {
+  const YOU = youCopyFor(v.lang).phone;
+  const kn = kcalNumbers(v.lang);
+  const sn = signedKcal(v.lang);
+  const [dRest, dDays] = T.maintain.burn;
+  const pct = (x: number) => `${+(x * 100).toFixed(2)}%`;
+  const seg = (flex: number, delay: number, dur: number, cls: string, text: string) =>
+    `<i class="gx ${cls}" style="--d:${sec(delay)};animation-duration:${sec(dur)};flex:${flex}">${escape(text)}</i>`;
+  return `<div class="card jc">
+<b class="d d22 goal">${escape(fill(COPY.goalStay, { kg: weightDisplay(v.profile.weight_kg!, v.profile.units, v.lang) }))}</b>
+<div class="bal">
+<span class="t13 semi">${escape(COPY.youBurn)}</span>
+<div class="brow" style="width:${pct(b.share.burn)}">${seg(b.burn.rest, dRest, 0.6, "rest", kn(b.burn.rest))}${seg(b.burn.days, dDays, 0.3, "days", sn(b.burn.days))}</div>
+<span class="t13 semi">${escape(COPY.yourPlan)}</span>
+<div class="brow" style="width:${pct(b.share.plan)}">${seg(1, T.maintain.plan, 1, "plan", kn(v.targets.kcal))}</div>
+<i class="pop tick" style="--d:${sec(T.maintain.tick)};left:${pct(b.share.burn)}"></i>
+</div>
+<span class="sr">${escape(YOU.atRest)} ${escape(kn(b.burn.rest))} ${escape(YOU.yourDays)} ${escape(sn(b.burn.days))}</span>
+</div>`;
+}
+
+/** How we got there: at rest, your days, your pace, your plan — to scale from 0, summing to the plan. */
+function waterfallCard(v: PlanView, bars: NonNullable<ReturnType<typeof planWaterfall>>): string {
+  const YOU = youCopyFor(v.lang).phone;
+  const COPY = planCopyFor(v.lang);
+  const kn = kcalNumbers(v.lang);
+  const sn = signedKcal(v.lang);
+  const W = PLAN_WATERFALL;
+  const names = { rest: YOU.atRest, days: YOU.yourDays, pace: YOU.yourPace, plan: COPY.yourPlan };
+  const aria = bars.map((b) => `${names[b.id]} ${b.id === "plan" || b.id === "rest" ? kn(b.value) : sn(b.value)}`).join(", ");
+  const parts = bars.map((b, i) => {
+    const plan = b.id === "plan";
+    const fill_ = plan ? "var(--accent)" : b.id === "rest" ? "var(--line)"
+      : b.id === "days" ? `var(--accent)" fill-opacity=".32` : b.down ? `var(--care)" fill-opacity=".22` : `var(--accent)" fill-opacity=".18`;
+    const tone = plan ? "var(--ink)" : b.id === "rest" ? "var(--ink)" : b.id === "days" || !b.down ? "var(--accent)" : "var(--care)";
+    const text = b.id === "rest" || plan ? kn(b.value) : sn(b.value);
+    const dur = plan ? ` animation-duration:.5s` : "";
+    const next = bars[i + 1];
+    const step = next && i < 2
+      ? `<line class="fade" style="--d:${sec(b.delay)}" x1="${b.x + W.width}" x2="${next.x}" y1="${b.level}" y2="${b.level}" stroke="var(--line)" stroke-dasharray="2 2"/>`
+      : "";
+    return `<rect class="gy${b.down ? " dn" : ""}" style="--d:${sec(b.delay)};${dur}" x="${b.x}" y="${+b.y.toFixed(1)}" width="${W.width}" height="${+b.height.toFixed(1)}" rx="6" fill="${fill_}"/>
+<text class="fade fig${plan ? " big" : ""}" style="--d:${sec(b.delay + T.figure)};fill:${tone}" x="${b.x + W.width / 2}" y="${+b.labelY.toFixed(1)}" text-anchor="middle">${escape(text)}</text>${step}
+<text x="${b.x + W.width / 2}" y="${W.labelBaseline}" text-anchor="middle"${plan ? ` class="ink"` : ""}>${escape(names[b.id])}</text>`;
+  }).join("\n");
+  return `<div class="card wc"><span class="lab">${escape(YOU.basisTitle)}</span>
+<div class="wg"><svg class="pgraph" viewBox="${W.viewBox}" width="100%" role="img" aria-label="${escape(aria)}"><line x1="2" x2="318" y1="${W.baseline}" y2="${W.baseline}" stroke="var(--hair)"/>
+${parts}
+</svg></div>
 </div>`;
 }

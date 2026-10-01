@@ -3572,7 +3572,6 @@
           "ontrack",
           "diet",
           "medical",
-          "building",
           "summary",
           "signup",
           "country",
@@ -5254,7 +5253,6 @@
           "welcome",
           "how",
           "ontrack",
-          "building",
           "summary",
           "signup",
           "health"

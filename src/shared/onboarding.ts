@@ -124,7 +124,7 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "how", "ontrack", "building", "summary", "signup", "health",
+  "welcome", "how", "ontrack", "summary", "signup", "health",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -137,7 +137,7 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  */
 export const ONBOARDING_PLACES = [
   "welcome", "goal", "how", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "ontrack", "diet", "medical", "building", "summary", "signup", "country", "health",
+  "struggles", "ontrack", "diet", "medical", "summary", "signup", "country", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -145,12 +145,12 @@ export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
  * The progress dash's segments — the places between the welcome and the plan, in walk order
  * (`onboarding/*` boards, fourteen `<i>` each).
  *
- * The welcome is before the count; `building` is the reveal, a screen of its own; `signup`,
- * `country` and `health` sit past it. So the bar is `ONBOARDING_PLACES` minus those five, and
+ * The welcome is before the count; `signup`, `country` and `health` sit past it. So the bar is
+ * `ONBOARDING_PLACES` minus those four, and
  * `summary` — the plan — is the last segment lit.
  */
 export const DASH_PLACES: readonly OnboardingPlace[] = ONBOARDING_PLACES.filter(
-  (p) => !["welcome", "building", "signup", "country", "health"].includes(p),
+  (p) => !["welcome", "signup", "country", "health"].includes(p),
 );
 
 /** The dash position of a place, or -1 for a place that is not a segment (the welcome et al.). */

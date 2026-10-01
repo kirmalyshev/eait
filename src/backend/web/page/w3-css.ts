@@ -1,75 +1,85 @@
-// The screens W3 owns (issue #90): the reveal (`ob-building`), the plan (`15-plan`), the
+// The screens W3 owns (issue #90): the plan reveal (#402), the
 // sign-up (`pay-signin`), the country (`16-country`). Board classes, the values pro.css's —
 // tokens come from `.ob`'s scope in board-css.ts (`--r-card`, `--r-cta`, `--shadow`), so no
 // colour, radius or shadow is retyped here. Scoped under `main.ob`, like BOARD_CSS.
 
-import { PLAN_REVEAL } from "@eait/shared";
+import { PLAN_TIMELINE } from "@eait/shared";
 
 export const W3_CSS = `
 /* The walk's .wcol form { flex: 1; min-height: 0 } is for its one-form screens — it would
    shrink these pages' forms under their content and let a sibling draw over the overflow. */
-.ob .bld form, .ob .pln form, .ob .sup form, .ob .cty form { flex: none; }
+.ob .pln form, .ob .sup form, .ob .cty form { flex: none; }
 
-/* ── the reveal (ob-building): the count, the bar, the row ticks — all PLAN_REVEAL's data ── */
-.ob .bld { text-align: center; padding-top: 2rem; }
-.ob .bld .pct { font-size: 72px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
-/* The sign is the page's data-sign — Intl's percentSign for the reader's language, so this
-   stylesheet holds no glyph of its own. */
-.ob .bld .pct::after { content: attr(data-sign); font-size: 28px; font-weight: 600; margin-left: 4px; }
-.ob .bld .count { animation-duration: ${PLAN_REVEAL.durationMs / 1000}s; animation-timing-function: linear; }
-.ob .bld .bld-line { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; margin: 12px 0 0; }
-.ob .bld .lbar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; margin: 18px 0 26px; }
-.ob .bld .lbar i { display: block; height: 100%; background: var(--accent);
-  transform-origin: left; animation: k-grow ${PLAN_REVEAL.durationMs / 1000}s linear both; }
-.ob .bld .card { text-align: left; }
-/* A row waits dimmed for its tick and fades up — timed by rowTicksMs, not a motion token. */
-@keyframes k-tick { from { opacity: .3; } to { opacity: 1; } }
-.ob .bld .chk { display: flex; align-items: center; gap: 12px; padding: 12px 0;
-  border-top: 1px solid var(--hair); font-weight: 500;
-  animation: k-tick ${PLAN_REVEAL.rowFadeMs / 1000}s var(--ease) both; animation-delay: var(--d, 0s); }
-.ob .bld .chk:first-of-type { border-top: 0; }
-.ob .bld .chk > i { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 22px;
-  background: var(--accent); position: relative; }
-.ob .bld .chk > i::after { content: ""; position: absolute; left: 7px; top: 3px; width: 6px;
-  height: 11px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
-.ob .bld .chk b { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ob .bld .go { max-width: 360px; margin: 1.5rem auto 0; }
-
-/* ── the plan (15-plan) ── */
-/* The board's shape: the dash pinned to the top of the column, and everything after it one
-   group centred in what is left — its own 24 px gaps. The q cap on wmain gives the column the
-   boards' 720 incl. padding, anchored under the header like every other page of the walk (#293). */
-.ob .pln { width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; row-gap: 16px; }
-.ob .pln-body { margin: auto 0; display: flex; flex-direction: column; gap: 24px; min-height: 0; }
-.ob .pln .goal { font-size: 20px; font-weight: 700; line-height: 1.25; margin: 0; }
-.ob .pln .est-card { padding: 18px 24px; }
-.ob .pln .est-card .row > b { font-weight: 600; }
-/* The board caps the graph at 400 px centred — full-bleed it reads twice the board's height. */
-.ob .pln .egraph { margin: 10px auto 0; max-width: 400px; }
-/* Three macro cards (no cap declared) fill a four-cell row — never a trailing empty slot. */
-.ob .pln .kgrid.m3 { grid-template-columns: 1.6fr repeat(3, 1fr); }
-.ob .pln .tagx { display: inline-flex; align-items: center; gap: 5px; background: var(--surface);
-  border-radius: 999px; padding: 3px 9px 3px 4px; font-size: 12px; font-weight: 600;
-  letter-spacing: 0; text-transform: none; color: var(--ink);
-  box-shadow: 0 1px 3px rgb(23 25 28 / .16); white-space: nowrap; }
-.ob .pln .tagx .wm { width: 18px; height: 18px; }
+/* ── the plan reveal (#402): three cards, and the count that holds the button's place ── */
+@keyframes k-up { from { transform: scaleY(0); } }
+@keyframes k-fade { from { filter: opacity(0); } }
+@keyframes k-gone { to { filter: opacity(0); visibility: hidden; } }
+@keyframes k-draw1 { from { stroke-dashoffset: 1; } }
+.ob .pln .draw1 { stroke-dasharray: 1; animation: k-draw1 ${PLAN_TIMELINE.curve.duration}s var(--ease) both; animation-delay: var(--d, 0s); }
+.ob .pln .gy { transform-box: fill-box; transform-origin: 50% 100%; animation: k-up .4s var(--ease) both; animation-delay: var(--d, 0s); }
+.ob .pln .gy.dn { transform-origin: 50% 0; }
+.ob .pln .gx { transform-box: fill-box; transform-origin: 0 50%; animation: k-grow .5s var(--ease) both; animation-delay: var(--d, 0s); }
+.ob .pln .fade { animation: k-fade .4s var(--ease) both; animation-delay: var(--d, 0s); }
+.ob .pln .gone { animation: k-gone .2s var(--ease) forwards; animation-delay: var(--d, 0s); }
+/* Reduce Motion: the final state crossfades in over 150 ms, and the count never shows. */
+@media (prefers-reduced-motion: reduce) {
+  .ob .pln.rv { animation: k-fade .15s linear both !important; }
+  .ob .pln .slot .gone { display: none; }
+}
+.ob .wmain.pw { max-width: 1000px; }
+.ob .pln form { flex: none; }
+.ob .pln { width: 100%; display: flex; flex-direction: column; row-gap: 16px; }
+.ob .pln h1 { font-size: 28px; margin-top: 4px; }
+.ob .pln .pgrid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+.ob .pln .pgrid.solo { grid-template-columns: minmax(0, 520px); justify-content: center; }
+.ob .pln .pcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .ob .pln .pgraph { display: block; overflow: visible; }
-.ob .pln .pgraph .ln { stroke: var(--accent); stroke-width: 2.5; }
-.ob .pln .kgrid { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; }
-.ob .pln .kcal { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
-.ob .pln .kcal .big { display: flex; align-items: center; gap: 8px; }
-.ob .pln .kcal .big b { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
-.ob .pln .kcal .big .ico { width: 24px; height: 24px; }
-.ob .pln .est-more { margin-top: 4px; }
-.ob .pln .est-more > summary { cursor: pointer; list-style: none; }
-.ob .pln .est-more > summary::-webkit-details-marker { display: none; }
-.ob .pln .est-note { font-size: 12px; color: var(--muted); line-height: 1.4; margin: .4rem 0 0; }
-.ob .pln .mcard { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
-  padding: 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.ob .pln .mcard .ico { width: 20px; height: 20px; }
-.ob .pln .mcard b { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.ob .pln .mcard small { font-size: 12px; color: var(--muted); font-weight: 500; }
-@media (max-width: 720px) { .ob .pln .kgrid, .ob .pln .kgrid.m3 { grid-template-columns: 1fr 1fr; } }
+.ob .pln .pgraph .ln { stroke: var(--accent); stroke-width: 3; }
+.ob .pln .jc { padding: 20px 24px; }
+.ob .pln .jg { margin: 28px 8px 8px; }
+.ob .pln .ink15 { fill: var(--ink); font-size: 15px; font-weight: 700; }
+.ob .pln .pill { fill: #fff; font-size: 15px; font-weight: 700; }
+.ob .pln .ax { font-weight: 600; }
+.ob .pln .ax.end { fill: var(--ink); font-weight: 700; }
+.ob .pln .oc { padding: 16px 16px 14px; }
+.ob .pln .oc .top { align-items: flex-end; }
+.ob .pln .oc .r { text-align: right; }
+.ob .pln .oc .r .row { justify-content: flex-end; gap: 6px; }
+.ob .pln .oc .row { gap: 8px; }
+.ob .pln .oc .big { width: 28px; height: 28px; }
+.ob .pln .oc .pic { width: 22px; height: 22px; }
+.ob .pln .oc .kfig { font-size: 44px; line-height: 1; font-weight: 700; letter-spacing: -.02em; }
+.ob .pln .oc .top .t13 { margin-top: 4px; }
+.ob .pln .hr { height: 1px; background: var(--hair); margin: 12px 0 10px; }
+.ob .pln .mrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ob .pln .mfig { gap: 5px; font-size: 17px; font-weight: 700; }
+.ob .pln .mfig .ico { width: 16px; height: 16px; }
+.ob .pln .wc { padding: 16px; }
+.ob .pln .wg { margin-top: 16px; }
+.ob .pln .fig { font-weight: 700; font-size: 13px; }
+.ob .pln .fig.big { font-size: 15px; }
+.ob .pln .bal { position: relative; margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.ob .pln .bal .semi:last-of-type { margin-top: 8px; }
+.ob .pln .brow { display: flex; gap: 2px; height: 34px; }
+.ob .pln .brow i { display: flex; align-items: center; height: 100%; padding: 0 10px; font-style: normal;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ob .pln .brow .rest { background: var(--line); border-radius: 8px 0 0 8px; }
+.ob .pln .brow .days { background: color-mix(in srgb, var(--accent) 32%, transparent); color: var(--accent); border-radius: 0 8px 8px 0; }
+.ob .pln .brow .plan { background: var(--accent); color: #fff; border-radius: 8px; justify-content: flex-end; }
+.ob .pln .bal .tick { position: absolute; top: 20px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
+.ob .pln .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ob .pln .pfoot { width: 360px; max-width: 100%; align-self: flex-end; }
+.ob .pln .slot { position: relative; min-height: 56px; }
+.ob .pln .gone { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  font-size: 15px; font-weight: 600; }
+.ob .pln .lbar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
+.ob .pln .lbar i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: k-grow linear both; }
+.ob .pln .cta { max-width: none; }
+.ob .pln h2 { margin-top: 24px; }
+@media (max-width: 720px) {
+  .ob .pln .pgrid { grid-template-columns: 1fr; }
+  .ob .pln .pfoot { width: 100%; }
+}
 
 /* ── the sign-up (pay-signin): the app icon, the two provider buttons, the pairing card ── */
 .ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }

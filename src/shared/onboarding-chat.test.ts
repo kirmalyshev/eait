@@ -48,7 +48,7 @@ describe("the order of the conversation", () => {
     expect(ids(profile())).toEqual([
       "welcome", "goal", "how", "sex", "birth_year", "height_cm", "weight_kg",
       "activity", "target_weight_kg", "pace", "struggles", "ontrack",
-      "diet", "medical", "building", "summary", "signup",
+      "diet", "medical", "summary", "signup",
     ]);
   });
 
@@ -160,7 +160,7 @@ describe("what Spud asks", () => {
 
   it("asks the front door from the content, and asks nothing on the beats", () => {
     expect(askLines(promptById("welcome"), { content, lang: "en" }, profile())).toEqual(content.welcome.lines);
-    for (const id of ["how", "ontrack", "building", "summary", "signup"] as const) {
+    for (const id of ["how", "ontrack", "summary", "signup"] as const) {
       expect(askLines(promptById(id), { content, lang: "en" }, profile()), id).toEqual([]);
     }
   });
