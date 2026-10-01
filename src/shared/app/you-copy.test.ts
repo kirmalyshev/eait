@@ -80,6 +80,7 @@ describe("YOU_COPY", () => {
     expect(en.perDay).toBe("a day");
     expect(en.grams).toBe("{g} g");
     expect(en.satFatGrams).toBe("{g} g {noun}");
+    expect(en.floorMarker).toBe("never below {floor}");
     expect(en.appleHealth).toBe("Apple Health");
     expect(en.connected).toBe("connected");
     expect(en.subscription).toBe("Subscription");
