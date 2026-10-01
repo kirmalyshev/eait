@@ -200,21 +200,6 @@ export const verdictDot = (tone: VerdictTone, words: string): string =>
 export const verdictList = (items: readonly { tone: VerdictTone; words: string }[]): string =>
   items.length ? `<div class="vs">${items.map((v) => verdictDot(v.tone, v.words)).join("")}</div>` : "";
 
-// ── The macro tip (F) ──────────────────────────────────────────────────────────
-//
-// The bubble a tippable macro row opens over the day card — the boards' `.mtip`: the title
-// line's coloured dot, then the sentence, on the raised roundrect with the rotated-square
-// arrow underneath. `.t-<macro>` names the dot's colour; `over` is the dark-red pair (a macro
-// past its target reads in ink on the card but in the over tone inside the tip). Position —
-// bottom over the row, the arrow's `--ax` under the icon — is the surface's: the anchor is the
-// element that knows where the icon sits.
-
-export type TipTone = "protein" | "carbs" | "satfat" | "over";
-
-export const tip = (o: { tone: TipTone; title: string; body: string }): string =>
-  `<div class="mtip t-${esc(o.tone)}${o.tone === "over" ? " ov" : ""}" role="tooltip">` +
-  `<b><i></i>${esc(o.title)}</b><p>${esc(o.body)}</p></div>`;
-
 // ── The health score ─────────────────────────────────────────────────────────────────────────
 //
 // The compact row on the meal sheet (web + phone `meal.html`): label · the 6 px bar · "{n}/10" ·
@@ -615,24 +600,6 @@ ${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(16px + ${i}*(10
 .v.warn{color:var(--warn)}.v.warn::before{background:var(--warn)}
 .v.bad{color:var(--bad)}.v.bad::before{background:var(--bad)}
 .vs{display:flex;gap:14px;flex-wrap:wrap}
-
-/* The macro tip — the boards' .mtip: raised surface, the title's 8 px dot in the macro's
-   colour (dark red and titled when .ov), the sentence, and the rotated-square arrow the
-   surface slides under the row's icon with --ax. 260 wide; left/bottom are the anchor's call. */
-.mtip{position:absolute;width:260px;background:var(--surface);border-radius:12px;z-index:5;
-  padding:12px 14px;box-shadow:0 6px 24px rgba(23,25,28,.18),0 1px 3px rgba(23,25,28,.1);
-  animation:k-tip .18s var(--ease) both}
-@keyframes k-tip{from{filter:opacity(0);transform:translateY(4px) scale(.97)}to{filter:opacity(1);transform:none}}
-.mtip b{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
-.mtip b i{width:8px;height:8px;border-radius:4px;flex:0 0 8px}
-.mtip.t-protein b i{background:var(--macro-protein)}
-.mtip.t-carbs b i{background:var(--macro-carbs)}
-.mtip.t-satfat b i{background:var(--macro-fat)}
-.mtip.t-over b i{background:var(--over)}
-.mtip.ov b{color:var(--over)}
-.mtip p{margin:4px 0 0;font-size:13px;line-height:18px;color:var(--muted)}
-.mtip::after{content:"";position:absolute;bottom:-6px;left:var(--ax,18px);width:12px;height:12px;
-  background:var(--surface);transform:rotate(45deg);box-shadow:3px 3px 4px rgba(23,25,28,.06)}
 
 /* The photo hero — image, corner callouts, the stamp; height is the surface's own. */
 .hero{position:relative;overflow:hidden;background:#DDD8CE}
