@@ -13,7 +13,7 @@ import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, macroTip, type MacroTipKind } from "../../shared/app/home-copy.ts";
-import { enqueue, queueEl, queueLength, queuedMealIds } from "../queue.ts";
+import { enqueue, inPlace, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { ringDash } from "../../shared/ui/charts.ts";
@@ -979,7 +979,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   /** A meal row: the photo or the no-photo tile, the time, the verdict line — the gram chips
    *  only on the "Recent" form (`compact` is the past-day and logging boards' row). */
-  const mealRow = (meal: MealRecord, compact: boolean): Element => {
+  const mealRow = (meal: MealRecord, compact: boolean): Element =>
+    inPlace(meal.id, () => plainRow(meal, compact));
+  const plainRow = (meal: MealRecord, compact: boolean): Element => {
     // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
     // prefix. The board draws `.meal` without a glyph; the link is the affordance.
     const row = mealRowEl(meal, {

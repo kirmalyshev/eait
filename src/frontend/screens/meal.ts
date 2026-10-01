@@ -28,9 +28,10 @@ import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts
 import type { ScorePart } from "../../shared/scores.ts";
 import type { MealItem, MealRecord } from "@eait/shared";
 import type { DayResponse } from "@eait/shared/contract";
-import type { MealRedated, MealUpdated, TargetGone } from "../../shared/results.ts";
+import type { MealRedated } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { enqueueUpdate, inPlace, takeSentNote, updateBannerEl, updateFor } from "../queue.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
@@ -38,7 +39,7 @@ import {
   verdictListEl,
 } from "../kit.ts";
 import {
-  COPY, MEAL, clear, dayText, el, findMeal, lang, names, profile, sendOrKeep, setRedraw, takeTurn,
+  COPY, MEAL, clear, dayText, el, findMeal, lang, names, profile, setRedraw, takeTurn,
   type Frame,
 } from "../shell.ts";
 
@@ -250,26 +251,20 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       })));
     const field = el("textarea", "fixfield") as HTMLTextAreaElement;
     field.placeholder = mc.composeHint;
+    field.value = takeSentNote(meal.id);
     // The board's "<b>For example:</b> …" — the lead is its own key, never a slice of the sentence.
     const example = el("div", "card flat fixex");
     example.append(el("b", "", mc.phoneFixExampleLead), ` ${mc.phoneFixExample}`);
     const update = el("button", "cta p", mc.phoneUpdate) as HTMLButtonElement;
     update.type = "button";
-    update.disabled = true;
+    update.disabled = field.value.trim() === "";
     field.addEventListener("input", () => { update.disabled = field.value.trim() === ""; });
     update.addEventListener("click", () => {
       const text = field.value.trim();
       if (text === "") return;
-      turn(async () => {
-        // A kept (offline) turn answers nothing here — the redraw picks the meal up when the
-        // outbox drains.
-        const saved = await sendOrKeep({
-          id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
-          capturedAt: new Date().toISOString(), focusMealId: meal.id,
-        });
-        closeOverlay();
-        return saved;
-      });
+      // The correction runs as a job (#1347): the meal's row and this screen show it updating.
+      enqueueUpdate(meal, { kind: "note", text });
+      closeOverlay();
     });
     dlg.append(title, named, field, example, update);
     scrim.append(dlg);
@@ -377,12 +372,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const applyItems = (items: MealItem[]): void => {
       const req = mealEditRequest(meal, items);
       if (req === null) { closeOverlay(); return; }
-      turn(async () => {
-        await api<MealUpdated | TargetGone>(MEAL(meal.id), {
-          method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(req),
-        });
-        closeOverlay();
-      });
+      enqueueUpdate(meal, { kind: "ingredients", edit: req });
+      closeOverlay();
     };
     const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
     done.type = "button";
@@ -416,14 +407,12 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       b.addEventListener("click", () => { setOpen(false); onPick(); });
       return b;
     };
-    const reread = item("retry", mc.phoneMenuReread, () =>
-      turn(async () => {
-        const r = await api<MealUpdated>(`${MEAL(meal.id)}/reanalyze`, { method: "POST" });
-        void r;
-      }));
+    const reread = item("retry", mc.phoneMenuReread, () => enqueueUpdate(meal, { kind: "reread" }));
     const del = item("trash", mc.deleteCta, () => openOverlay(deleteDialog(meal)));
     del.classList.add("bad");
-    popup.append(
+    // While the meal updates the one action left is Delete, which stops it (#1347).
+    if (updateFor(meal.id) !== undefined) popup.append(del);
+    else popup.append(
       // "Edit" is the Cal-AI fix sheet (#188) — a panel over this detail, not the chat.
       item("pencil", mc.phoneEdit, () => openPanel(fixPanel(meal))),
       // Nothing to re-read without a photo, so a typed meal is not offered it (ieat-app#1225).
@@ -480,7 +469,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   };
 
   const detailCard = (meal: MealRecord, day: DayResponse): HTMLElement => {
-    const card = el("div", "card mdet");
+    const updating = updateFor(meal.id) !== undefined;
+    const card = el("div", `card mdet${updating ? " updating" : ""}`);
 
     // The header row the delete board gives the card: X left, day · time (and provenance) in the
     // middle, the "…" menu on the right.
@@ -498,6 +488,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const split = el("div", "msplit");
     split.append(hero(meal));
     const sheet = el("div", "msheet");
+    if (updating) sheet.append(updateBannerEl(meal.id));
     sheet.append(kitEl(`<div class="row between"><div><b class="d d22">${esc(names(meal.items))}</b>` +
       `<div class="t13 m mmeta">${esc(meta(meal))}</div></div>` +
       `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(kn(meal.kcal))}</b></span></div>`));
@@ -562,13 +553,15 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const rows = el("div", "card mlist");
     for (const m of day.meals) {
       const src = (m.photos ?? 0) > 0 ? await photoUrl(m.id, 0) : null;
-      const row = mealRowEl(m, {
-        time: mealTime(m),
-        photo: src !== null ? { src } : null,
-        href: `#/meal/${encodeURIComponent(m.id)}?d=${day.date}`,
-      });
-      if (m.id === meal?.id) row.classList.add("sel");
-      rows.append(row);
+      rows.append(inPlace(m.id, () => {
+        const row = mealRowEl(m, {
+          time: mealTime(m),
+          photo: src !== null ? { src } : null,
+          href: `#/meal/${encodeURIComponent(m.id)}?d=${day.date}`,
+        });
+        if (m.id === meal?.id) row.classList.add("sel");
+        return row;
+      }));
     }
     left.append(rows);
     clear(right).append(notice, meal === null ? goneCard() : detailCard(meal, day));

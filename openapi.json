@@ -878,6 +878,69 @@
         ]
       }
     },
+    "/v1/meals/update/queue": {
+      "post": {
+        "operationId": "post_mealUpdateQueue",
+        "summary": "Queue a change to a logged meal: an ingredient edit, a chat correction or a re-read of the photo. 202 once queued; follow it on the photo job route. `clientId` is required and is the job id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MealUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "202",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoQueuedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/meals/photo/queue/{id}": {
       "get": {
         "operationId": "get_photoJob",
@@ -4891,6 +4954,120 @@
         ],
         "additionalProperties": false
       },
+      "MealUpdateKind": {
+        "type": "string",
+        "enum": [
+          "ingredients",
+          "note",
+          "reread"
+        ],
+        "description": "What a queued meal update changes: an ingredient edit, a chat correction, or a re-read of the photo."
+      },
+      "MealUpdateLast": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/HandleTextResult"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "outcome-unknown"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A queued update's last line: what the same change answers when it is not queued."
+      },
+      "MealUpdateRequest": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ingredients"
+              },
+              "edit": {
+                "$ref": "#/components/schemas/EditMealRequest"
+              },
+              "mealId": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": "string"
+              },
+              "capturedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "clientId",
+              "edit",
+              "kind",
+              "mealId"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "note"
+              },
+              "text": {
+                "type": "string"
+              },
+              "mealId": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": "string"
+              },
+              "capturedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "clientId",
+              "kind",
+              "mealId",
+              "text"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "reread"
+              },
+              "mealId": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": "string"
+              },
+              "capturedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "clientId",
+              "kind",
+              "mealId"
+            ]
+          }
+        ]
+      },
       "MealUpdated": {
         "type": "object",
         "properties": {
@@ -5665,6 +5842,26 @@
                 "items": {
                   "$ref": "#/components/schemas/MealItem"
                 }
+              },
+              "update": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/components/schemas/MealUpdateKind"
+                  },
+                  "mealId": {
+                    "type": "string"
+                  },
+                  "steps": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mealId",
+                  "steps"
+                ],
+                "additionalProperties": false
               }
             },
             "required": [
@@ -5687,7 +5884,14 @@
                 "type": "string"
               },
               "result": {
-                "$ref": "#/components/schemas/PhotoLast"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PhotoLast"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MealUpdateLast"
+                  }
+                ]
               }
             },
             "required": [
@@ -5715,7 +5919,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "A queued photo (ieat-app#1318). `running` carries the step, its words in the account's language, and the foods found so far (name and grams only, like the pending card); `settled` the photo turn's own last line; `removed` a job the caller removed."
+        "description": "A queued photo or meal update (ieat-app#1318, #1347): one job shape for both. `running` carries the step, its words in the account's language, and the foods found so far (name and grams only, like the pending card); an update adds `update` — its kind, its meal and how many steps it has. `settled` the turn's own last line; `removed` a job the caller removed."
       },
       "PhotoJobStep": {
         "type": "number",

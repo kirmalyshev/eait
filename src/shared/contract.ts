@@ -259,6 +259,12 @@ export const ROUTES = {
    */
   photoJob: (id: string) => `/v1/meals/photo/queue/${encodeURIComponent(id)}`,
   /**
+   * POST, JSON {@link MealUpdateRequest} with `clientId` REQUIRED (the `idempotency-key` header or
+   * the field): the job's id, followed and removed on {@link ROUTES.photoJob} like a photo's.
+   * Answers 202 {@link PhotoQueuedResponse}; the change runs on server-side (ieat-app#1347).
+   */
+  mealUpdateQueue: "/v1/meals/update/queue",
+  /**
    * POST, multipart: `photo` (one to `maxPhotosPerMeal` angles). The iOS App Clip's estimate: an
    * ANONYMOUS device account only (403 `anonymous-only` otherwise), charged to its sample, nothing
    * stored but the charge. Answers {@link ClipEstimateResponse}.
@@ -1351,14 +1357,38 @@ export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
 export interface PhotoQueuedResponse { kind: "queued"; jobId: string }
 /** The queued row's step, the server's half: 1 is the client's own upload, so a job starts at 2. */
 export type PhotoJobStep = 1 | 2 | 3 | 4;
+/** What a queued meal update changes: an ingredient edit, a chat correction, or a re-read of the photo. */
+export type MealUpdateKind = "ingredients" | "note" | "reread";
+/** Steps the server counts per kind; a job's `step` runs 1 to its kind's count and never past it. */
+export const MEAL_UPDATE_STEPS: Record<MealUpdateKind, number> = { ingredients: 2, note: 3, reread: 3 };
+/** `POST /v1/meals/update/queue` (ieat-app#1347). `edit` is the same body `PATCH /v1/meals/:id` takes. */
+export type MealUpdateBody =
+  | { kind: "ingredients"; edit: EditMealRequest }
+  | { kind: "note"; text: string }
+  | { kind: "reread" };
+export type MealUpdateRequest = { mealId: string; clientId: string; capturedAt?: string } & MealUpdateBody;
+/** A queued update's last line: what the same change answers when it is not queued. */
+export type MealUpdateLast = HandleTextResult | { kind: typeof OUTCOME_UNKNOWN };
+
+/** The body is a cast, not a validation: it ends in a stored sentence and a verdict. */
+export function isMealUpdateRequest(body: unknown): body is MealUpdateRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  if (typeof b.mealId !== "string" || b.mealId === "" || b.mealId.length > MAX_CLIENT_ID) return false;
+  if (b.kind === "reread") return true;
+  if (b.kind === "note") return typeof b.text === "string" && b.text.trim() !== "" && b.text.length <= MAX_USER_LINE;
+  return b.kind === "ingredients" && isEditMealRequest(b.edit);
+}
+
 /**
- * A queued photo (ieat-app#1318). `running` carries the step, its words in the account's language,
- * and the foods found so far (name and grams only, like the pending card); `settled` the photo
- * turn's own last line; `removed` a job the caller removed.
+ * A queued photo or meal update (ieat-app#1318, #1347): one job shape for both. `running` carries
+ * the step, its words in the account's language, and the foods found so far (name and grams only,
+ * like the pending card); an update adds `update` — its kind, its meal and how many steps it has.
+ * `settled` the turn's own last line; `removed` a job the caller removed.
  */
 export type PhotoJob =
-  | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[] }
-  | { kind: "settled"; jobId: string; result: PhotoLast }
+  | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[]; update?: { kind: MealUpdateKind; mealId: string; steps: number } }
+  | { kind: "settled"; jobId: string; result: PhotoLast | MealUpdateLast }
   | { kind: "removed"; jobId: string };
 /**
  * `PATCH /v1/messages/:id` (#608): the same progress, then one of these last. `bad-request` is a

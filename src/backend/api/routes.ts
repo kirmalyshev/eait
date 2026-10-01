@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest, isRedateMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest, isMealUpdateRequest, isRedateMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
@@ -37,7 +37,7 @@ import {
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
-  reanalyzeMeal, redateMeal, followPhotoJob, photoJob, queuePhoto, removePhotoJob,
+  reanalyzeMeal, redateMeal, followPhotoJob, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -655,6 +655,22 @@ export function createRouter(
           ...(typeof caption === "string" && caption ? { caption } : {}),
           ...fields, clientId: fields.clientId,
         }), 202);
+      }
+      // A meal update as a job (ieat-app#1347): the same job ids, the same state route.
+      if (req.method === "POST" && pathname === ROUTES.mealUpdateQueue) {
+        const body: unknown = await req.json().catch(() => null);
+        if (!isMealUpdateRequest(body)) return json({ error: "bad-update" }, 400);
+        const fields = turnFields(turnKey(req) ?? body.clientId, body.capturedAt);
+        if (fields.clientId === undefined) return json({ error: "clientId required" }, 400);
+        // An ingredient edit is unbilled like its PATCH; the model-bound kinds take the analysis allowance, a replay excepted.
+        const replay = (await store.getTurn(userId, fields.clientId)) !== null;
+        const wait = replay ? null
+          : body.kind === "ingredients" ? limit(req, peer, "meal-edit", deps.config.linesRateLimitPerHour, HOUR)
+          : limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
+        if (wait !== null) {
+          return body.kind === "ingredients" ? tooManyRequests(wait, { error: RATE_LIMITED }) : tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
+        }
+        return json(await queueMealUpdate(deps, userId, { ...body, ...fields, clientId: fields.clientId }), 202);
       }
       const jobMatch = PHOTO_JOB_PATH.exec(pathname);
       if (jobMatch && (req.method === "GET" || req.method === "DELETE")) {

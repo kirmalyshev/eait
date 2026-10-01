@@ -1,15 +1,31 @@
 // The photo queue (#1318): a photo joins at the top of today's list and reads itself server-side.
+// A meal update (#1347) is the same job: its meal's row turns into the queued row in place.
 
 import { homeCopyFor } from "../shared/app/home-copy.ts";
+import { updateCopyFor } from "../shared/app/update-copy.ts";
+import { mealCopyFor } from "../shared/app/meal-copy.ts";
 import { UNIT_KCAL, kcalNumbers } from "../shared/lang.ts";
-import type { MealItem } from "@eait/shared";
-import type { DayResponse, PhotoJob, PhotoLast } from "@eait/shared/contract";
-import { ApiError, api, apiStream } from "./api.ts";
+import type { MealItem, MealRecord } from "@eait/shared";
+import { MEAL_UPDATE_STEPS } from "../shared/contract.ts";
+import type { DayResponse, MealUpdateKind, MealUpdateBody, MealUpdateLast, PhotoJob, PhotoLast } from "@eait/shared/contract";
+import { ApiError, api, apiBlob, apiStream } from "./api.ts";
 import { fillCopy as fill } from "./copy.ts";
+import { blobSrc } from "./kit.ts";
 import { el, lang, names, redrawScreen, refusalWords } from "./shell.ts";
 import { shrinkPhotos } from "./photo.ts";
 
 type State = "reading" | "waiting" | "question" | "refused" | "failed";
+
+/** What a job that changes a logged meal carries: the meal as it stood, and the body that is sent again on Try again. */
+interface Update {
+  kind: MealUpdateKind;
+  mealId: string;
+  steps: number;
+  body: MealUpdateBody;
+  name: string;
+  kcal: number;
+}
+
 
 /** Where the photo was chosen — the point (drop) or element rect (button, composer) it flies from. */
 export interface FlyFrom { x: number; y: number; w: number; h: number }
@@ -30,6 +46,7 @@ interface Job {
   kcal: number | null;
   // Landing move owed to this row (#1354): its photo stays hidden until the flyer lands.
   flyFrom: FlyAt | null;
+  update: Update | null;
 }
 
 // ponytail: rows live in this tab; the server finishes a closed tab's photo and it lands as a meal.
@@ -39,9 +56,12 @@ const changed = () => { for (const v of views) v(); };
 
 const RANGES = [[0, 15], [15, 45], [45, 80], [80, 99]] as const;
 const percent = (j: Job): number => {
+  // An update splits 0–100 evenly by its kind's steps; the ring sits mid-step, never ahead of the server.
+  if (j.update) return Math.round(((j.step - 0.5) / j.update.steps) * 100);
   const [from, to] = RANGES[j.step - 1]!;
   return Math.min(to - 1, from + j.items.length * 6);
 };
+const photoJobs = (): Job[] => jobs.filter((j) => j.update === null);
 
 const dataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
   const r = new FileReader();
@@ -57,7 +77,7 @@ export async function enqueue(files: File[], from?: FlyFrom): Promise<void> {
   const job: Job = {
     id: crypto.randomUUID(), photos, thumb: await dataUrl(photos[0]!), capturedAt: new Date().toISOString(),
     step: 1, line: null, items: [], state: "reading", words: null, mealId: null, kcal: null,
-    flyFrom: from === undefined ? null : { ...from, at: Date.now() },
+    flyFrom: from === undefined ? null : { ...from, at: Date.now() }, update: null,
   };
   jobs = [job, ...jobs];
   changed();
@@ -71,13 +91,88 @@ const drop = (job: Job) => {
   changed();
 };
 
+/** A change to a logged meal joins the queue (#1347); its row stays where the meal is. */
+export function enqueueUpdate(meal: MealRecord, body: MealUpdateBody): void {
+  const job: Job = {
+    id: crypto.randomUUID(), photos: [], thumb: "", capturedAt: new Date().toISOString(),
+    step: 1, line: null, items: [], state: "reading", words: null, mealId: null, kcal: null, flyFrom: null,
+    update: { kind: body.kind, mealId: meal.id, steps: MEAL_UPDATE_STEPS[body.kind], body, name: names(meal.items), kcal: meal.kcal },
+  };
+  jobs = [job, ...jobs];
+  if ((meal.photos ?? 0) > 0) {
+    void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then(blobSrc).then((src) => { job.thumb = src; changed(); }).catch(() => {});
+  }
+  changed();
+  redrawScreen();
+  void run(job);
+}
+
+
+/** A meal's row that turns into its queued row in place while it has a job, and back to `plain()` when it has none. */
+export function inPlace(mealId: string, plain: () => Element): HTMLElement {
+  const slot = el("div", "uslot");
+  let shown: "plain" | "job" | null = null;
+  const draw = () => {
+    if (!slot.isConnected && shown !== null) { views.delete(draw); return; }
+    const job = updateFor(mealId);
+    if (job === undefined && shown === "plain") return;
+    slot.replaceChildren(job !== undefined ? updateRowEl(job) : plain());
+    shown = job !== undefined ? "job" : "plain";
+  };
+  views.add(draw);
+  draw();
+  return slot;
+}
+
+/** The meal screen's updating state: the kind's steps with the server's step lit, and a bar that never runs ahead. */
+export function updateBannerEl(mealId: string): HTMLElement {
+  const box = el("div", "mupd");
+  const draw = () => {
+    if (!box.isConnected && box.childElementCount > 0) { views.delete(draw); return; }
+    const job = updateFor(mealId);
+    if (job === undefined) { box.replaceChildren(); return; }
+    const list = el("ol", "msteps");
+    updateCopyFor(lang).steps[job.update!.kind].forEach((line, i) => {
+      list.append(el("li", i + 1 < job.step ? "done" : i + 1 === job.step ? "now" : "next", line));
+    });
+    const bar = el("i", "mbar");
+    bar.style.width = `${percent(job)}%`;
+    box.replaceChildren(list, bar);
+    box.setAttribute("role", "status");
+  };
+  views.add(draw);
+  draw();
+  return box;
+}
+
+// What a failed correction sent: Correct this meal opens with it in the field, once (no lost input).
+let sentNote: { mealId: string; text: string } | null = null;
+export function takeSentNote(mealId: string): string {
+  const text = sentNote?.mealId === mealId ? sentNote.text : "";
+  sentNote = null;
+  return text;
+}
+
+/** The meal's job, while it has one. */
+export const updateFor = (mealId: string): Job | undefined => jobs.find((j) => j.update?.mealId === mealId);
+/** Called on every change of any job; returns the way to stop. */
+export const watchJobs = (fn: () => void): (() => void) => { views.add(fn); return () => views.delete(fn); };
+export const updateWords = (job: Job): { title: string; line: string; pct: number } => ({
+  title: job.update!.name, line: job.line ?? updateCopyFor(lang).steps[job.update!.kind][0]!, pct: percent(job),
+});
+
 async function run(job: Job): Promise<void> {
   const form = new FormData();
   for (const p of job.photos) form.append("photo", p);
   form.append("clientId", job.id);
   form.append("capturedAt", job.capturedAt);
   try {
-    await api(`/meals/photo/queue`, { method: "POST", body: form });
+    if (job.update) {
+      await api(`/meals/update/queue`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...job.update.body, mealId: job.update.mealId, clientId: job.id, capturedAt: job.capturedAt }),
+      });
+    } else await api(`/meals/photo/queue`, { method: "POST", body: form });
   } catch (e) {
     if (e instanceof ApiError) return settle(job, null, refusalWords(e));
     job.state = "waiting";
@@ -115,8 +210,20 @@ async function follow(job: Job): Promise<void> {
   }
 }
 
-async function settle(job: Job, result: PhotoLast | null, words: string | null): Promise<void> {
+/** An update lands as the meal's new numbers; anything else keeps the meal as it was. */
+function settleUpdate(job: Job, result: PhotoLast | MealUpdateLast | null, words: string | null): void {
+  if (result?.kind === "updated" || result?.kind === "target-gone") { drop(job); redrawScreen(); return; }
+  const failed = result === null || result.kind === "outcome-unknown" || result.kind === "analysis-failed";
+  job.state = failed ? "failed" : "refused";
+  job.words = result === null ? words
+    : result.kind === "answered" ? result.text
+    : failed ? null : refusalWords(new ApiError(0, { error: result.kind }, result.kind));
+  changed();
+}
+
+async function settle(job: Job, result: PhotoLast | MealUpdateLast | null, words: string | null): Promise<void> {
   if (!jobs.includes(job)) return;
+  if (job.update) return settleUpdate(job, result, words);
   if (result?.kind === "logged") {
     if (result.question) {
       Object.assign(job, { state: "question", mealId: result.mealId, kcal: result.analysis.kcal, items: result.analysis.items });
@@ -154,7 +261,7 @@ function retry(job: Job): void {
 
 /** Meal ids a question row stands for, so the list does not draw them twice. */
 export const queuedMealIds = (): Set<string> => new Set(jobs.flatMap((j) => j.mealId ?? []));
-export const queueLength = (): number => jobs.length;
+export const queueLength = (): number => photoJobs().length;
 
 const SVG = "http://www.w3.org/2000/svg";
 const svg = (tag: string, attrs: Record<string, string>): SVGElement => {
@@ -190,7 +297,7 @@ function fly(job: Job, box: HTMLElement): void {
   // Poll a few frames for the slot: a redraw builds the box detached.
   let tries = 0;
   const place = (): void => {
-    const i = jobs.indexOf(job);
+    const i = photoJobs().indexOf(job);
     const th = i >= 0 ? box.children[i]?.querySelector(".qth") : null;
     if (th instanceof HTMLElement && box.isConnected && th.getBoundingClientRect().width > 0) {
       const sc = th.closest(".wcol");
@@ -219,6 +326,67 @@ function fly(job: Job, box: HTMLElement): void {
   requestAnimationFrame(place);
 }
 
+/** The ring over a veiled thumbnail: the percentage when reading, a dashed ring and the cloud while waiting. */
+function ringInto(th: HTMLElement, job: Job): void {
+  const ring = svg("svg", { class: "qr", viewBox: "0 0 40 40" });
+  ring.append(svg("circle", { cx: "20", cy: "20", r: "17", stroke: "rgba(255,255,255,.35)", "stroke-width": "3",
+    ...(job.state === "waiting" ? { "stroke-dasharray": "2 4" } : {}) }));
+  if (job.state === "reading") {
+    ring.append(svg("circle", { cx: "20", cy: "20", r: "17", stroke: "#fff", "stroke-width": "3", "stroke-linecap": "round",
+      "stroke-dasharray": `${(RING * percent(job)) / 100} ${RING}`, transform: "rotate(-90 20 20)" }));
+    th.append(ring, el("b", "", `${percent(job)}%`));
+  } else th.append(ring, glyph("cloud"));
+}
+
+/** The meal's own row, turned into the queued row in place (#1347): its name, the kind's step, the old kcal and a skeleton for the new. */
+export function updateRowEl(job: Job): HTMLElement {
+  const Q = homeCopyFor(lang).queue;
+  const U = updateCopyFor(lang);
+  const u = job.update!;
+  const row = el("div", "meal q");
+  const th = el("div", "qth");
+  if (job.thumb !== "") {
+    const img = document.createElement("img");
+    img.src = job.thumb;
+    img.alt = "";
+    th.append(img);
+  }
+  const veil = el("i", "veil");
+  veil.style.background = `rgba(23,25,28,${job.state === "reading" || job.state === "waiting" ? ".45" : ".55"})`;
+  th.append(veil);
+  const mm = el("div", "mm");
+  mm.append(el("b", "", u.name));
+  if (job.state === "reading" || job.state === "waiting") {
+    ringInto(th, job);
+    mm.append(el("span", `qstep${job.state === "waiting" ? " still" : ""}`, job.state === "waiting" ? Q.waiting : job.line ?? U.steps[u.kind][0]!));
+    const kc = el("div", "qold");
+    kc.append(el("span", "num", kcalNumbers(lang)(u.kcal)), el("i", "", "→"), skeleton("34px", "14px"));
+    row.append(th, mm, kc);
+    row.setAttribute("aria-busy", "true");
+    return row;
+  }
+  th.append(glyph("!"));
+  const failed = job.state === "failed";
+  mm.append(el("span", "qstep still ink", failed ? U.failedTitle : U.refusedTitle),
+    el("span", "qstep still", failed ? U.failedBody : job.words ?? U.failedBody));
+  const act = el("div", "qact");
+  const button = (text: string, on: () => void) => { const b = el("button", "", text); b.addEventListener("click", on); act.append(b); };
+  if (failed) {
+    button(homeCopyFor(lang).tryAgain, () => retry(job));
+    if (u.kind !== "reread") {
+      button(mealCopyFor(lang).phoneEdit, () => {
+        if (u.body.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
+        drop(job);
+        location.hash = `#/meal/${encodeURIComponent(u.mealId)}${u.kind === "note" ? "?fix" : ""}`;
+      });
+    }
+    button(U.discard, () => { drop(job); redrawScreen(); });
+  } else button(U.ok, () => { drop(job); redrawScreen(); });
+  mm.append(act);
+  row.append(th, mm);
+  return row;
+}
+
 function rowEl(job: Job): HTMLElement {
   const Q = homeCopyFor(lang).queue;
   // The landing row arrives `qnew`, photo hidden until the flyer lands; any other row keeps `rise`.
@@ -244,14 +412,7 @@ function rowEl(job: Job): HTMLElement {
   };
 
   if (job.state === "reading" || job.state === "waiting") {
-    const ring = svg("svg", { class: "qr", viewBox: "0 0 40 40" });
-    ring.append(svg("circle", { cx: "20", cy: "20", r: "17", stroke: "rgba(255,255,255,.35)", "stroke-width": "3",
-      ...(job.state === "waiting" ? { "stroke-dasharray": "2 4" } : {}) }));
-    if (job.state === "reading") {
-      ring.append(svg("circle", { cx: "20", cy: "20", r: "17", stroke: "#fff", "stroke-width": "3", "stroke-linecap": "round",
-        "stroke-dasharray": `${(RING * percent(job)) / 100} ${RING}`, transform: "rotate(-90 20 20)" }));
-      th.append(ring, el("b", "", `${percent(job)}%`));
-    } else th.append(ring, glyph("cloud"));
+    ringInto(th, job);
     if (job.items.length > 0) mm.append(el("b", "", names(job.items)));
     else { const t = el("div", "qtitle"); t.append(skeleton("62%", "12px")); mm.append(t); }
     mm.append(job.state === "waiting" ? step(Q.waiting, true) : step(job.step === 1 ? Q.uploading : job.line ?? Q.uploading));
@@ -299,9 +460,9 @@ export function queueEl(): HTMLElement {
   const box = el("div", "queue");
   const draw = () => {
     if (!box.isConnected && box.childElementCount > 0) { views.delete(draw); return; }
-    box.replaceChildren(...jobs.map(rowEl));
+    box.replaceChildren(...photoJobs().map(rowEl));
     // A job still owed its landing move starts it here, where its slot now exists.
-    for (const j of jobs) {
+    for (const j of photoJobs()) {
       if (j.flyFrom !== null && !flying.has(j)) { flying.add(j); fly(j, box); }
     }
   };

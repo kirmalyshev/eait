@@ -9,7 +9,6 @@
 import { execSync } from "node:child_process";
 import type { Page } from "@playwright/test";
 import type { DayResponse } from "@eait/shared/contract";
-import type { MealUpdated } from "@eait/shared/results";
 import { expect, logMeal, onboardFast, sessionToken, signIn, test } from "./fixtures.ts";
 
 // The review shots (#93's gate). `test-results/` is gitignored; the names carry the sha instead
@@ -90,17 +89,17 @@ test("Correct opens the meal's fix panel — the Cal-AI sheet, not a chat (#188)
   await expect(page).toHaveURL(new RegExp(`#\\/meal\\/${id}\\?d=`));
   await shot(page, "fix");
 
-  // Update sends the sentence as the correction turn — `focusMealId`, the contract unchanged —
-  // and the panel closes on the recomputed detail (no change line, ieat-app#1374).
+  // Update queues the sentence as a correction job (ieat-app#1347) and the panel closes on the
+  // recomputed detail (no change line, ieat-app#1374).
   const field = dialog.locator(".fixfield");
   await expect(field).toHaveAttribute("placeholder", "Say what was wrong");
   const update = dialog.getByRole("button", { name: "Update" });
   await expect(update).toBeDisabled();
   await field.fill("half that");
   await expect(update).toBeEnabled();
-  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/messages"));
+  const sent = page.waitForRequest((r) => r.method() === "POST" && r.url().endsWith("/meals/update/queue"));
   await update.click();
-  expect((await sent).postDataJSON()).toMatchObject({ focusMealId: id, text: "half that" });
+  expect((await sent).postDataJSON()).toMatchObject({ kind: "note", mealId: id, text: "half that" });
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -114,16 +113,20 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   await expect(menu.getByText("Move to yesterday")).toBeVisible();
   await expect(menu.getByText("Delete this meal")).toBeVisible();
 
-  // Re-read hits the analyzer again and the meal is redrawn from the answer.
-  const reread = page.waitForResponse((r) => r.url().includes(`/v1/meals/${id}/reanalyze`) && r.ok());
+  // Re-read queues the analyzer's second look as a job (ieat-app#1347) and the meal is redrawn when it lands.
+  const reread = page.waitForResponse((r) => r.url().endsWith("/v1/meals/update/queue") && r.status() === 202);
   await menu.getByText("Re-read the photo").click();
-  const updated = (await (await reread).json()) as MealUpdated;
-  expect(updated.kind).toBe("updated");
+  const jobId = (await reread).request().postDataJSON().clientId as string;
+  await expect.poll(async () => {
+    const job = await page.request.get(`/v1/meals/photo/queue/${jobId}`, { headers: { authorization: `Bearer ${await sessionToken(page)}` } });
+    return ((await job.json()) as { kind: string }).kind;
+  }).toBe("settled");
   await expect(page.locator(".hsr")).toBeVisible();
-  // The redrawn figures ARE the response's — the kcal it re-measured and the verdicts it
+  // The redrawn figures ARE the stored meal's — the kcal it re-measured and the verdicts it
   // recomputed, not the card's old numbers (#152).
+  const updated = (await day(page)).meals.find((m) => m.id === id)!;
   await expect(page.locator(".msheet .kfig .num")).toHaveText(
-    new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0, useGrouping: false }).format(updated.analysis.kcal),
+    new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0, useGrouping: false }).format(updated.kcal),
   );
   const relabelled = updated.verdictLabels ?? [];
   const dots = page.locator(".msheet .vs .v");

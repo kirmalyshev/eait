@@ -27,6 +27,12 @@ export const mealCss = `
 .msheet .kfig .ico{width:30px;height:30px}
 .msheet .mmeta{margin-top:4px}
 .msheet .cta{margin-top:auto}
+.mupd:empty{display:none}
+.mupd{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:12px;background:var(--accent-tint)}
+.msteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.msteps .now{color:var(--ink);font-weight:600}.msteps .done{color:var(--muted)}
+.mbar{display:block;height:4px;border-radius:2px;background:var(--accent);transition:width 600ms ease-out}
+.mdet.updating .msheet>:not(.mupd):not(.cta){opacity:.45}.mdet.updating .cta,.mdet.updating .ingbtn{pointer-events:none}
 
 /* The "…" menu — popped under its trigger, the phone menu's items in order, delete last and bad. */
 .mwrap{position:relative}

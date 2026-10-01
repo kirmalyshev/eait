@@ -449,3 +449,9 @@ naming it too.
   id: the outcome is the one `turns` keeps, and only the progress (`engine/photo-queue.ts`) is in
   process, so a restart loses the step and never the meal. A follower on `GET …/queue/:id` counts as
   the app being open; the one push goes only when nobody was following.
+- **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
+  takes an ingredient edit (`editMeal`), a chat correction (`handleText` with `focusMealId`) or a re-read
+  (`reanalyzeMeal`) and runs it in `engine/photo-queue.ts` under the `clientId`, followed and removed on the
+  photo job's route in the same `PhotoJob`; `update` on a running job names its kind and step count (2, 3, 3).
+  The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
+  builds call them. A restart loses a running update's step like a photo's, and its kind with it.
