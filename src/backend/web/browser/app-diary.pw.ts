@@ -33,21 +33,21 @@ async function dayAt(page: Page, delta: number): Promise<number> {
   });
   await page.goto("/#/");
   await page.reload();
-  await expect(page.locator(".kfig")).toBeVisible();
+  await expect(page.locator(".dayc .hk .fig")).toBeVisible();
   return target;
 }
 
 test("the calorie card says what is LEFT today, and a tap turns it to what was eaten", async ({ inWebApp: page }) => {
   const target = await dayAt(page, -550);
-  const card = page.locator(".kcard");
+  const card = page.locator(".dayc .hk");
   await expect(card).not.toHaveClass(/over/);
   // The board's pair: the figure over its label — "550" over "kcal left", not one sentence.
-  await expect(card.locator(".kfig")).toHaveText("550");
-  const toggle = card.locator("button.klab");
+  await expect(card.locator(".fig")).toHaveText("550");
+  const toggle = card.locator(".lbl");
   await expect(toggle).toHaveText(/kcal left/);
   // The toggle's other face is the eaten figure under "kcal eaten".
   await toggle.click();
-  await expect(card.locator(".kfig")).toHaveText(n("en-GB")(target - 550));
+  await expect(card.locator(".fig")).toHaveText(n("en-GB")(target - 550));
   await expect(toggle).toHaveText(/kcal eaten/);
 });
 
@@ -95,12 +95,12 @@ test("the diary is grouped and worded in the account's language, not the browser
     await route.fulfill({ response: res, json: body });
   });
   const target = await dayAt(page, -550);
-  await expect(page.locator(".kfig")).toHaveText("550");
-  await expect(page.locator(".kcard .klab")).toHaveText(/kcal übrig/);
+  await expect(page.locator(".dayc .hk .fig")).toHaveText("550");
+  await expect(page.locator(".dayc .hk .lbl")).toHaveText(/kcal übrig/);
   const de = n("de-DE");
-  await page.locator(".kcard .klab").click();
-  await expect(page.locator(".kfig")).toHaveText(de(target - 550));
-  await expect(page.locator(".kcard .klab")).toHaveText(/kcal gegessen/);
+  await page.locator(".dayc .hk .lbl").click();
+  await expect(page.locator(".dayc .hk .fig")).toHaveText(de(target - 550));
+  await expect(page.locator(".dayc .hk .lbl")).toHaveText(/kcal gegessen/);
   // The bar names the viewed day in the account's language too — "Montag 28 September".
   await expect(page.locator(".week .dy.now")).toHaveAttribute("aria-label",
     new Intl.DateTimeFormat("de-DE", {
@@ -117,9 +117,9 @@ test("the diary is grouped and worded in the account's language, not the browser
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {
   await dayAt(page, 310);
   // The over day's figure is the OVERAGE under "kcal over", the card carrying the warn state.
-  await expect(page.locator(".kfig")).toHaveText("310");
-  await expect(page.locator(".kcard .klab")).toHaveText(/kcal over/);
-  await expect(page.locator(".kcard")).toHaveClass(/over/);
+  await expect(page.locator(".dayc .hk .fig")).toHaveText("310");
+  await expect(page.locator(".dayc .hk .lbl")).toHaveText(/kcal over/);
+  await expect(page.locator(".dayc .hk")).toHaveClass(/over/);
 });
 
 // ── The bar's date row and the week strip (#71, #164) ─────────────────────────────────────────
@@ -243,7 +243,7 @@ test("a meal row opens its own detail on the viewed day", async ({ inWebApp: pag
   const day = (await res.json()) as DayResponse;
   const id = day.meals[0]!.id;
   await page.goto("/#/");
-  const row = page.locator(".meals a.meal").first();
+  const row = page.locator(".dlist a.meal").first();
   await expect(row).toHaveAttribute("href", `#/meal/${id}?d=${day.date}`);
   await row.click();
   await expect(page).toHaveURL(new RegExp(`#\\/meal\\/${id}`));
@@ -266,7 +266,7 @@ test("a tab change while the first draw is still loading draws one page, not two
   await page.evaluate(`location.hash = "#/"`);
   release();
 
-  await expect(page.locator(".kfig")).toBeVisible();
+  await expect(page.locator(".dayc .hk .fig")).toBeVisible();
   await expect(page.locator("nav")).toHaveCount(1);
   // The column IS the main landmark since #87's split — `.wcol`, the class `main` carries.
   await expect(page.locator("main.wcol")).toHaveCount(1);

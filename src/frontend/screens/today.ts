@@ -544,6 +544,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (me.basis.floorApplied) {
       figs.append(el("span", "floor", fill(L.floorNote, { floor: n(me.basis.floorKcal) })));
     }
+    if (budget.warn) hero.classList.add("over");
     hero.append(figs, heroRing(budget.fill, budget.warn));
     hero.setAttribute("aria-label", ariaFor(s));
     if (rich) {

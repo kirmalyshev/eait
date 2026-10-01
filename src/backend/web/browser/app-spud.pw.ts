@@ -92,7 +92,7 @@ test("a diary row wears the meal's own verdict line, and the composer on Home lo
   const day = await res.json() as DayResponse;
   const meal = day.meals[0]!;
   expect(meal.verdictInline).toBeTruthy();
-  const row = page.locator(".meals a.meal").first();
+  const row = page.locator(".dlist a.meal").first();
   await expect(row.locator(".v")).toHaveText(meal.verdictInline!);
   // The tone is the day's worst verdict — the same rule `verdictRow` draws it by.
   const bad = (meal.verdictLabels ?? []).some((v) => v.tone === "bad");
@@ -104,5 +104,5 @@ test("a diary row wears the meal's own verdict line, and the composer on Home lo
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
-  await expect(page.locator(".meals a.meal")).toHaveCount(2);
+  await expect(page.locator(".dlist a.meal")).toHaveCount(2);
 });
