@@ -540,10 +540,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     lab.append(document.createTextNode(labelFor(s)));
     if (rich) lab.append(kitEl(iconSvg("swap", { size: 12, strokeWidth: 2.2 })));
     figs.append(fig, lab);
-    // The floor the plan will not go under — drawn only when the server applied it.
-    if (me.basis.floorApplied) {
-      figs.append(el("span", "floor", fill(L.floorNote, { floor: n(me.basis.floorKcal) })));
-    }
     if (budget.warn) hero.classList.add("over");
     hero.append(figs, heroRing(budget.fill, budget.warn));
     hero.setAttribute("aria-label", ariaFor(s));

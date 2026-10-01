@@ -4,7 +4,7 @@
 //
 // Scoped under `.you` like every surface's sheet — the classes that name kit components
 // (.opt/.macs/.mcard/.week) are kitCss's own; what lives here is the board's arrangement of them
-// plus the words-only helpers (`.lab`, `.est`, `.d`) that are not the kit's.
+// plus the words-only helpers (`.lab`, `.d`) that are not the kit's.
 
 import { WEIGHT_CHART_DOTS } from "../../shared/ui/charts.ts";
 
@@ -22,10 +22,6 @@ export const youCss = `
 .you .m { color: var(--muted); }
 .you .d { font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
 .you .d22 { font-size: 22px; }
-/* The plan card's floor marker stays on its own line's right — the board's "never below 1,200"
-   is one line, so it never breaks mid-phrase. */
-.you .est { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-
 /* The identity card — the tinted disc (48px, the person mark inside; the board's lettered avatar
    was fixture data — no name is stored) beside the fact line, drawn the board's t13-muted way. */
 .you .idcard { display: flex; align-items: center; gap: 14px; }

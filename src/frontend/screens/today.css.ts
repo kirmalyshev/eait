@@ -35,8 +35,7 @@ export const todayCss = `
 
 /* The kcal hero — 128 px, the figure and the label beside the 96 px ring. The whole band is a
    button only on today-with-meals (the swap arrows in the label toggle left↔eaten, the 150 ms
-   crossfade on the figure block). Over reads in --over, the unread day dashes, the floor
-   marker rides under the label when the server applied it. */
+   crossfade on the figure block). Over reads in --over, the unread day dashes. */
 .hk { height: 128px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left; }
 button.hk { cursor: pointer; }
@@ -47,9 +46,6 @@ button.hk { cursor: pointer; }
 .hk .lbl { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
   color: var(--muted); margin-top: 2px; }
 .hk .lbl svg { width: 12px; height: 12px; }
-.hk .floor { display: flex; align-items: center; gap: 5px; margin-top: 6px; font-size: 12px;
-  font-weight: 600; color: var(--muted); }
-.hk .floor::before { content: ""; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); }
 .hk.over .fig, .hk.over .lbl { color: var(--over); }
 .hk.dash .fig { color: var(--line); }
 .hk:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
