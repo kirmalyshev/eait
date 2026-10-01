@@ -31,7 +31,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Đã cập nhật — {kcal} kcal. {day}"
+#~ msgstr "Đã cập nhật — {kcal}kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -46,32 +46,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Hôm nay bạn còn {left} trên {plan}, {protein} trên {proteinTarget} g đạm."
+#~ msgstr "Hôm nay bạn còn {left} trên {plan}, {protein} trên {proteinTarget}g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
+#~ msgstr "hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget}g đạm. Cứ tiếp tục nhé."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
+#~ msgstr "Hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget}g đạm. Cứ tiếp tục nhé."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "Hôm nay vượt {over} so với {plan}, {protein} trên {proteinTarget} g đạm."
+#~ msgstr "Hôm nay vượt {over} so với {plan}, {protein} trên {proteinTarget}g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+#~ msgstr "hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget}g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "Hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+#~ msgstr "Hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget}g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -96,22 +96,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm."
+#~ msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget}g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm."
+#~ msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget}g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
+#~ msgstr "vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget}g đạm. Mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
+#~ msgstr "Vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget}g đạm. Mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -121,7 +121,7 @@ msgstr "“{note}” — đã ghi nhận, nó nằm trong các con số rồi."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal} kcal"
+msgstr "{names} · {kcal}kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -151,12 +151,12 @@ msgstr "{noun} — rất cao"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} cao cho một bữa: {eaten} trên {target} {unit} của bạn."
+msgstr "{nutrient} cao cho một bữa: {eaten} trên {target}{unit} của bạn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} rất cao cho một bữa: {eaten} trên {target} {unit} của bạn."
+msgstr "{nutrient} rất cao cho một bữa: {eaten} trên {target}{unit} của bạn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -206,12 +206,12 @@ msgstr "Đã kết nối với tài khoản eait đăng nhập bằng"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Đã tính. Hôm nay còn {left} kcal."
+msgstr "Đã tính. Hôm nay còn {left}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Đã tính. Hôm nay vượt {over} kcal."
+msgstr "Đã tính. Hôm nay vượt {over}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Đang nhận diện món ăn · 2/4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "Bữa đầu tiên đã vào. {kcal} kcal."
+msgstr "Bữa đầu tiên đã vào. {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -511,7 +511,7 @@ msgstr "Đây là eait mới. Bữa ăn và ảnh của bạn được lưu tron
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Hôm nay: {eaten} trên {plan} kcal, {protein} trên {proteinTarget} g đạm"
+msgstr "Hôm nay: {eaten} trên {plan}kcal, {protein} trên {proteinTarget}g đạm"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

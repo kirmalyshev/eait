@@ -326,8 +326,8 @@ describe("the outbox (#708)", () => {
 
   it("a queued turn that landed as anything else is read back from the thread", async () => {
     const { core, fake } = harness();
-    fake.pages.push(page([userLine("how much protein?", { clientId: "q1" }), said("About 40 g.")]));
-    await core.landed({ kind: "answered", text: "About 40 g." });
+    fake.pages.push(page([userLine("how much protein?", { clientId: "q1" }), said("About 40g.")]));
+    await core.landed({ kind: "answered", text: "About 40g." });
     expect(core.state.entries.map((e) => e.role)).toEqual(["user", "assistant"]);
     expect(core.state.entries.every((e) => "stored" in e && e.stored)).toBe(true);
   });

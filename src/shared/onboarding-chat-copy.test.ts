@@ -192,7 +192,7 @@ describe("the readers of those tables", () => {
     // with its placeholders filled, the chart words, the how/health beats.
     //
     // ONE SCOPED EXEMPTION, the same one `ONBOARDING_CLAIM_RULES` makes: `weight-promise` cannot
-    // tell "lose 6 kg" the user's own stated goal (the plan card echoes it back) from a promise.
+    // tell "lose 6kg" the user's own stated goal (the plan card echoes it back) from a promise.
     // `direction`, `plan`, `switched`, `goalEdit`, `belowHealthy` and `invalid` all quote the
     // user's own numbers back at them — they are out of the sweep for exactly that reason.
     // `planGoal` is out by S6's own published exemption — `CLAIM_EXEMPTIONS` names the qualified
@@ -200,8 +200,8 @@ describe("the readers of those tables", () => {
     // not carry the qualifier through.
     const EXEMPT = /^(direction|plan|planGoal|switched|goalEdit|belowHealthy|invalid|ambiguousAge|underAge|underAgeCard|capNoteTail|targetSuggestion|target)\./;
     const FILL = {
-      weight: "68 kg", target: "68 kg", delta: "6 kg", month: "January 2027", kcal: "1,434",
-      rate: "0.4 kg", floor: "1,200", share: "20", age: "16", kg: "58", year: "1990",
+      weight: "68kg", target: "68kg", delta: "6kg", month: "January 2027", kcal: "1,434",
+      rate: "0.4kg", floor: "1,200", share: "20", age: "16", kg: "58", year: "1990",
       n: "13", label: "0–2", pct: "8", coach: "Gabie",
     };
     const filled = (s: string) =>

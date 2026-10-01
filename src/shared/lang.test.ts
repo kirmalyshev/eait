@@ -217,7 +217,7 @@ describe("genderedRussian — the check no English-reading reviewer could be", (
     // Neuter is never a person; `самая` is the superlative.
     "Готово.", "Уйдёт само, как только получится.", "Самая низкая цель для твоего роста",
     // A unit that happens to end in -л.
-    "{plan} ккал сегодня.",
+    "{plan}ккал сегодня.",
     // Not Russian at all.
     "Damit bist du nicht allein", "You're in good company",
   ];

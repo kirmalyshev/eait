@@ -67,7 +67,7 @@ export interface ChatCopy {
   target: { lowest: string; now: string; deltaDown: string; deltaUp: string };
   /**
    * The pace screen's numbers and the marker its result owes. `{rate}` is the projection's
-   * kgPerWeek formatted with its unit ("0.4 kg" / "0.9 lb") — never the pace's requested rate;
+   * kgPerWeek formatted with its unit ("0.4kg" / "0.9lb") — never the pace's requested rate;
    * `{floor}` is the computed floor. `capMarker`/`floorMarker` are the one small line under it.
    */
   pace: {
@@ -171,7 +171,7 @@ const EN: ChatCopy = {
   },
   belowHealthy:  {
     title: "I can't set that as a target",
-    body: "The lowest healthy weight for your height is about {kg} kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.",
+    body: "The lowest healthy weight for your height is about {kg}kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.",
   },
   invalid:  {
     age: "That doesn't look like an age — try something like 34.",
@@ -184,8 +184,8 @@ const EN: ChatCopy = {
     confirm: "I'm {age}",
   },
   direction:  {
-    gain: "You're at {weight} kg and asked to gain to {target} — that's not a gain from here. If the goal changed, we can switch it; otherwise give me a number above {weight}.",
-    lose: "You're at {weight} kg and asked to lose to {target} — that's not a loss from here. If the goal changed, we can switch it; otherwise give me a number below {weight}.",
+    gain: "You're at {weight}kg and asked to gain to {target} — that's not a gain from here. If the goal changed, we can switch it; otherwise give me a number above {weight}.",
+    lose: "You're at {weight}kg and asked to lose to {target} — that's not a loss from here. If the goal changed, we can switch it; otherwise give me a number below {weight}.",
     switchToLose: "Switch to losing",
     switchToGain: "Switch to gaining",
     above: "A number above {weight}…",
@@ -195,13 +195,13 @@ const EN: ChatCopy = {
     gain: "Switched — gaining it is. Where would you like to be, in kg?",
     lose: "Switched — losing it is. Where would you like to be, in kg? Faster isn't better here — it's just harder to keep.",
   },
-  capNoteTail:  " That's about {kg} kg a week.",
+  capNoteTail:  " That's about {kg}kg a week.",
   goalEdit:  {
     cleared: "Your target weight no longer fitted that goal, so it's cleared — set a new one.",
     worthSetting: "Recorded. Your target weight no longer fits your goal, though — worth setting a new one.",
   },
   target: {
-    // "55 · lowest we set" under the range's floor, "74 · now" beside today, "− 6 kg" the
+    // "55 · lowest we set" under the range's floor, "74 · now" beside today, "− 6kg" the
     // answer's distance from it.
     lowest: "{weight} · lowest we set",
     now: "{weight} · now",
@@ -211,7 +211,7 @@ const EN: ChatCopy = {
   pace: {
     rate: "{rate} a week",
     rateSuffix: "a week",
-    result: "{target} around {month} · {kcal} kcal a day",
+    result: "{target} around {month} · {kcal}kcal a day",
     capMarker: "capped at the safe limit",
     floorMarker: "never below {floor} · every pace lands here",
   },
@@ -258,13 +258,13 @@ const EN: ChatCopy = {
     skip: "Not now",
   },
   targetSuggestion:  {
-    down: "I suggest {kg} kg, about {pct}% down, a good first goal",
-    up: "I suggest {kg} kg, about {pct}% up, a good first goal",
+    down: "I suggest {kg}kg, about {pct}% down, a good first goal",
+    up: "I suggest {kg}kg, about {pct}% up, a good first goal",
   },
   firstMeal:  FIRST_MEAL_COPY.en,
   stepper:  { continue: "Continue", less: "Less", more: "More" },
-  offerHeadline:  "Get to {kg} kg by {month}",
-  planGoal: { metric: "Goal: lose {n} kg by {month}", imperial: "Goal: lose {n} lbs by {month}" },
+  offerHeadline:  "Get to {kg}kg by {month}",
+  planGoal: { metric: "Goal: lose {n}kg by {month}", imperial: "Goal: lose {n} lbs by {month}" },
 };
 
 const FR: ChatCopy = {
@@ -286,7 +286,7 @@ const FR: ChatCopy = {
   },
   belowHealthy:  {
     title: "Je ne peux pas fixer ça comme objectif",
-    body: "Le poids sain le plus bas pour ta taille est d'environ {kg} kg. On ne fixera pas d'objectif en dessous. Si tu suis un autre objectif avec un médecin, écoute-le plutôt que cette appli.",
+    body: "Le poids sain le plus bas pour ta taille est d'environ {kg}kg. On ne fixera pas d'objectif en dessous. Si tu suis un autre objectif avec un médecin, écoute-le plutôt que cette appli.",
   },
   invalid:  {
     age: "Ça ne ressemble pas à un âge — essaie quelque chose comme 34.",
@@ -299,8 +299,8 @@ const FR: ChatCopy = {
     confirm: "J'ai {age} ans",
   },
   direction:  {
-    gain: "Tu es à {weight} kg et tu demandes à monter jusqu'à {target} — ce n'est pas une hausse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre au-dessus de {weight}.",
-    lose: "Tu es à {weight} kg et tu demandes à descendre jusqu'à {target} — ce n'est pas une baisse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre en dessous de {weight}.",
+    gain: "Tu es à {weight}kg et tu demandes à monter jusqu'à {target} — ce n'est pas une hausse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre au-dessus de {weight}.",
+    lose: "Tu es à {weight}kg et tu demandes à descendre jusqu'à {target} — ce n'est pas une baisse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre en dessous de {weight}.",
     switchToLose: "Je veux perdre",
     switchToGain: "Je veux prendre",
     above: "Un nombre au-dessus de {weight}…",
@@ -310,7 +310,7 @@ const FR: ChatCopy = {
     gain: "Va pour la prise de poids. Où aimerais-tu arriver, en kg ?",
     lose: "D'accord, on vise plus bas. Où aimerais-tu arriver, en kg ? Ici, aller plus vite n'aide pas — c'est juste plus dur à tenir.",
   },
-  capNoteTail:  " Ça fait environ {kg} kg par semaine.",
+  capNoteTail:  " Ça fait environ {kg}kg par semaine.",
   goalEdit:  {
     cleared: "Ton poids cible ne collait plus à cet objectif, il est donc effacé — choisis-en un nouveau.",
     worthSetting: "Enregistré. Ton poids cible ne colle plus à ton objectif, cela dit — ça vaut le coup d'en fixer un nouveau.",
@@ -324,7 +324,7 @@ const FR: ChatCopy = {
   pace: {
     rate: "{rate} par semaine",
     rateSuffix: "par semaine",
-    result: "{target} vers {month} · {kcal} kcal par jour",
+    result: "{target} vers {month} · {kcal}kcal par jour",
     capMarker: "plafonné à la limite sûre",
     floorMarker: "jamais sous {floor} · chaque rythme y arrive",
   },
@@ -371,13 +371,13 @@ const FR: ChatCopy = {
     skip: "Pas maintenant",
   },
   targetSuggestion:  {
-    down: "Je te propose {kg} kg, soit environ {pct} % de moins — un bon premier objectif",
-    up: "Je te propose {kg} kg, soit environ {pct} % de plus — un bon premier objectif",
+    down: "Je te propose {kg}kg, soit environ {pct} % de moins — un bon premier objectif",
+    up: "Je te propose {kg}kg, soit environ {pct} % de plus — un bon premier objectif",
   },
   firstMeal:  FIRST_MEAL_COPY.fr,
   stepper:  { continue: "Continuer", less: "Moins", more: "Plus" },
-  offerHeadline:  "Atteindre {kg} kg d'ici {month}",
-  planGoal: { metric: "Objectif : perdre {n} kg d'ici {month}", imperial: "Objectif : perdre {n} lb d'ici {month}" },
+  offerHeadline:  "Atteindre {kg}kg d'ici {month}",
+  planGoal: { metric: "Objectif : perdre {n}kg d'ici {month}", imperial: "Objectif : perdre {n}lb d'ici {month}" },
 };
 
 const DE: ChatCopy = {
@@ -399,7 +399,7 @@ const DE: ChatCopy = {
   },
   belowHealthy:  {
     title: "Das kann ich nicht als Ziel setzen",
-    body: "Das niedrigste gesunde Gewicht für deine Größe liegt bei etwa {kg} kg. Darunter setzen wir kein Ziel. Wenn du mit einer Ärztin an etwas anderem arbeitest, folge ihr und nicht dieser App.",
+    body: "Das niedrigste gesunde Gewicht für deine Größe liegt bei etwa {kg}kg. Darunter setzen wir kein Ziel. Wenn du mit einer Ärztin an etwas anderem arbeitest, folge ihr und nicht dieser App.",
   },
   invalid:  {
     age: "Das sieht nicht nach einem Alter aus — versuch es mit so etwas wie 34.",
@@ -412,8 +412,8 @@ const DE: ChatCopy = {
     confirm: "Ich bin {age}",
   },
   direction:  {
-    gain: "Du bist bei {weight} kg und willst auf {target} zunehmen — von hier aus ist das keine Zunahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl über {weight}.",
-    lose: "Du bist bei {weight} kg und willst auf {target} abnehmen — von hier aus ist das keine Abnahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl unter {weight}.",
+    gain: "Du bist bei {weight}kg und willst auf {target} zunehmen — von hier aus ist das keine Zunahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl über {weight}.",
+    lose: "Du bist bei {weight}kg und willst auf {target} abnehmen — von hier aus ist das keine Abnahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl unter {weight}.",
     switchToLose: "Auf Abnehmen umstellen",
     switchToGain: "Auf Zunehmen umstellen",
     above: "Eine Zahl über {weight}…",
@@ -423,7 +423,7 @@ const DE: ChatCopy = {
     gain: "Umgestellt — zunehmen also. Wo möchtest du landen, in kg?",
     lose: "Umgestellt — abnehmen also. Wo möchtest du landen, in kg? Schneller ist hier nicht besser — nur schwerer zu halten.",
   },
-  capNoteTail:  " Das sind etwa {kg} kg pro Woche.",
+  capNoteTail:  " Das sind etwa {kg}kg pro Woche.",
   goalEdit:  {
     cleared: "Dein Zielgewicht passte nicht mehr zu diesem Ziel, also ist es gelöscht — setz ein neues.",
     worthSetting: "Aufgenommen. Dein Zielgewicht passt allerdings nicht mehr zu deinem Ziel — es lohnt sich, ein neues zu setzen.",
@@ -437,7 +437,7 @@ const DE: ChatCopy = {
   pace: {
     rate: "{rate} pro Woche",
     rateSuffix: "pro Woche",
-    result: "{target} um {month} · {kcal} kcal am Tag",
+    result: "{target} um {month} · {kcal}kcal am Tag",
     capMarker: "auf die sichere Grenze gekappt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
   },
@@ -484,13 +484,13 @@ const DE: ChatCopy = {
     skip: "Nicht jetzt",
   },
   targetSuggestion:  {
-    down: "Ich schlage {kg} kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
-    up: "Ich schlage {kg} kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
+    down: "Ich schlage {kg}kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
+    up: "Ich schlage {kg}kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
   },
   firstMeal:  FIRST_MEAL_COPY.de,
   stepper:  { continue: "Weiter", less: "Weniger", more: "Mehr" },
-  offerHeadline:  "{kg} kg bis {month}",
-  planGoal: { metric: "Ziel: bis {month} {n} kg abnehmen", imperial: "Ziel: bis {month} {n} lb abnehmen" },
+  offerHeadline:  "{kg}kg bis {month}",
+  planGoal: { metric: "Ziel: bis {month} {n}kg abnehmen", imperial: "Ziel: bis {month} {n}lb abnehmen" },
 };
 
 const IT: ChatCopy = {
@@ -512,7 +512,7 @@ const IT: ChatCopy = {
   },
   belowHealthy:  {
     title: "Non posso impostarlo come obiettivo",
-    body: "Il peso sano più basso per la tua altezza è circa {kg} kg. Sotto quello non fissiamo obiettivi. Se stai seguendo altro con un medico, segui lui e non questa app.",
+    body: "Il peso sano più basso per la tua altezza è circa {kg}kg. Sotto quello non fissiamo obiettivi. Se stai seguendo altro con un medico, segui lui e non questa app.",
   },
   invalid:  {
     age: "Non sembra un'età — prova con qualcosa tipo 34.",
@@ -525,8 +525,8 @@ const IT: ChatCopy = {
     confirm: "Ho {age} anni",
   },
   direction:  {
-    gain: "Sei a {weight} kg e chiedi di salire a {target} — da qui non è una crescita. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
-    lose: "Sei a {weight} kg e chiedi di scendere a {target} — da qui non è un calo. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sotto {weight}.",
+    gain: "Sei a {weight}kg e chiedi di salire a {target} — da qui non è una crescita. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
+    lose: "Sei a {weight}kg e chiedi di scendere a {target} — da qui non è un calo. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sotto {weight}.",
     switchToLose: "Passa a perdere peso",
     switchToGain: "Passa a prendere peso",
     above: "Un numero sopra {weight}…",
@@ -536,7 +536,7 @@ const IT: ChatCopy = {
     gain: "Invertito — si prende peso, allora. Dove ti piacerebbe arrivare, in kg?",
     lose: "Invertito — si perde peso, allora. Dove ti piacerebbe arrivare, in kg? Più veloce qui non è meglio — è solo più difficile da mantenere.",
   },
-  capNoteTail:  " Fa circa {kg} kg a settimana.",
+  capNoteTail:  " Fa circa {kg}kg a settimana.",
   goalEdit:  {
     cleared: "Il tuo peso obiettivo non corrispondeva più a quell'obiettivo, quindi è stato azzerato — impostane uno nuovo.",
     worthSetting: "Registrato. Il tuo peso obiettivo però non corrisponde più al tuo obiettivo — vale la pena impostarne uno nuovo.",
@@ -550,7 +550,7 @@ const IT: ChatCopy = {
   pace: {
     rate: "{rate} a settimana",
     rateSuffix: "a settimana",
-    result: "{target} verso {month} · {kcal} kcal al giorno",
+    result: "{target} verso {month} · {kcal}kcal al giorno",
     capMarker: "limitato al valore di sicurezza",
     floorMarker: "mai sotto {floor} · ogni ritmo arriva qui",
   },
@@ -597,13 +597,13 @@ const IT: ChatCopy = {
     skip: "Non ora",
   },
   targetSuggestion:  {
-    down: "Ti suggerisco {kg} kg, circa il {pct}% in meno — un buon primo obiettivo",
-    up: "Ti suggerisco {kg} kg, circa il {pct}% in più — un buon primo obiettivo",
+    down: "Ti suggerisco {kg}kg, circa il {pct}% in meno — un buon primo obiettivo",
+    up: "Ti suggerisco {kg}kg, circa il {pct}% in più — un buon primo obiettivo",
   },
   firstMeal:  FIRST_MEAL_COPY.it,
   stepper:  { continue: "Continua", less: "Meno", more: "Più" },
-  offerHeadline:  "Arrivare a {kg} kg entro {month}",
-  planGoal: { metric: "Obiettivo: perdere {n} kg entro {month}", imperial: "Obiettivo: perdere {n} lb entro {month}" },
+  offerHeadline:  "Arrivare a {kg}kg entro {month}",
+  planGoal: { metric: "Obiettivo: perdere {n}kg entro {month}", imperial: "Obiettivo: perdere {n}lb entro {month}" },
 };
 
 const ES: ChatCopy = {
@@ -625,7 +625,7 @@ const ES: ChatCopy = {
   },
   belowHealthy:  {
     title: "No puedo poner eso como objetivo",
-    body: "El peso saludable más bajo para tu altura es de unos {kg} kg. No fijamos objetivos por debajo. Si estás trabajando otra cosa con un médico, hazle caso a él y no a esta app.",
+    body: "El peso saludable más bajo para tu altura es de unos {kg}kg. No fijamos objetivos por debajo. Si estás trabajando otra cosa con un médico, hazle caso a él y no a esta app.",
   },
   invalid:  {
     age: "Eso no parece una edad — prueba con algo como 34.",
@@ -638,8 +638,8 @@ const ES: ChatCopy = {
     confirm: "Tengo {age} años",
   },
   direction:  {
-    gain: "Estás en {weight} kg y pides subir hasta {target} — desde aquí eso no es subir. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por encima de {weight}.",
-    lose: "Estás en {weight} kg y pides bajar hasta {target} — desde aquí eso no es bajar. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por debajo de {weight}.",
+    gain: "Estás en {weight}kg y pides subir hasta {target} — desde aquí eso no es subir. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por encima de {weight}.",
+    lose: "Estás en {weight}kg y pides bajar hasta {target} — desde aquí eso no es bajar. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por debajo de {weight}.",
     switchToLose: "Cambiar a perder peso",
     switchToGain: "Cambiar a ganar peso",
     above: "Un número por encima de {weight}…",
@@ -649,7 +649,7 @@ const ES: ChatCopy = {
     gain: "Cambiado — ganar, entonces. ¿Dónde te gustaría llegar, en kg?",
     lose: "Cambiado — perder, entonces. ¿Dónde te gustaría llegar, en kg? Más rápido no es mejor aquí — solo es más difícil de sostener.",
   },
-  capNoteTail:  " Eso son unos {kg} kg por semana.",
+  capNoteTail:  " Eso son unos {kg}kg por semana.",
   goalEdit:  {
     cleared: "Tu peso objetivo ya no encajaba con ese objetivo, así que se ha borrado — pon uno nuevo.",
     worthSetting: "Registrado. Eso sí, tu peso objetivo ya no encaja con tu objetivo — merece la pena poner uno nuevo.",
@@ -663,7 +663,7 @@ const ES: ChatCopy = {
   pace: {
     rate: "{rate} a la semana",
     rateSuffix: "a la semana",
-    result: "{target} hacia {month} · {kcal} kcal al día",
+    result: "{target} hacia {month} · {kcal}kcal al día",
     capMarker: "limitado al tope seguro",
     floorMarker: "nunca por debajo de {floor} · cada ritmo llega aquí",
   },
@@ -710,13 +710,13 @@ const ES: ChatCopy = {
     skip: "Ahora no",
   },
   targetSuggestion:  {
-    down: "Te sugiero {kg} kg, alrededor de un {pct}% menos — una buena primera meta",
-    up: "Te sugiero {kg} kg, alrededor de un {pct}% más — una buena primera meta",
+    down: "Te sugiero {kg}kg, alrededor de un {pct}% menos — una buena primera meta",
+    up: "Te sugiero {kg}kg, alrededor de un {pct}% más — una buena primera meta",
   },
   firstMeal:  FIRST_MEAL_COPY.es,
   stepper:  { continue: "Continuar", less: "Menos", more: "Más" },
-  offerHeadline:  "Llegar a {kg} kg en {month}",
-  planGoal: { metric: "Objetivo: bajar {n} kg para {month}", imperial: "Objetivo: bajar {n} lb para {month}" },
+  offerHeadline:  "Llegar a {kg}kg en {month}",
+  planGoal: { metric: "Objetivo: bajar {n}kg para {month}", imperial: "Objetivo: bajar {n}lb para {month}" },
 };
 
 const VI: ChatCopy = {
@@ -738,7 +738,7 @@ const VI: ChatCopy = {
   },
   belowHealthy:  {
     title: "Mình không đặt được mức đó làm mục tiêu",
-    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
+    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg}kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
   },
   invalid:  {
     age: "Cái đó trông không giống một số tuổi — thử kiểu như 34 xem.",
@@ -751,8 +751,8 @@ const VI: ChatCopy = {
     confirm: "Tôi {age} tuổi",
   },
   direction:  {
-    gain: "Bạn đang ở {weight} kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
-    lose: "Bạn đang ở {weight} kg mà lại muốn giảm xuống {target} — từ đây thì đó không phải là giảm. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số dưới {weight}.",
+    gain: "Bạn đang ở {weight}kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
+    lose: "Bạn đang ở {weight}kg mà lại muốn giảm xuống {target} — từ đây thì đó không phải là giảm. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số dưới {weight}.",
     switchToLose: "Chuyển sang giảm cân",
     switchToGain: "Chuyển sang tăng cân",
     above: "Một số trên {weight}…",
@@ -762,7 +762,7 @@ const VI: ChatCopy = {
     gain: "Đã chuyển — vậy là tăng cân. Bạn muốn về mức nào, tính bằng kg?",
     lose: "Đã chuyển — vậy là giảm cân. Bạn muốn về mức nào, tính bằng kg? Nhanh hơn không có nghĩa là tốt hơn — chỉ khó giữ hơn thôi.",
   },
-  capNoteTail:  " Tính ra khoảng {kg} kg mỗi tuần.",
+  capNoteTail:  " Tính ra khoảng {kg}kg mỗi tuần.",
   goalEdit:  {
     cleared: "Cân nặng mục tiêu của bạn không còn hợp với mục tiêu đó nữa nên đã được xoá — đặt lại một mức mới nhé.",
     worthSetting: "Đã ghi. Có điều cân nặng mục tiêu của bạn không còn hợp với mục tiêu nữa — nên đặt lại một mức mới.",
@@ -776,7 +776,7 @@ const VI: ChatCopy = {
   pace: {
     rate: "{rate} một tuần",
     rateSuffix: "một tuần",
-    result: "{target} vào khoảng {month} · {kcal} kcal một ngày",
+    result: "{target} vào khoảng {month} · {kcal}kcal một ngày",
     capMarker: "đã giới hạn ở mức an toàn",
     floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
   },
@@ -823,13 +823,13 @@ const VI: ChatCopy = {
     skip: "Để sau",
   },
   targetSuggestion:  {
-    down: "Mình gợi ý {kg} kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
-    up: "Mình gợi ý {kg} kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+    down: "Mình gợi ý {kg}kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+    up: "Mình gợi ý {kg}kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
   },
   firstMeal:  FIRST_MEAL_COPY.vi,
   stepper:  { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
-  offerHeadline:  "Đạt {kg} kg vào {month}",
-  planGoal: { metric: "Mục tiêu: giảm {n} kg vào {month}", imperial: "Mục tiêu: giảm {n} lb vào {month}" },
+  offerHeadline:  "Đạt {kg}kg vào {month}",
+  planGoal: { metric: "Mục tiêu: giảm {n}kg vào {month}", imperial: "Mục tiêu: giảm {n}lb vào {month}" },
 };
 
 const ID: ChatCopy = {
@@ -851,7 +851,7 @@ const ID: ChatCopy = {
   },
   belowHealthy:  {
     title: "Aku tidak bisa menetapkan itu sebagai target",
-    body: "Berat sehat terendah untuk tinggimu sekitar {kg} kg. Kami tidak menetapkan tujuan di bawah itu. Kalau kamu sedang menjalani hal lain bersama dokter, ikuti dokternya, bukan aplikasi ini.",
+    body: "Berat sehat terendah untuk tinggimu sekitar {kg}kg. Kami tidak menetapkan tujuan di bawah itu. Kalau kamu sedang menjalani hal lain bersama dokter, ikuti dokternya, bukan aplikasi ini.",
   },
   invalid:  {
     age: "Itu tidak kelihatan seperti umur — coba seperti 34.",
@@ -864,8 +864,8 @@ const ID: ChatCopy = {
     confirm: "Umurku {age}",
   },
   direction:  {
-    gain: "Kamu di {weight} kg dan minta naik ke {target} — dari sini itu bukan kenaikan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di atas {weight}.",
-    lose: "Kamu di {weight} kg dan minta turun ke {target} — dari sini itu bukan penurunan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di bawah {weight}.",
+    gain: "Kamu di {weight}kg dan minta naik ke {target} — dari sini itu bukan kenaikan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di atas {weight}.",
+    lose: "Kamu di {weight}kg dan minta turun ke {target} — dari sini itu bukan penurunan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di bawah {weight}.",
     switchToLose: "Ganti ke menurunkan",
     switchToGain: "Ganti ke menaikkan",
     above: "Angka di atas {weight}…",
@@ -875,7 +875,7 @@ const ID: ChatCopy = {
     gain: "Diganti — jadi menaikkan. Kamu ingin sampai di angka berapa, dalam kg?",
     lose: "Diganti — jadi menurunkan. Kamu ingin sampai di angka berapa, dalam kg? Lebih cepat bukan berarti lebih baik — hanya lebih sulit dijaga.",
   },
-  capNoteTail:  " Itu sekitar {kg} kg per minggu.",
+  capNoteTail:  " Itu sekitar {kg}kg per minggu.",
   goalEdit:  {
     cleared: "Berat targetmu sudah tidak cocok dengan tujuan itu, jadi dihapus — tetapkan yang baru.",
     worthSetting: "Tercatat. Tapi berat targetmu sudah tidak cocok dengan tujuanmu — sebaiknya tetapkan yang baru.",
@@ -889,7 +889,7 @@ const ID: ChatCopy = {
   pace: {
     rate: "{rate} seminggu",
     rateSuffix: "seminggu",
-    result: "{target} sekitar {month} · {kcal} kcal sehari",
+    result: "{target} sekitar {month} · {kcal}kcal sehari",
     capMarker: "dibatasi ke batas aman",
     floorMarker: "tidak pernah di bawah {floor} · semua tempo sampai di sini",
   },
@@ -936,13 +936,13 @@ const ID: ChatCopy = {
     skip: "Nanti saja",
   },
   targetSuggestion:  {
-    down: "Kusarankan {kg} kg, turun sekitar {pct}% — target pertama yang bagus",
-    up: "Kusarankan {kg} kg, naik sekitar {pct}% — target pertama yang bagus",
+    down: "Kusarankan {kg}kg, turun sekitar {pct}% — target pertama yang bagus",
+    up: "Kusarankan {kg}kg, naik sekitar {pct}% — target pertama yang bagus",
   },
   firstMeal:  FIRST_MEAL_COPY.id,
   stepper:  { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
-  offerHeadline:  "Capai {kg} kg pada {month}",
-  planGoal: { metric: "Target: turun {n} kg pada {month}", imperial: "Target: turun {n} lb pada {month}" },
+  offerHeadline:  "Capai {kg}kg pada {month}",
+  planGoal: { metric: "Target: turun {n}kg pada {month}", imperial: "Target: turun {n}lb pada {month}" },
 };
 
 const RU: ChatCopy = {
@@ -964,7 +964,7 @@ const RU: ChatCopy = {
   },
   belowHealthy:  {
     title: "Не могу поставить это как цель",
-    body: "Самый низкий здоровый вес для твоего роста — около {kg} кг. Ниже мы цель не ставим. Если ты работаешь над чем-то другим с врачом, слушай его, а не это приложение.",
+    body: "Самый низкий здоровый вес для твоего роста — около {kg}кг. Ниже мы цель не ставим. Если ты работаешь над чем-то другим с врачом, слушай его, а не это приложение.",
   },
   invalid:  {
     age: "На возраст не похоже — попробуй что-то вроде 34.",
@@ -977,8 +977,8 @@ const RU: ChatCopy = {
     confirm: "Мне {age}",
   },
   direction:  {
-    gain: "Ты на {weight} кг и просишь набрать до {target} — отсюда это не набор. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
-    lose: "Ты на {weight} кг и просишь сбросить до {target} — отсюда это не сброс. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
+    gain: "Ты на {weight}кг и просишь набрать до {target} — отсюда это не набор. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
+    lose: "Ты на {weight}кг и просишь сбросить до {target} — отсюда это не сброс. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
     switchToLose: "Переключить на похудение",
     switchToGain: "Переключить на набор",
     above: "Число больше {weight}…",
@@ -988,7 +988,7 @@ const RU: ChatCopy = {
     gain: "Переключил — значит набираем. Куда хочешь прийти, в кг?",
     lose: "Переключил — значит худеем. Куда хочешь прийти, в кг? Быстрее здесь не значит лучше — просто труднее удержать.",
   },
-  capNoteTail:  " Это примерно {kg} кг в неделю.",
+  capNoteTail:  " Это примерно {kg}кг в неделю.",
   goalEdit:  {
     cleared: "Твой целевой вес больше не подходил к этой цели, поэтому он сброшен — поставь новый.",
     worthSetting: "Записал. Правда, целевой вес больше не сходится с твоей целью — стоит поставить новый.",
@@ -1004,7 +1004,7 @@ const RU: ChatCopy = {
     rateSuffix: "в неделю",
     // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
     // CLDR gives us no declension to put after «к».
-    result: "{target} — примерно {month} · {kcal} ккал в день",
+    result: "{target} — примерно {month} · {kcal}ккал в день",
     capMarker: "ограничено безопасным пределом",
     floorMarker: "никогда ниже {floor} · любой темп приходит сюда",
   },
@@ -1051,17 +1051,17 @@ const RU: ChatCopy = {
     skip: "Не сейчас",
   },
   targetSuggestion:  {
-    down: "Предлагаю {kg} кг — примерно на {pct}% меньше, хорошая первая цель",
-    up: "Предлагаю {kg} кг — примерно на {pct}% больше, хорошая первая цель",
+    down: "Предлагаю {kg}кг — примерно на {pct}% меньше, хорошая первая цель",
+    up: "Предлагаю {kg}кг — примерно на {pct}% больше, хорошая первая цель",
   },
   firstMeal:  FIRST_MEAL_COPY.ru,
   stepper:  { continue: "Продолжить", less: "Меньше", more: "Больше" },
-  offerHeadline:  "Цель {kg} кг. Срок: {month}",
+  offerHeadline:  "Цель {kg}кг. Срок: {month}",
   planGoal: {
-    metric: "Цель: минус {n} кг. Срок: {month}",
+    metric: "Цель: минус {n}кг. Срок: {month}",
     // The SYMBOL, as every other language writes it: the word "фунтов" is the genitive plural and
     // reads wrong beside 1 or 2–4, which no amount of {n} fixes from inside the template.
-    imperial: "Цель: минус {n} lb. Срок: {month}",
+    imperial: "Цель: минус {n}lb. Срок: {month}",
   },
 };
 

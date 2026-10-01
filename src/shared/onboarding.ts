@@ -953,9 +953,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     lines: ["Building your personal plan"],
     title: "Your daily plan",
     rows: { calories: "Calories", protein: "Protein", carbs: "Carbs", fat: "Fat", diet: "Diet" },
-    limitCap: { ldl: "sat fat ≤ {n} g", kidneys: "sodium ≤ {n} mg" },
+    limitCap: { ldl: "sat fat ≤ {n}g", kidneys: "sodium ≤ {n}mg" },
     cta: "Show me the plan",
-    floorTitle: "We stopped at {floor} kcal",
+    floorTitle: "We stopped at {floor}kcal",
     floorBody: "The arithmetic wanted to go lower. We don't set targets below this without medical supervision, so this is where yours sits. It'll also say so on your diary.",
   },
   summary: {

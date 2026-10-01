@@ -11,7 +11,7 @@
 // lines ("Calories high") are `verdicts.ts`'s, computed and never reworded per surface; the coach's
 // NAME fills `{coach}` from `THREAD_COPY`'s `coach.name` (S9); the unit beside a figure is
 // `UNIT_KCAL`/`spellUnit`; and the diary rows drawn behind the detail are the Home surface's
-// component (W4). "A change, named" — the board's "Rice 150 → 200 g: 540 → 605 kcal. Both still
+// component (W4). "A change, named" — the board's "Rice 150 → 200g: 540 → 605kcal. Both still
 // high for one meal." — IS here as the `change*` templates: the server composes it from them
 // (#119), joining several `changeItem` parts with `Intl.ListFormat(lang, {type: "conjunction"})`
 // and filling `{dim}` from `verdicts.ts` in its sentence-start form; nothing writes it freehand,
@@ -44,13 +44,13 @@ export interface MealCopy {
   coachLine: string;
   /**
    * Her opening line when "Correct" is tapped (web + phone `meal-{edit,edited}.html`).
-   * `{items}` is the meal's ingredient list formatted by the caller — "150 g of rice and 140 g
+   * `{items}` is the meal's ingredient list formatted by the caller — "150g of rice and 140g
    * of salmon" — each item a `correctItem` and the parts joined by `Intl.ListFormat`.
    */
   correctOpener: string;
   /**
-   * One item inside `correctOpener`'s `{items}` — "{amount} of {item}", "150 g of rice", with
-   * `{amount}` already spelled ("150 g"). The caller joins the parts with `Intl.ListFormat`'s
+   * One item inside `correctOpener`'s `{items}` — "{amount} of {item}", "150g of rice", with
+   * `{amount}` already spelled ("150g"). The caller joins the parts with `Intl.ListFormat`'s
    * conjunction — which word does the joining is CLDR's, not a literal here.
    */
   itemAmount: string;
@@ -95,7 +95,7 @@ export interface MealCopy {
   /**
    * The fix screen (`phone/meal-fix.html`, `web/meal-fix.html`): one field + "Update". Its title is
    * `phoneCorrectTitle`; `phoneFixMeal` is its meal line — "{name} · {kcal} · {time}", `{kcal}`
-   * spelled with its unit ("540 kcal") — the worked example beside the field, drawn as
+   * spelled with its unit ("540kcal") — the worked example beside the field, drawn as
    * `<b>{phoneFixExampleLead}</b> {phoneFixExample}` — and the commit button.
    */
   phoneFixMeal: string;
@@ -115,12 +115,12 @@ export interface MealCopy {
    * The pre-edit figure the editor draws once the typed amount moves off the stored one —
    * "was {amount}" under the grams row and beside the live kcal figure on both boards
    * (`phone/meal-ingredient.html`, `web/meal-ingredient.html`). `{amount}` is the stored figure
-   * spelled through its own join — grams via `phoneGrams` ("was 150 g"), kcal bare ("was 195").
+   * spelled through its own join — grams via `phoneGrams` ("was 150g"), kcal bare ("was 195").
    */
   phoneWasAmount: string;
   /**
-   * The joins a grams figure and a moving total take — "{n} g" for the amount pill (and inside
-   * `phoneWasAmount`'s "{amount}"), "{from} → {to} kcal" for the meal's total answering. Templates,
+   * The joins a grams figure and a moving total take — "{n}g" for the amount pill (and inside
+   * `phoneWasAmount`'s "{amount}"), "{from} → {to}kcal" for the meal's total answering. Templates,
    * not spans, so a language can reorder them.
    */
   phoneGrams: string;
@@ -143,7 +143,7 @@ export interface MealCopy {
 
   /**
    * "A change, named" (web + phone `meal-edited.html`), built from parts — only the server
-   * composes it (#119). `changeItem` is one changed item's clause — "Rice 150 → 200 g" — with
+   * composes it (#119). `changeItem` is one changed item's clause — "Rice 150 → 200g" — with
    * `{unit}` the amount's symbol (g, ml); `changeTotal` is the meal's kcal before → after, once,
    * with `{kcal}` as `UNIT_KCAL`; `changeWithItems` joins them — "{items}: {total}" — where
    * `{items}` is the `changeItem` parts through `Intl.ListFormat`. A kcal-only edit is
@@ -195,14 +195,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Backspace",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "For example:",
-        phoneFixExample: "the rice was about 200 g, and there was no sauce.",
+        phoneFixExample: "the rice was about 200g, and there was no sauce.",
     phoneUpdate: "Update",
     phoneIngredientTitle: "Edit ingredient",
     phoneAmount: "Amount",
     phoneRemoveIngredient: "Remove ingredient",
     phoneWasAmount: "was {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
@@ -210,8 +210,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "It was deleted, or it was never yours.",
     webGoneBack: "Back to the diary",
     menuButton: "Meal actions",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} still high for one meal.",
     changeStillHighTwo: "Both still high for one meal.",
@@ -249,14 +249,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Effacer",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Par exemple :",
-        phoneFixExample: "le riz pesait environ 200 g, et il n’y avait pas de sauce.",
+        phoneFixExample: "le riz pesait environ 200g, et il n’y avait pas de sauce.",
     phoneUpdate: "Mettre à jour",
     phoneIngredientTitle: "Modifier un ingrédient",
     phoneAmount: "Quantité",
     phoneRemoveIngredient: "Supprimer l’ingrédient",
     phoneWasAmount: "était {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
@@ -264,8 +264,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Il a été supprimé, ou n’a jamais été à vous.",
     webGoneBack: "Retour au journal",
     menuButton: "Actions du repas",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} toujours au-dessus pour un repas.",
     changeStillHighTwo: "Les deux toujours au-dessus pour un repas.",
@@ -303,14 +303,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Löschen",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Zum Beispiel:",
-        phoneFixExample: "der Reis war etwa 200 g, und es gab keine Sauce.",
+        phoneFixExample: "der Reis war etwa 200g, und es gab keine Sauce.",
     phoneUpdate: "Aktualisieren",
     phoneIngredientTitle: "Zutat bearbeiten",
     phoneAmount: "Menge",
     phoneRemoveIngredient: "Zutat entfernen",
     phoneWasAmount: "vorher {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
@@ -318,8 +318,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Sie wurde gelöscht, oder sie war nie deine.",
     webGoneBack: "Zurück zum Tagebuch",
     menuButton: "Aktionen zur Mahlzeit",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} immer noch hoch für eine Mahlzeit.",
     changeStillHighTwo: "Beide immer noch hoch für eine Mahlzeit.",
@@ -357,14 +357,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Elimina",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Per esempio:",
-        phoneFixExample: "il riso era circa 200 g, e non c’era alcuna salsa.",
+        phoneFixExample: "il riso era circa 200g, e non c’era alcuna salsa.",
     phoneUpdate: "Aggiorna",
     phoneIngredientTitle: "Modifica ingrediente",
     phoneAmount: "Quantità",
     phoneRemoveIngredient: "Rimuovi ingrediente",
     phoneWasAmount: "era {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
@@ -372,8 +372,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "È stato eliminato, o non è mai stato tuo.",
     webGoneBack: "Torna al diario",
     menuButton: "Azioni sul pasto",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} ancora sopra per un pasto.",
     changeStillHighTwo: "Entrambi ancora sopra per un pasto.",
@@ -411,14 +411,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Borrar",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Por ejemplo:",
-        phoneFixExample: "el arroz era unos 200 g, y no había salsa.",
+        phoneFixExample: "el arroz era unos 200g, y no había salsa.",
     phoneUpdate: "Actualizar",
     phoneIngredientTitle: "Editar ingrediente",
     phoneAmount: "Cantidad",
     phoneRemoveIngredient: "Eliminar ingrediente",
     phoneWasAmount: "antes {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
@@ -426,8 +426,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Se ha eliminado, o nunca fue tuya.",
     webGoneBack: "Volver al diario",
     menuButton: "Acciones de la comida",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} sigue por encima para una comida.",
     changeStillHighTwo: "Los dos siguen por encima para una comida.",
@@ -465,14 +465,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Xóa",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Ví dụ:",
-        phoneFixExample: "cơm khoảng 200 g, và không có sốt.",
+        phoneFixExample: "cơm khoảng 200g, và không có sốt.",
     phoneUpdate: "Cập nhật",
     phoneIngredientTitle: "Sửa nguyên liệu",
     phoneAmount: "Lượng",
     phoneRemoveIngredient: "Bỏ nguyên liệu",
     phoneWasAmount: "trước là {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
@@ -480,8 +480,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Đã bị xoá, hoặc chưa bao giờ là của bạn.",
     webGoneBack: "Về nhật ký",
     menuButton: "Thao tác bữa ăn",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} vẫn cao cho một bữa.",
     changeStillHighTwo: "Cả hai vẫn cao cho một bữa.",
@@ -519,14 +519,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Hapus",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Misalnya:",
-        phoneFixExample: "nasinya sekitar 200 g, dan tidak ada saus.",
+        phoneFixExample: "nasinya sekitar 200g, dan tidak ada saus.",
     phoneUpdate: "Perbarui",
     phoneIngredientTitle: "Edit bahan",
     phoneAmount: "Jumlah",
     phoneRemoveIngredient: "Hapus bahan",
     phoneWasAmount: "tadinya {amount}",
-    phoneGrams: "{n} g",
-    phoneMealMove: "{from} → {to} kcal",
+    phoneGrams: "{n}g",
+    phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
@@ -534,8 +534,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Sudah dihapus, atau tidak pernah jadi milikmu.",
     webGoneBack: "Kembali ke catatan",
     menuButton: "Aksi makanan",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} masih tinggi untuk satu kali makan.",
     changeStillHighTwo: "Keduanya masih tinggi untuk satu kali makan.",
@@ -573,14 +573,14 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneKeypadBackspace: "Стереть",
         phoneFixMeal: "{name} · {kcal} · {time}",
     phoneFixExampleLead: "Например:",
-        phoneFixExample: "риса было примерно 200 г, и соуса не было.",
+        phoneFixExample: "риса было примерно 200г, и соуса не было.",
     phoneUpdate: "Обновить",
     phoneIngredientTitle: "Редактировать ингредиент",
     phoneAmount: "Количество",
     phoneRemoveIngredient: "Удалить ингредиент",
     phoneWasAmount: "было {amount}",
-    phoneGrams: "{n} г",
-    phoneMealMove: "{from} → {to} ккал",
+    phoneGrams: "{n}г",
+    phoneMealMove: "{from} → {to}ккал",
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",
@@ -588,8 +588,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBody: "Его удалили, или он никогда не был вашим.",
     webGoneBack: "Назад к дневнику",
     menuButton: "Действия с приёмом пищи",
-    changeItem: "{item} {before} → {after} {unit}",
-    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after}{unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter}{kcal}.",
     changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} всё ещё много для одного приёма пищи.",
     changeStillHighTwo: "Оба всё ещё много для одного приёма пищи.",

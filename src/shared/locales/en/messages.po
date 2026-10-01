@@ -31,7 +31,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Updated — {kcal} kcal. {day}"
+#~ msgstr "Updated — {kcal}kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -46,32 +46,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein."
+#~ msgstr "{left} of your {plan} left today, {protein} of the {proteinTarget}g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going."
+#~ msgstr "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget}g protein. Keep going."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going."
+#~ msgstr "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget}g protein. Keep going."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "{over} over your {plan} today, {protein} of the {proteinTarget} g protein."
+#~ msgstr "{over} over your {plan} today, {protein} of the {proteinTarget}g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number."
+#~ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget}g protein. Past it is the point on a gain plan; tomorrow is a fresh number."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number."
+#~ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget}g protein. Past it is the point on a gain plan; tomorrow is a fresh number."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -96,22 +96,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein."
+#~ msgstr "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget}g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein."
+#~ msgstr "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget}g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "that puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number."
+#~ msgstr "that puts you {over} over your {plan} for today, and {protein} of the {proteinTarget}g protein. Tomorrow is a fresh number."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "That puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number."
+#~ msgstr "That puts you {over} over your {plan} for today, and {protein} of the {proteinTarget}g protein. Tomorrow is a fresh number."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -121,7 +121,7 @@ msgstr "“{note}” — noted, it's in the numbers."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal} kcal"
+msgstr "{names} · {kcal}kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -151,12 +151,12 @@ msgstr "{noun} very high"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} is high for one meal: {eaten} of your {target} {unit}."
+msgstr "{nutrient} is high for one meal: {eaten} of your {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} is very high for one meal: {eaten} of your {target} {unit}."
+msgstr "{nutrient} is very high for one meal: {eaten} of your {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -206,12 +206,12 @@ msgstr "Connected to the eait account signed in with"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Counted. {left} kcal left today."
+msgstr "Counted. {left}kcal left today."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Counted. {over} kcal over today."
+msgstr "Counted. {over}kcal over today."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Finding the food · 2 of 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "First one in. {kcal} kcal."
+msgstr "First one in. {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -511,7 +511,7 @@ msgstr "This is the new eait. Your meals and photos are kept in your eait accoun
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Today: {eaten} of {plan} kcal, {protein} of {proteinTarget} g protein"
+msgstr "Today: {eaten} of {plan}kcal, {protein} of {proteinTarget}g protein"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

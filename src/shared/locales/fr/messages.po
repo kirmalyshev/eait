@@ -31,7 +31,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Corrigé — {kcal} kcal. {day}"
+#~ msgstr "Corrigé — {kcal}kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -46,32 +46,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Il te reste {left} kcal sur tes {plan} aujourd'hui, et {protein} g de protéines sur {proteinTarget}."
+#~ msgstr "Il te reste {left}kcal sur tes {plan} aujourd'hui, et {protein}g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget} g de protéines. Continue."
+#~ msgstr "il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget}g de protéines. Continue."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget} g de protéines. Continue."
+#~ msgstr "Il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget}g de protéines. Continue."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "{over} kcal de plus que tes {plan} aujourd'hui, et {protein} g de protéines sur {proteinTarget}."
+#~ msgstr "{over}kcal de plus que tes {plan} aujourd'hui, et {protein}g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget} g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
+#~ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget}g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget} g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
+#~ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget}g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -96,22 +96,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "il te reste {left} kcal sur tes {plan} pour le reste de la journée, et {protein} g de protéines sur {proteinTarget}."
+#~ msgstr "il te reste {left}kcal sur tes {plan} pour le reste de la journée, et {protein}g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Il te reste {left} kcal sur tes {plan} pour le reste de la journée, et {protein} g de protéines sur {proteinTarget}."
+#~ msgstr "Il te reste {left}kcal sur tes {plan} pour le reste de la journée, et {protein}g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget} g de protéines. Demain repart à zéro."
+#~ msgstr "ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget}g de protéines. Demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget} g de protéines. Demain repart à zéro."
+#~ msgstr "Ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget}g de protéines. Demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -121,7 +121,7 @@ msgstr "« {note} » — noté, c'est dans les chiffres."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal} kcal"
+msgstr "{names} · {kcal}kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -151,12 +151,12 @@ msgstr "{noun} — trop haut"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} est un peu haut pour un repas : {eaten} de tes {target} {unit}."
+msgstr "{nutrient} est un peu haut pour un repas : {eaten} de tes {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} est trop haut pour un repas : {eaten} de tes {target} {unit}."
+msgstr "{nutrient} est trop haut pour un repas : {eaten} de tes {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -206,12 +206,12 @@ msgstr "Ce Telegram est connecté au compte eait ouvert avec"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "C'est compté. Il reste {left} kcal aujourd'hui."
+msgstr "C'est compté. Il reste {left}kcal aujourd'hui."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "C'est compté. {over} kcal au-dessus aujourd'hui."
+msgstr "C'est compté. {over}kcal au-dessus aujourd'hui."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Repérage des aliments · 2 sur 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "Premier repas enregistré. {kcal} kcal."
+msgstr "Premier repas enregistré. {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -511,7 +511,7 @@ msgstr "Voici le nouvel eait. Tes repas et tes photos sont gardés dans ton comp
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Aujourd'hui : {eaten} kcal sur {plan}, {protein} g de protéines sur {proteinTarget}"
+msgstr "Aujourd'hui : {eaten}kcal sur {plan}, {protein}g de protéines sur {proteinTarget}"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

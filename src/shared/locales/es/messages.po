@@ -31,7 +31,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Actualizado — {kcal} kcal. {day}"
+#~ msgstr "Actualizado — {kcal}kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -46,32 +46,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Hoy te quedan {left} de tus {plan}, {protein} de los {proteinTarget} g de proteína."
+#~ msgstr "Hoy te quedan {left} de tus {plan}, {protein} de los {proteinTarget}g de proteína."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "hoy quedan {left} de tus {plan} por llenar, y {protein} de los {proteinTarget} g de proteína. Sigue así."
+#~ msgstr "hoy quedan {left} de tus {plan} por llenar, y {protein} de los {proteinTarget}g de proteína. Sigue así."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Hoy quedan {left} de tus {plan} por llenar, y {protein} de los {proteinTarget} g de proteína. Sigue así."
+#~ msgstr "Hoy quedan {left} de tus {plan} por llenar, y {protein} de los {proteinTarget}g de proteína. Sigue así."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "Hoy {over} por encima de tus {plan}, {protein} de los {proteinTarget} g de proteína."
+#~ msgstr "Hoy {over} por encima de tus {plan}, {protein} de los {proteinTarget}g de proteína."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "hoy {over} por encima de tus {plan}, y {protein} de los {proteinTarget} g de proteína. Pasarse es el objetivo en un plan de ganancia; mañana es un número nuevo."
+#~ msgstr "hoy {over} por encima de tus {plan}, y {protein} de los {proteinTarget}g de proteína. Pasarse es el objetivo en un plan de ganancia; mañana es un número nuevo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "Hoy {over} por encima de tus {plan}, y {protein} de los {proteinTarget} g de proteína. Pasarse es el objetivo en un plan de ganancia; mañana es un número nuevo."
+#~ msgstr "Hoy {over} por encima de tus {plan}, y {protein} de los {proteinTarget}g de proteína. Pasarse es el objetivo en un plan de ganancia; mañana es un número nuevo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -96,22 +96,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "eso te deja {left} de tus {plan} para el resto del día, y {protein} de los {proteinTarget} g de proteína."
+#~ msgstr "eso te deja {left} de tus {plan} para el resto del día, y {protein} de los {proteinTarget}g de proteína."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Eso te deja {left} de tus {plan} para el resto del día, y {protein} de los {proteinTarget} g de proteína."
+#~ msgstr "Eso te deja {left} de tus {plan} para el resto del día, y {protein} de los {proteinTarget}g de proteína."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "eso te pone {over} por encima de tus {plan} hoy, y {protein} de los {proteinTarget} g de proteína. Mañana es un número nuevo."
+#~ msgstr "eso te pone {over} por encima de tus {plan} hoy, y {protein} de los {proteinTarget}g de proteína. Mañana es un número nuevo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Eso te pone {over} por encima de tus {plan} hoy, y {protein} de los {proteinTarget} g de proteína. Mañana es un número nuevo."
+#~ msgstr "Eso te pone {over} por encima de tus {plan} hoy, y {protein} de los {proteinTarget}g de proteína. Mañana es un número nuevo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -121,7 +121,7 @@ msgstr "«{note}» — anotado, está en los números."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal} kcal"
+msgstr "{names} · {kcal}kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -151,12 +151,12 @@ msgstr "{noun} — muy por encima"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} está por encima en una comida: {eaten} de tus {target} {unit}."
+msgstr "{nutrient} está por encima en una comida: {eaten} de tus {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} está muy por encima en una comida: {eaten} de tus {target} {unit}."
+msgstr "{nutrient} está muy por encima en una comida: {eaten} de tus {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -206,12 +206,12 @@ msgstr "Este Telegram está conectado a la cuenta de eait con la que entraste us
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Contado. Te quedan {left} kcal hoy."
+msgstr "Contado. Te quedan {left}kcal hoy."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Contado. Hoy vas {over} kcal por encima."
+msgstr "Contado. Hoy vas {over}kcal por encima."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Buscando la comida · 2 de 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "La primera está dentro. {kcal} kcal."
+msgstr "La primera está dentro. {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -511,7 +511,7 @@ msgstr "Este es el nuevo eait. Tus comidas y tus fotos se guardan en tu cuenta d
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Hoy: {eaten} de {plan} kcal, {protein} de {proteinTarget} g de proteína"
+msgstr "Hoy: {eaten} de {plan}kcal, {protein} de {proteinTarget}g de proteína"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

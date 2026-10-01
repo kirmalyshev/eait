@@ -12,7 +12,7 @@
 // category has eleven of those already for the adjacent failure — handing out a number with no
 // arithmetic behind it (`marketing/research/2026-07-28-calai-app-store-review-brief.md` §3.4).
 //
-// So: `appliedDeltaKcal`, always. When the floor cut a 550 kcal deficit down to 84, this module
+// So: `appliedDeltaKcal`, always. When the floor cut a 550kcal deficit down to 84, this module
 // says sixty-five weeks and not ten, and that is the whole reason it exists.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //

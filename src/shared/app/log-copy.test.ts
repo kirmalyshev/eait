@@ -87,9 +87,9 @@ describe("LOG_COPY", () => {
     expect(en.analysisFailedNote).toBe("Nothing was logged. Your photo is kept.");
     // The sentence a grams answer SENDS, filled the way a rough chip fills it.
     expect(en.roughSent.replace("{item}", "rice").replace("{grams}", "250"))
-      .toBe("The rice was about 250 g");
+      .toBe("The rice was about 250g");
     expect(en.satfatNoun).toBe("Saturated fat");
-    expect(en.dayOfPlan.replace("{plan}", "1,434")).toBe("of 1,434 kcal");
+    expect(en.dayOfPlan.replace("{plan}", "1,434")).toBe("of 1,434kcal");
     expect(en.unknownTitle).toBe("That didn't finish cleanly.");
     expect(en.unknownNote).toBe("Kept, and re-sent on its own — sending again is safe.");
     expect(en.waitingToSend).toBe("Waiting to send");
@@ -157,9 +157,9 @@ describe("verdictDetailLine", () => {
       }
     }
     expect(verdictDetailLine("en", satfat)).toBe(
-      "Saturated fat is high for one meal: 14 of your 13 g. Go easy on it for the rest of today.");
+      "Saturated fat is high for one meal: 14 of your 13g. Go easy on it for the rest of today.");
     expect(verdictDetailLine("en", sodium)).toBe(
-      "Sodium is high for one meal: 900 of your 500 mg. Go easy on it for the rest of today.");
+      "Sodium is high for one meal: 900 of your 500mg. Go easy on it for the rest of today.");
     // The spelled unit is the language's own — Russian reads г and мг, never the SI letters.
     expect(verdictDetailLine("ru", satfat)).toContain("г.");
     expect(verdictDetailLine("ru", sodium)).toContain("мг");

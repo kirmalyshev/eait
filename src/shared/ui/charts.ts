@@ -304,7 +304,7 @@ const BW_FRAME: WeightFrame = {
   dateLabelY: 128,
 };
 
-/** The trend's window: the trailing 7 days a daily scale's ±0.3 kg swing is averaged over. */
+/** The trend's window: the trailing 7 days a daily scale's ±0.3kg swing is averaged over. */
 const W_TREND_WINDOW_DAYS = 7;
 /** Past this drawn-point count the polyline is ink, not shape — under ~7 px a point on the axis. */
 const W_TREND_MAX_POINTS = 40;
@@ -420,7 +420,7 @@ export const WEIGHT_CHART_DOTS = { delayMs: 900 } as const;
 
 /**
  * `withTargetLane` opens the You board's bottom lane: a dashed accent line in the band the taller
- * viewBox adds, its label above — DISPLAY, never the data scale (a 6 kg drop would sit off any
+ * viewBox adds, its label above — DISPLAY, never the data scale (a 6kg drop would sit off any
  * scale the three gridlines span). Off, the geometry is the board's plain one. The lane's VALUE
  * lives on its label, which the caller formats — the line means "the aim sits here".
  */
@@ -455,13 +455,13 @@ export function weightChart(points: readonly WeightPoint[], withTargetLane = fal
 // ── The week's intake bars ────────────────────────────────────────────────────────────────────
 //
 // Progress's "This week" card: one bar a day against a dashed plan line, today picked out with a
-// tint fill and an outline. The scale is the board's own — 1900 kcal of headroom over the baseline
+// tint fill and an outline. The scale is the board's own — 1900kcal of headroom over the baseline
 // — and it yields to the data: past ~1.1× the largest figure on the card (plan or day), the px per
 // kcal shrink so a 2,800-kcal plan and a 3,200-kcal day still fit the 142-tall viewBox. A bar over
 // plan simply clears the dashed line and keeps going.
 
 const BARS_BASE = 118;
-/** The board's headroom: 100 px of bar for every 1,900 kcal. */
+/** The board's headroom: 100 px of bar for every 1,900kcal. */
 const BARS_BASELINE_FULL = 1900;
 
 /**
@@ -519,7 +519,7 @@ export function weekBars(
 
 // ── The goal progress bar ────────────────────────────────────────────────────────────────────
 //
-// Progress's goal card: `start → target` with the fill at the share already covered, "0.6 kg down"
+// Progress's goal card: `start → target` with the fill at the share already covered, "0.6kg down"
 // and "5.4 to go" beneath. Works in both directions — a gain goal's done/to-go run the other way.
 
 export function goalBar(

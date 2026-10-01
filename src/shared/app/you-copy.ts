@@ -27,8 +27,8 @@ import { SIGNUP_COPY, signupCopyFor } from "./signup-copy.ts";
 export interface YouCopy {
   // ── The screen both clients draw (web/you.html, phone/you.html) ──────────────────────────
   /**
-   * The header's fact line under the name: "32 · 172 cm · high cholesterol declared".
-   * `{age}` is a bare number, `{height}` arrives preformatted — "172 cm" or `cmToFtIn`'s "5′8″" —
+   * The header's fact line under the name: "32 · 172cm · high cholesterol declared".
+   * `{age}` is a bare number, `{height}` arrives preformatted — "172cm" or `cmToFtIn`'s "5′8″" —
    * and `{flags}` is `flagDeclared`'s output; with nothing declared the line is
    * `headerFactsNoFlags`.
    */
@@ -50,7 +50,7 @@ export interface YouCopy {
   weightLabel: string;
   /** The card's action, which writes the S7 row: "Log weight". */
   logWeight: string;
-  /** The chart's dashed-line tag: "{w} kg · target" / "{w} lb · target". */
+  /** The chart's dashed-line tag: "{w}kg · target" / "{w}lb · target". */
   targetKg: string;
   targetLb: string;
   /** The plan card's label: "Your plan". */
@@ -58,18 +58,18 @@ export interface YouCopy {
   /** The plan card's affordance, lowercase on the board: "edit". */
   planEdit: string;
   /**
-   * The plan's figure as one phrase, "{kcal} kcal a day" — the run-on form the phone's
+   * The plan's figure as one phrase, "{kcal}kcal a day" — the run-on form the phone's
    * basis, weigh-in and saved cards draw after the number.
    */
   kcalADay: string;
-  /** The plan card's muted tail, where "{kcal} kcal" is the big type beside it: "a day". */
+  /** The plan card's muted tail, where "{kcal}kcal" is the big type beside it: "a day". */
   perDay: string;
-  /** A macro figure beside its icon, "{g} g" — the card's protein shows no word. */
+  /** A macro figure beside its icon, "{g}g" — the card's protein shows no word. */
   grams: string;
-  /** "{g} g protein" — the phone's plan line spells it. */
+  /** "{g}g protein" — the phone's plan line spells it. */
   proteinGrams: string;
   /**
-   * The saturated-fat macro, "{g} g {noun}" — `{noun}` is filled with `LOG_COPY.satfatNoun`
+   * The saturated-fat macro, "{g}g {noun}" — `{noun}` is filled with `LOG_COPY.satfatNoun`
    * so the plan names the same dimension the verdicts do, in one wording.
    */
   satFatGrams: string;
@@ -121,20 +121,20 @@ export interface YouCopy {
     /** Its title: "Your weight". */
     weightTitle: string;
     /**
-     * Spud's check over the keypad: "{source} says {w} kg. Is that right?" —
+     * Spud's check over the keypad: "{source} says {w}kg. Is that right?" —
      * `{source}` is the provider's name ("Health", "Apple Health").
      */
     weightCheckKg: string;
     weightCheckLb: string;
-    /** The editable figure's own run and the Target row's value: "{w} kg" / "{w} lb". */
+    /** The editable figure's own run and the Target row's value: "{w}kg" / "{w}lb". */
     weightKg: string;
     weightLb: string;
-    /** The profile editor's Weight row value: "{w} kg · {source}". */
+    /** The profile editor's Weight row value: "{w}kg · {source}". */
     weightFromKg: string;
     weightFromLb: string;
     /**
      * The line under the figure — a struck previous weight, then the provenance:
-     * "{prev} kg · {source}, today {time}". `{prev}` is struck by the client;
+     * "{prev}kg · {source}, today {time}". `{prev}` is struck by the client;
      * `{time}` is `Intl`.
      */
     weightSourceKg: string;
@@ -142,27 +142,27 @@ export interface YouCopy {
     /**
      * `{source}` for a reading the person TYPED — "you" — filling the slot the provider's
      * name does, so `weightSourceKg`/`weightSourceOnKg` still read honestly for a manual
-     * weigh-in: "{prev} kg · you, today {time}".
+     * weigh-in: "{prev}kg · you, today {time}".
      */
     sourceYou: string;
     /**
      * The check's typed-reading variant — "{source} says" has no source to name when the
-     * person typed the figure: "You typed {w} kg. Is that right?"
+     * person typed the figure: "You typed {w}kg. Is that right?"
      */
     weightCheckTypedKg: string;
     weightCheckTypedLb: string;
     /**
-     * The provenance line past the reading's own day — "{prev} kg · {source}, {date}",
+     * The provenance line past the reading's own day — "{prev}kg · {source}, {date}",
      * `{date}` an `Intl` short date. `weightSourceKg` is the same-day wording.
      */
     weightSourceOnKg: string;
     weightSourceOnLb: string;
-    /** The plan recomputing live on the weigh-in and the save: "{from} → {to} kcal a day". */
+    /** The plan recomputing live on the weigh-in and the save: "{from} → {to}kcal a day". */
     planRevised: string;
-    /** Spud's confirmation on the saved board: "{w} kg from {source}, saved". */
+    /** Spud's confirmation on the saved board: "{w}kg from {source}, saved". */
     savedNoteKg: string;
     savedNoteLb: string;
-    /** A typed weight's saved line — "{w} kg, saved"; there is no {source} to name. */
+    /** A typed weight's saved line — "{w}kg, saved"; there is no {source} to name. */
     savedNoteTypedKg: string;
     savedNoteTypedLb: string;
 
@@ -290,15 +290,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "{condition} declared",
     weightLabel: healthLabel("weight_kg", "en"),
     logWeight: "Log weight",
-    targetKg: "{w} kg · target",
-    targetLb: "{w} lb · target",
+    targetKg: "{w}kg · target",
+    targetLb: "{w}lb · target",
     planLabel: "Your plan",
     planEdit: "edit",
-    kcalADay: "{kcal} kcal a day",
+    kcalADay: "{kcal}kcal a day",
     perDay: "a day",
-    grams: "{g} g",
-    proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g protein",
+    satFatGrams: "{g}g {noun}",
     floorMarker: "never below {floor}",
     appleHealth: "Apple Health",
     connected: "connected",
@@ -321,24 +321,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: SHELL_COPY.en.navProfile,
       save: "Save",
       weightTitle: "Your weight",
-      weightCheckKg: "{source} says {w} kg. Is that right?",
-      weightCheckLb: "{source} says {w} lb. Is that right?",
+      weightCheckKg: "{source} says {w}kg. Is that right?",
+      weightCheckLb: "{source} says {w}lb. Is that right?",
       sourceYou: "you",
-      weightCheckTypedKg: "You typed {w} kg. Is that right?",
-      weightCheckTypedLb: "You typed {w} lb. Is that right?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, today {time}",
-      weightSourceLb: "{prev} lb · {source}, today {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal a day",
-      savedNoteKg: "{w} kg from {source}, saved",
-      savedNoteLb: "{w} lb from {source}, saved",
-      savedNoteTypedKg: "{w} kg, saved",
-      savedNoteTypedLb: "{w} lb, saved",
+      weightCheckTypedKg: "You typed {w}kg. Is that right?",
+      weightCheckTypedLb: "You typed {w}lb. Is that right?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, today {time}",
+      weightSourceLb: "{prev}lb · {source}, today {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal a day",
+      savedNoteKg: "{w}kg from {source}, saved",
+      savedNoteLb: "{w}lb from {source}, saved",
+      savedNoteTypedKg: "{w}kg, saved",
+      savedNoteTypedLb: "{w}lb, saved",
       goalLabel: "Goal",
       targetLabel: "Target",
       activitySection: "Exercise frequency",
@@ -400,15 +400,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "vous avez déclaré : {condition}",
     weightLabel: healthLabel("weight_kg", "fr"),
     logWeight: "Enregistrer le poids",
-    targetKg: "{w} kg · objectif",
-    targetLb: "{w} lb · objectif",
+    targetKg: "{w}kg · objectif",
+    targetLb: "{w}lb · objectif",
     planLabel: "Ton plan",
     planEdit: "modifier",
-    kcalADay: "{kcal} kcal par jour",
+    kcalADay: "{kcal}kcal par jour",
     perDay: "par jour",
-    grams: "{g} g",
-    proteinGrams: "{g} g de protéines",
-    satFatGrams: "{g} g de {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g de protéines",
+    satFatGrams: "{g}g de {noun}",
     floorMarker: "jamais moins de {floor}",
     appleHealth: "Apple Health",
     connected: "connecté",
@@ -431,24 +431,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("fr").navProfile,
       save: "Enregistrer",
       weightTitle: "Ton poids",
-      weightCheckKg: "{source} indique {w} kg. C'est juste ?",
-      weightCheckLb: "{source} indique {w} lb. C'est juste ?",
+      weightCheckKg: "{source} indique {w}kg. C'est juste ?",
+      weightCheckLb: "{source} indique {w}lb. C'est juste ?",
       sourceYou: "ta saisie",
-      weightCheckTypedKg: "Tu as saisi {w} kg. C'est juste ?",
-      weightCheckTypedLb: "Tu as saisi {w} lb. C'est juste ?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, aujourd'hui {time}",
-      weightSourceLb: "{prev} lb · {source}, aujourd'hui {time}",
-      weightSourceOnKg: "{prev} kg · {source}, le {date}",
-      weightSourceOnLb: "{prev} lb · {source}, le {date}",
-      planRevised: "{from} → {to} kcal par jour",
-      savedNoteKg: "{w} kg depuis {source}, enregistré",
-      savedNoteLb: "{w} lb depuis {source}, enregistré",
-      savedNoteTypedKg: "{w} kg, enregistré",
-      savedNoteTypedLb: "{w} lb, enregistré",
+      weightCheckTypedKg: "Tu as saisi {w}kg. C'est juste ?",
+      weightCheckTypedLb: "Tu as saisi {w}lb. C'est juste ?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, aujourd'hui {time}",
+      weightSourceLb: "{prev}lb · {source}, aujourd'hui {time}",
+      weightSourceOnKg: "{prev}kg · {source}, le {date}",
+      weightSourceOnLb: "{prev}lb · {source}, le {date}",
+      planRevised: "{from} → {to}kcal par jour",
+      savedNoteKg: "{w}kg depuis {source}, enregistré",
+      savedNoteLb: "{w}lb depuis {source}, enregistré",
+      savedNoteTypedKg: "{w}kg, enregistré",
+      savedNoteTypedLb: "{w}lb, enregistré",
       goalLabel: "Objectif",
       targetLabel: "Cible",
       activitySection: "Fréquence d'exercice",
@@ -510,15 +510,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "von dir angegeben: {condition}",
     weightLabel: healthLabel("weight_kg", "de"),
     logWeight: "Gewicht eintragen",
-    targetKg: "{w} kg · Ziel",
-    targetLb: "{w} lb · Ziel",
+    targetKg: "{w}kg · Ziel",
+    targetLb: "{w}lb · Ziel",
     planLabel: "Dein Plan",
     planEdit: "bearbeiten",
-    kcalADay: "{kcal} kcal am Tag",
+    kcalADay: "{kcal}kcal am Tag",
     perDay: "am Tag",
-    grams: "{g} g",
-    proteinGrams: "{g} g Eiweiß",
-    satFatGrams: "{g} g {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g Eiweiß",
+    satFatGrams: "{g}g {noun}",
     floorMarker: "nie unter {floor}",
     appleHealth: "Apple Health",
     connected: "verbunden",
@@ -541,24 +541,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("de").navProfile,
       save: "Speichern",
       weightTitle: "Dein Gewicht",
-      weightCheckKg: "{source} sagt {w} kg. Stimmt das?",
-      weightCheckLb: "{source} sagt {w} lb. Stimmt das?",
+      weightCheckKg: "{source} sagt {w}kg. Stimmt das?",
+      weightCheckLb: "{source} sagt {w}lb. Stimmt das?",
       sourceYou: "deine Eingabe",
-      weightCheckTypedKg: "Du hast {w} kg eingetragen. Stimmt das?",
-      weightCheckTypedLb: "Du hast {w} lb eingetragen. Stimmt das?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, heute {time}",
-      weightSourceLb: "{prev} lb · {source}, heute {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal am Tag",
-      savedNoteKg: "{w} kg von {source}, gespeichert",
-      savedNoteLb: "{w} lb von {source}, gespeichert",
-      savedNoteTypedKg: "{w} kg, gespeichert",
-      savedNoteTypedLb: "{w} lb, gespeichert",
+      weightCheckTypedKg: "Du hast {w}kg eingetragen. Stimmt das?",
+      weightCheckTypedLb: "Du hast {w}lb eingetragen. Stimmt das?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, heute {time}",
+      weightSourceLb: "{prev}lb · {source}, heute {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal am Tag",
+      savedNoteKg: "{w}kg von {source}, gespeichert",
+      savedNoteLb: "{w}lb von {source}, gespeichert",
+      savedNoteTypedKg: "{w}kg, gespeichert",
+      savedNoteTypedLb: "{w}lb, gespeichert",
       goalLabel: "Ziel",
       targetLabel: "Zielgewicht",
       activitySection: "Trainingshäufigkeit",
@@ -620,15 +620,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "condizioni indicate: {condition}",
     weightLabel: healthLabel("weight_kg", "it"),
     logWeight: "Registra il peso",
-    targetKg: "{w} kg · obiettivo",
-    targetLb: "{w} lb · obiettivo",
+    targetKg: "{w}kg · obiettivo",
+    targetLb: "{w}lb · obiettivo",
     planLabel: "Il tuo piano",
     planEdit: "modifica",
-    kcalADay: "{kcal} kcal al giorno",
+    kcalADay: "{kcal}kcal al giorno",
     perDay: "al giorno",
-    grams: "{g} g",
-    proteinGrams: "{g} g di proteine",
-    satFatGrams: "{g} g di {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g di proteine",
+    satFatGrams: "{g}g di {noun}",
     floorMarker: "mai sotto {floor}",
     appleHealth: "Apple Health",
     connected: "connesso",
@@ -651,24 +651,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("it").navProfile,
       save: "Salva",
       weightTitle: "Il tuo peso",
-      weightCheckKg: "{source} dice {w} kg. È giusto?",
-      weightCheckLb: "{source} dice {w} lb. È giusto?",
+      weightCheckKg: "{source} dice {w}kg. È giusto?",
+      weightCheckLb: "{source} dice {w}lb. È giusto?",
       sourceYou: "inserito da te",
-      weightCheckTypedKg: "Hai inserito {w} kg. È giusto?",
-      weightCheckTypedLb: "Hai inserito {w} lb. È giusto?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, oggi {time}",
-      weightSourceLb: "{prev} lb · {source}, oggi {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal al giorno",
-      savedNoteKg: "{w} kg da {source}, salvato",
-      savedNoteLb: "{w} lb da {source}, salvato",
-      savedNoteTypedKg: "{w} kg, salvato",
-      savedNoteTypedLb: "{w} lb, salvato",
+      weightCheckTypedKg: "Hai inserito {w}kg. È giusto?",
+      weightCheckTypedLb: "Hai inserito {w}lb. È giusto?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, oggi {time}",
+      weightSourceLb: "{prev}lb · {source}, oggi {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal al giorno",
+      savedNoteKg: "{w}kg da {source}, salvato",
+      savedNoteLb: "{w}lb da {source}, salvato",
+      savedNoteTypedKg: "{w}kg, salvato",
+      savedNoteTypedLb: "{w}lb, salvato",
       goalLabel: "Obiettivo",
       targetLabel: "Peso obiettivo",
       activitySection: "Frequenza di allenamento",
@@ -730,15 +730,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "has indicado: {condition}",
     weightLabel: healthLabel("weight_kg", "es"),
     logWeight: "Registrar el peso",
-    targetKg: "{w} kg · objetivo",
-    targetLb: "{w} lb · objetivo",
+    targetKg: "{w}kg · objetivo",
+    targetLb: "{w}lb · objetivo",
     planLabel: "Tu plan",
     planEdit: "editar",
-    kcalADay: "{kcal} kcal al día",
+    kcalADay: "{kcal}kcal al día",
     perDay: "al día",
-    grams: "{g} g",
-    proteinGrams: "{g} g de proteína",
-    satFatGrams: "{g} g de {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g de proteína",
+    satFatGrams: "{g}g de {noun}",
     floorMarker: "nunca por debajo de {floor}",
     appleHealth: "Apple Health",
     connected: "conectado",
@@ -761,24 +761,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("es").navProfile,
       save: "Guardar",
       weightTitle: "Tu peso",
-      weightCheckKg: "{source} dice {w} kg. ¿Es correcto?",
-      weightCheckLb: "{source} dice {w} lb. ¿Es correcto?",
+      weightCheckKg: "{source} dice {w}kg. ¿Es correcto?",
+      weightCheckLb: "{source} dice {w}lb. ¿Es correcto?",
       sourceYou: "tu registro",
-      weightCheckTypedKg: "Escribiste {w} kg. ¿Es correcto?",
-      weightCheckTypedLb: "Escribiste {w} lb. ¿Es correcto?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, hoy {time}",
-      weightSourceLb: "{prev} lb · {source}, hoy {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal al día",
-      savedNoteKg: "{w} kg de {source}, guardado",
-      savedNoteLb: "{w} lb de {source}, guardado",
-      savedNoteTypedKg: "{w} kg, guardado",
-      savedNoteTypedLb: "{w} lb, guardado",
+      weightCheckTypedKg: "Escribiste {w}kg. ¿Es correcto?",
+      weightCheckTypedLb: "Escribiste {w}lb. ¿Es correcto?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, hoy {time}",
+      weightSourceLb: "{prev}lb · {source}, hoy {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal al día",
+      savedNoteKg: "{w}kg de {source}, guardado",
+      savedNoteLb: "{w}lb de {source}, guardado",
+      savedNoteTypedKg: "{w}kg, guardado",
+      savedNoteTypedLb: "{w}lb, guardado",
       goalLabel: "Objetivo",
       targetLabel: "Peso objetivo",
       activitySection: "Frecuencia de ejercicio",
@@ -840,15 +840,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "đã khai báo: {condition}",
     weightLabel: healthLabel("weight_kg", "vi"),
     logWeight: "Ghi cân nặng",
-    targetKg: "{w} kg · mục tiêu",
-    targetLb: "{w} lb · mục tiêu",
+    targetKg: "{w}kg · mục tiêu",
+    targetLb: "{w}lb · mục tiêu",
     planLabel: "Kế hoạch của bạn",
     planEdit: "sửa",
-    kcalADay: "{kcal} kcal một ngày",
+    kcalADay: "{kcal}kcal một ngày",
     perDay: "một ngày",
-    grams: "{g} g",
-    proteinGrams: "{g} g đạm",
-    satFatGrams: "{g} g {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g đạm",
+    satFatGrams: "{g}g {noun}",
     floorMarker: "không dưới {floor}",
     appleHealth: "Apple Health",
     connected: "đã kết nối",
@@ -871,24 +871,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("vi").navProfile,
       save: "Lưu",
       weightTitle: "Cân nặng của bạn",
-      weightCheckKg: "{source} báo {w} kg. Đúng không?",
-      weightCheckLb: "{source} báo {w} lb. Đúng không?",
+      weightCheckKg: "{source} báo {w}kg. Đúng không?",
+      weightCheckLb: "{source} báo {w}lb. Đúng không?",
       sourceYou: "bạn",
-      weightCheckTypedKg: "Bạn đã nhập {w} kg. Đúng không?",
-      weightCheckTypedLb: "Bạn đã nhập {w} lb. Đúng không?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, hôm nay {time}",
-      weightSourceLb: "{prev} lb · {source}, hôm nay {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal một ngày",
-      savedNoteKg: "{w} kg từ {source}, đã lưu",
-      savedNoteLb: "{w} lb từ {source}, đã lưu",
-      savedNoteTypedKg: "{w} kg, đã lưu",
-      savedNoteTypedLb: "{w} lb, đã lưu",
+      weightCheckTypedKg: "Bạn đã nhập {w}kg. Đúng không?",
+      weightCheckTypedLb: "Bạn đã nhập {w}lb. Đúng không?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, hôm nay {time}",
+      weightSourceLb: "{prev}lb · {source}, hôm nay {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal một ngày",
+      savedNoteKg: "{w}kg từ {source}, đã lưu",
+      savedNoteLb: "{w}lb từ {source}, đã lưu",
+      savedNoteTypedKg: "{w}kg, đã lưu",
+      savedNoteTypedLb: "{w}lb, đã lưu",
       goalLabel: "Mục tiêu",
       targetLabel: "Cân nặng mục tiêu",
       activitySection: "Tần suất tập luyện",
@@ -950,15 +950,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "{condition} (dinyatakan)",
     weightLabel: healthLabel("weight_kg", "id"),
     logWeight: "Catat berat",
-    targetKg: "{w} kg · target",
-    targetLb: "{w} lb · target",
+    targetKg: "{w}kg · target",
+    targetLb: "{w}lb · target",
     planLabel: "Rencanamu",
     planEdit: "edit",
-    kcalADay: "{kcal} kcal sehari",
+    kcalADay: "{kcal}kcal sehari",
     perDay: "sehari",
-    grams: "{g} g",
-    proteinGrams: "{g} g protein",
-    satFatGrams: "{g} g {noun}",
+    grams: "{g}g",
+    proteinGrams: "{g}g protein",
+    satFatGrams: "{g}g {noun}",
     floorMarker: "tidak di bawah {floor}",
     appleHealth: "Apple Health",
     connected: "terhubung",
@@ -981,24 +981,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("id").navProfile,
       save: "Simpan",
       weightTitle: "Beratmu",
-      weightCheckKg: "{source} bilang {w} kg. Benar?",
-      weightCheckLb: "{source} bilang {w} lb. Benar?",
+      weightCheckKg: "{source} bilang {w}kg. Benar?",
+      weightCheckLb: "{source} bilang {w}lb. Benar?",
       sourceYou: "catatanmu",
-      weightCheckTypedKg: "Kamu memasukkan {w} kg. Benar?",
-      weightCheckTypedLb: "Kamu memasukkan {w} lb. Benar?",
-      weightKg: "{w} kg",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} kg · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} kg · {source}, hari ini {time}",
-      weightSourceLb: "{prev} lb · {source}, hari ini {time}",
-      weightSourceOnKg: "{prev} kg · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} kcal sehari",
-      savedNoteKg: "{w} kg dari {source}, tersimpan",
-      savedNoteLb: "{w} lb dari {source}, tersimpan",
-      savedNoteTypedKg: "{w} kg, tersimpan",
-      savedNoteTypedLb: "{w} lb, tersimpan",
+      weightCheckTypedKg: "Kamu memasukkan {w}kg. Benar?",
+      weightCheckTypedLb: "Kamu memasukkan {w}lb. Benar?",
+      weightKg: "{w}kg",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}kg · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}kg · {source}, hari ini {time}",
+      weightSourceLb: "{prev}lb · {source}, hari ini {time}",
+      weightSourceOnKg: "{prev}kg · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}kcal sehari",
+      savedNoteKg: "{w}kg dari {source}, tersimpan",
+      savedNoteLb: "{w}lb dari {source}, tersimpan",
+      savedNoteTypedKg: "{w}kg, tersimpan",
+      savedNoteTypedLb: "{w}lb, tersimpan",
       goalLabel: "Tujuan",
       targetLabel: "Berat target",
       activitySection: "Frekuensi olahraga",
@@ -1060,15 +1060,15 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "указано: {condition}",
     weightLabel: healthLabel("weight_kg", "ru"),
     logWeight: "Записать вес",
-    targetKg: "{w} кг · цель",
-    targetLb: "{w} lb · цель",
+    targetKg: "{w}кг · цель",
+    targetLb: "{w}lb · цель",
     planLabel: "Твой план",
     planEdit: "изменить",
-    kcalADay: "{kcal} ккал в день",
+    kcalADay: "{kcal}ккал в день",
     perDay: "в день",
-    grams: "{g} г",
-    proteinGrams: "{g} г белка",
-    satFatGrams: "{g} г {noun}",
+    grams: "{g}г",
+    proteinGrams: "{g}г белка",
+    satFatGrams: "{g}г {noun}",
     floorMarker: "не ниже {floor}",
     appleHealth: "Apple Health",
     connected: "подключено",
@@ -1091,24 +1091,24 @@ export const YOU_COPY: Localized<YouCopy> = {
       profileTitle: shellCopyFor("ru").navProfile,
       save: "Сохранить",
       weightTitle: "Твой вес",
-      weightCheckKg: "{source} сообщает: {w} кг. Всё верно?",
-      weightCheckLb: "{source} сообщает: {w} lb. Всё верно?",
+      weightCheckKg: "{source} сообщает: {w}кг. Всё верно?",
+      weightCheckLb: "{source} сообщает: {w}lb. Всё верно?",
       sourceYou: "твоя запись",
-      weightCheckTypedKg: "Твоя последняя запись — {w} кг. Всё верно?",
-      weightCheckTypedLb: "Твоя последняя запись — {w} lb. Всё верно?",
-      weightKg: "{w} кг",
-      weightLb: "{w} lb",
-      weightFromKg: "{w} кг · {source}",
-      weightFromLb: "{w} lb · {source}",
-      weightSourceKg: "{prev} кг · {source}, сегодня {time}",
-      weightSourceLb: "{prev} lb · {source}, сегодня {time}",
-      weightSourceOnKg: "{prev} кг · {source}, {date}",
-      weightSourceOnLb: "{prev} lb · {source}, {date}",
-      planRevised: "{from} → {to} ккал в день",
-      savedNoteKg: "{w} кг из {source} — сохранено",
-      savedNoteLb: "{w} lb из {source} — сохранено",
-      savedNoteTypedKg: "{w} кг, сохранено",
-      savedNoteTypedLb: "{w} lb, сохранено",
+      weightCheckTypedKg: "Твоя последняя запись — {w}кг. Всё верно?",
+      weightCheckTypedLb: "Твоя последняя запись — {w}lb. Всё верно?",
+      weightKg: "{w}кг",
+      weightLb: "{w}lb",
+      weightFromKg: "{w}кг · {source}",
+      weightFromLb: "{w}lb · {source}",
+      weightSourceKg: "{prev}кг · {source}, сегодня {time}",
+      weightSourceLb: "{prev}lb · {source}, сегодня {time}",
+      weightSourceOnKg: "{prev}кг · {source}, {date}",
+      weightSourceOnLb: "{prev}lb · {source}, {date}",
+      planRevised: "{from} → {to}ккал в день",
+      savedNoteKg: "{w}кг из {source} — сохранено",
+      savedNoteLb: "{w}lb из {source} — сохранено",
+      savedNoteTypedKg: "{w}кг, сохранено",
+      savedNoteTypedLb: "{w}lb, сохранено",
       goalLabel: "Цель",
       targetLabel: "Целевой вес",
       activitySection: "Частота тренировок",
@@ -1171,7 +1171,7 @@ const fill = (template: string, params: Record<string, string>): string =>
   template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
 /**
- * The identity card's fact line — "32 · 172 cm · high cholesterol declared" — assembled HERE so
+ * The identity card's fact line — "32 · 172cm · high cholesterol declared" — assembled HERE so
  * the web and the phone build the same line off the same pieces (#97 review).
  *
  * `age` is the SERVER's `ProfileResponse.age` — a surface never subtracts years itself; `null`

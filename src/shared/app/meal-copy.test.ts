@@ -93,8 +93,8 @@ describe("MEAL_COPY", () => {
     expect(en.deleteCta).toBe("Delete this meal");
     expect(en.phoneGoneTitle).toBe("Not on today’s diary");
     expect(en.phoneGoneBack).toBe("Back to today");
-    expect(en.changeItem).toBe("{item} {before} → {after} {unit}");
-    expect(en.changeTotal).toBe("{kcalBefore} → {kcalAfter} {kcal}.");
+    expect(en.changeItem).toBe("{item} {before} → {after}{unit}");
+    expect(en.changeTotal).toBe("{kcalBefore} → {kcalAfter}{kcal}.");
     expect(en.changeWithItems).toBe("{items}: {total}");
     expect(en.changeStillHighOne).toBe("{dim} still high for one meal.");
     expect(en.changeStillHighTwo).toBe("Both still high for one meal.");
@@ -107,7 +107,7 @@ describe("MEAL_COPY", () => {
     // `web/meal-ingredient.html`).
     // The example is TWO keys — the bold lead is its own, never a slice of the sentence.
     expect(en.phoneFixExampleLead).toBe("For example:");
-    expect(en.phoneFixExample).toBe("the rice was about 200 g, and there was no sauce.");
+    expect(en.phoneFixExample).toBe("the rice was about 200g, and there was no sauce.");
     expect(en.phoneUpdate).toBe("Update");
     expect(en.phoneIngredientTitle).toBe("Edit ingredient");
     expect(en.phoneAmount).toBe("Amount");

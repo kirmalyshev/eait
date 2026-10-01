@@ -116,7 +116,7 @@ const RULES: readonly Rule[] = [
 
   // weight-promise — the stems, and DELIBERATELY NOT the progressive.
   //
-  // `Estás adelgazando a 0,5 kg por semana` and `Stai dimagrendo` describe what is happening;
+  // `Estás adelgazando a 0,5kg por semana` and `Stai dimagrendo` describe what is happening;
   // `adelgazar` and `dimagrire` promise it. That line is the best either language offers, and it
   // is the same undecidability English has — which is why this family is the one the onboarding
   // surface opts out of by name. A goal button says "Perdre du poids" and must keep saying it.
@@ -176,7 +176,7 @@ export function normalizeForMatch(text: string): string {
 /**
  * THE ONE EXEMPTION, published (S6; Kirill's decision, DIRECTION §"the plan as a graph").
  *
- * The plan graph draws "Goal: lose 6 kg by January 2027" — the user's own stated goal, restated
+ * The plan graph draws "Goal: lose 6kg by January 2027" — the user's own stated goal, restated
  * with the plan's own `projectGoal` month. `weight-promise` cannot tell that from a marketing
  * claim, and the sentence ships by name, so this map names the single field it may appear under:
  * `CHAT_COPY.planGoal`, which `planHeadline` (`onboarding-chat.ts`) fills — and only that key.
@@ -185,7 +185,7 @@ export function normalizeForMatch(text: string): string {
  *
  * Keyed by a QUALIFIED name — `TABLE.key` — on purpose: a bare `planGoal` in some other table
  * must not drift under an exemption written for this one, and every other rule still reads the
- * exempted field (a "Goal: lose 6 kg, guaranteed" is still refused).
+ * exempted field (a "Goal: lose 6kg, guaranteed" is still refused).
  */
 export const CLAIM_EXEMPTIONS: Readonly<Record<string, readonly string[]>> = {
   "CHAT_COPY.planGoal": ["weight-promise"],

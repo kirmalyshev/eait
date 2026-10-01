@@ -1,5 +1,5 @@
 // The Progress surface's words (W8, #95) — the weight card with its 90D · 6M · 1Y · All ranges,
-// the goal bar ("74 → 68 kg", "around {month} · estimate", "{n} kg down", "{n} to go"), the
+// the goal bar ("74 → 68kg", "around {month} · estimate", "{n}kg down", "{n} to go"), the
 // "This week" kcal bars against the plan, the "Streak" card with its M–S dots, the BMI card's
 // source line and "?" name, and design-pro's empty states for the chart and the BMI figure.
 //
@@ -36,14 +36,14 @@ export interface ProgressCopy {
   title: string;
   /** The "Weight" card's label — `HEALTH_COPY.labels.weight_kg`, one word for one quantity. */
   weightLabel: string;
-  /** The big current figure under it — "{n} kg"; `{n}` from `numbers` keeps a typed tenth. */
+  /** The big current figure under it — "{n}kg"; `{n}` from `numbers` keeps a typed tenth. */
   weightNow: ByUnits;
   /**
    * The range segment chips over the chart, keyed by `WEIGHT_RANGES` (`ui/charts.ts`). Compact
    * on the board — one letter per period — and the same chips on both clients.
    */
   ranges: Record<WeightRange, string>;
-  /** The goal bar's headline — "{from} → {to} kg", start and target in the reader's units. */
+  /** The goal bar's headline — "{from} → {to}kg", start and target in the reader's units. */
   goalLine: ByUnits;
   /**
    * The `.est` tag beside it — "around {month} · estimate"; `{month}` is `projectionMonth`'s
@@ -125,12 +125,12 @@ export interface ProgressCopy {
 const EN: ProgressCopy = {
   title: SHELL_COPY.en!.navProgress,
   weightLabel: HEALTH_COPY.en!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   ranges: { "90D": "90D", "6M": "6M", "1Y": "1Y", all: "All" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "around {month} · estimate",
-  goalDown: { metric: "{n} kg down", imperial: "{n} lb down" },
-  goalUp: { metric: "{n} kg up", imperial: "{n} lb up" },
+  goalDown: { metric: "{n}kg down", imperial: "{n}lb down" },
+  goalUp: { metric: "{n}kg up", imperial: "{n}lb up" },
   goalToGo: { metric: "{n} to go", imperial: "{n} to go" },
   weekLabel: "This week",
   weekPlan: "kcal a day · plan {plan}",
@@ -158,13 +158,13 @@ const EN: ProgressCopy = {
 const FR: ProgressCopy = {
   title: SHELL_COPY.fr!.navProgress,
   weightLabel: HEALTH_COPY.fr!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   ranges: { "90D": "90 j", "6M": "6 m", "1Y": "1 an", all: "Tout" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "vers {month} · estimation",
-  goalDown: { metric: "{n} kg en moins", imperial: "{n} lb en moins" },
-  goalUp: { metric: "{n} kg en plus", imperial: "{n} lb en plus" },
-  goalToGo: { metric: "reste {n} kg", imperial: "reste {n} lb" },
+  goalDown: { metric: "{n}kg en moins", imperial: "{n}lb en moins" },
+  goalUp: { metric: "{n}kg en plus", imperial: "{n}lb en plus" },
+  goalToGo: { metric: "reste {n}kg", imperial: "reste {n}lb" },
   weekLabel: "Cette semaine",
   weekPlan: "kcal par jour · plan {plan}",
   streakLabel: "Série",
@@ -191,13 +191,13 @@ const FR: ProgressCopy = {
 const DE: ProgressCopy = {
   title: SHELL_COPY.de!.navProgress,
   weightLabel: HEALTH_COPY.de!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   ranges: { "90D": "90 T", "6M": "6 M", "1Y": "1 J", all: "Alle" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "ca. {month} · Schätzung",
-  goalDown: { metric: "{n} kg weniger", imperial: "{n} lb weniger" },
-  goalUp: { metric: "{n} kg mehr", imperial: "{n} lb mehr" },
-  goalToGo: { metric: "noch {n} kg", imperial: "noch {n} lb" },
+  goalDown: { metric: "{n}kg weniger", imperial: "{n}lb weniger" },
+  goalUp: { metric: "{n}kg mehr", imperial: "{n}lb mehr" },
+  goalToGo: { metric: "noch {n}kg", imperial: "noch {n}lb" },
   weekLabel: "Diese Woche",
   weekPlan: "kcal pro Tag · Plan {plan}",
   streakLabel: "Serie",
@@ -224,13 +224,13 @@ const DE: ProgressCopy = {
 const IT: ProgressCopy = {
   title: SHELL_COPY.it!.navProgress,
   weightLabel: HEALTH_COPY.it!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   ranges: { "90D": "90 g", "6M": "6 m", "1Y": "1 a", all: "Tutto" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "intorno a {month} · stima",
-  goalDown: { metric: "{n} kg in meno", imperial: "{n} lb in meno" },
-  goalUp: { metric: "{n} kg in più", imperial: "{n} lb in più" },
-  goalToGo: { metric: "mancano {n} kg", imperial: "mancano {n} lb" },
+  goalDown: { metric: "{n}kg in meno", imperial: "{n}lb in meno" },
+  goalUp: { metric: "{n}kg in più", imperial: "{n}lb in più" },
+  goalToGo: { metric: "mancano {n}kg", imperial: "mancano {n}lb" },
   weekLabel: "Questa settimana",
   weekPlan: "kcal al giorno · piano {plan}",
   streakLabel: "Serie",
@@ -257,13 +257,13 @@ const IT: ProgressCopy = {
 const ES: ProgressCopy = {
   title: SHELL_COPY.es!.navProgress,
   weightLabel: HEALTH_COPY.es!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   ranges: { "90D": "90 d", "6M": "6 m", "1Y": "1 a", all: "Todo" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "hacia {month} · estimación",
-  goalDown: { metric: "{n} kg menos", imperial: "{n} lb menos" },
-  goalUp: { metric: "{n} kg más", imperial: "{n} lb más" },
-  goalToGo: { metric: "faltan {n} kg", imperial: "faltan {n} lb" },
+  goalDown: { metric: "{n}kg menos", imperial: "{n}lb menos" },
+  goalUp: { metric: "{n}kg más", imperial: "{n}lb más" },
+  goalToGo: { metric: "faltan {n}kg", imperial: "faltan {n}lb" },
   weekLabel: "Esta semana",
   weekPlan: "kcal al día · plan {plan}",
   streakLabel: "Racha",
@@ -290,14 +290,14 @@ const ES: ProgressCopy = {
 const VI: ProgressCopy = {
   title: SHELL_COPY.vi!.navProgress,
   weightLabel: HEALTH_COPY.vi!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   // Compact chips: N = ngày, T = tháng — "năm" is written out so 1N never reads as one day.
   ranges: { "90D": "90N", "6M": "6T", "1Y": "1 năm", all: "Tất cả" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "khoảng {month} · ước tính",
-  goalDown: { metric: "giảm {n} kg", imperial: "giảm {n} lb" },
-  goalUp: { metric: "tăng {n} kg", imperial: "tăng {n} lb" },
-  goalToGo: { metric: "còn {n} kg", imperial: "còn {n} lb" },
+  goalDown: { metric: "giảm {n}kg", imperial: "giảm {n}lb" },
+  goalUp: { metric: "tăng {n}kg", imperial: "tăng {n}lb" },
+  goalToGo: { metric: "còn {n}kg", imperial: "còn {n}lb" },
   weekLabel: "Tuần này",
   weekPlan: "kcal mỗi ngày · kế hoạch {plan}",
   streakLabel: "Chuỗi",
@@ -324,14 +324,14 @@ const VI: ProgressCopy = {
 const ID: ProgressCopy = {
   title: SHELL_COPY.id!.navProgress,
   weightLabel: HEALTH_COPY.id!.labels.weight_kg!,
-  weightNow: { metric: "{n} kg", imperial: "{n} lb" },
+  weightNow: { metric: "{n}kg", imperial: "{n}lb" },
   // Compact chips: H = hari, B = bulan, Th = tahun.
   ranges: { "90D": "90H", "6M": "6B", "1Y": "1Th", all: "Semua" },
-  goalLine: { metric: "{from} → {to} kg", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}kg", imperial: "{from} → {to}lb" },
   goalEstimate: "sekitar {month} · perkiraan",
-  goalDown: { metric: "turun {n} kg", imperial: "turun {n} lb" },
-  goalUp: { metric: "naik {n} kg", imperial: "naik {n} lb" },
-  goalToGo: { metric: "kurang {n} kg", imperial: "kurang {n} lb" },
+  goalDown: { metric: "turun {n}kg", imperial: "turun {n}lb" },
+  goalUp: { metric: "naik {n}kg", imperial: "naik {n}lb" },
+  goalToGo: { metric: "kurang {n}kg", imperial: "kurang {n}lb" },
   weekLabel: "Minggu ini",
   weekPlan: "kcal per hari · rencana {plan}",
   streakLabel: "Rentetan",
@@ -358,16 +358,16 @@ const ID: ProgressCopy = {
 const RU: ProgressCopy = {
   title: SHELL_COPY.ru!.navProgress,
   weightLabel: HEALTH_COPY.ru!.labels.weight_kg!,
-  weightNow: { metric: "{n} кг", imperial: "{n} lb" },
+  weightNow: { metric: "{n}кг", imperial: "{n}lb" },
   ranges: { "90D": "90Д", "6M": "6М", "1Y": "1Г", all: "Все" },
-  goalLine: { metric: "{from} → {to} кг", imperial: "{from} → {to} lb" },
+  goalLine: { metric: "{from} → {to}кг", imperial: "{from} → {to}lb" },
   goalEstimate: "примерно {month} · оценка",
   // The SYMBOL, as `planGoal` writes it: "кг" never declines, which is the whole point of
   // putting it beside a number. "lb" stays Latin for the same reason — "фунтов" is the
   // genitive plural and reads wrong beside 1 or 2–4.
-  goalDown: { metric: "минус {n} кг", imperial: "минус {n} lb" },
-  goalUp: { metric: "плюс {n} кг", imperial: "плюс {n} lb" },
-  goalToGo: { metric: "осталось {n} кг", imperial: "осталось {n} lb" },
+  goalDown: { metric: "минус {n}кг", imperial: "минус {n}lb" },
+  goalUp: { metric: "плюс {n}кг", imperial: "плюс {n}lb" },
+  goalToGo: { metric: "осталось {n}кг", imperial: "осталось {n}lb" },
   weekLabel: "На этой неделе",
   weekPlan: "ккал в день · план {plan}",
   streakLabel: "Серия",

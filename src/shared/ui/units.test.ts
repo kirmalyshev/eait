@@ -1,5 +1,5 @@
-// The unit helpers, against the persona every Register P board is drawn with: 172 cm is 5 ft 8 in,
-// 74 kg is 163 lb, and the US stays imperial while everywhere the eight languages are spoken stays
+// The unit helpers, against the persona every Register P board is drawn with: 172cm is 5 ft 8 in,
+// 74kg is 163lb, and the US stays imperial while everywhere the eight languages are spoken stays
 // metric.
 //
 // Stored values never leave metric — `Profile.height_cm` and `weight_kg` are what the server keeps;
@@ -13,7 +13,7 @@ import {
 } from "./units.ts";
 
 describe("cm ↔ ft/in", () => {
-  test("172 cm is the persona's 5 ft 8 in", () => {
+  test("172cm is the persona's 5 ft 8 in", () => {
     expect(cmToFtIn(172)).toEqual({ ft: 5, in: 8 });
   });
 
@@ -29,7 +29,7 @@ describe("cm ↔ ft/in", () => {
   });
 
   test("the round trips drift — which is why the toggle relabels and never writes", () => {
-    // 172 cm displays as 5′8″, and 5′8″ converts back to 173. If flipping the unit wrote back the
+    // 172cm displays as 5′8″, and 5′8″ converts back to 173. If flipping the unit wrote back the
     // converted value, the stored profile would move on its own; it must not.
     const { ft, in: inch } = cmToFtIn(172);
     expect(ftInToCm(ft, inch)).toBe(173);
@@ -37,7 +37,7 @@ describe("cm ↔ ft/in", () => {
 });
 
 describe("kg ↔ lb", () => {
-  test("74 kg is the persona's 163 lb", () => {
+  test("74kg is the persona's 163lb", () => {
     expect(kgToLb(74)).toBe(163);
   });
 
@@ -45,7 +45,7 @@ describe("kg ↔ lb", () => {
     expect(lbToKg(163)).toBe(73.9);
   });
 
-  test("74 kg → 163 lb → 73.9 kg: the display drift, pinned", () => {
+  test("74kg → 163lb → 73.9kg: the display drift, pinned", () => {
     expect(lbToKg(kgToLb(74))).toBe(73.9);
   });
 });
@@ -108,7 +108,7 @@ describe("the wire — display value back to stored metric", () => {
     expect(heightDisplayValue(172, "metric")).toBe(172);
     expect(heightDisplayValue(172, "imperial")).toBe(68); // 5′8″
     expect(heightToCm("metric", 172)).toBe(172);
-    // 5′8″ is 172.7 cm — imperial granularity, the inch the user picked is stored honestly.
+    // 5′8″ is 172.7cm — imperial granularity, the inch the user picked is stored honestly.
     expect(heightToCm("imperial", 68)).toBe(173);
   });
 
@@ -122,8 +122,8 @@ describe("the wire — display value back to stored metric", () => {
 
 describe("heightText — the copy-ready height", () => {
   test("metric spells the unit in the reader's language", () => {
-    expect(heightText(172, "metric", "en")).toBe("172 cm");
-    expect(heightText(172, "metric", "ru")).toBe("172 см");
+    expect(heightText(172, "metric", "en")).toBe("172cm");
+    expect(heightText(172, "metric", "ru")).toBe("172см");
   });
   test("imperial is the ft-in join, digits in the language's format", () => {
     expect(heightText(172, "imperial", "en")).toBe("5′8″");
@@ -131,7 +131,7 @@ describe("heightText — the copy-ready height", () => {
 });
 
 describe("spellUnit — the weigh-in's and macro cards' unit words", () => {
-  // The editors and the "{g} g" cards reach for kg, lb and g, and the You surface must not
+  // The editors and the "{g}g" cards reach for kg, lb and g, and the You surface must not
   // re-spell them itself: Cyrillic is the one divergence, everything else passes through.
   test("kg, lb and g spell the way the reader's language writes them", () => {
     expect(spellUnit("en", "kg")).toBe("kg");

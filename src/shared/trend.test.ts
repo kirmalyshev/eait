@@ -172,7 +172,7 @@ describe("metricSeries and compareSeries", () => {
   });
 
   test("burned is active plus resting, and unknown when either half is", () => {
-    // Reporting 400 kcal burned on a day whose resting energy was not recorded would understate
+    // Reporting 400kcal burned on a day whose resting energy was not recorded would understate
     // the day by the whole basal figure and draw a cliff on the chart that never happened.
     expect(compareSeries("burned", health, intake)).toEqual([
       { date: "2026-08-31", value: 2200 }, { date: "2026-08-30", value: null },
@@ -207,7 +207,7 @@ describe("trendEndpoints and trendSummary", () => {
     trendBuckets("weeks", "2026-08-31", WINDOW, "en"),
     1,
   );
-  const kg = (v: number) => `${v.toFixed(1)} kg`;
+  const kg = (v: number) => `${v.toFixed(1)}kg`;
 
   test("endpoints are the first and the latest KNOWN buckets, skipping gaps", () => {
     const e = trendEndpoints(points)!;
@@ -220,7 +220,7 @@ describe("trendEndpoints and trendSummary", () => {
 
   test("the summary is one sentence a screen reader can say instead of the picture", () => {
     expect(trendSummary("Weight", "weeks", points, kg, "en")).toBe(
-      "Weight by week: from 94.1 kg (3 Aug) to 91.2 kg (31 Aug). Lowest 90.8 kg, highest 94.1 kg.",
+      "Weight by week: from 94.1kg (3 Aug) to 91.2kg (31 Aug). Lowest 90.8kg, highest 94.1kg.",
     );
     expect(trendSummary("Weight", "weeks", points.map((p) => ({ ...p, value: null, n: 0 })), kg, "en")).toBe(
       "Weight by week: nothing recorded.",
@@ -232,7 +232,7 @@ describe("trendEndpoints and trendSummary", () => {
     const de = trendSummary("Gewicht", "weeks", points, kg, "de");
     // `nach`, not `pro`: `pro` states a RATE, so "Gewicht pro Woche" reads as weight gained per
     // week and is then contradicted by a kg figure. Five of fifteen fields are stocks.
-    expect(de).toBe("Gewicht nach Wochen: von 94.1 kg (3 Aug) bis 91.2 kg (31 Aug). Tiefstwert 90.8 kg, Höchstwert 94.1 kg.");
+    expect(de).toBe("Gewicht nach Wochen: von 94.1kg (3 Aug) bis 91.2kg (31 Aug). Tiefstwert 90.8kg, Höchstwert 94.1kg.");
     expect(de).not.toContain("by week");
     // Russian, where the AXIS LABEL itself moves too — `dayMonth` was pinned to en-GB.
     // Russian inflects after `по`, so the summary says `по неделям` while the bucket stays

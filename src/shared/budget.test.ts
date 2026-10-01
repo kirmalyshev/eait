@@ -201,13 +201,13 @@ describe("kcalCardState", () => {
 });
 
 describe("macroCardState", () => {
-  // The one figure-and-label pair for "{n} g · {Macro} left/over" — Home's diary column and
+  // The one figure-and-label pair for "{n}g · {Macro} left/over" — Home's diary column and
   // You's day column draw the same card (#175), so the rule lives here rather than on a screen.
   test("under target: what is left, under 'left', the ring at the eaten share", () => {
     expect(macroCardState(100, 150)).toEqual({ figure: 50, label: "left", share: 100 / 150 });
   });
 
-  test("over target: the OVERAGE under 'over' and a closed ring — never a clamped '0 g left'", () => {
+  test("over target: the OVERAGE under 'over' and a closed ring — never a clamped '0g left'", () => {
     expect(macroCardState(155, 150)).toEqual({ figure: 5, label: "over", share: 1 });
   });
 

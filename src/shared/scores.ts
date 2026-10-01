@@ -29,7 +29,7 @@ export interface ScorePart {
   factor: ScoreFactor;
   /**
    * The measure the bands were applied to — a share of the meal's calories (protein, saturated
-   * fat, sugar) or grams per 100 kcal (fibre, salt). `null` when the nutrient was not read:
+   * fat, sugar) or grams per 100kcal (fibre, salt). `null` when the nutrient was not read:
    * the part scores 0 and the UI says "not read".
    */
   density: number | null;
@@ -71,7 +71,7 @@ interface ScorePartSpec {
   factor: ScoreFactor;
   /** The meal field the density is read from. */
   nutrient: "protein_g" | "fiber_g" | "satfat_g" | "sugar_g" | "sodium_mg";
-  /** `density = nutrient × perKcal ÷ kcal` — 400/900 are the % shares (4/9 kcal per gram), 100 the per-100-kcal rates. */
+  /** `density = nutrient × perKcal ÷ kcal` — 400/900 are the % shares (4/9kcal per gram), 100 the per-100-kcal rates. */
   perKcal: number;
   bands: readonly ScoreBand[];
   /** The restriction that makes this part personal, when declared. */

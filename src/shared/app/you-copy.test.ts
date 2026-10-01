@@ -50,7 +50,7 @@ describe("YOU_COPY", () => {
     // Placeholders stand for numbers and names; the sweep fills them with the boards' own
     // persona values so a pattern that could fire on the filled sentence is what fails.
     const FILL: Record<string, string> = {
-      age: "32", height: "172 cm", flags: "high cholesterol declared", condition: "high cholesterol",
+      age: "32", height: "172cm", flags: "high cholesterol declared", condition: "high cholesterol",
       w: "73.4", prev: "74", source: "Apple Health", time: "18:30", kcal: "1,434", g: "109",
       noun: "Saturated fat",
       floor: "1,200", n: "5", total: "7", date: "Sat 26 Sep",
@@ -73,13 +73,13 @@ describe("YOU_COPY", () => {
     expect(en.flagDeclared).toBe("{condition} declared");
     expect(en.weightLabel).toBe("Weight");
     expect(en.logWeight).toBe("Log weight");
-    expect(en.targetKg).toBe("{w} kg · target");
+    expect(en.targetKg).toBe("{w}kg · target");
     expect(en.planLabel).toBe("Your plan");
     expect(en.planEdit).toBe("edit");
-    expect(en.kcalADay).toBe("{kcal} kcal a day");
+    expect(en.kcalADay).toBe("{kcal}kcal a day");
     expect(en.perDay).toBe("a day");
-    expect(en.grams).toBe("{g} g");
-    expect(en.satFatGrams).toBe("{g} g {noun}");
+    expect(en.grams).toBe("{g}g");
+    expect(en.satFatGrams).toBe("{g}g {noun}");
     expect(en.floorMarker).toBe("never below {floor}");
     expect(en.appleHealth).toBe("Apple Health");
     expect(en.connected).toBe("connected");
@@ -94,23 +94,23 @@ describe("YOU_COPY", () => {
     expect(en.account).toBe("Account");
     // phone/you-weight.html
     expect(en.phone.weightTitle).toBe("Your weight");
-    expect(en.phone.weightCheckKg).toBe("{source} says {w} kg. Is that right?");
-    expect(en.phone.weightSourceKg).toBe("{prev} kg · {source}, today {time}");
-    expect(en.phone.planRevised).toBe("{from} → {to} kcal a day");
+    expect(en.phone.weightCheckKg).toBe("{source} says {w}kg. Is that right?");
+    expect(en.phone.weightSourceKg).toBe("{prev}kg · {source}, today {time}");
+    expect(en.phone.planRevised).toBe("{from} → {to}kcal a day");
     expect(en.phone.save).toBe("Save");
     // phone/you-profile.html
     expect(en.phone.profileTitle).toBe("Profile");
     expect(en.phone.goalLabel).toBe("Goal");
-    expect(en.phone.weightFromKg).toBe("{w} kg · {source}");
+    expect(en.phone.weightFromKg).toBe("{w}kg · {source}");
     expect(en.phone.targetLabel).toBe("Target");
-    expect(en.phone.weightKg).toBe("{w} kg");
+    expect(en.phone.weightKg).toBe("{w}kg");
     expect(en.phone.activitySection).toBe("Exercise frequency");
     expect(en.phone.activityOption).toBe("{n} workouts a week");
     expect(en.phone.countryRow).toBe("Country");
     expect(en.phone.judgedAgainst).toBe("Judged against");
     // phone/you-saved.html
     expect(en.phone.activityLabel).toBe("Exercise");
-    expect(en.phone.savedNoteKg).toBe("{w} kg from {source}, saved");
+    expect(en.phone.savedNoteKg).toBe("{w}kg from {source}, saved");
     // phone/you-basis.html
     expect(en.phone.basisTitle).toBe("How we got there");
     expect(en.phone.atRest).toBe("At rest");
@@ -156,28 +156,28 @@ describe("youFacts", () => {
 
   it("composes the board's line out of templates — no fragment joins", () => {
     expect(youFacts("en", { age: 32, heightCm: 172, ...base })).toBe(
-      "32 · 172 cm · high cholesterol declared",
+      "32 · 172cm · high cholesterol declared",
     );
     expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: [] })).toBe(
-      "32 · 172 cm",
+      "32 · 172cm",
     );
     expect(youFacts("de", { age: 32, heightCm: 172, ...base })).toBe(
-      "32 · 172 cm · von dir angegeben: High cholesterol",
+      "32 · 172cm · von dir angegeben: High cholesterol",
     );
     expect(youFacts("ru", { age: 32, heightCm: 172, ...base })).toBe(
-      "32 · 172 см · указано: High cholesterol",
+      "32 · 172см · указано: High cholesterol",
     );
   });
 
   it("lists two declared conditions the language's own way inside ONE flag", () => {
     expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["ldl", "kidneys"] })).toBe(
-      "32 · 172 cm · high cholesterol and kidney disease declared",
+      "32 · 172cm · high cholesterol and kidney disease declared",
     );
   });
 
   it("drops a missing fact by template, and prints nothing for a null age", () => {
     expect(youFacts("en", { age: null, heightCm: 172, ...base })).toBe(
-      "172 cm · high cholesterol declared",
+      "172cm · high cholesterol declared",
     );
     expect(youFacts("en", { age: null, heightCm: null, ...base })).toBe("high cholesterol declared");
     expect(youFacts("en", { age: 32, heightCm: null, ...base })).toBe("32 · high cholesterol declared");
@@ -190,7 +190,7 @@ describe("youFacts", () => {
   });
 
   it("reads an unknown or 'none' restriction as undeclared", () => {
-    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["none"] })).toBe("32 · 172 cm");
-    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["keto"] })).toBe("32 · 172 cm");
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["none"] })).toBe("32 · 172cm");
+    expect(youFacts("en", { age: 32, heightCm: 172, ...base, restrictions: ["keto"] })).toBe("32 · 172cm");
   });
 });

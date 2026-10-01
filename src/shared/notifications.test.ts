@@ -118,7 +118,7 @@ describe("validateNotificationCopy", () => {
 
   it("refuses an evening body that drops a placeholder", () => {
     const c = clone();
-    c.evening!.body = "{eaten} of your {plan} kcal today.";
+    c.evening!.body = "{eaten} of your {plan}kcal today.";
     const out = validateNotificationCopy(c);
     expect(out.ok).toBe(false);
     expect(out.ok === false && out.errors.join(" ")).toContain("tomorrow");
@@ -126,13 +126,13 @@ describe("validateNotificationCopy", () => {
 
   it("refuses a placeholder the composer cannot fill", () => {
     const c = clone();
-    c.evening!.body = "{eaten} of your {plan} kcal today. {tomorrow} {weight}";
+    c.evening!.body = "{eaten} of your {plan}kcal today. {tomorrow} {weight}";
     expect(validateNotificationCopy(c).ok).toBe(false);
   });
 
   it("refuses an eaten placeholder in the nothing-logged variant", () => {
     const c = clone();
-    c.evening!.emptyBody = "{eaten} of your {plan} kcal today. {tomorrow}";
+    c.evening!.emptyBody = "{eaten} of your {plan}kcal today. {tomorrow}";
     expect(validateNotificationCopy(c).ok).toBe(false);
   });
 
@@ -166,11 +166,11 @@ describe("validateNotificationCopy", () => {
 describe("fillNotification", () => {
   it("fills the declared placeholders", () => {
     const out = fillNotification(DEFAULT_NOTIFICATION_COPY, "evening", {
-      eaten: "1,800", plan: "2,100", tomorrow: "Protein ran 40 g short.",
+      eaten: "1,800", plan: "2,100", tomorrow: "Protein ran 40g short.",
     });
     expect(out.body).toContain("1,800");
     expect(out.body).toContain("2,100");
-    expect(out.body).toContain("Protein ran 40 g short.");
+    expect(out.body).toContain("Protein ran 40g short.");
     expect(out.body).not.toContain("{");
   });
 

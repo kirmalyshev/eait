@@ -5,7 +5,7 @@ import type { Verdict } from "./types.ts";
 /**
  * The pinned persona (#118, confirmed by design-pro): the board account's own plate reads, with
  * `ldl` declared. Porridge 8, salmon 7, flat white 5, banana 5, the day 6.9 → 7; BMI 24.8 at
- * 73.4 kg / 172 cm. If a number here moves, the issue moves first.
+ * 73.4kg / 172cm. If a number here moves, the issue moves first.
  */
 const meal = (o: {
   kcal: number; protein_g?: number | null; fiber_g?: number | null; satfat_g?: number | null;
@@ -20,7 +20,7 @@ const meal = (o: {
 const part = (s: HealthScore, factor: string) => s.parts.find((p) => p.factor === factor)!;
 
 describe("bmi", () => {
-  test("weight ÷ height², one decimal — the persona's 73.4 kg at 172 cm", () => {
+  test("weight ÷ height², one decimal — the persona's 73.4kg at 172cm", () => {
     expect(bmi(73.4, 172)).toBe(24.8);
   });
 
@@ -65,7 +65,7 @@ describe("healthScore", () => {
     expect(part(healthScore(meal({ kcal: 400, protein_g: 20, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "protein").points).toBe(2);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 10, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "protein").points).toBe(1);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 9, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "protein").points).toBe(0);
-    // fibre: ≥1.5 g/100 kcal +2, ≥0.75 +1
+    // fibre: ≥1.5g/100kcal +2, ≥0.75 +1
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 6, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "fibre").points).toBe(2);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 3, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "fibre").points).toBe(1);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 2.9, satfat_g: 0, sugar_g: 0, sodium_mg: 0 }), [])!, "fibre").points).toBe(0);
@@ -77,7 +77,7 @@ describe("healthScore", () => {
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 15, sodium_mg: 0 }), [])!, "sugar").points).toBe(0);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 30, sodium_mg: 0 }), [])!, "sugar").points).toBe(-1);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 31, sodium_mg: 0 }), [])!, "sugar").points).toBe(-2);
-    // salt: ≤100 mg/100 kcal 0, ≤200 −1, over −2
+    // salt: ≤100mg/100kcal 0, ≤200 −1, over −2
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 400 }), [])!, "salt").points).toBe(0);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 800 }), [])!, "salt").points).toBe(-1);
     expect(part(healthScore(meal({ kcal: 400, protein_g: 0, fiber_g: 0, satfat_g: 0, sugar_g: 0, sodium_mg: 801 }), [])!, "salt").points).toBe(-2);
@@ -117,7 +117,7 @@ describe("healthScore", () => {
   test("declared kidneys does the same to salt", () => {
     const s = healthScore(meal({ kcal: 400, protein_g: 20, fiber_g: 5, satfat_g: 2, sugar_g: 10, sodium_mg: 300, kidneys: "bad" }), ["kidneys"])!;
     const f = part(s, "salt");
-    expect(f.points).toBe(-2); // band is −1 (75 mg/100 kcal), the verdict is worse
+    expect(f.points).toBe(-2); // band is −1 (75mg/100kcal), the verdict is worse
     expect(f.limit).toBe("kidneys");
   });
 

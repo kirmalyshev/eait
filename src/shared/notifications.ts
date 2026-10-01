@@ -34,7 +34,7 @@ export interface NotificationMessage {
   /**
    * `evening` only: the body for a day with nothing logged.
    *
-   * A separate string rather than a clever substitution, because "0 of your 2,100 kcal today" is
+   * A separate string rather than a clever substitution, because "0 of your 2,100kcal today" is
    * an accusation and the recovery framing R1 asks for is a different sentence, not a smaller
    * number. It cannot carry `{eaten}` — there is nothing eaten — and the validator says so.
    */
@@ -84,8 +84,8 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
   },
   evening: {
     title: "Today against the plan",
-    body: "{eaten} of your {plan} kcal today. {tomorrow}",
-    emptyBody: "Nothing logged today — your {plan} kcal are still the plan. {tomorrow}",
+    body: "{eaten} of your {plan}kcal today. {tomorrow}",
+    emptyBody: "Nothing logged today — your {plan}kcal are still the plan. {tomorrow}",
   },
 };
 
@@ -108,8 +108,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Aujourd'hui face au plan",
-      body: "{eaten} kcal sur tes {plan} aujourd'hui. {tomorrow}",
-      emptyBody: "Rien d'enregistré aujourd'hui — ton objectif reste {plan} kcal. {tomorrow}",
+      body: "{eaten}kcal sur tes {plan} aujourd'hui. {tomorrow}",
+      emptyBody: "Rien d'enregistré aujourd'hui — ton objectif reste {plan}kcal. {tomorrow}",
     },
   },
   de: {
@@ -123,8 +123,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Heute gegen den Plan",
-      body: "{eaten} von deinen {plan} kcal heute. {tomorrow}",
-      emptyBody: "Heute nichts eingetragen — deine {plan} kcal sind trotzdem der Plan. {tomorrow}",
+      body: "{eaten} von deinen {plan}kcal heute. {tomorrow}",
+      emptyBody: "Heute nichts eingetragen — deine {plan}kcal sind trotzdem der Plan. {tomorrow}",
     },
   },
   it: {
@@ -138,8 +138,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Oggi rispetto al piano",
-      body: "{eaten} delle tue {plan} kcal oggi. {tomorrow}",
-      emptyBody: "Oggi niente registrato — le tue {plan} kcal restano il piano. {tomorrow}",
+      body: "{eaten} delle tue {plan}kcal oggi. {tomorrow}",
+      emptyBody: "Oggi niente registrato — le tue {plan}kcal restano il piano. {tomorrow}",
     },
   },
   es: {
@@ -153,8 +153,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Hoy frente al plan",
-      body: "{eaten} de tus {plan} kcal hoy. {tomorrow}",
-      emptyBody: "Hoy sin registros — tus {plan} kcal siguen siendo el plan. {tomorrow}",
+      body: "{eaten} de tus {plan}kcal hoy. {tomorrow}",
+      emptyBody: "Hoy sin registros — tus {plan}kcal siguen siendo el plan. {tomorrow}",
     },
   },
   vi: {
@@ -168,8 +168,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Hôm nay so với kế hoạch",
-      body: "{eaten} trên {plan} kcal hôm nay. {tomorrow}",
-      emptyBody: "Hôm nay chưa ghi gì — {plan} kcal của bạn vẫn là kế hoạch. {tomorrow}",
+      body: "{eaten} trên {plan}kcal hôm nay. {tomorrow}",
+      emptyBody: "Hôm nay chưa ghi gì — {plan}kcal của bạn vẫn là kế hoạch. {tomorrow}",
     },
   },
   id: {
@@ -183,8 +183,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Hari ini dibanding rencana",
-      body: "{eaten} dari {plan} kcal hari ini. {tomorrow}",
-      emptyBody: "Hari ini belum ada catatan — {plan} kcal-mu tetap rencananya. {tomorrow}",
+      body: "{eaten} dari {plan}kcal hari ini. {tomorrow}",
+      emptyBody: "Hari ini belum ada catatan — {plan}kcal-mu tetap rencananya. {tomorrow}",
     },
   },
   ru: {
@@ -198,8 +198,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Сегодня против плана",
-      body: "{eaten} из твоих {plan} ккал сегодня. {tomorrow}",
-      emptyBody: "Сегодня ничего не записано — твои {plan} ккал всё ещё план. {tomorrow}",
+      body: "{eaten} из твоих {plan}ккал сегодня. {tomorrow}",
+      emptyBody: "Сегодня ничего не записано — твои {plan}ккал всё ещё план. {tomorrow}",
     },
   },
 };
@@ -490,64 +490,64 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   en: {
     noMeals: "One photo tomorrow puts the day back on the board.",
     over: "{over} over today — tomorrow starts at {plan} again.",
-    protein: "Protein ran {gap} g short — eggs or skyr at breakfast closes it.",
-    gainUnder: "{under} kcal short of the plan — a handful of nuts tomorrow covers it.",
+    protein: "Protein ran {gap}g short — eggs or skyr at breakfast closes it.",
+    gainUnder: "{under}kcal short of the plan — a handful of nuts tomorrow covers it.",
     under: "{under} under the plan — eating the whole number tomorrow is the plan, not a slip.",
     onPlan: "On plan. Same again tomorrow.",
   },
   fr: {
     noMeals: "Demain, une seule photo suffit pour reprendre le fil.",
     over: "{over} de trop aujourd'hui — demain, on repart sur {plan}.",
-    protein: "Il a manqué {gap} g de protéines — des œufs ou du skyr au petit-déjeuner suffiront à combler l'écart.",
-    gainUnder: "Il manquait {under} kcal — une poignée de noix demain, et c'est réglé.",
+    protein: "Il a manqué {gap}g de protéines — des œufs ou du skyr au petit-déjeuner suffiront à combler l'écart.",
+    gainUnder: "Il manquait {under}kcal — une poignée de noix demain, et c'est réglé.",
     under: "{under} en dessous du plan — demain, manger tout ce qui est prévu, c'est le plan, pas un écart.",
     onPlan: "Pile dans le plan. On refait pareil demain.",
   },
   de: {
     noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
     over: "{over} drüber heute — morgen startet wieder bei {plan}.",
-    protein: "Beim Eiweiß fehlten {gap} g — Eier oder Skyr zum Frühstück schließen die Lücke.",
-    gainUnder: "{under} kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
+    protein: "Beim Eiweiß fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
+    gainUnder: "{under}kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
     under: "{under} unter dem Plan — morgen die ganze Zahl zu essen ist der Plan, kein Ausrutscher.",
     onPlan: "Im Plan. Morgen genauso.",
   },
   it: {
     noMeals: "Una foto domani rimette la giornata nel conteggio.",
     over: "{over} sopra oggi — domani si riparte da {plan}.",
-    protein: "Alle proteine mancavano {gap} g — uova o skyr a colazione bastano a colmarlo.",
-    gainUnder: "{under} kcal sotto il piano — una manciata di noci domani copre tutto.",
+    protein: "Alle proteine mancavano {gap}g — uova o skyr a colazione bastano a colmarlo.",
+    gainUnder: "{under}kcal sotto il piano — una manciata di noci domani copre tutto.",
     under: "{under} sotto il piano — domani mangiare il numero intero è il piano, non uno sgarro.",
     onPlan: "Nel piano. Domani uguale.",
   },
   es: {
     noMeals: "Una foto mañana devuelve el día a la cuenta.",
     over: "{over} por encima hoy — mañana vuelve a empezar en {plan}.",
-    protein: "Faltaron {gap} g de proteína — huevos o skyr en el desayuno lo cierran.",
-    gainUnder: "{under} kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
+    protein: "Faltaron {gap}g de proteína — huevos o skyr en el desayuno lo cierran.",
+    gainUnder: "{under}kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
     under: "{under} por debajo del plan — comer el número entero mañana es el plan, no un desliz.",
     onPlan: "En el plan. Mañana igual.",
   },
   vi: {
     noMeals: "Một tấm ảnh ngày mai, và ngày đó được tính lại.",
     over: "Hôm nay vượt {over} — ngày mai lại bắt đầu từ {plan}.",
-    protein: "Đạm còn thiếu {gap} g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
-    gainUnder: "Thiếu {under} kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
+    protein: "Đạm còn thiếu {gap}g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
+    gainUnder: "Thiếu {under}kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
     under: "Thiếu {under} so với kế hoạch — ngày mai ăn trọn con số mới là kế hoạch, không phải lỡ nhịp.",
     onPlan: "Đúng kế hoạch. Ngày mai cứ vậy.",
   },
   id: {
     noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
     over: "Hari ini {over} di atas rencana — besok mulai lagi dari {plan}.",
-    protein: "Protein kurang {gap} g — telur atau yoghurt Yunani saat sarapan menutupnya.",
-    gainUnder: "Kurang {under} kcal dari rencana — segenggam kacang besok sudah cukup.",
+    protein: "Protein kurang {gap}g — telur atau yoghurt Yunani saat sarapan menutupnya.",
+    gainUnder: "Kurang {under}kcal dari rencana — segenggam kacang besok sudah cukup.",
     under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",
     onPlan: "Sesuai rencana. Besok sama lagi.",
   },
   ru: {
     noMeals: "Одно фото завтра — и день снова в счёте.",
     over: "Сегодня {over} сверху — завтра снова стартуешь с {plan}.",
-    protein: "Белка не хватило {gap} г — яйца или скир на завтрак закрывают разрыв.",
-    gainUnder: "{under} ккал не хватило до плана — горсть орехов завтра это покроет.",
+    protein: "Белка не хватило {gap}г — яйца или скир на завтрак закрывают разрыв.",
+    gainUnder: "{under}ккал не хватило до плана — горсть орехов завтра это покроет.",
     under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
     onPlan: "В плане. Завтра так же.",
   },

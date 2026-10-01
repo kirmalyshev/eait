@@ -11,7 +11,7 @@
 // - the nav labels — `shell-copy.ts`;
 // - meal names, grams and figures — data, formatted with `wholeNumbers(lang)`.
 //
-// UNIT WORDS LIVE INSIDE THE TEMPLATES ("{grams} g", "{plan} kcal"), the way `lang.ts` wants
+// UNIT WORDS LIVE INSIDE THE TEMPLATES ("{grams}g", "{plan}kcal"), the way `lang.ts` wants
 // a sentence's unit spelled — so the Russian strings write г and ккал themselves rather than
 // taking a symbol from code.
 
@@ -48,7 +48,7 @@ export interface LogCopy {
   roughAbout: string;
   /** `log-rough`: the second answer. */
   roughHalf: string;
-  /** `log-rough`: the third answer — "More like 250 g". */
+  /** `log-rough`: the third answer — "More like 250g". */
   roughMore: string;
   /**
    * `log-rough`: the TEXT a grams answer sends — a correction is a turn with the meal in focus,
@@ -92,11 +92,11 @@ export interface LogCopy {
    * ("For one meal, that is a lot: …").
    */
   verdictDetailTemplate: string;
-  /** `log-logged`, `log-rough`: the day counter — "{eaten} of {plan} kcal". */
+  /** `log-logged`, `log-rough`: the day counter — "{eaten} of {plan}kcal". */
   dayEaten: string;
   /**
    * `log-logged`: the day counter's quiet half — the card bolds `{eaten}` alone and prints this
-   * beside it ("of 1,434 kcal"). A whole template, not `dayEaten` with `{eaten}` hollowed out:
+   * beside it ("of 1,434kcal"). A whole template, not `dayEaten` with `{eaten}` hollowed out:
    * a placeholder filled with "" is a hole a translation cannot see.
    */
   dayOfPlan: string;
@@ -225,11 +225,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "No food in that one",
     tryAnotherPhoto: "Try another photo",
     roughGuess: "Rough guess",
-    roughAsk: "Was the {item} about {grams} g?",
+    roughAsk: "Was the {item} about {grams}g?",
     roughAbout: "About that",
     roughHalf: "Half that",
-    roughMore: "More like {grams} g",
-    roughSent: "The {item} was about {grams} g",
+    roughMore: "More like {grams}g",
+    roughSent: "The {item} was about {grams}g",
     edit: "Edit",
     agree: "Agree",
     firstVerdict: "Your first macros",
@@ -238,11 +238,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Nothing was logged. Your photo is kept.",
     unknownTitle: "That didn't finish cleanly.",
     unknownNote: "Kept, and re-sent on its own — sending again is safe.",
-    verdictDetailTemplate: "{noun} is high for one meal: {amount} of your {target} {unit}. Go easy on it for the rest of today.",
+    verdictDetailTemplate: "{noun} is high for one meal: {amount} of your {target}{unit}. Go easy on it for the rest of today.",
     satfatNoun: "Saturated fat",
     sodiumNoun: "Sodium",
-    dayEaten: "{eaten} of {plan} kcal",
-    dayOfPlan: "of {plan} kcal",
+    dayEaten: "{eaten} of {plan}kcal",
+    dayOfPlan: "of {plan}kcal",
     dayLeft: "{left} left",
     dayOver: "{over} over",
     web: {
@@ -312,11 +312,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "Aucun aliment sur celle-là",
     tryAnotherPhoto: "Essayer une autre photo",
     roughGuess: "Estimation approximative",
-    roughAsk: "Environ {grams} g de {item} ?",
+    roughAsk: "Environ {grams}g de {item} ?",
     roughAbout: "À peu près ça",
     roughHalf: "Moitié moins",
-    roughMore: "Plutôt {grams} g",
-    roughSent: "Environ {grams} g de {item}",
+    roughMore: "Plutôt {grams}g",
+    roughSent: "Environ {grams}g de {item}",
     edit: "Modifier",
     agree: "D’accord",
     firstVerdict: "Tes premières macros",
@@ -325,11 +325,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Rien n’a été enregistré. Ta photo est gardée.",
     unknownTitle: "Ça ne s’est pas terminé proprement.",
     unknownNote: "Gardé, et renvoyé tout seul — le renvoyer est sans risque.",
-    verdictDetailTemplate: "Pour un repas, c’est beaucoup : {noun} {amount} sur {target} {unit}. Vas-y doucement pour le reste de la journée.",
+    verdictDetailTemplate: "Pour un repas, c’est beaucoup : {noun} {amount} sur {target}{unit}. Vas-y doucement pour le reste de la journée.",
     satfatNoun: "Graisses saturées",
     sodiumNoun: "Sodium",
-    dayEaten: "{eaten} sur {plan} kcal",
-    dayOfPlan: "sur {plan} kcal",
+    dayEaten: "{eaten} sur {plan}kcal",
+    dayOfPlan: "sur {plan}kcal",
     dayLeft: "{left} restantes",
     dayOver: "{over} en trop",
     web: {
@@ -399,11 +399,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "Kein Essen auf diesem",
     tryAnotherPhoto: "Versuch ein anderes Foto",
     roughGuess: "Grobe Schätzung",
-    roughAsk: "Etwa {grams} g {item}?",
+    roughAsk: "Etwa {grams}g {item}?",
     roughAbout: "Ungefähr so viel",
     roughHalf: "Die Hälfte davon",
-    roughMore: "Eher {grams} g",
-    roughSent: "Etwa {grams} g {item}",
+    roughMore: "Eher {grams}g",
+    roughSent: "Etwa {grams}g {item}",
     edit: "Bearbeiten",
     agree: "Stimmt",
     firstVerdict: "Deine ersten Makros",
@@ -412,11 +412,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Nichts wurde eingetragen. Dein Foto bleibt gespeichert.",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownNote: "Behalten und wird von selbst erneut gesendet — erneutes Senden ist sicher.",
-    verdictDetailTemplate: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target} {unit}. Nimm es für den Rest des Tages lockerer.",
+    verdictDetailTemplate: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target}{unit}. Nimm es für den Rest des Tages lockerer.",
     satfatNoun: "Gesättigte Fette",
     sodiumNoun: "Natrium",
-    dayEaten: "{eaten} von {plan} kcal",
-    dayOfPlan: "von {plan} kcal",
+    dayEaten: "{eaten} von {plan}kcal",
+    dayOfPlan: "von {plan}kcal",
     dayLeft: "{left} übrig",
     dayOver: "{over} zu viel",
     web: {
@@ -486,11 +486,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "Nessun cibo in questa",
     tryAnotherPhoto: "Prova un’altra foto",
     roughGuess: "Stima approssimativa",
-    roughAsk: "Circa {grams} g di {item}?",
+    roughAsk: "Circa {grams}g di {item}?",
     roughAbout: "Più o meno quello",
     roughHalf: "La metà",
-    roughMore: "Più tipo {grams} g",
-    roughSent: "Circa {grams} g di {item}",
+    roughMore: "Più tipo {grams}g",
+    roughSent: "Circa {grams}g di {item}",
     edit: "Modifica",
     agree: "Va bene",
     firstVerdict: "I tuoi primi macro",
@@ -499,11 +499,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Niente è stato registrato. La tua foto è conservata.",
     unknownTitle: "Non si è concluso bene.",
     unknownNote: "Conservato e rispedito da solo — rispedire è sicuro.",
-    verdictDetailTemplate: "Per un pasto è tanto: {noun} {amount} su {target} {unit}. Vacci piano per il resto di oggi.",
+    verdictDetailTemplate: "Per un pasto è tanto: {noun} {amount} su {target}{unit}. Vacci piano per il resto di oggi.",
     satfatNoun: "Grassi saturi",
     sodiumNoun: "Sodio",
-    dayEaten: "{eaten} di {plan} kcal",
-    dayOfPlan: "di {plan} kcal",
+    dayEaten: "{eaten} di {plan}kcal",
+    dayOfPlan: "di {plan}kcal",
     dayLeft: "ne restano {left}",
     dayOver: "{over} in più",
     web: {
@@ -573,11 +573,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "No hay comida en esta",
     tryAnotherPhoto: "Prueba otra foto",
     roughGuess: "Estimación aproximada",
-    roughAsk: "¿Unos {grams} g de {item}?",
+    roughAsk: "¿Unos {grams}g de {item}?",
     roughAbout: "Más o menos eso",
     roughHalf: "La mitad",
-    roughMore: "Más bien {grams} g",
-    roughSent: "Unos {grams} g de {item}",
+    roughMore: "Más bien {grams}g",
+    roughSent: "Unos {grams}g de {item}",
     edit: "Editar",
     agree: "De acuerdo",
     firstVerdict: "Tus primeros macros",
@@ -586,11 +586,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "No se registró nada. Tu foto se conserva.",
     unknownTitle: "Eso no terminó bien.",
     unknownNote: "Se conserva y se reenvía solo — reenviarlo es seguro.",
-    verdictDetailTemplate: "Para una comida es mucho: {noun} {amount} de {target} {unit}. Ve con calma el resto del día.",
+    verdictDetailTemplate: "Para una comida es mucho: {noun} {amount} de {target}{unit}. Ve con calma el resto del día.",
     satfatNoun: "Grasas saturadas",
     sodiumNoun: "Sodio",
-    dayEaten: "{eaten} de {plan} kcal",
-    dayOfPlan: "de {plan} kcal",
+    dayEaten: "{eaten} de {plan}kcal",
+    dayOfPlan: "de {plan}kcal",
     dayLeft: "quedan {left}",
     dayOver: "{over} de más",
     web: {
@@ -660,11 +660,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "Không có đồ ăn trong ảnh này",
     tryAnotherPhoto: "Thử ảnh khác",
     roughGuess: "Ước lượng thô",
-    roughAsk: "{item} khoảng {grams} g đúng không?",
+    roughAsk: "{item} khoảng {grams}g đúng không?",
     roughAbout: "Khoảng đó",
     roughHalf: "Chỉ một nửa",
-    roughMore: "Gần {grams} g hơn",
-    roughSent: "{item} khoảng {grams} g",
+    roughMore: "Gần {grams}g hơn",
+    roughSent: "{item} khoảng {grams}g",
     edit: "Sửa",
     agree: "Đồng ý",
     firstVerdict: "Macro đầu tiên của bạn",
@@ -673,11 +673,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Chưa ghi gì. Ảnh của bạn vẫn được giữ.",
     unknownTitle: "Lần đó chưa hoàn tất trọn vẹn.",
     unknownNote: "Đã giữ lại và tự gửi lại — gửi lại vẫn an toàn.",
-    verdictDetailTemplate: "{noun} cao cho một bữa: {amount} trong {target} {unit} của bạn. Hãy nhẹ tay phần còn lại của hôm nay.",
+    verdictDetailTemplate: "{noun} cao cho một bữa: {amount} trong {target}{unit} của bạn. Hãy nhẹ tay phần còn lại của hôm nay.",
     satfatNoun: "Chất béo bão hoà",
     sodiumNoun: "Natri",
-    dayEaten: "{eaten} trên {plan} kcal",
-    dayOfPlan: "trên {plan} kcal",
+    dayEaten: "{eaten} trên {plan}kcal",
+    dayOfPlan: "trên {plan}kcal",
     dayLeft: "còn {left}",
     dayOver: "{over} vượt quá",
     web: {
@@ -747,11 +747,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "Tidak ada makanan di yang ini",
     tryAnotherPhoto: "Coba foto lain",
     roughGuess: "Perkiraan kasar",
-    roughAsk: "Apakah {item} sekitar {grams} g?",
+    roughAsk: "Apakah {item} sekitar {grams}g?",
     roughAbout: "Kira-kira segitu",
     roughHalf: "Setengahnya saja",
-    roughMore: "Lebih ke {grams} g",
-    roughSent: "{item} sekitar {grams} g",
+    roughMore: "Lebih ke {grams}g",
+    roughSent: "{item} sekitar {grams}g",
     edit: "Ubah",
     agree: "Setuju",
     firstVerdict: "Makro pertamamu",
@@ -760,11 +760,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Tidak ada yang tercatat. Fotomu tetap disimpan.",
     unknownTitle: "Yang tadi tidak selesai dengan bersih.",
     unknownNote: "Disimpan, dan dikirim ulang sendiri — mengirim ulang aman.",
-    verdictDetailTemplate: "{noun} tinggi untuk satu kali makan: {amount} dari {target} {unit} milikmu. Ringankan sisa hari ini.",
+    verdictDetailTemplate: "{noun} tinggi untuk satu kali makan: {amount} dari {target}{unit} milikmu. Ringankan sisa hari ini.",
     satfatNoun: "Lemak jenuh",
     sodiumNoun: "Natrium",
-    dayEaten: "{eaten} dari {plan} kcal",
-    dayOfPlan: "dari {plan} kcal",
+    dayEaten: "{eaten} dari {plan}kcal",
+    dayOfPlan: "dari {plan}kcal",
     dayLeft: "sisa {left}",
     dayOver: "{over} berlebih",
     web: {
@@ -834,11 +834,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     noFood: "На этом фото еды нет",
     tryAnotherPhoto: "Попробовать другое фото",
     roughGuess: "Примерная оценка",
-    roughAsk: "{item} — примерно {grams} г?",
+    roughAsk: "{item} — примерно {grams}г?",
     roughAbout: "Примерно столько",
     roughHalf: "Вдвое меньше",
-    roughMore: "Скорее {grams} г",
-    roughSent: "{item} — примерно {grams} г",
+    roughMore: "Скорее {grams}г",
+    roughSent: "{item} — примерно {grams}г",
     edit: "Изменить",
     agree: "Подтвердить",
     firstVerdict: "Твои первые макросы",
@@ -847,11 +847,11 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Ничего не записано. Фото сохранено.",
     unknownTitle: "Это не завершилось чисто.",
     unknownNote: "Сохранено и отправится само — повторная отправка безопасна.",
-    verdictDetailTemplate: "Для одного приёма пищи это много: {noun} — {amount} из {target} {unit}. Остаток дня — умереннее.",
+    verdictDetailTemplate: "Для одного приёма пищи это много: {noun} — {amount} из {target}{unit}. Остаток дня — умереннее.",
     satfatNoun: "Насыщенные жиры",
     sodiumNoun: "Натрий",
-    dayEaten: "{eaten} из {plan} ккал",
-    dayOfPlan: "из {plan} ккал",
+    dayEaten: "{eaten} из {plan}ккал",
+    dayOfPlan: "из {plan}ккал",
     dayLeft: "осталось {left}",
     dayOver: "{over} сверх плана",
     web: {
@@ -916,7 +916,7 @@ export const logCopyFor = (lang: Lang): LogCopy => t(lang)(LOG_COPY);
 
 /**
  * `log-logged`: the one-line explanation under a cap verdict that is not on plan — "Saturated fat
- * is high for one meal: 14 of your 13 g. Go easy on it for the rest of today." One line per meal,
+ * is high for one meal: 14 of your 13g. Go easy on it for the rest of today." One line per meal,
  * for the first capped dimension that ran hot.
  *
  * THE ONLY WAY `verdictDetailTemplate` is filled, and the reason it takes the DATA rather than the
