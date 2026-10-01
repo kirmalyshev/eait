@@ -28,7 +28,7 @@ const client = () => expoPush({
   accessToken: "expo-token-not-real", timeoutMs: 5_000,
   sendUrl: `${base}/send`, receiptsUrl: `${base}/receipts`,
 });
-const message = (to: string) => ({ to, title: "Today against the plan", body: "1,600 of your 2,100 kcal today." });
+const message = (to: string) => ({ to, title: "Today against the plan", body: "1,600 of your 2,100kcal today." });
 
 describe("send", () => {
   it("posts the batch with the credential and returns one ticket per message, in order", async () => {
@@ -40,8 +40,8 @@ describe("send", () => {
     expect(seen[0]!.headers.get("authorization")).toBe("Bearer expo-token-not-real");
     expect(seen[0]!.headers.get("content-type")).toBe("application/json");
     expect(seen[0]!.body).toEqual([
-      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100 kcal today.", sound: "default" },
-      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100 kcal today.", sound: "default" },
+      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default" },
+      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default" },
     ]);
     expect(tickets).toEqual([
       { token: "ExponentPushToken[a]", id: "r1", error: null },

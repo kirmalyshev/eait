@@ -86,7 +86,7 @@ export async function recordHealthDays(
     return { accepted: clean.length };
   }
   // A weigh-in typed on the same day or later beats the import, as it does in `mergedWeights`
-  // (ieat-app#1233: one bad scale sample replaced a typed 96 kg with 70.2 and moved the plan).
+  // (ieat-app#1233: one bad scale sample replaced a typed 96kg with 70.2 and moved the plan).
   if ((await deps.store.weightsSince(userId, newest.date)).length > 0) {
     return { accepted: clean.length };
   }

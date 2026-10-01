@@ -97,9 +97,9 @@ describe("routeText", () => {
   });
 
   test("a question is answered", async () => {
-    const { llm } = ports([{ intent: "answer", text: "You have had 0 g of protein." }]);
+    const { llm } = ports([{ intent: "answer", text: "You have had 0g of protein." }]);
     const out = await llm.routeText(ROUTE_INPUT);
-    expect(out).toEqual({ intent: "answer", text: "You have had 0 g of protein." });
+    expect(out).toEqual({ intent: "answer", text: "You have had 0g of protein." });
   });
 
   test("a router that supplies the analysis costs exactly one call", async () => {
@@ -285,7 +285,7 @@ describe("completion bound", () => {
 // because by then the user's analysis has already been charged.
 describe("truncation at the bound", () => {
   test("a completion cut off at the bound says so, naming the setting", async () => {
-    const { llm } = ports([truncated('{"intent":"answer","text":"You have had 0 g of pro')]);
+    const { llm } = ports([truncated('{"intent":"answer","text":"You have had 0g of pro')]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/truncated.*EAIT__BACKEND__LLM_MAX_TOKENS/s);
   });
 
@@ -296,9 +296,9 @@ describe("truncation at the bound", () => {
   // conservatively too. Refusing a reply that parses and validates would fail the analysis — and
   // the analysis is charged before the call — over trailing whitespace.
   test("an answer that is whole is returned, whatever the bound flag says", async () => {
-    const { llm, bodies } = ports([cutAfterTheBrace({ intent: "answer", text: "You have had 0 g of protein." })]);
+    const { llm, bodies } = ports([cutAfterTheBrace({ intent: "answer", text: "You have had 0g of protein." })]);
     const out = await llm.routeText(ROUTE_INPUT);
-    expect(out).toEqual({ intent: "answer", text: "You have had 0 g of protein." });
+    expect(out).toEqual({ intent: "answer", text: "You have had 0g of protein." });
     expect(bodies.length).toBe(1);
   });
 
@@ -413,7 +413,7 @@ describe("a non-200 from the gateway", () => {
 // Every call this app makes wants the same answer twice.
 describe("temperature", () => {
   test("every request names it", async () => {
-    const { llm, bodies } = ports([{ intent: "answer", text: "You have had 0 g of protein." }]);
+    const { llm, bodies } = ports([{ intent: "answer", text: "You have had 0g of protein." }]);
     await llm.routeText(ROUTE_INPUT);
     expect(bodies[0]!.temperature).toBe(0.2);
   });
@@ -468,7 +468,7 @@ const COACH_INPUT: CoachInput = {
   },
   history: [
     { role: "user", text: "two eggs" },
-    { role: "assistant", text: "[logged: eggs — 155 kcal]" },
+    { role: "assistant", text: "[logged: eggs — 155kcal]" },
   ],
 };
 
@@ -515,13 +515,13 @@ describe("coach", () => {
   test("a tool call is executed through the closure and its result goes back to the model", async () => {
     const { llm, bodies } = coachPorts([
       { tool_calls: [{ id: "call_1", name: "get_meals", arguments: JSON.stringify({ from: "2026-08-26", to: "2026-09-02" }) }] },
-      { content: { reply: "Six meals, 11,200 kcal.", suggestions: [] } },
+      { content: { reply: "Six meals, 11,200kcal.", suggestions: [] } },
     ]);
     const seen: unknown[] = [];
     const out = await llm.coach(COACH_INPUT, {
       get_meals: async (args) => { seen.push(args); return [{ date: "2026-09-01", kcal: 640 }]; },
     });
-    expect(out.reply).toBe("Six meals, 11,200 kcal.");
+    expect(out.reply).toBe("Six meals, 11,200kcal.");
     expect(seen).toEqual([{ from: "2026-08-26", to: "2026-09-02" }]);
     expect(bodies).toHaveLength(2);
     const msgs = bodies[1]!.messages as { role: string; content: string; tool_call_id?: string; tool_calls?: unknown[] }[];
@@ -535,9 +535,9 @@ describe("coach", () => {
   });
 
   test("prose where JSON was asked for is still the answer, with no chips", async () => {
-    const { llm } = coachPorts([{ prose: "You're at 1,200 kcal so far — 800 left." }]);
+    const { llm } = coachPorts([{ prose: "You're at 1,200kcal so far — 800 left." }]);
     const out = await llm.coach(COACH_INPUT, {});
-    expect(out).toEqual({ reply: "You're at 1,200 kcal so far — 800 left.", suggestions: [] });
+    expect(out).toEqual({ reply: "You're at 1,200kcal so far — 800 left.", suggestions: [] });
   });
 
   test("an empty reply with nothing to act on is refused, never returned as a blank bubble", async () => {

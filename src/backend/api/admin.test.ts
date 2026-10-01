@@ -206,7 +206,7 @@ describe("editing the copy", () => {
   it("saves the interstitials and serves them to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     content.welcome.lines = ["Photograph dinner. Get a straight answer.", "Ready when you are."];
-    content.building.floorTitle = "Stopped at your floor of {floor} kcal";
+    content.building.floorTitle = "Stopped at your floor of {floor}kcal";
     content.summary.capNote = "Roughly {share}% of what your body burns — the safe version.";
 
     expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
@@ -217,7 +217,7 @@ describe("editing the copy", () => {
     }));
     const body = await res.json() as { content: OnboardingContent };
     expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "Ready when you are."]);
-    expect(body.content.building.floorTitle).toBe("Stopped at your floor of {floor} kcal");
+    expect(body.content.building.floorTitle).toBe("Stopped at your floor of {floor}kcal");
     expect(body.content.summary.capNote).toBe("Roughly {share}% of what your body burns — the safe version.");
   });
 
@@ -331,7 +331,7 @@ describe("the copy editor's ?lang=", () => {
     // The guard is compiled-in-table protection unless it runs here too: a stored revision
     // replaces those tables for every user.
     const ru = structuredClone(NOTIFICATION_COPY.ru!);
-    ru.evening.body = "Что ты ел? {eaten} из {plan} ккал. {tomorrow}";
+    ru.evening.body = "Что ты ел? {eaten} из {plan}ккал. {tomorrow}";
     const res = await admin("PUT", "/admin/api/notifications?lang=ru", { copy: ru });
     expect(res.status).toBe(422);
     expect(JSON.stringify(await res.json())).toContain("gender");
@@ -655,7 +655,7 @@ describe("reading one account's thread", () => {
     const userId = await user();
     await store.appendChat(userId, [
       { role: "user", kind: "text", text: "how much protein have I had", clientId: "phone-1" },
-      { role: "assistant", kind: "text", text: "About 90 g so far today.", speaker: "gabie" },
+      { role: "assistant", kind: "text", text: "About 90g so far today.", speaker: "gabie" },
     ]);
     await store.appendChat(userId, [{ role: "assistant", kind: "text", text: "Nice one." }]);
 
@@ -665,7 +665,7 @@ describe("reading one account's thread", () => {
       entries: { role: string; kind: string; text?: string; speaker?: string | null }[];
     };
     expect(body.entries.map((e) => e.text))
-      .toEqual(["how much protein have I had", "About 90 g so far today.", "Nice one."]);
+      .toEqual(["how much protein have I had", "About 90g so far today.", "Nice one."]);
     // `speaker` is the whole of "who answered": null is Spud, so every line from before Gabie
     // existed stays his.
     expect(body.entries[1]!.speaker).toBe("gabie");

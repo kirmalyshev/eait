@@ -74,8 +74,8 @@ ${v.proposal ? proposalCard(v.proposal, PAGE_COPY, lang) : ""}
 /**
  * A card's figures, in the reader's language — the same treatment `plan()` gives the plan's own.
  *
- * Raw interpolation is what this replaces: `${p.kcal} kcal` put an English unit and an ungrouped
- * four-digit number under a plan page that had already said `Порог — 1 500 ккал.`
+ * Raw interpolation is what this replaces: `${p.kcal}kcal` put an English unit and an ungrouped
+ * four-digit number under a plan page that had already said `Порог — 1 500ккал.`
  */
 function macros(kcal: number, proteinG: number, PAGE_COPY: PageCopy, lang: Lang): string {
   const n = wholeNumbers(lang);

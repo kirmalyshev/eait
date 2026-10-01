@@ -160,7 +160,7 @@ export interface SeedBoard {
  * reproduces the boards whatever day it runs.
  */
 const ANNA_BOARD: SeedBoard = {
-  onboardedBack: 21, // 3 Sep on the boards — the day she typed 74 kg and the plan was set.
+  onboardedBack: 21, // 3 Sep on the boards — the day she typed 74kg and the plan was set.
   healthSpan: 7,
   manualWeights: [
     { back: 21, kg: 74.0 }, // the onboarding answer — the goal bar's start, beating the scale's own
@@ -292,7 +292,7 @@ const ANNA_BOARD: SeedBoard = {
         },
         {
           // "calories high · saturated fat high" on the board: 540 of a 1,434 plan is a `warn`
-          // share, and 7.5 g of a 13 g LDL cap is a `bad` one — computed like every other meal.
+          // share, and 7.5g of a 13g LDL cap is a `bad` one — computed like every other meal.
           name: "Salmon, rice, greens", name_en: "salmon", at: "13:05", via: "photo",
           photo: "salmon",
           kcal: 540, protein_g: 34, carbs_g: 48, fat_g: 23, satfat_g: 7.5, fiber_g: 5, sugar_g: 3,
@@ -334,11 +334,11 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
     // below are the boards' own numbers, so a screenshot of a seeded database can be compared with
     // `product/design/pro/phone/` literally, figure for figure.
     //
-    // `weight_kg` stays 74 — the plan the boards show (1,434 kcal) is computed on the weight she
+    // `weight_kg` stays 74 — the plan the boards show (1,434kcal) is computed on the weight she
     // TYPED at onboarding. The 73.4 Health reports lives in the log, which is what the projection
     // and the chart read; a profile row that carried it would draw a different plan.
     key: "anna",
-    summary: "Anna — the boards' persona: 74 → 68 kg, LDL declared, streak 4, Health's 73.4",
+    summary: "Anna — the boards' persona: 74 → 68kg, LDL declared, streak 4, Health's 73.4",
     days: 0,
     board: ANNA_BOARD,
     profile: {

@@ -570,7 +570,7 @@ describe("chat and editing", () => {
       { kcal: 9000, verdicts: { weight: "good", ldl: "good", kidneys: "good" } },
       token,
     )).json() as { analysis: { verdicts: Record<string, string> } };
-    expect(body.analysis.verdicts.weight).toBe("bad"); // 9000 kcal is not "good"
+    expect(body.analysis.verdicts.weight).toBe("bad"); // 9000kcal is not "good"
     expect(body.analysis.verdicts.ldl).toBeUndefined(); // never declared
     expect(body.analysis.verdicts.kidneys).toBeUndefined();
   });
@@ -943,7 +943,7 @@ describe("the weights read", () => {
 });
 
 describe("the projection on the weights read", () => {
-  // An account onboarded three days ago at 70 kg aiming for 65 — hand-built rather than
+  // An account onboarded three days ago at 70kg aiming for 65 — hand-built rather than
   // session()'s, because the store-level patch can write the onboarded_at of a PAST day, which is
   // what the goal bar's "start" needs a history older than to prove it isn't reading it.
   const accountWeighed = async () => {

@@ -61,7 +61,7 @@ function noteFor(m: ChatMessage, meals: Map<string, MealRecord>): string | null 
   if (!meal) return "[a meal that was later deleted]";
   const what = meal.items.map((i) => i.name).join(", ") || "a meal";
   const verb = m.event === "updated" ? "meal updated" : m.event === "redated" ? "meal moved" : "logged";
-  return `[${verb}: ${what} — ${Math.round(meal.kcal)} kcal, ${Math.round(meal.protein_g)} g protein, ${meal.date}]`;
+  return `[${verb}: ${what} — ${Math.round(meal.kcal)}kcal, ${Math.round(meal.protein_g)}g protein, ${meal.date}]`;
 }
 
 /**

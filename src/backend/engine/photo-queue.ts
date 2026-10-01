@@ -111,7 +111,7 @@ export async function removePhotoJob(deps: EngineDeps, userId: string, jobId: st
   return { kind: "removed", jobId };
 }
 
-/** The one push: "Salmon fillet, White rice · 540 kcal" / "Counted. 360 kcal left today." A tap opens the meal. */
+/** The one push: "Salmon fillet, White rice · 540kcal" / "Counted. 360kcal left today." A tap opens the meal. */
 async function pushCounted(deps: EngineDeps, userId: string, logged: MealLogged): Promise<void> {
   try {
     const devices = await deps.store.pushTokensFor(userId);

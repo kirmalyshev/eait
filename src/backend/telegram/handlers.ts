@@ -81,10 +81,10 @@ export function refusalText(config: Config, r: Refusal, lang: Lang): string {
 function card(a: MealAnalysis, lang: Lang): string {
   const copy = telegramCopyFor(lang);
   const n = wholeNumbers(lang);
-  const g = (x: number) => `${n(x)} g`;
+  const g = (x: number) => `${n(x)}g`;
   const lines = [
-    `${a.items.map((i) => i.name).join(", ") || copy.meal} — ${n(a.kcal)} ${UNIT_KCAL[lang]}`,
-    `${copy.macros.protein} ${g(a.protein_g)} · ${copy.macros.carbs} ${g(a.carbs_g)} · ${copy.macros.fat} ${g(a.fat_g)}`,
+    `${a.items.map((i) => i.name).join(", ") || copy.meal} — ${n(a.kcal)}${UNIT_KCAL[lang]}`,
+    `${copy.macros.protein}${g(a.protein_g)} · ${copy.macros.carbs}${g(a.carbs_g)} · ${copy.macros.fat}${g(a.fat_g)}`,
   ];
   const verdicts = renderableVerdicts(a.verdicts).map((d) => verdictPillLabel(d, a.verdicts[d]!, lang));
   if (verdicts.length > 0) lines.push(verdicts.join(" · "));
@@ -192,7 +192,7 @@ export function telegramHandlers(deps: EngineDeps) {
         protein: n(totals.protein_g), proteinTarget: n(targets.protein_g),
       });
       const meals = today.meals.map((m) =>
-        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)} ${UNIT_KCAL[lang]}`);
+        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)}${UNIT_KCAL[lang]}`);
       await chat.send([head, ...(meals.length > 0 ? meals : [copy.todayEmpty])].join("\n"));
     },
 

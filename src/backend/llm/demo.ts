@@ -122,7 +122,7 @@ export const DEMO_NOT_FOOD = "no food in this one";
 export const DEMO_HOLD = "hold the plate";
 
 /**
- * The caption that asks about GRAMS rather than oil (#148): "Was the rice about 250 g?", and the
+ * The caption that asks about GRAMS rather than oil (#148): "Was the rice about 250g?", and the
  * chips a grams correction rides on. Keyed on the caption for the reason `DEMO_NOT_FOOD` is — a
  * fake that cannot see the picture has only the words to branch on, and this is the question kind
  * whose chips carry a number rather than an either/or.
@@ -131,8 +131,8 @@ export const DEMO_GRAMS_QUESTION = "about the grams";
 
 /** The grams question itself — the least-certain item's name and its own grams, verbatim. */
 const DEMO_GRAMS_Q = {
-  text: "Was the rice about 250 g?",
-  options: ["Yes, about that", "Half that", "More like 400 g"],
+  text: "Was the rice about 250g?",
+  options: ["Yes, about that", "Half that", "More like 400g"],
 };
 
 /** The beat between the pieces `analyzePhoto` writes, for this caption. */
@@ -230,8 +230,8 @@ export function demoPorts(): LlmPorts {
       return {
         intent: "answer",
         text: input.todayMeals.length === 0
-          ? `Nothing logged today yet. Your target is ${input.targets.kcal} kcal and ${input.targets.protein_g} g protein. (Demo answer.)`
-          : `You are at ${Math.round(eaten)} kcal today across ${input.todayMeals.length} meal(s) — ${Math.round(left)} kcal left of your ${input.targets.kcal} target. (Demo answer.)`,
+          ? `Nothing logged today yet. Your target is ${input.targets.kcal}kcal and ${input.targets.protein_g}g protein. (Demo answer.)`
+          : `You are at ${Math.round(eaten)}kcal today across ${input.todayMeals.length} meal(s) — ${Math.round(left)}kcal left of your ${input.targets.kcal} target. (Demo answer.)`,
       };
     }
 
@@ -259,8 +259,8 @@ export function demoPorts(): LlmPorts {
       const kcal = Math.round(rows.reduce((n, m) => n + m.kcal, 0));
       return {
         reply: rows.length === 0
-          ? `Nothing logged in the last seven days. Your target is ${targets.kcal} kcal a day. (Demo answer.)`
-          : `${rows.length} meal(s) in the last seven days, ${kcal} kcal in total against ${targets.kcal} a day. (Demo answer.)`,
+          ? `Nothing logged in the last seven days. Your target is ${targets.kcal}kcal a day. (Demo answer.)`
+          : `${rows.length} meal(s) in the last seven days, ${kcal}kcal in total against ${targets.kcal} a day. (Demo answer.)`,
         suggestions,
       };
     }
@@ -269,7 +269,7 @@ export function demoPorts(): LlmPorts {
       const weighed = rows.find((r) => typeof r.weight_kg === "number");
       return {
         reply: weighed
-          ? `Latest weight ${weighed.weight_kg} kg on ${weighed.date}, from ${rows.length} day(s) of health data. (Demo answer.)`
+          ? `Latest weight ${weighed.weight_kg}kg on ${weighed.date}, from ${rows.length} day(s) of health data. (Demo answer.)`
           : "No health data in the last 30 days — connect Apple Health on the health screen. (Demo answer.)",
         suggestions,
       };
@@ -285,7 +285,7 @@ export function demoPorts(): LlmPorts {
       : /calori|kcal|kalor/i.test(text) ? "kcal"
       : undefined;
     return {
-      reply: `You are at ${eaten} kcal today — ${Math.max(0, targets.kcal - eaten)} left of your ${targets.kcal}, and ${targets.protein_g} g protein is the day's aim. (Demo answer.)`,
+      reply: `You are at ${eaten}kcal today — ${Math.max(0, targets.kcal - eaten)} left of your ${targets.kcal}, and ${targets.protein_g}g protein is the day's aim. (Demo answer.)`,
       suggestions,
       ...(focus !== undefined ? { focus } : {}),
     };

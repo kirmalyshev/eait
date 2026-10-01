@@ -1,6 +1,6 @@
 // #119 "A change, named": after a meal edit lands — typed in the meal's conversation, set on the
 // keypad, or produced by a re-read — the thread gets ONE computed line, Gabie's, naming the change
-// and what the verdicts did: "Rice 150 → 200 g: 540 → 605 kcal. Both still high for one meal."
+// and what the verdicts did: "Rice 150 → 200g: 540 → 605kcal. Both still high for one meal."
 // The words are MEAL_COPY's `change*` templates; the numbers and verdicts are computed here, never
 // the model's.
 
@@ -66,13 +66,13 @@ describe("the composed words", () => {
     const before = meal({ items: [rice(150, 195), salmon(140, 345)], kcal: 540, verdicts: { weight: "warn", ldl: "warn" } });
     const after = meal({ items: [rice(200, 260), salmon(140, 345)], kcal: 605, verdicts: { weight: "warn", ldl: "warn" } });
     expect(changeLine(before, after, { lang: "en", restrictions: ["ldl"] }))
-      .toBe("Rice 150 → 200 g: 540 → 605 kcal. Both still high for one meal.");
+      .toBe("Rice 150 → 200g: 540 → 605kcal. Both still high for one meal.");
   });
 
   it("names one still-high dimension instead of 'Both'", () => {
     const before = meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn" } });
     const after = meal({ items: [rice(200, 260)], kcal: 605, verdicts: { weight: "warn" } });
-    expect(changeLine(before, after, EN)).toBe("Rice 150 → 200 g: 540 → 605 kcal. Calories still high for one meal.");
+    expect(changeLine(before, after, EN)).toBe("Rice 150 → 200g: 540 → 605kcal. Calories still high for one meal.");
   });
 
   it("says 'All still high' when all three stayed high", () => {
@@ -81,7 +81,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: v }),
       meal({ items: [rice(200, 260)], kcal: 605, verdicts: v }),
       { lang: "en", restrictions: ["ldl", "kidneys"] });
-    expect(line).toBe("Rice 150 → 200 g: 540 → 605 kcal. All still high for one meal.");
+    expect(line).toBe("Rice 150 → 200g: 540 → 605kcal. All still high for one meal.");
   });
 
   it("says which dimension moved to on plan, then what stayed high", () => {
@@ -89,7 +89,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn", ldl: "warn" } }),
       meal({ items: [rice(200, 260)], kcal: 605, verdicts: { weight: "good", ldl: "warn" } }),
       { lang: "en", restrictions: ["ldl"] });
-    expect(line).toBe("Rice 150 → 200 g: 540 → 605 kcal. Calories now on plan. Saturated fat still high for one meal.");
+    expect(line).toBe("Rice 150 → 200g: 540 → 605kcal. Calories now on plan. Saturated fat still high for one meal.");
   });
 
   it("says which dimension moved to high, and which moved to over", () => {
@@ -97,7 +97,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "good", ldl: "good", kidneys: "warn" } }),
       meal({ items: [rice(200, 260)], kcal: 605, verdicts: { weight: "good", ldl: "warn", kidneys: "bad" } }),
       { lang: "en", restrictions: ["ldl", "kidneys"] });
-    expect(line).toBe("Rice 150 → 200 g: 540 → 605 kcal. Saturated fat now high for one meal. Sodium now very high for one meal.");
+    expect(line).toBe("Rice 150 → 200g: 540 → 605kcal. Saturated fat now high for one meal. Sodium now very high for one meal.");
   });
 
   it("says 'All on plan now' when every visible dimension landed on plan", () => {
@@ -105,7 +105,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn", ldl: "warn" } }),
       meal({ items: [rice(120, 156)], kcal: 430, verdicts: { weight: "good", ldl: "good" } }),
       { lang: "en", restrictions: ["ldl"] });
-    expect(line).toBe("Rice 150 → 120 g: 540 → 430 kcal. All on plan now.");
+    expect(line).toBe("Rice 150 → 120g: 540 → 430kcal. All on plan now.");
   });
 
   it("names the single on-plan move rather than 'All' when it is the only dimension", () => {
@@ -113,7 +113,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn" } }),
       meal({ items: [rice(120, 156)], kcal: 430, verdicts: { weight: "good" } }),
       EN);
-    expect(line).toBe("Rice 150 → 120 g: 540 → 430 kcal. Calories now on plan.");
+    expect(line).toBe("Rice 150 → 120g: 540 → 430kcal. Calories now on plan.");
   });
 
   it("carries only the kcal clause when no item's grams moved", () => {
@@ -121,7 +121,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn" } }),
       meal({ items: [rice(150, 195)], kcal: 300, verdicts: { weight: "good" } }),
       EN);
-    expect(line).toBe("540 → 300 kcal. Calories now on plan.");
+    expect(line).toBe("540 → 300kcal. Calories now on plan.");
   });
 
   it("joins several moved items with the locale's list word", () => {
@@ -129,7 +129,7 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195), salmon(140, 345)], kcal: 540, verdicts: { weight: "warn" } }),
       meal({ items: [rice(200, 260), salmon(160, 394)], kcal: 654, verdicts: { weight: "warn" } }),
       EN);
-    expect(line).toBe("Rice 150 → 200 g and salmon 140 → 160 g: 540 → 654 kcal. Calories still high for one meal.");
+    expect(line).toBe("Rice 150 → 200g and salmon 140 → 160g: 540 → 654kcal. Calories still high for one meal.");
   });
 
   it("is silent on an edit that moved nothing — a rename gets its card and no line", () => {
@@ -151,8 +151,8 @@ describe("the composed words", () => {
       meal({ items: [rice(150, 195)], kcal: 540, verdicts: { weight: "warn" } }),
       meal({ items: [rice(200, 260)], kcal: 605, verdicts: { weight: "warn" } }),
       { lang: "ru", restrictions: [] });
-    expect(line).toContain("150 → 200 г");
-    expect(line).toContain("540 → 605 ккал");
+    expect(line).toContain("150 → 200г");
+    expect(line).toContain("540 → 605ккал");
     expect(line).toContain("всё ещё много");
   });
 });
@@ -185,7 +185,7 @@ describe("written into the thread", () => {
     expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
-    expect(text(last)).toBe(`Rice 150 → 200 g: ${kcal} → ${after} kcal. Calories still high for one meal.`);
+    expect(text(last)).toBe(`Rice 150 → 200g: ${kcal} → ${after}kcal. Calories still high for one meal.`);
     // The result carries the SAME line — the writing screen names the change without a second read.
     expect(out.line).toBe(text(last));
   });
@@ -202,7 +202,7 @@ describe("written into the thread", () => {
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
     // The demo correction halves both items: rice 150 → 75, salmon 140 → 70, kcal 540 → 270 —
     // both under a third of the day, so no verdict tail.
-    expect(text(last)).toBe("Rice 150 → 75 g and salmon 140 → 70 g: 540 → 270 kcal.");
+    expect(text(last)).toBe("Rice 150 → 75g and salmon 140 → 70g: 540 → 270kcal.");
     expect(res.line).toBe(text(last));
   });
 
@@ -221,8 +221,8 @@ describe("written into the thread", () => {
     const t = await thread(userId);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
-    // 540 kcal is 31% of the day (on plan); 605 is 35% (high) — the tail is computed, not written.
-    expect(text(last)).toBe("Rice 150 → 200 g: 540 → 605 kcal. Calories now high for one meal.");
+    // 540kcal is 31% of the day (on plan); 605 is 35% (high) — the tail is computed, not written.
+    expect(text(last)).toBe("Rice 150 → 200g: 540 → 605kcal. Calories now high for one meal.");
     expect(out.line).toBe(text(last));
   });
 
