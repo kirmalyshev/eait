@@ -91,7 +91,7 @@ test("Correct opens the meal's fix panel — the Cal-AI sheet, not a chat (#188)
   await shot(page, "fix");
 
   // Update sends the sentence as the correction turn — `focusMealId`, the contract unchanged —
-  // and the recomputed answer lands the tinted change line on the detail behind it.
+  // and the panel closes on the recomputed detail (no change line, ieat-app#1374).
   const field = dialog.locator(".fixfield");
   await expect(field).toHaveAttribute("placeholder", "Say what was wrong");
   const update = dialog.getByRole("button", { name: "Update" });
@@ -102,7 +102,6 @@ test("Correct opens the meal's fix panel — the Cal-AI sheet, not a chat (#188)
   await update.click();
   expect((await sent).postDataJSON()).toMatchObject({ focusMealId: id, text: "half that" });
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.locator(".chgline")).toBeVisible();
 });
 
 test("the menu: re-read recomputes in place, and delete asks first", async ({ inWebApp: page }) => {
