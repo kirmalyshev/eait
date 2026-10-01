@@ -11,6 +11,11 @@ import { shrinkPhotos } from "./photo.ts";
 
 type State = "reading" | "waiting" | "question" | "refused" | "failed";
 
+/** Where the photo was chosen — the point (drop) or element rect (button, composer) it flies from. */
+export interface FlyFrom { x: number; y: number; w: number; h: number }
+/** `FlyFrom` stamped at enqueue, so a landing whose row never mounted goes stale instead of flying late. */
+type FlyAt = FlyFrom & { at: number }
+
 interface Job {
   id: string;
   photos: File[];
@@ -23,6 +28,9 @@ interface Job {
   words: string | null;
   mealId: string | null;
   kcal: number | null;
+  // Set while the landing move (#1354) is owed to this row: the row's photo stays hidden until the
+  // chosen image has flown from `flyFrom` into the thumbnail slot. Cleared when the flight lands.
+  flyFrom: FlyAt | null;
 }
 
 // ponytail: rows live in this tab; the server finishes a closed tab's photo and it lands as a meal.
@@ -43,13 +51,15 @@ const dataUrl = (file: File): Promise<string> => new Promise((resolve, reject) =
   r.readAsDataURL(file);
 });
 
-/** Photos (angles of one meal) join the queue; the caller lands the person on Home. */
-export async function enqueue(files: File[]): Promise<void> {
+/** Photos (angles of one meal) join the queue; the caller lands the person on Home. `from` is where
+ *  the chosen image flies in from (#1354's landing move) — omit it and the row simply arrives. */
+export async function enqueue(files: File[], from?: FlyFrom): Promise<void> {
   const photos = await shrinkPhotos(files.filter((f) => f.type.startsWith("image/")));
   if (photos.length === 0) return;
   const job: Job = {
     id: crypto.randomUUID(), photos, thumb: await dataUrl(photos[0]!), capturedAt: new Date().toISOString(),
     step: 1, line: null, items: [], state: "reading", words: null, mealId: null, kcal: null,
+    flyFrom: from === undefined ? null : { ...from, at: Date.now() },
   };
   jobs = [job, ...jobs];
   changed();
@@ -57,7 +67,11 @@ export async function enqueue(files: File[]): Promise<void> {
   void run(job);
 }
 
-const drop = (job: Job) => { jobs = jobs.filter((j) => j !== job); changed(); };
+const drop = (job: Job) => {
+  flyers.get(job)?.cancel();
+  jobs = jobs.filter((j) => j !== job);
+  changed();
+};
 
 async function run(job: Job): Promise<void> {
   const form = new FormData();
@@ -166,13 +180,61 @@ const skeleton = (w: string, h: string): HTMLElement => {
   return s;
 };
 
+// Jobs whose chosen image is mid-flight into the row's slot — a redraw while it travels starts
+// no second flyer; the new row keeps the photo hidden until the one in the air lands.
+const flying = new Set<Job>();
+const flyers = new Map<Job, Animation>();
+
+/** The landing move (#1354): the chosen image travels from where it was picked into the new row's
+ *  56px thumbnail — one move, ~350 ms, the app's ease. Reduce Motion: the row is simply there. */
+function fly(job: Job, box: HTMLElement): void {
+  const from = job.flyFrom!;
+  const end = () => { job.flyFrom = null; flying.delete(job); flyers.delete(job); changed(); };
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches || Date.now() - from.at > 900) { end(); return; }
+  // The slot is measured once the column has scrolled the top of Recent into view, the way Home
+  // scrolls first on the phone. The box may not be mounted yet (a redraw builds it detached), so
+  // the poll waits a few frames rather than assuming.
+  let tries = 0;
+  const place = (): void => {
+    const i = jobs.indexOf(job);
+    const th = i >= 0 ? box.children[i]?.querySelector(".qth") : null;
+    if (th instanceof HTMLElement && box.isConnected && th.getBoundingClientRect().width > 0) {
+      const sc = th.closest(".wcol");
+      if (sc instanceof HTMLElement) sc.scrollTop = 0;
+      const to = th.getBoundingClientRect();
+      const side = 96;
+      const cx = from.x + from.w / 2;
+      const cy = from.y + from.h / 2;
+      const img = document.createElement("img");
+      img.src = job.thumb;
+      img.alt = "";
+      img.className = "qfly";
+      Object.assign(img.style, { left: `${cx - side / 2}px`, top: `${cy - side / 2}px`, width: `${side}px`, height: `${side}px` });
+      document.body.append(img);
+      const anim = img.animate([
+        { left: `${cx - side / 2}px`, top: `${cy - side / 2}px`, width: `${side}px`, height: `${side}px`, borderRadius: "12px" },
+        { left: `${to.left}px`, top: `${to.top}px`, width: `${to.width}px`, height: `${to.height}px`, borderRadius: "var(--r-thumb)" },
+      ], { duration: 350, easing: "cubic-bezier(.2,.7,.2,1)" });
+      flyers.set(job, anim);
+      anim.onfinish = anim.oncancel = () => { img.remove(); end(); };
+      return;
+    }
+    if (!jobs.includes(job) || ++tries > 30) { flying.delete(job); job.flyFrom = null; return; }
+    requestAnimationFrame(place);
+  };
+  requestAnimationFrame(place);
+}
+
 function rowEl(job: Job): HTMLElement {
   const Q = homeCopyFor(lang).queue;
-  const row = el("div", "meal q rise");
+  // The landing row arrives `qnew` (the list slides down for it, 220 ms) with its photo hidden until
+  // the flyer lands; any other row keeps the shared `rise`.
+  const row = el("div", `meal q ${job.flyFrom ? "qnew" : "rise"}`);
   const th = el("div", "qth");
   const img = document.createElement("img");
   img.src = job.thumb;
   img.alt = "";
+  if (job.flyFrom) img.style.opacity = "0";
   const veil = el("i", "veil");
   veil.style.background = `rgba(23,25,28,${job.state === "refused" || job.state === "failed" ? ".55" : job.state === "question" ? ".35" : ".45"})`;
   th.append(img, veil);
@@ -245,6 +307,11 @@ export function queueEl(): HTMLElement {
   const draw = () => {
     if (!box.isConnected && box.childElementCount > 0) { views.delete(draw); return; }
     box.replaceChildren(...jobs.map(rowEl));
+    // A job still owed its landing move starts it here, where its row's slot now exists — possibly
+    // a screen or a redraw after the enqueue that asked for it.
+    for (const j of jobs) {
+      if (j.flyFrom !== null && !flying.has(j)) { flying.add(j); fly(j, box); }
+    }
   };
   views.add(draw);
   draw();
@@ -274,7 +341,7 @@ export function acceptDrops(): void {
     hide();
     const files = [...e.dataTransfer?.files ?? []];
     if (files.length === 0) return;
-    void enqueue(files);
+    void enqueue(files, { x: e.clientX, y: e.clientY, w: 0, h: 0 });
     if (location.hash !== "" && location.hash !== "#/") location.hash = "#/";
   });
 }

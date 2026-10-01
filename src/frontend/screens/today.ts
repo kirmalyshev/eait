@@ -782,7 +782,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (files.length === 0) return;
     e.preventDefault();
     viewing = today;
-    void enqueue(files);
+    const r = words.getBoundingClientRect();
+    void enqueue(files, { x: r.x, y: r.y, w: r.width, h: r.height });
   });
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -926,8 +927,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         pick.multiple = true;
         pick.tabIndex = -1;
         pick.setAttribute("aria-label", L.webUploadPhoto);
-        pick.addEventListener("change", () => { viewing = today; void enqueue([...pick.files ?? []]); pick.value = ""; });
         const upload = ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload" });
+        pick.addEventListener("change", () => {
+          viewing = today;
+          const r = upload.getBoundingClientRect();
+          void enqueue([...pick.files ?? []], { x: r.x, y: r.y, w: r.width, h: r.height });
+          pick.value = "";
+        });
         upload.addEventListener("click", () => pick.click());
         right.push(upload, pick);
       }
