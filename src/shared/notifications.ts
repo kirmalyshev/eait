@@ -21,7 +21,7 @@
 import { lintCopy } from "./claims.ts";
 import { dateMinus, localDate, localTime } from "./dates.ts";
 import type { Entitlement } from "./entitlement.ts";
-import { genderedRussian, wholeNumbers, t, type Localized } from "./lang.ts";
+import { genderedRussian, kcalNumbers, wholeNumbers, t, type Localized } from "./lang.ts";
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
@@ -576,19 +576,20 @@ export interface EveningInput {
 export function eveningPrescription(i: EveningInput, lang: Lang): string {
   const say = t(lang)(EVENING_PRESCRIPTIONS);
   const n = wholeNumbers(lang);
+  const kn = kcalNumbers(lang);
   if (i.meals === 0) return say.noMeals;
 
   const overBy = i.totals.kcal - i.targets.kcal;
   if (i.goal !== "gain" && overBy > 0) {
-    return fill(say.over, { over: n(overBy), plan: n(i.targets.kcal) });
+    return fill(say.over, { over: kn(overBy), plan: kn(i.targets.kcal) });
   }
 
   const proteinGap = i.targets.protein_g - i.totals.protein_g;
   if (proteinGap >= PROTEIN_GAP_G) return fill(say.protein, { gap: n(proteinGap) });
 
   const underBy = -overBy;
-  if (i.goal === "gain" && underBy >= UNDER_KCAL_GAIN) return fill(say.gainUnder, { under: n(underBy) });
-  if (i.goal !== "gain" && underBy >= UNDER_KCAL) return fill(say.under, { under: n(underBy) });
+  if (i.goal === "gain" && underBy >= UNDER_KCAL_GAIN) return fill(say.gainUnder, { under: kn(underBy) });
+  if (i.goal !== "gain" && underBy >= UNDER_KCAL) return fill(say.under, { under: kn(underBy) });
 
   return say.onPlan;
 }

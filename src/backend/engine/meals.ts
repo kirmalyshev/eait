@@ -20,7 +20,7 @@ import {
 import {
   LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
   mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
-  verdictLabels, verdictNoun, wholeNumbers, windowStart,
+  kcalNumbers, verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
@@ -570,7 +570,7 @@ export function changeLine(
     return g !== undefined && g !== i.grams ? [{ item: i, gramsBefore: g }] : [];
   });
   const total = fill(copy.changeTotal, {
-    kcalBefore: n(before.kcal), kcalAfter: n(after.kcal), kcal: UNIT_KCAL[lang],
+    kcalBefore: kcalNumbers(lang)(before.kcal), kcalAfter: kcalNumbers(lang)(after.kcal), kcal: UNIT_KCAL[lang],
   });
   if (moved.length > 0) {
     const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(

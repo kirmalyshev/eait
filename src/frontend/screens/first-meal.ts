@@ -22,7 +22,7 @@ import { type MascotMood } from "../../shared/mascot.ts";
 // `chatCopyFor(lang).firstMeal`, the browser through this module. It is small on purpose: a
 // module the browser imports ships whole, so this imports types and nothing else.
 import { FIRST_MEAL_COPY } from "../../shared/first-meal-copy.ts";
-import { UNIT_KCAL, wholeNumbers } from "../../shared/lang.ts";
+import { UNIT_KCAL, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
 import type { Answered, MealAnalysis, MealLogged, MealProposed, VerdictLabel } from "@eait/shared";
 import type {
   EditMealResponse, PendingResponse, PhotoProgress, ProfileResponse,
@@ -246,7 +246,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
     if (analysis.confidence === "low") big.append(el("span", "about", `${COPY.about} `));
-    big.append(el("span", "hero num", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", `${UNIT_KCAL[lang]}`));
+    big.append(el("span", "hero num", kcalNumbers(lang)(analysis.kcal)), el("span", "muted", `${UNIT_KCAL[lang]}`));
     card.append(big);
     const stats = el("div", "stats");
     for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {

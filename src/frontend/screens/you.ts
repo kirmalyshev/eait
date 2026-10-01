@@ -15,7 +15,7 @@ import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
 import { weightChart } from "../../shared/ui/charts.ts";
-import { dayMonthAt, dayMonthOn, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { dayMonthAt, dayMonthOn, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
@@ -312,7 +312,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const fig = el("div", "planfig");
     fig.append(
       kitEl(`<i class="ico i-kcal" aria-hidden="true"></i>`),
-      el("b", "d d22 num", `${nWhole(t.kcal)}${UNIT_KCAL[lang]}`),
+      el("b", "d d22 num", `${kcalNumbers(lang)(t.kcal)}${UNIT_KCAL[lang]}`),
       // The space lives INSIDE the span — adjacent elements carry no whitespace.
       el("span", "t13 m", ` ${you.perDay}`),
     );
@@ -515,7 +515,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const left = el("div", "");
     const hnum = el("b", "d num hnum");
     if (state.guessed) hnum.append(el("span", "about", COPY.about));
-    hnum.append(document.createTextNode(nWhole(state.figure)));
+    hnum.append(document.createTextNode(kcalNumbers(lang)(state.figure)));
     left.append(hnum);
     // The caption is the card's short label; the chevron is a drawn affordance — aria-hidden,
     // an element, never a character inside the sentence.

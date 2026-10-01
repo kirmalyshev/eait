@@ -128,6 +128,15 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * A KCAL FIGURE — `wholeNumbers` with the grouping off ("1434", never "1 434" or "1,434", ieat-app#1364).
+ * One formatter for every kcal figure on every surface; grams and weights keep `wholeNumbers`/`numbers`.
+ */
+export const kcalNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0, useGrouping: false });
+  return (x: number): string => format.format(Math.round(x));
+};
+
+/**
  * ALWAYS one decimal — the opposite of `numbers`' "keeps a tenth when there is one". The BMI
  * figure is the case (#174): a BMI is written 25.0 even when it is 25.00, because the scale's
  * meaning lives in the decimal.

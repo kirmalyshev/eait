@@ -80,7 +80,7 @@ describe("the 20:30 line", () => {
 
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.id).toBe("evening");
-    expect(out.body).toContain("1,600");
+    expect(out.body).toContain("1600");
     // The plan, as the same function that computes the diary's target computes it.
     expect(out.body).toMatch(/of your [\d,]+kcal today/);
     expect(out.body).not.toContain("{");
@@ -101,7 +101,7 @@ describe("the 20:30 line", () => {
     await logMeal(userId, DAY, 500, 20);
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.body).toContain("500");
-    expect(out.body).not.toContain("2,000");
+    expect(out.body).not.toContain("2000");
   });
 
   it("counts only that user's meals", async () => {

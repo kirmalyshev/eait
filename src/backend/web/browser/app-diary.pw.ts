@@ -12,6 +12,8 @@ import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 /** Grouped the reader's way — "1,896" in English, "1.896" in German — same formatter the page uses. */
 const n = (tag: string) => (x: number) => new Intl.NumberFormat(tag, { maximumFractionDigits: 0 }).format(x);
+/** A kcal figure is never grouped (ieat-app#1364): "1896" in every language. */
+const kn = (tag: string) => (x: number) => new Intl.NumberFormat(tag, { maximumFractionDigits: 0, useGrouping: false }).format(x);
 
 /**
  * Today's diary, with what was eaten set to `target + delta` on its way to the page.
@@ -47,7 +49,7 @@ test("the calorie card says what is LEFT today, and a tap turns it to what was e
   await expect(toggle).toHaveText(/kcal left/);
   // The toggle's other face is the eaten figure under "kcal eaten".
   await toggle.click();
-  await expect(card.locator(".fig")).toHaveText(n("en-GB")(target - 550));
+  await expect(card.locator(".fig")).toHaveText(kn("en-GB")(target - 550));
   await expect(toggle).toHaveText(/kcal eaten/);
 });
 
@@ -75,7 +77,7 @@ test("a past day draws the compact card — the figure over 'eaten of plan', no 
   });
   const day = (await res.json()) as DayResponse;
   const card = page.locator(".dayc .hk");
-  const en = n("en-GB");
+  const en = kn("en-GB");
   // F reads a finished day as what was EATEN — the figure over "kcal eaten", the plan in the label.
   await expect(card.locator(".fig")).toHaveText(en(Math.round(day.totals.kcal)));
   await expect(card.locator(".lbl")).toHaveText("kcal eaten");
@@ -98,7 +100,7 @@ test("the diary is grouped and worded in the account's language, not the browser
   const target = await dayAt(page, -550);
   await expect(page.locator(".dayc .hk .fig")).toHaveText("550");
   await expect(page.locator(".dayc .hk .lbl")).toHaveText(/kcal übrig/);
-  const de = n("de-DE");
+  const de = kn("de-DE");
   await page.locator(".dayc .hk .lbl").click();
   await expect(page.locator(".dayc .hk .fig")).toHaveText(de(target - 550));
   await expect(page.locator(".dayc .hk .lbl")).toHaveText(/kcal gegessen/);

@@ -73,8 +73,8 @@ describe("the evening prescription", () => {
   it("writes its figures in the reader's own grouping, not in en-US", () => {
     // 600 over a 2,000 plan. German groups thousands with a dot, so "2.000" and never "2,000".
     const over = { targets, totals: { kcal: 2600, protein_g: 140 }, meals: 3, goal: "lose" as const };
-    expect(eveningPrescription(over, "en")).toContain("2,000");
-    expect(eveningPrescription(over, "de")).toContain("2.000");
+    expect(eveningPrescription(over, "en")).toContain("2000");
+    expect(eveningPrescription(over, "de")).toContain("2000");
   });
 
   it("says something DIFFERENT in another language, which is what the language is for", () => {

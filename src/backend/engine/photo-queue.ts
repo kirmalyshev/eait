@@ -1,7 +1,7 @@
 // A photo meal as a job (ieat-app#1318); the id is the turn's `clientId`, so `turns` keeps the outcome.
 
 import {
-  OUTCOME_UNKNOWN, PHOTO_MODEL_CALLS, explainTargets, queuedPushCopy, streamCopyFor, wholeNumbers,
+  OUTCOME_UNKNOWN, PHOTO_MODEL_CALLS, explainTargets, kcalNumbers, queuedPushCopy, streamCopyFor,
   type Lang, type MealItem, type MealLogged, type PhotoJob, type PhotoJobStep, type PhotoLast,
   type PhotoQueuedResponse,
 } from "@eait/shared";
@@ -117,7 +117,7 @@ async function pushCounted(deps: EngineDeps, userId: string, logged: MealLogged)
     const devices = await deps.store.pushTokensFor(userId);
     const profile = await deps.store.getProfile(userId);
     if (devices.length === 0 || !profile) return;
-    const whole = wholeNumbers(profile.lang);
+    const whole = kcalNumbers(profile.lang);
     const names = logged.analysis.items.map((i) => i.name);
     const rest = explainTargets(profile).targets.kcal - logged.totals.kcal;
     const copy = queuedPushCopy(profile.lang, {

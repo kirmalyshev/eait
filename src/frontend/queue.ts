@@ -1,7 +1,7 @@
 // The photo queue (#1318): a photo joins at the top of today's list and reads itself server-side.
 
 import { homeCopyFor } from "../shared/app/home-copy.ts";
-import { UNIT_KCAL, wholeNumbers } from "../shared/lang.ts";
+import { UNIT_KCAL, kcalNumbers } from "../shared/lang.ts";
 import type { MealItem } from "@eait/shared";
 import type { DayResponse, PhotoJob, PhotoLast } from "@eait/shared/contract";
 import { ApiError, api, apiStream } from "./api.ts";
@@ -216,7 +216,7 @@ function rowEl(job: Job): HTMLElement {
   }
   if (job.state === "question") {
     th.append(glyph("?"));
-    const kcal = wholeNumbers(lang)(job.kcal ?? 0);
+    const kcal = kcalNumbers(lang)(job.kcal ?? 0);
     const pill = el("a", "qpill", Q.answer) as HTMLAnchorElement;
     pill.href = `#/meal/${encodeURIComponent(job.mealId!)}`;
     pill.addEventListener("click", () => drop(job));

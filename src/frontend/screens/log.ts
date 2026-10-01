@@ -19,7 +19,7 @@ import { logCopyFor, verdictDetailLine } from "../../shared/app/log-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
 import { dayBudget, type DayBudget } from "../../shared/budget.ts";
 import { localDate } from "../../shared/dates.ts";
-import { LANG_TAG, UNIT_KCAL, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, kcalNumbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { ico as icoMarkup, type HeroCallout } from "../../shared/ui/kit.ts";
 import type { MealItem, MealLogged, MealUpdated } from "@eait/shared";
 import type {
@@ -60,6 +60,7 @@ export function logScreen(frame: Frame): HTMLElement {
   if (me === null) return wrap;
   const L = logCopyFor(lang);
   const n = wholeNumbers(lang);
+  const kn = kcalNumbers(lang);
   const g = spellUnit(lang, "g");
   const coach = me.coachName;
 
@@ -83,8 +84,8 @@ export function logScreen(frame: Frame): HTMLElement {
 
   /** The counter's right figure — "582 left", "120 over"; the day's own state words it. */
   const budgetTail = (b: DayBudget): string | null =>
-    b.state === "left" ? fill(L.dayLeft, { left: n(b.kcal) })
-      : b.state === "over" ? fill(L.dayOver, { over: n(b.kcal) })
+    b.state === "left" ? fill(L.dayLeft, { left: kn(b.kcal) })
+      : b.state === "over" ? fill(L.dayOver, { over: kn(b.kcal) })
         : null;
 
   let picked: File[] = [];
@@ -118,7 +119,7 @@ export function logScreen(frame: Frame): HTMLElement {
     const corners = ["tl", "bl", "br", "tr"] as const;
     return items.filter((it) => it.grams > 0).slice(0, corners.length).map((it, i) => ({
       text: `${it.name} ${n(it.grams)}${g}`,
-      ...(it.kcal === undefined ? {} : { value: n(it.kcal) }),
+      ...(it.kcal === undefined ? {} : { value: kn(it.kcal) }),
       corner: corners[i]!,
       // The bottom-right callout lifts off the stamp lane, as the boards draw it.
       lift: corners[i] === "br",
@@ -234,7 +235,7 @@ export function logScreen(frame: Frame): HTMLElement {
     if (delay !== null) { card.classList.add("rise"); card.style.setProperty("--d", delay); }
     const top = el("div", "row between");
     const figure = el("span", "num kcalrow");
-    figure.append(kitEl(icoMarkup("kcal")), el("b", "", n(r.analysis.kcal)),
+    figure.append(kitEl(icoMarkup("kcal")), el("b", "", kn(r.analysis.kcal)),
       el("span", "", UNIT_KCAL[lang]));
     top.append(el("b", "mealname", names(r.analysis.items)), figure);
     card.append(top, gramMacsEl({
@@ -269,8 +270,8 @@ export function logScreen(frame: Frame): HTMLElement {
     card.style.padding = "12px 16px";
     const row = el("div", "dayrow");
     const lead = el("span", "num");
-    lead.append(kitEl(icoMarkup("kcal")), el("b", "", ` ${n(budget.eaten)}`),
-      el("span", "muted", ` ${fill(L.dayOfPlan, { plan: n(budget.target) })}`));
+    lead.append(kitEl(icoMarkup("kcal")), el("b", "", ` ${kn(budget.eaten)}`),
+      el("span", "muted", ` ${fill(L.dayOfPlan, { plan: kn(budget.target) })}`));
     row.append(lead);
     const tail = budgetTail(budget);
     if (tail !== null) row.append(el("span", "num muted", tail));
@@ -341,8 +342,8 @@ export function logScreen(frame: Frame): HTMLElement {
     const line = el("div", "logday num");
     const tail = budgetTail(budget);
     line.textContent = tail === null
-      ? fill(L.dayEaten, { eaten: n(budget.eaten), plan: n(budget.target) })
-      : `${fill(L.dayEaten, { eaten: n(budget.eaten), plan: n(budget.target) })} · ${tail}`;
+      ? fill(L.dayEaten, { eaten: kn(budget.eaten), plan: kn(budget.target) })
+      : `${fill(L.dayEaten, { eaten: kn(budget.eaten), plan: kn(budget.target) })} · ${tail}`;
     return line;
   };
 

@@ -12,7 +12,7 @@ import { weightCard } from "../../shared/progress.ts";
 import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { countText, dayMonthOn, decimalNumbers, numbers, weekdayLetters, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, weekdayLetters } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import type {
@@ -31,7 +31,6 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const bmi = bmiCopy(lang);
   const units: UnitSystem = me?.profile.units ?? "metric";
   const n = numbers(lang);
-  const nWhole = wholeNumbers(lang);
   const letters = weekdayLetters(lang);
 
   /** A kg figure the way this account reads it — converted at display, never written back. */
@@ -192,14 +191,14 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     const head = el("div", "row between");
     head.append(
       el("span", "lab", copy.weekLabel),
-      el("span", "est", fill(copy.weekPlan, { plan: nWhole(d.targetKcal) })),
+      el("span", "est", fill(copy.weekPlan, { plan: kcalNumbers(lang)(d.targetKcal) })),
     );
     const bars = weekBarsEl(d.days.map((day) => day.logged ? day.kcal : null), d.targetKcal, {
       todayIndex: d.days.findIndex((day) => day.when === "today"),
       letters,
-      planLabel: nWhole(d.targetKcal),
+      planLabel: kcalNumbers(lang)(d.targetKcal),
     });
-    bars.setAttribute("aria-label", fill(copy.weekPlan, { plan: nWhole(d.targetKcal) }));
+    bars.setAttribute("aria-label", fill(copy.weekPlan, { plan: kcalNumbers(lang)(d.targetKcal) }));
     const chart = el("div", "wchart");
     chart.append(bars);
     card.append(head, chart);
