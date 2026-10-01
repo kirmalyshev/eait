@@ -124,7 +124,7 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   // The redrawn figures ARE the response's — the kcal it re-measured and the verdicts it
   // recomputed, not the card's old numbers (#152).
   await expect(page.locator(".msheet .kfig .num")).toHaveText(
-    new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(updated.analysis.kcal),
+    new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0, useGrouping: false }).format(updated.analysis.kcal),
   );
   const relabelled = updated.verdictLabels ?? [];
   const dots = page.locator(".msheet .vs .v");
