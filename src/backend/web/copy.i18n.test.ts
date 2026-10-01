@@ -131,8 +131,8 @@ describe("the language picker on the plan page", () => {
     const content = onboardingContentFor("de");
     const { targets } = explainTargets(PERSONA);
     // The kcal card's caption is the content's, the figure grouped for the reader.
-    expect(de).toContain(`<small>${content.summary.kcalLabel}</small>`);
-    expect(de).toContain(kcalNumbers("de")(targets.kcal));
+    expect(de).toContain(`<div class="t13 m">${content.summary.kcalLabel}</div>`);
+    expect(de).toContain(`--to:${targets.kcal}`);
     expect(de).not.toContain("kcal a day");
   });
 
@@ -195,7 +195,7 @@ describe("the plan card's two figures", () => {
     for (const lang of LANGS) {
       const html = plan(planView(lang));
       const label = onboardingContentFor(lang).summary.kcalLabel;
-      expect(html, lang).toContain(`<small>${label}</small>`);
+      expect(html, lang).toContain(`<div class="t13 m">${label}</div>`);
       // The caption carries the unit's own spelling — "kcal" or "ккал", never the other's.
       expect(label, lang).toContain(UNIT_KCAL[lang]);
     }

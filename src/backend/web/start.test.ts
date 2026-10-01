@@ -14,7 +14,7 @@ import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, chatCopyFor, countryLabel, countryOptions, disabledScreens,
-  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planHeadline,
+  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planCopyFor, planJourney, fill,
   projectGoal, projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
   kcalNumbers, signupCopyFor, weightDisplay, wholeNumbers, type Profile,
@@ -775,7 +775,7 @@ describe("the questions", () => {
 });
 
 describe("the plan reveal", () => {
-  it("follows the last answer — the completing post lands on the reveal, a resume on the plan", async () => {
+  it("follows the last answer — the completing post lands on the plan", async () => {
     // Drive the walk by hand so the LAST post's redirect is the one asserted.
     let cookie = await signIn();
     for (let i = 0; i < 20; i++) {
@@ -789,51 +789,12 @@ describe("the plan reveal", () => {
       const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
       if (set) cookie = set.split(";")[0]!;
       if (id === "medical") {
-        // The patch that wrote `complete_onboarding` answers with the reveal — once.
-        expect(res.headers.get("location")).toBe("/start/building");
+        // The patch that wrote `complete_onboarding` answers with the plan.
+        expect(res.headers.get("location")).toBe("/start/plan");
       }
     }
-    // …and a resume goes to the plan, not back through the countdown.
+    // …and a resume goes to the plan too.
     expect((await get("/start/q", cookie)).headers.get("location")).toBe("/start/plan");
-  });
-
-  it("counts to 100 while the plan's own rows tick in, then offers the plan", async () => {
-    const session = await signIn();
-    await answerAll(session, { ...ANSWERS, medical: ["ldl"] });
-    const html = await (await get("/start/building", session)).text();
-    const profile = (await store.getProfile(await webUser(session)))!;
-    const { targets } = explainTargets(profile);
-    const n = wholeNumbers("en");
-
-    expect(html).toContain("Building your personal plan");
-    // The counter's target is carried on the element — the count verb fills it (S1).
-    expect(html).toContain("--to:100");
-    // The card's title and each row's label are the content's; every VALUE is computed.
-    expect(html).toContain("Your daily plan");
-    for (const value of [kcalNumbers("en")(targets.kcal), `${n(targets.protein_g)}g`, `${n(targets.carbs_g)}g`, `${n(targets.fat_g)}g`, "Mediterranean"]) {
-      expect(html).toContain(`<b class="num">${value}</b>`);
-    }
-    // The declared cap is a row of its own (the seventh), filled from the same targets.
-    expect(html).toContain(`sat fat ≤ ${n(targets.satfat_g!)}g`);
-    // Six rows at S5's marks; a seventh shares the last tick.
-    for (const d of ["0.5s", "1s", "1.6s", "2.1s", "2.7s", "3.3s"]) {
-      expect(html).toContain(`--d:${d}`);
-    }
-    // The button at 100 %, and the plan opens a second later for anybody who does not tap.
-    expect(html).toContain('href="/start/plan"');
-    expect(html).toContain("Show me the plan");
-    expect(html).toContain('http-equiv="refresh"');
-    expect(html).toContain("4.5;url=/start/plan");
-  });
-
-  it("answers the front door without a session, and the questions while the profile is unfinished", async () => {
-    const noSession = await get("/start/building");
-    expect(noSession.status).toBe(303);
-    expect(noSession.headers.get("location")).toBe("/start");
-    const session = await signIn();
-    const res = await get("/start/building", session);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/q");
   });
 });
 
@@ -855,24 +816,6 @@ describe("the plan", () => {
     // The plan's one way on is the sign-up screen (S8): consent and the provider buttons live
     // there, and the first meal is behind them.
     expect(html).toContain('href="/start/signup"');
-  });
-
-  it("says when the floor decided the number", async () => {
-    const session = await signIn();
-    // Small, light, barely active and pushing: the deficit runs into `KCAL_FLOOR`.
-    await answerAll(session, {
-      ...ANSWERS, height_cm: "150", weight_kg: "48", target_weight_kg: "44", pace: "push",
-      activity: "few",
-    });
-    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
-    const profile = (await store.getProfile(userId))! as Profile;
-    const { basis } = explainTargets(profile);
-    expect(basis.floorApplied).toBe(true);
-    const html = await (await get("/start/plan", session)).text();
-    // The marker names the cap, and its note sits one tap behind — the floor's own words.
-    const content = onboardingContentFor("en");
-    expect(html).toContain(content.summary.floorMarker.replace("{floor}", kcalNumbers("en")(basis.floorKcal)));
-    expect(html).toContain(content.building.floorTitle);
   });
 
   it("serves the offer to the route that asks for it, only when one is configured", async () => {
@@ -915,30 +858,27 @@ describe("the plan", () => {
     const { targets } = explainTargets(profile);
     const n = wholeNumbers("en");
 
-    // The headline is the shared S6 sentence — `planHeadline` computes it, and the month is the
-    // one `projectGoal` lands on. Nothing is typed into the page.
-    const headline = planHeadline(profile, new Date(), "metric", "en");
-    expect(headline).not.toBeNull();
-    expect(html).toContain(headline!);
+    // The journey card's title: the target and the month `projectGoal` lands on.
     const projection = projectGoal(profile, explainTargets(profile).basis);
     expect(projection).not.toBeNull();
-    expect(html).toContain(projectionMonth(new Date(), projection!.weeks, "en"));
+    expect(html).toContain(escape(fill(planCopyFor("en").goalLine, {
+      kg: weightDisplay(profile.target_weight_kg!, null, "en"),
+      month: projectionMonth(new Date(), projection!.weeks, "en"),
+    })));
+    expect(html).toContain(onboardingContentFor("en").summary.lines[0]!);
 
-    // The estimate graph, drawn: the shared curve, the chip naming the target, the two labels.
+    // The curve, drawn: the shared journey path and the target pill.
     expect(html).toContain('class="pgraph"');
-    expect(html).toContain("M20 34 C110 34 200 110 292 110");
-    expect(html).toContain(`Target ${weightDisplay(profile.target_weight_kg!, null, "en")}`);
-    expect(html).toContain(chatCopyFor("en").chart.estimatedProgress);
-    expect(html).toContain(chatCopyFor("en").chart.byEait);
+    expect(html).toContain(planJourney("lose", new Date(), projection!.weeks, "en", 4).linePath);
+    expect(html).toContain(weightDisplay(profile.target_weight_kg!, null, "en"));
 
-    // The four figures are `explainTargets`' — a page that drifts fails on its own numbers.
-    expect(html).toContain(`<b class="num">${kcalNumbers("en")(targets.kcal)}</b>`);
-    expect(html).toContain(`${n(targets.protein_g)}g`);
+    // The figures are `explainTargets`' — a page that drifts fails on its own numbers.
+    expect(html).toContain(`--to:${targets.kcal}`);
+    expect(html).toContain(`--to:${targets.protein_g}`);
     expect(html).toContain(`${n(targets.carbs_g)}g`);
     expect(html).toContain(`${n(targets.fat_g)}g`);
-    // The declared cap is a card of its own — and ONLY because it was declared.
-    expect(html).toContain(`${n(targets.satfat_g!)}g`);
-    expect(html).toContain("Saturated fat");
+    // The declared cap is a column of its own — and ONLY because it was declared.
+    expect(html).toContain(`≤ ${n(targets.satfat_g!)}g`);
 
     // The primary is the sign-up screen (S8): the account needs an identity before a meal can
     // be read, and `/start/signup` is where the consent and the buttons live.
@@ -1411,11 +1351,10 @@ describe("the v2 questions that write the new fields", () => {
     const res = await post("/start/q?asked=diet", { prompt: "diet", answer: ["pescatarian"] }, session);
     const loc = res.headers.get("location") ?? "";
     expect(loc).toContain("asked=diet");
-    // The COMPLETING write is the exception — it answers with the reveal (W3), not a /q
-    // redirect whose marks would only be read by a page that no longer exists.
+    // The COMPLETING write is the exception — it answers with the plan, not a /q redirect.
     await walkTo(session, "medical");
     const done = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
-    expect(done.headers.get("location")).toBe("/start/building");
+    expect(done.headers.get("location")).toBe("/start/plan");
   });
 
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
@@ -2750,8 +2689,8 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       expect(plan.status, lang).toBe(200);
       const planHtml = await plan.text();
       expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      // The say-line is the content's own, in the asked language — `summary.lines` of the table.
-      expect(planHtml, lang).toContain(escape(content.summary.lines.join(" ")));
+      // The headline is the plan copy's own, in the asked language.
+      expect(planHtml, lang).toContain(escape(content.summary.lines[0]!));
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);

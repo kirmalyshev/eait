@@ -1,47 +1,27 @@
 // The W3 flow (#90), driven end to end in a real browser on the web application's origin:
-// the questions → the reveal → the plan → the sign-up → the country → the first meal, and
+// the questions → the plan → the sign-up → the country → the first meal, and
 // back: a returning account's "I already have an account" lands on the app, not the questions.
 //
 // This spec runs in the `app` project because the last leg IS the app: the country POST's 303
 // to `/` is the handoff, and the first-meal screen is what `/#/` draws for an account that has
-// never logged. Timings are asserted off the markup — the row delays are PLAN_REVEAL's ticks
-// rendered as --d values, the counter's own --to, the meta refresh's seconds.
+// never logged.
 
 import { expect, onboard, sessionToken, test } from "./fixtures.ts";
 
-test("the whole W3 walk: reveal, plan, sign-up, country, first meal — and back", async ({ page, browser }) => {
+test("the whole W3 walk: plan, sign-up, country, first meal — and back", async ({ page, browser }) => {
   await page.goto("/start");
   await page.getByRole("link", { name: "Build my plan" }).click();
 
-  // ── Answers → the reveal ────────────────────────────────────────────────────────────────
-  // High cholesterol declared at the medical chips, so the reveal draws its SIXTH row — the
-  // saturated-fat cap ticks in at 3.3 s, the last of PLAN_REVEAL's marks.
-  const revealPromise = page.waitForURL(/\/start\/building/);
+  // ── Answers → the plan ──────────────────────────────────────────────────────────────────
+  // High cholesterol declared at the medical chips, so the outcome card draws the sat-fat limit.
   await onboard(page, { medical: ["ldl"] });
-  await revealPromise; // the completing post DID land on the reveal — that is the flow.
-  // The timings are asserted off the markup itself — a fetch, not a navigation, so the 4.5 s
-  // auto-open cannot pull the page out from under the assertion.
-  const reveal = await (await page.request.get("/start/building")).text();
-  expect(reveal).toContain("--to:100");
-  for (const d of ["0.5s", "1s", "1.6s", "2.1s", "2.7s", "3.3s"]) {
-    expect(reveal).toContain(`--d:${d}`);
-  }
-  expect(reveal).toContain("4.5;url=/start/plan");
-
-  // The reveal's own button is the way off it — clicked, not the meta refresh waited out (the
-  // refresh is the fallback, and a spec that rides it flakes inside its own timeout).
-  await page.goto("/start/building");
-  await page.getByRole("link", { name: "Show me the plan" }).click();
 
   // ── The plan ────────────────────────────────────────────────────────────────────────────
   await expect(page).toHaveURL(/\/start\/plan/);
-  await expect(page.locator(".pln .goal")).toContainText("Goal: lose");
-  await expect(page.locator(".pgraph")).toBeVisible();
-  await expect(page.locator(".pgraph .draw")).toBeVisible();
-  await expect(page.locator(".pln .kcal")).toContainText("kcal a day");
-  // Four macro cards — protein, carbs, fat, and saturated fat drawn because it was declared.
-  await expect(page.locator(".mcard")).toHaveCount(4);
-  await expect(page.locator(".mcard").last()).toContainText("Saturated fat");
+  await expect(page.locator(".pln .goal")).toContainText("Goal:");
+  await expect(page.locator(".pgraph .draw1")).toBeVisible();
+  await expect(page.locator(".pln .oc")).toContainText("kcal a day");
+  await expect(page.locator(".pln .mrow")).toContainText("sat fat");
 
   // ── The sign-up: terms required, marketing optional ─────────────────────────────────────
   await page.getByRole("link", { name: "Continue", exact: true }).click();

@@ -61,7 +61,7 @@ import {
 export type ChatPromptId =
   | "welcome" | "goal" | "how" | "sex" | "birth_year" | "height_cm" | "weight_kg"
   | "activity" | "target_weight_kg" | "pace" | "struggles" | "ontrack"
-  | "diet" | "medical" | "building" | "summary" | "signup" | "country" | "health";
+  | "diet" | "medical" | "summary" | "signup" | "country" | "health";
 
 /**
  * How an answer is given.
@@ -118,7 +118,6 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // `restrictions` (see `OnboardingStep`). The server merges each answer inside the one array.
   { id: "diet", place: "diet", field: "diet", kind: "choice", options: DIETS },
   { id: "medical", place: "medical", field: "medical", kind: "chips", options: [...MEDICAL_TAGS, "none"] },
-  { id: "building", place: "building", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
   // The account step — the sign-in surface owns it (S8); this list holds its PLACE in the order.
   { id: "signup", place: "signup", kind: "auto" },
@@ -265,7 +264,7 @@ export function askLines(
     // fallback means the compiled-in default is what is on screen and something is very wrong.
     return [...(ask?.lines ?? [])];
   }
-  // `how`, `ontrack`, `building`, `summary` and `signup` ask nothing — they are cards the client
+  // `how`, `ontrack`, `summary` and `signup` ask nothing — they are cards the client
   // draws — so an empty list is the right answer for them rather than a throw.
   return [...(conversationAsks(lang)[prompt.id] ?? [])];
 }

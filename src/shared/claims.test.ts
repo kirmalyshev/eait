@@ -323,7 +323,6 @@ describe("the plan headline's claims exemption", () => {
     };
     walk(root);
     expect(callers.sort()).toEqual([
-      "src/backend/web/page/plan.ts",
       "src/shared/onboarding-chat.ts",
     ]);
   });

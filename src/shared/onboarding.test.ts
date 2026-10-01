@@ -456,8 +456,7 @@ describe("the interstitials", () => {
     expect(at("struggles")).toBeLessThan(at("ontrack"));
     expect(at("ontrack")).toBeLessThan(at("diet"));
     expect(at("diet")).toBeLessThan(at("medical"));
-    expect(at("medical")).toBeLessThan(at("building"));
-    expect(at("building")).toBeLessThan(at("summary"));
+        expect(at("medical")).toBeLessThan(at("summary"));
     // The account step lands between the plan and the country — the design's order, fixed here.
     expect(at("summary")).toBeLessThan(at("signup"));
     expect(at("signup")).toBeLessThan(at("country"));
