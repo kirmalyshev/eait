@@ -73,7 +73,7 @@ export interface YouCopy {
    * so the plan names the same dimension the verdicts do, in one wording.
    */
   satFatGrams: string;
-  /** The floor marker under the plan figures: "never below {floor}" — `{floor}` is kcal. */
+  /** The "How we got there" floor marker: "never below {floor}" — `{floor}` is kcal. */
   floorMarker: string;
   /** The first option row — a brand, spelled the same in all eight. */
   appleHealth: string;

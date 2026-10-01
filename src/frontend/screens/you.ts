@@ -4,8 +4,8 @@
 // (Health · Subscription · Account · Units · Language · Telegram · Sign out); the right is the
 // today column the web boards give every surface — week strip, kcal-left hero, the macro cards.
 //
-// EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the floor off `basis`, the
-// free week's day off `entitlement.trialDay` (the server counts it — a client that counts dates
+// EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the free week's day off
+// `entitlement.trialDay` (the server counts it — a client that counts dates
 // disagrees with the reminders, #97), the "connected" claim off `healthConnected`. The day column
 // reads `/v1/diary/days` and `/v1/diary/day`; the weigh-in and the edits are PATCHes answered by
 // the recomputed view. Nothing here derives a target or counts a day.
@@ -218,7 +218,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
-  // ── The plan card — the figures off `targets`, the floor off `basis`, edit recomputes. ────────
+  // ── The plan card — the figures off `targets`, edit recomputes. ──────────────────────────────
 
   const planCard = (ob: OnboardingContent | null, noticeBox: { notice: HTMLElement; tell: (w: string | null) => void }): HTMLElement => {
     const card = el("div", "card rise rc-1");
@@ -328,7 +328,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const macrow = el("div", "macs");
     for (const c of chips) macrow.append(macEl(c.name, c.text));
     const foot = el("div", "row between");
-    foot.append(macrow, el("span", "est", fill(you.floorMarker, { floor: nWhole(me!.basis.floorKcal) })));
+    foot.append(macrow);
     body.append(fig, foot);
     return card;
   };
