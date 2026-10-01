@@ -98,6 +98,11 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   /* One column, the phone's order (F, #335): the side column's strip, day card, CTA and
      composer come first, then the diary column's list. */
   .wmain > section.wcol { order: -1; }
+  /* The one column scrolls as a whole: two wcols sharing the shell's fixed height capped the
+     day card at its closed size, so an opened macro tip clipped behind the pinned composer
+     instead of pushing the rows, the composer and Recent down. */
+  .wmain { overflow-y: auto; align-content: start; }
+  .wcol { overflow-y: visible; min-height: auto; }
 }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 700; letter-spacing: -.02em; }

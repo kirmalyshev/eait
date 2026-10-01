@@ -363,8 +363,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   //
   // The boards' `.tipa` — a tapped protein/carbs/sat-fat row's inline panel, inside the row
   // under its bar, never over the hero; the rows below, the dots and the card foot move down.
-  // One at a time: the same row again, Escape, a page pan, a column scroll or an outside tap
-  // closes it; another row switches. Hover never opens it — a layout that jumps under the
+  // One at a time: the same row again, Escape, a page pan or an outside tap closes it; another
+  // row switches. A column scroll does NOT — the panel rides with its row, and closing would
+  // keep the grown card's foot unreachable under the pinned composer. Hover never opens it — a
+  // layout that jumps under the
   // pointer. `.rows.open` drops the fixed height for an explicit gap so the closed rows keep
   // the spacing `space-between` dealt them.
 
@@ -402,7 +404,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     closeTip();
   };
   document.addEventListener("pointerdown", onDown, true);
-  frame.side.addEventListener("scroll", closeTip, { passive: true });
 
   /** The inline panel under a tippable row's bar — `share` is eaten÷target RAW so the tip's
    *  branch and the row's `.ov` read the same answer. The copy is shared `macroTip`'s. */
