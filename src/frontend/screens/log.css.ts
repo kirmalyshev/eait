@@ -51,10 +51,6 @@ export const logCss = `
 .log .hr { height: 1px; background: var(--hair); margin: 12px 0; }
 .log .logsay p { font-weight: 600; font-size: 15px; line-height: 1.35; margin: 0; }
 .log .logsay.q p { font-size: 20px; }
-/* The rough-guess mark is the care colour's only use on the card — "this is an estimate". */
-.log .rough { display: flex; align-items: center; gap: 6px; margin-top: 10px;
-  font-size: 13px; font-weight: 600; color: var(--care); }
-.log .rough .ico { font-size: 16px; }
 .log .logday { font-size: 13px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
 .log .logbtns { display: flex; gap: 10px; margin-top: 8px; }
 .log .dayrow { display: flex; justify-content: space-between; font-size: 13px; }

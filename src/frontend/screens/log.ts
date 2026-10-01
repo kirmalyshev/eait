@@ -241,15 +241,9 @@ export function logScreen(frame: Frame): HTMLElement {
     card.append(top, gramMacsEl({
       protein: r.analysis.protein_g, carbs: r.analysis.carbs_g, fat: r.analysis.fat_g,
     }));
-    card.append(el("div", "hr"));
     // The pills arrive already worded (`verdictLabels`) — the bundle composes no verdict text.
     const list = verdictListEl(r.verdictLabels.map((v) => ({ tone: v.tone, words: v.label })));
-    if (list !== null) card.append(list);
-    if (r.analysis.confidence === "low") {
-      const mark = el("div", "rough");
-      mark.append(kitEl(icoMarkup("info")), el("span", "", L.roughGuess));
-      card.append(mark);
-    }
+    if (list !== null) card.append(el("div", "hr"), list);
     return card;
   };
 

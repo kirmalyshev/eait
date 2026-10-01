@@ -110,7 +110,6 @@ test("the rough-guess card asks the server's question and chips correct the meal
   // its MealQuestion ("Was it cooked in oil, or dry?" / In oil · Dry) to the logged result.
   await pick(page, "my lunch");
 
-  await expect(page.getByText("Rough guess")).toBeVisible();
   await expect(page.getByText("Was it cooked in oil, or dry?")).toBeVisible();
   await expect(page.getByRole("button", { name: "In oil" })).toBeVisible();
   await shot(page, "log-rough");
