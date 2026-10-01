@@ -26,7 +26,7 @@ export const todayCss = `
 .wtrack > .week.rest .fg { animation: none; }
 
 /* THE DAY CARD — one card, two pages in its own clip (the boards' .dayc): the 128 px hero, the
-   hairline, the fixed 160 px row area, the dots inside. .dayw is the .mtip's positioning box. */
+   hairline, the fixed 160 px row area, the dots inside. */
 .dayw { position: relative; flex-shrink: 0; }
 .dayc { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
   overflow: hidden; touch-action: pan-y; }
@@ -90,10 +90,27 @@ button.hsc { cursor: pointer; }
 .mrow .bar { display: block; margin-top: 6px; height: 6px; border-radius: 1px;
   background: var(--hair); overflow: hidden; }
 .mrow .bar i { display: block; height: 6px; border-radius: 1px; }
-/* A tippable row takes the hovered pill while its tip is open (.hover) or the pointer is on it. */
+/* A tippable row takes the hovered pill while its tip is shut; open it wears none — the same
+   vertical margin/padding keeps the tapped row's text exactly where the pill left it, while
+   the panel inside stays flush with the bar. */
 .mrow.tip { cursor: pointer; }
-.mrow.tip:hover, .mrow.tip.hover { background: var(--hair); margin: -4px -8px; padding: 4px 8px; }
+.mrow.tip:not(.open):hover { background: var(--hair); margin: -4px -8px; padding: 4px 8px; }
+.mrow.tip.open { margin: -4px 0; padding: 4px 0; }
 .mrow.tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The macro tip — the boards' .tipa: an inline panel INSIDE the row under its bar, the macro's
+   tint (--t; the neutral kcal tint when .ov). .rows.open drops the fixed height and the JS-set
+   gap keeps the closed rows' spacing; the panel expands in 220 ms, its sentence fades over
+   150 ms, and reduced motion makes both instant (the global reduce block). */
+.rows.open { height: auto; justify-content: flex-start; }
+.tipa { display: grid; grid-template-rows: 0fr; margin-top: 0;
+  transition: grid-template-rows .22s var(--ease), margin-top .22s var(--ease); }
+.tipa.on { grid-template-rows: 1fr; margin-top: 10px; }
+.tipa-i { display: block; overflow: hidden; min-height: 0; }
+.tipa-c { display: block; background: var(--t); border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; line-height: 18px; font-weight: 400; color: var(--ink); opacity: 0;
+  transition: opacity .15s ease; }
+.tipa.on .tipa-c { opacity: 1; }
 
 /* The dots inside the card — two 6 px dots, the active one ink; .none keeps the space on the
    failed read (the card's height never changes) while the switcher stays out of the tab order. */
