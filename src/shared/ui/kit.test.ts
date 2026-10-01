@@ -89,10 +89,10 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(m).toContain('<i class="wtint a3" aria-hidden="true"></i><button');
   });
 
-  test("a past-or-today day is a real button; a future day is markup, not a control", () => {
+  test("a past-or-today day is a live button; a future day is a DISABLED one", () => {
     const m = weekStrip(days, "en");
-    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(4);
-    expect(m.match(/<span class="dy fut"/g)).toHaveLength(3);
+    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(7);
+    expect(m.match(/<button type="button" class="dy fut" disabled/g)).toHaveLength(3);
     expect(m.match(/aria-hidden="true"/g)).toHaveLength(4); // the fut cells' rings and the tint are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
     expect(m).toContain('viewBox="0 0 30 30"');

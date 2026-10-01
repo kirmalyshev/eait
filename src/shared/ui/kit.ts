@@ -118,9 +118,10 @@ export const weekStrip = (
     const letter = `<span class="dl">${esc(letters[(noon.getUTCDay() + 6) % 7]!)}</span>`;
     const num = Number(day.date.slice(8, 10));
     // A future day is not a control (it has no diary yet) — the boards draw it as a dimmed cell,
-    // so it is markup, not a button with no effect.
+    // so it is a DISABLED button: inactive, never focusable, and exempt from the contrast rule (WCAG 1.4.3).
     if (day.when === "future" && !isNow)
-      return `<span class="${cls}">${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></span>`;
+      return `<button type="button" class="${cls}" disabled aria-label="${esc(fullDate.format(noon))}">` +
+        `${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></button>`;
     return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
       `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;
   });

@@ -66,7 +66,7 @@ test("a past day draws the compact card — the figure over 'eaten of plan', no 
   const yesterday = ((await moved.json()) as { date: string }).date;
 
   await page.goto("/#/");
-  if (await page.locator(`.week [data-date="${yesterday}"]`).count() === 0) await page.getByRole("button", { name: "Previous week" }).click();
+  if (await page.locator(`.week [data-date="${yesterday}"]`).count() === 0) await page.keyboard.press("Shift+ArrowLeft");
   await page.locator(`.week [data-date="${yesterday}"]`).click();
   await expect(page.locator(`.week .dy.now[data-date="${yesterday}"]`)).toBeVisible();
 
@@ -74,13 +74,14 @@ test("a past day draws the compact card — the figure over 'eaten of plan', no 
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
   });
   const day = (await res.json()) as DayResponse;
-  const card = page.locator(".kcard");
+  const card = page.locator(".dayc .hk");
   const en = n("en-GB");
-  // "kcal left · 703 of 2,446" — the numbers grouped by the account's formatter, in ONE label.
-  await expect(card.locator(".kfig")).toHaveText(en(Math.round(day.targets.kcal) - Math.round(day.totals.kcal)));
-  await expect(card.locator(".klab")).toHaveText(`kcal left · ${en(day.totals.kcal)} of ${en(day.targets.kcal)}`);
+  // F reads a finished day as what was EATEN — the figure over "kcal eaten", the plan in the label.
+  await expect(card.locator(".fig")).toHaveText(en(Math.round(day.totals.kcal)));
+  await expect(card.locator(".lbl")).toHaveText("kcal eaten");
+  await expect(card).toHaveAttribute("aria-label", `kcal eaten · ${en(day.totals.kcal)} of ${en(day.targets.kcal)}`);
   // The left/eaten toggle exists only on today-with-meals — a finished day has nothing left to spend.
-  await expect(card.locator("button.klab")).toHaveCount(0);
+  await expect(page.locator("button.hk")).toHaveCount(0);
 });
 
 test("the diary is grouped and worded in the account's language, not the browser's", async ({ inWebApp: page }) => {
@@ -144,13 +145,12 @@ test("the bar names the viewed day in full, and today has no 'next'", async ({ i
   await logMeal(page);
   const date = fullDate(await serverToday(page));
   await page.goto("/#/");
-  // The boards' wtop: the screen's own right side carries the date between its two chevrons.
-  const bar = page.locator("header.wtop .drow");
+  // F: no bar arrows — the strip's raised cell names today, and the days after it are disabled.
   await expect(page.locator(`.week .dy.now[data-date="${await serverToday(page)}"]`)).toBeVisible();
-  await expect(bar.getByRole("button", { name: "Previous week" })).toBeEnabled();
-  await expect(bar.getByRole("button", { name: "Next week" })).toBeDisabled();
+  await expect(page.locator(".week button.dy[data-date]").first()).toBeEnabled();
+  await expect(page.locator(".week .dy.fut").first()).toBeDisabled();
   // On today-with-meals the left column is "Recently uploaded" — the date is written once.
-  await expect(page.locator(".mealtitle")).toHaveText("Recently uploaded");
+  await expect(page.getByText("Recently uploaded", { exact: true })).toBeVisible();
   await expect(page.getByText(date, { exact: true })).toHaveCount(0);
 });
 
@@ -159,26 +159,29 @@ test("the switcher and the week strip both move the viewed day", async ({ inWebA
   const today = await serverToday(page);
   await page.goto("/#/");
 
-  const label = page.locator(".week .dy.now");
-  await page.getByRole("button", { name: "Previous week" }).click();
+  // While the week slides in, the old and the new strip are both in the DOM: name the date.
+  const label = (d: string) => page.locator(`.week .dy.now[data-date="${d}"]`);
+  await expect(label(today)).toBeVisible();
+  await page.keyboard.press("Shift+ArrowLeft");
   const oneBack = new Date(`${today}T12:00:00Z`);
   oneBack.setUTCDate(oneBack.getUTCDate() - 7);
   const d1 = oneBack.toISOString().slice(0, 10);
-  await expect(label).toHaveAttribute("data-date", d1);
+  await expect(label(d1)).toBeVisible();
   // The strip's raised cell follows the day being looked at.
   await expect(page.locator(`.week .dy.now[data-date="${d1}"]`)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Next week" })).toBeEnabled();
 
   // The strip's own cell is the other door — tap a day and the whole board follows it. The cell
   // is read, not computed: the strip always holds the VIEWED week, so "yesterday" is not always
   // in it (a Monday's is not), but a past sibling of the raised cell always is.
-  await page.getByRole("button", { name: "Next week" }).click();
-  await expect(label).toHaveAttribute("data-date", today);
-  await expect(page.getByRole("button", { name: "Next week" })).toBeDisabled();
-  const cell = page.locator(".week button.dy[data-date]").first();
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(label(today)).toBeVisible();
+  // There is no next week past today: the key stays on today.
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(label(today)).toBeVisible();
+  const cell = label(today).locator("xpath=..").locator("button.dy[data-date]").first(); // the strip of the viewed week
   const picked = (await cell.getAttribute("data-date"))!;
   await cell.click();
-  await expect(label).toHaveAttribute("data-date", picked);
+  await expect(label(picked)).toBeVisible();
   await expect(page.locator(`.week .dy.now[data-date="${picked}"]`)).toBeVisible();
 });
 
@@ -199,20 +202,20 @@ test("a macro under its target reads 'left', over its cap reads 'over' — ringe
   await page.goto("/#/");
   await page.reload();
 
-  // Page 1 is protein/carbs/fat: the under-target card prints what's left and rings in the
-  // macro's own colour — never plain black. The figure's expectation is built once the mocked
+  // Page 1 is protein/carbs/fat: an under-target row prints what's left and fills its bar in
+  // the macro's own colour — never plain black. The figure's expectation is built once the mocked
   // draw is up: `proteinTarget` is the handler's own read of the answer it edited.
-  const protein = page.locator(".mcard", { hasText: "Protein left" });
+  const protein = page.locator(".mrow", { hasText: "protein" });
   await expect(protein.locator("b")).toBeVisible();
-  await expect(protein.locator("b")).toHaveText(`${n("en-GB")(Math.round(proteinTarget) - 10)} g`);
-  await expect(protein.locator(".mring circle.fg")).toHaveAttribute("stroke", "var(--macro-protein)");
+  await expect(protein.locator("b")).toHaveText(`${n("en-GB")(Math.round(proteinTarget) - 10)} g left`);
+  await expect(protein.locator(".bar i")).toHaveAttribute("style", /var\(--macro-protein\)/);
 
-  // Page 2 — saturated fat, fibre, sugar, sodium — sits behind the second dot. Sat fat rings in
-  // the fat hue: `macro-satfat` is the kit's alias for `macro-fat`, not a colour of its own.
+  // Page 2 — saturated fat, fibre, sugar, sodium — sits behind the second dot. Sat fat past its
+  // cap reads "over" and fills ink, the row's over state.
   await page.getByRole("button", { name: "Page 2 of 2" }).click();
-  const satfat = page.locator(".mcard", { hasText: "Sat fat over" });
-  await expect(satfat.locator("b")).toHaveText("10 g"); // the overage, not the total
-  await expect(satfat.locator(".mring circle.fg")).toHaveAttribute("stroke", "var(--macro-fat)");
+  const satfat = page.locator(".mrow.ov", { hasText: "sat fat" });
+  await expect(satfat.locator("b")).toHaveText("10 g over"); // the overage, not the total
+  await expect(satfat.locator(".bar i")).toHaveAttribute("style", /var\(--ink\)/);
 });
 
 test("a macro past its target reads 'over', under a cap reads 'left' — and no 'tap a meal' caption exists", async ({ inWebApp: page }) => {
@@ -227,10 +230,10 @@ test("a macro past its target reads 'over', under a cap reads 'left' — and no 
   });
   await page.goto("/#/");
   await page.reload();
-  const protein = page.locator(".mcard", { hasText: "Protein over" });
-  await expect(protein.locator("b")).toHaveText(/ g$/);
+  const protein = page.locator(".mrow.ov", { hasText: "protein" });
+  await expect(protein.locator("b")).toHaveText(/ g over$/);
   await page.getByRole("button", { name: "Page 2 of 2" }).click();
-  await expect(page.locator(".mcard", { hasText: "Sat fat left" }).locator("b")).toHaveText("35 g");
+  await expect(page.locator(".mrow", { hasText: "sat fat" }).locator("b")).toHaveText("35 g left");
   // The phone's "Tap a meal to check or fix the numbers" line never existed here, and stays absent.
   await expect(page.getByText(/tap a meal/i)).toHaveCount(0);
 });
