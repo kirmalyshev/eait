@@ -260,7 +260,7 @@ export interface MealRowSpec {
   note?: string;
   /** The photo's src; anything else draws the no-photo tile. */
   photo?: { src: string; alt?: string } | null;
-  /** The no-photo tile: the accent chat mark on today's "Recently uploaded" row (a typed meal),
+  /** The no-photo tile: the accent chat mark on today's "Recent" row (a typed meal),
    *  the two-ring plate the compact rows of the past-day and logging boards draw. */
   tile?: "chat" | "plate";
   href?: string;

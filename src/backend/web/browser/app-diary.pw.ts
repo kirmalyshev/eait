@@ -149,8 +149,8 @@ test("the bar names the viewed day in full, and today has no 'next'", async ({ i
   await expect(page.locator(`.week .dy.now[data-date="${await serverToday(page)}"]`)).toBeVisible();
   await expect(page.locator(".week button.dy[data-date]").first()).toBeEnabled();
   await expect(page.locator(".week .dy.fut").first()).toBeDisabled();
-  // On today-with-meals the left column is "Recently uploaded" — the date is written once.
-  await expect(page.getByText("Recently uploaded", { exact: true })).toBeVisible();
+  // On today-with-meals the left column is "Recent" — the date is written once.
+  await expect(page.getByText("Recent", { exact: true })).toBeVisible();
   await expect(page.getByText(date, { exact: true })).toHaveCount(0);
 });
 

@@ -126,7 +126,7 @@ export interface HomeCopy {
     fibre: HomeMacroCopy;
     sugar: HomeMacroCopy;
   };
-  /** The meal list's title — `today.html` "Recently uploaded", both clients. */
+  /** The meal list's title — `today.html` "Recent", both clients. */
   recentlyUploaded: string;
   /** The macro tips (F, ieat-app#1291): a tapped protein/carbs/sat-fat row's Callout — the state
    * line, then what to eat or skip for the rest of today. `{g}` takes the row's own figure. */
@@ -230,7 +230,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Sat fat: {g} over the limit", body: "Limit butter, cheese, fatty meat, pastry and fried food for the rest of today." },
       },
     },
-    recentlyUploaded: "Recently uploaded",
+    recentlyUploaded: "Recent",
 
 
     nothingLogged: "Nothing logged yet.",
@@ -294,7 +294,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Graisses sat. : {g} au-delà de la limite", body: "Limite le beurre, le fromage, la viande grasse, les viennoiseries et les fritures pour le reste de la journée." },
       },
     },
-    recentlyUploaded: "Récemment ajoutés",
+    recentlyUploaded: "Récents",
 
 
     nothingLogged: "Rien d'enregistré pour l'instant.",
@@ -358,7 +358,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Ges. Fette: {g} über dem Limit", body: "Begrenze Butter, Käse, fettes Fleisch, Gebäck und Frittiertes für den Rest des Tages." },
       },
     },
-    recentlyUploaded: "Zuletzt hochgeladen",
+    recentlyUploaded: "Zuletzt",
 
 
     nothingLogged: "Noch nichts eingetragen.",
@@ -422,7 +422,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Grassi sat.: {g} oltre il limite", body: "Limita burro, formaggio, carne grassa, prodotti da forno e fritti per il resto della giornata." },
       },
     },
-    recentlyUploaded: "Aggiunti di recente",
+    recentlyUploaded: "Recenti",
 
 
     nothingLogged: "Niente di registrato, per ora.",
@@ -486,7 +486,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Grasas sat.: {g} por encima del límite", body: "Limita la mantequilla, el queso, la carne grasa, la bollería y los fritos el resto del día." },
       },
     },
-    recentlyUploaded: "Subidos recientemente",
+    recentlyUploaded: "Recientes",
 
 
     nothingLogged: "Nada registrado todavía.",
@@ -550,7 +550,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Béo bão hoà: vượt giới hạn {g}", body: "Hạn chế bơ, phô mai, thịt mỡ, bánh ngọt và đồ chiên cho phần còn lại của hôm nay." },
       },
     },
-    recentlyUploaded: "Mới tải lên",
+    recentlyUploaded: "Gần đây",
 
 
     nothingLogged: "Chưa có gì được ghi.",
@@ -614,7 +614,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Lemak jenuh: {g} di atas batas", body: "Batasi mentega, keju, daging berlemak, kue kering, dan gorengan untuk sisa hari ini." },
       },
     },
-    recentlyUploaded: "Baru diunggah",
+    recentlyUploaded: "Terbaru",
 
 
     nothingLogged: "Belum ada yang dicatat.",
@@ -678,7 +678,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
         over: { title: "Нас. жиры: {g} сверх предела", body: "Ограничь сливочное масло, сыр, жирное мясо, выпечку и жареное до конца дня." },
       },
     },
-    recentlyUploaded: "Недавно добавлено",
+    recentlyUploaded: "Недавние",
 
 
     nothingLogged: "Пока ничего не записано.",

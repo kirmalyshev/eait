@@ -1,5 +1,5 @@
 // Today — Home (`web/today.html`, W4 #91; the F layout, #335). The boards' two-column diary:
-// the left column holds the "Recently uploaded" list, the day note, a proposal the composer is
+// the left column holds the "Recent" list, the day note, a proposal the composer is
 // holding, and the empty/failed states; the right column (the frame's `side`) holds the week
 // strip on top and ONE day card — the kcal hero and the macro bar rows on page 1, the day-score
 // hero and the nutrient rows on page 2, the dots inside the card — panned by dots, by drag, by
@@ -855,13 +855,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const shown = day?.meals.filter((m) => !hidden.has(m.id)) ?? [];
     const hasMeals = shown.length > 0 || queued;
     const logging = heldProposal() !== null || turning;
-    // The hero's toggle, "Recently uploaded" and the day note are today-with-meals only; the
+    // The hero's toggle, "Recent" and the day note are today-with-meals only; the
     // card's pages are every day's.
     const rich = isToday && hasMeals && !logging;
     cardDate = viewing;
 
     // ── The left column: the label, the meal list, the day note, the empty/failed state ──
-    // "Recently uploaded" only while today holds meals; every other state names no date — the
+    // "Recent" only while today holds meals; every other state names no date — the
     // strip's marked cell already says which day this is.
     const left: Element[] = rich ? [el("span", "hsec", L.recentlyUploaded)] : [];
     if (day === null) {
@@ -943,7 +943,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   }
 
   /** A meal row: the photo or the no-photo tile, the time, the verdict line — the gram chips
-   *  only on the "Recently uploaded" form (`compact` is the past-day and logging boards' row). */
+   *  only on the "Recent" form (`compact` is the past-day and logging boards' row). */
   const mealRow = (meal: MealRecord, compact: boolean): Element => {
     // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
     // prefix. The board draws `.meal` without a glyph; the link is the affordance.
