@@ -73,8 +73,6 @@ export interface YouCopy {
    * so the plan names the same dimension the verdicts do, in one wording.
    */
   satFatGrams: string;
-  /** The floor marker under the plan figures: "never below {floor}" — `{floor}` is kcal. */
-  floorMarker: string;
   /** The first option row — a brand, spelled the same in all eight. */
   appleHealth: string;
   /** Its value when linked, lowercase on the board: "connected". */
@@ -299,7 +297,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g protein",
     satFatGrams: "{g} g {noun}",
-    floorMarker: "never below {floor}",
     appleHealth: "Apple Health",
     connected: "connected",
     subscription: "Subscription",
@@ -409,7 +406,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g de protéines",
     satFatGrams: "{g} g de {noun}",
-    floorMarker: "jamais moins de {floor}",
     appleHealth: "Apple Health",
     connected: "connecté",
     subscription: "Abonnement",
@@ -519,7 +515,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g Eiweiß",
     satFatGrams: "{g} g {noun}",
-    floorMarker: "nie unter {floor}",
     appleHealth: "Apple Health",
     connected: "verbunden",
     subscription: "Abo",
@@ -629,7 +624,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g di proteine",
     satFatGrams: "{g} g di {noun}",
-    floorMarker: "mai sotto {floor}",
     appleHealth: "Apple Health",
     connected: "connesso",
     subscription: "Abbonamento",
@@ -739,7 +733,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g de proteína",
     satFatGrams: "{g} g de {noun}",
-    floorMarker: "nunca por debajo de {floor}",
     appleHealth: "Apple Health",
     connected: "conectado",
     subscription: "Suscripción",
@@ -849,7 +842,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g đạm",
     satFatGrams: "{g} g {noun}",
-    floorMarker: "không dưới {floor}",
     appleHealth: "Apple Health",
     connected: "đã kết nối",
     subscription: "Gói đăng ký",
@@ -959,7 +951,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} g",
     proteinGrams: "{g} g protein",
     satFatGrams: "{g} g {noun}",
-    floorMarker: "tidak di bawah {floor}",
     appleHealth: "Apple Health",
     connected: "terhubung",
     subscription: "Langganan",
@@ -1069,7 +1060,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     grams: "{g} г",
     proteinGrams: "{g} г белка",
     satFatGrams: "{g} г {noun}",
-    floorMarker: "не ниже {floor}",
     appleHealth: "Apple Health",
     connected: "подключено",
     subscription: "Подписка",

@@ -101,12 +101,6 @@ export interface HomeCopy {
   /** The same figure line past the target — "{grams} over". */
   gramOver: string;
   /**
-   * The F kcal hero's floor marker — "never below 1,200" (`web/today-floor`); `{floor}` is
-   * `basis.floorKcal` formatted. Drawn only when `basis.floorApplied` — the rule the contract
-   * says every surface must make visible.
-   */
-  floorNote: string;
-  /**
    * The day note's `{nutrient}` for the saturated-fat constraint — the sentence noun
    * ("saturated fat"), not the card's short name ("sat fat"). Protein/carbs read their
    * `name` as-is. The verdicts' inline noun says the same thing through the Lingui catalog,
@@ -203,7 +197,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} left", gramOver: "{grams} over",
-    floorNote: "never below {floor}",
     dayNoteSatFat: "saturated fat",
 
     macros: {
@@ -267,7 +260,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} restants", gramOver: "{grams} en trop",
-    floorNote: "jamais en dessous de {floor}",
     dayNoteSatFat: "graisses saturées",
 
     macros: {
@@ -331,7 +323,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} übrig", gramOver: "{grams} zu viel",
-    floorNote: "nie unter {floor}",
     dayNoteSatFat: "gesättigte Fette",
 
     macros: {
@@ -395,7 +386,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} rimasti", gramOver: "{grams} in eccesso",
-    floorNote: "mai sotto {floor}",
     dayNoteSatFat: "grassi saturi",
 
     macros: {
@@ -459,7 +449,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} restantes", gramOver: "{grams} de más",
-    floorNote: "nunca por debajo de {floor}",
     dayNoteSatFat: "grasas saturadas",
 
     macros: {
@@ -523,7 +512,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} còn lại", gramOver: "{grams} vượt quá",
-    floorNote: "không bao giờ thấp hơn {floor}",
     dayNoteSatFat: "chất béo bão hoà",
 
     macros: {
@@ -587,7 +575,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} g",
     milligrams: "{n} mg",
     gramLeft: "{grams} tersisa", gramOver: "{grams} berlebih",
-    floorNote: "tidak pernah di bawah {floor}",
     dayNoteSatFat: "lemak jenuh",
 
     macros: {
@@ -651,7 +638,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     grams: "{n} г",
     milligrams: "{n} мг",
     gramLeft: "{grams} осталось", gramOver: "{grams} сверх нормы",
-    floorNote: "никогда не ниже {floor}",
     dayNoteSatFat: "насыщенные жиры",
 
     macros: {
