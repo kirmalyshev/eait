@@ -216,19 +216,26 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     stripWeek = mon;
   };
 
+  /** A different day always opens on the card's first page — `page` is a surface state, not a
+   *  day one. */
+  const moveDay = (date: string): void => {
+    page = 0;
+    viewing = date;
+    void draw();
+  };
+
   /** The week slide a drag, a trackpad flick or Shift+arrow commits — the neighbour is mounted
    *  already, so the track translates to it while the day fetch runs; `transitionend` recentres
    *  the track. `date` is the day it lands on. */
   const slideToWeek = (date: string, dir: -1 | 1): void => {
     const track = stripTrack();
-    if (track === null || stripSliding || reducedMotion) { viewing = date; void draw(); return; }
+    if (track === null || stripSliding || reducedMotion) { moveDay(date); return; }
     stripSliding = true;
     track.style.transform = `translateX(${dir === 1 ? "-200" : "0"}%)`;
     // The tint travels with the strip: mark the cell on the neighbour before it slides in.
     const nbr = track.children[dir === 1 ? 2 : 0];
     if (nbr instanceof HTMLElement) markCell(nbr, date);
-    viewing = date;
-    void draw();
+    moveDay(date);
   };
 
   /** A day pick — same-week picks glide the tint at once; a pick into another week slides. */
@@ -240,8 +247,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     }
     const cur = stripTrack()?.children[1];
     if (cur instanceof HTMLElement) markCell(cur, date);
-    viewing = date;
-    void draw();
+    moveDay(date);
   };
 
   /** A day back or forward — never past today, so a future day is never asked for. */
@@ -470,7 +476,11 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     icon: IconName, name: string, eaten: number, target: number | undefined,
     opts: { mg?: boolean; tip?: MacroTipKind } = {},
   ): HTMLElement => {
-    const fig = opts.mg === true ? (v: number) => fill(L.milligrams, { n: n(v) }) : gram;
+    // `eaten` arrives RAW — the figure rounds at the format step, so the row and the day note
+    // (which subtracts the unrounded total) never disagree by a gram.
+    const fig = opts.mg === true
+      ? (v: number) => fill(L.milligrams, { n: n(Math.round(v)) })
+      : (v: number) => gram(Math.round(v));
     if (target === undefined) return macroRow({ icon, name, grams: fig(eaten) });
     const share = target > 0 ? eaten / target : 1;
     const over = share > 1;
@@ -570,7 +580,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     row.append(el("span", "hsct", SC.title), fig);
     const bar = el("span", "hsb");
     const i = el("i", "");
-    if (score !== null) i.style.width = `${Math.max(0, Math.min(100, score * 10))}%`;
+    // The dash read is an EMPTY bar — `display:block` with no width fills the track.
+    i.style.width = score === null ? "0%" : `${Math.max(0, Math.min(100, score * 10))}%`;
     bar.append(i);
     hero.append(row, bar);
     if (score !== null) {
@@ -591,7 +602,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // The noun is the table's own — the verdicts' inline noun lives in the Lingui stack,
     // which the browser bundle never reaches (#145).
     if ((t.satfat_g ?? 0) > 0) rows.push({ share: day.totals.satfat_g / t.satfat_g!, noun: L.dayNoteSatFat, left: macroLeft(t.satfat_g!, day.totals.satfat_g) });
-    const pick = rows.sort((a, b) => a.share - b.share)[0];
+    // A target already met or over names nothing — the note only ever asks to eat LESS later,
+    // never "0 g to go".
+    const pick = rows.filter((r) => r.left > 0).sort((a, b) => a.share - b.share)[0];
     if (pick === undefined) return null;
     const note = el("div", "hnote");
     note.textContent = fill(L.phoneDayNote, { nutrient: pick.noun, grams: n(pick.left) });
@@ -624,15 +637,15 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     } else {
       // Page 1's protein/carbs/fat; page 2's sat fat, fibre, sugar, sodium — the boards' order.
       rowsOne.append(
-        leftRow("protein", L.macros.protein.name, Math.round(day.totals.protein_g), day.targets.protein_g, { tip: "protein" }),
-        leftRow("carbs", L.macros.carbs.name, Math.round(day.totals.carbs_g), day.targets.carbs_g, { tip: "carbs" }),
-        leftRow("fat", L.macros.fat.name, Math.round(day.totals.fat_g), day.targets.fat_g),
+        leftRow("protein", L.macros.protein.name, day.totals.protein_g, day.targets.protein_g, { tip: "protein" }),
+        leftRow("carbs", L.macros.carbs.name, day.totals.carbs_g, day.targets.carbs_g, { tip: "carbs" }),
+        leftRow("fat", L.macros.fat.name, day.totals.fat_g, day.targets.fat_g),
       );
       rowsTwo.append(
-        leftRow("satfat", L.macros.satFat.name, Math.round(day.totals.satfat_g), day.targets.satfat_g, { tip: "satfat" }),
+        leftRow("satfat", L.macros.satFat.name, day.totals.satfat_g, day.targets.satfat_g, { tip: "satfat" }),
         macroRow({ icon: "fibre", name: L.macros.fibre.name, grams: gram(Math.round(day.totals.fiber_g)) }),
         macroRow({ icon: "sugar", name: L.macros.sugar.name, grams: gram(Math.round(day.totals.sugar_g)) }),
-        leftRow("salt", L.macros.sodium.name, Math.round(day.totals.sodium_mg), day.targets.sodium_mg, { mg: true }),
+        leftRow("salt", L.macros.sodium.name, day.totals.sodium_mg, day.targets.sodium_mg, { mg: true }),
       );
     }
     p1.append(kcalHero(day, rich), el("div", "hl"), rowsOne);
