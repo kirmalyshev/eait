@@ -55,6 +55,7 @@ export * from "./ui/icons.ts";
 // every string a surface shows, in all eight languages, so no client writes its own.
 export * from "./app/log-copy.ts";
 export * from "./app/home-copy.ts";
+export * from "./app/update-copy.ts";
 export * from "./app/meal-copy.ts";
 export * from "./app/bmi-copy.ts";
 export * from "./app/progress-copy.ts";

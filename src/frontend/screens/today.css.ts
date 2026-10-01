@@ -200,6 +200,9 @@ a.hsp { color: inherit; text-decoration: none; }
 .dlist .qact button { font: inherit; font-size: 13px; font-weight: 600; color: var(--accent); background: none; border: 0; margin: 0; padding: 6px 0; min-height: 0; border-radius: 0; box-shadow: none; cursor: pointer; }
 .dlist .qact button + button { color: var(--muted); }
 .qpill { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 3px 9px; text-decoration: none; }
+.uslot { display: contents; }
+.qold { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.qold i { font-style: normal; }
 .qkc { width: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 /* The landing move (#1354): the row grows in while the fixed flyer carries the image into its thumbnail. */
 .meal.q.qnew { overflow: hidden; animation: k-qnew .22s var(--ease) both; }
