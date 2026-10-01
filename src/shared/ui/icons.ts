@@ -301,6 +301,9 @@ export const ICONS = {
 
 export type IconName = keyof typeof ICONS;
 
+/** Still read by ieat-app's MacroChip until ieat-app#1362 lands — the web draws bare glyphs now. */
+export const MACRO_CHIP = { sizeEm: 1.6, glyphShare: 0.58 } as const;
+
 /**
  * The companies' own marks — official artwork, kept as drawn and never rebuilt as a line icon.
  * `apple` and `github` are single-colour marks (their `currentColor` is the parameter, as with
