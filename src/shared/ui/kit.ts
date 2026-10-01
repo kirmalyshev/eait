@@ -23,7 +23,7 @@ import {
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
 import { RADIUS, SHADOW } from "../design.ts";
-import { LANG_TAG, spellUnit, UNIT_KCAL, weekdayShort, wholeNumbers, type Lang } from "../lang.ts";
+import { LANG_TAG, spellUnit, UNIT_KCAL, kcalNumbers, weekdayShort, wholeNumbers, type Lang } from "../lang.ts";
 import { MOUTHS, spudSvg, type MascotMood } from "../mascot.ts";
 
 /** Text or an attribute value, made inert. The one escaper both surfaces get. */
@@ -289,7 +289,7 @@ export const mealRow = (o: MealRowSpec, lang: Lang): string => {
   return `<${tag} class="meal"${attrs}${idAttr}>${photo}<div class="mm"><b>${esc(o.name)}</b>` +
     `<small>${esc(o.time)}${tail ? ` · ${tail}` : ""}</small>` +
     (o.grams ? macs(gramChips(o.grams, lang), "sm") : "") +
-    `</div><div class="kc num">${n(o.kcal)}<small>${esc(UNIT_KCAL[lang])}</small></div></${tag}>`;
+    `</div><div class="kc num">${kcalNumbers(lang)(o.kcal)}<small>${esc(UNIT_KCAL[lang])}</small></div></${tag}>`;
 };
 
 // ── The photo hero ───────────────────────────────────────────────────────────────────────────

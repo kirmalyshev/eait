@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   askLines, chatCopyFor, DEFAULT_ONBOARDING_CONTENT, explainTargets, LANGS, LANGS_READY,
   LANG_LABEL, promptById, UNIT_KCAL, lintCopy, onboardingContentFor, projectGoal,
-  signupCopyFor, wholeNumbers,
+  kcalNumbers, signupCopyFor,
   type Lang, type Profile,
 } from "@eait/shared";
 import { blankProfile } from "../store.ts";
@@ -132,7 +132,7 @@ describe("the language picker on the plan page", () => {
     const { targets } = explainTargets(PERSONA);
     // The kcal card's caption is the content's, the figure grouped for the reader.
     expect(de).toContain(`<small>${content.summary.kcalLabel}</small>`);
-    expect(de).toContain(wholeNumbers("de")(targets.kcal));
+    expect(de).toContain(kcalNumbers("de")(targets.kcal));
     expect(de).not.toContain("kcal a day");
   });
 
@@ -219,9 +219,9 @@ describe("the plan card's two figures", () => {
     expect(ru).toContain("ккал");
     expect(ru).not.toContain("kcal");
     expect(ru).toContain("белка");
-    // Grouped the way every other figure on this page is — never the raw 1450.
-    expect(ru).toContain(wholeNumbers("ru")(1450));
-    expect(ru).not.toMatch(/>1450 /);
+    // A kcal figure is never grouped (ieat-app#1364): 1450, not 1 450.
+    expect(ru).toContain(kcalNumbers("ru")(1450));
+    expect(ru).not.toMatch(/1\s450/);
   });
 });
 

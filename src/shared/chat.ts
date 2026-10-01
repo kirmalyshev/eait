@@ -5,7 +5,7 @@
 // `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
 // in the product, so change the design first.
 
-import { spellUnit, wholeNumbers } from "./lang.ts";
+import { kcalNumbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { STRUGGLES } from "./types.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
@@ -306,7 +306,7 @@ export function verdictHeadline(verdicts: MealVerdicts, lang: Lang): string | nu
  */
 export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;
-  const kcal = wholeNumbers(lang)(i.meal.kcal);
+  const kcal = kcalNumbers(lang)(i.meal.kcal);
   const lines: string[] = [];
 
   if (i.via === "text") {

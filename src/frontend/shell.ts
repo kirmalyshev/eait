@@ -30,7 +30,7 @@ import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { brandSvg } from "../shared/ui/icons.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { outcomeUnknown } from "../shared/results.ts";
-import { LANG_TAG, UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, kcalNumbers, narrowLang, wholeNumbers } from "../shared/lang.ts";
 import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
 import { localDate, windowStart } from "../shared/dates.ts";
 import { mealNames } from "../shared/meal-names.ts";
@@ -221,9 +221,9 @@ function signInScreen(): HTMLElement {
   return box;
 }
 
-// Grouped the reader's way — "1.724kcal" in German — rounded, because a kcal from a photo is an
+// Never grouped (ieat-app#1364) — "1724kcal" in every language — rounded, because a kcal from a photo is an
 // estimate, and with the language's own spelling of the unit beside it.
-export const kcal = (n: number): string => `${wholeNumbers(lang)(n)}${UNIT_KCAL[lang]}`;
+export const kcal = (n: number): string => `${kcalNumbers(lang)(n)}${UNIT_KCAL[lang]}`;
 
 /**
  * The proposal a text turn is holding, until it is logged or dropped.
@@ -343,7 +343,7 @@ export function proposalCard(
   const card = el("div", "card");
   const head = el("div", diary ? "row between pl-head" : "row between");
   const num = el("span", "num row");
-  num.append(el("i", "ico i-kcal"), el("b", diary ? "d d28" : "d d22", n(p.analysis.kcal)),
+  num.append(el("i", "ico i-kcal"), el("b", diary ? "d d28" : "d d22", kcalNumbers(lang)(p.analysis.kcal)),
     el("span", diary ? "m t13" : "m t12", UNIT_KCAL[lang]));
   head.append(el("b", diary ? "d pl-title" : "pl-name", names(p.analysis.items)), num);
   if (diary) card.append(lead);
@@ -357,7 +357,7 @@ export function proposalCard(
       what.append(document.createTextNode(item.name),
         el("span", "m", ` ${fill(HC.grams, { n: n(item.grams) })}`));
       line.append(what);
-      if (item.kcal !== undefined) line.append(el("span", "num pl-igk", n(item.kcal)));
+      if (item.kcal !== undefined) line.append(el("span", "num pl-igk", kcalNumbers(lang)(item.kcal)));
       card.append(line);
     }
   }

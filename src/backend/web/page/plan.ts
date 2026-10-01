@@ -1,6 +1,6 @@
 import {
   capNote, chatCopyFor, estimateChart, fill, LANG_LABEL, LANGS_READY, PLAN_CHART_TICKS_MS,
-  planHeadline, projectionMonth, spellUnit, weightDisplay, wholeNumbers,
+  planHeadline, projectionMonth, spellUnit, kcalNumbers, weightDisplay, wholeNumbers,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent,
   type Profile, type TargetBasis,
 } from "@eait/shared";
@@ -19,7 +19,7 @@ import { escape, shell } from "./shell.ts";
  *                                                list: the only claim-shaped line, computed
  *   the estimated-progress graph               — `estimateChart`'s geometry verbatim (the #112
  *                                                chip position), its labels localized
- *   "1,434kcal a day"                         — the computed target, never a typed number
+ *   "1434kcal a day"                          — the computed target, never a typed number
  *   the macro row                              — protein/carbs/fat always, and saturated fat
  *                                                ONLY when it was asked for: the card is drawn
  *                                                because the cap was declared, so an undeclared
@@ -74,9 +74,9 @@ export function plan(v: PlanView): string {
   let marker = "";
   if (v.basis.shareCapApplied || v.basis.floorApplied) {
     const note = v.basis.floorApplied
-      ? `<b>${escape(v.content.building.floorTitle)}</b> ${escape(fill(v.content.building.floorBody, { floor: n(v.basis.floorKcal) }))}`
+      ? `<b>${escape(v.content.building.floorTitle)}</b> ${escape(fill(v.content.building.floorBody, { floor: kcalNumbers(v.lang)(v.basis.floorKcal) }))}`
       : escape(capNote(summary.capNote, v.profile.goal, v.projection?.kgPerWeek ?? null, v.lang));
-    marker = `<details class="est-more"><summary class="est">${escape(fill(summary.floorMarker, { floor: n(v.basis.floorKcal) }))}</summary><p class="est-note">${note}</p></details>`;
+    marker = `<details class="est-more"><summary class="est">${escape(fill(summary.floorMarker, { floor: kcalNumbers(v.lang)(v.basis.floorKcal) }))}</summary><p class="est-note">${note}</p></details>`;
   }
 
   const gram = spellUnit(v.lang, "g");
@@ -102,7 +102,7 @@ ${headline ? `<p class="goal num">${escape(headline)}</p>` : ""}
 ${chart}
 <div class="kgrid${macros.length === 3 ? " m3" : ""}">
   <div class="card kcal">
-    <div class="big"><i class="ico i-kcal"></i><b class="num">${n(v.targets.kcal)}</b> <small>${escape(summary.kcalLabel)}</small></div>
+    <div class="big"><i class="ico i-kcal"></i><b class="num">${kcalNumbers(v.lang)(v.targets.kcal)}</b> <small>${escape(summary.kcalLabel)}</small></div>
     ${marker}
   </div>
 ${macros.map((m) => `  <div class="mcard"><i class="ico i-${m.icon}"></i><b class="num">${escape(m.value)}</b><small>${escape(m.label)}</small></div>`).join("\n")}

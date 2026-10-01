@@ -1,4 +1,4 @@
-import { MAX_USER_LINE, UNIT_KCAL, wholeNumbers } from "@eait/shared";
+import { MAX_USER_LINE, UNIT_KCAL, kcalNumbers, wholeNumbers } from "@eait/shared";
 import type { Lang } from "@eait/shared";
 import { pageCopyFor, type PageCopy } from "../copy.ts";
 import { escape, shell } from "./shell.ts";
@@ -80,7 +80,7 @@ ${v.proposal ? proposalCard(v.proposal, PAGE_COPY, lang) : ""}
 function macros(kcal: number, proteinG: number, PAGE_COPY: PageCopy, lang: Lang): string {
   const n = wholeNumbers(lang);
   return PAGE_COPY.cardMacros
-    .replace("{kcal}", n(kcal)).replace("{unit}", UNIT_KCAL[lang]).replace("{protein}", n(proteinG));
+    .replace("{kcal}", kcalNumbers(lang)(kcal)).replace("{unit}", UNIT_KCAL[lang]).replace("{protein}", n(proteinG));
 }
 
 function proposalCard(p: ChatProposal, PAGE_COPY: PageCopy, lang: Lang): string {

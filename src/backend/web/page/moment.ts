@@ -8,7 +8,7 @@
 
 import {
   chatCopyFor, ESTIMATE_CHART_MINI, fill, HOW_DEMO, ontrackCaption, TWO_WAYS_CHART,
-  UNIT_KCAL, verdictPillLabel, weightDisplay, wholeNumbers,
+  UNIT_KCAL, kcalNumbers, verdictPillLabel, weightDisplay,
 } from "@eait/shared";
 import type { Lang, Profile, UnitSystem } from "@eait/shared";
 import { spudSvg } from "@eait/shared/mascot";
@@ -22,7 +22,6 @@ const stepHead = (n: number, label: string): string =>
 
 function howCards(lang: Lang, units: UnitSystem): string {
   const copy = chatCopyFor(lang);
-  const w = wholeNumbers(lang);
   const [s1, s2, s3] = copy.how.steps;
   const mini = ESTIMATE_CHART_MINI;
   // Step 1 — the plate in the viewfinder (the same grain bowl the welcome demo reads).
@@ -34,7 +33,7 @@ function howCards(lang: Lang, units: UnitSystem): string {
     `<div class="row">` +
     `<img class="mimg" src="${IMG_URL_DIR}/salmon-sq.webp" alt="">` +
     `<div class="grow"><div class="row between"><b class="mname">${escape(copy.how.meal)}</b>` +
-    `<span class="num"><b class="d mkcal">${w(HOW_DEMO.meal.kcal)}</b> ` +
+    `<span class="num"><b class="d mkcal">${kcalNumbers(lang)(HOW_DEMO.meal.kcal)}</b> ` +
     `<span class="m t12">${escape(UNIT_KCAL[lang])}</span></span></div>` +
     gramMacs(
       { protein: HOW_DEMO.meal.proteinG, carbs: HOW_DEMO.meal.carbsG, fat: HOW_DEMO.meal.fatG },

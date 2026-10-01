@@ -10,7 +10,7 @@
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
-import { countText, spellUnit, wholeNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
+import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
@@ -336,7 +336,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     const head = el("div", "row between");
     head.append(el("b", "", names(meal.items)));
     const num = el("span", "num");
-    num.append(el("b", "d d22", wholeNumbers(lang)(meal.kcal)), el("span", "m t12", `${UNIT_KCAL[lang]}`));
+    num.append(el("b", "d d22", kcalNumbers(lang)(meal.kcal)), el("span", "m t12", `${UNIT_KCAL[lang]}`));
     head.append(num);
     // The focus sheet draws the meal's photo at 52px in a row beside the name-and-macs block;
     // the dots run full-width under it (meal-edit.html).
@@ -376,9 +376,10 @@ export async function chatScreen(): Promise<HTMLElement> {
     // "{value} of {target}g" as the table's two halves, the eaten figure bold like the board's:
     // `macroEaten` then `macroTarget`, and no split on the template itself.
     const figure = el("span", "num mb-num");
-    figure.append(el("b", "", fill(copy().macroEaten, { value: wholeNumbers(lang)(focus.eaten) })),
+    const fig = focus.nutrient === "kcal" ? kcalNumbers(lang) : wholeNumbers(lang);
+    figure.append(el("b", "", fill(copy().macroEaten, { value: fig(focus.eaten) })),
       " ", fill(copy().macroTarget, {
-        target: wholeNumbers(lang)(focus.target),
+        target: fig(focus.target),
         unit: focus.nutrient === "kcal" ? UNIT_KCAL[lang] : spellUnit(lang, "g"),
       }));
     head.append(name, figure);

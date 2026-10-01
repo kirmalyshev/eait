@@ -37,7 +37,7 @@ import {
   DIETS, MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MEDICAL_TAGS, MIN_AGE, MIN_WEIGHT_KG, dietOf,
   explainTargets, medicalOf, minHealthyWeightKg,
 } from "./targets.ts";
-import { fill, numbers, spellUnit, wholeNumbers } from "./lang.ts";
+import { fill, kcalNumbers, numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth, previewProjection } from "./projection.ts";
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
@@ -754,11 +754,11 @@ export function pacePreview(
     line: proj === null ? null : fill(copy.result, {
       target: weightDisplay(p.target_weight_kg, p.units, lang),
       month: projectionMonth(today, proj.weeks, lang),
-      kcal: numbers(lang)(targets.kcal),
+      kcal: kcalNumbers(lang)(targets.kcal),
     }),
     marker,
     markerText: marker === "floor"
-      ? fill(copy.floorMarker, { floor: numbers(lang)(basis.floorKcal) })
+      ? fill(copy.floorMarker, { floor: kcalNumbers(lang)(basis.floorKcal) })
       : marker === "cap" ? copy.capMarker : null,
   };
 }
@@ -786,7 +786,7 @@ export function planRows(
   const b = content.building;
   const n = numbers(lang);
   const rows: PlanRow[] = [
-    { id: "calories", label: b.rows.calories, value: n(targets.kcal) },
+    { id: "calories", label: b.rows.calories, value: kcalNumbers(lang)(targets.kcal) },
     { id: "protein", label: b.rows.protein, value: `${n(targets.protein_g)}g` },
     { id: "carbs", label: b.rows.carbs, value: `${n(targets.carbs_g)}g` },
     { id: "fat", label: b.rows.fat, value: `${n(targets.fat_g)}g` },

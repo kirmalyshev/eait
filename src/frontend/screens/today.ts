@@ -11,7 +11,7 @@
 
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
-import { LANG_TAG, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, macroTip, type MacroTipKind } from "../../shared/app/home-copy.ts";
 import { enqueue, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -41,6 +41,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const SC = scoresAppCopy(lang);
   const S = shellCopyFor(lang);
   const n = wholeNumbers(lang);
+  const kn = kcalNumbers(lang);
   const gram = (v: number): string => fill(L.grams, { n: n(v) });
 
   // THE SERVER'S CALENDAR DAY, NOT UTC's, and not this device's either.
@@ -535,8 +536,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const ariaFor = (st: typeof s): string =>
       fill(st.label === "over" ? L.kcalOverDetail
         : st.label === "eaten" ? L.kcalEatenDetail : L.kcalLeftDetail,
-        { eaten: n(budget.eaten), plan: n(budget.target) });
-    fig.textContent = n(s.figure);
+        { eaten: kn(budget.eaten), plan: kn(budget.target) });
+    fig.textContent = kn(s.figure);
     lab.append(document.createTextNode(labelFor(s)));
     if (rich) lab.append(kitEl(iconSvg("swap", { size: 12, strokeWidth: 2.2 })));
     figs.append(fig, lab);
@@ -550,7 +551,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         const ns = kcalCardState(budget, showEaten);
         figs.classList.add("xfd");
         setTimeout(() => {
-          fig.textContent = n(ns.figure);
+          fig.textContent = kn(ns.figure);
           lab.firstChild!.textContent = labelFor(ns);
           hero.setAttribute("aria-label", ariaFor(ns));
           figs.classList.remove("xfd");

@@ -17,7 +17,7 @@ import {
   explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planHeadline,
   projectGoal, projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
-  signupCopyFor, weightDisplay, wholeNumbers, type Profile,
+  kcalNumbers, signupCopyFor, weightDisplay, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -810,7 +810,7 @@ describe("the plan reveal", () => {
     expect(html).toContain("--to:100");
     // The card's title and each row's label are the content's; every VALUE is computed.
     expect(html).toContain("Your daily plan");
-    for (const value of [n(targets.kcal), `${n(targets.protein_g)}g`, `${n(targets.carbs_g)}g`, `${n(targets.fat_g)}g`, "Mediterranean"]) {
+    for (const value of [kcalNumbers("en")(targets.kcal), `${n(targets.protein_g)}g`, `${n(targets.carbs_g)}g`, `${n(targets.fat_g)}g`, "Mediterranean"]) {
       expect(html).toContain(`<b class="num">${value}</b>`);
     }
     // The declared cap is a row of its own (the seventh), filled from the same targets.
@@ -851,7 +851,7 @@ describe("the plan", () => {
     const { targets } = explainTargets(profile);
     // GROUPED THE READER'S WAY — "1,686" in English, "1.686" in German. Every figure this product
     // writes goes through `Intl` (`lang.ts`), and the plan card was the last one that did not.
-    expect(html).toContain(wholeNumbers(profile.lang)(targets.kcal));
+    expect(html).toContain(kcalNumbers(profile.lang)(targets.kcal));
     // The plan's one way on is the sign-up screen (S8): consent and the provider buttons live
     // there, and the first meal is behind them.
     expect(html).toContain('href="/start/signup"');
@@ -871,7 +871,7 @@ describe("the plan", () => {
     const html = await (await get("/start/plan", session)).text();
     // The marker names the cap, and its note sits one tap behind — the floor's own words.
     const content = onboardingContentFor("en");
-    expect(html).toContain(content.summary.floorMarker.replace("{floor}", wholeNumbers("en")(basis.floorKcal)));
+    expect(html).toContain(content.summary.floorMarker.replace("{floor}", kcalNumbers("en")(basis.floorKcal)));
     expect(html).toContain(content.building.floorTitle);
   });
 
@@ -932,7 +932,7 @@ describe("the plan", () => {
     expect(html).toContain(chatCopyFor("en").chart.byEait);
 
     // The four figures are `explainTargets`' — a page that drifts fails on its own numbers.
-    expect(html).toContain(`<b class="num">${n(targets.kcal)}</b>`);
+    expect(html).toContain(`<b class="num">${kcalNumbers("en")(targets.kcal)}</b>`);
     expect(html).toContain(`${n(targets.protein_g)}g`);
     expect(html).toContain(`${n(targets.carbs_g)}g`);
     expect(html).toContain(`${n(targets.fat_g)}g`);

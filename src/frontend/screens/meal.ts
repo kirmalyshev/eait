@@ -20,7 +20,7 @@
 // meal" are the same answer and the same panel.
 
 import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
@@ -50,6 +50,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const uid = me?.profile.user_id ?? null;
   const zone = me?.timezone ?? "UTC";
   const n = wholeNumbers(lang);
+  const kn = kcalNumbers(lang);
   const num = numbers(lang);
 
   // THE ROUTE: `#/meal/<id>` on its own, or `#/meal/<id>?d=<YYYY-MM-DD>` — the day its row was on,
@@ -252,7 +253,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     named.append(thumb, el("span", "t13 m",
       // `phoneFixMeal` — "{name} · {kcal} · {time}", the {kcal} spelled with its unit.
       fill(mc.phoneFixMeal, {
-        name: names(meal.items), kcal: `${n(meal.kcal)}${UNIT_KCAL[lang]}`, time: mealTime(meal),
+        name: names(meal.items), kcal: `${kn(meal.kcal)}${UNIT_KCAL[lang]}`, time: mealTime(meal),
       })));
     const field = el("textarea", "fixfield") as HTMLTextAreaElement;
     field.placeholder = mc.composeHint;
@@ -330,14 +331,14 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
     // Calories, live off the item's own density; "was" keeps the figure the edit started from. An
     // item that reports no kcal draws no card — the preview has nothing to scale.
-    const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? n(item.kcal) : "");
+    const kcalNow = el("b", "d d28 num", item.kcal !== undefined ? kn(item.kcal) : "");
     let wasK: HTMLElement | null = null;
     if (item.kcal !== undefined) {
       const kcalLeft = el("div", "");
       const kcalRow = el("div", "row ingkrow");
       kcalRow.append(kitEl(ico("kcal")), kcalNow);
       kcalLeft.append(el("span", "t12 m", cc.macroLabels.kcal), kcalRow);
-      wasK = el("span", "t13 m num", fill(mc.phoneWasAmount, { amount: `${n(item.kcal)}` }));
+      wasK = el("span", "t13 m num", fill(mc.phoneWasAmount, { amount: `${kn(item.kcal)}` }));
       wasK.hidden = true;
       const kcalCard = el("div", "card row between ingkcal");
       kcalCard.append(kcalLeft, wasK);
@@ -352,7 +353,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const drawMove = (): void => {
       const preview = previewKcal(meal, index, gramsNow() ?? 0);
       mealMove.textContent = fill(mc.phoneMealMove, {
-        from: n(meal.kcal), to: n(preview?.meal ?? meal.kcal),
+        from: kn(meal.kcal), to: kn(preview?.meal ?? meal.kcal),
       });
     };
     mealRow.append(el("span", "amlab", mc.phoneThisMeal), mealMove);
@@ -374,8 +375,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       wasG.hidden = !edited;
       if (wasK !== null) wasK.hidden = !edited;
       const scaled = g === null ? null : scaledItem(item, g);
-      kcalNow.textContent = scaled?.kcal !== undefined ? n(scaled.kcal)
-        : item.kcal !== undefined ? n(item.kcal) : "";
+      kcalNow.textContent = scaled?.kcal !== undefined ? kn(scaled.kcal)
+        : item.kcal !== undefined ? kn(item.kcal) : "";
       drawMove();
     });
     drawMove();
@@ -515,7 +516,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     }
     sheet.append(kitEl(`<div class="row between"><div><b class="d d22">${esc(names(meal.items))}</b>` +
       `<div class="t13 m mmeta">${esc(meta(meal))}</div></div>` +
-      `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(n(meal.kcal))}</b></span></div>`));
+      `<span class="row kfig"><i class="ico i-kcal"></i><b class="d d28 num">${esc(kn(meal.kcal))}</b></span></div>`));
     const tiles = el("div", "mcards");
     for (const [macro, value, label] of [
       ["protein", `${n(meal.protein_g)}${spellUnit(lang, "g")}`, mc.macroProtein],
@@ -542,7 +543,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       row.type = "button";
       row.append(ingredientEl({
         name: item.name, amount: fill(mc.phoneGrams, { n: n(item.grams) }),
-        ...(item.kcal !== undefined ? { kcal: n(item.kcal) } : {}),
+        ...(item.kcal !== undefined ? { kcal: kn(item.kcal) } : {}),
       }));
       row.addEventListener("click", () => openPanel(ingredientPanel(meal, i)));
       sheet.append(row);

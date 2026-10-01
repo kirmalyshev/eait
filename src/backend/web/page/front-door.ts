@@ -1,5 +1,5 @@
 import type { Lang, OnboardingWelcomeContent } from "@eait/shared";
-import { fill, wholeNumbers } from "@eait/shared";
+import { fill, kcalNumbers } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
 import { ctaLink, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
@@ -26,7 +26,7 @@ export function frontDoor(
   lang: Lang,
 ): string {
   const PAGE_COPY = pageCopyFor(lang);
-  const alt = escape(fill(PAGE_COPY.welcomeDemoAlt, { kcal: wholeNumbers(lang)(WELCOME_DEMO_KCAL) }));
+  const alt = escape(fill(PAGE_COPY.welcomeDemoAlt, { kcal: kcalNumbers(lang)(WELCOME_DEMO_KCAL) }));
   return shell(PAGE_COPY.titleStart, `
 ${wtop()}
 <div class="wcenter"><div class="wdemo">
