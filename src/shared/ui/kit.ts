@@ -211,7 +211,7 @@ export const verdictList = (items: readonly { tone: VerdictTone; words: string }
 export type TipTone = "protein" | "carbs" | "satfat" | "over";
 
 export const tip = (o: { tone: TipTone; title: string; body: string }): string =>
-  `<div class="mtip t-${o.tone}${o.tone === "over" ? " ov" : ""}" role="tooltip">` +
+  `<div class="mtip t-${esc(o.tone)}${o.tone === "over" ? " ov" : ""}" role="tooltip">` +
   `<b><i></i>${esc(o.title)}</b><p>${esc(o.body)}</p></div>`;
 
 // ── The health score ─────────────────────────────────────────────────────────────────────────

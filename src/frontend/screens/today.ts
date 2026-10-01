@@ -750,7 +750,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     for (const meal of day.meals) {
       if (meal.healthScore === null) continue;
       const row = el("a", "hsp") as HTMLAnchorElement;
-      row.href = `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`;
+      row.href = `#/meal/${encodeURIComponent(meal.id)}?d=${encodeURIComponent(viewing)}`;
       const name = el("span", "");
       name.append(document.createTextNode(names(meal.items)), el("small", "", kcal(meal.kcal)));
       const pts = el("span", "pts", fill(SC.outOf, { n: n(meal.healthScore.score) }));
@@ -946,7 +946,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
       compact,
-      href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
+      href: `#/meal/${encodeURIComponent(meal.id)}?d=${encodeURIComponent(viewing)}`,
     });
     // The photo rides behind the bearer — `apiBlob`'s bytes through `blobSrc`, a data URL: the
     // one `src` form `img-src 'self' data:` permits.
