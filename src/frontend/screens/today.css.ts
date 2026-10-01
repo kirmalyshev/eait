@@ -184,8 +184,7 @@ a.hsp { color: inherit; text-decoration: none; }
 .dlist .qact button + button { color: var(--muted); }
 .qpill { display: inline-block; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-tint); border-radius: 999px; padding: 3px 9px; text-decoration: none; }
 .qkc { width: 44px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-/* The landing move (#1354): the row grows in — the meals below slide down — while the fixed flyer
-   carries the chosen image into its thumbnail (the 350 ms flight is a Web Animations call). */
+/* The landing move (#1354): the row grows in while the fixed flyer carries the image into its thumbnail. */
 .meal.q.qnew { overflow: hidden; animation: k-qnew .22s var(--ease) both; }
 @keyframes k-qnew { from { max-height: 0; padding-top: 0; padding-bottom: 0; filter: opacity(0); }
   to { max-height: 120px; } }

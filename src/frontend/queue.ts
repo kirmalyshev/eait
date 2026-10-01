@@ -28,8 +28,7 @@ interface Job {
   words: string | null;
   mealId: string | null;
   kcal: number | null;
-  // Set while the landing move (#1354) is owed to this row: the row's photo stays hidden until the
-  // chosen image has flown from `flyFrom` into the thumbnail slot. Cleared when the flight lands.
+  // Landing move owed to this row (#1354): its photo stays hidden until the flyer lands.
   flyFrom: FlyAt | null;
 }
 
@@ -51,8 +50,7 @@ const dataUrl = (file: File): Promise<string> => new Promise((resolve, reject) =
   r.readAsDataURL(file);
 });
 
-/** Photos (angles of one meal) join the queue; the caller lands the person on Home. `from` is where
- *  the chosen image flies in from (#1354's landing move) — omit it and the row simply arrives. */
+/** Photos (angles of one meal) join the queue; `from` is where the image flies in from, omitted = the row just arrives. */
 export async function enqueue(files: File[], from?: FlyFrom): Promise<void> {
   const photos = await shrinkPhotos(files.filter((f) => f.type.startsWith("image/")));
   if (photos.length === 0) return;
@@ -180,20 +178,16 @@ const skeleton = (w: string, h: string): HTMLElement => {
   return s;
 };
 
-// Jobs whose chosen image is mid-flight into the row's slot — a redraw while it travels starts
-// no second flyer; the new row keeps the photo hidden until the one in the air lands.
+// Jobs with a flyer in the air: a redraw starts no second one.
 const flying = new Set<Job>();
 const flyers = new Map<Job, Animation>();
 
-/** The landing move (#1354): the chosen image travels from where it was picked into the new row's
- *  56px thumbnail — one move, ~350 ms, the app's ease. Reduce Motion: the row is simply there. */
+/** The landing move (#1354): the chosen image flies into the row's 56px thumbnail in 350 ms; Reduce Motion skips it. */
 function fly(job: Job, box: HTMLElement): void {
   const from = job.flyFrom!;
   const end = () => { job.flyFrom = null; flying.delete(job); flyers.delete(job); changed(); };
   if (matchMedia("(prefers-reduced-motion: reduce)").matches || Date.now() - from.at > 900) { end(); return; }
-  // The slot is measured once the column has scrolled the top of Recent into view, the way Home
-  // scrolls first on the phone. The box may not be mounted yet (a redraw builds it detached), so
-  // the poll waits a few frames rather than assuming.
+  // Poll a few frames for the slot: a redraw builds the box detached.
   let tries = 0;
   const place = (): void => {
     const i = jobs.indexOf(job);
@@ -227,8 +221,7 @@ function fly(job: Job, box: HTMLElement): void {
 
 function rowEl(job: Job): HTMLElement {
   const Q = homeCopyFor(lang).queue;
-  // The landing row arrives `qnew` (the list slides down for it, 220 ms) with its photo hidden until
-  // the flyer lands; any other row keeps the shared `rise`.
+  // The landing row arrives `qnew`, photo hidden until the flyer lands; any other row keeps `rise`.
   const row = el("div", `meal q ${job.flyFrom ? "qnew" : "rise"}`);
   const th = el("div", "qth");
   const img = document.createElement("img");
@@ -307,8 +300,7 @@ export function queueEl(): HTMLElement {
   const draw = () => {
     if (!box.isConnected && box.childElementCount > 0) { views.delete(draw); return; }
     box.replaceChildren(...jobs.map(rowEl));
-    // A job still owed its landing move starts it here, where its row's slot now exists — possibly
-    // a screen or a redraw after the enqueue that asked for it.
+    // A job still owed its landing move starts it here, where its slot now exists.
     for (const j of jobs) {
       if (j.flyFrom !== null && !flying.has(j)) { flying.add(j); fly(j, box); }
     }
