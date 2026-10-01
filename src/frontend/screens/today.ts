@@ -18,7 +18,7 @@ import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { ringDash } from "../../shared/ui/charts.ts";
 import { iconSvg, type IconName } from "../../shared/ui/icons.ts";
-import { ico, tagx, tip, weekStrip, type WeekDayRow } from "../../shared/ui/kit.ts";
+import { ico, tagx, weekStrip, type WeekDayRow } from "../../shared/ui/kit.ts";
 import type { MealRecord } from "@eait/shared";
 import type {
   DayResponse, DaysResponse, PendingMealsResponse, ProfileResponse,
@@ -361,20 +361,37 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   // ── The macro tip ───────────────────────────────────────────────────────────────────────
   //
-  // The boards' `.mtip` — a hovered, focused or tapped protein/carbs/sat-fat row's callout,
-  // floating over the card inside `.dayw`, its arrow under the row's icon. One at a time:
-  // pointer-leave, Escape, a page pan, a column scroll or an outside tap closes it.
+  // The boards' `.tipa` — a tapped protein/carbs/sat-fat row's inline panel, inside the row
+  // under its bar, never over the hero; the rows below, the dots and the card foot move down.
+  // One at a time: the same row again, Escape, a page pan, a column scroll or an outside tap
+  // closes it; another row switches. Hover never opens it — a layout that jumps under the
+  // pointer. `.rows.open` drops the fixed height for an explicit gap so the closed rows keep
+  // the spacing `space-between` dealt them.
 
   let tipEl: HTMLElement | null = null;
   let tipRow: HTMLButtonElement | null = null;
   const closeTip = (): void => {
-    tipRow?.removeAttribute("aria-describedby");
-    tipRow?.classList.remove("hover");
-    tipEl?.remove();
+    const el_ = tipEl;
+    const row = tipRow;
     tipEl = null;
     tipRow = null;
+    if (el_ === null || row === null) return;
+    row.removeAttribute("aria-describedby");
+    row.setAttribute("aria-expanded", "false");
+    const rows = row.parentElement as HTMLElement | null;
+    const finish = (): void => {
+      el_.remove();
+      row.classList.remove("open");
+      if (rows !== null && (tipEl === null || !rows.contains(tipEl))) {
+        rows.classList.remove("open");
+        rows.style.gap = "";
+      }
+    };
+    if (reducedMotion) { finish(); return; }
+    el_.classList.remove("on");
+    setTimeout(finish, 220);
   };
-  /** A tap anywhere else closes an open tip (the row's own pointer-leave does the rest). */
+  /** A tap anywhere else closes an open tip. */
   const onDown = (e: PointerEvent): void => {
     if (!wrap.isConnected) {
       document.removeEventListener("pointerdown", onDown, true);
@@ -387,36 +404,42 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   document.addEventListener("pointerdown", onDown, true);
   frame.side.addEventListener("scroll", closeTip, { passive: true });
 
-  /** The bubble over a tippable row — `share` is eaten÷target RAW so the tip's branch and the
-   *  row's `.ov` read the same answer. The copy is shared `macroTip`'s, all eight languages. */
-  const wireTip = (row: HTMLButtonElement, kind: MacroTipKind, share: number, grams: string): void => {
-    const open = (): void => {
-      if (tipRow === row) return;
+  /** The inline panel under a tippable row's bar — `share` is eaten÷target RAW so the tip's
+   *  branch and the row's `.ov` read the same answer. The copy is shared `macroTip`'s. */
+  const wireTip = (row: HTMLButtonElement, kind: MacroTipKind, share: number): void => {
+    row.setAttribute("aria-expanded", "false");
+    row.addEventListener("click", () => {
+      if (tipRow === row) { closeTip(); return; }
       closeTip();
-      const t = macroTip(kind, share, grams, lang);
-      tipEl = kitEl(tip({ tone: share > 1 ? "over" : kind, title: t.title, body: t.body })) as HTMLElement;
-      tipEl.id = "mtip-live";
+      const tipa = el("span", `tipa${share > 1 ? " ov" : ""}`);
+      tipa.style.setProperty("--t", `var(--macro-${share > 1 ? "kcal" : kind === "satfat" ? "fat" : kind}-t)`);
+      tipa.setAttribute("aria-hidden", "true");
+      const inner = el("span", "tipa-i");
+      const c = el("span", "tipa-c", macroTip(kind, share, lang));
+      c.id = "mtip-live";
+      inner.append(c);
+      tipa.append(inner);
+      row.append(tipa);
+      tipEl = tipa;
       tipRow = row;
       row.setAttribute("aria-describedby", "mtip-live");
-      row.classList.add("hover");
-      const box = row.closest(".dayw") as HTMLElement;
-      box.append(tipEl);
-      const wr = box.getBoundingClientRect();
-      tipEl.style.left = "4px";
-      tipEl.style.bottom = `${Math.round(wr.bottom - row.getBoundingClientRect().top + 10)}px`;
-      const ic = row.querySelector(".ico")!.getBoundingClientRect();
-      tipEl.style.setProperty("--ax", `${Math.round(ic.left + ic.width / 2 - wr.left - 10)}px`);
-    };
-    row.addEventListener("pointerenter", open);
-    row.addEventListener("focus", open);
-    row.addEventListener("click", open);
-    row.addEventListener("pointerleave", () => { if (tipRow === row) closeTip(); });
-    row.addEventListener("blur", () => { if (tipRow === row) closeTip(); });
+      row.setAttribute("aria-expanded", "true");
+      row.classList.add("open");
+      const rows = row.parentElement as HTMLElement;
+      if (!rows.classList.contains("open")) {
+        const kids = [...rows.children] as HTMLElement[];
+        const free = rows.clientHeight - kids.reduce((s, k) => s + k.offsetHeight, 0);
+        rows.style.gap = `${Math.max(0, free / Math.max(1, kids.length - 1))}px`;
+        rows.classList.add("open");
+      }
+      if (reducedMotion) tipa.classList.add("on");
+      else requestAnimationFrame(() => requestAnimationFrame(() => tipa.classList.add("on")));
+    });
   };
 
   // ── The day card (F) ────────────────────────────────────────────────────────────────────
   //
-  // ONE card — `.dayc` inside `.dayw` (the tip's positioning box): the 128 px hero (kcal on
+  // ONE card — `.dayc` inside `.dayw`: the 128 px hero (kcal on
   // page 1, the day score on page 2), the hairline, the bar rows, the dots inside. Both pages
   // stay mounted in `.dtrack`; the card's own overflow is the clip and its height never
   // changes — the switching and failed reads draw the same card dashed.
@@ -465,7 +488,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       bar.append(i);
       row.append(bar);
       if (o.tipKind !== undefined) {
-        wireTip(row as HTMLButtonElement, o.tipKind, o.share, o.grams);
+        wireTip(row as HTMLButtonElement, o.tipKind, o.share);
       }
     }
     return row;

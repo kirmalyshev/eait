@@ -21,13 +21,7 @@
 import { fill, t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 
-/** One tip branch's two lines — the Callout's title and its second line (F, ieat-app#1291). */
-export interface MacroTipLine {
-  /** The Callout's first line — "Protein: {g} to go". `{g}` is the row's own figure. */
-  title: string;
-  /** What the number means for the rest of today. */
-  body: string;
-}
+
 
 /** A macro with a target — the card carries left/over/ofTarget labels. */
 export interface HomeTargetMacroCopy {
@@ -122,12 +116,12 @@ export interface HomeCopy {
   };
   /** The meal list's title — `today.html` "Recent", both clients. */
   recentlyUploaded: string;
-  /** The macro tips (F, ieat-app#1291): a tapped protein/carbs/sat-fat row's Callout — the state
-   * line, then what to eat or skip for the rest of today. `{g}` takes the row's own figure. */
+  /** The macro tips (F, ieat-app#1291): a tapped protein/carbs/sat-fat row's inline panel —
+   * what to eat or skip for the rest of today, one sentence per state. */
   tips: {
-    protein: { togo: MacroTipLine; reached: MacroTipLine; over: MacroTipLine };
-    carbs: { left: MacroTipLine; over: MacroTipLine };
-    satfat: { left: MacroTipLine; over: MacroTipLine };
+    protein: { togo: string; reached: string; over: string };
+    carbs: { left: string; over: string };
+    satfat: { left: string; over: string };
   };
   /** The empty day — the dashed card's line beside Spud, both clients. */
   nothingLogged: string;
@@ -210,17 +204,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Protein: {g} to go", body: "Add a protein source to your next meal: eggs, Greek yogurt, cottage cheese, chicken, fish, tofu or lentils." },
-        reached: { title: "Protein: target reached", body: "That's today's protein. Anything more is optional." },
-        over: { title: "Protein: over for today", body: "You've had enough protein today. Skip extra meat, fish, eggs and protein shakes until tomorrow." },
+        togo: "Add a protein source to your next meal: eggs, Greek yogurt, cottage cheese, chicken, fish, tofu or lentils.",
+        reached: "That's today's protein. Anything more is optional.",
+        over: "You've had enough protein today. Skip extra meat, fish, eggs and protein shakes until tomorrow.",
       },
       carbs: {
-        left: { title: "Carbs: {g} left", body: "There's room for a small portion of bread, rice, pasta or fruit today." },
-        over: { title: "Carbs: {g} over", body: "Limit carbs for the rest of today. Go easy on bread, rice, pasta, sweets and sweet drinks." },
+        left: "There's room for a small portion of bread, rice, pasta or fruit today.",
+        over: "Limit carbs for the rest of today. Go easy on bread, rice, pasta, sweets and sweet drinks.",
       },
       satfat: {
-        left: { title: "Sat fat: {g} left", body: "You're close to today's limit. Pick lean meat, fish or plant-based options." },
-        over: { title: "Sat fat: {g} over the limit", body: "Limit butter, cheese, fatty meat, pastry and fried food for the rest of today." },
+        left: "You're close to today's limit. Pick lean meat, fish or plant-based options.",
+        over: "Limit butter, cheese, fatty meat, pastry and fried food for the rest of today.",
       },
     },
     recentlyUploaded: "Recent",
@@ -273,17 +267,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Protéines : encore {g}", body: "Ajoute une source de protéines à ton prochain repas : œufs, yaourt grec, fromage blanc, poulet, poisson, tofu ou lentilles." },
-        reached: { title: "Protéines : objectif atteint", body: "C'est ta protéine du jour. Tout supplément est facultatif." },
-        over: { title: "Protéines : dépassé pour aujourd'hui", body: "Tu as eu assez de protéines aujourd'hui. Laisse de côté la viande, le poisson, les œufs et les shakes protéinés en plus jusqu'à demain." },
+        togo: "Ajoute une source de protéines à ton prochain repas : œufs, yaourt grec, fromage blanc, poulet, poisson, tofu ou lentilles.",
+        reached: "C'est ta protéine du jour. Tout supplément est facultatif.",
+        over: "Tu as eu assez de protéines aujourd'hui. Laisse de côté la viande, le poisson, les œufs et les shakes protéinés en plus jusqu'à demain.",
       },
       carbs: {
-        left: { title: "Glucides : encore {g}", body: "Il y a de la place pour une petite portion de pain, de riz, de pâtes ou de fruit aujourd'hui." },
-        over: { title: "Glucides : {g} en trop", body: "Limite les glucides pour le reste de la journée. Va doucement sur le pain, le riz, les pâtes, les sucreries et les boissons sucrées." },
+        left: "Il y a de la place pour une petite portion de pain, de riz, de pâtes ou de fruit aujourd'hui.",
+        over: "Limite les glucides pour le reste de la journée. Va doucement sur le pain, le riz, les pâtes, les sucreries et les boissons sucrées.",
       },
       satfat: {
-        left: { title: "Graisses sat. : encore {g}", body: "Tu approches de la limite du jour. Choisis de la viande maigre, du poisson ou des options végétales." },
-        over: { title: "Graisses sat. : {g} au-delà de la limite", body: "Limite le beurre, le fromage, la viande grasse, les viennoiseries et les fritures pour le reste de la journée." },
+        left: "Tu approches de la limite du jour. Choisis de la viande maigre, du poisson ou des options végétales.",
+        over: "Limite le beurre, le fromage, la viande grasse, les viennoiseries et les fritures pour le reste de la journée.",
       },
     },
     recentlyUploaded: "Récents",
@@ -336,17 +330,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Eiweiß: noch {g}", body: "Bau eine Eiweißquelle in deine nächste Mahlzeit ein: Eier, griechischen Joghurt, Hüttenkäse, Hähnchen, Fisch, Tofu oder Linsen." },
-        reached: { title: "Eiweiß: Ziel erreicht", body: "Das ist dein Eiweiß für heute. Alles darüber ist optional." },
-        over: { title: "Eiweiß: zu viel für heute", body: "Du hattest heute genug Eiweiß. Lass extra Fleisch, Fisch, Eier und Proteinshakes bis morgen weg." },
+        togo: "Bau eine Eiweißquelle in deine nächste Mahlzeit ein: Eier, griechischen Joghurt, Hüttenkäse, Hähnchen, Fisch, Tofu oder Linsen.",
+        reached: "Das ist dein Eiweiß für heute. Alles darüber ist optional.",
+        over: "Du hattest heute genug Eiweiß. Lass extra Fleisch, Fisch, Eier und Proteinshakes bis morgen weg.",
       },
       carbs: {
-        left: { title: "Kohlenhydrate: noch {g}", body: "Heute ist Platz für eine kleine Portion Brot, Reis, Nudeln oder Obst." },
-        over: { title: "Kohlenhydrate: {g} zu viel", body: "Begrenze Kohlenhydrate für den Rest des Tages. Geh ruhig an Brot, Reis, Nudeln, Süßes und süße Getränke ran." },
+        left: "Heute ist Platz für eine kleine Portion Brot, Reis, Nudeln oder Obst.",
+        over: "Begrenze Kohlenhydrate für den Rest des Tages. Geh ruhig an Brot, Reis, Nudeln, Süßes und süße Getränke ran.",
       },
       satfat: {
-        left: { title: "Ges. Fette: noch {g}", body: "Du bist nah am heutigen Limit. Nimm mageres Fleisch, Fisch oder pflanzliche Optionen." },
-        over: { title: "Ges. Fette: {g} über dem Limit", body: "Begrenze Butter, Käse, fettes Fleisch, Gebäck und Frittiertes für den Rest des Tages." },
+        left: "Du bist nah am heutigen Limit. Nimm mageres Fleisch, Fisch oder pflanzliche Optionen.",
+        over: "Begrenze Butter, Käse, fettes Fleisch, Gebäck und Frittiertes für den Rest des Tages.",
       },
     },
     recentlyUploaded: "Zuletzt",
@@ -399,17 +393,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Proteine: ancora {g}", body: "Aggiungi una fonte di proteine al prossimo pasto: uova, yogurt greco, fiocchi di latte, pollo, pesce, tofu o lenticchie." },
-        reached: { title: "Proteine: obiettivo raggiunto", body: "Queste sono le proteine di oggi. Il resto è facoltativo." },
-        over: { title: "Proteine: oltre per oggi", body: "Hai avuto abbastanza proteine oggi. Salta carne, pesce, uova e frullati proteici in più fino a domani." },
+        togo: "Aggiungi una fonte di proteine al prossimo pasto: uova, yogurt greco, fiocchi di latte, pollo, pesce, tofu o lenticchie.",
+        reached: "Queste sono le proteine di oggi. Il resto è facoltativo.",
+        over: "Hai avuto abbastanza proteine oggi. Salta carne, pesce, uova e frullati proteici in più fino a domani.",
       },
       carbs: {
-        left: { title: "Carboidrati: ancora {g}", body: "C'è spazio per una piccola porzione di pane, riso, pasta o frutta oggi." },
-        over: { title: "Carboidrati: {g} in più", body: "Limita i carboidrati per il resto della giornata. Vacci piano con pane, riso, pasta, dolci e bevande zuccherate." },
+        left: "C'è spazio per una piccola porzione di pane, riso, pasta o frutta oggi.",
+        over: "Limita i carboidrati per il resto della giornata. Vacci piano con pane, riso, pasta, dolci e bevande zuccherate.",
       },
       satfat: {
-        left: { title: "Grassi sat.: ancora {g}", body: "Sei vicino al limite di oggi. Scegli carne magra, pesce o opzioni vegetali." },
-        over: { title: "Grassi sat.: {g} oltre il limite", body: "Limita burro, formaggio, carne grassa, prodotti da forno e fritti per il resto della giornata." },
+        left: "Sei vicino al limite di oggi. Scegli carne magra, pesce o opzioni vegetali.",
+        over: "Limita burro, formaggio, carne grassa, prodotti da forno e fritti per il resto della giornata.",
       },
     },
     recentlyUploaded: "Recenti",
@@ -462,17 +456,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Proteína: quedan {g}", body: "Añade una fuente de proteína a tu próxima comida: huevos, yogur griego, queso cottage, pollo, pescado, tofu o lentejas." },
-        reached: { title: "Proteína: objetivo alcanzado", body: "Esa es la proteína de hoy. Todo lo demás es opcional." },
-        over: { title: "Proteína: de más para hoy", body: "Ya has tomado suficiente proteína hoy. Deja la carne, el pescado, los huevos y los batidos de proteína extra hasta mañana." },
+        togo: "Añade una fuente de proteína a tu próxima comida: huevos, yogur griego, queso cottage, pollo, pescado, tofu o lentejas.",
+        reached: "Esa es la proteína de hoy. Todo lo demás es opcional.",
+        over: "Ya has tomado suficiente proteína hoy. Deja la carne, el pescado, los huevos y los batidos de proteína extra hasta mañana.",
       },
       carbs: {
-        left: { title: "Carbohidratos: quedan {g}", body: "Hoy hay espacio para una porción pequeña de pan, arroz, pasta o fruta." },
-        over: { title: "Carbohidratos: {g} de más", body: "Limita los carbohidratos el resto del día. Ve con cuidado con el pan, el arroz, la pasta, los dulces y las bebidas azucaradas." },
+        left: "Hoy hay espacio para una porción pequeña de pan, arroz, pasta o fruta.",
+        over: "Limita los carbohidratos el resto del día. Ve con cuidado con el pan, el arroz, la pasta, los dulces y las bebidas azucaradas.",
       },
       satfat: {
-        left: { title: "Grasas sat.: quedan {g}", body: "Estás cerca del límite de hoy. Elige carne magra, pescado u opciones vegetales." },
-        over: { title: "Grasas sat.: {g} por encima del límite", body: "Limita la mantequilla, el queso, la carne grasa, la bollería y los fritos el resto del día." },
+        left: "Estás cerca del límite de hoy. Elige carne magra, pescado u opciones vegetales.",
+        over: "Limita la mantequilla, el queso, la carne grasa, la bollería y los fritos el resto del día.",
       },
     },
     recentlyUploaded: "Recientes",
@@ -525,17 +519,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Đạm: còn {g}", body: "Thêm một nguồn đạm vào bữa kế tiếp: trứng, sữa chua Hy Lạp, phô mai tươi, thịt gà, cá, đậu phụ hoặc đậu lăng." },
-        reached: { title: "Đạm: đã đủ mục tiêu", body: "Đó là lượng đạm của hôm nay. Thêm nữa là tuỳ bạn." },
-        over: { title: "Đạm: vượt trong hôm nay", body: "Hôm nay bạn đã đủ đạm. Tạm bỏ thêm thịt, cá, trứng và sinh tố đạm tới ngày mai." },
+        togo: "Thêm một nguồn đạm vào bữa kế tiếp: trứng, sữa chua Hy Lạp, phô mai tươi, thịt gà, cá, đậu phụ hoặc đậu lăng.",
+        reached: "Đó là lượng đạm của hôm nay. Thêm nữa là tuỳ bạn.",
+        over: "Hôm nay bạn đã đủ đạm. Tạm bỏ thêm thịt, cá, trứng và sinh tố đạm tới ngày mai.",
       },
       carbs: {
-        left: { title: "Bột đường: còn {g}", body: "Hôm nay vẫn còn chỗ cho một phần nhỏ bánh mì, cơm, mì hoặc trái cây." },
-        over: { title: "Bột đường: vượt {g}", body: "Hạn chế bột đường cho phần còn lại của hôm nay. Đi nhẹ với bánh mì, cơm, mì, đồ ngọt và nước ngọt." },
+        left: "Hôm nay vẫn còn chỗ cho một phần nhỏ bánh mì, cơm, mì hoặc trái cây.",
+        over: "Hạn chế bột đường cho phần còn lại của hôm nay. Đi nhẹ với bánh mì, cơm, mì, đồ ngọt và nước ngọt.",
       },
       satfat: {
-        left: { title: "Béo bão hoà: còn {g}", body: "Bạn đang gần giới hạn của hôm nay. Chọn thịt nạc, cá hoặc món từ thực vật." },
-        over: { title: "Béo bão hoà: vượt giới hạn {g}", body: "Hạn chế bơ, phô mai, thịt mỡ, bánh ngọt và đồ chiên cho phần còn lại của hôm nay." },
+        left: "Bạn đang gần giới hạn của hôm nay. Chọn thịt nạc, cá hoặc món từ thực vật.",
+        over: "Hạn chế bơ, phô mai, thịt mỡ, bánh ngọt và đồ chiên cho phần còn lại của hôm nay.",
       },
     },
     recentlyUploaded: "Gần đây",
@@ -588,17 +582,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Protein: kurang {g}", body: "Tambahkan sumber protein ke santapan berikutnya: telur, yogurt Yunani, keju cottage, ayam, ikan, tahu, atau lentil." },
-        reached: { title: "Protein: target tercapai", body: "Itu proteinmu untuk hari ini. Lebih dari itu opsional." },
-        over: { title: "Protein: berlebih untuk hari ini", body: "Proteinmu hari ini sudah cukup. Lewati daging, ikan, telur, dan shake protein ekstra sampai besok." },
+        togo: "Tambahkan sumber protein ke santapan berikutnya: telur, yogurt Yunani, keju cottage, ayam, ikan, tahu, atau lentil.",
+        reached: "Itu proteinmu untuk hari ini. Lebih dari itu opsional.",
+        over: "Proteinmu hari ini sudah cukup. Lewati daging, ikan, telur, dan shake protein ekstra sampai besok.",
       },
       carbs: {
-        left: { title: "Karbohidrat: sisa {g}", body: "Masih ada ruang untuk porsi kecil roti, nasi, pasta, atau buah hari ini." },
-        over: { title: "Karbohidrat: {g} berlebih", body: "Batasi karbohidrat untuk sisa hari ini. Pelankan roti, nasi, pasta, makanan manis, dan minuman manis." },
+        left: "Masih ada ruang untuk porsi kecil roti, nasi, pasta, atau buah hari ini.",
+        over: "Batasi karbohidrat untuk sisa hari ini. Pelankan roti, nasi, pasta, makanan manis, dan minuman manis.",
       },
       satfat: {
-        left: { title: "Lemak jenuh: sisa {g}", body: "Kamu mendekati batas hari ini. Pilih daging tanpa lemak, ikan, atau pilihan nabati." },
-        over: { title: "Lemak jenuh: {g} di atas batas", body: "Batasi mentega, keju, daging berlemak, kue kering, dan gorengan untuk sisa hari ini." },
+        left: "Kamu mendekati batas hari ini. Pilih daging tanpa lemak, ikan, atau pilihan nabati.",
+        over: "Batasi mentega, keju, daging berlemak, kue kering, dan gorengan untuk sisa hari ini.",
       },
     },
     recentlyUploaded: "Terbaru",
@@ -651,17 +645,17 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: { title: "Белок: осталось {g}", body: "Добавь источник белка к следующему приёму пищи: яйца, греческий йогурт, творог, курицу, рыбу, тофу или чечевицу." },
-        reached: { title: "Белок: норма достигнута", body: "Это белок на сегодня. Больше — по желанию." },
-        over: { title: "Белок: больше нормы на сегодня", body: "Белка сегодня уже достаточно. Пропусти лишнее мясо, рыбу, яйца и протеиновые коктейли до завтра." },
+        togo: "Добавь источник белка к следующему приёму пищи: яйца, греческий йогурт, творог, курицу, рыбу, тофу или чечевицу.",
+        reached: "Это белок на сегодня. Больше — по желанию.",
+        over: "Белка сегодня уже достаточно. Пропусти лишнее мясо, рыбу, яйца и протеиновые коктейли до завтра.",
       },
       carbs: {
-        left: { title: "Углеводы: осталось {g}", body: "Сегодня есть место для небольшой порции хлеба, риса, макарон или фруктов." },
-        over: { title: "Углеводы: {g} сверх", body: "Ограничь углеводы до конца дня. Полегче с хлебом, рисом, макаронами, сладостями и сладкими напитками." },
+        left: "Сегодня есть место для небольшой порции хлеба, риса, макарон или фруктов.",
+        over: "Ограничь углеводы до конца дня. Полегче с хлебом, рисом, макаронами, сладостями и сладкими напитками.",
       },
       satfat: {
-        left: { title: "Нас. жиры: осталось {g}", body: "Предел на сегодня близко. Выбирай нежирное мясо, рыбу или растительные блюда." },
-        over: { title: "Нас. жиры: {g} сверх предела", body: "Ограничь сливочное масло, сыр, жирное мясо, выпечку и жареное до конца дня." },
+        left: "Предел на сегодня близко. Выбирай нежирное мясо, рыбу или растительные блюда.",
+        over: "Ограничь сливочное масло, сыр, жирное мясо, выпечку и жареное до конца дня.",
       },
     },
     recentlyUploaded: "Недавние",
@@ -686,32 +680,22 @@ export const HOME_COPY: Localized<HomeCopy> = {
 export const homeCopyFor = (lang: Lang): HomeCopy => t(lang)(HOME_COPY);
 
 // ── The macro tips (F, ieat-app#1291) ──────────────────────────────────────────────────────────
-// A tap on the protein, carbs or sat fat row opens the Callout: the row's state in one line,
-// then what to eat or skip for the rest of today. Advice for today only, no health claims.
+// A tap on the protein, carbs or sat fat row opens the inline panel under its bar: what to eat
+// or skip for the rest of today, the sentence alone. Advice for today only, no health claims.
 
 export type MacroTipKind = "protein" | "carbs" | "satfat";
 
-export interface MacroTip {
-  /** The Callout's first line — "Protein: 55g to go". */
-  title: string;
-  /** The Callout's second line — what the number means for the rest of today. */
-  body: string;
-}
-
 /**
  * The words a macro row's tip speaks, once for phone and web (F, ieat-app#1291). `share` is the
- * day's eaten÷target — `> 1` is the over branch — and `grams` the row's OWN figure already
- * formatted by the caller ("55g"), so the shared layer holds words and the client holds numbers.
- * Protein names three states (to go, reached, over); carbs and sat fat two (left, over). The `over`
- * colour is the caller's `share > 1` — the same compare it already made for the row.
+ * day's eaten÷target — `> 1` is the over branch. Protein names three states (to go, reached,
+ * over); carbs and sat fat two (left, over). The `over` colour is the caller's `share > 1` —
+ * the same compare it already made for the row.
  */
-export function macroTip(kind: MacroTipKind, share: number, grams: string, lang: Lang): MacroTip {
+export function macroTip(kind: MacroTipKind, share: number, lang: Lang): string {
   const { tips } = homeCopyFor(lang);
-  const branch =
-    kind === "protein"
-      ? share > 1 ? tips.protein.over : share >= 1 ? tips.protein.reached : tips.protein.togo
-      : kind === "carbs"
-        ? share > 1 ? tips.carbs.over : tips.carbs.left
-        : share > 1 ? tips.satfat.over : tips.satfat.left;
-  return { title: fill(branch.title, { g: grams }), body: branch.body };
+  return kind === "protein"
+    ? share > 1 ? tips.protein.over : share >= 1 ? tips.protein.reached : tips.protein.togo
+    : kind === "carbs"
+      ? share > 1 ? tips.carbs.over : tips.carbs.left
+      : share > 1 ? tips.satfat.over : tips.satfat.left;
 }
