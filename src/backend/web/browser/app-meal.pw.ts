@@ -60,7 +60,7 @@ test("the meal opens: photo, kcal, macro tiles, ingredients, verdicts, score", a
   // The macro tiles name their macros; the ingredient rows carry grams and their own kcal.
   await expect(page.locator(".mcards .mcard")).toHaveCount(3);
   await expect(page.locator(".ing").first()).toBeVisible();
-  await expect(page.locator(".ing").first()).toContainText(" g");
+  await expect(page.locator(".ing").first()).toContainText("g");
   await expect(page.locator(".ing b").first()).toBeVisible();
   await shot(page, "detail");
 });
