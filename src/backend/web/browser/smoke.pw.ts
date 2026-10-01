@@ -23,7 +23,7 @@ test("a person signs in, answers the questions, and reaches their plan", async (
   await expect(page.locator(".pgraph")).toContainText(projectionMonth(new Date(), projection.weeks, "en"));
   const day = page.locator(".mcard", { hasText: "Saturated fat" });
   await expect(day.getByText("Saturated fat")).toBeVisible();
-  await expect(day.getByText(`${wholeNumbers("en")(targets.satfat_g!)} g`)).toBeVisible();
+  await expect(day.getByText(`${wholeNumbers("en")(targets.satfat_g!)}g`)).toBeVisible();
 
   // The plan's one way on is the sign-up (S8): the consent screen, not a meal and not a chat —
   // and THIS account already signed in, so the sign-up bounces it straight to the next step.

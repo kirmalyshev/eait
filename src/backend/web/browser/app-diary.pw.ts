@@ -207,14 +207,14 @@ test("a macro under its target reads 'left', over its cap reads 'over' — ringe
   // draw is up: `proteinTarget` is the handler's own read of the answer it edited.
   const protein = page.locator(".mrow", { hasText: "protein" });
   await expect(protein.locator("b")).toBeVisible();
-  await expect(protein.locator("b")).toHaveText(`${n("en-GB")(Math.round(proteinTarget) - 10)} g left`);
+  await expect(protein.locator("b")).toHaveText(`${n("en-GB")(Math.round(proteinTarget) - 10)}g left`);
   await expect(protein.locator(".bar i")).toHaveAttribute("style", /var\(--macro-protein\)/);
 
   // Page 2 — saturated fat, fibre, sugar, sodium — sits behind the second dot. Sat fat past its
   // cap reads "over" and fills ink, the row's over state.
   await page.getByRole("button", { name: "Page 2 of 2" }).click();
   const satfat = page.locator(".mrow.ov", { hasText: "sat fat" });
-  await expect(satfat.locator("b")).toHaveText("10 g over"); // the overage, not the total
+  await expect(satfat.locator("b")).toHaveText("10g over"); // the overage, not the total
   await expect(satfat.locator(".bar i")).toHaveAttribute("style", /var\(--ink\)/);
 });
 
@@ -231,9 +231,9 @@ test("a macro past its target reads 'over', under a cap reads 'left' — and no 
   await page.goto("/#/");
   await page.reload();
   const protein = page.locator(".mrow.ov", { hasText: "protein" });
-  await expect(protein.locator("b")).toHaveText(/ g over$/);
+  await expect(protein.locator("b")).toHaveText(/g over$/);
   await page.getByRole("button", { name: "Page 2 of 2" }).click();
-  await expect(page.locator(".mrow", { hasText: "sat fat" }).locator("b")).toHaveText("35 g left");
+  await expect(page.locator(".mrow", { hasText: "sat fat" }).locator("b")).toHaveText("35g left");
   // The phone's "Tap a meal to check or fix the numbers" line never existed here, and stays absent.
   await expect(page.getByText(/tap a meal/i)).toHaveCount(0);
 });
