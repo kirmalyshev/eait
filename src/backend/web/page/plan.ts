@@ -1,6 +1,6 @@
 import {
   fill, kcalNumbers, LANG_LABEL, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
-  planJourney, planWaterfall, projectionMonth, signedWholeNumbers, spellUnit, weightDisplay,
+  planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
   wholeNumbers, youCopyFor,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
   type TargetBasis,
@@ -30,6 +30,8 @@ export interface PlanView {
 }
 
 const T = PLAN_TIMELINE;
+/** A signed kcal delta with no thousands separator, like every kcal figure. */
+const signedKcal = (lang: Lang) => (x: number): string => (Math.round(x) < 0 ? "−" : "+") + kcalNumbers(lang)(Math.abs(x));
 const sec = (n: number): string => `${+n.toFixed(2)}s`;
 
 export function plan(v: PlanView): string {
@@ -150,7 +152,7 @@ ${ticks}
 function balanceCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>, b: NonNullable<ReturnType<typeof planBalance>>): string {
   const YOU = youCopyFor(v.lang).phone;
   const kn = kcalNumbers(v.lang);
-  const sn = signedWholeNumbers(v.lang);
+  const sn = signedKcal(v.lang);
   const [dRest, dDays] = T.maintain.burn;
   const pct = (x: number) => `${+(x * 100).toFixed(2)}%`;
   const seg = (flex: number, delay: number, dur: number, cls: string, text: string) =>
@@ -173,7 +175,7 @@ function waterfallCard(v: PlanView, bars: NonNullable<ReturnType<typeof planWate
   const YOU = youCopyFor(v.lang).phone;
   const COPY = planCopyFor(v.lang);
   const kn = kcalNumbers(v.lang);
-  const sn = signedWholeNumbers(v.lang);
+  const sn = signedKcal(v.lang);
   const W = PLAN_WATERFALL;
   const names = { rest: YOU.atRest, days: YOU.yourDays, pace: YOU.yourPace, plan: COPY.yourPlan };
   const aria = bars.map((b) => `${names[b.id]} ${b.id === "plan" || b.id === "rest" ? kn(b.value) : sn(b.value)}`).join(", ");
