@@ -22,6 +22,8 @@ export const SENTENCES: Partial<Record<Lang, string>> = {
   fr: "Deux œufs durs et une tranche de pain de seigle",
   it: "Due uova sode e una fetta di pane di segale",
   es: "Dos huevos duros y una rebanada de pan de centeno",
+  id: "Dua telur rebus dan sepotong roti gandum hitam",
+  vi: "Hai quả trứng luộc và một lát bánh mì lúa mạch đen",
 };
 
 /** The notes, localised like the names: the model's meaning and figures, nothing added. */
@@ -46,6 +48,16 @@ const NOTES: Partial<Record<Lang, Record<Meal, string>>> = {
     eggs: "Se suponen huevos duros estándar y una rebanada típica de pan de centeno alemán (40g). No se mencionan grasas añadidas ni ingredientes extra.",
     salmon: "El plato es un plato llano estándar de 26cm. El glaseado del salmón y el brócoli sugieren un poco de aceite al saltear. Raciones estimadas por la superficie cubierta y la altura.",
   },
+  id: {
+    grainbowl: "Diameter piring diperkirakan 26cm. Ukuran porsi diskalakan secara visual. Minyak zaitun disimpulkan dari kilau pada sayuran.",
+    eggs: "Diasumsikan telur rebus standar dan seiris roti gandum hitam khas Jerman (40g). Tidak disebutkan lemak tambahan atau topping.",
+    salmon: "Piring ini piring makan standar 26cm. Glasir salmon dan brokoli menandakan sedikit minyak untuk menumis. Ukuran porsi diperkirakan dari luas dan kedalaman yang tertutup.",
+  },
+  vi: {
+    grainbowl: "Đường kính đĩa ước tính 26cm. Khẩu phần được ước lượng bằng mắt. Dầu ô liu suy ra từ độ bóng trên rau.",
+    eggs: "Giả định trứng luộc thông thường và một lát bánh mì lúa mạch đen kiểu Đức (40g). Không nhắc đến chất béo hay topping thêm.",
+    salmon: "Đĩa là đĩa ăn tiêu chuẩn 26cm. Lớp sốt bóng trên cá hồi và bông cải xanh cho thấy có chút dầu khi xào. Khẩu phần ước tính từ diện tích và độ dày phủ trên đĩa.",
+  },
 };
 
 /** Names-only localisation, in the read's item order; numbers and `name_en` stay the read's. */
@@ -69,6 +81,16 @@ const NAMES: Partial<Record<Lang, Record<Meal, readonly string[]>>> = {
     grainbowl: ["Quinoa", "Brócoli", "Pimiento rojo", "Pepino", "Zanahoria", "Tomate", "Apio", "Aceite de oliva (aliño)"],
     eggs: ["Dos huevos duros", "Rebanada de pan de centeno"],
     salmon: ["Filete de salmón", "Arroz blanco", "Ramilletes de brócoli", "Salsa de soja (glaseado)", "Aceite de sésamo (para cocinar)"],
+  },
+  id: {
+    grainbowl: ["Quinoa", "Brokoli", "Paprika merah", "Timun", "Wortel", "Tomat", "Seledri", "Minyak zaitun (dressing)"],
+    eggs: ["Dua telur rebus", "Sepotong roti gandum hitam"],
+    salmon: ["Fillet salmon", "Nasi putih", "Kuntum brokoli", "Kecap asin (glasir)", "Minyak wijen (untuk memasak)"],
+  },
+  vi: {
+    grainbowl: ["Quinoa", "Bông cải xanh", "Ớt chuông đỏ", "Dưa leo", "Cà rốt", "Cà chua", "Cần tây", "Dầu ô liu (nước sốt)"],
+    eggs: ["Hai quả trứng luộc", "Lát bánh mì lúa mạch đen"],
+    salmon: ["Phi lê cá hồi", "Cơm trắng", "Bông cải xanh", "Nước tương (lớp sốt)", "Dầu mè (để nấu)"],
   },
 };
 
