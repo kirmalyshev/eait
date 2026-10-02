@@ -502,7 +502,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
               edit((prev) => threadReducer(prev, { kind: "mark", id: asked, as: "refused" }));
               deps.restore?.(body, asked);
             } else {
+              // The refused words come back in the box; the plain bubble goes with the next page.
               inflightIds.delete(asked);
+              deps.restore?.(body, asked);
             }
           } else {
             // The bubble stays, marked not sent, and stays across refreshes (its id remains in
