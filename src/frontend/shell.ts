@@ -311,6 +311,12 @@ export function takeTurn(
       if (!wrote) console.error(err);
     } finally {
       for (const c of controls) c.disabled = false;
+      // A turn that wrote nothing keeps its words: back in the field, caret at the end.
+      const field = wrap.querySelector<HTMLInputElement | HTMLTextAreaElement>("input[type=text], input:not([type]), textarea");
+      if (!wrote && wrap.isConnected && field !== null && field.value !== "") {
+        field.focus();
+        field.setSelectionRange(field.value.length, field.value.length);
+      }
     }
   })();
   outstanding = run;

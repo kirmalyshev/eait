@@ -31,7 +31,7 @@ import type { DayResponse } from "@eait/shared/contract";
 import type { MealRedated } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { enqueueUpdate, inPlace, takeSentNote, updateBannerEl, updateFor } from "../queue.ts";
+import { enqueueUpdate, inPlace, takeSentGrams, takeSentNote, updateBannerEl, updateFor } from "../queue.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
@@ -115,7 +115,14 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     wrap.append(node); overlay = node;
     focus?.focus();
   };
-  const openPanel = (p: { node: HTMLElement; focus: HTMLElement }): void => openOverlay(p.node, p.focus);
+  const openPanel = (p: { node: HTMLElement; focus: HTMLElement }): void => {
+    openOverlay(p.node, p.focus);
+    // A value put back for the user is edited from its end; the panel may open before the page is attached.
+    if (p.focus instanceof HTMLInputElement || p.focus instanceof HTMLTextAreaElement) {
+      const field = p.focus;
+      requestAnimationFrame(() => { field.focus(); field.setSelectionRange(field.value.length, field.value.length); });
+    }
+  };
 
   // The photo bytes arrive under the bearer, so they cannot be an <img>'s URL — and the CSP
   // refuses both a blob: src and a fetch OF a blob: URL, so `blobSrc`'s data URL is the one form
@@ -307,7 +314,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const grams = el("input", "amtin num") as HTMLInputElement;
     grams.type = "text";
     grams.inputMode = "decimal";
-    grams.value = `${item.grams}`;
+    grams.value = takeSentGrams(meal.id, index) ?? `${item.grams}`;
     grams.setAttribute("aria-label", mc.phoneAmount);
     const size = (): void => { grams.style.width = `${Math.max(2, grams.value.length)}ch`; };
     size();
@@ -377,10 +384,10 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
     // Both writes end in the same PATCH: items only — the server derives the totals, and the
     // detail re-reads them on the redraw.
-    const applyItems = (items: MealItem[]): void => {
+    const applyItems = (items: MealItem[], typed?: string): void => {
       const req = mealEditRequest(meal, items);
       if (req === null) { closeOverlay(); return; }
-      enqueueUpdate(meal, { kind: "ingredients", edit: req });
+      enqueueUpdate(meal, { kind: "ingredients", edit: req }, typed === undefined ? undefined : { index, value: typed });
       closeOverlay();
     };
     const done = el("button", "cta p", mc.phoneDone) as HTMLButtonElement;
@@ -388,9 +395,11 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     done.addEventListener("click", () => {
       const g = gramsNow();
       applyItems(g === null ? [...meal.items]
-        : meal.items.map((it, i) => (i === index ? scaledItem(it, g) : it)));
+        : meal.items.map((it, i) => (i === index ? scaledItem(it, g) : it)), grams.value);
     });
     bin.addEventListener("click", () => applyItems(meal.items.filter((_, i) => i !== index)));
+    // Grams put back after a failed save draw their preview like typed ones.
+    if (grams.value !== `${item.grams}`) grams.dispatchEvent(new Event("input"));
     dlg.append(done);
     scrim.append(dlg);
     return { node: scrim, focus: grams };

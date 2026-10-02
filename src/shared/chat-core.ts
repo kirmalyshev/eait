@@ -98,6 +98,8 @@ export interface ChatCoreDeps {
   enqueue?: (turn: QueuedTurn) => Promise<void>;
   /** Whether this account's outbox has turns waiting to go: a new turn then joins the end of it. */
   waiting?: () => boolean;
+  /** A turn that needs the user went unanswered: its words go back in the composer, the bubble stays beside the failure line. */
+  restore?: (words: string, entryId: string) => void;
 }
 
 export interface ChatState {
@@ -463,6 +465,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             // The turn was charged: on the sample, the retry the notice invites meets a 402, so it says.
             const p = (await deps.refreshProfile()) ?? deps.profile();
             edit((prev) => threadReducer(prev, { kind: "unanswered", clientId: asked, scope: sampleSpent(p) ? "sample" : undefined }));
+            deps.restore?.(body, asked);
           }
         } else {
           const failure = deps.failureOf(e);
@@ -497,6 +500,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             // never sent.
             if (keepsItsWords(failure.kind)) {
               edit((prev) => threadReducer(prev, { kind: "mark", id: asked, as: "refused" }));
+              deps.restore?.(body, asked);
             } else {
               inflightIds.delete(asked);
             }
@@ -506,6 +510,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             // Nothing is assumed about what the server did — a dead socket may have run the whole
             // turn, and `POST /v1/messages` has no idempotency key — so the retry is deliberate.
             edit((prev) => threadReducer(prev, { kind: "mark", id: asked, as: "failed" }));
+            deps.restore?.(body, asked);
           }
         }
       } finally {

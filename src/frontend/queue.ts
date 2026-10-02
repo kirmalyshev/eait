@@ -24,6 +24,8 @@ interface Update {
   body: MealUpdateBody;
   name: string;
   kcal: number;
+  /** The grams typed for one ingredient, so a failed save can bring them back. */
+  grams?: { index: number; value: string };
 }
 
 
@@ -92,11 +94,11 @@ const drop = (job: Job) => {
 };
 
 /** A change to a logged meal joins the queue (#1347); its row stays where the meal is. */
-export function enqueueUpdate(meal: MealRecord, body: MealUpdateBody): void {
+export function enqueueUpdate(meal: MealRecord, body: MealUpdateBody, grams?: { index: number; value: string }): void {
   const job: Job = {
     id: crypto.randomUUID(), photos: [], thumb: "", capturedAt: new Date().toISOString(),
     step: 1, line: null, items: [], state: "reading", words: null, mealId: null, kcal: null, flyFrom: null,
-    update: { kind: body.kind, mealId: meal.id, steps: MEAL_UPDATE_STEPS[body.kind], body, name: names(meal.items), kcal: meal.kcal },
+    update: { kind: body.kind, mealId: meal.id, steps: MEAL_UPDATE_STEPS[body.kind], body, name: names(meal.items), kcal: meal.kcal, ...(grams ? { grams } : {}) },
   };
   jobs = [job, ...jobs];
   if ((meal.photos ?? 0) > 0) {
@@ -146,7 +148,13 @@ export function updateBannerEl(mealId: string): HTMLElement {
   return box;
 }
 
-// What a failed correction sent: Correct this meal opens with it in the field, once (no lost input).
+// What a failed correction sent: the fix panel or the grams editor opens with it in the field, once (no lost input).
+let sentGrams: { mealId: string; index: number; value: string } | null = null;
+export function takeSentGrams(mealId: string, index: number): string | null {
+  const value = sentGrams?.mealId === mealId && sentGrams.index === index ? sentGrams.value : null;
+  sentGrams = null;
+  return value;
+}
 let sentNote: { mealId: string; text: string } | null = null;
 export function takeSentNote(mealId: string): string {
   const text = sentNote?.mealId === mealId ? sentNote.text : "";
@@ -372,17 +380,18 @@ export function updateRowEl(job: Job): HTMLElement {
     el("span", "qstep still", failed ? U.failedBody : job.words ?? U.failedBody));
   const act = el("div", "qact");
   const button = (text: string, on: () => void) => { const b = el("button", "", text); b.addEventListener("click", on); act.append(b); };
-  if (failed) {
-    button(homeCopyFor(lang).tryAgain, () => retry(job));
-    if (u.kind !== "reread") {
-      button(mealCopyFor(lang).phoneEdit, () => {
-        if (u.body.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
-        drop(job);
-        location.hash = `#/meal/${encodeURIComponent(u.mealId)}${u.kind === "note" ? "?fix" : ""}`;
-      });
-    }
-    button(U.discard, () => { drop(job); redrawScreen(); });
-  } else button(U.ok, () => { drop(job); redrawScreen(); });
+  // Edit brings what was sent back in its own field, for a refusal as well as a failure.
+  const edit = (): void => {
+    if (u.body.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
+    if (u.grams) sentGrams = { mealId: u.mealId, ...u.grams };
+    drop(job);
+    const to = u.kind === "note" ? "?fix" : u.grams ? `?item=${u.grams.index}` : "";
+    location.hash = `#/meal/${encodeURIComponent(u.mealId)}${to}`;
+  };
+  if (failed) button(homeCopyFor(lang).tryAgain, () => retry(job));
+  if (u.kind !== "reread" && (failed || u.kind === "note" || u.grams)) button(mealCopyFor(lang).phoneEdit, edit);
+  if (failed) button(U.discard, () => { drop(job); redrawScreen(); });
+  else button(U.ok, () => { drop(job); redrawScreen(); });
   mm.append(act);
   row.append(th, mm);
   return row;

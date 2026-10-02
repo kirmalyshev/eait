@@ -200,6 +200,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
           void draw();
         } catch (err) {
           noticeBox.tell(refusalWords(err));
+          field.focus();
+          field.setSelectionRange(field.value.length, field.value.length);
         } finally {
           // A refusal re-arms the button — the figure stays editable and the notice stays up.
           saving = false;
@@ -286,6 +288,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
           void draw();
         } catch (err) {
           noticeBox.tell(refusalWords(err));
+          targetField.focus();
+          targetField.setSelectionRange(targetField.value.length, targetField.value.length);
         } finally {
           // A refusal re-arms the button — the fields stay editable and the notice stays up.
           saving = false;
@@ -346,7 +350,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return row;
   };
 
-  const rowsCard = (ids: IdentitiesResponse | null): HTMLElement => {
+  const rowsCard = (ids: IdentitiesResponse | null, noticeBox: { tell: (w: string | null) => void }): HTMLElement => {
     const card = el("div", "card flat urows");
     // Read-only, and only while a sync is actually arriving — the server's own flag.
     if (me!.healthConnected === true) card.append(optRow(you.appleHealth, you.connected));
@@ -385,8 +389,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       unitsSel.append(o);
     }
     unitsSel.addEventListener("change", async () => {
-      // Locked for the flight; a refused write puts the stored unit back on the control.
+      // Locked for the flight; a refused write keeps the choice and says so — picking it again resends.
       unitsSel.disabled = true;
+      noticeBox.tell(null);
       try {
         await api("/profile", {
           method: "PATCH",
@@ -398,7 +403,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         void draw();
       } catch (err) {
         console.error(err);
-        unitsSel.value = units();
+        noticeBox.tell(refusalWords(err));
         unitsSel.disabled = false;
       }
     });
@@ -420,6 +425,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     }
     langSel.addEventListener("change", async () => {
       langSel.disabled = true;
+      noticeBox.tell(null);
       try {
         await api("/profile", {
           method: "PATCH",
@@ -429,7 +435,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         location.reload();
       } catch (err) {
         console.error(err);
-        langSel.value = lang;
+        noticeBox.tell(refusalWords(err));
         langSel.disabled = false;
       }
     });
@@ -593,10 +599,11 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
     const wn = noticeFor();
     const pn = noticeFor();
+    const rn = noticeFor();
     clear(leftCol).append(identityCard());
     if (w !== null) leftCol.append(weightCard(w, wn));
     else leftCol.append(el("p", "notice", COPY.somethingWrong));
-    leftCol.append(planCard(ob?.content ?? null, pn), rowsCard(ids));
+    leftCol.append(planCard(ob?.content ?? null, pn), rowsCard(ids, rn), rn.notice);
     void drawDay();
   }
 
