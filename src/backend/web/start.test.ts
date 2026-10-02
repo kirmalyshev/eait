@@ -789,8 +789,17 @@ describe("the plan reveal", () => {
       const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
       if (set) cookie = set.split(";")[0]!;
       if (id === "medical") {
-        // The patch that wrote `complete_onboarding` answers with the plan.
-        expect(res.headers.get("location")).toBe("/start/plan");
+        // The patch that wrote `complete_onboarding` answers with the two cards, then the plan.
+        const loc = res.headers.get("location")!;
+        expect(loc).toContain("show=ontrack");
+        const ontrack = await get(loc, cookie);
+        expect(ontrack.status).toBe(200);
+        const next = (await ontrack.text()).match(/class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&")!;
+        expect(next).toContain("show=how");
+        const how = await get(next, cookie);
+        expect(how.status).toBe(200);
+        const last = (await how.text()).match(/class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&")!;
+        expect((await get(last, cookie)).headers.get("location")).toBe("/start/plan");
       }
     }
     // …and a resume goes to the plan too.
@@ -1351,10 +1360,10 @@ describe("the v2 questions that write the new fields", () => {
     const res = await post("/start/q?asked=diet", { prompt: "diet", answer: ["pescatarian"] }, session);
     const loc = res.headers.get("location") ?? "";
     expect(loc).toContain("asked=diet");
-    // The COMPLETING write is the exception — it answers with the plan, not a /q redirect.
+    // The COMPLETING write is the exception — it answers with the first card, not a question.
     await walkTo(session, "medical");
     const done = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
-    expect(done.headers.get("location")).toBe("/start/plan");
+    expect(done.headers.get("location")).toContain("show=ontrack");
   });
 
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
@@ -2829,10 +2838,6 @@ describe("the counter and Back (#53)", () => {
     const session = await signIn("back-links");
     expect(await (await get("/start/q", session)).text()).toContain('class="wback" href="/start"');
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
-    // The how-it-works card sits between goal and sex, and a card is nowhere Back can go —
-    // the link past it is the previous QUESTION's edit.
-    const card = await get("/start/q?show=how", session);
-    expect(card.status).toBe(200);
     expect(await (await get("/start/q", session)).text())
       .toContain('href="/start/q?edit=goal"');
   });
@@ -2858,19 +2863,18 @@ describe("the counter and Back (#53)", () => {
 
   it("bounces every show that is not the next beat — an unknown id, or a card not due yet", async () => {
     const session = await signIn("show-refuse");
-    // Nothing answered: `how` sits AFTER the open question (goal), `ontrack` after it again,
-    // and "nope" is no beat at all — each redirects into the walk rather than serving.
+    // Nothing answered: both cards sit AFTER the open question (goal), and "nope" is no beat at
+    // all — each redirects into the walk rather than serving.
     for (const bad of ["nope", "how", "ontrack"]) {
       const res = await get(`/start/q?show=${bad}`, session);
       expect(res.status, bad).toBe(303);
       expect(res.headers.get("location"), bad).toBe("/start/q");
     }
-    // And once `how` is served in its turn, the card after it still is not due.
+    // Mid-walk, with questions still open, a card is not due either.
     await post("/start/q", { prompt: "goal", answer: "lose" }, session);
-    expect((await get("/start/q?show=how", session)).status).toBe(200);
-    const late = await get("/start/q?show=ontrack", session);
-    expect(late.status).toBe(303);
-    expect(late.headers.get("location")).toBe("/start/q");
+    const early = await get("/start/q?show=ontrack", session);
+    expect(early.status).toBe(303);
+    expect(early.headers.get("location")).toBe("/start/q");
   });
 
   it("'none' clears the medical tags picked before it — the row it ticked wins by meaning", async () => {

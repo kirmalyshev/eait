@@ -320,8 +320,8 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
 }
 
 /**
- * The W2 walk — the field questions PLUS the two interstitials that sit between them (`how`
- * after the goal, `ontrack` after the struggles). The `welcome`, `summary`, `signup`
+ * The W2 walk — the field questions PLUS the two interstitials after them (`ontrack`, then `how`,
+ * just before the plan). The `welcome`, `summary`, `signup`
  * and `country` places are out: the front door renders its own, the rest are the steps after
  * this walk ends (the plan, sign-up — W3).
  */
@@ -911,7 +911,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       return askAt(i, null, [], kg);
     }
 
-    // THE INTERSTITIALS: `how` sits between goal and sex, `ontrack` between struggles and diet.
+    // THE INTERSTITIALS: `ontrack` then `how`, after the last question and before the plan.
     // They write nothing, so they are reached only by `?show=` — the POST of the question before
     // them redirects to it, and the page's Continue is a plain GET back to the walk. A `show`
     // that is not the next beat (an id the walk does not hold, or one sitting after the open
@@ -925,7 +925,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         (p) => p.field === undefined || isAnswered(p, profile) || asked.has(p.id),
       );
       if (auto === null || !beforeOpen || !ready) return seeOther(askPath);
-      return html(interstitial(auto.place as "how" | "ontrack", profile, profile.lang, askPath));
+      // Continue goes to the next card when one follows, else back into the walk (the plan).
+      const following = walk[i + 1];
+      const onward = following !== undefined && following.kind === "auto"
+        ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
+      return html(interstitial(auto.place as "how" | "ontrack", profile, profile.lang, onward));
     }
 
     if (req.method === "GET") {
@@ -1016,9 +1020,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         const outcome = await patchProfile(ctx.deps, fresh, patch);
         if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
         const token = await ctx.store.issueToken(fresh);
-        // The how-it-works card sits between the goal and the next question — the first answer's
-        // redirect is the beat that shows it.
-        return seeOther(`${START_PREFIX}/q?show=how`, [setCookie(SESSION_COOKIE, token, { secure })]);
+        return seeOther(`${START_PREFIX}/q`, [setCookie(SESSION_COOKIE, token, { secure })]);
       }
 
       // The open question is the server's to decide, so a post naming a LATER one is dropped rather
@@ -1103,15 +1105,16 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       };
       const outcome = await patchProfile(ctx.deps, userId, patch);
       if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
-      // The completing patch lands on the plan, which draws its own reveal.
-      if (editIndex === -1 && at === lastField) return seeOther(`${START_PREFIX}/plan`);
+      // The completing patch lands on the plan, which draws its own reveal — after the cards, if any.
+      const trailing = editIndex === -1 ? walk[at + 1] : undefined;
+      if (editIndex === -1 && at === lastField && trailing?.kind !== "auto") return seeOther(`${START_PREFIX}/plan`);
       // The walk's memory of the two answers a mid-run GET cannot see (see `asked` above): the
       // redirect appends the prompt just written so the next page knows it was passed — and if
       // the next beat is a card rather than a question, `?show=` names it.
       const nextAsked = new Set(asked);
       if (open.id === "diet" || open.id === "medical") nextAsked.add(open.id);
       const params = new URLSearchParams();
-      const next = editIndex === -1 ? walk[at + 1] : undefined;
+      const next = trailing;
       if (next !== undefined && next.kind === "auto") params.set("show", next.id);
       for (const a of nextAsked) params.append("asked", a);
       const qs = params.size === 0 ? "" : `?${params}`;

@@ -81,7 +81,7 @@ function ontrackChart(lang: Lang): string {
     `</svg>`;
 }
 
-/** An interstitial — `how` (after the goal) and `ontrack` (after the struggles). GET, not POST:
+/** An interstitial — `ontrack`, then `how`, after the questions. GET, not POST:
  *  they collect nothing, so the Continue is a link back into the walk. */
 export function interstitial(
   place: "how" | "ontrack",

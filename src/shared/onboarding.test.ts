@@ -446,16 +446,17 @@ describe("the interstitials", () => {
   it("are counted in the order a person meets them", () => {
     const at = (s: string) => (ONBOARDING_PLACES as readonly string[]).indexOf(s);
     expect(at("welcome")).toBe(0);
-    expect(at("goal")).toBeLessThan(at("how"));
-    expect(at("how")).toBeLessThan(at("sex"));
+    expect(at("goal")).toBeLessThan(at("sex"));
     expect(at("weight")).toBeLessThan(at("activity"));
     expect(at("activity")).toBeLessThan(at("target"));
     expect(at("target")).toBeLessThan(at("pace"));
     expect(at("pace")).toBeLessThan(at("struggles"));
-    // The on-track beat reads the struggles pick, so it cannot precede it.
-    expect(at("struggles")).toBeLessThan(at("ontrack"));
-    expect(at("ontrack")).toBeLessThan(at("diet"));
+    expect(at("struggles")).toBeLessThan(at("diet"));
     expect(at("diet")).toBeLessThan(at("medical"));
+    // The two value beats follow the questions and lead into the plan (the on-track one reads struggles).
+    expect(at("medical")).toBeLessThan(at("ontrack"));
+    expect(at("ontrack")).toBeLessThan(at("how"));
+    expect(at("how")).toBeLessThan(at("summary"));
         expect(at("medical")).toBeLessThan(at("summary"));
     // The account step lands between the plan and the country — the design's order, fixed here.
     expect(at("summary")).toBeLessThan(at("signup"));

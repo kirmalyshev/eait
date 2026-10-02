@@ -54,9 +54,8 @@ test.describe("the walk", () => {
     await page.locator('label.opt:has(input[value="lose"])').click();
     await expect(page.locator('input[value="lose"]')).toBeChecked();
     await page.locator('button[type="submit"]').last().click();
-    // The how-it-works card follows the goal — the POST redirects to `?show=`.
-    await expect(page).toHaveURL(/show=how/);
-    await expect(page.locator(".cards .card")).toHaveCount(3);
+    // The next question follows the goal; the how-it-works card waits until after the last one.
+    await expect(page.locator('input[name="prompt"]')).toHaveAttribute("value", "sex");
     await onboard(page);
   });
 

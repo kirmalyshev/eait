@@ -102,8 +102,6 @@ export const STRUGGLE_LABELS = (content: OnboardingContent): Record<string, stri
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
-  // The "whole app" picture: three beats, no answer. Its words are the compiled `how` copy.
-  { id: "how", place: "how", kind: "auto" },
   { id: "sex", place: "sex", field: "sex", kind: "choice", options: SEXES },
   { id: "birth_year", place: "age", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "height", field: "height_cm", kind: "number" },
@@ -112,12 +110,15 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
   { id: "pace", place: "pace", field: "pace", kind: "choice", options: PACES },
   { id: "struggles", place: "struggles", field: "struggles", kind: "chips", options: STRUGGLES },
-  // The two-ways chart: a beat, not a question — it reads `struggles` and writes nothing.
-  { id: "ontrack", place: "ontrack", kind: "auto" },
   // `diet` and `medical` carry "fields" that are not profile columns: they are the two VIEWS of
   // `restrictions` (see `OnboardingStep`). The server merges each answer inside the one array.
   { id: "diet", place: "diet", field: "diet", kind: "choice", options: DIETS },
   { id: "medical", place: "medical", field: "medical", kind: "chips", options: [...MEDICAL_TAGS, "none"] },
+  // The two value beats sit after the questions, just before the plan: what the answers are for.
+  // The two-ways chart: a beat, not a question — it reads `struggles` and writes nothing.
+  { id: "ontrack", place: "ontrack", kind: "auto" },
+  // The "whole app" picture: three beats, no answer. Its words are the compiled `how` copy.
+  { id: "how", place: "how", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
   // The account step — the sign-in surface owns it (S8); this list holds its PLACE in the order.
   { id: "signup", place: "signup", kind: "auto" },
