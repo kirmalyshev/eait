@@ -131,13 +131,14 @@ export function updateBannerEl(mealId: string): HTMLElement {
     if (!box.isConnected && box.childElementCount > 0) { views.delete(draw); return; }
     const job = updateFor(mealId);
     if (job === undefined) { box.replaceChildren(); return; }
+    const waiting = job.state === "waiting";
     const list = el("ol", "msteps");
     updateCopyFor(lang).steps[job.update!.kind].forEach((line, i) => {
-      list.append(el("li", i + 1 < job.step ? "done" : i + 1 === job.step ? "now" : "next", line));
+      list.append(el("li", waiting || i + 1 > job.step ? "next" : i + 1 === job.step ? "now" : "done", line));
     });
     const bar = el("i", "mbar");
-    bar.style.width = `${percent(job)}%`;
-    box.replaceChildren(list, bar);
+    bar.style.width = `${waiting ? 0 : percent(job)}%`;
+    box.replaceChildren(...(waiting ? [el("span", "qstep still", homeCopyFor(lang).queue.waiting)] : []), list, bar);
     box.setAttribute("role", "status");
   };
   views.add(draw);
