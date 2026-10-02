@@ -110,8 +110,8 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * before they existed. Adding a place a user can BE does not add a place a calorie target can come
  * from.
  *
- * `ontrack` is the with-plan-vs-without chart beat that follows `struggles` and reads its first
- * pick for the caption. `how` is the three-beat "whole app" picture after the goal. `signup` is the
+ * `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
+ * caption. `how` is the three-beat "whole app" picture. Both sit after the questions, before the plan. `signup` is the
  * account step between the plan and `country` — it belongs to the sign-in surface, and this list
  * only holds its place in the order. `health` is the post-sign-up Apple Health offer; on a surface
  * without it (the browser) the prompt is not emitted — see `promptsFor`.
@@ -136,8 +136,8 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "how", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "ontrack", "diet", "medical", "summary", "signup", "country", "health",
+  "welcome", "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
+  "struggles", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 

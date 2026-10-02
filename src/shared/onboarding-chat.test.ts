@@ -46,9 +46,9 @@ const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
 describe("the order of the conversation", () => {
   it("is the design's — v2, one question a screen", () => {
     expect(ids(profile())).toEqual([
-      "welcome", "goal", "how", "sex", "birth_year", "height_cm", "weight_kg",
-      "activity", "target_weight_kg", "pace", "struggles", "ontrack",
-      "diet", "medical", "summary", "signup",
+      "welcome", "goal", "sex", "birth_year", "height_cm", "weight_kg",
+      "activity", "target_weight_kg", "pace", "struggles",
+      "diet", "medical", "ontrack", "how", "summary", "signup",
     ]);
   });
 
