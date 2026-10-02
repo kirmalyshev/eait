@@ -39,6 +39,22 @@ export interface PayCopy {
   pricePerYear: string;
   /** pay-plans (both cards' secondary figure) and pay-reminder's "Then" row. */
   pricePerMonth: string;
+  /**
+   * pay-paywall (phone): the yearly card's whole sub-line. `{trial}` is the accent span —
+   * `trialBadge` filled with the days — and `{price}` the yearly price; the rest renders muted.
+   * One sentence, so a language that fronts the price still reads as one line.
+   */
+  yearlySub: string;
+  /** pay-paywall (phone): the small caption under BOTH right-column price figures — "a month". */
+  perMonthCaption: string;
+  /** pay-paywall (phone): the first benefit line, beside the camera icon. */
+  benefitPhoto: string;
+  /** pay-paywall (phone): the second benefit line, beside the check icon. */
+  benefitPlan: string;
+  /** pay-paywall (phone): the third benefit line, beside the chat icon. */
+  benefitChat: string;
+  /** pay-blocked (phone): the label over the meal the sample already bought. */
+  freeMealLabel: string;
   /** pay-plans: the one CTA. */
   startTrial: string;
   /** pay-plans: the line under the CTA — `{days}` and `{price}` are the trial and the yearly price. */
@@ -133,6 +149,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} days free",
     pricePerYear: "{price} a year",
     pricePerMonth: "{price} a month",
+    yearlySub: "{trial}, then {price} a year",
+    perMonthCaption: "a month",
+    benefitPhoto: "One photo logs a meal",
+    benefitPlan: "Every meal checked against your plan",
+    benefitChat: "Ask Spud about your day",
+    freeMealLabel: "Your free meal",
     startTrial: "Start my free week",
     trialNote: "{days} days free, then {price} a year. Cancel any time.",
     continueCta: "Continue",
@@ -181,6 +203,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} jours offerts",
     pricePerYear: "{price} par an",
     pricePerMonth: "{price} par mois",
+    yearlySub: "{trial}, puis {price} par an",
+    perMonthCaption: "par mois",
+    benefitPhoto: "Une photo enregistre un repas",
+    benefitPlan: "Chaque repas vérifié par rapport à ton plan",
+    benefitChat: "Parle de ta journée à Spud",
+    freeMealLabel: "Ton repas offert",
     startTrial: "Commencer ma semaine offerte",
     trialNote: "{days} jours offerts, puis {price} par an. Résiliable à tout moment.",
     continueCta: "Continuer",
@@ -229,6 +257,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} Tage kostenlos",
     pricePerYear: "{price} im Jahr",
     pricePerMonth: "{price} im Monat",
+    yearlySub: "{trial}, danach {price} im Jahr",
+    perMonthCaption: "im Monat",
+    benefitPhoto: "Ein Foto erfasst eine Mahlzeit",
+    benefitPlan: "Jede Mahlzeit mit deinem Plan abgeglichen",
+    benefitChat: "Frag Spud nach deinem Tag",
+    freeMealLabel: "Deine Gratis-Mahlzeit",
     startTrial: "Meine Gratiswoche starten",
     trialNote: "{days} Tage kostenlos, danach {price} im Jahr. Jederzeit kündbar.",
     continueCta: "Weiter",
@@ -277,6 +311,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} giorni gratis",
     pricePerYear: "{price} all'anno",
     pricePerMonth: "{price} al mese",
+    yearlySub: "{trial}, poi {price} all'anno",
+    perMonthCaption: "al mese",
+    benefitPhoto: "Una foto registra un pasto",
+    benefitPlan: "Ogni pasto verificato sul tuo piano",
+    benefitChat: "Chiedi a Spud della tua giornata",
+    freeMealLabel: "Il tuo pasto gratuito",
     startTrial: "Inizia la mia settimana gratis",
     trialNote: "{days} giorni gratis, poi {price} all'anno. Disdici quando vuoi.",
     continueCta: "Continua",
@@ -325,6 +365,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} días gratis",
     pricePerYear: "{price} al año",
     pricePerMonth: "{price} al mes",
+    yearlySub: "{trial}, luego {price} al año",
+    perMonthCaption: "al mes",
+    benefitPhoto: "Una foto registra una comida",
+    benefitPlan: "Cada comida comparada con tu plan",
+    benefitChat: "Pregúntale a Spud por tu día",
+    freeMealLabel: "Tu comida gratis",
     startTrial: "Empezar mi semana gratis",
     trialNote: "{days} días gratis, luego {price} al año. Cancela cuando quieras.",
     continueCta: "Continuar",
@@ -373,6 +419,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "Miễn phí {days} ngày",
     pricePerYear: "{price} một năm",
     pricePerMonth: "{price} một tháng",
+    yearlySub: "{trial}, sau đó {price} một năm",
+    perMonthCaption: "một tháng",
+    benefitPhoto: "Một bức ảnh ghi lại bữa ăn",
+    benefitPlan: "Mỗi bữa ăn đối chiếu với kế hoạch của bạn",
+    benefitChat: "Hỏi Spud về ngày của bạn",
+    freeMealLabel: "Bữa miễn phí của bạn",
     startTrial: "Bắt đầu tuần miễn phí của tôi",
     trialNote: "Miễn phí {days} ngày, sau đó {price} một năm. Huỷ bất cứ lúc nào.",
     continueCta: "Tiếp tục",
@@ -421,6 +473,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "Gratis {days} hari",
     pricePerYear: "{price} setahun",
     pricePerMonth: "{price} sebulan",
+    yearlySub: "{trial}, lalu {price} setahun",
+    perMonthCaption: "sebulan",
+    benefitPhoto: "Satu foto mencatat satu makanan",
+    benefitPlan: "Setiap makanan dicek dengan rencanamu",
+    benefitChat: "Tanya Spud tentang harimu",
+    freeMealLabel: "Makanan gratismu",
     startTrial: "Mulai minggu gratis saya",
     trialNote: "Gratis {days} hari, lalu {price} setahun. Batal kapan saja.",
     continueCta: "Lanjut",
@@ -469,6 +527,12 @@ export const PAY_COPY: Localized<PayCopy> = {
     trialBadge: "{days} дней бесплатно",
     pricePerYear: "{price} в год",
     pricePerMonth: "{price} в месяц",
+    yearlySub: "{trial}, затем {price} в год",
+    perMonthCaption: "в месяц",
+    benefitPhoto: "Одно фото записывает приём пищи",
+    benefitPlan: "Каждый приём пищи сравнивается с твоим планом",
+    benefitChat: "Спроси Спада про твой день",
+    freeMealLabel: "Твой бесплатный приём пищи",
     startTrial: "Начать бесплатную неделю",
     trialNote: "{days} дней бесплатно, затем {price} в год. Отмена в любой момент.",
     continueCta: "Продолжить",
