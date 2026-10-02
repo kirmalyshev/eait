@@ -15,7 +15,7 @@ import { demoPorts } from "./llm/demo.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -370,7 +370,10 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     // The connector first: a handler still running holds the store, and it must finish its turn
     // before the pool it writes through is gone.
     await telegram?.stop();
-    await server.stop();
+    // Stop accepting, let queued jobs land (a deploy must not lose a photo), then close.
+    const stopping = server.stop();
+    await drainJobs(deps, config.shutdownDrainMs);
+    await stopping;
     await store.close();
     process.exit(0);
   });

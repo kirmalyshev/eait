@@ -370,6 +370,8 @@ export interface Config {
   expoPushAccessToken: string;
   /** How long one push request may hang. Same argument as `llmTimeoutMs`. */
   pushTimeoutMs: number;
+  /** How long a shutdown waits for queued photo and update jobs; the deploy's stop grace period must exceed it. */
+  shutdownDrainMs: number;
   /**
    * When the evening line goes out, in this server's `timezone`.
    *
@@ -566,6 +568,7 @@ export function configDefaults(): Config {
     pushEnabled: false,
     expoPushAccessToken: "",
     pushTimeoutMs: 15_000,
+    shutdownDrainMs: 60_000,
     // The one number the shipped copy states out loud, so it has exactly one source.
     eveningLineTime: { hour: REMINDER_TIME.hour, minute: REMINDER_TIME.minute },
   };
@@ -709,6 +712,7 @@ export function loadConfig(): Config {
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
     pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
+    shutdownDrainMs: int("EAIT__BACKEND__SHUTDOWN_DRAIN_MS", d.shutdownDrainMs),
     eveningLineTime,
   };
 }
