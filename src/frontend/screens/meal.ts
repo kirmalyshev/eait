@@ -43,6 +43,13 @@ import {
   type Frame,
 } from "../shell.ts";
 
+// The screen the meal was opened from — Update closes back to it, where the row carries the progress.
+let cameFrom = "#/";
+addEventListener("hashchange", (e) => {
+  const old = new URL(e.oldURL).hash;
+  if (!old.startsWith("#/meal/")) cameFrom = old || "#/";
+});
+
 export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const mc = mealCopyFor(lang);
   const cc = chatScreenCopyFor(lang);
@@ -265,6 +272,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       // The correction runs as a job (#1347): the meal's row and this screen show it updating.
       enqueueUpdate(meal, { kind: "note", text });
       closeOverlay();
+      location.hash = cameFrom;
     });
     dlg.append(title, named, field, example, update);
     scrim.append(dlg);
