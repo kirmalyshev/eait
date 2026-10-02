@@ -656,20 +656,22 @@ export const MOMENT_POSES = ["cheer", "lift", "think", "heart"] as const;
 export type MomentPose = (typeof MOMENT_POSES)[number];
 
 /**
- * The target prompt's suggestion line: "I suggest {kg}kg, about {pct}% down, a good first goal".
- * `pct` is the caller's computed share off the current weight, whole — the arithmetic is
- * `suggestedTargetKg`'s caller's, the words are this table's.
+ * The target prompt's suggestion line: "I suggest {weight}, about {pct}% down, a good first
+ * goal". `{weight}` goes through `weightDisplay`, so the sentence and the ruler beside it spell
+ * the same unit. `pct` is the caller's computed share off the current weight, whole — the
+ * arithmetic is `suggestedTargetKg`'s caller's, the words are this table's.
  */
 export function targetSuggestionLine(
   kg: number,
   pct: number,
   goal: Goal,
+  units: Units | null,
   lang: Lang,
 ): string | null {
   if (goal !== "lose" && goal !== "gain") return null;
   const copy = chatCopyFor(lang).targetSuggestion;
   return fill(goal === "lose" ? copy.down : copy.up, {
-    kg: numbers(lang)(kg),
+    weight: weightDisplay(kg, units, lang),
     pct: wholeNumbers(lang)(pct),
   });
 }

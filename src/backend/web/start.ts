@@ -1588,7 +1588,7 @@ function renderQuestion(
     if (suggestedKg !== null && profile.weight_kg !== null
         && (profile.goal === "lose" || profile.goal === "gain")) {
       const share = Math.round(Math.abs(suggestedKg - profile.weight_kg) / profile.weight_kg * 100);
-      const line = targetSuggestionLine(suggestedKg, share, profile.goal, lang);
+      const line = targetSuggestionLine(suggestedKg, share, profile.goal, units, lang);
       if (line !== null) lines = [line];
     }
   }

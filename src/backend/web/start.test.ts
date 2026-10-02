@@ -2671,7 +2671,7 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
           const me = (await store.getProfile(await webUser(cookie!)))!;
           const kg = suggestedTargetKg(me)!;
           const share = Math.round(Math.abs(kg - me.weight_kg!) / me.weight_kg! * 100);
-          const said = targetSuggestionLine(kg, share, "lose", lang);
+          const said = targetSuggestionLine(kg, share, "lose", me.units, lang);
           expect(html, `${lang}.${id} did not carry the suggestion`).toContain(escape(said!));
         } else {
           const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];

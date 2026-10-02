@@ -127,7 +127,8 @@ export interface ChatCopy {
   /** The post-sign-up sync screen (17-health-sync): title, one line, two buttons. */
   health: { title: string; body: string; connect: string; skip: string };
   /**
-   * The target prompt's suggestion line: `{kg}` the suggested weight, `{pct}` the whole percent
+   * The target prompt's suggestion line: `{weight}` the suggested weight written the way the
+   * reader's toggle spells it (`weightDisplay` — "73.5kg" or "162lb"), `{pct}` the whole percent
    * away from today. `down` for lose, `up` for gain; `maintain` is never asked a target.
    */
   targetSuggestion: { down: string; up: string };
@@ -258,8 +259,8 @@ const EN: ChatCopy = {
     skip: "Not now",
   },
   targetSuggestion:  {
-    down: "I suggest {kg}kg, about {pct}% down, a good first goal",
-    up: "I suggest {kg}kg, about {pct}% up, a good first goal",
+    down: "I suggest {weight}, about {pct}% down, a good first goal",
+    up: "I suggest {weight}, about {pct}% up, a good first goal",
   },
   firstMeal:  FIRST_MEAL_COPY.en,
   stepper:  { continue: "Continue", less: "Less", more: "More" },
@@ -371,8 +372,8 @@ const FR: ChatCopy = {
     skip: "Pas maintenant",
   },
   targetSuggestion:  {
-    down: "Je te propose {kg}kg, soit environ {pct} % de moins — un bon premier objectif",
-    up: "Je te propose {kg}kg, soit environ {pct} % de plus — un bon premier objectif",
+    down: "Je te propose {weight}, soit environ {pct} % de moins — un bon premier objectif",
+    up: "Je te propose {weight}, soit environ {pct} % de plus — un bon premier objectif",
   },
   firstMeal:  FIRST_MEAL_COPY.fr,
   stepper:  { continue: "Continuer", less: "Moins", more: "Plus" },
@@ -484,8 +485,8 @@ const DE: ChatCopy = {
     skip: "Nicht jetzt",
   },
   targetSuggestion:  {
-    down: "Ich schlage {kg}kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
-    up: "Ich schlage {kg}kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
+    down: "Ich schlage {weight} vor, etwa {pct}% weniger — ein gutes erstes Ziel",
+    up: "Ich schlage {weight} vor, etwa {pct}% mehr — ein gutes erstes Ziel",
   },
   firstMeal:  FIRST_MEAL_COPY.de,
   stepper:  { continue: "Weiter", less: "Weniger", more: "Mehr" },
@@ -597,8 +598,8 @@ const IT: ChatCopy = {
     skip: "Non ora",
   },
   targetSuggestion:  {
-    down: "Ti suggerisco {kg}kg, circa il {pct}% in meno — un buon primo obiettivo",
-    up: "Ti suggerisco {kg}kg, circa il {pct}% in più — un buon primo obiettivo",
+    down: "Ti suggerisco {weight}, circa il {pct}% in meno — un buon primo obiettivo",
+    up: "Ti suggerisco {weight}, circa il {pct}% in più — un buon primo obiettivo",
   },
   firstMeal:  FIRST_MEAL_COPY.it,
   stepper:  { continue: "Continua", less: "Meno", more: "Più" },
@@ -710,8 +711,8 @@ const ES: ChatCopy = {
     skip: "Ahora no",
   },
   targetSuggestion:  {
-    down: "Te sugiero {kg}kg, alrededor de un {pct}% menos — una buena primera meta",
-    up: "Te sugiero {kg}kg, alrededor de un {pct}% más — una buena primera meta",
+    down: "Te sugiero {weight}, alrededor de un {pct}% menos — una buena primera meta",
+    up: "Te sugiero {weight}, alrededor de un {pct}% más — una buena primera meta",
   },
   firstMeal:  FIRST_MEAL_COPY.es,
   stepper:  { continue: "Continuar", less: "Menos", more: "Más" },
@@ -823,8 +824,8 @@ const VI: ChatCopy = {
     skip: "Để sau",
   },
   targetSuggestion:  {
-    down: "Mình gợi ý {kg}kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
-    up: "Mình gợi ý {kg}kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+    down: "Mình gợi ý {weight}, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+    up: "Mình gợi ý {weight}, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
   },
   firstMeal:  FIRST_MEAL_COPY.vi,
   stepper:  { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
@@ -936,8 +937,8 @@ const ID: ChatCopy = {
     skip: "Nanti saja",
   },
   targetSuggestion:  {
-    down: "Kusarankan {kg}kg, turun sekitar {pct}% — target pertama yang bagus",
-    up: "Kusarankan {kg}kg, naik sekitar {pct}% — target pertama yang bagus",
+    down: "Kusarankan {weight}, turun sekitar {pct}% — target pertama yang bagus",
+    up: "Kusarankan {weight}, naik sekitar {pct}% — target pertama yang bagus",
   },
   firstMeal:  FIRST_MEAL_COPY.id,
   stepper:  { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
@@ -1051,8 +1052,8 @@ const RU: ChatCopy = {
     skip: "Не сейчас",
   },
   targetSuggestion:  {
-    down: "Предлагаю {kg}кг — примерно на {pct}% меньше, хорошая первая цель",
-    up: "Предлагаю {kg}кг — примерно на {pct}% больше, хорошая первая цель",
+    down: "Предлагаю {weight} — примерно на {pct}% меньше, хорошая первая цель",
+    up: "Предлагаю {weight} — примерно на {pct}% больше, хорошая первая цель",
   },
   firstMeal:  FIRST_MEAL_COPY.ru,
   stepper:  { continue: "Продолжить", less: "Меньше", more: "Больше" },
