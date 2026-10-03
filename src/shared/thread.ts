@@ -40,7 +40,15 @@ export type ThreadEntry =
       /** A turn the outbox holds (#708): its photos on this phone, and the answer it is held on, if any. */
       queued?: { photos: string[]; held?: RefusedTurn };
     }
-  | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
+  | {
+      id: string; role: "assistant"; result: ChatResult; stored?: boolean;
+      /**
+       * On an `expired` result only (#1462): the turn's words went back into the composer, so the
+       * line reads "send it again" rather than "describe it again". The core sets it when it
+       * restored them; absent means it could not, and the plain wording stays true.
+       */
+      back?: boolean;
+    }
   /** A card from the stored thread: the meal as it is NOW, or gone. `speaker` as stored — engine cards are the coach's (S9). */
   | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true; speaker?: ChatSpeaker | null }
   /**
