@@ -34,9 +34,9 @@ export const progressCss = `
    answered back, scoped. */
 /* Radius takes the board's 10px; the ground stays --bg — on the board's --hair the muted chip
    text measures 4.02:1, under the axe gate's 4.5 (#174). */
-.prog .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 10px; padding: 3px; width: 190px; }
+.prog .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 10px; padding: 3px; }
 .prog .seg button { flex: 1; border: 0; background: none; border-radius: 8px; font: inherit;
-  font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 0; min-height: 0; margin: 0;
+  font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 10px; min-height: 0; margin: 0;
   white-space: nowrap; cursor: pointer; }
 .prog .seg button.on { background: var(--surface); color: var(--ink);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent); }
