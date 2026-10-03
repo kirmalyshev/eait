@@ -37,7 +37,7 @@ export const progressCss = `
 .prog .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 10px; padding: 3px; width: 190px; }
 .prog .seg button { flex: 1; border: 0; background: none; border-radius: 8px; font: inherit;
   font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 0; min-height: 0; margin: 0;
-  cursor: pointer; }
+  white-space: nowrap; cursor: pointer; }
 .prog .seg button.on { background: var(--surface); color: var(--ink);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent); }
 
