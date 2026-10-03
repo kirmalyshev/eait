@@ -63,15 +63,17 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
   // THE ROUTE: `#/meal/<id>` on its own, or `#/meal/<id>?d=<YYYY-MM-DD>` — the day its row was on,
   // so the left column opens on the right diary and a bare id is looked up (`findMeal` walks the
-  // logged days back through the window). `?fix` and `?item=<n>` are the deep links the OTHER
-  // surfaces take into the panels (#188) — consumed once, then stripped so a redraw does not
-  // reopen them.
+  // logged days back through the window). `?fix`, `?item=<n>` and `?score` are the deep links the
+  // OTHER surfaces take into the overlays (#188, #1472) — consumed once, then stripped so a
+  // redraw does not reopen them.
   const [path, query] = location.hash.split("?");
   const id = decodeURIComponent((path ?? "").replace(/^#\/meal\//, ""));
-  const asked = new URLSearchParams(query ?? "").get("d");
+  const params = new URLSearchParams(query ?? "");
+  const asked = params.get("d");
   let viewing: string | undefined = asked !== null && isCalendarDate(asked) ? asked : undefined;
   const { fix: askedFix, item: askedItem } = mealEditParams(query ?? "");
-  let pending: "fix" | number | null = askedFix ? "fix" : askedItem;
+  let pending: "fix" | "score" | number | null =
+    askedFix ? "fix" : params.has("score") ? "score" : askedItem;
 
   // Relative day names for the meta line and header ("Today · 13:05"), the date in full for the
   // diary's own label — the boards write "Thursday 24 September" over the list.
@@ -592,6 +594,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       pending = null;
       history.replaceState(null, "", `#/meal/${encodeURIComponent(id)}?d=${viewing}`);
       if (p === "fix") openPanel(fixPanel(meal));
+      else if (p === "score") { if (meal.healthScore !== null) openOverlay(scoreOverlay(meal, day)); }
       else if (p < meal.items.length) openPanel(ingredientPanel(meal, p));
     }
   };

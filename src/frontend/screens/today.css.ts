@@ -168,12 +168,18 @@ button.hsc { cursor: pointer; }
   align-items: center; justify-content: center; z-index: 40; }
 .scorecard { width: 440px; max-width: calc(100vw - 32px); padding: 24px; display: flex;
   flex-direction: column; gap: 4px; }
-.scorecard .stitle { display: flex; align-items: center; justify-content: space-between; }
-.scorecard .stitle b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
-.scorecard .stitle .snum { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.scorecard .sline { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
+.scorecard .stitle { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 8px; }
 a.hsp { color: inherit; text-decoration: none; }
 .hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
+/* #1472: the row wraps so each meal's 4 px share bar sits under it — the day's kcal weighting,
+   drawn as ink on the hair track. */
+.scorecard .hsp { flex-wrap: wrap; row-gap: 6px; }
+/* A long name gives up its own line, never the chevron's — the row keeps the board's
+   name · n/10 › / bar shape at any width (the phone truncates the same way). */
+.scorecard .hsp .mn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scorecard .hsp .mn small { white-space: normal; }
+.scorecard .share { flex: 0 0 100%; display: block; height: 4px; border-radius: 2px; background: var(--hair); }
+.scorecard .share i { display: block; height: 4px; border-radius: 2px; background: var(--ink); }
 .scorecard .cta { margin-top: 14px; }
 
 /* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
