@@ -52,7 +52,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       reread: ["Nuova lettura della foto · 1 di 3", "Stima delle porzioni · 2 di 3", "Conteggio dei nutrienti · 3 di 3"],
     },
     failedTitle: "Impossibile applicare la modifica", failedBody: "Il pasto è rimasto com'era.", failedNote: "La tua nota è qui: modificala, o inviala di nuovo.", refusedTitle: "Non è stato possibile fare questa modifica",
-    discard: "Scarta", ok: "OK", push: "{names} aggiornato · {kcal} (prima {was})",
+    discard: "Scarta", ok: "OK", push: "Aggiornato: {names} · {kcal} (prima {was})",
   },
   es: {
     steps: {

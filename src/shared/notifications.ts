@@ -163,7 +163,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Còn hai ngày nữa là hết tuần miễn phí. Ở lại thì không cần làm gì — nếu không: Cài đặt › Gói đăng ký, và bạn không mất đồng nào.",
     },
     "trial-day6": {
-      title: "Bản dùng thử kết thúc ngày mai",
+      title: "Ngày mai hết thời gian dùng thử",
       body: "Ngày mai tuần miễn phí kết thúc. Ở lại thì không cần làm gì; nếu không: Cài đặt › Gói đăng ký.",
     },
     evening: {
@@ -513,11 +513,11 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   },
   it: {
     noMeals: "Una foto domani rimette la giornata nel conteggio.",
-    over: "{over} sopra oggi — domani si riparte da {plan}.",
-    protein: "Alle proteine mancavano {gap}g — uova o skyr a colazione bastano a colmarlo.",
+    over: "Oggi {over} in più — domani si riparte da {plan}.",
+    protein: "Ti sono mancati {gap}g di proteine: uova o skyr a colazione e recuperi.",
     gainUnder: "{under}kcal sotto il piano — una manciata di noci domani copre tutto.",
-    under: "{under} sotto il piano — domani mangiare il numero intero è il piano, non uno sgarro.",
-    onPlan: "Nel piano. Domani uguale.",
+    under: "{under} sotto il piano — domani mangiare tutte le kcal previste è il piano, non uno sgarro.",
+    onPlan: "In linea con il piano. Domani si replica.",
   },
   es: {
     noMeals: "Mañana, con una foto, el día vuelve a contar.",
@@ -528,7 +528,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "En el plan. Mañana igual.",
   },
   vi: {
-    noMeals: "Một tấm ảnh ngày mai, và ngày đó được tính lại.",
+    noMeals: "Mai chỉ cần một tấm ảnh là ngày của bạn lại có số liệu.",
     over: "Hôm nay vượt {over} — ngày mai lại bắt đầu từ {plan}.",
     protein: "Đạm còn thiếu {gap}g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
     gainUnder: "Thiếu {under}kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
@@ -538,9 +538,9 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   id: {
     noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
     over: "Hari ini {over} di atas rencana — besok mulai lagi dari {plan}.",
-    protein: "Protein kurang {gap}g — telur atau yoghurt Yunani saat sarapan menutupnya.",
+    protein: "Protein kurang {gap}g — telur atau yogurt Yunani saat sarapan menutupnya.",
     gainUnder: "Kurang {under}kcal dari rencana — segenggam kacang besok sudah cukup.",
-    under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",
+    under: "Kurang {under} dari rencana — besok makan sesuai angka penuh memang rencananya, bukan pelanggaran.",
     onPlan: "Sesuai rencana. Besok sama lagi.",
   },
   ru: {

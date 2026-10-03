@@ -216,7 +216,7 @@ msgstr "Учтено. Сегодня на {over}ккал больше плана
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.3"
-msgstr "Считаем нутриенты · 4 из 4"
+msgstr "Считаем КБЖУ · 4 из 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -426,7 +426,7 @@ msgstr "Скажи, что не так — «риса половина», «бе
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Ничего не вернулось. Попробуй ещё раз."
+msgstr "Ответ не пришёл. Попробуй ещё раз."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
