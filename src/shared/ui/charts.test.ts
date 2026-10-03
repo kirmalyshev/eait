@@ -222,21 +222,21 @@ describe("weightChart — logged weights over the day axis", () => {
     expect(c.viewBox).toBe("0 0 320 112");
     // The drawn points are the TREND's (#1114): the trailing 7-day mean at each weigh-in's date —
     // 74.3 at t17 (74.4 and 74.2) — but the ends are the real weigh-ins (#1282): 73.4, not 73.7.
-    expect(c.path).toBe("M20 31 L123 40 L179 45 L273 59 L310 86");
+    expect(c.path).toBe("M20 35 L123 43 L179 47 L273 58 L310 80");
     expect(c.points).toEqual([
-      { x: 20, y: 31 },
-      { x: 123, y: 40 },
-      { x: 179, y: 45 },
-      { x: 273, y: 59 },
-      { x: 310, y: 86 },
+      { x: 20, y: 35 },
+      { x: 123, y: 43 },
+      { x: 179, y: 47 },
+      { x: 273, y: 58 },
+      { x: 310, y: 80 },
     ]);
   });
 
   test("gridlines, the first and last value labels, the date row", () => {
     const c = weightChart(persona);
-    expect(c.gridlines).toEqual([22, 58, 94]);
+    expect(c.gridlines).toEqual([28, 54, 80]);
     expect(c.firstLabel).toEqual({ x: 20, y: 14 });
-    expect(c.lastLabel).toEqual({ x: 300, y: 100 });
+    expect(c.lastLabel).toEqual({ x: 300, y: 94 });
     expect(c.dateLabelY).toBe(110);
   });
 

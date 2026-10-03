@@ -219,7 +219,10 @@ export interface WeightPoint {
 
 const W_VIEW_BOX = "0 0 320 112";
 const W_X0 = 20, W_X1 = 310;
-const W_GRID = [22, 58, 94] as const;
+// Inset one label lane at each end (ieat-app#1507): the end value's baseline sits ±lastLabelDy
+// off the endpoint, so the drawable band must keep a label's height clear of the frame's top edge
+// and of the date row — the label takes the stroke-free side, the scale keeps that side free.
+const W_GRID = [28, 54, 80] as const;
 /** Pixels per kg while the data allows it — the board's own 46. */
 const W_PX_PER_KG = 46;
 /** Headroom above the highest weigh-in, in kg. */
@@ -285,8 +288,10 @@ const W_FRAME: WeightFrame = {
  */
 const W_FRAME_LANE: WeightFrame = {
   ...W_FRAME, viewBox: "0 0 320 120", spanPx: 32, lastLabelDy: 18, dateLabelY: 118,
+  // The You board keeps its own band — the Progress inset does not move it.
+  yTop: 22,
   // Without the bottom hairline: at y 94 it ran through the lane's label (#1236).
-  gridlines: W_GRID.slice(0, 2),
+  gridlines: [22, 58],
 };
 
 /** health-body.html's frame: wider, no hairlines, the board's 50 px a kg capping at a 66 px span. */
