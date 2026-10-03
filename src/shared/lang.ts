@@ -14,7 +14,7 @@
 // have. `numbers` and `monthYear` below are the only two shapes this product needs, and every
 // figure in every sentence goes through one of them rather than through a hand-written table.
 
-import { localDate } from "./dates.ts";
+import { dateMinus, localDate } from "./dates.ts";
 import { LANGS, type Lang } from "./types.ts";
 
 /**
@@ -284,6 +284,46 @@ export const weekdayDayMonthAt = (lang: Lang, zone: string, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], {
     weekday: "short", day: "numeric", month: "short", timeZone: zone,
   }).format(at);
+
+/**
+ * The two days a person has a WORD for, in the sentence case each language writes mid-sentence.
+ *
+ * A hand table and not `Intl.RelativeTimeFormat`: Hermes carries `Intl.Collator`,
+ * `Intl.DateTimeFormat` and `Intl.NumberFormat` only (`src/mobile/AGENTS.md`), and `new` on the
+ * rest is `undefined` used as a constructor — a process abort on a real phone that a browser
+ * never shows.
+ */
+export const DAY_WORDS: Localized<{ today: string; yesterday: string }> = {
+  en: { today: "today", yesterday: "yesterday" },
+  fr: { today: "aujourd'hui", yesterday: "hier" },
+  de: { today: "heute", yesterday: "gestern" },
+  it: { today: "oggi", yesterday: "ieri" },
+  es: { today: "hoy", yesterday: "ayer" },
+  vi: { today: "hôm nay", yesterday: "hôm qua" },
+  id: { today: "hari ini", yesterday: "kemarin" },
+  ru: { today: "сегодня", yesterday: "вчера" },
+};
+
+/**
+ * How a stored `YYYY-MM-DD` is spoken to a person, in the reader's language.
+ *
+ * An ISO date is a machine's format. "Logging to 2026-08-27 — look right?" asks the user to parse a
+ * timestamp in order to answer a yes/no question about their lunch, and the diary's own header said
+ * the same thing.
+ *
+ * Sentence form ("today", not "Today"), because most uses here are mid-sentence; a heading applies
+ * `textTransform: "capitalize"` rather than this returning two shapes.
+ */
+export function dayLabel(lang: Lang, date: string, today: string): string {
+  const words = t(lang)(DAY_WORDS);
+  if (date === today) return words.today;
+  if (date === dateMinus(today, 1)) return words.yesterday;
+  // Midday UTC, so the label cannot slip a day on either side of the date line while formatting a
+  // value that carries no time at all.
+  return new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: "UTC", weekday: "short", day: "numeric", month: "short",
+  }).format(new Date(`${date}T12:00:00Z`)).replace(",", "");
+}
 
 /** "9:41" — a clock time in the account's zone, for "expires at {time}" style lines. */
 export const timeAt = (lang: Lang, zone: string, at: Date): string =>
