@@ -90,8 +90,8 @@ export const ERROR_COPY: Localized<ErrorCopy> = {
     crashTitle: "Đã xảy ra lỗi",
     crashNote: "Màn hình đó gặp lỗi và đã dừng lại.",
     crashStuckTitle: "Màn hình đó vẫn lỗi",
-    crashStuckNote: "Chúng tôi không tải được màn hình đó.",
-    crashHome: "Về nhật ký của tôi",
+    crashStuckNote: "Chúng mình không tải được màn hình đó.",
+    crashHome: "Về nhật ký của mình",
   },
   id: {
     bootUnreachableNote: "Periksa koneksimu, lalu coba lagi.",
@@ -101,7 +101,7 @@ export const ERROR_COPY: Localized<ErrorCopy> = {
     crashNote: "Layar itu mengalami error dan berhenti.",
     crashStuckTitle: "Layar itu terus gagal",
     crashStuckNote: "Kami tidak bisa memuat layar itu.",
-    crashHome: "Kembali ke diary saya",
+    crashHome: "Kembali ke diary aku",
   },
   ru: {
     bootUnreachableNote: "Проверь соединение и попробуй ещё раз.",

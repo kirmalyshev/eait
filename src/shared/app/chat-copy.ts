@@ -712,7 +712,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     proposalDecline: "Không",
     expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
     macroLabels: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo", kcal: "Calo", satfat: "Chất béo bão hoà" },
-    starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Tôi sẽ kể tôi đã ăn gì", ideas: "Tối nay nên ăn gì?" },
+    starters: { consistency: "Tuần này thế nào?", habits: "Đổi món gì nhẹ hơn cho bữa tối?", support: "Đã đủ đạm chưa?", busy: "Mình sẽ kể mình đã ăn gì", ideas: "Tối nay nên ăn gì?" },
     macroEaten: "{value}",
     macroTarget: "trên {target}{unit}",
     loadFailed: "Không tải được cuộc trò chuyện.",
@@ -850,7 +850,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
       goneApplyTitle: "Tidak bisa menerapkannya",
       goneApplyNote: "Makanan itu terhapus sebelum perubahan sampai. Catat lagi kalau masih perlu.",
       refusals: {
-        notFood: "Saya tidak menemukan makanan di situ.",
+        notFood: "Aku tidak menemukan makanan di situ.",
         capGlobalTitle: "Instans kehabisan bujet hari ini",
         capGlobalNote: "Bukan kamu — semuanya. Direset tengah malam.",
         capAddressTitle: "Terlalu banyak dari jaringan ini",

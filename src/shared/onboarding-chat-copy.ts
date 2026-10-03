@@ -742,7 +742,7 @@ const VI: ChatCopy = {
   },
   underAge:  {
     ask: "Xin lỗi — mình phải dừng ở đây. Nếu chỉ là gõ nhầm, bạn gửi lại tuổi thật nhé.",
-    confirm: "Đó là tuổi thật của tôi",
+    confirm: "Đó là tuổi thật của mình",
     placeholder: "Tuổi của bạn",
     stopped: [
       "Vậy thì chúng mình dừng ở đây. Mình đang xoá mọi điều bạn đã kể.",
@@ -762,7 +762,7 @@ const VI: ChatCopy = {
   },
   ambiguousAge:  {
     line: "Mình muốn chắc là đọc đúng — nếu ý bạn là năm {year}, gửi đủ bốn chữ số nhé.",
-    confirm: "Tôi {age} tuổi",
+    confirm: "Mình {age} tuổi",
   },
   direction:  {
     gain: "Bạn đang ở {weight}kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
@@ -782,9 +782,9 @@ const VI: ChatCopy = {
     worthSetting: "Đã ghi. Có điều cân nặng mục tiêu của bạn không còn hợp với mục tiêu nữa — nên đặt lại một mức mới.",
   },
   target: {
-    lowest: "{weight} · mức thấp nhất chúng tôi đặt",
+    lowest: "{weight} · mức thấp nhất chúng mình đặt",
     now: "{weight} · hiện tại",
-    nowLowest: "{weight} · hiện tại · mức thấp nhất chúng tôi đặt",
+    nowLowest: "{weight} · hiện tại · mức thấp nhất chúng mình đặt",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -943,7 +943,7 @@ const ID: ChatCopy = {
   plan: {
     goalLose: "Target: turun {delta} menjelang {month}",
     goalGain: "Target: naik {delta} menjelang {month}",
-    goalMaintain: "Target: pertahankan berat badan saya",
+    goalMaintain: "Target: pertahankan berat badan aku",
     rest: "Saat istirahat tubuhmu membakar", activity: "Dengan aktivitasmu, sekitar", pace: "Untuk tempomu, kami sesuaikan", floor: "Batas bawah yang tidak dilewati", protein: "Target protein",
   },
   health: {

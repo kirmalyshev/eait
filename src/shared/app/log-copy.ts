@@ -650,7 +650,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     },
   },
   vi: {
-    notePlaceholder: "Có gì tôi không nhìn thấy không? Xúc xích, không phải bí ngòi…",
+    notePlaceholder: "Có gì mình không nhìn thấy không? Xúc xích, không phải bí ngòi…",
     reading: "Đang đọc đĩa ăn. Một lát cho các con số.",
     checking: "Đang kiểm tra các con số",
     close: "Đóng",
@@ -721,7 +721,7 @@ export const LOG_COPY: Localized<LogCopy> = {
       capUnknownTitle: "Cái đó chạm hạn mức",
       capUnknownNote: "Chưa ghi và chưa tính gì. Thử lại sau — chat vẫn hoạt động.",
       setupTitle: "Hoàn tất thiết lập trước đã",
-      setupNote: "Chúng tôi cần mục tiêu và cân nặng của bạn trước khi chấm một bữa.",
+      setupNote: "Chúng mình cần mục tiêu và cân nặng của bạn trước khi chấm một bữa.",
       longNoteTitle: "Ghi chú đó quá dài",
       longNoteNote: "Giữ dưới {max} ký tự. Chưa ghi gì.",
       libraryFailTitle: "Không mở được ảnh của bạn",

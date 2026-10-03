@@ -271,7 +271,7 @@ msgstr "Tuần này thế nào?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.coachStarters.busy"
-msgstr "Tôi sẽ kể tôi đã ăn gì"
+msgstr "Mình sẽ kể mình đã ăn gì"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

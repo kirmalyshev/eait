@@ -537,8 +537,8 @@ const VI: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
     lines: ["Chụp một bữa ăn. Biết nó có hợp không."],
-    cta: "Xây kế hoạch cho tôi",
-    signin: "Tôi đã có tài khoản",
+    cta: "Xây kế hoạch cho mình",
+    signin: "Mình đã có tài khoản",
   },
   screens: [
     {
@@ -546,7 +546,7 @@ const VI: OnboardingContent = {
       asks: { goal: { lines: ["Bạn đến đây để làm gì?"] } },
       options: {
         lose: { label: "Giảm cân" },
-        maintain: { label: "Giữ cân nặng của tôi" },
+        maintain: { label: "Giữ cân nặng của mình" },
         gain: { label: "Tăng cân" },
       },
     },
@@ -639,7 +639,7 @@ const VI: OnboardingContent = {
       fat: "Chất béo", diet: "Chế độ ăn",
     },
     limitCap: { ldl: "chất béo bão hoà ≤ {n}g", kidneys: "natri ≤ {n}mg" },
-    cta: "Cho tôi xem kế hoạch",
+    cta: "Cho mình xem kế hoạch",
     floorTitle: "Dừng lại ở {floor}kcal",
     floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng mình không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
   },
@@ -662,8 +662,8 @@ const ID: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
     lines: ["Foto satu makanan. Tahu apakah cocok."],
-    cta: "Buat rencana saya",
-    signin: "Saya sudah punya akun",
+    cta: "Buat rencana aku",
+    signin: "Aku sudah punya akun",
   },
   screens: [
     {
@@ -671,7 +671,7 @@ const ID: OnboardingContent = {
       asks: { goal: { lines: ["Kamu ke sini untuk apa?"] } },
       options: {
         lose: { label: "Menurunkan berat badan" },
-        maintain: { label: "Jaga berat badan saya" },
+        maintain: { label: "Jaga berat badan aku" },
         gain: { label: "Menaikkan berat badan" },
       },
     },
