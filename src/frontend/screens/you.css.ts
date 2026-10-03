@@ -73,10 +73,9 @@ export const youCss = `
   border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
   color: var(--ink); }
 
-/* The today column — the strip bleeds to the column edges (the board's -16px), the hero is the
+/* The today column — the strip's seven cells spread the column, the hero is the
    48px figure with the 104 ring beside it, then the three macro cards and the page dots. The
    figure and ring go --bad on a warn day, the card's one "over" state, same as Home's (#175). */
-.you .weekbleed { margin: 0 -16px; }
 .you .dayhero { display: flex; align-items: center; justify-content: space-between; }
 .you .dayhero .hnum { font-size: 48px; display: block; }
 .you .dayhero.over .hnum { color: var(--bad); }

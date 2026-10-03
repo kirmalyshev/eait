@@ -2,7 +2,7 @@
 // strings so `/start` interpolates the same components server-side, plus `kitCss()` — the rules
 // those class names mean. Every number asserted here is a `product/design/pro/` measurement the
 // overseer checks the rendered DOM against: ring 104/96/52 px with strokes 8/8/5, week ring 32 px
-// stroke 2.4, the 56 px meal photo, the 14 px CTA radius.
+// stroke 2.5, the 56 px meal photo, the 14 px CTA radius.
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -80,7 +80,7 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(over.tone).toBe("bad");
     expect(m).toContain('stroke="var(--over)"');
     // The empty past day is the dotted placeholder; the future ones are the same, at .fut.
-    expect(m).toContain('stroke-dasharray="2 3"');
+    expect(m).toContain('stroke-dasharray="1.5 3"');
     // The date number sits centred in the ring, the SHORT weekday name above it (F: MON…SUN,
     // uppercased by the stylesheet, not the single letter).
     expect(m).toContain("<b>24</b>");
@@ -95,8 +95,8 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(m.match(/<button type="button" class="dy fut" disabled/g)).toHaveLength(3);
     expect(m.match(/aria-hidden="true"/g)).toHaveLength(4); // the fut cells' rings and the tint are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
-    expect(m).toContain('viewBox="0 0 30 30"');
-    expect(m).toContain('stroke-width="2.4"');
+    expect(m).toContain('viewBox="0 0 32 32"');
+    expect(m).toContain('stroke-width="2.5"');
   });
 
   test("now raises the VIEWED day, not the server's today — and falls back without it", () => {
@@ -387,9 +387,9 @@ describe("kitCss — the numbers the boards measure", () => {
     // The strokes (8/8/5) are markup attributes — checked on ring() above.
   });
 
-  test("the week ring is 32 px at stroke 2.4, its date centred", () => {
+  test("the week ring is 32 px at stroke 2.5, its date centred", () => {
     expect(css).toContain(".week svg{width:32px;height:32px");
-    // The 2.4 stroke itself is a markup attribute (checked on weekStrip above), not a rule.
+    // The 2.5 stroke itself is a markup attribute (checked on weekStrip above), not a rule.
     expect(rule(".week .dy b")).toContain("position:absolute");
     // F's raised cell is the flat `.wtint` — the kcal tint, radius 12, no shadow — so `.now`
     // inks the lettering and nothing more; the tint is what `background`s.
