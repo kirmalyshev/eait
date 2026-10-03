@@ -189,10 +189,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const weekCardEl = (d: DaysResponse): HTMLElement => {
     const card = el("div", "card rise rc-2");
     const head = el("div", "row between");
-    head.append(
-      el("span", "lab", copy.weekLabel),
-      el("span", "est", fill(copy.weekPlan, { plan: kcalNumbers(lang)(d.targetKcal) })),
-    );
+    head.append(el("span", "lab", copy.weekLabel));
     const bars = weekBarsEl(d.days.map((day) => day.logged ? day.kcal : null), d.targetKcal, {
       todayIndex: d.days.findIndex((day) => day.when === "today"),
       letters,
