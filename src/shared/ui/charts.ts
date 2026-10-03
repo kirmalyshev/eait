@@ -59,13 +59,13 @@ export function dayTone(day: ChartDay, planKcal: number): DayTone {
   return (day.kcal ?? 0) > planKcal ? "bad" : "accent";
 }
 
-/** The week-strip ring's own frame, as every board draws it. */
+/** The week-strip ring's own frame, as every board draws it: a 28 px ring in the 32 box. */
 export const WEEK_RING = {
-  viewBox: "0 0 30 30",
-  c: 15,
-  r: 12,
+  viewBox: "0 0 32 32",
+  c: 16,
+  r: 14,
   /** The placeholder circle's dash pattern, for `dotted` and `faded` days. */
-  dottedDash: "2 3",
+  dottedDash: "1.5 3",
 } as const;
 
 /**

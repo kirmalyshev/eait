@@ -80,7 +80,7 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(over.tone).toBe("bad");
     expect(m).toContain('stroke="var(--over)"');
     // The empty past day is the dotted placeholder; the future ones are the same, at .fut.
-    expect(m).toContain('stroke-dasharray="2 3"');
+    expect(m).toContain('stroke-dasharray="1.5 3"');
     // The date number sits centred in the ring, the SHORT weekday name above it (F: MON…SUN,
     // uppercased by the stylesheet, not the single letter).
     expect(m).toContain("<b>24</b>");
@@ -95,7 +95,7 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(m.match(/<button type="button" class="dy fut" disabled/g)).toHaveLength(3);
     expect(m.match(/aria-hidden="true"/g)).toHaveLength(4); // the fut cells' rings and the tint are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
-    expect(m).toContain('viewBox="0 0 30 30"');
+    expect(m).toContain('viewBox="0 0 32 32"');
     expect(m).toContain('stroke-width="2.4"');
   });
 

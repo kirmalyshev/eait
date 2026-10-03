@@ -18,7 +18,7 @@
 // import it — so the functions take `{tone, words}` pairs the caller computed.
 
 import {
-  dayRing, estimateChart, ringDash, TWO_WAYS_CHART, weekBars, weightChart,
+  dayRing, estimateChart, ringDash, TWO_WAYS_CHART, weekBars, WEEK_RING, weightChart,
   type ChartDay, type EstimateDirection, type WeightPoint,
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
@@ -111,9 +111,9 @@ export const weekStrip = (
     // An over day's ring is dark red (F) — `--over`, calmer than `--bad` in both themes.
     const tone = ring.tone === "bad" ? "over" : ring.tone;
     const circles = ring.dashoffset === undefined
-      ? `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
-      : `<circle cx="15" cy="15" r="12" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
-        `<circle class="fg" cx="15" cy="15" r="12" fill="none" stroke="var(--${tone})" stroke-width="2.4" ` +
+      ? `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
+      : `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
+        `<circle class="fg" cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--${tone})" stroke-width="2.4" ` +
         `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
     const letter = `<span class="dl">${esc(letters[(noon.getUTCDay() + 6) % 7]!)}</span>`;
     const num = Number(day.date.slice(8, 10));
@@ -121,9 +121,9 @@ export const weekStrip = (
     // so it is a DISABLED button: inactive, never focusable, and exempt from the contrast rule (WCAG 1.4.3).
     if (day.when === "future" && !isNow)
       return `<button type="button" class="${cls}" disabled aria-label="${esc(fullDate.format(noon))}">` +
-        `${letter}<svg viewBox="0 0 30 30" aria-hidden="true">${circles}</svg><b>${num}</b></button>`;
+        `${letter}<svg viewBox="${WEEK_RING.viewBox}" aria-hidden="true">${circles}</svg><b>${num}</b></button>`;
     return `<button type="button" class="${cls}" data-date="${esc(day.date)}" ` +
-      `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="0 0 30 30">${circles}</svg><b>${num}</b></button>`;
+      `aria-label="${esc(fullDate.format(noon))}">${letter}<svg viewBox="${WEEK_RING.viewBox}">${circles}</svg><b>${num}</b></button>`;
   });
   // The raised cell's flat tint is ONE element (`a0`…`a6` are the cells' left edges) so a client
   // that keeps the strip mounted can glide it to the tapped day instead of rebuilding.
@@ -243,11 +243,8 @@ export interface MealRowSpec {
   verdicts?: readonly { tone: VerdictTone; words: string }[];
   /** A second clause after the time. */
   note?: string;
-  /** The photo's src; anything else draws the no-photo tile. */
+  /** The photo's src; anything else draws the no-photo tile — the accent chat mark. */
   photo?: { src: string; alt?: string } | null;
-  /** The no-photo tile: the accent chat mark on today's "Recent" row (a typed meal),
-   *  the two-ring plate the compact rows of the past-day and logging boards draw. */
-  tile?: "chat" | "plate";
   href?: string;
   /** Carried on `data-meal` so a tap handler can name the row it was tapped on. */
   id?: string;
@@ -257,9 +254,7 @@ export const mealRow = (o: MealRowSpec, lang: Lang): string => {
   const n = wholeNumbers(lang);
   const photo = o.photo?.src !== undefined
     ? `<img class="ph" src="${esc(o.photo.src)}" alt="${esc(o.photo.alt ?? "")}">`
-    : o.tile === "plate"
-      ? `<div class="ph plate">${ico("target")}</div>`
-      : `<div class="ph chat">${ico("chat")}</div>`;
+    : `<div class="ph chat">${ico("chat")}</div>`;
   // The words only when not on plan, one dot for the row, the worst tone's colour on it.
   const spoken = (o.verdicts ?? []).filter((v) => v.tone !== "good");
   const tag = o.href !== undefined ? "a" : "div";
@@ -540,18 +535,18 @@ export function kitCss(): string {
 .mring.flat{display:flex;align-items:center;justify-content:center}
 .mring.flat .ico{position:static;transform:none;width:34px;height:34px}
 
-/* The week strip — seven days, the date centred in a 32 px ring of stroke 2.4. F's raised cell
-   is ONE flat tint (the kcal tint, radius 12, no shadow) that a mounted strip glides between
-   cells; the a0…a6 classes are the cells' left edges in the padded row, so the markup-only
-   surfaces place it right too. */
-.week{position:relative;display:flex;justify-content:space-between;padding:0 16px}
-.week .wtint{position:absolute;top:0;bottom:0;width:44px;left:16px;border-radius:12px;
+/* The week strip — seven days, the date centred in the board's 28 px ring of stroke 2.4, in
+   its 32 px box. F's raised cell is ONE flat tint (the kcal tint, radius 12, no shadow) that a
+   mounted strip glides between cells; the a0…a6 classes are the cells' left edges, so the
+   markup-only surfaces place it right too. */
+.week{position:relative;display:flex;justify-content:space-between}
+.week .wtint{position:absolute;top:0;bottom:0;width:44px;left:0;border-radius:12px;
   background:var(--macro-kcal-t);transition:left .22s var(--ease);pointer-events:none}
-${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(16px + ${i}*(100% - 76px)/6)}`).join("\n")}
+${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(${i}*(100% - 44px)/6)}`).join("\n")}
 .week .dy{display:flex;flex-direction:column;align-items:center;gap:5px;width:44px;padding:6px 0 7px;
   border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:12px;font-weight:600;
   color:var(--muted);position:relative;cursor:pointer}
-.week .dy .dl{font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.week .dy .dl{letter-spacing:.055em;text-transform:uppercase}
 .week .dy.now{color:var(--ink)}
 .week .dy.fut{opacity:.45;cursor:default}
 .week .dy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -583,8 +578,6 @@ ${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(16px + ${i}*(10
 .meal .ph{width:56px;height:56px;flex:0 0 56px;border-radius:var(--r-thumb);object-fit:cover;background:var(--hair)}
 .meal .ph.chat{display:flex;align-items:center;justify-content:center;background:var(--accent-tint)}
 .meal .ph.chat .ico{width:22px;height:22px;color:var(--accent)}
-.meal .ph.plate{display:flex;align-items:center;justify-content:center}
-.meal .ph.plate .ico{width:24px;height:24px;color:var(--muted)}
 .meal .mm{flex:1;min-width:0}
 .meal .mm b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meal .mm small{display:block;font-size:12px;color:var(--muted);margin-top:2px}

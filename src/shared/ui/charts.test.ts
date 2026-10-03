@@ -84,8 +84,8 @@ describe("dayRing — the week-strip ring, tone and dash together", () => {
   test("a logged day under plan", () => {
     const r = dayRing({ kcal: 1066, logged: true, when: "today" }, 1434);
     expect(r.tone).toBe("accent");
-    expect(r.dasharray).toBe("75.4");
-    expect(r.dashoffset).toBe("19.3");
+    expect(r.dasharray).toBe("88.0");
+    expect(r.dashoffset).toBe("22.6");
   });
 
   test("an over-plan day closes the ring in bad", () => {
@@ -98,8 +98,8 @@ describe("dayRing — the week-strip ring, tone and dash together", () => {
   test("today's empty ring is accent at zero, exactly as today-empty.html draws it", () => {
     expect(dayRing({ kcal: null, logged: false, when: "today" }, 1434)).toEqual({
       tone: "accent",
-      dasharray: "75.4",
-      dashoffset: "75.4",
+      dasharray: "88.0",
+      dashoffset: "88.0",
     });
   });
 
