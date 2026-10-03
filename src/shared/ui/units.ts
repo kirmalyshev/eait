@@ -153,23 +153,36 @@ export function rulerTickPhase(ticks: RulerTicks, centre: number, val: number, m
 }
 
 /**
+ * One marker label's box against the needle, which is a marker too (ieat-app#1201
+ * review): every label keeps `gap` from the line, so a label anchored left of the
+ * needle ENDS at `x - gap` and one on or right of it STARTS at `x + gap` — the
+ * label hugs the far side of its own mark, never the needle's side.
+ * `x` is the mark's position and `w` the label's measured width, in the band's
+ * own coordinate space; the client script in `web/page/control.ts` re-derives
+ * this (it is a hashed literal and cannot import).
+ */
+export function rulerMarkerBox(x: number, w: number, needleX: number, gap = 6): { l: number; r: number } {
+  return x < needleX ? { l: x - gap - w, r: x - gap } : { l: x + gap, r: x + gap + w };
+}
+
+/**
  * The target ruler's two marker labels — the floor's "lowest we set" and "now" —
  * share one band above the ticks, and close marks overprint (ieat-app#1201).
  * Three answers, one for both renderers to compute the same way:
  *
  * - `"merged"`:  the marks sit within one tick — ONE label carries both
- *   (`target.nowLowest`), start-aligned at the floor's mark.
+ *   (`target.nowLowest`), drawn at the floor's mark.
  * - `"stacked"`: the two label boxes would sit closer than `gap` — `drop`'s
- *   label takes a second row 16pt lower, `keep`'s stays centred on the band's
- *   row. Neither moves sideways.
+ *   label takes a second row 16pt lower, `keep`'s stays on the band's row.
+ *   Neither moves sideways.
  * - `"flat"`:    both on the one row.
  *
- * `x` is a mark's position and `l`/`r` its label box's edges, in the band's own
- * coordinate space — the renderer knows its alignment (the phone's floor label
- * starts at its mark, the web's ends at it), so it passes the box it drew, and
- * `w` never has to be estimated here. The client script in
- * `web/page/control.ts` re-derives this — it is a hashed literal and cannot
- * import — so the two agree because the arithmetic is this one function's.
+ * `x` is a mark's position and `l`/`r` its label box's edges as `rulerMarkerBox`
+ * resolved them — the renderer passes the box it will DRAW, needle clearance
+ * included, so the collision test is honest about what is on screen. The client
+ * script in `web/page/control.ts` re-derives this — it is a hashed literal and
+ * cannot import — so the two agree because the arithmetic is this one
+ * function's.
  */
 export type RulerMarkerLayout = "flat" | "stacked" | "merged";
 
