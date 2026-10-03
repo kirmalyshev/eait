@@ -426,10 +426,15 @@ function rowEl(job: Job): HTMLElement {
     if (job.items.length > 0) mm.append(el("b", "", names(job.items)));
     else { const t = el("div", "qtitle"); t.append(skeleton("62%", "12px")); mm.append(t); }
     mm.append(job.state === "waiting" ? step(Q.waiting, true) : step(job.step === 1 ? Q.uploading : job.line ?? Q.uploading));
-    if (job.step === 3 && job.items.length > 0) {
+    if (job.items.length > 0) {
       const chips = el("div", "qchips");
       for (const i of job.items) chips.append(el("span", "", i.name));
       mm.append(chips);
+    } else if (job.state === "reading") {
+      // The board's third skeleton bar under the step line while the foods are not yet named.
+      const extra = el("div", "qskl");
+      extra.append(skeleton("48%", "8px"));
+      mm.append(extra);
     }
     row.append(th, mm);
     if (job.state === "reading") {

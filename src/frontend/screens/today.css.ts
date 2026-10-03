@@ -19,7 +19,7 @@ export const todayCss = `
    in — the translateX is in column-widths (-100% is the current week); under the finger the
    transition is off, past 40 px the 260 ms ease-out slides the week home, short of it the same
    transition springs back. .rest on a rebuilt week silences the rings' draw-in. */
-.weekwrap { margin: 0 -16px; overflow: hidden; flex-shrink: 0;
+.weekwrap { overflow: hidden; flex-shrink: 0;
   touch-action: pan-y; -webkit-touch-callout: none; user-select: none; }
 .wtrack { display: flex; transform: translateX(-100%); transition: transform .26s var(--ease); }
 .wtrack > .week { flex: 0 0 100%; box-sizing: border-box; }
@@ -37,14 +37,15 @@ export const todayCss = `
    button only on today-with-meals (the swap arrows in the label toggle left↔eaten, the 150 ms
    crossfade on the figure block). Over reads in --over, the unread day dashes. */
 .hk { height: 128px; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left; }
+  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left;
+  color: var(--ink); }
 button.hk { cursor: pointer; }
 .hk > div { min-width: 0; transition: filter .15s ease; }
 .hk > div.xfd { filter: opacity(0); }
 .hk .fig { display: block; font-size: 48px; font-weight: 700; letter-spacing: -.02em;
   line-height: 1.05; font-variant-numeric: tabular-nums; }
 .hk .lbl { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
-  color: var(--muted); margin-top: 2px; }
+  color: var(--muted); }
 .hk .lbl svg { width: 12px; height: 12px; }
 .hk.over .fig, .hk.over .lbl { color: var(--over); }
 .hk.dash .fig { color: var(--line); }
@@ -60,7 +61,8 @@ button.hk { cursor: pointer; }
 /* The score hero — page 2's 128 px band: "Day score · {n}/10 ›" over the ink bar; a real
    button while the day has a score — it opens the breakdown sheet (the score row is gone). */
 .hsc { height: 128px; display: flex; flex-direction: column; justify-content: center; gap: 10px;
-  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left; }
+  padding: 0 20px; width: 100%; border: 0; background: none; font: inherit; text-align: left;
+  color: var(--ink); }
 button.hsc { cursor: pointer; }
 .hsc .hrow { display: flex; align-items: center; justify-content: space-between; }
 .hsc .hsct { font-size: 15px; font-weight: 600; }
@@ -80,7 +82,7 @@ button.hsc { cursor: pointer; }
 .rows { height: 160px; padding: 16px 20px; display: flex; flex-direction: column;
   justify-content: space-between; }
 .mrow { display: block; width: 100%; border: 0; background: none; padding: 0; font: inherit;
-  text-align: left; border-radius: 8px; }
+  text-align: left; border-radius: 8px; color: var(--ink); }
 .mrow .h { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .mrow .h .ico { width: 16px; height: 16px; flex: 0 0 16px; }
 .mrow .h > span { flex: 1; font-weight: 600; }
@@ -89,7 +91,7 @@ button.hsc { cursor: pointer; }
 .mrow.ov .h b small { font-weight: 600; color: var(--ink); }
 .mrow .bar { display: block; margin-top: 6px; height: 6px; border-radius: 1px;
   background: var(--hair); overflow: hidden; }
-.mrow .bar i { display: block; height: 6px; border-radius: 1px; }
+.mrow .bar i { display: block; height: 6px; border-radius: 0; }
 /* A tippable row takes the hovered pill while its tip is shut; open it wears none — the same
    vertical margin/padding keeps the tapped row's text exactly where the pill left it, while
    the panel inside stays flush with the bar. */
@@ -115,8 +117,11 @@ button.hsc { cursor: pointer; }
 /* The dots inside the card — two 6 px dots, the active one ink; .none keeps the space on the
    failed read (the card's height never changes) while the switcher stays out of the tab order. */
 .dayc .dots { display: flex; justify-content: center; gap: 12px; padding: 0 0 14px; }
-.dayc .dots button { width: 24px; height: 24px; border: 0; background: none; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.dayc .dots button { width: 6px; height: 6px; border: 0; background: none; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  position: relative; }
+/* The tap area is a pseudo-element OUTSIDE the 6×6 layout box, so the row stays 20 tall. */
+.dayc .dots button::after { content: ""; position: absolute; inset: -9px; }
 .dayc .dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line);
   pointer-events: none; }
 .dayc .dots button.on i { background: var(--ink); }
@@ -137,7 +142,7 @@ button.hsc { cursor: pointer; }
    draws no separator over nothing. */
 .dlist .queue:empty { display: none; }
 .dlist .queue:empty + .meal { border-top: 0; }
-.hnote { margin-top: -4px; padding: 0 4px; font-size: 13px; line-height: 18px; color: var(--muted); }
+.hnote { margin-top: 12px; padding: 0 4px; font-size: 13px; line-height: 18px; color: var(--muted); }
 .hempty { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
   padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;
   font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: none; }
@@ -192,6 +197,7 @@ a.hsp { color: inherit; text-decoration: none; }
 .qstep::before { content: ""; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: 0 0 6px; animation: k-pulse 1.2s ease-in-out infinite; }
 .qstep.still::before { display: none; }
 .qstep.ink { color: var(--ink); }
+.qskl { margin-top: 6px; }
 .qchips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
 .qchips span { font-size: 11px; font-weight: 600; background: var(--macro-kcal-t); border-radius: 6px; padding: 2px 6px; animation: k-rise 180ms ease-out; }
 .qact { display: flex; gap: 14px; margin-top: 6px; }

@@ -459,6 +459,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     if (post !== "") b.append(el("small", "", post));
   };
 
+  /** The board's capitalised row label — the table's noun stays lowercase for mid-sentence use. */
+  const cap = (w: string): string => w.charAt(0).toUpperCase() + w.slice(1);
+
   /** One bar row — the boards' `.mrow`: the 16 px line icon, the name, the "{grams} left"
    *  figure split at the placeholder, the 6 px bar. A row with NO target draws the total
    *  alone — no bar, no suffix. Tippable rows are real buttons. */
@@ -480,7 +483,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     ) as HTMLElement;
     if (o.tipKind !== undefined) (row as HTMLButtonElement).type = "button";
     const h = el("span", "h");
-    h.append(kitEl(ico(o.icon)), el("span", "", o.name));
+    h.append(kitEl(ico(o.icon)), el("span", "", cap(o.name)));
     const fig = el("b", "num");
     if (o.share === undefined) fig.append(document.createTextNode(o.grams));
     else figureBits(fig, over ? L.gramOver : L.gramLeft, o.grams);
@@ -850,13 +853,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       frame.side.querySelector(".dayw")?.replaceWith(dayCard(null, false));
       clear(wrap).append(h1, kitEl('<div class="spin" role="status"><i></i></div>'), notice);
     }
-    // The strip's three mounted weeks ride the same read — [monday-7, monday+6] covers
+    // The strip's three mounted weeks ride the same read — [monday-7, monday+13] covers
     // previous | current | next, so a slide's neighbour is already in memory.
     const [dayR, daysR] = await Promise.all([
       api<DayResponse>(`/diary/day?date=${viewing}`)
         .then((d) => ({ ok: true as const, d }))
         .catch(() => ({ ok: false as const })),
-      api<DaysResponse>(`${DAYS}?from=${dateMinus(monday, 7)}&to=${dateMinus(monday, -6)}`)
+      api<DaysResponse>(`${DAYS}?from=${dateMinus(monday, 7)}&to=${dateMinus(monday, -13)}`)
         .then((d) => ({ ok: true as const, d }))
         .catch(() => ({ ok: false as const })),
     ]);
@@ -911,8 +914,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       card.setAttribute("aria-label", `${L.nothingLogged} ${S.logMeal}`);
       card.append(
         kitEl('<svg class="plate" viewBox="0 0 64 64" aria-hidden="true">' +
-          '<circle cx="32" cy="32" r="30" fill="none" stroke="var(--faint)" stroke-width="1.5"/>' +
-          '<circle cx="32" cy="32" r="20" fill="none" stroke="var(--faint)" stroke-width="1.5"/></svg>'),
+          '<circle cx="32" cy="32" r="28" fill="none" stroke="var(--line)" stroke-width="2"/>' +
+          '<circle cx="32" cy="32" r="18" fill="none" stroke="var(--line)" stroke-width="2"/></svg>'),
         el("span", "", L.nothingLogged),
       );
       left.push(card);
@@ -920,7 +923,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       const card = el("div", "dlist");
       if (isToday) card.append(queueEl());
       for (const meal of shown) {
-        card.append(mealRow(meal, !rich));
+        card.append(mealRow(meal));
       }
       left.push(card);
       if (rich) {
@@ -977,16 +980,15 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     clear(frame.side).append(...right);
   }
 
-  /** A meal row: the photo or the no-photo tile, the time, the verdict line — the gram chips
-   *  only on the "Recent" form (`compact` is the past-day and logging boards' row). */
-  const mealRow = (meal: MealRecord, compact: boolean): Element =>
-    inPlace(meal.id, () => plainRow(meal, compact));
-  const plainRow = (meal: MealRecord, compact: boolean): Element => {
+  /** A meal row: the photo or the no-photo tile, the time, the verdict line, the gram chips —
+   *  the same row on every day, past days included (F). */
+  const mealRow = (meal: MealRecord): Element =>
+    inPlace(meal.id, () => plainRow(meal));
+  const plainRow = (meal: MealRecord): Element => {
     // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
     // prefix. The board draws `.meal` without a glyph; the link is the affordance.
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
-      compact,
       href: `#/meal/${encodeURIComponent(meal.id)}?d=${encodeURIComponent(viewing)}`,
     });
     // The photo rides behind the bearer — `apiBlob`'s bytes through `blobSrc`, a data URL: the
