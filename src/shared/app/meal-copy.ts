@@ -124,6 +124,10 @@ export interface MealCopy {
    * not spans, so a language can reorder them.
    */
   phoneGrams: string;
+  /** A failed ingredient save: `{grams}` is what was typed, still in the editor. */
+  phoneIngredientKept: string;
+  /** Correct this meal, answer never came: the note is back in the field. */
+  phoneNoAnswer: string;
   phoneMealMove: string;
 
   /** The gone state (`phone/meal-gone.html`) — a deleted, moved or foreign meal id. */
@@ -202,6 +206,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Remove ingredient",
     phoneWasAmount: "was {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "That didn't go through. Your {grams} is still here. Done saves it again.",
+    phoneNoAnswer: "That one reached me, but the answer didn't. It's here, send it again.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
@@ -256,6 +262,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Supprimer l’ingrédient",
     phoneWasAmount: "était {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Ça n'est pas passé. Ton {grams} est toujours là. Terminé l'enregistre à nouveau.",
+    phoneNoAnswer: "Ton message m'est bien arrivé, mais la réponse n'est pas arrivée. Il est là, renvoie-le.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
@@ -310,6 +318,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Zutat entfernen",
     phoneWasAmount: "vorher {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Das ist nicht durchgegangen. Deine {grams} sind noch da. Mit Fertig wird es erneut gespeichert.",
+    phoneNoAnswer: "Die ist angekommen, aber die Antwort kam nicht an. Sie steht wieder im Eingabefeld, schick sie noch einmal.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
@@ -364,6 +374,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Rimuovi ingrediente",
     phoneWasAmount: "era {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Non è andata a buon fine. I tuoi {grams} sono ancora qui. Con Fatto si salva di nuovo.",
+    phoneNoAnswer: "Il messaggio mi è arrivato, ma la risposta no. È qui, invialo di nuovo.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
@@ -418,6 +430,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Eliminar ingrediente",
     phoneWasAmount: "antes {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Eso no se completó. Tus {grams} siguen aquí. Con Listo se guarda de nuevo.",
+    phoneNoAnswer: "Me llegó, pero la respuesta no. Está aquí, envíalo otra vez.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
@@ -472,6 +486,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Bỏ nguyên liệu",
     phoneWasAmount: "trước là {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Chưa được. {grams} của bạn vẫn còn đây. Bấm Xong để lưu lại.",
+    phoneNoAnswer: "Tin đã tới mình, nhưng câu trả lời chưa tới. Tin vẫn ở đây, gửi lại nhé.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
@@ -526,6 +542,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Hapus bahan",
     phoneWasAmount: "tadinya {amount}",
     phoneGrams: "{n}g",
+    phoneIngredientKept: "Itu belum berhasil. {grams} milikmu masih di sini. Ketuk Selesai untuk menyimpan lagi.",
+    phoneNoAnswer: "Yang itu sampai padaku, tapi jawabannya tidak. Ada di sini, kirim lagi.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
@@ -580,6 +598,8 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneRemoveIngredient: "Удалить ингредиент",
     phoneWasAmount: "было {amount}",
     phoneGrams: "{n}г",
+    phoneIngredientKept: "Не получилось. Твои {grams} всё ещё здесь. «Готово» сохранит их снова.",
+    phoneNoAnswer: "Оно дошло до меня, а ответ — нет. Оно здесь, отправь ещё раз.",
     phoneMealMove: "{from} → {to}ккал",
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",

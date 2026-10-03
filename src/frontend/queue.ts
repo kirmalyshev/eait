@@ -377,7 +377,7 @@ export function updateRowEl(job: Job): HTMLElement {
   th.append(glyph("!"));
   const failed = job.state === "failed";
   mm.append(el("span", "qstep still ink", failed ? U.failedTitle : U.refusedTitle),
-    el("span", "qstep still", failed ? U.failedBody : job.words ?? U.failedBody));
+    el("span", "qstep still", failed ? (u.kind === "note" ? U.failedNote : U.failedBody) : job.words ?? U.failedBody));
   const act = el("div", "qact");
   const button = (text: string, on: () => void) => { const b = el("button", "", text); b.addEventListener("click", on); act.append(b); };
   // Edit brings what was sent back in its own field, for a refusal as well as a failure.
