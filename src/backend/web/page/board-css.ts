@@ -163,12 +163,15 @@ export const BOARD_CSS = `
                           border-radius: 50%; background: var(--accent); }
 .ob .ruler .lbl { position: absolute; bottom: 44px; transform: translateX(-50%); font-size: 12px;
                   font-weight: 500; color: var(--muted); white-space: nowrap; }
-.ob .ruler .lbl.lo { transform: translateX(-100%); padding-right: 6px; color: var(--bad); font-weight: 500; }
-/* #1201 — the floor label's second row, 16px under the band's own. */
+/* #1201 — .lo/.mg/.hi position by computed box (left is the box's own edge): the
+ * transforms and mark-side paddings the alignment used to live in are the
+ * script's mbox now, so the classes carry only the look. */
+.ob .ruler .lbl.lo { transform: none; color: var(--bad); font-weight: 500; }
+/* the floor label's second row, 16px under the band's own. */
 .ob .ruler .lbl.lo.r2 { bottom: 28px; }
-/* …and the merged floor/now label, start-aligned at the floor's mark. */
-.ob .ruler .lbl.mg { transform: none; padding-left: 6px; color: var(--bad); font-weight: 500; }
-.ob .ruler .lbl.hi { color: var(--ink); font-weight: 600; }
+/* the merged floor/now label. */
+.ob .ruler .lbl.mg { transform: none; color: var(--bad); font-weight: 500; }
+.ob .ruler .lbl.hi { transform: none; color: var(--ink); font-weight: 600; }
 .ob .ruler .tint { position: absolute; left: 0; bottom: 0; height: 38px;
                    background: linear-gradient(90deg, var(--bad-tint), transparent); pointer-events: none; }
 

@@ -101,20 +101,25 @@ export const CONTROL_SCRIPT = `(function () {
       }
       if (lbls) lbls.innerHTML = out;
       if (tint && !isNaN(floor)) tint.style.width = Math.max(0, pxAt(floor, size)) + "px";
-      // .lo ends AT the floor tick; clamped so a floor near the edge keeps the words on it.
-      if (lo && !isNaN(floor)) lo.style.left = Math.max(pxAt(floor, size), lo.offsetWidth + 4) + "px";
-      if (hi && !isNaN(nowV)) hi.style.left = pxAt(nowV, size) + "px";
-      if (mg && lo && hi && !isNaN(floor) && !isNaN(nowV)) {
-        // ieat-app#1201 — rulerMarkerLayout, re-derived because a hashed
-        // literal cannot import it: marks within one tick merge into .mg;
-        // label boxes under 8px apart drop the floor label to .r2; apart,
-        // both stay on the band's row.
-        var loX = pxAt(floor, size), hiX = pxAt(nowV, size);
-        var merged = Math.abs(loX - hiX) <= px;
-        var loL = Math.max(loX, lo.offsetWidth + 4) - lo.offsetWidth, loR = loL + lo.offsetWidth;
-        var hiL = hiX - hi.offsetWidth / 2, hiR = hiX + hi.offsetWidth / 2;
-        var stacked = !merged && loR + 8 > hiL && hiR + 8 > loL;
-        mg.style.left = loX + "px";
+      // ieat-app#1201 — the needle is a marker too: every label keeps 6px from
+      // the line, hugging the far side of its own mark — ends at mark - 6 when
+      // anchored left of the needle, starts at mark + 6 on or right of it
+      // (rulerMarkerBox, re-derived because a hashed literal cannot import it).
+      var nX = size / 2;
+      function mbox(x, w) { return x < nX ? [x - 6 - w, x - 6] : [x + 6, x + 6 + w]; }
+      var loB = lo && !isNaN(floor) ? mbox(pxAt(floor, size), lo.offsetWidth) : null;
+      var hiB = hi && !isNaN(nowV) ? mbox(pxAt(nowV, size), hi.offsetWidth) : null;
+      // .lo is clamped on the left so a floor near the edge keeps the words on it.
+      if (loB) lo.style.left = Math.max(loB[0], 4) + "px";
+      if (hiB) hi.style.left = hiB[0] + "px";
+      if (mg && loB && hiB) {
+        // rulerMarkerLayout, re-derived the same way: marks within one tick
+        // merge into .mg; the resolved boxes under 8px apart drop the floor
+        // label to .r2; apart, both stay on the band's row.
+        var merged = Math.abs(pxAt(floor, size) - pxAt(nowV, size)) <= px;
+        var loL = Math.max(loB[0], 4), loR = loL + lo.offsetWidth;
+        var stacked = !merged && loR + 8 > hiB[0] && hiB[1] + 8 > loL;
+        mg.style.left = mbox(pxAt(floor, size), mg.offsetWidth)[0] + "px";
         mg.style.visibility = merged ? "visible" : "hidden";
         lo.style.visibility = hi.style.visibility = merged ? "hidden" : "visible";
         lo.className = "lbl lo" + (stacked ? " r2" : "");
