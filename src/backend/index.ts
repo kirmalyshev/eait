@@ -18,7 +18,7 @@ import { demoPorts } from "./llm/demo.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, drainJobs, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, eveningSweep, startJobs, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -160,6 +160,9 @@ const sweepHealthRetention = async () => {
   // a failed health sweep does not keep answers past their time.
   await store.forgetTurnOutcomes(Date.now() - TURN_OUTCOME_TTL_MS).catch((e: unknown) => {
     console.error(`[eait] turn answer sweep failed: ${(e as Error)?.message ?? e}`);
+  });
+  await store.forgetJobs(Date.now() - TURN_OUTCOME_TTL_MS).catch((e: unknown) => {
+    console.error(`[eait] job sweep failed: ${(e as Error)?.message ?? e}`);
   });
   // Counts only: the ids are nobody's business once the rows are gone.
   await store.pruneAbandonedAccounts(Date.now() - ABANDONED_ACCOUNT_IDLE_DAYS * DAY_MS)
@@ -435,6 +438,9 @@ const handle: typeof router = demo
     }
   : router;
 
+// Every replica runs queued jobs: the claim is in Postgres, so which one takes a job does not matter.
+startJobs(deps);
+
 const server = Bun.serve({
   port: config.port,
   // Loopback by default. A process that binds 0.0.0.0 because nobody said otherwise is how a build
@@ -472,7 +478,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     // Unhealthy FIRST: the proxy's next health check pulls this replica out while the rest below
     // finishes, rather than traffic reaching a process that is half closed.
     draining = true;
-    // Stop accepting, let queued jobs land (a deploy must not lose a photo), then close.
+    // Stop accepting and claiming, let running jobs land, hand the rest back to the queue, then close.
     const stopping = server.stop();
     await drainJobs(deps, config.shutdownDrainMs);
     await stopping;

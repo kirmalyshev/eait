@@ -372,6 +372,10 @@ export interface Config {
   pushTimeoutMs: number;
   /** How long a shutdown waits for queued photo and update jobs; the deploy's stop grace period must exceed it. */
   shutdownDrainMs: number;
+  /** How many queued jobs one process runs at once. */
+  jobConcurrency: number;
+  /** A queued job no replica has claimed by this age settles `OUTCOME_UNKNOWN` rather than waiting forever. */
+  jobMaxQueuedMs: number;
   /**
    * When the evening line goes out, in this server's `timezone`.
    *
@@ -569,6 +573,8 @@ export function configDefaults(): Config {
     expoPushAccessToken: "",
     pushTimeoutMs: 15_000,
     shutdownDrainMs: 60_000,
+    jobConcurrency: 4,
+    jobMaxQueuedMs: 600_000,
     // The one number the shipped copy states out loud, so it has exactly one source.
     eveningLineTime: { hour: REMINDER_TIME.hour, minute: REMINDER_TIME.minute },
   };
@@ -713,6 +719,8 @@ export function loadConfig(): Config {
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
     pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
     shutdownDrainMs: int("EAIT__BACKEND__SHUTDOWN_DRAIN_MS", d.shutdownDrainMs),
+    jobConcurrency: int("EAIT__BACKEND__JOB_CONCURRENCY", d.jobConcurrency),
+    jobMaxQueuedMs: int("EAIT__BACKEND__JOB_MAX_QUEUED_MS", d.jobMaxQueuedMs),
     eveningLineTime,
   };
 }

@@ -653,6 +653,7 @@ export function createRouter(
 
       // ── The photo queue (ieat-app#1318) ─────────────────────────────────────────────────────
       if (req.method === "POST" && pathname === ROUTES.photoQueue) {
+        const receivedAt = Date.now();
         const upload = await readPhotoForm(req);
         if (upload instanceof Response) return upload;
         const { form, files } = upload;
@@ -662,6 +663,7 @@ export function createRouter(
         if (fields.clientId === undefined) return json({ error: "clientId required" }, 400);
         return json(await queuePhoto(deps, userId, {
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
+          receivedAt,
           ...(typeof caption === "string" && caption ? { caption } : {}),
           ...fields, clientId: fields.clientId,
         }), 202);
@@ -687,7 +689,7 @@ export function createRouter(
         const sinceRaw = url.searchParams.get("since");
         const since = sinceRaw === null ? null : Date.parse(sinceRaw);
         if (!["active", "settled", "all"].includes(state) || Number.isNaN(since)) return json({ error: "bad-request" }, 400);
-        return json(listJobs(userId, { state: state as JobsFilter, since }));
+        return json(await listJobs(deps, userId, { state: state as JobsFilter, since, cursor: url.searchParams.get("cursor") }));
       }
       const jobMatch = PHOTO_JOB_PATH.exec(pathname);
       if (jobMatch && (req.method === "GET" || req.method === "DELETE")) {
