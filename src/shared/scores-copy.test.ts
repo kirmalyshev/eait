@@ -57,7 +57,7 @@ describe("score copy (#118)", () => {
       const copy = scoresCopy(lang);
       expect(copy.todayTitle, lang).toContain("{n}");
       expect(copy.todayTitle, lang).toContain("/10");
-      for (const s of [copy.todayTitle, copy.breakdownTitle, copy.breakdownLine]) {
+      for (const s of [copy.todayTitle, copy.breakdownTitle, copy.dayBreakdownTitle]) {
         expect(s.length, lang).toBeGreaterThan(0);
       }
     }
