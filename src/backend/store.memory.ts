@@ -1402,7 +1402,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async forgetJobs(before) {
       let n = 0;
-      for (const [k, j] of jobs) if (j.state === "settled" && j.updatedAt < before) { jobs.delete(k); n++; }
+      for (const [k, j] of jobs) {
+        if (j.state === "settled" && j.updatedAt < before) { jobs.delete(k); n++; }
+        else if (j.createdAt < before) j.photos = [];
+      }
       return n;
     },
 
