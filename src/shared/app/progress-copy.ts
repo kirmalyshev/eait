@@ -361,7 +361,7 @@ const RU: ProgressCopy = {
   weightNow: { metric: "{n}кг", imperial: "{n}lb" },
   ranges: { "90D": "90Д", "6M": "6М", "1Y": "1Г", all: "Все" },
   goalLine: { metric: "{from} → {to}кг", imperial: "{from} → {to}lb" },
-  goalEstimate: "примерно {month} · оценка",
+  goalEstimate: "ориентир — {month} · оценка",
   // The SYMBOL, as `planGoal` writes it: "кг" never declines, which is the whole point of
   // putting it beside a number. "lb" stays Latin for the same reason — "фунтов" is the
   // genitive plural and reads wrong beside 1 or 2–4.

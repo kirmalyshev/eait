@@ -57,7 +57,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     building: "Menyusun rencanamu", today: "Hari ini",
   },
   ru: {
-    goalLine: "Цель: {kg}, примерно {month}", goalStay: "Цель: держаться около {kg}",
+    goalLine: "Цель: {kg} · ориентир — {month}", goalStay: "Цель: держаться около {kg}",
     satFat: "насыщ. жиры", yourPlan: "Твой план", youBurn: "Ты сжигаешь",
     building: "Составляю твой план", today: "Сегодня",
   },

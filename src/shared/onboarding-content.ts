@@ -786,40 +786,40 @@ const ID: OnboardingContent = {
 const RU: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Сфотографируйте блюдо. Узнайте, подходит ли оно."],
+    lines: ["Сфотографируй еду — узнай, впишется ли она в твой день."],
     cta: "Создать мой план",
     signin: "У меня уже есть аккаунт",
   },
   screens: [
     {
       id: "goal",
-      asks: { goal: { lines: ["Какая у вас цель?"] } },
+      asks: { goal: { lines: ["Какая у тебя цель?"] } },
       options: {
         lose: { label: "Похудеть" },
-        maintain: { label: "Держать свой вес" },
+        maintain: { label: "Сохранить вес" },
         gain: { label: "Набрать вес" },
       },
     },
     {
       id: "sex",
-      asks: { sex: { lines: ["Ваш пол?"] } },
+      asks: { sex: { lines: ["Твой пол?"] } },
       options: { male: { label: "Мужской" }, female: { label: "Женский" }, other: { label: "Другой" } },
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Сколько вам лет?"], placeholder: "Твой возраст" } },
+      asks: { birth_year: { lines: ["Сколько тебе лет?"], placeholder: "Твой возраст" } },
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Какой у вас рост?"], placeholder: "Рост в см" } },
+      asks: { height_cm: { lines: ["Какой у тебя рост?"], placeholder: "Рост в см" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Сколько вы весите сейчас?"], placeholder: "Вес в кг" } },
+      asks: { weight_kg: { lines: ["Сколько ты сейчас весишь?"], placeholder: "Вес в кг" } },
     },
     {
       id: "activity",
-      asks: { activity: { lines: ["Насколько активны ваши дни?"] } },
+      asks: { activity: { lines: ["Насколько активны твои дни?"] } },
       options: {
         none: { label: "0", hint: "Без тренировок" },
         few: { label: "1–2", hint: "Тренировки время от времени" },
@@ -829,7 +829,7 @@ const RU: OnboardingContent = {
     },
     {
       id: "target",
-      asks: { target_weight_kg: { lines: ["К какому весу вы стремитесь?"], placeholder: "Целевой вес в кг" } },
+      asks: { target_weight_kg: { lines: ["К какому весу ты хочешь прийти?"], placeholder: "Целевой вес в кг" } },
     },
     {
       id: "pace",
@@ -837,7 +837,7 @@ const RU: OnboardingContent = {
       options: {
         easy: { label: "Мягкий" },
         steady: { label: "Ровный" },
-        push: { label: "Побыстрее" },
+        push: { label: "Быстрый" },
       },
     },
     {
@@ -853,7 +853,7 @@ const RU: OnboardingContent = {
     },
     {
       id: "diet",
-      asks: { diet: { lines: ["Придерживаетесь ли вы диеты?"] } },
+      asks: { diet: { lines: ["Ты придерживаешься какой-то диеты?"] } },
       options: {
         balanced: { label: "Сбалансированная" },
         wholefood: { label: "Цельные продукты" },
@@ -861,14 +861,14 @@ const RU: OnboardingContent = {
         flexitarian: { label: "Флекситарианская" },
         pescatarian: { label: "Пескетарианская" },
         vegetarian: { label: "Вегетарианская" },
-        vegan: { label: "Веган" },
+        vegan: { label: "Веганская" },
       },
     },
     {
       id: "medical",
       asks: { medical: { lines: ["Есть ли медицинские ограничения?"] } },
       options: {
-        kidneys: { label: "Болезнь почек" },
+        kidneys: { label: "Заболевание почек" },
         ldl: { label: "Высокий холестерин" },
         lowsugar: { label: "Риск диабета" },
         none: { label: "Ничего из этого" },
@@ -876,14 +876,14 @@ const RU: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Где вы живёте?"], placeholder: "Поиск" } },
+      asks: { country: { lines: ["Где ты живёшь?"], placeholder: "Поиск" } },
       enabled: true,
       options: { other: { label: "Где-то ещё" } },
     },
   ],
   building: {
-    lines: ["Строю ваш личный план"],
-    title: "Ваш план на день",
+    lines: ["Составляю твой личный план"],
+    title: "Твой план на день",
     rows: {
       calories: "Калории", protein: "Белок", carbs: "Углеводы",
       fat: "Жиры", diet: "Диета",
@@ -894,12 +894,12 @@ const RU: OnboardingContent = {
     floorBody: "Расчёт хотел уйти ниже. Без наблюдения врача мы не ставим цели ниже этой отметки, так что твоя — здесь. В дневнике это тоже будет написано.",
   },
   summary: {
-    lines: ["Вот ваш план"],
+    lines: ["Вот твой план"],
     kcalLabel: "ккал в день",
     floorMarker: "ограничено ради безопасности · никогда ниже {floor}",
     macros: {
       protein: "Белок", carbs: "Углеводы", fat: "Жиры",
-      satfat: "Насыщенные жиры · по вашему запросу",
+      satfat: "Насыщенные жиры · по твоему запросу",
     },
     capNote: "Такой темп потребовал бы большей дневной разницы, чем безопасно выдерживать, так что у тебя безопасный вариант: {share}% от того, что тело сжигает за день.",
     cta: "Сфотографируй первый приём пищи",

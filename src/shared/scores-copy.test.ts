@@ -69,10 +69,10 @@ describe("score copy (#118)", () => {
     expect(say("en", 1)).toBe("From today's meal");
     expect(say("en", 3)).toBe("From today's 3 meals");
     expect(say("de", 1)).toBe("Aus der heutigen Mahlzeit");
-    expect(say("ru", 1)).toBe("Из 1 сегодняшнего приёма пищи");
-    expect(say("ru", 4)).toBe("Из 4 сегодняшних приёма пищи");
+    expect(say("ru", 1)).toBe("По сегодняшнему приёму пищи");
+    expect(say("ru", 4)).toBe("Из 4 сегодняшних приёмов пищи");
     expect(say("ru", 5)).toBe("Из 5 сегодняшних приёмов пищи");
-    expect(say("ru", 21)).toBe("Из 21 сегодняшнего приёма пищи");
+    expect(say("ru", 21)).toBe("По сегодняшнему приёму пищи");
     // Languages without plural marking still fill the count.
     expect(say("vi", 2)).toBe("Từ 2 bữa hôm nay");
     expect(say("id", 2)).toBe("Dari 2 santapan hari ini");

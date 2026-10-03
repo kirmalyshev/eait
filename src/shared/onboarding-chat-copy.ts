@@ -353,7 +353,7 @@ const FR: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analyse eait",
     weightTrend: "Tendance du poids",
     without: "Sans",
     now: "Maintenant",
@@ -468,7 +468,7 @@ const DE: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "eait-Analyse",
     weightTrend: "Gewichtstrend",
     without: "Ohne",
     now: "Jetzt",
@@ -583,7 +583,7 @@ const IT: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analisi di eait",
     weightTrend: "Andamento del peso",
     without: "Senza",
     now: "Ora",
@@ -698,7 +698,7 @@ const ES: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Análisis de eait",
     weightTrend: "Tendencia del peso",
     without: "Sin",
     now: "Ahora",
@@ -813,7 +813,7 @@ const VI: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Phân tích của eait",
     weightTrend: "Xu hướng cân nặng",
     without: "Không dùng",
     now: "Hiện tại",
@@ -928,7 +928,7 @@ const ID: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analisis eait",
     weightTrend: "Tren berat badan",
     without: "Tanpa",
     now: "Sekarang",
@@ -987,7 +987,7 @@ const RU: ChatCopy = {
   invalid:  {
     age: "На возраст не похоже — попробуй что-то вроде 34.",
     height_cm: "В сантиметрах — что-то вроде 175.",
-    weight_kg: "В килограммах — примерно нормально.",
+    weight_kg: "В килограммах — можно примерно.",
     target_weight_kg: "Число в кг — например 70.",
   },
   ambiguousAge:  {
@@ -995,8 +995,8 @@ const RU: ChatCopy = {
     confirm: "Мне {age}",
   },
   direction:  {
-    gain: "Ты на {weight}кг и просишь набрать до {target} — отсюда это не набор. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
-    lose: "Ты на {weight}кг и просишь сбросить до {target} — отсюда это не сброс. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
+    gain: "Сейчас у тебя {weight}кг, а цель — {target}: это не набор веса. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
+    lose: "Сейчас у тебя {weight}кг, а цель — {target}: это не снижение веса. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
     switchToLose: "Переключить на похудение",
     switchToGain: "Переключить на набор",
     above: "Число больше {weight}…",
@@ -1023,34 +1023,34 @@ const RU: ChatCopy = {
     rateSuffix: "в неделю",
     // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
     // CLDR gives us no declension to put after «к».
-    result: "{target} — примерно {month} · {kcal}ккал в день",
+    result: "{target} · ориентир — {month} · {kcal}ккал в день",
     capMarker: "ограничено безопасным пределом",
-    floorMarker: "никогда ниже {floor} · любой темп приходит сюда",
+    floorMarker: "никогда ниже {floor} · при любом темпе",
   },
   how: {
-    title: "Вот и вся программа",
+    title: "Вот и всё приложение",
     meal: "Лосось, рис и зелень",
     photoAlt: "Боул в видоискателе",
-    steps: ["Сфотографируйте тарелку", "Получите честные макросы", "Смотрите свой прогресс"],
+    steps: ["Сфотографируй тарелку", "Получи честные макросы", "Следи за прогрессом"],
   },
   units: { years: "лет" },
   ontrack: {
-    title: "Сделано, чтобы держать вас в ритме",
+    title: "Всё, чтобы ты не сбился с курса",
     captions: {
       consistency: "Пропущенный день ничего не стоит. Следующий начинается с нуля.",
       habits: "Ничего не запрещено. Каждая тарелка получает честные макросы.",
-      support: "Спрашивайте {coach} о чём угодно, когда угодно, в чате.",
+      support: "Спрашивай {coach} о чём угодно и когда угодно — в чате.",
       busy: "Одно фото — вся запись.",
       ideas: "Нет идей на ужин? {coach} подскажет, что ещё поместится.",
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Анализ eait",
     weightTrend: "Динамика веса",
     without: "Без",
     now: "Сейчас",
     later: "Позже",
-    twoWays: "Вес во времени, нарисованный дважды: с планом и без",
+    twoWays: "Вес со временем — с планом и без него",
     estimatedProgress: "Оценка прогресса",
     estimate: "Оценка",
     target: "Цель {weight}",
@@ -1058,9 +1058,9 @@ const RU: ChatCopy = {
     estimateAria: "Оценка веса: {from} сейчас, {to} — {month}",
   },
   plan: {
-    goalLose: "Цель: сбросить {delta} — примерно {month}",
-    goalGain: "Цель: набрать {delta} — примерно {month}",
-    goalMaintain: "Цель: держать свой вес",
+    goalLose: "Цель: сбросить {delta} · ориентир — {month}",
+    goalGain: "Цель: набрать {delta} · ориентир — {month}",
+    goalMaintain: "Цель: сохранить вес",
     rest: "В покое твоё тело сжигает", activity: "С твоей активностью — около", pace: "Под твой темп корректируем", floor: "Порог, ниже которого не идём", protein: "Белок — ориентир",
   },
   health: {

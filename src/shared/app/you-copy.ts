@@ -1096,7 +1096,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       support: "Поддержать eait",
     },
     phone: {
-      title: "Вы",
+      title: "Профиль",
       profileTitle: shellCopyFor("ru").navProfile,
       save: "Сохранить",
       saveKept: "Не удалось сохранить. Введённое всё ещё здесь. Сохрани ещё раз.",
@@ -1123,7 +1123,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       targetLabel: "Целевой вес",
       activitySection: "Частота тренировок",
       activityLabel: "Тренировки",
-      activityOption: "{n} тренировок в неделю",
+      activityOption: "Тренировок в неделю: {n}",
       countryRow: "Страна",
       judgedAgainst: "Оценка по",
       basisTitle: "Как мы это посчитали",

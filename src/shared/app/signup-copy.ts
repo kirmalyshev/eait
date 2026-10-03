@@ -116,14 +116,14 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     errorTerms: "Setujui Ketentuan dan Kebijakan Privasi untuk melanjutkan.",
   },
   ru: {
-    startCta: "Собрать мой план",
+    startCta: "Составить мой план",
     haveAccountCta: "У меня уже есть аккаунт",
-    continueWith: "Продолжить с {provider}",
+    continueWith: "Продолжить через {provider}",
     signUpHeading: "Сфотографируй еду — получи честный ответ",
     termsLabel: "Я принимаю {terms} и {privacy} eait",
     termsLink: "Условия",
     privacyLink: "Политику конфиденциальности",
-    consentMarketing: "Присылай мне советы и новинки eait",
+    consentMarketing: "Присылать мне советы и новинки eait",
     errorTerms: "Чтобы продолжить, прими Условия и Политику конфиденциальности.",
   },
 };

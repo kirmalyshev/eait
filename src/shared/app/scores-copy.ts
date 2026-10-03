@@ -237,14 +237,14 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     notYet: "пока нет",
     todayTitle: "Оценка за сегодня: {n}/10",
     todayFromMeals: {
-      one: "Из {n} сегодняшнего приёма пищи",
-      few: "Из {n} сегодняшних приёма пищи",
+      one: "По сегодняшнему приёму пищи",
+      few: "Из {n} сегодняшних приёмов пищи",
       many: "Из {n} сегодняшних приёмов пищи",
       other: "Из {n} сегодняшних приёмов пищи",
     },
     breakdownTitle: "Сегодняшние приёмы пищи",
     dayFromMeals: {
-      one: "Из {n} приёма пищи за день",
+      one: "По единственному приёму пищи за день",
       few: "Из {n} приёмов пищи за день",
       many: "Из {n} приёмов пищи за день",
       other: "Из {n} приёмов пищи за день",
@@ -255,8 +255,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     partPctOfKcal: "{n}% от ккал",
     partGPer100Kcal: "{n}г на 100ккал",
     partMgSodiumPer100Kcal: "{n}мг натрия на 100ккал",
-    partOfTargetG: "{n}г из ваших {target}г",
-    partOfTargetMg: "{n}мг из ваших {target}мг",
+    partOfTargetG: "{n}г из твоих {target}г",
+    partOfTargetMg: "{n}мг из твоих {target}мг",
     limits: { ldl: "высокий холестерин", kidneys: "заболевание почек", lowsugar: "риск диабета" },
   },
 };
