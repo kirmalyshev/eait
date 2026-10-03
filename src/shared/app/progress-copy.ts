@@ -63,7 +63,7 @@ export interface ProgressCopy {
   /** The "This week" card's label — the week's kcal bars against the plan. */
   weekLabel: string;
   /**
-   * The `.est` beside it — "kcal a day · plan {plan}"; `{plan}` is `wholeNumbers`'s. Each
+   * The week chart's aria-label — "kcal a day · plan {plan}"; `{plan}` is `wholeNumbers`'s. Each
    * language spells its own kcal word inside the sentence (Russian writes ккал), the
    * `UNIT_KCAL` rule.
    */
