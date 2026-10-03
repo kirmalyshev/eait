@@ -435,10 +435,10 @@ export const HOME_COPY: Localized<HomeCopy> = {
     pickerDayLogged: "{day}, con comidas",
     pickerDayUnlogged: "{day}, sin registros",
     kcalLeft: "kcal restantes",
-    kcalEaten: "kcal comidas",
+    kcalEaten: "kcal consumidas",
     kcalOver: "kcal de más",
     kcalLeftDetail: "kcal restantes · {eaten} de {plan}",
-    kcalEatenDetail: "kcal comidas · {eaten} de {plan}",
+    kcalEatenDetail: "kcal consumidas · {eaten} de {plan}",
     kcalOverDetail: "kcal de más · {eaten} de {plan}",
     grams: "{n}g",
     milligrams: "{n}mg",
@@ -456,12 +456,12 @@ export const HOME_COPY: Localized<HomeCopy> = {
     },
     tips: {
       protein: {
-        togo: "Añade una fuente de proteína a tu próxima comida: huevos, yogur griego, queso cottage, pollo, pescado, tofu o lentejas.",
+        togo: "Añade una fuente de proteína a tu próxima comida: huevos, yogur griego, queso fresco batido, pollo, pescado, tofu o lentejas.",
         reached: "Esa es la proteína de hoy. Todo lo demás es opcional.",
         over: "Ya has tomado suficiente proteína hoy. Deja la carne, el pescado, los huevos y los batidos de proteína extra hasta mañana.",
       },
       carbs: {
-        left: "Hoy hay espacio para una porción pequeña de pan, arroz, pasta o fruta.",
+        left: "Hoy aún cabe una ración pequeña de pan, arroz, pasta o fruta.",
         over: "Limita los carbohidratos el resto del día. Ve con cuidado con el pan, el arroz, la pasta, los dulces y las bebidas azucaradas.",
       },
       satfat: {
@@ -476,7 +476,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "No se pudo cargar tu diario.",
     tryAgain: "Reintentar",
     webUploadPhoto: "Subir una foto",
-    webComposerPlaceholder: "Dile a Spud qué comiste, o suelta una foto",
+    webComposerPlaceholder: "Dile a Spud qué has comido, o suelta una foto",
     webDayRegion: "Resumen del día",
     webProposalLead: "Lo registro para {day} — ¿te cuadra?",
     todayWord: "hoy",

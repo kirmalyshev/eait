@@ -520,11 +520,11 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "Nel piano. Domani uguale.",
   },
   es: {
-    noMeals: "Una foto mañana devuelve el día a la cuenta.",
+    noMeals: "Mañana, con una foto, el día vuelve a contar.",
     over: "{over} por encima hoy — mañana vuelve a empezar en {plan}.",
     protein: "Faltaron {gap}g de proteína — huevos o skyr en el desayuno lo cierran.",
     gainUnder: "{under}kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
-    under: "{under} por debajo del plan — comer el número entero mañana es el plan, no un desliz.",
+    under: "{under} por debajo del plan — mañana come todo lo que marca el plan: eso es el plan, no un exceso.",
     onPlan: "En el plan. Mañana igual.",
   },
   vi: {

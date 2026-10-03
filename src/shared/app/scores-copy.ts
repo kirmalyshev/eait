@@ -171,7 +171,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     breakdownTitle: "Las comidas de hoy",
     dayFromMeals: { one: "De la comida del día", other: "De las {n} comidas del día" },
     dayBreakdownTitle: "Las comidas del día",
-    factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
+    factors: { protein: "Proteína", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
     partPctOfKcal: "{n}% de las kcal",
     partGPer100Kcal: "{n}g por 100kcal",

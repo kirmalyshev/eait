@@ -63,7 +63,7 @@ export const FIRST_MEAL_COPY: Record<Lang, FirstMealCopy> = {
     ask: "Una comida la invito yo. ¿Foto, o me lo cuentas?",
     react: "Sin problema. Pruébame primero",
     photo: "Hacer una foto",
-    tell: "Contarle a Spud qué comiste",
+    tell: "Contarle a Spud qué has comido",
     keepGoing: "Seguir",
     correct: "Corregir la comida",
     afterAsk: "Esa fue una. ¿La quieres para cada comida?",

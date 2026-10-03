@@ -58,7 +58,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     steps: {
       ingredients: ["Guardando tu cambio · 1 de 2", "Recalculando nutrientes · 2 de 2"],
       note: ["Leyendo tu nota · 1 de 3", "Ajustando la comida · 2 de 3", "Recalculando nutrientes · 3 de 3"],
-      reread: ["Releyendo la foto · 1 de 3", "Pesando las porciones · 2 de 3", "Contando nutrientes · 3 de 3"],
+      reread: ["Releyendo la foto · 1 de 3", "Pesando las raciones · 2 de 3", "Contando nutrientes · 3 de 3"],
     },
     failedTitle: "No se pudo aplicar el cambio", failedBody: "Tu comida sigue como estaba.", failedNote: "Tu nota está aquí: edítala o envíala otra vez.", refusedTitle: "No se pudo hacer ese cambio",
     discard: "Descartar", ok: "OK", push: "Actualizado: {names} · {kcal} (antes {was})",

@@ -358,7 +358,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     privacyLink: "Privacy",
   },
   es: {
-    plansTitle: "Sabe si cada comida encaja",
+    plansTitle: "Descubre si cada comida encaja",
     plansHeroAlt: "Salmón con arroz y verduras en un plato",
     planYearly: "Anual",
     planMonthly: "Mensual",

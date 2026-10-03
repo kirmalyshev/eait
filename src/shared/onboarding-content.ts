@@ -411,7 +411,7 @@ const IT: OnboardingContent = {
 const ES: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Fotografía una comida. Sabe si encaja."],
+    lines: ["Haz una foto a tu comida. Descubre si encaja."],
     cta: "Crear mi plan",
     signin: "Ya tengo una cuenta",
   },
@@ -444,17 +444,17 @@ const ES: OnboardingContent = {
     },
     {
       id: "activity",
-      asks: { activity: { lines: ["¿Qué tan activos son tus días?"] } },
+      asks: { activity: { lines: ["¿Cómo de activos son tus días?"] } },
       options: {
         none: { label: "0", hint: "Sin entrenamientos" },
         few: { label: "1–2", hint: "Algún entrenamiento de vez en cuando" },
         some: { label: "3–4", hint: "Unos entrenamientos a la semana" },
-        many: { label: "5+", hint: "Casi todos los días" },
+        many: { label: "5+", hint: "Entreno casi a diario" },
       },
     },
     {
       id: "target",
-      asks: { target_weight_kg: { lines: ["¿Qué peso buscas?"], placeholder: "Peso objetivo en kg" } },
+      asks: { target_weight_kg: { lines: ["¿Cuál es tu peso objetivo?"], placeholder: "Peso objetivo en kg" } },
     },
     {
       id: "pace",
@@ -481,17 +481,17 @@ const ES: OnboardingContent = {
       asks: { diet: { lines: ["¿Sigues alguna dieta?"] } },
       options: {
         balanced: { label: "Equilibrada" },
-        wholefood: { label: "Alimentos completos" },
+        wholefood: { label: "Comida real" },
         mediterranean: { label: "Mediterránea" },
         flexitarian: { label: "Flexitariana" },
         pescatarian: { label: "Pescetariana" },
         vegetarian: { label: "Vegetariana" },
-        vegan: { label: "Vegano" },
+        vegan: { label: "Vegana" },
       },
     },
     {
       id: "medical",
-      asks: { medical: { lines: ["¿Límites médicos?"] } },
+      asks: { medical: { lines: ["¿Alguna condición médica?"] } },
       options: {
         kidneys: { label: "Enfermedad renal" },
         ldl: { label: "Colesterol alto" },
@@ -511,7 +511,7 @@ const ES: OnboardingContent = {
     title: "Tu plan diario",
     rows: {
       calories: "Calorías", protein: "Proteína", carbs: "Carbohidratos",
-      fat: "Grasa", diet: "Dieta",
+      fat: "Grasas", diet: "Dieta",
     },
     limitCap: { ldl: "grasas saturadas ≤ {n}g", kidneys: "sodio ≤ {n}mg" },
     cta: "Enséñame el plan",
@@ -523,8 +523,8 @@ const ES: OnboardingContent = {
     kcalLabel: "kcal al día",
     floorMarker: "limitado por seguridad · nunca por debajo de {floor}",
     macros: {
-      protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa",
-      satfat: "Grasa saturada · lo pediste tú",
+      protein: "Proteína", carbs: "Carbohidratos", fat: "Grasas",
+      satfat: "Grasas saturadas · lo pediste tú",
     },
     capNote: "Ese ritmo pediría un cambio diario mayor del que es seguro sostener, así que el tuyo es la versión segura: {share}% de lo que tu cuerpo quema en un día.",
     cta: "Fotografía tu primera comida",

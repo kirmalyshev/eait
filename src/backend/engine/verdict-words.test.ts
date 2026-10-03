@@ -166,7 +166,7 @@ describe("the verdict words on the wire", () => {
     // The first word on the wire is the reading line — never composed client-side.
     const first = events[0];
     expect(first?.kind).toBe("reading");
-    if (first?.kind === "reading") expect(first.line).toBe("Teller wird gelesen…");
+    if (first?.kind === "reading") expect(first.line).toBe("Teller wird erkannt…");
     // Every item event carries the weighing line, localized — the browser prints it verbatim.
     const item = events.find((e) => e.kind === "item");
     if (item !== undefined && item.kind === "item") expect(item.line).toBe("Portionen werden gewogen…");

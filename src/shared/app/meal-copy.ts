@@ -400,7 +400,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     sheetWhen: "{day} · {time}",
     macroProtein: "proteína",
     macroCarbs: "carbohidratos",
-    macroFat: "grasa",
+    macroFat: "grasas",
     coachLine: "{coach}",
     correctOpener: "Leí {items}. Dime en qué me equivoqué.",
     itemAmount: "{amount} de {item}",

@@ -711,9 +711,9 @@ const ES: ChatCopy = {
     estimateAria: "Peso estimado: {from} ahora, {to} hacia {month}",
   },
   plan: {
-    goalLose: "Meta: perder {delta} para {month}",
-    goalGain: "Meta: ganar {delta} para {month}",
-    goalMaintain: "Meta: mantener mi peso",
+    goalLose: "Objetivo: perder {delta} para {month}",
+    goalGain: "Objetivo: ganar {delta} para {month}",
+    goalMaintain: "Objetivo: mantener mi peso",
     rest: "En reposo tu cuerpo quema", activity: "Con tu actividad, unas", pace: "Para tu ritmo, ajustamos", floor: "El mínimo del que no bajamos", protein: "Proteína objetivo",
   },
   health: {

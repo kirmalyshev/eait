@@ -42,7 +42,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     building: "Creo il tuo piano", today: "Oggi",
   },
   es: {
-    goalLine: "Meta: {kg}, hacia {month}", goalStay: "Meta: mantenerte en torno a {kg}",
+    goalLine: "Objetivo: {kg}, hacia {month}", goalStay: "Objetivo: mantenerte en torno a {kg}",
     satFat: "grasa sat.", yourPlan: "Tu plan", youBurn: "Quemas",
     building: "Creando tu plan", today: "Hoy",
   },
