@@ -119,7 +119,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       document.removeEventListener("pointerdown", onDown, true);
       return;
     }
-    if (e.key === "Escape") { closeTip(); return; }
+    if (e.key === "Escape") { if (scoreEl !== null) { closeScore(); return; } closeTip(); return; }
     const t = e.target as HTMLElement | null;
     if (t !== null && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -773,34 +773,50 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     return dayw;
   };
 
-  /** The per-day score board (`web/today-score.html`): title, method line, one row per meal. */
+  /**
+   * The per-day score board (`web/today-score.html`, #1472): "Today's meals" — one row per scored
+   * meal with its kcal, its own score, the chevron into its breakdown, and the 4 px bar that is
+   * that meal's share of the day's kcal (the weighting, drawn). Nothing the card already says: no
+   * day figure, no method sentence. ONE scored meal opens that meal's own breakdown instead of a
+   * sheet; Esc, a click outside or Done closes.
+   */
+  let scoreEl: HTMLElement | null = null;
+  const closeScore = (): void => { scoreEl?.remove(); scoreEl = null; };
   const openScore = (day: DayResponse): void => {
+    const scored = day.meals.filter((m) => m.healthScore !== null);
+    if (scored.length === 1) {
+      location.hash = `#/meal/${encodeURIComponent(scored[0]!.id)}?d=${encodeURIComponent(viewing)}&score`;
+      return;
+    }
     const overlay = el("div", "scorewrap");
+    scoreEl = overlay;
     const card = el("div", "card scorecard");
-    const title = el("div", "stitle");
-    title.append(
-      el("b", "", day.date === today ? SC.breakdownTitle : SC.title),
-      el("b", "snum", fill(SC.outOf, { n: n(day.healthScore ?? 0) })),
-    );
-    card.append(title, el("p", "sline", day.date === today ? SC.breakdownLine : SC.dayBreakdownLine));
-    for (const meal of day.meals) {
-      if (meal.healthScore === null) continue;
+    const title = day.date === today ? SC.breakdownTitle : SC.dayBreakdownTitle;
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-label", title);
+    card.append(el("b", "d d22 stitle", title));
+    for (const meal of scored) {
       const row = el("a", "hsp") as HTMLAnchorElement;
       row.href = `#/meal/${encodeURIComponent(meal.id)}?d=${encodeURIComponent(viewing)}`;
-      const name = el("span", "");
+      const name = el("span", "mn");
       name.append(document.createTextNode(names(meal.items)), el("small", "", kcal(meal.kcal)));
-      const pts = el("span", "pts", fill(SC.outOf, { n: n(meal.healthScore.score) }));
+      const pts = el("span", "pts", fill(SC.outOf, { n: n(meal.healthScore!.score) }));
       const chev = el("i", "chev");
       chev.append(kitEl(ico("chevron-right")));
-      row.append(name, pts, chev);
-      row.addEventListener("click", () => { overlay.remove(); });
+      const share = el("i", "share") as HTMLElement;
+      const fillIn = el("i", "") as HTMLElement;
+      fillIn.style.width = day.totals.kcal > 0 ? `${Math.round((meal.kcal / day.totals.kcal) * 100)}%` : "0%";
+      share.append(fillIn);
+      row.append(name, pts, chev, share);
+      row.addEventListener("click", closeScore);
       card.append(row);
     }
     const done = el("button", "cta p", L.webDone) as HTMLButtonElement;
     done.type = "button";
-    done.addEventListener("click", () => overlay.remove());
+    done.addEventListener("click", closeScore);
     card.append(done);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeScore(); });
     overlay.append(card);
     document.body.append(overlay);
   };
