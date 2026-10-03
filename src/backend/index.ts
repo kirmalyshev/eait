@@ -18,7 +18,7 @@ import { demoPorts } from "./llm/demo.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -91,14 +91,6 @@ if (config.adminBootstrapUserId !== "") {
 
 const push = choosePush(config, demo);
 
-// One sweep at startup, so a process that has been up for months and is then restarted does not
-// carry a table of rows that stopped meaning anything in between. Every later sweep rides along
-// with a token being issued; there is no scheduler in this process and adding one for this would be
-// the largest thing in it.
-const pruned = await store.pruneExpiredTokens();
-if (pruned > 0) console.log(`[eait] pruned ${pruned} idle session token(s) at startup`);
-const stale = await store.pruneExpiredPendings();
-if (stale > 0) console.log(`[eait] pruned ${stale} expired proposal(s) at startup`);
 const deps: EngineDeps = {
   store,
   config,
@@ -131,10 +123,11 @@ const deps: EngineDeps = {
 // an account open for six years held six years of special-category data, five of them servable and
 // the sixth reachable by nothing but a database dump (#562).
 //
-// AT STARTUP AND ONCE A DAY, which is the first scheduled work in this process that is not the
-// evening line. A plain interval rather than a timer to a wall-clock hour: the 20:30 line re-arms
-// because an hour's DST drift is visible to the people receiving it, and the only thing that can
-// see this one drift is a row that leaves a day later than it might have.
+// ON LEADERSHIP AND ONCE A DAY WHILE HELD — the leader's pass is this process's startup sweep,
+// and a takeover runs one immediately, so a restarted leader's successor still gets it. A plain
+// interval rather than a timer to a wall-clock hour: the 20:30 line re-arms because an hour's
+// DST drift is visible to the people receiving it, and the only thing that can see this one
+// drift is a row that leaves a day later than it might have.
 const DAY_MS = 24 * 60 * 60 * 1000;
 // How long an account nobody can reach again is kept (#106): `/start` mints one at the first
 // onboarding answer and its cookie dies with the browser, so an abandoned walk leaves a row
@@ -143,6 +136,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // inside the window each keep the account; the store owns the precise test.
 const ABANDONED_ACCOUNT_IDLE_DAYS = 30;
 const sweepHealthRetention = async () => {
+  // Idle sessions and expired proposals ride the same pass now: they were a one-off sweep at
+  // startup until the leader gate (#414) — under two replicas that would be two passes and two
+  // log lines, and an idempotent delete costs nothing to run daily.
+  const pruned = await store.pruneExpiredTokens().catch((e: unknown) => {
+    console.error(`[eait] token sweep failed: ${(e as Error)?.message ?? e}`);
+    return 0;
+  });
+  if (pruned > 0) console.log(`[eait] pruned ${pruned} idle session token(s)`);
+  const stale = await store.pruneExpiredPendings().catch((e: unknown) => {
+    console.error(`[eait] proposal sweep failed: ${(e as Error)?.message ?? e}`);
+    return 0;
+  });
+  if (stale > 0) console.log(`[eait] pruned ${stale} expired proposal(s)`);
   try {
     const gone = await pruneAgedHealthDays(deps);
     if (gone > 0) console.log(`[eait] pruned ${gone} health row(s) past ${HEALTH_RETENTION_DAYS} days`);
@@ -164,8 +170,62 @@ const sweepHealthRetention = async () => {
       console.error(`[eait] abandoned account sweep failed: ${(e as Error)?.message ?? e}`);
     });
 };
-await sweepHealthRetention();
-setInterval(() => { void sweepHealthRetention(); }, DAY_MS).unref?.();
+
+// ── Leadership: the work exactly one replica may do ──────────────────────────────────────────
+//
+// The evening line, the daily sweep and the Telegram poll each exist once per CLUSTER, not once
+// per process — a second backend running all three would send the line twice and poll Telegram
+// twice (which Telegram answers 409). Leadership is the store's session advisory lock
+// (`tryLeadership`): it dies with the connection holding it, so a crashed leader's successor is
+// whichever replica asks next — every one asks every ELECTION_MS — and a deliberate release at
+// shutdown hands it over without waiting the dead session out. A handover costs the singletons
+// one interval of silence: Telegram holds the unacked updates meanwhile, and the sweep's work is
+// idempotent by construction.
+const ELECTION_MS = 15_000;
+let leader = false;
+/** Set the moment a shutdown starts: `/health` goes 503 and the election stops re-contesting. */
+let draining = false;
+let telegram: { stop(): Promise<void> } | null = null;
+const telegramConfigured = !demo && config.telegramBotToken !== "";
+const startTelegram = (): void => {
+  if (!telegramConfigured || telegram !== null) return;
+  telegram = superviseBot(createBot(deps, config.telegramBotToken), {
+    up(username) {
+      if (config.telegramBotUsername !== username) console.log(`[eait] telegram connector on as @${username}`);
+      config.telegramBotUsername = username;
+    },
+    down() { config.telegramBotUsername = ""; },
+  });
+};
+const elect = async (): Promise<void> => {
+  if (draining) return;
+  let held: boolean;
+  try {
+    held = await store.tryLeadership();
+  } catch (e) {
+    // One failed check keeps the current answer for an interval rather than tearing the
+    // singletons down and putting them back on a blip.
+    console.error(`[eait] leadership check failed: ${(e as Error)?.message ?? e}`);
+    return;
+  }
+  // The check was in flight when the shutdown began: answering to it now would start the
+  // singletons inside a draining process.
+  if (draining) return;
+  if (held === leader) return;
+  leader = held;
+  if (held) {
+    console.log("[eait] this replica is the leader");
+    startTelegram();
+    void sweepHealthRetention();
+    return;
+  }
+  console.log("[eait] leadership lost; the singletons stop here");
+  await telegram?.stop();
+  telegram = null;
+};
+await elect();
+setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
+setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
 
 // In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the
@@ -209,13 +269,20 @@ const verifier: Verifier = demo
 if (config.pushEnabled) {
   const runSweep = async () => {
     try {
-      const result = await eveningSweep(deps, { date: localDate(config.timezone) });
-      if (result.tickets.length > 0) {
-        setTimeout(() => {
-          void collectPushReceipts(deps, result.tickets).catch((e) => {
-            console.error(`[eait] push receipts failed: ${(e as Error)?.message ?? e}`);
-          });
-        }, RECEIPT_DELAY_MS).unref?.();
+      // The leader alone composes and sends. The per-account claim inside the sweep is the
+      // backstop for the mid-handover race; this gate is what keeps a second replica quiet
+      // every other night.
+      if (leader) {
+        const result = await eveningSweep(deps, { date: localDate(config.timezone) });
+        // The receipts stay with whoever swept: a read lost with the process costs a dead token
+        // one more night, as it always has.
+        if (result.tickets.length > 0) {
+          setTimeout(() => {
+            void collectPushReceipts(deps, result.tickets).catch((e) => {
+              console.error(`[eait] push receipts failed: ${(e as Error)?.message ?? e}`);
+            });
+          }, RECEIPT_DELAY_MS).unref?.();
+        }
       }
     } catch (e) {
       // One bad night must not take the timer with it, or the loop stops silently until a restart.
@@ -261,7 +328,10 @@ function demoProvider(name: WebProvider): WebSignInProvider {
   };
 }
 
-const router = createRouter(deps, store, verifier, demo ? { webProviders: demoProviders } : {});
+const router = createRouter(deps, store, verifier, {
+  draining: () => draining,
+  ...(demo ? { webProviders: demoProviders } : {}),
+});
 
 // ── The demo-only account lookup ─────────────────────────────────────────────────────────────
 //
@@ -388,26 +458,30 @@ console.log(`[eait] config ${JSON.stringify(redact(config))}`);
 
 // ── The Telegram connector ───────────────────────────────────────────────────────────────────
 //
-// DORMANT UNLESS A TOKEN IS SET, and never under `--demo`: one line says which. It long-polls in this
-// process beside the evening line and the retention sweep, and the supervisor keeps it polling
-// through anything transient. A dead token stops the connector, never this server. The username
-// getMe answers is written onto the config, which is what draws every Connect Telegram link.
-const telegram = demo || config.telegramBotToken === ""
-  ? (console.log(`[eait] telegram connector off (${demo ? "--demo" : "EAIT__BACKEND__TELEGRAM_BOT_TOKEN unset"})`), null)
-  : superviseBot(createBot(deps, config.telegramBotToken), {
-      up(username) {
-        if (config.telegramBotUsername !== username) console.log(`[eait] telegram connector on as @${username}`);
-        config.telegramBotUsername = username;
-      },
-      down() { config.telegramBotUsername = ""; },
-    });
+// DORMANT UNLESS A TOKEN IS SET, and never under `--demo`: one line says which. It long-polls on
+// the LEADER — a second replica running a second poll is a 409 from Telegram, and a deploy is
+// when that second replica exists — so `startTelegram` runs inside the election above rather
+// than here. The username getMe answers is written onto the config, which is what draws every
+// Connect Telegram link.
+if (!telegramConfigured) {
+  console.log(`[eait] telegram connector off (${demo ? "--demo" : "EAIT__BACKEND__TELEGRAM_BOT_TOKEN unset"})`);
+}
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
-    // The connector first: a handler still running holds the store, and it must finish its turn
-    // before the pool it writes through is gone.
+    // Unhealthy FIRST: the proxy's next health check pulls this replica out while the rest below
+    // finishes, rather than traffic reaching a process that is half closed.
+    draining = true;
+    // Stop accepting, let queued jobs land (a deploy must not lose a photo), then close.
+    const stopping = server.stop();
+    await drainJobs(deps, config.shutdownDrainMs);
+    await stopping;
+    // The connector before the pool: a handler still running holds the store, and it must finish
+    // its turn before the pool it writes through is gone.
     await telegram?.stop();
-    await server.stop();
+    // Released, not left for a dead session to hand back: the next leader takes the singletons
+    // at once instead of after the lock times out.
+    await store.releaseLeadership();
     await store.close();
     process.exit(0);
   });

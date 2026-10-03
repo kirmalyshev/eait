@@ -39,6 +39,15 @@ import { type ChatMessage,
  * has no home for. The names come from our own constant and never from a request, which is what
  * makes them safe to interpolate into SQL.
  */
+/**
+ * The class half of every advisory key this server takes — 'eait' in hex — so its locks can
+ * never collide with each other or with anybody else's. Key 0 is the migration lock, key 1 the
+ * leader election; a new one takes the next number.
+ */
+const ADVISORY_CLASS = 1701149044;
+const MIGRATION_LOCK_KEY = 0;
+const LEADER_LOCK_KEY = 1;
+
 const HEALTH_COLUMNS: readonly string[] = HEALTH_FIELDS.map((f) => f.key);
 
 /** One `add column if not exists` per metric — the migration for a host that predates one. */
@@ -215,6 +224,12 @@ alter table users add column if not exists role text not null default 'user';
 -- is "asked, nothing picked". A not-null-with-default would erase that distinction.
 alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
+
+-- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
+-- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
+-- restarted across 20:30 — cannot each send it, because the claim is the row, not a timer in one
+-- process. A claim, not a send: a crash in the gap costs that night, never a second message.
+alter table users add column if not exists last_notified_date text;
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
 -- stored value moves to the nearest of them; #1078 made it four — none / few / some / many — so
@@ -1012,7 +1027,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
 
-  // ── The pool itself.
+  // ── The pool itself, and the election that lives beside it on its own connection.
+  tryLeadership: "raw",
+  releaseLeadership: "raw",
   close: "raw",
 
   // ── Everything else names its user, and almost always first.
@@ -1038,6 +1055,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putEntitlement: 0,
   dropPushToken: 0,
   pushTokensFor: 0,
+  claimEveningLine: 0,
   recordOnboardingEvents: 0,
   getMeal: 0,
   getMeals: 0,
@@ -1168,6 +1186,12 @@ export async function postgresStore(
   // with it. Closing it is what makes that impossible even if the migration throws.
   const migrator = new SQL(databaseUrl, { max: 1 });
   try {
+    // TWO REPLICAS CAN BOOT AT ONCE — a rolling deploy starts the new container before the old
+    // one is gone — and `create … if not exists` is not race-proof: two sessions building the
+    // same type or index can both pass the existence check and one fails inside `pg_type`. The
+    // loser waits on this lock instead, which is taken BEFORE lock_timeout so the wait itself
+    // cannot be cut short; the holder's DDL below is what is bounded.
+    await migrator`select pg_advisory_lock(${ADVISORY_CLASS}, ${MIGRATION_LOCK_KEY})`;
     await migrator`select set_config('app.unscoped', 'on', false)`;
     // FAIL FAST RATHER THAN QUEUE. The policy DDL is `alter table … enable/force row level
     // security` plus a `drop`/`create policy` per table, and each takes ACCESS EXCLUSIVE -- where
@@ -1181,6 +1205,9 @@ export async function postgresStore(
     await migrator.unsafe(SCHEMA);
     await migrator.unsafe(DROP_SUBSCRIBERS);
   } finally {
+    // Unlocked explicitly rather than left for `end()`: the session-level lock would go either
+    // way, but a failure here should still not reach the caller as the migration's error.
+    await migrator`select pg_advisory_unlock(${ADVISORY_CLASS}, ${MIGRATION_LOCK_KEY})`.catch(() => {});
     await migrator.end();
   }
 
@@ -1279,6 +1306,14 @@ export async function postgresStore(
       returning token_hash`);
     return rows.length;
   };
+
+  // THE ELECTION'S CONNECTION. Dedicated rather than pooled — the advisory lock is
+  // session-scoped, so it must sit on a connection nothing else borrows — and lazy: a store that
+  // is only ever asked for data pays no connection for a lock it never contests. Held outside
+  // `methods` so `close` can end it without going through a wrapped method.
+  let elector: SQL | null = null;
+  let leaderHeld = false;
+  const electorSql = (): SQL => (elector ??= new SQL(databaseUrl, { max: 1 }));
 
   // Declared before the store object so the prompt sync below can be the LAST thing this
   // function does — and wrapped before that, so the sync goes through a scoped store like
@@ -2426,6 +2461,16 @@ export async function postgresStore(
       return (rows as Record<string, unknown>[]).map((r) => r.user_id as string);
     },
 
+    async claimEveningLine(userId, date) {
+      // The claim IS the guard: strictly-later dates win, equal and earlier lose, and the losing
+      // replica's composed batch is simply never sent. `returning` so a row that matched nothing
+      // — an id that names no account — answers false like every other write here.
+      const rows = await sql`update users set last_notified_date = ${date}
+        where id = ${userId} and (last_notified_date is null or last_notified_date < ${date})
+        returning id`;
+      return rows.length > 0;
+    },
+
     async appendChat(userId, lines) {
       if (lines.length === 0) return;
       // One transaction, and the account's row locked for its length: a bubble and its card land
@@ -2684,7 +2729,58 @@ export async function postgresStore(
       return rows.length;
     },
 
+    async tryLeadership() {
+      // A dead session takes its advisory locks with it, so whatever this process held is gone
+      // already — not-leader is the honest answer, and the next call re-contests on a fresh
+      // connection. Said rather than returned raw, because "no connection" reading as "still
+      // leader" is the failure a second Telegram poller is made of.
+      const deadSession = async (e: unknown): Promise<boolean> => {
+        console.error(`[eait] leadership connection lost: ${(e as Error)?.message ?? e}`);
+        leaderHeld = false;
+        const dead = elector;
+        elector = null;
+        await dead?.end().catch(() => {});
+        return false;
+      };
+      if (leaderHeld) {
+        // Held: ask pg_locks rather than re-taking it. Session advisory locks STACK on repeat
+        // acquisition, so a second `pg_try_advisory_lock` on this connection would be a count
+        // nothing ever unlocks; this answers "does this session still hold it" instead.
+        try {
+          const [r] = await electorSql()`
+            select count(*)::int as n from pg_locks
+             where locktype = 'advisory' and pid = pg_backend_pid()
+               and classid = ${ADVISORY_CLASS} and objid = ${LEADER_LOCK_KEY}`;
+          leaderHeld = Number(r?.n ?? 0) > 0;
+          return leaderHeld;
+        } catch (e) {
+          return deadSession(e);
+        }
+      }
+      try {
+        const [r] = await electorSql()`
+          select pg_try_advisory_lock(${ADVISORY_CLASS}, ${LEADER_LOCK_KEY}) as ok`;
+        leaderHeld = r?.ok === true;
+        return leaderHeld;
+      } catch (e) {
+        return deadSession(e);
+      }
+    },
+
+    async releaseLeadership() {
+      leaderHeld = false;
+      const e = elector;
+      elector = null;
+      // `end` closes the session and the lock goes with it — no unlock needed, which is also why
+      // a crashed leader's lock does not have to be waited out.
+      await e?.end().catch(() => {});
+    },
+
     async close() {
+      leaderHeld = false;
+      const e = elector;
+      elector = null;
+      await e?.end().catch(() => {});
       await pool.end();
     },
   };

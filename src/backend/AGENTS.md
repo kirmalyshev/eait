@@ -447,11 +447,19 @@ naming it too.
 - **A queued photo is the same turn, answered later** (ieat-app#1318). `POST /v1/meals/photo/queue`
   answers 202 once the upload is in and runs `logPhotoMeal` under the `clientId`, which is the job
   id: the outcome is the one `turns` keeps, and only the progress (`engine/photo-queue.ts`) is in
-  process, so a restart loses the step and never the meal. A follower on `GET …/queue/:id` counts as
+  process. A restart loses the step; a job it killed is settled `OUTCOME_UNKNOWN` (retryable) the first time it is asked after boot (`bootedAt`), and SIGTERM stops accepting then waits for running jobs (`drainJobs`, up to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS`, 60 s; the deploy's stop grace period must exceed it) before closing. No resume: photo bytes are stored only after the analysis. A follower on `GET …/queue/:id` counts as
   the app being open; the one push goes only when nobody was following.
 - **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
   takes an ingredient edit (`editMeal`), a chat correction (`handleText` with `focusMealId`) or a re-read
   (`reanalyzeMeal`) and runs it in `engine/photo-queue.ts` under the `clientId`, followed and removed on the
   photo job's route in the same `PhotoJob`; `update` on a running job names its kind and step count (2, 3, 3).
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
-  builds call them. A restart loses a running update's step like a photo's, and its kind with it.
+  builds call them. A restart settles a running update like a photo's (retryable).
+- **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
+  evening line, the daily sweeps (health retention, turn outcomes, abandoned accounts, idle
+  tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per
+  process: `index.ts` contests `store.tryLeadership()` every 15 s, the lock is a session lock on
+  its own connection so it dies with the holder, and a SIGTERM drains then releases rather than
+  making the next leader wait. The 20:30 line's second lock is `users.last_notified_date`,
+  claimed atomically before the send — a second leader mid-handover finds the day already taken.
+  `migrate()` runs under a second advisory lock, because two replicas can boot at once.
