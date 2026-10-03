@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayLabel, dayMonthAt, genderedRussian,
-  localizedGaps, monthYear, numbers, decimalNumbers, signedWholeNumbers, timeAt, weekdayLetters,
+  localizedGaps, monthLabel, monthYear, numbers, decimalNumbers, signedWholeNumbers, timeAt, weekdayLetters,
   acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
@@ -95,6 +95,12 @@ describe("numbers and dates", () => {
     expect(monthYear("de", at)).toBe("November 2026");
     expect(monthYear("fr", at)).toBe("novembre 2026");
     expect(monthYear("vi", at)).toContain("2026");
+  });
+
+  it("speaks a `YYYY-MM` in the reader's language too — the picker's month title (#1464)", () => {
+    expect(monthLabel("en", "2026-08")).toBe("August 2026");
+    expect(monthLabel("fr", "2026-08")).toBe("août 2026");
+    expect(monthLabel("en", "2026-08")).not.toContain("-");
   });
 
 

@@ -254,6 +254,14 @@ export const fill = (template: string, params: Record<string, string>): string =
 export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
+/**
+ * A `YYYY-MM` as the picker's month title, in the reader's language: "August 2026",
+ * "août 2026". The calendar maths stay in `dates.ts`; the SPOKEN form is `monthYear`'s, because a
+ * `YYYY-MM` hardcoded to `en-GB` is how the title stayed English under a German account (#1464).
+ */
+export const monthLabel = (lang: Lang, month: string): string =>
+  monthYear(lang, new Date(`${month}-01T12:00:00Z`));
+
 /** "24 Aug" in the reader's language — the day-of-month axes (trend charts, the weight chart). */
 export const dayMonth = (lang: Lang) =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });

@@ -151,13 +151,6 @@ export function weekStart(date: string): string {
   return dateMinus(date, (dow + 6) % 7);
 }
 
-/** How a `YYYY-MM` is spoken to a person. */
-export function monthLabel(month: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC", month: "long", year: "numeric",
-  }).format(new Date(`${month}-01T12:00:00Z`));
-}
-
 /**
  * The widest window this file will build, in days.
  *

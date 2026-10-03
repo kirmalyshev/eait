@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   dateMinus, dateMinusMonths, isCalendarDate, localDate, localTime, monthGrid,
-  monthLabel, monthOf, monthShift, weekStart, windowStart, zonedMidnight,
+  monthOf, monthShift, weekStart, windowStart, zonedMidnight,
 } from "./dates.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
 
@@ -57,11 +57,6 @@ describe("the month grid the diary's date picker is drawn from", () => {
   test("covers February in a leap year without dropping the 29th", () => {
     expect(monthGrid("2028-02")).toContain("2028-02-29");
     expect(monthGrid("2026-02")).not.toContain("2026-02-29");
-  });
-
-  test("spells the month for a person, never as an ISO string", () => {
-    expect(monthLabel("2026-08")).toBe("August 2026");
-    expect(monthLabel("2026-08")).not.toContain("-");
   });
 });
 
