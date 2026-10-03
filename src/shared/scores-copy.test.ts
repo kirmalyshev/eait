@@ -75,7 +75,7 @@ describe("score copy (#118)", () => {
     expect(say("ru", 21)).toBe("По сегодняшнему приёму пищи");
     // Languages without plural marking still fill the count.
     expect(say("vi", 2)).toBe("Từ 2 bữa hôm nay");
-    expect(say("id", 2)).toBe("Dari 2 santapan hari ini");
+    expect(say("id", 2)).toBe("Dari 2 makanan hari ini");
   });
 
   test("every factor has a name in every language", () => {
