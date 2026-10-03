@@ -1211,10 +1211,13 @@ export interface WeightsResponse {
  * band, or a delta pointed away from the target each mean there is nothing to draw, and `null`
  * is what those answer rather than an invented figure.
  *
- * `startKg` is the weight the plan was set at — the earliest weigh-in logged on or after
+ * `startKg` is the weight the arc begins at — the earliest weigh-in logged on or after
  * onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it;
  * with none that young it is the earliest logged weight at all, and with none at all it is
- * `currentKg`. `month` is localized in the account's language; past `beyondHorizon` it is still
+ * `currentKg`. When the newest weigh-in has drifted back past that start — further from the
+ * target than the plan began — `startKg` is `currentKg` instead, so the headline, the "down"
+ * figure and "to go" describe the one distance that is left (`ieat-app#1486`).
+ * `month` is localized in the account's language; past `beyondHorizon` it is still
  * computed, and the client draws "over two years" instead.
  */
 export interface PlanProjection {

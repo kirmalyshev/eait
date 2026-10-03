@@ -89,6 +89,11 @@ export async function weights(
  * newer scale reading lands. `startKg` is where the plan STARTED: the earliest weigh-in dated on
  * or after `onboarded_at`, so a health backfill predating the account never claims the slot; with
  * none that recent it is the earliest logged at all, and with none at all it is `currentKg`.
+ * One re-anchor (`ieat-app#1486`): when the newest weigh-in sits FURTHER from the target than that
+ * start — an account that gained back over the start of a lose plan, or fell under a gain one's —
+ * the arc begins there instead. "74 → 68 · 0kg down · 25 to go" is three numbers describing two
+ * different journeys; the card's headline, "down" and "to go" must agree on ONE start, and the
+ * honest one is where she is.
  *
  * `projectGoal` runs on the plan as STORED — `basis` is `explainTargets(profile)`'s own, so the
  * rate it projects is the rate the displayed plan actually imposes — with only the current weight
@@ -107,14 +112,20 @@ function planProjection(
     ? null
     : localDate(zone, new Date(profile.onboarded_at));
   const afterOnboarding = onboardedDate === null ? [] : log.filter((e) => e.date >= onboardedDate);
-  const startKg = (afterOnboarding[0] ?? log[0])?.kg ?? currentKg;
+  const planStartKg = (afterOnboarding[0] ?? log[0])?.kg ?? currentKg;
 
   const goal = projectGoal({ ...profile, weight_kg: currentKg }, outcome.basis);
   if (goal === null) return null;
+  const targetKg = profile.target_weight_kg!; // projectGoal's null covers its absence
+  // The re-anchor the comment above names: `current` on the far side of `start` from `target`
+  // means the plan's start is behind her, and the bar's left edge is where she stands.
+  const startKg = Math.sign(planStartKg - currentKg) === Math.sign(targetKg - planStartKg)
+    ? currentKg
+    : planStartKg;
   return {
     startKg,
     currentKg,
-    targetKg: profile.target_weight_kg!, // projectGoal's null covers its absence
+    targetKg,
     weeks: goal.weeks,
     kgPerWeek: goal.kgPerWeek,
     month: projectionMonth(new Date(), goal.weeks, profile.lang),
