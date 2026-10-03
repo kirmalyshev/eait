@@ -363,7 +363,7 @@ export const LOG_COPY: Localized<LogCopy> = {
       noteLabel: "Note sur ce repas",
       editSend: "Envoyer",
       lockHeading: "Les photos demandent un abonnement",
-      failedSampleNote: "Rien n’a été enregistré, mais ça a quand même compté — et c’était la dernière de ton essai. La prochaine photo demande un abonnement.",
+      failedSampleNote: "Rien n’a été enregistré, mais ça a quand même compté — et c’était ta dernière analyse offerte. La prochaine photo demande un abonnement.",
       capGlobalTitle: "Plus de budget aujourd’hui",
       capGlobalNote: "Le budget d’analyses quotidien partagé est épuisé. Il repart à minuit.",
       capAddressTitle: "Trop de photos depuis ce réseau",
