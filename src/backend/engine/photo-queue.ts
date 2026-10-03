@@ -4,7 +4,7 @@ import {
   MEAL_UPDATE_STEPS, OUTCOME_UNKNOWN, PHOTO_MODEL_CALLS, UNIT_KCAL, explainTargets, kcalNumbers, queuedPushCopy, streamCopyFor,
   updateCopyFor, fill,
   type Lang, type MealItem, type MealLogged, type MealUpdateKind, type MealUpdateLast, type MealUpdateRequest,
-  type MealUpdated, type PhotoJob, type PhotoJobStep, type PhotoLast, type PhotoQueuedResponse,
+  type JobEntry, type JobsFilter, type JobsResponse, type MealUpdated, type PhotoJob, type PhotoJobStep, type PhotoLast, type PhotoQueuedResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { deleteMealById } from "./lines.ts";
@@ -20,6 +20,8 @@ interface Running {
   /** Set on a meal update: its kind and meal, which pick the step words. */
   update?: { kind: MealUpdateKind; mealId: string; steps: number };
   watchers: Set<(job: PhotoJob) => void>;
+  createdAt: number;
+  updatedAt: number;
 }
 
 // ponytail: one process holds the progress; a restart keeps the outcome (in `turns`) and loses the step.
@@ -39,6 +41,7 @@ const snapshot = (jobId: string, r: Running): PhotoJob => r.removed
   };
 
 const tell = (jobId: string, r: Running) => {
+  r.updatedAt = Date.now();
   const job = snapshot(jobId, r);
   for (const w of r.watchers) w(job);
 };
@@ -89,7 +92,7 @@ export async function queuePhoto(
   if (await known(deps, userId, jobId)) return queued;
 
   const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
-  const r: Running = { lang, step: 2, items: [], removed: false, watchers: new Set() };
+  const r: Running = { lang, step: 2, items: [], removed: false, watchers: new Set(), createdAt: Date.now(), updatedAt: Date.now() };
 
   launch(userId, jobId, r, () => logPhotoMeal(deps, userId, input, (e) => {
     if (e.kind !== "item") return;
@@ -131,7 +134,7 @@ export async function queueMealUpdate(
   const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   const was = await deps.store.getMeal(userId, input.mealId);
   const r: Running = {
-    lang, step: 1, items: [], removed: false, watchers: new Set(),
+    lang, step: 1, items: [], removed: false, watchers: new Set(), createdAt: Date.now(), updatedAt: Date.now(),
     update: { kind: input.kind, mealId: input.mealId, steps: MEAL_UPDATE_STEPS[input.kind] },
   };
   const to = (step: PhotoJobStep) => () => { r.step = step; tell(jobId, r); };
@@ -177,6 +180,26 @@ export async function photoJob(deps: EngineDeps, userId: string, jobId: string):
   return Date.now() > turn.claimedAt + bound
     ? { kind: "settled", jobId, result: { kind: OUTCOME_UNKNOWN } }
     : { kind: "running", jobId, step: 2, line: streamCopyFor((await deps.store.getProfile(userId))?.lang ?? "en").queue[1]!, items: [] };
+}
+
+/**
+ * The caller's jobs, newest change first. ponytail: until the durable table (#414 step 4) this reads
+ * the jobs running in THIS process; a settled job is only in `turns`, which has no kind, so it is not
+ * listed. `cursor` is never set — one page.
+ */
+export function listJobs(
+  userId: string, opts: { state: JobsFilter; since: number | null },
+): JobsResponse {
+  if (opts.state === "settled") return { jobs: [], cursor: null };
+  const jobs: JobEntry[] = [];
+  for (const [key, r] of running) {
+    if (!key.startsWith(`${userId}\u0000`) || (opts.since !== null && r.updatedAt <= opts.since)) continue;
+    const jobId = key.slice(userId.length + 1);
+    const base = { jobId, createdAt: new Date(r.createdAt).toISOString(), updatedAt: new Date(r.updatedAt).toISOString() };
+    const state = snapshot(jobId, r) as Extract<PhotoJob, { kind: "running" | "removed" }>;
+    jobs.push(r.update ? { ...base, jobKind: "meal-update", state } : { ...base, jobKind: "photo", state });
+  }
+  return { jobs: jobs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.jobId.localeCompare(b.jobId)), cursor: null };
 }
 
 /** Follow the job: a snapshot per change, the last one returned; a follower means no push until `signal` aborts. */

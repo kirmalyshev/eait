@@ -259,6 +259,12 @@ export const ROUTES = {
    */
   photoJob: (id: string) => `/v1/meals/photo/queue/${encodeURIComponent(id)}`,
   /**
+   * GET `?state=active|settled|all&since=<ISO 8601>&cursor=<opaque>` (default `active`) — every job
+   * of the caller as a {@link JobsResponse}, each entry the same snapshot {@link ROUTES.photoJob}
+   * gives for it. Polling is the design: `since` returns what changed after it (ieat-app#1400).
+   */
+  jobs: "/v1/jobs",
+  /**
    * POST, JSON {@link MealUpdateRequest} with `clientId` REQUIRED (the `idempotency-key` header or
    * the field): the job's id, followed and removed on {@link ROUTES.photoJob} like a photo's.
    * Answers 202 {@link PhotoQueuedResponse}; the change runs on server-side (ieat-app#1347).
@@ -1393,6 +1399,22 @@ export type PhotoJob =
   | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[]; update?: { kind: MealUpdateKind; mealId: string; steps: number } }
   | { kind: "settled"; jobId: string; result: PhotoLast | MealUpdateLast }
   | { kind: "removed"; jobId: string };
+
+/** A job's snapshot with its own result type: {@link PhotoJob} narrowed to one kind of request. */
+export type JobState<R> = Extract<PhotoJob, { kind: "running" | "removed" }> | { kind: "settled"; jobId: string; result: R };
+interface JobEnvelope { jobId: string; createdAt: string; updatedAt: string }
+/**
+ * One job in {@link JobsResponse}. The envelope is the same for every kind; `jobKind` types
+ * `state.result`. A client that meets a `jobKind` it does not know shows a generic row from the
+ * envelope alone, so a new kind of request never breaks a shipped build.
+ */
+export type JobEntry =
+  | (JobEnvelope & { jobKind: "photo"; state: JobState<PhotoLast> })
+  | (JobEnvelope & { jobKind: "meal-update"; state: JobState<MealUpdateLast> });
+export type JobKind = JobEntry["jobKind"];
+export type JobsFilter = "active" | "settled" | "all";
+/** `cursor` is opaque; null when there is no further page. */
+export interface JobsResponse { jobs: JobEntry[]; cursor: string | null }
 /**
  * `PATCH /v1/messages/:id` (#608): the same progress, then one of these last. `bad-request` is a
  * line that cannot be edited (text, or not the caller's kind); `too-many` is the photo bound the

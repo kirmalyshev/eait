@@ -1063,6 +1063,78 @@
         ]
       }
     },
+    "/v1/jobs": {
+      "get": {
+        "operationId": "get_jobs",
+        "summary": "Every queued job of the caller (photo, meal update, …), each the same snapshot the single-job route gives. Poll with `since`.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "active (default), settled or all.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "ISO 8601: only jobs updated after it.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "The `cursor` of the previous page.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/clip/estimate": {
       "post": {
         "operationId": "post_clipEstimate",
@@ -4452,6 +4524,282 @@
           "identities"
         ],
         "additionalProperties": false
+      },
+      "JobEntry": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "jobKind": {
+                "type": "string",
+                "const": "photo"
+              },
+              "state": {
+                "$ref": "#/components/schemas/JobState<PhotoLast>"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "createdAt",
+              "jobId",
+              "jobKind",
+              "state",
+              "updatedAt"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "jobKind": {
+                "type": "string",
+                "const": "meal-update"
+              },
+              "state": {
+                "$ref": "#/components/schemas/JobState<MealUpdateLast>"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string"
+              },
+              "updatedAt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "createdAt",
+              "jobId",
+              "jobKind",
+              "state",
+              "updatedAt"
+            ]
+          }
+        ],
+        "description": "One job in  {@link  JobsResponse } . The envelope is the same for every kind; `jobKind` types `state.result`. A client that meets a `jobKind` it does not know shows a generic row from the envelope alone, so a new kind of request never breaks a shipped build."
+      },
+      "JobState<MealUpdateLast>": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "running"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "step": {
+                "$ref": "#/components/schemas/PhotoJobStep"
+              },
+              "line": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MealItem"
+                }
+              },
+              "update": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/components/schemas/MealUpdateKind"
+                  },
+                  "mealId": {
+                    "type": "string"
+                  },
+                  "steps": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mealId",
+                  "steps"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "step",
+              "line",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "removed"
+              },
+              "jobId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "settled"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "result": {
+                "$ref": "#/components/schemas/MealUpdateLast"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "result"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A job's snapshot with its own result type:  {@link  PhotoJob }  narrowed to one kind of request."
+      },
+      "JobState<PhotoLast>": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "running"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "step": {
+                "$ref": "#/components/schemas/PhotoJobStep"
+              },
+              "line": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MealItem"
+                }
+              },
+              "update": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "$ref": "#/components/schemas/MealUpdateKind"
+                  },
+                  "mealId": {
+                    "type": "string"
+                  },
+                  "steps": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "mealId",
+                  "steps"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "step",
+              "line",
+              "items"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "removed"
+              },
+              "jobId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "settled"
+              },
+              "jobId": {
+                "type": "string"
+              },
+              "result": {
+                "$ref": "#/components/schemas/PhotoLast"
+              }
+            },
+            "required": [
+              "kind",
+              "jobId",
+              "result"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A job's snapshot with its own result type:  {@link  PhotoJob }  narrowed to one kind of request."
+      },
+      "JobsResponse": {
+        "type": "object",
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobEntry"
+            }
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "jobs",
+          "cursor"
+        ],
+        "additionalProperties": false,
+        "description": "`cursor` is opaque; null when there is no further page."
       },
       "Lang": {
         "type": "string",

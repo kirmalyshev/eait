@@ -455,6 +455,7 @@ naming it too.
   photo job's route in the same `PhotoJob`; `update` on a running job names its kind and step count (2, 3, 3).
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
   builds call them. A restart settles a running update like a photo's (retryable).
+  `GET /v1/jobs` (#414 step 2) lists the caller's jobs in the same snapshots; until the durable table (step 4) it reads only the jobs running in this process, so a settled job is not listed.
 - **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
   evening line, the daily sweeps (health retention, turn outcomes, abandoned accounts, idle
   tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per

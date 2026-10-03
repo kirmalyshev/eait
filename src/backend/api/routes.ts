@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest, isMealUpdateRequest, isRedateMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isMealUpdateRequest, isRedateMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
@@ -37,7 +37,7 @@ import {
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
-  reanalyzeMeal, redateMeal, followPhotoJob, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
+  reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -681,6 +681,13 @@ export function createRouter(
           return body.kind === "ingredients" ? tooManyRequests(wait, { error: RATE_LIMITED }) : tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
         }
         return json(await queueMealUpdate(deps, userId, { ...body, ...fields, clientId: fields.clientId }), 202);
+      }
+      if (req.method === "GET" && pathname === ROUTES.jobs) {
+        const state = url.searchParams.get("state") ?? "active";
+        const sinceRaw = url.searchParams.get("since");
+        const since = sinceRaw === null ? null : Date.parse(sinceRaw);
+        if (!["active", "settled", "all"].includes(state) || Number.isNaN(since)) return json({ error: "bad-request" }, 400);
+        return json(listJobs(userId, { state: state as JobsFilter, since }));
       }
       const jobMatch = PHOTO_JOB_PATH.exec(pathname);
       if (jobMatch && (req.method === "GET" || req.method === "DELETE")) {
