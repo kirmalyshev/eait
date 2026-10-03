@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayMonthAt, genderedRussian,
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayLabel, dayMonthAt, genderedRussian,
   localizedGaps, monthYear, numbers, decimalNumbers, signedWholeNumbers, timeAt, weekdayLetters,
   acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
@@ -127,6 +127,33 @@ describe("numbers and dates", () => {
     expect(timeAt("en", "Pacific/Auckland", at)).toMatch(/21:41/); // UTC+12 that evening
     expect(timeAt("de", "Europe/Berlin", at)).toMatch(/11:41/);  // CEST → UTC+2
     expect(timeAt("de", "Europe/Berlin", at)).not.toBe(timeAt("de", "UTC", at));
+  });
+
+  it("speaks a day in the reader's language — the word for the two it has one for, Intl past that", () => {
+    expect(dayLabel("en", "2026-08-27", "2026-08-27")).toBe("today");
+    expect(dayLabel("en", "2026-08-26", "2026-08-27")).toBe("yesterday");
+    expect(dayLabel("de", "2026-08-27", "2026-08-27")).toBe("heute");
+    expect(dayLabel("de", "2026-08-26", "2026-08-27")).toBe("gestern");
+    expect(dayLabel("ru", "2026-08-26", "2026-08-27")).toBe("вчера");
+    expect(dayLabel("en", "2026-08-24", "2026-08-27")).toBe("Mon 24 Aug");
+    expect(dayLabel("en", "2026-08-24", "2026-08-27")).not.toContain("-");
+    expect(dayLabel("de", "2026-08-24", "2026-08-27")).not.toBe("Mon 24 Aug");
+    for (const lang of LANGS) {
+      if (lang === "en") continue;
+      expect(dayLabel(lang, "2026-08-27", "2026-08-27")).not.toBe("today");
+      expect(dayLabel(lang, "2026-08-24", "2026-08-27")).not.toContain("-");
+    }
+  });
+
+  it("crosses a month and a year boundary without slipping a day", () => {
+    expect(dayLabel("en", "2025-12-31", "2026-01-01")).toBe("yesterday");
+    expect(dayLabel("en", "2025-12-30", "2026-01-01")).toBe("Tue 30 Dec");
+  });
+
+  it("holds across a DST transition — the label is derived, not counted in hours", () => {
+    // Europe/Berlin springs forward on 2026-03-29.
+    expect(dayLabel("en", "2026-03-28", "2026-03-29")).toBe("yesterday");
+    expect(dayLabel("en", "2026-03-29", "2026-03-30")).toBe("yesterday");
   });
 
   it("names the week's seven letters, Monday first — the strip's and the Progress dots' captions", () => {

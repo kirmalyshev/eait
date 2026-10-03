@@ -1,32 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  dateMinus, dateMinusMonths, dayLabel, isCalendarDate, localDate, localTime, monthGrid,
+  dateMinus, dateMinusMonths, isCalendarDate, localDate, localTime, monthGrid,
   monthLabel, monthOf, monthShift, weekStart, windowStart, zonedMidnight,
 } from "./dates.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
-
-describe("dayLabel", () => {
-  test("names the two days a person has a word for", () => {
-    expect(dayLabel("2026-08-27", "2026-08-27")).toBe("today");
-    expect(dayLabel("2026-08-26", "2026-08-27")).toBe("yesterday");
-  });
-
-  test("anything older is a weekday and a date, never an ISO string", () => {
-    expect(dayLabel("2026-08-24", "2026-08-27")).toBe("Mon 24 Aug");
-    expect(dayLabel("2026-08-24", "2026-08-27")).not.toContain("-");
-  });
-
-  test("crosses a month and a year boundary without slipping a day", () => {
-    expect(dayLabel("2025-12-31", "2026-01-01")).toBe("yesterday");
-    expect(dayLabel("2025-12-30", "2026-01-01")).toBe("Tue 30 Dec");
-  });
-
-  test("holds across a DST transition — the label is derived, not counted in hours", () => {
-    // Europe/Berlin springs forward on 2026-03-29.
-    expect(dayLabel("2026-03-28", "2026-03-29")).toBe("yesterday");
-    expect(dayLabel("2026-03-29", "2026-03-30")).toBe("yesterday");
-  });
-});
 
 describe("the helpers dayLabel is built on", () => {
   test("still hold", () => {
