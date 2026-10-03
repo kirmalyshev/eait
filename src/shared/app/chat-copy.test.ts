@@ -75,7 +75,7 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.waitingToSend).toBe("Waiting to send");
     expect(en.unknownTitle).toBe("That didn't finish cleanly.");
     expect(en.analysisFailed).toBe("The analysis didn't come back.");
-    expect(en.phone.notSent).toBe("Not sent — tap to put it back in the box");
+    expect(en.phone.notSent).toBe("Not sent. It's back in the box.");
     expect(en.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
   });
 

@@ -42,6 +42,8 @@ export interface ChatCopy {
   idlePlaceholder: string;
   /** The one button under every screen that answers something. */
   continueLabel: string;
+  /** A failed answer save: the answer is still on screen, Continue sends it again. */
+  saveKept: string;
   /** `{age}` from `MIN_AGE`. */
   underAgeCard: CardCopy;
   underAge: { ask: string; confirm: string; placeholder: string; stopped: string[]; endedPlaceholder: string };
@@ -156,6 +158,7 @@ export interface ChatCopy {
 const EN: ChatCopy = {
   idlePlaceholder:  "Message Spud…",
   continueLabel: "Continue",
+  saveKept: "Couldn't save that. Your answer is still here. Continue sends it again.",
   underAgeCard:  {
     title: "eait is for {age} and over",
     body: "The way this app sets calorie targets is not designed for a body that is still growing.",
@@ -271,6 +274,7 @@ const EN: ChatCopy = {
 const FR: ChatCopy = {
   idlePlaceholder:  "Écrire à Spud…",
   continueLabel: "Continuer",
+  saveKept: "Impossible d'enregistrer. Ta réponse est toujours là. Continuer l'envoie à nouveau.",
   underAgeCard:  {
     title: "eait, c'est à partir de {age} ans",
     body: "La façon dont cette appli fixe les objectifs caloriques n'est pas conçue pour un corps qui grandit encore.",
@@ -384,6 +388,7 @@ const FR: ChatCopy = {
 const DE: ChatCopy = {
   idlePlaceholder:  "Nachricht an Spud…",
   continueLabel: "Weiter",
+  saveKept: "Das konnte nicht gespeichert werden. Deine Antwort ist noch da. Mit Weiter wird sie erneut gesendet.",
   underAgeCard:  {
     title: "eait ist ab {age}",
     body: "Die Art, wie diese App Kalorienziele setzt, ist nicht für einen Körper gedacht, der noch wächst.",
@@ -497,6 +502,7 @@ const DE: ChatCopy = {
 const IT: ChatCopy = {
   idlePlaceholder:  "Scrivi a Spud…",
   continueLabel: "Continua",
+  saveKept: "Non è stato possibile salvare. La tua risposta è ancora qui. Con Continua viene inviata di nuovo.",
   underAgeCard:  {
     title: "eait è da {age} anni in su",
     body: "Il modo in cui questa app fissa gli obiettivi calorici non è pensato per un corpo che sta ancora crescendo.",
@@ -610,6 +616,7 @@ const IT: ChatCopy = {
 const ES: ChatCopy = {
   idlePlaceholder:  "Escribe a Spud…",
   continueLabel: "Continuar",
+  saveKept: "No se pudo guardar. Tu respuesta sigue aquí. Con Continuar se envía otra vez.",
   underAgeCard:  {
     title: "eait es para {age} años en adelante",
     body: "La forma en que esta app fija objetivos de calorías no está pensada para un cuerpo que todavía está creciendo.",
@@ -723,6 +730,7 @@ const ES: ChatCopy = {
 const VI: ChatCopy = {
   idlePlaceholder:  "Nhắn cho Spud…",
   continueLabel: "Tiếp tục",
+  saveKept: "Không lưu được. Câu trả lời của bạn vẫn còn đây. Bấm Tiếp tục để gửi lại.",
   underAgeCard:  {
     title: "eait dành cho {age} tuổi trở lên",
     body: "Cách ứng dụng này đặt mục tiêu calo không được thiết kế cho một cơ thể vẫn đang lớn.",
@@ -836,6 +844,7 @@ const VI: ChatCopy = {
 const ID: ChatCopy = {
   idlePlaceholder:  "Kirim pesan ke Spud…",
   continueLabel: "Lanjutkan",
+  saveKept: "Tidak bisa disimpan. Jawabanmu masih di sini. Lanjutkan akan mengirimnya lagi.",
   underAgeCard:  {
     title: "eait untuk usia {age} ke atas",
     body: "Cara aplikasi ini menetapkan target kalori tidak dirancang untuk tubuh yang masih tumbuh.",
@@ -949,6 +958,7 @@ const ID: ChatCopy = {
 const RU: ChatCopy = {
   idlePlaceholder:  "Написать Spud…",
   continueLabel: "Продолжить",
+  saveKept: "Не удалось сохранить. Твой ответ всё ещё здесь. «Продолжить» отправит его снова.",
   underAgeCard:  {
     title: "eait — с {age} лет",
     body: "То, как это приложение ставит цели по калориям, не рассчитано на тело, которое ещё растёт.",

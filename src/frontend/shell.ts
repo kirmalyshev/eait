@@ -578,6 +578,16 @@ export function refusalWords(err: unknown): string {
   return said(code) ?? (err.status >= 500 ? maybeLanded() : COPY.somethingWrong);
 }
 
+/**
+ * A save that failed with the entered value still on screen (no lost input): the server's own
+ * words when it refused for a reason it names, `kept` — "still here, save again" — for every
+ * other failure, a dropped request included.
+ */
+export function keptWords(err: unknown, kept: string): string {
+  const code = err instanceof ApiError ? String(err.body?.error) : "";
+  return Object.hasOwn(refusalWordsFor(), code) || code === "cap-exceeded" ? refusalWords(err) : kept;
+}
+
 /** What a meal is called on one line — `mealNames`, or the untitled word. */
 export const names = (items: readonly { name: string }[]): string => mealNames(items) || COPY.meal;
 

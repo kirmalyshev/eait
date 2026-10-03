@@ -33,7 +33,7 @@ import { kitEl, macEl, mcardEl, ringEl, weekStripEl, weightChartEl } from "../ki
 import { ico, type ChipName } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
 import {
-  clear, COPY, dayText, el, forgetProfile, lang, profile, refusalWords, render, setHeldProposal,
+  clear, COPY, dayText, el, forgetProfile, keptWords, lang, profile, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
 } from "../shell.ts";
 
@@ -199,7 +199,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
           mode = "none";
           void draw();
         } catch (err) {
-          noticeBox.tell(refusalWords(err));
+          noticeBox.tell(keptWords(err, you.phone.saveKept));
           field.focus();
           field.setSelectionRange(field.value.length, field.value.length);
         } finally {
@@ -287,7 +287,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
           mode = "none";
           void draw();
         } catch (err) {
-          noticeBox.tell(refusalWords(err));
+          noticeBox.tell(keptWords(err, you.phone.saveKept));
           targetField.focus();
           targetField.setSelectionRange(targetField.value.length, targetField.value.length);
         } finally {

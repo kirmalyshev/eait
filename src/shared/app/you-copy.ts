@@ -116,6 +116,8 @@ export interface YouCopy {
     profileTitle: string;
     /** The editor screens' commit button: "Save". */
     save: string;
+    /** A failed save: what was entered is still in the field, Save sends it again. */
+    saveKept: string;
 
     // ── you-weight.html — the weigh-in ──
     /** Its title: "Your weight". */
@@ -320,6 +322,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "You",
       profileTitle: SHELL_COPY.en.navProfile,
       save: "Save",
+      saveKept: "Couldn't save that. What you entered is still here. Save again.",
       weightTitle: "Your weight",
       weightCheckKg: "{source} says {w}kg. Is that right?",
       weightCheckLb: "{source} says {w}lb. Is that right?",
@@ -430,6 +433,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Vous",
       profileTitle: shellCopyFor("fr").navProfile,
       save: "Enregistrer",
+      saveKept: "Impossible d'enregistrer. Ce que tu as saisi est toujours là. Enregistre à nouveau.",
       weightTitle: "Ton poids",
       weightCheckKg: "{source} indique {w}kg. C'est juste ?",
       weightCheckLb: "{source} indique {w}lb. C'est juste ?",
@@ -540,6 +544,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Du",
       profileTitle: shellCopyFor("de").navProfile,
       save: "Speichern",
+      saveKept: "Das konnte nicht gespeichert werden. Deine Eingabe ist noch da. Speichere noch einmal.",
       weightTitle: "Dein Gewicht",
       weightCheckKg: "{source} sagt {w}kg. Stimmt das?",
       weightCheckLb: "{source} sagt {w}lb. Stimmt das?",
@@ -650,6 +655,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Tu",
       profileTitle: shellCopyFor("it").navProfile,
       save: "Salva",
+      saveKept: "Non è stato possibile salvare. Quello che hai inserito è ancora qui. Salva di nuovo.",
       weightTitle: "Il tuo peso",
       weightCheckKg: "{source} dice {w}kg. È giusto?",
       weightCheckLb: "{source} dice {w}lb. È giusto?",
@@ -760,6 +766,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Tú",
       profileTitle: shellCopyFor("es").navProfile,
       save: "Guardar",
+      saveKept: "No se pudo guardar. Lo que escribiste sigue aquí. Guarda otra vez.",
       weightTitle: "Tu peso",
       weightCheckKg: "{source} dice {w}kg. ¿Es correcto?",
       weightCheckLb: "{source} dice {w}lb. ¿Es correcto?",
@@ -870,6 +877,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Bạn",
       profileTitle: shellCopyFor("vi").navProfile,
       save: "Lưu",
+      saveKept: "Không lưu được. Những gì bạn nhập vẫn còn đây. Lưu lại nhé.",
       weightTitle: "Cân nặng của bạn",
       weightCheckKg: "{source} báo {w}kg. Đúng không?",
       weightCheckLb: "{source} báo {w}lb. Đúng không?",
@@ -980,6 +988,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Kamu",
       profileTitle: shellCopyFor("id").navProfile,
       save: "Simpan",
+      saveKept: "Tidak bisa disimpan. Yang kamu isi masih di sini. Simpan lagi.",
       weightTitle: "Beratmu",
       weightCheckKg: "{source} bilang {w}kg. Benar?",
       weightCheckLb: "{source} bilang {w}lb. Benar?",
@@ -1090,6 +1099,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       title: "Вы",
       profileTitle: shellCopyFor("ru").navProfile,
       save: "Сохранить",
+      saveKept: "Не удалось сохранить. Введённое всё ещё здесь. Сохрани ещё раз.",
       weightTitle: "Твой вес",
       weightCheckKg: "{source} сообщает: {w}кг. Всё верно?",
       weightCheckLb: "{source} сообщает: {w}lb. Всё верно?",

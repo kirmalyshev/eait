@@ -314,7 +314,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const grams = el("input", "amtin num") as HTMLInputElement;
     grams.type = "text";
     grams.inputMode = "decimal";
-    grams.value = takeSentGrams(meal.id, index) ?? `${item.grams}`;
+    const sent = takeSentGrams(meal.id, index);
+    grams.value = sent ?? `${item.grams}`;
     grams.setAttribute("aria-label", mc.phoneAmount);
     const size = (): void => { grams.style.width = `${Math.max(2, grams.value.length)}ch`; };
     size();
@@ -329,6 +330,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       fill(mc.phoneWasAmount, { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }));
     wasG.hidden = true;
     dlg.append(amountRow, wasG);
+    if (sent !== null) dlg.append(el("span", "t13 m", fill(mc.phoneIngredientKept, { grams: fill(mc.phoneGrams, { n: sent }) })));
 
     // Calories, live off the item's own density; "was" keeps the figure the edit started from. An
     // item that reports no kcal draws no card — the preview has nothing to scale.
