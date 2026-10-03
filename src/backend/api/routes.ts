@@ -83,6 +83,11 @@ export interface RouterOptions {
    * nothing else sets it. See `STREAM_KEEPALIVE_MS`.
    */
   streamKeepaliveMs?: number;
+  /**
+   * While it answers true the process is shutting down: `/health` goes 503 so the proxy stops
+   * sending traffic here while in-flight work drains. Unset means never draining.
+   */
+  draining?: () => boolean;
 }
 
 /**
@@ -318,7 +323,12 @@ export function createRouter(
     // `process.argv` alone. Setting that variable would have made this answer `demo:true` while the
     // real, billed analyzer served every request — and the walk would then refuse frames it could
     // have taken honestly. `llm.canned` is set by `demoPorts()` and cannot disagree with itself.
-    if (pathname === ROUTES.health) return json({ ok: true, demo: deps.llm.canned === true } satisfies LivenessResponse);
+    // A draining process answers 503 with the same body: the proxy reads the status, everything
+    // else reads the shape — and `demo` must still be honest for the screenshot walk either way.
+    if (pathname === ROUTES.health) return json(
+      { ok: true, demo: deps.llm.canned === true } satisfies LivenessResponse,
+      options.draining?.() === true ? 503 : 200,
+    );
 
     try {
       // The admin, on a ROLE the account carries (#391b).

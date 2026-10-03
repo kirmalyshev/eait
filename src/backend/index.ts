@@ -18,7 +18,7 @@ import { demoPorts } from "./llm/demo.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -261,7 +261,12 @@ function demoProvider(name: WebProvider): WebSignInProvider {
   };
 }
 
-const router = createRouter(deps, store, verifier, demo ? { webProviders: demoProviders } : {});
+/** Set the moment a shutdown starts: `/health` goes 503 while in-flight work drains. */
+let draining = false;
+const router = createRouter(deps, store, verifier, {
+  draining: () => draining,
+  ...(demo ? { webProviders: demoProviders } : {}),
+});
 
 // ── The demo-only account lookup ─────────────────────────────────────────────────────────────
 //
@@ -404,10 +409,16 @@ const telegram = demo || config.telegramBotToken === ""
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
-    // The connector first: a handler still running holds the store, and it must finish its turn
-    // before the pool it writes through is gone.
+    // Unhealthy FIRST: the proxy's next health check pulls this replica out while the rest below
+    // finishes, rather than traffic reaching a process that is half closed.
+    draining = true;
+    // Stop accepting, let queued jobs land (a deploy must not lose a photo), then close.
+    const stopping = server.stop();
+    await drainJobs(deps, config.shutdownDrainMs);
+    await stopping;
+    // The connector before the pool: a handler still running holds the store, and it must finish
+    // its turn before the pool it writes through is gone.
     await telegram?.stop();
-    await server.stop();
     await store.close();
     process.exit(0);
   });
