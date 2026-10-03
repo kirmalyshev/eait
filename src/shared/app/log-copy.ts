@@ -798,7 +798,7 @@ export const LOG_COPY: Localized<LogCopy> = {
       noteLabel: "Catatan tentang makanan ini",
       editSend: "Kirim",
       lockHeading: "Foto butuh langganan",
-      failedSampleNote: "Tidak ada yang tercatat, tapi tetap terhitung — dan itu yang terakhir dari uji cobamu. Foto berikutnya butuh langganan.",
+      failedSampleNote: "Tidak ada yang tercatat, tapi tetap terhitung — dan itu yang terakhir dari jatah gratismu. Foto berikutnya butuh langganan.",
       capGlobalTitle: "Anggaran hari ini habis",
       capGlobalNote: "Anggaran analisis harian bersama sudah habis. Reset tengah malam.",
       capAddressTitle: "Terlalu banyak foto dari jaringan ini",
