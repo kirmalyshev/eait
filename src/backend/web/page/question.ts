@@ -145,6 +145,9 @@ interface RulerCfg {
   /** The target ruler's refused zone and the "now" marker, in the control's own unit. */
   floor?: { at: number; label: string } | undefined;
   now?: { at: number; label: string } | undefined;
+  /** The ONE label the floor/now pair merges into when the marks sit within one
+      tick (ieat-app#1201) — `target.nowLowest`, drawn at the floor's mark. */
+  merged?: string | undefined;
   delta?: { dn: string; up: string } | undefined;
   settle?: boolean | undefined;
   /** `marks` draws the marker labels INSTEAD of the numbered scale — the target board, where the
@@ -177,6 +180,9 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
   const markers = !cfg.vertical ? [
     cfg.floor ? `<span class="lbl lo" style="left:${at(cfg.floor.at)}px">${escape(cfg.floor.label)}</span>` : "",
     cfg.now ? `<span class="lbl hi" style="left:${at(cfg.now.at)}px">${escape(cfg.now.label)}</span>` : "",
+    // `.mg` waits hidden for the script's `rulerMarkerLayout`: merged shows it
+    // alone, stacked drops `.lo` a row, flat leaves it unseen.
+    cfg.floor && cfg.merged ? `<span class="lbl mg" style="left:${at(cfg.floor.at)}px;visibility:hidden">${escape(cfg.merged)}</span>` : "",
   ].join("") : "";
   const bign = cfg.fmt === "ftin"
     ? `<div class="bign num"><span class="bv">${cmToFtIn(cfg.val * 2.54).ft}′</span><small>ft</small> ` +
@@ -331,6 +337,11 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
     floor: floorAt !== undefined && lowest !== null ? { at: floorAt, label: lowest } : undefined,
     now: now !== undefined
       ? { at: now, label: fill(copy.target.now, { weight: weightDisplay(nowKg!, v.units, v.lang) }) }
+      : undefined,
+    // The floor's weight is the number the merged label owes — the words sit at
+    // the floor's mark and the bound is the claim that must never be off.
+    merged: floorAt !== undefined && now !== undefined && lowest !== null
+      ? fill(copy.target.nowLowest, { weight: weightDisplay(minHealthy!, v.units, v.lang) })
       : undefined,
     delta: { dn: copy.target.deltaDown, up: copy.target.deltaUp },
   });
