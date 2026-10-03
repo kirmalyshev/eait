@@ -565,7 +565,7 @@ ${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(${i}*(100% - 44
   display:flex;flex-direction:column;gap:4px;min-width:0;box-shadow:var(--shadow)}
 .mcard.ctr{align-items:center;text-align:center}
 .mcard b{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.mcard small{font-size:12px;font-weight:600;color:var(--muted)}
+.mcard small{font-size:12px;font-weight:600;color:var(--muted);hyphens:auto;overflow-wrap:break-word}
 .mcard>.mring{align-self:center}
 .mcard>.ico{width:34px;height:34px;margin-bottom:4px}
 .mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
