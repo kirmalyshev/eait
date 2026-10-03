@@ -183,6 +183,13 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
   // Proposals a confirm, cancel or retirement has already settled (#1116): a `/v1/meals/pending`
   // read that started before the settle must not bring the offer back over its own answer.
   const settledPendings = new Set<string>();
+  // Timed-out turns whose words already went back once (#1462): a page merge drops the synthesized
+  // line and `restorePendings` draws it again, and only the FIRST of those may refill the box —
+  // a second prepend duplicates the words over what the user has since typed.
+  const restoredExpired = new Set<string>();
+  // Expired lines a resend retired: the stored line stays `lastTyped`, so without this the next
+  // page re-draws "send it again" under words already sent.
+  const retiredExpired = new Set<string>();
   // What makes "half that" work: the most recent meal in the thread, so a correction has something
   // to correct without the user having to say which meal they mean.
   let focusMealId: string | null = lastMealId(deps.seed ?? [], deps.today()) ?? null;
@@ -198,6 +205,30 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     const next = new Set(state.settling);
     if (on) next.add(id); else next.delete(id);
     set({ settling: next });
+  };
+
+  /**
+   * What a timed-out typed line hands back to the composer: its own text (#1462). Null where the
+   * `expired` wording stays the truth — a photo's caption is not the photo, and a renderer that
+   * took no `restore` dep cannot take the words either.
+   */
+  const timedOutWords = (e: ThreadEntry): string | null =>
+    deps.restore !== undefined && e.role === "user" && e.photo !== true && typeof e.text === "string" && e.text !== ""
+      ? e.text : null;
+
+  /**
+   * The turn behind an expired proposal gets its words back in the composer, under the line that
+   * is about to say so, so the resend's `retry` retires that line. True marks the entry `back`;
+   * false keeps "describe it again", which stays honest for a photo line and for a proposal
+   * restored at the tail — its typed line is on no page this list holds.
+   */
+  const wordsBack = (pendingId: string, entryId: string): boolean => {
+    const line = state.entries.find((e): e is Extract<ThreadEntry, { role: "user" }> =>
+      e.role === "user" && e.stored === true && e.pendingId === pendingId);
+    const words = line === undefined ? null : timedOutWords(line);
+    if (words === null) return false;
+    deps.restore?.(words, entryId);
+    return true;
   };
 
   /** Fetch the newest page and merge it in. Awaited by a turn, so the composer stays busy until it lands. */
@@ -295,7 +326,17 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         if (after === "assistant" || after === "error") return [e];
         if (next.some((x) => pendingIdOf(x) === id || mealIdOf(x) === id)) return [e];
         if (i < lastTyped) return [e];
-        return [e, { id: `expired:${e.id}`, role: "assistant", result: { kind: "expired" } }];
+        // The words go back in the box FIRST, then the line says so (#1462) — under the line's own
+        // id, so the resend's `retry` retires it. `back` rides on the entry: "send it again" is
+        // only true where the restore ran.
+        const entryId = `expired:${e.id}`;
+        if (retiredExpired.has(entryId)) return [e];
+        const words = timedOutWords(e);
+        if (words !== null && !restoredExpired.has(entryId)) {
+          restoredExpired.add(entryId);
+          deps.restore?.(words, entryId);
+        }
+        return [e, { id: entryId, role: "assistant", result: { kind: "expired" }, ...(words !== null ? { back: true } : {}) }];
       });
       return expired.length === next.length ? next : expired;
     });
@@ -534,7 +575,10 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // a refusal throws instead, leaving it live and restorable.
       settledPendings.add(pendingId);
       if ("mealId" in res) focusMealId = res.date === deps.today() ? res.mealId : null;
-      replace(entryId, { id: entryId, role: "assistant", result: res });
+      // `expired` answers a tap that raced the sweep: the turn's words go back in the box first,
+      // then the line says they did (#1462).
+      const back = res.kind === "expired" && wordsBack(pendingId, entryId);
+      replace(entryId, { id: entryId, role: "assistant", result: res, ...(back ? { back: true } : {}) });
       // A first typed meal comes with Spud's verdict, written server-side; fetch it.
       if (res.kind === "logged") await load(() => true);
     } catch (e) {
@@ -563,9 +607,10 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         await load(() => true);
       } else {
         // An expired proposal was never cancelled and the server wrote nothing for it; the bubble
-        // says so, rather than a "Dropped it." the thread will not carry.
+        // says so, rather than a "Dropped it." the thread will not carry — with the turn's words
+        // back in the box first, the same as the stored page's (#1462).
         replace(entryId, res.kind === "expired"
-          ? { id: entryId, role: "assistant", result: { kind: "expired" } }
+          ? { id: entryId, role: "assistant", result: { kind: "expired" }, ...(wordsBack(pendingId, entryId) ? { back: true } : {}) }
           : { id: entryId, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", lang(), {}) } });
       }
     } catch (e) {
@@ -600,6 +645,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
 
   const retry = (entryId: string): void => {
     inflightIds.delete(entryId);
+    // A resend retires the timed-out line it came from for good: the stored line it sits under is
+    // `lastTyped` still, and would otherwise draw it again on every page that lands (#1462).
+    retiredExpired.add(entryId);
     edit((prev) => threadReducer(prev, { kind: "remove", id: entryId }));
   };
 
