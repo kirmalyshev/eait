@@ -68,7 +68,7 @@ export async function handleText(
   return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, (d) => textTurn(d, userId, input));
 }
 
-async function textTurn(
+export async function textTurn(
   deps: EngineDeps,
   userId: string,
   input: HandleTextInput,
