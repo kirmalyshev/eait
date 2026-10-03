@@ -36,7 +36,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.satfat"
-#~ msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn yêu cầu."
+#~ msgstr "Bữa này chất béo bão hòa cao. Được chấm chỉ vì bạn yêu cầu."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -151,17 +151,17 @@ msgstr "{noun} — rất cao"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} cao cho một bữa: {eaten} trên {target}{unit} của bạn."
+msgstr "{nutrient} cao so với một bữa: {eaten} trên {target}{unit} của bạn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} rất cao cho một bữa: {eaten} trên {target}{unit} của bạn."
+msgstr "{nutrient} rất cao so với một bữa: {eaten} trên {target}{unit} của bạn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesHigh"
-msgstr "Một phần lớn của cả ngày trong một bữa."
+msgstr "Một bữa đã chiếm phần lớn lượng calo cả ngày."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -191,7 +191,7 @@ msgstr "Calo đúng kế hoạch."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.carbs"
-msgstr "Bột đường"
+msgstr "Tinh bột"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -246,7 +246,7 @@ msgstr "Bữa đầu tiên đã vào. {kcal}kcal."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
-msgstr "Nhẹ tay với nó trong phần còn lại của hôm nay."
+msgstr "Phần còn lại của hôm nay nên ăn bớt lại nhé."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -271,12 +271,12 @@ msgstr "Tuần này thế nào?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.coachStarters.busy"
-msgstr "Tôi sẽ kể tôi đã ăn gì"
+msgstr "Mình sẽ kể mình đã ăn gì"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
-msgstr "Có gì sai thì cứ nói — \"một nửa cơm thôi\", \"không có bơ\" — hoặc chạm vào thẻ và đổi số gam."
+msgstr "Có gì sai thì cứ nói — “một nửa cơm thôi”, “không có bơ” — hoặc chạm vào thẻ và đổi số gam."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -306,7 +306,7 @@ msgstr "Bữa ăn"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesVeryHigh"
-msgstr "Hơn nửa ngày của bạn trong một bữa."
+msgstr "Một bữa đã chiếm hơn nửa lượng calo cả ngày."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -351,12 +351,12 @@ msgstr "Đúng kế hoạch."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra không có gì, không bao giờ."
+msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra tuyệt đối không có gì khác."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-primer"
-msgstr "Một điều trước đã: iOS sẽ hỏi quyền camera. Mình dùng nó cho cái đĩa và không cho gì khác — ảnh được giữ cùng bữa ăn để bạn xem lại trong nhật ký, và xoá cùng tài khoản của bạn."
+msgstr "Một điều trước đã: iOS sẽ hỏi quyền camera. Mình dùng nó cho cái đĩa và không cho gì khác — ảnh được giữ cùng bữa ăn để bạn xem lại trong nhật ký, và xóa cùng tài khoản của bạn."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -381,12 +381,12 @@ msgstr "Đã khôi phục — bạn vào rồi. Một tấm ảnh hay một câu
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.inline.ldl"
-msgstr "chất béo bão hoà"
+msgstr "chất béo bão hòa"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
-msgstr "Chất béo bão hoà"
+msgstr "Chất béo bão hòa"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -411,7 +411,7 @@ msgstr "Natri"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
-msgstr "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại."
+msgstr "Có gì đó trục trặc, nhưng có thể vẫn đã được ghi. Kiểm tra /today trước khi gửi lại."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -421,12 +421,12 @@ msgstr "Spud"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.fix-prompt"
-msgstr "Nói mình biết chỗ nào sai — \"một nửa cơm thôi\", \"không có bơ\", \"hồi nãy là 500\" đều được. Hoặc mở thẻ ra và tự sửa số gam."
+msgstr "Nói mình biết chỗ nào sai — “một nửa cơm thôi”, “không có bơ”, “hồi nãy là 500” đều được. Hoặc mở thẻ ra và tự sửa số gam."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Không có gì trả về. Thử lại nhé."
+msgstr "Chưa nhận được kết quả. Thử lại nhé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -451,7 +451,7 @@ msgstr "Tin nhắn này dài quá, không gửi được."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.expired"
-msgstr "Cái đó không còn được giữ nữa. Nói lại giúp mình."
+msgstr "Đề xuất đó đã hết hạn. Nói lại giúp mình nhé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -501,7 +501,7 @@ msgstr "Tài khoản này chưa đăng nhập — đăng nhập bằng Apple ho�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí trên web để tiếp tục."
+msgstr "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu tuần miễn phí trên web để tiếp tục."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

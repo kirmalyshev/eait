@@ -29,11 +29,11 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   fr: {
     steps: {
-      ingredients: ["Enregistrement de votre modification · 1 sur 2", "Recalcul des nutriments · 2 sur 2"],
-      note: ["Lecture de votre note · 1 sur 3", "Ajustement du repas · 2 sur 3", "Recalcul des nutriments · 3 sur 3"],
-      reread: ["Nouvelle lecture de la photo · 1 sur 3", "Pesée des portions · 2 sur 3", "Calcul des nutriments · 3 sur 3"],
+      ingredients: ["Enregistrement de ta modification · 1 sur 2", "Recalcul des nutriments · 2 sur 2"],
+      note: ["Lecture de ta note · 1 sur 3", "Ajustement du repas · 2 sur 3", "Recalcul des nutriments · 3 sur 3"],
+      reread: ["Nouvelle lecture de la photo · 1 sur 3", "Estimation des portions · 2 sur 3", "Calcul des nutriments · 3 sur 3"],
     },
-    failedTitle: "Modification impossible à appliquer", failedBody: "Votre repas est resté comme avant.", failedNote: "Votre note est là : modifiez-la, ou renvoyez-la.", refusedTitle: "Cette modification n'a pas pu être faite",
+    failedTitle: "Modification impossible à appliquer", failedBody: "Ton repas n'a pas changé.", failedNote: "Ta note est là : modifie-la, ou renvoie-la.", refusedTitle: "Cette modification n'a pas pu être faite",
     discard: "Abandonner", ok: "OK", push: "{names} mis à jour · {kcal} (avant : {was})",
   },
   de: {
@@ -52,13 +52,13 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       reread: ["Nuova lettura della foto · 1 di 3", "Stima delle porzioni · 2 di 3", "Conteggio dei nutrienti · 3 di 3"],
     },
     failedTitle: "Impossibile applicare la modifica", failedBody: "Il pasto è rimasto com'era.", failedNote: "La tua nota è qui: modificala, o inviala di nuovo.", refusedTitle: "Non è stato possibile fare questa modifica",
-    discard: "Scarta", ok: "OK", push: "{names} aggiornato · {kcal} (prima {was})",
+    discard: "Scarta", ok: "OK", push: "Aggiornato: {names} · {kcal} (prima {was})",
   },
   es: {
     steps: {
       ingredients: ["Guardando tu cambio · 1 de 2", "Recalculando nutrientes · 2 de 2"],
       note: ["Leyendo tu nota · 1 de 3", "Ajustando la comida · 2 de 3", "Recalculando nutrientes · 3 de 3"],
-      reread: ["Releyendo la foto · 1 de 3", "Pesando las porciones · 2 de 3", "Contando nutrientes · 3 de 3"],
+      reread: ["Releyendo la foto · 1 de 3", "Pesando las raciones · 2 de 3", "Contando nutrientes · 3 de 3"],
     },
     failedTitle: "No se pudo aplicar el cambio", failedBody: "Tu comida sigue como estaba.", failedNote: "Tu nota está aquí: edítala o envíala otra vez.", refusedTitle: "No se pudo hacer ese cambio",
     discard: "Descartar", ok: "OK", push: "Actualizado: {names} · {kcal} (antes {was})",
@@ -83,9 +83,9 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   ru: {
     steps: {
-      ingredients: ["Сохраняем изменение · 1 из 2", "Пересчитываем нутриенты · 2 из 2"],
-      note: ["Читаем заметку · 1 из 3", "Корректируем приём пищи · 2 из 3", "Пересчитываем нутриенты · 3 из 3"],
-      reread: ["Перечитываем фото · 1 из 3", "Оцениваем порции · 2 из 3", "Считаем нутриенты · 3 из 3"],
+      ingredients: ["Сохраняем изменение · 1 из 2", "Пересчитываем КБЖУ · 2 из 2"],
+      note: ["Читаем заметку · 1 из 3", "Корректируем приём пищи · 2 из 3", "Пересчитываем КБЖУ · 3 из 3"],
+      reread: ["Перечитываем фото · 1 из 3", "Оцениваем порции · 2 из 3", "Считаем КБЖУ · 3 из 3"],
     },
     failedTitle: "Не удалось применить изменение", failedBody: "Приём пищи остался как был.", failedNote: "Твоя заметка здесь: измени её или отправь ещё раз.", refusedTitle: "Не удалось внести это изменение",
     discard: "Отменить", ok: "OK", push: "{names}: обновлено · {kcal} (было {was})",

@@ -36,14 +36,14 @@ import { DEFAULT_ONBOARDING_CONTENT, usableContent, type OnboardingContent } fro
 const FR: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Photographie un repas. Sache s'il te convient."],
-    cta: "Crée mon plan",
+    lines: ["Prends ton repas en photo. Vois s'il rentre dans ta journée."],
+    cta: "Créer mon plan",
     signin: "J'ai déjà un compte",
   },
   screens: [
     {
       id: "goal",
-      asks: { goal: { lines: ["Pourquoi es-tu là ?"] } },
+      asks: { goal: { lines: ["Quel est ton objectif ?"] } },
       options: {
         lose: { label: "Perdre du poids" },
         maintain: { label: "Garder mon poids" },
@@ -116,7 +116,7 @@ const FR: OnboardingContent = {
     },
     {
       id: "medical",
-      asks: { medical: { lines: ["Des limites médicales ?"] } },
+      asks: { medical: { lines: ["Des contraintes de santé ?"] } },
       options: {
         kidneys: { label: "Maladie rénale" },
         ldl: { label: "Cholestérol élevé" },
@@ -146,7 +146,7 @@ const FR: OnboardingContent = {
   summary: {
     lines: ["Voilà ton plan"],
     kcalLabel: "kcal par jour",
-    floorMarker: "plafonné pour la sécurité · jamais sous {floor}",
+    floorMarker: "plafonné par sécurité · jamais sous {floor}",
     macros: {
       protein: "Protéines", carbs: "Glucides", fat: "Lipides",
       satfat: "Graisses saturées · tu l'as demandé",
@@ -161,7 +161,7 @@ const FR: OnboardingContent = {
 const DE: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Foto vom Essen. Klare Antwort."],
+    lines: ["Essen knipsen. Sehen, ob's passt."],
     cta: "Meinen Plan erstellen",
     signin: "Ich habe schon ein Konto",
   },
@@ -178,7 +178,7 @@ const DE: OnboardingContent = {
     {
       id: "sex",
       asks: { sex: { lines: ["Dein Geschlecht?"] } },
-      options: { male: { label: "Männlich" }, female: { label: "Weiblich" }, other: { label: "Andere" } },
+      options: { male: { label: "Männlich" }, female: { label: "Weiblich" }, other: { label: "Divers" } },
     },
     {
       id: "age",
@@ -257,13 +257,13 @@ const DE: OnboardingContent = {
     },
   ],
   building: {
-    lines: ["Dein persönlicher Plan wird gebaut"],
+    lines: ["Dein persönlicher Plan wird erstellt"],
     title: "Dein Tagesplan",
     rows: {
       calories: "Kalorien", protein: "Protein", carbs: "Kohlenhydrate",
       fat: "Fett", diet: "Ernährung",
     },
-    limitCap: { ldl: "gesättigte Fette ≤ {n}g", kidneys: "Natrium ≤ {n}mg" },
+    limitCap: { ldl: "gesättigte Fettsäuren ≤ {n}g", kidneys: "Natrium ≤ {n}mg" },
     cta: "Zeig mir den Plan",
     floorTitle: "Wir bleiben bei {floor}kcal",
     floorBody: "Die Rechnung wollte tiefer. Ohne ärztliche Begleitung setzen wir keine Ziele darunter, also liegt deins genau hier. In deinem Tagebuch steht das auch.",
@@ -271,10 +271,10 @@ const DE: OnboardingContent = {
   summary: {
     lines: ["Hier ist dein Plan"],
     kcalLabel: "kcal pro Tag",
-    floorMarker: "aus Sicherheit gekappt · nie unter {floor}",
+    floorMarker: "aus Sicherheitsgründen begrenzt · nie unter {floor}",
     macros: {
       protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett",
-      satfat: "Gesättigte Fette · du wolltest es",
+      satfat: "Gesättigte Fettsäuren · auf deinen Wunsch",
     },
     capNote: "Dieses Tempo bräuchte eine größere Tagesänderung, als sich sicher durchhalten lässt, also bekommst du die sichere Variante: {share}% dessen, was dein Körper am Tag verbrennt.",
     cta: "Fotografier deine erste Mahlzeit",
@@ -293,10 +293,10 @@ const IT: OnboardingContent = {
   screens: [
     {
       id: "goal",
-      asks: { goal: { lines: ["Per cosa sei qui?"] } },
+      asks: { goal: { lines: ["Cosa vuoi ottenere?"] } },
       options: {
         lose: { label: "Perdere peso" },
-        maintain: { label: "Mantenere il mio peso" },
+        maintain: { label: "Mantenere il peso" },
         gain: { label: "Prendere peso" },
       },
     },
@@ -337,7 +337,7 @@ const IT: OnboardingContent = {
       options: {
         easy: { label: "Dolce" },
         steady: { label: "Costante" },
-        push: { label: "Spinto" },
+        push: { label: "Sostenuto" },
       },
     },
     {
@@ -355,18 +355,18 @@ const IT: OnboardingContent = {
       id: "diet",
       asks: { diet: { lines: ["Segui una dieta?"] } },
       options: {
-        balanced: { label: "Bilanciata" },
-        wholefood: { label: "Cibo integrale" },
+        balanced: { label: "Equilibrata" },
+        wholefood: { label: "Cibi poco lavorati" },
         mediterranean: { label: "Mediterranea" },
         flexitarian: { label: "Flexitariana" },
-        pescatarian: { label: "Pescatariana" },
+        pescatarian: { label: "Pescetariana" },
         vegetarian: { label: "Vegetariana" },
-        vegan: { label: "Vegano" },
+        vegan: { label: "Vegana" },
       },
     },
     {
       id: "medical",
-      asks: { medical: { lines: ["Limiti medici?"] } },
+      asks: { medical: { lines: ["Hai condizioni mediche da considerare?"] } },
       options: {
         kidneys: { label: "Malattia renale" },
         ldl: { label: "Colesterolo alto" },
@@ -378,7 +378,7 @@ const IT: OnboardingContent = {
       id: "country",
       asks: { country: { lines: ["Dove vivi?"], placeholder: "Cerca" } },
       enabled: true,
-      options: { other: { label: "Da un'altra parte" } },
+      options: { other: { label: "Altrove" } },
     },
   ],
   building: {
@@ -411,7 +411,7 @@ const IT: OnboardingContent = {
 const ES: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Fotografía una comida. Sabe si encaja."],
+    lines: ["Haz una foto a tu comida. Descubre si encaja."],
     cta: "Crear mi plan",
     signin: "Ya tengo una cuenta",
   },
@@ -444,17 +444,17 @@ const ES: OnboardingContent = {
     },
     {
       id: "activity",
-      asks: { activity: { lines: ["¿Qué tan activos son tus días?"] } },
+      asks: { activity: { lines: ["¿Cómo de activos son tus días?"] } },
       options: {
         none: { label: "0", hint: "Sin entrenamientos" },
         few: { label: "1–2", hint: "Algún entrenamiento de vez en cuando" },
         some: { label: "3–4", hint: "Unos entrenamientos a la semana" },
-        many: { label: "5+", hint: "Casi todos los días" },
+        many: { label: "5+", hint: "Entreno casi a diario" },
       },
     },
     {
       id: "target",
-      asks: { target_weight_kg: { lines: ["¿Qué peso buscas?"], placeholder: "Peso objetivo en kg" } },
+      asks: { target_weight_kg: { lines: ["¿Cuál es tu peso objetivo?"], placeholder: "Peso objetivo en kg" } },
     },
     {
       id: "pace",
@@ -481,17 +481,17 @@ const ES: OnboardingContent = {
       asks: { diet: { lines: ["¿Sigues alguna dieta?"] } },
       options: {
         balanced: { label: "Equilibrada" },
-        wholefood: { label: "Alimentos completos" },
+        wholefood: { label: "Comida real" },
         mediterranean: { label: "Mediterránea" },
         flexitarian: { label: "Flexitariana" },
         pescatarian: { label: "Pescetariana" },
         vegetarian: { label: "Vegetariana" },
-        vegan: { label: "Vegano" },
+        vegan: { label: "Vegana" },
       },
     },
     {
       id: "medical",
-      asks: { medical: { lines: ["¿Límites médicos?"] } },
+      asks: { medical: { lines: ["¿Alguna condición médica?"] } },
       options: {
         kidneys: { label: "Enfermedad renal" },
         ldl: { label: "Colesterol alto" },
@@ -511,7 +511,7 @@ const ES: OnboardingContent = {
     title: "Tu plan diario",
     rows: {
       calories: "Calorías", protein: "Proteína", carbs: "Carbohidratos",
-      fat: "Grasa", diet: "Dieta",
+      fat: "Grasas", diet: "Dieta",
     },
     limitCap: { ldl: "grasas saturadas ≤ {n}g", kidneys: "sodio ≤ {n}mg" },
     cta: "Enséñame el plan",
@@ -523,8 +523,8 @@ const ES: OnboardingContent = {
     kcalLabel: "kcal al día",
     floorMarker: "limitado por seguridad · nunca por debajo de {floor}",
     macros: {
-      protein: "Proteína", carbs: "Carbohidratos", fat: "Grasa",
-      satfat: "Grasa saturada · lo pediste tú",
+      protein: "Proteína", carbs: "Carbohidratos", fat: "Grasas",
+      satfat: "Grasas saturadas · lo pediste tú",
     },
     capNote: "Ese ritmo pediría un cambio diario mayor del que es seguro sostener, así que el tuyo es la versión segura: {share}% de lo que tu cuerpo quema en un día.",
     cta: "Fotografía tu primera comida",
@@ -536,9 +536,9 @@ const ES: OnboardingContent = {
 const VI: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Chụp một bữa ăn. Biết nó có hợp không."],
-    cta: "Xây kế hoạch cho tôi",
-    signin: "Tôi đã có tài khoản",
+    lines: ["Chụp bữa ăn. Biết ngay có hợp không."],
+    cta: "Lập kế hoạch cho mình",
+    signin: "Mình đã có tài khoản",
   },
   screens: [
     {
@@ -546,7 +546,7 @@ const VI: OnboardingContent = {
       asks: { goal: { lines: ["Bạn đến đây để làm gì?"] } },
       options: {
         lose: { label: "Giảm cân" },
-        maintain: { label: "Giữ cân nặng của tôi" },
+        maintain: { label: "Giữ cân nặng của mình" },
         gain: { label: "Tăng cân" },
       },
     },
@@ -616,7 +616,7 @@ const VI: OnboardingContent = {
     },
     {
       id: "medical",
-      asks: { medical: { lines: ["Có giới hạn y tế nào không?"] } },
+      asks: { medical: { lines: ["Bạn có vấn đề sức khỏe nào cần lưu ý không?"] } },
       options: {
         kidneys: { label: "Bệnh thận" },
         ldl: { label: "Cholesterol cao" },
@@ -632,14 +632,14 @@ const VI: OnboardingContent = {
     },
   ],
   building: {
-    lines: ["Đang xây kế hoạch riêng cho bạn"],
+    lines: ["Đang lập kế hoạch riêng cho bạn"],
     title: "Kế hoạch mỗi ngày của bạn",
     rows: {
       calories: "Calo", protein: "Đạm", carbs: "Tinh bột",
       fat: "Chất béo", diet: "Chế độ ăn",
     },
-    limitCap: { ldl: "chất béo bão hoà ≤ {n}g", kidneys: "natri ≤ {n}mg" },
-    cta: "Cho tôi xem kế hoạch",
+    limitCap: { ldl: "chất béo bão hòa ≤ {n}g", kidneys: "natri ≤ {n}mg" },
+    cta: "Cho mình xem kế hoạch",
     floorTitle: "Dừng lại ở {floor}kcal",
     floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng mình không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
   },
@@ -649,9 +649,9 @@ const VI: OnboardingContent = {
     floorMarker: "đã giới hạn vì an toàn · không bao giờ dưới {floor}",
     macros: {
       protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo",
-      satfat: "Chất béo bão hoà · bạn đã chọn",
+      satfat: "Chất béo bão hòa · bạn đã chọn",
     },
-    capNote: "Nhịp đó cần mức thay đổi mỗi ngày lớn hơn mức an toàn để duy trì, nên bạn nhận bản an toàn: {share}% lượng cơ thể bạn đốt trong một ngày.",
+    capNote: "Tốc độ đó cần mức thay đổi mỗi ngày lớn hơn mức an toàn để duy trì, nên bạn nhận bản an toàn: {share}% lượng cơ thể bạn đốt trong một ngày.",
     cta: "Chụp bữa ăn đầu tiên",
   },
 };
@@ -661,9 +661,9 @@ const VI: OnboardingContent = {
 const ID: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Foto satu makanan. Tahu apakah cocok."],
-    cta: "Buat rencana saya",
-    signin: "Saya sudah punya akun",
+    lines: ["Foto makananmu. Langsung tahu cocok atau tidak."],
+    cta: "Buat rencana aku",
+    signin: "Aku sudah punya akun",
   },
   screens: [
     {
@@ -671,7 +671,7 @@ const ID: OnboardingContent = {
       asks: { goal: { lines: ["Kamu ke sini untuk apa?"] } },
       options: {
         lose: { label: "Menurunkan berat badan" },
-        maintain: { label: "Jaga berat badan saya" },
+        maintain: { label: "Jaga berat badan aku" },
         gain: { label: "Menaikkan berat badan" },
       },
     },
@@ -699,7 +699,7 @@ const ID: OnboardingContent = {
         none: { label: "0", hint: "Tidak olahraga" },
         few: { label: "1–2", hint: "Olahraga sesekali" },
         some: { label: "3–4", hint: "Beberapa kali olahraga seminggu" },
-        many: { label: "5+", hint: "Atlet berdedikasi" },
+        many: { label: "5+", hint: "Atlet / latihan serius" },
       },
     },
     {
@@ -710,7 +710,7 @@ const ID: OnboardingContent = {
       id: "pace",
       asks: { pace: { lines: ["Seberapa cepat?"] } },
       options: {
-        easy: { label: "Pelan" },
+        easy: { label: "Santai" },
         steady: { label: "Stabil" },
         push: { label: "Cepat" },
       },
@@ -723,7 +723,7 @@ const ID: OnboardingContent = {
         habits: { label: "Kebiasaan makan tidak sehat" },
         support: { label: "Kurang dukungan" },
         busy: { label: "Jadwal padat" },
-        ideas: { label: "Kurang inspirasi makan" },
+        ideas: { label: "Kurang ide menu" },
       },
     },
     {
@@ -746,7 +746,7 @@ const ID: OnboardingContent = {
         kidneys: { label: "Penyakit ginjal" },
         ldl: { label: "Kolesterol tinggi" },
         lowsugar: { label: "Risiko diabetes" },
-        none: { label: "Tidak ada satu pun" },
+        none: { label: "Tidak ada" },
       },
     },
     {
@@ -757,7 +757,7 @@ const ID: OnboardingContent = {
     },
   ],
   building: {
-    lines: ["Membangun rencana pribadimu"],
+    lines: ["Menyusun rencana pribadimu"],
     title: "Rencana harianmu",
     rows: {
       calories: "Kalori", protein: "Protein", carbs: "Karbohidrat",
@@ -766,7 +766,7 @@ const ID: OnboardingContent = {
     limitCap: { ldl: "lemak jenuh ≤ {n}g", kidneys: "natrium ≤ {n}mg" },
     cta: "Tunjukkan rencananya",
     floorTitle: "Kami berhenti di {floor}kcal",
-    floorBody: "Hitungannya ingin turun lebih jauh. Tanpa pengawasan medis kami tidak menetapkan target di bawah ini, jadi punyamu berhenti di sini. Buku harianmu juga akan menyebutkannya.",
+    floorBody: "Hitungannya mengarah lebih rendah lagi. Tanpa pengawasan medis kami tidak menetapkan target di bawah ini, jadi punyamu berhenti di sini. Buku harianmu juga akan menyebutkannya.",
   },
   summary: {
     lines: ["Ini rencanamu"],
@@ -776,7 +776,7 @@ const ID: OnboardingContent = {
       protein: "Protein", carbs: "Karbohidrat", fat: "Lemak",
       satfat: "Lemak jenuh · kamu yang minta",
     },
-    capNote: "Tempo itu butuh perubahan harian yang lebih besar daripada yang aman untuk dijaga, jadi punyamu versi amannya: {share}% dari yang tubuhmu bakar dalam sehari.",
+    capNote: "Tempo itu butuh selisih harian yang terlalu besar untuk dijaga dengan aman, jadi rencanamu memakai versi aman: {share}% dari kalori yang dibakar tubuhmu dalam sehari.",
     cta: "Foto makanan pertamamu",
   },
 };
@@ -786,40 +786,40 @@ const ID: OnboardingContent = {
 const RU: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Сфотографируйте блюдо. Узнайте, подходит ли оно."],
+    lines: ["Сфотографируй еду — узнай, впишется ли она в твой день."],
     cta: "Создать мой план",
     signin: "У меня уже есть аккаунт",
   },
   screens: [
     {
       id: "goal",
-      asks: { goal: { lines: ["Какая у вас цель?"] } },
+      asks: { goal: { lines: ["Какая у тебя цель?"] } },
       options: {
         lose: { label: "Похудеть" },
-        maintain: { label: "Держать свой вес" },
+        maintain: { label: "Сохранить вес" },
         gain: { label: "Набрать вес" },
       },
     },
     {
       id: "sex",
-      asks: { sex: { lines: ["Ваш пол?"] } },
+      asks: { sex: { lines: ["Твой пол?"] } },
       options: { male: { label: "Мужской" }, female: { label: "Женский" }, other: { label: "Другой" } },
     },
     {
       id: "age",
-      asks: { birth_year: { lines: ["Сколько вам лет?"], placeholder: "Твой возраст" } },
+      asks: { birth_year: { lines: ["Сколько тебе лет?"], placeholder: "Твой возраст" } },
     },
     {
       id: "height",
-      asks: { height_cm: { lines: ["Какой у вас рост?"], placeholder: "Рост в см" } },
+      asks: { height_cm: { lines: ["Какой у тебя рост?"], placeholder: "Рост в см" } },
     },
     {
       id: "weight",
-      asks: { weight_kg: { lines: ["Сколько вы весите сейчас?"], placeholder: "Вес в кг" } },
+      asks: { weight_kg: { lines: ["Сколько ты сейчас весишь?"], placeholder: "Вес в кг" } },
     },
     {
       id: "activity",
-      asks: { activity: { lines: ["Насколько активны ваши дни?"] } },
+      asks: { activity: { lines: ["Насколько активны твои дни?"] } },
       options: {
         none: { label: "0", hint: "Без тренировок" },
         few: { label: "1–2", hint: "Тренировки время от времени" },
@@ -829,7 +829,7 @@ const RU: OnboardingContent = {
     },
     {
       id: "target",
-      asks: { target_weight_kg: { lines: ["К какому весу вы стремитесь?"], placeholder: "Целевой вес в кг" } },
+      asks: { target_weight_kg: { lines: ["К какому весу ты хочешь прийти?"], placeholder: "Целевой вес в кг" } },
     },
     {
       id: "pace",
@@ -837,7 +837,7 @@ const RU: OnboardingContent = {
       options: {
         easy: { label: "Мягкий" },
         steady: { label: "Ровный" },
-        push: { label: "Побыстрее" },
+        push: { label: "Быстрый" },
       },
     },
     {
@@ -853,7 +853,7 @@ const RU: OnboardingContent = {
     },
     {
       id: "diet",
-      asks: { diet: { lines: ["Придерживаетесь ли вы диеты?"] } },
+      asks: { diet: { lines: ["Ты придерживаешься какой-то диеты?"] } },
       options: {
         balanced: { label: "Сбалансированная" },
         wholefood: { label: "Цельные продукты" },
@@ -861,14 +861,14 @@ const RU: OnboardingContent = {
         flexitarian: { label: "Флекситарианская" },
         pescatarian: { label: "Пескетарианская" },
         vegetarian: { label: "Вегетарианская" },
-        vegan: { label: "Веган" },
+        vegan: { label: "Веганская" },
       },
     },
     {
       id: "medical",
       asks: { medical: { lines: ["Есть ли медицинские ограничения?"] } },
       options: {
-        kidneys: { label: "Болезнь почек" },
+        kidneys: { label: "Заболевание почек" },
         ldl: { label: "Высокий холестерин" },
         lowsugar: { label: "Риск диабета" },
         none: { label: "Ничего из этого" },
@@ -876,14 +876,14 @@ const RU: OnboardingContent = {
     },
     {
       id: "country",
-      asks: { country: { lines: ["Где вы живёте?"], placeholder: "Поиск" } },
+      asks: { country: { lines: ["Где ты живёшь?"], placeholder: "Поиск" } },
       enabled: true,
       options: { other: { label: "Где-то ещё" } },
     },
   ],
   building: {
-    lines: ["Строю ваш личный план"],
-    title: "Ваш план на день",
+    lines: ["Составляю твой личный план"],
+    title: "Твой план на день",
     rows: {
       calories: "Калории", protein: "Белок", carbs: "Углеводы",
       fat: "Жиры", diet: "Диета",
@@ -894,12 +894,12 @@ const RU: OnboardingContent = {
     floorBody: "Расчёт хотел уйти ниже. Без наблюдения врача мы не ставим цели ниже этой отметки, так что твоя — здесь. В дневнике это тоже будет написано.",
   },
   summary: {
-    lines: ["Вот ваш план"],
+    lines: ["Вот твой план"],
     kcalLabel: "ккал в день",
     floorMarker: "ограничено ради безопасности · никогда ниже {floor}",
     macros: {
       protein: "Белок", carbs: "Углеводы", fat: "Жиры",
-      satfat: "Насыщенные жиры · по вашему запросу",
+      satfat: "Насыщенные жиры · по твоему запросу",
     },
     capNote: "Такой темп потребовал бы большей дневной разницы, чем безопасно выдерживать, так что у тебя безопасный вариант: {share}% от того, что тело сжигает за день.",
     cta: "Сфотографируй первый приём пищи",

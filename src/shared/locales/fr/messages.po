@@ -126,12 +126,12 @@ msgstr "{names} · {kcal}kcal"
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
-msgstr "{noun} — un peu haut"
+msgstr "{noun} — au-dessus"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.inline.warn"
-msgstr "{noun} — un peu haut"
+msgstr "{noun} — au-dessus"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -141,22 +141,22 @@ msgstr "{noun} — dans le plan"
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
-msgstr "{noun} — trop haut"
+msgstr "{noun} — bien au-dessus"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.inline.bad"
-msgstr "{noun} — trop haut"
+msgstr "{noun} — bien au-dessus"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} est un peu haut pour un repas : {eaten} de tes {target}{unit}."
+msgstr "{nutrient} : au-dessus pour un seul repas ({eaten} sur tes {target}{unit})."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} est trop haut pour un repas : {eaten} de tes {target}{unit}."
+msgstr "{nutrient} : bien au-dessus pour un seul repas ({eaten} sur tes {target}{unit})."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -211,7 +211,7 @@ msgstr "C'est compté. Il reste {left}kcal aujourd'hui."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "C'est compté. {over}kcal au-dessus aujourd'hui."
+msgstr "C'est compté. {over}kcal en trop aujourd'hui."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -261,7 +261,7 @@ msgstr "Bien. Je suis dans le chat quand tu veux — une photo ou une phrase, le
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Réponse honnête : je n'ai pas bien lu cette assiette. Prends {kcal} pour une estimation grossière et vérifie les grammes avant de faire confiance au total. Un deuxième angle aide, la prochaine fois."
+msgstr "Réponse honnête : je n'ai pas bien lu cette assiette. Considère {kcal} comme une estimation approximative et vérifie les grammes avant de faire confiance au total. Un deuxième angle aide, la prochaine fois."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -326,7 +326,7 @@ msgstr "Pas d'appareil photo, pas de problème. Choisis une photo dans ta galeri
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-closed"
-msgstr "Rien ne presse. Le plan est dans ton journal — photographie le prochain repas quand il arrive. C'est toute l'habitude, et je te le rappellerai une fois demain si ce n'est pas fait."
+msgstr "Rien ne presse. Le plan est dans ton journal — photographie le prochain repas quand il arrive. C'est tout le principe, et je te le rappellerai une fois demain si ce n'est pas fait."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -486,7 +486,7 @@ msgstr "C'est la limite pour l'instant. Réessaie plus tard."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
-msgstr "l'appli"
+msgstr "l'app"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -541,7 +541,7 @@ msgstr "Envoi de la photo · 1 sur 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.2"
-msgstr "Pesée des portions"
+msgstr "Estimation des portions"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -551,7 +551,7 @@ msgstr "Estimation des portions · 3 sur 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.weighing"
-msgstr "Pesée des portions…"
+msgstr "Estimation des portions…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

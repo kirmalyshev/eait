@@ -28,7 +28,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   fr: {
     goalLine: "Objectif : {kg}, vers {month}", goalStay: "Objectif : rester autour de {kg}",
-    satFat: "gr. saturées", yourPlan: "Ton plan", youBurn: "Tu brûles",
+    satFat: "graisses sat.", yourPlan: "Ton plan", youBurn: "Tu brûles",
     building: "Création de ton plan", today: "Aujourd’hui",
   },
   de: {
@@ -37,18 +37,18 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     building: "Dein Plan entsteht", today: "Heute",
   },
   it: {
-    goalLine: "Obiettivo: {kg}, verso {month}", goalStay: "Obiettivo: restare intorno a {kg}",
+    goalLine: "Obiettivo: {kg}, intorno a {month}", goalStay: "Obiettivo: restare intorno a {kg}",
     satFat: "grassi sat.", yourPlan: "Il tuo piano", youBurn: "Bruci",
     building: "Creo il tuo piano", today: "Oggi",
   },
   es: {
-    goalLine: "Meta: {kg}, hacia {month}", goalStay: "Meta: mantenerte en torno a {kg}",
+    goalLine: "Objetivo: {kg}, hacia {month}", goalStay: "Objetivo: mantenerte en torno a {kg}",
     satFat: "grasa sat.", yourPlan: "Tu plan", youBurn: "Quemas",
     building: "Creando tu plan", today: "Hoy",
   },
   vi: {
     goalLine: "Mục tiêu: {kg}, khoảng {month}", goalStay: "Mục tiêu: giữ quanh {kg}",
-    satFat: "béo bão hòa", yourPlan: "Kế hoạch của bạn", youBurn: "Bạn đốt",
+    satFat: "chất béo bão hòa", yourPlan: "Kế hoạch của bạn", youBurn: "Bạn tiêu hao",
     building: "Đang tạo kế hoạch", today: "Hôm nay",
   },
   id: {
@@ -57,7 +57,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     building: "Menyusun rencanamu", today: "Hari ini",
   },
   ru: {
-    goalLine: "Цель: {kg}, примерно {month}", goalStay: "Цель: держаться около {kg}",
+    goalLine: "Цель: {kg} · ориентир — {month}", goalStay: "Цель: держаться около {kg}",
     satFat: "насыщ. жиры", yourPlan: "Твой план", youBurn: "Ты сжигаешь",
     building: "Составляю твой план", today: "Сегодня",
   },

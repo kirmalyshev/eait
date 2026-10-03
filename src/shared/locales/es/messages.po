@@ -151,12 +151,12 @@ msgstr "{noun} — muy por encima"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} está por encima en una comida: {eaten} de tus {target}{unit}."
+msgstr "{nutrient}: mucho para una sola comida — {eaten} de tus {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} está muy por encima en una comida: {eaten} de tus {target}{unit}."
+msgstr "{nutrient}: demasiado para una sola comida — {eaten} de tus {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -196,7 +196,7 @@ msgstr "Carbohidratos"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
-msgstr "Comparar con tu plan"
+msgstr "Comparando con tu plan"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -241,12 +241,12 @@ msgstr "Buscando la comida · 2 de 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "La primera está dentro. {kcal}kcal."
+msgstr "Primera comida registrada. {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
-msgstr "Ve con calma con eso el resto del día."
+msgstr "Modéralo el resto del día."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -271,7 +271,7 @@ msgstr "¿Cómo va mi semana?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.coachStarters.busy"
-msgstr "Te digo lo que comí y ya"
+msgstr "Te digo lo que he comido y ya"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -316,12 +316,12 @@ msgstr "Movido."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.1"
-msgstr "Nombrar lo que hay"
+msgstr "Identificando lo que hay"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Sin cámara, sin problema. Elige una foto de tu galería, o dime simplemente qué comiste — las dos reciben macros."
+msgstr "Sin cámara, sin problema. Elige una foto de tu galería, o dime simplemente qué has comido — las dos reciben macros."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -366,7 +366,7 @@ msgstr "Proteína"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.0"
-msgstr "Leer el plato"
+msgstr "Leyendo el plato"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -391,7 +391,7 @@ msgstr "Grasas saturadas"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Manda la foto de una comida, dime qué comiste, o hazle una pregunta a {coach}."
+msgstr "Manda la foto de una comida, dime qué has comido, o hazle una pregunta a {coach}."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -501,7 +501,7 @@ msgstr "Esta cuenta aún no ha iniciado sesión — entra con Apple o Google en 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis en la web para seguir."
+msgstr "Ya has usado el análisis gratis de esta cuenta. Empieza tu semana gratis en la web para seguir."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,12 +521,12 @@ msgstr "Demasiados intentos desde este Telegram. Espera un poco y vuelve a pulsa
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Prueba activada. Siete días, luego {price} salvo que la pares — te aviso el quinto día y el día antes de que acabe, nunca el día después."
+msgstr "Prueba activada. Siete días, luego {price} salvo que la canceles — te aviso el quinto día y el día antes de que acabe, nunca el día después."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Escrito, no fotografiado — así que las porciones son mi estimación. Toma {kcal} como orden de magnitud; si sabes los gramos, dilo y lo corrijo."
+msgstr "Escrito, no fotografiado — así que las raciones son mi estimación. Toma {kcal} como una aproximación; si sabes los gramos, dilo y lo corrijo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -541,17 +541,17 @@ msgstr "Subiendo la foto · 1 de 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.2"
-msgstr "Pesar las porciones"
+msgstr "Pesando las raciones"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.2"
-msgstr "Pesando las porciones · 3 de 4"
+msgstr "Pesando las raciones · 3 de 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.weighing"
-msgstr "Pesando las porciones…"
+msgstr "Pesando las raciones…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -258,7 +258,7 @@ const EN: ChatCopy = {
   },
   health: {
     title: "Sync with Apple Health",
-    body: "Weight and activity in, meals out.",
+    body: "Weight and activity come in. Your meals go to Health.",
     connect: "Connect Apple Health",
     skip: "Not now",
   },
@@ -278,7 +278,7 @@ const FR: ChatCopy = {
   saveKept: "Impossible d'enregistrer. Ta réponse est toujours là. Continuer l'envoie à nouveau.",
   underAgeCard:  {
     title: "eait, c'est à partir de {age} ans",
-    body: "La façon dont cette appli fixe les objectifs caloriques n'est pas conçue pour un corps qui grandit encore.",
+    body: "La façon dont cette app fixe les objectifs caloriques n'est pas conçue pour un corps qui grandit encore.",
   },
   underAge:  {
     ask: "Désolé — je dois m'arrêter là. Si c'est une faute de frappe, envoie-moi ton vrai âge.",
@@ -307,8 +307,8 @@ const FR: ChatCopy = {
   direction:  {
     gain: "Tu es à {weight}kg et tu demandes à monter jusqu'à {target} — ce n'est pas une hausse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre au-dessus de {weight}.",
     lose: "Tu es à {weight}kg et tu demandes à descendre jusqu'à {target} — ce n'est pas une baisse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre en dessous de {weight}.",
-    switchToLose: "Je veux perdre",
-    switchToGain: "Je veux prendre",
+    switchToLose: "Je veux perdre du poids",
+    switchToGain: "Je veux prendre du poids",
     above: "Un nombre au-dessus de {weight}…",
     below: "Un nombre en dessous de {weight}…",
   },
@@ -332,8 +332,8 @@ const FR: ChatCopy = {
     rate: "{rate} par semaine",
     rateSuffix: "par semaine",
     result: "{target} vers {month} · {kcal}kcal par jour",
-    capMarker: "plafonné à la limite sûre",
-    floorMarker: "jamais sous {floor} · chaque rythme y arrive",
+    capMarker: "plafonné à la limite sans risque",
+    floorMarker: "jamais sous {floor}, quel que soit le rythme",
   },
   how: {
     title: "Voilà toute l'app",
@@ -343,7 +343,7 @@ const FR: ChatCopy = {
   },
   units: { years: "ans" },
   ontrack: {
-    title: "Fait pour te garder en route",
+    title: "Conçu pour t'aider à tenir le cap",
     captions: {
       consistency: "Un jour raté ne coûte rien. Le suivant repart de zéro.",
       habits: "Rien n'est interdit. Chaque assiette a ses macros honnêtes.",
@@ -353,7 +353,7 @@ const FR: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analyse eait",
     weightTrend: "Tendance du poids",
     without: "Sans",
     now: "Maintenant",
@@ -372,9 +372,9 @@ const FR: ChatCopy = {
     rest: "Au repos, ton corps brûle", activity: "Avec ton activité, environ", pace: "Pour ton rythme, on ajuste", floor: "Le plancher qu’on ne franchit pas", protein: "Protéines à viser",
   },
   health: {
-    title: "Synchroniser avec Apple Health",
-    body: "Poids et activité entrent, les repas restent dehors.",
-    connect: "Connecter Apple Health",
+    title: "Synchroniser avec Santé",
+    body: "Ton poids et ton activité arrivent, tes repas partent vers Santé.",
+    connect: "Connecter l'app Santé",
     skip: "Pas maintenant",
   },
   targetSuggestion:  {
@@ -446,8 +446,8 @@ const DE: ChatCopy = {
   pace: {
     rate: "{rate} pro Woche",
     rateSuffix: "pro Woche",
-    result: "{target} um {month} · {kcal}kcal am Tag",
-    capMarker: "auf die sichere Grenze gekappt",
+    result: "{target} etwa im {month} · {kcal}kcal am Tag",
+    capMarker: "auf das sichere Maximum begrenzt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
   },
   how: {
@@ -468,7 +468,7 @@ const DE: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "eait-Analyse",
     weightTrend: "Gewichtstrend",
     without: "Ohne",
     now: "Jetzt",
@@ -484,11 +484,11 @@ const DE: ChatCopy = {
     goalLose: "Ziel: {delta} abnehmen bis {month}",
     goalGain: "Ziel: {delta} zunehmen bis {month}",
     goalMaintain: "Ziel: mein Gewicht halten",
-    rest: "In Ruhe verbrennt dein Körper", activity: "Mit deiner Aktivität etwa", pace: "Für dein Tempo rechnen wir", floor: "Die Grenze, die wir nicht unterschreiten", protein: "Eiweiß als Ziel",
+    rest: "Im Ruhezustand verbrennt dein Körper", activity: "Mit deiner Aktivität etwa", pace: "Für dein Tempo passen wir an", floor: "Die Grenze, die wir nicht unterschreiten", protein: "Dein Proteinziel",
   },
   health: {
     title: "Mit Apple Health synchronisieren",
-    body: "Gewicht und Aktivität kommen rein, Mahlzeiten gehen nicht raus.",
+    body: "Gewicht und Aktivität kommen rein, deine Mahlzeiten gehen raus.",
     connect: "Apple Health verbinden",
     skip: "Nicht jetzt",
   },
@@ -522,7 +522,7 @@ const IT: ChatCopy = {
   },
   belowHealthy:  {
     title: "Non posso impostarlo come obiettivo",
-    body: "Il peso sano più basso per la tua altezza è circa {kg}kg. Sotto quello non fissiamo obiettivi. Se stai seguendo altro con un medico, segui lui e non questa app.",
+    body: "Il peso sano più basso per la tua altezza è circa {kg}kg. Sotto quello non fissiamo obiettivi. Se il tuo medico ti ha indicato altro, segui le sue indicazioni e non questa app.",
   },
   invalid:  {
     age: "Non sembra un'età — prova con qualcosa tipo 34.",
@@ -535,7 +535,7 @@ const IT: ChatCopy = {
     confirm: "Ho {age} anni",
   },
   direction:  {
-    gain: "Sei a {weight}kg e chiedi di salire a {target} — da qui non è una crescita. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
+    gain: "Sei a {weight}kg e chiedi di salire a {target} — da qui non è un aumento. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
     lose: "Sei a {weight}kg e chiedi di scendere a {target} — da qui non è un calo. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sotto {weight}.",
     switchToLose: "Passa a perdere peso",
     switchToGain: "Passa a prendere peso",
@@ -543,8 +543,8 @@ const IT: ChatCopy = {
     below: "Un numero sotto {weight}…",
   },
   switched:  {
-    gain: "Invertito — si prende peso, allora. Dove ti piacerebbe arrivare, in kg?",
-    lose: "Invertito — si perde peso, allora. Dove ti piacerebbe arrivare, in kg? Più veloce qui non è meglio — è solo più difficile da mantenere.",
+    gain: "Fatto, allora prendiamo peso. Dove ti piacerebbe arrivare, in kg?",
+    lose: "Invertito — si perde peso, allora. Dove ti piacerebbe arrivare, in kg? Andare più veloce non è meglio: è solo più difficile da mantenere.",
   },
   capNoteTail:  " Fa circa {kg}kg a settimana.",
   goalEdit:  {
@@ -578,12 +578,12 @@ const IT: ChatCopy = {
       consistency: "Un giorno saltato non costa niente. Il prossimo riparte da zero.",
       habits: "Niente è vietato. Ogni piatto riceve macro onesti.",
       support: "Chiedi a {coach}, quando vuoi, in Chat.",
-      busy: "Una foto è tutto il diario.",
-      ideas: "Senza idee per cena? {coach} trova cosa ci sta.",
+      busy: "Basta una foto per registrare.",
+      ideas: "Senza idee per cena? Chiedi a {coach} cosa ci sta in quello che resta.",
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analisi di eait",
     weightTrend: "Andamento del peso",
     without: "Senza",
     now: "Ora",
@@ -599,12 +599,12 @@ const IT: ChatCopy = {
     goalLose: "Obiettivo: perdere {delta} entro {month}",
     goalGain: "Obiettivo: prendere {delta} entro {month}",
     goalMaintain: "Obiettivo: mantenere il mio peso",
-    rest: "A riposo il tuo corpo brucia", activity: "Con la tua attività, circa", pace: "Per il tuo ritmo, correggiamo", floor: "Il limite che non superiamo", protein: "Proteine da raggiungere",
+    rest: "A riposo il tuo corpo brucia", activity: "Con la tua attività, circa", pace: "Per il tuo ritmo, correggiamo", floor: "Il minimo sotto cui non scendiamo", protein: "Proteine da raggiungere",
   },
   health: {
     title: "Sincronizza con Apple Health",
-    body: "Peso e attività entrano, i pasti restano fuori.",
-    connect: "Connetti Apple Health",
+    body: "Peso e attività in entrata, pasti in uscita.",
+    connect: "Collega Apple Health",
     skip: "Non ora",
   },
   targetSuggestion:  {
@@ -613,7 +613,7 @@ const IT: ChatCopy = {
   },
   firstMeal:  FIRST_MEAL_COPY.it,
   stepper:  { continue: "Continua", less: "Meno", more: "Più" },
-  offerHeadline:  "Arrivare a {kg}kg entro {month}",
+  offerHeadline:  "Arriva a {kg}kg entro {month}",
   planGoal: { metric: "Obiettivo: perdere {n}kg entro {month}", imperial: "Obiettivo: perdere {n}lb entro {month}" },
 };
 
@@ -698,7 +698,7 @@ const ES: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Análisis de eait",
     weightTrend: "Tendencia del peso",
     without: "Sin",
     now: "Ahora",
@@ -711,14 +711,14 @@ const ES: ChatCopy = {
     estimateAria: "Peso estimado: {from} ahora, {to} hacia {month}",
   },
   plan: {
-    goalLose: "Meta: perder {delta} para {month}",
-    goalGain: "Meta: ganar {delta} para {month}",
-    goalMaintain: "Meta: mantener mi peso",
+    goalLose: "Objetivo: perder {delta} para {month}",
+    goalGain: "Objetivo: ganar {delta} para {month}",
+    goalMaintain: "Objetivo: mantener mi peso",
     rest: "En reposo tu cuerpo quema", activity: "Con tu actividad, unas", pace: "Para tu ritmo, ajustamos", floor: "El mínimo del que no bajamos", protein: "Proteína objetivo",
   },
   health: {
     title: "Sincronizar con Apple Health",
-    body: "Peso y actividad entran, las comidas no salen.",
+    body: "Entran tu peso y tu actividad; salen tus comidas.",
     connect: "Conectar Apple Health",
     skip: "Ahora no",
   },
@@ -742,17 +742,17 @@ const VI: ChatCopy = {
   },
   underAge:  {
     ask: "Xin lỗi — mình phải dừng ở đây. Nếu chỉ là gõ nhầm, bạn gửi lại tuổi thật nhé.",
-    confirm: "Đó là tuổi thật của tôi",
+    confirm: "Đó là tuổi thật của mình",
     placeholder: "Tuổi của bạn",
     stopped: [
-      "Vậy thì chúng mình dừng ở đây. Mình đang xoá mọi điều bạn đã kể.",
+      "Vậy thì chúng mình dừng ở đây. Mình đang xóa mọi điều bạn đã kể.",
       "Quay lại khi {age} tuổi nhé, mình vẫn ở đây.",
     ],
     endedPlaceholder: "eait dành cho {age} tuổi trở lên",
   },
   belowHealthy:  {
     title: "Mình không đặt được mức đó làm mục tiêu",
-    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg}kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
+    body: "Cân nặng khỏe mạnh thấp nhất với chiều cao của bạn là khoảng {kg}kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
   },
   invalid:  {
     age: "Cái đó trông không giống một số tuổi — thử kiểu như 34 xem.",
@@ -762,7 +762,7 @@ const VI: ChatCopy = {
   },
   ambiguousAge:  {
     line: "Mình muốn chắc là đọc đúng — nếu ý bạn là năm {year}, gửi đủ bốn chữ số nhé.",
-    confirm: "Tôi {age} tuổi",
+    confirm: "Mình {age} tuổi",
   },
   direction:  {
     gain: "Bạn đang ở {weight}kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
@@ -778,13 +778,13 @@ const VI: ChatCopy = {
   },
   capNoteTail:  " Tính ra khoảng {kg}kg mỗi tuần.",
   goalEdit:  {
-    cleared: "Cân nặng mục tiêu của bạn không còn hợp với mục tiêu đó nữa nên đã được xoá — đặt lại một mức mới nhé.",
+    cleared: "Cân nặng mục tiêu của bạn không còn hợp với mục tiêu đó nữa nên đã được xóa — đặt lại một mức mới nhé.",
     worthSetting: "Đã ghi. Có điều cân nặng mục tiêu của bạn không còn hợp với mục tiêu nữa — nên đặt lại một mức mới.",
   },
   target: {
-    lowest: "{weight} · mức thấp nhất chúng tôi đặt",
+    lowest: "{weight} · mức thấp nhất có thể đặt",
     now: "{weight} · hiện tại",
-    nowLowest: "{weight} · hiện tại · mức thấp nhất chúng tôi đặt",
+    nowLowest: "{weight} · hiện tại · mức thấp nhất có thể đặt",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -796,26 +796,26 @@ const VI: ChatCopy = {
     floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
   },
   how: {
-    title: "Đó là toàn bộ ứng dụng",
+    title: "Toàn bộ ứng dụng chỉ có vậy",
     meal: "Cá hồi, cơm và rau",
     photoAlt: "Một bát ngũ cốc trong khung ngắm",
-    steps: ["Chụp món ăn", "Nhận macro trung thực", "Xem tiến triển của bạn"],
+    steps: ["Chụp món ăn", "Nhận macro rõ ràng", "Xem tiến độ của bạn"],
   },
   units: { years: "tuổi" },
   ontrack: {
-    title: "Được làm ra để giữ bạn đi đúng hướng",
+    title: "Giúp bạn luôn đi đúng hướng",
     captions: {
-      consistency: "Một ngày lỡ không mất gì. Ngày tiếp theo bắt đầu từ số không.",
-      habits: "Không món nào bị cấm. Mỗi đĩa đều có macro trung thực.",
+      consistency: "Lỡ một ngày cũng không sao. Hôm sau lại bắt đầu từ đầu.",
+      habits: "Không món nào bị cấm. Mỗi đĩa đều có macro rõ ràng.",
       support: "Hỏi {coach} bất cứ điều gì, bất cứ lúc nào, trong Chat.",
-      busy: "Một tấm ảnh là cả bản ghi.",
-      ideas: "Bí ý tưởng cho bữa tối? Hỏi {coach} xem cái gì vừa với phần còn lại.",
+      busy: "Chỉ một tấm ảnh là ghi xong.",
+      ideas: "Bí ý tưởng cho bữa tối? Hỏi {coach} xem món gì hợp với phần còn lại trong ngày.",
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Phân tích của eait",
     weightTrend: "Xu hướng cân nặng",
-    without: "Không dùng",
+    without: "Không có kế hoạch",
     now: "Hiện tại",
     later: "Về sau",
     twoWays: "Cân nặng theo thời gian, vẽ hai cách: có kế hoạch và không",
@@ -826,14 +826,14 @@ const VI: ChatCopy = {
     estimateAria: "Cân nặng ước tính: {from} hiện tại, {to} vào khoảng {month}",
   },
   plan: {
-    goalLose: "Mục tiêu: giảm {delta} đến {month}",
-    goalGain: "Mục tiêu: tăng {delta} đến {month}",
+    goalLose: "Mục tiêu: giảm {delta} vào khoảng {month}",
+    goalGain: "Mục tiêu: tăng {delta} vào khoảng {month}",
     goalMaintain: "Mục tiêu: giữ cân nặng",
-    rest: "Lúc nghỉ, cơ thể bạn đốt", activity: "Với mức vận động của bạn, khoảng", pace: "Điều chỉnh theo nhịp độ của bạn", floor: "Mức sàn không vượt qua", protein: "Đạm cần hướng tới",
+    rest: "Lúc nghỉ, cơ thể bạn đốt", activity: "Với mức vận động của bạn, khoảng", pace: "Điều chỉnh theo tốc độ của bạn", floor: "Mức sàn, không bao giờ thấp hơn", protein: "Đạm cần hướng tới",
   },
   health: {
     title: "Đồng bộ với Apple Health",
-    body: "Cân nặng và vận động đi vào, bữa ăn không đi ra.",
+    body: "Nhận cân nặng và vận động, gửi bữa ăn sang Health.",
     connect: "Kết nối Apple Health",
     skip: "Để sau",
   },
@@ -920,7 +920,7 @@ const ID: ChatCopy = {
   ontrack: {
     title: "Dibuat agar kamu tetap di jalur",
     captions: {
-      consistency: "Satu hari kelewat tidak memakan apa-apa. Hari berikutnya mulai dari nol.",
+      consistency: "Melewatkan satu hari tidak ada ruginya. Hari berikutnya mulai dari nol.",
       habits: "Tidak ada yang dilarang. Setiap piring mendapat makro jujur.",
       support: "Tanya {coach} apa saja, kapan saja, di Chat.",
       busy: "Satu foto adalah seluruh catatan.",
@@ -928,7 +928,7 @@ const ID: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "analisis eait",
     weightTrend: "Tren berat badan",
     without: "Tanpa",
     now: "Sekarang",
@@ -941,14 +941,14 @@ const ID: ChatCopy = {
     estimateAria: "Perkiraan berat: {from} sekarang, {to} sekitar {month}",
   },
   plan: {
-    goalLose: "Target: turun {delta} menjelang {month}",
+    goalLose: "Target: turun {delta} pada {month}",
     goalGain: "Target: naik {delta} menjelang {month}",
-    goalMaintain: "Target: pertahankan berat badan saya",
+    goalMaintain: "Target: pertahankan berat badan aku",
     rest: "Saat istirahat tubuhmu membakar", activity: "Dengan aktivitasmu, sekitar", pace: "Untuk tempomu, kami sesuaikan", floor: "Batas bawah yang tidak dilewati", protein: "Target protein",
   },
   health: {
     title: "Sinkronkan dengan Apple Health",
-    body: "Berat badan dan aktivitas masuk, makanan tidak keluar.",
+    body: "Berat badan dan aktivitas masuk ke eait, makanan dikirim ke Kesehatan.",
     connect: "Hubungkan Apple Health",
     skip: "Nanti saja",
   },
@@ -987,7 +987,7 @@ const RU: ChatCopy = {
   invalid:  {
     age: "На возраст не похоже — попробуй что-то вроде 34.",
     height_cm: "В сантиметрах — что-то вроде 175.",
-    weight_kg: "В килограммах — примерно нормально.",
+    weight_kg: "В килограммах — можно примерно.",
     target_weight_kg: "Число в кг — например 70.",
   },
   ambiguousAge:  {
@@ -995,8 +995,8 @@ const RU: ChatCopy = {
     confirm: "Мне {age}",
   },
   direction:  {
-    gain: "Ты на {weight}кг и просишь набрать до {target} — отсюда это не набор. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
-    lose: "Ты на {weight}кг и просишь сбросить до {target} — отсюда это не сброс. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
+    gain: "Сейчас у тебя {weight}кг, а цель — {target}: это не набор веса. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
+    lose: "Сейчас у тебя {weight}кг, а цель — {target}: это не снижение веса. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
     switchToLose: "Переключить на похудение",
     switchToGain: "Переключить на набор",
     above: "Число больше {weight}…",
@@ -1023,34 +1023,34 @@ const RU: ChatCopy = {
     rateSuffix: "в неделю",
     // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
     // CLDR gives us no declension to put after «к».
-    result: "{target} — примерно {month} · {kcal}ккал в день",
+    result: "{target} · ориентир — {month} · {kcal}ккал в день",
     capMarker: "ограничено безопасным пределом",
-    floorMarker: "никогда ниже {floor} · любой темп приходит сюда",
+    floorMarker: "никогда ниже {floor} · при любом темпе",
   },
   how: {
-    title: "Вот и вся программа",
+    title: "Вот и всё приложение",
     meal: "Лосось, рис и зелень",
     photoAlt: "Боул в видоискателе",
-    steps: ["Сфотографируйте тарелку", "Получите честные макросы", "Смотрите свой прогресс"],
+    steps: ["Сфотографируй тарелку", "Получи честные макросы", "Следи за прогрессом"],
   },
   units: { years: "лет" },
   ontrack: {
-    title: "Сделано, чтобы держать вас в ритме",
+    title: "Всё, чтобы не сбиться с курса",
     captions: {
       consistency: "Пропущенный день ничего не стоит. Следующий начинается с нуля.",
       habits: "Ничего не запрещено. Каждая тарелка получает честные макросы.",
-      support: "Спрашивайте {coach} о чём угодно, когда угодно, в чате.",
+      support: "Спрашивай {coach} о чём угодно и когда угодно — в чате.",
       busy: "Одно фото — вся запись.",
       ideas: "Нет идей на ужин? {coach} подскажет, что ещё поместится.",
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "Анализ eait",
     weightTrend: "Динамика веса",
     without: "Без",
     now: "Сейчас",
     later: "Позже",
-    twoWays: "Вес во времени, нарисованный дважды: с планом и без",
+    twoWays: "Вес со временем — с планом и без него",
     estimatedProgress: "Оценка прогресса",
     estimate: "Оценка",
     target: "Цель {weight}",
@@ -1058,14 +1058,14 @@ const RU: ChatCopy = {
     estimateAria: "Оценка веса: {from} сейчас, {to} — {month}",
   },
   plan: {
-    goalLose: "Цель: сбросить {delta} — примерно {month}",
-    goalGain: "Цель: набрать {delta} — примерно {month}",
-    goalMaintain: "Цель: держать свой вес",
+    goalLose: "Цель: сбросить {delta} · ориентир — {month}",
+    goalGain: "Цель: набрать {delta} · ориентир — {month}",
+    goalMaintain: "Цель: сохранить вес",
     rest: "В покое твоё тело сжигает", activity: "С твоей активностью — около", pace: "Под твой темп корректируем", floor: "Порог, ниже которого не идём", protein: "Белок — ориентир",
   },
   health: {
     title: "Синхронизация с Apple Health",
-    body: "Вес и активность записываются, приёмы пищи — нет.",
+    body: "Вес и активность — из «Здоровья», приёмы пищи — в «Здоровье».",
     connect: "Подключить Apple Health",
     skip: "Не сейчас",
   },

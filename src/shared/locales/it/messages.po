@@ -116,7 +116,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
-msgstr "«{note}» — preso nota, è nei numeri."
+msgstr "«{note}» — annotato, ne ho tenuto conto."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -126,37 +126,37 @@ msgstr "{names} · {kcal}kcal"
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
-msgstr "{noun} — sopra"
+msgstr "{noun}: sopra soglia"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.inline.warn"
-msgstr "{noun} — sopra"
+msgstr "{noun}: sopra soglia"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.good"
-msgstr "{noun} — nel piano"
+msgstr "{noun}: in linea"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
-msgstr "{noun} — molto sopra"
+msgstr "{noun}: molto sopra soglia"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.inline.bad"
-msgstr "{noun} — molto sopra"
+msgstr "{noun}: molto sopra soglia"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} è sopra in un pasto: {eaten} dei tuoi {target}{unit}."
+msgstr "Per un solo pasto è tanto: {nutrient} {eaten} su {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} è molto sopra in un pasto: {eaten} dei tuoi {target}{unit}."
+msgstr "Per un solo pasto è davvero tanto: {nutrient} {eaten} su {target}{unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -186,7 +186,7 @@ msgstr "Calorie"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesOnPlan"
-msgstr "Calorie nel piano."
+msgstr "Calorie in linea con il piano."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -226,7 +226,7 @@ msgstr "Scartato."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "Il limite di oggi è esaurito per tutti. Domani è un numero nuovo."
+msgstr "Il limite di oggi è esaurito per tutti. Domani si riparte."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -241,7 +241,7 @@ msgstr "Riconoscimento del cibo · 2 di 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "Il primo è dentro. {kcal}kcal."
+msgstr "Primo pasto registrato: {kcal}kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -261,7 +261,7 @@ msgstr "Bene. Sono in Chat quando vuoi — una foto o una frase, entrambe regist
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Risposta onesta: quel piatto non l'ho letto bene. Prendi {kcal} come stima grezza e controlla i grammi prima di fidarti del totale. La prossima volta una seconda angolazione aiuta."
+msgstr "Risposta onesta: quel piatto non l'ho letto bene. Prendi {kcal} come stima approssimativa e controlla i grammi prima di fidarti del totale. La prossima volta una seconda angolazione aiuta."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -276,7 +276,7 @@ msgstr "Ti dico solo cosa ho mangiato"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
-msgstr "Se qualcosa non torna, dimmelo — \"metà del riso\", \"niente avocado\" — oppure tocca la scheda e cambia i grammi."
+msgstr "Se qualcosa non torna, dimmelo — «metà del riso», «niente avocado» — oppure tocca la scheda e cambia i grammi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -316,12 +316,12 @@ msgstr "Spostato."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.1"
-msgstr "Dare un nome a quello che c'è"
+msgstr "Riconosco gli alimenti"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Niente fotocamera, nessun problema. Scegli una foto dalla galleria, o dimmi solo cosa hai mangiato — entrambe ricevono i macro."
+msgstr "Niente fotocamera, nessun problema. Scegli una foto dalla galleria, o dimmi solo cosa hai mangiato — in entrambi i casi ricevi i macro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -346,12 +346,12 @@ msgstr "Oggi non è ancora stato registrato niente."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.onPlan"
-msgstr "Nel piano."
+msgstr "In linea con il piano."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Ancora una cosa che iOS sta per chiedere: le notifiche. Una al giorno e mai di più — la riga delle 20:30, più due promemoria prima che finisca la settimana gratis, se ci sei dentro. Nient'altro, mai."
+msgstr "Ancora una cosa che iOS sta per chiedere: le notifiche. Una al giorno e mai di più — la riga delle 20:30, più due promemoria prima che finisca la settimana gratis, se la stai usando. Nient'altro, mai."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -366,12 +366,12 @@ msgstr "Proteine"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.0"
-msgstr "Leggere il piatto"
+msgstr "Leggo il piatto"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.reading"
-msgstr "Lettura del piatto…"
+msgstr "Leggo il piatto…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -421,12 +421,12 @@ msgstr "Spud"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.fix-prompt"
-msgstr "Dimmi cosa non torna — \"metà del riso\", \"niente avocado\", \"erano 500\" vanno tutti bene. Oppure apri la scheda e correggi i grammi da te."
+msgstr "Dimmi cosa non torna — «metà del riso», «niente avocado», «erano 500» vanno tutti bene. Oppure apri la scheda e correggi i grammi da te."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Non è tornato niente. Riprova."
+msgstr "Nessuna risposta. Riprova."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -501,7 +501,7 @@ msgstr "Questo account non è ancora collegato — accedi con Apple o Google sul
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis sul web per continuare."
+msgstr "Hai già usato l'analisi gratuita di questo account. Inizia la tua settimana gratis sul web per continuare."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Troppi tentativi da questo Telegram. Aspetta un po', poi premi di nuovo 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Prova avviata. Sette giorni, poi {price} se non la fermi — te lo ricordo al quinto giorno e il giorno prima della fine, mai il giorno dopo."
+msgstr "Prova avviata. Sette giorni, poi {price} se non la disdici — te lo ricordo al quinto giorno e il giorno prima della fine, mai il giorno dopo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -541,7 +541,7 @@ msgstr "Caricamento foto · 1 di 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.2"
-msgstr "Pesare le porzioni"
+msgstr "Stimo le porzioni"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -551,7 +551,7 @@ msgstr "Stima delle porzioni · 3 di 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.weighing"
-msgstr "Peso delle porzioni…"
+msgstr "Stimo le porzioni…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

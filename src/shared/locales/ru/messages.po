@@ -116,7 +116,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
-msgstr "«{note}» — записал, это в цифрах."
+msgstr "«{note}» — учёл, цифры пересчитаны."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -171,7 +171,7 @@ msgstr "Мне хватает белка?"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
-msgstr "Сначала ответь на вопросы плана в вебе."
+msgstr "Сначала ответь на вопросы плана на сайте."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -186,7 +186,7 @@ msgstr "Калории"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesOnPlan"
-msgstr "Калории в плане."
+msgstr "Калории в норме."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -196,7 +196,7 @@ msgstr "Углеводы"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
-msgstr "Сверить с твоим планом"
+msgstr "Сверяем с твоим планом"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -216,7 +216,7 @@ msgstr "Учтено. Сегодня на {over}ккал больше плана
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.3"
-msgstr "Считаем нутриенты · 4 из 4"
+msgstr "Считаем КБЖУ · 4 из 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -226,7 +226,7 @@ msgstr "Убрал."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "Сегодняшний лимит израсходован всеми. Завтра цифра свежая."
+msgstr "Общий лимит на сегодня исчерпан. Завтра он обнулится."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -261,7 +261,7 @@ msgstr "Хорошо. Я в чате в любой момент — фото и�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Честно: тарелку я прочитал плохо. Считай {kcal} грубой прикидкой и проверь граммы, прежде чем доверять сумме. В следующий раз поможет второй ракурс."
+msgstr "Честно: я плохо разглядел тарелку. Считай {kcal} грубой прикидкой и проверь граммы, прежде чем доверять сумме. В следующий раз поможет второй ракурс."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -316,7 +316,7 @@ msgstr "Перенёс."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.1"
-msgstr "Назвать, что на ней"
+msgstr "Определяем продукты"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -336,7 +336,7 @@ msgstr "Не это"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.notYours"
-msgstr "Не твой аккаунт? Войди в свой в вебе и нажми там «Подключить Telegram» — этот Telegram перейдёт к нему."
+msgstr "Не твой аккаунт? Войди в свой на сайте и нажми там «Подключить Telegram» — этот Telegram перейдёт к нему."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -346,7 +346,7 @@ msgstr "Сегодня пока ничего не записано."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.onPlan"
-msgstr "В плане."
+msgstr "По плану."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -366,12 +366,12 @@ msgstr "Белки"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.0"
-msgstr "Прочитать тарелку"
+msgstr "Смотрим на тарелку"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.reading"
-msgstr "Читаем тарелку…"
+msgstr "Смотрим на тарелку…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -411,7 +411,7 @@ msgstr "Натрий"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
-msgstr "Что-то пошло не так, и всё же могло пройти. Загляни в /today, прежде чем отправлять снова."
+msgstr "Что-то пошло не так, но, возможно, всё дошло. Загляни в /today, прежде чем отправлять снова."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -426,7 +426,7 @@ msgstr "Скажи, что не так — «риса половина», «бе
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Ничего не вернулось. Попробуй ещё раз."
+msgstr "Ответ не пришёл. Попробуй ещё раз."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -436,12 +436,12 @@ msgstr "Это не похоже на еду."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.unsupported-image"
-msgstr "Этот файл — не фото, которое здесь можно прочитать. JPEG, PNG или WebP."
+msgstr "Этот формат не поддерживается. Нужен JPEG, PNG или WebP."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
-msgstr "Ссылка истекла. Открой свой план в вебе и снова нажми «Подключить Telegram»."
+msgstr "Ссылка истекла. Открой свой план на сайте и снова нажми «Подключить Telegram»."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -451,7 +451,7 @@ msgstr "Это сообщение слишком длинное, чтобы ег
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.expired"
-msgstr "Это больше не держится. Скажи ещё раз."
+msgstr "Время ожидания вышло. Напиши ещё раз."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -476,7 +476,7 @@ msgstr "Это фото слишком большое для отправки."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-user"
-msgstr "Это была последняя на сегодня — дневной лимит обнулится в полночь."
+msgstr "Это был последний анализ на сегодня — дневной лимит обнулится в полночь."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -496,7 +496,7 @@ msgstr "Здесь нет открытого приёма пищи, которы
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
-msgstr "В этот аккаунт ещё не вошли — войди через Apple или Google в вебе и пришли это ещё раз."
+msgstr "В этот аккаунт ещё не вошли — войди через Apple или Google на сайте и пришли это ещё раз."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -506,7 +506,7 @@ msgstr "Бесплатный лимит этого аккаунта исчерп
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.stranger"
-msgstr "Это новый eait. Твои приёмы пищи и фотографии хранятся в аккаунте eait: войди в вебе и нажми «Подключить Telegram» на странице плана."
+msgstr "Это новый eait. Твои приёмы пищи и фотографии хранятся в аккаунте eait: войди на сайте и нажми «Подключить Telegram» на странице плана."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -541,7 +541,7 @@ msgstr "Загрузка фото · 1 из 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.2"
-msgstr "Взвесить порции"
+msgstr "Оцениваем порции"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -551,7 +551,7 @@ msgstr "Оцениваем порции · 3 из 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.weighing"
-msgstr "Взвешиваем порции…"
+msgstr "Оцениваем порции…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -566,9 +566,9 @@ msgstr "Как сделать ужин полегче?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
-msgstr "Первый день пошёл. В 20:30 придёт одна строка — день против плана и одна конкретная вещь на завтра. До этого ничего."
+msgstr "Первый день пошёл. В 20:30 придёт одна строка — итог дня по плану и один конкретный совет на завтра. До этого ничего."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
-msgstr "Профиль и настройки — в вебе."
+msgstr "Профиль и настройки — на сайте."

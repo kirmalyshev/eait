@@ -115,14 +115,14 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   de: {
     "trial-day5": {
       title: "Noch zwei Tage",
-      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abos, und du zahlst nichts.",
+      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abonnements, und du zahlst nichts.",
     },
     "trial-day6": {
-      title: "Die Testwoche endet morgen",
-      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abos.",
+      title: "Deine Gratiswoche endet morgen",
+      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abonnements.",
     },
     evening: {
-      title: "Heute gegen den Plan",
+      title: "Dein Tag im Vergleich zum Plan",
       body: "{eaten} von deinen {plan}kcal heute. {tomorrow}",
       emptyBody: "Heute nichts eingetragen — deine {plan}kcal sind trotzdem der Plan. {tomorrow}",
     },
@@ -163,7 +163,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Còn hai ngày nữa là hết tuần miễn phí. Ở lại thì không cần làm gì — nếu không: Cài đặt › Gói đăng ký, và bạn không mất đồng nào.",
     },
     "trial-day6": {
-      title: "Bản dùng thử kết thúc ngày mai",
+      title: "Ngày mai hết thời gian dùng thử",
       body: "Ngày mai tuần miễn phí kết thúc. Ở lại thì không cần làm gì; nếu không: Cài đặt › Gói đăng ký.",
     },
     evening: {
@@ -197,7 +197,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Завтра бесплатная неделя заканчивается. Остаёшься — делать ничего не нужно; если нет: Настройки › Подписки.",
     },
     evening: {
-      title: "Сегодня против плана",
+      title: "Итоги дня",
       body: "{eaten} из твоих {plan}ккал сегодня. {tomorrow}",
       emptyBody: "Сегодня ничего не записано — твои {plan}ккал всё ещё план. {tomorrow}",
     },
@@ -505,30 +505,30 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   },
   de: {
     noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
-    over: "{over} drüber heute — morgen startet wieder bei {plan}.",
-    protein: "Beim Eiweiß fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
+    over: "Heute {over} über dem Plan – morgen geht's wieder bei {plan} los.",
+    protein: "Beim Protein fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
     gainUnder: "{under}kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
-    under: "{under} unter dem Plan — morgen die ganze Zahl zu essen ist der Plan, kein Ausrutscher.",
+    under: "{under} unter dem Plan – morgen die volle Menge zu essen ist kein Ausrutscher, sondern der Plan.",
     onPlan: "Im Plan. Morgen genauso.",
   },
   it: {
     noMeals: "Una foto domani rimette la giornata nel conteggio.",
-    over: "{over} sopra oggi — domani si riparte da {plan}.",
-    protein: "Alle proteine mancavano {gap}g — uova o skyr a colazione bastano a colmarlo.",
+    over: "Oggi {over} in più — domani si riparte da {plan}.",
+    protein: "Ti sono mancati {gap}g di proteine: uova o skyr a colazione e recuperi.",
     gainUnder: "{under}kcal sotto il piano — una manciata di noci domani copre tutto.",
-    under: "{under} sotto il piano — domani mangiare il numero intero è il piano, non uno sgarro.",
-    onPlan: "Nel piano. Domani uguale.",
+    under: "{under} sotto il piano — domani mangiare tutte le kcal previste è il piano, non uno sgarro.",
+    onPlan: "In linea con il piano. Domani si replica.",
   },
   es: {
-    noMeals: "Una foto mañana devuelve el día a la cuenta.",
+    noMeals: "Mañana, con una foto, el día vuelve a contar.",
     over: "{over} por encima hoy — mañana vuelve a empezar en {plan}.",
     protein: "Faltaron {gap}g de proteína — huevos o skyr en el desayuno lo cierran.",
     gainUnder: "{under}kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
-    under: "{under} por debajo del plan — comer el número entero mañana es el plan, no un desliz.",
+    under: "{under} por debajo del plan — mañana come todo lo que marca el plan: eso es el plan, no un exceso.",
     onPlan: "En el plan. Mañana igual.",
   },
   vi: {
-    noMeals: "Một tấm ảnh ngày mai, và ngày đó được tính lại.",
+    noMeals: "Mai chỉ cần một tấm ảnh là ngày của bạn lại có số liệu.",
     over: "Hôm nay vượt {over} — ngày mai lại bắt đầu từ {plan}.",
     protein: "Đạm còn thiếu {gap}g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
     gainUnder: "Thiếu {under}kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
@@ -538,9 +538,9 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   id: {
     noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
     over: "Hari ini {over} di atas rencana — besok mulai lagi dari {plan}.",
-    protein: "Protein kurang {gap}g — telur atau yoghurt Yunani saat sarapan menutupnya.",
+    protein: "Protein kurang {gap}g — telur atau yogurt Yunani saat sarapan menutupnya.",
     gainUnder: "Kurang {under}kcal dari rencana — segenggam kacang besok sudah cukup.",
-    under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",
+    under: "Kurang {under} dari rencana — besok makan sesuai angka penuh memang rencananya, bukan pelanggaran.",
     onPlan: "Sesuai rencana. Besok sama lagi.",
   },
   ru: {
@@ -549,7 +549,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     protein: "Белка не хватило {gap}г — яйца или скир на завтрак закрывают разрыв.",
     gainUnder: "{under}ккал не хватило до плана — горсть орехов завтра это покроет.",
     under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
-    onPlan: "В плане. Завтра так же.",
+    onPlan: "По плану. Завтра — так же.",
   },
 };
 

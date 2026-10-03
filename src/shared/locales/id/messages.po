@@ -151,17 +151,17 @@ msgstr "{noun} — sangat tinggi"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} tinggi untuk satu makanan: {eaten} dari {target}{unit}-mu."
+msgstr "{nutrient} tinggi untuk satu kali makan: {eaten} dari {target}{unit}-mu."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} sangat tinggi untuk satu makanan: {eaten} dari {target}{unit}-mu."
+msgstr "{nutrient} sangat tinggi untuk satu kali makan: {eaten} dari {target}{unit}-mu."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesHigh"
-msgstr "Porsi besar dari harimu dalam satu makan."
+msgstr "Sebagian besar jatah harimu ada di satu kali makan."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -246,7 +246,7 @@ msgstr "Yang pertama masuk. {kcal}kcal."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.easyTail"
-msgstr "Santai dulu untuk sisa hari ini."
+msgstr "Kurangi dulu untuk sisa hari ini."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -306,7 +306,7 @@ msgstr "Makanan"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesVeryHigh"
-msgstr "Lebih dari separuh harimu dalam satu makan."
+msgstr "Lebih dari separuh jatah harimu ada di satu kali makan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -426,7 +426,7 @@ msgstr "Bilang apa yang meleset — \"nasinya setengah\", \"tanpa alpukat\", \"t
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Tidak ada jawaban yang kembali. Coba lagi."
+msgstr "Hasilnya tidak masuk. Coba lagi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Terlalu banyak percobaan dari Telegram ini. Tunggu sebentar, lalu tekan 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Uji coba jalan. Tujuh hari, lalu {price} kecuali kamu hentikan — aku ingatkan di hari kelima dan sehari sebelum berakhir, tidak pernah sehari sesudahnya."
+msgstr "Uji coba dimulai. Tujuh hari, lalu {price} kecuali kamu berhenti — aku ingatkan di hari kelima dan sehari sebelum berakhir, tidak pernah sehari sesudahnya."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
