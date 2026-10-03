@@ -436,7 +436,7 @@ const IT: PageCopy = {
   chatNoFocusCorrection: "Qui non c'è nessun pasto aperto da correggere. Aprilo nell'app, oppure di' cosa hai mangiato e registralo di nuovo.",
   chatNoFocusRedate: "Qui non c'è nessun pasto aperto da spostare a un altro giorno. Aprilo nell'app per cambiarne la data.",
   chatNotOnboarded: "Prima rispondi alle domande del piano.",
-  chatRefusalSubscription: "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis per continuare.",
+  chatRefusalSubscription: "Hai già usato l'analisi gratuita di questo account. Inizia la tua settimana gratis per continuare.",
   chatRefusalFailed: "Non è tornato niente. Riprova.",
   chatRefusalNotFood: "Non sembrava cibo.",
   chatRefusalImage: "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",

@@ -510,7 +510,7 @@ const IT: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
-    "subscription-required": "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis per continuare.",
+    "subscription-required": "Hai già usato l'analisi gratuita di questo account. Inizia la tua settimana gratis per continuare.",
     "unsupported-image": "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",
     "not-food": "Non sembrava cibo.",
     "analysis-failed": "Non è tornato niente. Riprova.",

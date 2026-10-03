@@ -501,7 +501,7 @@ msgstr "Questo account non è ancora collegato — accedi con Apple o Google sul
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis sul web per continuare."
+msgstr "Hai già usato l'analisi gratuita di questo account. Inizia la tua settimana gratis sul web per continuare."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
