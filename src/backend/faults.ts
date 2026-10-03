@@ -36,10 +36,15 @@
 //
 //   GET /demo/fault answers the armed list; DELETE /demo/fault clears it.
 //
-// WHAT IT CANNOT DO. Apple Health's availability and write access are DEVICE answers —
-// `healthSource()` resolves a HealthKit, canned or absent port without asking this process —
-// so `health-notice` and `health-unavailable` are not produced here. Refusing `/v1/health/*`
-// IS produced: the sync and read notices are this server's answers.
+// WHAT IT DOES NOT DO, AND WHERE THOSE BOARDS COME FROM.
+//   `health-unavailable` / `health-notice`: Apple Health's availability and write access are DEVICE
+//   answers — `healthSource()` resolves a HealthKit, canned or absent port without asking this
+//   process. The app's canned source takes them: build with
+//   `EXPO_PUBLIC_EAIT__FRONTEND__HEALTH_FAKE=unavailable` or `=denied` (mobile `lib/health/index.ts`;
+//   `preflight-release.ts` refuses any value). Refusing `/v1/health/*` here IS this server's half.
+//   `pay-reminder`: a trial is a stored entitlement, so post the RevenueCat delivery
+//   `src/mobile/e2e/paywall-webhook.js` posts, with `period_type: "TRIAL"` and
+//   `expiration_at_ms` two days out, to `/v1/revenuecat/webhook` — Home then draws the trial card.
 
 type DemoFaultBase = { path: string; method: string | null; once: boolean };
 
