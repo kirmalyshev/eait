@@ -8,6 +8,9 @@
 import {
   configDefaults, demoConfig, loadConfig, redact, type Config,
 } from "./config.ts";
+import {
+  armDemoFault, clearDemoFaults, demoFaultResponse, demoFaults, parseDemoFault, takeDemoFault,
+} from "./faults.ts";
 import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
@@ -313,6 +316,40 @@ const handle: typeof router = demo
         back.searchParams.set("state", url.searchParams.get("state") ?? "");
         back.searchParams.set("code", subject === "" ? "demo-subject" : subject);
         return new Response(null, { status: 303, headers: { location: back.toString() } });
+      }
+
+      // The fault-injection hook (ieat-app#1178). POST arms, GET lists, DELETE clears; the next
+      // request then spends whatever was armed. The spec and why it exists live in `faults.ts`.
+      // Composed here like the two routes above it: a production process does not route this path,
+      // so there is no second thing to keep from reaching production.
+      if (url.pathname === "/demo/fault") {
+        if (req.method === "GET") return Response.json(demoFaults());
+        if (req.method === "DELETE") { clearDemoFaults(); return Response.json([]); }
+        if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+        const fault = parseDemoFault(await req.json().catch(() => null));
+        if (typeof fault === "string") return Response.json({ error: fault }, { status: 400 });
+        armDemoFault(fault);
+        return Response.json(fault);
+      }
+
+      const fault = takeDemoFault(url.pathname, req.method);
+      if (fault !== null) {
+        if (fault.kind === "answer" || fault.kind === "malformed") return demoFaultResponse(fault);
+        // `slow` still gets the real answer — only late, which is the whole of the busy window.
+        if (fault.kind === "slow") {
+          await new Promise((r) => setTimeout(r, fault.ms));
+          return router(req, server);
+        }
+        // `expired`: the proposal this request writes lands already timed out (`chat-expired`).
+        // `config.pendingTtlMs` is the mutable engine input, borrowed for the one request — the
+        // same override `demoConfig` can make permanent with EAIT__BACKEND__PENDING_TTL_MINUTES=0.
+        const ttl = deps.config.pendingTtlMs;
+        deps.config.pendingTtlMs = 0;
+        try {
+          return await router(req, server);
+        } finally {
+          deps.config.pendingTtlMs = ttl;
+        }
       }
 
       if (url.pathname !== "/demo/user-id") return router(req, server);
