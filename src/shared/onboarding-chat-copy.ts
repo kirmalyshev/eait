@@ -66,7 +66,7 @@ export interface ChatCopy {
    * The target ruler's own markers. `{weight}` is a formatted weight WITH unit (weightDisplay);
    * the sign's role is carried by picking down/up, because "−" is U+2212, not a hyphen.
    */
-  target: { lowest: string; now: string; deltaDown: string; deltaUp: string };
+  target: { lowest: string; now: string; nowLowest: string; deltaDown: string; deltaUp: string };
   /**
    * The pace screen's numbers and the marker its result owes. `{rate}` is the projection's
    * kgPerWeek formatted with its unit ("0.4kg" / "0.9lb") — never the pace's requested rate;
@@ -209,6 +209,7 @@ const EN: ChatCopy = {
     // answer's distance from it.
     lowest: "{weight} · lowest we set",
     now: "{weight} · now",
+    nowLowest: "{weight} · now · lowest we set",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -323,6 +324,7 @@ const FR: ChatCopy = {
   target: {
     lowest: "{weight} · le plus bas qu'on fixe",
     now: "{weight} · maintenant",
+    nowLowest: "{weight} · maintenant · le plus bas qu'on fixe",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -437,6 +439,7 @@ const DE: ChatCopy = {
   target: {
     lowest: "{weight} · unser Minimum",
     now: "{weight} · jetzt",
+    nowLowest: "{weight} · jetzt · unser Minimum",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -551,6 +554,7 @@ const IT: ChatCopy = {
   target: {
     lowest: "{weight} · il minimo che fissiamo",
     now: "{weight} · ora",
+    nowLowest: "{weight} · ora · il minimo che fissiamo",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -665,6 +669,7 @@ const ES: ChatCopy = {
   target: {
     lowest: "{weight} · el mínimo que fijamos",
     now: "{weight} · ahora",
+    nowLowest: "{weight} · ahora · el mínimo que fijamos",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -779,6 +784,7 @@ const VI: ChatCopy = {
   target: {
     lowest: "{weight} · mức thấp nhất chúng tôi đặt",
     now: "{weight} · hiện tại",
+    nowLowest: "{weight} · hiện tại · mức thấp nhất chúng tôi đặt",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -893,6 +899,7 @@ const ID: ChatCopy = {
   target: {
     lowest: "{weight} · batas terendah kami",
     now: "{weight} · sekarang",
+    nowLowest: "{weight} · sekarang · batas terendah kami",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },
@@ -1007,6 +1014,7 @@ const RU: ChatCopy = {
   target: {
     lowest: "{weight} · минимум, который мы задаём",
     now: "{weight} · сейчас",
+    nowLowest: "{weight} · сейчас · минимум, который мы задаём",
     deltaDown: "− {weight}",
     deltaUp: "+ {weight}",
   },

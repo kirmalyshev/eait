@@ -76,6 +76,7 @@ export const CONTROL_SCRIPT = `(function () {
     var val = num(ctl.dataset.val, min);
     var lbls = ctl.querySelector(".lbls"), tint = ctl.querySelector(".tint");
     var lo = ctl.querySelector(".lbl.lo"), hi = ctl.querySelector(".lbl.hi"), live = ctl.querySelector(".live");
+    var mg = ctl.querySelector(".lbl.mg");
 
     function snap(v) { return Math.min(max, Math.max(min, Math.round(v / step) * step)); }
     function pxAt(v, size) { return size / 2 + (vert ? (val - v) : (v - val)) * px; }
@@ -103,6 +104,21 @@ export const CONTROL_SCRIPT = `(function () {
       // .lo ends AT the floor tick; clamped so a floor near the edge keeps the words on it.
       if (lo && !isNaN(floor)) lo.style.left = Math.max(pxAt(floor, size), lo.offsetWidth + 4) + "px";
       if (hi && !isNaN(nowV)) hi.style.left = pxAt(nowV, size) + "px";
+      if (mg && lo && hi && !isNaN(floor) && !isNaN(nowV)) {
+        // ieat-app#1201 — rulerMarkerLayout, re-derived because a hashed
+        // literal cannot import it: marks within one tick merge into .mg;
+        // label boxes under 8px apart drop the floor label to .r2; apart,
+        // both stay on the band's row.
+        var loX = pxAt(floor, size), hiX = pxAt(nowV, size);
+        var merged = Math.abs(loX - hiX) <= px;
+        var loL = Math.max(loX, lo.offsetWidth + 4) - lo.offsetWidth, loR = loL + lo.offsetWidth;
+        var hiL = hiX - hi.offsetWidth / 2, hiR = hiX + hi.offsetWidth / 2;
+        var stacked = !merged && loR + 8 > hiL && hiR + 8 > loL;
+        mg.style.left = loX + "px";
+        mg.style.visibility = merged ? "visible" : "hidden";
+        lo.style.visibility = hi.style.visibility = merged ? "hidden" : "visible";
+        lo.className = "lbl lo" + (stacked ? " r2" : "");
+      }
       if (live && !isNaN(nowV)) {
         var d = Math.round((val - nowV) * 10) / 10;
         var tpl = d < 0 ? dnT : d > 0 ? upT : null;

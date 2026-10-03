@@ -152,6 +152,37 @@ export function rulerTickPhase(ticks: RulerTicks, centre: number, val: number, m
   return ((raw % period) + period) % period;
 }
 
+/**
+ * The target ruler's two marker labels — the floor's "lowest we set" and "now" —
+ * share one band above the ticks, and close marks overprint (ieat-app#1201).
+ * Three answers, one for both renderers to compute the same way:
+ *
+ * - `"merged"`:  the marks sit within one tick — ONE label carries both
+ *   (`target.nowLowest`), start-aligned at the floor's mark.
+ * - `"stacked"`: the two label boxes would sit closer than `gap` — `drop`'s
+ *   label takes a second row 16pt lower, `keep`'s stays centred on the band's
+ *   row. Neither moves sideways.
+ * - `"flat"`:    both on the one row.
+ *
+ * `x` is a mark's position and `l`/`r` its label box's edges, in the band's own
+ * coordinate space — the renderer knows its alignment (the phone's floor label
+ * starts at its mark, the web's ends at it), so it passes the box it drew, and
+ * `w` never has to be estimated here. The client script in
+ * `web/page/control.ts` re-derives this — it is a hashed literal and cannot
+ * import — so the two agree because the arithmetic is this one function's.
+ */
+export type RulerMarkerLayout = "flat" | "stacked" | "merged";
+
+export function rulerMarkerLayout(
+  drop: { x: number; l: number; r: number },
+  keep: { x: number; l: number; r: number },
+  tickPx: number,
+  gap = 8,
+): RulerMarkerLayout {
+  if (Math.abs(drop.x - keep.x) <= tickPx) return "merged";
+  return drop.r + gap > keep.l && keep.r + gap > drop.l ? "stacked" : "flat";
+}
+
 // ── The wire: display value ↔ stored metric ──────────────────────────────────────────────────
 //
 // A ruler drags and a field is typed in the DISPLAYED unit; the store stays metric. These two
