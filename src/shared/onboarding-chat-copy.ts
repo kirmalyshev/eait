@@ -258,7 +258,7 @@ const EN: ChatCopy = {
   },
   health: {
     title: "Sync with Apple Health",
-    body: "Weight and activity in, meals out.",
+    body: "Weight and activity come in. Your meals go to Health.",
     connect: "Connect Apple Health",
     skip: "Not now",
   },
@@ -373,7 +373,7 @@ const FR: ChatCopy = {
   },
   health: {
     title: "Synchroniser avec Apple Health",
-    body: "Poids et activité entrent, les repas restent dehors.",
+    body: "Ton poids et ton activité arrivent, tes repas partent vers Santé.",
     connect: "Connecter Apple Health",
     skip: "Pas maintenant",
   },
@@ -488,7 +488,7 @@ const DE: ChatCopy = {
   },
   health: {
     title: "Mit Apple Health synchronisieren",
-    body: "Gewicht und Aktivität kommen rein, Mahlzeiten gehen nicht raus.",
+    body: "Gewicht und Aktivität kommen rein, deine Mahlzeiten gehen raus.",
     connect: "Apple Health verbinden",
     skip: "Nicht jetzt",
   },
@@ -603,7 +603,7 @@ const IT: ChatCopy = {
   },
   health: {
     title: "Sincronizza con Apple Health",
-    body: "Peso e attività entrano, i pasti restano fuori.",
+    body: "Peso e attività in entrata, pasti in uscita.",
     connect: "Connetti Apple Health",
     skip: "Non ora",
   },
@@ -718,7 +718,7 @@ const ES: ChatCopy = {
   },
   health: {
     title: "Sincronizar con Apple Health",
-    body: "Peso y actividad entran, las comidas no salen.",
+    body: "Entran tu peso y tu actividad; salen tus comidas.",
     connect: "Conectar Apple Health",
     skip: "Ahora no",
   },
@@ -833,7 +833,7 @@ const VI: ChatCopy = {
   },
   health: {
     title: "Đồng bộ với Apple Health",
-    body: "Cân nặng và vận động đi vào, bữa ăn không đi ra.",
+    body: "Nhận cân nặng và vận động, gửi bữa ăn sang Health.",
     connect: "Kết nối Apple Health",
     skip: "Để sau",
   },
@@ -948,7 +948,7 @@ const ID: ChatCopy = {
   },
   health: {
     title: "Sinkronkan dengan Apple Health",
-    body: "Berat badan dan aktivitas masuk, makanan tidak keluar.",
+    body: "Berat badan dan aktivitas masuk ke eait, makanan dikirim ke Kesehatan.",
     connect: "Hubungkan Apple Health",
     skip: "Nanti saja",
   },
@@ -1065,7 +1065,7 @@ const RU: ChatCopy = {
   },
   health: {
     title: "Синхронизация с Apple Health",
-    body: "Вес и активность записываются, приёмы пищи — нет.",
+    body: "Вес и активность — из «Здоровья», приёмы пищи — в «Здоровье».",
     connect: "Подключить Apple Health",
     skip: "Не сейчас",
   },
