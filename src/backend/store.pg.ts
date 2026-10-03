@@ -2763,7 +2763,8 @@ export async function postgresStore(
     },
 
     async listJobs(userId, opts) {
-      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const bar = opts.cursor ? opts.cursor.indexOf("|") : -1;
+      const [cu, cc] = bar > 0 ? [opts.cursor!.slice(0, bar), opts.cursor!.slice(bar + 1)] : [null, null];
       const rows = await sql`
         select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
         where j.user_id = ${userId}
@@ -2859,6 +2860,7 @@ export async function postgresStore(
     },
 
     async claimJob(owner, registry, leaseMs) {
+      if (registry.length === 0) return null;
       const rows = await sql`
         update jobs j
            set state = 'running', lease_owner = ${owner}, lease_until = now() + ${leaseMs} * interval '1 millisecond',

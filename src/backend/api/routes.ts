@@ -113,6 +113,8 @@ const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 /** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
 const MESSAGE_PATH = /^\/v1\/messages\/([^/]+)$/;
 /** `GET` / `DELETE /v1/meals/photo/queue/:id` (ieat-app#1318). */
+/** What `listJobs` hands out as `cursor`: an ISO instant, a bar, the job id. */
+const JOBS_CURSOR = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\|.+$/s;
 const PHOTO_JOB_PATH = /^\/v1\/meals\/photo\/queue\/([^/]+)$/;
 
 export function createRouter(
@@ -688,8 +690,11 @@ export function createRouter(
         const state = url.searchParams.get("state") ?? "active";
         const sinceRaw = url.searchParams.get("since");
         const since = sinceRaw === null ? null : Date.parse(sinceRaw);
-        if (!["active", "settled", "all"].includes(state) || Number.isNaN(since)) return json({ error: "bad-request" }, 400);
-        return json(await listJobs(deps, userId, { state: state as JobsFilter, since, cursor: url.searchParams.get("cursor") }));
+        const cursor = url.searchParams.get("cursor");
+        if (!["active", "settled", "all"].includes(state) || Number.isNaN(since) || (cursor !== null && !JOBS_CURSOR.test(cursor))) {
+          return json({ error: "bad-request" }, 400);
+        }
+        return json(await listJobs(deps, userId, { state: state as JobsFilter, since, cursor }));
       }
       const jobMatch = PHOTO_JOB_PATH.exec(pathname);
       if (jobMatch && (req.method === "GET" || req.method === "DELETE")) {

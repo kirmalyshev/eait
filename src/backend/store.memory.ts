@@ -1323,7 +1323,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async listJobs(userId, opts) {
-      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const bar = opts.cursor ? opts.cursor.indexOf("|") : -1;
+      const [cu, cc] = bar > 0 ? [opts.cursor!.slice(0, bar), opts.cursor!.slice(bar + 1)] : [null, null];
       const after = cu === null ? Infinity : Date.parse(cu);
       const all = [...jobs.values()]
         .filter((j) => j.userId === userId
