@@ -113,10 +113,10 @@ test("the kit's measurements are pro.css's", async ({ page }) => {
   await expect(page.locator(".mring").nth(1)).toHaveCSS("width", "52px");
   await expect(page.locator(".mring").nth(1).locator("circle").first()).toHaveAttribute("stroke-width", "5");
 
-  // The week strip: seven cells, the 32 px ring at stroke 2.4, the date centred over it.
+  // The week strip: seven cells, the 32 px ring at stroke 2.5, the date centred over it.
   await expect(page.locator(".week .dy")).toHaveCount(7);
   await expect(page.locator(".week svg").first()).toHaveCSS("width", "32px");
-  await expect(page.locator(".week svg circle").first()).toHaveAttribute("stroke-width", "2.4");
+  await expect(page.locator(".week svg circle").first()).toHaveAttribute("stroke-width", "2.5");
   const b = page.locator(".dy.now b");
   const bBox = await b.boundingBox(), svgBox = await page.locator(".dy.now svg").boundingBox();
   expect(Math.abs((bBox!.x + bBox!.width / 2) - (svgBox!.x + svgBox!.width / 2))).toBeLessThan(1);

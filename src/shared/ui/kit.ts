@@ -544,9 +544,9 @@ export function kitCss(): string {
   background:var(--macro-kcal-t);transition:left .22s var(--ease);pointer-events:none}
 ${[0, 1, 2, 3, 4, 5, 6].map((i) => `.week .wtint.a${i}{left:calc(${i}*(100% - 44px)/6)}`).join("\n")}
 .week .dy{display:flex;flex-direction:column;align-items:center;gap:5px;width:44px;padding:6px 0 7px;
-  border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:11px;font-weight:600;
+  border:0;border-radius:var(--r-card);background:none;font:inherit;font-size:12px;font-weight:600;
   color:var(--muted);position:relative;cursor:pointer}
-.week .dy .dl{letter-spacing:.06em;text-transform:uppercase}
+.week .dy .dl{letter-spacing:.055em;text-transform:uppercase}
 .week .dy.now{color:var(--ink)}
 .week .dy.fut{opacity:.45;cursor:default}
 .week .dy:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
