@@ -881,6 +881,11 @@ export function demoConfig(): Config {
     healthSyncRateLimitPerHour: 1_000_000,
     linesRateLimitPerHour: 1_000_000,
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
+    // The same override `loadConfig` honours, read the same way (ieat-app#1178): a proposal lives
+    // thirty minutes by default and a walk does not wait thirty minutes, so a demo that cannot age
+    // one cannot draw "That one timed out" (`chat-expired`). `EAIT__BACKEND__PENDING_TTL_MINUTES=0`
+    // makes every proposal die on arrival — `int` allows zero, which is the point here.
+    pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", configDefaults().pendingTtlMs / 60_000) * 60 * 1000,
     // Read from the environment here too, and validated by the same function: the admin is how
     // onboarding copy is edited, and "works in demo, untested in production" is the shape of
     // every configuration bug that ships.
