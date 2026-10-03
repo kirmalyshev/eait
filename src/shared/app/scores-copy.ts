@@ -107,8 +107,8 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     partPctOfKcal: "{n} % des kcal",
     partGPer100Kcal: "{n}g pour 100kcal",
     partMgSodiumPer100Kcal: "{n}mg de sodium pour 100kcal",
-    partOfTargetG: "{n}g sur vos {target}g",
-    partOfTargetMg: "{n}mg sur vos {target}mg",
+    partOfTargetG: "{n}g sur tes {target}g",
+    partOfTargetMg: "{n}mg sur tes {target}mg",
     limits: { ldl: "cholestérol élevé", kidneys: "maladie rénale", lowsugar: "risque de diabète" },
   },
   de: {

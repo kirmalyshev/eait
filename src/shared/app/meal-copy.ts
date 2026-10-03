@@ -269,7 +269,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
     webGoneTitle: "Ce repas n’existe plus.",
-    webGoneBody: "Il a été supprimé, ou n’a jamais été à vous.",
+    webGoneBody: "Il a été supprimé, ou il n’a jamais été à toi.",
     webGoneBack: "Retour au journal",
     menuButton: "Actions du repas",
     changeItem: "{item} {before} → {after}{unit}",

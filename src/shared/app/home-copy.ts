@@ -295,7 +295,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Non",
     webPage: "Page {n} sur {total}",
     webDone: "Terminé",
-    queue: { uploading: "Envoi de la photo · 1 sur 4", waiting: "En attente de connexion. L'envoi se fera tout seul.", notMeal: "Ça ne ressemble pas à un repas", unread: "Impossible de lire cette photo", nothingCounted: "Rien n'a été compté.", retake: "Reprendre", remove: "Retirer", question: "Compté à ≈{kcal}. Un détail rendrait l'estimation plus juste.", answer: "Répondre à 1 question", dropTitle: "Déposez une photo n'importe où pour l'ajouter", dropSub: "ou collez-la dans le champ de saisie", addedTitle: "Ajouté à votre journée", addedSub: "On s'occupe du calcul. Vous pouvez fermer l'app.", beingRead: "{time} · en cours de lecture, vous pouvez fermer l'app", found: "Aliments trouvés : {n}" },
+    queue: { uploading: "Envoi de la photo · 1 sur 4", waiting: "En attente de connexion. L'envoi se fera tout seul.", notMeal: "Ça ne ressemble pas à un repas", unread: "Impossible de lire cette photo", nothingCounted: "Rien n'a été compté.", retake: "Reprendre", remove: "Retirer", question: "Compté à ≈{kcal}. Un détail rendrait l'estimation plus juste.", answer: "Répondre à 1 question", dropTitle: "Dépose une photo n'importe où pour l'ajouter", dropSub: "ou colle-la dans le champ de saisie", addedTitle: "Ajouté à ta journée", addedSub: "On s'occupe du calcul. Tu peux fermer l'app.", beingRead: "{time} · en cours d'analyse, tu peux fermer l'app", found: "Aliments trouvés : {n}" },
   },
   de: {
     phoneToday: "Heute",
@@ -336,7 +336,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
       carbs: {
         left: "Heute ist Platz für eine kleine Portion Brot, Reis, Nudeln oder Obst.",
-        over: "Begrenze Kohlenhydrate für den Rest des Tages. Geh ruhig an Brot, Reis, Nudeln, Süßes und süße Getränke ran.",
+        over: "Begrenze Kohlenhydrate für den Rest des Tages. Halte dich bei Brot, Reis, Nudeln, Süßem und süßen Getränken zurück.",
       },
       satfat: {
         left: "Du bist nah am heutigen Limit. Nimm mageres Fleisch, Fisch oder pflanzliche Optionen.",

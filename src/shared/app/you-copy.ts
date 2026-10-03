@@ -400,7 +400,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
     headerFactsHeightFlags: "{height} · {flags}",
-    flagDeclared: "vous avez déclaré : {condition}",
+    flagDeclared: "« {condition} » indiqué",
     weightLabel: healthLabel("weight_kg", "fr"),
     logWeight: "Enregistrer le poids",
     targetKg: "{w}kg · objectif",
@@ -430,7 +430,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       support: "Soutenir eait",
     },
     phone: {
-      title: "Vous",
+      title: "Toi",
       profileTitle: shellCopyFor("fr").navProfile,
       save: "Enregistrer",
       saveKept: "Impossible d'enregistrer. Ce que tu as saisi est toujours là. Enregistre à nouveau.",

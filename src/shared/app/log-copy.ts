@@ -412,7 +412,7 @@ export const LOG_COPY: Localized<LogCopy> = {
     analysisFailedNote: "Nichts wurde eingetragen. Dein Foto bleibt gespeichert.",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownNote: "Behalten und wird von selbst erneut gesendet — erneutes Senden ist sicher.",
-    verdictDetailTemplate: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target}{unit}. Nimm es für den Rest des Tages lockerer.",
+    verdictDetailTemplate: "{noun}: viel für eine Mahlzeit – {amount} von deinen {target}{unit}. Geh für den Rest des Tages sparsam damit um.",
     satfatNoun: "Gesättigte Fette",
     sodiumNoun: "Natrium",
     dayEaten: "{eaten} von {plan}kcal",
