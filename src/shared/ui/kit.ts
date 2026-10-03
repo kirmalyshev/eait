@@ -111,9 +111,9 @@ export const weekStrip = (
     // An over day's ring is dark red (F) — `--over`, calmer than `--bad` in both themes.
     const tone = ring.tone === "bad" ? "over" : ring.tone;
     const circles = ring.dashoffset === undefined
-      ? `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="${ring.dasharray}"/>`
-      : `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--hair)" stroke-width="2.5"/>` +
-        `<circle class="fg" cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--${tone})" stroke-width="2.5" ` +
+      ? `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--line)" stroke-width="2.4" stroke-dasharray="${ring.dasharray}"/>`
+      : `<circle cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--hair)" stroke-width="2.4"/>` +
+        `<circle class="fg" cx="${WEEK_RING.c}" cy="${WEEK_RING.c}" r="${WEEK_RING.r}" fill="none" stroke="var(--${tone})" stroke-width="2.4" ` +
         `stroke-dasharray="${ring.dasharray}" stroke-dashoffset="${ring.dashoffset}" stroke-linecap="round"/>`;
     const letter = `<span class="dl">${esc(letters[(noon.getUTCDay() + 6) % 7]!)}</span>`;
     const num = Number(day.date.slice(8, 10));
@@ -535,7 +535,7 @@ export function kitCss(): string {
 .mring.flat{display:flex;align-items:center;justify-content:center}
 .mring.flat .ico{position:static;transform:none;width:34px;height:34px}
 
-/* The week strip — seven days, the date centred in the board's 28 px ring of stroke 2.5, in
+/* The week strip — seven days, the date centred in the board's 28 px ring of stroke 2.4, in
    its 32 px box. F's raised cell is ONE flat tint (the kcal tint, radius 12, no shadow) that a
    mounted strip glides between cells; the a0…a6 classes are the cells' left edges, so the
    markup-only surfaces place it right too. */
