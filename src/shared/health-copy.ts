@@ -645,7 +645,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       path: "In Health: dein Bild oben rechts › Apps › eait. Oder Einstellungen › Datenschutz & Sicherheit › Health › eait.",
       pathSpoken: "Öffne in Health dein Bild oben rechts, dann Apps, dann eait. Oder öffne Einstellungen, Datenschutz und Sicherheit, Health, eait.",
       alertOpenTitle: "Health lässt sich nicht öffnen",
-      alertSheetTitle: "Das Health-Blatt lässt sich nicht öffnen",
+      alertSheetTitle: "Das Health-Fenster lässt sich nicht öffnen",
     },
     intake: {
       periods: {
@@ -686,13 +686,13 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       lineUpOnPace: "{kg} mehr — genau das {pace} Tempo, das du gewählt hast.",
       lineUpFast: "{kg} mehr — schneller als das {pace} Tempo, das du gewählt hast.",
       lineFlat: "Stabil gehalten — das {pace} Tempo, das du gewählt hast.",
-      lineDrift: "Weg von {target}; dein Plan ist auf das {pace} Tempo eingestellt.",
+      lineDrift: "Entfernt sich von {target}; dein Plan ist auf das {pace} Tempo eingestellt.",
       paces: { easy: "sanfte", steady: "stetige", push: "zügige" },
     },
     weekLine: {
       allInside: "Jeden Tag innerhalb deiner {target}.",
-      overButOk: "{days} drüber; die Periode landet bei {avg} am Tag.",
-      avgOver: "Die Periode liegt bei {avg} am Tag, über deinen {target}.",
+      overButOk: "{days} drüber – im Schnitt landet der Zeitraum trotzdem bei {avg} am Tag.",
+      avgOver: "Der Zeitraum liegt im Schnitt bei {avg} am Tag, über deinen {target}.",
       days: { one: "{n} Tag", other: "{n} Tage" },
     },
   },

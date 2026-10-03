@@ -446,8 +446,8 @@ const DE: ChatCopy = {
   pace: {
     rate: "{rate} pro Woche",
     rateSuffix: "pro Woche",
-    result: "{target} um {month} · {kcal}kcal am Tag",
-    capMarker: "auf die sichere Grenze gekappt",
+    result: "{target} etwa im {month} · {kcal}kcal am Tag",
+    capMarker: "auf das sichere Maximum begrenzt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
   },
   how: {
@@ -484,7 +484,7 @@ const DE: ChatCopy = {
     goalLose: "Ziel: {delta} abnehmen bis {month}",
     goalGain: "Ziel: {delta} zunehmen bis {month}",
     goalMaintain: "Ziel: mein Gewicht halten",
-    rest: "In Ruhe verbrennt dein Körper", activity: "Mit deiner Aktivität etwa", pace: "Für dein Tempo rechnen wir", floor: "Die Grenze, die wir nicht unterschreiten", protein: "Eiweiß als Ziel",
+    rest: "Im Ruhezustand verbrennt dein Körper", activity: "Mit deiner Aktivität etwa", pace: "Für dein Tempo passen wir an", floor: "Die Grenze, die wir nicht unterschreiten", protein: "Dein Proteinziel",
   },
   health: {
     title: "Mit Apple Health synchronisieren",

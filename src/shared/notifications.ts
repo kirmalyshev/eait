@@ -115,11 +115,11 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   de: {
     "trial-day5": {
       title: "Noch zwei Tage",
-      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abos, und du zahlst nichts.",
+      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abonnements, und du zahlst nichts.",
     },
     "trial-day6": {
-      title: "Die Testwoche endet morgen",
-      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abos.",
+      title: "Deine Gratiswoche endet morgen",
+      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abonnements.",
     },
     evening: {
       title: "Dein Tag im Vergleich zum Plan",
@@ -506,7 +506,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   de: {
     noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
     over: "Heute {over} über dem Plan – morgen geht's wieder bei {plan} los.",
-    protein: "Beim Eiweiß fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
+    protein: "Beim Protein fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
     gainUnder: "{under}kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
     under: "{under} unter dem Plan – morgen die volle Menge zu essen ist kein Ausrutscher, sondern der Plan.",
     onPlan: "Im Plan. Morgen genauso.",

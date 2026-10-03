@@ -161,7 +161,7 @@ const FR: OnboardingContent = {
 const DE: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Foto vom Essen. Klare Antwort."],
+    lines: ["Essen knipsen. Sehen, ob's passt."],
     cta: "Meinen Plan erstellen",
     signin: "Ich habe schon ein Konto",
   },
@@ -178,7 +178,7 @@ const DE: OnboardingContent = {
     {
       id: "sex",
       asks: { sex: { lines: ["Dein Geschlecht?"] } },
-      options: { male: { label: "Männlich" }, female: { label: "Weiblich" }, other: { label: "Andere" } },
+      options: { male: { label: "Männlich" }, female: { label: "Weiblich" }, other: { label: "Divers" } },
     },
     {
       id: "age",
@@ -257,13 +257,13 @@ const DE: OnboardingContent = {
     },
   ],
   building: {
-    lines: ["Dein persönlicher Plan wird gebaut"],
+    lines: ["Dein persönlicher Plan wird erstellt"],
     title: "Dein Tagesplan",
     rows: {
       calories: "Kalorien", protein: "Protein", carbs: "Kohlenhydrate",
       fat: "Fett", diet: "Ernährung",
     },
-    limitCap: { ldl: "gesättigte Fette ≤ {n}g", kidneys: "Natrium ≤ {n}mg" },
+    limitCap: { ldl: "gesättigte Fettsäuren ≤ {n}g", kidneys: "Natrium ≤ {n}mg" },
     cta: "Zeig mir den Plan",
     floorTitle: "Wir bleiben bei {floor}kcal",
     floorBody: "Die Rechnung wollte tiefer. Ohne ärztliche Begleitung setzen wir keine Ziele darunter, also liegt deins genau hier. In deinem Tagebuch steht das auch.",
@@ -271,10 +271,10 @@ const DE: OnboardingContent = {
   summary: {
     lines: ["Hier ist dein Plan"],
     kcalLabel: "kcal pro Tag",
-    floorMarker: "aus Sicherheit gekappt · nie unter {floor}",
+    floorMarker: "aus Sicherheitsgründen begrenzt · nie unter {floor}",
     macros: {
       protein: "Protein", carbs: "Kohlenhydrate", fat: "Fett",
-      satfat: "Gesättigte Fette · du wolltest es",
+      satfat: "Gesättigte Fettsäuren · auf deinen Wunsch",
     },
     capNote: "Dieses Tempo bräuchte eine größere Tagesänderung, als sich sicher durchhalten lässt, also bekommst du die sichere Variante: {share}% dessen, was dein Körper am Tag verbrennt.",
     cta: "Fotografier deine erste Mahlzeit",

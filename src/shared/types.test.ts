@@ -73,7 +73,7 @@ describe("a verdict pill in eight languages", () => {
 
   it("is English for a language nobody has written", () => {
     expect(verdictPillLabel("kidneys", "warn", "en")).toBe("Sodium high");
-    expect(verdictPillLabel("kidneys", "warn", "de")).toBe("Natrium — hoch");
+    expect(verdictPillLabel("kidneys", "warn", "de")).toBe("Natrium hoch");
   });
 });
 
@@ -89,8 +89,8 @@ describe("verdictInlineLabel", () => {
   });
 
   it("keeps the German noun capitalised — the case lives in the catalog, not in code", () => {
-    expect(verdictInlineLabel("weight", "warn", "de")).toBe("Kalorien — hoch");
-    expect(verdictInlineLabel("ldl", "bad", "de")).toBe("Gesättigte Fette — sehr hoch");
+    expect(verdictInlineLabel("weight", "warn", "de")).toBe("Kalorien hoch");
+    expect(verdictInlineLabel("ldl", "bad", "de")).toBe("Gesättigte Fettsäuren sehr hoch");
   });
 
   it("names the dimension AND the verdict in every language, with no placeholder left", () => {
