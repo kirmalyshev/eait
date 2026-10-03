@@ -541,17 +541,17 @@ msgstr "Envoi de la photo · 1 sur 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.2"
-msgstr "Pesée des portions"
+msgstr "Estimation des portions"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.2"
-msgstr "Pesée des portions · 3 sur 4"
+msgstr "Estimation des portions · 3 sur 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.weighing"
-msgstr "Pesée des portions…"
+msgstr "Estimation des portions…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
