@@ -31,6 +31,8 @@ export interface NewJob {
   kind: string;
   requestVersion: number;
   request: object;
+  /** The step a queued job shows before a worker reports one. */
+  step: number;
   photos: { mime: string; bytes: Uint8Array }[];
 }
 export interface JobRecord {
@@ -1227,6 +1229,14 @@ export interface Store {
   settleJob(userId: string, clientId: string, owner: string, outcome: object): Promise<boolean>;
   /** The one push, claimed: true for exactly one caller, and only while nobody follows and the job is not removed. */
   claimPush(userId: string, clientId: string): Promise<boolean>;
+  /** The attempt's charge, fenced, so a retry can release a dead attempt's sample. */
+  chargeJob(userId: string, clientId: string, owner: string, analysisId: string): Promise<boolean>;
+  /**
+   * One transaction, fenced: record `meal.id` on the job, insert the meal, and adopt the job's
+   * unadopted photos. False, and nothing written, when `owner` no longer holds the lease or the job
+   * already logged a meal.
+   */
+  landJobMeal(userId: string, clientId: string, owner: string, meal: MealRecord): Promise<boolean>;
   /**
    * The next job this build can run — queued, or running with an expired lease and under two
    * attempts, whose kind is in `registry` at a `request_version` it reads — leased to `owner` for
@@ -1235,6 +1245,8 @@ export interface Store {
   claimJob(owner: string, registry: { kind: string; version: number }[], leaseMs: number): Promise<JobRecord | null>;
   /** Extend every lease `owner` holds; the number held. */
   heartbeatJobs(owner: string, leaseMs: number): Promise<number>;
+  /** Shutdown: hand every job `owner` still runs back to the queue, so another replica claims it at once. */
+  releaseJobs(owner: string): Promise<number>;
   /**
    * Settle with `outcome`, whoever holds it: a job nobody can run — created before `createdBefore`
    * and not held, or out of attempts with an expired lease. Returns the keys settled.
