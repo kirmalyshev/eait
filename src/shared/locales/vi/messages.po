@@ -191,7 +191,7 @@ msgstr "Calo đúng kế hoạch."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.carbs"
-msgstr "Bột đường"
+msgstr "Tinh bột"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

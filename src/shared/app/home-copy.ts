@@ -510,7 +510,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
 
     macros: {
       protein: { name: "đạm", left: "Đạm còn lại", over: "Đạm vượt quá", ofTarget: "trong {target} đạm", chip: "đạm {n}g" },
-      carbs: { name: "bột đường", left: "Bột đường còn lại", over: "Bột đường vượt quá", ofTarget: "trong {target} bột đường", chip: "bột đường {n}g" },
+      carbs: { name: "tinh bột", left: "Tinh bột còn lại", over: "Tinh bột vượt quá", ofTarget: "trong {target} tinh bột", chip: "tinh bột {n}g" },
       fat: { name: "chất béo", left: "Chất béo còn lại", over: "Chất béo vượt quá", ofTarget: "trong {target} chất béo", chip: "chất béo {n}g" },
       satFat: { name: "chất béo bão hoà", left: "Béo bão hoà còn lại", over: "Béo bão hoà vượt quá", ofTarget: "trong {target} chất béo bão hoà", chip: "chất béo bão hoà {n}g" },
       sodium: { name: "Natri", left: "Natri còn lại", over: "Natri vượt quá", ofTarget: "trong {target} natri", chip: "natri {n}mg" },
@@ -525,7 +525,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
       },
       carbs: {
         left: "Hôm nay vẫn còn chỗ cho một phần nhỏ bánh mì, cơm, mì hoặc trái cây.",
-        over: "Hạn chế bột đường cho phần còn lại của hôm nay. Đi nhẹ với bánh mì, cơm, mì, đồ ngọt và nước ngọt.",
+        over: "Hạn chế tinh bột cho phần còn lại của hôm nay. Đi nhẹ với bánh mì, cơm, mì, đồ ngọt và nước ngọt.",
       },
       satfat: {
         left: "Bạn đang gần giới hạn của hôm nay. Chọn thịt nạc, cá hoặc món từ thực vật.",
