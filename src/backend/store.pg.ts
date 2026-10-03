@@ -26,7 +26,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -98,6 +98,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
+  jobs: "user_id",
 };
 
 /**
@@ -572,6 +573,42 @@ create table if not exists turns (
 );
 create index if not exists turns_claimed_idx on turns(claimed_at) where outcome is not null;
 
+-- A queued request that outlives the process that accepted it (#414). kind is a key in the
+-- engine's handler registry, not an enum: a new kind is code, never a migration. The outcome stays
+-- in turns; this row holds what is needed to RUN the turn and to SHOW it.
+create table if not exists jobs (
+  user_id         uuid not null references users(id) on delete cascade,
+  client_id       text not null,
+  kind            text not null,
+  request_version smallint not null default 1,
+  request         jsonb not null,
+  state           text not null default 'queued' check (state in ('queued', 'running', 'settled')),
+  attempts        integer not null default 0,
+  step            smallint not null default 2,
+  items           jsonb not null default '[]',
+  lease_owner     text,
+  lease_until     timestamptz,
+  meal_id         uuid,
+  analysis_id     uuid,
+  removed_at      timestamptz,
+  followed_until  timestamptz,
+  pushed_at       timestamptz,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  primary key (user_id, client_id)
+);
+create index if not exists jobs_claimable_idx on jobs (kind, created_at) where state <> 'settled';
+create index if not exists jobs_user_idx on jobs (user_id, updated_at desc);
+
+-- A queued photo's bytes are stored at enqueue, before any meal exists: meal_id null, client_id
+-- naming the job. The meal adopts them when it is logged. Only ever expands what the old version reads.
+alter table meal_photos alter column meal_id drop not null;
+alter table meal_photos add column if not exists client_id text;
+alter table meal_photos drop constraint if exists meal_photos_owner_check;
+alter table meal_photos add constraint meal_photos_owner_check check (meal_id is not null or client_id is not null) not valid;
+create index if not exists meal_photos_user_client_idx on meal_photos(user_id, client_id) where meal_id is null;
+create unique index if not exists meal_photos_unadopted_idx on meal_photos(user_id, client_id, position) where meal_id is null;
+
 -- The admin-edited onboarding copy. ONE row, pinned to id = 1.
 --
 -- A single row rather than a version history: the app fetches "what is live", and the thing an
@@ -952,6 +989,22 @@ function json<T>(v: unknown, fallback: T): T {
   }
 }
 
+interface JobRow {
+  user_id: string; client_id: string; kind: string; request_version: number; request: unknown; state: "queued" | "running" | "settled";
+  attempts: number; step: number; items: unknown; lease_owner: string | null; lease_until: Date | null; meal_id: string | null;
+  analysis_id: string | null; removed_at: Date | null; followed_until: Date | null; pushed_at: Date | null;
+  created_at: Date; updated_at: Date; outcome: unknown;
+}
+const ms = (d: Date | null): number | null => (d === null ? null : new Date(d).getTime());
+const toJob = (r: JobRow): JobRecord => ({
+  userId: r.user_id, clientId: r.client_id, kind: r.kind, requestVersion: r.request_version,
+  request: json<object>(r.request, {}), state: r.state, attempts: r.attempts, step: r.step,
+  items: json<object[]>(r.items, []), leaseOwner: r.lease_owner, leaseUntil: ms(r.lease_until), mealId: r.meal_id,
+  analysisId: r.analysis_id, removedAt: ms(r.removed_at), followedUntil: ms(r.followed_until), pushedAt: ms(r.pushed_at),
+  createdAt: new Date(r.created_at).getTime(), updatedAt: new Date(r.updated_at).getTime(),
+  outcome: json<object | null>(r.outcome, null),
+});
+
 /**
  * The sign-in providers as a SQL array literal, derived from `signsIn` rather than typed out again:
  * the predicate is the rule, and a second copy of it inside a query is the one that goes stale.
@@ -1100,6 +1153,21 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putWeight: 0,
   weightsSince: 0,
   claimTurn: 0,
+  enqueueJob: 0,
+  getJob: 0,
+  listJobs: 0,
+  jobPhotos: 0,
+  jobProgress: 0,
+  followJob: 0,
+  removeJob: 0,
+  settleJob: 0,
+  claimPush: 0,
+  // They choose whose job runs, or sweep every account's, and read no content: the lease is the
+  // only thing they decide on.
+  claimJob: "unscoped",
+  heartbeatJobs: "unscoped",
+  expireJobs: "unscoped",
+  forgetJobs: "unscoped",
   getTurn: 0,
   settleTurn: 0,
   // The cascade takes tokens, meals, photos, the thread and the rest with the row. Referential
@@ -1784,6 +1852,9 @@ export async function postgresStore(
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
         await tx`update meal_photos set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        await tx`
+          update jobs set user_id = ${intoUserId} where user_id = ${fromUserId}
+            and client_id not in (select client_id from jobs where user_id = ${intoUserId})`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // A turn the anonymous session sent is replayed by the same phone under the real account. One
         // id claimed on both sides keeps the survivor's; the other goes with the anonymous row.
@@ -2659,6 +2730,144 @@ export async function postgresStore(
       await sql`
         update turns set outcome = ${outcome}
         where user_id = ${userId} and client_id = ${clientId}`;
+    },
+
+    async enqueueJob(userId, input) {
+      return await inTx(async (tx) => {
+        const claimed = await tx`
+          insert into turns (user_id, client_id, claimed_at) values (${userId}, ${input.clientId}, ${new Date(now())})
+          on conflict (user_id, client_id) do nothing returning client_id`;
+        if (claimed.length === 0) return false;
+        await tx`
+          insert into jobs (user_id, client_id, kind, request_version, request, created_at, updated_at)
+          values (${userId}, ${input.clientId}, ${input.kind}, ${input.requestVersion}, ${input.request},
+                  ${new Date(now())}, ${new Date(now())})`;
+        for (const [i, p] of input.photos.entries()) {
+          await tx`
+            insert into meal_photos (id, meal_id, user_id, client_id, position, mime, bytes)
+            values (${crypto.randomUUID()}, ${null}, ${userId}, ${input.clientId}, ${i}, ${p.mime}, ${Buffer.from(p.bytes)})`;
+        }
+        await tx`select pg_notify('eait_jobs', '')`;
+        return true;
+      });
+    },
+
+    async getJob(userId, clientId) {
+      const rows = await sql`
+        select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
+        where j.user_id = ${userId} and j.client_id = ${clientId}`;
+      return rows[0] ? toJob(rows[0] as JobRow) : null;
+    },
+
+    async listJobs(userId, opts) {
+      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const rows = await sql`
+        select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
+        where j.user_id = ${userId}
+          and (${opts.state} = 'all' or (${opts.state} = 'active') = (j.state <> 'settled'))
+          and (${opts.since === null ? null : new Date(opts.since)}::timestamptz is null or j.updated_at > ${opts.since === null ? null : new Date(opts.since)}::timestamptz)
+          and (${cu}::timestamptz is null or (j.updated_at, j.client_id) < (${cu}::timestamptz, ${cc}))
+        order by j.updated_at desc, j.client_id desc limit ${opts.limit + 1}`;
+      const page = rows.slice(0, opts.limit).map((r: unknown) => toJob(r as JobRow));
+      const last = page[page.length - 1];
+      return { jobs: page, cursor: rows.length > opts.limit && last ? `${new Date(last.updatedAt).toISOString()}|${last.clientId}` : null };
+    },
+
+    async jobPhotos(userId, clientId) {
+      const rows = await sql`
+        select mime, bytes from meal_photos
+        where user_id = ${userId} and client_id = ${clientId} and meal_id is null order by position`;
+      return rows.map((r: { mime: string; bytes: Uint8Array }) => ({ mime: r.mime, bytes: new Uint8Array(r.bytes) }));
+    },
+
+    async jobProgress(userId, clientId, owner, step, items) {
+      const rows = await sql`
+        update jobs set step = ${step}, items = ${items}, updated_at = now()
+        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
+        returning client_id`;
+      if (rows.length > 0) await sql`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
+      return rows.length > 0;
+    },
+
+    async followJob(userId, clientId, until) {
+      await sql`update jobs set followed_until = ${new Date(until)} where user_id = ${userId} and client_id = ${clientId}`;
+    },
+
+    async removeJob(userId, clientId) {
+      const rows = await sql`
+        update jobs set removed_at = now(), updated_at = now()
+        where user_id = ${userId} and client_id = ${clientId} and state <> 'settled' returning client_id`;
+      return rows.length > 0;
+    },
+
+    async settleJob(userId, clientId, owner, outcome) {
+      return await inTx(async (tx) => {
+        const rows = await tx`
+          update jobs set state = 'settled', lease_owner = null, lease_until = null, updated_at = now()
+          where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
+          returning client_id`;
+        if (rows.length === 0) return false;
+        await tx`update turns set outcome = ${outcome} where user_id = ${userId} and client_id = ${clientId}`;
+        await tx`delete from meal_photos where user_id = ${userId} and client_id = ${clientId} and meal_id is null`;
+        await tx`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
+        return true;
+      });
+    },
+
+    async claimPush(userId, clientId) {
+      const rows = await sql`
+        update jobs set pushed_at = now()
+        where user_id = ${userId} and client_id = ${clientId} and pushed_at is null and removed_at is null
+          and (followed_until is null or followed_until < now())
+        returning client_id`;
+      return rows.length > 0;
+    },
+
+    async claimJob(owner, registry, leaseMs) {
+      const rows = await sql`
+        update jobs j
+           set state = 'running', lease_owner = ${owner}, lease_until = now() + ${leaseMs} * interval '1 millisecond',
+               attempts = j.attempts + 1, updated_at = now()
+          from (select q.user_id, q.client_id
+                  from jobs q
+                  join unnest(${registry.map((r) => r.kind)}::text[], ${registry.map((r) => r.version)}::smallint[]) as h(kind, version)
+                    on q.kind = h.kind and q.request_version <= h.version
+                 where q.state = 'queued' or (q.state = 'running' and q.lease_until < now() and q.attempts < 2)
+                 order by q.created_at
+                 for update of q skip locked
+                 limit 1) c
+         where (j.user_id, j.client_id) = (c.user_id, c.client_id)
+        returning j.*`;
+      return rows[0] ? toJob({ ...(rows[0] as JobRow), outcome: null }) : null;
+    },
+
+    async heartbeatJobs(owner, leaseMs) {
+      const rows = await sql`
+        update jobs set lease_until = now() + ${leaseMs} * interval '1 millisecond'
+        where lease_owner = ${owner} and state = 'running' returning client_id`;
+      return rows.length;
+    },
+
+    async expireJobs(createdBefore, outcome) {
+      return await inTx(async (tx) => {
+        const rows = await tx`
+          update jobs set state = 'settled', lease_owner = null, lease_until = null, updated_at = now()
+          where state <> 'settled'
+            and (state = 'queued' or lease_until < now())
+            and (created_at < ${new Date(createdBefore)} or (state = 'running' and attempts >= 2))
+          returning user_id, client_id`;
+        for (const r of rows as { user_id: string; client_id: string }[]) {
+          await tx`update turns set outcome = ${outcome} where user_id = ${r.user_id} and client_id = ${r.client_id}`;
+          await tx`delete from meal_photos where user_id = ${r.user_id} and client_id = ${r.client_id} and meal_id is null`;
+        }
+        return (rows as { user_id: string; client_id: string }[]).map((r) => ({ userId: r.user_id, clientId: r.client_id }));
+      });
+    },
+
+    async forgetJobs(before) {
+      const gone = await sql`delete from jobs where state = 'settled' and updated_at < ${new Date(before)} returning client_id`;
+      await sql`delete from meal_photos where meal_id is null and created_at < ${new Date(before)}`;
+      return gone.length;
     },
 
     async forgetTurnOutcomes(before) {

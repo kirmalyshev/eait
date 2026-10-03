@@ -3520,9 +3520,9 @@ if (PG_URL) {
         .map(([name]) => name)
         .sort();
       expect(unscoped).toEqual([
-        "adminListUsers", "adminMetrics", "claimPairingCode",
-        "countClipAnalyses", "countGlobalAnalyses", "createUser", "forgetTurnOutcomes",
-        "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
+        "adminListUsers", "adminMetrics", "claimJob", "claimPairingCode",
+        "countClipAnalyses", "countGlobalAnalyses", "createUser", "expireJobs", "forgetJobs", "forgetTurnOutcomes",
+        "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
         "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
         "pruneHealthDaysBefore",

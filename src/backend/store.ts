@@ -26,6 +26,36 @@ import type { RouteResult } from "./llm/port.ts";
  * the release a pooled connection held by one cannot get from a promise race (#276). The memory
  * store has no pool to leak and reads nothing.
  */
+export interface NewJob {
+  clientId: string;
+  kind: string;
+  requestVersion: number;
+  request: object;
+  photos: { mime: string; bytes: Uint8Array }[];
+}
+export interface JobRecord {
+  userId: string;
+  clientId: string;
+  kind: string;
+  requestVersion: number;
+  request: object;
+  state: "queued" | "running" | "settled";
+  attempts: number;
+  step: number;
+  items: object[];
+  leaseOwner: string | null;
+  leaseUntil: number | null;
+  mealId: string | null;
+  analysisId: string | null;
+  removedAt: number | null;
+  followedUntil: number | null;
+  pushedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+  /** The turn's answer; null until settled, and again once the day's forgetting has run. */
+  outcome: object | null;
+}
+
 export interface StoreDeadline {
   /** Fires when the turn's bound passes; `reason` is the `TurnOverran` the request settled on. */
   readonly signal: AbortSignal;
@@ -1167,6 +1197,51 @@ export interface Store {
    * answer may still be re-asked for. The claim stays, so a late replay is an unknown, never a rerun.
    */
   forgetTurnOutcomes(before: number): Promise<number>;
+
+  // ── Durable jobs (#414) ───────────────────────────────────────────────────────────────────
+  //
+  // A queued request that outlives the process that accepted it. `turns` stays the answer; a job
+  // row holds what is needed to RUN the turn and to SHOW it. Every write a worker makes carries its
+  // `owner` and lands only while it still holds the lease (fencing), so two runners cannot both
+  // land a result. Nothing calls these until the queue moves onto them.
+  /**
+   * One transaction: claim the turn, insert the job, store the photos unadopted. False, and nothing
+   * written, when the turn was already claimed — the replay of a 202 already answered.
+   */
+  enqueueJob(userId: string, input: NewJob): Promise<boolean>;
+  getJob(userId: string, clientId: string): Promise<JobRecord | null>;
+  /** The caller's jobs, newest change first; `outcome` is the turn's answer once settled. */
+  listJobs(userId: string, opts: { state: "active" | "settled" | "all"; since: number | null; cursor: string | null; limit: number }): Promise<{ jobs: JobRecord[]; cursor: string | null }>;
+  /** The unadopted photos of a job, in order. */
+  jobPhotos(userId: string, clientId: string): Promise<{ mime: string; bytes: Uint8Array }[]>;
+  /** The worker's progress, fenced: false when `owner` no longer holds the lease. */
+  jobProgress(userId: string, clientId: string, owner: string, step: number, items: object[]): Promise<boolean>;
+  /** A follower's heartbeat: `followedUntil` moves to `until` (epoch ms). */
+  followJob(userId: string, clientId: string, until: number): Promise<void>;
+  /** Mark a job removed; false when it is not the caller's or already settled. */
+  removeJob(userId: string, clientId: string): Promise<boolean>;
+  /**
+   * Settle under the lease: `turns.outcome` is written in the same transaction and the job's
+   * unadopted photos go. False when `owner` no longer holds the lease.
+   */
+  settleJob(userId: string, clientId: string, owner: string, outcome: object): Promise<boolean>;
+  /** The one push, claimed: true for exactly one caller, and only while nobody follows and the job is not removed. */
+  claimPush(userId: string, clientId: string): Promise<boolean>;
+  /**
+   * The next job this build can run — queued, or running with an expired lease and under two
+   * attempts, whose kind is in `registry` at a `request_version` it reads — leased to `owner` for
+   * `leaseMs`. Two concurrent claimers never get the same job.
+   */
+  claimJob(owner: string, registry: { kind: string; version: number }[], leaseMs: number): Promise<JobRecord | null>;
+  /** Extend every lease `owner` holds; the number held. */
+  heartbeatJobs(owner: string, leaseMs: number): Promise<number>;
+  /**
+   * Settle with `outcome`, whoever holds it: a job nobody can run — created before `createdBefore`
+   * and not held, or out of attempts with an expired lease. Returns the keys settled.
+   */
+  expireJobs(createdBefore: number, outcome: object): Promise<{ userId: string; clientId: string }[]>;
+  /** The daily sweep: settled jobs last updated before `before`, and unadopted photos older than that. */
+  forgetJobs(before: number): Promise<number>;
 
   // ── Health ─────────────────────────────────────────────────────────────────────────────────
   //

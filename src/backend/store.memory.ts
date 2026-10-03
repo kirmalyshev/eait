@@ -17,7 +17,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -181,6 +181,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   let analysisSeq = 0;
   // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
   const turns = new Map<string, { userId: string; clientId: string; outcome: object | null; claimedAt: number }>();
+  const jobs = new Map<string, JobRecord & { photos: { mime: string; bytes: Uint8Array }[] }>();
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: {
@@ -215,6 +216,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
+  const asRecord = ({ photos: _photos, ...j }: JobRecord & { photos: unknown }): JobRecord => ({
+    ...clone(j), outcome: turns.get(`${j.userId}\n${j.clientId}`)?.outcome ?? null,
+  });
+  const settle = (j: JobRecord & { photos: unknown[] }, outcome: object) => {
+    j.state = "settled"; j.leaseOwner = null; j.leaseUntil = null; j.updatedAt = now(); j.photos = [];
+    const t = turns.get(`${j.userId}\n${j.clientId}`);
+    if (t) t.outcome = clone(outcome);
+  };
 
   /**
    * Shared by `pruneExpiredTokens` and `issueToken`. A plain closure rather than `this.prune()`:
@@ -271,6 +280,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (analyses[i]!.userId === userId) analyses.splice(i, 1);
     }
     for (const [k, t] of turns) if (t.userId === userId) turns.delete(k);
+    for (const [k, j] of jobs) if (j.userId === userId) jobs.delete(k);
     // Identities go too, so deleting an account genuinely releases the Apple/Google subject
     // rather than leaving a row that would collide when the same person signs in again.
     for (let i = identities.length - 1; i >= 0; i--) {
@@ -666,6 +676,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         turns.delete(k);
         const into = `${intoUserId}\n${t.clientId}`;
         if (!turns.has(into)) turns.set(into, { ...t, userId: intoUserId });
+      }
+      for (const [k, j] of jobs) {
+        if (j.userId !== fromUserId) continue;
+        jobs.delete(k);
+        const into = `${intoUserId}\n${j.clientId}`;
+        if (!jobs.has(into)) jobs.set(into, { ...j, userId: intoUserId });
       }
       // What the app has learned about this person's portions is learned before they sign in.
       for (const c of portionCorrections) if (c.userId === fromUserId) c.userId = intoUserId;
@@ -1286,6 +1302,111 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async settleTurn(userId, clientId, outcome) {
       const t = turns.get(`${userId}\n${clientId}`);
       if (t) t.outcome = clone(outcome);
+    },
+
+    async enqueueJob(userId, input) {
+      const k = `${userId}\n${input.clientId}`;
+      if (turns.has(k)) return false;
+      turns.set(k, { userId, clientId: input.clientId, outcome: null, claimedAt: now() });
+      jobs.set(k, {
+        userId, clientId: input.clientId, kind: input.kind, requestVersion: input.requestVersion, request: clone(input.request),
+        state: "queued", attempts: 0, step: 2, items: [], leaseOwner: null, leaseUntil: null, mealId: null, analysisId: null,
+        removedAt: null, followedUntil: null, pushedAt: null, createdAt: now(), updatedAt: now(), outcome: null,
+        photos: input.photos.map((p) => ({ mime: p.mime, bytes: new Uint8Array(p.bytes) })),
+      });
+      return true;
+    },
+
+    async getJob(userId, clientId) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      return j ? asRecord(j) : null;
+    },
+
+    async listJobs(userId, opts) {
+      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const after = cu === null ? Infinity : Date.parse(cu);
+      const all = [...jobs.values()]
+        .filter((j) => j.userId === userId
+          && (opts.state === "all" || (opts.state === "active") === (j.state !== "settled"))
+          && (opts.since === null || j.updatedAt > opts.since)
+          && (cu === null || j.updatedAt < after || (j.updatedAt === after && j.clientId < cc!)))
+        .sort((a, b) => b.updatedAt - a.updatedAt || (a.clientId < b.clientId ? 1 : -1));
+      const page = all.slice(0, opts.limit).map(asRecord);
+      const last = page[page.length - 1];
+      return { jobs: page, cursor: all.length > opts.limit && last ? `${new Date(last.updatedAt).toISOString()}|${last.clientId}` : null };
+    },
+
+    async jobPhotos(userId, clientId) {
+      return (jobs.get(`${userId}\n${clientId}`)?.photos ?? []).map((p) => ({ mime: p.mime, bytes: new Uint8Array(p.bytes) }));
+    },
+
+    async jobProgress(userId, clientId, owner, step, items) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.leaseOwner !== owner || j.state !== "running") return false;
+      j.step = step; j.items = clone(items); j.updatedAt = now();
+      return true;
+    },
+
+    async followJob(userId, clientId, until) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (j) j.followedUntil = until;
+    },
+
+    async removeJob(userId, clientId) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.state === "settled") return false;
+      j.removedAt = now(); j.updatedAt = now();
+      return true;
+    },
+
+    async settleJob(userId, clientId, owner, outcome) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.leaseOwner !== owner || j.state !== "running") return false;
+      settle(j, outcome);
+      return true;
+    },
+
+    async claimPush(userId, clientId) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.pushedAt !== null || j.removedAt !== null || (j.followedUntil !== null && j.followedUntil >= now())) return false;
+      j.pushedAt = now();
+      return true;
+    },
+
+    async claimJob(owner, registry, leaseMs) {
+      const j = [...jobs.values()]
+        .filter((x) => registry.some((r) => r.kind === x.kind && x.requestVersion <= r.version)
+          && (x.state === "queued" || (x.state === "running" && x.leaseUntil! < now() && x.attempts < 2)))
+        .sort((a, b) => a.createdAt - b.createdAt)[0];
+      if (!j) return null;
+      j.state = "running"; j.leaseOwner = owner; j.leaseUntil = now() + leaseMs; j.attempts++; j.updatedAt = now();
+      return asRecord(j);
+    },
+
+    async heartbeatJobs(owner, leaseMs) {
+      let n = 0;
+      for (const j of jobs.values()) if (j.leaseOwner === owner && j.state === "running") { j.leaseUntil = now() + leaseMs; n++; }
+      return n;
+    },
+
+    async expireJobs(createdBefore, outcome) {
+      const out: { userId: string; clientId: string }[] = [];
+      for (const j of jobs.values()) {
+        if (j.state === "settled" || !(j.state === "queued" || j.leaseUntil! < now())) continue;
+        if (!(j.createdAt < createdBefore || (j.state === "running" && j.attempts >= 2))) continue;
+        settle(j, outcome);
+        out.push({ userId: j.userId, clientId: j.clientId });
+      }
+      return out;
+    },
+
+    async forgetJobs(before) {
+      let n = 0;
+      for (const [k, j] of jobs) {
+        if (j.state === "settled" && j.updatedAt < before) { jobs.delete(k); n++; }
+        else if (j.createdAt < before) j.photos = [];
+      }
+      return n;
     },
 
     async forgetTurnOutcomes(before) {
