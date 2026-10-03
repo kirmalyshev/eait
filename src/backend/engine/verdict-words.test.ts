@@ -169,7 +169,7 @@ describe("the verdict words on the wire", () => {
     if (first?.kind === "reading") expect(first.line).toBe("Teller wird erkannt…");
     // Every item event carries the weighing line, localized — the browser prints it verbatim.
     const item = events.find((e) => e.kind === "item");
-    if (item !== undefined && item.kind === "item") expect(item.line).toBe("Portionen werden gewogen…");
+    if (item !== undefined && item.kind === "item") expect(item.line).toBe("Portionen werden geschätzt…");
   });
 });
 
