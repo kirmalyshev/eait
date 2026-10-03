@@ -60,7 +60,10 @@ jobs:
         with:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
-      - run: bun audit
+      # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, npm's latest): dev-only path — @lingui/cli >
+      # micromatch, a stack-exhaustion DoS on attacker-controlled globs our build never feeds.
+      # Remove the ignore when braces > 3.0.3 ships.
+      - run: bun audit --ignore=GHSA-vfj7-8cjw-p6xm
       # THE SAME SCRIPT THE DEPLOY RUNS, against the service container instead of compose's `db`.
       # A second implementation here would be a second thing to keep true, and the one that drifts
       # is always the one nobody looks at.
