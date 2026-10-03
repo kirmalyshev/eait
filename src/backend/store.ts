@@ -824,6 +824,15 @@ export interface Store {
    */
   usersWithPushTokens(): Promise<string[]>;
 
+  /**
+   * Claim the evening line for `date` (the server's local `YYYY-MM-DD`) on this account's row —
+   * the durable half of the one-message-a-day budget. One atomic write: true when this call
+   * stamped the day, false when the row already carried today or a later one, so a second
+   * replica — or this one restarted across the hour — cannot send it twice. Claimed BEFORE the
+   * send: a crash in the gap costs that night, never a second message.
+   */
+  claimEveningLine(userId: string, date: string): Promise<boolean>;
+
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
    * The admin-edited onboarding copy, PER LANGUAGE, or null when nothing has ever been saved.
@@ -1234,6 +1243,17 @@ export interface Store {
    * every account's dependents going with it by the cascade `deleteUser` relies on.
    */
   pruneAbandonedAccounts(before: number): Promise<number>;
+
+  /**
+   * Cluster leadership for the work only one replica may do — the evening line, the sweeps, the
+   * Telegram poll. True while this store holds the lock. In Postgres it is a session advisory
+   * lock on a dedicated connection, so it is also released by `close()` and by the connection
+   * dying — a crashed leader's successor is the next `tryLeadership()` anywhere to succeed.
+   * Re-asking while held is the liveness check, not a second lock.
+   */
+  tryLeadership(): Promise<boolean>;
+  /** Give the lock back early — a draining leader hands off rather than making the next one wait for a dead session. */
+  releaseLeadership(): Promise<void>;
 
   close(): Promise<void>;
 }

@@ -455,3 +455,11 @@ naming it too.
   photo job's route in the same `PhotoJob`; `update` on a running job names its kind and step count (2, 3, 3).
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
   builds call them. A restart settles a running update like a photo's (retryable).
+- **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
+  evening line, the daily sweeps (health retention, turn outcomes, abandoned accounts, idle
+  tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per
+  process: `index.ts` contests `store.tryLeadership()` every 15 s, the lock is a session lock on
+  its own connection so it dies with the holder, and a SIGTERM drains then releases rather than
+  making the next leader wait. The 20:30 line's second lock is `users.last_notified_date`,
+  claimed atomically before the send — a second leader mid-handover finds the day already taken.
+  `migrate()` runs under a second advisory lock, because two replicas can boot at once.

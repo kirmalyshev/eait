@@ -13,13 +13,11 @@
 // necessarily seen: meals logged on another device are in `GET /day` and nowhere else. A local
 // notification cannot carry a number it does not know.
 //
-// ONE PROCESS IS ASSUMED, AND NOTHING ENFORCES IT. Nothing records that an account was messaged
-// today: the budget is kept by there being exactly one timer, in one process, firing once. A second
-// replica sends the evening line twice — as would a restart that straddles the hour — and R1 is the
-// one rule this module exists to enforce. The same caveat the in-memory rate limiter carries, and
-// stated for the same reason: a limit that quietly doubles when somebody scales the deployment is
-// worse than one that was never claimed. The durable answer is a `last_notified_date` on the user
-// row, claimed atomically before the send.
+// THE BUDGET HAS TWO LOCKS. The timer runs only on the replica holding the cluster's leadership
+// (`index.ts`, `tryLeadership`), and the row is the second: `claimEveningLine` stamps
+// `users.last_notified_date` atomically BEFORE the send, so a second leader mid-handover — or
+// this one restarted across the hour — finds today claimed and stays silent. A claim is not a
+// send: a crash in the gap costs that night, which is the side R1 wants to fail on.
 //
 // AND IT IS WHAT A SUBSCRIPTION BUYS. copy.md § Step 15 lists "The 20:30 line — one a day" on the
 // card, so an account with no live entitlement is not swept. That also disposes of the win-back
@@ -224,6 +222,9 @@ export async function eveningSweep(
     try {
       const message = await dailyNotification(deps, userId, opts.date, now);
       if (message === null) { skipped++; continue; }
+      // The day's ONE message, claimed on the row before it is spent — see the header. Two
+      // leaders racing this loop (a handover mid-sweep) both compose; only one's claim lands.
+      if (!await deps.store.claimEveningLine(userId, opts.date)) { skipped++; continue; }
       for (const device of await deps.store.pushTokensFor(userId)) {
         messages.push({ to: device.token, title: message.title, body: message.body });
         owner.set(device.token, userId);
