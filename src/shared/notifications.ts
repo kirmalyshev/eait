@@ -122,7 +122,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abos.",
     },
     evening: {
-      title: "Heute gegen den Plan",
+      title: "Dein Tag im Vergleich zum Plan",
       body: "{eaten} von deinen {plan}kcal heute. {tomorrow}",
       emptyBody: "Heute nichts eingetragen — deine {plan}kcal sind trotzdem der Plan. {tomorrow}",
     },
@@ -505,10 +505,10 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   },
   de: {
     noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
-    over: "{over} drüber heute — morgen startet wieder bei {plan}.",
+    over: "Heute {over} über dem Plan – morgen geht's wieder bei {plan} los.",
     protein: "Beim Eiweiß fehlten {gap}g — Eier oder Skyr zum Frühstück schließen die Lücke.",
     gainUnder: "{under}kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
-    under: "{under} unter dem Plan — morgen die ganze Zahl zu essen ist der Plan, kein Ausrutscher.",
+    under: "{under} unter dem Plan – morgen die volle Menge zu essen ist kein Ausrutscher, sondern der Plan.",
     onPlan: "Im Plan. Morgen genauso.",
   },
   it: {

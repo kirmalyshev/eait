@@ -446,11 +446,11 @@ export const HOME_COPY: Localized<HomeCopy> = {
     dayNoteSatFat: "grasas saturadas",
 
     macros: {
-      protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "proteína de {target}", chip: "proteína {n}g" },
-      carbs: { name: "carbohidratos", left: "Carbohidratos restantes", over: "Carbohidratos de más", ofTarget: "carbohidratos de {target}", chip: "carbohidratos {n}g" },
-      fat: { name: "grasas", left: "Grasas restantes", over: "Grasas de más", ofTarget: "grasas de {target}", chip: "grasas {n}g" },
-      satFat: { name: "grasas saturadas", left: "Grasas sat. restantes", over: "Grasas sat. de más", ofTarget: "grasas saturadas de {target}", chip: "grasas saturadas {n}g" },
-      sodium: { name: "Sodio", left: "Sodio restante", over: "Sodio de más", ofTarget: "sodio de {target}", chip: "sodio {n}mg" },
+      protein: { name: "proteína", left: "Proteína restante", over: "Proteína de más", ofTarget: "de {target} de proteína", chip: "proteína {n}g" },
+      carbs: { name: "carbohidratos", left: "Carbohidratos restantes", over: "Carbohidratos de más", ofTarget: "de {target} de carbohidratos", chip: "carbohidratos {n}g" },
+      fat: { name: "grasas", left: "Grasas restantes", over: "Grasas de más", ofTarget: "de {target} de grasas", chip: "grasas {n}g" },
+      satFat: { name: "grasas saturadas", left: "Grasas sat. restantes", over: "Grasas sat. de más", ofTarget: "de {target} de grasas sat.", chip: "grasas saturadas {n}g" },
+      sodium: { name: "Sodio", left: "Sodio restante", over: "Sodio de más", ofTarget: "de {target} de sodio", chip: "sodio {n}mg" },
       fibre: { name: "Fibra", chip: "fibra {n}g" },
       sugar: { name: "Azúcar", chip: "azúcar {n}g" },
     },

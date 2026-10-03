@@ -566,7 +566,7 @@ msgstr "Wie mache ich das Abendessen leichter?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
-msgstr "Dein erster Tag läuft. Um 20:30 bekommst du eine Zeile — der Tag gegen den Plan, und eine konkrete Sache für morgen. Vorher nichts."
+msgstr "Dein erster Tag läuft. Um 20:30 bekommst du eine Zeile: dein Tag im Vergleich zum Plan und eine konkrete Sache für morgen. Vorher nichts."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
