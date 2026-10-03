@@ -1310,7 +1310,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       turns.set(k, { userId, clientId: input.clientId, outcome: null, claimedAt: now() });
       jobs.set(k, {
         userId, clientId: input.clientId, kind: input.kind, requestVersion: input.requestVersion, request: clone(input.request),
-        state: "queued", attempts: 0, step: 2, items: [], leaseOwner: null, leaseUntil: null, mealId: null, analysisId: null,
+        state: "queued", attempts: 0, step: input.step, items: [], leaseOwner: null, leaseUntil: null, mealId: null, analysisId: null,
         removedAt: null, followedUntil: null, pushedAt: null, createdAt: now(), updatedAt: now(), outcome: null,
         photos: input.photos.map((p) => ({ mime: p.mime, bytes: new Uint8Array(p.bytes) })),
       });
@@ -1323,7 +1323,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async listJobs(userId, opts) {
-      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const bar = opts.cursor ? opts.cursor.indexOf("|") : -1;
+      const [cu, cc] = bar > 0 ? [opts.cursor!.slice(0, bar), opts.cursor!.slice(bar + 1)] : [null, null];
       const after = cu === null ? Infinity : Date.parse(cu);
       const all = [...jobs.values()]
         .filter((j) => j.userId === userId
@@ -1371,6 +1372,34 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!j || j.pushedAt !== null || j.removedAt !== null || (j.followedUntil !== null && j.followedUntil >= now())) return false;
       j.pushedAt = now();
       return true;
+    },
+
+    async chargeJob(userId, clientId, owner, analysisId) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.leaseOwner !== owner || j.state !== "running") return false;
+      j.analysisId = analysisId;
+      return true;
+    },
+
+    async landJobMeal(userId, clientId, owner, meal) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.leaseOwner !== owner || j.state !== "running" || j.mealId !== null || meals.has(meal.id)) return false;
+      j.mealId = meal.id; j.updatedAt = now();
+      meals.set(meal.id, clone({ ...meal, question: meal.question ?? null }));
+      const list = j.photos.map((p, position) => ({ userId, position, mime: p.mime, bytes: p.bytes }));
+      j.photos = [];
+      if (list.length > 0) photos.set(meal.id, list);
+      meals.set(meal.id, { ...meals.get(meal.id)!, photos: list.length });
+      return true;
+    },
+
+    async releaseJobs(owner) {
+      let n = 0;
+      for (const j of jobs.values()) {
+        if (j.leaseOwner !== owner || j.state !== "running") continue;
+        j.state = "queued"; j.leaseOwner = null; j.leaseUntil = null; j.updatedAt = now(); n++;
+      }
+      return n;
     },
 
     async claimJob(owner, registry, leaseMs) {

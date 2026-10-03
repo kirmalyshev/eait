@@ -130,6 +130,25 @@ const overruns = (ms: number, cutoff: TurnDeadline): Promise<never> =>
   new Promise((_, reject) => setTimeout(() => reject(cutoff.outrun()), ms));
 
 /**
+ * `run` under its turn's bound: `calls` model budgets plus the margin. `working` is the attempt
+ * itself, `result` the same raced against the bound. `lost()` stops the attempt at once, as an
+ * overrun does, for a caller that learns it must write nothing more (a job whose lease is gone).
+ */
+export function bounded<R>(
+  deps: EngineDeps,
+  calls: number,
+  run: (deps: EngineDeps, lost: () => Error) => Promise<R>,
+): { working: Promise<R>; result: Promise<R> } {
+  const bound = calls * deps.config.llmTimeoutMs + TURN_WORK_MARGIN_MS;
+  const cutoff = new TurnDeadline(Date.now() + bound);
+  // Under `storeDeadline` so the store can refuse or time-bound what an abandoned turn leaves
+  // behind, and against an `llm` whose every call carries the same signal to its fetch.
+  const working = storeDeadline.run(cutoff, () =>
+    run({ ...deps, store: staged(deps.store, "store", cutoff), llm: boundedLlm(deps.llm, cutoff) }, () => cutoff.outrun()));
+  return { working, result: Promise.race([working, overruns(bound, cutoff)]) };
+}
+
+/**
  * Run `run` at most once per `(userId, clientId)`. `calls` is how many model budgets the turn may
  * spend, which bounds the turn's whole clock and how long a replay waits for a first attempt that
  * is still running.
@@ -150,13 +169,7 @@ export async function once<R extends object>(
   run: (deps: EngineDeps) => Promise<R>,
 ): Promise<R> {
   const bound = calls * deps.config.llmTimeoutMs + TURN_WORK_MARGIN_MS;
-  const cutoff = new TurnDeadline(Date.now() + bound);
-  // The attempt, under `storeDeadline` so the store can refuse or time-bound what an abandoned
-  // turn leaves behind, and against an `llm` whose every call carries the same signal to its fetch.
-  const attempt = () =>
-    storeDeadline.run(cutoff, () =>
-      run({ ...deps, store: staged(deps.store, "store", cutoff), llm: boundedLlm(deps.llm, cutoff) }));
-  if (clientId === undefined) return Promise.race([attempt(), overruns(bound, cutoff)]);
+  if (clientId === undefined) return bounded(deps, calls, run).result;
   const settle = (outcome: object) => deps.store.settleTurn(userId, clientId, outcome).catch((e: unknown) => {
     // The turn is done and the user has their answer; only a replay of it is worse off, and it
     // reads an unanswered claim as the unknown it then is.
@@ -167,10 +180,10 @@ export async function once<R extends object>(
     // `run` is not awaited so the bound can hold the promise it is racing: a turn cut off here is
     // abandoned at whatever stage it named, and a real outcome that lands late is still the truest
     // thing a replay can get.
-    const working = attempt();
+    const { working, result: raced } = bounded(deps, calls, run);
     let result: R;
     try {
-      result = await Promise.race([working, overruns(bound, cutoff)]);
+      result = await raced;
     } catch (e) {
       await settle({ kind: OUTCOME_UNKNOWN });
       void working.then(settle).catch(() => {});

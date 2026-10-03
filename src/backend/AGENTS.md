@@ -444,20 +444,31 @@ naming it too.
   visible token, 0 to 4433 reasoning tokens on the SAME photo — and that endpoint refuses to switch
   reasoning off, which is why the analyzer runs a model that does not reason and
   `EAIT__BACKEND__LLM_REASONING_EFFORT` ships `off`.
-- **A queued photo is the same turn, answered later** (ieat-app#1318). `POST /v1/meals/photo/queue`
-  answers 202 once the upload is in and runs `logPhotoMeal` under the `clientId`, which is the job
-  id: the outcome is the one `turns` keeps, and only the progress (`engine/photo-queue.ts`) is in
-  process. A restart loses the step; a job it killed is settled `OUTCOME_UNKNOWN` (retryable) the first time it is asked after boot (`bootedAt`), and SIGTERM stops accepting then waits for running jobs (`drainJobs`, up to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS`, 60 s; the deploy's stop grace period must exceed it) before closing. No resume: photo bytes are stored only after the analysis. A follower on `GET …/queue/:id` counts as
-  the app being open; the one push goes only when nobody was following.
+- **A queued photo is the same turn, answered later** (ieat-app#1318, #414). `POST /v1/meals/photo/queue`
+  answers 202 once `enqueueJob` has claimed the turn, written the `jobs` row and stored the photos
+  unadopted (`meal_photos.meal_id` null), in one transaction; the `clientId` is the job id and
+  `turns` keeps the outcome. Every replica runs a worker (`startJobs` in `engine/photo-queue.ts`):
+  a kinds-filtered `claimJob` under a 30 s lease heartbeated every 10 s, `EAIT__BACKEND__JOB_CONCURRENCY`
+  at once, the turn under `bounded()` (the body of `once` without the claim), progress and the
+  settle written fenced by the lease owner — a lost lease aborts the attempt and writes nothing
+  more. The meal adopts the job's photos in its insert's transaction (`landJobMeal`), which also
+  records `meal_id`. A dead worker's job re-runs once, a photo only while it has no meal (its
+  sample released); `expireJobs` settles `OUTCOME_UNKNOWN` what nobody can run, a kind no build
+  registers included, after `EAIT__BACKEND__JOB_MAX_QUEUED_MS`. SIGTERM stops claiming, waits up
+  to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS` (60 s; the deploy's stop grace period must exceed it) and
+  releases what is still running back to the queue. The single read, the follow stream (a re-read
+  every 500 ms until LISTEN/NOTIFY) and `GET /v1/jobs` read the row through one snapshot function;
+  `bootedAt` decides only a turn with NO job row. A follower heartbeats `followed_until`, and the
+  one push goes through `claimPush`, at most once and only when nobody was following.
 - **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
-  takes an ingredient edit (`editMeal`), a chat correction (`handleText` with `focusMealId`) or a re-read
-  (`reanalyzeMeal`) and runs it in `engine/photo-queue.ts` under the `clientId`, followed and removed on the
+  takes an ingredient edit (`editMeal`), a chat correction (`textTurn` with `focusMealId`) or a re-read
+  (`reanalyzeMeal`) and queues it as a `meal-update` job, followed and removed on the
   photo job's route in the same `PhotoJob`; `update` on a running job names its kind and step count (2, 3, 3).
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
-  builds call them. A restart settles a running update like a photo's (retryable).
-  `GET /v1/jobs` (#414 step 2) lists the caller's jobs in the same snapshots; until the durable table (step 4) it reads only the jobs running in this process, so a settled job is not listed.
+  builds call them. A dead worker's `ingredients` or `reread` re-runs once; a `note` never does (its
+  chat lines would repeat) and settles `OUTCOME_UNKNOWN`.
 - **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
-  evening line, the daily sweeps (health retention, turn outcomes, abandoned accounts, idle
+  evening line, the daily sweeps (health retention, turn outcomes, settled jobs, abandoned accounts, idle
   tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per
   process: `index.ts` contests `store.tryLeadership()` every 15 s, the lock is a session lock on
   its own connection so it dies with the holder, and a SIGTERM drains then releases rather than

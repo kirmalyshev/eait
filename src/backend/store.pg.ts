@@ -1162,10 +1162,13 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   removeJob: 0,
   settleJob: 0,
   claimPush: 0,
+  chargeJob: 0,
+  landJobMeal: 0,
   // They choose whose job runs, or sweep every account's, and read no content: the lease is the
   // only thing they decide on.
   claimJob: "unscoped",
   heartbeatJobs: "unscoped",
+  releaseJobs: "unscoped",
   expireJobs: "unscoped",
   forgetJobs: "unscoped",
   getTurn: 0,
@@ -2739,8 +2742,8 @@ export async function postgresStore(
           on conflict (user_id, client_id) do nothing returning client_id`;
         if (claimed.length === 0) return false;
         await tx`
-          insert into jobs (user_id, client_id, kind, request_version, request, created_at, updated_at)
-          values (${userId}, ${input.clientId}, ${input.kind}, ${input.requestVersion}, ${input.request},
+          insert into jobs (user_id, client_id, kind, request_version, request, step, created_at, updated_at)
+          values (${userId}, ${input.clientId}, ${input.kind}, ${input.requestVersion}, ${input.request}, ${input.step},
                   ${new Date(now())}, ${new Date(now())})`;
         for (const [i, p] of input.photos.entries()) {
           await tx`
@@ -2760,7 +2763,8 @@ export async function postgresStore(
     },
 
     async listJobs(userId, opts) {
-      const [cu, cc] = opts.cursor ? opts.cursor.split("|") : [null, null];
+      const bar = opts.cursor ? opts.cursor.indexOf("|") : -1;
+      const [cu, cc] = bar > 0 ? [opts.cursor!.slice(0, bar), opts.cursor!.slice(bar + 1)] : [null, null];
       const rows = await sql`
         select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
         where j.user_id = ${userId}
@@ -2823,7 +2827,40 @@ export async function postgresStore(
       return rows.length > 0;
     },
 
+    async chargeJob(userId, clientId, owner, analysisId) {
+      const rows = await sql`
+        update jobs set analysis_id = ${analysisId}
+        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
+        returning client_id`;
+      return rows.length > 0;
+    },
+
+    async landJobMeal(userId, clientId, owner, meal) {
+      const held = await sql`
+        update jobs set meal_id = ${meal.id}, updated_at = now()
+        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
+          and meal_id is null
+        returning client_id`;
+      if (held.length === 0) return false;
+      await methods.insertMeal(meal);
+      await sql`
+        update meal_photos set meal_id = ${meal.id}
+        where user_id = ${userId} and client_id = ${clientId} and meal_id is null`;
+      await sql`
+        update meals set photos = (select count(*) from meal_photos where meal_id = ${meal.id})
+        where id = ${meal.id} and user_id = ${userId}`;
+      return true;
+    },
+
+    async releaseJobs(owner) {
+      const rows = await sql`
+        update jobs set state = 'queued', lease_owner = null, lease_until = null, updated_at = now()
+        where lease_owner = ${owner} and state = 'running' returning client_id`;
+      return rows.length;
+    },
+
     async claimJob(owner, registry, leaseMs) {
+      if (registry.length === 0) return null;
       const rows = await sql`
         update jobs j
            set state = 'running', lease_owner = ${owner}, lease_until = now() + ${leaseMs} * interval '1 millisecond',

@@ -3527,7 +3527,7 @@ if (PG_URL) {
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
         "pruneHealthDaysBefore",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
-        "revokeToken", "upsertDeviceUser", "userIdForIdentity",
+        "releaseJobs", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken", "usersWithPushTokens",
       ]);
     });

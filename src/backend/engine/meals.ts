@@ -43,6 +43,8 @@ export interface LogPhotoInput {
   capturedAt?: string;
   /** When the request carrying the turn arrived; the queue leg's zero. Absent on calls whose turn came another way. */
   receivedAt?: number;
+  /** A queued job's run: its charge and its meal are written under `owner`'s lease, and `lost()` ends it when the lease is gone. */
+  job?: { owner: string; lost: () => Error };
 }
 
 /** Sum a day's meals. The single place totals are produced, so two views cannot disagree. */
@@ -118,6 +120,7 @@ export async function analyzePhotos(
   scope: "photo" | "clip" = "photo",
   /** When the request arrived — the queue leg's zero: `eaten` is hours old on a kept turn (#220). */
   receivedAt: number = Date.now(),
+  onCharged?: (analysisId: string) => Promise<void>,
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
@@ -137,6 +140,7 @@ export async function analyzePhotos(
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
   const { analysisId, onCost } = await charge(deps, userId, date, scope);
+  await onCharged?.(analysisId);
 
   const { targets } = explainTargets(profile);
 
@@ -246,13 +250,14 @@ export async function logPhotoMeal(
   return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, (d) => logPhotoTurn(d, userId, input, onEvent, onCounting));
 }
 
-async function logPhotoTurn(
+export async function logPhotoTurn(
   deps: EngineDeps,
   userId: string,
   input: LogPhotoInput,
   onEvent?: (event: PhotoEvent) => void,
   onCounting?: () => void,
 ): Promise<LogPhotoResult> {
+  const { job } = input;
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
 
@@ -265,7 +270,9 @@ async function logPhotoTurn(
 
   const read = await analyzePhotos(deps, userId, profile, today,
     () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten,
-    "photo", input.receivedAt);
+    "photo", input.receivedAt, job && (async (id) => {
+      if (!(await deps.store.chargeJob(userId, input.clientId!, job.owner, id))) throw job.lost();
+    }));
   if (read.kind !== "read") return read;
   onCounting?.();
   const { analysis, images, analysisId } = read;
@@ -289,12 +296,18 @@ async function logPhotoTurn(
     // past every condition `mayAsk` just applied.
     question,
   };
-  await deps.store.insertMeal(record);
-  // Stored AFTER the meal is inserted and never for a refused or failed turn — there is no row for
-  // those to belong to. A store failure is a log line, not a failed turn: the meal is logged and the
-  // user has their card, the same rule the thread write follows.
-  const stored = await deps.store.putPhotos(userId, record.id, images.map((b) => ({ mime: imageMime(b)!, bytes: b })))
-    .then(() => true, (e: unknown) => { console.error(`[eait] photos not stored: ${(e as Error)?.message ?? e}`); return false; });
+  let stored = true;
+  if (job) {
+    // A queued photo's bytes are already stored: the meal adopts them in its own insert's transaction.
+    if (!(await deps.store.landJobMeal(userId, input.clientId!, job.owner, record))) throw job.lost();
+  } else {
+    await deps.store.insertMeal(record);
+    // Stored AFTER the meal is inserted and never for a refused or failed turn — there is no row for
+    // those to belong to. A store failure is a log line, not a failed turn: the meal is logged and the
+    // user has their card, the same rule the thread write follows.
+    stored = await deps.store.putPhotos(userId, record.id, images.map((b) => ({ mime: imageMime(b)!, bytes: b })))
+      .then(() => true, (e: unknown) => { console.error(`[eait] photos not stored: ${(e as Error)?.message ?? e}`); return false; });
+  }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
   // The bubble names the meal; the bytes are fetched through the scoped route, never carried in a
