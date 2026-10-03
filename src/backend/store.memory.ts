@@ -219,10 +219,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const asRecord = ({ photos: _photos, ...j }: JobRecord & { photos: unknown }): JobRecord => ({
     ...clone(j), outcome: turns.get(`${j.userId}\n${j.clientId}`)?.outcome ?? null,
   });
+  // `onJobNotify`'s twin: delivered after the write, as Postgres delivers on commit.
+  const listeners = new Set<{ job: (userId: string, clientId: string) => void; enqueued: () => void }>();
+  const notifyJob = (userId: string, clientId: string) =>
+    queueMicrotask(() => { for (const l of listeners) l.job(userId, clientId); });
+  const notifyEnqueued = () => queueMicrotask(() => { for (const l of listeners) l.enqueued(); });
   const settle = (j: JobRecord & { photos: unknown[] }, outcome: object) => {
     j.state = "settled"; j.leaseOwner = null; j.leaseUntil = null; j.updatedAt = now(); j.photos = [];
     const t = turns.get(`${j.userId}\n${j.clientId}`);
     if (t) t.outcome = clone(outcome);
+    notifyJob(j.userId, j.clientId);
   };
 
   /**
@@ -1314,6 +1320,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         removedAt: null, followedUntil: null, pushedAt: null, createdAt: now(), updatedAt: now(), outcome: null,
         photos: input.photos.map((p) => ({ mime: p.mime, bytes: new Uint8Array(p.bytes) })),
       });
+      notifyEnqueued();
       return true;
     },
 
@@ -1345,6 +1352,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const j = jobs.get(`${userId}\n${clientId}`);
       if (!j || j.leaseOwner !== owner || j.state !== "running") return false;
       j.step = step; j.items = clone(items); j.updatedAt = now();
+      notifyJob(userId, clientId);
       return true;
     },
 
@@ -1357,6 +1365,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const j = jobs.get(`${userId}\n${clientId}`);
       if (!j || j.state === "settled") return false;
       j.removedAt = now(); j.updatedAt = now();
+      notifyJob(userId, clientId);
       return true;
     },
 
@@ -1399,6 +1408,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (j.leaseOwner !== owner || j.state !== "running") continue;
         j.state = "queued"; j.leaseOwner = null; j.leaseUntil = null; j.updatedAt = now(); n++;
       }
+      if (n > 0) notifyEnqueued();
       return n;
     },
 
@@ -1501,6 +1511,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
     async releaseLeadership() {},
 
-    async close() {},
+    async onJobNotify(handlers) {
+      const l = { ...handlers };
+      listeners.add(l);
+      return async () => { listeners.delete(l); };
+    },
+
+    async close() {
+      listeners.clear();
+    },
   };
 }

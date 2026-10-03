@@ -1084,6 +1084,10 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   tryLeadership: "raw",
   releaseLeadership: "raw",
   close: "raw",
+  // A LISTEN on its own connection: it reads no row, and a transaction around it would hold a
+  // pooled connection for nothing. The payload names a user, so the engine routes it only to that
+  // user's followers, and they re-read through the scoped `getJob`.
+  onJobNotify: "raw",
 
   // ── Everything else names its user, and almost always first.
   issueToken: 0,
@@ -1385,6 +1389,8 @@ export async function postgresStore(
   let elector: SQL | null = null;
   let leaderHeld = false;
   const electorSql = (): SQL => (elector ??= new SQL(databaseUrl, { max: 1 }));
+  // `pool.listen` opens its own dedicated connection; ended here by `close` before the pool.
+  const listening = new Set<SQL.ListenSubscription>();
 
   // Declared before the store object so the prompt sync below can be the LAST thing this
   // function does — and wrapped before that, so the sync goes through a scoped store like
@@ -2801,6 +2807,7 @@ export async function postgresStore(
       const rows = await sql`
         update jobs set removed_at = now(), updated_at = now()
         where user_id = ${userId} and client_id = ${clientId} and state <> 'settled' returning client_id`;
+      if (rows.length > 0) await sql`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
       return rows.length > 0;
     },
 
@@ -2856,6 +2863,7 @@ export async function postgresStore(
       const rows = await sql`
         update jobs set state = 'queued', lease_owner = null, lease_until = null, updated_at = now()
         where lease_owner = ${owner} and state = 'running' returning client_id`;
+      if (rows.length > 0) await sql`select pg_notify('eait_jobs', '')`;
       return rows.length;
     },
 
@@ -2896,6 +2904,7 @@ export async function postgresStore(
         for (const r of rows as { user_id: string; client_id: string }[]) {
           await tx`update turns set outcome = ${outcome} where user_id = ${r.user_id} and client_id = ${r.client_id}`;
           await tx`delete from meal_photos where user_id = ${r.user_id} and client_id = ${r.client_id} and meal_id is null`;
+          await tx`select pg_notify('eait_job', ${`${r.user_id}:${r.client_id}`})`;
         }
         return (rows as { user_id: string; client_id: string }[]).map((r) => ({ userId: r.user_id, clientId: r.client_id }));
       });
@@ -3022,7 +3031,31 @@ export async function postgresStore(
       await e?.end().catch(() => {});
     },
 
+    async onJobNotify(handlers) {
+      const subs: SQL.ListenSubscription[] = [];
+      const add = async (channel: string, fn: (payload: string) => void) => {
+        const s = await pool.listen(channel, fn);
+        subs.push(s);
+        listening.add(s);
+      };
+      try {
+        await add("eait_job", (key) => {
+          const i = key.indexOf(":");
+          if (i > 0) handlers.job(key.slice(0, i), key.slice(i + 1));
+        });
+        await add("eait_jobs", () => handlers.enqueued());
+      } catch (e) {
+        for (const s of subs) { listening.delete(s); await s.unlisten().catch(() => {}); }
+        throw e;
+      }
+      return async () => {
+        for (const s of subs) { listening.delete(s); await s.unlisten().catch(() => {}); }
+      };
+    },
+
     async close() {
+      for (const s of listening) await s.unlisten().catch(() => {});
+      listening.clear();
       leaderHeld = false;
       const e = elector;
       elector = null;

@@ -1254,6 +1254,14 @@ export interface Store {
   expireJobs(createdBefore: number, outcome: object): Promise<{ userId: string; clientId: string }[]>;
   /** The daily sweep: settled jobs last updated before `before`, and unadopted photos older than that. */
   forgetJobs(before: number): Promise<number>;
+  /**
+   * Job notifications for this replica: `job` when that job's row changed (progress, settle,
+   * remove, expiry), `enqueued` when there may be a job to claim. Keys only, never content — a
+   * reader re-reads through the scoped `getJob`. In Postgres it is `LISTEN eait_job` / `eait_jobs`
+   * on one dedicated connection that reconnects by itself and can miss a notification while it
+   * does, so every reader also polls. Resolves with the unsubscribe.
+   */
+  onJobNotify(handlers: { job: (userId: string, clientId: string) => void; enqueued: () => void }): Promise<() => Promise<void>>;
 
   // ── Health ─────────────────────────────────────────────────────────────────────────────────
   //
