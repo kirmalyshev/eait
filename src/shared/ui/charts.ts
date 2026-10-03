@@ -316,15 +316,14 @@ const W_TREND_WEEKLY_SPAN_DAYS = 120;
  * the 7 days up to it, so the line follows where the weight is going rather than every day's
  * noise. `t` is epoch ms or a day index — the constants are days, scaled by whichever the caller
  * sent (a day index is never a billion; an epoch-ms reading always is). Sparse logs come through
- * untouched — a window holding one reading returns it — and the endpoints keep their dates, so
- * the line still runs first weigh-in to last. The labels at the ends name what the line ends ON
- * (`firstValue`/`lastValue`), never the raw readings; the card's big figure stays the latest
- * weigh-in, which the callers hold separately.
+ * untouched — a window holding one reading returns it — and the endpoints are the real first and
+ * last weigh-ins (#1282), not means, so the line runs first weigh-in to last and the labels at the
+ * ends (`firstValue`/`lastValue`) agree with the card's headline, the latest weigh-in.
  *
  * A rolling mean smooths without thinning: a daily log stays one point a day, and past
  * `W_TREND_MAX_POINTS` the frame cannot carry them — so a crowded series is sampled back to a
  * weekly step on a ~4-month span or shorter (the 90D segment) and a monthly one past it (6M, 1Y,
- * the whole log), each kept point still the trailing mean at its own date, the ends pinned.
+ * the whole log), each kept middle point still the trailing mean at its own date, the ends the real weigh-ins.
  */
 function weightTrend(points: readonly WeightPoint[]): WeightPoint[] {
   if (points.length < 3) return [...points];
@@ -338,6 +337,10 @@ function weightTrend(points: readonly WeightPoint[]): WeightPoint[] {
     }
     return { t: p.t, kg: sum / n };
   });
+  // The ends are the real first and last weigh-ins (#1282): the line, its end labels and the
+  // card's headline then agree. A mean there climbed to 93 while the label said 76.3.
+  mean[0] = points[0]!;
+  mean[mean.length - 1] = points[points.length - 1]!;
   if (mean.length <= W_TREND_MAX_POINTS) return mean;
   const step = ((mean[mean.length - 1]!.t - mean[0]!.t) / day <= W_TREND_WEEKLY_SPAN_DAYS
     ? 7 : 30) * day;

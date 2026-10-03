@@ -221,14 +221,14 @@ describe("weightChart — logged weights over the day axis", () => {
     const c = weightChart(persona);
     expect(c.viewBox).toBe("0 0 320 112");
     // The drawn points are the TREND's (#1114): the trailing 7-day mean at each weigh-in's date —
-    // 74.3 at t17 (74.4 and 74.2), 73.7 at the end (74.0 and 73.4) — not the raw samples.
-    expect(c.path).toBe("M20 31 L123 40 L179 45 L273 59 L310 73");
+    // 74.3 at t17 (74.4 and 74.2) — but the ends are the real weigh-ins (#1282): 73.4, not 73.7.
+    expect(c.path).toBe("M20 31 L123 40 L179 45 L273 59 L310 86");
     expect(c.points).toEqual([
       { x: 20, y: 31 },
       { x: 123, y: 40 },
       { x: 179, y: 45 },
       { x: 273, y: 59 },
-      { x: 310, y: 73 },
+      { x: 310, y: 86 },
     ]);
   });
 
@@ -236,7 +236,7 @@ describe("weightChart — logged weights over the day axis", () => {
     const c = weightChart(persona);
     expect(c.gridlines).toEqual([22, 58, 94]);
     expect(c.firstLabel).toEqual({ x: 20, y: 14 });
-    expect(c.lastLabel).toEqual({ x: 300, y: 87 });
+    expect(c.lastLabel).toEqual({ x: 300, y: 100 });
     expect(c.dateLabelY).toBe(110);
   });
 
@@ -486,16 +486,16 @@ describe("bodyWeightChart — the Body screen's weigh-in line", () => {
 
   test("the board's frame and the persona's five dots", () => {
     expect(c.viewBox).toBe("0 0 340 130");
-    // The same trend the Progress card draws (#1114): 74.3 at t17, 73.7 at the end.
+    // The same trend the Progress card draws (#1114): 74.3 at t17, the real 73.4 at the end (#1282).
     expect(c.points).toEqual([
-      { x: 20, y: 30 }, { x: 126, y: 40 }, { x: 185, y: 45 }, { x: 281, y: 60 }, { x: 320, y: 75 },
+      { x: 20, y: 30 }, { x: 126, y: 40 }, { x: 185, y: 45 }, { x: 281, y: 60 }, { x: 320, y: 90 },
     ]);
-    expect(c.path).toBe("M20 30 L126 40 L185 45 L281 60 L320 75");
+    expect(c.path).toBe("M20 30 L126 40 L185 45 L281 60 L320 90");
   });
 
   test("the first and last value labels and the date row sit where the board puts them", () => {
     expect(c.firstLabel).toEqual({ x: 20, y: 18 });
-    expect(c.lastLabel).toEqual({ x: 310, y: 87 });
+    expect(c.lastLabel).toEqual({ x: 310, y: 102 });
     expect(c.dateLabelY).toBe(128);
     expect(c.dateLabelX).toEqual({ start: 20, end: 320 });
   });
