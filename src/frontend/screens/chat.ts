@@ -507,6 +507,7 @@ export async function chatScreen(): Promise<HTMLElement> {
   /** Send her turn. A refusal stays HER bubble (#1520): kept held, the reason drawn on it with
       Delete, and her words never go back to the field. */
   const sendHers = async (entry: Parameters<typeof sendOrKeep>[0]): Promise<string | void> => {
+    readerUp = null; // her own send lands her on the newest line (Telegram's rule)
     try {
       return await sendOrKeep(entry, { onResult: rememberLive });
     } catch (err) {
