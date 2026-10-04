@@ -503,6 +503,73 @@ export const optionRow = (o: {
   return `<${tag} class="opt${o.selected ? " sel" : ""}"${attrs}>${lead}<span class="ot">${esc(o.text)}</span>${tail}</${tag}>`;
 };
 
+// ── The pay plans ────────────────────────────────────────────────────────────────────────────
+//
+// pay-plans' plan rows (W9 · #263): Yearly first and preselected, its trial badge under the
+// name; Monthly under it. ONE builder for the surfaces that draw them — `/start` interpolates
+// it inside a real `<form action="/start/checkout">`, so the checked radio submits `?plan=`
+// with no script at all; the app parses it (`kitEl`) and reads the same checked input to point
+// its CTA at the chosen plan's own checkoutUrl. The input is a REAL radio because it must work
+// on a page with no JavaScript, and the selected card is `.plan:has(input:checked)` in CSS —
+// never a class a handler maintains.
+//
+// The words and figures are the caller's — the pay copy table's `planYearly`, `trialBadge`,
+// `pricePerYear` and `pricePerMonth`, filled with the display strings `WebPaywall` carries —
+// and `ui/` may not import the table or the paywall's types, so the builder takes plain
+// strings like every other component.
+
+export interface PayPlanRow {
+  /** The radio's value — what `/start/checkout?plan=` receives ("yearly", "monthly"). */
+  value: string;
+  /** The plan's name. */
+  name: string;
+  /** The trial badge's filled words, or null when the plan carries none. */
+  badge?: string | null;
+  /** The line under the name — the period's own price ("€39.99 a year"), or null. */
+  line?: string | null;
+  /** The right-hand figure — the per-month price. */
+  price: string;
+  /** The preselected row — the boards' Yearly. */
+  checked?: boolean;
+}
+
+export const payPlan = (o: PayPlanRow): string =>
+  `<label class="plan rise${o.checked ? " sel" : ""}">` +
+  `<input type="radio" name="plan" value="${esc(o.value)}"${o.checked ? " checked" : ""}>` +
+  `<span class="ck" aria-hidden="true"></span><span><b>${esc(o.name)}</b>` +
+  `${o.badge ? `<span class="free">${esc(o.badge)}</span>` : ""}` +
+  `${o.line ? `<small class="num">${esc(o.line)}</small>` : ""}</span>` +
+  `<span class="pr num">${esc(o.price)}</span></label>`;
+
+/** The rows as one radio group — `label` is its accessible name. */
+export const payPlans = (rows: readonly PayPlanRow[], label: string): string =>
+  `<div class="plans" role="radiogroup" aria-label="${esc(label)}">` +
+  rows.map(payPlan).join("") + `</div>`;
+
+/**
+ * The plans' rules, emitted once and interpolated by every surface that draws them — `kitCss()`
+ * includes it for the app, and `/start`'s STYLES interpolates the same string. Radii arrive as
+ * literals, not `var(--r-card)`: the onboarding pages' `:root` does not carry the kit's tokens.
+ */
+export const payCss = (): string => `
+.plans{display:flex;flex-direction:column;gap:12px}
+.plan{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:${RADIUS.card}px;
+  padding:16px 18px;outline:1px solid var(--hair);outline-offset:-1px;cursor:pointer;position:relative}
+.plan input[type=radio]{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.plan.sel,.plan:has(>input:checked){outline:2px solid var(--ink);outline-offset:-2px}
+.plan .ck{width:22px;height:22px;flex:0 0 22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line);
+  position:relative}
+.plan.sel .ck,.plan:has(>input:checked) .ck{background:var(--accent);box-shadow:none}
+.plan.sel .ck::after,.plan:has(>input:checked) .ck::after{content:"";position:absolute;left:7px;top:3px;
+  width:6px;height:11px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.plan b{font-size:17px;font-weight:600}
+.plan small{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-top:2px}
+.plan .pr{margin-left:auto;text-align:right;font-size:15px;font-weight:600;white-space:nowrap}
+.plan .free{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-tint);
+  border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:2px}
+.plan:focus-within{outline:2px solid var(--ink);outline-offset:-2px}
+`;
+
 // ── The kit's rules ──────────────────────────────────────────────────────────────────────────
 //
 // `pro.css`'s rules for these components, token by token, minus the inline styles the CSP forbids
@@ -737,5 +804,6 @@ ${Array.from({ length: 7 }, (_, i) => `.pgraph.wb rect.rd-${i}{animation-delay:$
   box-shadow:0 0 0 1px var(--hair);font-size:14px;font-weight:600}
 .ing span{color:var(--muted);font-weight:500;white-space:nowrap}
 .ing b{margin-left:auto;font-variant-numeric:tabular-nums}
+${payCss()}
 `;
 }
