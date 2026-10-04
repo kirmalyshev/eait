@@ -853,7 +853,7 @@ export async function render(): Promise<void> {
  * The wiring the page lives by: the outbox's events to the screen's redraw, the connection coming
  * back to the flush, the hash to the renderer. Called once, from `main.ts`.
  */
-export function start(): void {
+export function start(): Promise<void> {
   outbox.subscribe((event) => {
     if (event?.kind === "sent") answered(event.result);
     if (event !== undefined) void redraw?.().catch(() => {});
@@ -875,5 +875,5 @@ export function start(): void {
 
   // The session cookie is HttpOnly, so "am I signed in" is a question only the server can answer.
   // Asking once at boot is what turns a page load into a session.
-  signIn().catch(() => {}).finally(() => { void render(); });
+  return signIn().catch(() => {}).finally(() => { void render(); });
 }

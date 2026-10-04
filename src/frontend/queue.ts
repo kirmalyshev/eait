@@ -7,8 +7,8 @@ import { mealCopyFor } from "../shared/app/meal-copy.ts";
 import { UNIT_KCAL, kcalNumbers } from "../shared/lang.ts";
 import type { MealItem, MealRecord } from "@eait/shared";
 import { MEAL_UPDATE_STEPS } from "../shared/contract.ts";
-import type { DayResponse, MealUpdateKind, MealUpdateBody, MealUpdateLast, PhotoJob, PhotoLast } from "@eait/shared/contract";
-import { ApiError, api, apiBlob, apiStream } from "./api.ts";
+import type { DayResponse, JobsResponse, MealUpdateKind, MealUpdateBody, MealUpdateLast, PhotoJob, PhotoLast } from "@eait/shared/contract";
+import { ApiError, api, apiBlob, apiStream, signedIn } from "./api.ts";
 import { fillCopy as fill } from "./copy.ts";
 import { blobSrc } from "./kit.ts";
 import { el, lang, names, redrawScreen, refusalWords } from "./shell.ts";
@@ -21,7 +21,8 @@ interface Update {
   kind: MealUpdateKind;
   mealId: string;
   steps: number;
-  body: MealUpdateBody;
+  /** What Try again sends; null on a job restored from the server, which has nothing to send again. */
+  body: MealUpdateBody | null;
   name: string;
   kcal: number;
   /** The grams typed for one ingredient, so a failed save can bring them back. */
@@ -51,7 +52,7 @@ interface Job {
   update: Update | null;
 }
 
-// ponytail: rows live in this tab; the server finishes a closed tab's photo and it lands as a meal.
+// Rows live in this tab; a reload gets the server's running jobs back through `restoreJobs`.
 let jobs: Job[] = [];
 const views = new Set<() => void>();
 const changed = () => { for (const v of views) v(); };
@@ -101,22 +102,50 @@ export function enqueueUpdate(meal: MealRecord, body: MealUpdateBody, grams?: { 
     update: { kind: body.kind, mealId: meal.id, steps: MEAL_UPDATE_STEPS[body.kind], body, name: names(meal.items), kcal: meal.kcal, ...(grams ? { grams } : {}) },
   };
   jobs = [job, ...jobs];
-  if ((meal.photos ?? 0) > 0) {
-    void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then(blobSrc).then((src) => { job.thumb = src; changed(); }).catch(() => {});
-  }
+  thumbOf(job, meal);
   changed();
   redrawScreen();
   void run(job);
 }
 
+const thumbOf = (job: Job, meal: MealRecord): void => {
+  if ((meal.photos ?? 0) === 0) return;
+  void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then(blobSrc).then((src) => { job.thumb = src; changed(); }).catch(() => {});
+};
+
+/**
+ * The caller's running jobs that this tab does not hold — a reload, another tab, the phone — as rows
+ * that follow like any other (eait#414). A restored row has no photo bytes and no body to send again.
+ */
+export async function restoreJobs(): Promise<void> {
+  if (!signedIn()) return;
+  const res = await api<JobsResponse>(`/jobs?state=active`).catch(() => null);
+  const found = (res?.jobs ?? []).flatMap((e): Job[] => {
+    if (e.state.kind !== "running" || jobs.some((j) => j.id === e.jobId)) return [];
+    const s = e.state;
+    return [{
+      id: e.jobId, photos: [], thumb: "", capturedAt: e.createdAt,
+      step: s.step, line: s.line, items: s.items, state: "reading", words: null, mealId: null, kcal: null, flyFrom: null,
+      update: s.update ? { ...s.update, body: null, name: "", kcal: 0 } : null,
+    }];
+  });
+  if (found.length === 0) return;
+  jobs = [...found, ...jobs];
+  changed();
+  redrawScreen();
+  for (const j of found) void follow(j);
+}
+
 
 /** A meal's row that turns into its queued row in place while it has a job, and back to `plain()` when it has none. */
-export function inPlace(mealId: string, plain: () => Element): HTMLElement {
+export function inPlace(meal: MealRecord, plain: () => Element): HTMLElement {
   const slot = el("div", "uslot");
   let shown: "plain" | "job" | null = null;
   const draw = () => {
     if (!slot.isConnected && shown !== null) { views.delete(draw); return; }
-    const job = updateFor(mealId);
+    const job = updateFor(meal.id);
+    // A restored job learns its meal's name, kcal and photo from the row it stands in.
+    if (job?.update?.name === "") { Object.assign(job.update, { name: names(meal.items), kcal: meal.kcal }); thumbOf(job, meal); }
     if (job === undefined && shown === "plain") return;
     slot.replaceChildren(job !== undefined ? updateRowEl(job) : plain());
     shown = job !== undefined ? "job" : "plain";
@@ -382,13 +411,13 @@ export function updateRowEl(job: Job): HTMLElement {
   const button = (text: string, on: () => void) => { const b = el("button", "", text); b.addEventListener("click", on); act.append(b); };
   // Edit brings what was sent back in its own field, for a refusal as well as a failure.
   const edit = (): void => {
-    if (u.body.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
+    if (u.body?.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
     if (u.grams) sentGrams = { mealId: u.mealId, ...u.grams };
     drop(job);
     const to = u.kind === "note" ? "?fix" : u.grams ? `?item=${u.grams.index}` : "";
     location.hash = `#/meal/${encodeURIComponent(u.mealId)}${to}`;
   };
-  if (failed) button(homeCopyFor(lang).tryAgain, () => retry(job));
+  if (failed && u.body !== null) button(homeCopyFor(lang).tryAgain, () => retry(job));
   if (u.kind !== "reread" && (failed || u.kind === "note" || u.grams)) button(mealCopyFor(lang).phoneEdit, edit);
   if (failed) button(U.discard, () => { drop(job); redrawScreen(); });
   else button(U.ok, () => { drop(job); redrawScreen(); });
@@ -402,13 +431,17 @@ function rowEl(job: Job): HTMLElement {
   // The landing row arrives `qnew`, photo hidden until the flyer lands; any other row keeps `rise`.
   const row = el("div", `meal q ${job.flyFrom ? "qnew" : "rise"}`);
   const th = el("div", "qth");
-  const img = document.createElement("img");
-  img.src = job.thumb;
-  img.alt = "";
-  if (job.flyFrom) img.style.opacity = "0";
+  // A restored row has no photo bytes here: the veil alone, no broken image.
+  if (job.thumb !== "") {
+    const img = document.createElement("img");
+    img.src = job.thumb;
+    img.alt = "";
+    if (job.flyFrom) img.style.opacity = "0";
+    th.append(img);
+  }
   const veil = el("i", "veil");
   veil.style.background = `rgba(23,25,28,${job.state === "refused" || job.state === "failed" ? ".55" : job.state === "question" ? ".35" : ".45"})`;
-  th.append(img, veil);
+  th.append(veil);
   const mm = el("div", "mm");
   const step = (text: string, still = false, ink = false) => el("span", `qstep${still ? " still" : ""}${ink ? " ink" : ""}`, text);
   const actions = (first: string, act: () => void): HTMLElement => {
@@ -462,7 +495,7 @@ function rowEl(job: Job): HTMLElement {
   mm.append(
     el("b", "", refused ? Q.notMeal : Q.unread),
     step(job.words !== null && !refused ? job.words : Q.nothingCounted, true, true),
-    refused
+    refused || job.photos.length === 0
       ? actions(Q.retake, () => { remove(job); location.hash = "#/log"; })
       : actions(homeCopyFor(lang).tryAgain, () => retry(job)),
   );
