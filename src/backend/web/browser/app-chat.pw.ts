@@ -20,7 +20,7 @@ const ASK = "What did you eat?";
 
 test("first open draws Spud's greeting and the three starters, in the struggles' order", async ({ inWebApp: page }) => {
   // An empty stored thread is the boards' `chat-empty`: the greeting is her first AND newest line.
-  await expect(page.locator(".thread .say .gname")).toHaveText("Spud");
+  await expect(page.locator(".thread .gname")).toHaveCount(0);
   await expect(page.locator(".thread")).toContainText("Tell me what you ate, or ask me anything.");
   await expect(page.locator(".thread .spud")).toHaveCount(1);
   const starters = page.locator(".opts .opt .ot");
@@ -84,8 +84,8 @@ test("a meal in words is proposed first, and Log it puts it in the thread", asyn
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
   // The card, by its own shape — name, the d22 kcal, and the verdict dots under the hairline.
-  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
-  await expect(page.locator(".thread li.them .card .vs")).toBeVisible();
+  await expect(page.locator(".thread li.me .card")).toContainText("kcal");
+  await expect(page.locator(".thread li.me .card .vs")).toBeVisible();
   // And it LANDED: Today reads one meal, carrying the server's own verdicts (#158).
   const day = await page.request.get("/api/v1/diary/day", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
@@ -103,7 +103,7 @@ test("a proposal's No resolves the card and logs nothing", async ({ inWebApp: pa
   await expect(page.locator(".prop")).toHaveCount(0);
   // Nothing was logged: no meal card in the thread, and the day — the server's own answer, not
   // the drawn one — stays empty.
-  await expect(page.locator(".thread li.them .card")).toHaveCount(0);
+  await expect(page.locator(".thread li.me .card")).toHaveCount(0);
   const day = await page.request.get("/api/v1/diary/day", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
   });
@@ -192,8 +192,8 @@ test("a spent day, refused in the stream, is a sentence and logs nothing", async
   await page.getByRole("button", { name: "Send the photo" }).click();
   // LOG_COPY's wording since #231 — the same refusal the phone would read.
   await expect(page.locator(".notice")).toHaveText("Your daily allowance is spent. It resets at midnight — chat still works.");
-  // Refused, so the words stay for when it is allowed again.
-  await expect(page.getByPlaceholder(ASK)).toHaveValue("second lunch");
+  // Refused: kept on her bubble (#1520), so the field is free.
+  await expect(page.getByPlaceholder(ASK)).toHaveValue("");
 });
 
 test("a spent sample says where to subscribe, and keeps the words", async ({ inWebApp: page }) => {
@@ -207,7 +207,7 @@ test("a spent sample says where to subscribe, and keeps the words", async ({ inW
   await expect(page.locator(".notice")).toHaveText(
     "This account's free sample is used up. Start your free week to carry on.",
   );
-  await expect(words).toHaveValue("a banana");
+  await expect(words).toHaveValue("");
 });
 
 test("a proposal the server no longer holds stops offering Log it", async ({ inWebApp: page }) => {
@@ -232,7 +232,7 @@ test("a held proposal survives a reload, and Log it still logs it (#530)", async
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
+  await expect(page.locator(".thread li.me .card")).toContainText("kcal");
 });
 
 test("dropping a proposal the server no longer holds is what was asked, and says nothing", async ({ inWebApp: page }) => {
@@ -255,11 +255,9 @@ test("a turn whose answer never arrived keeps the photo and offers Send again", 
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".notice")).toHaveText(KEPT);
-  await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
-  await expect(page.locator(".thread li.me.dim .hero")).toBeVisible();
-  await expect(page.locator(".thread li.them")).toContainText("Couldn't reach eait.");
-  await expect(page.locator(".thread li.them")).toContainText("Nothing was logged.");
-  await expect(page.getByRole("button", { name: "Send again" })).toBeVisible();
+  await expect(page.locator(".thread li.me.pending")).toHaveCount(1);
+  await expect(page.locator(".thread li.me.pending .hero")).toBeVisible();
+  await expect(page.locator(".thread li.me.pending")).toContainText("Waiting to send");
 });
 
 test("Send again re-sends the kept photo, and the meal is logged exactly once", async ({ inWebApp: page }) => {
@@ -273,16 +271,17 @@ test("Send again re-sends the kept photo, and the meal is logged exactly once", 
   await page.route("**/api/v1/meals/photo", (r) => (++posts <= 2 ? r.abort("connectionreset") : r.fallback()));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".thread li.me.dim")).toHaveCount(1);
+  await expect(page.locator(".thread li.me.pending")).toHaveCount(1);
   // A kept turn goes again on its own the moment it is kept — the second refusal is that retry
   // landing, not this press. Wait for it, or Send again's own send can be the one still refused.
   await expect.poll(() => posts).toBe(2);
   // force: the kept line is still rising when it can be pressed, and the outbox's own redraw
   // swaps the node under the click — the tap is the point, the stagger is decoration.
-  await page.getByRole("button", { name: "Send again" }).click({ force: true });
-  await expect(page.locator(".thread li.me.dim")).toHaveCount(0);
-  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
-  await expect(page.locator(".thread li.them .card")).toHaveCount(1);
+  // Pending re-sends on its own (#1520): the drain's own trigger, not a button.
+  await page.evaluate("dispatchEvent(new Event(\"online\"))");
+  await expect(page.locator(".thread li.me.pending")).toHaveCount(0);
+  await expect(page.locator(".thread li.me .card")).toContainText("kcal");
+  await expect(page.locator(".thread li.me .card")).toHaveCount(1);
 });
 
 test("a thread that cannot be loaded says so, and Try again asks again", async ({ inWebApp: page }) => {
@@ -292,7 +291,7 @@ test("a thread that cannot be loaded says so, and Try again asks again", async (
   await page.reload();
   await expect(page.locator(".chatfail")).toBeVisible();
   await expect(page.locator(".chatfail")).toContainText("Couldn't load the conversation.");
-  await expect(page.locator(".chatfail .gname")).toHaveText("Spud");
+  await expect(page.locator(".chatfail .gname")).toHaveCount(0);
   await page.unroute("**/api/v1/messages?*");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.locator(".chatfail")).toHaveCount(0);
@@ -326,7 +325,7 @@ test("a Log it whose answer never arrived keeps the card, because pressing it ag
   await page.getByRole("button", { name: "Log it" }).click();
   // Pressed twice, logged once, and nothing left to say.
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li.them .card")).toContainText("kcal");
+  await expect(page.locator(".thread li.me .card")).toContainText("kcal");
   await expect(page.locator(".notice")).toBeHidden();
 });
 

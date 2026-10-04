@@ -9,9 +9,10 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
-import { outcomeUnknown } from "../../shared/results.ts";
+import { keptState } from "../../shared/results.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
@@ -20,8 +21,8 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { blobSrc, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, spudAvatarEl, verdictListEl } from "../kit.ts";
-import { outbox } from "../outbox.ts";
+import { blobSrc, gramMacsEl, optionRowEl, ctaEl, spudAvatarEl, verdictListEl } from "../kit.ts";
+import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
@@ -32,11 +33,22 @@ import {
 
 const copy = () => chatScreenCopyFor(lang);
 
+/**
+ * "No" on her proposal, as the stored page carries it: her line made a proposal (`pendingId`) and
+ * the next line is his text, not the meal's card — the engine's "Dropped it.". Read off the shape,
+ * not the words, so the browser bundle stays clear of the i18n stack.
+ */
+const declined = (line: ChatEntry | undefined, next: ChatEntry | undefined): boolean =>
+  line !== undefined && line.role === "user" && line.kind === "text" && line.pendingId !== null &&
+  next !== undefined && next.role === "assistant" && next.kind === "text";
+
 // The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
 // wrote: the stored entry keeps only the words, so the answer's own result carries them until a
 // newer turn retires them. Matched onto the newest assistant line of the same words.
 // Module-scoped so it outlives the screen: coming back from another tab keeps them (#1229).
 let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
+/** A reader up in older lines (`chat-latest`): where each scroller stood, and how many rows she had seen. */
+let readerUp: { tops: number[]; seen: number } | null = null;
 
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -101,75 +113,90 @@ export async function chatScreen(): Promise<HTMLElement> {
     const heldTimedOut = held !== null && Date.parse(held.expiresAt) <= Date.now();
 
     const list = el("ul", "thread");
-    // The coach's presence, the boards' rule: his name line above his FIRST line, his disc beside his
-    // NEWEST — a run of his lines keeps one face, and a kept turn's error line is a line of his too.
-    const gabieLine = (e: ChatEntry): boolean => e.role === "assistant" && e.kind === "text" && e.speaker === "gabie";
-    const firstGabie = entries.findIndex(gabieLine);
-    const lastGabie = entries.findLastIndex(gabieLine);
-    // A kept turn's error block — and the focus sheet's opener say — are lines of hers too: when
-    // either stands, the LAST drawn one is where her disc lands.
-    const avatarAt = focusMeal !== null || keptLines.length > 0 ? -2 : lastGabie;
-
+    // #1520, Telegram's thread: HER bubble carries what happened to her send — the meal it logged,
+    // the proposal it made, the refusal or failure it met — and Spud's lines are his bubbles. The
+    // grouping (2/8 px, inner corners, his face and the tail on a run's last line) is the CSS's,
+    // off the siblings; this loop only decides what each bubble holds.
+    let lastMe: HTMLElement | null = null;
     let idx = 0;
     for (const [i, entry] of entries.entries()) {
       if (entry.role === "user") {
         const li = el("li", `me${entry.kind === "photo" ? " pic" : ""}${rise(entry.id, idx++)}`);
         if (entry.kind === "photo") {
           const hero = el("div", "hero");
-          hero.append(el("div", "stamp", timeFmt(new Date(entry.ts))));
-          list.append(li);
-          li.prepend(hero);
+          li.append(hero);
           if (entry.mealId !== null) photoInto(hero, entry.mealId);
           if (entry.text !== null) li.append(el("p", "cap", entry.text));
         } else {
-          li.append(entry.text, el("div", "ts", timeFmt(new Date(entry.ts))));
+          li.append(el("p", "said", entry.text));
         }
+        // The meal her send logged rides IN her bubble, its time the bubble's time.
+        const next = entries[i + 1];
+        const meal = next !== undefined && next.role === "assistant" && next.kind === "meal" ? next : null;
+        if (meal !== null) {
+          li.classList.add("mealb");
+          if (meal.meal !== null) li.append(mealCard(meal.meal, false, entry.kind === "photo"));
+          else li.append(el("p", "dl m", mealLine(null)));
+        }
+        // "No" on her proposal (`chat-proposal-no`): his scripted "Dropped it." is HER bubble's
+        // refused "Not logged" — her words stay, the results went, nothing reached the diary.
+        if (declined(entry, next)) {
+          li.classList.add("refused");
+          const dl = el("div", "dl");
+          dl.append(el("i", "ico i-alert-circle"), copy().phone.notLogged);
+          li.append(dl);
+        }
+        li.append(el("div", "ts", timeFmt(new Date((meal ?? entry).ts))));
         // No action row on a thread line (#173): an edit is the meal detail's Correct, a delete its
-        // ⋯ menu's — the boards draw neither button here.
+        // ⋯ menu's.
         list.append(li);
+        lastMe = li;
       } else if (entry.kind === "meal") {
-        // The card a turn produced — name, kcal, the chips, and the day's verdict dots.
-        const li = el("li", `them${rise(entry.id, idx++)}`);
-        if (entry.meal !== null) li.append(mealCard(entry.meal));
-        else li.append(el("p", "t13 m", mealLine(null)));
+        // Absorbed by the line above it; a card with no line of hers above is still hers.
+        const prev = entries[i - 1];
+        if (prev !== undefined && prev.role === "user") continue;
+        const li = el("li", `me mealb${rise(entry.id, idx++)}`);
+        if (entry.meal !== null) li.append(mealCard(entry.meal, false, true));
+        else li.append(el("p", "dl m", mealLine(null)));
         li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
         list.append(li);
+        lastMe = li;
+      } else if (declined(entries[i - 1], entry)) {
+        continue; // absorbed by her bubble above as "Not logged"
       } else {
-        // An assistant line: the coach's `.say` when the speaker is his, the app's plain line else
-        // (`states-offline`'s stored line draws neither his disc nor his name).
+        // An assistant line — the coach's, or the app's own (`states-offline`'s stored line) — is a
+        // bubble on his side either way, the time inside it.
         const li = el("li", `them${rise(entry.id, idx++)}`);
-        if (entry.speaker === "gabie") {
-          const live = liveAnswer !== null && i === lastGabie && entry.text === liveAnswer.text ? liveAnswer : null;
-          li.append(sayBlock(i === firstGabie, i === avatarAt, (col) => {
-            // The live answer's bar wraps the words in the boards' padded card; a line without a
-            // `focus` is the words alone.
-            if (live !== null && live.focus !== null) {
-              const card = el("div", "card");
-              card.append(focusBar(live.focus), el("p", "say-p", entry.text));
-              col.append(card);
-            } else {
-              col.append(el("p", "say-p", entry.text));
-            }
-          }));
-          li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
-        } else {
-          li.append(el("p", "say-p", entry.text), el("div", "ts", timeFmt(new Date(entry.ts))));
-        }
+        const live = liveAnswer !== null && entry.speaker === "gabie" && entry.text === liveAnswer.text
+          && i === entries.findLastIndex((e) => e.role === "assistant" && e.kind === "text") ? liveAnswer : null;
+        li.append(sayBlock((col) => {
+          // The live answer's bar leads the words when the server sent `focus`.
+          if (live !== null && live.focus !== null) col.append(focusBar(live.focus));
+          col.append(el("p", "say-p", entry.text), el("div", "ts", timeFmt(new Date(entry.ts))));
+        }));
         list.append(li);
       }
     }
 
-    // The proposal a live turn is holding — the card, under the newest line.
+    // The proposal a live turn is holding is HER bubble too: under the words that made it, or on
+    // its own when those words are not on this page.
     if (held !== null) {
-      const li = el("li", `them prop-li${rise(`prop:${held.pendingId}`, idx++)}`);
-      li.append(proposalCard(held, turn, {
+      const card = proposalCard(held, turn, {
         lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
         ...(heldTimedOut ? { expired: copy().expired } : {}),
-      }));
-      list.append(li);
+      });
+      const last = entries.at(-1);
+      if (lastMe !== null && last !== undefined && last.role === "user") {
+        lastMe.classList.add("mealb");
+        lastMe.querySelector(":scope > .ts")?.before(card);
+      } else {
+        const li = el("li", `me mealb${rise(`prop:${held.pendingId}`, idx++)}`);
+        li.append(card, el("div", "ts", timeFmt(new Date())));
+        list.append(li);
+      }
     }
 
-    // The live answer's suggestion rows — the boards' option card, under the line they follow.
+    // The live answer's suggestion rows — the option card, under the line they follow.
     const lastEntry = entries.at(-1);
     if (liveAnswer !== null && liveAnswer.suggestions.length > 0 &&
         lastEntry !== undefined && lastEntry.kind === "text" && lastEntry.role === "assistant" &&
@@ -179,74 +206,55 @@ export async function chatScreen(): Promise<HTMLElement> {
       list.append(li);
     }
 
-    // KEPT FOR LATER, in the order they go, under everything the server has (#708): the photo or
-    // words dimmed, then the coach's line — the reachability wording for a turn still out, the server's
-    // own refusal words for a held one, with Send again beside it.
+    // KEPT FOR LATER, in the order they go (#708): her bubble, and what is happening to it ON it —
+    // pending (a clock: the outbox sends it on its own), failed (the red !, Resend; nothing will
+    // send it again by itself) or refused (the server's reason inside, and Delete so the queue
+    // behind it can go). Spud never speaks for her send, and her words never go back to the field.
     for (const e of keptLines) {
-      // Held is the same dimmed bubble but marked — a waiting turn is pending, a held one has its
-      // refusal beside it, and a spec (or a reader) can tell the queue apart by the class.
-      const li = el("li", `me dim${e.held !== undefined ? " held" : ""}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
+      const state = keptState(e.held);
+      const li = el("li", `me ${state}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
       if (e.kind === "photo" && e.photos.length > 0) {
         const hero = el("div", "hero");
         const img = el("img", "") as HTMLImageElement;
         img.alt = "";
         void blobSrc(e.photos[0]!).then((src) => { img.src = src; });
-        hero.append(img, el("div", "stamp", timeFmt(new Date(e.capturedAt))));
+        hero.append(img);
         li.append(hero);
         if (e.text !== null) li.append(el("p", "cap", e.text));
       } else {
-        li.append(e.text ?? "", el("div", "ts", timeFmt(new Date(e.capturedAt))));
+        li.append(el("p", "said", e.text ?? ""));
+      }
+      const resend = (): void => turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } });
+      // Deleting a held head lets whatever waited behind it go.
+      const drop = (): void => turn(async () => { await outbox.discard(e.id); void flush(); });
+      const ts = el("div", "ts", timeFmt(new Date(e.capturedAt)));
+      if (state === "pending") {
+        const dl = el("div", "dl");
+        dl.append(el("i", "ico i-clock"), copy().waitingToSend);
+        li.append(dl, ts);
+      } else if (state === "failed") {
+        const act = el("div", "act");
+        act.append(smallCta(copy().resend, resend), ts);
+        li.append(act, failBadge(e.id, resend, drop));
+      } else {
+        const dl = el("div", "dl");
+        dl.append(el("i", "ico i-alert-circle"),
+          refusalWords(new ApiError(0, { error: e.held!.kind, ...(e.held!.scope ? { scope: e.held!.scope } : {}) }, "held")));
+        const act = el("div", "act");
+        // A held 402 goes again once she has subscribed (on the phone: web has no payments), so it
+        // keeps Resend; every other refusal is final, and Delete lets the queue behind it go.
+        if (e.held!.kind === "subscription-required") act.append(smallCta(copy().resend, resend));
+        act.append(plainCta(copy().phone.delete, drop), ts);
+        li.append(dl, act);
       }
       list.append(li);
-      // Every kept turn wears the board's "Waiting to send" mark under its bubble (states-unknown),
-      // held or still out — the same line the phone draws under each queued bubble.
-      const unknown = e.held !== undefined && outcomeUnknown(e.held.kind);
-      const failed = e.held?.kind === "analysis-failed";
-      const wts = el("li", "wts");
-      wts.append(el("i", "ico i-clock"), copy().waitingToSend);
-      list.append(wts);
-      // A kept turn's error is the coach's line: his name when no line of his is above, his disc on
-      // the last one, per the same first/newest rule the stored lines follow.
-      const isLastKept = e === keptLines[keptLines.length - 1];
-      const say = el("li", `them${rise(`${e.id}:err`, idx++)}`);
-      say.append(sayBlock(firstGabie === -1 && e === keptLines[0], isLastKept, (col) => {
-        // The boards' words: states-offline for a turn still out, states-unknown for one the server
-        // may still have run (worded as the doubt it is — never "try again"), states-failed for the
-        // analysis's own failure; any other hold gets the server's refusal words.
-        col.append(el("p", "saytitle", e.held === undefined
-          ? copy().offlineTitle
-          : unknown ? copy().unknownTitle
-          : failed ? copy().analysisFailed
-          : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
-        if (e.held === undefined) col.append(el("p", "t13 m", copy().offlineBody));
-        // A HELD outcome-unknown: nothing re-sends it on its own, so it says what is actually
-        // known (`unknownHeldBody`, #1106) — "re-sent on its own" is the unheld unanswered row's.
-        else if (unknown) col.append(el("p", "t13 m", copy().unknownHeldBody));
-        else if (failed) col.append(el("p", "t13 m", copy().analysisKept));
-        // A HELD turn keeps both ways out — it never re-sends on its own and it stops the queue
-        // behind it (heldAhead), so without Discard it would sit forever. states-failed's resend
-        // reads "Send it again" on web.
-        const actsRow = el("div", "row");
-        actsRow.append(smallCta(failed ? copy().web.sendItAgain : copy().sendAgain, () =>
-          turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
-        if (e.held !== undefined) {
-          const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
-          drop.type = "button";
-          // Discarding a held head lets whatever waited behind it go.
-          drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-          actsRow.append(drop);
-        }
-        col.append(actsRow);
-      }, "care"));
-      list.append(say);
     }
 
     // The FIRST OPEN (`chat-empty`): the coach's greeting and the three starters, only while the stored
     // thread holds nothing — the greeting's say is a line of his too, first AND newest then.
     if (entries.length === 0 && keptLines.length === 0) {
       const hi = el("li", `them${rise("greeting", idx++)}`);
-      hi.append(sayBlock(true, true, (col) => col.append(el("p", "d say-hi", copy().greeting))),
-        el("div", "ts", timeFmt(new Date())));
+      hi.append(sayBlock((col) => col.append(el("p", "d say-hi", copy().greeting), el("div", "ts", timeFmt(new Date())))));
       const card = el("li", `them opts${rise("starters", idx++)}`);
       card.append(optCard(
         starterRows(me?.profile.struggles ?? null, lang).map((s) => ({ icon: STARTER_ICONS[s.struggle], text: s.text })),
@@ -259,10 +267,15 @@ export async function chatScreen(): Promise<HTMLElement> {
     // opener — the items and grams she read, and the ask. Live lines, like the greeting: the
     // stored thread is untouched.
     if (focusMeal !== null) {
-      const li = el("li", `them focus-meal${rise(`focus:${focusMeal.id}`, idx++)}`);
-      li.append(mealCard(focusMeal, true), el("div", "ts", timeFmt(new Date(focusMeal.ts))));
+      // Her meal, as hers, with the × that leaves the correction for the plain thread.
+      const li = el("li", `me mealb focus-meal${rise(`focus:${focusMeal.id}`, idx++)}`);
+      const leave = el("a", "ib fx") as HTMLAnchorElement;
+      leave.href = "#/chat";
+      leave.setAttribute("aria-label", logCopyFor(lang).close);
+      leave.append(el("i", "ico i-x"));
+      li.append(leave, mealCard(focusMeal, true), el("div", "ts", timeFmt(new Date(focusMeal.ts))));
       const say = el("li", `them${rise(`focus-say:${focusMeal.id}`, idx++)}`);
-      say.append(sayBlock(firstGabie === -1, true, (col) => {
+      say.append(sayBlock((col) => {
         // Her weakest guess, named as the board names it: the two biggest reads. The join word
         // is CLDR's own conjunction for the language, not a literal.
         const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
@@ -280,8 +293,6 @@ export async function chatScreen(): Promise<HTMLElement> {
       const fail = el("div", "chatfail");
       const say = el("div", "say");
       const col = el("div", "");
-      const n = coachName();
-      if (n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
       col.append(el("p", "saytitle", copy().loadFailed));
       const again = smallCta(copy().tryAgain, () => turn(async () => {}));
       col.append(again);
@@ -290,12 +301,47 @@ export async function chatScreen(): Promise<HTMLElement> {
       clear(thread).append(fail);
       throw unread;
     }
+    // His face on the LAST of each run of his bubbles only; the older ones keep the disc's room.
+    for (const li of list.querySelectorAll<HTMLElement>(":scope > li.them")) {
+      const next = li.nextElementSibling;
+      const spud = li.querySelector(":scope > .say > .spud");
+      if (spud !== null && next !== null && next.matches("li.them:not(.opts, .sug)")) {
+        const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
+        spud.replaceWith(gap);
+      }
+    }
+    // The scroller is the list on a wide page and the page column (`.wmain`) on a narrow one, so
+    // both are read and both are set — once the list is in the document, when `.wmain` is findable.
+    const scrollers = (): HTMLElement[] =>
+      [list, list.closest<HTMLElement>(".wmain")].filter((e): e is HTMLElement => e !== null);
+    const away = (sc: HTMLElement): boolean => sc.scrollHeight - sc.scrollTop - sc.clientHeight > 48;
     clear(thread).append(list);
     // The newest line is the bottom anchor — land on it on every draw, and again when a
     // photo finishes arriving (a blob's decode can change scrollHeight after the draw).
-    const bottom = () => { list.scrollTop = list.scrollHeight; };
-    bottom();
-    requestAnimationFrame(bottom);
+    const bottom = () => { for (const sc of scrollers()) sc.scrollTop = sc.scrollHeight; };
+    const attached = (fn: () => void, tries = 30): void => {
+      if (list.isConnected) fn(); else if (tries > 0) requestAnimationFrame(() => attached(fn, tries - 1));
+    };
+    const up = readerUp;
+    attached(() => {
+      // Telegram's rule (`chat-latest`): a reader up in older lines keeps her place when a row
+      // lands, and a round ↓ with the count of unseen rows brings her to the newest.
+      if (up === null) { bottom(); requestAnimationFrame(bottom); } else scrollers().forEach((sc, k) => { sc.scrollTop = up.tops[k] ?? sc.scrollTop; });
+      const unseen = up === null ? 0 : list.children.length - up.seen;
+      const jump = unseen > 0 ? el("button", "jump") as HTMLButtonElement : null;
+      if (jump !== null) {
+        jump.type = "button";
+        jump.setAttribute("aria-label", copy().newest);
+        jump.append(el("i", "ico i-chevron-down"), el("b", "n", String(unseen)));
+        jump.addEventListener("click", () => { readerUp = null; bottom(); jump.remove(); });
+        thread.append(jump);
+      }
+      for (const sc of scrollers()) sc.addEventListener("scroll", () => {
+        if (!list.isConnected) return;
+        if (scrollers().some(away)) readerUp = { tops: scrollers().map((x) => x.scrollTop), seen: readerUp?.seen ?? list.children.length };
+        else { readerUp = null; jump?.remove(); }
+      });
+    });
     list.addEventListener("load", (ev) => {
       if ((ev.target as HTMLElement).tagName === "IMG") bottom();
     }, true);
@@ -313,28 +359,25 @@ export async function chatScreen(): Promise<HTMLElement> {
 
   // ── The pieces ────────────────────────────────────────────────────────────────────────────
 
-  /** The coach's say block: his name on the first of his lines, his disc beside the newest, a spacer
-      where neither is asked for so the words keep one column. `fill` appends the line's content.
-      The disc follows the answer (DIRECTION §6): a failure face is `care`, everything else `happy`. */
-  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void,
+  /** The coach's bubble (#1520): his face beside it — the CSS shows it on a run's last line only —
+      and no name line. `body` fills the bubble. The disc follows the answer (DIRECTION §6): a
+      failure face is `care`, everything else `happy`. */
+  const sayBlock = (body: (col: HTMLElement) => void,
     mood: Parameters<typeof spudAvatarEl>[0] = "happy"): HTMLElement => {
     const say = el("div", "say");
-    const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
-    say.append(faced ? spudAvatarEl(mood) : gap);
-    const col = el("div", "");
-    const n = coachName();
-    if (named && n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
+    const col = el("div", "bub");
     body(col);
-    say.append(col);
+    say.append(spudAvatarEl(mood), col);
     return say;
   };
 
   /** A meal's thread card (`chat.html`): name, kcal at d22, the gram chips, the verdict dots.
       `thumb` is the meal-edit sheet's form — its photo at 52px beside the name (`meal-edit.html`). */
-  const mealCard = (meal: MealRecord, thumb = false): HTMLElement => {
+  const mealCard = (meal: MealRecord, thumb = false, named = true): HTMLElement => {
     const card = el("div", "card");
     const head = el("div", "row between");
-    head.append(el("b", "", names(meal.items)));
+    // A typed meal's bubble already says it in her words; the name is drawn under a photo only.
+    head.append(el("b", "", named ? names(meal.items) : ""));
     const num = el("span", "num");
     num.append(el("b", "d d22", kcalNumbers(lang)(meal.kcal)), el("span", "m t12", `${UNIT_KCAL[lang]}`));
     head.append(num);
@@ -409,6 +452,35 @@ export async function chatScreen(): Promise<HTMLElement> {
     return b;
   };
 
+  /** A plain text action in a bubble (Delete) — the 44 px floor, no icon. */
+  const plainCta = (label: string, onTap: () => void): HTMLButtonElement => {
+    const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
+    b.classList.add("sm");
+    b.addEventListener("click", onTap);
+    return b;
+  };
+
+  /** The red ! beside a failed bubble: a native popover with Resend and Delete (Telegram's sheet). */
+  const failBadge = (id: string, resend: () => void, drop: () => void): HTMLElement => {
+    const pid = `fail-${id}`;
+    const bang = el("button", "bang", "!") as HTMLButtonElement;
+    bang.type = "button";
+    bang.setAttribute("popovertarget", pid);
+    bang.setAttribute("aria-label", `${copy().resend} · ${copy().phone.delete}`);
+    const menu = el("div", "failmenu");
+    menu.id = pid;
+    menu.setAttribute("popover", "");
+    for (const [label, go, kind] of [[copy().resend, resend, "s"], [copy().phone.delete, drop, "s bad"]] as const) {
+      const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
+      if (kind.includes("bad")) b.classList.add("bad");
+      b.addEventListener("click", () => { menu.hidePopover(); go(); });
+      menu.append(b);
+    }
+    const wrap = el("span", "bangw");
+    wrap.append(bang, menu);
+    return wrap;
+  };
+
   /** A stored photo into its hero — bearer bytes as a DATA URL, never a token in a src. */
   const photoInto = (hero: HTMLElement, mealId: string): void => {
     void apiBlob(`/meals/${encodeURIComponent(mealId)}/photos/0`).then(async (blob) => {
@@ -423,13 +495,27 @@ export async function chatScreen(): Promise<HTMLElement> {
   /** A starter or a suggestion is just the words — the same send the composer performs. */
   const sendText = (text: string): void => {
     turn(async () => {
-      const saved = await sendOrKeep({
+      const saved = await sendHers({
         id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
         capturedAt: new Date().toISOString(),
         ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
-      }, { onResult: rememberLive });
+      });
       return saved;
     });
+  };
+
+  /** Send her turn. A refusal stays HER bubble (#1520): kept held, the reason drawn on it with
+      Delete, and her words never go back to the field. */
+  const sendHers = async (entry: Parameters<typeof sendOrKeep>[0]): Promise<string | void> => {
+    readerUp = null; // her own send lands her on the newest line (Telegram's rule)
+    try {
+      return await sendOrKeep(entry, { onResult: rememberLive });
+    } catch (err) {
+      if (!(err instanceof ApiError) || uid === null) throw err;
+      await outbox.add({ ...entry, held: failureOf(err) });
+      // Kept on her bubble AND said out loud: the notice is the page's alert.
+      return refusalWords(err);
+    }
   };
 
   /** The live answer, remembered until the next turn — the chips and the bar need its extras. */
@@ -445,6 +531,8 @@ export async function chatScreen(): Promise<HTMLElement> {
   const comp = composerRow(coachName() !== null
     ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk, { multiline: true });
   const { picker, words, send, count } = comp;
+  // Telegram's attach (#1520): a paperclip, not the upload round.
+  comp.add.replaceChildren(el("i", "ico i-paperclip"));
   /** The composer as the mode says: count the picked photos, and name Send for what it sends. */
   const arm = (): void => {
     const picked = picker.files?.length ?? 0;
@@ -486,20 +574,20 @@ export async function chatScreen(): Promise<HTMLElement> {
         return;
       }
       if (files.length > 0) {
-        const saved = await sendOrKeep({
+        const saved = await sendHers({
           id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
           capturedAt: new Date().toISOString(),
-        }, { onResult: rememberLive });
+        });
         picker.value = "";
         words.value = "";
         arm();
         return saved;
       }
-      const saved = await sendOrKeep({
+      const saved = await sendHers({
         id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
         capturedAt: new Date().toISOString(),
         ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
-      }, { onResult: rememberLive });
+      });
       words.value = "";
       return saved;
     });

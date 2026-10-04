@@ -152,8 +152,8 @@ test("a failed analysis keeps the photo and hands it to Chat", async ({ inWebApp
   // refusal the server answered, with the send-again action beside it.
   await expect(page).toHaveURL(/#\/chat/);
   await expect(page.locator(".thread")).toContainText("a lunch that fails");
-  await expect(page.locator(".thread")).toContainText("The analysis didn't come back.");
-  await expect(page.getByRole("button", { name: "Send it again" })).toBeVisible();
+  await expect(page.locator(".thread li.me.failed")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Resend", exact: true })).toBeVisible();
   await shot(page, "log-failed-kept");
   // What the mocked stream CAN prove is the keep: the turn is in the outbox, held, its failure
   // marked. "Nothing logged" is the server's word — the real-refusal spec above reads it.
@@ -230,8 +230,8 @@ test("an outcome the server does not name is kept, not dropped", async ({ inWebA
   // states-unknown (W7's card): the doubt worded as doubt, the turn held with a way out.
   await expect(page).toHaveURL(/#\/chat/);
   await expect(page.locator(".thread")).toContainText("a lunch that may have gone");
-  await expect(page.locator(".thread")).toContainText("That didn't finish cleanly.");
-  await expect(page.getByRole("button", { name: "Send again" })).toBeVisible();
+  await expect(page.locator(".thread li.me.failed")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Resend", exact: true })).toBeVisible();
 });
 
 test("a refused photo is not kept — the cap and the unreadable image are words, not drafts", async ({ inWebApp: page }) => {
