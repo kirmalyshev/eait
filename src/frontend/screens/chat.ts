@@ -12,7 +12,6 @@ import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
-import { keptState } from "../../shared/results.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
@@ -21,14 +20,14 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { blobSrc, gramMacsEl, optionRowEl, ctaEl, spudAvatarEl, verdictListEl } from "../kit.ts";
+import { blobSrc, gramMacsEl, optionRowEl, spudAvatarEl, verdictListEl } from "../kit.ts";
 import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
-  heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
+  heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
-  setRedraw, takeCarried, takeTurn, timeFmt, names,
+  setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names,
 } from "../shell.ts";
 
 const copy = () => chatScreenCopyFor(lang);
@@ -211,42 +210,11 @@ export async function chatScreen(): Promise<HTMLElement> {
     // send it again by itself) or refused (the server's reason inside, and Delete so the queue
     // behind it can go). Spud never speaks for her send, and her words never go back to the field.
     for (const e of keptLines) {
-      const state = keptState(e.held);
-      const li = el("li", `me ${state}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
-      if (e.kind === "photo" && e.photos.length > 0) {
-        const hero = el("div", "hero");
-        const img = el("img", "") as HTMLImageElement;
-        img.alt = "";
-        void blobSrc(e.photos[0]!).then((src) => { img.src = src; });
-        hero.append(img);
-        li.append(hero);
-        if (e.text !== null) li.append(el("p", "cap", e.text));
-      } else {
-        li.append(el("p", "said", e.text ?? ""));
-      }
       const resend = (): void => turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } });
       // Deleting a held head lets whatever waited behind it go.
       const drop = (): void => turn(async () => { await outbox.discard(e.id); void flush(); });
-      const ts = el("div", "ts", timeFmt(new Date(e.capturedAt)));
-      if (state === "pending") {
-        const dl = el("div", "dl");
-        dl.append(el("i", "ico i-clock"), copy().waitingToSend);
-        li.append(dl, ts);
-      } else if (state === "failed") {
-        const act = el("div", "act");
-        act.append(smallCta(copy().resend, resend), ts);
-        li.append(act, failBadge(e.id, resend, drop));
-      } else {
-        const dl = el("div", "dl");
-        dl.append(el("i", "ico i-alert-circle"),
-          refusalWords(new ApiError(0, { error: e.held!.kind, ...(e.held!.scope ? { scope: e.held!.scope } : {}) }, "held")));
-        const act = el("div", "act");
-        // A held 402 goes again once she has subscribed (on the phone: web has no payments), so it
-        // keeps Resend; every other refusal is final, and Delete lets the queue behind it go.
-        if (e.held!.kind === "subscription-required") act.append(smallCta(copy().resend, resend));
-        act.append(plainCta(copy().phone.delete, drop), ts);
-        li.append(dl, act);
-      }
+      const li = keptLineEl(e, "li", { resend, drop });
+      li.className += rise(e.id, idx++);
       list.append(li);
     }
 
@@ -443,42 +411,6 @@ export async function chatScreen(): Promise<HTMLElement> {
       card.append(opt);
     }
     return card;
-  };
-
-  const smallCta = (label: string, onTap: () => void): HTMLButtonElement => {
-    const b = ctaEl({ text: label, kind: "s", icon: "retry" }) as HTMLButtonElement;
-    b.classList.add("sm");
-    b.addEventListener("click", onTap);
-    return b;
-  };
-
-  /** A plain text action in a bubble (Delete) — the 44 px floor, no icon. */
-  const plainCta = (label: string, onTap: () => void): HTMLButtonElement => {
-    const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
-    b.classList.add("sm");
-    b.addEventListener("click", onTap);
-    return b;
-  };
-
-  /** The red ! beside a failed bubble: a native popover with Resend and Delete (Telegram's sheet). */
-  const failBadge = (id: string, resend: () => void, drop: () => void): HTMLElement => {
-    const pid = `fail-${id}`;
-    const bang = el("button", "bang", "!") as HTMLButtonElement;
-    bang.type = "button";
-    bang.setAttribute("popovertarget", pid);
-    bang.setAttribute("aria-label", `${copy().resend} · ${copy().phone.delete}`);
-    const menu = el("div", "failmenu");
-    menu.id = pid;
-    menu.setAttribute("popover", "");
-    for (const [label, go, kind] of [[copy().resend, resend, "s"], [copy().phone.delete, drop, "s bad"]] as const) {
-      const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
-      if (kind.includes("bad")) b.classList.add("bad");
-      b.addEventListener("click", () => { menu.hidePopover(); go(); });
-      menu.append(b);
-    }
-    const wrap = el("span", "bangw");
-    wrap.append(bang, menu);
-    return wrap;
   };
 
   /** A stored photo into its hero — bearer bytes as a DATA URL, never a token in a src. */

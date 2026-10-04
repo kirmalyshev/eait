@@ -23,13 +23,14 @@ import type { MealRecord } from "@eait/shared";
 import type {
   DayResponse, DaysResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
-import { api, apiBlob } from "../api.ts";
+import { ApiError, api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { blobSrc, ctaEl, kitEl, mealRowEl } from "../kit.ts";
+import { failureOf, outbox } from "../outbox.ts";
 import {
-  DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
-  keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
+  DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, flush, heldProposal, kcal, kept,
+  keptLineEl, keptNotice, lang, names, profile, proposalCard, refusalWords, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
@@ -838,6 +839,21 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const r = words.getBoundingClientRect();
     void enqueue(files, { x: r.x, y: r.y, w: r.width, h: r.height });
   });
+  /**
+   * Send her turn. A refusal stays HER line (#1520): kept held, the reason drawn on it with
+   * Delete, and her words never go back to the field — the chat's `sendHers` made this the
+   * rule, and Home's composer is the same send (ieat-app#1546).
+   */
+  const sendHers = async (entry: Parameters<typeof sendOrKeep>[0]): Promise<string | void> => {
+    try {
+      return await sendOrKeep(entry);
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      await outbox.add({ ...entry, held: failureOf(err) });
+      // Kept on her line AND said out loud: the notice is the page's alert.
+      return refusalWords(err);
+    }
+  };
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = words.value.trim();
@@ -846,7 +862,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
       // landed, not a past day the strip was looking at.
       viewing = today;
-      const saved = await sendOrKeep({
+      const saved = await sendHers({
         id: crypto.randomUUID(), userId: uid, capturedAt: new Date().toISOString(),
         kind: "text", text, photos: [],
       });
@@ -989,6 +1005,20 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         });
         upload.addEventListener("click", () => pick.click());
         right.push(upload, pick);
+      }
+      // KEPT FOR LATER, above the composer in the order they go — what happened to her send drawn
+      // ON her line (the red ! and Resend on a failed one), never back in the field (#1546,
+      // `web-today-composer-failed`). The outbox's events redraw this box on their own.
+      const keptLines = outbox.entries.filter((e) => e.userId === uid);
+      if (keptLines.length > 0) {
+        const box = el("div", "hkept");
+        for (const e of keptLines) {
+          const resend = (): void => turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid); } });
+          // Deleting a held head lets whatever waited behind it go.
+          const drop = (): void => turn(async () => { await outbox.discard(e.id); void flush(); });
+          box.append(keptLineEl(e, "div", { resend, drop }));
+        }
+        right.push(box);
       }
       right.push(comp.form);
     }
