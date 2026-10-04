@@ -119,6 +119,9 @@ export async function chatScreen(): Promise<HTMLElement> {
     // off the siblings; this loop only decides what each bubble holds.
     let lastMe: HTMLElement | null = null;
     let idx = 0;
+    // The newest line that proposed a meal: the only one whose proposal can have timed out
+    // unanswered rather than been retired by a newer one (the phone's `lastTyped`, #282).
+    const lastProposing = entries.findLastIndex((e) => e.role === "user" && e.kind === "text" && e.pendingId !== null);
     for (const [i, entry] of entries.entries()) {
       if (entry.role === "user") {
         const li = el("li", `me${entry.kind === "photo" ? " pic" : ""}${rise(entry.id, idx++)}`);
@@ -146,7 +149,22 @@ export async function chatScreen(): Promise<HTMLElement> {
           dl.append(el("i", "ico i-alert-circle"), copy().phone.notLogged);
           li.append(dl);
         }
-        li.append(el("div", "ts", timeFmt(new Date((meal ?? entry).ts))));
+        const ts = el("div", "ts", timeFmt(new Date((meal ?? entry).ts)));
+        // Its proposal is gone with nothing answering it (no card, no reply, not held): it timed
+        // out, and after a reload that is all the page can know. Her failed send, as on the phone:
+        // the red ! and Resend; the line is stored, so the ! offers Resend alone.
+        if (i === lastProposing && entry.kind === "text" && entry.pendingId !== held?.pendingId
+          && (next === undefined || next.role === "user")
+          && !entries.some((e) => e.role === "assistant" && e.kind === "meal" && e.mealId === entry.pendingId)) {
+          const words = entry.text;
+          const resend = (): void => sendText(words);
+          const act = el("div", "act");
+          act.append(smallCta(copy().resend, resend), ts);
+          li.classList.add("failed");
+          li.append(act, failBadge(entry.id, resend));
+        } else {
+          li.append(ts);
+        }
         // No action row on a thread line (#173): an edit is the meal detail's Correct, a delete its
         // ⋯ menu's.
         list.append(li);
@@ -180,7 +198,20 @@ export async function chatScreen(): Promise<HTMLElement> {
 
     // The proposal a live turn is holding is HER bubble too: under the words that made it, or on
     // its own when those words are not on this page.
-    if (held !== null) {
+    const lastLine = entries.at(-1);
+    if (held !== null && heldTimedOut && lastMe !== null && lastLine?.role === "user" && lastLine.kind === "text") {
+      // Past its clock the offer is a failed send, never a card under a dead question: her words,
+      // the red ! and Resend (`states-not-sent`), the same turn as the phone's.
+      const words = lastLine.text;
+      const resend = (): void => { setHeldProposal(null); sendText(words); };
+      const drop = (): void => { setHeldProposal(null); void draw(); };
+      const act = el("div", "act");
+      act.append(smallCta(copy().resend, resend));
+      const ts = lastMe.querySelector(":scope > .ts");
+      if (ts !== null) act.append(ts);
+      lastMe.classList.add("failed");
+      lastMe.append(act, failBadge(held.pendingId, resend, drop));
+    } else if (held !== null) {
       const card = proposalCard(held, turn, {
         lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
         ...(heldTimedOut ? { expired: copy().expired } : {}),
@@ -461,16 +492,18 @@ export async function chatScreen(): Promise<HTMLElement> {
   };
 
   /** The red ! beside a failed bubble: a native popover with Resend and Delete (Telegram's sheet). */
-  const failBadge = (id: string, resend: () => void, drop: () => void): HTMLElement => {
+  const failBadge = (id: string, resend: () => void, drop?: () => void): HTMLElement => {
     const pid = `fail-${id}`;
     const bang = el("button", "bang", "!") as HTMLButtonElement;
     bang.type = "button";
     bang.setAttribute("popovertarget", pid);
-    bang.setAttribute("aria-label", `${copy().resend} · ${copy().phone.delete}`);
+    bang.setAttribute("aria-label", drop === undefined ? copy().resend : `${copy().resend} · ${copy().phone.delete}`);
     const menu = el("div", "failmenu");
     menu.id = pid;
     menu.setAttribute("popover", "");
-    for (const [label, go, kind] of [[copy().resend, resend, "s"], [copy().phone.delete, drop, "s bad"]] as const) {
+    const items: [string, () => void, string][] = [[copy().resend, resend, "s"]];
+    if (drop !== undefined) items.push([copy().phone.delete, drop, "s bad"]);
+    for (const [label, go, kind] of items) {
       const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
       if (kind.includes("bad")) b.classList.add("bad");
       b.addEventListener("click", () => { menu.hidePopover(); go(); });
