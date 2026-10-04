@@ -7,7 +7,7 @@
 
 import { kcalNumbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { STRUGGLES } from "./types.ts";
+import { LANGS, STRUGGLES } from "./types.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
 
@@ -333,3 +333,11 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   if (headline) lines.unshift(headline);
   return lines;
 }
+
+/**
+ * "No" on a proposal, or an older estimate retired in place: the scripted "Dropped it." line in any
+ * shipped language. Her bubble reads it as refused "Not logged" (ieat-app#1520, `chat-proposal-no`);
+ * it is never drawn as his line.
+ */
+const DROPPED: ReadonlySet<string> = new Set(LANGS.map((l) => scriptedLine("dropped", l, {})));
+export const isDroppedText = (text: string | null | undefined): boolean => text != null && DROPPED.has(text);

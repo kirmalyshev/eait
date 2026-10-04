@@ -33,6 +33,15 @@ import {
 
 const copy = () => chatScreenCopyFor(lang);
 
+/**
+ * "No" on her proposal, as the stored page carries it: her line made a proposal (`pendingId`) and
+ * the next line is his text, not the meal's card — the engine's "Dropped it.". Read off the shape,
+ * not the words, so the browser bundle stays clear of the i18n stack.
+ */
+const declined = (line: ChatEntry | undefined, next: ChatEntry | undefined): boolean =>
+  line !== undefined && line.role === "user" && line.kind === "text" && line.pendingId !== null &&
+  next !== undefined && next.role === "assistant" && next.kind === "text";
+
 // The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
 // wrote: the stored entry keeps only the words, so the answer's own result carries them until a
 // newer turn retires them. Matched onto the newest assistant line of the same words.
@@ -127,6 +136,14 @@ export async function chatScreen(): Promise<HTMLElement> {
           if (meal.meal !== null) li.append(mealCard(meal.meal, false, entry.kind === "photo"));
           else li.append(el("p", "dl m", mealLine(null)));
         }
+        // "No" on her proposal (`chat-proposal-no`): his scripted "Dropped it." is HER bubble's
+        // refused "Not logged" — her words stay, the results went, nothing reached the diary.
+        if (declined(entry, next)) {
+          li.classList.add("refused");
+          const dl = el("div", "dl");
+          dl.append(el("i", "ico i-alert-circle"), copy().phone.notLogged);
+          li.append(dl);
+        }
         li.append(el("div", "ts", timeFmt(new Date((meal ?? entry).ts))));
         // No action row on a thread line (#173): an edit is the meal detail's Correct, a delete its
         // ⋯ menu's.
@@ -142,6 +159,8 @@ export async function chatScreen(): Promise<HTMLElement> {
         li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
         list.append(li);
         lastMe = li;
+      } else if (declined(entries[i - 1], entry)) {
+        continue; // absorbed by her bubble above as "Not logged"
       } else {
         // An assistant line — the coach's, or the app's own (`states-offline`'s stored line) — is a
         // bubble on his side either way, the time inside it.
@@ -289,12 +308,33 @@ export async function chatScreen(): Promise<HTMLElement> {
         spud.replaceWith(gap);
       }
     }
+    // Telegram's rule (`chat-latest`): a reader up in older lines keeps her place when a row
+    // arrives, and a round ↓ with the count of unseen rows brings her to the newest.
+    const prev = thread.querySelector<HTMLElement>(":scope > ul.thread");
+    const up = prev !== null && prev.scrollHeight - prev.scrollTop - prev.clientHeight > 48
+      ? { top: prev.scrollTop, rows: prev.children.length, seen: Number(prev.dataset.seen ?? prev.children.length) } : null;
     clear(thread).append(list);
     // The newest line is the bottom anchor — land on it on every draw, and again when a
     // photo finishes arriving (a blob's decode can change scrollHeight after the draw).
     const bottom = () => { list.scrollTop = list.scrollHeight; };
-    bottom();
-    requestAnimationFrame(bottom);
+    if (up === null) {
+      bottom();
+      requestAnimationFrame(bottom);
+    } else {
+      list.scrollTop = up.top;
+      list.dataset.seen = String(up.seen);
+      const unseen = list.children.length - up.seen;
+      if (unseen > 0) {
+        const jump = el("button", "jump") as HTMLButtonElement;
+        jump.type = "button";
+        jump.setAttribute("aria-label", copy().newest);
+        jump.append(el("i", "ico i-chevron-down"), el("b", "n", String(unseen)));
+        const go = (): void => { list.dataset.seen = String(list.children.length); jump.remove(); };
+        jump.addEventListener("click", () => { bottom(); go(); });
+        list.addEventListener("scroll", () => { if (list.scrollHeight - list.scrollTop - list.clientHeight <= 48) go(); });
+        thread.append(jump);
+      }
+    }
     list.addEventListener("load", (ev) => {
       if ((ev.target as HTMLElement).tagName === "IMG") bottom();
     }, true);
