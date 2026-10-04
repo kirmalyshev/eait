@@ -606,7 +606,10 @@ create table if not exists jobs (
 create index if not exists jobs_claimable_idx on jobs (kind, created_at) where state <> 'settled';
 create index if not exists jobs_user_idx on jobs (user_id, updated_at desc);
 create index if not exists eait_job_key on pgboss.job ((data->>'userId'), (data->>'clientId'));
-create or replace view job_rows as
+-- Dropped and rebuilt, not replaced: create or replace cannot change a column's type, and the
+-- whole schema runs as one statement batch, so readers never see it missing.
+drop view if exists job_rows;
+create view job_rows as
 select j.id as boss_id,
        (j.data->>'userId')::uuid as user_id,
        j.data->>'clientId' as client_id,
@@ -620,7 +623,7 @@ select j.id as boss_id,
        case when j.state = 'active' then j.data->>'owner' end as lease_owner,
        case when j.state = 'active' then coalesce(j.heartbeat_on, j.started_on) + make_interval(secs => coalesce(j.heartbeat_seconds, j.expire_seconds)) end as lease_until,
        (j.data->>'mealId')::uuid as meal_id,
-       (j.data->>'analysisId')::uuid as analysis_id,
+       j.data->>'analysisId' as analysis_id,
        (j.data->>'removedAt')::timestamptz as removed_at,
        (j.data->>'followedUntil')::timestamptz as followed_until,
        (j.data->>'pushedAt')::timestamptz as pushed_at,

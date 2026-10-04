@@ -199,6 +199,11 @@ export const MOTION = {
   planReveal: 3500,
 } as const;
 
+/** The `draw` verb's dash length — longer than every arc and path it draws in, so an offset of
+ *  the full length reads as "nothing drawn" on any of them. The native charts slide the same
+ *  number; `motionCss` writes it into `.draw` and `k-draw`. */
+export const DRAW_LEN = 1200;
+
 /**
  * The motion vocabulary as CSS: the seven keyframes (the six verbs plus the looping scan), the
  * classes that carry them, and the reduced-motion block — generated so no surface retypes a
@@ -214,14 +219,14 @@ export function motionCss(): string {
   return `:root{--ease:${ease}}
 @keyframes k-grow{from{transform:scaleX(0)}}
 @keyframes k-rise{from{filter:opacity(0);transform:translateY(${MOTION.riseDy}px)}}
-@keyframes k-draw{from{stroke-dashoffset:1200}}
+@keyframes k-draw{from{stroke-dashoffset:${DRAW_LEN}}}
 @keyframes k-settle{from{transform:translate(-160%,-50%)}}
 @keyframes k-pop{from{filter:opacity(0);transform:scale(${MOTION.popFrom})}}
 @property --n{syntax:'<integer>';initial-value:0;inherits:false}
 @keyframes k-count{to{--n:var(--to)}}
 .grow{transform-origin:left center;animation:k-grow ${s(MOTION.grow)} var(--ease) both;animation-delay:var(--d,0s)}
 .rise{animation:k-rise ${s(MOTION.rise)} var(--ease) both;animation-delay:var(--d,0s)}
-.draw{stroke-dasharray:1200;stroke-dashoffset:0;animation:k-draw ${s(MOTION.draw)} var(--ease) both;animation-delay:var(--d,0s)}
+.draw{stroke-dasharray:${DRAW_LEN};stroke-dashoffset:0;animation:k-draw ${s(MOTION.draw)} var(--ease) both;animation-delay:var(--d,0s)}
 .pop{animation:k-pop ${s(MOTION.pop)} var(--ease) both;animation-delay:var(--d,0s)}
 .settle{animation:k-settle ${s(MOTION.settle)} var(--ease) both}
 .count{counter-reset:n var(--n);animation:k-count ${s(MOTION.count)} var(--ease) both;animation-delay:var(--d,0s)}
