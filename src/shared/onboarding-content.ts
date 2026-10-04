@@ -18,11 +18,13 @@
 // missing, and nothing would say so. `onboarding-content.test.ts` checks every one of them in every
 // language, which is the only reason it is safe to have a translator anywhere near these strings.
 //
-// THE CLAIMS GATE IS ENGLISH-ONLY AND THAT IS STATED RATHER THAN HIDDEN. `claims.ts` matches
-// English patterns ("no email", "the only app"), so it proves nothing about the seven translations.
-// What protects those is that they are TRANSLATIONS of copy that passed the gate — the English is
-// the source, and a sentence is changed there first. A translation that invents a claim of its own
-// is a review problem, and the review is the PR.
+// THE CLAIMS GATE IS NO LONGER ENGLISH-ONLY — `claims.ts` matches `guarantee`, `weight-promise`,
+// `lowers-marker` and `detox` in all eight languages — but this surface opts into
+// `retired-no-email` alone, still an English pattern, because its own honest answers ("Lose
+// weight", "Diabetes") are sentences the wider set cannot read. What protects the seven
+// translations is what it was: they are TRANSLATIONS of copy that passed the gate — the English
+// is the source, and a sentence is changed there first. A translation that invents a claim of
+// its own is a review problem, and the review is the PR.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { t, type Localized } from "./lang.ts";
