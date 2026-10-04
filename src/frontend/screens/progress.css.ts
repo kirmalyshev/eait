@@ -41,11 +41,25 @@ export const progressCss = `
 .prog .seg button.on { background: var(--surface); color: var(--ink);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent); }
 
-/* The empty states' link — the board's quiet accent action, the same door You's "Log weight" takes. */
+/* The card's quiet accent action — "Log weight" and the empty states' invitations all open the
+   inline weigh-in. The button form answers back .card button's 44px pill, scoped. */
 .prog .plink { display: inline-block; margin-top: 10px; color: var(--accent); font-size: 13px;
   font-weight: 600; text-decoration: none; }
+.prog .card button.plink { border: 0; background: none; padding: 0; min-height: 0;
+  border-radius: 0; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  color: var(--accent); }
 .prog .plink:hover { text-decoration: underline; }
 .prog .wempty { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+
+/* The weigh-in — the same inline editor the You card held: the field and its unit on a row,
+   Save and Cancel under it. */
+.prog .wedit { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 12px; }
+.prog .wrow { display: flex; align-items: center; gap: 8px; }
+.prog .wedit input { font: inherit; font-size: 16px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
+  color: var(--ink); width: 120px; min-height: 40px; }
+.prog .weditbtns { display: flex; gap: 8px; margin-top: 10px; }
+.prog .weditbtns .cta { width: auto; min-height: 40px; padding: 0 18px; font-size: 14px; }
 
 /* The goal bar — the board's .bar drawn as a native progress (the share is a VALUE, never a
    style: the nonce policy allows attributes, it refuses inline style). */

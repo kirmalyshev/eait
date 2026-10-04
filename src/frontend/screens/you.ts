@@ -1,21 +1,20 @@
 // You — the account's own surface, Register P (`web/you.html`, W10 #97). Two columns at desktop
-// width: the left is the board's order — the identity card's fact line, the weight card whose
-// "Log weight" writes a weigh-in, the plan card with its inline edit, then the flat account rows
-// (Health · Subscription · Account · Units · Language · Telegram · Sign out); the right is the
-// today column the web boards give every surface — week strip, kcal-left hero, the macro cards.
+// width: the left is the board's order — the identity card's fact line, the plan card with its
+// inline edit, then the flat account rows (Health · Subscription · Account · Units · Language ·
+// Telegram · Sign out); the right is the today column the web boards give every surface — week
+// strip, kcal-left hero, the macro cards. The weigh-in lives on Progress (ieat-app#1518).
 //
 // EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the free week's day off
 // `entitlement.trialDay` (the server counts it — a client that counts dates
 // disagrees with the reminders, #97), the "connected" claim off `healthConnected`. The day column
-// reads `/v1/diary/days` and `/v1/diary/day`; the weigh-in and the edits are PATCHes answered by
-// the recomputed view. Nothing here derives a target or counts a day.
+// reads `/v1/diary/days` and `/v1/diary/day`; the edits are PATCHes answered by the recomputed
+// view. Nothing here derives a target or counts a day.
 
 import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
-import { weightChart } from "../../shared/ui/charts.ts";
-import { dayMonthAt, dayMonthOn, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
@@ -25,11 +24,11 @@ import { youCopyFor, youFacts } from "../../shared/app/you-copy.ts";
 import type { OnboardingContent } from "@eait/shared";
 import type {
   DayResponse, DaysResponse, IdentitiesResponse, OnboardingContentResponse,
-  PairCodeResponse, ProfileResponse, WeightsResponse,
+  PairCodeResponse, ProfileResponse,
 } from "@eait/shared/contract";
 import { api, signOut } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { kitEl, macEl, mcardEl, ringEl, weekStripEl, weightChartEl } from "../kit.ts";
+import { kitEl, macEl, mcardEl, ringEl, weekStripEl } from "../kit.ts";
 import { ico, type ChipName } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
 import {
@@ -79,7 +78,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   dateRow.append(prev, dateCell, next);
   frame.bar.append(dateRow);
 
-  let mode: "none" | "weigh" | "plan" = "none";
+  let mode: "none" | "plan" = "none";
   let saving = false;
   let drawing = 0;
 
@@ -104,7 +103,6 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   });
 
   const units = (): UnitSystem => me!.profile.units ?? "metric";
-  const wnum = (kg: number): string => n(weightDisplayValue(kg, units()));
 
   // The Subscription row's dates — "24 Oct" in the language's own locale, the year joining only
   // when the expiry falls in a different one (`dayMonthAt` in shared/lang.ts).
@@ -117,106 +115,6 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     // fixture data — nothing stores a name (design-pro, eait#97 / ieat-app#929).
     av.append(kitEl(`<i class="ico i-person" aria-hidden="true"></i>`));
     card.append(av, el("span", "facts", facts()));
-    return card;
-  };
-
-  // ── The weight card — "Log weight" opens the inline weigh-in (an input and Save: the recorded
-  // eait#97 ruling — the board's link is the affordance, web has no you-weight screen to route
-  // to). The chart reads the WHOLE log (`range=all`, same as the phone's `client.weights("all")`)
-  // and stays dot-free (#1068); the dashed target lane opens only while target_weight_kg is set.
-
-  const weightCard = (w: WeightsResponse, noticeBox: { notice: HTMLElement; tell: (w: string | null) => void }): HTMLElement => {
-    const card = el("div", "card rise");
-    const head = el("div", "row between");
-    head.append(el("span", "lab", you.weightLabel));
-    const card_ = card;
-    const body = el("div", "wbody");
-    card_.append(head, body, noticeBox.notice);
-
-    const fmt = (d: string): string => dayMonthOn(lang, d, localDate(me!.timezone));
-
-    const target = me!.profile.target_weight_kg;
-    const targetLane = target === null ? undefined : {
-      label: fill(units() === "imperial" ? you.targetLb : you.targetKg, { w: wnum(target) }),
-    };
-
-    const drawChart = (): void => {
-      clear(body);
-      const points = w.weights.map((e) => ({
-        t: Date.parse(`${e.date}T00:00:00Z`), kg: weightDisplayValue(e.kg, units()),
-      }));
-      const first = w.weights[0], last = w.weights.at(-1);
-      const chart = el("div", "wchart");
-      // The end labels name the TREND's endpoints — the values the line actually ends on
-      // (#1114); the card's own figures still read the real weigh-ins.
-      const trend = weightChart(points, targetLane !== undefined);
-      chart.append(weightChartEl(points, {
-        aria: you.weightLabel,
-        first: first && trend.firstValue !== null ? n(trend.firstValue) : "",
-        last: last && w.weights.length > 1 && trend.lastValue !== null ? n(trend.lastValue) : "",
-        from: first ? fmt(first.date) : "",
-        to: last && w.weights.length > 1 ? fmt(last.date) : "",
-      }, targetLane));
-      body.append(chart);
-    };
-
-    const logBtn = el("button", "plink", you.logWeight) as HTMLButtonElement;
-    logBtn.type = "button";
-
-    if (mode === "weigh") {
-      // The inline weigh-in: the last reading prefilled in the display unit, save writes the row.
-      drawChart();
-      const form = el("div", "wedit");
-      const field = document.createElement("input");
-      field.type = "number";
-      field.step = "0.1";
-      field.min = "0";
-      field.setAttribute("aria-label", you.weightLabel);
-      field.inputMode = "decimal";
-      const latest = w.latest?.kg ?? me!.profile.weight_kg;
-      if (latest !== null) field.value = `${weightDisplayValue(latest, units())}`;
-      const unit = el("span", "m", spellUnit(lang, units() === "imperial" ? "lb" : "kg"));
-      const row = el("div", "wrow");
-      row.append(field, unit);
-      const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
-      save.type = "button";
-      const cancel = el("button", "cta g", COPY.cancel) as HTMLButtonElement;
-      cancel.type = "button";
-      cancel.addEventListener("click", () => { mode = "none"; void draw(); });
-      save.addEventListener("click", async () => {
-        const value = Number(field.value);
-        if (!Number.isFinite(value) || value <= 0 || saving) return;
-        saving = true;
-        save.disabled = true;
-        try {
-          await api("/profile", {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ weight_kg: weightToKg(units(), value) }),
-          });
-          forgetProfile();
-          me = await profile();
-          mode = "none";
-          void draw();
-        } catch (err) {
-          noticeBox.tell(keptWords(err, you.phone.saveKept));
-          field.focus();
-          field.setSelectionRange(field.value.length, field.value.length);
-        } finally {
-          // A refusal re-arms the button — the figure stays editable and the notice stays up.
-          saving = false;
-          save.disabled = false;
-        }
-      });
-      form.append(row, el("div", "weditbtns"));
-      form.querySelector(".weditbtns")!.append(save, cancel);
-      body.append(form);
-      field.focus();
-    } else {
-      drawChart();
-      head.append(logBtn);
-      logBtn.addEventListener("click", () => { mode = "weigh"; void draw(); });
-    }
     return card;
   };
 
@@ -583,10 +481,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const today = localDate(zone);
     // EVERY READ DEGRADES ALONE: one refused fetch must not blank the surface — a card that can
     // still answer does, and the notice under the columns says what did not.
-    const [w, ids] = await Promise.all([
-      api<WeightsResponse>("/weights?range=all").catch(() => null),
-      api<IdentitiesResponse>("/auth/identities").catch(() => null),
-    ]);
+    const ids = await api<IdentitiesResponse>("/auth/identities").catch(() => null);
     // The option labels are read once — a language change reloads the page rather than refetching.
     if (content === null) {
       content = await api<OnboardingContentResponse>(`/onboarding?lang=${lang}`).catch(() => null);
@@ -597,13 +492,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     dateCell.textContent = dayText(viewing);
     next.disabled = viewing >= today;
 
-    const wn = noticeFor();
     const pn = noticeFor();
     const rn = noticeFor();
-    clear(leftCol).append(identityCard());
-    if (w !== null) leftCol.append(weightCard(w, wn));
-    else leftCol.append(el("p", "notice", COPY.somethingWrong));
-    leftCol.append(planCard(ob?.content ?? null, pn), rowsCard(ids, rn), rn.notice);
+    clear(leftCol).append(identityCard(), planCard(ob?.content ?? null, pn), rowsCard(ids, rn), rn.notice);
     void drawDay();
   }
 

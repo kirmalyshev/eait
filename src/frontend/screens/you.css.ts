@@ -1,12 +1,10 @@
 // You's own styles — the two-column account board (web/you.html, W10 #97): the identity card,
-// the weight card with its inline weigh-in, the plan card with its inline editor, the flat
-// account rows, and the today column (week strip, kcal hero, macro cards, page dots).
+// the plan card with its inline editor, the flat account rows, and the today column (week strip,
+// kcal hero, macro cards, page dots).
 //
 // Scoped under `.you` like every surface's sheet — the classes that name kit components
 // (.opt/.macs/.mcard/.week) are kitCss's own; what lives here is the board's arrangement of them
 // plus the words-only helpers (`.lab`, `.d`) that are not the kit's.
-
-import { WEIGHT_CHART_DOTS } from "../../shared/ui/charts.ts";
 
 export const youCss = `
 /* The board's two columns, 1000px wide — one column under the phone-width breakpoint. */
@@ -30,27 +28,17 @@ export const youCss = `
 .you .av .ico { width: 24px; height: 24px; color: var(--accent); }
 .you .facts { font-size: 13px; color: var(--muted); }
 
-/* Card actions drawn as text, not pills — "Log weight" is the accent link, "edit" the quiet one. */
-.you .card button.plink, .you .card button.elink { border: 0; background: none; padding: 0;
+/* Card actions drawn as text, not pills — "edit" is the quiet one. */
+.you .card button.elink { border: 0; background: none; padding: 0;
   margin: 0; min-height: 0; border-radius: 0; font-size: 13px; font-weight: 600; cursor: pointer; }
-.you .card button.plink { color: var(--accent); }
 .you .card button.elink { color: var(--muted); }
-.you .card button.plink:hover, .you .card button.elink:hover { text-decoration: underline; }
+.you .card button.elink:hover { text-decoration: underline; }
 
-/* The weight chart's own tempo (the board's, not the Progress card's): the line draws, then the
-   lone weigh-in's dot pops on WEIGHT_CHART_DOTS' delay — pd-0 is the kit's delay class, re-timed
-   here for this board, the timing read off the shared constant rather than retyped (#1068). */
-.you .wchart { margin-top: 8px; }
-.you .pgraph.wl circle.pd-0 { animation-delay: ${WEIGHT_CHART_DOTS.delayMs / 1000}s; }
-
-/* The inline editors — the weigh-in and the plan edit sit inside their card, rows of
-   label + control like the flat card's rows. */
-.you .wedit, .you .editrow { display: flex; align-items: center; gap: 10px; }
-.you .wedit { flex-direction: column; align-items: stretch; margin-top: 12px; }
-.you .wrow { display: flex; align-items: center; gap: 8px; }
-.you .editrow { padding: 8px 0; }
+/* The inline editor — the plan edit sits inside its card, rows of label + control like the flat
+   card's rows. */
+.you .editrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
 .you .editrow .lab { flex: 1; }
-.you .wedit input, .you .editrow input { font: inherit; font-size: 16px; padding: 8px 12px;
+.you .editrow input { font: inherit; font-size: 16px; padding: 8px 12px;
   border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
   color: var(--ink); width: 120px; min-height: 40px; }
 .you .weditbtns { display: flex; gap: 8px; margin-top: 10px; }

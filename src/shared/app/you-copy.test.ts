@@ -73,7 +73,6 @@ describe("YOU_COPY", () => {
     expect(en.flagDeclared).toBe("{condition} declared");
     expect(en.weightLabel).toBe("Weight");
     expect(en.logWeight).toBe("Log weight");
-    expect(en.targetKg).toBe("{w}kg · target");
     expect(en.planLabel).toBe("Your plan");
     expect(en.planEdit).toBe("edit");
     expect(en.kcalADay).toBe("{kcal}kcal a day");
