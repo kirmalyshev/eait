@@ -108,7 +108,7 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
   await page.locator(".mdetail .ib").last().click();
   const menu = page.locator(".mpopup");
   await shot(page, "menu");
-  await expect(menu.getByText("Edit")).toBeVisible();
+  await expect(menu.getByText("Correct")).toBeVisible();
   await expect(menu.getByText("Re-read the photo")).toBeVisible();
   await expect(menu.getByText("Move to yesterday")).toBeVisible();
   await expect(menu.getByText("Delete this meal")).toBeVisible();
