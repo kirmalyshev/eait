@@ -527,8 +527,9 @@ export interface PayPlanRow {
   badge?: string | null;
   /** The line under the name — the period's own price ("€39.99 a year"), or null. */
   line?: string | null;
-  /** The right-hand figure — the per-month price. */
-  price: string;
+  /** The right-hand figure — the per-month price. Optional: a host with no configured
+      checkout draws the row named and unpriced, the shape the offer always had. */
+  price?: string;
   /** The preselected row — the boards' Yearly. */
   checked?: boolean;
 }
@@ -539,7 +540,7 @@ export const payPlan = (o: PayPlanRow): string =>
   `<span class="ck" aria-hidden="true"></span><span><b>${esc(o.name)}</b>` +
   `${o.badge ? `<span class="free">${esc(o.badge)}</span>` : ""}` +
   `${o.line ? `<small class="num">${esc(o.line)}</small>` : ""}</span>` +
-  `<span class="pr num">${esc(o.price)}</span></label>`;
+  `${o.price === undefined ? "" : `<span class="pr num">${esc(o.price)}</span>`}</label>`;
 
 /** The rows as one radio group — `label` is its accessible name. */
 export const payPlans = (rows: readonly PayPlanRow[], label: string): string =>
