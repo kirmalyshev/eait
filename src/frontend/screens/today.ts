@@ -1027,13 +1027,12 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
   const turn = (write: () => Promise<string | void>): void => {
     turning = true;
-    // The composer and the cards live in the side column — outside `wrap` — so they are locked by
-    // hand for the turn's span (takeTurn's own sweep covers `wrap`'s controls only); the redraw at
-    // the turn's end rebuilds them enabled. The upload CTA is a link, so nothing disables it —
-    // the logging board's rule is it hides while the turn is out; the draw re-adds it.
-    for (const c of frame.side.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")) {
-      c.disabled = true;
-    }
+    // The composer and the cards live in the side column — outside `wrap` — so takeTurn sweeps it
+    // as its second tree and unlocks it with `wrap`'s own controls after the redraw. A hand sweep
+    // used to do this and never undo it: the draw re-appends the composer's own nodes rather than
+    // rebuilding them, so every turn on Home left its composer locked until the next navigation.
+    // The upload CTA is a link, so nothing disables it — the logging board's rule is it hides
+    // while the turn is out; the draw re-adds it.
     frame.side.querySelector(".cta")?.remove();
     takeTurn(wrap, tell, draw, uid, async () => {
       try {
@@ -1041,7 +1040,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       } finally {
         turning = false;
       }
-    });
+    }, frame.side);
   };
 
   // A proposal made on Chat stands here too — read back once, like the thread's, when the page

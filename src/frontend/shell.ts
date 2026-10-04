@@ -277,8 +277,15 @@ export function takeTurn(
   redrawScreen: () => Promise<void>,
   uid: string | null,
   write: () => Promise<string | void>,
+  /** A second tree to lock for the turn — Today's composer lives in `frame.side`, outside `wrap`. */
+  also?: HTMLElement,
 ): void {
-  const controls = [...wrap.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")];
+  // Every control — `input, button` alone left a textarea live, and words typed into it while the
+  // turn was out were what the turn's own `value = ""` then took away (the second message of #438
+  // went that way: filled while the first send's failure was still being handled, wiped, and the
+  // Send it unlocked read an empty field). `select` costs nothing and is first-meal's sweep already.
+  const controls = [...wrap.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea"),
+    ...(also?.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea") ?? [])];
   for (const c of controls) c.disabled = true;
   tell(null);
   // To this screen while it is up; carried to the next one when it has been rebuilt meanwhile.
