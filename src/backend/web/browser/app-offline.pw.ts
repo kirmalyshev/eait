@@ -40,7 +40,7 @@ async function say(page: Page, words: string) {
 
 // A kept turn's bubble is dimmed; one whose refusal is back carries "held" — `waiting` is the
 // still-queued kind only.
-const waiting = (page: Page) => page.locator(".thread li.me.dim:not(.held)");
+const waiting = (page: Page) => page.locator(".thread li.me.pending");
 
 test("a photo and a message sent offline wait in the thread, and go once, in order, when the connection is back", async ({ inWebApp: page }) => {
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
@@ -161,9 +161,9 @@ test("a refusal that comes back when the queue drains is worded against the kept
     : r.fallback()));
   await page.context().setOffline(false);
 
-  const banana = page.locator(".thread li.them", { hasText: "This account's free sample is used up" });
+  const banana = page.locator(".thread li.me", { hasText: "This account's free sample is used up" });
   await expect(banana).toContainText("This account's free sample is used up. Start your free week to carry on.");
-  await expect(page.locator(".thread li.me.dim", { hasText: "a banana" })).toHaveCount(1);
+  await expect(page.locator(".thread li.me.refused", { hasText: "a banana" })).toHaveCount(1);
   // The apple was told it goes on its own; once the banana ahead of it is held, that is no longer true.
   await expect(page.locator(".notice")).toHaveText(BEHIND);
   // Held, not retried on its own, and the one behind it waits rather than jumping the queue.
@@ -177,9 +177,9 @@ test("a refusal that comes back when the queue drains is worded against the kept
 
   refused = false;
   // force: see app-chat's Send-again spec — the rising node is swapped under the pointer.
-  await banana.getByRole("button", { name: "Send again" }).click({ force: true });
+  await banana.getByRole("button", { name: "Resend" }).click({ force: true });
   await expect(waiting(page)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Send again" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Resend" })).toHaveCount(0);
   await expect.poll(() => userLines(page)).toEqual(["text:a banana", "text:and an apple", "text:and some toast"]);
 });
 
@@ -193,11 +193,11 @@ test("a kept turn can be discarded, and nothing is sent for it", async ({ inWebA
     : r.fallback()));
   await page.context().setOffline(false);
   // The refusal is Gabie's line under the kept bubble; Discard sits beside it.
-  const discard = page.getByRole("button", { name: "Discard" });
+  const discard = page.getByRole("button", { name: "Delete" });
   await expect(discard).toBeVisible();
   await page.unroute("**/api/v1/messages");
   await discard.click();
-  await expect(page.locator(".thread li.me.dim", { hasText: "a pear" })).toHaveCount(0);
+  await expect(page.locator(".thread li.me.refused", { hasText: "a pear" })).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".compose .box")).toBeVisible();
   await expect(page.locator(".thread li", { hasText: "a pear" })).toHaveCount(0);

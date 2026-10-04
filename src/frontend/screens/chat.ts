@@ -66,8 +66,6 @@ export async function chatScreen(): Promise<HTMLElement> {
   notice.setAttribute("role", "alert");
   notice.hidden = true;
   const tell = (words: string | null): void => {
-    // A kept turn says so ON her bubble (#1520): the "saved on this device" notice would repeat it.
-    if (words !== null && (words === kept() || words === behind() || words === keptNotice(uid))) words = null;
     notice.textContent = words ?? "";
     notice.hidden = words === null;
   };
@@ -223,6 +221,9 @@ export async function chatScreen(): Promise<HTMLElement> {
         dl.append(el("i", "ico i-alert-circle"),
           refusalWords(new ApiError(0, { error: e.held!.kind, ...(e.held!.scope ? { scope: e.held!.scope } : {}) }, "held")));
         const act = el("div", "act");
+        // A held 402 goes again once she has subscribed (on the phone: web has no payments), so it
+        // keeps Resend; every other refusal is final, and Delete lets the queue behind it go.
+        if (e.held!.kind === "subscription-required") act.append(smallCta(copy().resend, resend));
         act.append(plainCta(copy().phone.delete, drop), ts);
         li.append(dl, act);
       }
@@ -279,6 +280,15 @@ export async function chatScreen(): Promise<HTMLElement> {
       fail.append(say);
       clear(thread).append(fail);
       throw unread;
+    }
+    // His face on the LAST of each run of his bubbles only; the older ones keep the disc's room.
+    for (const li of list.querySelectorAll<HTMLElement>(":scope > li.them")) {
+      const next = li.nextElementSibling;
+      const spud = li.querySelector(":scope > .say > .spud");
+      if (spud !== null && next !== null && next.matches("li.them:not(.opts, .sug)")) {
+        const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
+        spud.replaceWith(gap);
+      }
     }
     clear(thread).append(list);
     // The newest line is the bottom anchor — land on it on every draw, and again when a
@@ -456,6 +466,8 @@ export async function chatScreen(): Promise<HTMLElement> {
     } catch (err) {
       if (!(err instanceof ApiError) || uid === null) throw err;
       await outbox.add({ ...entry, held: failureOf(err) });
+      // Kept on her bubble AND said out loud: the notice is the page's alert.
+      return refusalWords(err);
     }
   };
 

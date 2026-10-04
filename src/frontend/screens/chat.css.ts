@@ -43,6 +43,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .say > .bub { flex: 1; min-width: 0; background: var(--chat-bubble); border-radius: 17px; padding: 6px 12px 7px;
   position: relative; box-shadow: 0 1px 1px rgba(23, 25, 28, .07); }
 .say .spud { width: 28px; height: 28px; flex: 0 0 28px; }
+.say .saygap { width: 28px; flex: 0 0 28px; }
 .say .say-p, .say .saytitle { display: inline; }
 .say .say-hi { font-size: 19px; }
 .say .saytitle { font-weight: 400; font-size: inherit; }
@@ -56,7 +57,6 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .thread > li.me + li.me { border-top-right-radius: 6px; }
 .thread > li.them:has(+ li.them:not(.opts, .sug)) .bub { border-bottom-left-radius: 6px; }
 .thread > li.them + li.them .bub { border-top-left-radius: 6px; }
-.thread > li.them:has(+ li.them:not(.opts, .sug)) .spud { visibility: hidden; }
 .thread > li.me:not(:has(+ li.me)) { border-bottom-right-radius: 0; }
 .thread > li.me:not(:has(+ li.me))::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 8px; height: 14px;
   background: inherit; mask: radial-gradient(8px 14px at 100% 0, transparent 98%, #000 100%); }

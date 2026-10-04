@@ -27,12 +27,12 @@ test("Spud's disc sits beside his newest line only, and mine are right-side line
   await expect(page.locator(".thread li.them .say-p")).toHaveCount(2);
 
   // One disc, on the LAST of her lines — the older one keeps her column's spacer in its place.
-  await expect(page.locator(".thread .spud")).toHaveCount(1);
+  // #1520: his face on the last of each RUN — her line between his two answers ends the first run.
+  await expect(page.locator(".thread .spud")).toHaveCount(2);
   await expect(page.locator(".thread li.them:has(.say)").last().locator(".spud")).toHaveCount(1);
-  await expect(page.locator(".thread .saygap")).toHaveCount(1);
+  await expect(page.locator(".thread .saygap")).toHaveCount(0);
   // And her name above the FIRST of them — the boards' rule (design-pro, #94).
-  await expect(page.locator(".thread li.them .gname").first()).toHaveText("Spud");
-  await expect(page.locator(".thread .gname")).toHaveCount(1);
+  await expect(page.locator(".thread .gname")).toHaveCount(0);
   // Mine are right-side lines in the accent tint, not full-width blocks.
   const mine = page.locator(".thread li.me").first();
   await expect(mine).toBeVisible();
