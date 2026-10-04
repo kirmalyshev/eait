@@ -99,6 +99,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
+  jobs: "user_id",
 };
 
 /**
@@ -579,7 +580,31 @@ create index if not exists turns_claimed_idx on turns(claimed_at) where outcome 
 -- written by the raw statements below because pg-boss's own update() only edits queued jobs.
 -- job_rows is the one place that reads that shape back. pgboss has no row-level security: every
 -- read and write here names data->>'userId' itself. The outcome stays in turns.
-drop table if exists jobs;
+-- The table the queue used before pg-boss. Unused: kept while a rolling deploy can still run a
+-- replica that reads it; a later contract change drops it.
+create table if not exists jobs (
+  user_id         uuid not null references users(id) on delete cascade,
+  client_id       text not null,
+  kind            text not null,
+  request_version smallint not null default 1,
+  request         jsonb not null,
+  state           text not null default 'queued' check (state in ('queued', 'running', 'settled')),
+  attempts        integer not null default 0,
+  step            smallint not null default 2,
+  items           jsonb not null default '[]',
+  lease_owner     text,
+  lease_until     timestamptz,
+  meal_id         uuid,
+  analysis_id     uuid,
+  removed_at      timestamptz,
+  followed_until  timestamptz,
+  pushed_at       timestamptz,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  primary key (user_id, client_id)
+);
+create index if not exists jobs_claimable_idx on jobs (kind, created_at) where state <> 'settled';
+create index if not exists jobs_user_idx on jobs (user_id, updated_at desc);
 create index if not exists eait_job_key on pgboss.job ((data->>'userId'), (data->>'clientId'));
 create or replace view job_rows as
 select j.id as boss_id,
