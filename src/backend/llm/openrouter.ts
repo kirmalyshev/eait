@@ -148,6 +148,10 @@ export function openRouterPorts(opts: Options): LlmPorts {
      *  when the request the call serves is already settled unknown (#276). */
     cutoff?: AbortSignal,
   ): Promise<{ choices?: Choice[] }> {
+    // A call whose turn already settled against it never reaches the wire again: #70's parallel
+    // analysis aborts the moment the router names an intent that does not want it, and the next
+    // attempt's fetch would be money spent on a reply nobody awaits.
+    if (cutoff?.aborted) throw cutoff.reason ?? new Error("aborted");
     // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
     // answers, and holds the request, the photo and a worker slot until the process restarts.
     // Vision inference is slow, so the budget is generous — but it is finite.
@@ -374,7 +378,62 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // never had, and the argument after it is the deadline.
     const deadline = Date.now() + opts.timeoutMs;
     const P = await prompts();
-    let out = await complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal);
+
+    // THE MEAL ANALYSIS DOES NOT WAIT ON THE ROUTER (#70). The focused `text-meal` call needs
+    // nothing the routing call produces — its inputs are the words, the profile and the day — so
+    // on a turn with no focus meal it is fired NOW, in parallel, and awaited when the intent is
+    // `meal` and the router did not do the work. Measured on the shipped provider: routing 3–9 s,
+    // the analysis ~25 s, strictly sequential until this — a meal logged over chat waited on both
+    // ends of a call that could have started at once. A question or a re-date is the price: one
+    // analysis the intent never uses, aborted the moment the router says so (a few cents of a cent).
+    //
+    // Not with a focus meal: the parallel call would be the CORRECTION prompt, which attaches the
+    // meal's stored photographs — and a question asked over a meal in focus must not read a row of
+    // them, let alone pay to send them (see `loadFocusImages`). Those turns stay sequential.
+    //
+    // Its deltas are BUFFERED until the router confirms the intent: an `answer` turn must not
+    // stream the items of a meal that does not exist. On confirm they replay in order and the
+    // rest pass through live.
+    const specAbort = new AbortController();
+    const specCutoff = input.signal === undefined
+      ? specAbort.signal
+      : AbortSignal.any([specAbort.signal, input.signal]);
+    const specBuffered: string[] = [];
+    let specConfirmed = false;
+    const specDelta = input.onDelta === undefined ? undefined
+      : (d: string) => { if (specConfirmed) input.onDelta!(d); else specBuffered.push(d); };
+    const routing = complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal);
+    const spec = input.focusMeal === undefined
+      ? complete(
+        P.text_meal,
+        buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets, todayMeals: input.todayMeals }),
+        MealAnalysisSchema,
+        "text-meal",
+        // A second call by accounting: the routing call beside it is this turn's first, so a
+        // gateway status here generated something already or shares a refusal the router owns.
+        true,
+        specDelta,
+        deadline,
+        input.onCost,
+        specCutoff,
+      )
+      : null;
+    // Settled either way: an intent that does not use it must not leave a rejection unlistened.
+    spec?.catch(() => {});
+
+    let out: Awaited<typeof routing>;
+    try {
+      out = await routing;
+    } catch (e) {
+      specAbort.abort();
+      throw e;
+    }
+    /** The spec is this branch's analysis: confirm it (replaying what streamed early) and await it. */
+    const takeSpec = async () => {
+      specConfirmed = true;
+      if (input.onDelta !== undefined) for (const d of specBuffered) input.onDelta(d);
+      return await spec!;
+    };
 
     // The decision and the work, separated — but only when the model made us.
     //
@@ -418,19 +477,21 @@ export function openRouterPorts(opts: Options): LlmPorts {
         "text-correction",
         // The router call above already generated and was billed — the same rule as the meal branch.
         true,
-        undefined,
+        input.onDelta,
         deadline,
         input.onCost,
         input.signal,
       );
       // One more draw on the degenerate answer — see the meal branch below.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, undefined, deadline, input.onCost, input.signal);
+        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, input.onDelta, deadline, input.onCost, input.signal);
       }
       out = { ...out, analysis };
     } else if (out.intent === "meal" && (!out.analysis || emptyEstimate(out.analysis))) {
       const mealText = buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets, todayMeals: input.todayMeals });
-      let analysis = await complete(
+      // `spec` IS this call, already in flight since the turn began — null only when a focus meal
+      // was present, whose speculation is the correction prompt and not this one.
+      let analysis = spec !== null ? await takeSpec() : await complete(
         P.text_meal,
         mealText,
         MealAnalysisSchema,
@@ -438,7 +499,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // The router call above already generated and was billed, so a gateway refusal on this one
         // is not free and the turn stays charged.
         true,
-        undefined,
+        input.onDelta,
         deadline,
         input.onCost,
         input.signal,
@@ -448,10 +509,14 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // draw — with the emptiness named in the prompt this time — lands the items; a second empty
       // is still refused by the caller, never retried forever.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, undefined, deadline, input.onCost, input.signal);
+        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, input.onDelta, deadline, input.onCost, input.signal);
       }
       out = { ...out, analysis };
     }
+    // The speculation the intent did not take is done here: a question, a re-date, a correction
+    // the CORRECTION prompt answers for itself, and a router that supplied the analysis all stop
+    // its fetch — what it generated so far was already billed either way.
+    if (!specConfirmed) specAbort.abort();
 
     // The one place a `RouteResult` is constructed. Every dayOffset-bearing branch clamps, and a
     // branch that claims something this call cannot do — a correction or a re-date with no focus
