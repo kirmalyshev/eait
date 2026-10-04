@@ -504,29 +504,47 @@ export async function chatScreen(): Promise<HTMLElement> {
     });
   };
 
-  /** The busy row the boards draw while the answer is out ("web-chat-busy", #70): his face and the
-      three typing dots on the newest line. The draw that follows the send replaces the list; the
-      caller's finally removes it for the path that never reaches one. */
-  const showTyping = (): (() => void) => {
+  /** The boards' busy state ("web-chat-busy", #70): HER line is a thread line from the instant she
+      taps Send — words or the photo's own thumb and caption — and under it his face with the three
+      typing dots. The draw that follows the send replaces both; the caller's finally removes them
+      for the path that never reaches one. */
+  const showBusy = (entry: Parameters<typeof sendOrKeep>[0]): (() => void) => {
     const listEl = wrap.querySelector<HTMLElement>(".thread");
     if (listEl === null) return () => {};
-    const li = el("li", "them");
+    const mine = el("li", `me rise dly-0${entry.kind === "photo" ? " pic" : ""}`);
+    if (entry.kind === "photo") {
+      const hero = el("div", "hero");
+      const src = entry.photos[0] === undefined ? null : URL.createObjectURL(entry.photos[0]);
+      if (src !== null) {
+        const img = el("img", "") as HTMLImageElement;
+        img.src = src;
+        img.alt = "";
+        img.addEventListener("load", () => URL.revokeObjectURL(src), { once: true });
+        hero.append(img);
+      }
+      mine.append(hero);
+      if (entry.text !== null) mine.append(el("p", "cap", entry.text));
+    } else {
+      mine.append(el("p", "said", entry.text ?? ""));
+    }
+    mine.append(el("div", "ts", timeFmt(new Date())));
+    const theirs = el("li", "them");
     const dots = el("div", "dots");
     dots.setAttribute("aria-label", fill(copy().phone.typing, { coach: coachName() ?? "Spud" }));
     dots.append(el("i", ""), el("i", ""), el("i", ""));
-    li.append(sayBlock((col) => col.append(dots)));
-    listEl.append(li);
+    theirs.append(sayBlock((col) => col.append(dots)));
+    listEl.append(mine, theirs);
     for (const sc of [listEl, listEl.closest<HTMLElement>(".wmain")].filter((e): e is HTMLElement => e !== null)) {
       sc.scrollTop = sc.scrollHeight;
     }
-    return () => li.remove();
+    return () => { mine.remove(); theirs.remove(); };
   };
 
   /** Send her turn. A refusal stays HER bubble (#1520): kept held, the reason drawn on it with
       Delete, and her words never go back to the field. */
   const sendHers = async (entry: Parameters<typeof sendOrKeep>[0]): Promise<string | void> => {
     readerUp = null; // her own send lands her on the newest line (Telegram's rule)
-    const unbusy = showTyping();
+    const unbusy = showBusy(entry);
     try {
       return await sendOrKeep(entry, { onResult: rememberLive });
     } catch (err) {
@@ -594,23 +612,28 @@ export async function chatScreen(): Promise<HTMLElement> {
         arm();
         return;
       }
+      // The field gives the words up NOW — her bubble already carries them ("web-chat-busy", #70) —
+      // and takes them back only when the send throws before the turn ever took the line.
       if (files.length > 0) {
-        const saved = await sendHers({
-          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
-          capturedAt: new Date().toISOString(),
-        });
-        picker.value = "";
         words.value = "";
-        arm();
-        return saved;
+        try {
+          const saved = await sendHers({
+            id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
+            capturedAt: new Date().toISOString(),
+          });
+          picker.value = "";
+          arm();
+          return saved;
+        } catch (e) { words.value = text; throw e; }
       }
-      const saved = await sendHers({
-        id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
-        capturedAt: new Date().toISOString(),
-        ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
-      });
       words.value = "";
-      return saved;
+      try {
+        return await sendHers({
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
+          capturedAt: new Date().toISOString(),
+          ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
+        });
+      } catch (e) { words.value = text; throw e; }
     });
   });
   arm();
