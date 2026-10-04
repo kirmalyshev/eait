@@ -9,7 +9,7 @@
 
 import type { MealRecord, PaywallPlan, WebPaywall, YearlyPlan } from "@eait/shared";
 import {
-  cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
+  bmiBar as bmiBarMarkup, cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
   optionRow as optionRowMarkup, photoHero as photoHeroMarkup, planCard as planCardMarkup,
   gabieAvatar as gabieAvatarMarkup, gabieName as gabieNameMarkup, spudAvatar as spudAvatarMarkup,
@@ -48,6 +48,14 @@ export function kitEl(markup: string): Element {
 }
 
 // ── The builders, as elements ────────────────────────────────────────────────────────────────
+
+/** The BMI bar with its tick placed: the position is `data-pos`, set as `style.left` here. */
+export const bmiBarEl = (segments: number, on: number, tickPercent: number): Element => {
+  const bar = kitEl(bmiBarMarkup(segments, on, tickPercent));
+  const tick = bar.querySelector<HTMLElement>("b")!;
+  tick.style.left = `${tick.dataset.pos}%`;
+  return bar;
+};
 
 export const ringEl = (o: RingOpts): Element => kitEl(ringMarkup(o));
 

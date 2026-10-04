@@ -38,6 +38,7 @@ const WEB_MODULES = new Set([
   "contract.ts",
   "entitlement.ts",    // the Subscription row's state rule (#175) — pure, reads dates.ts
   "progress.ts",       // the card-state rule — pure, one contract type
+  "scores.ts",         // the BMI edges and the bar's segments (#155) — pure, reads targets.ts
   "first-meal-copy.ts",
 ]);
 
