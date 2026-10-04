@@ -146,12 +146,12 @@ export interface WebCopy {
   offerDay8: string;
   offerTodayText: string;
   offerBeforeText: string;
-  /** No `{price}`: the API sends this client no price, and inventing one is the defect. */
+  /** No `{price}` and no cadence: the plans' own rows carry both, priced off `paywall` (#263). */
   offerDay8Text: string;
-  /** The radiogroup's name on the offer — one plan today, read by a screen reader (#52). */
+  /** The radiogroup's name on the offer — the Monthly/Yearly pair (#263). */
   offerPlans: string;
-  offerPlanMonthly: string;
-  /** Where the price lives — this client shows none; checkout owns it. */
+  /** The fine print while the yearly trial is picked — monthly renews at once, so its line is
+      `PAY_COPY.renewNoteMonthly` instead (#263). */
   offerCheckoutHint: string;
   startFreeWeek: string;
   offerLater: string;
@@ -238,9 +238,8 @@ const EN: WebCopy = {
   offerToday: "Today", offerBeforeEnd: "Before it ends", offerDay8: "Day 8",
   offerTodayText: "Free for 7 days",
   offerBeforeText: "We remind you",
-  offerDay8Text: "Then it's monthly · cancel any time",
+  offerDay8Text: "Then billing starts · cancel any time",
   offerPlans: "Your plan",
-  offerPlanMonthly: "Monthly · 7 days free",
   offerCheckoutHint: "Checkout opens on a secure page, with the price in your currency. Nothing is charged for 7 days.",
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
@@ -325,9 +324,8 @@ const FR: WebCopy = {
   offerToday: "Aujourd'hui", offerBeforeEnd: "Avant la fin", offerDay8: "Jour 8",
   offerTodayText: "7 jours offerts",
   offerBeforeText: "On te le rappelle",
-  offerDay8Text: "Ensuite au mois · résiliable à tout moment",
+  offerDay8Text: "Ensuite la facturation · résiliable à tout moment",
   offerPlans: "Ta formule",
-  offerPlanMonthly: "Mensuel · 7 jours offerts",
   offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, avec le prix dans ta devise. Rien n'est débité pendant 7 jours.",
   startFreeWeek: "Commencer ma semaine offerte",
   offerLater: "Pas maintenant",
@@ -412,9 +410,8 @@ const DE: WebCopy = {
   offerToday: "Heute", offerBeforeEnd: "Vor Ablauf", offerDay8: "Tag 8",
   offerTodayText: "7 Tage kostenlos",
   offerBeforeText: "Wir erinnern dich",
-  offerDay8Text: "Danach monatlich · jederzeit kündbar",
+  offerDay8Text: "Danach beginnt die Abrechnung · jederzeit kündbar",
   offerPlans: "Dein Abo",
-  offerPlanMonthly: "Monatlich · 7 Tage kostenlos",
   offerCheckoutHint: "Die Bezahlung läuft über eine sichere Seite, mit dem Preis in deiner Währung. 7 Tage lang wird nichts abgebucht.",
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
@@ -499,9 +496,8 @@ const IT: WebCopy = {
   offerToday: "Oggi", offerBeforeEnd: "Prima che finisca", offerDay8: "Giorno 8",
   offerTodayText: "Gratis per 7 giorni",
   offerBeforeText: "Ti avvisiamo noi",
-  offerDay8Text: "Poi è mensile · disdici quando vuoi",
+  offerDay8Text: "Poi inizia l'addebito · disdici quando vuoi",
   offerPlans: "Il tuo abbonamento",
-  offerPlanMonthly: "Mensile · 7 giorni gratis",
   offerCheckoutHint: "Il pagamento si apre su una pagina sicura, col prezzo nella tua valuta. Non viene addebitato niente per 7 giorni.",
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
@@ -586,9 +582,8 @@ const ES: WebCopy = {
   offerToday: "Hoy", offerBeforeEnd: "Antes de que termine", offerDay8: "Día 8",
   offerTodayText: "Gratis 7 días",
   offerBeforeText: "Te lo recordamos",
-  offerDay8Text: "Luego es mensual · cancela cuando quieras",
+  offerDay8Text: "Luego empieza el cobro · cancela cuando quieras",
   offerPlans: "Tu plan",
-  offerPlanMonthly: "Mensual · 7 días gratis",
   offerCheckoutHint: "El pago se abre en una página segura, con el precio en tu moneda. No se cobra nada durante 7 días.",
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
@@ -673,9 +668,8 @@ const VI: WebCopy = {
   offerToday: "Hôm nay", offerBeforeEnd: "Trước khi hết", offerDay8: "Ngày 8",
   offerTodayText: "Miễn phí 7 ngày",
   offerBeforeText: "Chúng mình sẽ nhắc bạn",
-  offerDay8Text: "Sau đó tính theo tháng · hủy bất cứ lúc nào",
+  offerDay8Text: "Sau đó bắt đầu tính phí · hủy bất cứ lúc nào",
   offerPlans: "Gói của bạn",
-  offerPlanMonthly: "Theo tháng · 7 ngày miễn phí",
   offerCheckoutHint: "Thanh toán mở ra trên một trang bảo mật, với giá theo tiền tệ của bạn. Không trừ tiền trong 7 ngày.",
   startFreeWeek: "Bắt đầu tuần miễn phí",
   offerLater: "Để sau",
@@ -760,9 +754,8 @@ const ID: WebCopy = {
   offerToday: "Hari ini", offerBeforeEnd: "Sebelum berakhir", offerDay8: "Hari ke-8",
   offerTodayText: "Gratis 7 hari",
   offerBeforeText: "Kami ingatkan kamu",
-  offerDay8Text: "Lalu bulanan · bisa batal kapan saja",
+  offerDay8Text: "Lalu penagihan dimulai · bisa batal kapan saja",
   offerPlans: "Paketmu",
-  offerPlanMonthly: "Bulanan · 7 hari gratis",
   offerCheckoutHint: "Pembayaran terbuka di halaman aman, dengan harga dalam mata uangmu. Tidak ada tagihan selama 7 hari.",
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
@@ -847,9 +840,8 @@ const RU: WebCopy = {
   offerToday: "Сегодня", offerBeforeEnd: "До конца пробной недели", offerDay8: "День 8",
   offerTodayText: "Бесплатно 7 дней",
   offerBeforeText: "Мы напомним",
-  offerDay8Text: "Дальше помесячно · отменить можно в любой момент",
+  offerDay8Text: "Дальше начинается оплата · отменить можно в любой момент",
   offerPlans: "Твой тариф",
-  offerPlanMonthly: "Помесячно · 7 дней бесплатно",
   offerCheckoutHint: "Оплата откроется на защищённой странице с ценой в твоей валюте. 7 дней ничего не списывается.",
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
