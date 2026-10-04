@@ -1006,7 +1006,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   /** A meal row: the photo or the no-photo tile, the time, the verdict line, the gram chips —
    *  the same row on every day, past days included (F). */
   const mealRow = (meal: MealRecord): Element =>
-    inPlace(meal.id, () => plainRow(meal));
+    inPlace(meal, () => plainRow(meal));
   const plainRow = (meal: MealRecord): Element => {
     // The row opens the meal's own breakdown — design's ruling (#91's Q7): `#/meal/:id`, W6's
     // prefix. The board draws `.meal` without a glyph; the link is the affordance.
