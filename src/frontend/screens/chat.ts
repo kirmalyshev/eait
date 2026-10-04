@@ -47,6 +47,8 @@ const declined = (line: ChatEntry | undefined, next: ChatEntry | undefined): boo
 // newer turn retires them. Matched onto the newest assistant line of the same words.
 // Module-scoped so it outlives the screen: coming back from another tab keeps them (#1229).
 let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
+/** A reader up in older lines (`chat-latest`): where each scroller stood, and how many rows she had seen. */
+let readerUp: { tops: number[]; seen: number } | null = null;
 
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -308,33 +310,38 @@ export async function chatScreen(): Promise<HTMLElement> {
         spud.replaceWith(gap);
       }
     }
-    // Telegram's rule (`chat-latest`): a reader up in older lines keeps her place when a row
-    // arrives, and a round ↓ with the count of unseen rows brings her to the newest.
-    const prev = thread.querySelector<HTMLElement>(":scope > ul.thread");
-    const up = prev !== null && prev.scrollHeight - prev.scrollTop - prev.clientHeight > 48
-      ? { top: prev.scrollTop, rows: prev.children.length, seen: Number(prev.dataset.seen ?? prev.children.length) } : null;
+    // The scroller is the list on a wide page and the page column (`.wmain`) on a narrow one, so
+    // both are read and both are set — once the list is in the document, when `.wmain` is findable.
+    const scrollers = (): HTMLElement[] =>
+      [list, list.closest<HTMLElement>(".wmain")].filter((e): e is HTMLElement => e !== null);
+    const away = (sc: HTMLElement): boolean => sc.scrollHeight - sc.scrollTop - sc.clientHeight > 48;
     clear(thread).append(list);
     // The newest line is the bottom anchor — land on it on every draw, and again when a
     // photo finishes arriving (a blob's decode can change scrollHeight after the draw).
-    const bottom = () => { list.scrollTop = list.scrollHeight; };
-    if (up === null) {
-      bottom();
-      requestAnimationFrame(bottom);
-    } else {
-      list.scrollTop = up.top;
-      list.dataset.seen = String(up.seen);
-      const unseen = list.children.length - up.seen;
-      if (unseen > 0) {
-        const jump = el("button", "jump") as HTMLButtonElement;
+    const bottom = () => { for (const sc of scrollers()) sc.scrollTop = sc.scrollHeight; };
+    const attached = (fn: () => void, tries = 30): void => {
+      if (list.isConnected) fn(); else if (tries > 0) requestAnimationFrame(() => attached(fn, tries - 1));
+    };
+    const up = readerUp;
+    attached(() => {
+      // Telegram's rule (`chat-latest`): a reader up in older lines keeps her place when a row
+      // lands, and a round ↓ with the count of unseen rows brings her to the newest.
+      if (up === null) { bottom(); requestAnimationFrame(bottom); } else scrollers().forEach((sc, k) => { sc.scrollTop = up.tops[k] ?? sc.scrollTop; });
+      const unseen = up === null ? 0 : list.children.length - up.seen;
+      const jump = unseen > 0 ? el("button", "jump") as HTMLButtonElement : null;
+      if (jump !== null) {
         jump.type = "button";
         jump.setAttribute("aria-label", copy().newest);
         jump.append(el("i", "ico i-chevron-down"), el("b", "n", String(unseen)));
-        const go = (): void => { list.dataset.seen = String(list.children.length); jump.remove(); };
-        jump.addEventListener("click", () => { bottom(); go(); });
-        list.addEventListener("scroll", () => { if (list.scrollHeight - list.scrollTop - list.clientHeight <= 48) go(); });
+        jump.addEventListener("click", () => { readerUp = null; bottom(); jump.remove(); });
         thread.append(jump);
       }
-    }
+      for (const sc of scrollers()) sc.addEventListener("scroll", () => {
+        if (!list.isConnected) return;
+        if (scrollers().some(away)) readerUp = { tops: scrollers().map((x) => x.scrollTop), seen: readerUp?.seen ?? list.children.length };
+        else { readerUp = null; jump?.remove(); }
+      });
+    });
     list.addEventListener("load", (ev) => {
       if ((ev.target as HTMLElement).tagName === "IMG") bottom();
     }, true);

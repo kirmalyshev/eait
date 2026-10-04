@@ -152,11 +152,15 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 
 /* "chat-latest" (#1520): up in older lines when a row arrives — the round ↓ with the unseen count,
    right, above the composer; a tap or reaching the bottom takes it away. */
-.thread-holder { position: relative; }
-.jump { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; border-radius: 50%; border: 0;
+/* Sticky to whichever scrolls — the list (wide) or the page column (narrow) — and laid over the
+   thread's foot rather than below it (the negative top margin takes back its own height). */
+.jump { position: sticky; bottom: 12px; align-self: flex-end; margin: -56px 12px 12px auto; flex: 0 0 auto; z-index: 2;
+  width: 44px; height: 44px; border-radius: 50%; border: 0;
   background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(23, 25, 28, .18); display: flex;
   align-items: center; justify-content: center; cursor: pointer; }
 .jump .ico { width: 22px; height: 22px; }
+/* Narrow: the page column scrolls and the composer is pinned over its foot, so the ↓ clears it. */
+@media (max-width: 760px) { .jump { bottom: 84px; } }
 .jump .n { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
   background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; }
 `;
