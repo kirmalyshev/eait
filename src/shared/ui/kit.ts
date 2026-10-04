@@ -571,6 +571,18 @@ export const payCss = (): string => `
 .plan:focus-within{outline:2px solid var(--ink);outline-offset:-2px}
 `;
 
+// ── The BMI bar ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The Progress BMI bar: `segments` equal pieces, the `on` one lit, and a tick. Its position rides
+ * on `data-pos` (a percentage, 0..100) and not on a `style=""`, which the shell's CSP refuses —
+ * `bmiBarEl` (frontend/kit.ts) moves it onto the tick through CSSOM, which the policy allows.
+ */
+export const bmiBar = (segments: number, on: number, tickPercent: number): string =>
+  `<div class="bmi" aria-hidden="true">` +
+  Array.from({ length: segments }, (_, i) => `<i${i === on ? ' class="on"' : ""}></i>`).join("") +
+  `<b data-pos="${tickPercent}"></b></div>`;
+
 // ── The kit's rules ──────────────────────────────────────────────────────────────────────────
 //
 // `pro.css`'s rules for these components, token by token, minus the inline styles the CSP forbids

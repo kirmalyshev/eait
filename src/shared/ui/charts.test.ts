@@ -5,9 +5,8 @@
 // the persona's five logged weigh-ins, the week's bars, and the estimate curve's fixed shape.
 
 import { describe, expect, test } from "bun:test";
+import { BMI_SEGMENTS, bmiTick } from "../scores.ts";
 import {
-  BMI_SEGMENTS,
-  bmiTick,
   bodyWeightChart,
   compareChart,
   dayRing,

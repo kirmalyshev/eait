@@ -11,7 +11,8 @@
 // screen to route to, so the inline editor is the same door it took there (eait#97's ruling).
 
 import { weightCard } from "../../shared/progress.ts";
-import { BMI_SEGMENTS, bmiTick, goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
+import { BMI_SEGMENTS, bmiTick } from "../../shared/scores.ts";
+import { goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, weightDisplayValue, weightToKg, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, spellUnit, weekdayLetters } from "../../shared/lang.ts";
@@ -23,7 +24,7 @@ import type {
 } from "@eait/shared";
 import { api, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { weekBarsEl, weightChartEl } from "../kit.ts";
+import { bmiBarEl, weekBarsEl, weightChartEl } from "../kit.ts";
 import { clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, type Frame } from "../shell.ts";
 
 export async function progressScreen(frame: Frame): Promise<HTMLElement> {
@@ -206,7 +207,8 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     // `one` and `trend` both show the newest weigh-in — the range ends today, so its last point is
     // the log's latest, and a single point draws alone with its value and date, no invented second.
     wBody.append(weightFigure(w.latest!.kg, copy.weightNowTail[units]));
-    const first = w.weights[0]!, last = w.weights.at(-1)!;
+    const shown = state.kind === "one" ? [state.point] : state.points;
+    const first = shown[0]!, last = shown.at(-1)!;
     // The end labels name the TREND's endpoints, not the raw readings they once did — a label at
     // the line's end quotes the value the line ends at (#1114). The figure above stays `latest`.
     const trend = weightChart(points);
@@ -328,15 +330,10 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     card.append(value);
 
     const on = BMI_SEGMENTS.findIndex((s) => s.id === w.bmi!.range);
-    // The board's .bmi: four 8px segments and an 18px tick, pixel-true at any card width —
-    // which is why it is divs and not the earlier scaling svg.
-    const scale = el("div", "bmi");
-    scale.setAttribute("aria-hidden", "true");
-    BMI_SEGMENTS.forEach((_, i) => scale.append(el("i", i === on ? "on" : "")));
-    const tick = el("b", "");
-    tick.style.left = `${Math.round(bmiTick(w.bmi.value, w.bmi.range) * 1000) / 10}%`;
-    scale.append(tick);
-    card.append(scale);
+    // The board's .bmi: four 8px segments and an 18px tick, pixel-true at any card width.
+    card.append(bmiBarEl(
+      BMI_SEGMENTS.length, on, Math.round(bmiTick(w.bmi.value, w.bmi.range) * 1000) / 10,
+    ));
 
     const labels = el("div", "bmil");
     BMI_SEGMENTS.forEach((s, i) => {
