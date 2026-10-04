@@ -429,7 +429,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }
       out = { ...out, analysis };
     } else if (out.intent === "meal" && (!out.analysis || emptyEstimate(out.analysis))) {
-      const mealText = buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets });
+      const mealText = buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets, todayMeals: input.todayMeals });
       let analysis = await complete(
         P.text_meal,
         mealText,

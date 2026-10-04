@@ -5,7 +5,7 @@
 // engine's tests bind fakes to the same four signatures — which is what lets cap enforcement,
 // verdict gating, the correction loop and the coach's tools be tested without a billed call.
 
-import type { ChatSpeaker, DayTotals, FoodTargets, MealAnalysis, Profile, TargetBasis } from "@eait/shared";
+import type { ChatSpeaker, DayTotals, FoodTargets, MealAnalysis, MealItem, Profile, TargetBasis } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 
 /**
@@ -141,12 +141,26 @@ export type RouteResult =
   | { intent: "correction"; analysis: AnalyzedMeal }
   | { intent: "redate"; dayOffset: number };
 
+/**
+ * One of today's logged meals as the text side sees it.
+ *
+ * The items keep their grams and `kcal_per_100g` because that is what a reference resolves
+ * against: "2 more slices of the pizza" is the logged item's grams taken as one unit's weight
+ * and its density copied over. A list of names and meal totals — what this used to be — left
+ * the model nothing to copy, and it fell back to a generic portion (#441).
+ */
+export interface RecentMeal {
+  items: MealItem[];
+  kcal: number;
+  protein_g: number;
+}
+
 export interface TextInput {
   text: string;
   profile: Profile;
   targets: FoodTargets;
   /** Today's meals, so "what have I eaten" is answered from data rather than from a transcript. */
-  todayMeals: { items: string[]; kcal: number; protein_g: number }[];
+  todayMeals: RecentMeal[];
   /** The last week's per-day sums — the other half of the router's context. */
   week: DayTotals[];
   /** The meal a correction would apply to. Absent means corrections are not available this turn. */
