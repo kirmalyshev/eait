@@ -16,12 +16,22 @@ const s1 = (n: number): string => n.toFixed(1);
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /**
+ * The ring instrument's three board frames — the 104 px hero ring, the 96 px day ring and the
+ * 52 px macro ring — keyed by the frame's box, whose centre is `box / 2`. The web kit's `ring()`
+ * reads this table; a native client reads it for the same circles rather than retyping them.
+ */
+export const RING_SPEC = {
+  104: { box: 104, r: 44, stroke: 8 },
+  96: { box: 96, r: 40, stroke: 8 },
+  52: { box: 52, r: 21, stroke: 5 },
+} as const;
+
+/**
  * The dash of a circular progress ring: the full circumference as the dasharray, and the offset
  * that leaves `share` of it drawn. Clamped at a full ring — a share past 1 draws the ring full and
  * never wraps, because an over-plan day is exactly the one that must be seen whole.
  *
- * r 44 is the phone's day ring (276.5 / 70.9 at 1,066 of 1,434), r 40 the web's, r 21 the macro
- * rings, r 12 the week strip's.
+ * The radius is `RING_SPEC`'s or `WEEK_RING`'s — e.g. r 44 draws 276.5 / 70.9 at 1,066 of 1,434.
  */
 export function ringDash(share: number, r: number): { dasharray: number; dashoffset: number } {
   const c = 2 * Math.PI * r;

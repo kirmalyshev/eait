@@ -18,7 +18,7 @@
 // import it — so the functions take `{tone, words}` pairs the caller computed.
 
 import {
-  dayRing, estimateChart, ringDash, TWO_WAYS_CHART, weekBars, WEEK_RING, weightChart,
+  dayRing, estimateChart, ringDash, RING_SPEC, TWO_WAYS_CHART, weekBars, WEEK_RING, weightChart,
   type ChartDay, type EstimateDirection, type WeightPoint,
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
@@ -39,20 +39,14 @@ export type ChipName = "kcal" | "protein" | "carbs" | "fat" | "satfat";
 
 // ── The ring ─────────────────────────────────────────────────────────────────────────────────
 //
-// One instrument in the boards' three frames: the 104 px hero ring (r 44, stroke 8), the 96 px
-// web day ring (r 40, stroke 8) and the 52 px macro ring (r 21, stroke 5). The dash figures are
-// `ringDash`'s, the track is `--hair`, the arc's hue is a TOKEN NAME — a literal hex here is the
-// second copy the kit exists to prevent.
+// One instrument in the boards' three frames — `RING_SPEC`'s (ui/charts.ts): the 104 px hero ring
+// (r 44, stroke 8), the 96 px day ring (r 40, stroke 8) and the 52 px macro ring (r 21, stroke 5).
+// The dash figures are `ringDash`'s, the track is `--hair`, the arc's hue is a TOKEN NAME — a
+// literal hex here is the second copy the kit exists to prevent.
 
 export type RingTone =
   | "ink" | "accent" | "bad" | "warn" | "care" | "faint" | "line" | "over"
   | `macro-${ChipName}`;
-
-const RING_SPEC = {
-  104: { box: 104, r: 44, stroke: 8 },
-  96: { box: 96, r: 40, stroke: 8 },
-  52: { box: 52, r: 21, stroke: 5 },
-} as const;
 
 const toneVar = (tone: RingTone): string =>
   `var(--${tone === "macro-satfat" ? "macro-fat" : tone})`;
