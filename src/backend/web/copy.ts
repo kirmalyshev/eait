@@ -119,8 +119,6 @@ export interface PageCopy {
       timeline may not name one. */
   offerBilled: string;
   offerCta: string;
-  /** The link under the offer to the published privacy policy. */
-  offerPrivacy: string;
   /** The ×'s accessible name — it lets the offer go, straight into the first meal. */
   offerClose: string;
   titleOffer: string;
@@ -239,7 +237,6 @@ const EN: PageCopy = {
   offerWhenDay8: "Day 8",
   offerBilled: "Billing starts · cancel any time",
   offerCta: "Start my free week",
-  offerPrivacy: "Privacy",
   offerClose: "Close",
   titleOffer: "Start your free week",
   /** The picker. Its OPTIONS are `LANG_LABEL` — endonyms, never translated. */
@@ -314,7 +311,6 @@ const FR: PageCopy = {
   offerWhenDay8: "Jour 8",
   offerBilled: "Début de la facturation · résiliable quand tu veux",
   offerCta: "Commencer ma semaine offerte",
-  offerPrivacy: "Confidentialité",
   offerClose: "Fermer",
   titleOffer: "Ta semaine offerte",
   languageLabel: "Langue",
@@ -388,7 +384,6 @@ const DE: PageCopy = {
   offerWhenDay8: "Tag 8",
   offerBilled: "Abrechnung beginnt · jederzeit kündbar",
   offerCta: "Meine Gratiswoche starten",
-  offerPrivacy: "Datenschutz",
   offerClose: "Schließen",
   titleOffer: "Deine Gratiswoche",
   languageLabel: "Sprache",
@@ -462,7 +457,6 @@ const IT: PageCopy = {
   offerWhenDay8: "Giorno 8",
   offerBilled: "Inizio dell'addebito · disdici quando vuoi",
   offerCta: "Inizia la mia settimana gratis",
-  offerPrivacy: "Privacy",
   offerClose: "Chiudi",
   titleOffer: "La tua settimana gratis",
   languageLabel: "Lingua",
@@ -536,7 +530,6 @@ const ES: PageCopy = {
   offerWhenDay8: "Día 8",
   offerBilled: "Empieza el cobro · cancela cuando quieras",
   offerCta: "Empezar mi semana gratis",
-  offerPrivacy: "Privacidad",
   offerClose: "Cerrar",
   titleOffer: "Tu semana gratis",
   languageLabel: "Idioma",
@@ -610,7 +603,6 @@ const VI: PageCopy = {
   offerWhenDay8: "Ngày 8",
   offerBilled: "Bắt đầu tính phí · hủy bất cứ lúc nào",
   offerCta: "Bắt đầu tuần miễn phí",
-  offerPrivacy: "Quyền riêng tư",
   offerClose: "Đóng",
   titleOffer: "Bắt đầu tuần miễn phí",
   languageLabel: "Ngôn ngữ",
@@ -684,7 +676,6 @@ const ID: PageCopy = {
   offerWhenDay8: "Hari ke-8",
   offerBilled: "Penagihan dimulai · batal kapan saja",
   offerCta: "Mulai minggu gratisku",
-  offerPrivacy: "Privasi",
   offerClose: "Tutup",
   titleOffer: "Mulai minggu gratismu",
   languageLabel: "Bahasa",
@@ -758,7 +749,6 @@ const RU: PageCopy = {
   offerWhenDay8: "День 8",
   offerBilled: "Оплата начинается · отмена в любой момент",
   offerCta: "Начать бесплатную неделю",
-  offerPrivacy: "Конфиденциальность",
   offerClose: "Закрыть",
   titleOffer: "Твоя бесплатная неделя",
   languageLabel: "Язык",

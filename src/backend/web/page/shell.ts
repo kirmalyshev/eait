@@ -248,6 +248,18 @@ label.check {
    cell that wraps onto two lines ("Day 8" on a 390 px offer, #263). */
 .rowline > strong { flex: none; }
 
+/* The offer's plans and foot (#263): the CTA clears the last plan row the way the app's screen
+   does; the note under it is the one the CHECKED radio names — a :has, because this page runs no
+   script — and the legal links are the boards' centred muted footer, not a raw link. */
+.offer .plans { margin-bottom: 1.25rem; }
+.offer .note { font-size: .8125rem; color: var(--muted); text-align: center; margin: 0; }
+.offer .note-m { display: none; }
+.offer:has(input[name=plan][value=monthly]:checked) .note-y { display: none; }
+.offer:has(input[name=plan][value=monthly]:checked) .note-m { display: block; }
+.offer .fine { font-size: .8125rem; color: var(--muted); text-align: center; margin: .35rem 0 0; }
+.offer .fine a { color: inherit; }
+.offer .fine a:hover { color: var(--ink); }
+
 /* The plan page (#51). A small label over a figure, the declared marker caps in a row beside it,
    and the arithmetic as labelled rows — the phone's calc card, drawn the web's way. */
 .lab {

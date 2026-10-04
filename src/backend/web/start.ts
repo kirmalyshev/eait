@@ -1497,6 +1497,16 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         ?? pageCopyFor(profile.lang).offerTitleElse,
       checkoutUrl: `${START_PREFIX}/checkout`,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
+      termsHref: config.termsUrl === "" ? null : config.termsUrl,
+      // The note under the CTA is the one the checked radio names — the trial promise while the
+      // yearly card is picked, the renewal line under monthly. The yearly note is only built
+      // where the yearly plan exists to be picked.
+      noteYearly: w.yearlyCheckoutUrl === "" ? ""
+        : w.trialDays > 0
+          ? fill(pay.trialNote, { days: String(w.trialDays), price: cur(w.yearlyPrice) })
+          : fill(pay.renewNoteYearly, { price: cur(w.yearlyPrice) }),
+      noteMonthly: w.monthlyCheckoutUrl === "" ? ""
+        : fill(pay.renewNoteMonthly, { price: cur(w.monthlyPrice) }),
       closeHref: closeTo,
       plans,
       lang: profile.lang,
