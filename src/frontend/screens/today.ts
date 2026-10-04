@@ -30,7 +30,7 @@ import { blobSrc, ctaEl, kitEl, mealRowEl } from "../kit.ts";
 import { failureOf, outbox } from "../outbox.ts";
 import {
   DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, flush, heldProposal, kcal, kept,
-  keptLineEl, keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
+  keptLineEl, keptNotice, lang, names, profile, proposalCard, refusalWords, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
@@ -80,13 +80,17 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     dateMinus(d, (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7);
 
   const h1 = el("h1", "visually-hidden", S.navHome);
-  const notice = el("p", "notice");
+  const notice = el("p", "");
   notice.setAttribute("role", "alert");
   notice.hidden = true;
-  const tell = (words: string | null): void => {
+  const tell = (words: string | null, silent = false): void => {
     notice.textContent = words ?? "";
     notice.hidden = words === null;
+    notice.classList.toggle("notice", words !== null);
+    notice.classList.toggle("visually-hidden", words !== null && silent);
   };
+  // A refusal's words live INSIDE her held bubble; the same words go to the alert, out loud.
+  const announce = (words: string): void => tell(words, true);
 
   // ── The picker: the browser's own date input, opened by the bar's calendar button and by a
   // long press or right click on the strip (the phone's long press). Never past today.
@@ -850,7 +854,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       await outbox.add({ ...entry, held: failureOf(err) });
-      // The kept line inside her bubble is the saying — no reason line on top of it.
+      // The kept line inside her bubble is the saying — announced, never a second line.
+      announce(refusalWords(err));
       return;
     }
   };

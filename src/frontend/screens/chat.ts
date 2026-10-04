@@ -26,7 +26,7 @@ import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
-  MEAL_PHOTOS, proposalCard, profile, sendOrKeep, setHeldProposal, setLastThread,
+  MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names,
 } from "../shell.ts";
 
@@ -71,14 +71,19 @@ export async function chatScreen(): Promise<HTMLElement> {
   const focusMeal = focusId === null || me === null ? null
     : (await findMeal(focusId, me.timezone).catch(() => null))?.meal ?? null;
   const thread = el("div", "thread-holder");
-  const notice = el("p", "notice");
   // Announced, not only shown: a refusal only the sighted can see is silence to everybody else.
+  const notice = el("p", "");
   notice.setAttribute("role", "alert");
   notice.hidden = true;
-  const tell = (words: string | null): void => {
+  const tell = (words: string | null, silent = false): void => {
     notice.textContent = words ?? "";
     notice.hidden = words === null;
+    notice.classList.toggle("notice", words !== null);
+    notice.classList.toggle("visually-hidden", words !== null && silent);
   };
+  // A refusal's words live INSIDE her held bubble (`chat-held`), so a second visible line of them
+  // would say it twice. It is still SAID — the same words to the alert, out loud, not drawn again.
+  const announce = (words: string): void => tell(words, true);
 
 
 
@@ -445,8 +450,9 @@ export async function chatScreen(): Promise<HTMLElement> {
     } catch (err) {
       if (!(err instanceof ApiError) || uid === null) throw err;
       await outbox.add({ ...entry, held: failureOf(err) });
-      // The kept line inside her bubble is the saying (`chat-held`) — no reason line under
-      // the thread on top of it.
+      // The kept line inside her bubble is the saying (`chat-held`) — announced, never a second
+      // reason line under the thread.
+      announce(refusalWords(err));
       return;
     }
   };
