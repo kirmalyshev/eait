@@ -19,9 +19,10 @@ import { bounded } from "./turns.ts";
 
 const LEASE_MS = 30_000;
 const HEARTBEAT_MS = 10_000;
-/** The claim's poll, in case nothing on this replica wakes it. */
+/** The claim's poll, in case a notification is missed. */
 const CLAIM_POLL_MS = 5_000;
-const FOLLOW_POLL_MS = 500;
+/** A follower's re-read when no notification came: a reconnecting listener can miss one. */
+const FOLLOW_POLL_MS = 2_000;
 const FOLLOW_HEARTBEAT_MS = 10_000;
 const FOLLOWED_MS = 15_000;
 const JOBS_PAGE = 50;
@@ -132,6 +133,9 @@ const held = new Map<string, Promise<void>>();
 let stopping = false;
 let wake = (): void => {};
 let timers: ReturnType<typeof setInterval>[] = [];
+/** The followers on this replica, by job key; a notification for that key wakes them to re-read. */
+const followers = new Map<string, Set<() => void>>();
+let unlisten: (() => Promise<void>) | null = null;
 
 const failed = (what: string) => (e: unknown) => console.error(`[eait] ${what}: ${(e as Error)?.message ?? e}`);
 
@@ -202,6 +206,13 @@ export function startJobs(deps: EngineDeps): void {
     }, HEARTBEAT_MS),
   ];
   for (const t of timers) t.unref?.();
+  void deps.store.onJobNotify({
+    job: (userId, clientId) => { for (const f of followers.get(keyOf(userId, clientId)) ?? []) f(); },
+    enqueued: () => wake(),
+  }).then((off) => {
+    if (stopping) void off();
+    else unlisten = off;
+  }, failed("job listener not started"));
   wake();
 }
 
@@ -209,6 +220,8 @@ export function startJobs(deps: EngineDeps): void {
 export async function drainJobs(deps: EngineDeps, ms: number): Promise<void> {
   stopping = true;
   for (const t of timers) clearInterval(t);
+  // Every follower here ends its stream now rather than at its next re-read.
+  for (const fs of followers.values()) for (const f of fs) f();
   if (held.size > 0) {
     console.log(`[eait] waiting up to ${ms}ms for ${held.size} queued job(s)`);
     let cap: ReturnType<typeof setTimeout> | undefined;
@@ -217,6 +230,9 @@ export async function drainJobs(deps: EngineDeps, ms: number): Promise<void> {
   }
   const released = await deps.store.releaseJobs(owner).catch((e: unknown) => { failed("jobs not released")(e); return 0; });
   if (released > 0) console.log(`[eait] released ${released} queued job(s) to another replica`);
+  const off = unlisten;
+  unlisten = null;
+  await off?.().catch(failed("job listener not stopped"));
 }
 
 /** Store the job and its photos; the worker runs it. Never waits for the analysis. */
@@ -304,24 +320,44 @@ export async function followPhotoJob(
   const lang = await langOf(deps, userId);
   let sent = "";
   let followed = 0;
-  // ponytail: re-reads the row every 500 ms; LISTEN/NOTIFY replaces the poll (#414 step 5).
-  for (;;) {
-    const now = snapshotOf(job, lang);
-    // A draining replica ends the stream; the client follows again through another one.
-    if (now.kind !== "running" || stopping) return now;
-    if (signal?.aborted) {
-      await deps.store.followJob(userId, jobId, Date.now()).catch(failed("follower not cleared"));
-      return now;
+  // Re-read on a notification for this key, on abort, or after FOLLOW_POLL_MS; one that lands mid-read re-reads at once.
+  const key = keyOf(userId, jobId);
+  let dirty = false;
+  let poke = (): void => {};
+  const ping = () => { dirty = true; poke(); };
+  const mine = followers.get(key) ?? new Set();
+  followers.set(key, mine.add(ping));
+  signal?.addEventListener("abort", ping, { once: true });
+  try {
+    for (;;) {
+      const now = snapshotOf(job, lang);
+      // A draining replica ends the stream; the client follows again through another one.
+      if (now.kind !== "running" || stopping) return now;
+      if (signal?.aborted) {
+        await deps.store.followJob(userId, jobId, Date.now()).catch(failed("follower not cleared"));
+        return now;
+      }
+      if (Date.now() - followed >= FOLLOW_HEARTBEAT_MS) {
+        followed = Date.now();
+        await deps.store.followJob(userId, jobId, followed + FOLLOWED_MS).catch(failed("follower not recorded"));
+      }
+      const line = JSON.stringify(now);
+      if (line !== sent) { send(now); sent = line; }
+      if (!dirty) {
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, FOLLOW_POLL_MS);
+          poke = () => { clearTimeout(t); r(); };
+        });
+      }
+      dirty = false;
+      poke = () => {};
+      job = await deps.store.getJob(userId, jobId);
+      if (!job) return photoJob(deps, userId, jobId);
     }
-    if (Date.now() - followed >= FOLLOW_HEARTBEAT_MS) {
-      followed = Date.now();
-      await deps.store.followJob(userId, jobId, followed + FOLLOWED_MS).catch(failed("follower not recorded"));
-    }
-    const line = JSON.stringify(now);
-    if (line !== sent) { send(now); sent = line; }
-    await new Promise((r) => setTimeout(r, FOLLOW_POLL_MS));
-    job = await deps.store.getJob(userId, jobId);
-    if (!job) return photoJob(deps, userId, jobId);
+  } finally {
+    signal?.removeEventListener("abort", ping);
+    mine.delete(ping);
+    if (mine.size === 0 && followers.get(key) === mine) followers.delete(key);
   }
 }
 

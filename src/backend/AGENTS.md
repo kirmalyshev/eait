@@ -456,8 +456,12 @@ naming it too.
   sample released); `expireJobs` settles `OUTCOME_UNKNOWN` what nobody can run, a kind no build
   registers included, after `EAIT__BACKEND__JOB_MAX_QUEUED_MS`. SIGTERM stops claiming, waits up
   to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS` (60 s; the deploy's stop grace period must exceed it) and
-  releases what is still running back to the queue. The single read, the follow stream (a re-read
-  every 500 ms until LISTEN/NOTIFY) and `GET /v1/jobs` read the row through one snapshot function;
+  releases what is still running back to the queue. The single read, the follow stream and
+  `GET /v1/jobs` read the row through one snapshot function. The follow stream re-reads on a
+  `LISTEN eait_job` notification (`store.onJobNotify`, one listen connection per replica, payload
+  `userId:clientId` and never content, routed only to that key's followers) and every 2 s as the
+  fallback for one a reconnecting listener missed; the worker wakes on `eait_jobs` and polls every
+  5 s for the same reason;
   `bootedAt` decides only a turn with NO job row. A follower heartbeats `followed_until`, and the
   one push goes through `claimPush`, at most once and only when nobody was following.
 - **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
