@@ -8,8 +8,8 @@
 // saturated fat high" — lowercased on the board) and on the proposal ("Calories on plan") are
 // `verdictPillLabel`/`verdictNoun` (`verdicts.ts`); the kcal under a meal's figure is `UNIT_KCAL`;
 // every number is `wholeNumbers`/`numbers`, every date and weekday and the picker's month are
-// `Intl` off `LANG_TAG` — none of those are copy. `{coach}` is not needed on this surface: Home is
-// where the boards still draw Spud — and since #1041 the coach IS Spud, so the names agree.
+// `Intl` off `LANG_TAG` — none of those are copy. `{coach}` is not needed on this surface: the boards
+// draw Spud, and since #462 the words name nobody — the composer speaks first person.
 //
 // THE {n} RULE: the boards draw a figure and its label as two elements ("368" over "kcal left",
 // "55g" over "Protein left"), so the LABEL is a string here and the figure is `wholeNumbers` —
@@ -130,7 +130,7 @@ export interface HomeCopy {
   tryAgain: string;
   /** web: the logging CTA — `web/today.html` and `web/today-empty`, opening W5's upload view. */
   webUploadPhoto: string;
-  /** web: the in-diary composer — `web/today-logging`. Spud, not {coach}: Home keeps him. */
+  /** web: the in-diary composer — `web/today-logging`. First person, like every composer (#462). */
   webComposerPlaceholder: string;
   /**
    * web: the side column's landmark name (`aria-label`) — the week strip, the day's cards and
@@ -224,7 +224,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Couldn't load your diary.",
     tryAgain: "Try again",
     webUploadPhoto: "Upload a photo",
-    webComposerPlaceholder: "Tell Spud what you ate, or drop a photo",
+    webComposerPlaceholder: "Tell me what you ate, or drop a photo",
     webDayRegion: "Day summary",
     webProposalLead: "Logging to {day} — look right?",
     todayWord: "today",
@@ -287,7 +287,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Impossible de charger ton journal.",
     tryAgain: "Réessayer",
     webUploadPhoto: "Envoyer une photo",
-    webComposerPlaceholder: "Dis à Spud ce que tu as mangé, ou dépose une photo",
+    webComposerPlaceholder: "Dis-moi ce que tu as mangé, ou dépose une photo",
     webDayRegion: "Résumé du jour",
     webProposalLead: "J'enregistre pour {day} — ça te va ?",
     todayWord: "aujourd'hui",
@@ -350,7 +350,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Dein Tagebuch ließ sich nicht laden.",
     tryAgain: "Erneut versuchen",
     webUploadPhoto: "Foto hochladen",
-    webComposerPlaceholder: "Sag Spud, was du gegessen hast, oder leg ein Foto hier ab",
+    webComposerPlaceholder: "Sag mir, was du gegessen hast, oder leg ein Foto hier ab",
     webDayRegion: "Tagesübersicht",
     webProposalLead: "Ich trage das für {day} ein — passt das?",
     todayWord: "heute",
@@ -413,7 +413,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Non riesco a caricare il tuo diario.",
     tryAgain: "Riprova",
     webUploadPhoto: "Carica una foto",
-    webComposerPlaceholder: "Di' a Spud cosa hai mangiato, o trascina una foto",
+    webComposerPlaceholder: "Dimmi cosa hai mangiato, o trascina una foto",
     webDayRegion: "Riepilogo del giorno",
     webProposalLead: "Lo registro per {day} — va bene?",
     todayWord: "oggi",
@@ -476,7 +476,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "No se pudo cargar tu diario.",
     tryAgain: "Reintentar",
     webUploadPhoto: "Subir una foto",
-    webComposerPlaceholder: "Dile a Spud qué has comido, o suelta una foto",
+    webComposerPlaceholder: "Dime qué has comido, o suelta una foto",
     webDayRegion: "Resumen del día",
     webProposalLead: "Lo registro para {day} — ¿te cuadra?",
     todayWord: "hoy",
@@ -539,7 +539,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Không tải được nhật ký của bạn.",
     tryAgain: "Thử lại",
     webUploadPhoto: "Tải ảnh lên",
-    webComposerPlaceholder: "Kể cho Spud bạn đã ăn gì, hoặc thả một bức ảnh vào",
+    webComposerPlaceholder: "Kể cho mình bạn đã ăn gì, hoặc thả một bức ảnh vào",
     webDayRegion: "Tóm tắt trong ngày",
     webProposalLead: "Ghi vào {day} — đúng không?",
     todayWord: "hôm nay",
@@ -602,7 +602,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Buku harianmu tidak bisa dimuat.",
     tryAgain: "Coba lagi",
     webUploadPhoto: "Unggah foto",
-    webComposerPlaceholder: "Beri tahu Spud apa yang kamu makan, atau taruh foto di sini",
+    webComposerPlaceholder: "Beri tahu aku apa yang kamu makan, atau taruh foto di sini",
     webDayRegion: "Ringkasan hari ini",
     webProposalLead: "Mencatat untuk {day} — sudah benar?",
     todayWord: "hari ini",
@@ -665,7 +665,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     diaryFailed: "Не удалось загрузить дневник.",
     tryAgain: "Повторить",
     webUploadPhoto: "Загрузить фото",
-    webComposerPlaceholder: "Расскажи Spud, что было на тарелке, или перетащи фото",
+    webComposerPlaceholder: "Расскажи мне, что было на тарелке, или перетащи фото",
     webDayRegion: "Итоги дня",
     webProposalLead: "Записываю на {day} — всё верно?",
     todayWord: "сегодня",
