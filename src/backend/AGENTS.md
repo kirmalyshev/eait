@@ -445,12 +445,13 @@ naming it too.
   reasoning off, which is why the analyzer runs a model that does not reason and
   `EAIT__BACKEND__LLM_REASONING_EFFORT` ships `off`.
 - **A queued photo is the same turn, answered later** (ieat-app#1318, #414). `POST /v1/meals/photo/queue`
-  answers 202 once `enqueueJob` has claimed the turn, written the `jobs` row and stored the photos
+  answers 202 once `enqueueJob` has claimed the turn, sent the pg-boss job (through the same transaction) and stored the photos
   unadopted (`meal_photos.meal_id` null), in one transaction; the `clientId` is the job id and
   `turns` keeps the outcome. Every replica runs a worker (`startJobs` in `engine/photo-queue.ts`):
-  a kinds-filtered `claimJob` under a 30 s lease heartbeated every 10 s, `EAIT__BACKEND__JOB_CONCURRENCY`
-  at once, the turn under `bounded()` (the body of `once` without the claim), progress and the
-  settle written fenced by the lease owner — a lost lease aborts the attempt and writes nothing
+  `claimJob` is pg-boss `fetch` on the queues `<kind>-v<1..version>` this build registers, the job
+  then stamped with our owner and a 30 s heartbeat window refreshed every 10 s (pg-boss's monitor
+  retries a job whose heartbeat lapsed, `retryLimit` 1), `EAIT__BACKEND__JOB_CONCURRENCY` at once, the turn under `bounded()` (the body of `once` without the claim), progress and the
+  settle written fenced by `state = 'active'` and the owner in the job's data — a lost claim aborts the attempt and writes nothing
   more. The meal adopts the job's photos in its insert's transaction (`landJobMeal`), which also
   records `meal_id`. A dead worker's job re-runs once, a photo only while it has no meal (its
   sample released); `expireJobs` settles `OUTCOME_UNKNOWN` what nobody can run, a kind no build
@@ -464,6 +465,11 @@ naming it too.
   5 s for the same reason;
   `bootedAt` decides only a turn with NO job row. A follower heartbeats `followed_until`, and the
   one push goes through `claimPush`, at most once and only when nobody was following.
+  **The job IS the pgboss.job row** (no table of ours): what it shows lives in its `data` and is
+  written by raw statements in `store.pg.ts`, because pg-boss's `update()` edits only queued jobs;
+  `job_rows` is the one view that reads it back. pgboss has no row-level security, so every job
+  statement names `data->>'userId'` itself, and a trigger on `users` deletes a user's jobs. A
+  pg-boss upgrade can change that schema: read its changelog against `job_rows` before bumping it.
 - **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
   takes an ingredient edit (`editMeal`), a chat correction (`textTurn` with `focusMealId`) or a re-read
   (`reanalyzeMeal`) and queues it as a `meal-update` job, followed and removed on the

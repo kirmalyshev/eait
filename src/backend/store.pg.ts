@@ -13,6 +13,7 @@
 
 import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { PgBoss, fromBunSql } from "pg-boss";
 import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
   OnboardingContentSet, Profile, Provider, Struggle,
@@ -98,7 +99,6 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
-  jobs: "user_id",
 };
 
 /**
@@ -573,32 +573,44 @@ create table if not exists turns (
 );
 create index if not exists turns_claimed_idx on turns(claimed_at) where outcome is not null;
 
--- A queued request that outlives the process that accepted it (#414). kind is a key in the
--- engine's handler registry, not an enum: a new kind is code, never a migration. The outcome stays
--- in turns; this row holds what is needed to RUN the turn and to SHOW it.
-create table if not exists jobs (
-  user_id         uuid not null references users(id) on delete cascade,
-  client_id       text not null,
-  kind            text not null,
-  request_version smallint not null default 1,
-  request         jsonb not null,
-  state           text not null default 'queued' check (state in ('queued', 'running', 'settled')),
-  attempts        integer not null default 0,
-  step            smallint not null default 2,
-  items           jsonb not null default '[]',
-  lease_owner     text,
-  lease_until     timestamptz,
-  meal_id         uuid,
-  analysis_id     uuid,
-  removed_at      timestamptz,
-  followed_until  timestamptz,
-  pushed_at       timestamptz,
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now(),
-  primary key (user_id, client_id)
-);
-create index if not exists jobs_claimable_idx on jobs (kind, created_at) where state <> 'settled';
-create index if not exists jobs_user_idx on jobs (user_id, updated_at desc);
+-- A queued request that outlives the process that accepted it (#414). pg-boss owns it: one row in
+-- pgboss.job per job, on a queue named "<kind>-v<requestVersion>" so a build claims only what it can
+-- run. Everything the job SHOWS (step, items, owner, meal id, removed, pushed) lives in its data,
+-- written by the raw statements below because pg-boss's own update() only edits queued jobs.
+-- job_rows is the one place that reads that shape back. pgboss has no row-level security: every
+-- read and write here names data->>'userId' itself. The outcome stays in turns.
+drop table if exists jobs;
+create index if not exists eait_job_key on pgboss.job ((data->>'userId'), (data->>'clientId'));
+create or replace view job_rows as
+select j.id as boss_id,
+       (j.data->>'userId')::uuid as user_id,
+       j.data->>'clientId' as client_id,
+       j.data->>'kind' as kind,
+       (j.data->>'requestVersion')::smallint as request_version,
+       j.data->'request' as request,
+       case when j.state in ('created', 'retry') then 'queued' when j.state = 'active' then 'running' else 'settled' end as state,
+       case when j.started_on is null then 0 else j.retry_count + 1 end as attempts,
+       (j.data->>'step')::smallint as step,
+       coalesce(j.data->'items', '[]') as items,
+       case when j.state = 'active' then j.data->>'owner' end as lease_owner,
+       case when j.state = 'active' then coalesce(j.heartbeat_on, j.started_on) + make_interval(secs => coalesce(j.heartbeat_seconds, j.expire_seconds)) end as lease_until,
+       (j.data->>'mealId')::uuid as meal_id,
+       (j.data->>'analysisId')::uuid as analysis_id,
+       (j.data->>'removedAt')::timestamptz as removed_at,
+       (j.data->>'followedUntil')::timestamptz as followed_until,
+       (j.data->>'pushedAt')::timestamptz as pushed_at,
+       j.created_on as created_at,
+       coalesce((j.data->>'updatedAt')::timestamptz, j.created_on) as updated_at
+  from pgboss.job j
+ where j.data ? 'userId' and j.data ? 'clientId';
+-- No foreign key reaches pgboss.job, so a deleted user's jobs go with the user here.
+create or replace function eait_forget_user_jobs() returns trigger language plpgsql as $$
+begin
+  delete from pgboss.job where data->>'userId' = old.id::text;
+  return old;
+end $$;
+drop trigger if exists users_forget_jobs on users;
+create trigger users_forget_jobs after delete on users for each row execute function eait_forget_user_jobs();
 
 -- A queued photo's bytes are stored at enqueue, before any meal exists: meal_id null, client_id
 -- naming the job. The meal adopts them when it is logged. Only ever expands what the old version reads.
@@ -1200,6 +1212,32 @@ export async function postgresStore(
   // single-process backend, so twenty-five still leaves room for a `psql` and the nightly
   // `pg_dump` that cron runs, both of which want a connection at a moment nobody chose.
   const pool = new SQL(databaseUrl, { max: opts.maxConnections ?? 25 });
+
+  // THE JOB QUEUE (#414) is pg-boss on this pool. Started BEFORE the migration below, which builds
+  // `job_rows` over the pgboss schema `start()` creates. pg-boss migrates its own schema under its
+  // own lock, so two replicas booting together is its problem, not ours. No `schedule`: nothing here
+  // is cron. Its monitor (supervise) is what retries or fails a job whose heartbeat lapsed.
+  const boss = new PgBoss({ db: fromBunSql(pool), schedule: false });
+  boss.on("error", (e: unknown) => console.error("[eait] pg-boss:", e));
+  await boss.start();
+  const queues = new Map<string, Promise<string>>();
+  // One queue per kind and request version, created on first use: a kind is code, never a migration.
+  const jobQueue = (kind: string, version: number): Promise<string> => {
+    const name = `${kind}-v${version}`;
+    let q = queues.get(name);
+    if (!q) {
+      q = (async () => {
+        const ensure = () => boss.createQueue(name, { retryLimit: 1, deleteAfterSeconds: 0 });
+        if (!(await boss.getQueue(name))) await ensure().catch(async (e: unknown) => { if (!(await boss.getQueue(name))) throw e; });
+        return name;
+      })();
+      q.catch(() => queues.delete(name));
+      queues.set(name, q);
+    }
+    return q;
+  };
+  // pg-boss refuses a heartbeat window under ten seconds.
+  const heartbeatSeconds = (leaseMs: number): number => Math.max(10, Math.ceil(leaseMs / 1000));
 
   /**
    * THE CONNECTION THE CURRENT CALL IS ON, or the pool when there is no call in progress.
@@ -1862,8 +1900,9 @@ export async function postgresStore(
         await tx`update meal_photos set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`
-          update jobs set user_id = ${intoUserId} where user_id = ${fromUserId}
-            and client_id not in (select client_id from jobs where user_id = ${intoUserId})`;
+          update pgboss.job set data = jsonb_set(data, '{userId}', to_jsonb(${intoUserId}::text))
+          where data->>'userId' = ${fromUserId}
+            and data->>'clientId' not in (select client_id from job_rows where user_id = ${intoUserId})`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // A turn the anonymous session sent is replayed by the same phone under the real account. One
         // id claimed on both sides keeps the survivor's; the other goes with the anonymous row.
@@ -2742,15 +2781,18 @@ export async function postgresStore(
     },
 
     async enqueueJob(userId, input) {
+      const queue = await jobQueue(input.kind, input.requestVersion);
       return await inTx(async (tx) => {
         const claimed = await tx`
           insert into turns (user_id, client_id, claimed_at) values (${userId}, ${input.clientId}, ${new Date(now())})
           on conflict (user_id, client_id) do nothing returning client_id`;
         if (claimed.length === 0) return false;
-        await tx`
-          insert into jobs (user_id, client_id, kind, request_version, request, step, created_at, updated_at)
-          values (${userId}, ${input.clientId}, ${input.kind}, ${input.requestVersion}, ${input.request}, ${input.step},
-                  ${new Date(now())}, ${new Date(now())})`;
+        // Through our transaction: a rolled-back turn leaves no job behind, and a job never runs
+        // ahead of its photos.
+        await boss.send(queue, {
+          userId, clientId: input.clientId, kind: input.kind, requestVersion: input.requestVersion,
+          request: input.request, step: input.step, items: [], updatedAt: new Date(now()).toISOString(),
+        }, { db: { executeSql: async (text, values) => ({ rows: (await tx.unsafe(text, values as unknown[])) as unknown[] }) } });
         for (const [i, p] of input.photos.entries()) {
           await tx`
             insert into meal_photos (id, meal_id, user_id, client_id, position, mime, bytes)
@@ -2763,7 +2805,7 @@ export async function postgresStore(
 
     async getJob(userId, clientId) {
       const rows = await sql`
-        select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
+        select j.*, t.outcome from job_rows j left join turns t using (user_id, client_id)
         where j.user_id = ${userId} and j.client_id = ${clientId}`;
       return rows[0] ? toJob(rows[0] as JobRow) : null;
     },
@@ -2772,7 +2814,7 @@ export async function postgresStore(
       const bar = opts.cursor ? opts.cursor.indexOf("|") : -1;
       const [cu, cc] = bar > 0 ? [opts.cursor!.slice(0, bar), opts.cursor!.slice(bar + 1)] : [null, null];
       const rows = await sql`
-        select j.*, t.outcome from jobs j left join turns t using (user_id, client_id)
+        select j.*, t.outcome from job_rows j left join turns t using (user_id, client_id)
         where j.user_id = ${userId}
           and (${opts.state} = 'all' or (${opts.state} = 'active') = (j.state <> 'settled'))
           and (${opts.since === null ? null : new Date(opts.since)}::timestamptz is null or j.updated_at > ${opts.since === null ? null : new Date(opts.since)}::timestamptz)
@@ -2790,23 +2832,29 @@ export async function postgresStore(
       return rows.map((r: { mime: string; bytes: Uint8Array }) => ({ mime: r.mime, bytes: new Uint8Array(r.bytes) }));
     },
 
+    // THE FENCE, in every write a running attempt makes: `state = 'active'` and our `owner` in its
+    // data. Once pg-boss has retried the job (heartbeat lapsed) or another replica claimed it, the
+    // write matches nothing and the attempt ends without writing more.
     async jobProgress(userId, clientId, owner, step, items) {
       const rows = await sql`
-        update jobs set step = ${step}, items = ${items}, updated_at = now()
-        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
-        returning client_id`;
+        update pgboss.job set data = data || jsonb_build_object('step', ${step}::int, 'items', ${items}::jsonb, 'updatedAt', now())
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state = 'active' and data->>'owner' = ${owner}
+        returning id`;
       if (rows.length > 0) await sql`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
       return rows.length > 0;
     },
 
     async followJob(userId, clientId, until) {
-      await sql`update jobs set followed_until = ${new Date(until)} where user_id = ${userId} and client_id = ${clientId}`;
+      await sql`
+        update pgboss.job set data = data || jsonb_build_object('followedUntil', ${new Date(until)}::timestamptz)
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId}`;
     },
 
     async removeJob(userId, clientId) {
       const rows = await sql`
-        update jobs set removed_at = now(), updated_at = now()
-        where user_id = ${userId} and client_id = ${clientId} and state <> 'settled' returning client_id`;
+        update pgboss.job set data = data || jsonb_build_object('removedAt', now(), 'updatedAt', now())
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state in ('created', 'retry', 'active')
+        returning id`;
       if (rows.length > 0) await sql`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
       return rows.length > 0;
     },
@@ -2814,9 +2862,10 @@ export async function postgresStore(
     async settleJob(userId, clientId, owner, outcome) {
       return await inTx(async (tx) => {
         const rows = await tx`
-          update jobs set state = 'settled', lease_owner = null, lease_until = null, updated_at = now()
-          where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
-          returning client_id`;
+          update pgboss.job set state = 'completed', completed_on = now(), output = ${outcome}::jsonb,
+                 data = data || jsonb_build_object('updatedAt', now())
+          where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state = 'active' and data->>'owner' = ${owner}
+          returning id`;
         if (rows.length === 0) return false;
         await tx`update turns set outcome = ${outcome} where user_id = ${userId} and client_id = ${clientId}`;
         await tx`delete from meal_photos where user_id = ${userId} and client_id = ${clientId} and meal_id is null`;
@@ -2827,27 +2876,28 @@ export async function postgresStore(
 
     async claimPush(userId, clientId) {
       const rows = await sql`
-        update jobs set pushed_at = now()
-        where user_id = ${userId} and client_id = ${clientId} and pushed_at is null and removed_at is null
-          and (followed_until is null or followed_until < now())
-        returning client_id`;
+        update pgboss.job set data = data || jsonb_build_object('pushedAt', now())
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId}
+          and not data ? 'pushedAt' and not data ? 'removedAt'
+          and (not data ? 'followedUntil' or (data->>'followedUntil')::timestamptz < now())
+        returning id`;
       return rows.length > 0;
     },
 
     async chargeJob(userId, clientId, owner, analysisId) {
       const rows = await sql`
-        update jobs set analysis_id = ${analysisId}
-        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
-        returning client_id`;
+        update pgboss.job set data = data || jsonb_build_object('analysisId', ${analysisId}::text)
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state = 'active' and data->>'owner' = ${owner}
+        returning id`;
       return rows.length > 0;
     },
 
     async landJobMeal(userId, clientId, owner, meal) {
       const held = await sql`
-        update jobs set meal_id = ${meal.id}, updated_at = now()
-        where user_id = ${userId} and client_id = ${clientId} and lease_owner = ${owner} and state = 'running'
-          and meal_id is null
-        returning client_id`;
+        update pgboss.job set data = data || jsonb_build_object('mealId', ${meal.id}::text, 'updatedAt', now())
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state = 'active' and data->>'owner' = ${owner}
+          and not data ? 'mealId'
+        returning id`;
       if (held.length === 0) return false;
       await methods.insertMeal(meal);
       await sql`
@@ -2859,48 +2909,58 @@ export async function postgresStore(
       return true;
     },
 
+    // Back to `retry`, not `created`: pg-boss counts the next claim as a second attempt, as the
+    // lease version did, so a non-retryable kind still refuses to run twice.
     async releaseJobs(owner) {
       const rows = await sql`
-        update jobs set state = 'queued', lease_owner = null, lease_until = null, updated_at = now()
-        where lease_owner = ${owner} and state = 'running' returning client_id`;
+        update pgboss.job set state = 'retry', start_after = now(), data = (data - 'owner') || jsonb_build_object('updatedAt', now())
+        where state = 'active' and data->>'owner' = ${owner} returning id`;
       if (rows.length > 0) await sql`select pg_notify('eait_jobs', '')`;
       return rows.length;
     },
 
+    // pg-boss claims (`fetch`: SKIP LOCKED, active, retry_count) and its monitor fails or retries a
+    // job whose heartbeat lapsed, up to the queue's `retryLimit` of 1 — two attempts, as before.
+    // The owner and the per-job heartbeat window are ours, stamped right after the claim.
     async claimJob(owner, registry, leaseMs) {
-      if (registry.length === 0) return null;
-      const rows = await sql`
-        update jobs j
-           set state = 'running', lease_owner = ${owner}, lease_until = now() + ${leaseMs} * interval '1 millisecond',
-               attempts = j.attempts + 1, updated_at = now()
-          from (select q.user_id, q.client_id
-                  from jobs q
-                  join unnest(${registry.map((r) => r.kind)}::text[], ${registry.map((r) => r.version)}::smallint[]) as h(kind, version)
-                    on q.kind = h.kind and q.request_version <= h.version
-                 where q.state = 'queued' or (q.state = 'running' and q.lease_until < now() and q.attempts < 2)
-                 order by q.created_at
-                 for update of q skip locked
-                 limit 1) c
-         where (j.user_id, j.client_id) = (c.user_id, c.client_id)
-        returning j.*`;
-      return rows[0] ? toJob({ ...(rows[0] as JobRow), outcome: null }) : null;
+      for (const { kind, version } of registry) {
+        for (let v = 1; v <= version; v++) {
+          const [job] = await boss.fetch(await jobQueue(kind, v), { batchSize: 1 });
+          if (!job) continue;
+          await sql`
+            update pgboss.job set heartbeat_on = now(), heartbeat_seconds = ${heartbeatSeconds(leaseMs)},
+                   data = data || jsonb_build_object('owner', ${owner}::text, 'updatedAt', now())
+            where id = ${job.id}::uuid`;
+          const rows = await sql`select j.*, null as outcome from job_rows j where j.boss_id = ${job.id}::uuid`;
+          return rows[0] ? toJob(rows[0] as JobRow) : null;
+        }
+      }
+      return null;
     },
 
     async heartbeatJobs(owner, leaseMs) {
       const rows = await sql`
-        update jobs set lease_until = now() + ${leaseMs} * interval '1 millisecond'
-        where lease_owner = ${owner} and state = 'running' returning client_id`;
+        update pgboss.job set heartbeat_on = now(), heartbeat_seconds = ${heartbeatSeconds(leaseMs)}
+        where state = 'active' and data->>'owner' = ${owner} returning id`;
       return rows.length;
     },
 
+    // Queued too long, or failed by pg-boss after its last attempt: the turn gets `outcome`.
+    // ponytail: 500 per call, so a large backlog drains over several ticks instead of one long
+    // transaction that stalls the worker; set-based turns/photos updates if that ever lags.
     async expireJobs(createdBefore, outcome) {
       return await inTx(async (tx) => {
         const rows = await tx`
-          update jobs set state = 'settled', lease_owner = null, lease_until = null, updated_at = now()
-          where state <> 'settled'
-            and (state = 'queued' or lease_until < now())
-            and (created_at < ${new Date(createdBefore)} or (state = 'running' and attempts >= 2))
-          returning user_id, client_id`;
+          with picked as (
+            select id from pgboss.job
+             where data ? 'userId' and not data ? 'expiredAt'
+               and ((state in ('created', 'retry') and created_on < ${new Date(createdBefore)}) or state = 'failed')
+             limit 500 for update skip locked)
+          update pgboss.job j set state = case when j.state = 'failed' then j.state else 'cancelled' end,
+                 completed_on = coalesce(j.completed_on, now()),
+                 data = j.data || jsonb_build_object('expiredAt', now(), 'updatedAt', now())
+            from picked where j.id = picked.id
+          returning j.data->>'userId' as user_id, j.data->>'clientId' as client_id`;
         for (const r of rows as { user_id: string; client_id: string }[]) {
           await tx`update turns set outcome = ${outcome} where user_id = ${r.user_id} and client_id = ${r.client_id}`;
           await tx`delete from meal_photos where user_id = ${r.user_id} and client_id = ${r.client_id} and meal_id is null`;
@@ -2911,7 +2971,11 @@ export async function postgresStore(
     },
 
     async forgetJobs(before) {
-      const gone = await sql`delete from jobs where state = 'settled' and updated_at < ${new Date(before)} returning client_id`;
+      const gone = await sql`
+        delete from pgboss.job
+        where data ? 'userId' and state in ('completed', 'cancelled', 'failed')
+          and coalesce((data->>'updatedAt')::timestamptz, created_on) < ${new Date(before)}
+        returning id`;
       await sql`delete from meal_photos where meal_id is null and created_at < ${new Date(before)}`;
       return gone.length;
     },
@@ -3064,6 +3128,7 @@ export async function postgresStore(
       const e = elector;
       elector = null;
       await e?.end().catch(() => {});
+      await boss.stop({ graceful: false, close: false }).catch(() => {});
       await pool.end();
     },
   };

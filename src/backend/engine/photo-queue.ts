@@ -1,5 +1,5 @@
 // A photo meal, or a change to a logged one, as a durable job (ieat-app#1318, #1347, #414); the id is
-// the turn's `clientId`, so `turns` keeps the outcome and the `jobs` row what is needed to run and show it.
+// the turn's `clientId`, so `turns` keeps the outcome and the pg-boss job (`job_rows`) what is needed to run and show it.
 
 import { hostname } from "node:os";
 import {
