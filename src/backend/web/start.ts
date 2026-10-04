@@ -31,10 +31,12 @@ import {
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor, weightToKg,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
+  payCopyFor, paywallPrice, perMonth,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
   type Profile, type Struggle, type UnitSystem,
 } from "@eait/shared";
+import type { PayPlanRow } from "@eait/shared/ui/kit";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
@@ -1469,6 +1471,24 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     if (config.webPaywall.yearlyCheckoutUrl === "" && config.webPaywall.monthlyCheckoutUrl === "") {
       return seeOther(closeTo);
     }
+    // The plan rows (#263): Monthly and Yearly, named from PAY_COPY and priced off the
+    // configured amounts — a figure is never written into copy. The checked radio submits as
+    // `?plan=` on the form's GET, so the plan the page shows is the plan checkout sends.
+    const w = config.webPaywall;
+    const pay = payCopyFor(profile.lang);
+    const cur = (n: number) => paywallPrice(n, w.currency, profile.lang);
+    const plans: PayPlanRow[] = [];
+    if (w.yearlyCheckoutUrl !== "") plans.push({
+      value: "yearly", name: pay.planYearly,
+      badge: w.trialDays > 0 ? fill(pay.trialBadge, { days: String(w.trialDays) }) : null,
+      line: fill(pay.pricePerYear, { price: cur(w.yearlyPrice) }),
+      price: fill(pay.pricePerMonth, { price: cur(perMonth(w.yearlyPrice)) }),
+      checked: true,
+    });
+    if (w.monthlyCheckoutUrl !== "") plans.push({
+      value: "monthly", name: pay.planMonthly,
+      price: fill(pay.pricePerMonth, { price: cur(w.monthlyPrice) }),
+    });
     return html(offer({
       // `offerHeadline` names the computed target by the computed month — never literals, and
       // never a figure the projection cannot stand behind; it answers null for those, and the
@@ -1478,6 +1498,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       checkoutUrl: `${START_PREFIX}/checkout`,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
       closeHref: closeTo,
+      plans,
       lang: profile.lang,
     }));
   }

@@ -14,6 +14,7 @@ import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
 import { BOARD_CSS } from "./board-css.ts";
 import { W3_CSS } from "./w3-css.ts";
 import { CONTROL_SCRIPT } from "./control.ts";
+import { payCss } from "@eait/shared/ui/kit";
 import type { Lang } from "@eait/shared";
 
 export function escape(text: string): string {
@@ -243,6 +244,9 @@ label.check {
 .tick svg { width: 12px; height: 12px; }
 .rowline { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-top: 1px solid var(--hair); }
 .rowline:first-child { border-top: 0; }
+/* The "when" label holds its width — the words beside it are the long ones, so it is never the
+   cell that wraps onto two lines ("Day 8" on a 390 px offer, #263). */
+.rowline > strong { flex: none; }
 
 /* The plan page (#51). A small label over a figure, the declared marker caps in a row beside it,
    and the arithmetic as labelled rows — the phone's calc card, drawn the web's way. */
@@ -271,6 +275,9 @@ ${BOARD_CSS}
 /* The screens W3 owns (issue #90): the reveal, the plan, the sign-up, the country —
    same boards' classes, scoped the same way. */
 ${W3_CSS}
+
+/* The pay plans' radios (#263) — the kit's own rules, the same string the app's kitCss carries. */
+${payCss()}
 `;
 
 /**
