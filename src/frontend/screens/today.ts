@@ -16,7 +16,7 @@ import { homeCopyFor, macroTip, type MacroTipKind } from "../../shared/app/home-
 import { enqueue, inPlace, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { ringDash } from "../../shared/ui/charts.ts";
+import { ringDash, RING_SPEC } from "../../shared/ui/charts.ts";
 import { iconSvg, type IconName } from "../../shared/ui/icons.ts";
 import { ico, tagx, weekStrip, type WeekDayRow } from "../../shared/ui/kit.ts";
 import type { MealRecord } from "@eait/shared";
@@ -531,11 +531,13 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
    *  or `--over` past the plan), the stroked flame centred; `null` share is the bare track. */
   const heroRing = (share: number | null, over: boolean): HTMLElement => {
     const kr = el("div", "kr");
-    const d = share === null ? null : ringDash(share, 40);
+    const spec = RING_SPEC[96];
+    const c = spec.box / 2;
+    const d = share === null ? null : ringDash(share, spec.r);
     const arc = d === null ? "" :
-      `<circle class="fg" cx="48" cy="48" r="40" fill="none" stroke="var(--${over ? "over" : "accent"})" ` +
-      `stroke-width="8" stroke-dasharray="${d.dasharray}" stroke-dashoffset="${d.dashoffset}" stroke-linecap="round"/>`;
-    kr.append(kitEl(`<svg class="r" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="none" stroke="var(--hair)" stroke-width="8"/>${arc}</svg>`));
+      `<circle class="fg" cx="${c}" cy="${c}" r="${spec.r}" fill="none" stroke="var(--${over ? "over" : "accent"})" ` +
+      `stroke-width="${spec.stroke}" stroke-dasharray="${d.dasharray}" stroke-dashoffset="${d.dashoffset}" stroke-linecap="round"/>`;
+    kr.append(kitEl(`<svg class="r" viewBox="0 0 ${spec.box} ${spec.box}"><circle cx="${c}" cy="${c}" r="${spec.r}" fill="none" stroke="var(--hair)" stroke-width="${spec.stroke}"/>${arc}</svg>`));
     kr.append(kitEl(iconSvg("flame", { size: 34, class: "fl" })));
     return kr;
   };
