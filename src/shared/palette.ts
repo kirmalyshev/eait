@@ -38,12 +38,12 @@ export const light = {
   badTint: "#FBE4E1",
   /** The day's "over plan" — darker and calmer than `bad` (F, ieat-app#1291). 10.6:1 on white. */
   over: "#7A1A14",
+  /** The calorie floor, and nothing else. */
+  care: "#2F6FB0",
   /** Chat (ieat-app#1520): the thread's ground one step below bg, Spud's bubble, muted on her tint (5:1). */
   chatGround: "#EEECE6",
   chatBubble: "#FFFFFF",
   meMuted: "#5C6167",
-  /** The calorie floor, and nothing else. */
-  care: "#2F6FB0",
 } as const;
 
 export const dark = {
