@@ -25,7 +25,7 @@ import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
-  heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
+  failBadge, heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names,
 } from "../shell.ts";
@@ -123,6 +123,9 @@ export async function chatScreen(): Promise<HTMLElement> {
     // off the siblings; this loop only decides what each bubble holds.
     let lastMe: HTMLElement | null = null;
     let idx = 0;
+    // The newest line that proposed a meal: the only one whose proposal can have timed out
+    // unanswered rather than been retired by a newer one (the phone's `lastTyped`, #282).
+    const lastProposing = entries.findLastIndex((e) => e.role === "user" && e.kind === "text" && e.pendingId !== null);
     for (const [i, entry] of entries.entries()) {
       if (entry.role === "user") {
         const li = el("li", `me${entry.kind === "photo" ? " pic" : ""}${rise(entry.id, idx++)}`);
@@ -150,7 +153,22 @@ export async function chatScreen(): Promise<HTMLElement> {
           dl.append(el("i", "ico i-alert-circle"), copy().phone.notLogged);
           li.append(dl);
         }
-        li.append(el("div", "ts", timeFmt(new Date((meal ?? entry).ts))));
+        const ts = el("div", "ts", timeFmt(new Date((meal ?? entry).ts)));
+        // Its proposal is gone with nothing answering it (no card, no reply, not held): it timed
+        // out, and after a reload that is all the page can know. Her failed send, as on the phone:
+        // the red ! and Resend; the line is stored, so the ! offers Resend alone.
+        if (i === lastProposing && entry.kind === "text" && entry.pendingId !== held?.pendingId
+          && (next === undefined || next.role === "user")
+          && !entries.some((e) => e.role === "assistant" && e.kind === "meal" && e.mealId === entry.pendingId)) {
+          const words = entry.text;
+          const resend = (): void => sendText(words);
+          const act = el("div", "act");
+          act.append(smallCta(copy().resend, resend), ts);
+          li.classList.add("failed");
+          li.append(act, failBadge(entry.id, resend));
+        } else {
+          li.append(ts);
+        }
         // No action row on a thread line (#173): an edit is the meal detail's Correct, a delete its
         // ⋯ menu's.
         list.append(li);
@@ -184,7 +202,20 @@ export async function chatScreen(): Promise<HTMLElement> {
 
     // The proposal a live turn is holding is HER bubble too: under the words that made it, or on
     // its own when those words are not on this page.
-    if (held !== null) {
+    const lastLine = entries.at(-1);
+    if (held !== null && heldTimedOut && lastMe !== null && lastLine?.role === "user" && lastLine.kind === "text") {
+      // Past its clock the offer is a failed send, never a card under a dead question: her words,
+      // the red ! and Resend (`states-not-sent`), the same turn as the phone's.
+      const words = lastLine.text;
+      const resend = (): void => { setHeldProposal(null); sendText(words); };
+      const drop = (): void => { setHeldProposal(null); void draw(); };
+      const act = el("div", "act");
+      act.append(smallCta(copy().resend, resend));
+      const ts = lastMe.querySelector(":scope > .ts");
+      if (ts !== null) act.append(ts);
+      lastMe.classList.add("failed");
+      lastMe.append(act, failBadge(held.pendingId, resend, drop));
+    } else if (held !== null) {
       const card = proposalCard(held, turn, {
         lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
         ...(heldTimedOut ? { expired: copy().expired } : {}),
@@ -321,7 +352,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     // The composer's prompt is the empty thread's ask until a line is in it.
     words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
       : entries.length === 0 || coachName() === null ? copy().composerAsk
-      : fill(copy().composerThread, { coach: coachName()! });
+      : copy().composerThread;
     words.setAttribute("aria-label", words.placeholder);
     if (unread !== null) throw unread;
   };
@@ -507,7 +538,7 @@ export async function chatScreen(): Promise<HTMLElement> {
   // `multiline` — the same opt-in Home takes (#170): the field wraps and grows to the
   // `.compose textarea.box` cap, then scrolls (ieat-app#1289).
   const comp = composerRow(coachName() !== null
-    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk, { multiline: true });
+    ? copy().composerThread : copy().composerAsk, { multiline: true });
   const { picker, words, send, count } = comp;
   // Telegram's attach (#1520): a paperclip, not the upload round.
   comp.add.replaceChildren(el("i", "ico i-paperclip"));

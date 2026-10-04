@@ -574,7 +574,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const rows = el("div", "card mlist");
     for (const m of day.meals) {
       const src = (m.photos ?? 0) > 0 ? await photoUrl(m.id, 0) : null;
-      rows.append(inPlace(m.id, () => {
+      rows.append(inPlace(m, () => {
         const row = mealRowEl(m, {
           time: mealTime(m),
           photo: src !== null ? { src } : null,

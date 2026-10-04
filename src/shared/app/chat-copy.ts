@@ -45,8 +45,8 @@ export interface ChatScreenCopy {
   composerAsk: string;
   /**
    * The composer over a live thread (`chat.html`, `states-chat-failed.html`,
-   * `states-offline.html`, `states-unknown.html` — web + phone). `{coach}` is the coach's name,
-   * never a literal.
+   * `states-offline.html`, `states-unknown.html` — web + phone). First person: the coach's
+   * own voice, no `{coach}` (#462).
    */
   composerThread: string;
 
@@ -254,7 +254,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Earlier messages",
     movedCaption: "Moved — now on {day}.",
-    composerThread: "Tell {coach} what you ate, or ask",
+    composerThread: "Tell me what you ate, or ask",
     proposalCheck: "Logging to today — look right?",
     proposalAccept: "Log it",
     proposalDecline: "No",
@@ -350,7 +350,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Messages plus anciens",
     movedCaption: "Déplacé — nouveau jour : {day}.",
-    composerThread: "Dis à {coach} ce que tu as mangé, ou demande",
+    composerThread: "Dis-moi ce que tu as mangé, ou demande",
     proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
     proposalAccept: "Enregistrer",
     proposalDecline: "Non",
@@ -446,7 +446,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Ältere Nachrichten",
     movedCaption: "Verschoben — neuer Tag: {day}.",
-    composerThread: "Sag {coach}, was du gegessen hast, oder frag",
+    composerThread: "Sag mir, was du gegessen hast, oder frag",
     proposalCheck: "Ich trage es für heute ein — passt das?",
     proposalAccept: "Eintragen",
     proposalDecline: "Nein",
@@ -542,7 +542,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Messaggi precedenti",
     movedCaption: "Spostato — nuovo giorno: {day}.",
-    composerThread: "Di' a {coach} cosa hai mangiato, o chiedi",
+    composerThread: "Dimmi cosa hai mangiato, o chiedi",
     proposalCheck: "Lo registro per oggi — va bene?",
     proposalAccept: "Registralo",
     proposalDecline: "No",
@@ -638,7 +638,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Mensajes anteriores",
     movedCaption: "Movida al {day}.",
-    composerThread: "Dile a {coach} qué has comido, o pregunta",
+    composerThread: "Dime qué has comido, o pregunta",
     proposalCheck: "Lo registro en hoy — ¿te cuadra?",
     proposalAccept: "Registrarla",
     proposalDecline: "No",
@@ -734,7 +734,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Tin nhắn cũ hơn",
     movedCaption: "Đã chuyển — ngày mới: {day}.",
-    composerThread: "Kể {coach} nghe bạn đã ăn gì, hoặc hỏi",
+    composerThread: "Kể mình nghe bạn đã ăn gì, hoặc hỏi",
     proposalCheck: "Ghi vào hôm nay — đúng chứ?",
     proposalAccept: "Ghi lại",
     proposalDecline: "Không",
@@ -830,7 +830,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Pesan sebelumnya",
     movedCaption: "Dipindahkan — hari baru: {day}.",
-    composerThread: "Beri tahu {coach} apa yang kamu makan, atau tanya",
+    composerThread: "Beri tahu aku apa yang kamu makan, atau tanya",
     proposalCheck: "Kucatat untuk hari ini — benar?",
     proposalAccept: "Catat",
     proposalDecline: "Tidak",
@@ -926,7 +926,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     mealLine: "{name} — {kcal}",
     earlier: "Предыдущие сообщения",
     movedCaption: "Перенесено — новый день: {day}.",
-    composerThread: "Расскажи {coach}, что было на тарелке, или спроси",
+    composerThread: "Расскажи мне, что было на тарелке, или спроси",
     proposalCheck: "Записываю на сегодня — верно?",
     proposalAccept: "Записать",
     proposalDecline: "Нет",

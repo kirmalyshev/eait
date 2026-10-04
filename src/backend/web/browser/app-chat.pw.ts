@@ -138,7 +138,7 @@ test("the protein question draws the day's bar from the server, a week question 
   // the meal — which is also what makes the box read `composerThread`, not the ask.
   await page.reload();
   await expect(page.locator(".thread li.me.pic")).toHaveCount(1);
-  await page.getByPlaceholder("Tell Spud what you ate, or ask").fill("Am I getting enough protein?");
+  await page.getByPlaceholder("Tell me what you ate, or ask").fill("Am I getting enough protein?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const bar = page.locator(".thread .mb");
   await expect(bar).toBeVisible();
@@ -150,7 +150,7 @@ test("the protein question draws the day's bar from the server, a week question 
   const drawn = parseFloat(fillStyle!.match(/width:\s*([\d.]+)%/)![1]!);
   const expected = Math.min(100, (totals.protein_g / targets.protein_g) * 100);
   expect(Math.abs(drawn - expected)).toBeLessThan(0.6);
-  await page.getByPlaceholder("Tell Spud what you ate, or ask").fill("how did my week go?");
+  await page.getByPlaceholder("Tell me what you ate, or ask").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".thread li.them", { hasText: "Demo answer" }).last()).toBeVisible();
   // The bar is the LIVE answer's own (`focus` is live-only, like `suggestions` — the stored line

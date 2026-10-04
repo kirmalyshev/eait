@@ -472,17 +472,19 @@ export function plainCta(label: string, onTap: () => void): HTMLButtonElement {
 }
 
 /** The red ! beside a failed bubble: a native popover with Resend and Delete (Telegram's sheet). */
-export function failBadge(id: string, resend: () => void, drop: () => void): HTMLElement {
+export function failBadge(id: string, resend: () => void, drop?: () => void): HTMLElement {
   const copy = chatScreenCopyFor(lang);
   const pid = `fail-${id}`;
   const bang = el("button", "bang", "!") as HTMLButtonElement;
   bang.type = "button";
   bang.setAttribute("popovertarget", pid);
-  bang.setAttribute("aria-label", `${copy.resend} · ${copy.phone.delete}`);
+  bang.setAttribute("aria-label", drop === undefined ? copy.resend : `${copy.resend} · ${copy.phone.delete}`);
   const menu = el("div", "failmenu");
   menu.id = pid;
   menu.setAttribute("popover", "");
-  for (const [label, go, kind] of [[copy.resend, resend, "s"], [copy.phone.delete, drop, "s bad"]] as const) {
+  const items: [string, () => void, string][] = [[copy.resend, resend, "s"]];
+  if (drop !== undefined) items.push([copy.phone.delete, drop, "s bad"]);
+  for (const [label, go, kind] of items) {
     const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
     if (kind.includes("bad")) b.classList.add("bad");
     b.addEventListener("click", () => { menu.hidePopover(); go(); });
@@ -941,7 +943,7 @@ export async function render(): Promise<void> {
  * The wiring the page lives by: the outbox's events to the screen's redraw, the connection coming
  * back to the flush, the hash to the renderer. Called once, from `main.ts`.
  */
-export function start(): void {
+export function start(): Promise<void> {
   outbox.subscribe((event) => {
     if (event?.kind === "sent") answered(event.result);
     if (event !== undefined) void redraw?.().catch(() => {});
@@ -963,5 +965,5 @@ export function start(): void {
 
   // The session cookie is HttpOnly, so "am I signed in" is a question only the server can answer.
   // Asking once at boot is what turns a page load into a session.
-  signIn().catch(() => {}).finally(() => { void render(); });
+  return signIn().catch(() => {}).finally(() => { void render(); });
 }

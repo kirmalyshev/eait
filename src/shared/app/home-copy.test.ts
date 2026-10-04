@@ -67,7 +67,7 @@ describe("HOME_COPY", () => {
     expect(en.tryAgain).toBe("Try again");
     // web only: the upload CTA and the in-diary proposal
     expect(en.webUploadPhoto).toBe("Upload a photo");
-    expect(en.webComposerPlaceholder).toBe("Tell Spud what you ate, or drop a photo");
+    expect(en.webComposerPlaceholder).toBe("Tell me what you ate, or drop a photo");
     expect(en.webProposalLead.replace("{day}", en.todayWord)).toBe("Logging to today — look right?");
     expect(en.webLogIt).toBe("Log it");
     expect(en.webProposalNo).toBe("No");

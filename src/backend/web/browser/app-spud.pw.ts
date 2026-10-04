@@ -100,7 +100,7 @@ test("a diary row wears the meal's own verdict line, and the composer on Home lo
   await expect(row).toHaveAttribute("href", `#/meal/${meal.id}?d=${day.date}`);
 
   // The same composer the chat has, on Home — a typed meal proposes, and Log it lands it as a row.
-  await page.getByPlaceholder("Tell Spud what you ate, or drop a photo").fill("a handful of almonds");
+  await page.getByPlaceholder("Tell me what you ate, or drop a photo").fill("a handful of almonds");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
