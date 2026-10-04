@@ -113,6 +113,11 @@ export interface ChatScreenCopy {
   sendAgain: string;
   /** The failed send's one action, inside her bubble and on the red !'s menu (#1520). */
   resend: string;
+  /** The paperclip's sheet (#1520, `chat-attach`): the camera, or the photo library. */
+  takePhoto: string;
+  chooseLibrary: string;
+  /** The round ↓ that brings a reader scrolled into older lines back to the newest (`chat-latest`). */
+  newest: string;
 
   /** `states-unknown.html`, both clients: outcome unknown — kept, and re-sent on its own. */
   waitingToSend: string;
@@ -264,6 +269,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Nothing was logged.",
     sendAgain: "Send again",
     resend: "Resend",
+    takePhoto: "Take photo",
+    chooseLibrary: "Choose from library",
+    newest: "Newest messages",
     waitingToSend: "Waiting to send",
     unknownTitle: "That didn't finish cleanly.",
     unknownBody: "Kept, and re-sent on its own — sending again is safe.",
@@ -357,6 +365,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Rien n'a été enregistré.",
     sendAgain: "Renvoyer",
     resend: "Renvoyer",
+    takePhoto: "Prendre une photo",
+    chooseLibrary: "Choisir dans la photothèque",
+    newest: "Messages les plus récents",
     waitingToSend: "En attente d'envoi",
     unknownTitle: "Ça ne s'est pas terminé proprement.",
     unknownBody: "Conservé, et renvoyé tout seul — renvoyer toi-même est sans risque.",
@@ -450,6 +461,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Es wurde nichts eingetragen.",
     sendAgain: "Erneut senden",
     resend: "Erneut senden",
+    takePhoto: "Foto aufnehmen",
+    chooseLibrary: "Aus der Mediathek wählen",
+    newest: "Neueste Nachrichten",
     waitingToSend: "Wartet auf den Versand",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownBody: "Gespeichert – wird automatisch erneut gesendet. Nochmal senden schadet nicht.",
@@ -543,6 +557,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Non è stato registrato nulla.",
     sendAgain: "Invia di nuovo",
     resend: "Reinvia",
+    takePhoto: "Scatta una foto",
+    chooseLibrary: "Scegli dalla libreria",
+    newest: "Messaggi più recenti",
     waitingToSend: "In attesa di invio",
     unknownTitle: "Non si è concluso correttamente.",
     unknownBody: "Salvato: lo reinviamo in automatico. Puoi reinviarlo senza problemi.",
@@ -636,6 +653,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "No se registró nada.",
     sendAgain: "Reenviar",
     resend: "Reenviar",
+    takePhoto: "Hacer foto",
+    chooseLibrary: "Elegir de la fototeca",
+    newest: "Mensajes más recientes",
     waitingToSend: "Esperando para enviar",
     unknownTitle: "Eso no terminó del todo bien.",
     unknownBody: "Guardado, y se reenvía solo — volver a enviar es seguro.",
@@ -729,6 +749,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Chưa có gì được ghi lại.",
     sendAgain: "Gửi lại",
     resend: "Gửi lại",
+    takePhoto: "Chụp ảnh",
+    chooseLibrary: "Chọn từ thư viện",
+    newest: "Tin nhắn mới nhất",
     waitingToSend: "Đang chờ gửi",
     unknownTitle: "Việc gửi chưa kết thúc trọn vẹn.",
     unknownBody: "Đã giữ lại, và sẽ tự gửi lại — gửi lại vẫn an toàn.",
@@ -822,6 +845,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Tidak ada yang tercatat.",
     sendAgain: "Kirim lagi",
     resend: "Kirim ulang",
+    takePhoto: "Ambil foto",
+    chooseLibrary: "Pilih dari galeri",
+    newest: "Pesan terbaru",
     waitingToSend: "Menunggu untuk dikirim",
     unknownTitle: "Tidak selesai dengan baik.",
     unknownBody: "Sudah disimpan dan akan dikirim ulang otomatis — aman kalau kamu kirim lagi.",
@@ -915,6 +941,9 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineBody: "Ничего не записалось.",
     sendAgain: "Отправить ещё раз",
     resend: "Отправить снова",
+    takePhoto: "Сделать фото",
+    chooseLibrary: "Выбрать из галереи",
+    newest: "Новые сообщения",
     waitingToSend: "Ждёт отправки",
     unknownTitle: "Отправка не завершилась до конца.",
     unknownBody: "Сохранено и отправится само — отправить ещё раз безопасно.",

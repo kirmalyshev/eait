@@ -12,6 +12,7 @@ import type { Queued } from "./outbox.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
 import { keptState } from "./results.ts";
 import type { Lang, MealRecord } from "./types.ts";
+import { LANGS } from "./types.ts";
 
 /**
  * Everything a live assistant bubble can carry. The union is `HandleTextResult | ConfirmMealResult`
@@ -501,9 +502,18 @@ const REFUSED_RESULTS: ReadonlySet<string> = new Set([
   "target-gone", "not-onboarded", "identity-required", "cap-exceeded", "subscription-required", "analysis-failed",
 ]);
 
+/**
+ * "No" on a proposal, and an older estimate retired in place: the scripted "Dropped it." line, live
+ * (written by the core) or stored (written by the engine), in whichever shipped language. Her bubble
+ * reads it as refused "Not logged" (#1520, `chat-proposal-no`); it is never drawn as his line.
+ */
+const DROPPED: ReadonlySet<string> = new Set(LANGS.map((l) => scriptedLine("dropped", l, {})));
+export const isDropped = (e: ThreadEntry | null | undefined): boolean =>
+  e?.role === "assistant" && e.result.kind === "answered" && DROPPED.has(e.result.text);
+
 const absorbs = (next: ThreadEntry | undefined): boolean =>
   next !== undefined && (
-    next.role === "card" || next.role === "error" ||
+    next.role === "card" || next.role === "error" || isDropped(next) ||
     (next.role === "assistant" && ABSORBED_RESULTS.has(next.result.kind)));
 
 function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
@@ -520,6 +530,7 @@ function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
   }
   if (outcome.role === "assistant") {
     if (outcome.result.kind === "expired") return "failed";
+    if (isDropped(outcome)) return "refused";
     if (REFUSED_RESULTS.has(outcome.result.kind)) return "refused";
   }
   return "ok";
