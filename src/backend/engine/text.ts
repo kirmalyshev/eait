@@ -11,14 +11,14 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
   type Profile, explainTargets,
 } from "@eait/shared";
-import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, scriptedLine, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent, PendingMeal } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { clampDayOffset, emptyEstimate, type AnalyzedMeal } from "../llm/port.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
+import { applyCorrection, changeLine, dropOtherPendings, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 import { eatenAt, once } from "./turns.ts";
@@ -171,6 +171,21 @@ export async function textTurn(
     await deps.store.updateMeal(userId, focus.id, { question: null }).catch((e) => {
       console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
     });
+  }
+  // ONE LIVE OFFER, and the server holds it (#69). A `proposed` turn settles which estimate stands:
+  // every other live pending is retired here, because a screen that does not ask (Telegram) or a
+  // cancel lost on the wire left the older offer's "Log it" able to log a second meal. The retired
+  // offer's carrier line reads "Dropped it." — written BEFORE `keep` puts this turn's words in, so
+  // the stored order pairs it with the line that made that offer rather than marking this turn's
+  // line "Not logged". A FRESH proposal only: an amended or re-dated one keeps its offer's carrier
+  // line, and a dropped line after it would read as that line's "No".
+  if (result.kind === "proposed") {
+    const superseded = await dropOtherPendings(deps, userId, result.pendingId);
+    if (superseded > 0 && result.pendingId !== focusPending?.id) {
+      await remember(deps, userId, [{
+        role: "assistant", kind: "text", speaker: "gabie", text: scriptedLine("dropped", profile.lang),
+      }]);
+    }
   }
   await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId }, focus, focusPending, profile);
   return result;
