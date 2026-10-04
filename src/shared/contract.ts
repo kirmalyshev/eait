@@ -278,7 +278,8 @@ export const ROUTES = {
   clipEstimate: "/v1/clip/estimate",
   /**
    * POST — one turn; with `accept: NDJSON` it STREAMS (#508): a blank keepalive line while the model
-   * is silent, then the {@link MessageResponse} as the last line, refusals and `target-gone` included.
+   * is silent, {@link PhotoProgress} lines while the analysis behind the router produces items
+   * (#70), then the {@link MessageResponse} as the last line, refusals and `target-gone` included.
    * GET `?before=<seq>&limit=N` — the thread, newest page first.
    */
   messages: "/v1/messages",
@@ -1361,6 +1362,15 @@ export type PhotoProgress =
 export type PhotoEvent = PhotoProgress | PhotoLast;
 /** The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`). */
 export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
+/**
+ * One line of the `POST /v1/messages` stream: the same progress shapes as the photo stream
+ * (`reading` is never sent — a text turn has no plate to read), then the turn's result last.
+ * The items arrive as the analysis behind the router closes them, which is the whole of why the
+ * route streams them at all (#70).
+ */
+export type MessageEvent = PhotoProgress | MessageLast;
+/** The messages stream's last line: the result, or the server's own failure mid-turn. */
+export type MessageLast = HandleTextResult | { kind: typeof OUTCOME_UNKNOWN };
 
 /** `POST /v1/meals/photo/queue`: the upload is in and the job runs on without the client. */
 export interface PhotoQueuedResponse { kind: "queued"; jobId: string }

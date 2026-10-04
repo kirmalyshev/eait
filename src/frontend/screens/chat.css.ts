@@ -163,4 +163,12 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 @media (max-width: 760px) { .jump { bottom: 84px; } }
 .jump .n { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
   background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; }
+
+/* The busy row ("web-chat-busy", #70): three dots that pulse in turn while the answer is out. */
+.thread .dots { display: flex; gap: 6px; padding: 6px 2px; }
+.thread .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint);
+  animation: k-pulse 1.2s ease-in-out infinite; }
+.thread .dots i:nth-child(2) { animation-delay: .2s; }
+.thread .dots i:nth-child(3) { animation-delay: .4s; }
+@media (prefers-reduced-motion: reduce) { .thread .dots i { animation: none; opacity: .6; } }
 `;

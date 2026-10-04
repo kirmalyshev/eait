@@ -65,9 +65,11 @@ export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => voi
     text: entry.text ?? "", clientId: entry.id, capturedAt: entry.capturedAt,
     ...(entry.focusMealId ? { focusMealId: entry.focusMealId } : {}),
   };
-  return await api<MessageResponse>(MESSAGES, {
+  // Streamed like the photo send: a routed turn can be silent for tens of seconds (#70), the
+  // server's keepalives hold it open, and its progress lines reach `onLine` as they arrive.
+  return await apiStream<MessageResponse>(MESSAGES, {
     method: "POST", headers: { "content-type": "application/json", [IDEMPOTENCY]: entry.id }, body: JSON.stringify(body), signal: signal ?? null,
-  });
+  }, onLine);
 }
 
 /**
