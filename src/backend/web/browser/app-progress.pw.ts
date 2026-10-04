@@ -70,11 +70,11 @@ test("an account whose log is empty draws the empty card — a dash, not a phant
   // The frame draws, and not one dot is invented.
   await expect(page.locator(".pgraph.wl")).toBeVisible();
   await expect(page.locator(".pgraph.wl circle")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Log a weight to see your trend" }))
-    .toHaveAttribute("href", "#/you");
+  await page.getByRole("button", { name: "Log a weight to see your trend" }).click();
+  await expect(page.getByRole("spinbutton", { name: "Weight" })).toBeVisible();
   // The BMI card's own empty half reads the same invitation.
-  await expect(page.getByRole("link", { name: "Log a weight to see your BMI" }))
-    .toHaveAttribute("href", "#/you");
+  await page.getByRole("button", { name: "Log a weight to see your BMI" }).click();
+  await expect(page.getByRole("spinbutton", { name: "Weight" })).toBeVisible();
 });
 
 test("a fresh account draws the one-dot card — no invented trend", async ({ inWebApp: page }) => {
@@ -84,8 +84,8 @@ test("a fresh account draws the one-dot card — no invented trend", async ({ in
   // line inviting the second — never a line drawn through one point.
   await expect(page.locator(".pgraph.wl circle")).toHaveCount(1);
   await expect(page.locator(".pgraph.wl path")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Log another weight to see your trend" }))
-    .toHaveAttribute("href", "#/you");
+  await page.getByRole("button", { name: "Log another weight to see your trend" }).click();
+  await expect(page.getByRole("spinbutton", { name: "Weight" })).toBeVisible();
 });
 
 test("under reduced motion every animated element is already at its end state", async ({ inWebApp: page }) => {
