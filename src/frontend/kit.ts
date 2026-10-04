@@ -7,18 +7,21 @@
 // part went through `esc` at build), and the `*El` wrappers are what screens call when a component
 // takes an event listener — `addEventListener`, never an `on*` attribute the CSP refuses.
 
-import type { MealRecord } from "@eait/shared";
+import type { MealRecord, PaywallPlan, WebPaywall, YearlyPlan } from "@eait/shared";
 import {
-  cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
+  bmiBar as bmiBarMarkup, cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
   optionRow as optionRowMarkup, photoHero as photoHeroMarkup, planCard as planCardMarkup,
   gabieAvatar as gabieAvatarMarkup, gabieName as gabieNameMarkup, spudAvatar as spudAvatarMarkup,
+  payPlans as payPlansMarkup,
   ring as ringMarkup, scorePart as scorePartMarkup, scoreRow as scoreRowMarkup,
   ingredient as ingredientMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
   verdictList as verdictListMarkup, weekBarsSvg, weekStrip as weekStripMarkup, weightChartSvg,
-  type ChipName, type HeroCallout, type MealRowSpec, type RingOpts, type VerdictTone,
-  type WeekDayRow,
+  type ChipName, type HeroCallout, type MealRowSpec, type PayPlanRow, type RingOpts,
+  type VerdictTone, type WeekDayRow,
 } from "../shared/ui/kit.ts";
+import { fill } from "../shared/lang.ts";
+import { payCopyFor } from "../shared/app/pay-copy.ts";
 import { lang, names } from "./shell.ts";
 
 /**
@@ -45,6 +48,14 @@ export function kitEl(markup: string): Element {
 }
 
 // ── The builders, as elements ────────────────────────────────────────────────────────────────
+
+/** The BMI bar with its tick placed: the position is `data-pos`, set as `style.left` here. */
+export const bmiBarEl = (segments: number, on: number, tickPercent: number): Element => {
+  const bar = kitEl(bmiBarMarkup(segments, on, tickPercent));
+  const tick = bar.querySelector<HTMLElement>("b")!;
+  tick.style.left = `${tick.dataset.pos}%`;
+  return bar;
+};
 
 export const ringEl = (o: RingOpts): Element => kitEl(ringMarkup(o));
 
@@ -172,4 +183,41 @@ export function mealRowEl(
     ...(o.href !== undefined ? { href: o.href } : {}),
   };
   return kitEl(mealRowMarkup(spec, lang));
+}
+
+/**
+ * The plans, parsed (#263): `payPlans`'s markup off the profile's `WebPaywall` — every price and
+ * every checkout link already formatted and filled by the server — plus `picked()`, the checked
+ * row's plan. The two offer surfaces (#/pay, the first-meal offer) share this ONE composition so
+ * they can never disagree; `/start`'s offer interpolates the same markup server-side, where the
+ * checked radio submits as `?plan=`. Returns null where the host sells nothing.
+ */
+export function payPlansEl(w: WebPaywall, label: string): {
+  group: HTMLElement;
+  picked: () => { value: "yearly" | "monthly"; plan: PaywallPlan | YearlyPlan } | null;
+} | null {
+  const pay = payCopyFor(lang);
+  const rows: PayPlanRow[] = [];
+  if (w.yearly !== null) rows.push({
+    value: "yearly", name: pay.planYearly,
+    badge: w.trialDays > 0 ? fill(pay.trialBadge, { days: String(w.trialDays) }) : null,
+    line: fill(pay.pricePerYear, { price: w.yearly.price }),
+    price: fill(pay.pricePerMonth, { price: w.yearly.pricePerMonth }),
+    checked: true,
+  });
+  if (w.monthly !== null) rows.push({
+    value: "monthly", name: pay.planMonthly,
+    price: fill(pay.pricePerMonth, { price: w.monthly.price }),
+  });
+  if (rows.length === 0) return null;
+  const group = kitEl(payPlansMarkup(rows, label)) as HTMLElement;
+  return {
+    group,
+    picked: () => {
+      const sel = group.querySelector<HTMLInputElement>("input[name=plan]:checked")?.value;
+      if (sel === "monthly" && w.monthly !== null) return { value: "monthly", plan: w.monthly };
+      if (sel === "yearly" && w.yearly !== null) return { value: "yearly", plan: w.yearly };
+      return null;
+    },
+  };
 }

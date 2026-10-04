@@ -33,11 +33,7 @@ export const firstMealCss = `
 .perk { display: flex; align-items: center; gap: 10px; font-weight: 700; }
 .perk .tick { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
   border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 13px; flex: 0 0 22px; }
-/* The plan rows are real radios — the input is native, so the keyboard works without a shim. */
-.plans { padding-top: 4px; padding-bottom: 4px; margin-bottom: 14px; }
-.plan { display: flex; align-items: center; gap: 12px; padding: 12px 2px; font-weight: 700; cursor: pointer; }
-.plan input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: 0 0 20px;
-  accent-color: var(--accent); cursor: pointer; }
+/* The plan rows are the kit's now — payCss() in kitCss() owns .plans/.plan (#263). */
 .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
 @media (max-width: 760px) { .flow { max-width: none; } }
 `;

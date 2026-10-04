@@ -12,7 +12,6 @@
 // penalties); the last band is the catch-all.
 
 import { bmi } from "./targets.ts";
-import { BMI_SEGMENTS } from "./ui/charts.ts";
 import type { Verdict } from "./types.ts";
 
 // `bmi` is not defined twice: `targets.ts` already owns the equation — `checkTargetWeight` and the
@@ -186,14 +185,48 @@ export function dayHealthScore(
 export type BmiRange = "below-18.5" | "18.5-24.9" | "25-29.9" | "30-plus";
 
 /**
- * The four ranges as their upper edges — the value strictly below `max` falls in the band.
- * Derived from `ui/charts.ts`'s `BMI_SEGMENTS`: a band ends where the printed next band begins,
- * so the membership edges and the bar's labels are one table, never two that can drift. The ids
- * ARE the numbers: `bmiRangeLabel` reads them out of the id rather than a second table.
+ * The ONE place the BMI edges live: the lowest value of the second, third and fourth range. The
+ * value strictly below an edge falls in the range before it. Everything else — the membership
+ * table below and the bar's printed segments (`ui/charts.ts` reads `BMI_SEGMENTS` from here) — is
+ * derived, so a moved edge cannot strand a label. The ids ARE the numbers: `bmiRangeLabel` reads
+ * them out of the id rather than a second table.
  */
-export const BMI_BANDS: readonly { id: BmiRange; max: number }[] = BMI_SEGMENTS.map(
-  (seg, i) => ({ id: seg.id, max: BMI_SEGMENTS[i + 1]?.lo ?? Number.POSITIVE_INFINITY }),
+const BMI_EDGES = [18.5, 25, 30] as const;
+const BMI_IDS: readonly BmiRange[] = ["below-18.5", "18.5-24.9", "25-29.9", "30-plus"];
+
+export const BMI_BANDS: readonly { id: BmiRange; max: number }[] = BMI_IDS.map(
+  (id, i) => ({ id, max: BMI_EDGES[i] ?? Number.POSITIVE_INFINITY }),
 );
+
+/**
+ * The four segments in bar order, with the bounds the label under each prints. `lo`/`hi` are null
+ * on the open ends — "below 18.5" has no floor and "30 and above" no ceiling. A printed ceiling is
+ * one decimal under the next edge ("18.5–24.9"), except the first, which prints the edge itself.
+ */
+export const BMI_SEGMENTS: readonly { id: BmiRange; lo: number | null; hi: number | null }[] = BMI_IDS.map(
+  (id, i) => ({
+    id,
+    lo: BMI_EDGES[i - 1] ?? null,
+    hi: i === 0 ? BMI_EDGES[0] : BMI_EDGES[i] === undefined ? null : Math.round((BMI_EDGES[i]! - 0.1) * 10) / 10,
+  }),
+);
+
+/**
+ * Where the value's tick sits across the whole bar, 0..1 (`product/design/pro/boards.py` `_BPOS`):
+ * the segment index plus the value's fraction through its bounds, over four. An open segment
+ * borrows the inner neighbour's width, so a 17 or a 34 pins inside its own segment rather than at
+ * its edge — and clamped, so no value ever draws the tick outside the bar.
+ */
+export function bmiTick(value: number, range: string): number {
+  const i = BMI_SEGMENTS.findIndex((s) => s.id === range);
+  if (i < 0) return 0;
+  const seg = BMI_SEGMENTS[i]!;
+  const wLow = BMI_SEGMENTS[1]!.hi! - BMI_SEGMENTS[1]!.lo!;
+  const wHigh = BMI_SEGMENTS[2]!.hi! - BMI_SEGMENTS[2]!.lo!;
+  const lo = seg.lo ?? seg.hi! - wLow;
+  const hi = seg.hi ?? seg.lo! + wHigh;
+  return (i + Math.min(1, Math.max(0, (value - lo) / (hi - lo)))) / BMI_SEGMENTS.length;
+}
 
 /**
  * A neutral id, on purpose — the label beside a BMI is the numbers themselves, and the test in

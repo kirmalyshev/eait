@@ -303,7 +303,7 @@ export function logScreen(frame: Frame): HTMLElement {
       const btns = el("div", "logbtns");
       btns.append(
         ctaEl({ text: L.correct, kind: "s", icon: "sparkle", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
-        // W9's plans paywall is `#/pay` — unbound until it lands; the fallthrough lands Home.
+        // W9's plans paywall is `#/pay` (#263) — Monthly and Yearly, priced off the profile.
         ctaEl({ text: L.continueCta, kind: "p", href: "#/pay" }),
       );
       side.append(btns);

@@ -158,9 +158,12 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
 export const firstMealDue = (me: ProfileResponse | null | undefined): me is ProfileResponse =>
   me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed && !me.hasLoggedMeal;
 
-/** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
-const activeTab = (route: string): string =>
-  ["#/chat", "#/you", "#/progress"].includes(routeBase(route)) ? routeBase(route) : "#/";
+/** Which tab a route is — `#/meal/…` is Home's, as its board draws; `#/pay` is nobody's (#263):
+    the plans are a takeover, not a place in the row, and no tab stays underlined under them. */
+const activeTab = (route: string): string => {
+  const base = routeBase(route);
+  return ["#/chat", "#/you", "#/progress"].includes(base) ? base : base === "#/pay" ? "" : "#/";
+};
 
 /**
  * The boards' top bar (Register P): the `eait` wordmark — the app icon's bowl — then the ONE

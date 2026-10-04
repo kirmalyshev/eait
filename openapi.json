@@ -7177,13 +7177,23 @@
               }
             ],
             "description": "The offer shown once after the plans are declined — null = a decline goes to the app."
+          },
+          "termsUrl": {
+            "type": "string",
+            "description": "The legal footer's Terms href — the operator's `TERMS_URL`, verbatim. \"\" means no terms are published and a client draws no link, the shape `/start`'s own consent line takes."
+          },
+          "privacyUrl": {
+            "type": "string",
+            "description": "Same, for the privacy policy: `${LANDING_URL}/privacy` resolved server-side, \"\" while no landing is configured to publish it."
           }
         },
         "required": [
           "trialDays",
           "yearly",
           "monthly",
-          "exitOffer"
+          "exitOffer",
+          "termsUrl",
+          "privacyUrl"
         ],
         "additionalProperties": false,
         "description": "The web paywall, as this server is configured — computed in `ProfileResponse.paywall` (#77).\n\nA null plan is a plan the operator did not configure and the client does not draw. `yearly`, `monthly` AND `exitOffer` all null means the host sells nothing and no paywall surface exists at all — whatever `entitlement` and `limits` say about the account."

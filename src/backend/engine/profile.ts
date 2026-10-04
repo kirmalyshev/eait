@@ -124,6 +124,10 @@ function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
       percentOff: math.percentOff,
       perMonth: price(math.perMonth),
     },
+    // The footer's links — the same two the `/start` pages already render, sent so the app's pay
+    // surfaces never carry a second copy of where they point.
+    termsUrl: deps.config.termsUrl,
+    privacyUrl: deps.config.landingUrl === "" ? "" : `${deps.config.landingUrl}/privacy`,
   };
 }
 

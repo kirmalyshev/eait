@@ -789,9 +789,9 @@ export function planRows(
   const n = numbers(lang);
   const rows: PlanRow[] = [
     { id: "calories", label: b.rows.calories, value: kcalNumbers(lang)(targets.kcal) },
-    { id: "protein", label: b.rows.protein, value: `${n(targets.protein_g)}g` },
-    { id: "carbs", label: b.rows.carbs, value: `${n(targets.carbs_g)}g` },
-    { id: "fat", label: b.rows.fat, value: `${n(targets.fat_g)}g` },
+    { id: "protein", label: b.rows.protein, value: `${n(targets.protein_g)}${spellUnit(lang, "g")}` },
+    { id: "carbs", label: b.rows.carbs, value: `${n(targets.carbs_g)}${spellUnit(lang, "g")}` },
+    { id: "fat", label: b.rows.fat, value: `${n(targets.fat_g)}${spellUnit(lang, "g")}` },
     {
       id: "diet", label: b.rows.diet,
       value: screenOptions(content, "diet")[dietOf(p.restrictions)]?.label ?? dietOf(p.restrictions),

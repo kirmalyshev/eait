@@ -842,7 +842,7 @@ describe("the plan", () => {
     const html = await (await get("/start/plan", second)).text();
     expect(html).not.toContain('href="/start/offer"');
     const offer = await (await get("/start/offer", second)).text();
-    expect(offer).toContain('href="/start/checkout"');
+    expect(offer).toContain('action="/start/checkout"');
     expect((await get("/start/checkout", second)).headers.get("location")).toBe(`https://pay.rev.cat/eait/${userId}`);
   });
 
@@ -1489,7 +1489,7 @@ describe("the soft offer after the plan", () => {
     const userId = await webUser(session);
     const html = await (await get("/start/offer", session)).text();
     expect(html).toContain("Start my free week");
-    expect(html).toContain('href="/start/checkout"');
+    expect(html).toContain('action="/start/checkout"');
     // One route both offers link to — this page and the web app's offer that holds — so the id is
     // filled in one place, from the session, and never carried by a client.
     const res = await get("/start/checkout", session);
