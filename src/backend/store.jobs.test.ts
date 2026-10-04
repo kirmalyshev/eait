@@ -92,7 +92,7 @@ function jobs(name: string, make: () => Promise<Store>) {
       expect(await s.chargeJob(userId, j.clientId, "b", crypto.randomUUID())).toBe(false);
       expect(await s.settleJob(userId, j.clientId, "b", { kind: "done" })).toBe(false);
       expect(await s.jobProgress(userId, j.clientId, "a", 3, [{ name: "x" }])).toBe(true);
-      const analysisId = crypto.randomUUID();
+      const analysisId = "1"; // analyses.id is a bigserial: a numeric id, never a uuid
       expect(await s.chargeJob(userId, j.clientId, "a", analysisId)).toBe(true);
       expect(await s.getJob(userId, j.clientId)).toMatchObject({ step: 3, items: [{ name: "x" }], analysisId, state: "running" });
     });
