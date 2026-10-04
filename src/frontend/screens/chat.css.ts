@@ -17,31 +17,84 @@ export const chatCss = `
 .thread > li:first-child { margin-top: auto; }
 ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.stagger}ms; }`).join("\n")}
 
-/* The lines: mine right in the accent tint, the app's left — and a photo's own bubble is the
-   hero, corners 12/9 px, its stamp inside. */
-.me { align-self: flex-end; max-width: 78%; background: var(--accent-tint); color: var(--ink);
-  border-radius: var(--r-cta); border-bottom-right-radius: 4px; padding: 10px 14px; font-weight: 500; }
-.me .ts { text-align: right; }
-.me.dim { opacity: .55; }
-.me.pic { padding: 4px; border-radius: var(--r-card); }
-.me.pic .hero { width: min(200px, 58vw); aspect-ratio: 4 / 3; border-radius: 9px; }
-.me.pic .cap { margin: 0; padding: 6px 10px 4px; font-size: 14px; }
-.them { align-self: flex-start; max-width: 86%; }
-.them .card { padding: 14px; margin-bottom: 0; }
+/* #1520 — Telegram's bubbles on the kit's tokens. Both sides are bubbles: hers on the accent tint at
+   the right, Spud's on --chat-bubble at the left, radius 17. A run of one side's lines is a group:
+   2 px apart (8 when the side changes), inner corners 6, the tail and his face on the run's LAST
+   line only — drawn from the siblings, so a row never needs to know its neighbours. The time sits
+   inside, bottom-right, sharing the last line when it fits. Starter and suggestion cards are not
+   bubbles and do not break his run's face. */
+.chat { background: var(--chat-ground); }
+.thread { gap: 2px; padding: 8px 12px 4px; }
+.thread > li.me + li.them, .thread > li.them + li.me { margin-top: 8px; }
+.thread > li.me { display: block; }
+.me { align-self: flex-end; max-width: min(78%, 480px); background: var(--accent-tint); color: var(--ink);
+  border-radius: 17px; padding: 6px 12px 7px; font-weight: 500; position: relative; --muted: var(--me-muted);
+  box-shadow: 0 1px 1px rgba(23, 25, 28, .10); }
+.me .said { display: inline; margin: 0; }
+.me.mealb, .me.failed, .me.refused, .me.pending { width: min(80%, 360px); }
+.me.mealb .card { width: auto; background: none; box-shadow: none; padding: 6px 0 0; margin: 0; }
+.me .hero { display: block; width: auto; aspect-ratio: 4 / 3; margin: -3px -9px 6px; border-radius: 14px 14px 6px 6px;
+  overflow: hidden; background: var(--hair); }
+.me .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.me .cap { margin: 0; font-size: 15px; }
+.them { align-self: flex-start; max-width: min(86%, 560px); }
 .them p { margin: 0; }
-.ts { font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 4px; }
-
-/* The coach's say block: the spacer keeps the words' column where no disc is asked for. */
-.say > div { flex: 1; min-width: 0; }
-.say .saygap { width: 28px; flex: 0 0 28px; }
-.say .say-p { margin: 0; }
+.say { display: flex; gap: 6px; align-items: flex-end; }
+.say > .bub { flex: 1; min-width: 0; background: var(--chat-bubble); border-radius: 17px; padding: 6px 12px 7px;
+  position: relative; box-shadow: 0 1px 1px rgba(23, 25, 28, .07); }
+.say .spud { width: 28px; height: 28px; flex: 0 0 28px; }
+.say .say-p, .say .saytitle { display: inline; }
 .say .say-hi { font-size: 19px; }
-.say .saytitle { font-weight: 600; font-size: 15px; line-height: 1.35; margin: 0; }
-.say .row { gap: 6px; }
-.say .t13 { margin-top: 3px; }
+.say .saytitle { font-weight: 400; font-size: inherit; }
+.ts { font-size: 11px; color: var(--muted); font-weight: 500; float: right; line-height: 20px;
+  margin: 0 -2px 0 10px; position: relative; top: 5px; }
+.me .ts { color: var(--accent); }
+.me.mealb .ts, .me.failed .ts, .me.refused .ts, .me.pending .ts, .them .mb + .say-p + .ts { float: none; top: 0; margin: 4px 0 0; text-align: right; }
+
+/* the run: inner corners, his face only on the last of his bubbles, the tails */
+.thread > li.me:has(+ li.me) { border-bottom-right-radius: 6px; }
+.thread > li.me + li.me { border-top-right-radius: 6px; }
+.thread > li.them:has(+ li.them:not(.opts, .sug)) .bub { border-bottom-left-radius: 6px; }
+.thread > li.them + li.them .bub { border-top-left-radius: 6px; }
+.thread > li.them:has(+ li.them:not(.opts, .sug)) .spud { visibility: hidden; }
+.thread > li.me:not(:has(+ li.me)) { border-bottom-right-radius: 0; }
+.thread > li.me:not(:has(+ li.me))::after { content: ""; position: absolute; right: -7px; bottom: 0; width: 8px; height: 14px;
+  background: inherit; mask: radial-gradient(8px 14px at 100% 0, transparent 98%, #000 100%); }
+.thread > li.them:not(:has(+ li.them:not(.opts, .sug))) .bub { border-bottom-left-radius: 0; }
+.thread > li.them:not(:has(+ li.them:not(.opts, .sug))) .bub::after { content: ""; position: absolute; left: -7px; bottom: 0;
+  width: 8px; height: 14px; background: inherit; mask: radial-gradient(8px 14px at 0 0, transparent 98%, #000 100%); }
+
+/* what happened to her send, on her bubble: pending is a clock, refused the reason inside, failed
+   the red ! beside it (a 44 px button, 22 px face) whose popover is Resend / Delete */
+.me .dl { display: flex; gap: 5px; align-items: center; font-size: 12px; font-weight: 600; color: var(--bad); margin-top: 6px; }
+.me.pending .dl { color: var(--muted); }
+.me .dl .ico { width: 14px; height: 14px; }
+.me .act { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.me .act > .ts { margin: 0 0 0 auto; }
+.me .act .cta { margin: 0; }
+.me.mealb .card > .row.between > b:empty { display: none; }
+.me .cta.s { background: var(--surface); }
+.bangw { position: absolute; left: -44px; top: 50%; transform: translateY(-50%); }
+.bang { width: 44px; height: 44px; border: 0; background: none; padding: 11px; cursor: pointer; font: 700 14px/22px inherit;
+  color: var(--chat-ground); }
+.bang::before { content: "!"; display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--bad);
+  color: var(--chat-ground); font-weight: 700; font-size: 14px; text-align: center; line-height: 22px; }
+.bang { font-size: 0; }
+.failmenu { border: 0; border-radius: 14px; padding: 8px; background: var(--surface); box-shadow: var(--shadow, 0 8px 24px rgba(0,0,0,.2));
+  display: none; gap: 8px; flex-direction: column; min-width: 220px; }
+.failmenu:popover-open { display: flex; }
+.failmenu .cta.bad { color: var(--bad); }
+
+/* focus mode: her meal, with the × that leaves it */
+.focus-meal .fx { position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; background: none; box-shadow: none; }
+
+/* the composer, Telegram's three: the paperclip bare, the field a pill whose prompt ends in an
+   ellipsis instead of wrapping, send a filled circle */
+.chat .compose .ib:first-child { background: none; box-shadow: none; }
+.chat .compose .ib:first-child .ico { color: var(--muted); }
+.chat .compose textarea.box::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
-.prop-li { align-self: flex-start; width: calc(100% - 38px); max-width: 560px; margin-left: 38px; }
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
 .prop .pl-expired { margin: 10px 0 0 2px; font-weight: 500; }
 .prop .card { margin-bottom: 0; }
@@ -81,12 +134,6 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .mb .mb-name { gap: 6px; }
 .mb .mb-num b { color: var(--ink); font-weight: 700; font-size: 17px; }
 .est { color: var(--warn); font-weight: 600; }
-
-/* states-unknown's mark under the kept bubble — the board's right-aligned muted line, a clock
-   glyph and "Waiting to send", tucked up against the bubble it belongs to. */
-.thread .wts { align-self: flex-end; display: flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600; color: var(--muted); margin-top: -6px; }
-.thread .wts .ico { width: 14px; height: 14px; }
 
 /* The kept line's resend — the boards' small secondary, inline under the words. The board draws
    40 px; the app's tap floor is 44 (the a11y gate measures the box), so the floor wins the pixel. */
