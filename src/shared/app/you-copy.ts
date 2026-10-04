@@ -51,8 +51,6 @@ export interface YouCopy {
   /** The card's action, which writes the S7 row: "Log weight". */
   logWeight: string;
   /** The chart's dashed-line tag: "{w}kg · target" / "{w}lb · target". */
-  targetKg: string;
-  targetLb: string;
   /** The plan card's label: "Your plan". */
   planLabel: string;
   /** The plan card's affordance, lowercase on the board: "edit". */
@@ -292,8 +290,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "{condition} declared",
     weightLabel: healthLabel("weight_kg", "en"),
     logWeight: "Log weight",
-    targetKg: "{w}kg · target",
-    targetLb: "{w}lb · target",
     planLabel: "Your plan",
     planEdit: "edit",
     kcalADay: "{kcal}kcal a day",
@@ -403,8 +399,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "« {condition} » indiqué",
     weightLabel: healthLabel("weight_kg", "fr"),
     logWeight: "Enregistrer le poids",
-    targetKg: "{w}kg · objectif",
-    targetLb: "{w}lb · objectif",
     planLabel: "Ton plan",
     planEdit: "modifier",
     kcalADay: "{kcal}kcal par jour",
@@ -514,8 +508,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "von dir angegeben: {condition}",
     weightLabel: healthLabel("weight_kg", "de"),
     logWeight: "Gewicht eintragen",
-    targetKg: "{w}kg · Ziel",
-    targetLb: "{w}lb · Ziel",
     planLabel: "Dein Plan",
     planEdit: "bearbeiten",
     kcalADay: "{kcal}kcal am Tag",
@@ -625,8 +617,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "Indicato: {condition}",
     weightLabel: healthLabel("weight_kg", "it"),
     logWeight: "Registra il peso",
-    targetKg: "{w}kg · obiettivo",
-    targetLb: "{w}lb · obiettivo",
     planLabel: "Il tuo piano",
     planEdit: "modifica",
     kcalADay: "{kcal}kcal al giorno",
@@ -736,8 +726,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "has indicado: {condition}",
     weightLabel: healthLabel("weight_kg", "es"),
     logWeight: "Registrar el peso",
-    targetKg: "{w}kg · objetivo",
-    targetLb: "{w}lb · objetivo",
     planLabel: "Tu plan",
     planEdit: "editar",
     kcalADay: "{kcal}kcal al día",
@@ -847,8 +835,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "đã khai báo: {condition}",
     weightLabel: healthLabel("weight_kg", "vi"),
     logWeight: "Ghi cân nặng",
-    targetKg: "{w}kg · mục tiêu",
-    targetLb: "{w}lb · mục tiêu",
     planLabel: "Kế hoạch của bạn",
     planEdit: "sửa",
     kcalADay: "{kcal}kcal một ngày",
@@ -958,8 +944,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "{condition} (kamu laporkan)",
     weightLabel: healthLabel("weight_kg", "id"),
     logWeight: "Catat berat",
-    targetKg: "{w}kg · target",
-    targetLb: "{w}lb · target",
     planLabel: "Rencanamu",
     planEdit: "ubah",
     kcalADay: "{kcal}kcal sehari",
@@ -1069,8 +1053,6 @@ export const YOU_COPY: Localized<YouCopy> = {
     flagDeclared: "указано: {condition}",
     weightLabel: healthLabel("weight_kg", "ru"),
     logWeight: "Записать вес",
-    targetKg: "{w}кг · цель",
-    targetLb: "{w}lb · цель",
     planLabel: "Твой план",
     planEdit: "изменить",
     kcalADay: "{kcal}ккал в день",
