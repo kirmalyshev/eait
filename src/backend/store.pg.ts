@@ -3034,7 +3034,11 @@ export async function postgresStore(
     async onJobNotify(handlers) {
       const subs: SQL.ListenSubscription[] = [];
       const add = async (channel: string, fn: (payload: string) => void) => {
-        const s = await pool.listen(channel, fn);
+        let acknowledged = false;
+        const s = await pool.listen(channel, fn, () => {
+          if (acknowledged) console.warn(`[eait] job LISTEN ${channel}: connection dropped and re-subscribed; notifications missed meanwhile are covered by the poll`);
+          acknowledged = true;
+        });
         subs.push(s);
         listening.add(s);
       };
