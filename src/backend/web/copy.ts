@@ -101,9 +101,9 @@ export interface PageCopy {
   /**
    * The soft offer after the plan (#42). The headline is shared — `offerHeadline` names the
    * computed target and month — so these are the words around it: the beat, the fallback title
-   * for a goal that carries no target, the three perks, the timeline, the plan rows, the ask and
-   * the close. NO PRICE ANYWHERE: `webPaywall` holds URLs, not figures, and inventing one is
-   * exactly the claim the gate exists to catch.
+   * for a goal that carries no target, the three perks, the timeline, the ask and the close.
+   * The plan rows' own words are `PAY_COPY`'s, and their prices arrive already formatted in the
+   * `webPaywall` block — a figure is never written here (#263).
    */
   offerBeat: string;
   offerTitleElse: string;
@@ -115,14 +115,10 @@ export interface PageCopy {
   offerWhenEnding: string;
   offerReminder: string;
   offerWhenDay8: string;
-  offerMonthly: string;
-  offerPlanMonthly: string;
-  offerPlanMonthlyUnit: string;
-  offerPlanLifetime: string;
-  offerPlanLifetimeUnit: string;
+  /** Day 8's line — cadence-neutral: the plans below are the Monthly/Yearly pair (#263), so the
+      timeline may not name one. */
+  offerBilled: string;
   offerCta: string;
-  /** The link under the offer to the published privacy policy. */
-  offerPrivacy: string;
   /** The ×'s accessible name — it lets the offer go, straight into the first meal. */
   offerClose: string;
   titleOffer: string;
@@ -239,13 +235,8 @@ const EN: PageCopy = {
   offerWhenEnding: "Before it ends",
   offerReminder: "We remind you",
   offerWhenDay8: "Day 8",
-  offerMonthly: "Billed monthly · cancel any time",
-  offerPlanMonthly: "Monthly · 7 days free",
-  offerPlanMonthlyUnit: "a month",
-  offerPlanLifetime: "Lifetime",
-  offerPlanLifetimeUnit: "once",
+  offerBilled: "Billing starts · cancel any time",
   offerCta: "Start my free week",
-  offerPrivacy: "Privacy",
   offerClose: "Close",
   titleOffer: "Start your free week",
   /** The picker. Its OPTIONS are `LANG_LABEL` — endonyms, never translated. */
@@ -318,13 +309,8 @@ const FR: PageCopy = {
   offerWhenEnding: "Avant la fin",
   offerReminder: "On te le rappelle",
   offerWhenDay8: "Jour 8",
-  offerMonthly: "Facturé au mois · résiliable quand tu veux",
-  offerPlanMonthly: "Mensuel · 7 jours offerts",
-  offerPlanMonthlyUnit: "par mois",
-  offerPlanLifetime: "À vie",
-  offerPlanLifetimeUnit: "une seule fois",
+  offerBilled: "Début de la facturation · résiliable quand tu veux",
   offerCta: "Commencer ma semaine offerte",
-  offerPrivacy: "Confidentialité",
   offerClose: "Fermer",
   titleOffer: "Ta semaine offerte",
   languageLabel: "Langue",
@@ -396,13 +382,8 @@ const DE: PageCopy = {
   offerWhenEnding: "Vor Ablauf",
   offerReminder: "Wir erinnern dich",
   offerWhenDay8: "Tag 8",
-  offerMonthly: "Monatliche Abrechnung · jederzeit kündbar",
-  offerPlanMonthly: "Monatlich · 7 Tage gratis",
-  offerPlanMonthlyUnit: "pro Monat",
-  offerPlanLifetime: "Auf Lebenszeit",
-  offerPlanLifetimeUnit: "einmalig",
+  offerBilled: "Abrechnung beginnt · jederzeit kündbar",
   offerCta: "Meine Gratiswoche starten",
-  offerPrivacy: "Datenschutz",
   offerClose: "Schließen",
   titleOffer: "Deine Gratiswoche",
   languageLabel: "Sprache",
@@ -474,13 +455,8 @@ const IT: PageCopy = {
   offerWhenEnding: "Prima che finisca",
   offerReminder: "Ti avvisiamo noi",
   offerWhenDay8: "Giorno 8",
-  offerMonthly: "Addebito mensile · disdici quando vuoi",
-  offerPlanMonthly: "Mensile · 7 giorni gratis",
-  offerPlanMonthlyUnit: "al mese",
-  offerPlanLifetime: "A vita",
-  offerPlanLifetimeUnit: "una volta sola",
+  offerBilled: "Inizio dell'addebito · disdici quando vuoi",
   offerCta: "Inizia la mia settimana gratis",
-  offerPrivacy: "Privacy",
   offerClose: "Chiudi",
   titleOffer: "La tua settimana gratis",
   languageLabel: "Lingua",
@@ -552,13 +528,8 @@ const ES: PageCopy = {
   offerWhenEnding: "Antes de que termine",
   offerReminder: "Te avisamos",
   offerWhenDay8: "Día 8",
-  offerMonthly: "Cobro mensual · cancela cuando quieras",
-  offerPlanMonthly: "Mensual · 7 días gratis",
-  offerPlanMonthlyUnit: "al mes",
-  offerPlanLifetime: "De por vida",
-  offerPlanLifetimeUnit: "un solo pago",
+  offerBilled: "Empieza el cobro · cancela cuando quieras",
   offerCta: "Empezar mi semana gratis",
-  offerPrivacy: "Privacidad",
   offerClose: "Cerrar",
   titleOffer: "Tu semana gratis",
   languageLabel: "Idioma",
@@ -630,13 +601,8 @@ const VI: PageCopy = {
   offerWhenEnding: "Trước khi hết hạn",
   offerReminder: "Mình sẽ nhắc bạn",
   offerWhenDay8: "Ngày 8",
-  offerMonthly: "Tính theo tháng · hủy bất cứ lúc nào",
-  offerPlanMonthly: "Theo tháng · 7 ngày miễn phí",
-  offerPlanMonthlyUnit: "mỗi tháng",
-  offerPlanLifetime: "Trọn đời",
-  offerPlanLifetimeUnit: "trả một lần",
+  offerBilled: "Bắt đầu tính phí · hủy bất cứ lúc nào",
   offerCta: "Bắt đầu tuần miễn phí",
-  offerPrivacy: "Quyền riêng tư",
   offerClose: "Đóng",
   titleOffer: "Bắt đầu tuần miễn phí",
   languageLabel: "Ngôn ngữ",
@@ -708,13 +674,8 @@ const ID: PageCopy = {
   offerWhenEnding: "Sebelum berakhir",
   offerReminder: "Kami ingatkan kamu",
   offerWhenDay8: "Hari ke-8",
-  offerMonthly: "Tagihan bulanan · batal kapan saja",
-  offerPlanMonthly: "Bulanan · 7 hari gratis",
-  offerPlanMonthlyUnit: "per bulan",
-  offerPlanLifetime: "Seumur hidup",
-  offerPlanLifetimeUnit: "sekali bayar",
+  offerBilled: "Penagihan dimulai · batal kapan saja",
   offerCta: "Mulai minggu gratisku",
-  offerPrivacy: "Privasi",
   offerClose: "Tutup",
   titleOffer: "Mulai minggu gratismu",
   languageLabel: "Bahasa",
@@ -786,13 +747,8 @@ const RU: PageCopy = {
   offerWhenEnding: "До конца пробного периода",
   offerReminder: "Мы напомним",
   offerWhenDay8: "День 8",
-  offerMonthly: "Оплата помесячно · отмена в любой момент",
-  offerPlanMonthly: "Месячный · 7 дней бесплатно",
-  offerPlanMonthlyUnit: "в месяц",
-  offerPlanLifetime: "Навсегда",
-  offerPlanLifetimeUnit: "один платёж",
+  offerBilled: "Оплата начинается · отмена в любой момент",
   offerCta: "Начать бесплатную неделю",
-  offerPrivacy: "Конфиденциальность",
   offerClose: "Закрыть",
   titleOffer: "Твоя бесплатная неделя",
   languageLabel: "Язык",

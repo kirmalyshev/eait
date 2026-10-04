@@ -284,7 +284,8 @@ describe("profile", () => {
     it("sends an empty paywall — plans null, offer null — when the host sells nothing", async () => {
       const view = await viewFor({ ...SELLING,
         yearlyCheckoutUrl: "", monthlyCheckoutUrl: "", exitOfferCheckoutUrl: "" });
-      expect(view.paywall).toEqual({ trialDays: 7, yearly: null, monthly: null, exitOffer: null });
+      expect(view.paywall).toEqual({ trialDays: 7, yearly: null, monthly: null, exitOffer: null,
+        termsUrl: "", privacyUrl: "" });
     });
   });
 });

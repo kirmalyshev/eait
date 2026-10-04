@@ -11,11 +11,13 @@ import { progressScreen } from "./screens/progress.ts";
 import { youScreen } from "./screens/you.ts";
 import { mealScreen } from "./screens/meal.ts";
 import { homeScreen } from "./screens/today.ts";
+import { payScreen } from "./screens/pay.ts";
 import { acceptDrops } from "./queue.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
 screen("#/meal/", (frame) => mealScreen(frame));
 screen("#/chat", () => chatScreen());
+screen("#/pay", (frame) => payScreen(frame));
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));
 screen("#/you", (frame) => youScreen(frame));

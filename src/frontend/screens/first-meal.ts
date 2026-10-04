@@ -22,6 +22,7 @@ import { type MascotMood } from "../../shared/mascot.ts";
 // `chatCopyFor(lang).firstMeal`, the browser through this module. It is small on purpose: a
 // module the browser imports ships whole, so this imports types and nothing else.
 import { FIRST_MEAL_COPY } from "../../shared/first-meal-copy.ts";
+import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { UNIT_KCAL, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
 import type { Answered, MealAnalysis, MealLogged, MealProposed, VerdictLabel } from "@eait/shared";
 import type {
@@ -31,6 +32,8 @@ import { ApiError, Unauthenticated, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { shrinkPhotos } from "../photo.ts";
 import { firstMealEdit, mealTitle, type Portion } from "../portion.ts";
+import { kitEl, payPlansEl } from "../kit.ts";
+import { payPlans as payPlansMarkup } from "../../shared/ui/kit.ts";
 import {
   COPY, CONFIRM, MEAL, el, clear, kcal, lang, names, refusalWords, render, sendOrKeep,
   setHeldProposal, setRedraw, spudFace, textField,
@@ -337,33 +340,48 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       tl.append(row);
     }
     box.append(tl);
-    // ONE PLAN, AS A REAL RADIO (#52). `/start/checkout` takes no plan — it is the one configured
-    // checkout URL with this account's id filled in — so a second radio would be a choice that
-    // chose nothing. What is offered is the subscription the free week leads into, checked, in a
-    // group that takes more the day the link learns to carry one. And NAMED, never priced: this
-    // client has never been sent a price, and the checkout page the link lands on owns the numbers.
-    const plans = el("div", "card plans");
-    plans.setAttribute("role", "radiogroup");
-    plans.setAttribute("aria-label", COPY.offerPlans);
-    const plan = el("label", "plan sel");
-    const radio = el("input", "") as HTMLInputElement;
-    radio.type = "radio";
-    radio.name = "plan";
-    radio.value = "monthly";
-    radio.checked = true;
-    plan.append(radio, el("span", "", COPY.offerPlanMonthly));
-    plans.append(plan);
-    box.append(plans);
+    // THE PLANS, PRICED (#263): the kit's one builder — the same rows `/start`'s offer and `#/pay`
+    // draw, priced off `paywall` in the profile, so the radio picked is the plan the link buys.
+    const plans = me.paywall === undefined ? null : payPlansEl(me.paywall, COPY.offerPlans);
+    const pay = payCopyFor(lang);
     const foot = el("div", "step-foot");
-    // `/start/checkout`, not the checkout URL itself: the backend fills this account's id into the
-    // configured checkout from the `/start` session, same origin, so no client ever carries it —
-    // the one paid link both offers share.
-    const go = el("a", "cta p", COPY.startFreeWeek) as HTMLAnchorElement;
-    go.href = "/start/checkout";
+    const go = el("a", "cta p") as HTMLAnchorElement;
+    const hint = el("p", "hint");
+    if (plans === null) {
+      // The host sells nothing — no checkout URL is configured, so `paywall` carries no plan to
+      // show. The offer still renders as it always did here: one named, checked radio and the
+      // `/start/checkout` route, which is a 404 on exactly such a host — the shape the flow had
+      // before the plans learned prices and selection.
+      box.append(kitEl(payPlansMarkup(
+        [{ value: "monthly", name: pay.planMonthly, checked: true }], COPY.offerPlans)));
+      go.href = "/start/checkout";
+      go.textContent = COPY.startFreeWeek;
+      hint.textContent = COPY.offerCheckoutHint;
+    } else {
+      box.append(plans.group);
+      const update = (): void => {
+        const sel = plans.picked();
+        if (sel === null) return;
+        // The plan's own `checkoutUrl` — the server already filled this account's id into it, so
+        // the page shown is the page bought and no client ever carries an id it was not issued.
+        go.href = sel.plan.checkoutUrl;
+        if (sel.value === "yearly" && me.paywall.trialDays > 0) {
+          go.textContent = COPY.startFreeWeek;
+          hint.textContent = COPY.offerCheckoutHint;
+        } else {
+          go.textContent = pay.continueCta;
+          hint.textContent = fill(
+            sel.value === "yearly" ? pay.renewNoteYearly : pay.renewNoteMonthly,
+            { price: sel.plan.price });
+        }
+      };
+      plans.group.addEventListener("change", update);
+      update();
+    }
     const later = el("button", "cta g", COPY.offerLater) as HTMLButtonElement;
     // "Not now" re-renders: a meal exists by now, so the gate opens the diary it belongs on.
     later.addEventListener("click", () => { void render(); });
-    foot.append(go, later, el("p", "hint", COPY.offerCheckoutHint));
+    foot.append(go, later, hint);
     box.append(foot);
     return box;
   };

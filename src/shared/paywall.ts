@@ -53,6 +53,16 @@ export interface WebPaywall {
   monthly: PaywallPlan | null;
   /** The offer shown once after the plans are declined — null = a decline goes to the app. */
   exitOffer: ExitOffer | null;
+  /**
+   * The legal footer's Terms href — the operator's `TERMS_URL`, verbatim. "" means no terms are
+   * published and a client draws no link, the shape `/start`'s own consent line takes.
+   */
+  termsUrl: string;
+  /**
+   * Same, for the privacy policy: `${LANDING_URL}/privacy` resolved server-side, "" while no
+   * landing is configured to publish it.
+   */
+  privacyUrl: string;
 }
 
 /**

@@ -115,4 +115,4 @@ export const hidden = (name: string, value: string): string =>
  * name like the font files are.
  */
 export const IMG_URL_DIR = "/start/assets/img";
-export const IMG_FILES = ["hero.webp", "salmon-sq.webp", "icon.webp"] as const;
+export const IMG_FILES = ["hero.webp", "salmon-sq.webp", "salmon.webp", "icon.webp"] as const;
