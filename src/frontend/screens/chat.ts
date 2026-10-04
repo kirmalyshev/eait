@@ -504,10 +504,29 @@ export async function chatScreen(): Promise<HTMLElement> {
     });
   };
 
+  /** The busy row the boards draw while the answer is out ("web-chat-busy", #70): his face and the
+      three typing dots on the newest line. The draw that follows the send replaces the list; the
+      caller's finally removes it for the path that never reaches one. */
+  const showTyping = (): (() => void) => {
+    const listEl = wrap.querySelector<HTMLElement>(".thread");
+    if (listEl === null) return () => {};
+    const li = el("li", "them");
+    const dots = el("div", "dots");
+    dots.setAttribute("aria-label", fill(copy().phone.typing, { coach: coachName() ?? "Spud" }));
+    dots.append(el("i", ""), el("i", ""), el("i", ""));
+    li.append(sayBlock((col) => col.append(dots)));
+    listEl.append(li);
+    for (const sc of [listEl, listEl.closest<HTMLElement>(".wmain")].filter((e): e is HTMLElement => e !== null)) {
+      sc.scrollTop = sc.scrollHeight;
+    }
+    return () => li.remove();
+  };
+
   /** Send her turn. A refusal stays HER bubble (#1520): kept held, the reason drawn on it with
       Delete, and her words never go back to the field. */
   const sendHers = async (entry: Parameters<typeof sendOrKeep>[0]): Promise<string | void> => {
     readerUp = null; // her own send lands her on the newest line (Telegram's rule)
+    const unbusy = showTyping();
     try {
       return await sendOrKeep(entry, { onResult: rememberLive });
     } catch (err) {
@@ -515,6 +534,8 @@ export async function chatScreen(): Promise<HTMLElement> {
       await outbox.add({ ...entry, held: failureOf(err) });
       // Kept on her bubble AND said out loud: the notice is the page's alert.
       return refusalWords(err);
+    } finally {
+      unbusy();
     }
   };
 
