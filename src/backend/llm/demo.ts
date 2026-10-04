@@ -182,8 +182,14 @@ export function demoPorts(): LlmPorts {
 
   const routeText: RouteText = async (input) => {
     input.onCost?.(0);
+    // The real port streams the analysis items the focused call writes; the demo's whole analysis
+    // is one object, so its items go out in one delta — the item rows a streamed text turn draws
+    // exist under `--demo` and every e2e flow for the same reason the photo demo streams (#70).
     const stored = storedTextRead(input.text, input.profile.lang);
-    if (stored) return { intent: "meal", analysis: stored, dayOffset: 0 };
+    if (stored) {
+      input.onDelta?.(JSON.stringify({ items: stored.items }));
+      return { intent: "meal", analysis: stored, dayOffset: 0 };
+    }
     const text = input.text.toLowerCase();
     const asks = /\?|how much|how many|what|why|should i|сколько|что|wie viel|was /.test(text);
 
@@ -198,25 +204,27 @@ export function demoPorts(): LlmPorts {
       // shape `prepareAnalysis` reconciles, so the fake would be manufacturing the defect and every
       // demo correction would come back downgraded and re-totalled.
       const cut = (n?: number) => (n === undefined ? undefined : Math.round(n * scale * 10) / 10);
+      const corrected = {
+        ...f,
+        items: f.items.map((i) => ({
+          ...i, grams: Math.round(i.grams * scale),
+          // The density is a property of the food, not of how much of it is on the plate.
+          kcal: cut(i.kcal), protein_g: cut(i.protein_g), carbs_g: cut(i.carbs_g), fat_g: cut(i.fat_g),
+        })),
+        kcal: Math.round(f.kcal * scale),
+        protein_g: Math.round(f.protein_g * scale * 10) / 10,
+        carbs_g: Math.round(f.carbs_g * scale * 10) / 10,
+        fat_g: Math.round(f.fat_g * scale * 10) / 10,
+        satfat_g: Math.round(f.satfat_g * scale * 10) / 10,
+        fiber_g: Math.round(f.fiber_g * scale * 10) / 10,
+        sugar_g: Math.round(f.sugar_g * scale * 10) / 10,
+        sodium_mg: Math.round(f.sodium_mg * scale),
+        notes: "Adjusted from your correction (demo analyzer).",
+      };
+      input.onDelta?.(JSON.stringify({ items: corrected.items }));
       return {
         intent: "correction",
-        analysis: {
-          ...f,
-          items: f.items.map((i) => ({
-            ...i, grams: Math.round(i.grams * scale),
-            // The density is a property of the food, not of how much of it is on the plate.
-            kcal: cut(i.kcal), protein_g: cut(i.protein_g), carbs_g: cut(i.carbs_g), fat_g: cut(i.fat_g),
-          })),
-          kcal: Math.round(f.kcal * scale),
-          protein_g: Math.round(f.protein_g * scale * 10) / 10,
-          carbs_g: Math.round(f.carbs_g * scale * 10) / 10,
-          fat_g: Math.round(f.fat_g * scale * 10) / 10,
-          satfat_g: Math.round(f.satfat_g * scale * 10) / 10,
-          fiber_g: Math.round(f.fiber_g * scale * 10) / 10,
-          sugar_g: Math.round(f.sugar_g * scale * 10) / 10,
-          sodium_mg: Math.round(f.sodium_mg * scale),
-          notes: "Adjusted from your correction (demo analyzer).",
-        },
+        analysis: corrected,
       };
     }
 
@@ -235,9 +243,11 @@ export function demoPorts(): LlmPorts {
       };
     }
 
+    const meal = plateFor(hash(input.text));
+    input.onDelta?.(JSON.stringify({ items: meal.items }));
     return {
       intent: "meal",
-      analysis: plateFor(hash(input.text)),
+      analysis: meal,
       dayOffset: clampDayOffset(/yesterday|вчера|gestern/.test(text) ? 1 : 0),
     };
   };
