@@ -966,7 +966,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
     // ── The right column: the strip, the day card, the actions ──
     // The strip is the PERSISTENT element painted above; the day card mounts under it.
-    const right: Element[] = [stripBox, dayCard(day, rich)];
+    const right: Element[] = [dayCard(day, rich)];
 
     // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
     // (today-logging draws compose with no CTA) — and the composer. The failed board draws
@@ -995,7 +995,12 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
     clear(wrap).append(h1, ...left, notice);
     frame.side.setAttribute("aria-label", L.webDayRegion);
-    clear(frame.side).append(...right);
+    // The strip is re-USED, never re-appended: clear() detaches it, and a detach mid-slide
+    // cancels the transform's transitionend — the only thing that lands the week — leaving the
+    // track translated, `stripSliding` stuck and `.now` marking the week it slid FROM (#370).
+    for (const n of [...frame.side.children]) if (n !== stripBox) n.remove();
+    if (frame.side.firstElementChild !== stripBox) frame.side.prepend(stripBox);
+    frame.side.append(...right);
   }
 
   /** A meal row: the photo or the no-photo tile, the time, the verdict line, the gram chips —
