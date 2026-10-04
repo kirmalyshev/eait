@@ -10,6 +10,7 @@ import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { MascotMood } from "./onboarding.ts";
 import type { Queued } from "./outbox.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
+import { outcomeUnknown } from "./results.ts";
 import type { Lang, MealRecord } from "./types.ts";
 
 /**
@@ -476,4 +477,69 @@ export function lineIsMeal(entry: ThreadEntry & { role: "user" }, entries: Threa
   if (entry.photo === true) return !!entry.mealId;
   const pendingId = entry.pendingId ?? null;
   return pendingId !== null && entries.some((e) => e.role === "card" && e.mealId === pendingId);
+}
+
+// ── The rows the Chat tab draws (#1520) ─────────────────────────────────────────────────────────
+// Both clients draw a thread as rows: HER bubble, which carries what happened to her send (the meal
+// it logged, the proposal it made, the refusal or failure it met), and Spud's own lines, his face on
+// the last of each run. Pure, so the phone and the web read one rule.
+
+type UserEntry = Extract<ThreadEntry, { role: "user" }>;
+/** What happened to her send: `failed` is a red ! and Resend, `refused` the reason inside, `pending` a clock. */
+export type SendState = "ok" | "pending" | "failed" | "refused";
+export type ChatRow =
+  | { kind: "me"; entry: UserEntry; outcome: ThreadEntry | null; state: SendState }
+  | { kind: "them"; entry: ThreadEntry; face: boolean };
+
+/** Results that are about her send, so her bubble carries them; `answered` and `not-food` stay Spud's. */
+const ABSORBED_RESULTS: ReadonlySet<string> = new Set([
+  "logged", "updated", "redated", "proposed", "expired", "target-gone",
+  "not-onboarded", "identity-required", "cap-exceeded", "subscription-required", "analysis-failed",
+]);
+const REFUSED_RESULTS: ReadonlySet<string> = new Set([
+  "target-gone", "not-onboarded", "identity-required", "cap-exceeded", "subscription-required", "analysis-failed",
+]);
+
+const absorbs = (next: ThreadEntry | undefined): boolean =>
+  next !== undefined && (
+    next.role === "card" || next.role === "error" ||
+    (next.role === "assistant" && ABSORBED_RESULTS.has(next.result.kind)));
+
+function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
+  if (entry.failed) return "failed";
+  if (entry.refused) return "refused";
+  if (entry.queued !== undefined) {
+    if (entry.queued.held === undefined) return "pending";
+    return outcomeUnknown(entry.queued.held.kind) ? "pending" : "refused";
+  }
+  if (outcome === null) return "ok";
+  if (outcome.role === "error") {
+    if (outcome.kind === "offline") return "pending";
+    if (outcome.kind === "unanswered") return "failed";
+    if (outcome.kind === "analysis-failed" || outcome.kind === "subscription-required") return "refused";
+    return "ok";
+  }
+  if (outcome.role === "assistant") {
+    if (outcome.result.kind === "expired") return "failed";
+    if (REFUSED_RESULTS.has(outcome.result.kind)) return "refused";
+  }
+  return "ok";
+}
+
+export function chatRows(visible: readonly ThreadEntry[]): ChatRow[] {
+  const rows: ChatRow[] = [];
+  for (let i = 0; i < visible.length; i++) {
+    const entry = visible[i]!;
+    if (entry.role === "user") {
+      const next = visible[i + 1];
+      const outcome = absorbs(next) ? next! : null;
+      if (outcome !== null) i++;
+      rows.push({ kind: "me", entry, outcome, state: sendState(entry, outcome) });
+    } else {
+      rows.push({ kind: "them", entry, face: false });
+    }
+  }
+  // His face on the last of each run of his rows; her row ends a run.
+  rows.forEach((r, i) => { if (r.kind === "them" && rows[i + 1]?.kind !== "them") r.face = true; });
+  return rows;
 }

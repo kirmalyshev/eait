@@ -111,6 +111,8 @@ export interface ChatScreenCopy {
   offlineTitle: string;
   offlineBody: string;
   sendAgain: string;
+  /** The failed send's one action, inside her bubble and on the red !'s menu (#1520). */
+  resend: string;
 
   /** `states-unknown.html`, both clients: outcome unknown — kept, and re-sent on its own. */
   waitingToSend: string;
@@ -261,6 +263,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Couldn't reach eait.",
     offlineBody: "Nothing was logged.",
     sendAgain: "Send again",
+    resend: "Resend",
     waitingToSend: "Waiting to send",
     unknownTitle: "That didn't finish cleanly.",
     unknownBody: "Kept, and re-sent on its own — sending again is safe.",
@@ -353,6 +356,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Impossible de joindre eait.",
     offlineBody: "Rien n'a été enregistré.",
     sendAgain: "Renvoyer",
+    resend: "Renvoyer",
     waitingToSend: "En attente d'envoi",
     unknownTitle: "Ça ne s'est pas terminé proprement.",
     unknownBody: "Conservé, et renvoyé tout seul — renvoyer toi-même est sans risque.",
@@ -445,6 +449,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "eait ist gerade nicht erreichbar.",
     offlineBody: "Es wurde nichts eingetragen.",
     sendAgain: "Erneut senden",
+    resend: "Erneut senden",
     waitingToSend: "Wartet auf den Versand",
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownBody: "Gespeichert – wird automatisch erneut gesendet. Nochmal senden schadet nicht.",
@@ -537,6 +542,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Impossibile raggiungere eait.",
     offlineBody: "Non è stato registrato nulla.",
     sendAgain: "Invia di nuovo",
+    resend: "Reinvia",
     waitingToSend: "In attesa di invio",
     unknownTitle: "Non si è concluso correttamente.",
     unknownBody: "Salvato: lo reinviamo in automatico. Puoi reinviarlo senza problemi.",
@@ -629,6 +635,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "No se pudo conectar con eait.",
     offlineBody: "No se registró nada.",
     sendAgain: "Reenviar",
+    resend: "Reenviar",
     waitingToSend: "Esperando para enviar",
     unknownTitle: "Eso no terminó del todo bien.",
     unknownBody: "Guardado, y se reenvía solo — volver a enviar es seguro.",
@@ -721,6 +728,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Không kết nối được với eait.",
     offlineBody: "Chưa có gì được ghi lại.",
     sendAgain: "Gửi lại",
+    resend: "Gửi lại",
     waitingToSend: "Đang chờ gửi",
     unknownTitle: "Việc gửi chưa kết thúc trọn vẹn.",
     unknownBody: "Đã giữ lại, và sẽ tự gửi lại — gửi lại vẫn an toàn.",
@@ -813,6 +821,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Tidak bisa terhubung ke eait.",
     offlineBody: "Tidak ada yang tercatat.",
     sendAgain: "Kirim lagi",
+    resend: "Kirim ulang",
     waitingToSend: "Menunggu untuk dikirim",
     unknownTitle: "Tidak selesai dengan baik.",
     unknownBody: "Sudah disimpan dan akan dikirim ulang otomatis — aman kalau kamu kirim lagi.",
@@ -905,6 +914,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     offlineTitle: "Не удалось связаться с eait.",
     offlineBody: "Ничего не записалось.",
     sendAgain: "Отправить ещё раз",
+    resend: "Отправить снова",
     waitingToSend: "Ждёт отправки",
     unknownTitle: "Отправка не завершилась до конца.",
     unknownBody: "Сохранено и отправится само — отправить ещё раз безопасно.",

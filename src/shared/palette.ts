@@ -38,6 +38,10 @@ export const light = {
   badTint: "#FBE4E1",
   /** The day's "over plan" — darker and calmer than `bad` (F, ieat-app#1291). 10.6:1 on white. */
   over: "#7A1A14",
+  /** Chat (ieat-app#1520): the thread's ground one step below bg, Spud's bubble, muted on her tint (5:1). */
+  chatGround: "#EEECE6",
+  chatBubble: "#FFFFFF",
+  meMuted: "#5C6167",
   /** The calorie floor, and nothing else. */
   care: "#2F6FB0",
 } as const;
@@ -62,6 +66,9 @@ export const dark = {
   /** Deliberately calmer than dark `bad`: 4.99:1 on the dark surface (design, ieat-app#1291). */
   over: "#D46C64",
   care: "#5AA9FF",
+  chatGround: "#0B0D0E",
+  chatBubble: "#22262A",
+  meMuted: "#A4A8AD",
 } as const;
 
 export type ColorName = keyof typeof light;
@@ -115,6 +122,9 @@ export const vars = (t: Record<ColorName, string>, scheme: ThemeName) => {
   --bad-tint: ${t.badTint};
   --over: ${t.over};
   --care: ${t.care};
+  --chat-ground: ${t.chatGround};
+  --chat-bubble: ${t.chatBubble};
+  --me-muted: ${t.meMuted};
   --macro-kcal: ${m.kcal.ink};
   --macro-kcal-t: ${m.kcal.tint};
   --macro-protein: ${m.protein.ink};

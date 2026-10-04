@@ -49,6 +49,9 @@ describe("the palettes are the register's", () => {
       // The day's "over plan" — F's dark red, calmer than bad (ieat-app#1291).
       over: "#7A1A14",
       care: "#2F6FB0",
+      chatGround: "#EEECE6",
+      chatBubble: "#FFFFFF",
+      meMuted: "#5C6167",
     });
   });
 
@@ -76,6 +79,9 @@ describe("the palettes are the register's", () => {
       // The same dark red in the dark theme — calmer than dark bad on purpose (#1291).
       over: "#D46C64",
       care: "#5AA9FF",
+      chatGround: "#0B0D0E",
+      chatBubble: "#22262A",
+      meMuted: "#A4A8AD",
     });
   });
 
