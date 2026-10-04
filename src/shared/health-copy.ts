@@ -904,7 +904,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       readsMoreTitle: "Health hiển thị nhiều hơn những gì eait đọc",
       readsMoreBody: "eait chỉ thấy các nhóm bạn bật cho nó.",
       path: "Trong Health: ảnh của bạn ở góc trên bên phải › Apps › eait. Hoặc Cài đặt › Quyền riêng tư và bảo mật › Health › eait.",
-      pathSpoken: "Trong Health, chạm vào ảnh của bạn ở góc trên bên phải, rồi Apps, rồi eait. Hoặc mở Cài đặt, Quyền riêng tư và bảo mật, Health, eait.",
+      pathSpoken: "Trong Sức khỏe, chạm vào ảnh của bạn ở góc trên bên phải, rồi Apps, rồi eait. Hoặc mở Cài đặt, Quyền riêng tư và bảo mật, Sức khỏe, eait.",
       alertOpenTitle: "Không mở được Health",
       alertSheetTitle: "Không mở được bảng của Health",
     },
