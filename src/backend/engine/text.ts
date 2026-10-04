@@ -135,7 +135,7 @@ export async function textTurn(
     routed = await deps.llm.routeText({
       text: input.text, profile, targets,
       todayMeals: todayRows.map((m) => ({
-        items: m.items.map((i) => i.name), kcal: m.kcal, protein_g: m.protein_g,
+        items: m.items, kcal: m.kcal, protein_g: m.protein_g,
       })),
       week,
       ...(focusAnalysis ? { focusMeal: focusAnalysis } : {}),

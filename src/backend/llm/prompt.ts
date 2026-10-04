@@ -30,13 +30,13 @@
 // edits them.
 
 import { z } from "zod";
-import type { CountryCode, DietTag, FoodTargets, MedicalTag, Profile } from "@eait/shared";
+import type { CountryCode, DietTag, FoodTargets, MedicalTag, MealItem, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 import {
   COACH_NUTRIENTS, COUNTRY_CODES, countryLabel, LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE,
   dietOf, isDietTag, isExcludingDiet, isMedicalTag, medicalOf, narrowLang,
 } from "@eait/shared";
-import type { CoachContext, CoachHistoryLine } from "./port.ts";
+import type { CoachContext, CoachHistoryLine, RecentMeal } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
 // ── Containment ──────────────────────────────────────────────────────────────────────────────
@@ -323,10 +323,11 @@ Rules:
 
 Producing an analysis (for "meal" and "correction"):
 1. Identify every distinct food and drink they named. Name each one in the user's language.
-2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight. Where they gave no quantity, use one ordinary serving.
+2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "an egg"), take the usual cooked, edible weight of ONE unit — a count multiplies it, so "2 nectarines" is 2 × one nectarine, grams is the total and the name keeps the count ("2 nectarines"). Where they gave no quantity, use one ordinary serving.
 3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 - Do not invent food they did not mention, and do not drop food they did.
+- "More of", "the same as" or "from earlier" names an item already logged today (listed above): copy that item's kcal_per_100g, take ONE unit's weight as its grams divided by the count its own name carries (no count means 1), and scale by the count they gave.
 - Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
 - name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences. No preamble, no advice, no disclaimers.
@@ -348,11 +349,12 @@ export const SYSTEM_TEXT_MEAL = `You estimate the nutritional content of a meal 
 
 Work in this order:
 1. Identify every distinct food and drink they named. Name each one in the user's language.
-2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight for that item. Where they gave no quantity at all, use one ordinary serving.
+2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "an egg"), take the usual cooked, edible weight of ONE unit — a count multiplies it, so "2 nectarines" is 2 × one nectarine, grams is the total and the name keeps the count ("2 nectarines"). Where they gave no quantity at all, use one ordinary serving.
 3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 
 Rules:
+- "More of", "the same as" or "from earlier" names an item already logged today (listed with the message): copy that item's kcal_per_100g, take ONE unit's weight as its grams divided by the count its own name carries (no count means 1), and scale by the count they gave.
 - If the message names no food or drink at all, set isFood to false, return zero totals and an empty items array, and say so in notes.
 - Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
 - Do not invent food they did not mention, and do not drop food they did.
@@ -370,17 +372,42 @@ Rules:
 export const EMPTY_ESTIMATE_RETRY =
   "\n\nEstimate anyway. Where the description is vague, take one ordinary serving of each food named. An empty items list is never the right answer when the user named food.";
 
-/** The user-side text for a described meal. Deliberately just the message and who is eating. */
+/**
+ * Today's logged meals, rendered for the prompts that analyse typed text — one line each.
+ *
+ * The items carry their grams and `kcal_per_100g` because those are what a reference resolves
+ * against: "2 more slices of the pizza" is the logged item's grams taken as one unit's weight
+ * and its density copied. Names and meal totals alone — what these prompts used to get — left
+ * the model nothing to copy, and it fell back to a generic portion (#441).
+ */
+const recentMealsLines = (meals: RecentMeal[]): string =>
+  meals
+    .map((m) =>
+      `- ${m.items.map((i: MealItem) => `${normalizePromptText(i.name, 60)} (${Math.round(i.grams)}g${i.kcal_per_100g !== undefined ? `, ${Math.round(i.kcal_per_100g)}kcal/100g` : ""})`).join("; ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`)
+    .join("\n");
+
+/**
+ * The user-side text for a described meal: the message, who is eating, and today's logged
+ * meals — the list a "more of / same as / from earlier" reference resolves against (#441).
+ */
 export function buildTextMealText(input: {
   text: string;
   profile: Profile;
   targets: FoodTargets;
+  todayMeals: RecentMeal[];
 }): string {
-  return [
+  const lines = [
     buildUserText(input.profile, input.targets, {}),
     "",
-    `The user said they ate: ${input.text}`,
-  ].join("\n");
+  ];
+  if (input.todayMeals.length > 0) {
+    lines.push(
+      `Meals logged today so far (each item: name (grams, kcal per 100g)):\n${recentMealsLines(input.todayMeals)}`,
+      "",
+    );
+  }
+  lines.push(`The user said they ate: ${input.text}`);
+  return lines.join("\n");
 }
 
 /**
@@ -399,7 +426,7 @@ export const SYSTEM_TEXT_CORRECTION = `You correct a meal that is already logged
 
 Work in this order:
 1. Start from the meal you are given. Change ONLY what the user's words change — keep every item and every number you were not told to change — and produce the CORRECTED full analysis: every field, not just the changed one.
-2. Take any new weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight for that item.
+2. Take any new weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "an egg"), take the usual cooked, edible weight of ONE unit — a count multiplies it, so "2 slices" is 2 × one slice, grams is the total and the name keeps the count.
 3. Compute nutrition per item, then the totals as the sum across items.
 4. Give an honest confidence: "low" when what they said leaves the quantity or the food vague; "high" only when both are plain.
 
@@ -455,7 +482,7 @@ export function buildRouteText(input: {
   text: string;
   profile: Profile;
   targets: FoodTargets;
-  todayMeals: { items: string[]; kcal: number; protein_g: number }[];
+  todayMeals: RecentMeal[];
   week: { date: string; kcal: number; protein_g: number }[];
   focusMeal?: unknown;
   /** The question Spud asked about the focus meal and has not had an answer to. */
@@ -473,9 +500,7 @@ export function buildRouteText(input: {
 
   lines.push(
     input.todayMeals.length > 0
-      ? `Today so far:\n${input.todayMeals
-          .map((m) => `- ${m.items.join(", ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`)
-          .join("\n")}`
+      ? `Today so far (each item: name (grams, kcal per 100g)):\n${recentMealsLines(input.todayMeals)}`
       : "Today so far: nothing logged.",
   );
   if (input.week.length > 0) {
