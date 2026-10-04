@@ -30,7 +30,7 @@ import { blobSrc, ctaEl, kitEl, mealRowEl } from "../kit.ts";
 import { failureOf, outbox } from "../outbox.ts";
 import {
   DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, flush, heldProposal, kcal, kept,
-  keptLineEl, keptNotice, lang, names, profile, proposalCard, refusalWords, sendOrKeep, setHeldProposal, setRedraw,
+  keptLineEl, keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
@@ -850,8 +850,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       await outbox.add({ ...entry, held: failureOf(err) });
-      // Kept on her line AND said out loud: the notice is the page's alert.
-      return refusalWords(err);
+      // The kept line inside her bubble is the saying — no reason line on top of it.
+      return;
     }
   };
   comp.form.addEventListener("submit", (e) => {

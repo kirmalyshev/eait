@@ -26,7 +26,7 @@ import { shrinkPhotos } from "../photo.ts";
 import {
   COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
-  MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
+  MEAL_PHOTOS, proposalCard, profile, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names,
 } from "../shell.ts";
 
@@ -445,8 +445,9 @@ export async function chatScreen(): Promise<HTMLElement> {
     } catch (err) {
       if (!(err instanceof ApiError) || uid === null) throw err;
       await outbox.add({ ...entry, held: failureOf(err) });
-      // Kept on her bubble AND said out loud: the notice is the page's alert.
-      return refusalWords(err);
+      // The kept line inside her bubble is the saying (`chat-held`) — no reason line under
+      // the thread on top of it.
+      return;
     }
   };
 
