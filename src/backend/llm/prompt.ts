@@ -327,7 +327,7 @@ Producing an analysis (for "meal" and "correction"):
 3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 - Do not invent food they did not mention, and do not drop food they did.
-- "More of", "the same as" or "from earlier" names an item already logged today (listed above): copy that item's kcal_per_100g, take its grams as one unit's weight, and scale by the count they gave.
+- "More of", "the same as" or "from earlier" names an item already logged today (listed above): copy that item's kcal_per_100g, take ONE unit's weight as its grams divided by the count its own name carries (no count means 1), and scale by the count they gave.
 - Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
 - name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed; set it on every item.
 - notes is at most two short sentences. No preamble, no advice, no disclaimers.
@@ -354,7 +354,7 @@ Work in this order:
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 
 Rules:
-- "More of", "the same as" or "from earlier" names an item already logged today (listed with the message): copy that item's kcal_per_100g, take its grams as one unit's weight, and scale by the count they gave.
+- "More of", "the same as" or "from earlier" names an item already logged today (listed with the message): copy that item's kcal_per_100g, take ONE unit's weight as its grams divided by the count its own name carries (no count means 1), and scale by the count they gave.
 - If the message names no food or drink at all, set isFood to false, return zero totals and an empty items array, and say so in notes.
 - Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
 - Do not invent food they did not mention, and do not drop food they did.
