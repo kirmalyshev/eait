@@ -68,8 +68,13 @@ test("a past day draws the compact card — the figure over 'eaten of plan', no 
   const yesterday = ((await moved.json()) as { date: string }).date;
 
   await page.goto("/#/");
-  if (await page.locator(`.week [data-date="${yesterday}"]`).count() === 0) await page.keyboard.press("Shift+ArrowLeft");
-  await page.locator(`.week [data-date="${yesterday}"]`).click();
+  // The strip mounts three weeks on the async draw and the screen's keys bind with it — the bare
+  // count() this replaced ran ahead of both, so the Shift+ArrowLeft it gated was dropped or paged
+  // into a week that never held yesterday (#370, #422). ← moves the VIEWED DAY instead: a
+  // same-week pick glides the tint to the cell, a Monday's slides the week — and the cell is
+  // marked before the slide, so yesterday is never asked of a week it is not in.
+  await expect(page.locator(".week .dy.now")).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
   await expect(page.locator(`.week .dy.now[data-date="${yesterday}"]`)).toBeVisible();
 
   const res = await page.request.get(`/api/v1/diary/day?date=${yesterday}`, {
