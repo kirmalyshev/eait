@@ -434,8 +434,8 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     // While the meal updates the one action left is Delete, which stops it (#1347).
     if (updateFor(meal.id) !== undefined) popup.append(del);
     else popup.append(
-      // "Edit" is the Cal-AI fix sheet (#188) — a panel over this detail, not the chat.
-      item("pencil", mc.phoneEdit, () => openPanel(fixPanel(meal))),
+      // "Correct" is the one fix verb (#1546) — a panel over this detail, not the chat.
+      item("pencil", mc.phoneCorrect, () => openPanel(fixPanel(meal))),
       // Nothing to re-read without a photo, so a typed meal is not offered it (ieat-app#1225).
       ...((meal.photos ?? 0) > 0 ? [reread] : []),
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>

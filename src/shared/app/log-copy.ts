@@ -56,9 +56,7 @@ export interface LogCopy {
    * asked-about item's name, `{grams}` the number the chip promised.
    */
   roughSent: string;
-  /** `log-logged`, `log-rough`: the card's edit door. */
-  edit: string;
-  /** `log-logged`, `log-rough`: the card's confirm — the counterpart of `edit`. */
+  /** `log-logged`, `log-rough`: the card's confirm — the counterpart of `correct`. */
   agree: string;
   /** `first-verdict`: the heading — the web renders the phone board's content for this. */
   firstVerdict: string;
@@ -230,7 +228,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Half that",
     roughMore: "More like {grams}g",
     roughSent: "The {item} was about {grams}g",
-    edit: "Edit",
     agree: "Agree",
     firstVerdict: "Your first macros",
     correct: "Correct",
@@ -317,7 +314,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Moitié moins",
     roughMore: "Plutôt {grams}g",
     roughSent: "{item} : environ {grams}g",
-    edit: "Modifier",
     agree: "D’accord",
     firstVerdict: "Tes premières macros",
     correct: "Corriger",
@@ -404,7 +400,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Die Hälfte davon",
     roughMore: "Eher {grams}g",
     roughSent: "Etwa {grams}g {item}",
-    edit: "Bearbeiten",
     agree: "Stimmt",
     firstVerdict: "Deine ersten Makros",
     correct: "Korrigieren",
@@ -491,7 +486,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "La metà",
     roughMore: "Direi {grams}g",
     roughSent: "Circa {grams}g di {item}",
-    edit: "Modifica",
     agree: "Va bene",
     firstVerdict: "I tuoi primi macro",
     correct: "Correggi",
@@ -578,7 +572,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "La mitad",
     roughMore: "Más bien {grams}g",
     roughSent: "Unos {grams}g de {item}",
-    edit: "Editar",
     agree: "De acuerdo",
     firstVerdict: "Tus primeros macros",
     correct: "Corregir",
@@ -665,7 +658,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Chỉ một nửa",
     roughMore: "Gần {grams}g hơn",
     roughSent: "{item} khoảng {grams}g",
-    edit: "Chỉnh sửa",
     agree: "Đồng ý",
     firstVerdict: "Macro đầu tiên của bạn",
     correct: "Sửa",
@@ -752,7 +744,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Setengahnya saja",
     roughMore: "Lebih ke {grams}g",
     roughSent: "{item} sekitar {grams}g",
-    edit: "Ubah",
     agree: "Setuju",
     firstVerdict: "Makro pertamamu",
     correct: "Koreksi",
@@ -839,7 +830,6 @@ export const LOG_COPY: Localized<LogCopy> = {
     roughHalf: "Вдвое меньше",
     roughMore: "Скорее {grams}г",
     roughSent: "{item} — примерно {grams}г",
-    edit: "Изменить",
     agree: "Подтвердить",
     firstVerdict: "Твои первые макросы",
     correct: "Исправить",
