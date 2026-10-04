@@ -79,11 +79,25 @@ fi
 # every table still the superuser's, and the backend unable to alter its own tables on the next
 # migration. The `<> '$APP'` filter is what makes running it every boot a no-op once it is done.
 psql -d "$DB" <<SQL
+-- TWO SCHEMAS: public, and pgboss, which the job queue (pg-boss) creates and migrates at every
+-- boot as the role it connects as. Left with the superuser, the app role is refused on its first
+-- statement there ("permission denied for schema pgboss") and the container dies before it listens.
+select format('alter schema %I owner to %I', nspname, '$APP')
+  from pg_namespace where nspname = 'pgboss' and pg_get_userbyid(nspowner) <> '$APP'
+\gexec
 select format('alter table %I.%I owner to %I', schemaname, tablename, '$APP')
-  from pg_tables where schemaname = 'public' and tableowner <> '$APP'
+  from pg_tables where schemaname in ('public', 'pgboss') and tableowner <> '$APP'
+\gexec
+select format('alter view %I.%I owner to %I', schemaname, viewname, '$APP')
+  from pg_views where schemaname in ('public', 'pgboss') and viewowner <> '$APP'
 \gexec
 select format('alter sequence %I.%I owner to %I', schemaname, sequencename, '$APP')
-  from pg_sequences where schemaname = 'public' and sequenceowner <> '$APP'
+  from pg_sequences where schemaname in ('public', 'pgboss') and sequenceowner <> '$APP'
+\gexec
+-- pg-boss's enum types (job_state). A table's own row type follows the table and is skipped here.
+select format('alter type %I.%I owner to %I', n.nspname, t.typname, '$APP')
+  from pg_type t join pg_namespace n on n.oid = t.typnamespace
+ where n.nspname = 'pgboss' and t.typtype in ('e', 'd') and pg_get_userbyid(t.typowner) <> '$APP'
 \gexec
 -- AND THE FUNCTIONS, which is not a detail. app_user_id() and app_unscoped() are what every policy
 -- calls, the migration issues them as create-or-replace, and REPLACING a function requires OWNING
@@ -94,7 +108,7 @@ select format('alter sequence %I.%I owner to %I', schemaname, sequencename, '$AP
 select format('alter function %I.%I(%s) owner to %I', n.nspname, p.proname,
                 pg_get_function_identity_arguments(p.oid), '$APP')
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
- where n.nspname = 'public' and p.prokind = 'f'
+ where n.nspname in ('public', 'pgboss') and p.prokind = 'f'
    and pg_get_userbyid(p.proowner) <> '$APP'
    -- NOT extension members: pgcrypto owns its functions, and reassigning one individually is not
    -- something to do behind the extension's back.

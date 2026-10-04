@@ -444,26 +444,24 @@ naming it too.
   visible token, 0 to 4433 reasoning tokens on the SAME photo — and that endpoint refuses to switch
   reasoning off, which is why the analyzer runs a model that does not reason and
   `EAIT__BACKEND__LLM_REASONING_EFFORT` ships `off`.
-- **A queued photo is the same turn, answered later** (ieat-app#1318, #414). `POST /v1/meals/photo/queue`
-  answers 202 once `enqueueJob` has claimed the turn, written the `jobs` row and stored the photos
-  unadopted (`meal_photos.meal_id` null), in one transaction; the `clientId` is the job id and
-  `turns` keeps the outcome. Every replica runs a worker (`startJobs` in `engine/photo-queue.ts`):
-  a kinds-filtered `claimJob` under a 30 s lease heartbeated every 10 s, `EAIT__BACKEND__JOB_CONCURRENCY`
-  at once, the turn under `bounded()` (the body of `once` without the claim), progress and the
-  settle written fenced by the lease owner — a lost lease aborts the attempt and writes nothing
-  more. The meal adopts the job's photos in its insert's transaction (`landJobMeal`), which also
-  records `meal_id`. A dead worker's job re-runs once, a photo only while it has no meal (its
-  sample released); `expireJobs` settles `OUTCOME_UNKNOWN` what nobody can run, a kind no build
-  registers included, after `EAIT__BACKEND__JOB_MAX_QUEUED_MS`. SIGTERM stops claiming, waits up
-  to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS` (60 s; the deploy's stop grace period must exceed it) and
-  releases what is still running back to the queue. The single read, the follow stream and
-  `GET /v1/jobs` read the row through one snapshot function. The follow stream re-reads on a
-  `LISTEN eait_job` notification (`store.onJobNotify`, one listen connection per replica, payload
-  `userId:clientId` and never content, routed only to that key's followers) and every 2 s as the
-  fallback for one a reconnecting listener missed; the worker wakes on `eait_jobs` and polls every
-  5 s for the same reason;
-  `bootedAt` decides only a turn with NO job row. A follower heartbeats `followed_until`, and the
-  one push goes through `claimPush`, at most once and only when nobody was following.
+- **A queued photo is the same turn, answered later** (ieat-app#1318, #414). Jobs run on
+  **pg-boss** (schema `pgboss`, one queue per `<kind>-v<version>`, so a build claims only what it
+  can run). `POST /v1/meals/photo/queue` answers 202 once `enqueueJob` has claimed the turn, sent
+  the job and stored the photos unadopted, in one transaction; the `clientId` is the job id and
+  `turns` keeps the outcome. Every replica runs a worker (`startJobs` in `engine/photo-queue.ts`),
+  `EAIT__BACKEND__JOB_CONCURRENCY` at once. Every write an attempt makes is fenced by
+  `state = 'active'` and its owner, so an attempt pg-boss has retried writes nothing more. A job
+  runs at most twice (`retryLimit` 1), a photo only while it has no meal. `expireJobs` settles
+  `OUTCOME_UNKNOWN` what nobody ran within `EAIT__BACKEND__JOB_MAX_QUEUED_MS` and what pg-boss
+  failed. SIGTERM stops claiming, waits up to `EAIT__BACKEND__SHUTDOWN_DRAIN_MS` and hands the
+  rest back to the queue. The follow stream re-reads on `LISTEN eait_job` (payload
+  `userId:clientId`, never content) and every 2 s; the worker wakes on `eait_jobs` and polls every
+  5 s. `claimPush` sends the one push, only when nobody was following.
+  **What a job shows lives in its pg-boss `data`** and `job_rows` is the one view that reads it.
+  pg-boss's `update()` edits only queued jobs, so running-job writes are raw SQL on `pgboss.job`;
+  that schema has no row-level security, so every statement names `data->>'userId'`, and a
+  trigger on `users` deletes a user's jobs. Before bumping pg-boss, check its schema against
+  `job_rows`.
 - **A meal update is the same job, with the meal's own id** (ieat-app#1347). `POST /v1/meals/update/queue`
   takes an ingredient edit (`editMeal`), a chat correction (`textTurn` with `focusMealId`) or a re-read
   (`reanalyzeMeal`) and queues it as a `meal-update` job, followed and removed on the
