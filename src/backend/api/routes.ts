@@ -787,7 +787,7 @@ export function createRouter(
         // there, the phone reports a failure for a turn the server went on running. `target-gone`
         // and the refusals arrive as the last line, like everything else once the 200 has gone out.
         // Without the header this is the JSON route it always was, for every app already shipped.
-        if (wantsStream(req)) return stream(req, pathname, () => handleText(deps, userId, input));
+        if (wantsStream(req)) return stream(req, pathname, (line) => handleText(deps, userId, input, line));
         const result = await handleText(deps, userId, input);
         if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
         return isRefusal(result) ? refusal(result) : json(result);

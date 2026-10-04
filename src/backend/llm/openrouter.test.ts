@@ -102,10 +102,16 @@ describe("routeText", () => {
     expect(out).toEqual({ intent: "answer", text: "You have had 0g of protein." });
   });
 
-  test("a router that supplies the analysis costs exactly one call", async () => {
+  test("a router that supplies the analysis uses it — the parallel speculation is discarded", async () => {
+    // #70: the `text-meal` analysis is fired beside the routing call, not after it. When the
+    // router did the work itself the speculation is aborted on the spot — it bought one fetch
+    // before the intent named it useless, never a focused call after the decision.
     const { llm, bodies } = ports([{ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
-    await llm.routeText(ROUTE_INPUT);
-    expect(bodies.length).toBe(1);
+    const out = await llm.routeText(ROUTE_INPUT);
+    expect(out.intent).toBe("meal");
+    expect(out).toHaveProperty("analysis.kcal", 155);
+    expect(schemaOf(bodies[0]!)).toBe("route");
+    for (const b of bodies.slice(1)) expect(schemaOf(b)).toBe("text-meal");
   });
 
   // The defect, and the fix. grok-4.5 picks `intent: "meal"` and omits the analysis EVERY time —
@@ -160,13 +166,14 @@ describe("routeText", () => {
     expect(user!.content).toContain("The user said: In oil");
   });
 
-  test("a correction with nothing to correct spends no second call", async () => {
+  test("a correction with nothing to correct never reaches the correction prompt", async () => {
     // No focus meal, so there is no correction to make and the switch below degrades to `answer`
-    // whatever comes back. Paying for an analysis first is paying to throw one away.
+    // whatever comes back. The `text-meal` speculation beside the router (#70) is the only call
+    // thrown away — the CORRECTION call is never bought.
     const { llm, bodies } = ports([{ intent: "correction", text: "Which meal did you mean?" }]);
     const out = await llm.routeText(ROUTE_INPUT);
     expect(out).toEqual({ intent: "answer", text: "Which meal did you mean?" });
-    expect(bodies.length).toBe(1);
+    for (const b of bodies) expect(schemaOf(b)).not.toBe("text-correction");
   });
 
   test("a focused analysis that also fails throws rather than answering with nothing", async () => {
@@ -228,14 +235,15 @@ describe("one deadline per turn, not one per call", () => {
   }
 
   test("routeText's focused second call finds the turn's budget spent rather than a fresh one", async () => {
-    // The routing call answers `meal` with no analysis — the branch that buys a second call — but
-    // it took longer than the whole turn was allowed. A second call here is one the app has already
-    // stopped waiting for, and it would be billed anyway.
+    // The routing call answers `correction` with no analysis — the branch that buys a second
+    // call — but it took longer than the whole turn was allowed. A second call here is one the
+    // app has already stopped waiting for, and it would be billed anyway. A focus meal keeps the
+    // calls sequential: #70's parallel speculation is the `text-meal` call on a turn with no focus.
     const { llm, bodies } = slowPorts(
-      [{ delayMs: 120, body: { intent: "meal", dayOffset: 0 } }, { delayMs: 0, body: { isFood: true } }],
+      [{ delayMs: 120, body: { intent: "correction" } }, { delayMs: 0, body: { isFood: true } }],
       60,
     );
-    await expect(llm.routeText(ROUTE_INPUT as never)).rejects.toThrow(/ran past/);
+    await expect(llm.routeText(CHIP_INPUT as never)).rejects.toThrow(/ran past/);
     expect(bodies.length).toBe(1);
   });
 
@@ -267,10 +275,11 @@ describe("completion bound", () => {
   });
 
   test("the schema retry carries it too", async () => {
-    // First reply fails the schema, so `complete` retries. Both bodies must be bounded.
+    // First reply fails the schema, so `complete` retries. Every body must be bounded — the
+    // retry's, and the parallel speculation's beside it (#70).
     const { llm, bodies } = ports([{ nope: true }, { intent: "answer", text: "ok" }]);
     await llm.routeText(ROUTE_INPUT);
-    expect(bodies.length).toBe(2);
+    expect(bodies.length).toBeGreaterThanOrEqual(2);
     for (const b of bodies) expect(b).toHaveProperty("max_tokens", 4321);
   });
 });
@@ -299,7 +308,9 @@ describe("truncation at the bound", () => {
     const { llm, bodies } = ports([cutAfterTheBrace({ intent: "answer", text: "You have had 0g of protein." })]);
     const out = await llm.routeText(ROUTE_INPUT);
     expect(out).toEqual({ intent: "answer", text: "You have had 0g of protein." });
-    expect(bodies.length).toBe(1);
+    // No second ROUTING call — the trailing whitespace was not retried (#70's `text-meal`
+    // speculation beside it is a different call).
+    expect(bodies.filter((b) => schemaOf(b) === "route").length).toBe(1);
   });
 
   // The other unusable shape, and the one a mutation test found unpinned: a reply cut where the
@@ -309,13 +320,13 @@ describe("truncation at the bound", () => {
   test("a truncated reply that parses but misses the schema is terminal too", async () => {
     const { llm, bodies } = ports([{ __finish_reason: "length", __raw: '{"nope":true}' }]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/truncated.*EAIT__BACKEND__LLM_MAX_TOKENS/s);
-    expect(bodies.length).toBe(1);
+    expect(bodies.filter((b) => schemaOf(b) === "route").length).toBe(1);
   });
 
   test("it does not spend a second call retrying into the same bound", async () => {
     const { llm, bodies } = ports([truncated('{"intent":"answ')]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow();
-    expect(bodies.length).toBe(1);
+    expect(bodies.filter((b) => schemaOf(b) === "route").length).toBe(1);
   });
 });
 

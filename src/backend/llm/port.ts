@@ -184,6 +184,12 @@ export interface TextInput {
    * coach gets the longer window.
    */
   recent?: CoachHistoryLine[];
+  /**
+   * Each piece of VISIBLE content the analysis calls write — the focused `text-meal` and
+   * `text-correction` calls, never the routing call, whose reply is a decision rather than a
+   * meal. The engine scans them for item rows to stream (#70). Optional, as on `AnalyzePhoto`.
+   */
+  onDelta?: ((text: string) => void) | undefined;
   onCost?: OnCost | undefined;
   /** The turn's cutoff — every fetch the route makes aborts with it (#276). Set by `once`. */
   signal?: AbortSignal | undefined;

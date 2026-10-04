@@ -9,12 +9,13 @@
 
 import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
-  type Profile, explainTargets,
+  type PhotoEvent, type Profile, explainTargets, streamCopyFor,
 } from "@eait/shared";
 import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, scriptedLine, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent, PendingMeal } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
+import { itemScanner } from "../llm/partial.ts";
 import { clampDayOffset, emptyEstimate, type AnalyzedMeal } from "../llm/port.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
@@ -64,14 +65,17 @@ export async function handleText(
   deps: EngineDeps,
   userId: string,
   input: HandleTextInput,
+  /** The streamed route's line writer: `item` events as the analysis produces them (#70). */
+  onEvent?: (event: PhotoEvent) => void,
 ): Promise<HandleTextResult> {
-  return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, (d) => textTurn(d, userId, input));
+  return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, (d) => textTurn(d, userId, input, onEvent));
 }
 
 export async function textTurn(
   deps: EngineDeps,
   userId: string,
   input: HandleTextInput,
+  onEvent?: (event: PhotoEvent) => void,
 ): Promise<HandleTextResult> {
   const found = await deps.store.getProfile(userId);
   if (!found || found.onboarded_at === null) return { kind: "not-onboarded" };
@@ -130,14 +134,40 @@ export async function textTurn(
   // not in it — `keep` writes it after the turn — so neither has to skip it.
   const history = await recentLines(deps, userId);
 
+  // The turn's own clock, for the latency the admin page reads — the same record the photo turn
+  // writes (#70): receipt-to-first-call in `queue` (the caps and the day's rows live in it),
+  // call-to-first-item, call-to-settled across every call the turn makes. Written ONCE.
+  const receivedAt = Date.now();
+  const clock = { calledAt: 0, firstItem: null as number | null };
+  const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
+    queue: Math.max(0, clock.calledAt - receivedAt),
+    firstItem: clock.firstItem,
+    total: Date.now() - clock.calledAt,
+  }).then(
+    (landed) => { if (!landed) console.error(`[eait] timing not recorded: analysis ${analysisId} is gone`); },
+    (e: unknown) => { console.error(`[eait] timing not recorded: ${(e as Error)?.message ?? e}`); },
+  );
+
+  // The items of the analysis behind the routing call — the focused `text-meal`/`text-correction`
+  // calls are the ones that can take tens of seconds (#70), and a streamed turn draws each row as
+  // the model closes it rather than the whole card at the end. The routing decision itself never
+  // streams: it is a decision, and the port forwards `onDelta` to the analysis calls only.
+  const weighing = streamCopyFor(profile.lang).weighing;
+  const onDelta = onEvent === undefined ? undefined : itemScanner((index, item) => {
+    if (clock.firstItem === null) clock.firstItem = Date.now() - clock.calledAt;
+    onEvent({ kind: "item", index, item, line: weighing });
+  });
+
   let routed: Awaited<ReturnType<typeof deps.llm.routeText>>;
   try {
+    clock.calledAt = Date.now();
     routed = await deps.llm.routeText({
       text: input.text, profile, targets,
       todayMeals: todayRows.map((m) => ({
         items: m.items, kcal: m.kcal, protein_g: m.protein_g,
       })),
       week,
+      ...(onDelta !== undefined ? { onDelta } : {}),
       ...(focusAnalysis ? { focusMeal: focusAnalysis } : {}),
       ...(loadFocusImages ? { loadFocusImages } : {}),
       // A chip's words are two of them. "In oil" says nothing on its own, and without the question
@@ -152,12 +182,16 @@ export async function textTurn(
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
     if (!refunded) await releaseSample(deps, userId, analysisId);
     console.error(`[eait] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
+    reportTiming();
     return { kind: "analysis-failed" };
   }
 
   // The model that wrote the answer, when there is one — the coach's, or the router's own sentence.
   let answeredBy: string | null = null;
   const result = await route();
+  // A failure's timing is data too — the coach's throw lands inside `route()` as the fallback or
+  // as `analysis-failed`, so settled is settled whatever the branch.
+  reportTiming();
   // Every branch that fails ends here as `analysis-failed`: charged, and nothing delivered (#44).
   // `not-food` joins it for the reason `analyzePhotos` releases the same answer: an answer, no meal.
   if (result.kind === "analysis-failed" || result.kind === "not-food") {
