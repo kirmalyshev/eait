@@ -180,7 +180,20 @@ export async function chatScreen(): Promise<HTMLElement> {
 
     // The proposal a live turn is holding is HER bubble too: under the words that made it, or on
     // its own when those words are not on this page.
-    if (held !== null) {
+    const lastLine = entries.at(-1);
+    if (held !== null && heldTimedOut && lastMe !== null && lastLine?.role === "user" && lastLine.kind === "text") {
+      // Past its clock the offer is a failed send, never a card under a dead question: her words,
+      // the red ! and Resend (`states-not-sent`), the same turn as the phone's.
+      const words = lastLine.text;
+      const resend = (): void => { setHeldProposal(null); sendText(words); };
+      const drop = (): void => { setHeldProposal(null); void draw(); };
+      const act = el("div", "act");
+      act.append(smallCta(copy().resend, resend));
+      const ts = lastMe.querySelector(":scope > .ts");
+      if (ts !== null) act.append(ts);
+      lastMe.classList.add("failed");
+      lastMe.append(act, failBadge(held.pendingId, resend, drop));
+    } else if (held !== null) {
       const card = proposalCard(held, turn, {
         lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
         ...(heldTimedOut ? { expired: copy().expired } : {}),

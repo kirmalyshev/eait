@@ -513,7 +513,7 @@ const absorbs = (entry: UserEntry, next: ThreadEntry | undefined): boolean =>
     next.role === "card" || next.role === "error" || isDropped(next) || declinedStored(entry, next) ||
     (next.role === "assistant" && ABSORBED_RESULTS.has(next.result.kind)));
 
-function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
+function sendState(entry: UserEntry, outcome: ThreadEntry | null, now: number | undefined): SendState {
   if (entry.failed) return "failed";
   if (entry.refused) return "refused";
   // A kept turn: `keptState` is the one rule both clients draw (a held turn never re-sends itself).
@@ -526,14 +526,18 @@ function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
     return "ok";
   }
   if (outcome.role === "assistant") {
+    // A proposal past its clock is the same turn as a stored `expired`: not a dead card under a
+    // question, but her bubble failed, with Resend.
     if (outcome.result.kind === "expired") return "failed";
+    if (outcome.result.kind === "proposed" && now !== undefined && !proposalLive(outcome.result.expiresAt, now)) return "failed";
     if (isDropped(outcome) || (!!entry.pendingId && outcome.result.kind === "answered")) return "refused";
     if (REFUSED_RESULTS.has(outcome.result.kind)) return "refused";
   }
   return "ok";
 }
 
-export function chatRows(visible: readonly ThreadEntry[]): ChatRow[] {
+/** `now`: the moment a proposal is read against; without it every proposal stays live. */
+export function chatRows(visible: readonly ThreadEntry[], now?: number): ChatRow[] {
   const rows: ChatRow[] = [];
   for (let i = 0; i < visible.length; i++) {
     const entry = visible[i]!;
@@ -541,7 +545,7 @@ export function chatRows(visible: readonly ThreadEntry[]): ChatRow[] {
       const next = visible[i + 1];
       const outcome = absorbs(entry, next) ? next! : null;
       if (outcome !== null) i++;
-      rows.push({ kind: "me", entry, outcome, state: sendState(entry, outcome) });
+      rows.push({ kind: "me", entry, outcome, state: sendState(entry, outcome, now) });
     } else {
       rows.push({ kind: "them", entry, face: false });
     }
