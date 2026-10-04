@@ -12,7 +12,7 @@ import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
-import { outcomeUnknown } from "../../shared/results.ts";
+import { keptState } from "../../shared/results.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
@@ -190,8 +190,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     // send it again by itself) or refused (the server's reason inside, and Delete so the queue
     // behind it can go). Spud never speaks for her send, and her words never go back to the field.
     for (const e of keptLines) {
-      const state = e.held === undefined ? "pending"
-        : outcomeUnknown(e.held.kind) || e.held.kind === "analysis-failed" ? "failed" : "refused";
+      const state = keptState(e.held);
       const li = el("li", `me ${state}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
       if (e.kind === "photo" && e.photos.length > 0) {
         const hero = el("div", "hero");

@@ -10,7 +10,7 @@ import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { MascotMood } from "./onboarding.ts";
 import type { Queued } from "./outbox.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
-import { outcomeUnknown } from "./results.ts";
+import { keptState } from "./results.ts";
 import type { Lang, MealRecord } from "./types.ts";
 
 /**
@@ -485,7 +485,8 @@ export function lineIsMeal(entry: ThreadEntry & { role: "user" }, entries: Threa
 // the last of each run. Pure, so the phone and the web read one rule.
 
 type UserEntry = Extract<ThreadEntry, { role: "user" }>;
-/** What happened to her send: `failed` is a red ! and Resend, `refused` the reason inside, `pending` a clock. */
+/** What happened to her send: `failed` is a red ! and Resend, `refused` the reason inside, `pending` a clock.
+ *  A kept turn reads `keptState`: not held is pending, held unknown or analysis-failed is failed, else refused. */
 export type SendState = "ok" | "pending" | "failed" | "refused";
 export type ChatRow =
   | { kind: "me"; entry: UserEntry; outcome: ThreadEntry | null; state: SendState }
@@ -508,10 +509,8 @@ const absorbs = (next: ThreadEntry | undefined): boolean =>
 function sendState(entry: UserEntry, outcome: ThreadEntry | null): SendState {
   if (entry.failed) return "failed";
   if (entry.refused) return "refused";
-  if (entry.queued !== undefined) {
-    if (entry.queued.held === undefined) return "pending";
-    return outcomeUnknown(entry.queued.held.kind) ? "pending" : "refused";
-  }
+  // A kept turn: `keptState` is the one rule both clients draw (a held turn never re-sends itself).
+  if (entry.queued !== undefined) return keptState(entry.queued.held);
   if (outcome === null) return "ok";
   if (outcome.role === "error") {
     if (outcome.kind === "offline") return "pending";

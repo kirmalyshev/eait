@@ -270,6 +270,16 @@ export const isServerAnswer = (r: { kind: string }): boolean => Object.hasOwn(AN
  */
 export const outcomeUnknown = (kind: string): boolean => kind === "internal" || kind === OUTCOME_UNKNOWN;
 
+/**
+ * What a turn the outbox keeps is, drawn on her bubble (ieat-app#1520), for both clients. Not held:
+ * `pending`, the outbox sends it on its own (offline is pending). Held, nothing re-sends it on its own,
+ * so an outcome-unknown or analysis-failed hold is `failed` (the red !, Resend), and any other hold
+ * is `refused` (the server's reason inside it).
+ */
+export const keptState = (held: { kind: string } | undefined): "pending" | "failed" | "refused" =>
+  held === undefined ? "pending"
+    : outcomeUnknown(held.kind) || held.kind === "analysis-failed" ? "failed" : "refused";
+
 /** One refused turn, as every surface names it: `kind` is `"offline"` when nothing reached the server. */
 export interface RefusedTurn {
   kind: string;
