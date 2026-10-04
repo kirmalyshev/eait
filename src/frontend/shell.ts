@@ -338,7 +338,9 @@ export function takeTurn(
  * screen is up (the thread's, or beside the diary's own composer since #52).
  *
  * TWO BOARDS DRAW IT. The thread's (`chat-proposal`): the question over the card, the card —
- * name, kcal, the macro chips, the verdict dots — then the two ctas and the turn's time. The
+ * name, kcal, the macro chips, the verdict dots — then the two ctas. The turn's time is the
+ * BUBBLE's own stamp, drawn by the caller's `.ts` after this wrap — the card draws none, or a
+ * proposal riding inside her line's bubble stamps it twice (#460). The
  * diary's (`today-logging`, `opts.diary`): the card IS the offer — the question is the `.lab`
  * inside it, one hairline row per ingredient (name, amount, kcal), a sat-fat chip joins the
  * macros, the turn's time rides the verdicts row, and the answers sit inside the card. An
@@ -402,7 +404,7 @@ export function proposalCard(
       card.append(timed);
       wrap.append(card);
     } else {
-      wrap.append(lead, card, timed, el("div", "ts", timeFmt(new Date())));
+      wrap.append(lead, card, timed);
     }
     return wrap;
   }
@@ -450,7 +452,7 @@ export function proposalCard(
     card.append(actions);
     wrap.append(card);
   } else {
-    wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
+    wrap.append(lead, card, actions);
   }
   return wrap;
 }
