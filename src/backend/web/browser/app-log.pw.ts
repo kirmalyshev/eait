@@ -77,7 +77,7 @@ test("a second photo draws the logged card, and Agree goes Home", async ({ inWeb
   await expect(page.getByText(/left$/)).toBeVisible();
   // Edit is the meal's fix panel — `#/meal/<id>?fix`, this meal's own id (#148).
   const second = (await server<DayResponse>(page, "/diary/day")).meals[0]!.id;
-  await expect(page.getByRole("link", { name: "Edit" })).toHaveAttribute("href", `#/meal/${second}?fix`);
+  await expect(page.getByRole("link", { name: "Correct" })).toHaveAttribute("href", `#/meal/${second}?fix`);
   await shot(page, "log-logged");
 
   await page.getByRole("link", { name: "Agree" }).click();

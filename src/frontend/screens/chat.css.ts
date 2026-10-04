@@ -88,6 +88,9 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 /* focus mode: her meal, with the × that leaves it */
 .focus-meal .fx { position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; background: none; box-shadow: none; }
 
+/* The composer sits ON the ground (the boards' pinned row): .comp's own --bg cover is the
+   page's, not the chat's. */
+.chat .comp { background: var(--chat-ground); }
 /* the composer, Telegram's three: the paperclip bare, the field a pill whose prompt ends in an
    ellipsis instead of wrapping, send a filled circle */
 .chat .compose .ib:first-child { background: none; box-shadow: none; }

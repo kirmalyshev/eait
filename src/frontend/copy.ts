@@ -250,7 +250,7 @@ const EN: WebCopy = {
   refusals: {
     "subscription-required": "This account's free sample is used up. Start your free week to carry on.",
     "unsupported-image": "That file is not a photo this can read. JPEG, PNG or WebP.",
-    "not-food": "That did not look like food.",
+    "not-food": "No food in that one.",
     "analysis-failed": "That did not come back. Try it again.",
     "identity-required": "Sign in with Apple or Google to keep going — a photo can't be read without one.",
     expired: "That one is no longer being held. Say it again.",
@@ -336,7 +336,7 @@ const FR: WebCopy = {
   refusals: {
     "subscription-required": "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine offerte pour continuer.",
     "unsupported-image": "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP.",
-    "not-food": "Ça ne ressemblait pas à de la nourriture.",
+    "not-food": "Aucun aliment sur celle-là.",
     "analysis-failed": "Pas de réponse. Réessaie.",
     "identity-required": "Connecte-toi avec Apple ou Google pour continuer — sans compte, rien n'est lu.",
     expired: "Cette proposition a expiré. Redis-moi ce que tu as mangé.",
@@ -422,7 +422,7 @@ const DE: WebCopy = {
   refusals: {
     "subscription-required": "Die kostenlose Testmahlzeit dieses Kontos ist verbraucht. Starte deine Gratiswoche, um weiterzumachen.",
     "unsupported-image": "Dieses Dateiformat geht hier nicht. Nimm JPEG, PNG oder WebP.",
-    "not-food": "Das sah nicht nach Essen aus.",
+    "not-food": "Auf diesem Foto ist kein Essen.",
     "analysis-failed": "Da kam nichts zurück. Versuch es noch einmal.",
     "identity-required": "Melde dich mit Apple oder Google an, um weiterzumachen — ohne Anmeldung kann kein Foto erkannt werden.",
     expired: "Das ist abgelaufen. Sag es bitte noch einmal.",
@@ -508,7 +508,7 @@ const IT: WebCopy = {
   refusals: {
     "subscription-required": "Hai già usato l'analisi gratuita di questo account. Inizia la tua settimana gratis per continuare.",
     "unsupported-image": "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",
-    "not-food": "Non sembrava cibo.",
+    "not-food": "Non vedo cibo in questa foto.",
     "analysis-failed": "Nessuna risposta. Riprova.",
     "identity-required": "Accedi con Apple o Google per continuare — senza account non si legge nulla.",
     expired: "Questa proposta è scaduta. Ridimmelo.",
@@ -594,7 +594,7 @@ const ES: WebCopy = {
   refusals: {
     "subscription-required": "Ya has usado el análisis gratis de esta cuenta. Empieza tu semana gratis para seguir.",
     "unsupported-image": "Ese archivo no es una foto que se pueda leer aquí. JPEG, PNG o WebP.",
-    "not-food": "Eso no parecía comida.",
+    "not-food": "No hay comida en esta.",
     "analysis-failed": "No volvió nada. Inténtalo otra vez.",
     "identity-required": "Inicia sesión con Apple o Google para continuar — sin cuenta no se lee nada.",
     expired: "Ese ya no está en espera. Vuelve a decírmelo.",
@@ -680,7 +680,7 @@ const VI: WebCopy = {
   refusals: {
     "subscription-required": "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu tuần miễn phí để tiếp tục.",
     "unsupported-image": "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP.",
-    "not-food": "Cái đó trông không giống đồ ăn.",
+    "not-food": "Không có đồ ăn trong ảnh này.",
     "analysis-failed": "Chưa nhận được kết quả. Thử lại nhé.",
     "identity-required": "Đăng nhập bằng Apple hoặc Google để tiếp tục — không có tài khoản thì không đọc được gì.",
     expired: "Đề xuất đó đã hết hạn. Nói lại giúp mình nhé.",
@@ -766,7 +766,7 @@ const ID: WebCopy = {
   refusals: {
     "subscription-required": "Jatah gratis akun ini sudah habis. Mulai minggu gratismu untuk melanjutkan.",
     "unsupported-image": "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP.",
-    "not-food": "Itu tidak kelihatan seperti makanan.",
+    "not-food": "Tidak ada makanan di foto ini.",
     "analysis-failed": "Hasilnya tidak masuk. Coba lagi.",
     "identity-required": "Masuk dengan Apple atau Google untuk lanjut — tanpa akun tidak ada yang terbaca.",
     expired: "Yang itu sudah kedaluwarsa. Sebutkan sekali lagi.",
@@ -852,7 +852,7 @@ const RU: WebCopy = {
   refusals: {
     "subscription-required": "Бесплатный анализ на этом аккаунте уже использован. Начни бесплатную неделю, чтобы продолжить.",
     "unsupported-image": "Этот формат не поддерживается. Нужен JPEG, PNG или WebP.",
-    "not-food": "Это не похоже на еду.",
+    "not-food": "На этом фото еды нет.",
     "analysis-failed": "Ответ не пришёл. Попробуй ещё раз.",
     "identity-required": "Войди через Apple или Google, чтобы продолжить: без входа фото не распознать.",
     expired: "Это предложение устарело. Напиши ещё раз.",

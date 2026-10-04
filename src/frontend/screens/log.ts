@@ -283,7 +283,7 @@ export function logScreen(frame: Frame): HTMLElement {
   const actionsRow = (r: LoggedMeal): HTMLElement => {
     const row = el("div", "logbtns");
     row.append(
-      ctaEl({ text: L.edit, kind: "s", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
+      ctaEl({ text: L.correct, kind: "s", href: `#/meal/${encodeURIComponent(r.mealId)}?fix` }),
       ctaEl({ text: L.agree, kind: "p", href: "#/" }),
     );
     return row;

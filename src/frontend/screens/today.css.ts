@@ -227,4 +227,7 @@ a.hsp { color: inherit; text-decoration: none; }
 @keyframes k-shim { from { background-position: 200% 0; } to { background-position: 0 0; } }
 @keyframes k-pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .sk, .qstep::before, .qchips span { animation: none; } }
+/* Kept turns above the composer (ieat-app#1546, web-today-composer-failed): her .me bubbles in a
+   column, the 44 px left room the .bang badge hangs in. */
+.hkept { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; padding: 0 0 8px 44px; }
 `;

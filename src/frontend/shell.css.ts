@@ -76,6 +76,10 @@ body { margin: 0; background: var(--bg); color: var(--ink);
    CONTENT, never a .meal class: the kit's .meal is a list ROW, and a class here would hand
    the main its padding (#172). */
 .wmain:has(.mdetail) { grid-template-columns: 1fr; }
+/* The chat fills the main: a one-screen row stays auto-sized otherwise (the phone-width
+   align-content: start), and --chat-ground ended mid-page while the composer floated below
+   it. A 1fr row lets .chat reach the floor — the thread scrolls inside, the ground is whole. */
+.wmain:has(.chat) { grid-template-rows: 1fr; }
 .wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   /* The bar is TWO rows at phone width: the screen's .wr side (the streak chip and the day

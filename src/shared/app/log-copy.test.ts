@@ -14,7 +14,7 @@ import { LOG_COPY, logCopyFor, verdictDetailLine } from "./log-copy.ts";
 const SHARED = [
   "notePlaceholder", "reading", "checking", "close", "logged", "today", "waitingToSend",
   "noFood", "tryAnotherPhoto", "roughGuess", "roughAsk", "roughAbout", "roughHalf", "roughMore",
-  "roughSent", "edit", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
+  "roughSent", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
   "unknownTitle", "unknownNote", "satfatNoun", "verdictDetailTemplate", "dayEaten", "dayOfPlan", "dayLeft", "dayOver",
 ] as const;
 const WEB = [

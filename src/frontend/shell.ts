@@ -29,7 +29,7 @@ import { homeCopyFor } from "../shared/app/home-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { brandSvg } from "../shared/ui/icons.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
-import { outcomeUnknown } from "../shared/results.ts";
+import { keptState, outcomeUnknown } from "../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, narrowLang, wholeNumbers } from "../shared/lang.ts";
 import { DIARY_RANGE_MAX_DAYS } from "../shared/contract.ts";
 import { localDate, windowStart } from "../shared/dates.ts";
@@ -41,7 +41,7 @@ import type {
   DayResponse, DaysResponse, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
-import { ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
+import { blobSrc, ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { failureOf, noAnswer, outbox, sendDeadlineMs, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
@@ -453,6 +453,96 @@ export function proposalCard(
     wrap.append(lead, card, actions, el("div", "ts", timeFmt(new Date())));
   }
   return wrap;
+}
+
+/** A small secondary action inside a bubble — the 44 px floor, the retry glyph. */
+export function smallCta(label: string, onTap: () => void): HTMLButtonElement {
+  const b = ctaEl({ text: label, kind: "s", icon: "retry" }) as HTMLButtonElement;
+  b.classList.add("sm");
+  b.addEventListener("click", onTap);
+  return b;
+}
+
+/** A plain text action in a bubble (Delete) — the 44 px floor, no icon. */
+export function plainCta(label: string, onTap: () => void): HTMLButtonElement {
+  const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
+  b.classList.add("sm");
+  b.addEventListener("click", onTap);
+  return b;
+}
+
+/** The red ! beside a failed bubble: a native popover with Resend and Delete (Telegram's sheet). */
+export function failBadge(id: string, resend: () => void, drop?: () => void): HTMLElement {
+  const copy = chatScreenCopyFor(lang);
+  const pid = `fail-${id}`;
+  const bang = el("button", "bang", "!") as HTMLButtonElement;
+  bang.type = "button";
+  bang.setAttribute("popovertarget", pid);
+  bang.setAttribute("aria-label", drop === undefined ? copy.resend : `${copy.resend} · ${copy.phone.delete}`);
+  const menu = el("div", "failmenu");
+  menu.id = pid;
+  menu.setAttribute("popover", "");
+  const items: [string, () => void, string][] = [[copy.resend, resend, "s"]];
+  if (drop !== undefined) items.push([copy.phone.delete, drop, "s bad"]);
+  for (const [label, go, kind] of items) {
+    const b = ctaEl({ text: label, kind: "s" }) as HTMLButtonElement;
+    if (kind.includes("bad")) b.classList.add("bad");
+    b.addEventListener("click", () => { menu.hidePopover(); go(); });
+    menu.append(b);
+  }
+  const wrap = el("span", "bangw");
+  wrap.append(bang, menu);
+  return wrap;
+}
+
+/**
+ * KEPT FOR LATER as HER line (#708, #1520): what is happening to her send drawn ON her bubble —
+ * pending (a clock: the outbox sends it on its own), failed (the red !, Resend; nothing will
+ * send it again by itself) or refused (the server's reason inside, and Delete so the queue
+ * behind it can go). Spud never speaks for her send, and her words never go back to the field.
+ * The chat draws these inside its thread (`li`); Home draws them above the composer (`div`,
+ * ieat-app#1546 — `web-today-composer-failed`).
+ */
+export function keptLineEl(
+  e: WebQueued,
+  tag: "li" | "div",
+  act: { resend: () => void; drop: () => void },
+): HTMLElement {
+  const copy = chatScreenCopyFor(lang);
+  const state = keptState(e.held);
+  const li = el(tag, `me ${state}${e.kind === "photo" ? " pic" : ""}`);
+  if (e.kind === "photo" && e.photos.length > 0) {
+    const hero = el("div", "hero");
+    const img = el("img", "") as HTMLImageElement;
+    img.alt = "";
+    void blobSrc(e.photos[0]!).then((src) => { img.src = src; });
+    hero.append(img);
+    li.append(hero);
+    if (e.text !== null) li.append(el("p", "cap", e.text));
+  } else {
+    li.append(el("p", "said", e.text ?? ""));
+  }
+  const ts = el("div", "ts", timeFmt(new Date(e.capturedAt)));
+  if (state === "pending") {
+    const dl = el("div", "dl");
+    dl.append(el("i", "ico i-clock"), copy.waitingToSend);
+    li.append(dl, ts);
+  } else if (state === "failed") {
+    const row = el("div", "act");
+    row.append(smallCta(copy.resend, act.resend), ts);
+    li.append(row, failBadge(e.id, act.resend, act.drop));
+  } else {
+    const dl = el("div", "dl");
+    dl.append(el("i", "ico i-alert-circle"),
+      refusalWords(new ApiError(0, { error: e.held!.kind, ...(e.held!.scope ? { scope: e.held!.scope } : {}) }, "held")));
+    const row = el("div", "act");
+    // A held 402 goes again once she has subscribed (on the phone: web has no payments), so it
+    // keeps Resend; every other refusal is final, and Delete lets the queue behind it go.
+    if (e.held!.kind === "subscription-required") row.append(smallCta(copy.resend, act.resend));
+    row.append(plainCta(copy.phone.delete, act.drop), ts);
+    li.append(dl, row);
+  }
+  return li;
 }
 
 /** A line's "13:05" — the hour and minute, in the reader's own calendar. */
