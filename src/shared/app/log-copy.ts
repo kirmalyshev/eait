@@ -6,7 +6,7 @@
 //
 // NOT HERE, on purpose:
 // - the verdict pills ("Calories high") — computed in `verdicts.ts`, localized in the catalogs;
-// - the chat chrome the state boards sit inside ("Tell Spud what you ate, or ask", "Send
+// - the chat chrome the state boards sit inside ("Tell me what you ate, or ask", "Send
 //   again", "Couldn't reach eait.") — W7's `chat-copy.ts`;
 // - the nav labels — `shell-copy.ts`;
 // - meal names, grams and figures — data, formatted with `wholeNumbers(lang)`.

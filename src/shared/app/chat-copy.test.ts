@@ -39,7 +39,7 @@ describe("CHAT_SCREEN_COPY", () => {
     // `{coach}` is the coach's name (THREAD_COPY's `coach.name`, S9); `{value}`/`{target}`/`{n}`
     // are figures filled by the caller. A translation that drops one renders the hole literally.
     const withPlaceholders: Record<string, string[]> = {
-      composerThread: ["{coach}"],
+      composerThread: [],
       macroEaten: ["{value}"],
       macroTarget: ["{target}", "{unit}"],
       movedCaption: ["{day}"],
@@ -63,7 +63,7 @@ describe("CHAT_SCREEN_COPY", () => {
     const en: ChatScreenCopy = chatScreenCopyFor("en" as Lang);
     expect(en.greeting).toBe("Tell me what you ate, or ask me anything.");
     expect(en.composerAsk).toBe("What did you eat?");
-    expect(en.composerThread).toBe("Tell {coach} what you ate, or ask");
+    expect(en.composerThread).toBe("Tell me what you ate, or ask");
     expect(en.proposalCheck).toBe("Logging to today — look right?");
     expect(en.proposalAccept).toBe("Log it");
     expect(en.proposalDecline).toBe("No");

@@ -348,7 +348,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     // The composer's prompt is the empty thread's ask until a line is in it.
     words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
       : entries.length === 0 || coachName() === null ? copy().composerAsk
-      : fill(copy().composerThread, { coach: coachName()! });
+      : copy().composerThread;
     words.setAttribute("aria-label", words.placeholder);
     if (unread !== null) throw unread;
   };
@@ -568,7 +568,7 @@ export async function chatScreen(): Promise<HTMLElement> {
   // `multiline` — the same opt-in Home takes (#170): the field wraps and grows to the
   // `.compose textarea.box` cap, then scrolls (ieat-app#1289).
   const comp = composerRow(coachName() !== null
-    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk, { multiline: true });
+    ? copy().composerThread : copy().composerAsk, { multiline: true });
   const { picker, words, send, count } = comp;
   // Telegram's attach (#1520): a paperclip, not the upload round.
   comp.add.replaceChildren(el("i", "ico i-paperclip"));
