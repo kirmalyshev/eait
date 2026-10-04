@@ -1,6 +1,7 @@
 // The plan reveal's geometry and clock (#402): journey curve and date axis, waterfall, maintain balance.
 
-import { LANG_TAG } from "./lang.ts";
+import { LANG_TAG, t } from "./lang.ts";
+import { PLAN_COPY } from "./app/plan-copy.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { Lang } from "./types.ts";
 
@@ -28,9 +29,15 @@ export const PLAN_TIMELINE = {
 const X0 = 14;
 const X1 = 304;
 const BASE = 146;
-/** A tick whose label would crowd "Today" (44 px) or the end label (70 px) is skipped. */
+/** A tick whose MARK would crowd "Today" (44 px) or the end label (70 px) is skipped. */
 const GAP_START = 44;
 const GAP_END = 70;
+/** The 12 px axis labels' width per char — the month ticks 600, the today and goal labels 700.
+   Estimated, as the pill's is: shared geometry never asks a renderer for metrics. */
+const MONTH_CHAR = 6.5;
+const WIDE_CHAR = 7.5;
+/** The room two labels keep between their edges. */
+const LABEL_PAD = 6;
 /** Past this many months, four evenly spaced ticks replace the months. */
 const MAX_MONTHS = 8;
 
@@ -83,22 +90,35 @@ export function planJourneyTicks(from: Date, weeks: number, lang: Lang): PlanJou
   const months = (end.getFullYear() - from.getFullYear()) * 12 + end.getMonth() - from.getMonth();
   const lo = at(X0 + GAP_START);
   const hi = at(X1 - GAP_END);
+  // "Today" is left-anchored at X0 and the goal label right-anchored at X1, so a month tick
+  // inside the band can still reach one — the gaps measure to the mark, not to the label's
+  // edge. A month whose own label touches either extent is dropped ("HeuteNov", #407).
+  const todayEdge = X0 + t(lang)(PLAN_COPY).today.length * MONTH_CHAR;
+  const endLabel = monthName(lang, end.getFullYear(), end.getMonth(), true);
+  const goalEdge = X1 - endLabel.length * WIDE_CHAR;
+  const crowded = (label: string, pos: number): boolean => {
+    const half = (label.length * MONTH_CHAR) / 2;
+    const x = X0 + (X1 - X0) * pos;
+    return x - half < todayEdge + LABEL_PAD || x + half > goalEdge - LABEL_PAD;
+  };
   if (months > MAX_MONTHS) {
     // Four ticks evenly spaced between the two gaps.
     for (let k = 0; k < 4; k++) {
       const pos = lo + ((hi - lo) * k) / 3;
       const d = new Date(from.getTime() + span * pos);
-      ticks.push(tick("month", monthName(lang, d.getFullYear(), d.getMonth(), false), pos));
+      const label = monthName(lang, d.getFullYear(), d.getMonth(), false);
+      if (!crowded(label, pos)) ticks.push(tick("month", label, pos));
     }
   } else {
     for (let m = 1; m < months; m++) {
       const first = new Date(from.getFullYear(), from.getMonth() + m, 1);
       const pos = (first.getTime() - from.getTime()) / span;
       if (pos < lo || pos > hi) continue;
-      ticks.push(tick("month", monthName(lang, first.getFullYear(), first.getMonth(), false), pos));
+      const label = monthName(lang, first.getFullYear(), first.getMonth(), false);
+      if (!crowded(label, pos)) ticks.push(tick("month", label, pos));
     }
   }
-  ticks.push(tick("end", monthName(lang, end.getFullYear(), end.getMonth(), true), 1));
+  ticks.push(tick("end", endLabel, 1));
   return ticks;
 }
 
