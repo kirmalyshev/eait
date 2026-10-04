@@ -804,6 +804,26 @@ async function loggedAs(deps: EngineDeps, userId: string, id: string): Promise<M
   };
 }
 
+/**
+ * ONE LIVE OFFER, HELD HERE AND NOT ON THE SCREENS (#69). Each client retires an older estimate
+ * when a newer lands — `oneLiveProposal` draws one card and cancels the rest, the web's `held`
+ * is singular by construction — but a transport that does neither (the Telegram bot) or a cancel
+ * lost on the wire left the older row confirmable: "Log it" on the new estimate did not retire
+ * the old one, and a tap on it logged a second meal beside the first. Every write that settles
+ * which offer stands — a new proposal, a confirm — sweeps the rest, so the rule cannot depend on
+ * a client asking nicely. Returns how many offers were retired; the caller decides whether the
+ * thread says so. Housekeeping: a failed drop leaves a stale offer, never a failed turn.
+ */
+export async function dropOtherPendings(deps: EngineDeps, userId: string, keepId: string): Promise<number> {
+  const others = await deps.store.pendingsFor(userId).catch(() => []);
+  let dropped = 0;
+  for (const p of others) {
+    if (p.id === keepId) continue;
+    if (await deps.store.dropPending(userId, p.id).catch(() => false)) dropped++;
+  }
+  return dropped;
+}
+
 export async function confirmPendingMeal(
   deps: EngineDeps,
   userId: string,
@@ -853,6 +873,10 @@ export async function confirmPendingMeal(
   // the one id two rows may never share. Answered OUTSIDE the restore's reach: the meal is there,
   // and a proposal put back for a logged meal would let a later "no" drop what stays logged.
   if (!inserted) return (await alreadyLogged()) ?? { kind: "expired" };
+
+  // The "yes" settles every other offer too (#69): rows written before the sweep existed, or two
+  // turns that raced their `putPending`s, must not leave a dead card's buttons able to log.
+  await dropOtherPendings(deps, userId, pendingId);
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, pending.date));
   const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
