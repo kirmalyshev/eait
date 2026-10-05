@@ -3,13 +3,15 @@
 // Everything sellable arrives in `ProfileResponse.paywall` (#77): the plans' checkout links with
 // this account's id already filled, the prices formatted in its language, and the footer's
 // Terms/Privacy hrefs. The screen computes no price and builds no link — a null plan is a plan
-// the host does not sell and never draws, and a decline (the ×) goes Home: the exit offer's own
-// surface is a follow-up, so `?plan=exit` stays unlinked here.
+// the host does not sell and never draws. A decline (the ×) swaps the plans for the exit offer
+// in place, once per account (web/pay-exit, #451); a host with no offer configured, or an
+// account that has already met it, closes to Home.
 //
 // The plan rows are `payPlansEl`'s — ONE composition with the first-meal offer, and the same
 // `payPlans` markup `/start`'s offer interpolates: the plan shown is the plan the click buys.
 
 import { fill } from "../../shared/lang.ts";
+import { paywallPercent } from "../../shared/paywall.ts";
 import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { ico, payPlans as payPlansMarkup } from "../../shared/ui/kit.ts";
 import { COPY, el, lang, type Frame } from "../shell.ts";
@@ -17,6 +19,17 @@ import { kitEl, payPlansEl } from "../kit.ts";
 
 /** The image the boards' hero draws — served by the backend off shared/assets/img, same origin. */
 const HERO_SRC = "/start/assets/img/salmon.webp";
+
+/** The exit offer's once-per-account flag, keyed by the account id — a second account on this
+    browser still gets its one show. Not the bearer: a flag authenticates nothing. A read that
+    fails is "not seen" — the in-memory `offered` below still bounds it to once a visit. */
+const SEEN = "eait:exit-offer:";
+const offerSeen = (uid: string): boolean => {
+  try { return localStorage.getItem(SEEN + uid) !== null; } catch { return false; }
+};
+const markOfferSeen = (uid: string): void => {
+  try { localStorage.setItem(SEEN + uid, "1"); } catch { /* a storage that refuses shows it again */ }
+};
 
 export function payScreen(frame: Frame): HTMLElement {
   const box = el("section", "pay");
@@ -79,11 +92,12 @@ export function payScreen(frame: Frame): HTMLElement {
   col.append(go, note);
   // The footer's legal links — only the ones the operator publishes (`WebPaywall` carries "" for
   // a link it does not have). No Restore: the web has no store to restore from; a purchase lands
-  // here by webhook.
-  const links: [words: string, href: string][] = [];
-  if ((w?.termsUrl ?? "") !== "") links.push([pay.termsLink, w!.termsUrl]);
-  if ((w?.privacyUrl ?? "") !== "") links.push([pay.privacyLink, w!.privacyUrl]);
-  if (links.length > 0) {
+  // here by webhook. Both states of the column draw it, so it is built on demand.
+  const legal = (): HTMLElement | null => {
+    const links: [words: string, href: string][] = [];
+    if ((w?.termsUrl ?? "") !== "") links.push([pay.termsLink, w!.termsUrl]);
+    if ((w?.privacyUrl ?? "") !== "") links.push([pay.privacyLink, w!.privacyUrl]);
+    if (links.length === 0) return null;
     const foot = el("p", "t12 m paylinks");
     links.forEach(([words, href], i) => {
       if (i > 0) foot.append(" · ");
@@ -93,8 +107,43 @@ export function payScreen(frame: Frame): HTMLElement {
       a.rel = "noopener";
       foot.append(a);
     });
-    col.append(foot);
-  }
+    return foot;
+  };
+  const plansFoot = legal();
+  if (plansFoot !== null) col.append(plansFoot);
+
+  // The exit offer (web/pay-exit, #451): the first decline of the plans swaps them for it in
+  // place — the regular yearly struck through, the offer price, per month — rather than closing.
+  // `offered` keeps the second × (and the ones after it) a plain close for the rest of this
+  // mount; the stored flag does the same across visits.
+  let offered = false;
+  close.addEventListener("click", (ev) => {
+    const offer = w?.exitOffer ?? null;
+    const uid = frame.me?.profile.user_id;
+    if (offered || offer === null || uid === undefined || offerSeen(uid)) return;
+    ev.preventDefault();
+    offered = true;
+    markOfferSeen(uid);
+    const card = el("div", "offer pop");
+    card.append(
+      el("div", "off num", fill(pay.offerOff, { percent: paywallPercent(offer.percentOff, lang) })),
+      el("div", "hr"),
+    );
+    const price = el("div", "price num");
+    price.append(
+      el("s", "", offer.regularPrice),
+      el("span", "", fill(pay.offerPrice, { price: offer.price })),
+    );
+    card.append(price, el("p", "t13 m num per", fill(pay.offerPerMonth, { price: offer.perMonth })));
+    const claim = el("a", "cta p", pay.offerClaim) as HTMLAnchorElement;
+    claim.href = offer.checkoutUrl;
+    const decline = el("a", "cta g", pay.offerDecline) as HTMLAnchorElement;
+    decline.href = "#/";
+    const parts = [el("h1", "d d28", pay.offerTitle), card, claim, decline, el("p", "t12 m", pay.offerNote)];
+    const foot = legal();
+    if (foot !== null) parts.push(foot);
+    col.replaceChildren(...parts);
+  });
 
   pane.append(close, col);
   box.append(hero, pane);

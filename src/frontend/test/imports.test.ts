@@ -37,6 +37,7 @@ const WEB_MODULES = new Set([
   "results.ts",
   "contract.ts",
   "entitlement.ts",    // the Subscription row's state rule (#175) — pure, reads dates.ts
+  "paywall.ts",        // the exit offer's percent/price formatters (#451) — pure, reads lang.ts
   "progress.ts",       // the card-state rule — pure, one contract type
   "scores.ts",         // the BMI edges and the bar's segments (#155) — pure, reads targets.ts
   "first-meal-copy.ts",
