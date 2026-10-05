@@ -96,9 +96,9 @@ export interface ThreadCopy {
 const THREAD = (i18n: I18n): ThreadCopy => ({
   scripted: {
     "camera-closed": (v) => i18n._("thread.scripted.camera-closed", v, { message: "No rush. The plan is on your diary — photograph the next meal when it happens. That's the whole habit, and I'll say so once tomorrow if it hasn't." }),
-    "trial-started": (v) => i18n._("thread.scripted.trial-started", v, { message: "Trial's on. Seven days, then {price} unless you stop it — I'll remind you on day five and the day before it ends, never the day after." }),
+    "trial-started": (v) => i18n._("thread.scripted.trial-started", v, { message: "Trial's on — {price} when it ends, unless you stop it. I'll remind you the day before it ends, never the day after." }),
     "trial-day-one": (v) => i18n._("thread.scripted.trial-day-one", v, { message: "Your first day is started. At 20:30 you get one line — today against the plan, and one concrete thing for tomorrow. Nothing before that." }),
-    "notify-primer": (v) => i18n._("thread.scripted.notify-primer", v, { message: "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus two reminders before the free week ends if you're on it. Nothing else, ever." }),
+    "notify-primer": (v) => i18n._("thread.scripted.notify-primer", v, { message: "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus a reminder the day before your trial ends if you're on one. Nothing else, ever." }),
     "restored": (v) => i18n._("thread.scripted.restored", v, { message: "Restored — you're in. A photo or a sentence both log a meal." }),
     "camera-primer": (v) => i18n._("thread.scripted.camera-primer", v, { message: "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is kept with the meal so you can see it in your diary, and erased with your account." }),
     "fix-prompt": (v) => i18n._("thread.scripted.fix-prompt", v, { message: "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\" all work. Or open the card and edit the grams yourself." }),

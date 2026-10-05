@@ -351,7 +351,7 @@ msgstr "En el plan."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Una cosa más que iOS va a preguntar: las notificaciones. Una al día y nunca más — la línea de las 20:30, más dos recordatorios antes de que acabe la semana gratis, si estás en ella. Nada más, nunca."
+msgstr "Una cosa más que iOS va a preguntar: las notificaciones. Una al día y nunca más — la línea de las 20:30, más un recordatorio el día antes de que termine tu prueba, si tienes una. Nada más, nunca."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "Esta cuenta aún no ha iniciado sesión — entra con Apple o Google en 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Ya has usado el análisis gratis de esta cuenta. Empieza tu semana gratis en la web para seguir."
+msgstr "Ya has usado el análisis gratis de esta cuenta. Empieza tu prueba gratis en la web para seguir."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Demasiados intentos desde este Telegram. Espera un poco y vuelve a pulsa
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Prueba activada. Siete días, luego {price} salvo que la canceles — te aviso el quinto día y el día antes de que acabe, nunca el día después."
+msgstr "Prueba activada — al acabar, {price}, salvo que la canceles. Te aviso el día antes de que acabe, nunca el día después."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

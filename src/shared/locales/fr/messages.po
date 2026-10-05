@@ -351,7 +351,7 @@ msgstr "Dans le plan."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Encore une chose qu'iOS va demander : les notifications. Une par jour, jamais plus — le message de 20 h 30, plus deux rappels avant la fin de la semaine gratuite si tu en profites. Rien d'autre, jamais."
+msgstr "Encore une chose qu'iOS va demander : les notifications. Une par jour, jamais plus — le message de 20 h 30, plus un rappel la veille de la fin de ton essai si tu en as un. Rien d'autre, jamais."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "Ce compte n'est pas encore connecté — connecte-toi avec Apple ou Goog
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine gratuite sur le web pour continuer."
+msgstr "Ce compte a déjà utilisé son analyse offerte. Lance ton essai gratuit sur le web pour continuer."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Trop d'essais depuis ce Telegram. Attends un peu, puis appuie de nouveau
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "L'essai est lancé. Sept jours, puis {price} sauf si tu l'arrêtes — je te préviendrai au cinquième jour et la veille de la fin, jamais le lendemain."
+msgstr "L'essai est lancé — {price} à la fin, sauf si tu l'arrêtes. Je te préviendrai la veille de la fin, jamais le lendemain."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

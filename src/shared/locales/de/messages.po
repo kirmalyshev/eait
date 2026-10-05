@@ -351,7 +351,7 @@ msgstr "Im Plan."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Noch etwas, wonach iOS gleich fragt: Mitteilungen. Eine am Tag und nie mehr — die Nachricht um 20:30, dazu zwei Erinnerungen vor Ende der Gratiswoche, falls du sie gerade nutzt. Sonst nie etwas."
+msgstr "Noch etwas, wonach iOS gleich fragt: Mitteilungen. Eine am Tag und nie mehr — die Nachricht um 20:30, dazu eine Erinnerung am Tag vor dem Ende deiner Testphase, falls du sie gerade nutzt. Sonst nie etwas."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "Dieses Konto ist noch nicht angemeldet — melde dich im Web mit Apple o
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Die kostenlose Testmahlzeit dieses Kontos ist verbraucht. Starte deine Gratiswoche im Web, um weiterzumachen."
+msgstr "Die kostenlose Testmahlzeit dieses Kontos ist verbraucht. Starte deine Testphase im Web, um weiterzumachen."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Zu viele Versuche von diesem Telegram. Warte etwas und drück den Link n
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Deine Gratiswoche läuft. Sieben Tage, danach {price}, außer du kündigst — ich erinnere dich am fünften Tag und am Tag vor dem Ende, nie am Tag danach."
+msgstr "Deine Testphase läuft — danach {price}, außer du kündigst. Ich erinnere dich am Tag vor dem Ende, nie am Tag danach."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

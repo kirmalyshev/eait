@@ -351,7 +351,7 @@ msgstr "По плану."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Ещё одно, о чём сейчас спросит iOS: уведомления. Одно в день и не больше — строка в 20:30 плюс два напоминания перед концом бесплатной недели, если ты в ней. Больше ничего и никогда."
+msgstr "Ещё одно, о чём сейчас спросит iOS: уведомления. Одно в день и не больше — строка в 20:30 плюс напоминание накануне окончания пробного периода, если он у тебя есть. Больше ничего и никогда."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "В этот аккаунт ещё не вошли — войди чер�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю на сайте, чтобы продолжить."
+msgstr "Бесплатный лимит этого аккаунта исчерпан. Начни пробный период на сайте, чтобы продолжить."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Слишком много попыток с этого Telegram. Под�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Пробный период запущен. Семь дней, дальше {price}, если не остановишь, — напомню на пятый день и накануне окончания, и никогда на следующий день после."
+msgstr "Пробный период запущен — по окончании {price}, если не остановишь. Напомню накануне окончания, и никогда на следующий день после."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

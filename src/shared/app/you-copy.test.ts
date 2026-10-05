@@ -83,7 +83,7 @@ describe("YOU_COPY", () => {
     expect(en.appleHealth).toBe("Apple Health");
     expect(en.connected).toBe("connected");
     expect(en.subscription).toBe("Subscription");
-    expect(en.freeWeekDay).toBe("free week · day {n}");
+    expect(en.freeTrialDay).toBe("free trial · day {n}");
     // The row's other states (#175): paid, lifetime, lapsed (dated and bare), and never bought.
     expect(en.subscriptionUntil).toBe("until {date}");
     expect(en.subscriptionLifetime).toBe("lifetime");
@@ -117,7 +117,7 @@ describe("YOU_COPY", () => {
     expect(en.phone.yourPace).toBe("Your pace");
     expect(en.phone.changeAnswer).toBe("Change an answer");
     // phone/you-subscription.html
-    expect(en.phone.freeWeekTitle).toBe("Your free week");
+    expect(en.phone.freeTrialTitle).toBe("Your free trial");
     expect(en.phone.dayOfTotal).toBe("Day {n} of {total}");
     expect(en.phone.untilDate).toBe("until {date}");
     expect(en.phone.beforeEnds).toBe("Before it ends");
