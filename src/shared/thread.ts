@@ -488,6 +488,9 @@ type UserEntry = Extract<ThreadEntry, { role: "user" }>;
 /** What happened to her send: `failed` is a red ! and Resend, `refused` the reason inside, `pending` a clock.
  *  A kept turn reads `keptState`: not held is pending, held unknown or analysis-failed is failed, else refused. */
 export type SendState = "ok" | "pending" | "failed" | "refused";
+/** A `me` row is ONE bubble: what became of the send rides inside it, never as a second row —
+ *  so the row carries one stamp at its foot, drawn once (#460). A client that renders `outcome`
+ *  with its own time draws it twice. */
 export type ChatRow =
   | { kind: "me"; entry: UserEntry; outcome: ThreadEntry | null; state: SendState }
   | { kind: "them"; entry: ThreadEntry; face: boolean };
