@@ -4172,18 +4172,25 @@
           },
           "trial": {
             "type": "boolean",
-            "description": "Whether the CURRENT period is a free trial rather than a paid one.\n\nThe store knows and nothing else can work it out: an expiry seven days out and an expiry a year out are the same shape, and two days before a yearly renewal looks exactly like two days before a trial ends. Without this the trial reminders fire before every renewal — telling somebody who pays that \"the free week ends\" and that they can stop it and pay nothing.\n\nFalse for an account that has never bought anything, and false for a stored entitlement written before this field existed. That is the safe direction: the failure is a reminder that does not arrive, not a wrong one that does."
+            "description": "Whether the CURRENT period is a free trial rather than a paid one.\n\nThe store knows and nothing else can work it out: an expiry seven days out and an expiry a year out are the same shape, and two days before a yearly renewal looks exactly like two days before a trial ends. Without this the trial reminders fire before every renewal — telling somebody who pays that \"the free trial ends\" and that they can stop it and pay nothing.\n\nFalse for an account that has never bought anything, and false for a stored entitlement written before this field existed. That is the safe direction: the failure is a reminder that does not arrive, not a wrong one that does."
           },
           "lapsed": {
             "type": "boolean",
             "description": "Whether this account bought something once and nothing it bought keeps it in now — a subscription that ended, or a lifetime unlock that was refunded. The app asks it to RESUBSCRIBE rather than to subscribe, and nothing on the phone could tell the two apart without this: the server blanks `expiresAt` the moment a grant stops keeping somebody in.\n\nFalse for an account that never bought anything and for one entitled now. OPTIONAL because a server older than the field sends none, which the app reads as false: \"subscribe\" is the ask true of both people. `entitlementFor` always sends it."
           },
-          "trialDay": {
+          "trialDaysLeft": {
             "type": [
               "number",
               "null"
             ],
-            "description": "Which day of the free week today is — the \"5\" of \"free week · day 5\" the Subscription row shows — or null when the account is not on one. Computed server-side (`trialDay` below), so a client renders it and never counts days itself: two counters would drift apart.\n\nOPTIONAL for the reason `lapsed` is — a server older than the field sends none."
+            "description": "How many calendar days are left on the trial — the \"day {n}\" of \"free trial · day {n}\" the Subscription row shows is `len − daysLeft`, with `len` read where the truth lives (the store's own intro period on the phone, `paywall.trialDays` on the web) — or null when the account is not on one. Counted off the EXPIRY (`trialDaysLeft` below), never the start: the expiry is what the webhook delivers and what the store can move, so this one number is length-agnostic — a 3-day trial and a 7-day one need nothing but their own end.\n\nOPTIONAL for the reason `lapsed` is — a server older than the field sends none."
+          },
+          "productId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The subscription's store product id — RevenueCat's `product_id`, e.g. `yearly` — while a subscription grant is live, so a client can ask the STORE what the renewal costs rather than compile a price in. Null while no subscription period is live (a lifetime unlock is a different grant and does not renew). OPTIONAL like `lapsed` — a server older than the field sends none, and a client that cannot name the product shows the renewal without its price."
           }
         },
         "required": [
