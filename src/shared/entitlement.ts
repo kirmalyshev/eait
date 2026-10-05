@@ -9,7 +9,7 @@
 // it was told. Neither may invent its own answer — a client that computed its own entitlement
 // would be a client that could grant itself one.
 
-import { localDate } from "./dates.ts";
+import { dateMinus, localDate } from "./dates.ts";
 
 /**
  * The paid-tier state of one account, as told to the client.
@@ -42,7 +42,7 @@ export interface Entitlement {
    * The store knows and nothing else can work it out: an expiry seven days out and an expiry a year
    * out are the same shape, and two days before a yearly renewal looks exactly like two days before
    * a trial ends. Without this the trial reminders fire before every renewal — telling somebody who
-   * pays that "the free week ends" and that they can stop it and pay nothing.
+   * pays that "the free trial ends" and that they can stop it and pay nothing.
    *
    * False for an account that has never bought anything, and false for a stored entitlement written
    * before this field existed. That is the safe direction: the failure is a reminder that does not
@@ -61,13 +61,24 @@ export interface Entitlement {
    */
   lapsed?: boolean;
   /**
-   * Which day of the free week today is — the "5" of "free week · day 5" the Subscription row
-   * shows — or null when the account is not on one. Computed server-side (`trialDay` below), so a
-   * client renders it and never counts days itself: two counters would drift apart.
+   * How many calendar days are left on the trial — the "day {n}" of "free trial · day {n}" the
+   * Subscription row shows is `len − daysLeft`, with `len` read where the truth lives (the store's
+   * own intro period on the phone, `paywall.trialDays` on the web) — or null when the account is
+   * not on one. Counted off the EXPIRY (`trialDaysLeft` below), never the start: the expiry is
+   * what the webhook delivers and what the store can move, so this one number is length-agnostic —
+   * a 3-day trial and a 7-day one need nothing but their own end.
    *
    * OPTIONAL for the reason `lapsed` is — a server older than the field sends none.
    */
-  trialDay?: number | null;
+  trialDaysLeft?: number | null;
+  /**
+   * The subscription's store product id — RevenueCat's `product_id`, e.g. `yearly` — while a
+   * subscription grant is live, so a client can ask the STORE what the renewal costs rather than
+   * compile a price in. Null while no subscription period is live (a lifetime unlock is a
+   * different grant and does not renew). OPTIONAL like `lapsed` — a server older than the field
+   * sends none, and a client that cannot name the product shows the renewal without its price.
+   */
+  productId?: string | null;
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
@@ -98,50 +109,99 @@ export const FREE_ANALYSES = 1;
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
 
 /**
- * What the Subscription row IS, as one of five words (#175) — the board's "free week · day 5" is
+ * What the Subscription row IS, as one of five words (#175) — the board's "free trial · day 2" is
  * the trial state, and an empty value was the row saying nothing about the four others.
  *
  * The WORDS stay with each client's copy table; the STATE is the same rule on every surface.
- * `trialDay` wins because the server only counts it while a trial is live. A paid period reads
+ * `trialDaysLeft` wins because the server only counts it while a trial is live. A paid period reads
  * `until` its expiry — never "renews", because the store does not tell this server whether the
  * period renews. `ended` carries the expiry when the record still has one (the engine blanks it
  * when a grant stops counting, so a lapsed row usually answers `date: null`). And `free` is the
  * answer for an account that never bought — the overwhelmingly common state, now named.
  */
 export type SubscriptionState =
-  | { kind: "trial"; day: number }
+  | { kind: "trial"; daysLeft: number }
   | { kind: "until"; date: string }
   | { kind: "lifetime" }
   | { kind: "ended"; date: string | null }
   | { kind: "free" };
 
 export const subscriptionState = (e: Entitlement): SubscriptionState => {
-  if (e.trialDay != null) return { kind: "trial", day: e.trialDay };
+  if (e.trialDaysLeft != null) return { kind: "trial", daysLeft: e.trialDaysLeft };
   if (e.active) return e.expiresAt === null ? { kind: "lifetime" } : { kind: "until", date: e.expiresAt };
   if (e.lapsed === true) return { kind: "ended", date: e.expiresAt };
   return { kind: "free" };
 };
 
 /**
- * The free week's length. Written once because "day 5 of 7" and the day-5/day-6 reminder names are
- * the same week counted two ways; a number that ever changed would have to change in one place.
+ * The trial's canonical length in days — the "one length everywhere" ruling (ieat-app#1591):
+ * App Store introductory offers AND the web's `WEB_TRIAL_DAYS` are configured to the same number.
+ *
+ * It is the FALLBACK, never the claim: the phone reads the intro period off the store's own
+ * product (`freeTrialDays`), the web reads the operator's `trialDays`, and this constant answers
+ * only when neither can — an intro absent from the store payload, a paywall the host never
+ * configured.
  */
-export const TRIAL_WEEK_DAYS = 7;
+export const TRIAL_DAYS = 3;
 
 /**
- * Which day of the free week `today` is — the "5" of "free week · day 5" (#97).
+ * The one day a trial gets a reminder, as `YYYY-MM-DD` in `tz` — the day BEFORE the expiry.
  *
- * COUNTED OFF THE EXPIRY DATE, NOT THE START, for the reason `trialReminderDates` gives: the
+ * Derived from the EXPIRY rather than from the start, because the expiry is what the app is told
+ * (`ProfileResponse.entitlement.expiresAt`) and what the store can move — a billing retry extends
+ * it, and a reminder counted forwards from a purchase date would then fire in the middle of a
+ * trial that is still running. Counted off the end it is also length-agnostic (ieat-app#1591):
+ * a 3-day trial and a 7-day one both get exactly "the day before it ends", which is never on or
+ * after the expiry — the "never the day after" promise.
+ *
+ * Null when there is no expiry, when it does not parse, or when it has already passed — all three
+ * mean there is nothing to remind anybody about.
+ */
+export function trialReminderDate(
+  expiresAt: string | null | undefined,
+  tz: string,
+  now: number = Date.now(),
+): string | null {
+  if (!expiresAt) return null;
+  const at = Date.parse(expiresAt);
+  if (!Number.isFinite(at) || at <= now) return null;
+  return dateMinus(localDate(tz, new Date(at)), 1);
+}
+
+/**
+ * The reminder date of a live TRIAL, or null when this entitlement is not one.
+ *
+ * The gate `trialReminderDate` does not have, and the reason both sides call this rather than
+ * that: the raw arithmetic answers "the day before the expiry" for ANY expiry, and the day before
+ * a yearly renewal has exactly that shape. `entitlement.trial` is the only thing that separates
+ * them, and it comes from the store by way of the RevenueCat webhook — no duration heuristic can,
+ * because it is looking at the same day either way.
+ */
+export function trialReminder(
+  entitlement: Entitlement,
+  timezone: string,
+  now: number = Date.now(),
+): string | null {
+  if (!entitlement.active || !entitlement.trial) return null;
+  return trialReminderDate(entitlement.expiresAt, timezone, now);
+}
+
+
+/**
+ * How many calendar days are left on the trial — 1 the day before the expiry date, 0 on it (#97).
+ *
+ * COUNTED OFF THE EXPIRY DATE, NOT THE START, for the reason `trialReminders` gives: the
  * expiry is what the store can move (a billing retry extends it) and what the client is told.
- * Anchored there, this number and the "two days to go" reminder can never disagree — day 5 IS two
- * days before the expiry date, by both definitions. A start-counted day would need the trial's
- * length the store never sees (RevenueCat sends no duration).
+ * The trial's LENGTH is never needed — "the day before it ends" is a reminder both a 3-day and a
+ * 7-day trial get the same way, and "day {n}" is `len − daysLeft` where `len` is the client's own
+ * reading of the length (the store's intro period on the phone, `paywall.trialDays` on the web).
+ * A start-counted day would need the trial's length the store never sends (RevenueCat reports no
+ * duration).
  *
  * Null the moment the period is not a live trial: never bought, converted to paid, lapsed, or an
- * expiry that does not parse. Day 1 is the first day of the week and day 7 the expiry's own date;
- * an expiry pushed beyond the week still answers 1 rather than a day 0 nobody can draw.
+ * expiry that does not parse.
  */
-export function trialDay(
+export function trialDaysLeft(
   entitlement: { active: boolean; trial?: boolean; expiresAt: string | null },
   timezone: string,
   now: number = Date.now(),
@@ -151,8 +211,7 @@ export function trialDay(
   const expiry = localDate(timezone, new Date(Date.parse(entitlement.expiresAt!)));
   const today = localDate(timezone, new Date(now));
   // Calendar-day difference: both are UTC-midnight strings, so the subtraction is exact.
-  const left = Math.round((Date.parse(expiry) - Date.parse(today)) / 86_400_000);
-  return Math.max(1, TRIAL_WEEK_DAYS - left);
+  return Math.max(0, Math.round((Date.parse(expiry) - Date.parse(today)) / 86_400_000));
 }
 
 /**
