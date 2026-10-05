@@ -76,6 +76,17 @@ export function paywallPrice(amount: number, currency: string, lang: Lang): stri
 }
 
 /**
+ * The offer's percent off written in the reader's language — "40%" to an English reader, "40 %" to
+ * a French, German, Spanish or Russian one. `Intl`'s percent style owns the sign's spacing, because
+ * the copy's `"{percent}"` placeholder used to carry a bare number and every template baked the
+ * English " %" in — an English card read "40 % off" (#451 review).
+ */
+export function paywallPercent(percentOff: number, lang: Lang): string {
+  return new Intl.NumberFormat(LANG_TAG[lang], { style: "percent", maximumFractionDigits: 0 })
+    .format(percentOff / 100);
+}
+
+/**
  * What a yearly amount costs per month, to the cent — the "≈ €2.00 a month" line on BOTH the
  * yearly plan's card and the exit offer's. One copy, shared with the native paywall (#928), so
  * the two lines can never drift apart.

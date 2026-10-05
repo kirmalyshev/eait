@@ -92,7 +92,7 @@ describe("PAY_COPY", () => {
     // pay-ultra
     expect(en.offerTitle).toBe("Your gift: yearly, for less");
     expect(en.offerAlt).toBe("Porridge with berries");
-    expect(en.offerOff).toBe("{percent} % off");
+    expect(en.offerOff).toBe("{percent} off");
     expect(en.offerPrice).toBe("{price} / year");
     expect(en.offerPerMonth).toBe("≈ {price} a month");
     expect(en.offerClaim).toBe("Claim");

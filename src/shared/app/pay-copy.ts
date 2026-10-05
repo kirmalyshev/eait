@@ -83,7 +83,8 @@ export interface PayCopy {
   offerTitle: string;
   /** pay-ultra: the porridge photo's alt. */
   offerAlt: string;
-  /** pay-ultra: the discount badge. `{percent}` is `ExitOffer.percentOff`, floored server-side. */
+  /** pay-ultra: the discount badge. `{percent}` is `ExitOffer.percentOff` formatted by
+      `paywallPercent` — the sign's spacing is the locale's, so no template carries a "%" of its own. */
   offerOff: string;
   /** pay-ultra: the offer price under the struck-through regular one — `{price}` is `ExitOffer.price`. */
   offerPrice: string;
@@ -168,7 +169,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Open",
     offerTitle: "Your gift: yearly, for less",
     offerAlt: "Porridge with berries",
-    offerOff: "{percent} % off",
+    offerOff: "{percent} off",
     offerPrice: "{price} / year",
     offerPerMonth: "≈ {price} a month",
     offerClaim: "Claim",
@@ -222,7 +223,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Ouvrir",
     offerTitle: "Ton cadeau : l'annuel, moins cher",
     offerAlt: "Porridge aux fruits rouges",
-    offerOff: "{percent} % de remise",
+    offerOff: "{percent} de remise",
     offerPrice: "{price} / an",
     offerPerMonth: "≈ {price} par mois",
     offerClaim: "En profiter",
@@ -276,7 +277,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Öffnen",
     offerTitle: "Dein Geschenk: das Jahresabo günstiger",
     offerAlt: "Porridge mit Beeren",
-    offerOff: "{percent} % Rabatt",
+    offerOff: "{percent} Rabatt",
     offerPrice: "{price} / Jahr",
     offerPerMonth: "≈ {price} im Monat",
     offerClaim: "Einlösen",
@@ -330,7 +331,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Apri",
     offerTitle: "Il tuo regalo: l'annuale a prezzo ridotto",
     offerAlt: "Porridge con frutti di bosco",
-    offerOff: "-{percent}%",
+    offerOff: "-{percent}",
     offerPrice: "{price} / anno",
     offerPerMonth: "≈ {price} al mese",
     offerClaim: "Riscatta",
@@ -384,7 +385,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Abrir",
     offerTitle: "Tu regalo: el anual, por menos",
     offerAlt: "Porridge con frutos rojos",
-    offerOff: "{percent} % de descuento",
+    offerOff: "{percent} de descuento",
     offerPrice: "{price} / año",
     offerPerMonth: "≈ {price} al mes",
     offerClaim: "Canjear",
@@ -438,7 +439,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Mở",
     offerTitle: "Quà của bạn: gói năm, giá thấp hơn",
     offerAlt: "Cháo yến mạch với quả mọng",
-    offerOff: "Giảm {percent}%",
+    offerOff: "Giảm {percent}",
     offerPrice: "{price} / năm",
     offerPerMonth: "≈ {price} một tháng",
     offerClaim: "Nhận",
@@ -492,7 +493,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Buka",
     offerTitle: "Hadiahmu: tahunan, lebih murah",
     offerAlt: "Bubur oat dengan buah beri",
-    offerOff: "Diskon {percent}%",
+    offerOff: "Diskon {percent}",
     offerPrice: "{price} / tahun",
     offerPerMonth: "≈ {price} sebulan",
     offerClaim: "Klaim",
@@ -546,7 +547,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     giftOpen: "Открыть",
     offerTitle: "Твой подарок: годовой — дешевле",
     offerAlt: "Овсянка с ягодами",
-    offerOff: "Скидка {percent} %",
+    offerOff: "Скидка {percent}",
     offerPrice: "{price} / год",
     offerPerMonth: "≈ {price} в месяц",
     offerClaim: "Забрать",

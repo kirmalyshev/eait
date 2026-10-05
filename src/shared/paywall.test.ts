@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { offerMath, paywallPrice, perMonth } from "./paywall.ts";
+import { offerMath, paywallPercent, paywallPrice, perMonth } from "./paywall.ts";
 
 // The one arithmetic the web paywall (#96) and the native one (#928) share: the exit offer's
 // percent off and its per-month equivalent, derived from the two prices that were actually
@@ -51,5 +51,15 @@ describe("paywallPrice", () => {
     expect(paywallPrice(39.99, "EUR", "en")).toBe("€39.99");
     expect(paywallPrice(39.99, "EUR", "de")).toBe("39,99 €");
     expect(paywallPrice(39.99, "USD", "en")).toBe("$39.99");
+  });
+});
+
+describe("paywallPercent", () => {
+  it("writes the sign the locale's own way — tight in English, spaced in French and German (#451)", () => {
+    // The badge used to read "40 % off" in English: `{percent}` carried a bare number and every
+    // template baked the " %" in. Now `Intl` owns the spacing — the NBSP is CLDR's, not ours.
+    expect(paywallPercent(40, "en")).toBe("40%");
+    expect(paywallPercent(40, "fr")).toBe("40 %");
+    expect(paywallPercent(40, "de")).toBe("40 %");
   });
 });

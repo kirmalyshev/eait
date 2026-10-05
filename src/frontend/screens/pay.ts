@@ -11,6 +11,7 @@
 // `payPlans` markup `/start`'s offer interpolates: the plan shown is the plan the click buys.
 
 import { fill } from "../../shared/lang.ts";
+import { paywallPercent } from "../../shared/paywall.ts";
 import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { ico, payPlans as payPlansMarkup } from "../../shared/ui/kit.ts";
 import { COPY, el, lang, type Frame } from "../shell.ts";
@@ -125,7 +126,7 @@ export function payScreen(frame: Frame): HTMLElement {
     markOfferSeen(uid);
     const card = el("div", "offer pop");
     card.append(
-      el("div", "off num", fill(pay.offerOff, { percent: String(offer.percentOff) })),
+      el("div", "off num", fill(pay.offerOff, { percent: paywallPercent(offer.percentOff, lang) })),
       el("div", "hr"),
     );
     const price = el("div", "price num");
