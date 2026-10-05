@@ -265,9 +265,12 @@ const IGNORE = Symbol("ignore");
  * refused as the older event, permanently, and a paying customer would be locked out of the account
  * they had just bought.
  */
-function patchFor(event: RevenueCatEvent): Pick<EntitlementPatch, "expiresAt" | "lifetimeProductId"> | typeof IGNORE {
+function patchFor(event: RevenueCatEvent): Pick<EntitlementPatch, "expiresAt" | "lifetimeProductId" | "trial"> | typeof IGNORE {
   if (event.expirationAtMs !== null) {
-    return { expiresAt: new Date(event.expirationAtMs).toISOString() };
+    // The period's flag travels WITH the period it describes: a RENEWAL reports NORMAL and clears a
+    // trial that converted, a first purchase reports TRIAL and sets one — the ends-tomorrow
+    // reminder keys off it (#1591), and leaving it at the parse would mean it never arrives.
+    return { expiresAt: new Date(event.expirationAtMs).toISOString(), trial: event.trial };
   }
   // A perpetual grant that cannot name what was bought is not one. Its product id is what the
   // refund must later match, so storing "" would create an unlock that any product-less event could
