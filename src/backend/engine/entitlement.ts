@@ -10,7 +10,7 @@
 // can grant itself an entitlement, and there must never be one: the app's copy of its own
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
-import { entitlementActive, entitlementLive, localDate, trialDay, type Entitlement } from "@eait/shared";
+import { entitlementActive, entitlementLive, localDate, trialDaysLeft, type Entitlement } from "@eait/shared";
 import type { Config } from "../config.ts";
 import type { AdminUserRow, EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -125,9 +125,14 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
   };
   return {
     ...entitlement,
-    // The free week's "day n" the You surface's Subscription row prints (#97). Computed here off
-    // the same expiry the reminders count from, so the row and the day-5 notification agree.
-    trialDay: trialDay(entitlement, deps.config.timezone, now),
+    // The trial's "day n" is `len − daysLeft`, `len` read where the truth lives (the store's intro
+    // period on the phone, `paywall.trialDays` on the web) — the server sends the days LEFT off the
+    // same expiry the ends-tomorrow reminder counts from, so the row and the reminder agree.
+    trialDaysLeft: trialDaysLeft(entitlement, deps.config.timezone, now),
+    // The subscription's product id, while a subscription grant is live — the ends-tomorrow card
+    // names ITS renewal price off the store catalog, and a lifetime id here would be a lie about
+    // what renews.
+    productId: entitlementActive(stored?.expiresAt, now) ? stored?.productId ?? null : null,
   };
 }
 

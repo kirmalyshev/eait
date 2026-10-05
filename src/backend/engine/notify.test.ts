@@ -47,8 +47,8 @@ let eventSeq = 0;
 /**
  * A live entitlement, as the RevenueCat webhook would have written it.
  *
- * `trial` is the whole difference between the two reminder days and an ordinary evening: an expiry
- * two days out says nothing about which, so every test here has to state what it is testing.
+ * `trial` is the whole difference between the one reminder day and an ordinary evening: an expiry
+ * a day out says nothing about which, so every test here has to state what it is testing.
  */
 async function entitle(userId: string, expiresAt: string, trial = false): Promise<void> {
   await store.putEntitlement(userId, {
@@ -145,13 +145,14 @@ describe("the 20:30 line", () => {
 });
 
 describe("R1's budget — one message a day", () => {
-  it("stays silent on a trial reminder day: the device sends that one", async () => {
+  it("stays silent on the trial's reminder day: the device sends that one", async () => {
     const userId = await onboard();
-    // A trial expiring on the 22nd puts day 6 on the 21st and day 5 on the 20th.
+    // A trial expiring on the 22nd puts the one reminder on the 21st — the day before, no second
+    // one (ieat-app#1591). The 20th is an ordinary evening again.
     await entitle(userId, "2026-08-22T10:00:00Z", true);
     await logMeal(userId, DAY, 900, 30);
-    expect(await dailyNotification(deps, userId, "2026-08-20", NOW)).toBeNull();
     expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
+    expect((await dailyNotification(deps, userId, "2026-08-20", NOW))?.id).toBe("evening");
   });
 
   it("sends the evening line on every other day of the trial", async () => {
@@ -161,14 +162,14 @@ describe("R1's budget — one message a day", () => {
     expect(out?.id).toBe("evening");
   });
 
-  it("moves the reminders out of the way when the trial converts", async () => {
+  it("moves the reminder out of the way when the trial converts", async () => {
     const userId = await onboard();
     await entitle(userId, "2026-08-22T10:00:00Z", true);
-    expect(await dailyNotification(deps, userId, "2026-08-20", NOW)).toBeNull();
-    // The webhook writes a year's expiry. Nothing is cancelled anywhere: the reminder days are
-    // recomputed from the new expiry and today stops being one of them.
+    expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
+    // The webhook writes a year's expiry. Nothing is cancelled anywhere: the reminder day is
+    // recomputed from the new expiry and today stops being it.
     await entitle(userId, "2027-08-22T10:00:00Z");
-    expect((await dailyNotification(deps, userId, "2026-08-20", NOW))?.id).toBe("evening");
+    expect((await dailyNotification(deps, userId, "2026-08-21", NOW))?.id).toBe("evening");
   });
 
   it("says nothing once a cancelled trial has actually lapsed", async () => {
@@ -203,7 +204,9 @@ describe("the evening sweep", () => {
 
   it("skips an account that has nothing to be told today", async () => {
     const trial = await onboard();
-    await entitle(trial, "2026-08-22T10:00:00Z", true);
+    // Expiring the 21st makes today the trial's reminder day — the phone's local one, so this
+    // sweep skips the account.
+    await entitle(trial, "2026-08-21T10:00:00Z", true);
     await store.putPushToken(trial, "ExponentPushToken[trial]", "ios");
     await subscriberWithDevice("ExponentPushToken[paid]");
 
@@ -271,11 +274,11 @@ describe("the admin's copy", () => {
   it("saves valid copy and serves it", async () => {
     const edited = {
       ...DEFAULT_NOTIFICATION_COPY,
-      "trial-day5": { title: "Two days to go", body: "Two days before the free week ends." },
+      "trial-end": { title: "Tomorrow it ends", body: "The day before the free trial ends." },
     };
     const out = await saveNotificationCopy(deps, edited, "en");
     expect(out.ok).toBe(true);
-    expect((await notificationCopy(deps, "en"))["trial-day5"].title).toBe("Two days to go");
+    expect((await notificationCopy(deps, "en"))["trial-end"].title).toBe("Tomorrow it ends");
   });
 
   it("refuses copy the composer cannot fill, and stores nothing", async () => {
@@ -290,7 +293,7 @@ describe("the admin's copy", () => {
   it("refuses a health claim on a lock screen", async () => {
     const out = await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
-      "trial-day6": { title: "Last day", body: "One more week and this reverses your cholesterol." },
+      "trial-end": { title: "Last day", body: "One more week and this reverses your cholesterol." },
     }, "en");
     expect(out.ok).toBe(false);
   });
@@ -298,7 +301,7 @@ describe("the admin's copy", () => {
   it("restores the shipped copy", async () => {
     await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
-      "trial-day5": { title: "Edited", body: "Edited body." },
+      "trial-end": { title: "Edited", body: "Edited body." },
     }, "en");
     expect(await resetNotificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
     expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
@@ -356,8 +359,8 @@ describe("a subscription is not a trial", () => {
   it("sends the evening line on the two days before a yearly renewal", async () => {
     const userId = await onboard();
     await entitle(userId, "2026-08-22T10:00:00Z", true);
-    // The trial: silent on the 20th, because the phone speaks.
-    expect(await dailyNotification(deps, userId, "2026-08-20", NOW)).toBeNull();
+    // The trial: silent on the 21st, because the phone speaks.
+    expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
 
     const renewing = await onboard();
     // A year out, two days before the renewal DATE by the same arithmetic. It is not a trial end,
@@ -539,7 +542,7 @@ describe("copy stored before the code that reads it", () => {
     expect((await notificationCopy(deps, "de")).evening.title).toBe(NOTIFICATION_COPY.de!.evening.title);
     expect(copy.evening.title).toBe("Kept");
     expect(copy.evening.emptyBody).toBe(DEFAULT_NOTIFICATION_COPY.evening.emptyBody);
-    expect(copy["trial-day5"]).toEqual(DEFAULT_NOTIFICATION_COPY["trial-day5"]);
+    expect(copy["trial-end"]).toEqual(DEFAULT_NOTIFICATION_COPY["trial-end"]);
 
     const out = await dailyNotification(deps, userId, DAY, NOW);
     expect(out?.body).toContain("Nothing logged");

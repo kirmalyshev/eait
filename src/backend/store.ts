@@ -132,10 +132,10 @@ export interface EntitlementPatch {
   /**
    * Whether the period this event describes is a FREE TRIAL (RevenueCat's `period_type`).
    *
-   * Kept because nothing else can reconstruct it. An expiry seven days out and an expiry a year out
-   * are the same shape, so two days before a yearly renewal is indistinguishable from two days
-   * before a trial ends — and the trial reminders would fire before every renewal, telling somebody
-   * who pays that "the free week ends" and that stopping now costs nothing.
+   * Kept because nothing else can reconstruct it. An expiry three days out and an expiry a year out
+   * are the same shape, so the day before a yearly renewal is indistinguishable from the day before
+   * a trial ends — and the trial reminder would fire before every renewal, telling somebody
+   * who pays that "the free trial ends" and that stopping now costs nothing.
    *
    * Optional so a row written before this existed reads as `false`: a reminder that does not arrive
    * is a smaller failure than a wrong one that does.

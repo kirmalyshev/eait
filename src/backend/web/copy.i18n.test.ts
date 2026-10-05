@@ -66,7 +66,7 @@ describe("what /start says for itself, in eight languages", () => {
       for (const [k, v] of Object.entries({ ...copy, ...signupCopyFor(lang) })) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
-            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab"],
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab", "days", "n", "price"],
             `${lang}.${k}`,
           ).toContain(m[1] ?? "");
         }

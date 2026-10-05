@@ -359,7 +359,7 @@ alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
 -- Whether the CURRENT period is a free trial. Defaults false, which is what a row written before
 -- this column existed reads as -- and false is the safe direction: a trial reminder that never
--- arrives beats one telling somebody who pays that "the free week ends".
+-- arrives beats one telling somebody who pays that "the free trial ends".
 alter table users add column if not exists entitlement_trial boolean not null default false;
 -- The admin's per-account sample size. Null means the instance default (EAIT__BACKEND__FREE_ANALYSES).
 alter table users add column if not exists free_analyses integer;
@@ -2211,7 +2211,7 @@ export async function postgresStore(
                      then (notification_copy.copy #>> '{}')::jsonb
                      when jsonb_typeof(notification_copy.copy) <> 'object' then '{}'::jsonb
                      -- A bare pre-#358 revision, keyed by message id rather than language.
-                     when notification_copy.copy ?| array['evening','trial-day5','trial-started']
+                     when notification_copy.copy ?| array['evening','trial-day5','trial-day6','trial-end','trial-started']
                      then jsonb_build_object('en', notification_copy.copy)
                      else coalesce(notification_copy.copy, '{}'::jsonb) end,
                 array[${lang}], ${copy}::jsonb, true),

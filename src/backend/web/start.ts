@@ -1487,6 +1487,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
     if (w.monthlyCheckoutUrl !== "") plans.push({
       value: "monthly", name: pay.planMonthly,
+      // ieat-app#1591: one length everywhere — the trial badge rides the monthly row too.
+      badge: w.trialDays > 0 ? fill(pay.trialBadge, { days: String(w.trialDays) }) : null,
       price: fill(pay.pricePerMonth, { price: cur(w.monthlyPrice) }),
     });
     return html(offer({
@@ -1498,16 +1500,24 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       checkoutUrl: `${START_PREFIX}/checkout`,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
       termsHref: config.termsUrl === "" ? null : config.termsUrl,
-      // The note under the CTA is the one the checked radio names — the trial promise while the
-      // yearly card is picked, the renewal line under monthly. The yearly note is only built
-      // where the yearly plan exists to be picked.
+      // The note under the CTA is the one the checked radio names — the trial promise rides BOTH
+      // plans now (ieat-app#1591), `{renewal}` already priced on each plan's own cadence.
       noteYearly: w.yearlyCheckoutUrl === "" ? ""
         : w.trialDays > 0
-          ? fill(pay.trialNote, { days: String(w.trialDays), price: cur(w.yearlyPrice) })
+          ? fill(pay.trialNote, {
+            days: String(w.trialDays),
+            renewal: fill(pay.pricePerYear, { price: cur(w.yearlyPrice) }),
+          })
           : fill(pay.renewNoteYearly, { price: cur(w.yearlyPrice) }),
       noteMonthly: w.monthlyCheckoutUrl === "" ? ""
-        : fill(pay.renewNoteMonthly, { price: cur(w.monthlyPrice) }),
+        : w.trialDays > 0
+          ? fill(pay.trialNote, {
+            days: String(w.trialDays),
+            renewal: fill(pay.pricePerMonth, { price: cur(w.monthlyPrice) }),
+          })
+          : fill(pay.renewNoteMonthly, { price: cur(w.monthlyPrice) }),
       closeHref: closeTo,
+      trialDays: w.trialDays,
       plans,
       lang: profile.lang,
     }));

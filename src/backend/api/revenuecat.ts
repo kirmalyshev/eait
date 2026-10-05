@@ -135,7 +135,7 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
     entitlementIds: ids,
     expirationAtMs: epochMs(e.expiration_at_ms),
     productId: typeof e.product_id === "string" ? e.product_id : "",
-    // TRIAL is the free week; NORMAL is a paid period, and INTRO/PROMOTIONAL are discounted paid
+    // TRIAL is the free trial; NORMAL is a paid period, and INTRO/PROMOTIONAL are discounted paid
     // ones. Only the first is what step 15 sold and what the two reminders are addressed at.
     trial: e.period_type === "TRIAL",
     eventTimestampMs,
