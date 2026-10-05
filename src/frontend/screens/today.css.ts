@@ -193,13 +193,13 @@ a.hsp { color: inherit; text-decoration: none; }
 .qth .veil { position: absolute; inset: 0; transition: background 200ms ease-out; }
 .qth .qr { position: absolute; left: 8px; top: 8px; width: 40px; height: 40px; fill: none; }
 .qth .qr circle { transition: stroke-dasharray 600ms ease-out; }
-.qth b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+.qth b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; }
 .qth > svg:not(.qr) { position: absolute; left: 17px; top: 17px; width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .qth .qr + svg { left: 18px; top: 18px; width: 20px; height: 20px; }
 .meal.q .mm b { display: block; }
 .qtitle { padding: 3px 0 5px; }
 .sk { display: block; border-radius: 5px; background: linear-gradient(90deg, var(--hair) 0%, var(--surface) 50%, var(--hair) 100%); background-size: 200% 100%; animation: k-shim 1.4s linear infinite; }
-.qstep { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.qstep { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 2px; }
 .qstep::before { content: ""; width: 6px; height: 6px; border-radius: 3px; background: var(--accent); flex: 0 0 6px; animation: k-pulse 1.2s ease-in-out infinite; }
 .qstep.still::before { display: none; }
 .qstep.ink { color: var(--ink); }
