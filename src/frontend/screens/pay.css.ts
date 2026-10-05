@@ -16,6 +16,19 @@ export const payCss = `
 .pay .pcol .t12 { text-align: center; margin: 0; }
 .pay .paylinks a { color: inherit; text-decoration: underline; }
 .pay .plan:nth-child(2) { --d: .1s; }
+/* pay-exit (#451): the offer card the plans swap to on the first decline — the board's own
+   measurements, radii included (16, not --r-card's 12). */
+.pay .pcol h1.d28 { margin: 0 0 6px; }
+.pay .offer { background: var(--surface); border-radius: 16px; box-shadow: var(--shadow);
+  text-align: center; padding: 24px; }
+.pay .offer .off { font-size: 52px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.pay .offer .hr { margin: 18px 0 14px; }
+.pay .offer .price { display: flex; justify-content: center; align-items: baseline; gap: 12px;
+  font-size: 22px; font-weight: 600; }
+.pay .offer .price s { color: var(--muted); font-weight: 500; font-size: 18px;
+  text-decoration-thickness: 2px; }
+.pay .offer .per { margin: 8px 0 0; font-weight: 500; }
+.pay .pcol .cta.g { margin-top: -6px; }
 @media (max-width: 960px) {
   .pay .pane { padding: 0 24px; }
 }
