@@ -4,12 +4,10 @@
 // on the screen and a rounding that differs between them is a disagreement anybody can see. The
 // words stay with each client; the state is named so that `${kcal}kcal ${state}` reads.
 //
-// THE WEB PAGE IMPORTS THIS BY RELATIVE PATH (`web/AGENTS.md`, #608), and so does the one value it
-// now takes: `toGuessStep` from `lang.ts`, which that bundle already loads for its formatters.
-// Nothing here may reach `@eait/shared` by package name — that path needs a `node_modules` the web
-// image does not build — and nothing here may grow a dependency the browser half cannot carry.
+// THE WEB PAGE IMPORTS THIS BY RELATIVE PATH (`web/AGENTS.md`, #608). Nothing here may reach
+// `@eait/shared` by package name — that path needs a `node_modules` the web image does not build —
+// and nothing here may grow a dependency the browser half cannot carry.
 
-import { toGuessStep } from "./lang.ts";
 import type { Goal } from "./types.ts";
 
 /**
@@ -52,7 +50,7 @@ export interface DayBudget {
    * it: nothing logged is not nothing eaten, and "2000 under" would say it was.
    */
   state: "left" | "over" | "under" | "unlogged";
-  /** The headline: whole kcal, never negative, on the guess step when `guessed`. 0 when `unlogged`. */
+  /** The headline: whole kcal, never negative. 0 when `unlogged`. */
   kcal: number;
   /** What was eaten, rounded — the SAME rounding the headline was computed from. */
   eaten: number;
@@ -62,9 +60,10 @@ export interface DayBudget {
   /**
    * The day has a guessed meal in it, so every figure derived from it is a guess (#47).
    *
-   * What it changes is PRECISION, not wording: `eaten` and `kcal` have already lost the digit
-   * nobody believes, and the client prints them behind its hedge word. `target` keeps every digit
-   * — it is arithmetic over answers the user gave, and rounding it would hedge a promise.
+   * What it changes is WORDING, not precision: `eaten` and `kcal` keep every digit — the meal
+   * rows on the same screen print the same arithmetic (ieat-app#1576) — and the client prints them
+   * behind its hedge word. `target` keeps every digit either way: it is arithmetic over answers
+   * the user gave, and rounding it would hedge a promise.
    */
   guessed: boolean;
   /** Over target, on any plan but gain, where eating past it is the point. */
@@ -84,15 +83,13 @@ export function dayBudget(
 ): DayBudget {
   // Rounded BEFORE subtracting, so "1451 eaten" and "549 left" add up to the target on screen.
   //
-  // ON THE GUESS STEP WHEN THE DAY HOLDS A GUESS (#47), and BOTH figures, not one: the headline
-  // and the line under it are the two numbers a reader sees, and one of them at ten and the other
-  // at one is a screen that says "about 1,890" over "about 556". They no longer add up to the
-  // plan, and that is the arithmetic rather than a bug — the plan is the one EXACT number in the
-  // line, and two estimates cannot both land on the step and still make an exact total. The
-  // rounding happens HERE, once, so no formatter has to do it a second time.
+  // EXACT, GUESS OR NOT (ieat-app#1576). The figures used to go to the nearest ten on a guessed day so a
+  // guess showed itself by its precision — but the meal row under the hero prints the meal's own
+  // number, so one screen said "1 090 of 2 122" beside a row reading 1 094, and "1 030 left" where
+  // the plan minus what was eaten is 1 028. One quantity gets one number on a screen; a guess
+  // hedges in WORDS, where the client's copy carries an "about" for it.
   const guessed = day.totals.guessed;
-  const step = (x: number): number => guessed ? toGuessStep(x) : Math.round(x);
-  const eaten = step(day.totals.kcal);
+  const eaten = Math.round(day.totals.kcal);
   const target = Math.round(day.targets.kcal);
   const protein = { eaten: Math.round(day.totals.protein_g), target: Math.round(day.targets.protein_g) };
   const past = day.date < today;
@@ -103,7 +100,7 @@ export function dayBudget(
   const state = diff < 0 ? "over" : past ? "under" : "left";
   const fill = target > 0 ? Math.min(1, Math.max(0, eaten / target)) : eaten > 0 ? 1 : 0;
   return {
-    state, kcal: step(Math.abs(diff)), eaten, target, fill, guessed,
+    state, kcal: Math.abs(diff), eaten, target, fill, guessed,
     warn: state === "over" && goal !== "gain", protein,
   };
 }

@@ -60,15 +60,15 @@ describe("dayBudget", () => {
   });
 
   // #28: a day with a guessed meal in it is a guessed day, and the two figures a reader sees have
-  // to be the same subtraction — rounding each of them at format time is what makes "about 1 820"
-  // and "about 280" stop adding up to the plan.
-  test("a guessed day puts BOTH figures on the guess step", () => {
+  // to be the same subtraction — rounding each of them at format time is what makes "1 822 eaten"
+  // and "278 left" stop adding up to the plan.
+  test("a guessed day keeps the same digits the rows print (ieat-app#1576)", () => {
     expect(dayBudget(day(1822, { target: 2100, guessed: true }), TODAY, "lose"))
-      .toMatchObject({ guessed: true, eaten: 1820, kcal: 280 });
-    // A plan that is not itself on the step: the two estimates are, and the plan stays exact —
-    // which is the one number in the line a reader is entitled to every digit of.
-    expect(dayBudget(day(1894, { target: 2446, guessed: true }), TODAY, "lose"))
-      .toMatchObject({ guessed: true, eaten: 1890, kcal: 560 });
+      .toMatchObject({ guessed: true, eaten: 1822, kcal: 278 });
+    // The issue's own day: 2 122 − 1 094 = 1 028, not the 1 030 the guess step drew beside a meal
+    // row reading 1 094. The flag stays — the hedge is the client's "about", not a lost digit.
+    expect(dayBudget(day(1094, { target: 2122, guessed: true }), TODAY, "lose"))
+      .toMatchObject({ guessed: true, eaten: 1094, kcal: 1028 });
   });
 
   test("a measured day keeps every digit it earned", () => {
@@ -81,17 +81,17 @@ describe("dayBudget", () => {
     expect(dayBudget(day(0, { target: 0 }), TODAY, "lose")).toMatchObject({ state: "left", kcal: 0, fill: 0 });
   });
 
-  // ── The number rule: precision carries the confidence (#810) ─────────────────────────────────
+  // ── The number rule: one quantity, one number on a screen (ieat-app#1576) ────────────────────────────
 
-  test("one low-confidence meal makes the whole day a guess, and the day loses its last digit", () => {
-    // The spec's day: four meals coming to 1 822, one of them guessed. It prints 1 820 BECAUSE one
-    // of them is a guess, and 280 is what is left while that guess is in.
+  test("one low-confidence meal makes the whole day a guess — flagged, not rounded", () => {
+    // The spec's day: four meals coming to 1 822, one of them guessed. `guessed` still marks the
+    // day for the client's hedge word, but the figures are the same ones the rows add up to.
     expect(dayBudget(day(1822, { meals: 4, guesses: 1, target: 2100 }), TODAY, "lose"))
-      .toMatchObject({ guessed: true, eaten: 1820, kcal: 280 });
+      .toMatchObject({ guessed: true, eaten: 1822, kcal: 278 });
   });
 
-  test("answering the guess settles the day back to the digit we believe", () => {
-    // The same day with the sauce answered: 190 gone, nothing guessed, so nothing is rounded off.
+  test("answering the guess settles the day back out of the hedge", () => {
+    // The same day with the sauce answered: 190 gone, nothing guessed, so no hedge flag.
     expect(dayBudget(day(1632, { meals: 4, target: 2100 }), TODAY, "lose"))
       .toMatchObject({ guessed: false, eaten: 1632, kcal: 468 });
   });
@@ -103,7 +103,7 @@ describe("dayBudget", () => {
   test("the rounding happens before the subtraction, so the two numbers on screen still add up", () => {
     const b = dayBudget(day(1818, { guesses: 1, target: 2100 }), TODAY, "lose");
     expect(b.eaten + b.kcal).toBe(2100);
-    expect(b.eaten).toBe(1820);
+    expect(b.eaten).toBe(1818);
   });
 
   test("a day with no meal is not a guess", () => {
