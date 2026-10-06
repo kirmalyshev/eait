@@ -12,6 +12,16 @@ export const youCss = `
 .wmain:has(.you) { max-width: 1000px; }
 .you .ygrid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
 @media (max-width: 760px) { .you .ygrid { grid-template-columns: 1fr; } }
+
+/* The narrow board (phone/web-you-narrow) puts the streak chip and the calendar button in the
+   body as its first row, not in the two-row bar the shell gives .wr at this width — so the bar's
+   own set (.youwr) hides here and this strip draws them instead: chip left, calb right. */
+.you .youbar { display: none; }
+@media (max-width: 760px) {
+  .you .youbar { display: flex; align-items: center; }
+  .you .youbar .calb { margin-left: auto; }
+  .wtop .wr.youwr { display: none; }
+}
 .you .card { margin-bottom: 0; padding: 18px 20px; }
 
 /* The quiet words — the board's lowercase labels and small notes, not the shell's caps. */

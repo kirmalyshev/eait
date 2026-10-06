@@ -256,6 +256,8 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
    ink title, a muted body — the design's .notice, which this stylesheet's red .notice is not. */
 .pnote { box-shadow: 0 0 0 1px var(--hair); border-radius: var(--r-card); padding: 12px 14px;
   display: flex; flex-direction: column; gap: 2px; }
+/* display:flex above beats the browser's [hidden] rule — an empty pnote must render nothing. */
+.pnote[hidden] { display: none; }
 .pnote b { font-size: 14px; }
 /* The weigh-in's big field — the board's 48px figure that is an input, the unit beside it. */
 .wfigrow { gap: 8px; align-items: baseline; }

@@ -65,21 +65,32 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   // ── The bar: the streak chip, then the calendar button — the shared right side every screen's
   // wtop draws (DIRECTION § Web). Profile has no day of its own, and the boards' month popover
   // is not built on web, so the button is a plain route to Home — today — per the coordinator
-  // ruling on #474.
-  const cal = el("button", "calb") as HTMLButtonElement;
-  cal.type = "button";
-  cal.setAttribute("aria-label", H.pickDay);
-  cal.append(kitEl(ico("calendar")));
-  cal.addEventListener("click", () => { location.hash = "#/"; });
+  // ruling on #474. The narrow board (phone/web-you-narrow) puts the pair in the BODY as its
+  // first row instead, so at ≤760 the bar's own set hides and the strip under the bar draws it.
+  frame.bar.classList.add("youwr");
+  const calb = (): HTMLButtonElement => {
+    const c = el("button", "calb") as HTMLButtonElement;
+    c.type = "button";
+    c.setAttribute("aria-label", H.pickDay);
+    c.append(kitEl(ico("calendar")));
+    c.addEventListener("click", () => { location.hash = "#/"; });
+    return c;
+  };
+  const cal = calb();
   frame.bar.append(cal);
-  // The streak lands when the week's read does — the button is up first.
+  // The body strip's own instance — visible only where the narrow board puts it (you.css).
+  const strip = el("div", "youbar");
+  strip.append(calb());
+  // The streak lands when the week's read does — the button is up first, in both spots.
   void api<DaysResponse>(`/diary/days?from=${weekStart(today)}&to=${dateMinus(weekStart(today), -6)}`)
     .then((d) => {
       if (!cal.isConnected || d.streak <= 0) return;
-      cal.before(kitEl(tagx({
+      const chip = () => kitEl(tagx({
         icon: "streak", text: n(d.streak),
         aria: fill(H.phoneStreakAria, { n: n(d.streak) }),
-      })));
+      }));
+      cal.before(chip());
+      strip.prepend(chip());
     })
     .catch(() => {});
 
@@ -610,7 +621,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const leftCol = el("div", "wcol");
   const rightCol = el("div", "wcol");
   cols.append(leftCol, rightCol);
-  wrap.append(cols);
+  wrap.append(strip, cols);
 
   async function draw(): Promise<void> {
     const mine = ++drawing;
