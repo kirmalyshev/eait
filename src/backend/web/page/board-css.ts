@@ -34,12 +34,15 @@ export const BOARD_CSS = `
 .ob .muted-sub { color: var(--muted); font-size: 15px; line-height: 1.45; }
 
 /* ── the frame ── */
-.ob .wtop { display: flex; align-items: center; gap: 18px; height: 72px; padding: 0 48px; }
+/* The top bar is the app shell's (main.css .wtop): a white bar on the hairline, the app icon
+   as the brand mark (DIRECTION §6 — Spud is a signature beside his line, never the mark). */
+.ob .wtop { display: flex; align-items: center; gap: 28px; height: 64px; padding: 0 40px;
+            background: var(--surface); border-bottom: 1px solid var(--hair); }
 .ob .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; letter-spacing: -.02em; }
-.ob .wm { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-tint); align-items: center; justify-content: center; }
-.ob .wm svg { width: 75%; height: 75%; display: block; }
+.ob .appicon { display: block; flex: 0 0 auto; }
 .ob .sp { flex: 1; }
-.ob .wmain { flex: 1; display: flex; }
+/* The boards' own centring: the ~700px column sits centred on every step, not pinned left. */
+.ob .wmain { flex: 1; display: flex; width: 100%; margin: 0 auto; }
 .ob .wmain.one { justify-content: center; }
 /* The question column — the boards' own max-width on wmain one, named (#141). */
 .ob .wmain.q { max-width: 720px; }
@@ -175,8 +178,8 @@ export const BOARD_CSS = `
 .ob .ruler .tint { position: absolute; left: 0; bottom: 0; height: 38px;
                    background: linear-gradient(90deg, var(--bad-tint), transparent); pointer-events: none; }
 
-/* the live delta pill under the target ruler */
-.ob .live { position: relative; width: fit-content; margin: 0 auto; background: var(--accent-tint);
+/* the live delta pill under the target ruler — clear of the tick band, not flush on it (#473) */
+.ob .live { position: relative; width: fit-content; margin: 12px auto 0; background: var(--accent-tint);
             border-radius: var(--r-card); padding: 14px 28px; font-size: 28px; font-weight: 700;
             letter-spacing: -.02em; color: var(--ink); }
 
@@ -276,7 +279,7 @@ export const BOARD_CSS = `
 .ob .tagx { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600;
             color: var(--ink); background: var(--surface); padding: 3px 9px 3px 4px;
             border-radius: 999px; box-shadow: 0 1px 3px rgb(23 25 28 / .16); white-space: nowrap; }
-.ob .tagx .wm { width: 18px; height: 18px; }
+.ob .tagx .appicon { flex: 0 0 auto; }
 .ob .pgraph text { fill: var(--muted); font-size: 12px; font-family: var(--sans); }
 .ob .pgraph .ln { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
 
