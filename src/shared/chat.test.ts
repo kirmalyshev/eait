@@ -7,7 +7,7 @@ import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, c
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
     const line = scriptedLine("trial-started", "en", { price: "€39.99 a year" });
-    expect(line).toContain("then €39.99 a year unless you stop it");
+    expect(line).toContain("€39.99 a year when it ends, unless you stop it");
     expect(line).not.toContain("{");
   });
 

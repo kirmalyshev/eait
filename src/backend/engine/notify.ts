@@ -4,8 +4,8 @@
 // THE BUDGET IS THE PRODUCT RULE, AND IT IS ENFORCED HERE
 //
 // R1 (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day, INCLUDING
-// the two trial reminders. `dailyMessage` in `@eait/shared` decides which one a day gets; this
-// module is what obeys it. On a reminder day the server stays SILENT — the phone scheduled that
+// the trial-ends reminder. `dailyMessage` in `@eait/shared` decides which one a day gets; this
+// module is what obeys it. On the reminder day the server stays SILENT — the phone scheduled that
 // notification locally at trial start, off `entitlement.expiresAt`, and pushing the evening line as
 // well would be two messages on the two days somebody is deciding whether to keep the app.
 //
@@ -28,7 +28,7 @@ import {
   NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
-  kcalNumbers, trialReminders, validateNotificationCopy,
+  kcalNumbers, trialReminder, validateNotificationCopy,
   type Lang, type NotificationCopy, type NotificationCopyValidation, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
@@ -123,15 +123,15 @@ export async function dailyNotification(
   const stored = await deps.store.getEntitlement(userId);
   if (!entitlementActive(stored?.expiresAt, now)) return null;
 
-  // The two reminders are LOCAL notifications, scheduled on the phone at trial start. Sending one
+  // The reminder is a LOCAL notification, scheduled on the phone at trial start. Sending one
   // from here as well would spend the day's whole budget twice over.
   //
-  // `trialReminders` and not `trialReminderDates`: the raw arithmetic answers "two days before the
+  // `trialReminder` and not `trialReminderDate`: the raw arithmetic answers "the day before the
   // expiry" for ANY expiry, so a yearly subscriber's renewal date would silence this server on the
-  // two evenings before it, once a year, for everybody who pays. The phone reads the same function
+  // evening before it, once a year, for everybody who pays. The phone reads the same function
   // through `reminderPlan`, which is what keeps "the day the server is silent" and "the day the
   // device speaks" the same day.
-  const which = dailyMessage(date, trialReminders(
+  const which = dailyMessage(date, trialReminder(
     { active: true, expiresAt: stored?.expiresAt ?? null, trial: stored?.trial === true, lapsed: false },
     deps.config.timezone, now,
   ));

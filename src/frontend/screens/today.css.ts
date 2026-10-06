@@ -143,6 +143,15 @@ button.hsc { cursor: pointer; }
 .dlist .queue:empty { display: none; }
 .dlist .queue:empty + .meal { border-top: 0; }
 .hnote { margin-top: 12px; padding: 0 4px; font-size: 13px; line-height: 18px; color: var(--muted); }
+/* The ends-tomorrow trial card — the boards' .trial (web-pay-reminder), a link that heads the
+   diary column the day before a live trial ends, into Profile's subscription row. */
+.trial { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
+  padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+  color: var(--ink); text-decoration: none; }
+.trial b { display: block; font-size: 15px; font-weight: 600; }
+.trial small { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.trial .ico { width: 18px; height: 18px; color: var(--muted); flex: 0 0 18px; margin-left: auto; }
+.trial:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hempty { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
   padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px;
   font-size: 15px; font-weight: 600; color: var(--muted); text-decoration: none; }

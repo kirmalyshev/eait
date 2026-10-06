@@ -207,6 +207,8 @@ export function payPlansEl(w: WebPaywall, label: string): {
   });
   if (w.monthly !== null) rows.push({
     value: "monthly", name: pay.planMonthly,
+    // ieat-app#1591: one length everywhere — the trial badge rides the monthly row too.
+    badge: w.trialDays > 0 ? fill(pay.trialBadge, { days: String(w.trialDays) }) : null,
     price: fill(pay.pricePerMonth, { price: w.monthly.price }),
   });
   if (rows.length === 0) return null;

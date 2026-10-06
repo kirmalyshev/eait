@@ -167,7 +167,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <p class="muted">
     The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
     competitor there, do not write "free", and do not promise away the card, the trial or the
-    cancelling: the app sells a subscription behind a seven-day trial, so those are no longer true.
+    cancelling: the app sells a subscription behind a free trial, so those are no longer true.
     Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
     the whole app works without an account at all.
   </p>
@@ -192,8 +192,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   <h2>Notifications</h2>
   <p class="muted">
-    The three messages this product is allowed to send: the two trial reminders, which the phone
-    fires itself, and the 20:30 line, which the server composes and pushes. One a day — a reminder
+    The two messages this product is allowed to send: the trial-ends reminder, which the phone
+    fires itself, and the 20:30 line, which the server composes and pushes. One a day — the reminder
     day sends the reminder <em>instead of</em> the evening line, never as well. The braces are
     filled in by the server; you may move them, but you may not remove one or invent another, and
     <code>Nothing logged</code> is the body for a day with no meals. A health claim is refused here
@@ -642,8 +642,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   // ── Notifications ──────────────────────────────────────────────────────────────────────────
 
   var NOTIFY_LABELS = {
-    "trial-day5": "Two days before the trial ends (sent by the phone)",
-    "trial-day6": "The day before the trial ends (sent by the phone)",
+    "trial-end": "The day before the trial ends (sent by the phone)",
     "evening": "The 20:30 line (composed and pushed by the server)"
   };
 

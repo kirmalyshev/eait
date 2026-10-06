@@ -333,17 +333,26 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       perks.append(row);
     }
     box.append(perks);
-    const tl = el("div", "card");
-    for (const [when, words] of [[COPY.offerToday, COPY.offerTodayText], [COPY.offerBeforeEnd, COPY.offerBeforeText], [COPY.offerDay8, COPY.offerDay8Text]] as const) {
-      const row = el("div", "rowline");
-      row.append(el("span", "when", when), el("span", "muted", words));
-      tl.append(row);
+    const pay = payCopyFor(lang);
+    // The honest timeline rides the configured trial — `trialDays` is the host's one length
+    // (ieat-app#1591). A host that grants no trial draws no "free for {days} days" claim at all.
+    const trialDays = me.paywall?.trialDays ?? 0;
+    if (trialDays > 0) {
+      const tl = el("div", "card");
+      for (const [when, words] of [
+        [COPY.offerToday, fill(pay.trialBadge, { days: String(trialDays) })],
+        [COPY.offerBeforeEnd, COPY.offerBeforeText],
+        [fill(COPY.offerDayAfter, { n: String(trialDays + 1) }), COPY.offerDay8Text],
+      ] as const) {
+        const row = el("div", "rowline");
+        row.append(el("span", "when", when), el("span", "muted", words));
+        tl.append(row);
+      }
+      box.append(tl);
     }
-    box.append(tl);
     // THE PLANS, PRICED (#263): the kit's one builder — the same rows `/start`'s offer and `#/pay`
     // draw, priced off `paywall` in the profile, so the radio picked is the plan the link buys.
     const plans = me.paywall === undefined ? null : payPlansEl(me.paywall, COPY.offerPlans);
-    const pay = payCopyFor(lang);
     const foot = el("div", "step-foot");
     const go = el("a", "cta p") as HTMLAnchorElement;
     const hint = el("p", "hint");
@@ -351,12 +360,12 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       // The host sells nothing — no checkout URL is configured, so `paywall` carries no plan to
       // show. The offer still renders as it always did here: one named, checked radio and the
       // `/start/checkout` route, which is a 404 on exactly such a host — the shape the flow had
-      // before the plans learned prices and selection.
+      // before the plans learned prices and selection. No trial is promised either: nothing
+      // configured means nothing known.
       box.append(kitEl(payPlansMarkup(
         [{ value: "monthly", name: pay.planMonthly, checked: true }], COPY.offerPlans)));
       go.href = "/start/checkout";
-      go.textContent = COPY.startFreeWeek;
-      hint.textContent = COPY.offerCheckoutHint;
+      go.textContent = pay.continueCta;
     } else {
       box.append(plans.group);
       const update = (): void => {
@@ -365,9 +374,9 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // The plan's own `checkoutUrl` — the server already filled this account's id into it, so
         // the page shown is the page bought and no client ever carries an id it was not issued.
         go.href = sel.plan.checkoutUrl;
-        if (sel.value === "yearly" && me.paywall.trialDays > 0) {
-          go.textContent = COPY.startFreeWeek;
-          hint.textContent = COPY.offerCheckoutHint;
+        if (trialDays > 0) {
+          go.textContent = fill(pay.startTrial, { days: String(trialDays) });
+          hint.textContent = fill(COPY.offerCheckoutHint, { days: String(trialDays) });
         } else {
           go.textContent = pay.continueCta;
           hint.textContent = fill(

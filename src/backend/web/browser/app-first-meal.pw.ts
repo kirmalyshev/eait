@@ -61,12 +61,11 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   await expect(page.getByText(new RegExp(`\\b${kcal}\\b`))).toHaveCount(0);
   await expect(page.getByText(/gabie/i)).toHaveCount(0);
 
-  // Keep going → the offer that holds: named plans, the trial timeline, no invented price, and the
-  // way out is the server's own checkout page.
+  // Keep going → the offer that holds: named plans, no invented price, and the way out is the
+  // server's own checkout page. The trial timeline renders only while the host grants one — this
+  // demo sets no `WEB_TRIAL_DAYS`, so no "free for {days} days" is promised (ieat-app#1591).
   await page.getByRole("button", { name: "Keep going" }).click();
   await expect(page.getByText("Every meal, like that one")).toBeVisible();
-  await expect(page.getByText("Free for 7 days")).toBeVisible();
-  await expect(page.getByText("Day 8")).toBeVisible();
   // The plan is a REAL choice now (#52): a radiogroup, keyboard-operable, one selected. There is
   // exactly one — `/start/checkout` carries no plan, so a second radio would choose nothing.
   const plan = page.getByRole("radiogroup").getByRole("radio");
@@ -77,7 +76,7 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   await expect(plan).toBeChecked();
   // And no figure is invented — the price lives on the checkout page, never on this step.
   await expect(page.locator(".step")).not.toContainText(/\$\s*\d|€\s*\d|£\s*\d|\d\s*(?:USD|EUR|GBP)/);
-  const cta = page.getByRole("link", { name: "Start my free week" });
+  const cta = page.getByRole("link", { name: "Continue" });
   await expect(cta).toHaveAttribute("href", "/start/checkout");
 });
 

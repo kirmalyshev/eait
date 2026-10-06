@@ -162,7 +162,7 @@ test("a refusal that comes back when the queue drains is worded against the kept
   await page.context().setOffline(false);
 
   const banana = page.locator(".thread li.me", { hasText: "This account's free sample is used up" });
-  await expect(banana).toContainText("This account's free sample is used up. Start your free week to carry on.");
+  await expect(banana).toContainText("This account's free sample is used up. Start your free trial to carry on.");
   await expect(page.locator(".thread li.me.refused", { hasText: "a banana" })).toHaveCount(1);
   // The apple was told it goes on its own; once the banana ahead of it is held, that is no longer true.
   await expect(page.locator(".notice")).toHaveText(BEHIND);

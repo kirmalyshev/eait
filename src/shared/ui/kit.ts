@@ -567,7 +567,7 @@ export const payCss = (): string => `
 .plan small{display:block;font-size:13px;color:var(--muted);font-weight:500;margin-top:2px}
 .plan .pr{margin-left:auto;text-align:right;font-size:15px;font-weight:600;white-space:nowrap}
 .plan .free{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-tint);
-  border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:2px}
+  border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:2px;white-space:nowrap}
 .plan:focus-within{outline:2px solid var(--ink);outline-offset:-2px}
 `;
 

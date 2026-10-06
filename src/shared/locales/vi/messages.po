@@ -351,7 +351,7 @@ msgstr "Đúng kế hoạch."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra tuyệt đối không có gì khác."
+msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng một lời nhắc vào ngày trước khi bản dùng thử của bạn hết hạn, nếu bạn đang dùng thử. Ngoài ra tuyệt đối không có gì khác."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "Tài khoản này chưa đăng nhập — đăng nhập bằng Apple ho�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu tuần miễn phí trên web để tiếp tục."
+msgstr "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu dùng thử trên web để tiếp tục."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Thử quá nhiều lần từ Telegram này. Chờ một lát rồi bấ
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Đã bật tuần dùng thử. Bảy ngày, sau đó {price} trừ khi bạn dừng lại — mình sẽ nhắc vào ngày thứ năm và ngày trước khi kết thúc, không bao giờ nhắc sau khi đã hết."
+msgstr "Đã bật dùng thử — khi hết hạn thì {price}, trừ khi bạn dừng lại. Mình sẽ nhắc vào ngày trước khi kết thúc, không bao giờ nhắc sau đó."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

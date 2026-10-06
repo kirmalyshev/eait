@@ -203,13 +203,13 @@ describe("onboarding", () => {
     expect((await profileView(tighter, userId))!.limits.maxPhotosPerMeal).toBe(1);
   });
 
-  // The Subscription row's "free week · day 5" (#97). The number is the SERVER's — a client that
-  // counted days itself would drift from the reminder days `trialReminderDates` already sends.
-  it("counts the free week on the profile, null the moment the trial is not live", async () => {
+  // The Subscription row's "free trial · day {n}" — `len − trialDaysLeft` (#97, ieat-app#1591).
+  // The number is the SERVER's — a client that counted days itself would drift from the reminder
+  // day `trialReminder` already sends.
+  it("counts the trial's days left on the profile, null the moment the trial is not live", async () => {
     const userId = await onboard();
-    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
-    // Expiry the day after tomorrow in the server's zone: today is day 5, exactly as the
-    // notification scheduler names it.
+    expect((await profileView(deps, userId))!.entitlement.trialDaysLeft).toBeNull();
+    // Expiry the day after tomorrow in the server's zone: two days are left.
     const expiry = dateMinus(localDate(deps.config.timezone), -2);
     await store.putEntitlement(userId, {
       expiresAt: `${expiry}T12:00:00.000Z`,
@@ -217,15 +217,15 @@ describe("onboarding", () => {
       eventAt: new Date().toISOString(),
       trial: true,
     });
-    expect((await profileView(deps, userId))!.entitlement.trialDay).toBe(5);
-    // Converted to paid, there is no free week left to count.
+    expect((await profileView(deps, userId))!.entitlement.trialDaysLeft).toBe(2);
+    // Converted to paid, there is no free trial left to count.
     await store.putEntitlement(userId, {
       expiresAt: dateMinus(localDate(deps.config.timezone), -365) + "T12:00:00.000Z",
       productId: "com.eait.fit.ios.yearly",
       eventAt: new Date(Date.now() + 60_000).toISOString(),
       trial: false,
     });
-    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
+    expect((await profileView(deps, userId))!.entitlement.trialDaysLeft).toBeNull();
   });
 
   // The You surface's "Apple Health · connected" row (#97): drawn only while a sync is actually

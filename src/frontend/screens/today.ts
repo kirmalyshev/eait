@@ -11,8 +11,10 @@
 
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
+import { trialReminder } from "../../shared/entitlement.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, macroTip, type MacroTipKind } from "../../shared/app/home-copy.ts";
+import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { enqueue, inPlace, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
@@ -883,6 +885,23 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
    *  same day repaints it in place when it lands. */
   let cardDate: string | null = null;
 
+  /** The trial's renewal as the paywall prices it — `{price} a year`/`{price} a month` for the
+   *  plan `productId` names, or null when the host sells nothing or the id names neither.
+   *  Matching by name is all we have: the store's product ids are the operator's, so a
+   *  "lifetime" or an unrecognized id falls to the cancel-only line rather than a guess. */
+  const trialRenewal = (productId: string | null | undefined): string | null => {
+    const w = me.paywall;
+    if (w === undefined || productId === null || productId === undefined) return null;
+    const pay = payCopyFor(lang);
+    if (/month/i.test(productId) && w.monthly !== null) {
+      return fill(pay.pricePerMonth, { price: w.monthly.price });
+    }
+    if (/year|annual/i.test(productId) && w.yearly !== null) {
+      return fill(pay.pricePerYear, { price: w.yearly.price });
+    }
+    return null;
+  };
+
   /** The day as the server now has it, redrawn after every write and every navigation. */
   async function draw(): Promise<void> {
     const mine = ++dayDrawing;
@@ -936,6 +955,25 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // "Recent" only while today holds meals; every other state names no date — the
     // strip's marked cell already says which day this is.
     const left: Element[] = rich ? [el("span", "hsec", L.recentlyUploaded)] : [];
+    // The ends-tomorrow trial card heads the diary column on its one day (web-pay-reminder,
+    // ieat-app#1591): the day before a LIVE trial's expiry — `trialReminder`, the same function
+    // the phone schedules its local reminder off, so the card and the notification name the
+    // same day and neither exists without the other's date.
+    if (me.entitlement !== undefined && trialReminder(me.entitlement, me.timezone) === today) {
+      const pay = payCopyFor(lang);
+      const card = el("a", "trial") as HTMLAnchorElement;
+      card.href = "#/you";
+      const inner = el("div", "");
+      inner.append(el("b", "", pay.trialEnds));
+      // "Then {price} a year/month" names the plan THIS trial is on — `productId` off the
+      // entitlement, priced through the paywall's formatted figures; a host or store that
+      // cannot say gets the cancel-only line rather than a guess.
+      const renewal = trialRenewal(me.entitlement.productId);
+      inner.append(el("small", "",
+        renewal === null ? pay.trialEndsCancel : fill(pay.trialEndsNote, { renewal })));
+      card.append(inner, kitEl(ico("chevron-right")));
+      left.unshift(card);
+    }
     if (day === null) {
       // The failed read — one line and the retry pill, the boards' `.herr`; the card dashes.
       const herr = el("div", "herr");

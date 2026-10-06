@@ -4,15 +4,15 @@
 // Telegram · Sign out); the right is the today column the web boards give every surface — week
 // strip, kcal-left hero, the macro cards. The weigh-in lives on Progress (ieat-app#1518).
 //
-// EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the free week's day off
-// `entitlement.trialDay` (the server counts it — a client that counts dates
+// EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the trial's day off
+// `entitlement.trialDaysLeft` (the server counts it — a client that counts dates
 // disagrees with the reminders, #97), the "connected" claim off `healthConnected`. The day column
 // reads `/v1/diary/days` and `/v1/diary/day`; the edits are PATCHes answered by the recomputed
 // view. Nothing here derives a target or counts a day.
 
 import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { subscriptionState } from "../../shared/entitlement.ts";
+import { subscriptionState, TRIAL_DAYS } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
 import { dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import {
@@ -257,7 +257,10 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const sub = subscriptionState(me!.entitlement);
     card.append(optRow(
       you.subscription,
-      sub.kind === "trial" ? fill(you.freeWeekDay, { n: nWhole(sub.day) })
+      // `trialDaysLeft` counts OFF the expiry, so "day n" is len − left — `len` the configured
+      // trial (`paywall.trialDays`), `TRIAL_DAYS` the fallback when a trial was bought on the
+      // phone and the host never configured the web's own offer (ieat-app#1591).
+      sub.kind === "trial" ? fill(you.freeTrialDay, { n: nWhole(Math.max(1, (me!.paywall?.trialDays || TRIAL_DAYS) - sub.daysLeft)) })
         : sub.kind === "until" ? fill(you.subscriptionUntil, { date: subDate(sub.date) })
         : sub.kind === "lifetime" ? you.subscriptionLifetime
         : sub.kind === "ended"

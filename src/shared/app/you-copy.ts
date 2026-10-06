@@ -79,8 +79,8 @@ export interface YouCopy {
   connected: string;
   /** The subscription row — and the phone's subscription screen title: "Subscription". */
   subscription: string;
-  /** Its trial value, lowercase on the board: "free week · day {n}". */
-  freeWeekDay: string;
+  /** Its trial value, lowercase on the board: "free trial · day {n}". */
+  freeTrialDay: string;
   /** Its paid value: "until {date}" — the period's end; the store never says it renews. */
   subscriptionUntil: string;
   /** The lifetime unlock's value: "lifetime". */
@@ -194,8 +194,8 @@ export interface YouCopy {
     changeAnswer: string;
 
     // ── you-subscription.html ──
-    /** The card's label: "Your free week". */
-    freeWeekTitle: string;
+    /** The card's label: "Your free trial". */
+    freeTrialTitle: string;
     /** Its figure: "Day {n} of {total}". */
     dayOfTotal: string;
     /** Beside it: "until {date}" — `{date}` is `Intl`, short weekday and day. */
@@ -301,7 +301,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "connected",
     subscription: "Subscription",
-    freeWeekDay: "free week · day {n}",
+    freeTrialDay: "free trial · day {n}",
     subscriptionUntil: "until {date}",
     subscriptionLifetime: "lifetime",
     subscriptionEnded: "ended {date}",
@@ -350,7 +350,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Your days",
       yourPace: "Your pace",
       changeAnswer: "Change an answer",
-      freeWeekTitle: "Your free week",
+      freeTrialTitle: "Your free trial",
       dayOfTotal: "Day {n} of {total}",
       untilDate: "until {date}",
       beforeEnds: "Before it ends",
@@ -410,7 +410,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "connecté",
     subscription: "Abonnement",
-    freeWeekDay: "semaine gratuite · jour {n}",
+    freeTrialDay: "essai gratuit · jour {n}",
     subscriptionUntil: "jusqu'au {date}",
     subscriptionLifetime: "à vie",
     subscriptionEnded: "terminé le {date}",
@@ -459,7 +459,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Tes journées",
       yourPace: "Ton rythme",
       changeAnswer: "Modifier une réponse",
-      freeWeekTitle: "Ta semaine gratuite",
+      freeTrialTitle: "Ton essai gratuit",
       dayOfTotal: "Jour {n} sur {total}",
       untilDate: "jusqu'au {date}",
       beforeEnds: "Avant la fin",
@@ -519,7 +519,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "verbunden",
     subscription: "Abo",
-    freeWeekDay: "Gratiswoche · Tag {n}",
+    freeTrialDay: "Gratisphase · Tag {n}",
     subscriptionUntil: "bis {date}",
     subscriptionLifetime: "auf Lebenszeit",
     subscriptionEnded: "beendet am {date}",
@@ -568,7 +568,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Deine Tage",
       yourPace: "Dein Tempo",
       changeAnswer: "Eine Antwort ändern",
-      freeWeekTitle: "Deine Gratiswoche",
+      freeTrialTitle: "Deine Testphase",
       dayOfTotal: "Tag {n} von {total}",
       untilDate: "bis {date}",
       beforeEnds: "Vor Ablauf",
@@ -628,7 +628,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "connesso",
     subscription: "Abbonamento",
-    freeWeekDay: "settimana gratis · giorno {n}",
+    freeTrialDay: "prova gratis · giorno {n}",
     subscriptionUntil: "fino al {date}",
     subscriptionLifetime: "a vita",
     subscriptionEnded: "terminato il {date}",
@@ -677,7 +677,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Le tue giornate",
       yourPace: "Il tuo ritmo",
       changeAnswer: "Cambia una risposta",
-      freeWeekTitle: "La tua settimana gratis",
+      freeTrialTitle: "La tua prova gratuita",
       dayOfTotal: "Giorno {n} di {total}",
       untilDate: "fino al {date}",
       beforeEnds: "Prima che finisca",
@@ -737,7 +737,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "conectado",
     subscription: "Suscripción",
-    freeWeekDay: "semana gratis · día {n}",
+    freeTrialDay: "prueba gratis · día {n}",
     subscriptionUntil: "hasta el {date}",
     subscriptionLifetime: "de por vida",
     subscriptionEnded: "terminada el {date}",
@@ -786,7 +786,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Tus días",
       yourPace: "Tu ritmo",
       changeAnswer: "Cambiar una respuesta",
-      freeWeekTitle: "Tu semana gratis",
+      freeTrialTitle: "Tu prueba gratis",
       dayOfTotal: "Día {n} de {total}",
       untilDate: "hasta el {date}",
       beforeEnds: "Antes de que acabe",
@@ -846,7 +846,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "đã kết nối",
     subscription: "Gói đăng ký",
-    freeWeekDay: "tuần miễn phí · ngày {n}",
+    freeTrialDay: "dùng thử · ngày {n}",
     subscriptionUntil: "đến {date}",
     subscriptionLifetime: "trọn đời",
     subscriptionEnded: "đã kết thúc {date}",
@@ -895,7 +895,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Vận động",
       yourPace: "Tốc độ",
       changeAnswer: "Đổi một câu trả lời",
-      freeWeekTitle: "Tuần miễn phí của bạn",
+      freeTrialTitle: "Bản dùng thử của bạn",
       dayOfTotal: "Ngày {n}/{total}",
       untilDate: "đến {date}",
       beforeEnds: "Trước khi kết thúc",
@@ -955,7 +955,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "terhubung",
     subscription: "Langganan",
-    freeWeekDay: "minggu gratis · hari {n}",
+    freeTrialDay: "uji coba · hari {n}",
     subscriptionUntil: "sampai {date}",
     subscriptionLifetime: "seumur hidup",
     subscriptionEnded: "berakhir {date}",
@@ -1004,7 +1004,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Harimu",
       yourPace: "Tempomu",
       changeAnswer: "Ubah satu jawaban",
-      freeWeekTitle: "Minggu gratismu",
+      freeTrialTitle: "Masa uji cobamu",
       dayOfTotal: "Hari {n} dari {total}",
       untilDate: "sampai {date}",
       beforeEnds: "Sebelum berakhir",
@@ -1064,7 +1064,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     appleHealth: "Apple Health",
     connected: "подключено",
     subscription: "Подписка",
-    freeWeekDay: "бесплатная неделя · день {n}",
+    freeTrialDay: "пробный период · день {n}",
     subscriptionUntil: "до {date}",
     subscriptionLifetime: "пожизненная",
     subscriptionEnded: "закончилась {date}",
@@ -1113,7 +1113,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       yourDays: "Твои дни",
       yourPace: "Твой темп",
       changeAnswer: "Изменить ответ",
-      freeWeekTitle: "Твоя бесплатная неделя",
+      freeTrialTitle: "Твой пробный период",
       dayOfTotal: "День {n} из {total}",
       untilDate: "до {date}",
       beforeEnds: "До конца пробной недели",

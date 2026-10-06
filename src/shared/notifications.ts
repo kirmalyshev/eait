@@ -1,17 +1,18 @@
-// The three messages this product is allowed to send, and the arithmetic that decides which.
+// The two messages this product is allowed to send, and the arithmetic that decides which.
 //
-// copy.md § Step 15 promises exactly three: "I'll remind you on day five and the day before it
-// ends, never the day after", and "At 20:30 you get one line — today against the plan, and one
-// concrete thing for tomorrow." Nothing else may be sent, and R1's budget
+// copy.md § Step 15 promises exactly two: "I'll remind you the day before it ends, never the day
+// after" (ieat-app#1591: the 3-day trial gets ONE trial-ends reminder, not two), and "At 20:30 you
+// get one line — today against the plan, and one concrete thing for tomorrow." Nothing else may be
+// sent, and R1's budget
 // (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day INCLUDING the
-// two reminders — which is what `dailyMessage` is: a reminder day emits the reminder INSTEAD OF the
+// reminder — which is what `dailyMessage` is: the reminder day emits the reminder INSTEAD OF the
 // evening line, never as well as it.
 //
-// It lives in shared because both sides need the same answers. The phone schedules the two trial
-// reminders LOCALLY, off `entitlement.expiresAt`, so it can fire them with no network and cancel
-// them the moment the server says the trial converted; the server composes and pushes the 20:30
+// It lives in shared because both sides need the same answers. The phone schedules the trial
+// reminder LOCALLY, off `entitlement.expiresAt`, so it can fire it with no network and cancel
+// it the moment the server says the trial converted; the server composes and pushes the 20:30
 // line, because a local notification cannot carry a sentence about a day it has not seen. Two
-// implementations of "which day is day five" would drift silently, and the symptom would be a
+// implementations of "which day is the last" would drift silently, and the symptom would be a
 // reminder on the day after — the one thing the copy promises never happens.
 //
 // The WORDS are admin-editable and the SHAPE is not, the same split onboarding content makes:
@@ -19,13 +20,13 @@
 // health claim never reaches a lock screen.
 
 import { lintCopy } from "./claims.ts";
-import { dateMinus, localDate, localTime } from "./dates.ts";
-import type { Entitlement } from "./entitlement.ts";
+import { localDate, localTime } from "./dates.ts";
+import { trialReminder, type Entitlement } from "./entitlement.ts";
 import { genderedRussian, kcalNumbers, wholeNumbers, t, type Localized } from "./lang.ts";
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
-export const NOTIFICATION_IDS = ["trial-day5", "trial-day6", "evening"] as const;
+export const NOTIFICATION_IDS = ["trial-end", "evening"] as const;
 export type NotificationId = (typeof NOTIFICATION_IDS)[number];
 
 export interface NotificationMessage {
@@ -52,8 +53,7 @@ export type NotificationCopy = Record<NotificationId, NotificationMessage>;
  * read at a glance and a number in it is a number without its sentence.
  */
 export const NOTIFICATION_PLACEHOLDERS: Record<string, readonly string[]> = {
-  "trial-day5.title": [], "trial-day5.body": [],
-  "trial-day6.title": [], "trial-day6.body": [],
+  "trial-end.title": [], "trial-end.body": [],
   "evening.title": [], "evening.body": ["eaten", "plan", "tomorrow"],
   "evening.emptyBody": ["plan", "tomorrow"],
 };
@@ -65,22 +65,18 @@ export const MAX_NOTIFICATION_BODY = 240;
 /**
  * The shipped words.
  *
- * The two reminders say what happens and how to stop it, and nothing else: no countdown, no
+ * The reminder says what happens and how to stop it, and nothing else: no countdown, no
  * "you'll lose your progress", no second pitch. Step 15's rules for the sheet apply to the
  * messages that follow from it — the trial was sold once, and a reminder that sells it again is
  * the reason people turn notifications off.
  */
 export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
-  "trial-day5": {
-    title: "Two days left",
-    body: "Two days before the free week ends. Nothing to do if you're staying — if not, Settings › Subscriptions, and you pay nothing.",
-  },
-  "trial-day6": {
+  "trial-end": {
     title: "The trial ends tomorrow",
     // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
     // where it was, so somebody who has already stopped it still gets this message, and telling
     // them a subscription is about to start would be false rather than merely redundant.
-    body: "Tomorrow the free week ends. If you're staying, nothing to do; if not, Settings › Subscriptions.",
+    body: "Tomorrow your free trial ends. If you're staying, nothing to do; if not, Settings › Subscriptions.",
   },
   evening: {
     title: "Today against the plan",
@@ -90,7 +86,7 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
 };
 
 /**
- * The three messages in every language, and the stored row's shape.
+ * The two messages in every language, and the stored row's shape.
  *
  * `en` IS `DEFAULT_NOTIFICATION_COPY` itself, so the admin's reset, the merge in `engine/notify.ts`
  * and every test go on looking in the one place they already look.
@@ -98,13 +94,9 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
 export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   en: DEFAULT_NOTIFICATION_COPY,
   fr: {
-    "trial-day5": {
-      title: "Encore deux jours",
-      body: "Encore deux jours avant la fin de la semaine gratuite. Rien à faire si tu restes — sinon : Réglages › Abonnements, et tu ne paies rien.",
-    },
-    "trial-day6": {
+    "trial-end": {
       title: "L'essai se termine demain",
-      body: "Demain, la semaine gratuite se termine. Si tu restes, rien à faire ; sinon : Réglages › Abonnements.",
+      body: "Demain, ton essai gratuit se termine. Si tu restes, rien à faire ; sinon : Réglages › Abonnements.",
     },
     evening: {
       title: "Aujourd'hui face au plan",
@@ -113,13 +105,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   de: {
-    "trial-day5": {
-      title: "Noch zwei Tage",
-      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abonnements, und du zahlst nichts.",
-    },
-    "trial-day6": {
-      title: "Deine Gratiswoche endet morgen",
-      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abonnements.",
+    "trial-end": {
+      title: "Deine Testphase endet morgen",
+      body: "Morgen endet deine Testphase. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abonnements.",
     },
     evening: {
       title: "Dein Tag im Vergleich zum Plan",
@@ -128,13 +116,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   it: {
-    "trial-day5": {
-      title: "Ancora due giorni",
-      body: "Due giorni alla fine della settimana gratis. Se resti non devi fare nulla — altrimenti: Impostazioni › Abbonamenti, e non paghi niente.",
-    },
-    "trial-day6": {
+    "trial-end": {
       title: "La prova finisce domani",
-      body: "Domani finisce la settimana gratis. Se resti non devi fare nulla; altrimenti: Impostazioni › Abbonamenti.",
+      body: "Domani finisce la tua prova gratuita. Se resti non devi fare nulla; altrimenti: Impostazioni › Abbonamenti.",
     },
     evening: {
       title: "Oggi rispetto al piano",
@@ -143,13 +127,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   es: {
-    "trial-day5": {
-      title: "Quedan dos días",
-      body: "Faltan dos días para que acabe la semana gratis. Si te quedas, nada que hacer — si no: Ajustes › Suscripciones, y no pagas nada.",
-    },
-    "trial-day6": {
+    "trial-end": {
       title: "La prueba termina mañana",
-      body: "Mañana acaba la semana gratis. Si te quedas, nada que hacer; si no: Ajustes › Suscripciones.",
+      body: "Mañana acaba tu prueba gratis. Si te quedas, nada que hacer; si no: Ajustes › Suscripciones.",
     },
     evening: {
       title: "Hoy frente al plan",
@@ -158,13 +138,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   vi: {
-    "trial-day5": {
-      title: "Còn hai ngày",
-      body: "Còn hai ngày nữa là hết tuần miễn phí. Ở lại thì không cần làm gì — nếu không: Cài đặt › Gói đăng ký, và bạn không mất đồng nào.",
-    },
-    "trial-day6": {
+    "trial-end": {
       title: "Ngày mai hết thời gian dùng thử",
-      body: "Ngày mai tuần miễn phí kết thúc. Ở lại thì không cần làm gì; nếu không: Cài đặt › Gói đăng ký.",
+      body: "Ngày mai bản dùng thử kết thúc. Ở lại thì không cần làm gì; nếu không: Cài đặt › Gói đăng ký.",
     },
     evening: {
       title: "Hôm nay so với kế hoạch",
@@ -173,13 +149,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   id: {
-    "trial-day5": {
-      title: "Tinggal dua hari",
-      body: "Dua hari lagi minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa — kalau tidak: Pengaturan › Langganan, dan kamu tidak membayar apa pun.",
-    },
-    "trial-day6": {
+    "trial-end": {
       title: "Uji coba berakhir besok",
-      body: "Besok minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa; kalau tidak: Pengaturan › Langganan.",
+      body: "Besok masa uji cobamu berakhir. Kalau lanjut, tidak perlu apa-apa; kalau tidak: Pengaturan › Langganan.",
     },
     evening: {
       title: "Hari ini dibanding rencana",
@@ -188,13 +160,9 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
   },
   ru: {
-    "trial-day5": {
-      title: "Осталось два дня",
-      body: "Через два дня бесплатная неделя закончится. Остаёшься — делать ничего не нужно. Если нет: Настройки › Подписки, и ты ничего не платишь.",
-    },
-    "trial-day6": {
-      title: "Пробная неделя кончается завтра",
-      body: "Завтра бесплатная неделя заканчивается. Остаёшься — делать ничего не нужно; если нет: Настройки › Подписки.",
+    "trial-end": {
+      title: "Пробный период кончается завтра",
+      body: "Завтра пробный период заканчивается. Остаёшься — делать ничего не нужно; если нет: Настройки › Подписки.",
     },
     evening: {
       title: "Итоги дня",
@@ -217,7 +185,7 @@ export type NotificationCopySet = Partial<Record<Lang, NotificationCopy>>;
 /**
  * A stored row as a SET, whatever shape it was written in.
  *
- * A row saved before #358 is a bare `NotificationCopy` — three messages at the top level — and it
+ * A row saved before #358 is a bare `NotificationCopy` — the messages at the top level — and it
  * is English, because English was all there was. Read as every language it would put an admin's
  * English on a Russian lock screen; read as none of them it would silently discard an edit that is
  * live in production today. So it is adopted for `en` and for nothing else, which is what it meant.
@@ -238,50 +206,8 @@ export function storedNotificationCopy(stored: unknown): NotificationCopySet {
 /** 20:30 in the server's zone, as R1 specifies. The reminders ride the same slot. */
 export const REMINDER_TIME = { hour: 20, minute: 30 } as const;
 
-/**
- * The two days a trial gets a reminder, as `YYYY-MM-DD` in `tz`.
- *
- * Derived from the EXPIRY rather than from the start, because the expiry is what the app is told
- * (`ProfileResponse.entitlement.expiresAt`) and what the store can move — a billing retry extends
- * it, and a reminder counted forwards from a purchase date would then fire in the middle of a
- * trial that is still running. Day 5 is two days before the expiry date, day 6 the day before it;
- * neither is ever on or after the expiry, which is the "never the day after" promise.
- *
- * Null when there is no expiry, when it does not parse, or when it has already passed — all three
- * mean there is nothing to remind anybody about.
- */
-export function trialReminderDates(
-  expiresAt: string | null | undefined,
-  tz: string,
-  now: number = Date.now(),
-): { day5: string; day6: string } | null {
-  if (!expiresAt) return null;
-  const at = Date.parse(expiresAt);
-  if (!Number.isFinite(at) || at <= now) return null;
-  const expiryDate = localDate(tz, new Date(at));
-  return { day5: dateMinus(expiryDate, 2), day6: dateMinus(expiryDate, 1) };
-}
-
-/**
- * The two reminder dates of a live TRIAL, or null when this entitlement is not one.
- *
- * The gate `trialReminderDates` does not have, and the reason both sides call this rather than
- * that: the raw arithmetic answers "two days before the expiry" for ANY expiry, and two days
- * before a yearly renewal has exactly that shape. `entitlement.trial` is the only thing that
- * separates them, and it comes from the store by way of the RevenueCat webhook — no duration
- * heuristic can, because it is looking at the same two days either way.
- */
-export function trialReminders(
-  entitlement: Entitlement,
-  timezone: string,
-  now: number = Date.now(),
-): { day5: string; day6: string } | null {
-  if (!entitlement.active || !entitlement.trial) return null;
-  return trialReminderDates(entitlement.expiresAt, timezone, now);
-}
-
-/** The two ids the APP schedules itself. `evening` is a push and is never local. */
-export type TrialReminderId = Extract<NotificationId, "trial-day5" | "trial-day6">;
+/** The id the APP schedules itself. `evening` is a push and is never local. */
+export type TrialReminderId = Extract<NotificationId, "trial-end">;
 
 /** One reminder to put on the device: `date` is `YYYY-MM-DD` in the SERVER's zone. */
 export interface ScheduledReminder {
@@ -290,7 +216,8 @@ export interface ScheduledReminder {
 }
 
 /**
- * The reminders that should be on this device right now, in order. Empty means cancel everything.
+ * The reminders that should be on this device right now — at most one. Empty means cancel
+ * everything.
  *
  * The app's ONE decision about local notifications: its scheduler cancels every id this does not
  * name and schedules every id it does. It lives here rather than in `src/mobile` for the reason
@@ -298,7 +225,7 @@ export interface ScheduledReminder {
  * `expo-notifications` is untested by construction.
  *
  * Empty covers every ending a trial has: never bought, expired, converted to a real subscription,
- * or opened so late that both days are behind. The caller does not distinguish them, because there
+ * or opened so late that the day is behind. The caller does not distinguish them, because there
  * is nothing different to do about any of them.
  *
  * A date already past is DROPPED rather than scheduled. iOS accepts a calendar trigger whose
@@ -310,8 +237,8 @@ export function reminderPlan(
   timezone: string,
   now: Date = new Date(),
 ): ScheduledReminder[] {
-  const dates = trialReminders(entitlement, timezone, now.getTime());
-  if (!dates) return [];
+  const date = trialReminder(entitlement, timezone, now.getTime());
+  if (date === null) return [];
   // Compared as strings, which is chronological for `YYYY-MM-DD`, and against TODAY in the SERVER's
   // zone rather than the device's — the same rule the diary and the health aggregation follow.
   //
@@ -331,28 +258,23 @@ export function reminderPlan(
   // the same reason — and this is the first place `localTime`'s output is compared rather than
   // displayed. It also runs on the PHONE, under an Intl no test here exercises, so the failure
   // would be a reminder silently dropped for anyone who opened the app between midnight and 01:00
-  // on one of the two days, once per trial, and unreproducible on a Mac.
+  // on that one day, once per trial, and unreproducible on a Mac.
   const [h, m] = localTime(timezone, now).split(":").map(Number) as [number, number];
   const passed = (h % 24) * 60 + m >= REMINDER_TIME.hour * 60 + REMINDER_TIME.minute;
-  return ([
-    { id: "trial-day5", date: dates.day5 },
-    { id: "trial-day6", date: dates.day6 },
-  ] as const).filter((r) => (r.date === today ? !passed : r.date > today));
+  return date === today && passed || date < today ? [] : [{ id: "trial-end", date }];
 }
 
 /**
  * The ONE message `date` gets. R1's budget, expressed as a function rather than as a rule in prose.
  *
- * A reminder day emits the reminder and not the evening line. Sending both would be two messages on
- * the two days the user is most likely to be deciding whether to keep the app.
+ * The reminder day emits the reminder and not the evening line. Sending both would be two messages
+ * on the day the user is most likely to be deciding whether to keep the app.
  */
 export function dailyMessage(
   date: string,
-  reminders: { day5: string; day6: string } | null,
+  reminderDate: string | null,
 ): NotificationId {
-  if (reminders?.day5 === date) return "trial-day5";
-  if (reminders?.day6 === date) return "trial-day6";
-  return "evening";
+  return reminderDate === date ? "trial-end" : "evening";
 }
 
 /** Interpolate a message. `empty` picks the evening line's nothing-logged variant. */

@@ -485,16 +485,16 @@ describe("editing the notification copy", () => {
       meta: { ids: string[]; placeholders: Record<string, string[]> };
     };
     expect(body.copy.evening!.body).toContain("{eaten}");
-    expect(body.meta.ids).toEqual(["trial-day5", "trial-day6", "evening"]);
+    expect(body.meta.ids).toEqual(["trial-end", "evening"]);
     expect(body.meta.placeholders["evening.body"]).toEqual(["eaten", "plan", "tomorrow"]);
   });
 
   it("saves a rewrite", async () => {
     const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-    const copy = { ...current.copy, "trial-day5": { title: "Two days to go", body: "Two days before the free week ends." } };
+    const copy = { ...current.copy, "trial-end": { title: "Tomorrow it ends", body: "The day before the free trial ends." } };
     expect((await admin("PUT", "/admin/api/notifications", { copy })).status).toBe(200);
     const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
-    expect(after.copy["trial-day5"]!.title).toBe("Two days to go");
+    expect(after.copy["trial-end"]!.title).toBe("Tomorrow it ends");
   });
 
   it("422s a template the composer cannot fill, with every reason", async () => {
@@ -511,7 +511,7 @@ describe("editing the notification copy", () => {
   it("422s a health claim rather than putting one on a lock screen", async () => {
     const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
     const res = await admin("PUT", "/admin/api/notifications", {
-      copy: { ...current.copy, "trial-day6": { title: "Last day", body: "One more week and this cures it." } },
+      copy: { ...current.copy, "trial-end": { title: "Last day", body: "One more week and this cures it." } },
     });
     expect(res.status).toBe(422);
     expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("claim");
@@ -520,11 +520,11 @@ describe("editing the notification copy", () => {
   it("restores the shipped copy", async () => {
     const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
     await admin("PUT", "/admin/api/notifications", {
-      copy: { ...current.copy, "trial-day5": { title: "Edited", body: "Edited body." } },
+      copy: { ...current.copy, "trial-end": { title: "Edited", body: "Edited body." } },
     });
     expect((await admin("POST", "/admin/api/notifications/reset", {})).status).toBe(200);
     const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
-    expect(after.copy["trial-day5"]!.title).toBe("Two days left");
+    expect(after.copy["trial-end"]!.title).toBe("The trial ends tomorrow");
   });
 
   it("gives an ordinary user's bearer token a 404 here too", async () => {

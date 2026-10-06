@@ -66,18 +66,23 @@ export function payScreen(frame: Frame): HTMLElement {
     col.append(kitEl(payPlansMarkup(
       [{ value: "monthly", name: pay.planMonthly, checked: true }], COPY.offerPlans)));
     go.href = "/start/checkout";
-    go.textContent = pay.startTrial;
-    note.textContent = COPY.offerCheckoutHint;
+    // No paywall config means nothing about a trial is known — Continue, not a promise of one.
+    go.textContent = pay.continueCta;
+    note.textContent = "";
   } else {
     const update = (): void => {
       const sel = plans.picked();
       if (sel === null) return;
       go.href = sel.plan.checkoutUrl;
-      // The phone's wording (#928): the trial words only while the YEARLY card is picked — monthly
-      // is billed at once, so its CTA and its note name the renewal instead of a free week.
-      if (sel.value === "yearly" && w.trialDays > 0) {
-        go.textContent = pay.startTrial;
-        note.textContent = fill(pay.trialNote, { days: String(w.trialDays), price: sel.plan.price });
+      // ieat-app#1591: the trial is on BOTH plans — the trial words ride whichever card is picked,
+      // and `{renewal}` names THAT plan's price and cadence off the same templates the rows carry.
+      if (w.trialDays > 0) {
+        go.textContent = fill(pay.startTrial, { days: String(w.trialDays) });
+        note.textContent = fill(pay.trialNote, {
+          days: String(w.trialDays),
+          renewal: fill(sel.value === "yearly" ? pay.pricePerYear : pay.pricePerMonth,
+            { price: sel.plan.price }),
+        });
       } else {
         go.textContent = pay.continueCta;
         note.textContent = fill(

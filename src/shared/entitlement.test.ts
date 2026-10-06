@@ -1,7 +1,7 @@
 import { describe, expect, it, test } from "bun:test";
 import {
   FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
-  subscriptionState, trialDay,
+  subscriptionState, trialDaysLeft,
 } from "./entitlement.ts";
 
 const NOW = Date.parse("2026-08-24T12:00:00.000Z");
@@ -133,44 +133,43 @@ describe("FREE_ANALYSES", () => {
   });
 });
 
-// `trialDay` — which day of the free week today is, as the Subscription row and the reminder both
-// name it (#97, W10/M10). The convention is `trialReminderDates`' own: day 5 is two days before
-// the expiry date, so "free week · day 5" can never disagree with the notification.
-describe("trialDay", () => {
+// `trialDaysLeft` — how many calendar days the trial still has, as the Subscription row and the
+// reminder both count it (#97, W10/M10). Counted OFF THE EXPIRY so it is length-agnostic
+// (ieat-app#1591): "day {n} of {len}" is `len − daysLeft`, the `len` the client's own reading.
+describe("trialDaysLeft", () => {
   const TZ = "Europe/Berlin";
-  // A trial whose expiry falls on Sat 26 Sep in Berlin: day 1 is Sun 20 Sep, day 7 the 26th.
+  // A trial whose expiry falls on Sat 26 Sep in Berlin.
   const trial = { active: true, trial: true, expiresAt: "2026-09-26T12:00:00.000Z" };
 
-  test("counts the free week off the EXPIRY, so it and the reminders agree", () => {
-    expect(trialDay(trial, TZ, Date.parse("2026-09-20T09:00:00Z"))).toBe(1);
-    // The board's own line: "free week · day 5" on Thursday 24 Sep, until Sat 26 Sep.
-    expect(trialDay(trial, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBe(5);
-    expect(trialDay(trial, TZ, Date.parse("2026-09-26T09:00:00Z"))).toBe(7);
+  test("counts the days left off the EXPIRY, so it and the reminder agree", () => {
+    expect(trialDaysLeft(trial, TZ, Date.parse("2026-09-20T09:00:00Z"))).toBe(6);
+    // The day before is 1, the expiry date itself 0 — "ends tomorrow" reads off the same number.
+    expect(trialDaysLeft(trial, TZ, Date.parse("2026-09-25T09:00:00Z"))).toBe(1);
+    expect(trialDaysLeft(trial, TZ, Date.parse("2026-09-26T09:00:00Z"))).toBe(0);
   });
 
   test("is null the moment it is not a live trial", () => {
     // Never bought, expired, converted to paid, a lifetime unlock — each has nothing to count.
-    expect(trialDay({ active: false, trial: true, expiresAt: trial.expiresAt }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
-    expect(trialDay({ active: true, trial: false, expiresAt: trial.expiresAt }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
-    expect(trialDay({ active: true, trial: true, expiresAt: null }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
-    expect(trialDay({ active: true, trial: true, expiresAt: "not a date" }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
+    expect(trialDaysLeft({ active: false, trial: true, expiresAt: trial.expiresAt }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
+    expect(trialDaysLeft({ active: true, trial: false, expiresAt: trial.expiresAt }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
+    expect(trialDaysLeft({ active: true, trial: true, expiresAt: null }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
+    expect(trialDaysLeft({ active: true, trial: true, expiresAt: "not a date" }, TZ, Date.parse("2026-09-24T09:00:00Z"))).toBeNull();
     // Past the expiry instant: the trial is over, whatever the calendar diff says.
-    expect(trialDay(trial, TZ, Date.parse("2026-09-26T12:00:01Z"))).toBeNull();
+    expect(trialDaysLeft(trial, TZ, Date.parse("2026-09-26T12:00:01Z"))).toBeNull();
   });
 
-  test("a trial that just started is day 1 even when the expiry sits a little past a week out", () => {
-    // Store grace can put the expiry beyond the plain seven days; day 0 is not a day.
-    expect(trialDay({ ...trial, expiresAt: "2026-09-28T12:00:00.000Z" }, TZ, Date.parse("2026-09-20T09:00:00Z"))).toBe(1);
+  test("a trial that just started still counts off its own expiry, however far out grace put it", () => {
+    expect(trialDaysLeft({ ...trial, expiresAt: "2026-09-28T12:00:00.000Z" }, TZ, Date.parse("2026-09-20T09:00:00Z"))).toBe(8);
   });
 });
 
 // The Subscription row's state — one word per entitlement shape (#175), the web row's and the
-// phone board's. `trialDay` is the server's count; "until", never "renews", because the store
+// phone board's. `trialDaysLeft` is the server's count; "until", never "renews", because the store
 // does not say whether a paid period renews.
 describe("subscriptionState", () => {
-  test("a live trial is its day", () => {
-    expect(subscriptionState({ active: true, expiresAt: "2026-10-01T00:00:00.000Z", trial: true, trialDay: 5 }))
-      .toEqual({ kind: "trial", day: 5 });
+  test("a live trial is its days-left count", () => {
+    expect(subscriptionState({ active: true, expiresAt: "2026-10-01T00:00:00.000Z", trial: true, trialDaysLeft: 5 }))
+      .toEqual({ kind: "trial", daysLeft: 5 });
   });
 
   test("a paid period is 'until' its expiry", () => {

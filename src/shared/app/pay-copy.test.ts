@@ -13,9 +13,9 @@ import { PAY_COPY, payCopyFor } from "./pay-copy.ts";
 const KEYS = [
   "plansTitle", "plansHeroAlt",
   "planYearly", "planMonthly", "trialBadge", "pricePerYear", "pricePerMonth",
-  "yearlySub", "perMonthCaption", "benefitPhoto", "benefitPlan", "benefitChat",
+  "yearlySub", "monthlySub", "perMonthCaption", "benefitPhoto", "benefitPlan", "benefitChat",
   "freeMealLabel",
-  "startTrial", "trialNote",
+  "startTrial", "trialNote", "trialNotePhone",
   "giftTitle", "giftAlt", "giftNote", "giftOpen",
   "offerTitle", "offerAlt", "offerOff", "offerPrice", "offerPerMonth",
   "offerClaim", "offerDecline", "offerNote",
@@ -23,8 +23,7 @@ const KEYS = [
   "welcomeTitle", "welcomeSub", "welcomeBack",
   "subscribingPhone",
   "dockTitlePhone", "subscribePhone",
-  "trialLeftPhone", "renewsLabelPhone", "thenLabelPhone",
-  "toCancelLabelPhone", "cancelStepsPhone", "cancelNotePhone",
+  "trialEnds", "trialEndsNote", "trialEndsCancel", "renewsLabelPhone",
   "lapsedTitlePhone", "resubscribePhone",
   "closeLabel", "restoreLink", "termsLink", "privacyLink",
 ] as const;
@@ -48,12 +47,14 @@ describe("PAY_COPY", () => {
       pricePerYear: ["{price}"],
       pricePerMonth: ["{price}"],
       yearlySub: ["{trial}", "{price}"],
-      trialNote: ["{days}", "{price}"],
+      monthlySub: ["{trial}", "{price}"],
+      startTrial: ["{days}"],
+      trialNote: ["{days}", "{renewal}"],
+      trialNotePhone: ["{days}", "{renewal}"],
       offerOff: ["{percent}"],
       offerPrice: ["{price}"],
       offerPerMonth: ["{price}"],
-      trialLeftPhone: ["{days}"],
-      cancelNotePhone: ["{day}"],
+      trialEndsNote: ["{renewal}"],
     };
     for (const lang of LANGS) {
       const copy = PAY_COPY[lang]!;
@@ -82,8 +83,10 @@ describe("PAY_COPY", () => {
     expect(en.yearlySub).toBe("{trial}, then {price} a year");
     expect(en.perMonthCaption).toBe("a month");
     expect(en.freeMealLabel).toBe("Your free meal");
-    expect(en.startTrial).toBe("Start my free week");
-    expect(en.trialNote).toBe("{days} days free, then {price} a year. Cancel any time.");
+    expect(en.monthlySub).toBe("{trial}, then {price} a month");
+    expect(en.startTrial).toBe("Try {days} days free");
+    expect(en.trialNote).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.");
+    expect(en.trialNotePhone).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel in Settings › Apple ID › Subscriptions at least 24 hours before the trial ends.");
     // pay-gift
     expect(en.giftTitle).toBe("We have a gift for you");
     expect(en.giftAlt).toBe("A wrapped gift box");
@@ -109,13 +112,11 @@ describe("PAY_COPY", () => {
     // pay-dock (phone)
     expect(en.dockTitlePhone).toBe("That was your meal on us");
     expect(en.subscribePhone).toBe("Subscribe");
-    // pay-reminder (phone)
-    expect(en.trialLeftPhone).toBe("{days} days left of your free week");
+    // pay-trial-ends (phone and web): the one reminder, named from the board
+    expect(en.trialEnds).toBe("Your free trial ends tomorrow");
+    expect(en.trialEndsNote).toBe("Then {renewal}. Cancel today and nothing is charged.");
+    expect(en.trialEndsCancel).toBe("Cancel today and nothing is charged.");
     expect(en.renewsLabelPhone).toBe("Renews");
-    expect(en.thenLabelPhone).toBe("Then");
-    expect(en.toCancelLabelPhone).toBe("To cancel");
-    expect(en.cancelStepsPhone).toBe("You → Manage subscription");
-    expect(en.cancelNotePhone).toBe("Cancel before {day} and nothing is charged.");
     // pay-lapsed (phone)
     expect(en.lapsedTitlePhone).toBe("Your subscription has ended");
     expect(en.resubscribePhone).toBe("Resubscribe");

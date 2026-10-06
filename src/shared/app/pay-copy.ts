@@ -10,11 +10,9 @@
 // `YearlyPlan.pricePerMonth` and `ExitOffer.regularPrice`/`percentOff`/`perMonth` (#77), and the
 // phone prices the same cards from StoreKit through `offerMath`. The offer's €23.99 is the
 // operator's `WEB_PRICE_OFFER`, not a string this file may carry; the boards' `[price]` is what
-// the templates hold. `{days}` is `WebPaywall.trialDays` (the store's trial length on the phone).
-// `{day}` in `cancelNotePhone` is the renewal's WEEKDAY NAME, formatted by the client with
-// `Intl.DateTimeFormat(LANG_TAG[lang], { weekday: "long" })` — every template beside it is written
-// so a nominative weekday reads correctly, because `Intl` cannot decline Russian's `до
-// воскресенья`.
+// the templates hold. `{days}` is `WebPaywall.trialDays` (the store's intro period on the phone),
+// and `{renewal}` is the SAME `pricePerYear`/`pricePerMonth` template the plan cards carry,
+// already priced — so "Then €39.99 a year" never becomes a second way to write that figure.
 //
 // What is deliberately NOT here: the tab bar and the "+" are `SHELL_COPY`'s; the diary behind
 // `pay-dock` and `pay-reminder` is the Home surface's own table; `pay-signin` is W3's board; and
@@ -45,6 +43,11 @@ export interface PayCopy {
    * One sentence, so a language that fronts the price still reads as one line.
    */
   yearlySub: string;
+  /**
+   * pay-paywall (phone): the monthly card's sub-line, the same shape as `yearlySub` — the trial
+   * is on BOTH plans (ieat-app#1591), so the monthly card names its badge and its price too.
+   */
+  monthlySub: string;
   /** pay-paywall (phone): the small caption under BOTH right-column price figures — "a month". */
   perMonthCaption: string;
   /** pay-paywall (phone): the first benefit line, beside the camera icon. */
@@ -55,10 +58,21 @@ export interface PayCopy {
   benefitChat: string;
   /** pay-blocked (phone): the label over the meal the sample already bought. */
   freeMealLabel: string;
-  /** pay-plans: the one CTA. */
+  /** pay-plans: the one CTA. `{days}` is the trial's length, from the store or the host's
+      `trialDays` — the words never carry a number the store did not say (ieat-app#1591). */
   startTrial: string;
-  /** pay-plans: the line under the CTA — `{days}` and `{price}` are the trial and the yearly price. */
+  /**
+   * pay-plans (web + the server-rendered offer): the line under the CTA while a trial is
+   * picked. `{days}` is the host's `trialDays`, `{renewal}` is `pricePerYear`/`pricePerMonth`
+   * already priced — one placeholder keeps "then {price} a year" a whole template.
+   */
   trialNote: string;
+  /**
+   * pay-plans (phone): the same line with the App Store's cancel path in it — the store is who
+   * renews the trial, so "Cancel" names Settings › Apple ID › Subscriptions and its 24-hour
+   * boundary rather than the app's own Profile screen, which cannot cancel.
+   */
+  trialNotePhone: string;
   /** pay-plans: the CTA when the selected plan carries no trial — monthly, or yearly for a
       subscriber the store says gets no intro offer. */
   continueCta: string;
@@ -112,21 +126,18 @@ export interface PayCopy {
   dockTitlePhone: string;
   /** pay-dock (phone only): its button, into the plans. */
   subscribePhone: string;
-  /** pay-reminder (phone only): the card's headline. `{days}` is the days left on the trial. */
-  trialLeftPhone: string;
+  /**
+   * pay-reminder (web + phone): the ends-tomorrow card's headline (ieat-app#1591 — one reminder
+   * the day before the end, so the words name no count).
+   */
+  trialEnds: string;
+  /** pay-reminder (web + phone): the card's line when the renewal price is known — `{renewal}` is
+      `pricePerYear`/`pricePerMonth` filled with the plan the trial is actually on. */
+  trialEndsNote: string;
+  /** pay-reminder (web + phone): the same line when no store or paywall can name the price. */
+  trialEndsCancel: string;
   /** pay-reminder (phone only): the renewal row's label; its value is a formatted date, not copy. */
   renewsLabelPhone: string;
-  /** pay-reminder (phone only): the price row's label — its value reuses `pricePerMonth`. */
-  thenLabelPhone: string;
-  /** pay-reminder (phone only): the how-to-cancel row's label. */
-  toCancelLabelPhone: string;
-  /** pay-reminder (phone only): the path, exactly as the board words it. */
-  cancelStepsPhone: string;
-  /**
-   * pay-reminder (phone only): the reassurance under the rows. `{day}` is the renewal's weekday
-   * name — every language's template is written so a nominative weekday is grammatical.
-   */
-  cancelNotePhone: string;
   /** pay-lapsed (phone only): the ended subscription's card. */
   lapsedTitlePhone: string;
   /** pay-lapsed (phone only): its button — `entitlement`'s `"resubscribe"` ask, not `"subscribe"`. */
@@ -151,13 +162,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} a year",
     pricePerMonth: "{price} a month",
     yearlySub: "{trial}, then {price} a year",
+    monthlySub: "{trial}, then {price} a month",
     perMonthCaption: "a month",
     benefitPhoto: "One photo logs a meal",
     benefitPlan: "Every meal checked against your plan",
     benefitChat: "Ask Spud about your day",
     freeMealLabel: "Your free meal",
-    startTrial: "Start my free week",
-    trialNote: "{days} days free, then {price} a year. Cancel any time.",
+    startTrial: "Try {days} days free",
+    trialNote: "{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.",
+    trialNotePhone: "{days} days free, then {renewal}. Renews automatically until cancelled. Cancel in Settings › Apple ID › Subscriptions at least 24 hours before the trial ends.",
     continueCta: "Continue",
     renewNoteYearly: "{price} a year. Renews automatically. Cancel any time.",
     renewNoteMonthly: "{price} a month. Renews automatically. Cancel any time.",
@@ -183,12 +196,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Subscribing",
     dockTitlePhone: "That was your meal on us",
     subscribePhone: "Subscribe",
-    trialLeftPhone: "{days} days left of your free week",
+    trialEnds: "Your free trial ends tomorrow",
+    trialEndsNote: "Then {renewal}. Cancel today and nothing is charged.",
+    trialEndsCancel: "Cancel today and nothing is charged.",
     renewsLabelPhone: "Renews",
-    thenLabelPhone: "Then",
-    toCancelLabelPhone: "To cancel",
-    cancelStepsPhone: "You → Manage subscription",
-    cancelNotePhone: "Cancel before {day} and nothing is charged.",
     lapsedTitlePhone: "Your subscription has ended",
     resubscribePhone: "Resubscribe",
     closeLabel: "Close",
@@ -205,13 +216,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} par an",
     pricePerMonth: "{price} par mois",
     yearlySub: "{trial}, puis {price} par an",
+    monthlySub: "{trial}, puis {price} par mois",
     perMonthCaption: "par mois",
     benefitPhoto: "Une photo enregistre un repas",
     benefitPlan: "Chaque repas vérifié par rapport à ton plan",
     benefitChat: "Parle de ta journée à Spud",
     freeMealLabel: "Ton repas offert",
-    startTrial: "Commencer ma semaine offerte",
-    trialNote: "{days} jours offerts, puis {price} par an. Résiliable à tout moment.",
+    startTrial: "Commencer l'essai de {days} jours",
+    trialNote: "{days} jours offerts, puis {renewal}. Se renouvelle automatiquement jusqu'à résiliation. Résiliable à tout moment dans Profil › Abonnement.",
+    trialNotePhone: "{days} jours offerts, puis {renewal}. Se renouvelle automatiquement jusqu'à résiliation. Résilie dans Réglages › Identifiant Apple › Abonnements au moins 24 h avant la fin de l'essai.",
     continueCta: "Continuer",
     renewNoteYearly: "{price} par an. Se renouvelle automatiquement. Résiliable à tout moment.",
     renewNoteMonthly: "{price} par mois. Se renouvelle automatiquement. Résiliable à tout moment.",
@@ -237,12 +250,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Abonnement en cours",
     dockTitlePhone: "Ce repas était offert",
     subscribePhone: "S'abonner",
-    trialLeftPhone: "Plus que {days} jours de semaine offerte",
+    trialEnds: "Ton essai gratuit se termine demain",
+    trialEndsNote: "Puis {renewal}. Résilie aujourd'hui et rien n'est facturé.",
+    trialEndsCancel: "Résilie aujourd'hui et rien n'est facturé.",
     renewsLabelPhone: "Renouvellement",
-    thenLabelPhone: "Puis",
-    toCancelLabelPhone: "Pour résilier",
-    cancelStepsPhone: "Toi → Gérer l'abonnement",
-    cancelNotePhone: "Résilie avant {day} et rien ne sera facturé.",
     lapsedTitlePhone: "Ton abonnement est terminé",
     resubscribePhone: "Renouveler l'abonnement",
     closeLabel: "Fermer",
@@ -259,13 +270,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} im Jahr",
     pricePerMonth: "{price} im Monat",
     yearlySub: "{trial}, danach {price} im Jahr",
+    monthlySub: "{trial}, danach {price} im Monat",
     perMonthCaption: "im Monat",
     benefitPhoto: "Ein Foto erfasst eine Mahlzeit",
     benefitPlan: "Jede Mahlzeit mit deinem Plan abgeglichen",
     benefitChat: "Frag Spud nach deinem Tag",
     freeMealLabel: "Deine Gratis-Mahlzeit",
-    startTrial: "Meine Gratiswoche starten",
-    trialNote: "{days} Tage kostenlos, danach {price} im Jahr. Jederzeit kündbar.",
+    startTrial: "{days} Tage kostenlos testen",
+    trialNote: "{days} Tage kostenlos, danach {renewal}. Verlängert sich automatisch bis zur Kündigung. Jederzeit kündbar unter Profil › Abo.",
+    trialNotePhone: "{days} Tage kostenlos, danach {renewal}. Verlängert sich automatisch bis zur Kündigung. Kündige in den Einstellungen › Apple-ID › Abos mindestens 24 Stunden vor Ende der Testphase.",
     continueCta: "Weiter",
     renewNoteYearly: "{price} im Jahr. Verlängert sich automatisch. Jederzeit kündbar.",
     renewNoteMonthly: "{price} im Monat. Verlängert sich automatisch. Jederzeit kündbar.",
@@ -291,12 +304,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Abo wird abgeschlossen",
     dockTitlePhone: "Die Mahlzeit ging auf uns",
     subscribePhone: "Abonnieren",
-    trialLeftPhone: "Noch {days} Tage deiner Gratiswoche",
+    trialEnds: "Deine Testphase endet morgen",
+    trialEndsNote: "Danach {renewal}. Kündige heute, dann wird nichts abgebucht.",
+    trialEndsCancel: "Kündige heute, dann wird nichts abgebucht.",
     renewsLabelPhone: "Verlängert sich",
-    thenLabelPhone: "Danach",
-    toCancelLabelPhone: "Zum Kündigen",
-    cancelStepsPhone: "Du → Abo verwalten",
-    cancelNotePhone: "Kündige vor dem {day}, dann wird nichts abgebucht.",
     lapsedTitlePhone: "Dein Abo ist abgelaufen",
     resubscribePhone: "Abo erneuern",
     closeLabel: "Schließen",
@@ -313,13 +324,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} all'anno",
     pricePerMonth: "{price} al mese",
     yearlySub: "{trial}, poi {price} all'anno",
+    monthlySub: "{trial}, poi {price} al mese",
     perMonthCaption: "al mese",
     benefitPhoto: "Una foto registra un pasto",
     benefitPlan: "Ogni pasto verificato sul tuo piano",
     benefitChat: "Chiedi a Spud della tua giornata",
     freeMealLabel: "Il tuo pasto gratuito",
-    startTrial: "Inizia la mia settimana gratis",
-    trialNote: "{days} giorni gratis, poi {price} all'anno. Disdici quando vuoi.",
+    startTrial: "Prova gratis per {days} giorni",
+    trialNote: "{days} giorni gratis, poi {renewal}. Si rinnova automaticamente fino a disdetta. Disdici quando vuoi in Profilo › Abbonamento.",
+    trialNotePhone: "{days} giorni gratis, poi {renewal}. Si rinnova automaticamente fino a disdetta. Disdici in Impostazioni › ID Apple › Abbonamenti almeno 24 ore prima della fine della prova.",
     continueCta: "Continua",
     renewNoteYearly: "{price} all'anno. Si rinnova automaticamente. Disdici quando vuoi.",
     renewNoteMonthly: "{price} al mese. Si rinnova automaticamente. Disdici quando vuoi.",
@@ -345,12 +358,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Abbonamento in corso",
     dockTitlePhone: "Quel pasto l'abbiamo offerto noi",
     subscribePhone: "Abbonati",
-    trialLeftPhone: "Ancora {days} giorni di settimana gratis",
+    trialEnds: "La tua prova gratuita finisce domani",
+    trialEndsNote: "Poi {renewal}. Disdici oggi e non ti sarà addebitato nulla.",
+    trialEndsCancel: "Disdici oggi e non ti sarà addebitato nulla.",
     renewsLabelPhone: "Si rinnova",
-    thenLabelPhone: "Poi",
-    toCancelLabelPhone: "Per disdire",
-    cancelStepsPhone: "Profilo → Gestisci abbonamento",
-    cancelNotePhone: "Disdici prima di {day} e non ti sarà addebitato nulla.",
     lapsedTitlePhone: "Il tuo abbonamento è terminato",
     resubscribePhone: "Rinnova l'abbonamento",
     closeLabel: "Chiudi",
@@ -367,13 +378,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} al año",
     pricePerMonth: "{price} al mes",
     yearlySub: "{trial}, luego {price} al año",
+    monthlySub: "{trial}, luego {price} al mes",
     perMonthCaption: "al mes",
     benefitPhoto: "Una foto registra una comida",
     benefitPlan: "Cada comida comparada con tu plan",
     benefitChat: "Pregúntale a Spud por tu día",
     freeMealLabel: "Tu comida gratis",
-    startTrial: "Empezar mi semana gratis",
-    trialNote: "{days} días gratis, luego {price} al año. Cancela cuando quieras.",
+    startTrial: "Probar {days} días gratis",
+    trialNote: "{days} días gratis, luego {renewal}. Se renueva automáticamente hasta cancelar. Cancela cuando quieras en Perfil › Suscripción.",
+    trialNotePhone: "{days} días gratis, luego {renewal}. Se renueva automáticamente hasta cancelar. Cancela en Ajustes › Apple ID › Suscripciones al menos 24 horas antes de que termine la prueba.",
     continueCta: "Continuar",
     renewNoteYearly: "{price} al año. Se renueva automáticamente. Cancela cuando quieras.",
     renewNoteMonthly: "{price} al mes. Se renueva automáticamente. Cancela cuando quieras.",
@@ -399,12 +412,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Suscripción en curso",
     dockTitlePhone: "Esa comida la invitamos nosotros",
     subscribePhone: "Suscribirse",
-    trialLeftPhone: "Te quedan {days} días de tu semana gratis",
+    trialEnds: "Tu prueba gratis termina mañana",
+    trialEndsNote: "Luego {renewal}. Cancela hoy y no se cobra nada.",
+    trialEndsCancel: "Cancela hoy y no se cobra nada.",
     renewsLabelPhone: "Se renueva",
-    thenLabelPhone: "Luego",
-    toCancelLabelPhone: "Para cancelar",
-    cancelStepsPhone: "Tú → Gestionar suscripción",
-    cancelNotePhone: "Cancela antes del {day} y no se cobra nada.",
     lapsedTitlePhone: "Tu suscripción ha terminado",
     resubscribePhone: "Volver a suscribirse",
     closeLabel: "Cerrar",
@@ -421,13 +432,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} một năm",
     pricePerMonth: "{price} một tháng",
     yearlySub: "{trial}, sau đó {price} một năm",
+    monthlySub: "{trial}, sau đó {price} một tháng",
     perMonthCaption: "một tháng",
     benefitPhoto: "Một bức ảnh ghi lại bữa ăn",
     benefitPlan: "Mỗi bữa ăn đối chiếu với kế hoạch của bạn",
     benefitChat: "Hỏi Spud về ngày của bạn",
     freeMealLabel: "Bữa miễn phí của bạn",
-    startTrial: "Bắt đầu tuần miễn phí của mình",
-    trialNote: "Miễn phí {days} ngày, sau đó {price} một năm. Hủy bất cứ lúc nào.",
+    startTrial: "Dùng thử miễn phí {days} ngày",
+    trialNote: "Miễn phí {days} ngày, sau đó {renewal}. Tự gia hạn đến khi bạn hủy. Hủy bất cứ lúc nào trong Hồ sơ › Gói đăng ký.",
+    trialNotePhone: "Miễn phí {days} ngày, sau đó {renewal}. Tự gia hạn đến khi bạn hủy. Hủy trong Cài đặt › Apple ID › Gói đăng ký ít nhất 24 giờ trước khi hết dùng thử.",
     continueCta: "Tiếp tục",
     renewNoteYearly: "{price} một năm. Tự gia hạn. Hủy bất cứ lúc nào.",
     renewNoteMonthly: "{price} một tháng. Tự gia hạn. Hủy bất cứ lúc nào.",
@@ -453,12 +466,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Đang đăng ký",
     dockTitlePhone: "Bữa đó chúng mình mời",
     subscribePhone: "Đăng ký",
-    trialLeftPhone: "Còn {days} ngày của tuần miễn phí",
+    trialEnds: "Ngày mai hết thời gian dùng thử",
+    trialEndsNote: "Sau đó {renewal}. Hủy hôm nay thì không bị tính phí.",
+    trialEndsCancel: "Hủy hôm nay thì không bị tính phí.",
     renewsLabelPhone: "Gia hạn",
-    thenLabelPhone: "Sau đó",
-    toCancelLabelPhone: "Để hủy",
-    cancelStepsPhone: "Bạn → Quản lý đăng ký",
-    cancelNotePhone: "Hủy trước {day} và sẽ không bị tính phí.",
     lapsedTitlePhone: "Đăng ký của bạn đã hết",
     resubscribePhone: "Đăng ký lại",
     closeLabel: "Đóng",
@@ -475,13 +486,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} setahun",
     pricePerMonth: "{price} sebulan",
     yearlySub: "{trial}, lalu {price} setahun",
+    monthlySub: "{trial}, lalu {price} sebulan",
     perMonthCaption: "sebulan",
     benefitPhoto: "Satu foto mencatat satu makanan",
     benefitPlan: "Setiap makanan dicek dengan rencanamu",
     benefitChat: "Tanya Spud tentang harimu",
     freeMealLabel: "Makanan gratismu",
-    startTrial: "Mulai minggu gratis aku",
-    trialNote: "Gratis {days} hari, lalu {price} setahun. Batal kapan saja.",
+    startTrial: "Coba gratis {days} hari",
+    trialNote: "Gratis {days} hari, lalu {renewal}. Diperpanjang otomatis sampai dibatalkan. Batal kapan saja di Profil › Langganan.",
+    trialNotePhone: "Gratis {days} hari, lalu {renewal}. Diperpanjang otomatis sampai dibatalkan. Batalkan di Pengaturan › Apple ID › Langganan setidaknya 24 jam sebelum uji coba berakhir.",
     continueCta: "Lanjut",
     renewNoteYearly: "{price} setahun. Diperpanjang otomatis. Batal kapan saja.",
     renewNoteMonthly: "{price} sebulan. Diperpanjang otomatis. Batal kapan saja.",
@@ -507,12 +520,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Memproses langganan…",
     dockTitlePhone: "Makanan tadi dari kami",
     subscribePhone: "Berlangganan",
-    trialLeftPhone: "Sisa {days} hari dari minggu gratismu",
+    trialEnds: "Masa uji cobamu berakhir besok",
+    trialEndsNote: "Lalu {renewal}. Batalkan hari ini dan tidak ada yang ditagih.",
+    trialEndsCancel: "Batalkan hari ini dan tidak ada yang ditagih.",
     renewsLabelPhone: "Diperpanjang",
-    thenLabelPhone: "Lalu",
-    toCancelLabelPhone: "Untuk batal",
-    cancelStepsPhone: "Kamu → Kelola langganan",
-    cancelNotePhone: "Batal sebelum hari {day} dan tidak ada yang ditagih.",
     lapsedTitlePhone: "Langgananmu sudah berakhir",
     resubscribePhone: "Perpanjang langganan",
     closeLabel: "Tutup",
@@ -529,13 +540,15 @@ export const PAY_COPY: Localized<PayCopy> = {
     pricePerYear: "{price} в год",
     pricePerMonth: "{price} в месяц",
     yearlySub: "{trial}, затем {price} в год",
+    monthlySub: "{trial}, затем {price} в месяц",
     perMonthCaption: "в месяц",
     benefitPhoto: "Одно фото записывает приём пищи",
     benefitPlan: "Каждый приём пищи сравнивается с твоим планом",
     benefitChat: "Спроси Spud о своём дне",
     freeMealLabel: "Твой бесплатный приём пищи",
-    startTrial: "Начать бесплатную неделю",
-    trialNote: "Бесплатно: {days} дн., затем {price} в год. Отмена в любой момент.",
+    startTrial: "Попробовать {days} дн. бесплатно",
+    trialNote: "Бесплатно: {days} дн., затем {renewal}. Продлевается автоматически, пока не отменишь. Отмени в любой момент: «Профиль» › «Подписка».",
+    trialNotePhone: "Бесплатно: {days} дн., затем {renewal}. Продлевается автоматически, пока не отменишь. Отмени в Настройках › Apple ID › Подписки минимум за 24 часа до конца пробного периода.",
     continueCta: "Продолжить",
     renewNoteYearly: "{price} в год. Продлевается автоматически. Отмена в любой момент.",
     renewNoteMonthly: "{price} в месяц. Продлевается автоматически. Отмена в любой момент.",
@@ -561,12 +574,10 @@ export const PAY_COPY: Localized<PayCopy> = {
     subscribingPhone: "Оформление подписки",
     dockTitlePhone: "Этот приём пищи — за наш счёт",
     subscribePhone: "Подписаться",
-    trialLeftPhone: "Дней до конца бесплатной недели: {days}",
+    trialEnds: "Твой пробный период кончается завтра",
+    trialEndsNote: "Затем {renewal}. Отмени сегодня — и ничего не спишется.",
+    trialEndsCancel: "Отмени сегодня — и ничего не спишется.",
     renewsLabelPhone: "Продление",
-    thenLabelPhone: "Затем",
-    toCancelLabelPhone: "Чтобы отменить",
-    cancelStepsPhone: "«Профиль» → «Управление подпиской»",
-    cancelNotePhone: "День списания — {day}. Отмени раньше — и ничего не спишется.",
     lapsedTitlePhone: "Подписка закончилась",
     resubscribePhone: "Возобновить подписку",
     closeLabel: "Закрыть",

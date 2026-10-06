@@ -1478,17 +1478,17 @@ describe("the soft offer after the plan", () => {
       "Your plan moves when your weight does",
       "Spud, any time you ask",
     ]) expect(html).toContain(escape(perk));
-    expect(html).toContain("Free for 7 days");
+    expect(html).toContain("7 days free");
     expect(html).toContain("We remind you");
     expect(html).toContain("cancel any time");
     expect(html).not.toContain("$");
   });
 
-  it("makes 'Start my free week' the checkout route, which sends THIS account to the checkout", async () => {
+  it("makes the trial CTA the checkout route, which sends THIS account to the checkout", async () => {
     const session = await toPlan();
     const userId = await webUser(session);
     const html = await (await get("/start/offer", session)).text();
-    expect(html).toContain("Start my free week");
+    expect(html).toContain("Try 7 days free");
     expect(html).toContain('action="/start/checkout"');
     // One route both offers link to — this page and the web app's offer that holds — so the id is
     // filled in one place, from the session, and never carried by a client.

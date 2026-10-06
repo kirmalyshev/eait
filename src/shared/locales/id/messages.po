@@ -351,7 +351,7 @@ msgstr "Sesuai rencana."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Satu hal lagi yang sebentar lagi ditanyakan iOS: notifikasi. Sehari satu dan tidak pernah lebih — baris pukul 20:30, plus dua pengingat sebelum minggu gratisnya habis kalau kamu sedang menjalaninya. Selain itu tidak pernah ada."
+msgstr "Satu hal lagi yang sebentar lagi ditanyakan iOS: notifikasi. Sehari satu dan tidak pernah lebih — baris pukul 20:30, plus satu pengingat sehari sebelum masa uji cobamu berakhir kalau kamu sedang menjalaninya. Selain itu tidak pernah ada."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -501,7 +501,7 @@ msgstr "Akun ini belum masuk — masuk dengan Apple atau Google di web, lalu kir
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Jatah gratis akun ini sudah habis. Mulai minggu gratismu di web untuk melanjutkan."
+msgstr "Jatah gratis akun ini sudah habis. Mulai masa uji cobamu di web untuk melanjutkan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -521,7 +521,7 @@ msgstr "Terlalu banyak percobaan dari Telegram ini. Tunggu sebentar, lalu tekan 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "Uji coba dimulai. Tujuh hari, lalu {price} kecuali kamu berhenti — aku ingatkan di hari kelima dan sehari sebelum berakhir, tidak pernah sehari sesudahnya."
+msgstr "Uji coba dimulai — setelah berakhir {price}, kecuali kamu berhenti. Aku ingatkan sehari sebelum berakhir, tidak pernah sehari sesudahnya."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

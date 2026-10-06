@@ -1,6 +1,6 @@
 import { spudSvg } from "@eait/shared/mascot";
 import { payPlans, type PayPlanRow } from "@eait/shared/ui/kit";
-import { payCopyFor } from "@eait/shared";
+import { fill, payCopyFor } from "@eait/shared";
 import type { Lang } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
 import { topBar } from "./parts.ts";
@@ -28,10 +28,14 @@ export interface OfferView {
   /** The note under the CTA while the YEARLY card is checked — the trial line, or the renewal
       line on a host that grants none. */
   noteYearly: string;
-  /** The same note for the MONTHLY pick — it renews at once, so its own words. */
+  /** The same note for the MONTHLY pick — the trial line while the host sells one (the trial is
+      on both plans, ieat-app#1591), the renew-at-once words where it does not. */
   noteMonthly: string;
   /** Where × goes — the web app's first meal, or this surface's own chat when there is none. */
   closeHref: string;
+  /** The host's trial length in days — 0 means no trial, and the timeline's trial rows stay off
+      the card entirely rather than promising a length that does not exist (ieat-app#1591). */
+  trialDays: number;
   /** The configured plans as `payPlans` rows — priced and named by the caller. */
   plans: PayPlanRow[];
   lang: Lang;
@@ -59,13 +63,13 @@ ${topBar(PAGE_COPY)}
 <p class="beat">${escape(PAGE_COPY.offerBeat)}</p>
 <h1>${escape(v.headline)}</h1>
 ${[PAGE_COPY.offerPerkVerdict, PAGE_COPY.offerPerkPlan, PAGE_COPY.offerPerkSpud].map(perk).join("\n")}
-<div class="card">
-${row(PAGE_COPY.offerWhenToday, PAGE_COPY.offerFreeWeek)}
+${v.trialDays > 0 ? `<div class="card">
+${row(PAGE_COPY.offerWhenToday, fill(pay.trialBadge, { days: String(v.trialDays) }))}
 ${row(PAGE_COPY.offerWhenEnding, PAGE_COPY.offerReminder)}
-${row(PAGE_COPY.offerWhenDay8, PAGE_COPY.offerBilled)}
-</div>
+${row(fill(PAGE_COPY.offerWhenAfter, { n: String(v.trialDays + 1) }), PAGE_COPY.offerBilled)}
+</div>` : ""}
 ${payPlans(v.plans, PAGE_COPY.titlePlan)}
-<button class="button primary" type="submit">${escape(PAGE_COPY.offerCta)}</button>
+<button class="button primary" type="submit">${escape(v.trialDays > 0 ? fill(pay.startTrial, { days: String(v.trialDays) }) : pay.continueCta)}</button>
 <p class="note note-y">${escape(v.noteYearly)}</p>
 <p class="note note-m">${escape(v.noteMonthly)}</p>
 ${legal.length === 0 ? "" : `<p class="fine">${legal.join(" · ")}</p>`}
