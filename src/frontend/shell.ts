@@ -539,8 +539,8 @@ export function keptLineEl(
     dl.append(el("i", "ico i-alert-circle"),
       refusalWords(new ApiError(0, { error: e.held!.kind, ...(e.held!.scope ? { scope: e.held!.scope } : {}) }, "held")));
     const row = el("div", "act");
-    // A held 402 goes again once she has subscribed (on the phone: web has no payments), so it
-    // keeps Resend; every other refusal is final, and Delete lets the queue behind it go.
+    // A held 402 goes again on its own once she has subscribed (`flush`), and keeps Resend; every
+    // other refusal is final, and Delete lets the queue behind it go.
     if (e.held!.kind === "subscription-required") row.append(smallCta(copy.resend, act.resend));
     row.append(plainCta(copy.phone.delete, act.drop), ts);
     li.append(dl, row);
@@ -868,6 +868,11 @@ export async function flush(): Promise<void> {
   if (me === null) return;
   const uid = me.profile.user_id;
   for (const e of outbox.entries) if (e.userId !== uid) await outbox.discard(e.id).catch(() => {});
+  // THE PURCHASE CARRIES OUT WHAT THE ASK INTERRUPTED (ieat-app#662): a turn held on the paywall goes
+  // again, under a new id, once this profile says the account is entitled — paid here or on the phone.
+  if (me.entitlement.active) {
+    for (const e of [...outbox.entries]) if (e.userId === uid && e.held?.kind === "subscription-required") await outbox.resend(e.id, uid);
+  }
   await outbox.drain(uid);
 }
 
