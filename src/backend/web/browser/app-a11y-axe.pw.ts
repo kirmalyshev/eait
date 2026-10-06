@@ -39,7 +39,8 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     expect(await axeFindings(page), "chat").toEqual([]);
 
     await page.goto("/#/you");
-    await expect(page.locator("select.pick")).toBeVisible();
+    // The Units row — a value+chevron button since #474 replaced the pill selects by ruling.
+    await expect(page.getByRole("button", { name: /Units/ })).toBeVisible();
     // The `.dayhero` arrives on `rise` — mid-fade it reads low-contrast to axe (#228), so the
     // check waits for the end state like the chat's does.
     await settle(page);
