@@ -28,8 +28,8 @@ import {
   isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, projectGoal,
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
-  screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
-  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor, weightToKg,
+  screenOptions, screenOptionValues, suggestionFirst,
+  switchedLine, targetRange, TARGET_STEP_KG, threadCopyFor, weightToKg,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
   payCopyFor, paywallPrice, perMonth,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
@@ -1620,19 +1620,7 @@ function renderQuestion(
   const prompt = walk[index]!;
   const lang = profile.lang;
 
-  let lines = askLines(prompt, { content, lang }, profile);
-  // The target question speaks its suggestion when there is one — `targetSuggestionLine` AS the
-  // ask, because the suggestion spoken and the number shown are the same sentence. At the
-  // healthy floor there is nothing to suggest and the plain question stands.
-  if (prompt.id === "target_weight_kg") {
-    const suggestedKg = suggestedTargetKg(profile);
-    if (suggestedKg !== null && profile.weight_kg !== null
-        && (profile.goal === "lose" || profile.goal === "gain")) {
-      const share = Math.round(Math.abs(suggestedKg - profile.weight_kg) / profile.weight_kg * 100);
-      const line = targetSuggestionLine(suggestedKg, share, profile.goal, units, lang);
-      if (line !== null) lines = [line];
-    }
-  }
+  const lines = askLines(prompt, { content, lang }, profile);
 
   return question({
     prompt,
