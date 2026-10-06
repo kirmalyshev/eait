@@ -300,6 +300,12 @@ function retry(job: Job): void {
 /** Meal ids a question row stands for, so the list does not draw them twice. */
 export const queuedMealIds = (): Set<string> => new Set(jobs.flatMap((j) => j.mealId ?? []));
 export const queueLength = (): number => photoJobs().length;
+export type { Job };
+/** A queued photo's job by id — `#/meal/<jobId>`'s queued view resolves it (`web/log-queue-meal`). */
+export const jobFor = (id: string): Job | undefined =>
+  photoJobs().find((j) => j.id === id);
+/** The one job's row — the same `rowEl` the diary column draws, for the meal screen's left list. */
+export const queueJobRow = (job: Job): HTMLElement => rowEl(job);
 
 const SVG = "http://www.w3.org/2000/svg";
 const svg = (tag: string, attrs: Record<string, string>): SVGElement => {
@@ -475,6 +481,13 @@ function rowEl(job: Job): HTMLElement {
       kc.append(skeleton("40px", "14px"), skeleton("26px", "8px"));
       row.append(kc);
     }
+    // A row being read opens the meal screen's queued view — `#/meal/<jobId>` (web/log-queue-meal).
+    row.setAttribute("role", "link");
+    row.tabIndex = 0;
+    row.addEventListener("click", () => { location.hash = `#/meal/${encodeURIComponent(job.id)}`; });
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); location.hash = `#/meal/${encodeURIComponent(job.id)}`; }
+    });
     row.setAttribute("aria-busy", "true");
     return row;
   }

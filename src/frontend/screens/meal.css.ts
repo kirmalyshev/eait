@@ -13,11 +13,21 @@ export const mealCss = `
 
 /* The detail card: padding 0, the header row across the top, then photo | sheet at 1fr 1fr. */
 .mdet{padding:0;overflow:hidden;display:flex;flex-direction:column}
-.mhead{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--hair)}
-.mhead .ib{width:32px;height:32px;flex-basis:32px}
-.mhead .mh{flex:1;min-width:0;text-align:center}
-.mhead .mh b{display:block;font-size:15px;font-weight:600}
-.mhead .mh small{display:block;font-size:12px;color:var(--muted);font-weight:500}
+/* The pane's own first row — X and the ⋯ menu inside the card, nothing over the photo
+   (web/meal.html): the boards dropped the strip header. */
+.mctl{margin-bottom:2px}
+.mctl .ib{width:36px;height:36px;flex-basis:36px}
+.mctl .ib[disabled]{opacity:.45;pointer-events:none}
+/* The queued meal's step list (web/log-queue-meal.html) — the boards' .qs rows. */
+.msteps{padding:6px 16px}
+.qs{display:flex;align-items:center;gap:12px;padding:11px 0;font-size:15px;font-weight:500;color:var(--muted)}
+.qs+.qs{border-top:1px solid var(--hair)}
+.qs>i{width:22px;height:22px;border-radius:11px;flex:0 0 22px;display:flex;align-items:center;justify-content:center;border:2px solid var(--line);font-size:12px;font-weight:700;font-style:normal}
+.qs.ok,.qs.now{color:var(--ink)}.qs.now{font-weight:600}
+.qs.ok>i{background:var(--accent);border-color:var(--accent);color:#fff}
+.qs.now>i{border-color:var(--accent);border-top-color:transparent;animation:k-spin .9s linear infinite}
+.qs small{margin-left:auto;font-size:13px;color:var(--muted);font-weight:400}
+.mqueued{position:relative;overflow:hidden}
 .msplit{display:grid;grid-template-columns:1fr 1fr;min-height:0}
 .msplit .hero{min-height:320px}
 .msplit .mnoimg{display:flex;align-items:center;justify-content:center;background:var(--accent-tint)}
@@ -111,5 +121,13 @@ button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:960px){
   .mdetail{grid-template-columns:1fr}
   .msplit{grid-template-columns:1fr}
+}
+/* The 390 board (phone/web-meal-narrow.html): no diary column, the photo a rounded block on its
+   own, then the card — the streak+calendar row rides the wrapped top bar. */
+@media (max-width:760px){
+  .mdetail>.wcol:first-child{display:none}
+  .mdet{padding:0;background:transparent;box-shadow:none}
+  .mdet .hero{height:220px;min-height:0;border-radius:12px;overflow:hidden}
+  .mdet .msheet{background:var(--surface);border-radius:var(--r-card);box-shadow:var(--shadow);margin-top:12px}
 }
 `;
