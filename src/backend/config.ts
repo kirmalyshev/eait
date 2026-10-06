@@ -1,5 +1,9 @@
 import { MIN_MODEL_CALL_TIMEOUT_MS, REMINDER_TIME, FREE_ANALYSES, SERVER_LLM_TIMEOUT_MS } from "@eait/shared";
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
+import { AGENT_PROVIDERS } from "./llm/local-agent.ts";
+
+/** Every `EAIT__BACKEND__LLM_PROVIDER` value `index.ts` can wire: the gateway, then the CLIs. */
+const LLM_PROVIDERS = ["openrouter", ...AGENT_PROVIDERS];
 
 // Configuration, loaded once at startup and validated loudly.
 //
@@ -101,6 +105,13 @@ export interface Config {
    * env line falls back to it rather than to no bound at all.
    */
   llmMaxTokens: number;
+  /**
+   * At most this many coding-agent CLI processes at once, and only read when `llmProvider` is a
+   * `*-cli` one (`llm/local-agent.ts`). A spawned agent is a whole runtime per call — the bound
+   * is what keeps an unbounded fan-out of them from taking the host down with them. The default
+   * is sized for `routeText`'s speculative pair.
+   */
+  llmAgentConcurrency: number;
   /**
    * Analyses an account gets before an entitlement is required. THERE IS NO FREE TIER: this is
    * the onboarding's sample — the one meal on us, photo or typed — and the default is
@@ -523,6 +534,7 @@ export function configDefaults(): Config {
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
     llmMaxTokens: 16_000,
+    llmAgentConcurrency: 2,
     freeAnalyses: FREE_ANALYSES,
     paidDailyPhotoCap: 200,
     globalDailyAnalysisCap: 500,
@@ -604,6 +616,18 @@ export function loadConfig(): Config {
 
   const llmMaxTokens = llmMaxTokensFromEnv(d.llmMaxTokens);
 
+  // `openrouter` is the billed gateway; the `*-cli` values are the local coding agents of
+  // `llm/local-agent.ts` — dev and self-hosted only. An unknown value used to read as
+  // "openrouter anyway", a provider the operator never asked for answering with their key.
+  const llmProvider = process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider;
+  if (!LLM_PROVIDERS.includes(llmProvider)) {
+    throw new Error(`[eait] EAIT__BACKEND__LLM_PROVIDER must be one of ${LLM_PROVIDERS.join(", ")}, not "${llmProvider}"`);
+  }
+  const llmAgentConcurrency = int("EAIT__BACKEND__LLM_AGENT_CONCURRENCY", d.llmAgentConcurrency);
+  if (llmAgentConcurrency < 1) {
+    throw new Error("[eait] EAIT__BACKEND__LLM_AGENT_CONCURRENCY must be at least 1");
+  }
+
   // The web sign-in's audience, checked at BOOT rather than at the end of somebody's first sign-up.
   //
   // `auth/verify.ts` refuses a token whose `aud` is not in this list, and the token `/start` gets
@@ -666,15 +690,20 @@ export function loadConfig(): Config {
     host: process.env.EAIT__BACKEND__HOST ?? d.host,
     databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
     databaseMaxConnections: int("EAIT__BACKEND__DATABASE_MAX_CONNECTIONS", d.databaseMaxConnections),
-    llmProvider: process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider,
+    llmProvider,
     llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
     llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
-    llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
+    // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and
+    // requiring it there would refuse a boot that needed no key at all.
+    llmApiKey: llmProvider === "openrouter"
+      ? required("EAIT__BACKEND__LLM_API_KEY")
+      : (process.env.EAIT__BACKEND__LLM_API_KEY ?? ""),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),
     llmMaxTokens,
+    llmAgentConcurrency,
     freeAnalyses,
     paidDailyPhotoCap,
     globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
