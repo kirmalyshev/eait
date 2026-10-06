@@ -104,6 +104,24 @@ export interface YouCopy {
     /** The optional Support row's label (#200) — drawn only while the operator configures a
         donation URL; the provider names beside it are brands and stay untranslated. */
     support: string;
+    /**
+     * The Apple Health row's value — "on your iPhone". The row opens nothing: there is no web
+     * page for Health (ieat-app STATES), so this is where it lives, not a link.
+     */
+    healthOnPhone: string;
+    /**
+     * The boxed notice inside a panel whose save was refused (web/you-profile-failed.html,
+     * web/you-weight-failed.html): the bold title over the kept-values line — the two halves of
+     * `phone.saveKept`, split because the board draws them as two runs.
+     */
+    saveFailedTitle: string;
+    saveFailedBody: string;
+    /**
+     * The 422 `target-weight-below-healthy-bmi` refusal's body — the same sentence the phone's
+     * `belowHealthyCard` carries (onboarding-chat-copy.ts), repeated here because that table sits
+     * behind the i18n stack the browser bundle may not reach. `{kg}` is the floor for the height.
+     */
+    belowHealthy: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -313,6 +331,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Support eait",
+      healthOnPhone: "on your iPhone",
+      saveFailedTitle: "Couldn't save that.",
+      saveFailedBody: "What you entered is still here — save again.",
+      belowHealthy: "The lowest healthy weight for your height is about {kg}kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.",
     },
     phone: {
       title: "You",
@@ -422,6 +444,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Soutenir eait",
+      healthOnPhone: "sur ton iPhone",
+      saveFailedTitle: "Impossible d'enregistrer.",
+      saveFailedBody: "Ce que tu as saisi est toujours là — enregistre à nouveau.",
+      belowHealthy: "Le poids sain le plus bas pour ta taille est d'environ {kg}kg. On ne fixera pas d'objectif en dessous. Si tu suis un autre objectif avec un médecin, écoute-le plutôt que cette appli.",
     },
     phone: {
       title: "Toi",
@@ -531,6 +557,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "eait unterstützen",
+      healthOnPhone: "auf deinem iPhone",
+      saveFailedTitle: "Das konnte nicht gespeichert werden.",
+      saveFailedBody: "Deine Eingabe ist noch da — speichere noch einmal.",
+      belowHealthy: "Das niedrigste gesunde Gewicht für deine Größe liegt bei etwa {kg}kg. Darunter setzen wir kein Ziel. Wenn du mit einer Ärztin an etwas anderem arbeitest, folge ihr und nicht dieser App.",
     },
     phone: {
       title: "Du",
@@ -640,6 +670,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Sostieni eait",
+      healthOnPhone: "sul tuo iPhone",
+      saveFailedTitle: "Non è stato possibile salvare.",
+      saveFailedBody: "Quello che hai inserito è ancora qui — salva di nuovo.",
+      belowHealthy: "Il peso sano più basso per la tua altezza è circa {kg}kg. Sotto quello non fissiamo obiettivi. Se il tuo medico ti ha indicato altro, segui le sue indicazioni e non questa app.",
     },
     phone: {
       title: "Profilo",
@@ -749,6 +783,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Apoyar eait",
+      healthOnPhone: "en tu iPhone",
+      saveFailedTitle: "No se pudo guardar.",
+      saveFailedBody: "Lo que escribiste sigue aquí — guarda otra vez.",
+      belowHealthy: "El peso saludable más bajo para tu altura es de unos {kg}kg. No fijamos objetivos por debajo. Si estás trabajando otra cosa con un médico, hazle caso a él y no a esta app.",
     },
     phone: {
       title: "Tú",
@@ -858,6 +896,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Ủng hộ eait",
+      healthOnPhone: "trên iPhone của bạn",
+      saveFailedTitle: "Không lưu được.",
+      saveFailedBody: "Những gì bạn nhập vẫn còn đây — lưu lại nhé.",
+      belowHealthy: "Cân nặng khỏe mạnh thấp nhất với chiều cao của bạn là khoảng {kg}kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
     },
     phone: {
       title: "Bạn",
@@ -967,6 +1009,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
       support: "Dukung eait",
+      healthOnPhone: "di iPhone kamu",
+      saveFailedTitle: "Tidak bisa disimpan.",
+      saveFailedBody: "Yang kamu isi masih di sini — simpan lagi.",
+      belowHealthy: "Berat sehat terendah untuk tinggimu sekitar {kg}kg. Kami tidak menetapkan tujuan di bawah itu. Kalau kamu sedang menjalani hal lain bersama dokter, ikuti dokternya, bukan aplikasi ini.",
     },
     phone: {
       title: "Kamu",
@@ -1076,6 +1122,10 @@ export const YOU_COPY: Localized<YouCopy> = {
       unitsMetric: "кг · см",
       unitsImperial: "lb · ft",
       support: "Поддержать eait",
+      healthOnPhone: "на твоём iPhone",
+      saveFailedTitle: "Не удалось сохранить.",
+      saveFailedBody: "Введённое всё ещё здесь — сохрани ещё раз.",
+      belowHealthy: "Самый низкий здоровый вес для твоего роста — около {kg}кг. Ниже мы цель не ставим. Если ты работаешь над чем-то другим с врачом, слушай его, а не это приложение.",
     },
     phone: {
       title: "Профиль",
