@@ -109,17 +109,22 @@ export const CONTROL_SCRIPT = `(function () {
       function mbox(x, w) { return x < nX ? [x - 6 - w, x - 6] : [x + 6, x + 6 + w]; }
       var loB = lo && !isNaN(floor) ? mbox(pxAt(floor, size), lo.offsetWidth) : null;
       var hiB = hi && !isNaN(nowV) ? mbox(pxAt(nowV, size), hi.offsetWidth) : null;
-      // .lo is clamped on the left so a floor near the edge keeps the words on it.
-      if (loB) lo.style.left = Math.max(loB[0], 4) + "px";
-      if (hiB) hi.style.left = hiB[0] + "px";
+      // The ruler's mask fades its outer 60px, so a label clamped only to the edge reads CLIPPED
+      // (#473): every marker's box clamps into the clear band instead — the same +4 the old
+      // edge clamp kept, in from where the fade ends. A left-anchored box can never reach the
+      // right fade, a right-anchored one never the left, so one clamp serves both.
+      var padL = 64;
+      function inBand(b, w) { return Math.min(Math.max(b[0], padL), Math.max(padL, size - padL - w)); }
+      if (loB) lo.style.left = inBand(loB, lo.offsetWidth) + "px";
+      if (hiB) hi.style.left = inBand(hiB, hi.offsetWidth) + "px";
       if (mg && loB && hiB) {
         // rulerMarkerLayout, re-derived the same way: marks within one tick
         // merge into .mg; the resolved boxes under 8px apart drop the floor
         // label to .r2; apart, both stay on the band's row.
         var merged = Math.abs(pxAt(floor, size) - pxAt(nowV, size)) <= px;
-        var loL = Math.max(loB[0], 4), loR = loL + lo.offsetWidth;
+        var loL = inBand(loB, lo.offsetWidth), loR = loL + lo.offsetWidth;
         var stacked = !merged && loR + 8 > hiB[0] && hiB[1] + 8 > loL;
-        mg.style.left = mbox(pxAt(floor, size), mg.offsetWidth)[0] + "px";
+        mg.style.left = inBand(mbox(pxAt(floor, size), mg.offsetWidth), mg.offsetWidth) + "px";
         mg.style.visibility = merged ? "visible" : "hidden";
         lo.style.visibility = hi.style.visibility = merged ? "hidden" : "visible";
         lo.className = "lbl lo" + (stacked ? " r2" : "");
