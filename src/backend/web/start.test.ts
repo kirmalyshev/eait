@@ -16,7 +16,7 @@ import {
   UNDER_AGE_LINES, chatCopyFor, countryLabel, countryOptions, disabledScreens,
   explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planCopyFor, planJourney, fill,
   projectGoal, projectionMonth, resolveCountry, suggestionFirst,
-  screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
+  screenForStep, screenOptions,
   kcalNumbers, signupCopyFor, weightDisplay, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
@@ -1388,12 +1388,12 @@ describe("the v2 questions that write the new fields", () => {
 
 describe("the target-weight ruler", () => {
   /** 80kg at 170cm → the suggested target is 73.5, the healthy floor about 53.5. */
-  it("opens on the shared suggestion, said as the ask, with the refused zone drawn", async () => {
+  it("opens on the shared suggestion under the board's own ask, with the refused zone drawn", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
-    // `targetSuggestionLine` is Spud's ask here, per the design — the admin's own ask is not
-    // ALSO said, or the screen is two questions at once.
-    expect(html).toContain("I suggest 73.5kg");
+    // The headline is the board's ask (#473) — the suggestion is the ruler's needle, not the
+    // question spoken.
+    expect(html).toContain("What weight are you aiming for?");
     // The control is the ruler: the suggestion is its needle, carried as data-val AND as the
     // plain input's value — the same number with or without the script.
     expect(html).toContain('data-ctl="ruler"');
@@ -2665,20 +2665,10 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         // `{loseTail}`, `{floor}` and friends are substituted before the page is written, so the
         // stored sentence is not the rendered one — but the words around the hole are.
         const screen = content.screens.find((x) => x.id === screenForStep(id as never));
-        if (id === "target_weight_kg") {
-          // The one screen whose ask is NOT the admin's (#42): the stepper's ask is the shared
-          // `targetSuggestionLine`, spoken from the suggestion itself.
-          const me = (await store.getProfile(await webUser(cookie!)))!;
-          const kg = suggestedTargetKg(me)!;
-          const share = Math.round(Math.abs(kg - me.weight_kg!) / me.weight_kg! * 100);
-          const said = targetSuggestionLine(kg, share, "lose", me.units, lang);
-          expect(html, `${lang}.${id} did not carry the suggestion`).toContain(escape(said!));
-        } else {
-          const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];
-          if (ask) {
-            const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
-            expect(html, `${lang}.${id} did not ask in ${lang}`).toContain(escape(fixed));
-          }
+        const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];
+        if (ask) {
+          const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
+          expect(html, `${lang}.${id} did not ask in ${lang}`).toContain(escape(fixed));
         }
 
         const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";

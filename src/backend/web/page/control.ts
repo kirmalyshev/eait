@@ -109,17 +109,44 @@ export const CONTROL_SCRIPT = `(function () {
       function mbox(x, w) { return x < nX ? [x - 6 - w, x - 6] : [x + 6, x + 6 + w]; }
       var loB = lo && !isNaN(floor) ? mbox(pxAt(floor, size), lo.offsetWidth) : null;
       var hiB = hi && !isNaN(nowV) ? mbox(pxAt(nowV, size), hi.offsetWidth) : null;
-      // .lo is clamped on the left so a floor near the edge keeps the words on it.
-      if (loB) lo.style.left = Math.max(loB[0], 4) + "px";
-      if (hiB) hi.style.left = hiB[0] + "px";
+      // The ruler's mask fades its outer 60px and the needle is a wall a label never crosses
+      // (#473): a marker's box clamps into the clear band on its own side of the line — 64px in
+      // from the fade, 6px off the needle. When even that leaves no room — a mark near the edge
+      // on a narrow ruler — the label steps down to the bare value ("62kg") rather than cross
+      // the needle or sit in the fade.
+      var padL = 64;
+      var uw = ctl.dataset.unitword || "";
+      function place(lbl, x, short) {
+        // The full words come back every paint — a drag that gives the band room restores them.
+        if (lbl.dataset.full === undefined) lbl.dataset.full = lbl.textContent;
+        lbl.textContent = lbl.dataset.full;
+        var w = lbl.offsetWidth, b = mbox(x, w);
+        var loLim = x < nX ? padL : nX + 6;
+        var hiLim = x < nX ? nX - 6 - w : size - padL - w;
+        if (hiLim < loLim && short !== null) {
+          lbl.textContent = short;
+          w = lbl.offsetWidth; b = mbox(x, w);
+          hiLim = x < nX ? nX - 6 - w : size - padL - w;
+        }
+        if (hiLim < loLim) {
+          // Even the bare value has no band — the unclamped mark-side box, which mbox already
+          // keeps on the far side of the needle.
+          lbl.textContent = lbl.dataset.full;
+          return b[0];
+        }
+        return Math.min(Math.max(b[0], loLim), hiLim);
+      }
+      var loL = null, hiL = null;
+      if (loB) { loL = place(lo, pxAt(floor, size), fmtN(floor) + uw); lo.style.left = loL + "px"; }
+      if (hiB) { hiL = place(hi, pxAt(nowV, size), fmtN(nowV) + uw); hi.style.left = hiL + "px"; }
       if (mg && loB && hiB) {
         // rulerMarkerLayout, re-derived the same way: marks within one tick
         // merge into .mg; the resolved boxes under 8px apart drop the floor
         // label to .r2; apart, both stay on the band's row.
         var merged = Math.abs(pxAt(floor, size) - pxAt(nowV, size)) <= px;
-        var loL = Math.max(loB[0], 4), loR = loL + lo.offsetWidth;
-        var stacked = !merged && loR + 8 > hiB[0] && hiB[1] + 8 > loL;
-        mg.style.left = mbox(pxAt(floor, size), mg.offsetWidth)[0] + "px";
+        var loR = loL + lo.offsetWidth, hiR = hiL + hi.offsetWidth;
+        var stacked = !merged && loR + 8 > hiL && hiR + 8 > loL;
+        mg.style.left = place(mg, pxAt(floor, size), fmtN(floor) + uw) + "px";
         mg.style.visibility = merged ? "visible" : "hidden";
         lo.style.visibility = hi.style.visibility = merged ? "hidden" : "visible";
         lo.className = "lbl lo" + (stacked ? " r2" : "");

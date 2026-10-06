@@ -8,6 +8,7 @@
 
 import { dashIndex, DASH_PLACES, type Lang, type OnboardingPlace } from "@eait/shared";
 import { spudSvg, type MascotMood } from "@eait/shared/mascot";
+import { brandSvg } from "@eait/shared/ui/icons";
 import { escape } from "./shell.ts";
 
 /** The board's mood per place — `think` weighs, `care` sits beside, `happy` is the default. */
@@ -17,10 +18,11 @@ export const PLACE_MOOD: Partial<Record<OnboardingPlace, MascotMood>> = {
   ontrack: "care",
 };
 
-/** The wordmark bar. No navigation: onboarding is the product here, nothing links out (§9). */
+/** The wordmark bar — the app icon, not Spud (DIRECTION §6). No navigation: onboarding is the
+ * product here, nothing links out (§9). */
 export function wtop(): string {
-  return `<div class="wtop"><span class="brand"><span class="wm" aria-hidden="true">` +
-    `${spudSvg("happy", "spud-mark")}</span>eait</span><span class="sp"></span></div>`;
+  return `<div class="wtop"><span class="brand">${brandSvg("eait", { size: 20, class: "appicon" })}` +
+    `eait</span><span class="sp"></span></div>`;
 }
 
 /**
