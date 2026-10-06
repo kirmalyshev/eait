@@ -45,6 +45,14 @@ export const youCss = `
 .you .card button.elink { color: var(--muted); }
 .you .card button.elink:hover { text-decoration: underline; }
 
+/* The plan card's figure block is a button — the door to "How we got there" (you-basis), the
+   same tap the phone's plan card takes. All button chrome off so the figures draw unchanged. */
+.you .card button.planhit { display: block; width: 100%; margin: 0; padding: 0; min-height: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; font: inherit; color: inherit;
+  text-align: left; cursor: pointer; }
+.you .card button.planhit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px;
+  border-radius: var(--r-ctl); }
+
 /* The flat card — hairline-separated rows, label then a quiet value and the chevron where the
    row opens something (the boards' "padding:13px 0; font-size:15px" rows). */
 .you .card.flat { box-shadow: 0 0 0 1px var(--hair); padding: 4px 16px; }

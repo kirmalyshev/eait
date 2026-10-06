@@ -1,8 +1,9 @@
 // You — the account's own surface (web/you.html, phone/web-you-narrow.html; the redesign pass is
-// eait#474). Two columns at desktop width: the left is the board's order — the identity card's
-// fact line, then the plan card whose "edit" opens the profile editor PANEL; the right is the
-// flat rows (Apple Health · Subscription · Account · Units · Language · Telegram · Support) and
-// the sign-out card. The day column is gone — the day is Home's — and the bar carries the shared
+// eait#474, the remaining panels #477). Two columns at desktop width: the left is the board's
+// order — the identity card's fact line, then the plan card whose "edit" opens the profile
+// editor PANEL and whose figures open "How we got there"; the right is the flat rows (Apple
+// Health · Subscription · Account · Units · Language · Telegram · Support) and the sign-out
+// card. The day column is gone — the day is Home's — and the bar carries the shared
 // pair (streak chip · calendar button) with no ‹ › anywhere.
 //
 // EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the trial's day off
@@ -13,7 +14,7 @@
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState, TRIAL_DAYS } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
-import { dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, weekdayDayMonthAt, wholeNumbers } from "../../shared/lang.ts";
 import {
   countryLabel, countryOptions, screenOptions, screenOptionValues,
 } from "../../shared/onboarding.ts";
@@ -23,6 +24,7 @@ import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { youCopyFor, youFacts } from "../../shared/app/you-copy.ts";
 import type {
@@ -37,7 +39,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { kitEl, macEl } from "../kit.ts";
 import { ico, tagx } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
-import { closeAllPanels, openPanel, toast } from "../panel.ts";
+import { closeAllPanels, openDialog, openPanel, toast } from "../panel.ts";
 import { openWeighIn } from "../weigh.ts";
 import {
   clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, setHeldProposal,
@@ -55,6 +57,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   }
 
   const you = youCopyFor(lang);
+  const pay = payCopyFor(lang);
   const H = homeCopyFor(lang);
   const n = numbers(lang);
   const nWhole = wholeNumbers(lang);
@@ -147,7 +150,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     card.append(head);
 
     const t = me!.targets;
-    const fig = el("div", "planfig");
+    // Spans, not divs — the figure sits inside the `planhit` BUTTON, whose content model is
+    // phrasing content; the classes' own display rules keep the board's arrangement.
+    const fig = el("span", "planfig");
     fig.append(
       kitEl(`<i class="ico i-kcal" aria-hidden="true"></i>`),
       el("b", "d d22 num", `${kcalNumbers(lang)(t.kcal)}${UNIT_KCAL[lang]}`),
@@ -163,11 +168,22 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         ? [{ name: "fat" as const, text: fill(you.satFatGrams, { g: nWhole(t.satfat_g), noun: H.macros.satFat.name }) }]
         : [{ name: "fat" as const, text: fill(you.grams, { g: nWhole(t.fat_g) }) }]),
     ];
-    const macrow = el("div", "macs");
+    const macrow = el("span", "macs");
     for (const c of chips) macrow.append(macEl(c.name, c.text));
-    const foot = el("div", "row between");
+    const foot = el("span", "row between");
     foot.append(macrow);
-    card.append(fig, foot);
+    // The figures are the door to "How we got there" — the plan's arithmetic as a panel, the
+    // same tap the phone's plan card takes to /you/basis. One button over the figure and the
+    // macros, so the target is discoverable rather than a corner of it.
+    const door = el("button", "planhit") as HTMLButtonElement;
+    door.type = "button";
+    door.setAttribute("aria-label", fill(you.phone.labeledValue, {
+      label: you.planLabel,
+      value: fill(you.kcalADay, { kcal: kcalNumbers(lang)(t.kcal) }),
+    }));
+    door.addEventListener("click", () => openBasis());
+    door.append(fig, foot);
+    card.append(door);
     return card;
   };
 
@@ -236,8 +252,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     card.append(optRow(you.appleHealth, you.web.healthOnPhone));
     // The Subscription row names its state — the board's trial is one of five; `subscriptionState`
     // is the one rule and the date is "24 Oct" in the language's locale, the year only off this
-    // year. Its page is a later panel (#474 follow-up); until then the row keeps its value and,
-    // for an account with nothing bought, points at the web's one subscription surface, #/pay.
+    // year. A live one opens its status panel; an account with nothing to show goes to #/pay,
+    // the web's one surface that can change it (ended included — resubscribing IS its panel).
     const sub = subscriptionState(me!.entitlement);
     const subValue =
       sub.kind === "trial" ? fill(you.freeTrialDay, { n: nWhole(Math.max(1, (me!.paywall?.trialDays || TRIAL_DAYS) - sub.daysLeft)) })
@@ -247,17 +263,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         ? (sub.date === null ? you.subscriptionEndedNoDate : fill(you.subscriptionEnded, { date: subDate(sub.date) }))
       : you.subscriptionFree;
     card.append(me!.entitlement.active
-      ? optRow(you.subscription, subValue)
+      ? optRow(you.subscription, subValue, () => openSubscription())
       : optRow(you.subscription, subValue, () => { location.hash = "#/pay"; }));
 
     // The sign-in providers, minus the device credential — "Apple" the way the board writes it.
     // More than one lists the language's own way — `listConjunction`, not a hand-joined " · ".
-    // The account page is the same follow-up; the row keeps its value and draws no dead chevron.
     const providers = (ids?.identities ?? [])
       .map((i) => i.provider)
       .filter((p) => signsIn(p) && p !== "device")
       .map((p) => PROVIDER_NAME[p] ?? p);
-    card.append(optRow(you.account, listConjunction(lang, providers)));
+    card.append(optRow(you.account, listConjunction(lang, providers), () => openAccount(ids, providers)));
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     card.append(optRow(
@@ -327,27 +342,28 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
+  /** Sign this browser out — the turns it was keeping go first (they are the account's, photos
+      included): a sign-out the network refuses must still take them, and a storage that refuses
+      must not keep the person signed in. Deletion lands here too — the account is already gone
+      on the server, and what is left is the local teardown. */
+  const leave = async (): Promise<void> => {
+    await outbox.clear().catch(() => {});
+    await signOut();
+    closeAllPanels();
+    forgetProfile();
+    setHeldProposal(null);
+    setLastThread([]);
+    location.hash = "#/";
+    await render();
+  };
+
   const signOutCard = (): HTMLElement => {
     const card = el("div", "card flat urows");
     // The board's bare action row — it signs out, it does not navigate, so no chevron.
     const out = el("button", "opt") as HTMLButtonElement;
     out.type = "button";
     out.append(el("span", "ot", COPY.signOut));
-    out.addEventListener("click", () => {
-      void (async () => {
-        // The turns this browser was keeping are the account's, photos included: they do not stay
-        // behind for whoever uses it next. First, so a sign-out the network refuses still takes
-        // them. A storage that refuses must not keep the person signed in.
-        await outbox.clear().catch(() => {});
-        await signOut();
-        closeAllPanels();
-        forgetProfile();
-        setHeldProposal(null);
-        setLastThread([]);
-        location.hash = "#/";
-        await render();
-      })();
-    });
+    out.addEventListener("click", () => { void leave(); });
     card.append(out);
     return card;
   };
@@ -615,6 +631,185 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     drawRows();
   }
 
+  // ── The remaining row panels (web/you-basis|account|subscription|delete, #477) — the same
+  // panel pattern as the editor and the weigh-in, and the phone's own screens mirrored. ────────
+
+  /** The boards' read-only panel line — the hairline-topped "label · figure" row. */
+  const statRow = (label: string, figure: string, plan = false): HTMLElement => {
+    const row = el("div", `srow${plan ? " planrow" : ""}`);
+    row.append(el("span", "", label), el("b", "num pv", figure));
+    return row;
+  };
+
+  /** The account board's action line — the .opt row carrying no value; the tap IS the act. */
+  const actRow = (label: string, onTap: () => void): HTMLButtonElement => {
+    const b = el("button", "opt") as HTMLButtonElement;
+    b.type = "button";
+    b.append(el("span", "ot", label));
+    b.addEventListener("click", onTap);
+    return b;
+  };
+
+  /** A refused call inside a panel gets the boards' boxed notice — ink title over a muted body. */
+  const panelNote = (title: string, words: string): HTMLElement => {
+    const n = el("div", "pnote");
+    n.setAttribute("role", "alert");
+    n.replaceChildren(el("b", "", title), el("span", "t13 m", words));
+    return n;
+  };
+
+  /**
+   * "How we got there" (web/you-basis.html) — the plan's arithmetic as the board's four lines:
+   * at rest, your days, your pace, then the plan set a notch heavier, the floor marker under
+   * them. EVERY FIGURE IS `basis`'s — `explainTargets`' account of the server computation;
+   * `appliedDeltaKcal` is the pace AFTER the share cap and the floor, the delta the person can
+   * ask "why" about. "Change an answer" opens the same editor the plan card's edit does,
+   * stacked over this panel the way the phone pushes /you/profile over /you/basis.
+   */
+  function openBasis(): void {
+    const b = me!.basis;
+    const { body } = openPanel(you.phone.basisTitle);
+    // The board writes a signed figure as the sign, a space, the digits — "+ 299", "− 359" —
+    // and a null basis (no sex/age ever answered) still gets its row, its figure an en dash:
+    // inventing the number is the one thing this screen is for NOT doing.
+    const signedWhole = (v: number): string => `${v < 0 ? "−" : "+"} ${nWhole(Math.abs(v))}`;
+    body.append(
+      statRow(you.phone.atRest, b.bmr !== null ? nWhole(b.bmr) : "–"),
+      statRow(you.phone.yourDays, b.activityDeltaKcal !== null ? signedWhole(b.activityDeltaKcal) : "–"),
+      statRow(you.phone.yourPace, signedWhole(b.appliedDeltaKcal)),
+      statRow(you.planLabel, fill(you.kcalADay, { kcal: nWhole(me!.targets.kcal) }), true),
+      el("span", "pest", fill(you.floorMarker, { floor: nWhole(b.floorKcal) })),
+    );
+    const change = el("button", "cta s", you.phone.changeAnswer) as HTMLButtonElement;
+    change.type = "button";
+    change.addEventListener("click", () => openEditor());
+    body.append(change);
+  }
+
+  /**
+   * The subscription panel (web/you-subscription.html) — STATUS ONLY, and the closing line says
+   * where the subscription lives: with Apple, managed in the App Store on the iPhone. The trial
+   * card is the trial state — the day off the server's `trialDaysLeft`, the length off the
+   * host's `paywall.trialDays` (`TRIAL_DAYS` the fallback) — then the what-happens rows, "Then"
+   * priced off the plan the trial rides on (`productId`), a plan the host never configured
+   * drawing no row. "free"/"ended" never reach this — their row goes to #/pay.
+   */
+  function openSubscription(): void {
+    const e = me!.entitlement;
+    const sub = subscriptionState(e);
+    const { body } = openPanel(you.subscription);
+    if (sub.kind === "trial") {
+      const trialLen = me!.paywall?.trialDays || TRIAL_DAYS;
+      const trialDay = Math.max(1, trialLen - sub.daysLeft);
+      const ends = e.expiresAt !== null ? weekdayDayMonthAt(lang, zone, new Date(e.expiresAt)) : null;
+      const card = el("div", "card flat");
+      card.append(el("span", "lab", you.phone.freeTrialTitle));
+      const day = el("div", "row between");
+      day.style.marginTop = "6px";
+      day.append(el("b", "d d22", fill(you.phone.dayOfTotal, { n: nWhole(trialDay), total: nWhole(trialLen) })));
+      if (ends !== null) day.append(el("span", "t13 m", fill(you.phone.untilDate, { date: ends })));
+      card.append(day);
+      const bar = el("div", "bar");
+      const fillEl = el("i", "");
+      fillEl.style.width = `${Math.min(100, (trialDay / trialLen) * 100)}%`;
+      bar.append(fillEl);
+      card.append(bar);
+      body.append(card, statRow(you.phone.beforeEnds, you.phone.weRemind));
+      const yearly = /year/i.test(e.productId ?? "");
+      const plan = yearly ? me!.paywall?.yearly : me!.paywall?.monthly;
+      if (plan) body.append(statRow(you.phone.thenLabel, fill(yearly ? pay.pricePerYear : pay.pricePerMonth, { price: plan.price })));
+    } else if (sub.kind === "until") {
+      body.append(statRow(pay.renewsLabelPhone, weekdayDayMonthAt(lang, zone, new Date(sub.date))));
+    } else if (sub.kind === "lifetime") {
+      body.append(statRow(you.subscription, you.subscriptionLifetime));
+    }
+    body.append(el("p", "t13 m mnote", you.web.subscriptionWithApple));
+  }
+
+  /**
+   * The delete confirm (web/you-delete.html) — the narrow card OVER the account panel: the
+   * question, what goes, Keep it | Delete. Erasure is the server's act — `DELETE /v1/account`
+   * answers first, and only then does the local teardown run; a refused call keeps the sheet
+   * up, its failure said in the card, for a retry or a Keep it.
+   */
+  function openDelete(): void {
+    const { card, close } = openDialog(you.phone.deleteTitle);
+    const keep = el("button", "cta p", you.phone.keepIt) as HTMLButtonElement;
+    const del = el("button", "cta s bad", you.phone.deleteConfirm) as HTMLButtonElement;
+    keep.type = "button";
+    del.type = "button";
+    const notice = panelNote("", "");
+    notice.hidden = true;
+    const row = el("div", "row dlgbtns");
+    row.append(keep, del);
+    card.append(el("b", "d d22", you.phone.deleteTitle), el("p", "m", you.phone.deleteBody), notice, row);
+    keep.addEventListener("click", close);
+    // Focus the SAFE button — a blind Enter after the card opens must never erase an account.
+    keep.focus();
+    let busy = false;
+    del.addEventListener("click", () => {
+      if (busy) return;
+      busy = true;
+      keep.disabled = del.disabled = true;
+      void (async () => {
+        try {
+          await api("/account", { method: "DELETE" });
+        } catch (err) {
+          if (err instanceof Unauthenticated) { closeAllPanels(); await render(); return; }
+          console.error(err);
+          busy = false;
+          keep.disabled = del.disabled = false;
+          notice.replaceChildren(el("b", "", you.web.deleteFailedTitle), el("span", "t13 m", keptWords(err, you.web.deleteFailedBody)));
+          notice.hidden = false;
+          return;
+        }
+        await leave();
+      })();
+    });
+  }
+
+  /**
+   * The account panel (web/you-account.html) — the provider this browser is signed in with, the
+   * two sign-outs, and "Delete everything", whose confirm stacks over this panel. For an
+   * ANONYMOUS account — a paired browser on an unsigned phone account, a /start flow nobody
+   * finished — no provider names it and a sign-out orphans it, so the one row offers the way
+   * IN (to /start), the phone's own guard on the same screen.
+   */
+  function openAccount(ids: IdentitiesResponse | null, providers: string[]): void {
+    const anonymous = ids !== null && providers.length === 0;
+    const { body, close } = openPanel(you.account);
+    const notice = panelNote("", "");
+    notice.hidden = true;
+    if (anonymous) {
+      // A LINK, not a fetch: /start is the server-rendered flow whose sign-in attaches to this
+      // account. The row keeps the board's opt shape.
+      const offer = el("a", "opt") as HTMLAnchorElement;
+      offer.href = "/start";
+      offer.append(el("span", "ot", you.web.signInOffer));
+      body.append(offer);
+    } else {
+      body.append(statRow(you.phone.signedInWith, listConjunction(lang, providers)));
+      body.append(actRow(you.web.signOutBrowser, () => { close(); void leave(); }));
+      const everywhere = actRow(you.phone.signOutEverywhere, () => {
+        everywhere.disabled = true;
+        void api("/auth/signout/all", { method: "POST" })
+          .then(() => leave())
+          .catch(async (err: unknown) => {
+            everywhere.disabled = false;
+            if (err instanceof Unauthenticated) { closeAllPanels(); await render(); return; }
+            console.error(err);
+            notice.replaceChildren(el("b", "", you.web.signOutFailedTitle), el("span", "t13 m", keptWords(err, you.web.signOutFailedBody)));
+            notice.hidden = false;
+          });
+      });
+      body.append(everywhere, notice);
+    }
+    const del = el("button", "cta g bad", you.phone.deleteEverything) as HTMLButtonElement;
+    del.type = "button";
+    del.addEventListener("click", () => openDelete());
+    body.append(del);
+  }
+
   // ── The two columns — the left is the board's order; the right is the flat rows. ────────────
 
   const cols = el("div", "ygrid");
@@ -637,7 +832,12 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
 
     const rn = noticeFor();
     clear(leftCol).append(identityCard(), planCard());
-    clear(rightCol).append(rowsCard(ids, rn), signOutCard(), rn.notice);
+    // Signing OUT an account no provider names — anonymous — would orphan it, so the card is
+    // not drawn for one (the same guard the account panel runs). An unanswered read is not
+    // anonymity: `ids` null keeps the card up.
+    const anonymous = ids !== null
+      && !(ids.identities ?? []).some((i) => signsIn(i.provider) && i.provider !== "device");
+    clear(rightCol).append(rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
   }
 
   await draw();

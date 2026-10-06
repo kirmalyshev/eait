@@ -265,6 +265,36 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 /* display:flex above beats the browser's [hidden] rule — an empty pnote must render nothing. */
 .pnote[hidden] { display: none; }
 .pnote b { font-size: 14px; }
+
+/* A READ-ONLY panel row — the boards' hairline-topped "label · figure" line (Basis's figures,
+   Account's provider row, Subscription's what-happens rows). The tappable variants are
+   button.prow and button.opt. */
+.panel .srow { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 0; border-top: 1px solid var(--hair); font-size: 15px; }
+.panel .srow .pv { font-weight: 600; }
+/* The plan line is the one the figures resolve into — the board sets it a notch heavier.
+   "planrow", not "plan": the kit's .plan is the paywall's option card. */
+.panel .srow.planrow .pv { font-weight: 700; }
+/* The account board's action rows are .opt-shaped — the kit's row chrome, at the board's
+   13px/15px (the flat card's own rhythm), no pill. */
+.panel button.opt { padding: 13px 0; font-size: 15px; }
+/* The Basis floor marker — the boards' .est, muted. The class is panel-scoped because chat's
+   own unscoped .est is the warn amber, a different register entirely. */
+.panel .pest { align-self: flex-start; font-size: 12px; font-weight: 600; color: var(--muted); }
+/* The Subscription panel's inner flat card (the trial) and its progress bar — the board's
+   14/16 padding and 8px track. */
+.panel .card.flat { margin: 0; padding: 14px 16px; }
+.panel .card.flat .bar { height: 8px; border-radius: 4px; }
+.panel .card.flat .bar i { border-radius: 4px; }
+.panel p.mnote { margin: 0; }
+/* A destructive cta's ink — "Delete everything" (ghost) and the confirm's Delete (secondary). */
+.panel button.cta.bad { color: var(--bad); }
+/* The narrow confirm (web/you-delete.html): 400px, no head — the question IS the body's first
+   line, and the two ctas share the foot row. */
+.panel.dlg { width: 400px; padding: 22px; gap: 10px; }
+.panel.dlg p { margin: 0; }
+.panel.dlg .dlgbtns { gap: 10px; margin-top: 8px; }
+.panel.dlg .dlgbtns .cta { flex: 1; margin: 0; }
 /* The weigh-in's big field — the board's 48px figure that is an input, the unit beside it. */
 .wfigrow { gap: 8px; align-items: baseline; }
 .wbig { font: inherit; font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1;

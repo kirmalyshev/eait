@@ -122,6 +122,36 @@ export interface YouCopy {
      * behind the i18n stack the browser bundle may not reach. `{kg}` is the floor for the height.
      */
     belowHealthy: string;
+    /**
+     * The Account panel's first sign-out row (web/you-account.html): "Sign out of this browser" —
+     * the phone's `signOutThis` is "of this account"; the board's own words name the session.
+     */
+    signOutBrowser: string;
+    /**
+     * The Account panel's one row for an anonymous account — a browser paired onto a phone that
+     * never signed in, or a `/start` flow nobody finished: no provider names it and signing out
+     * would orphan it, so the row offers the way in instead (the phone's `signInOffer` lives in
+     * the app's own table, unreachable here). A link to `/start`.
+     */
+    signInOffer: string;
+    /**
+     * The Subscription panel's closing line (web/you-subscription.html): status only — the
+     * subscription is Apple's and the App Store on the iPhone is where it is managed. Web's own
+     * Manage/Restore belong to the you-subscription-pay target and ship with web payments.
+     */
+    subscriptionWithApple: string;
+    /**
+     * The boxed notice when "Sign out everywhere" is refused — the session is kept and the rows
+     * re-arm. Two runs like `saveFailed*`, but no entered value is kept, so its own wording.
+     */
+    signOutFailedTitle: string;
+    signOutFailedBody: string;
+    /**
+     * The delete confirm's boxed notice when `DELETE /v1/account` failed — the account is intact
+     * and the sheet stays up for a retry or a Keep it (the phone's `deleteFailed*`, its table's).
+     */
+    deleteFailedTitle: string;
+    deleteFailedBody: string;
   };
 
   /** What only the phone boards draw — the You stack's deeper screens. */
@@ -335,6 +365,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Couldn't save that.",
       saveFailedBody: "What you entered is still here — save again.",
       belowHealthy: "The lowest healthy weight for your height is about {kg}kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.",
+      signOutBrowser: "Sign out of this browser",
+      signInOffer: "Sign in with Apple or Google",
+      subscriptionWithApple: "Your subscription is with Apple: manage or cancel it in the App Store on your iPhone.",
+      signOutFailedTitle: "Couldn't sign out.",
+      signOutFailedBody: "Check your connection and try again.",
+      deleteFailedTitle: "Couldn't delete your account",
+      deleteFailedBody: "Your account and meals are still here.",
     },
     phone: {
       title: "You",
@@ -448,6 +485,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Impossible d'enregistrer.",
       saveFailedBody: "Ce que tu as saisi est toujours là — enregistre à nouveau.",
       belowHealthy: "Le poids sain le plus bas pour ta taille est d'environ {kg}kg. On ne fixera pas d'objectif en dessous. Si tu suis un autre objectif avec un médecin, écoute-le plutôt que cette appli.",
+      signOutBrowser: "Se déconnecter de ce navigateur",
+      signInOffer: "Se connecter avec Apple ou Google",
+      subscriptionWithApple: "Ton abonnement est chez Apple : gère-le ou annule-le dans l'App Store sur ton iPhone.",
+      signOutFailedTitle: "Impossible de te déconnecter.",
+      signOutFailedBody: "Vérifie ta connexion et réessaie.",
+      deleteFailedTitle: "Impossible de supprimer ton compte",
+      deleteFailedBody: "Ton compte et tes repas sont toujours là.",
     },
     phone: {
       title: "Toi",
@@ -561,6 +605,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Das konnte nicht gespeichert werden.",
       saveFailedBody: "Deine Eingabe ist noch da — speichere noch einmal.",
       belowHealthy: "Das niedrigste gesunde Gewicht für deine Größe liegt bei etwa {kg}kg. Darunter setzen wir kein Ziel. Wenn du mit einer Ärztin an etwas anderem arbeitest, folge ihr und nicht dieser App.",
+      signOutBrowser: "In diesem Browser abmelden",
+      signInOffer: "Mit Apple oder Google anmelden",
+      subscriptionWithApple: "Dein Abo läuft über Apple: verwalte oder kündige es im App Store auf deinem iPhone.",
+      signOutFailedTitle: "Abmelden nicht möglich.",
+      signOutFailedBody: "Prüfe deine Verbindung und versuch es noch einmal.",
+      deleteFailedTitle: "Dein Konto konnte nicht gelöscht werden",
+      deleteFailedBody: "Dein Konto und deine Mahlzeiten sind noch da.",
     },
     phone: {
       title: "Du",
@@ -674,6 +725,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Non è stato possibile salvare.",
       saveFailedBody: "Quello che hai inserito è ancora qui — salva di nuovo.",
       belowHealthy: "Il peso sano più basso per la tua altezza è circa {kg}kg. Sotto quello non fissiamo obiettivi. Se il tuo medico ti ha indicato altro, segui le sue indicazioni e non questa app.",
+      signOutBrowser: "Esci da questo browser",
+      signInOffer: "Accedi con Apple o Google",
+      subscriptionWithApple: "Il tuo abbonamento è con Apple: gestiscilo o disdilo nell'App Store sul tuo iPhone.",
+      signOutFailedTitle: "Impossibile uscire.",
+      signOutFailedBody: "Controlla la connessione e riprova.",
+      deleteFailedTitle: "Non è stato possibile eliminare il tuo account",
+      deleteFailedBody: "Il tuo account e i tuoi pasti sono ancora qui.",
     },
     phone: {
       title: "Profilo",
@@ -787,6 +845,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "No se pudo guardar.",
       saveFailedBody: "Lo que escribiste sigue aquí — guarda otra vez.",
       belowHealthy: "El peso saludable más bajo para tu altura es de unos {kg}kg. No fijamos objetivos por debajo. Si estás trabajando otra cosa con un médico, hazle caso a él y no a esta app.",
+      signOutBrowser: "Cerrar sesión en este navegador",
+      signInOffer: "Inicia sesión con Apple o Google",
+      subscriptionWithApple: "Tu suscripción es con Apple: gestiónala o cancélala en la App Store de tu iPhone.",
+      signOutFailedTitle: "No se pudo cerrar sesión.",
+      signOutFailedBody: "Comprueba tu conexión e inténtalo otra vez.",
+      deleteFailedTitle: "No se pudo eliminar tu cuenta",
+      deleteFailedBody: "Tu cuenta y tus comidas siguen aquí.",
     },
     phone: {
       title: "Tú",
@@ -900,6 +965,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Không lưu được.",
       saveFailedBody: "Những gì bạn nhập vẫn còn đây — lưu lại nhé.",
       belowHealthy: "Cân nặng khỏe mạnh thấp nhất với chiều cao của bạn là khoảng {kg}kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
+      signOutBrowser: "Đăng xuất khỏi trình duyệt này",
+      signInOffer: "Đăng nhập bằng Apple hoặc Google",
+      subscriptionWithApple: "Gói của bạn thuộc Apple: quản lý hoặc huỷ trong App Store trên iPhone của bạn.",
+      signOutFailedTitle: "Không đăng xuất được.",
+      signOutFailedBody: "Kiểm tra kết nối rồi thử lại.",
+      deleteFailedTitle: "Không xoá được tài khoản của bạn",
+      deleteFailedBody: "Tài khoản và các bữa của bạn vẫn còn đây.",
     },
     phone: {
       title: "Bạn",
@@ -1013,6 +1085,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Tidak bisa disimpan.",
       saveFailedBody: "Yang kamu isi masih di sini — simpan lagi.",
       belowHealthy: "Berat sehat terendah untuk tinggimu sekitar {kg}kg. Kami tidak menetapkan tujuan di bawah itu. Kalau kamu sedang menjalani hal lain bersama dokter, ikuti dokternya, bukan aplikasi ini.",
+      signOutBrowser: "Keluar dari browser ini",
+      signInOffer: "Masuk dengan Apple atau Google",
+      subscriptionWithApple: "Langgananmu dipegang Apple: kelola atau batalkan di App Store di iPhone-mu.",
+      signOutFailedTitle: "Tidak bisa keluar.",
+      signOutFailedBody: "Periksa koneksimu lalu coba lagi.",
+      deleteFailedTitle: "Tidak bisa menghapus akunmu",
+      deleteFailedBody: "Akun dan makananmu masih ada.",
     },
     phone: {
       title: "Kamu",
@@ -1126,6 +1205,13 @@ export const YOU_COPY: Localized<YouCopy> = {
       saveFailedTitle: "Не удалось сохранить.",
       saveFailedBody: "Введённое всё ещё здесь — сохрани ещё раз.",
       belowHealthy: "Самый низкий здоровый вес для твоего роста — около {kg}кг. Ниже мы цель не ставим. Если ты работаешь над чем-то другим с врачом, слушай его, а не это приложение.",
+      signOutBrowser: "Выйти в этом браузере",
+      signInOffer: "Войти через Apple или Google",
+      subscriptionWithApple: "Подписка оформлена через Apple: управлять ею или отменить её можно в App Store на твоём iPhone.",
+      signOutFailedTitle: "Не удалось выйти.",
+      signOutFailedBody: "Проверь соединение и попробуй ещё раз.",
+      deleteFailedTitle: "Не удалось удалить аккаунт",
+      deleteFailedBody: "Аккаунт и приёмы пищи всё ещё здесь.",
     },
     phone: {
       title: "Профиль",

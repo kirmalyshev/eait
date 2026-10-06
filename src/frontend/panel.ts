@@ -47,6 +47,18 @@ document.addEventListener("keydown", (e) => {
 // navigation does: the app is hash-routed, and a panel over a different screen is a wrong panel.
 window.addEventListener("hashchange", closeAllPanels);
 
+/** Put a card on the scrim stack — focus moves to `focus`, Esc/scrim-tap close the top only. */
+function present(card: HTMLElement, focus: HTMLElement): { close: () => void } {
+  const scrim = el("div", "scrim");
+  scrim.append(card);
+  const entry: OpenPanel = { scrim, restore: document.activeElement };
+  scrim.addEventListener("click", (e) => { if (e.target === scrim) drop(entry); });
+  stack.push(entry);
+  document.body.append(scrim);
+  focus.focus();
+  return { close: () => drop(entry) };
+}
+
 /**
  * Open a panel: × | title | spacer, then the caller's rows in `body`.
  *
@@ -54,7 +66,6 @@ window.addEventListener("hashchange", closeAllPanels);
  * one h1 stays the screen's.
  */
 export function openPanel(title: string): { body: HTMLElement; close: () => void } {
-  const scrim = el("div", "scrim");
   const card = el("div", "card panel rise");
   card.setAttribute("role", "dialog");
   card.setAttribute("aria-modal", "true");
@@ -70,13 +81,22 @@ export function openPanel(title: string): { body: HTMLElement; close: () => void
   head.append(close, el("span", "d d17", title), spacer);
   const body = el("div", "pbody");
   card.append(head, body);
-  scrim.append(card);
-  const entry: OpenPanel = { scrim, restore: document.activeElement };
-  scrim.addEventListener("click", (e) => { if (e.target === scrim) drop(entry); });
-  stack.push(entry);
-  document.body.append(scrim);
-  close.focus();
-  return { body, close: () => drop(entry) };
+  return { body, ...present(card, close) };
+}
+
+/**
+ * The narrow confirm card (web/you-delete.html) — 400px and NO panel head: the question is the
+ * body's first line and the caller's buttons are the way out. Esc and the scrim still dismiss it
+ * and it stacks like a panel (the board draws it OVER the account one). Focus lands on the card
+ * itself — the caller moves it onto the safe button once its rows exist.
+ */
+export function openDialog(label: string): { card: HTMLElement; close: () => void } {
+  const card = el("div", "card panel rise dlg");
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.setAttribute("aria-label", label);
+  card.tabIndex = -1;
+  return { card, ...present(card, card) };
 }
 
 /** The dark pill the saved boards draw at the top — a few seconds, then it goes on its own. */
