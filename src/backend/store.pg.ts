@@ -1972,8 +1972,7 @@ export async function postgresStore(
         await tx`
           update users into_u set
             entitlement_lifetime_product_id = from_u.entitlement_lifetime_product_id,
-            entitlement_lifetime_event_at   = from_u.entitlement_lifetime_event_at,
-            entitlement_product_id          = from_u.entitlement_product_id
+            entitlement_lifetime_event_at   = from_u.entitlement_lifetime_event_at
           from users from_u
           where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}
             and from_u.entitlement_lifetime_event_at is not null

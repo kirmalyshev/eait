@@ -708,8 +708,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           trial: takeSub ? from.trial === true : into?.trial === true,
           lifetimeProductId: takeLife ? from.lifetimeProductId : into?.lifetimeProductId ?? null,
           lifetimeEventAt: takeLife ? from.lifetimeEventAt : into?.lifetimeEventAt ?? null,
-          // Names whichever grant just travelled; `??` not `||`, an empty productId is a stored value.
-          productId: takeSub || takeLife ? from.productId : into?.productId ?? from.productId,
+          // The subscription's id travels with the subscription; a lifetime never names it.
+          productId: takeSub ? from.productId : into?.productId ?? "",
           eventAt: newest(into?.eventAt, from.eventAt),
         });
         entitlements.delete(fromUserId);
