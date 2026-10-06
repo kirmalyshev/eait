@@ -485,7 +485,7 @@ describe("editing the notification copy", () => {
       meta: { ids: string[]; placeholders: Record<string, string[]> };
     };
     expect(body.copy.evening!.body).toContain("{eaten}");
-    expect(body.meta.ids).toEqual(["trial-end", "evening"]);
+    expect(body.meta.ids).toEqual(["trial-end", "evening", "nudge"]);
     expect(body.meta.placeholders["evening.body"]).toEqual(["eaten", "plan", "tomorrow"]);
   });
 

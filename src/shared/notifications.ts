@@ -26,7 +26,7 @@ import { genderedRussian, kcalNumbers, wholeNumbers, t, type Localized } from ".
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
-export const NOTIFICATION_IDS = ["trial-end", "evening"] as const;
+export const NOTIFICATION_IDS = ["trial-end", "evening", "nudge"] as const;
 export type NotificationId = (typeof NOTIFICATION_IDS)[number];
 
 export interface NotificationMessage {
@@ -56,6 +56,7 @@ export const NOTIFICATION_PLACEHOLDERS: Record<string, readonly string[]> = {
   "trial-end.title": [], "trial-end.body": [],
   "evening.title": [], "evening.body": ["eaten", "plan", "tomorrow"],
   "evening.emptyBody": ["plan", "tomorrow"],
+  "nudge.title": [], "nudge.body": [],
 };
 
 /** iOS truncates well before these; they are a bound on abuse, not a design guide. */
@@ -83,10 +84,16 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
     body: "{eaten} of your {plan}kcal today. {tomorrow}",
     emptyBody: "Nothing logged today — your {plan}kcal are still the plan. {tomorrow}",
   },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  nudge: {
+    title: "Today's meals",
+    body: "Log what you ate today — a photo is enough.",
+  },
 };
 
 /**
- * The two messages in every language, and the stored row's shape.
+ * Every message in every language, and the stored row's shape.
  *
  * `en` IS `DEFAULT_NOTIFICATION_COPY` itself, so the admin's reset, the merge in `engine/notify.ts`
  * and every test go on looking in the one place they already look.
@@ -103,6 +110,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten}kcal sur tes {plan} aujourd'hui. {tomorrow}",
       emptyBody: "Rien d'enregistré aujourd'hui — ton objectif reste {plan}kcal. {tomorrow}",
     },
+    nudge: {
+      title: "Les repas du jour",
+      body: "Note ce que tu as mangé aujourd'hui — une photo suffit.",
+    },
   },
   de: {
     "trial-end": {
@@ -113,6 +124,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Dein Tag im Vergleich zum Plan",
       body: "{eaten} von deinen {plan}kcal heute. {tomorrow}",
       emptyBody: "Heute nichts eingetragen — deine {plan}kcal sind trotzdem der Plan. {tomorrow}",
+    },
+    nudge: {
+      title: "Deine Mahlzeiten heute",
+      body: "Trag ein, was du heute gegessen hast — ein Foto reicht.",
     },
   },
   it: {
@@ -125,6 +140,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} delle tue {plan}kcal oggi. {tomorrow}",
       emptyBody: "Oggi niente registrato — le tue {plan}kcal restano il piano. {tomorrow}",
     },
+    nudge: {
+      title: "I pasti di oggi",
+      body: "Registra cosa hai mangiato oggi — basta una foto.",
+    },
   },
   es: {
     "trial-end": {
@@ -135,6 +154,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Hoy frente al plan",
       body: "{eaten} de tus {plan}kcal hoy. {tomorrow}",
       emptyBody: "Hoy sin registros — tus {plan}kcal siguen siendo el plan. {tomorrow}",
+    },
+    nudge: {
+      title: "Las comidas de hoy",
+      body: "Apunta lo que comiste hoy: basta con una foto.",
     },
   },
   vi: {
@@ -147,6 +170,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} trên {plan}kcal hôm nay. {tomorrow}",
       emptyBody: "Hôm nay chưa ghi gì — {plan}kcal của bạn vẫn là kế hoạch. {tomorrow}",
     },
+    nudge: {
+      title: "Bữa ăn hôm nay",
+      body: "Ghi lại những gì bạn ăn hôm nay — chỉ cần một tấm ảnh.",
+    },
   },
   id: {
     "trial-end": {
@@ -158,6 +185,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} dari {plan}kcal hari ini. {tomorrow}",
       emptyBody: "Hari ini belum ada catatan — {plan}kcal-mu tetap rencananya. {tomorrow}",
     },
+    nudge: {
+      title: "Makanan hari ini",
+      body: "Catat apa yang kamu makan hari ini — cukup satu foto.",
+    },
   },
   ru: {
     "trial-end": {
@@ -168,6 +199,10 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Итоги дня",
       body: "{eaten} из твоих {plan}ккал сегодня. {tomorrow}",
       emptyBody: "Сегодня ничего не записано — твои {plan}ккал всё ещё план. {tomorrow}",
+    },
+    nudge: {
+      title: "Еда за сегодня",
+      body: "Запиши сегодняшнюю еду — хватит одного фото.",
     },
   },
 };
