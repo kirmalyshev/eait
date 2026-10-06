@@ -169,14 +169,18 @@ export const BOARD_CSS = `
 /* #1201 — .lo/.mg/.hi position by computed box (left is the box's own edge): the
  * transforms and mark-side paddings the alignment used to live in are the
  * script's mbox now, so the classes carry only the look. */
-.ob .ruler .lbl.lo { transform: none; color: var(--bad); font-weight: 500; }
+/* The refused zone is NEUTRAL, not red — red is "very high" only (ieat-app#1610): the floor and
+   merged labels stay the ruler's muted ink, the zone itself the board's faint hatch. */
+.ob .ruler .lbl.lo { transform: none; }
 /* the floor label's second row, 16px under the band's own. */
 .ob .ruler .lbl.lo.r2 { bottom: 28px; }
 /* the merged floor/now label. */
-.ob .ruler .lbl.mg { transform: none; color: var(--bad); font-weight: 500; }
+.ob .ruler .lbl.mg { transform: none; }
 .ob .ruler .lbl.hi { transform: none; color: var(--ink); font-weight: 600; }
 .ob .ruler .tint { position: absolute; left: 0; bottom: 0; height: 38px;
-                   background: linear-gradient(90deg, var(--bad-tint), transparent); pointer-events: none; }
+                   background: repeating-linear-gradient(135deg,
+                     color-mix(in srgb, var(--faint) 55%, transparent) 0 2px,
+                     transparent 2px 8px); pointer-events: none; }
 
 /* the live delta pill under the target ruler — clear of the tick band, not flush on it (#473) */
 .ob .live { position: relative; width: fit-content; margin: 12px auto 0; background: var(--accent-tint);
