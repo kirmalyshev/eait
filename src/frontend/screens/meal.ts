@@ -19,28 +19,32 @@
 // id resolves to the gone state — the server scopes the read, so "another user's meal" and "no
 // meal" are the same answer and the same panel.
 
-import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
+import { dateMinus, isCalendarDate, localDate, localTime, weekStart } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
 import type { MealItem, MealRecord } from "@eait/shared";
-import type { DayResponse } from "@eait/shared/contract";
+import type { DayResponse, DaysResponse } from "@eait/shared/contract";
 import type { MealRedated } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { enqueueUpdate, inPlace, takeSentGrams, takeSentNote, updateBannerEl, updateFor } from "../queue.ts";
-import { esc, ico } from "../../shared/ui/kit.ts";
+import {
+  enqueueUpdate, inPlace, jobFor, queueJobRow, takeSentGrams, takeSentNote, updateBannerEl,
+  updateFor, watchJobs, type Job,
+} from "../queue.ts";
+import { esc, ico, tagx } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
   blobSrc, ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl,
   verdictListEl,
 } from "../kit.ts";
 import {
-  COPY, MEAL, clear, dayText, el, findMeal, lang, names, profile, setRedraw, takeTurn,
-  type Frame,
+  COPY, DAYS, MEAL, clear, dayPickerButton, dayText, el, findMeal, lang, names, profile,
+  setRedraw, takeTurn, type Frame,
 } from "../shell.ts";
 
 // The screen the meal was opened from — Update closes back to it, where the row carries the progress.
@@ -132,7 +136,10 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   const photoUrl = async (mealId: string, index: number): Promise<string | null> =>
     await apiBlob(`${MEAL(mealId)}/photos/${index}`).then(blobSrc).catch(() => null);
 
-  const closeToDiary = (): void => { location.hash = "#/"; };
+  // X returns to the day the picker left open — the diary lands where it was looking.
+  const closeToDiary = (): void => {
+    location.hash = viewing !== undefined && viewing !== today ? `#/?d=${encodeURIComponent(viewing)}` : "#/";
+  };
   document.addEventListener("keydown", function onKey(e) {
     if (!wrap.isConnected) { document.removeEventListener("keydown", onKey); return; }
     if (e.key !== "Escape") return;
@@ -493,22 +500,16 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const updating = updateFor(meal.id) !== undefined;
     const card = el("div", `card mdet${updating ? " updating" : ""}`);
 
-    // The header row the delete board gives the card: X left, day · time (and provenance) in the
-    // middle, the "…" menu on the right.
-    const head = el("div", "mhead");
-    const close = iconButton("x", mc.webGoneBack);
-    close.addEventListener("click", closeToDiary);
-    const mid = el("div", "mh");
-    mid.append(
-      el("b", "", fill(mc.sheetWhen, { day: dayName(meal.date), time: mealTime(meal) })),
-      ...((meal.photos ?? 0) > 0 ? [el("small", "", mc.webLoggedPhoto)] : []),
-    );
-    head.append(close, mid, menuButton(meal));
-    card.append(head);
-
     const split = el("div", "msplit");
     split.append(hero(meal));
     const sheet = el("div", "msheet");
+    // The boards give the detail pane its own first row — X left, the "…" menu right — inside
+    // the card; the photo is edge to edge with nothing over it (web/meal.html).
+    const ctl = el("div", "row between mctl");
+    const close = iconButton("x", mc.webGoneBack);
+    close.addEventListener("click", closeToDiary);
+    ctl.append(close, menuButton(meal));
+    sheet.append(ctl);
     if (updating) sheet.append(updateBannerEl(meal.id));
     sheet.append(kitEl(`<div class="row between"><div><b class="d d22">${esc(names(meal.items))}</b>` +
       `<div class="t13 m mmeta">${esc(meta(meal))}</div></div>` +
@@ -556,18 +557,120 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
   const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
-  const draw = async (): Promise<void> => {
-    const { day, meal } = await findMeal(id, zone, viewing);
-    viewing = day.date;
-    // The top bar's right side is this screen's own — the day it looks at, stepped by the
-    // chevrons, as the boards draw the date row on every meal frame.
+  const hc = homeCopyFor(lang);
+  // The boards' bar on a meal frame: the streak chip + the calendar button (DIRECTION — the
+  // streak and the calendar on every tab's row), the chip .wnar so only the wrapped ≤760 row
+  // shows it — the wide meal boards draw the calb alone.
+  let barStreak = 0;
+  const barRow = (): void => {
     clear(frame.bar);
-    const prev = iconButton("chevron-left", COPY.dayPrev);
-    prev.addEventListener("click", () => { location.hash = `#/meal/${encodeURIComponent(id)}?d=${dateMinus(viewing!, 1)}`; });
-    const next = iconButton("chevron-right", COPY.dayNext);
-    if (viewing >= today) next.disabled = true;
-    next.addEventListener("click", () => { location.hash = `#/meal/${encodeURIComponent(id)}?d=${dateMinus(viewing!, -1)}`; });
-    frame.bar.append(prev, el("span", "", dateText(viewing)), next);
+    if (barStreak > 0) {
+      const chip = kitEl(tagx({
+        icon: "streak", text: n(barStreak), aria: fill(hc.phoneStreakAria, { n: n(barStreak) }),
+      })) as HTMLElement;
+      chip.classList.add("wnar");
+      frame.bar.append(chip);
+    }
+    const cal = dayPickerButton({
+      label: hc.pickDay, value: () => viewing ?? today, max: () => today,
+      // The picked day is the LIST's — the meal's own card resolves on its own day regardless.
+      onPick: (d) => { location.hash = `#/meal/${encodeURIComponent(id)}?d=${encodeURIComponent(d)}`; },
+    });
+    frame.bar.append(cal.button, cal.input);
+  };
+  void api<DaysResponse>(`${DAYS}?from=${weekStart(today)}&to=${dateMinus(weekStart(today), -6)}`)
+    .then((d) => { barStreak = d.streak; if (wrap.isConnected) barRow(); }).catch(() => {});
+
+  /**
+   * `web/log-queue-meal.html` — a queued photo's job id resolves here rather than to a meal: the
+   * photo under the scan, the step it is on, the foods found so far, skeletons for the rest. The
+   * left column is today's list with the job's row on top.
+   */
+  const drawQueued = async (job: Job): Promise<void> => {
+    const day = await api<DayResponse>(`/diary/day?date=${today}`);
+    clear(left);
+    left.append(el("span", "lab", dateText(day.date)));
+    const rows = el("div", "card mlist");
+    rows.append(queueJobRow(job));
+    for (const m of day.meals) {
+      const src = (m.photos ?? 0) > 0 ? await photoUrl(m.id, 0) : null;
+      rows.append(inPlace(m, () => mealRowEl(m, {
+        time: mealTime(m),
+        photo: src !== null ? { src } : null,
+        href: `#/meal/${encodeURIComponent(m.id)}?d=${day.date}`,
+      })));
+    }
+    left.append(rows);
+
+    const card = el("div", "card mdet");
+    const split = el("div", "msplit");
+    const heroBox = el("div", "hero mqueued");
+    if (job.thumb !== "") {
+      const img = el("img", "") as HTMLImageElement;
+      img.src = job.thumb;
+      img.alt = "";
+      heroBox.append(img);
+    }
+    heroBox.append(el("i", "scan"));
+    split.append(heroBox);
+    const sheet = el("div", "msheet");
+    const ctl = el("div", "row between mctl");
+    const close = iconButton("x", mc.webGoneBack);
+    close.addEventListener("click", closeToDiary);
+    // The boards draw the menu seat too — with no meal behind it there is nothing to open.
+    const dots = iconButton("dots", mc.menuButton);
+    dots.disabled = true;
+    ctl.append(close, dots);
+    sheet.append(ctl);
+    const head = el("div", "");
+    if (job.items.length > 0) head.append(el("b", "d d22", names(job.items)));
+    else { const s = el("i", "sk"); s.style.width = "62%"; s.style.height = "22px"; head.append(s); }
+    head.append(el("div", "t13 m mmeta",
+      fill(hc.queue.beingRead, { time: localTime(zone, new Date(job.capturedAt)) })));
+    sheet.append(head);
+    // The four queue steps — the words already shipped: the upload line, "Foods found: {n}" once
+    // the plate is named, the stream's own `line` on the step in flight, skeletons ahead of it.
+    const steps = el("div", "card flat msteps");
+    const nowAt = job.state === "waiting" ? 1 : job.step;
+    for (let s = 1; s <= 4; s++) {
+      const label = s === 1 ? hc.queue.uploading
+        : s === 2 && job.items.length > 0 ? fill(hc.queue.found, { n: n(job.items.length) })
+        : s === nowAt ? job.line ?? hc.queue.uploading
+        : null;
+      const row = el("div", `qs${s < nowAt ? " ok" : s === nowAt ? " now" : ""}`);
+      const tick = el("i", "", s < nowAt ? "✓" : "");
+      if (label === null) { const sk = el("i", "sk"); sk.style.width = "55%"; sk.style.height = "12px"; row.append(tick, sk); }
+      else row.append(tick, el("span", "", label));
+      if (s === 2 && job.items.length > 0) {
+        row.append(el("small", "", job.items.map((it) => it.name).join(" · ")));
+      }
+      steps.append(row);
+    }
+    sheet.append(steps);
+    sheet.append(kitEl(`<div class="card flat row between"><div>` +
+      `<i class="sk" style="width:90px;height:30px"></i>` +
+      `<div style="margin-top:8px"><i class="sk" style="width:40px;height:10px"></i></div></div>` +
+      `<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">` +
+      `<i class="sk" style="width:80px;height:10px"></i><i class="sk" style="width:70px;height:10px"></i>` +
+      `<i class="sk" style="width:60px;height:10px"></i></div></div>`));
+    clear(right).append(notice, card);
+  };
+
+  const draw = async (): Promise<void> => {
+    barRow();
+    const job = jobFor(id);
+    if (job !== undefined) { await drawQueued(job); return; }
+    // The picked day (`?d=`) is the LIST's; the meal resolves on its own day — a pick into a day
+    // without it keeps the card (gone is for an id that resolves nowhere).
+    const { day, meal } = await findMeal(id, zone, viewing);
+    let ownDay = day;
+    let found = meal;
+    if (found === null && viewing !== undefined) {
+      const own = await findMeal(id, zone);
+      found = own.meal;
+      ownDay = own.day;
+    }
+    viewing = day.date;
 
     clear(left);
     left.append(el("span", "lab", dateText(day.date)));
@@ -580,24 +683,36 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
           photo: src !== null ? { src } : null,
           href: `#/meal/${encodeURIComponent(m.id)}?d=${day.date}`,
         });
-        if (m.id === meal?.id) row.classList.add("sel");
+        if (m.id === found?.id) row.classList.add("sel");
         return row;
       }));
     }
     left.append(rows);
-    clear(right).append(notice, meal === null ? goneCard() : detailCard(meal, day));
+    clear(right).append(notice, found === null ? goneCard() : detailCard(found, ownDay));
 
     // The deep links `#/meal/<id>?fix` / `?item=<n>` open their panel once, over the drawn detail,
     // then the hash loses the param — a redraw must not reopen a panel the person already closed.
-    if (meal !== null && pending !== null) {
+    if (found !== null && pending !== null) {
       const p = pending;
       pending = null;
       history.replaceState(null, "", `#/meal/${encodeURIComponent(id)}?d=${viewing}`);
-      if (p === "fix") openPanel(fixPanel(meal));
-      else if (p === "score") { if (meal.healthScore !== null) openOverlay(scoreOverlay(meal, day)); }
-      else if (p < meal.items.length) openPanel(ingredientPanel(meal, p));
+      if (p === "fix") openPanel(fixPanel(found));
+      else if (p === "score") { if (found.healthScore !== null) openOverlay(scoreOverlay(found, ownDay)); }
+      else if (p < found.items.length) openPanel(ingredientPanel(found, p));
     }
   };
+
+  // The queued view redraws as the job moves; when it leaves the queue the meal has landed (the
+  // diary row is where the count went) or its question now stands for a real meal id.
+  let wasQueued = false;
+  const offWatch = watchJobs(() => {
+    if (!wrap.isConnected) { offWatch(); return; }
+    const j = jobFor(id);
+    if (j === undefined) { if (wasQueued) { offWatch(); location.hash = "#/"; } return; }
+    if (j.mealId !== null) { offWatch(); location.hash = `#/meal/${encodeURIComponent(j.mealId)}`; return; }
+    wasQueued = true;
+    void draw();
+  });
 
   // A queued turn that lands while this screen is up — a correction sent from the chat, or a kept
   // move — changes the numbers under it, so the detail redraws like the diary does.

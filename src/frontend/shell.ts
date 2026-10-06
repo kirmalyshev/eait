@@ -28,6 +28,7 @@ import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { homeCopyFor } from "../shared/app/home-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { brandSvg } from "../shared/ui/icons.ts";
+import { ico } from "../shared/ui/kit.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { keptState, outcomeUnknown } from "../shared/results.ts";
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, narrowLang, wholeNumbers } from "../shared/lang.ts";
@@ -41,7 +42,7 @@ import type {
   DayResponse, DaysResponse, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
-import { blobSrc, ctaEl, gramMacsEl, verdictListEl } from "./kit.ts";
+import { blobSrc, ctaEl, gramMacsEl, kitEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { failureOf, noAnswer, outbox, sendDeadlineMs, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
@@ -567,6 +568,39 @@ export function textField(placeholder: string): HTMLInputElement {
   input.placeholder = placeholder;
   input.setAttribute("aria-label", placeholder);
   return input;
+}
+
+/**
+ * The boards' `.calb`: the calendar-glyph button every screen's bar ends on (DIRECTION — "the
+ * streak · the calendar button, with no ‹ › anywhere"), opening the browser's own day picker. The
+ * hidden `input[type=date]` has to ride IN the bar — a detached input cannot `showPicker()`.
+ * `value()` is the day the picker opens on, `max()` the furthest pickable; `onPick` gets a
+ * `YYYY-MM-DD`, read off `valueAsNumber` so it is the date as a number, never field text.
+ */
+export function dayPickerButton(o: {
+  label: string; value: () => string; max: () => string; onPick: (day: string) => void;
+}): { button: HTMLButtonElement; input: HTMLInputElement } {
+  const input = el("input", "visually-hidden") as HTMLInputElement;
+  input.type = "date";
+  input.tabIndex = -1;
+  input.setAttribute("aria-hidden", "true");
+  input.addEventListener("change", () => {
+    const ms = input.valueAsNumber;
+    if (Number.isNaN(ms)) return;
+    const picked = new Date(ms).toISOString().slice(0, 10);
+    if (picked > o.max()) return;
+    o.onPick(picked);
+  });
+  const button = el("button", "calb") as HTMLButtonElement;
+  button.type = "button";
+  button.setAttribute("aria-label", o.label);
+  button.append(kitEl(ico("calendar")));
+  button.addEventListener("click", () => {
+    input.max = o.max();
+    input.value = o.value();
+    try { input.showPicker(); } catch { input.click(); }
+  });
+  return { button, input };
 }
 
 /**

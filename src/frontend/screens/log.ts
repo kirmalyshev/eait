@@ -16,19 +16,20 @@
 // one-field sheet over the meal detail, never the chat.
 
 import { logCopyFor, verdictDetailLine } from "../../shared/app/log-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { isMeal, outcomeUnknown } from "../../shared/results.ts";
 import { dayBudget, type DayBudget } from "../../shared/budget.ts";
-import { localDate } from "../../shared/dates.ts";
+import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
-import { ico as icoMarkup, type HeroCallout } from "../../shared/ui/kit.ts";
+import { ico as icoMarkup, tagx, type HeroCallout } from "../../shared/ui/kit.ts";
 import type { MealItem, MealLogged, MealUpdated } from "@eait/shared";
 import type {
-  MessageResponse, PhotoLast, PhotoProgress, ProfileResponse,
+  DaysResponse, MessageResponse, PhotoLast, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
 import { ApiError, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import {
-  COPY, clear, el, firstMealDue, lang, names, refusalWords, sendOrKeep,
+  COPY, DAYS, clear, dayPickerButton, el, firstMealDue, lang, names, refusalWords, sendOrKeep,
 } from "../shell.ts";
 import type { Frame } from "../shell.ts";
 import { outbox, type WebQueued } from "../outbox.ts";
@@ -64,12 +65,25 @@ export function logScreen(frame: Frame): HTMLElement {
   const g = spellUnit(lang, "g");
   const coach = me.coachName;
 
-  /** The bar's right side on the upload view — the plain date, "Thursday 24 September". */
-  const dayText = (): string =>
-    new Intl.DateTimeFormat(LANG_TAG[lang], {
-      timeZone: me.timezone, weekday: "long", day: "numeric", month: "long",
-    }).format(new Date());
-  frame.bar.append(el("span", "", dayText()));
+  // The boards' bar, the same on every screen: the streak chip on the wrapped ≤760 row — .wnar
+  // keeps it out of the wide one — then the calendar button, whose pick lands on Home's diary
+  // for the day.
+  const hc = homeCopyFor(lang);
+  const cal = dayPickerButton({
+    label: hc.pickDay,
+    value: () => localDate(me.timezone), max: () => localDate(me.timezone),
+    onPick: (d) => { location.hash = `#/?d=${encodeURIComponent(d)}`; },
+  });
+  const monday = weekStart(localDate(me.timezone));
+  void api<DaysResponse>(`${DAYS}?from=${monday}&to=${dateMinus(monday, -6)}`).then((d) => {
+    if (!wrap.isConnected || d.streak <= 0) return;
+    const chip = kitEl(tagx({
+      icon: "streak", text: n(d.streak), aria: fill(hc.phoneStreakAria, { n: n(d.streak) }),
+    })) as HTMLElement;
+    chip.classList.add("wnar");
+    frame.bar.prepend(chip);
+  }).catch(() => {});
+  frame.bar.append(cal.button, cal.input);
 
   /** The time a stamp or label names, in the account's own timezone — "13:05". */
   const atTime = (when: Date): string =>

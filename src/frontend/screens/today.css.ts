@@ -196,7 +196,9 @@ a.hsp { color: inherit; text-decoration: none; }
    follows the card's radius; on .prop itself it renders as two straight rules (#301). */
 .home .prop .card { box-shadow: 0 0 0 2px var(--ink); }
 
-/* The photo queue's row (#1318, web/log-queue-rows): a meal row's frame, the photo under a veil. */
+/* The photo queue's row (#1318, web/log-queue-rows): a meal row's frame, the photo under a veil.
+   A row still being read opens the meal page's queued view (web/log-queue-meal) — the link affordance. */
+.dlist .meal[role="link"] { cursor: pointer; }
 .qth { position: relative; width: 56px; height: 56px; flex: 0 0 56px; border-radius: var(--r-thumb); overflow: hidden; }
 .qth img { width: 56px; height: 56px; object-fit: cover; display: block; }
 .qth .veil { position: absolute; inset: 0; transition: background 200ms ease-out; }
