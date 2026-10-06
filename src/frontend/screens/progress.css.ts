@@ -92,7 +92,8 @@ export const progressCss = `
   font-variant-numeric: tabular-nums; }
 .prog .bmil span.on { color: var(--ink); font-weight: 600; }
 .prog .bmis { margin-top: 10px; }
-.prog .bmix { margin-top: 8px; }
+/* The explainer opens as the inset note the board draws — hairline-tinted card, not loose text. */
+.prog .bmix { margin-top: 8px; background: var(--hair); border-radius: 12px; padding: 10px 12px; }
 
 /* The five cards rise in the board's stagger — the delays are custom properties on classes,
    because the nonce policy has no room for a style= attribute. */

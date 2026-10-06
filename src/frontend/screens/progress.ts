@@ -18,14 +18,18 @@ import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, weekdayLetters } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { youCopyFor } from "../../shared/app/you-copy.ts";
+import { tagx } from "../../shared/ui/kit.ts";
 import type {
   DaysResponse, PlanProjection, ProfileResponse, WeightsResponse,
 } from "@eait/shared";
 import { api, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { bmiBarEl, weekBarsEl, weightChartEl } from "../kit.ts";
-import { clear, el, forgetProfile, lang, refusalWords, render, type Frame } from "../shell.ts";
+import { bmiBarEl, kitEl, weekBarsEl, weightChartEl } from "../kit.ts";
+import {
+  clear, dayPickerButton, el, forgetProfile, lang, refusalWords, render, type Frame,
+} from "../shell.ts";
 import { openWeighIn } from "../weigh.ts";
 
 export async function progressScreen(frame: Frame): Promise<HTMLElement> {
@@ -209,6 +213,13 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     const card = el("div", "card rise rc-2");
     const head = el("div", "row between");
     head.append(el("span", "lab", copy.weekLabel));
+    // The new-account board (web/progress-new): no bars yet, the plan named in the header and
+    // one quiet line where the chart will be.
+    if (!d.days.some((day) => day.logged)) {
+      head.append(el("span", "est", fill(copy.weekPlan, { plan: kcalNumbers(lang)(d.targetKcal) })));
+      card.append(head, el("p", "t13 m wempty", homeCopyFor(lang).nothingLogged));
+      return card;
+    }
     const bars = weekBarsEl(d.days.map((day) => day.logged ? day.kcal : null), d.targetKcal, {
       todayIndex: d.days.findIndex((day) => day.when === "today"),
       letters,
@@ -303,6 +314,24 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     api<WeightsResponse>(`/weights?range=${range}`),
     api<DaysResponse>(`/diary/days?from=${monday}&to=${sunday}`),
   ]);
+
+  // The boards' bar on every tab: the streak chip — .wnar keeps it to the wrapped ≤760 row,
+  // where every narrow board draws it — and the calendar button, whose pick lands on Home's
+  // diary for the day (the day is Home's).
+  if (d.streak > 0) {
+    const hc = homeCopyFor(lang);
+    const chip = kitEl(tagx({
+      icon: "streak", text: n(d.streak), aria: fill(hc.phoneStreakAria, { n: n(d.streak) }),
+    })) as HTMLElement;
+    chip.classList.add("wnar");
+    frame.bar.append(chip);
+  }
+  const hcPick = homeCopyFor(lang);
+  const cal = dayPickerButton({
+    label: hcPick.pickDay, value: () => localDate(zone), max: () => localDate(zone),
+    onPick: (picked) => { location.hash = `#/?d=${encodeURIComponent(picked)}`; },
+  });
+  frame.bar.append(cal.button, cal.input);
 
   fillWeight(w);
   leftCol.append(wCard);
