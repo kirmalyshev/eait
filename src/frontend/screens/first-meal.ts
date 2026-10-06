@@ -85,18 +85,26 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
   // sheets on the document, not steps in the column. One at a time; a sheet belongs to `#/` and
   // leaves with it, and the card gone from the page means the flow is over.
   let sheet: HTMLElement | null = null;
-  const closeSheet = (): void => { sheet?.remove(); sheet = null; };
-  const openSheet = (node: HTMLElement): void => {
+  // The step an open sheet's Escape takes — the panel's "back" (the verdict), its primary
+  // (Keep going) or its decline (Not now), one per sheet.
+  let sheetEsc: (() => void) | null = null;
+  const closeSheet = (): void => { sheet?.remove(); sheet = null; sheetEsc = null; };
+  const openSheet = (node: HTMLElement, esc?: () => void): void => {
     closeSheet();
     document.querySelector(".fscrim")?.remove();
     document.body.append(node);
     sheet = node;
+    sheetEsc = esc ?? null;
   };
   addEventListener("hashchange", function guard() {
     if (!wrap.isConnected || routeBase(location.hash) !== "#/") {
       closeSheet();
       removeEventListener("hashchange", guard);
     }
+  });
+  document.addEventListener("keydown", function onEsc(e) {
+    if (!wrap.isConnected && sheet === null) { document.removeEventListener("keydown", onEsc); return; }
+    if (e.key === "Escape" && sheet !== null) { e.preventDefault(); sheetEsc?.(); }
   });
 
   // The photo the send carried, kept for the verdict sheet's hero — the same bytes, no refetch.
@@ -118,7 +126,10 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         await work();
       } catch (err) {
         if (err instanceof Unauthenticated) { await render(); return; }
-        if (err instanceof ApiError && err.body?.error === "subscription-required") { openSheet(offerStep()); return; }
+        if (err instanceof ApiError && err.body?.error === "subscription-required") {
+          openSheet(offerStep(), () => { closeSheet(); void render(); });
+          return;
+        }
         say(refusalWords(err));
         console.error(err);
       } finally {
@@ -205,7 +216,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
               onResult: (r) => { if (r.kind === "logged") got.logged = r; },
             },
           );
-          if (got.logged !== null) { openSheet(await verdictSheet(got.logged.analysis, got.logged.mealId, got.logged)); void render(); return; }
+          if (got.logged !== null) { openVerdict(got.logged.analysis, got.logged.mealId, got.logged); void render(); return; }
           if (keptNote !== undefined) say(keptNote);
         } finally {
           sayProgress(null);
@@ -249,7 +260,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // Refusals and "expired" come back as HTTP statuses; a JSON body here is the meal.
         if (c.kind !== "logged") throw new ApiError(200, { error: c.kind }, `confirm: ${c.kind}`);
         setHeldProposal(null);
-        openSheet(await verdictSheet(c.analysis, c.mealId, c));
+        openVerdict(c.analysis, c.mealId, c);
         void render();
       });
     });
@@ -313,14 +324,21 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
     dlg.append(card);
     const foot = el("div", "step-foot fhrow");
     const fix = el("button", "cta s", fm.correct) as HTMLButtonElement;
-    fix.addEventListener("click", () => openSheet(correctStep(analysis, mealId, words)));
+    fix.addEventListener("click", () =>
+      openSheet(correctStep(analysis, mealId, words), () => openVerdict(analysis, mealId, words)));
     const keep = el("button", "cta p", fm.keepGoing) as HTMLButtonElement;
-    keep.addEventListener("click", () => openSheet(offerStep()));
+    keep.addEventListener("click", () => openSheet(offerStep(),
+      () => { closeSheet(); void render(); }));
     foot.append(fix, keep);
     dlg.append(foot);
     scrim.append(dlg);
     return scrim;
   };
+
+  /** The verdict sheet, with its Escape — the board's primary "Keep going". */
+  const openVerdict = (analysis: MealAnalysis, mealId: string, words: VerdictWords): void =>
+    openSheet(verdictSheet(analysis, mealId, words), () =>
+      openSheet(offerStep(), () => { closeSheet(); void render(); }));
 
   const correctStep = (analysis: MealAnalysis, mealId: string, words: VerdictWords): HTMLElement => {
     // web/first-correct.html: the fix panel over Home — its title and the meal's line, then the
@@ -361,7 +379,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       run(async () => {
         const edit = firstMealEdit(analysis, what.value, portion.value as Portion);
         // Nothing changed: the card as it was, and no write — so no "Updated" anywhere (#49).
-        if (edit === null) { openSheet(verdictSheet(analysis, mealId, words)); return; }
+        if (edit === null) { openVerdict(analysis, mealId, words); return; }
         const r = await api<EditMealResponse>(MEAL(mealId), {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -370,7 +388,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // "target-gone" and the refusals are statuses; a JSON body here is the updated meal.
         if (r.kind !== "updated") throw new ApiError(200, { error: r.kind }, `edit: ${r.kind}`);
         // The WHOLE card is rebuilt from the server's answer; nothing of the old one survives.
-        openSheet(verdictSheet(r.analysis, r.mealId, r));
+        openVerdict(r.analysis, r.mealId, r);
       });
     });
     foot.append(save);
@@ -380,9 +398,10 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
   };
 
   const offerStep = (): HTMLElement => {
-    // web/first-offer.html: an opaque page over Home — Spud's "That was one…", the card that names
-    // the offer, the priced plan rows, the trial CTA and its renewal line, then "Not now".
+    // web/first-offer.html: an opaque page over Home — the board draws it as `.wmain one`, the
+    // top bar still live above, so the sheet starts under it rather than dimming it.
     const scrim = el("div", "fscrim solid");
+    scrim.style.top = `${document.querySelector<HTMLElement>(".wtop")?.offsetHeight ?? 0}px`;
     const dlg = el("div", "foffer");
     const box = el("div", "step");
     box.append(sayRow("happy", fm.afterAsk));

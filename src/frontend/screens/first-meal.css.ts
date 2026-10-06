@@ -31,6 +31,8 @@ export const firstMealCss = `
    opaque page the boards draw as .wmain one. Z above the pinned composer (its own z is 20). */
 .fscrim { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--ink) 36%, transparent); padding: 20px; overflow-y: auto; }
+/* The offer is the page, not a dim (web/first-offer's .wmain one): it starts under the top bar —
+   the top offset is set where it opens — so the bar stays live chrome above it. */
 .fscrim.solid { background: var(--bg); align-items: flex-start; }
 .fsheet { width: 520px; max-width: 100%; padding: 22px; display: flex; flex-direction: column; gap: 10px;
   margin: auto; }
