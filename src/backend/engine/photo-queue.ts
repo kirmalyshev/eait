@@ -27,10 +27,8 @@ const FOLLOW_HEARTBEAT_MS = 10_000;
 const FOLLOWED_MS = 15_000;
 const JOBS_PAGE = 50;
 
-/** When this process came up: a claim older than it, with no outcome and no job row, belongs to a process that is gone. */
-const bootedAt = Date.now();
-/** Whose lease a job is under while this process runs it. */
-const owner = `${hostname()}:${process.pid}:${bootedAt}`;
+/** Whose lease a job is under while this process runs it: host, pid and boot, so a recycled pid on the same host is still a different owner. */
+const owner = `${hostname()}:${process.pid}:${Date.now()}`;
 
 type Outcome = PhotoLast | MealUpdateLast;
 interface JobHandler {
@@ -280,20 +278,12 @@ function snapshotOf(job: JobRecord, lang: Lang): PhotoJob {
 export async function photoJob(deps: EngineDeps, userId: string, jobId: string): Promise<PhotoJob | null> {
   const job = await deps.store.getJob(userId, jobId);
   if (job) return snapshotOf(job, await langOf(deps, userId));
+  // No job row: a turn the pre-jobs version accepted — its claim and answer outlive the queue's
+  // rows, so the kept outcome is still the answer, and a claim with none is past the bound that
+  // would have run it (a worker writes its job row with the claim, so "no row" means no runner).
   const turn = await deps.store.getTurn(userId, jobId);
   if (!turn) return null;
-  if (turn.outcome) return { kind: "settled", jobId, result: turn.outcome as PhotoLast };
-  // No job row: a turn the previous version accepted. Claimed before this process booted, a restart killed it. Settle now, retryable, rather than at the bound.
-  if (turn.claimedAt < bootedAt) {
-    const lost = { kind: OUTCOME_UNKNOWN } as const;
-    await deps.store.settleTurn(userId, jobId, lost).catch(failed("lost job not settled"));
-    return { kind: "settled", jobId, result: lost };
-  }
-  // Claimed and with no job row: another request's turn still inside its budget.
-  const bound = PHOTO_MODEL_CALLS * deps.config.llmTimeoutMs + 10_000;
-  return Date.now() > turn.claimedAt + bound
-    ? { kind: "settled", jobId, result: { kind: OUTCOME_UNKNOWN } }
-    : { kind: "running", jobId, step: 2, line: streamCopyFor(await langOf(deps, userId)).queue[1]!, items: [] };
+  return { kind: "settled", jobId, result: (turn.outcome ?? { kind: OUTCOME_UNKNOWN }) as PhotoLast };
 }
 
 /** The caller's jobs, newest change first, each the same snapshot as its single read. */

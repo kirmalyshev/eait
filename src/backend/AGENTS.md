@@ -250,8 +250,9 @@ naming it too.
   costs an attacker one HTTP call to reset — and the only remaining bound, the instance budget, is the thing they are trying to exhaust.
   `src/backend/api/ratelimit.ts` bounds the billed routes PER ADDRESS as well. The address is the
   **last** `X-Forwarded-For` value, never the first: a proxy appends what it saw, so everything left
-  of it was written by the client. IPv6 keys on the /64. In memory, so a restart forgives everyone
-  and a second replica would double every limit — both stated, neither discovered.
+  of it was written by the client. IPv6 keys on the /64. In memory — a restart forgives everyone,
+  and so does the failover that moves the counting to the replica Caddy's `lb_policy first` had not
+  been using; the day traffic splits across both replicas, the counting moves into the store.
 - **`deploy/backup.sh` is scheduled by ansible, not by a comment.** `roles/eait_app/tasks/backup.yml`
   writes `/etc/cron.d/eait-backup` and takes the first dump during the deploy that installs it, then
   asserts a file exists. The tree lives at `/srv/eait/**src**`; a cron line missing that `src` fails

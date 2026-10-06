@@ -16,11 +16,13 @@
 // that mints the accounts. An attacker behind one address can no longer buy more allowance by
 // creating more accounts.
 //
-// IN MEMORY, DELIBERATELY. This is a single-process backend behind one reverse proxy on one box —
-// `deploy/docker-compose.prod.yml` — so a shared store would be a second moving part for no gain.
-// Two honest consequences, both of which are the right trade here and neither of which is a secret:
-// a restart forgives everyone, and a second replica would double every limit. If this ever runs
-// more than one container, this file is the thing that has to change.
+// IN MEMORY, DELIBERATELY. Two replicas run on the box now (#414) — and Caddy's `lb_policy first`
+// sends every request to the SAME one while it is healthy, so in steady state exactly one process
+// still counts and a shared store would be a second moving part for no gain. Two honest
+// consequences, both of which are the right trade here and neither of which is a secret: a restart
+// forgives everyone, and a failover or a rolling replace moves the counting to the other replica —
+// which forgives the same way a restart does. The day the proxy SPLITS traffic across both, each
+// counts alone and every limit doubles; that is the day this file has to change.
 //
 // CARRIER-GRADE NAT IS THE REAL COST. A mobile network can put thousands of subscribers behind one
 // address, so a limit low enough to matter is a limit that can refuse a stranger who did nothing.

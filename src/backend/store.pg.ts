@@ -99,7 +99,6 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
-  jobs: "user_id",
 };
 
 /**
@@ -580,31 +579,10 @@ create index if not exists turns_claimed_idx on turns(claimed_at) where outcome 
 -- written by the raw statements below because pg-boss's own update() only edits queued jobs.
 -- job_rows is the one place that reads that shape back. pgboss has no row-level security: every
 -- read and write here names data->>'userId' itself. The outcome stays in turns.
--- The table the queue used before pg-boss. Unused: kept while a rolling deploy can still run a
--- replica that reads it; a later contract change drops it.
-create table if not exists jobs (
-  user_id         uuid not null references users(id) on delete cascade,
-  client_id       text not null,
-  kind            text not null,
-  request_version smallint not null default 1,
-  request         jsonb not null,
-  state           text not null default 'queued' check (state in ('queued', 'running', 'settled')),
-  attempts        integer not null default 0,
-  step            smallint not null default 2,
-  items           jsonb not null default '[]',
-  lease_owner     text,
-  lease_until     timestamptz,
-  meal_id         uuid,
-  analysis_id     uuid,
-  removed_at      timestamptz,
-  followed_until  timestamptz,
-  pushed_at       timestamptz,
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now(),
-  primary key (user_id, client_id)
-);
-create index if not exists jobs_claimable_idx on jobs (kind, created_at) where state <> 'settled';
-create index if not exists jobs_user_idx on jobs (user_id, updated_at desc);
+-- The hand-rolled table the queue used before pg-boss. Kept while a rolling deploy could still
+-- run a replica that reads it; every live replica is a pg-boss build now, so the contract step
+-- drops it. if exists, because a host that already dropped it by hand must still migrate clean.
+drop table if exists jobs;
 create index if not exists eait_job_key on pgboss.job ((data->>'userId'), (data->>'clientId'));
 -- Dropped and rebuilt, not replaced: create or replace cannot change a column's type, and the
 -- whole schema runs as one statement batch, so readers never see it missing.
@@ -644,8 +622,20 @@ create trigger users_forget_jobs after delete on users for each row execute func
 -- naming the job. The meal adopts them when it is logged. Only ever expands what the old version reads.
 alter table meal_photos alter column meal_id drop not null;
 alter table meal_photos add column if not exists client_id text;
-alter table meal_photos drop constraint if exists meal_photos_owner_check;
-alter table meal_photos add constraint meal_photos_owner_check check (meal_id is not null or client_id is not null) not valid;
+-- Guarded rather than dropped-and-readded: a constraint recreated NOT VALID on every boot never
+-- finishes validating. Added unvalidated so an old replica's writes could not hit a check it
+-- shipped before, then validated once — nothing writes a row that misses it, so the scan finds
+-- none and a later boot's convalidated check skips it whole.
+do $do$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'meal_photos_owner_check') then
+    alter table meal_photos add constraint meal_photos_owner_check
+      check (meal_id is not null or client_id is not null) not valid;
+  end if;
+  if exists (select 1 from pg_constraint where conname = 'meal_photos_owner_check' and not convalidated) then
+    alter table meal_photos validate constraint meal_photos_owner_check;
+  end if;
+end $do$;
 create index if not exists meal_photos_user_client_idx on meal_photos(user_id, client_id) where meal_id is null;
 create unique index if not exists meal_photos_unadopted_idx on meal_photos(user_id, client_id, position) where meal_id is null;
 

@@ -426,6 +426,25 @@ describe("photo", () => {
     expect(thread.entries.filter((e) => e.clientId === said)).toHaveLength(1);
   });
 
+  // #414: a turn id that never had a job row is not a running job. Its kept answer is served, and
+  // an unsettled claim — a turn the pre-jobs version accepted, dead long past its bound by now —
+  // is the unknown, not a "running" that no worker holds.
+  it("reads a bare turn through the job route as its outcome, never as running", async () => {
+    const token = await session();
+    const userId = (await store.userIdForToken(token))!;
+    const unsettled = crypto.randomUUID();
+    await store.claimTurn(userId, unsettled);
+    const res = await get(ROUTES.photoJob(unsettled), token);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ kind: "settled", jobId: unsettled, result: { kind: OUTCOME_UNKNOWN } });
+    const answered = crypto.randomUUID();
+    await store.claimTurn(userId, answered);
+    await store.settleTurn(userId, answered, { kind: "subscription-required" });
+    const got = await get(ROUTES.photoJob(answered), token);
+    expect(await got.json()).toEqual({ kind: "settled", jobId: answered, result: { kind: "subscription-required" } });
+    expect((await get(ROUTES.photoJob(crypto.randomUUID()), token)).status).toBe(404);
+  });
+
   // A replay calls no model, so the address allowance is not what it spends — and a replay refused
   // there is held by the client, whose "Send again" is a NEW id: the second meal (#708 review).
   it("lets a re-sent turn past the address limit that a new turn meets", async () => {
