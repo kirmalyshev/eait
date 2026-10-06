@@ -95,9 +95,12 @@ export const mealCss = `
 .fixfield::placeholder{color:var(--faint)}
 .fixex{padding:14px 16px;background:var(--hair);box-shadow:none;font-size:15px;line-height:1.45}
 
-/* The ingredient rows open their editor — a button wrapping the kit's .ing row. */
-button.ingbtn{display:block;width:100%;border:0;background:none;padding:0;font:inherit;
-  color:inherit;cursor:pointer;text-align:left;border-radius:var(--r-ctl)}
+/* The ingredient rows open their editor — a button wrapping the kit's .ing row. Inside a .card
+   the shell draws every button a pill; the row is the exception — matching that rule's
+   specificity and coming later is what wins. */
+.card button.ingbtn{display:block;width:100%;border:0;background:none;padding:0;min-height:0;
+  margin:0;box-shadow:none;font:inherit;font-weight:400;color:inherit;cursor:pointer;
+  text-align:left;border-radius:var(--r-ctl)}
 button.ingbtn:hover .ing{background:var(--bg)}
 button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
