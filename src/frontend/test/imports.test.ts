@@ -44,6 +44,8 @@ const WEB_MODULES = new Set([
                        // the one copy of the arithmetic, pure (import type only)
   "health-copy.ts",    // the weigh-in's "couldn't load your weigh-ins" provenance line — a
                        // Localized table, reads health.ts + lang.ts only
+  "onboarding.ts",     // the profile editor's option vocabulary and CLDR country names (#474)
+  "onboarding-content.ts", // the compiled fallback when /onboarding's labels have not landed
   "first-meal-copy.ts",
 ]);
 

@@ -1,38 +1,46 @@
-// You — the account's own surface, Register P (`web/you.html`, W10 #97). Two columns at desktop
-// width: the left is the board's order — the identity card's fact line, the plan card with its
-// inline edit, then the flat account rows (Health · Subscription · Account · Units · Language ·
-// Telegram · Sign out); the right is the today column the web boards give every surface — week
-// strip, kcal-left hero, the macro cards. The weigh-in lives on Progress (ieat-app#1518).
+// You — the account's own surface (web/you.html, phone/web-you-narrow.html; the redesign pass is
+// eait#474). Two columns at desktop width: the left is the board's order — the identity card's
+// fact line, then the plan card whose "edit" opens the profile editor PANEL; the right is the
+// flat rows (Apple Health · Subscription · Account · Units · Language · Telegram · Support) and
+// the sign-out card. The day column is gone — the day is Home's — and the bar carries the shared
+// pair (streak chip · calendar button) with no ‹ › anywhere.
 //
 // EVERY NUMBER IS THE SERVER'S. The plan figures come off `targets`, the trial's day off
-// `entitlement.trialDaysLeft` (the server counts it — a client that counts dates
-// disagrees with the reminders, #97), the "connected" claim off `healthConnected`. The day column
-// reads `/v1/diary/days` and `/v1/diary/day`; the edits are PATCHes answered by the recomputed
-// view. Nothing here derives a target or counts a day.
+// `entitlement.trialDaysLeft` (the server counts it — a client that counts dates disagrees with
+// the reminders, #97), the provenance off `/v1/weights`. The panels PATCH and redraw off the
+// recomputed view. Nothing here derives a target or counts a day.
 
-import { dayBudget, kcalCardState, macroCardState } from "../../shared/budget.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState, TRIAL_DAYS } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
-import { dayMonthAt, LANG_LABEL, LANG_TAG, LANGS_READY, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import {
+  countryLabel, countryOptions, screenOptions, screenOptionValues,
+} from "../../shared/onboarding.ts";
+import { MEDICAL_TAGS } from "../../shared/targets.ts";
+import { onboardingContentFor } from "../../shared/onboarding-content.ts";
 import {
   weightDisplayValue, weightToKg, type UnitSystem,
 } from "../../shared/ui/units.ts";
-import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { youCopyFor, youFacts } from "../../shared/app/you-copy.ts";
-import type { OnboardingContent } from "@eait/shared";
 import type {
-  DayResponse, DaysResponse, IdentitiesResponse, OnboardingContentResponse,
-  PairCodeResponse, ProfileResponse,
+  ActivityLevel, CountryCode, Goal, MedicalTag, OnboardingContent,
+} from "@eait/shared";
+import type {
+  DaysResponse, IdentitiesResponse, OnboardingContentResponse, PairCodeResponse,
+  ProfileRejected, ProfileResponse, WeightsResponse,
 } from "@eait/shared/contract";
-import { api, signOut } from "../api.ts";
+import { api, ApiError, signOut, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { kitEl, macEl, mcardEl, ringEl, weekStripEl } from "../kit.ts";
-import { ico, type ChipName } from "../../shared/ui/kit.ts";
+import { kitEl, macEl } from "../kit.ts";
+import { ico, tagx } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
+import { closeAllPanels, openPanel, toast } from "../panel.ts";
+import { openWeighIn } from "../weigh.ts";
 import {
-  clear, COPY, dayText, el, forgetProfile, keptWords, lang, profile, refusalWords, render, setHeldProposal,
+  clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
 } from "../shell.ts";
 
@@ -52,33 +60,29 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const nWhole = wholeNumbers(lang);
   // The account's timezone and its today — the server's calendar, never UTC's.
   const zone = me.timezone;
+  const today = localDate(zone);
 
-  const cols = el("div", "ygrid");
-  const leftCol = el("div", "wcol");
-  const rightCol = el("div", "wcol");
-  cols.append(leftCol, rightCol);
-  wrap.append(cols);
+  // ── The bar: the streak chip, then the calendar button — the shared right side every screen's
+  // wtop draws (DIRECTION § Web). Profile has no day of its own, and the boards' month popover
+  // is not built on web, so the button is a plain route to Home — today — per the coordinator
+  // ruling on #474.
+  const cal = el("button", "calb") as HTMLButtonElement;
+  cal.type = "button";
+  cal.setAttribute("aria-label", H.pickDay);
+  cal.append(kitEl(ico("calendar")));
+  cal.addEventListener("click", () => { location.hash = "#/"; });
+  frame.bar.append(cal);
+  // The streak lands when the week's read does — the button is up first.
+  void api<DaysResponse>(`/diary/days?from=${weekStart(today)}&to=${dateMinus(weekStart(today), -6)}`)
+    .then((d) => {
+      if (!cal.isConnected || d.streak <= 0) return;
+      cal.before(kitEl(tagx({
+        icon: "streak", text: n(d.streak),
+        aria: fill(H.phoneStreakAria, { n: n(d.streak) }),
+      })));
+    })
+    .catch(() => {});
 
-  // The board's date row lives in the top bar (wtop's right side) — the day the column shows,
-  // in the shell's one date form with the shared 32px chevrons, same row Home draws (#175).
-  let viewing = localDate(zone);
-  const dateRow = el("span", "drow");
-  const prev = el("button", "darrow") as HTMLButtonElement;
-  prev.type = "button";
-  prev.setAttribute("aria-label", COPY.dayPrev);
-  prev.append(kitEl(ico("chevron-left")));
-  const dateCell = el("span", "dlabel");
-  const next = el("button", "darrow") as HTMLButtonElement;
-  next.type = "button";
-  next.setAttribute("aria-label", COPY.dayNext);
-  next.append(kitEl(ico("chevron-right")));
-  // Bound once — draw() only ever rewrites the label and the enabled state.
-  prev.addEventListener("click", () => { viewing = dateMinus(viewing, 1); void draw(); });
-  next.addEventListener("click", () => { if (viewing < localDate(zone)) { viewing = dateMinus(viewing, -1); void draw(); } });
-  dateRow.append(prev, dateCell, next);
-  frame.bar.append(dateRow);
-
-  let mode: "none" | "plan" = "none";
   let saving = false;
   let drawing = 0;
 
@@ -90,15 +94,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return { notice, tell: (w) => { notice.textContent = w ?? ""; notice.hidden = w === null; } };
   };
 
-  // ── LEFT: identity, weight, plan, the account rows ──────────────────────────────────────────
+  // ── LEFT: the identity card and the plan card. ──────────────────────────────────────────────
 
   // The fact line comes out of `youFacts` — the age is the server's own `me.age`, the pieces are
-  // whole templates, and the declared conditions are `Intl.ListFormat`'s list, never a join.
+  // whole templates, and the declared conditions are `listConjunction`'s list, never a join.
+  let content: OnboardingContent | null = null;
   const facts = (): string => youFacts(lang, {
     age: me!.age,
     heightCm: me!.profile.height_cm,
     restrictions: me!.profile.restrictions,
-    medicalOptions: content?.content.screens.find((s) => s.id === "medical")?.options ?? {},
+    medicalOptions: screenOptions(content ?? onboardingContentFor(lang), "medical"),
     units: units(),
   });
 
@@ -118,97 +123,17 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
-  // ── The plan card — the figures off `targets`, edit recomputes. ──────────────────────────────
+  // ── The plan card — the figures off `targets`; "edit" opens the editor panel. ───────────────
 
-  const planCard = (ob: OnboardingContent | null, noticeBox: { notice: HTMLElement; tell: (w: string | null) => void }): HTMLElement => {
+  const planCard = (): HTMLElement => {
     const card = el("div", "card rise rc-1");
     const head = el("div", "row between");
     head.append(el("span", "lab", you.planLabel));
-    const body = el("div", "");
-    card.append(head, body, noticeBox.notice);
-
-    if (mode === "plan") {
-      // The inline editor: the three inputs the plan reads — goal, the weight it aims at, and
-      // how active the days are — PATCHed; the card redraws off the server's recomputed targets.
-      const optionSelect = (screenId: "goal" | "activity", current: string | null, label: string): HTMLSelectElement => {
-        const sel = document.createElement("select");
-        sel.className = "optpick";
-        sel.setAttribute("aria-label", label);
-        const opts = ob?.screens.find((s) => s.id === screenId)?.options ?? {};
-        for (const v of Object.keys(opts)) {
-          const opt = document.createElement("option");
-          opt.value = v;
-          opt.textContent = opts[v]!.label;
-          if (v === current) opt.selected = true;
-          sel.append(opt);
-        }
-        return sel;
-      };
-      const row = (label: string, ctl: HTMLElement, extra?: HTMLElement): HTMLElement => {
-        const r = el("div", "editrow");
-        r.append(el("span", "lab", label), ctl);
-        if (extra) r.append(extra);
-        return r;
-      };
-      const p = me!.profile;
-      const goalSel = optionSelect("goal", p.goal, you.phone.goalLabel);
-      const targetField = document.createElement("input");
-      targetField.type = "number";
-      targetField.step = "0.1";
-      targetField.min = "0";
-      targetField.inputMode = "decimal";
-      targetField.setAttribute("aria-label", you.phone.targetLabel);
-      if (p.target_weight_kg !== null) targetField.value = `${weightDisplayValue(p.target_weight_kg, units())}`;
-      const activitySel = optionSelect("activity", p.activity, you.phone.activitySection);
-      const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
-      save.type = "button";
-      const cancel = el("button", "cta g", COPY.cancel) as HTMLButtonElement;
-      cancel.type = "button";
-      cancel.addEventListener("click", () => { mode = "none"; void draw(); });
-      save.addEventListener("click", async () => {
-        const targetW = Number(targetField.value);
-        if (saving || (targetField.value !== "" && (!Number.isFinite(targetW) || targetW <= 0))) return;
-        saving = true;
-        save.disabled = true;
-        try {
-          await api("/profile", {
-            method: "PATCH",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              goal: goalSel.value,
-              activity: activitySel.value,
-              ...(targetField.value === "" ? {} : { target_weight_kg: weightToKg(units(), targetW) }),
-            }),
-          });
-          forgetProfile();
-          me = await profile();
-          mode = "none";
-          void draw();
-        } catch (err) {
-          noticeBox.tell(keptWords(err, you.phone.saveKept));
-          targetField.focus();
-          targetField.setSelectionRange(targetField.value.length, targetField.value.length);
-        } finally {
-          // A refusal re-arms the button — the fields stay editable and the notice stays up.
-          saving = false;
-          save.disabled = false;
-        }
-      });
-      const btns = el("div", "weditbtns");
-      btns.append(save, cancel);
-      body.append(
-        row(you.phone.goalLabel, goalSel),
-        row(you.phone.targetLabel, targetField, el("span", "m", spellUnit(lang, units() === "imperial" ? "lb" : "kg"))),
-        row(you.phone.activitySection, activitySel),
-        btns,
-      );
-      return card;
-    }
-
     const edit = el("button", "elink", you.planEdit) as HTMLButtonElement;
     edit.type = "button";
-    edit.addEventListener("click", () => { mode = "plan"; void draw(); });
+    edit.addEventListener("click", () => openEditor());
     head.append(edit);
+    card.append(head);
 
     const t = me!.targets;
     const fig = el("div", "planfig");
@@ -231,119 +156,130 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     for (const c of chips) macrow.append(macEl(c.name, c.text));
     const foot = el("div", "row between");
     foot.append(macrow);
-    body.append(fig, foot);
+    card.append(fig, foot);
     return card;
   };
 
-  // ── The flat card: the account rows the board draws in one quiet list — and the web's own
-  // settings rows the recorded ruling keeps there (eait#97: Units, Language, Sign out, Connect
-  // Telegram stay; ieat-app#929: "extra rows in the same flat card"; Apple Health is read-only
-  // here and only ever drawn while `healthConnected`). ─────────────────────────────────────────
+  // ── The flat card: the account rows the board draws in one quiet list — value + chevron where
+  // the row opens something, a plain row where the boards draw none (Apple Health opens nothing —
+  // "on your iPhone"; ieat-app STATES). ─────────────────────────────────────────────────────────
 
-  const optRow = (label: string, value: string, ctl?: HTMLElement): HTMLElement => {
-    const row = el("div", "opt");
-    row.append(el("span", "ot", label));
-    if (ctl) row.append(ctl);
-    else row.append(el("span", "ov", value));
-    return row;
+  /** A label + value row: a plain div when it opens nothing, a button with the chevron when it does. */
+  function optRow(label: string, value: string): HTMLElement;
+  function optRow(label: string, value: string, onOpen: () => void): HTMLButtonElement;
+  function optRow(label: string, value: string, onOpen?: () => void): HTMLElement {
+    if (onOpen === undefined) {
+      const row = el("div", "opt");
+      row.append(el("span", "ot", label), el("span", "ov", value));
+      return row;
+    }
+    const b = el("button", "opt") as HTMLButtonElement;
+    b.type = "button";
+    b.append(
+      el("span", "ot", label),
+      el("span", "ov", value),
+      kitEl(`<i class="ico i-chevron-right" aria-hidden="true"></i>`),
+    );
+    b.setAttribute("aria-label", value === "" ? label : fill(you.phone.labeledValue, { label, value }));
+    b.addEventListener("click", onOpen);
+    return b;
+  }
+
+  /** The units/language pickers — the phone's sheet as a panel: the options, the one held ticked. */
+  const pickPanel = (
+    title: string,
+    options: readonly { value: string; label: string }[],
+    current: string,
+    onPick: (value: string) => void,
+  ): void => {
+    const { body, close } = openPanel(title);
+    for (const o of options) {
+      const b = el("button", "opt pickrow") as HTMLButtonElement;
+      b.type = "button";
+      b.append(el("span", "ot", o.label));
+      if (o.value === current) b.append(el("span", "pck", "✓"));
+      b.addEventListener("click", () => { close(); onPick(o.value); });
+      body.append(b);
+    }
+  };
+
+  /** A PATCH whose failure lands as a line under the rows it was made on, the control re-armed. */
+  const patch = async (body_: Record<string, unknown>, onError: (err: unknown) => void): Promise<void> => {
+    try {
+      const res = await api<ProfileResponse>("/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body_),
+      });
+      me = res;
+      forgetProfile();
+      void draw();
+    } catch (err) {
+      onError(err);
+    }
   };
 
   const rowsCard = (ids: IdentitiesResponse | null, noticeBox: { tell: (w: string | null) => void }): HTMLElement => {
     const card = el("div", "card flat urows");
-    // Read-only, and only while a sync is actually arriving — the server's own flag.
-    if (me!.healthConnected === true) card.append(optRow(you.appleHealth, you.connected));
-    // The row names its state — the board's trial is one of five; `subscriptionState` is the
-    // one rule and the date is "24 Oct" in the language's locale, the year only off this year.
+    // Read-only — the boards' "on your iPhone": there is no web page for Health (ieat-app STATES).
+    card.append(optRow(you.appleHealth, you.web.healthOnPhone));
+    // The Subscription row names its state — the board's trial is one of five; `subscriptionState`
+    // is the one rule and the date is "24 Oct" in the language's locale, the year only off this
+    // year. Its page is a later panel (#474 follow-up); until then the row keeps its value and,
+    // for an account with nothing bought, points at the web's one subscription surface, #/pay.
     const sub = subscriptionState(me!.entitlement);
-    card.append(optRow(
-      you.subscription,
-      // `trialDaysLeft` counts OFF the expiry, so "day n" is len − left — `len` the configured
-      // trial (`paywall.trialDays`), `TRIAL_DAYS` the fallback when a trial was bought on the
-      // phone and the host never configured the web's own offer (ieat-app#1591).
+    const subValue =
       sub.kind === "trial" ? fill(you.freeTrialDay, { n: nWhole(Math.max(1, (me!.paywall?.trialDays || TRIAL_DAYS) - sub.daysLeft)) })
-        : sub.kind === "until" ? fill(you.subscriptionUntil, { date: subDate(sub.date) })
-        : sub.kind === "lifetime" ? you.subscriptionLifetime
-        : sub.kind === "ended"
-          ? (sub.date === null ? you.subscriptionEndedNoDate : fill(you.subscriptionEnded, { date: subDate(sub.date) }))
-        : you.subscriptionFree,
-    ));
+      : sub.kind === "until" ? fill(you.subscriptionUntil, { date: subDate(sub.date) })
+      : sub.kind === "lifetime" ? you.subscriptionLifetime
+      : sub.kind === "ended"
+        ? (sub.date === null ? you.subscriptionEndedNoDate : fill(you.subscriptionEnded, { date: subDate(sub.date) }))
+      : you.subscriptionFree;
+    card.append(me!.entitlement.active
+      ? optRow(you.subscription, subValue)
+      : optRow(you.subscription, subValue, () => { location.hash = "#/pay"; }));
+
     // The sign-in providers, minus the device credential — "Apple" the way the board writes it.
-    // More than one lists the language's own way — `Intl.ListFormat`, not a hand-joined " · ".
+    // More than one lists the language's own way — `listConjunction`, not a hand-joined " · ".
+    // The account page is the same follow-up; the row keeps its value and draws no dead chevron.
     const providers = (ids?.identities ?? [])
       .map((i) => i.provider)
       .filter((p) => signsIn(p) && p !== "device")
       .map((p) => PROVIDER_NAME[p] ?? p);
-    const listOf = new Intl.ListFormat(LANG_TAG[lang], { style: "long", type: "conjunction" });
-    card.append(optRow(you.account, listOf.format(providers)));
+    card.append(optRow(you.account, listConjunction(lang, providers)));
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
-    const unitsSel = document.createElement("select");
-    // `optpick`, not `pick` — `select.pick` is the language picker's own hook, and the specs
-    // (and the reader) rely on it naming exactly one control.
-    unitsSel.className = "optpick";
-    unitsSel.setAttribute("aria-label", you.web.units);
-    for (const [v, label] of [["metric", you.web.unitsMetric], ["imperial", you.web.unitsImperial]] as const) {
-      const o = document.createElement("option");
-      o.value = v;
-      o.textContent = label;
-      if (v === units()) o.selected = true;
-      unitsSel.append(o);
-    }
-    unitsSel.addEventListener("change", async () => {
-      // Locked for the flight; a refused write keeps the choice and says so — picking it again resends.
-      unitsSel.disabled = true;
-      noticeBox.tell(null);
-      try {
-        await api("/profile", {
+    card.append(optRow(
+      you.web.units,
+      units() === "imperial" ? you.web.unitsImperial : you.web.unitsMetric,
+      () => pickPanel(you.web.units, [
+        { value: "metric", label: you.web.unitsMetric },
+        { value: "imperial", label: you.web.unitsImperial },
+      ], units(), (v) => {
+        noticeBox.tell(null);
+        void patch({ units: v }, (err) => {
+          console.error(err);
+          noticeBox.tell(refusalWords(err));
+        });
+      }),
+    ));
+
+    // Language — the same picker; the option labels are the languages' own names, never
+    // translated (LANG_LABEL), and a landed write reloads: the whole surface's copy changes.
+    card.append(optRow(you.phone.language, LANG_LABEL[lang], () => {
+      pickPanel(you.phone.language, LANGS_READY.map((c) => ({ value: c, label: LANG_LABEL[c] })), lang, (v) => {
+        noticeBox.tell(null);
+        void api("/profile", {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ units: unitsSel.value }),
-        });
-        forgetProfile();
-        me = await profile();
-        void draw();
-      } catch (err) {
-        console.error(err);
-        noticeBox.tell(refusalWords(err));
-        unitsSel.disabled = false;
-      }
-    });
-    card.append(optRow(you.web.units, "", unitsSel));
-    // The picker's option labels are the languages' own names — never translated (LANG_LABEL).
+          body: JSON.stringify({ lang: v }),
+        }).then(() => location.reload())
+          .catch((err: unknown) => { console.error(err); noticeBox.tell(refusalWords(err)); });
+      });
+    }));
 
-    // Language — the existing behaviour: PATCH, then reload (the whole surface's copy changes).
-    const langSel = document.createElement("select");
-    langSel.className = "pick";
-    langSel.setAttribute("aria-label", COPY.language);
-    for (const code of LANGS_READY) {
-      const o = document.createElement("option");
-      o.value = code;
-      // The endonym, never translated — the picker is the one list a person reads in the
-      // language they are leaving.
-      o.textContent = LANG_LABEL[code];
-      if (code === lang) o.selected = true;
-      langSel.append(o);
-    }
-    langSel.addEventListener("change", async () => {
-      langSel.disabled = true;
-      noticeBox.tell(null);
-      try {
-        await api("/profile", {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ lang: langSel.value }),
-        });
-        location.reload();
-      } catch (err) {
-        console.error(err);
-        noticeBox.tell(refusalWords(err));
-        langSel.disabled = false;
-      }
-    });
-    card.append(optRow(COPY.language, "", langSel));
-
-    // The Support row (#200) — only while the operator configured a donation URL; every set one
-    // is a link on the row, the provider names staying untranslated because they are brands.
+    // The Support row (#200) — only while the operator configured a donation URL; the provider
+    // names beside it are brands and stay untranslated.
     const donate = ([
       [me!.donate.github, "GitHub Sponsors"],
       [me!.donate.kofi, "Ko-fi"],
@@ -359,23 +295,16 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         a.rel = "noopener noreferrer";
         box.append(a);
       });
-      card.append(optRow(you.web.support, "", box));
+      const row = el("div", "opt");
+      row.append(el("span", "ot", you.web.support), box);
+      card.append(row);
     }
-
-    // The action rows — a label and the chevron, like every forward row in the register.
-    const actRow = (label: string): HTMLButtonElement => {
-      const b = el("button", "opt", "") as HTMLButtonElement;
-      b.type = "button";
-      b.append(el("span", "ot", label), kitEl(`<i class="ico i-chevron-right ov" aria-hidden="true"></i>`));
-      return b;
-    };
 
     if (me!.telegramBot !== null) {
       // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the
       // bot has to receive it inside them. A navigation, so no CSP directive is involved.
       const bot = me!.telegramBot;
-      const tg = actRow(COPY.connectTelegram);
-      tg.addEventListener("click", () => {
+      const tg = optRow(COPY.connectTelegram, "", () => {
         tg.disabled = true;
         void api<PairCodeResponse>("/auth/pair", { method: "POST" })
           .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
@@ -384,8 +313,15 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       });
       card.append(tg);
     }
+    return card;
+  };
 
-    const out = actRow(COPY.signOut);
+  const signOutCard = (): HTMLElement => {
+    const card = el("div", "card flat urows");
+    // The board's bare action row — it signs out, it does not navigate, so no chevron.
+    const out = el("button", "opt") as HTMLButtonElement;
+    out.type = "button";
+    out.append(el("span", "ot", COPY.signOut));
     out.addEventListener("click", () => {
       void (async () => {
         // The turns this browser was keeping are the account's, photos included: they do not stay
@@ -393,6 +329,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
         // them. A storage that refuses must not keep the person signed in.
         await outbox.clear().catch(() => {});
         await signOut();
+        closeAllPanels();
         forgetProfile();
         setHeldProposal(null);
         setLastThread([]);
@@ -404,101 +341,292 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
-  // ── RIGHT: the today column — the week strip, the hero, the macro cards. ────────────────────
+  // ── The profile editor panel (web/you-profile.html) — the phone's you/profile.tsx mirrored:
+  // the rows in one list, a tap expands the one it names, the Weight row is a DOOR to the
+  // weigh-in, and a staged Save commits every change in one PATCH. ──────────────────────────────
 
-  const dayColumn = (d: DaysResponse, day: DayResponse, today: string): HTMLElement[] => {
-    const strip = el("div", "weekbleed");
-    strip.append(weekStripEl(
-      d.days.map((x) => ({ date: x.date, kcal: x.logged ? x.kcal : null, logged: x.logged, when: x.when, targetKcal: d.targetKcal })),
-      (date) => { if (date !== viewing && date <= today) { viewing = date; void draw(); } },
-    ));
-
-    const budget = dayBudget(day, today, me!.profile.goal);
-    // ONE card on both surfaces: the figure-and-label pair is `kcalCardState`'s choice, the
-    // over day reads "{overage}kcal over" in --bad with a closed --bad ring, as Home's does.
-    const state = kcalCardState(budget, false);
-    const hero = el("div", "card dayhero rise rc-2");
-    if (budget.warn) hero.classList.add("over");
-    const left = el("div", "");
-    const hnum = el("b", "d num hnum");
-    if (state.guessed) hnum.append(el("span", "about", COPY.about));
-    hnum.append(document.createTextNode(kcalNumbers(lang)(state.figure)));
-    left.append(hnum);
-    // The caption is the card's short label; the chevron is a drawn affordance — aria-hidden,
-    // an element, never a character inside the sentence.
-    const caption = el("span", "m t13");
-    caption.textContent = ` ${state.label === "over" ? H.kcalOver
-      : state.label === "eaten" ? H.kcalEaten : H.kcalLeft}`;
-    if (budget.state !== "unlogged")
-      caption.append(kitEl(`<i class="ico i-chevron-down" aria-hidden="true"></i>`));
-    left.append(caption);
-    hero.append(left, ringEl({ share: budget.fill, size: 104, tone: budget.warn ? "bad" : "ink", icon: "kcal" }));
-
-    // The macro cards are Home's too: `macroCardState` picks overage/"over" over a clamped
-    // "0g left", and the words are HOME_COPY's — one component, one table.
-    const cards = el("div", "mcards");
-    const mac = (macro: ChipName, copy: HomeTargetMacroCopy, eaten: number, target: number | undefined): Element => {
-      const s = macroCardState(eaten, target);
-      return mcardEl({
-        macro,
-        value: fill(H.grams, { n: nWhole(s.figure) }),
-        label: s.label === "over" ? copy.over : copy.left,
-        ...(s.share !== undefined ? { share: s.share } : {}),
-      });
-    };
-    cards.append(
-      mac("protein", H.macros.protein, day.totals.protein_g, day.targets.protein_g),
-      mac("carbs", H.macros.carbs, day.totals.carbs_g, day.targets.carbs_g),
-      mac("fat", H.macros.fat, day.totals.fat_g, day.targets.fat_g),
-    );
-    // The board's page dots — the column's position marker, drawn (never a control that lies).
-    const dots = el("div", "pdots");
-    dots.append(el("i", "pdot on"), el("i", "pdot"));
-    return [strip, hero, cards, dots];
-  };
-
-  let content: OnboardingContentResponse | null = null;
-
-  // THE TWO COLUMNS FETCH AND DRAW ON THEIR OWN CLOCKS. The today column's reads are a second
-  // promise — a day read that hangs or refuses must never keep the account column (or its picker)
-  // from rendering.
-  let daySeq = 0;
-  async function drawDay(): Promise<void> {
-    const mine = ++daySeq;
-    const today = localDate(zone);
-    const [days, day] = await Promise.all([
-      api<DaysResponse>(`/diary/days?from=${weekStart(today)}&to=${dateMinus(weekStart(today), -6)}`).catch(() => null),
-      api<DayResponse>(`/diary/day?date=${viewing}`).catch(() => null),
-    ]);
-    if (mine !== daySeq) return;
-    if (days !== null && day !== null) {
-      clear(rightCol).append(...dayColumn(days, day, today));
-    } else if (rightCol.childElementCount === 0) {
-      // A failed refetch keeps the drawn day — only a cold failure leaves the column a notice.
-      rightCol.append(el("p", "notice", COPY.somethingWrong));
-    }
+  type RowId = "goal" | "weight" | "target" | "activity" | "country" | "medical";
+  interface Draft {
+    goal: Goal | null;
+    /** The display-units string, typed — converted on save, never stored. */
+    target: string;
+    activity: ActivityLevel | null;
+    country: string | null;
+    medical: readonly MedicalTag[];
   }
+
+  function openEditor(): void {
+    const ob = content ?? onboardingContentFor(lang);
+    const goalOpts = screenOptions(ob, "goal");
+    const activityOpts = screenOptions(ob, "activity");
+    const medOpts = screenOptions(ob, "medical");
+    const p = me!.profile;
+    const imperial = units() === "imperial";
+
+    const { body, close } = openPanel(you.phone.profileTitle);
+    const draft: Draft = {
+      goal: p.goal,
+      target: p.target_weight_kg !== null ? String(weightDisplayValue(p.target_weight_kg, units())) : "",
+      activity: p.activity,
+      country: p.country,
+      medical: p.restrictions.filter((t): t is MedicalTag => (MEDICAL_TAGS as readonly string[]).includes(t)),
+    };
+    let open: RowId | null = null;
+
+    // The weigh-in log — for the Weight row's provenance word. The row reads the profile's own
+    // weight first; the landed read adds the source, and a weigh-in SAVED over this panel
+    // overwrites it — the row must say the new figure, not the fetch's stale one.
+    let weights: WeightsResponse | null = null;
+    let savedKg: number | null = null;
+    void api<WeightsResponse>("/weights?range=all")
+      .then((w) => { weights = w; drawRows(); })
+      .catch(() => {});
+
+    const latestKg = () => savedKg ?? weights?.latest?.kg ?? p.weight_kg;
+    const latest = () => weights?.latest ?? null;
+    // A figure saved from this panel is a typed weigh-in — its provenance is "you" now.
+    const sourceWord = () => savedKg !== null ? you.phone.sourceYou
+      : latest()?.source === "health" ? you.appleHealth : you.phone.sourceYou;
+
+    const rowValue = (id: RowId): string => {
+      switch (id) {
+        case "goal": return draft.goal !== null ? (goalOpts[draft.goal]?.label ?? draft.goal) : "";
+        case "weight": {
+          const kg = latestKg();
+          if (kg === null) return "";
+          return fill(imperial ? you.phone.weightFromLb : you.phone.weightFromKg,
+            { w: n(weightDisplayValue(kg, units())), source: sourceWord() });
+        }
+        case "target": return draft.target === "" ? ""
+          : fill(imperial ? you.phone.weightLb : you.phone.weightKg, { w: draft.target });
+        case "activity": return draft.activity !== null
+          ? fill(you.phone.activityOption, { n: activityOpts[draft.activity]?.label ?? draft.activity })
+          : "";
+        case "country": return draft.country !== null ? countryLabel(draft.country as CountryCode, lang) : "";
+        case "medical": return listConjunction(lang,
+          draft.medical.map((t) => medOpts[t]?.label ?? t));
+      }
+    };
+
+    const dirty = (): boolean =>
+      draft.goal !== p.goal ||
+      draft.activity !== p.activity ||
+      draft.country !== p.country ||
+      draft.target !== (p.target_weight_kg !== null ? String(weightDisplayValue(p.target_weight_kg, units())) : "") ||
+      draft.medical.join(",") !== p.restrictions.filter((t) => (MEDICAL_TAGS as readonly string[]).includes(t)).join(",");
+
+    const notice = el("div", "pnote");
+    notice.setAttribute("role", "alert");
+    notice.hidden = true;
+
+    const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
+    save.type = "button";
+
+    /** One option line — the boards' accent ✓ where the disc would sit, `sel` when held. */
+    const optLine = (label: string, selected: boolean, onPick: () => void): HTMLElement => {
+      const b = el("button", `pickrow${selected ? " sel" : ""}`) as HTMLButtonElement;
+      b.type = "button";
+      b.append(el("span", "ot", label));
+      if (selected) b.append(el("span", "pck", "✓"));
+      b.addEventListener("click", onPick);
+      return b;
+    };
+
+    /** An expandable block: the label row, then the option lines while it is the open one. */
+    const editBlock = (id: RowId, options: { value: string; label: string; selected: boolean; onPick: () => void }[]): HTMLElement => {
+      const box = el("div", "pedit");
+      const head = el("button", `prow${open === id ? " open" : ""}`) as HTMLButtonElement;
+      head.type = "button";
+      head.setAttribute("aria-expanded", String(open === id));
+      head.append(el("span", "", youRowLabel(id)), el("b", "num pv", rowValue(id)));
+      head.addEventListener("click", () => { open = open === id ? null : id; drawRows(); });
+      box.append(head);
+      if (open === id) {
+        const list = el("div", "peditopts");
+        for (const o of options) list.append(optLine(o.label, o.selected, o.onPick));
+        box.append(list);
+      }
+      return box;
+    };
+
+    const youRowLabel = (id: RowId): string => ({
+      goal: you.phone.goalLabel,
+      weight: you.weightLabel,
+      target: you.phone.targetLabel,
+      activity: open === "activity" ? you.phone.activitySection : you.phone.activityLabel,
+      country: you.phone.countryRow,
+      medical: you.phone.judgedAgainst,
+    })[id];
+
+    function drawRows(): void {
+      clear(body);
+      // Goal — the onboarding's three, single pick.
+      body.append(editBlock("goal", screenOptionValues("goal", lang).map((g) => ({
+        value: g,
+        label: goalOpts[g]?.label ?? g,
+        selected: draft.goal === g,
+        onPick: () => { draft.goal = g as Goal; drawRows(); },
+      }))));
+
+      // Weight — a DOOR, not a field: a weigh-in is a dated history entry, so the row opens the
+      // weigh-in panel over this one rather than editing inline (the phone pushes /you/weight).
+      const wrow = el("button", "prow") as HTMLButtonElement;
+      wrow.type = "button";
+      wrow.append(
+        el("span", "", you.weightLabel),
+        el("b", "num pv", rowValue("weight")),
+        kitEl(`<i class="ico i-chevron-right" aria-hidden="true"></i>`),
+      );
+      wrow.addEventListener("click", () => {
+        openWeighIn(me!, (res) => {
+          me = res;
+          forgetProfile();
+          savedKg = res.profile.weight_kg;
+          drawRows();
+        });
+      });
+      body.append(wrow);
+
+      // Target — the one typed field, display units in, kg out at the PATCH.
+      const tbox = el("div", "pedit");
+      const thead = el("button", `prow${open === "target" ? " open" : ""}`) as HTMLButtonElement;
+      thead.type = "button";
+      thead.setAttribute("aria-expanded", String(open === "target"));
+      thead.append(el("span", "", you.phone.targetLabel), el("b", "num pv", rowValue("target")));
+      thead.addEventListener("click", () => { open = open === "target" ? null : "target"; drawRows(); });
+      tbox.append(thead);
+      if (open === "target") {
+        const field = document.createElement("input");
+        field.type = "number";
+        field.step = "0.1";
+        field.min = "0";
+        field.inputMode = "decimal";
+        field.className = "pfield";
+        field.setAttribute("aria-label", you.phone.targetLabel);
+        field.value = draft.target;
+        field.addEventListener("input", () => { draft.target = field.value; save.disabled = !dirty() || saving; });
+        const frow = el("div", "pfieldrow");
+        frow.append(field, el("span", "m", spellUnit(lang, imperial ? "lb" : "kg")));
+        tbox.append(frow);
+      }
+      body.append(tbox);
+
+      // Exercise frequency — the onboarding's levels, single pick.
+      body.append(editBlock("activity", screenOptionValues("activity", lang).map((a) => ({
+        value: a,
+        label: fill(you.phone.activityOption, { n: activityOpts[a]?.label ?? a }),
+        selected: draft.activity === a,
+        onPick: () => { draft.activity = a as ActivityLevel; drawRows(); },
+      }))));
+
+      // Country — CLDR's names in the language's own order.
+      body.append(editBlock("country", countryOptions(lang).map((c) => ({
+        value: c,
+        label: countryLabel(c, lang),
+        selected: draft.country === c,
+        onPick: () => { draft.country = c; drawRows(); },
+      }))));
+
+      // Judged against — the declared caps, multi-pick; "none" is a drawn row that stores [].
+      body.append(editBlock("medical", screenOptionValues("medical", lang).map((t) => {
+        const on = t === "none" ? draft.medical.length === 0 : draft.medical.includes(t as MedicalTag);
+        return {
+          value: t,
+          label: medOpts[t]?.label ?? t,
+          selected: on,
+          onPick: () => {
+            draft.medical = t === "none" ? [] : (on
+              ? draft.medical.filter((x) => x !== t)
+              : [...draft.medical, t as MedicalTag]);
+            drawRows();
+          },
+        };
+      })));
+
+      save.disabled = !dirty() || saving;
+      body.append(notice, save);
+    }
+
+    save.addEventListener("click", async () => {
+      if (!dirty() || saving) return;
+      saving = true;
+      save.disabled = true;
+      const patchBody: Record<string, unknown> = {};
+      if (draft.goal !== p.goal) patchBody.goal = draft.goal;
+      if (draft.activity !== p.activity) patchBody.activity = draft.activity;
+      if (draft.country !== p.country) patchBody.country = draft.country;
+      if (draft.target !== (p.target_weight_kg !== null ? String(weightDisplayValue(p.target_weight_kg, units())) : "")) {
+        patchBody.target_weight_kg = draft.target === "" ? null : weightToKg(units(), Number(draft.target));
+      }
+      const medNow = p.restrictions.filter((t) => (MEDICAL_TAGS as readonly string[]).includes(t));
+      if (draft.medical.join(",") !== medNow.join(",")) patchBody.medical = [...draft.medical];
+      try {
+        const res = await api<ProfileResponse>("/profile", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+        const prevKcal = me!.targets.kcal;
+        me = res;
+        forgetProfile();
+        close();
+        void draw();
+        // The board's saved toast — "{w}kg from {source}, saved" naming the weight's provenance,
+        // then the plan's move when the save changed it ("{from} → {to}kcal a day").
+        const wkg = latestKg();
+        const parts: string[] = [];
+        if (wkg !== null) {
+          parts.push(fill(
+            sourceWord() === you.appleHealth
+              ? (imperial ? you.phone.savedNoteLb : you.phone.savedNoteKg)
+              : (imperial ? you.phone.savedNoteTypedLb : you.phone.savedNoteTypedKg),
+            { w: n(weightDisplayValue(wkg, units())), source: sourceWord() },
+          ));
+        }
+        if (res.targets.kcal !== prevKcal) {
+          parts.push(fill(you.phone.planRevised, { from: `${kcalNumbers(lang)(prevKcal)}`, to: `${kcalNumbers(lang)(res.targets.kcal)}` }));
+        }
+        if (parts.length > 0) toast(parts.join(" · "));
+      } catch (err) {
+        if (err instanceof Unauthenticated) { close(); await render(); return; }
+        const r = err instanceof ApiError && err.status === 422 ? err.body as ProfileRejected | null : null;
+        const words = r?.reason === "target-weight-below-healthy-bmi" && r.minHealthyKg !== undefined
+          ? fill(you.web.belowHealthy, { kg: n(r.minHealthyKg) })
+          : keptWords(err, you.web.saveFailedBody);
+        notice.replaceChildren(el("b", "", you.web.saveFailedTitle), el("span", "t13 m", words));
+        notice.hidden = false;
+      } finally {
+        saving = false;
+        save.disabled = !dirty();
+      }
+    });
+
+    drawRows();
+  }
+
+  // ── The two columns — the left is the board's order; the right is the flat rows. ────────────
+
+  const cols = el("div", "ygrid");
+  const leftCol = el("div", "wcol");
+  const rightCol = el("div", "wcol");
+  cols.append(leftCol, rightCol);
+  wrap.append(cols);
 
   async function draw(): Promise<void> {
     const mine = ++drawing;
-    const today = localDate(zone);
     // EVERY READ DEGRADES ALONE: one refused fetch must not blank the surface — a card that can
     // still answer does, and the notice under the columns says what did not.
     const ids = await api<IdentitiesResponse>("/auth/identities").catch(() => null);
     // The option labels are read once — a language change reloads the page rather than refetching.
     if (content === null) {
-      content = await api<OnboardingContentResponse>(`/onboarding?lang=${lang}`).catch(() => null);
+      const res = await api<OnboardingContentResponse>(`/onboarding?lang=${lang}`).catch(() => null);
+      content = res?.content ?? null;
     }
     if (mine !== drawing) return;
-    const ob = content;
 
-    dateCell.textContent = dayText(viewing);
-    next.disabled = viewing >= today;
-
-    const pn = noticeFor();
     const rn = noticeFor();
-    clear(leftCol).append(identityCard(), planCard(ob?.content ?? null, pn), rowsCard(ids, rn), rn.notice);
-    void drawDay();
+    clear(leftCol).append(identityCard(), planCard());
+    clear(rightCol).append(rowsCard(ids, rn), signOutCard(), rn.notice);
   }
 
   await draw();
