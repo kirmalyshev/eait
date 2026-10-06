@@ -13,9 +13,9 @@
 import { weightCard } from "../../shared/progress.ts";
 import { BMI_SEGMENTS, bmiTick } from "../../shared/scores.ts";
 import { goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
-import { heightText, kgToLb, weightDisplayValue, weightToKg, type UnitSystem } from "../../shared/ui/units.ts";
+import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, spellUnit, weekdayLetters } from "../../shared/lang.ts";
+import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, weekdayLetters } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import { youCopyFor } from "../../shared/app/you-copy.ts";
@@ -25,7 +25,8 @@ import type {
 import { api, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { bmiBarEl, weekBarsEl, weightChartEl } from "../kit.ts";
-import { clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, type Frame } from "../shell.ts";
+import { clear, el, forgetProfile, lang, refusalWords, render, type Frame } from "../shell.ts";
+import { openWeighIn } from "../weigh.ts";
 
 export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const me = frame.me;
@@ -88,79 +89,22 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   const wBody = el("div", "");
   wCard.append(wHead, wBody, wNotice);
 
-  // The weigh-in, inline in the weight card (the move ieat-app#1518 made): every state keeps a
-  // door — the trend's plain "Log weight", the empties' invitations — and all of them open the
-  // same form. `lastW` is the log the form's prefill and a Cancel's redraw read.
-  let weighing = false;
-  let saving = false;
-  let lastW: WeightsResponse | null = null;
-
+  // The weigh-in is a PANEL now (web/you-weight.html, eait#474): every state keeps a door — the
+  // trend's plain "Log weight", the empties' invitations — and all of them open the same one,
+  // which PATCHes `weight_kg` itself and hands the saved profile back for the redraw.
   const logEntry = (text: string): HTMLElement => {
     const b = el("button", "plink", text) as HTMLButtonElement;
     b.type = "button";
     b.addEventListener("click", () => {
-      if (weighing || lastW === null) return;
-      weighing = true;
-      fillWeight(lastW);
-      wCard.scrollIntoView({ block: "nearest" });
+      if (me === null) return;
+      openWeighIn(me, () => {
+        // A saved weigh-in moves the chart, the projection and the BMI alike — `render()` answers
+        // all of it with fresh reads rather than the panel pretending at them.
+        forgetProfile();
+        void render();
+      });
     });
     return b;
-  };
-
-  /** The weigh-in form — the card's own state stays drawn above it; Save PATCHes `weight_kg`,
-   *  which writes the day's weigh-in row on the server, and the refetched view replaces the
-   *  draft. A refusal keeps the typed figure and says so under the card (#969's rule). */
-  const weighForm = (w: WeightsResponse): HTMLElement => {
-    const form = el("div", "wedit");
-    const field = document.createElement("input");
-    field.type = "number";
-    field.step = "0.1";
-    field.min = "0";
-    field.setAttribute("aria-label", copy.weightLabel);
-    field.inputMode = "decimal";
-    const latest = w.latest?.kg ?? me?.profile.weight_kg;
-    if (latest != null) field.value = `${weightDisplayValue(latest, units)}`;
-    const unit = el("span", "m", spellUnit(lang, units === "imperial" ? "lb" : "kg"));
-    const row = el("div", "wrow");
-    row.append(field, unit);
-    const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
-    save.type = "button";
-    const cancel = el("button", "cta g", COPY.cancel) as HTMLButtonElement;
-    cancel.type = "button";
-    cancel.addEventListener("click", () => { weighing = false; fillWeight(w); });
-    save.addEventListener("click", async () => {
-      const value = Number(field.value);
-      if (!Number.isFinite(value) || value <= 0 || saving) return;
-      saving = true;
-      save.disabled = true;
-      try {
-        await api("/profile", {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ weight_kg: weightToKg(units, value) }),
-        });
-      } catch (err) {
-        if (err instanceof Unauthenticated) { await render(); return; }
-        wNotice.textContent = keptWords(err, you.phone.saveKept);
-        wNotice.hidden = false;
-        field.focus();
-        field.setSelectionRange(field.value.length, field.value.length);
-        return;
-      } finally {
-        // A refusal re-arms the button — the figure stays editable and the notice stays up.
-        saving = false;
-        save.disabled = false;
-      }
-      // The write landed, so anything past here is the redraw: the weigh-in moves the chart,
-      // the projection and the BMI alike, and `render()` answers all of it with fresh reads
-      // rather than the form pretending the save failed.
-      forgetProfile();
-      await render();
-    });
-    form.append(row, el("div", "weditbtns"));
-    form.querySelector(".weditbtns")!.append(save, cancel);
-    field.focus();
-    return form;
   };
 
   /**
@@ -183,15 +127,12 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     weightChartEl([], { aria: copy.weightChartName, first: "", last: "", from: "", to: "" });
 
   const fillWeight = (w: WeightsResponse): void => {
-    lastW = w;
     clear(wBody);
     const state = weightCard(w.weights, w.latest);
     const points = w.weights.map((e) => ({ t: Date.parse(`${e.date}T00:00:00Z`), kg: e.kg }));
 
     if (state.kind === "empty") {
-      wBody.append(dashFigure(), emptyFrame());
-      if (!weighing) wBody.append(logEntry(copy.weightEmpty));
-      else wBody.append(weighForm(w));
+      wBody.append(dashFigure(), emptyFrame(), logEntry(copy.weightEmpty));
       return;
     }
     if (state.kind === "none-in-range") {
@@ -199,9 +140,8 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
         weightFigure(state.latest.kg, fill(copy.weightLatestTail[units], { date: fmtDate(state.latest.date) })),
         emptyFrame(),
         el("p", "wempty", copy.weightNone[range]),
+        logEntry(copy.weightEmpty),
       );
-      if (!weighing) wBody.append(logEntry(copy.weightEmpty));
-      else wBody.append(weighForm(w));
       return;
     }
     // `one` and `trend` both show the newest weigh-in — the range ends today, so its last point is
@@ -219,13 +159,9 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
       from: fmtDate(first.date),
       to: state.kind === "trend" ? fmtDate(last.date) : "",
     }));
-    if (!weighing) {
-      // The door the You card's header held: a plain "Log weight" on the trend, the one-dot
-      // card's invitation on `one`.
-      wBody.append(logEntry(state.kind === "one" ? copy.weightOneMore : you.logWeight));
-    } else {
-      wBody.append(weighForm(w));
-    }
+    // The door the You card's header held: a plain "Log weight" on the trend, the one-dot
+    // card's invitation on `one`.
+    wBody.append(logEntry(state.kind === "one" ? copy.weightOneMore : you.logWeight));
   };
 
   let wSeq = 0;

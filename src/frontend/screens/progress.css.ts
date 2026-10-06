@@ -51,16 +51,6 @@ export const progressCss = `
 .prog .plink:hover { text-decoration: underline; }
 .prog .wempty { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 
-/* The weigh-in — the same inline editor the You card held: the field and its unit on a row,
-   Save and Cancel under it. */
-.prog .wedit { display: flex; flex-direction: column; align-items: stretch; gap: 10px; margin-top: 12px; }
-.prog .wrow { display: flex; align-items: center; gap: 8px; }
-.prog .wedit input { font: inherit; font-size: 16px; padding: 8px 12px;
-  border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
-  color: var(--ink); width: 120px; min-height: 40px; }
-.prog .weditbtns { display: flex; gap: 8px; margin-top: 10px; }
-.prog .weditbtns .cta { width: auto; min-height: 40px; padding: 0 18px; font-size: 14px; }
-
 /* The goal bar — the board's .bar drawn as a native progress (the share is a VALUE, never a
    style: the nonce policy allows attributes, it refuses inline style). */
 .prog progress.gbar { display: block; width: 100%; height: 8px; margin: 12px 0 8px;

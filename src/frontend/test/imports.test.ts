@@ -40,6 +40,10 @@ const WEB_MODULES = new Set([
   "paywall.ts",        // the exit offer's percent/price formatters (#451) — pure, reads lang.ts
   "progress.ts",       // the card-state rule — pure, one contract type
   "scores.ts",         // the BMI edges and the bar's segments (#155) — pure, reads targets.ts
+  "targets.ts",        // the weigh-in panel's live plan preview and its weight band (#474) —
+                       // the one copy of the arithmetic, pure (import type only)
+  "health-copy.ts",    // the weigh-in's "couldn't load your weigh-ins" provenance line — a
+                       // Localized table, reads health.ts + lang.ts only
   "first-meal-copy.ts",
 ]);
 
