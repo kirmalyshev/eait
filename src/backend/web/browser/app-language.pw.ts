@@ -16,15 +16,19 @@ import { expect, test } from "./fixtures.ts";
 // never been rendered in a browser at all.
 test("the web app's own picker writes the account and comes back translated", async ({ inWebApp: page }) => {
   // Since #52 the picker's home is Profile — Home · Chat · Profile is the whole of the top row.
+  // #474 made the row a scrim panel listing the eight endonyms; the pick is the same PATCH, and
+  // the reload after it is still the mechanism.
   await page.goto("/#/you");
-  const picker = page.getByLabel("Language");
-  await expect(picker).toHaveValue("en");
+  const row = page.getByRole("button", { name: /^Language: English$/ });
+  await expect(row).toBeVisible();
 
-  await picker.selectOption("ru");
+  await row.click();
+  await expect(page.locator(".panel .pickrow")).toHaveCount(8);
+  await page.locator(".panel .pickrow", { hasText: "Русский" }).click();
   // The reload is the mechanism, so wait for the page to actually come back rather than for a
   // repaint that a re-render would also produce.
   await expect(page.locator("html")).toHaveAttribute("lang", "ru", { timeout: 15_000 });
-  await expect(page.getByLabel("Язык")).toHaveValue("ru");
+  await expect(page.getByRole("button", { name: /^Язык: Русский$/ })).toBeVisible();
 
   // And it is the ACCOUNT, not this view: another route, rendered by other functions, in Russian.
   await page.goto("/#/chat");
