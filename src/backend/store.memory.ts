@@ -838,7 +838,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         expiresEventAt: current?.expiresEventAt ?? null,
         lifetimeProductId: patch.lifetimeProductId,
         lifetimeEventAt: patch.eventAt,
-        productId: patch.productId,
+        // The subscription's id; a lifetime event does not name it.
+        productId: current?.productId ?? "",
         eventAt: newest(current?.eventAt, patch.eventAt),
         // A lifetime event says nothing about the subscription's period.
         trial: current?.trial ?? false,

@@ -2132,7 +2132,6 @@ export async function postgresStore(
         update users set
           entitlement_lifetime_product_id = ${patch.lifetimeProductId},
           entitlement_lifetime_event_at   = ${eventAt},
-          entitlement_product_id          = ${patch.productId},
           entitlement_event_at = greatest(coalesce(entitlement_event_at, ${eventAt}), ${eventAt})
         where id = ${userId}
           and (entitlement_lifetime_event_at is null or entitlement_lifetime_event_at < ${eventAt})

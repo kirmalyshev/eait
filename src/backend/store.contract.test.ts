@@ -514,7 +514,7 @@ function contract(name: string, make: () => Promise<Store>) {
         eventAt: "2026-08-24T10:00:00.000Z",
       })).toBe(true);
       expect(await s.getEntitlement(userId)).toEqual({
-        expiresAt: null, lifetimeProductId: "lifetime", productId: "lifetime",
+        expiresAt: null, lifetimeProductId: "lifetime", productId: "",
         eventAt: "2026-08-24T10:00:00.000Z", trial: false,
       });
 
@@ -537,7 +537,7 @@ function contract(name: string, make: () => Promise<Store>) {
       });
       expect(await s.getEntitlement(userId)).toEqual({
         expiresAt: "2026-09-24T10:00:00.000Z", lifetimeProductId: "lifetime",
-        productId: "lifetime", eventAt: "2026-08-19T10:00:00.000Z", trial: false,
+        productId: "monthly", eventAt: "2026-08-19T10:00:00.000Z", trial: false,
       });
 
       // The plan renews. It says nothing about the unlock, so the unlock survives.
