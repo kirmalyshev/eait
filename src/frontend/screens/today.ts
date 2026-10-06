@@ -9,7 +9,7 @@
 // i18n catalog: a meal row's verdict line is `verdictInline`, the proposal's pills are
 // `verdictLabels`, and the score is the server's `dayHealthScore`, never recomputed here.
 
-import { dateMinus } from "../../shared/dates.ts";
+import { dateMinus, isCalendarDate } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { trialReminder } from "../../shared/entitlement.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
@@ -31,14 +31,19 @@ import { firstMealScreen } from "./first-meal.ts";
 import { blobSrc, ctaEl, kitEl, mealRowEl } from "../kit.ts";
 import { failureOf, outbox } from "../outbox.ts";
 import {
-  DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, flush, heldProposal, kcal, kept,
+  DAYS, PENDING, behind, clear, composerRow, dayPickerButton, dayText, el, firstMealDue, flush, heldProposal, kcal, kept,
   keptLineEl, keptNotice, lang, names, profile, proposalCard, refusalWords, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
-async function diaryScreen(frame: Frame): Promise<HTMLElement> {
+async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = null): Promise<HTMLElement> {
   const wrap = el("section", "home");
-  const me = await profile();
+  const askedDay = new URLSearchParams(location.hash.split("?")[1] ?? "").get("d");
+  const me = firstMeal ?? await profile();
+  // The one-meal flow, when the account still has it — the ask card in this column
+  // (web/today-first-meal.html). The element is the flow's own state, so it mounts once and
+  // `draw()` re-appends it rather than rebuilding it.
+  const flow = firstMeal !== null ? firstMealScreen(firstMeal) : null;
   const uid = me.profile.user_id;
   const L = homeCopyFor(lang);
   const SC = scoresAppCopy(lang);
@@ -60,7 +65,8 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   // THE DAY THE STRIP IS LOOKING AT — today until a chevron or a week cell moves it (#71).
   // `/v1/diary/day` answers for any date, so the only bound is the future, which has no diary yet.
-  let viewing = today;
+  // `#/?d=YYYY-MM-DD` is how the other screens' calendar button lands on a day here.
+  let viewing = askedDay !== null && isCalendarDate(askedDay) && askedDay <= today ? askedDay : today;
   /** The macro page the right column is on: 0 the left-form set, 1 the nutrient set (the dots). */
   let page: 0 | 1 = 0;
   /** The calorie toggle's other side on today-with-meals: left, or eaten after a tap. */
@@ -96,19 +102,11 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   // ── The picker: the browser's own date input, opened by the bar's calendar button and by a
   // long press or right click on the strip (the phone's long press). Never past today.
-  const picker = el("input", "visually-hidden") as HTMLInputElement;
-  picker.type = "date";
-  picker.tabIndex = -1;
-  picker.setAttribute("aria-hidden", "true");
-  picker.addEventListener("change", () => {
-    // The date as a number, never the field's text: `viewing` reaches hrefs and request paths.
-    const ms = picker.valueAsNumber;
-    if (Number.isNaN(ms)) return;
-    const picked = new Date(ms).toISOString().slice(0, 10);
-    if (picked > today) return;
-    viewing = picked;
-    void draw();
+  const cal = dayPickerButton({
+    label: L.pickDay, value: () => viewing, max: () => today,
+    onPick: (picked) => { viewing = picked; void draw(); },
   });
+  const picker = cal.input;
   const openPicker = (): void => {
     picker.max = today;
     picker.value = viewing;
@@ -152,12 +150,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       })));
     }
     // The boards' `.calb` — the native date picker is the only bar control left (F, #335).
-    const cal = el("button", "calb") as HTMLButtonElement;
-    cal.type = "button";
-    cal.setAttribute("aria-label", L.pickDay);
-    cal.append(kitEl(ico("calendar")));
-    cal.addEventListener("click", openPicker);
-    frame.bar.append(cal);
+    frame.bar.append(cal.button, cal.input);
   };
 
   // ── The week strip — the F flat-tint row, mounted ONCE, moved never rebuilt ─────────────
@@ -954,7 +947,10 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // ── The left column: the label, the meal list, the day note, the empty/failed state ──
     // "Recent" only while today holds meals; every other state names no date — the
     // strip's marked cell already says which day this is.
-    const left: Element[] = rich ? [el("span", "hsec", L.recentlyUploaded)] : [];
+    // The first meal is a card in this column, not a screen of its own (web/today-first-meal):
+    // the ask where the diary's rows will be — a dropped photo's queue row still tops it.
+    const first = flow !== null;
+    const left: Element[] = (rich || (first && queued)) ? [el("span", "hsec", L.recentlyUploaded)] : [];
     // The ends-tomorrow trial card heads the diary column on its one day (web-pay-reminder,
     // ieat-app#1591): the day before a LIVE trial's expiry — `trialReminder`, the same function
     // the phone schedules its local reminder off, so the card and the notification name the
@@ -974,7 +970,14 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       card.append(inner, kitEl(ico("chevron-right")));
       left.unshift(card);
     }
-    if (day === null) {
+    if (first && queued) {
+      const card = el("div", "dlist");
+      card.append(queueEl());
+      left.push(card);
+    }
+    if (first) {
+      left.push(flow!);
+    } else if (day === null) {
       // The failed read — one line and the retry pill, the boards' `.herr`; the card dashes.
       const herr = el("div", "herr");
       herr.append(el("span", "", L.diaryFailed));
@@ -1008,7 +1011,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
         if (note !== null) left.push(note);
       }
     }
-    if (heldProposal() !== null) {
+    if (heldProposal() !== null && !first) {
       // The shell's own proposal card — confirm/cancel/410 is its one implementation.
       const card = proposalCard(heldProposal()!, turn, {
         lead: fill(L.webProposalLead, {
@@ -1029,8 +1032,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
     // Today carries the actions: the upload CTA — gone while a turn is out or a proposal is held
     // (today-logging draws compose with no CTA) — and the composer. The failed board draws
-    // neither: its right column ends at the dash card.
-    if (isToday && day !== null) {
+    // neither: its right column ends at the dash card. The first-meal board draws neither too —
+    // the ask card in the diary column IS the CTA while the account has never logged.
+    if (isToday && day !== null && !first) {
       if (!logging) {
         // "Upload a photo" joins the queue (#1318); `#/log` stays the empty card's read-in-place flow.
         const pick = el("input", "visually-hidden") as HTMLInputElement;
@@ -1159,7 +1163,9 @@ export async function homeScreen(frame: Frame): Promise<HTMLElement> {
   // is the failure the gate exists to prevent).
   if (firstMealDue(frame.me)) {
     const fresh = await api<ProfileResponse>("/profile").catch(() => frame.me);
-    if (firstMealDue(fresh)) return firstMealScreen(fresh);
+    // The flow rides INSIDE the diary now (web/today-first-meal.html), not in its place — Home
+    // draws its own columns around it and the verdict sheet lands over them.
+    if (firstMealDue(fresh)) return diaryScreen(frame, fresh);
   }
   return diaryScreen(frame);
 }
