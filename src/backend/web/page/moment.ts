@@ -11,7 +11,7 @@ import {
   UNIT_KCAL, kcalNumbers, verdictPillLabel, weightDisplay,
 } from "@eait/shared";
 import type { Lang, Profile, UnitSystem } from "@eait/shared";
-import { spudSvg } from "@eait/shared/mascot";
+import { brandSvg } from "@eait/shared/ui/icons";
 import { gramMacs, verdictList } from "@eait/shared/ui/kit";
 import { ctaLink, dash, IMG_URL_DIR, PLACE_MOOD, say, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
@@ -95,7 +95,7 @@ export function interstitial(
     : `<div class="card rel">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
       `<div class="chartw">${ontrackChart(lang)}` +
-      `<div class="tagx pos"><span class="wm" aria-hidden="true">${spudSvg("happy", "spud-tag")}</span>${escape(copy.chart.byEait)}</div></div>` +
+      `<div class="tagx pos">${brandSvg("eait", { size: 20, class: "appicon" })}${escape(copy.chart.byEait)}</div></div>` +
       `</div>` +
       (ontrackCaption(profile.struggles, lang)
         ? `<p class="muted-sub cen">${escape(ontrackCaption(profile.struggles, lang)!)}</p>`
