@@ -15,6 +15,7 @@ import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
+import { isAgentProvider, localAgentPorts, probeAgentCli } from "./llm/local-agent.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
@@ -50,14 +51,21 @@ const config: Config = demo ? demoConfig() : loadConfig();
 // than half-configured — a server that says it is answering with the real model and is not is worse
 // than one that will not start.
 if (demo && llmArg === "real") {
-  const key = process.env.EAIT__BACKEND__LLM_API_KEY ?? "";
-  if (key === "") {
-    console.error("[eait] --llm real needs EAIT__BACKEND__LLM_API_KEY; run without it for the canned answers");
+  const provider = process.env.EAIT__BACKEND__LLM_PROVIDER ?? "openrouter";
+  if (provider !== "openrouter" && !isAgentProvider(provider)) {
+    console.error(`[eait] --llm real does not know provider "${provider}"`);
     process.exit(1);
   }
-  config.llmApiKey = key;
+  if (provider === "openrouter") {
+    const key = process.env.EAIT__BACKEND__LLM_API_KEY ?? "";
+    if (key === "") {
+      console.error("[eait] --llm real needs EAIT__BACKEND__LLM_API_KEY; run without it for the canned answers");
+      process.exit(1);
+    }
+    config.llmApiKey = key;
+  }
   const d = configDefaults();
-  config.llmProvider = "openrouter";
+  config.llmProvider = provider;
   config.llmModel = process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel;
   config.llmChatModel = process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel;
 }
@@ -91,29 +99,55 @@ if (config.adminBootstrapUserId !== "") {
 
 const push = choosePush(config, demo);
 
+// A `*-cli` provider answers through a binary ON THIS HOST — `claude -p`, `codex exec` — paid for
+// by the operator's own agent subscription and authenticated here, which is why it exists for
+// development and self-hosting and is never the prod default. The probe IS the "never prod by
+// accident" guard: the prod image carries no binary, so a `*-cli` provider set there cannot come
+// up — running one means the CLI and its auth were installed on purpose.
+if (!cannedLlm && isAgentProvider(config.llmProvider)) {
+  try {
+    const version = await probeAgentCli(config.llmProvider);
+    console.log(`[eait] llm provider: ${config.llmProvider} (${version}) — a local agent CLI, development and self-hosted only`);
+  } catch (e) {
+    console.error(`[eait] EAIT__BACKEND__LLM_PROVIDER=${config.llmProvider}: ${(e as Error)?.message ?? e}`);
+    process.exit(1);
+  }
+}
+
 const deps: EngineDeps = {
   store,
   config,
   push,
   llm: cannedLlm
     ? demoPorts()
-    : openRouterPorts({
-        apiKey: config.llmApiKey,
-        model: config.llmModel,
-        chatModel: config.llmChatModel,
-        reasoningEffort: config.llmReasoningEffort,
-        // Comma-separated provider names; empty disables the pin and lets OpenRouter route.
-        providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
-        baseUrl: config.llmBaseUrl,
-        timeoutMs: config.llmTimeoutMs,
-        maxTokens: config.llmMaxTokens,
-        // The one place the transport is joined to the store. It is a function rather than a value
-        // because an edit must be live without a restart, and it is `loadPrompts` rather than a
-        // bare `store.getPrompts` because that function is the one that cannot throw: an empty
-        // table, a deleted row, a row that fails containment and a database that is down all come
-        // back as the prompts compiled into `llm/prompt.ts`.
-        prompts: () => loadPrompts(store),
-      }),
+    : isAgentProvider(config.llmProvider)
+      ? localAgentPorts({
+          provider: config.llmProvider,
+          timeoutMs: config.llmTimeoutMs,
+          concurrency: config.llmAgentConcurrency,
+          // The CLI's OWN model spelling, passed only when set: the compiled-in defaults are
+          // OpenRouter ids, which name a model the CLI does not have.
+          model: process.env.EAIT__BACKEND__LLM_MODEL ? config.llmModel : undefined,
+          chatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ? config.llmChatModel : undefined,
+          prompts: () => loadPrompts(store),
+        })
+      : openRouterPorts({
+          apiKey: config.llmApiKey,
+          model: config.llmModel,
+          chatModel: config.llmChatModel,
+          reasoningEffort: config.llmReasoningEffort,
+          // Comma-separated provider names; empty disables the pin and lets OpenRouter route.
+          providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
+          baseUrl: config.llmBaseUrl,
+          timeoutMs: config.llmTimeoutMs,
+          maxTokens: config.llmMaxTokens,
+          // The one place the transport is joined to the store. It is a function rather than a value
+          // because an edit must be live without a restart, and it is `loadPrompts` rather than a
+          // bare `store.getPrompts` because that function is the one that cannot throw: an empty
+          // table, a deleted row, a row that fails containment and a database that is down all come
+          // back as the prompts compiled into `llm/prompt.ts`.
+          prompts: () => loadPrompts(store),
+        }),
 };
 
 // ── Health retention ─────────────────────────────────────────────────────────────────────────

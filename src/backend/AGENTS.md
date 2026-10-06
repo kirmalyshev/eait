@@ -10,9 +10,13 @@ The server. Root `AGENTS.md` covers the repo; this covers this workspace.
 api/routes.ts     one handler per route; it calls ONE engine function and returns
 engine/           all product logic — day/week, meals, chat, identity, entitlement, onboarding
 store.ts          the port; store.pg.ts is what runs, store.memory.ts is what tests run against
-llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are AUTHORED in prompt.ts and
-                  may be OVERRIDDEN by a row in llm_prompts; prompt.ts is the seed and the fallback
-                  `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
+llm/              port.ts + prompt.ts + openrouter.ts + demo.ts + local-agent.ts. Prompts are
+                  AUTHORED in prompt.ts and may be OVERRIDDEN by a row in llm_prompts; prompt.ts is
+                  the seed and the fallback. `coach` is the agent loop; its tools are closures the
+                  ENGINE builds (engine/coach.ts). `local-agent.ts` is the SECOND provider —
+                  `EAIT__BACKEND__LLM_PROVIDER=claude-cli|codex-cli` runs a coding-agent CLI on the
+                  host behind the same port; dev and self-hosted only, and adding a CLI is one
+                  entry in its `ADAPTERS`.
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
 push/             outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
