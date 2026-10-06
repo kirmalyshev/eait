@@ -51,6 +51,9 @@ body { margin: 0; background: var(--bg); color: var(--ink);
    The shell provides the slot; a screen fills frame.bar or leaves it empty. */
 .wtop .wr { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
 .wtop .wr:empty { display: none; }
+/* The streak chip is Home's own lead at full width; elsewhere it belongs to the wrapped ≤760
+   row (the boards' narrow chrome), so a .wnar class holds it out of the wide bar. */
+@media (min-width: 761px) { .wtop .wr .wnar { display: none; } }
 .wtop .sp { flex: 1; }
 /* The date row a screen's bar side draws (the boards' wtop right: "‹ Thursday 24 September ›") —
    the chevrons are 32px icon buttons, the label 14/500 between them. One row for Home and You
@@ -98,6 +101,9 @@ body { margin: 0; background: var(--bg); color: var(--ink);
      edge instead of 2px past it, where it met the bar's hairline. */
   .wnav a.on .lbl::after { bottom: 0; }
   .wtop .wr { flex: 0 0 100%; justify-content: flex-end; }
+  /* The wrapped row is the boards' space-between row — the streak at the left edge, the calendar
+     at the right — on every screen, not just Home. A one-item .wr (the calb alone) stays right. */
+  .wtop .wr:has(> :nth-child(2)) { justify-content: space-between; }
   .wmain { padding: 20px 16px 32px; grid-template-columns: 1fr; }
   /* One column, the phone's order (F, #335): the side column's strip, day card, CTA and
      composer come first, then the diary column's list. */
