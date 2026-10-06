@@ -117,9 +117,10 @@ test("the diary is grouped and worded in the account's language, not the browser
   );
   // And the document says which language it is in, because a screen reader picks a voice from it.
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
-  // The picker lives on You since #52, showing the language being read — and in it.
+  // The picker lives on You since #52, showing the language being read — and in it. Since #474
+  // it is a row naming the language in the language's own words, opening the endonym panel.
   await page.goto("/#/you");
-  await expect(page.locator("select.pick")).toHaveValue("de");
+  await expect(page.getByRole("button", { name: /^Sprache: Deutsch$/ })).toBeVisible();
 });
 
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {

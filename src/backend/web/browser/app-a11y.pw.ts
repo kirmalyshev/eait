@@ -69,12 +69,17 @@ test("the chat: one h1, and Send at 44px", async ({ inWebApp: page }) => {
   await expect(page.locator(".thread li.me").first()).toBeVisible();
 });
 
-test("You: one h1, and the language select at 44px with 16px type", async ({ inWebApp: page }) => {
+test("You: one h1, the language row at 44px, and the weigh-in's field at 16px", async ({ inWebApp: page }) => {
   await page.goto("/#/you");
   await landmark(page);
-  const pick = page.locator("select.pick");
-  await tapTarget(pick);
-  expect(await fontPx(page, "select.pick")).toBeGreaterThanOrEqual(16);
+  // The language control is a value+chevron row since #474 — a button, so iOS zoom does not
+  // apply; the hit-area pin stands exactly as it did on the select.
+  await tapTarget(page.getByRole("button", { name: /^Language: / }));
+  // The 16px-on-form-controls guard now lands on the one form control the redesigned Profile
+  // owns: the weigh-in's figure field, reached through the plan editor's Weight door.
+  await page.getByRole("button", { name: "edit" }).click();
+  await page.getByRole("button", { name: /^Weight/ }).click();
+  expect(await fontPx(page, ".wbig")).toBeGreaterThanOrEqual(16);
 });
 
 test("the offer: one h1, and Correct meal / Not now at 44px", async ({ inWebApp: page }) => {

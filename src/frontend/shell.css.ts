@@ -213,4 +213,67 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
 .rowline + .rowline { border-top: 1px solid var(--hair); }
 .rowline .when { font-weight: 700; }
+
+/* ── The boards' panels (web/you-*.html) — a centred 480px card over the 36 % ink scrim. They
+   STACK (the editor's Weight row opens the weigh-in over it), so z-order is DOM order. ── */
+.scrim { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 36%, transparent);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.panel { width: 480px; max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; margin: 0;
+  padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 12px; }
+.panel .pbody { display: flex; flex-direction: column; gap: 12px; }
+.panel .phead .d17 { font-weight: 700; }
+
+/* A panel row — label left, the held value or a chevron right, a hairline over each (the boards'
+   "padding:11px 0; border-top: hairline" rows). The button in the selector is load-bearing:
+   the ".card button:not(.opt)" rule draws every card button a pill, and panel rows are the
+   exception it does not know — matching its specificity and coming later is what wins. A tap
+   expands the row
+   it names; the Weight row is a door, so it is the one that keeps a chevron. */
+.panel button.prow { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; margin: 0; padding: 11px 0; min-height: 0; border: 0; border-top: 1px solid var(--hair);
+  border-radius: 0; background: none; box-shadow: none; font: inherit; font-size: 15px;
+  font-weight: 400; color: var(--ink); text-align: left; cursor: pointer; }
+.panel .prow .pv { font-weight: 600; }
+.panel .prow .ico { width: 16px; height: 16px; flex: 0 0 16px; color: var(--muted); }
+.panel .prow.open > span:first-child { font-weight: 600; }
+.panel button.prow:focus-visible, .panel button.pickrow:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: -2px; }
+/* An expanded row's options, and the picker panels' rows — the boards' accent ✓ where the held
+   one sits, no hairlines inside an expanded block; a picker row that wants one carries .opt,
+   which supplies it itself. */
+.panel button.pickrow { display: flex; align-items: center; gap: 14px; width: 100%; margin: 0;
+  padding: 10px 0; min-height: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  font: inherit; font-size: 15px; font-weight: 400; color: var(--ink); text-align: left;
+  cursor: pointer; }
+.panel .pickrow .pck { margin-left: auto; font-weight: 700; color: var(--accent); }
+.panel .pickrow .ot { flex: 1; min-width: 0; }
+/* The one typed field a row opens (Target) — the register's input box beside its unit. */
+.pfieldrow { display: flex; align-items: center; gap: 10px; padding: 4px 0 8px; }
+.pfield { font: inherit; font-size: 16px; padding: 8px 12px; border: 1px solid var(--line);
+  border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); width: 120px;
+  min-height: 40px; }
+/* The refused save's boxed line (you-profile-failed / you-weight-failed): one hairline ring, an
+   ink title, a muted body — the design's .notice, which this stylesheet's red .notice is not. */
+.pnote { box-shadow: 0 0 0 1px var(--hair); border-radius: var(--r-card); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px; }
+/* display:flex above beats the browser's [hidden] rule — an empty pnote must render nothing. */
+.pnote[hidden] { display: none; }
+.pnote b { font-size: 14px; }
+/* The weigh-in's big field — the board's 48px figure that is an input, the unit beside it. */
+.wfigrow { gap: 8px; align-items: baseline; }
+.wbig { font: inherit; font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1;
+  border: 0; background: none; padding: 0; color: var(--ink); width: 100%; min-width: 0;
+  appearance: textfield; }
+.wbig::-webkit-outer-spin-button, .wbig::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.wbig:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wunit { font-weight: 600; }
+/* The live plan preview under it — the flat card, "Your plan" beside "{from} → {to}kcal a day". */
+.wplan { padding: 14px 16px; }
+.wplan .wplanlab { font-weight: 600; }
+.wplan .wmacs { margin-top: 4px; }
+
+/* The saved toast (web/you-saved.html) — the dark pill pinned under the bar. */
+.toast { position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 70;
+  background: var(--ink); color: var(--bg); border-radius: 12px; padding: 12px 18px;
+  font-weight: 600; font-size: 14px; max-width: calc(100vw - 32px); }
 `;

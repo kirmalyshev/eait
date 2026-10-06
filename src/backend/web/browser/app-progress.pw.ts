@@ -71,6 +71,9 @@ test("an account whose log is empty draws the empty card — a dash, not a phant
   await expect(page.locator(".pgraph.wl circle")).toHaveCount(0);
   await page.getByRole("button", { name: "Log a weight to see your trend" }).click();
   await expect(page.getByRole("spinbutton", { name: "Weight" })).toBeVisible();
+  // The weigh-in is a scrim panel since #474 — Esc closes it before the BMI card's door opens it.
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".scrim")).toHaveCount(0);
   // The BMI card's own empty half reads the same invitation.
   await page.getByRole("button", { name: "Log a weight to see your BMI" }).click();
   await expect(page.getByRole("spinbutton", { name: "Weight" })).toBeVisible();

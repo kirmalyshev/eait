@@ -1,16 +1,27 @@
-// You's own styles — the two-column account board (web/you.html, W10 #97): the identity card,
-// the plan card with its inline editor, the flat account rows, and the today column (week strip,
-// kcal hero, macro cards, page dots).
+// You's own styles — the two-column account board (web/you.html): the identity card and the plan
+// card on the left, the flat account rows and the sign-out card on the right. The editor and the
+// weigh-in are panels now (#474), so their styles live with the shared `.panel` rules in
+// shell.css.ts, not here.
 //
 // Scoped under `.you` like every surface's sheet — the classes that name kit components
-// (.opt/.macs/.mcard/.week) are kitCss's own; what lives here is the board's arrangement of them
-// plus the words-only helpers (`.lab`, `.d`) that are not the kit's.
+// (.opt/.macs) are kitCss's own; what lives here is the board's arrangement of them plus the
+// words-only helpers (`.lab`, `.d`) that are not the kit's.
 
 export const youCss = `
-/* The board's two columns, 1000px wide — one column under the phone-width breakpoint. */
+/* The board's two columns, 1fr | 360px — one column in the phone's order under 761px. */
 .wmain:has(.you) { max-width: 1000px; }
-.you .ygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.you .ygrid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
 @media (max-width: 760px) { .you .ygrid { grid-template-columns: 1fr; } }
+
+/* The narrow board (phone/web-you-narrow) puts the streak chip and the calendar button in the
+   body as its first row, not in the two-row bar the shell gives .wr at this width — so the bar's
+   own set (.youwr) hides here and this strip draws them instead: chip left, calb right. */
+.you .youbar { display: none; }
+@media (max-width: 760px) {
+  .you .youbar { display: flex; align-items: center; }
+  .you .youbar .calb { margin-left: auto; }
+  .wtop .wr.youwr { display: none; }
+}
 .you .card { margin-bottom: 0; padding: 18px 20px; }
 
 /* The quiet words — the board's lowercase labels and small notes, not the shell's caps. */
@@ -34,45 +45,17 @@ export const youCss = `
 .you .card button.elink { color: var(--muted); }
 .you .card button.elink:hover { text-decoration: underline; }
 
-/* The inline editor — the plan edit sits inside its card, rows of label + control like the flat
-   card's rows. */
-.you .editrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-.you .editrow .lab { flex: 1; }
-.you .editrow input { font: inherit; font-size: 16px; padding: 8px 12px;
-  border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
-  color: var(--ink); width: 120px; min-height: 40px; }
-.you .weditbtns { display: flex; gap: 8px; margin-top: 10px; }
-.you .weditbtns .cta { width: auto; min-height: 40px; padding: 0 18px; font-size: 14px; }
-
-/* The flat card — hairline-separated rows, label then a quiet value or a control. The kit's
-   .opt keeps the check-disc/vars for the forms; here it is a plain row, 15px. */
+/* The flat card — hairline-separated rows, label then a quiet value and the chevron where the
+   row opens something (the boards' "padding:13px 0; font-size:15px" rows). */
 .you .card.flat { box-shadow: 0 0 0 1px var(--hair); padding: 4px 16px; }
 .you .urows .opt { padding: 13px 0; font-size: 15px; font-weight: 500; }
 .you .urows .opt .ov { margin-left: auto; font-size: 13px; color: var(--muted); }
 /* The Support row's provider links (#200) — quiet, and each one reachable on its own (44px). */
 .you .urows .opt .ov a { color: var(--accent); text-decoration: none; padding: 6px 0; }
-.you .urows button.opt { cursor: pointer; color: inherit; text-align: left; }
-/* Every select a finger touches is the same control: 16px type, a 44px box (the a11y floor,
-   which is also why 'pick' stays the language select's own hook and the others are 'optpick'). */
-.you .urows .pick, .you .urows .optpick { margin-left: auto; font: inherit; font-size: 16px;
-  font-weight: 500; padding: 0 12px; border-radius: 999px; min-height: 44px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-.you .editrow .optpick { font: inherit; font-size: 16px; padding: 8px 12px; min-height: 44px;
-  border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface);
-  color: var(--ink); }
-
-/* The today column — the strip's seven cells spread the column, the hero is the
-   48px figure with the 104 ring beside it, then the three macro cards and the page dots. The
-   figure and ring go --bad on a warn day, the card's one "over" state, same as Home's (#175). */
-.you .dayhero { display: flex; align-items: center; justify-content: space-between; }
-.you .dayhero .hnum { font-size: 48px; display: block; }
-.you .dayhero.over .hnum { color: var(--bad); }
-.you .dayhero .hnum .about { font-size: 14px; font-weight: 600; letter-spacing: 0;
-  color: var(--muted); margin-right: 4px; }
-.you .dayhero .mring { margin-top: 0; }
-.you .pdots { display: flex; justify-content: center; gap: 6px; }
-.you .pdot { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
-.you .pdot.on { background: var(--ink); }
+.you .urows button.opt { cursor: pointer; color: inherit; text-align: left; width: 100%;
+  background: none; border: 0; font: inherit; }
+.you .urows .opt .ico { width: 16px; height: 16px; flex: 0 0 16px; color: var(--muted);
+  margin-left: 8px; }
 
 /* The stagger the board draws — rise delays as classes, because the nonce policy has no style=. */
 .you .rc-1 { --d: .06s; }
