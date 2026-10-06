@@ -19,9 +19,11 @@
 // this one restarted across the hour — finds today claimed and stays silent. A claim is not a
 // send: a crash in the gap costs that night, which is the side R1 wants to fail on.
 //
-// AND IT IS WHAT A SUBSCRIPTION BUYS. copy.md § Step 15 lists "The 20:30 line — one a day" on the
-// card, so an account with no live entitlement is not swept. That also disposes of the win-back
-// question: this is not a re-engagement channel pointed at people who stopped paying.
+// THE LINE IS WHAT A SUBSCRIPTION BUYS; THE NUDGE IS NOT (#730, ruled by Kirill 6 Oct). copy.md
+// § Step 15 lists "The 20:30 line — one a day" on the card, so only a live entitlement gets the
+// sentence that reads the day against the plan. Every other onboarded account, a lapsed one
+// included, gets the plain `nudge` at the same hour under the same one-a-day claim: the habit is
+// not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -110,9 +112,10 @@ export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promi
 /**
  * The ONE message this account gets on `date`, or null when it gets none.
  *
- * Null has three ordinary causes and the caller does not need to tell them apart: the account never
- * onboarded (there is no plan to report against), it has no live entitlement (the line is what a
- * subscription buys), or the day is one of the two trial reminders the DEVICE sends.
+ * A subscriber gets the 20:30 line, which reads the day against the plan; any other onboarded
+ * account gets the plain nudge (#730). Null has two ordinary causes and the caller does not need to
+ * tell them apart: the account never onboarded, or the day is one of the trial reminders the DEVICE
+ * sends.
  */
 export async function dailyNotification(
   deps: EngineDeps,
@@ -121,7 +124,13 @@ export async function dailyNotification(
   now: number = Date.now(),
 ): Promise<DailyNotification | null> {
   const stored = await deps.store.getEntitlement(userId);
-  if (!entitlementActive(stored?.expiresAt, now)) return null;
+  if (!entitlementActive(stored?.expiresAt, now)) {
+    // No subscription: the plain nudge (#730), which reads nothing about the day. Still one a day,
+    // still behind the same claim, and no trial reminder can fall on it — there is no trial.
+    const profile = await deps.store.getProfile(userId);
+    if (!profile?.onboarded_at) return null;
+    return { id: "nudge", ...fillNotification(await notificationCopy(deps, profile.lang), "nudge", {}) };
+  }
 
   // The reminder is a LOCAL notification, scheduled on the phone at trial start. Sending one
   // from here as well would spend the day's whole budget twice over.

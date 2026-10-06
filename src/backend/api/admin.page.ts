@@ -643,7 +643,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   var NOTIFY_LABELS = {
     "trial-end": "The day before the trial ends (sent by the phone)",
-    "evening": "The 20:30 line (composed and pushed by the server)"
+    "evening": "The 20:30 line (composed and pushed by the server)",
+    "nudge": "The 20:30 nudge for accounts without a subscription (pushed by the server)"
   };
 
   function holes(at) {

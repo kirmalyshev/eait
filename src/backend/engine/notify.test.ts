@@ -136,11 +136,11 @@ describe("the 20:30 line", () => {
     expect(await dailyNotification(deps, userId, DAY, NOW)).toBeNull();
   });
 
-  it("says nothing to an account with no live entitlement — the line is what a subscription buys", async () => {
+  it("gives an account with no live entitlement the plain nudge — the line is what a subscription buys (#730)", async () => {
     const userId = await onboard();
-    expect(await dailyNotification(deps, userId, DAY, NOW)).toBeNull();
+    expect((await dailyNotification(deps, userId, DAY, NOW))?.id).toBe("nudge");
     await entitle(userId, "2026-08-01T00:00:00.000Z");
-    expect(await dailyNotification(deps, userId, DAY, NOW)).toBeNull();
+    expect((await dailyNotification(deps, userId, DAY, NOW))?.id).toBe("nudge");
   });
 });
 
@@ -172,10 +172,10 @@ describe("R1's budget — one message a day", () => {
     expect((await dailyNotification(deps, userId, "2026-08-21", NOW))?.id).toBe("evening");
   });
 
-  it("says nothing once a cancelled trial has actually lapsed", async () => {
+  it("falls back to the nudge once a cancelled trial has actually lapsed (#730)", async () => {
     const userId = await onboard();
     await entitle(userId, "2026-08-19T10:00:00Z", true);
-    expect(await dailyNotification(deps, userId, "2026-08-20", NOW)).toBeNull();
+    expect((await dailyNotification(deps, userId, "2026-08-20", NOW))?.id).toBe("nudge");
   });
 });
 
@@ -381,8 +381,9 @@ describe("the sweep reports every night", () => {
     const log = console.log;
     console.log = (...args: unknown[]) => { lines.push(args.join(" ")); };
     try {
-      const userId = await onboard();
-      await store.putPushToken(userId, "ExponentPushToken[unpaid]", "ios");
+      // Never onboarded: the one account nothing is said to, paid or not (#730).
+      const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+      await store.putPushToken(userId, "ExponentPushToken[anon]", "ios");
       const out = await eveningSweep(deps, { date: DAY, now: NOW });
       expect(out.sent).toBe(0);
       expect(out.skipped).toBe(1);
