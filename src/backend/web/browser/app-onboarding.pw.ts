@@ -55,6 +55,13 @@ test("the whole W3 walk: plan, sign-up, country, first meal — and back", async
   // Search narrows live — "mex" leaves Mexico and the sentinel, "zzz" leaves only the sentinel.
   await page.locator(".cty .srch input").fill("mex");
   await expect(page.locator(".cty .opt:not(.hide)")).toHaveCount(2);
+  // A unique match is picked as it appears, and the sentinel never counts as one.
+  await expect(page.locator('.cty .opt input[value="mx"]')).toBeChecked();
+  // Enter on several matches checks the first visible one and stays on the page.
+  await page.locator(".cty .srch input").fill("an");
+  await page.locator(".cty .srch input").press("Enter");
+  await expect(page).toHaveURL(/\/start\/country$/);
+  await expect(page.locator(".cty .opt:not(.hide) input").first()).toBeChecked();
   await page.locator(".cty .srch input").fill("zzz");
   await expect(page.locator(".cty .opt:not(.hide)")).toHaveCount(1);
   await page.locator(".cty .srch input").fill("");
