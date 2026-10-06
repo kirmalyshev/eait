@@ -286,6 +286,11 @@ export const CONTROL_SCRIPT = `(function () {
       // must read \p{M}, and an uncooked \p would reach the browser as plain p.
       return (s || "").toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "");
     };
+    var ctyHits = function () {
+      return ctyRows.filter(function (row) { return !row.classList.contains("hide"); })
+        .map(function (row) { return row.querySelector("input[name='answer']"); })
+        .filter(function (inp) { return inp.value !== "other"; });
+    };
     ctySrch.addEventListener("input", function () {
       var q = fold(ctySrch.value).trim();
       ctyRows.forEach(function (row) {
@@ -296,6 +301,17 @@ export const CONTROL_SCRIPT = `(function () {
           fold(row.textContent).indexOf(q) !== -1;
         row.classList.toggle("hide", !match);
       });
+      // Typing picks: one real match (the sentinel never counts) is checked as it appears.
+      var hits = ctyHits();
+      if (q !== "" && hits.length === 1) hits[0].checked = true;
+    });
+    // Enter picks the first visible match instead of re-GETting the form; the no-script
+    // path still takes the magnifier's GET.
+    ctySrch.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      var hits = ctyHits();
+      if (hits.length) hits[0].checked = true;
     });
   }
 
