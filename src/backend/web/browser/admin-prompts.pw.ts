@@ -21,7 +21,8 @@
 import { expect, test } from "@playwright/test";
 import {
   DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, NOTIFICATION_IDS,
-  NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS, screenIsOptional,
+  NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, PUSH_TEMPLATE_VARIANTS, SCREEN_FIELDS, SCREEN_OPTIONS,
+  notificationCopyFor, pushRowsFromCopy, screenIsOptional,
 } from "@eait/shared";
 import { adminPage } from "../../api/admin.page.ts";
 
@@ -50,6 +51,21 @@ const PROMPTS = [
   { key: "text_correction", text: "You correct a meal already logged.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You correct a meal already logged." },
   { key: "coach", text: "You are Spud.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are Spud." },
 ];
+
+/** The shipped copy as the template listing the server would answer, every row reviewed. */
+const PUSH_ROWS = LANGS.flatMap((lang) => pushRowsFromCopy(lang, notificationCopyFor(lang)).map((t) => ({
+  ...t, status: "reviewed", reviewed_by: "migration", reviewed_at: "2026-10-08T00:00:00.000Z",
+  updated_at: "2026-10-08T00:00:00.000Z",
+})));
+const pushListing = (rows: typeof PUSH_ROWS) => ({
+  rows, langs: LANGS, meta: { placeholders: NOTIFICATION_PLACEHOLDERS },
+  keys: NOTIFICATION_IDS.map((key) => ({
+    key, variants: PUSH_TEMPLATE_VARIANTS[key],
+    gaps: LANGS.flatMap((l) => PUSH_TEMPLATE_VARIANTS[key]
+      .filter((v) => rows.find((r) => r.key === key && r.lang === l && r.variant === v)?.status !== "reviewed")
+      .map((v) => `${l}/${v}`)),
+  })),
+});
 
 /** Serve the real page, and answer the calls it makes on the way up. */
 async function stubAdmin(page: import("@playwright/test").Page, over: Record<string, unknown> = {}) {
@@ -83,6 +99,17 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     lang: "en",
     meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
   })));
+  let pushRows = PUSH_ROWS;
+  await page.route("**/admin/api/push-templates**", (r) => {
+    if (r.request().method() === "PUT") {
+      const { template, status } = r.request().postDataJSON() as { template: (typeof PUSH_ROWS)[number]; status: string };
+      if (over.pushRefuse) return r.fulfill(json({ errors: [over.pushRefuse] }, 422));
+      pushRows = pushRows.map((x) => x.key === template.key && x.lang === template.lang && x.variant === template.variant
+        ? { ...x, title: template.title, body: template.body, status } : x);
+      return r.fulfill(json({ row: template }));
+    }
+    return r.fulfill(json(pushListing(pushRows)));
+  });
   await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({
     days: [], dailyAnalysisCap: 0, headroom: 0,
     d1: { returned: 0, eligible: 0 }, d7: { returned: 0, eligible: 0 },
@@ -210,3 +237,47 @@ test("a 409 lands beside the button, not in the page's error box", async ({ page
   await expect(page.locator("#prompt-errors")).toHaveClass(/hidden/);
   expect(errors).toEqual([]);
 });
+
+test("the push grid lists every key x language, edits a cell, and shows the gate's refusal", async ({ page }) => {
+  const errors = watchConsole(page, /Failed to load resource/);
+  await stubAdmin(page, { pushRefuse: 'body: "Guaranteed weight loss" is a guarantee claim' });
+  await openAdmin(page);
+
+  const grid = page.locator("#push-grid");
+  // trial-end, evening x2, nudge: four rows of eight reviewed cells, every key sendable.
+  await expect(grid.locator("tr")).toHaveCount(5);
+  await expect(grid.locator("button.cell.reviewed")).toHaveCount(32);
+  await expect(grid.getByText("sendable")).toHaveCount(3);
+
+  await grid.locator("tr").filter({ hasText: "nudge" }).locator("button.cell").nth(0).click();
+  const edit = page.locator("#push-edit");
+  await expect(edit.locator("textarea")).toHaveValue(/Log what you ate today/);
+  await edit.locator("textarea").fill("Guaranteed weight loss");
+  await edit.getByRole("button", { name: "Save and mark reviewed" }).click();
+  await expect(page.locator("#push-errors")).toBeVisible();
+  await expect(page.locator("#push-errors")).toContainText("guarantee claim");
+  expect(errors).toEqual([]);
+});
+
+test("a draft turns its key into blocked", async ({ page }) => {
+  const errors = watchConsole(page);
+  await stubAdmin(page);
+  await openAdmin(page);
+  const row = page.locator("#push-grid tr").filter({ hasText: "nudge" });
+  await row.locator("button.cell").nth(7).click(); // ru
+  await page.locator("#push-edit").getByRole("button", { name: "Save as draft" }).click();
+  await expect(page.locator("#push-grid").getByText("blocked: 1 missing")).toBeVisible();
+  await expect(row.locator("button.cell.draft")).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as const) {
+  test(`push templates panel at ${name}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await stubAdmin(page);
+    await openAdmin(page);
+    await page.locator("#push-grid tr").filter({ hasText: "evening / empty" }).locator("button.cell").nth(3).click();
+    await page.locator("h2", { hasText: "Push templates" }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `/tmp/p2-push-admin-${name}.png` });
+  });
+}

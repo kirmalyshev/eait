@@ -99,6 +99,13 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .pill { font-size: 11px; color: var(--faint); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
   .gate { max-width: 420px; margin: 15vh auto; }
   .hidden { display: none; }
+  #push-grid { overflow-x: auto; }
+  #push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
+  #push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
+  .cell { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
+  .cell.reviewed { color: var(--ok, #4ade80); border-color: var(--ok, #4ade80); }
+  .cell.draft { color: var(--bad); border-color: var(--bad); }
+  .cell.sel { outline: 2px solid var(--accent, #60a5fa); }
   .muted { color: var(--muted); font-size: 13px; }
 /* WAS AN INLINE style="" ATTRIBUTE, and a nonce does not cover one: a nonce authorises <style>
    and <script> ELEMENTS, never a style attribute, so the browser refused it and the error text
@@ -220,6 +227,19 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     <button class="primary" id="notify-save">Save notifications</button>
     <span class="status" id="notify-status"></span>
   </p>
+
+  <h2>Push templates</h2>
+  <p class="muted">
+    The words of every push, per language. A message is sent only when <strong>all eight
+    languages</strong> have a <em>reviewed</em> row for each of its variants; one draft or gap in
+    any language stops that message for everybody. Marking a row reviewed runs the claims gate
+    (no health claims, no health values); a refusal is shown below in the gate's own words. The
+    braces are filled by the server and a plural block needs exactly the categories its language has.
+  </p>
+  <div id="push-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+  <div id="push-grid"></div>
+  <div id="push-edit"></div>
+  <span class="status" id="push-status"></span>
 
   <h2>System prompts</h2>
   <p class="muted">
@@ -739,6 +759,145 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
 
+  // ── Push templates ─────────────────────────────────────────────────────────────────────────
+  //
+  // A key x language x variant grid, one editor under it. Everything is the server's: it lists the
+  // rows, says which keys are sendable, and the gate refuses on save, so this only draws.
+
+  var push = null;
+  var pushSel = null;
+
+  function pushRow(key, lang, variant) {
+    return push.rows.filter(function (r) {
+      return r.key === key && r.lang === lang && r.variant === variant;
+    })[0];
+  }
+
+  function pushErrors(list) {
+    var box = $("push-errors");
+    var ul = box.querySelector("ul");
+    ul.textContent = "";
+    if (!list || !list.length) { box.classList.add("hidden"); return; }
+    list.forEach(function (e) {
+      var li = document.createElement("li");
+      li.textContent = e;
+      ul.appendChild(li);
+    });
+    box.classList.remove("hidden");
+  }
+
+  function renderPush() {
+    var grid = $("push-grid");
+    grid.textContent = "";
+    var table = document.createElement("table");
+    var head = document.createElement("tr");
+    var corner = document.createElement("th");
+    corner.textContent = "message";
+    head.appendChild(corner);
+    push.langs.forEach(function (l) {
+      var th = document.createElement("th");
+      th.textContent = l;
+      head.appendChild(th);
+    });
+    table.appendChild(head);
+    push.keys.forEach(function (k) {
+      k.variants.forEach(function (variant, i) {
+        var tr = document.createElement("tr");
+        var name = document.createElement("td");
+        name.textContent = k.key + " / " + variant;
+        if (i === 0) {
+          var pill = document.createElement("span");
+          pill.className = "pill";
+          pill.textContent = k.gaps.length ? "blocked: " + k.gaps.length + " missing" : "sendable";
+          name.appendChild(document.createTextNode(" "));
+          name.appendChild(pill);
+        }
+        tr.appendChild(name);
+        push.langs.forEach(function (l) {
+          var td = document.createElement("td");
+          var row = pushRow(k.key, l, variant);
+          var b = document.createElement("button");
+          b.className = "cell " + (row ? row.status : "draft");
+          if (pushSel && pushSel.key === k.key && pushSel.lang === l && pushSel.variant === variant) b.className += " sel";
+          b.textContent = row ? row.status : "missing";
+          b.addEventListener("click", function () {
+            pushSel = { key: k.key, lang: l, variant: variant };
+            pushErrors(null);
+            renderPush();
+          });
+          td.appendChild(b);
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
+      });
+    });
+    grid.appendChild(table);
+    renderPushEdit();
+  }
+
+  function pushSave(draft, status) {
+    $("push-status").textContent = "saving…";
+    api("PUT", "/admin/api/push-templates", { template: draft, status: status }).then(function () {
+      pushErrors(null);
+      $("push-status").textContent = status === "reviewed" ? "saved and reviewed" : "saved as draft";
+      return loadPush();
+    }).catch(function (e) {
+      pushErrors((e.body && e.body.errors) || [e.message]);
+      $("push-status").textContent = "not saved";
+    });
+  }
+
+  function renderPushEdit() {
+    var host = $("push-edit");
+    host.textContent = "";
+    if (!pushSel) return;
+    var row = pushRow(pushSel.key, pushSel.lang, pushSel.variant);
+    var draft = {
+      key: pushSel.key, lang: pushSel.lang, variant: pushSel.variant,
+      title: row ? row.title : "", body: row ? row.body : ""
+    };
+    var card = document.createElement("div");
+    card.className = "card";
+    var head = document.createElement("header");
+    var name = document.createElement("span");
+    name.className = "id";
+    name.textContent = draft.key + " / " + draft.variant + " / " + draft.lang;
+    head.appendChild(name);
+    var who = document.createElement("span");
+    who.className = "muted";
+    who.textContent = row && row.reviewed_at ? "reviewed " + row.reviewed_at.slice(0, 10) : "not reviewed";
+    head.appendChild(who);
+    card.appendChild(head);
+    var at = draft.key + "." + (draft.variant === "empty" ? "emptyBody" : "body");
+    field(card, "Title" + holes2(draft.key + ".title"), draft.title, function (v) { draft.title = v; });
+    field(card, "Body" + holes2(at), draft.body, function (v) { draft.body = v; }, true);
+    var p = document.createElement("p");
+    var d = document.createElement("button");
+    d.textContent = "Save as draft";
+    d.addEventListener("click", function () { pushSave(draft, "draft"); });
+    var r = document.createElement("button");
+    r.className = "primary";
+    r.textContent = "Save and mark reviewed";
+    r.addEventListener("click", function () { pushSave(draft, "reviewed"); });
+    p.appendChild(d);
+    p.appendChild(document.createTextNode(" "));
+    p.appendChild(r);
+    card.appendChild(p);
+    host.appendChild(card);
+  }
+
+  function holes2(at) {
+    var declared = (push.meta.placeholders || {})[at] || [];
+    return declared.length ? "  ·  fills in: {" + declared.join("}  {") + "}" : "  ·  no braces here";
+  }
+
+  function loadPush() {
+    return api("GET", "/admin/api/push-templates").then(function (res) {
+      push = res;
+      renderPush();
+    });
+  }
+
   // ── System prompts ─────────────────────────────────────────────────────────────────────────
   //
   // The one editable surface here whose audience is a MODEL. Every other panel on this page is
@@ -1201,7 +1360,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadNotify().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
+      return loadNotify().then(loadPush).then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }
