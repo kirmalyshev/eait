@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { PushKind, SendKind, SendLogState } from "@eait/shared";
+import type { PushKind, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -89,6 +89,23 @@ export interface SendLogRow extends NewSend {
   receiptError: string | null;
   createdAt: string;
   receiptAt: string | null;
+}
+
+/** One day of one template's life, for the admin's push view (#1759). */
+export interface PushStatRow {
+  /** `YYYY-MM-DD` in the zone the caller named. */
+  day: string;
+  kind: SendKind;
+  templateKey: string;
+  /** Every message handed to the sender, whatever became of it. */
+  sent: number;
+  /** Expo took it (`accepted`) or Apple did (`delivered-to-apns`). */
+  accepted: number;
+  dead: number;
+  /** Sends the phone reported opened. */
+  opened: number;
+  /** Sends followed by a meal logged by the same account within 24 h. Independent of `opened`. */
+  converted: number;
 }
 
 export interface StoreDeadline {
@@ -909,6 +926,18 @@ export interface Store {
   sendsAwaitingReceipt(limit: number): Promise<SendLogRow[]>;
   /** Scoped. This account's newest rows first. */
   sendLogFor(userId: string, limit: number): Promise<SendLogRow[]>;
+  /**
+   * Scoped. The phone reports that `sendId` was opened. True when this call wrote the row; false
+   * when the open was already recorded OR the send is not this account's (or does not exist) — the
+   * caller cannot tell those apart, deliberately. Ownership is the `send_log` row itself, so an id
+   * from another account matches nothing. One row per (account, send): the app may report twice.
+   */
+  recordPushOpen(userId: string, sendId: string, action: PushOpenAction): Promise<boolean>;
+  /**
+   * Per day (in `timezone`), kind and template over the last `days` days: sent, accepted, dead,
+   * opened and converted. Reads across users — the admin's view of the campaign, never an account's.
+   */
+  pushOpenStats(days: number, timezone: string): Promise<PushStatRow[]>;
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
