@@ -34,10 +34,10 @@ const GAP_START = 44;
 const GAP_END = 70;
 /** The 12 px axis labels' width per char — the month ticks 600, the today and goal labels 700.
    Estimated, as the pill's is: shared geometry never asks a renderer for metrics. */
-const MONTH_CHAR = 6.5;
-const WIDE_CHAR = 7.5;
+const MONTH_CHAR = 8;
+const WIDE_CHAR = 8.5;
 /** The room two labels keep between their edges. */
-const LABEL_PAD = 6;
+const LABEL_PAD = 8;
 /** Past this many months, four evenly spaced ticks replace the months. */
 const MAX_MONTHS = 8;
 
