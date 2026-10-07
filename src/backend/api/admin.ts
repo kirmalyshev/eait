@@ -48,7 +48,7 @@ import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
-  resetNotificationCopy, sendTestPush,
+  resetNotificationCopy, sendTestPush, pushOpenView,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -409,6 +409,14 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
       const view = await setUserCap(deps, userId, n as number | null);
       return view ? json(view) : notFound();
     }
+  }
+
+  // ── Push: the opens view (#1759) ───────────────────────────────────────────────────────────
+  //
+  // Per day and per kind/template: sent, accepted, dead, opened, converted. Counts only — no
+  // account, token or body — so it is the one push read that names nobody.
+  if (req.method === "GET" && pathname === "/admin/api/push/stats") {
+    return json(await pushOpenView(deps, Number(url.searchParams.get("days") ?? 7)));
   }
 
   // ── Push: test one account, read what it was sent ──────────────────────────────────────────

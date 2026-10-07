@@ -25,6 +25,7 @@ export {
   resetNotificationCopy, saveNotificationCopy, RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
+export { recordPushOpen, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";
 export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
 export { recordHealthDays, healthTrend, pruneAgedHealthDays } from "./health.ts";
