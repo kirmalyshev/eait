@@ -73,6 +73,12 @@ export interface PayCopy {
    * boundary rather than the app's own Profile screen, which cannot cancel.
    */
   trialNotePhone: string;
+  /**
+   * pay-plans (phone): the promise over `trialNotePhone` while a trial is picked (ieat-app#905).
+   * `{days}` is the store's trial length, never a literal. "Remind" and not "notify": the reminder
+   * is a notification only if permission was given, and the Home card for everyone (#1591).
+   */
+  trialPromise: string;
   /** pay-plans: the CTA when the selected plan carries no trial — monthly, or yearly for a
       subscriber the store says gets no intro offer. */
   continueCta: string;
@@ -171,6 +177,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Try {days} days free",
     trialNote: "{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.",
     trialNotePhone: "{days} days free, then {renewal}. Renews automatically until cancelled. Cancel in Settings › Apple ID › Subscriptions at least 24 hours before the trial ends.",
+    trialPromise: "Free now. Pay in {days} days. We'll remind you.",
     continueCta: "Continue",
     renewNoteYearly: "{price} a year. Renews automatically. Cancel any time.",
     renewNoteMonthly: "{price} a month. Renews automatically. Cancel any time.",
@@ -225,6 +232,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Commencer l'essai de {days} jours",
     trialNote: "{days} jours offerts, puis {renewal}. Se renouvelle automatiquement jusqu'à résiliation. Résiliable à tout moment dans Profil › Abonnement.",
     trialNotePhone: "{days} jours offerts, puis {renewal}. Se renouvelle automatiquement jusqu'à résiliation. Résilie dans Réglages › Identifiant Apple › Abonnements au moins 24 h avant la fin de l'essai.",
+    trialPromise: "Gratuit maintenant. Paiement dans {days} jours. On te le rappellera.",
     continueCta: "Continuer",
     renewNoteYearly: "{price} par an. Se renouvelle automatiquement. Résiliable à tout moment.",
     renewNoteMonthly: "{price} par mois. Se renouvelle automatiquement. Résiliable à tout moment.",
@@ -279,6 +287,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "{days} Tage kostenlos testen",
     trialNote: "{days} Tage kostenlos, danach {renewal}. Verlängert sich automatisch bis zur Kündigung. Jederzeit kündbar unter Profil › Abo.",
     trialNotePhone: "{days} Tage kostenlos, danach {renewal}. Verlängert sich automatisch bis zur Kündigung. Kündige in den Einstellungen › Apple-ID › Abos mindestens 24 Stunden vor Ende der Testphase.",
+    trialPromise: "Jetzt kostenlos. Zahlung in {days} Tagen. Wir erinnern dich.",
     continueCta: "Weiter",
     renewNoteYearly: "{price} im Jahr. Verlängert sich automatisch. Jederzeit kündbar.",
     renewNoteMonthly: "{price} im Monat. Verlängert sich automatisch. Jederzeit kündbar.",
@@ -333,6 +342,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Prova gratis per {days} giorni",
     trialNote: "{days} giorni gratis, poi {renewal}. Si rinnova automaticamente fino a disdetta. Disdici quando vuoi in Profilo › Abbonamento.",
     trialNotePhone: "{days} giorni gratis, poi {renewal}. Si rinnova automaticamente fino a disdetta. Disdici in Impostazioni › ID Apple › Abbonamenti almeno 24 ore prima della fine della prova.",
+    trialPromise: "Gratis ora. Paghi tra {days} giorni. Te lo ricorderemo.",
     continueCta: "Continua",
     renewNoteYearly: "{price} all'anno. Si rinnova automaticamente. Disdici quando vuoi.",
     renewNoteMonthly: "{price} al mese. Si rinnova automaticamente. Disdici quando vuoi.",
@@ -387,6 +397,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Probar {days} días gratis",
     trialNote: "{days} días gratis, luego {renewal}. Se renueva automáticamente hasta cancelar. Cancela cuando quieras en Perfil › Suscripción.",
     trialNotePhone: "{days} días gratis, luego {renewal}. Se renueva automáticamente hasta cancelar. Cancela en Ajustes › Apple ID › Suscripciones al menos 24 horas antes de que termine la prueba.",
+    trialPromise: "Gratis ahora. Pagas en {days} días. Te lo recordaremos.",
     continueCta: "Continuar",
     renewNoteYearly: "{price} al año. Se renueva automáticamente. Cancela cuando quieras.",
     renewNoteMonthly: "{price} al mes. Se renueva automáticamente. Cancela cuando quieras.",
@@ -441,6 +452,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Dùng thử miễn phí {days} ngày",
     trialNote: "Miễn phí {days} ngày, sau đó {renewal}. Tự gia hạn đến khi bạn hủy. Hủy bất cứ lúc nào trong Hồ sơ › Gói đăng ký.",
     trialNotePhone: "Miễn phí {days} ngày, sau đó {renewal}. Tự gia hạn đến khi bạn hủy. Hủy trong Cài đặt › Apple ID › Gói đăng ký ít nhất 24 giờ trước khi hết dùng thử.",
+    trialPromise: "Miễn phí ngay. Thanh toán sau {days} ngày. Chúng tôi sẽ nhắc bạn.",
     continueCta: "Tiếp tục",
     renewNoteYearly: "{price} một năm. Tự gia hạn. Hủy bất cứ lúc nào.",
     renewNoteMonthly: "{price} một tháng. Tự gia hạn. Hủy bất cứ lúc nào.",
@@ -495,6 +507,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Coba gratis {days} hari",
     trialNote: "Gratis {days} hari, lalu {renewal}. Diperpanjang otomatis sampai dibatalkan. Batal kapan saja di Profil › Langganan.",
     trialNotePhone: "Gratis {days} hari, lalu {renewal}. Diperpanjang otomatis sampai dibatalkan. Batalkan di Pengaturan › Apple ID › Langganan setidaknya 24 jam sebelum uji coba berakhir.",
+    trialPromise: "Gratis sekarang. Bayar dalam {days} hari. Kami akan mengingatkanmu.",
     continueCta: "Lanjut",
     renewNoteYearly: "{price} setahun. Diperpanjang otomatis. Batal kapan saja.",
     renewNoteMonthly: "{price} sebulan. Diperpanjang otomatis. Batal kapan saja.",
@@ -549,6 +562,7 @@ export const PAY_COPY: Localized<PayCopy> = {
     startTrial: "Попробовать {days} дн. бесплатно",
     trialNote: "Бесплатно: {days} дн., затем {renewal}. Продлевается автоматически, пока не отменишь. Отмени в любой момент: «Профиль» › «Подписка».",
     trialNotePhone: "Бесплатно: {days} дн., затем {renewal}. Продлевается автоматически, пока не отменишь. Отмени в Настройках › Apple ID › Подписки минимум за 24 часа до конца пробного периода.",
+    trialPromise: "Сейчас бесплатно. Оплата через {days} дн. Мы напомним.",
     continueCta: "Продолжить",
     renewNoteYearly: "{price} в год. Продлевается автоматически. Отмена в любой момент.",
     renewNoteMonthly: "{price} в месяц. Продлевается автоматически. Отмена в любой момент.",
