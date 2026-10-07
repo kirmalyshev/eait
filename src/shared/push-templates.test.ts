@@ -80,6 +80,30 @@ describe("claims gate", () => {
   });
 });
 
+describe("health values in eight languages", () => {
+  const bad = [
+    "You ate 1800 kcal", "You ate 1,800 calories", "Du hast 1.800 Kalorien", "Tu as mangé 1800 calories",
+    "Hai mangiato 1800 calorie", "Has comido 1800 calorías", "Bạn đã ăn 1800 calo", "Kamu makan 1800 kalori",
+    "Ты съел 1800 калорий", "Ты съел 1800 ккал", "Du wiegst 82 kg", "Du wiegst 82 Kilo", "Tu pèses 82 kilos",
+    "Pesas 82 kilogramos", "Ты весишь 82 кг", "Ты весишь 82 килограмма", "You had 30 g of protein",
+    "Du hattest 30 Gramm", "Tu as pris 30 grammes", "Hai preso 30 grammi", "Comiste 30 gramos",
+    "Bạn ăn 30 gram", "Kamu makan 30 gram", "Ты съел 30 г белка", "Ты съел 30 грамм", "You weigh 180 lbs",
+    "You weigh 180 pounds", "Pesas 180 libras", "Du wiegst 180 Pfund", "Ты весишь 180 фунтов",
+    "Your BP is 120 mmHg", "Glucose 5 mmol", "Heart rate 60 bpm", "You are at 25%",
+  ];
+  for (const text of bad) test(`refuses "${text}"`, () => expect(pushClaimErrors("Hi", text).join()).toContain("health value"));
+  const fine = ["Log your 3 meals", "Take 5 minutes", "Du hast 3 Mahlzeiten", "Tomorrow in 2 days", "Dans 3 gâteaux", "Wähle 1 gut", "{eaten} von {plan}kcal"];
+  for (const text of fine) test(`allows "${text}"`, () => expect(pushClaimErrors("Hi", text)).toEqual([]));
+});
+
+describe("the empty-day variant has no title of its own", () => {
+  test("a title on it is refused, none is required", () => {
+    const base = { key: "evening", lang: "en", variant: "empty", body: "Nothing — {plan} {tomorrow}" };
+    expect(validatePushTemplate({ ...base, title: "" })).toEqual({ ok: true });
+    expect(validatePushTemplate({ ...base, title: "Edited" }).ok).toBe(false);
+  });
+});
+
 describe("completeness", () => {
   test("shipped copy, all eight languages reviewed, is complete for every key", () => {
     const rows = reviewedRows();

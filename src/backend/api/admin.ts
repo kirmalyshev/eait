@@ -45,12 +45,12 @@ import {
   SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
-  adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
+  adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
-  resetNotificationCopy, sendTestPush, pushOpenView,
+  sendTestPush, pushOpenView,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
-  resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
+  resetOnboardingContent, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
 import { adminPage } from "./admin.page.ts";
@@ -212,30 +212,6 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
 
   if (req.method === "POST" && pathname === "/admin/api/content/reset") {
     return json({ content: await resetOnboardingContent(deps, editorLang(url)) });
-  }
-
-  // ── Notification copy ──────────────────────────────────────────────────────────────────────
-  //
-  // The same three verbs as the onboarding copy above, on the same credential, and validated the
-  // same way: on the WRITE. A template with a placeholder nothing fills renders a literal {plan} on
-  // somebody's lock screen, and by then the message has already been delivered.
-  if (req.method === "GET" && pathname === "/admin/api/notifications") {
-    const lang = editorLang(url);
-    return json({
-      copy: await notificationCopy(deps, lang),
-      lang,
-      meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
-    });
-  }
-
-  if (req.method === "PUT" && pathname === "/admin/api/notifications") {
-    const body = await req.json() as { copy?: unknown };
-    const result = await saveNotificationCopy(deps, body?.copy, editorLang(url));
-    return result.ok ? json({ copy: result.content }) : json({ errors: result.errors }, 422);
-  }
-
-  if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
-    return json({ copy: await resetNotificationCopy(deps, editorLang(url)) });
   }
 
   // ── Push templates (#1758) ─────────────────────────────────────────────────────────────────

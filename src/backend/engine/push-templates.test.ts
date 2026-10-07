@@ -6,7 +6,7 @@ import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
-import { dailyNotification, saveNotificationCopy } from "./notify.ts";
+import { dailyNotification } from "./notify.ts";
 import {
   listPushTemplates, reviewPushTemplate, rotatedVariant, savePushTemplate, sendableCopy,
 } from "./push-templates.ts";
@@ -112,10 +112,31 @@ describe("push templates", () => {
     expect((await savePushTemplate(deps, nudge("en"), "published", "k")).ok).toBe(false);
   });
 
-  it("the legacy editor's save stays live through the templates", async () => {
-    const edited = { ...notificationCopyFor("en"), nudge: { title: "Meals", body: "Log today's meals." } };
-    expect((await saveNotificationCopy(deps, edited, "en")).ok).toBe(true);
-    expect((await dailyNotification(deps, userId, DAY, NOW))?.body).toBe("Log today's meals.");
+  it("seeds once per process, not once per send", async () => {
+    let seeds = 0;
+    const real = store.seedPushTemplates.bind(store);
+    store.seedPushTemplates = async (rows) => { seeds++; return real(rows); };
+    for (let i = 0; i < 3; i++) await dailyNotification(deps, userId, DAY, NOW);
+    expect(seeds).toBe(1);
+  });
+
+  it("old stored copy the gate refuses migrates as a draft and blocks the key", async () => {
+    await store.putNotificationCopy("de", {
+      ...notificationCopyFor("de"), nudge: { title: "Heute", body: "Du hast 1.800 Kalorien" },
+    });
+    const { keys } = await listPushTemplates(deps);
+    expect(keys.find((k) => k.key === "nudge")!.gaps).toEqual(["de/default"]);
+    expect(await dailyNotification(deps, userId, DAY, NOW)).toBeNull();
+  });
+
+  it("reviewed_by is the admin account id, and the empty body goes out under the default title", async () => {
+    const empty = { key: "evening", lang: "en", variant: "empty", title: "", body: "Nothing yet — {plan}kcal. {tomorrow}" };
+    const out = await savePushTemplate(deps, empty, "reviewed", "admin-account-id");
+    expect(out.ok && out.row.reviewed_by).toBe("admin-account-id");
+    expect((await savePushTemplate(deps, { ...empty, title: "Edited" }, "reviewed", "a")).ok).toBe(false);
+    const copy = (await sendableCopy(deps, "evening", "en"))!;
+    expect(copy.evening.emptyBody).toBe(empty.body);
+    expect(copy.evening.title).toBe(notificationCopyFor("en").evening.title);
   });
 
   it("every key the product sends has rows after listing", async () => {

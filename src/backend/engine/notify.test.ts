@@ -7,7 +7,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
 import {
-  dailyNotification, notificationCopy, resetNotificationCopy, saveNotificationCopy,
+  dailyNotification, notificationCopy,
 } from "./notify.ts";
 
 const CONFIG: Config = {
@@ -116,14 +116,15 @@ describe("the 20:30 line", () => {
     const userId = await onboard();
     await entitle(userId, PAID_UNTIL);
     await logMeal(userId, DAY, 900, 30);
-    await saveNotificationCopy(deps, {
+    // What an admin saved before templates existed: the one-time migration source.
+    await store.putNotificationCopy("en", {
       ...DEFAULT_NOTIFICATION_COPY,
       evening: {
         title: "Your evening line",
         body: "Ate {eaten}, planned {plan}. {tomorrow}",
         emptyBody: "Nothing today against {plan}. {tomorrow}",
       },
-    }, "en");
+    });
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.title).toBe("Your evening line");
     expect(out.body.startsWith("Ate 900, planned ")).toBe(true);
@@ -180,42 +181,6 @@ describe("R1's budget — one message a day", () => {
 
 describe("the admin's copy", () => {
   it("serves the compiled-in default until an admin saves something", async () => {
-    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
-  });
-
-  it("saves valid copy and serves it", async () => {
-    const edited = {
-      ...DEFAULT_NOTIFICATION_COPY,
-      "trial-end": { title: "Tomorrow it ends", body: "The day before the free trial ends." },
-    };
-    const out = await saveNotificationCopy(deps, edited, "en");
-    expect(out.ok).toBe(true);
-    expect((await notificationCopy(deps, "en"))["trial-end"].title).toBe("Tomorrow it ends");
-  });
-
-  it("refuses copy the composer cannot fill, and stores nothing", async () => {
-    const out = await saveNotificationCopy(deps, {
-      ...DEFAULT_NOTIFICATION_COPY,
-      evening: { title: "Evening", body: "{eaten} of {plan}.", emptyBody: "Nothing. {plan} {tomorrow}" },
-    }, "en");
-    expect(out.ok).toBe(false);
-    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
-  });
-
-  it("refuses a health claim on a lock screen", async () => {
-    const out = await saveNotificationCopy(deps, {
-      ...DEFAULT_NOTIFICATION_COPY,
-      "trial-end": { title: "Last day", body: "One more week and this reverses your cholesterol." },
-    }, "en");
-    expect(out.ok).toBe(false);
-  });
-
-  it("restores the shipped copy", async () => {
-    await saveNotificationCopy(deps, {
-      ...DEFAULT_NOTIFICATION_COPY,
-      "trial-end": { title: "Edited", body: "Edited body." },
-    }, "en");
-    expect(await resetNotificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
     expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 

@@ -7,10 +7,12 @@ import {
   pushKeyGaps, pushRowsFromCopy, validatePushTemplate,
   type Lang, type NotificationCopy, type NotificationId, type PushTemplateRow, type PushTemplateText,
 } from "@eait/shared";
+import type { Store } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { notificationCopy } from "./notify.ts";
 
 const MIGRATION = "migration";
+const seeded = new WeakSet<Store>();
 
 /**
  * Migrate the shipped (and admin-saved) notification copy in as `reviewed`.
@@ -20,14 +22,25 @@ const MIGRATION = "migration";
  * never grows rows and "has anybody edited this?" is still a question the rows answer.
  */
 export async function ensurePushTemplates(deps: EngineDeps): Promise<void> {
+  // Once per process per store: the rows it would insert are all already there after the first
+  // call, and a sweep calls this per user. Another replica seeding first is harmless (do nothing).
+  if (seeded.has(deps.store)) return;
   const now = new Date().toISOString();
   const rows: PushTemplateRow[] = [];
   for (const lang of LANGS) {
     for (const t of pushRowsFromCopy(lang, await notificationCopy(deps, lang))) {
-      rows.push({ ...t, status: "reviewed", reviewed_by: MIGRATION, reviewed_at: now, updated_at: now });
+      // The migrated words go through the same gate as every save: an old admin edit that the
+      // gate refuses comes in as a DRAFT (the key then blocks and says so), never as reviewed.
+      const ok = validatePushTemplate(t).ok && pushClaimErrors(t.title, t.body).length === 0;
+      if (!ok) console.warn(`push template ${t.key}/${t.lang}/${t.variant} fails the gate; migrated as draft`);
+      rows.push({
+        ...t, status: ok ? "reviewed" : "draft",
+        reviewed_by: ok ? MIGRATION : null, reviewed_at: ok ? now : null, updated_at: now,
+      });
     }
   }
   await deps.store.seedPushTemplates(rows);
+  seeded.add(deps.store);
 }
 
 export interface PushTemplateListing {
@@ -64,12 +77,12 @@ export async function savePushTemplate(
   if (!checked.ok) return checked;
   const t = input as PushTemplateText;
   if (status === "reviewed") {
-    const claims = pushClaimErrors(t.title, t.body);
+    const claims = pushClaimErrors(t.variant === "default" ? t.title : "", t.body);
     if (claims.length > 0) return { ok: false, errors: claims };
   }
   const now = new Date().toISOString();
   const row: PushTemplateRow = {
-    key: t.key, lang: t.lang, variant: t.variant, title: t.title, body: t.body, status,
+    key: t.key, lang: t.lang, variant: t.variant, title: t.variant === "default" ? t.title : "", body: t.body, status,
     reviewed_by: status === "reviewed" ? actor : null,
     reviewed_at: status === "reviewed" ? now : null,
     updated_at: now,
@@ -114,15 +127,6 @@ export async function sendableCopy(
     return null;
   }
   return copyFromPushRows(rows.filter((r) => r.key === key), lang, await notificationCopy(deps, lang));
-}
-
-/** A legacy-editor save mirrored into the templates, so the old editor's edits stay live. */
-export async function mirrorLegacyCopy(deps: EngineDeps, lang: Lang, copy: NotificationCopy): Promise<void> {
-  await ensurePushTemplates(deps);
-  const now = new Date().toISOString();
-  for (const t of pushRowsFromCopy(lang, copy)) {
-    await deps.store.putPushTemplate({ ...t, status: "reviewed", reviewed_by: "admin", reviewed_at: now, updated_at: now });
-  }
 }
 
 /**

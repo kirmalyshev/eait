@@ -22,7 +22,7 @@ export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { weights, mergedWeights } from "./weights.ts";
 export {
   collectPushReceipts, dailyNotification, pushTick, sendLogged, sendTestPush, notificationCopy,
-  resetNotificationCopy, saveNotificationCopy, RECEIPT_DELAY_MS,
+  RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
 export { recordPushOpen, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";

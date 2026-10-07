@@ -94,11 +94,6 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     labels: LANG_LABEL,
     meta: EDITOR_META,
   })));
-  await page.route("**/admin/api/notifications**", (r) => r.fulfill(json({
-    copy: DEFAULT_NOTIFICATION_COPY,
-    lang: "en",
-    meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
-  })));
   let pushRows = PUSH_ROWS;
   await page.route("**/admin/api/push-templates**", (r) => {
     if (r.request().method() === "PUT") {
@@ -277,7 +272,7 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await stubAdmin(page);
     await openAdmin(page);
     await page.locator("#push-grid tr").filter({ hasText: "evening / empty" }).locator("button.cell").nth(3).click();
-    await page.locator("h2", { hasText: "Push templates" }).scrollIntoViewIfNeeded();
+    await page.locator("#push-grid").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.screenshot({ path: `/tmp/p2-push-admin-${name}.png` });
   });
 }

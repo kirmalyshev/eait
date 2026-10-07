@@ -27,13 +27,13 @@
 // the habit is not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { mirrorLegacyCopy, sendableCopy } from "./push-templates.ts";
+import { sendableCopy } from "./push-templates.ts";
 import {
   LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, entitlementActive, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
-  kcalNumbers, trialReminder, validateNotificationCopy,
-  type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationCopyValidation, type NotificationId,
+  kcalNumbers, trialReminder,
+  type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import { sumTotals } from "./meals.ts";
@@ -71,38 +71,6 @@ export async function notificationCopy(deps: EngineDeps, lang: Lang): Promise<No
   const merged = { ...base };
   for (const id of NOTIFICATION_IDS) merged[id] = { ...base[id], ...stored[id] };
   return merged;
-}
-
-/**
- * Save admin-edited copy, after validating it.
- *
- * On the WRITE. A template that reached the send path with a placeholder nothing fills renders a
- * literal `{plan}` on a lock screen, and there is no client-side tolerance that recovers it — the
- * message has already been delivered. The claims gate runs here too: a notification is public copy
- * that arrives unasked, on the phone of somebody who told us about their kidneys.
- */
-export async function saveNotificationCopy(
-  deps: EngineDeps,
-  input: unknown,
-  lang: Lang,
-): Promise<NotificationCopyValidation> {
-  const result = validateNotificationCopy(input);
-  if (!result.ok) return result;
-  // ONE LANGUAGE, and the store merges it into the other seven. This used to read the set here and
-  // write the whole thing back, which is safe only while nobody else is saving: two admins on two
-  // languages, and the later write carries a snapshot from before the earlier one landed.
-  await deps.store.putNotificationCopy(lang, result.content);
-  // The legacy editor and the templates are one set of words: without this its edit is saved and never sent.
-  await mirrorLegacyCopy(deps, lang, result.content);
-  return result;
-}
-
-/** Restore the shipped words for one language. The undo button for an edit that went wrong. */
-export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
-  const restored = notificationCopyFor(lang);
-  await deps.store.putNotificationCopy(lang, restored);
-  await mirrorLegacyCopy(deps, lang, restored);
-  return restored;
 }
 
 /**
@@ -348,6 +316,7 @@ async function isTrialReminderDay(
 export type TestPushResult =
   | { ok: true; sent: number }
   | { ok: false; reason: "no-device" }
+  | { ok: false; reason: "template-incomplete" }
   | { ok: false; reason: "slot-taken"; heldBy: PushKind };
 
 /**
@@ -362,10 +331,13 @@ export async function sendTestPush(
   if (devices.length === 0) return { ok: false, reason: "no-device" };
   const profile = await deps.store.getProfile(userId);
   if (!profile) return { ok: false, reason: "no-device" };
+  // Checked BEFORE the slot is claimed: a refused key must not spend the day's one message.
+  const sendable = await sendableCopy(deps, "nudge", profile.lang);
+  if (!sendable) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", "admin-test");
   if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
-  const copy = fillNotification(await notificationCopy(deps, profile.lang), "nudge", {});
+  const copy = fillNotification(sendable, "nudge", {});
   const out = await sendLogged(
     deps, userId, devices,
     { kind: "campaign", ref: "admin-test", templateKey: "nudge", lang: profile.lang, variant: "admin-test" },

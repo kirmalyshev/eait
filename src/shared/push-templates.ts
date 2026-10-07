@@ -140,10 +140,11 @@ export function validatePushTemplate(input: PushTemplateText | Record<string, un
   if (typeof variant !== "string" || !variants.includes(variant)) {
     return { ok: false, errors: [`${key} has no variant "${String(variant)}"`] };
   }
-  const fields: [string, unknown, string, number][] = [
-    ["title", title, `${key}.title`, MAX_NOTIFICATION_TITLE],
-    ["body", body, `${key}.${bodyField(variant)}`, MAX_NOTIFICATION_BODY],
-  ];
+  const fields: [string, unknown, string, number][] = [];
+  // Only the default variant has a title; the others are sent under it.
+  if (variant === "default") fields.push(["title", title, `${key}.title`, MAX_NOTIFICATION_TITLE]);
+  else if (title !== undefined && title !== "") errors.push(`${variant} has no title of its own`);
+  fields.push(["body", body, `${key}.${bodyField(variant)}`, MAX_NOTIFICATION_BODY]);
   for (const [name, value, declaredAt, max] of fields) {
     if (typeof value !== "string" || value.trim() === "") { errors.push(`${name} is required`); continue; }
     if (value.length > max) errors.push(`${name} is over ${max} characters`);
@@ -160,7 +161,18 @@ export function validatePushTemplate(input: PushTemplateText | Record<string, un
  * screen. A `{placeholder}` is not one — the composer fills it, and only for the account's own
  * subscriber. Digits with a unit, literal, in any of the eight spellings that matter.
  */
-const HEALTH_VALUE = /\d[\d.,   ]*\s*(?:kcal|kg|lbs?|ккал|кг|%|mmhg|mg\/dl|mmol)/iu;
+const UNITS = [
+  // energy: kcal, calories, Kalorien, calorías, калорий, kilocalories, vi "calo"
+  "kcal", "kilocal\\p{L}*", "calo\\p{L}*", "kalo\\p{L}*", "cal", "ккал", "кал\\p{L}*",
+  // mass: kg, kilo, g, gram(s)/Gramm/gramos/grammes, кг, г, грамм, lb(s)/pounds/libras/livres/Pfund/фунт
+  "kg", "kilo(?:s|gram\\p{L}*)?", "кг", "килограмм\\p{L}*", "g", "gr", "gram\\p{L}*", "г", "гр", "грамм\\p{L}*",
+  "lbs?", "pounds?", "libras?", "livres?", "pfund\\p{L}*", "фунт\\p{L}*",
+  // clinical
+  "%", "mmhg", "mg\\/dl", "mmol", "bpm",
+];
+const HEALTH_VALUE = new RegExp(
+  "\\d(?:[\\d.,\\u00a0\\u202f ]*\\d)?\\s?(?:" + UNITS.join("|") + ")(?![\\p{L}])", "iu",
+);
 
 /** Claims-gate problems for one template's words — the landing's rules plus the value rule. */
 export function pushClaimErrors(title: string, body: string): string[] {
@@ -193,7 +205,9 @@ export function pushRowsFromCopy(lang: Lang, copy: NotificationCopy): PushTempla
   for (const key of NOTIFICATION_IDS) {
     const m = copy[key];
     out.push({ key, lang, variant: "default", title: m.title, body: m.body });
-    if (m.emptyBody !== undefined) out.push({ key, lang, variant: "empty", title: m.title, body: m.emptyBody });
+    // The empty-day body is sent under the default title (one `NotificationMessage.title`), so
+    // this variant carries none: a title field here would be edited and never read.
+    if (m.emptyBody !== undefined) out.push({ key, lang, variant: "empty", title: "", body: m.emptyBody });
   }
   return out;
 }

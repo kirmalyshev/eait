@@ -102,6 +102,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   #push-grid { overflow-x: auto; }
   #push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
   #push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
+  #push-grid { scroll-padding-left: 120px; }
+  #push-grid td:first-child, #push-grid th:first-child { position: sticky; left: 0; background: var(--bg); white-space: normal; min-width: 100px; max-width: 120px; }
   .cell { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
   .cell.reviewed { color: var(--ok, #4ade80); border-color: var(--ok, #4ade80); }
   .cell.draft { color: var(--bad); border-color: var(--bad); }
@@ -211,26 +213,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   </p>
   <div id="summary"></div>
 
-  <h2>Notifications</h2>
-  <p class="muted">
-    The two messages this product is allowed to send: the trial-ends reminder, which the phone
-    fires itself, and the 20:30 line, which the server composes and pushes. One a day — the reminder
-    day sends the reminder <em>instead of</em> the evening line, never as well. The braces are
-    filled in by the server; you may move them, but you may not remove one or invent another, and
-    <code>Nothing logged</code> is the body for a day with no meals. A health claim is refused here
-    the same way it is on the landing page.
-  </p>
-  <div id="notify-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-  <div id="notifications"></div>
-  <p>
-    <button id="notify-reset">Restore defaults</button>
-    <button class="primary" id="notify-save">Save notifications</button>
-    <span class="status" id="notify-status"></span>
-  </p>
-
   <h2>Push templates</h2>
   <p class="muted">
-    The words of every push, per language. A message is sent only when <strong>all eight
+    The words of every push, per language, and the only place they live. The <code>trial-end</code>
+    line is <em>local</em>: the phone sends it, so the server never reads it, but it is reviewed here
+    like the rest. A message is sent only when <strong>all eight
     languages</strong> have a <em>reviewed</em> row for each of its variants; one draft or gap in
     any language stops that message for everybody. Marking a row reviewed runs the claims gate
     (no health claims, no health values); a refusal is shown below in the gate's own words. The
@@ -365,8 +352,6 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   var labels = {};
   var content = null;
   var meta = null;
-  var notify = null;
-  var notifyMeta = null;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -693,72 +678,6 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     });
   }
 
-  // ── Notifications ──────────────────────────────────────────────────────────────────────────
-
-  var NOTIFY_LABELS = {
-    "trial-end": "The day before the trial ends (sent by the phone)",
-    "evening": "The 20:30 line (composed and pushed by the server)",
-    "nudge": "The 20:30 nudge for accounts without a subscription (pushed by the server)"
-  };
-
-  function holes(at) {
-    var declared = (notifyMeta.placeholders || {})[at] || [];
-    return declared.length ? "  ·  fills in: {" + declared.join("}  {") + "}" : "  ·  no braces here";
-  }
-
-  function notifyCard(id) {
-    var m = notify[id];
-    var card = document.createElement("div");
-    card.className = "card";
-    var head = document.createElement("header");
-    var name = document.createElement("span");
-    name.className = "id";
-    name.textContent = id;
-    head.appendChild(name);
-    var what = document.createElement("span");
-    what.className = "muted";
-    what.textContent = NOTIFY_LABELS[id] || "";
-    head.appendChild(what);
-    card.appendChild(head);
-
-    field(card, "Title" + holes(id + ".title"), m.title, function (v) { m.title = v; });
-    field(card, "Body" + holes(id + ".body"), m.body, function (v) { m.body = v; }, true);
-    if (id === "evening") {
-      field(card, "Body when nothing was logged" + holes(id + ".emptyBody"), m.emptyBody,
-        function (v) { m.emptyBody = v; }, true);
-    }
-    return card;
-  }
-
-  function renderNotify() {
-    var host = $("notifications");
-    host.textContent = "";
-    notifyMeta.ids.forEach(function (id) { host.appendChild(notifyCard(id)); });
-  }
-
-  function notifyErrors(list) {
-    var box = $("notify-errors");
-    var ul = box.querySelector("ul");
-    ul.textContent = "";
-    if (!list || !list.length) { box.classList.add("hidden"); return; }
-    list.forEach(function (e) {
-      var li = document.createElement("li");
-      li.textContent = e;
-      ul.appendChild(li);
-    });
-    box.classList.remove("hidden");
-    box.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  function loadNotify() {
-    return api("GET", atLang("/admin/api/notifications")).then(function (res) {
-      notify = res.copy;
-      notifyMeta = res.meta;
-      renderNotify();
-    });
-  }
-
-
   // ── Push templates ─────────────────────────────────────────────────────────────────────────
   //
   // A key x language x variant grid, one editor under it. Everything is the server's: it lists the
@@ -809,6 +728,13 @@ export const adminPage = (nonce: string): string => `<!doctype html>
           var pill = document.createElement("span");
           pill.className = "pill";
           pill.textContent = k.gaps.length ? "blocked: " + k.gaps.length + " missing" : "sendable";
+          if (k.key === "trial-end") {
+            var loc = document.createElement("span");
+            loc.className = "pill";
+            loc.textContent = "local";
+            name.appendChild(document.createTextNode(" "));
+            name.appendChild(loc);
+          }
           name.appendChild(document.createTextNode(" "));
           name.appendChild(pill);
         }
@@ -869,7 +795,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     head.appendChild(who);
     card.appendChild(head);
     var at = draft.key + "." + (draft.variant === "empty" ? "emptyBody" : "body");
-    field(card, "Title" + holes2(draft.key + ".title"), draft.title, function (v) { draft.title = v; });
+    // Only the default variant has a title: the others are sent under it.
+    if (draft.variant === "default") {
+      field(card, "Title" + holes2(draft.key + ".title"), draft.title, function (v) { draft.title = v; });
+    }
     field(card, "Body" + holes2(at), draft.body, function (v) { draft.body = v; }, true);
     var p = document.createElement("p");
     var d = document.createElement("button");
@@ -1360,7 +1289,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadNotify().then(loadPush).then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
+      return loadPush().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }
@@ -1474,29 +1403,6 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       render();
       status("restored — version " + content.version);
     }).catch(function (e) { status("failed: " + e.message); });
-  });
-
-  $("notify-save").addEventListener("click", function () {
-    $("notify-status").textContent = "saving…";
-    api("PUT", atLang("/admin/api/notifications"), { copy: notify }).then(function (res) {
-      notify = res.copy;
-      notifyErrors(null);
-      renderNotify();
-      $("notify-status").textContent = "saved";
-    }).catch(function (e) {
-      notifyErrors((e.body && e.body.errors) || [e.message]);
-      $("notify-status").textContent = "not saved";
-    });
-  });
-
-  $("notify-reset").addEventListener("click", function () {
-    if (!confirm("Restore the three messages the app ships with? Your edits are replaced.")) return;
-    api("POST", atLang("/admin/api/notifications/reset"), {}).then(function (res) {
-      notify = res.copy;
-      notifyErrors(null);
-      renderNotify();
-      $("notify-status").textContent = "restored";
-    }).catch(function (e) { $("notify-status").textContent = "failed: " + e.message; });
   });
 
   $("reload").addEventListener("click", function () {
