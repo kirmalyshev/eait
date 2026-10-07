@@ -633,6 +633,15 @@ describe("the sample", () => {
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
 
+  it("marks analysis-failed retryable only for a refunded 429/503", async () => {
+    const userId = await onboard();
+    const failing = (e: Error) => makeDeps({ freeAnalyses: 1 }, { ...demoPorts(), analyzePhoto: async () => { throw e; } });
+    expect(await logPhotoMeal(failing(new GatewayRefusal(429, "llm http 429")), userId, photo())).toEqual({ kind: "analysis-failed", retryable: true });
+    expect(await logPhotoMeal(failing(new GatewayRefusal(503, "llm http 503")), userId, photo())).toEqual({ kind: "analysis-failed", retryable: true });
+    expect(await logPhotoMeal(failing(new GatewayRefusal(402, "llm http 402")), userId, photo())).toEqual({ kind: "analysis-failed" });
+    expect(await logPhotoMeal(failing(new Error("llm timeout after 60000 ms")), userId, photo())).toEqual({ kind: "analysis-failed" });
+  });
+
   // Principal's decision (2026-09-25, #44): the sample counts VALUE DELIVERED, not attempts. A
   // timeout may have been billed, so the COST stays on the row and the global budget still counts
   // it — but the person got no verdict, so their one meal is still theirs.

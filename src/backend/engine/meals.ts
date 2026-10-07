@@ -28,7 +28,7 @@ import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import { clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 import { isAnonymous } from "./identity.ts";
@@ -188,7 +188,9 @@ export async function analyzePhotos(
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
-    return { kind: "analysis-failed" };
+    return refunded && e instanceof GatewayRefusal && (e.status === 429 || e.status === 503)
+      ? { kind: "analysis-failed", retryable: true }
+      : { kind: "analysis-failed" };
   }
   reportTiming();
   // `images` is returned to the caller, which stores them after the row exists.

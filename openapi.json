@@ -6865,6 +6865,10 @@
               "kind": {
                 "type": "string",
                 "const": "analysis-failed"
+              },
+              "retryable": {
+                "type": "boolean",
+                "const": true
               }
             },
             "required": [
