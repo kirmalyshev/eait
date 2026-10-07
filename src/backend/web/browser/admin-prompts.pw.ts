@@ -88,6 +88,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     d1: { returned: 0, eligible: 0 }, d7: { returned: 0, eligible: 0 },
     latency: { n: 0, queue: { p50: null, p95: null }, firstItem: { p50: null, p95: null }, total: { p50: null, p95: null } },
   })));
+  await page.route("**/admin/api/push/stats**", (r) => r.fulfill(json({ days: 14, timezone: "UTC", rows: [] })));
   await page.route("**/admin/api/funnel**", (r) => r.fulfill(json({
     days: 30, contentVersion: 1, sessions: 0, completed: 0, rows: [],
   })));

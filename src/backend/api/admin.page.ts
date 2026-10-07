@@ -148,6 +148,20 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     only version of it this database can answer about a day in the past.
   </p>
 
+  <h2>Pushes <span class="pill" id="pushes-window"></span></h2>
+  <p class="muted" id="pushes-summary">Loading…</p>
+  <table id="pushes">
+    <thead>
+      <tr><th>Day</th><th>Kind</th><th>Template</th><th>Sent</th><th>Accepted</th><th>Dead</th><th>Opened</th><th>Converted</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p class="muted">
+    Per day the message went out, in the instance's zone. <strong>Opened</strong> is a send the phone
+    reported opened; <strong>converted</strong> is a send followed by a meal from the same account
+    within 24 hours, whether or not it was opened. Counts only: no account is named here.
+  </p>
+
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
   <p class="muted" id="funnel-summary">Loading…</p>
   <table id="funnel">
@@ -606,6 +620,26 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         body.appendChild(tr);
       });
     }).catch(function (e) { $("metrics-summary").textContent = "failed: " + e.message; });
+  }
+
+  function loadPushes() {
+    return api("GET", "/admin/api/push/stats?days=14").then(function (v) {
+      $("pushes-window").textContent = "last " + v.days + " days · " + v.timezone;
+      var sent = 0, opened = 0;
+      v.rows.forEach(function (r) { sent += r.sent; opened += r.opened; });
+      $("pushes-summary").textContent = sent + " sent · " + opened + " opened (" + pct(opened, sent) + ")";
+      var body = $("pushes").querySelector("tbody");
+      body.textContent = "";
+      v.rows.forEach(function (r) {
+        var tr = document.createElement("tr");
+        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.opened, r.converted].forEach(function (t) {
+          var td = document.createElement("td");
+          td.textContent = String(t);
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+    }).catch(function (e) { $("pushes-summary").textContent = "failed: " + e.message; });
   }
 
   function loadFunnel() {
@@ -1167,7 +1201,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadNotify().then(loadPrompts).then(loadMetrics).then(loadFunnel)
+      return loadNotify().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }
