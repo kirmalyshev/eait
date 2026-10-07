@@ -80,6 +80,8 @@ export interface ChatCopy {
     result: string;
     capMarker: string;
     floorMarker: string;
+    /** The answer echo above the pace pick (#1693): the user's own two weights, no verdict. */
+    echo: string;
   };
   /**
    * The "whole app" beat after the goal — three beats and nothing to answer. `meal` and
@@ -219,6 +221,7 @@ const EN: ChatCopy = {
     result: "{target} around {month} · {kcal}kcal a day",
     capMarker: "capped at the safe limit",
     floorMarker: "never below {floor} · every pace lands here",
+    echo: "From {from} to {to}.",
   },
   how: {
     title: "Here's the whole app",
@@ -334,6 +337,7 @@ const FR: ChatCopy = {
     result: "{target} vers {month} · {kcal}kcal par jour",
     capMarker: "plafonné à la limite sans risque",
     floorMarker: "jamais sous {floor}, quel que soit le rythme",
+    echo: "De {from} à {to}.",
   },
   how: {
     title: "Voilà toute l'app",
@@ -449,6 +453,7 @@ const DE: ChatCopy = {
     result: "{target} etwa im {month} · {kcal}kcal am Tag",
     capMarker: "auf das sichere Maximum begrenzt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
+    echo: "Von {from} auf {to}.",
   },
   how: {
     title: "Das ist die ganze App",
@@ -564,6 +569,7 @@ const IT: ChatCopy = {
     result: "{target} verso {month} · {kcal}kcal al giorno",
     capMarker: "limitato al valore di sicurezza",
     floorMarker: "mai sotto {floor} · ogni ritmo arriva qui",
+    echo: "Da {from} a {to}.",
   },
   how: {
     title: "Ecco tutta l'app",
@@ -679,6 +685,7 @@ const ES: ChatCopy = {
     result: "{target} hacia {month} · {kcal}kcal al día",
     capMarker: "limitado al tope seguro",
     floorMarker: "nunca por debajo de {floor} · cada ritmo llega aquí",
+    echo: "De {from} a {to}.",
   },
   how: {
     title: "Esa es toda la app",
@@ -794,6 +801,7 @@ const VI: ChatCopy = {
     result: "{target} vào khoảng {month} · {kcal}kcal một ngày",
     capMarker: "đã giới hạn ở mức an toàn",
     floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
+    echo: "Từ {from} đến {to}.",
   },
   how: {
     title: "Toàn bộ ứng dụng chỉ có vậy",
@@ -909,6 +917,7 @@ const ID: ChatCopy = {
     result: "{target} sekitar {month} · {kcal}kcal sehari",
     capMarker: "dibatasi ke batas aman",
     floorMarker: "tidak pernah di bawah {floor} · semua tempo sampai di sini",
+    echo: "Dari {from} ke {to}.",
   },
   how: {
     title: "Itulah seluruh aplikasinya",
@@ -1026,6 +1035,7 @@ const RU: ChatCopy = {
     result: "{target} · ориентир — {month} · {kcal}ккал в день",
     capMarker: "ограничено безопасным пределом",
     floorMarker: "никогда ниже {floor} · при любом темпе",
+    echo: "С {from} до {to}.",
   },
   how: {
     title: "Вот и всё приложение",
