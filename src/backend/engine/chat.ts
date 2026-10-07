@@ -112,7 +112,7 @@ export async function afterLog(
 }
 
 /**
- * Spud's first verdict, as lines for the thread — copy.md § Step 14. Spoken on the account's FIRST
+ * Spud's first verdict, as lines for the thread. Spoken on the account's FIRST
  * meal only; every later meal is the card. `totals` are the day's after the meal.
  */
 export async function firstVerdict(

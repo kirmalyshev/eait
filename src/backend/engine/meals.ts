@@ -348,7 +348,7 @@ export async function logPhotoTurn(
  *
  *  - LOW CONFIDENCE ONLY. A question under a plate the card calls confident reads as the app
  *    doubting an estimate it just presented as good.
- *  - NOT THE FIRST MEAL. copy.md gives the first card Spud's verdict, and an interrogation on top
+ *  - NOT THE FIRST MEAL. The first card is the first verdict, and an interrogation on top
  *    of the one screen that has to show what this product does is one screen doing two jobs.
  *  - THE ACCOUNT CAN AFFORD THE REPLY. A tapped chip is a billed correction, so `checkCaps` is
  *    asked — as a dry check, which it is: it reads and never charges — with the TEXT scope the
@@ -389,7 +389,7 @@ export async function editMeal(
   mealId: string,
   request: EditMealRequest,
   // The chat path writes its own card AFTER the user's words; the editor has no words, so the card
-  // is written here. One write path, two thread shapes — copy.md offers both corrections as equals.
+  // is written here. One write path, two thread shapes, and both corrections are equals.
   //
   // `measure` is off for the natural-language path, and that is the whole reason it exists: an NL
   // correction is a fresh re-analysis of the WHOLE plate by the text model, so every item it

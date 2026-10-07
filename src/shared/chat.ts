@@ -1,9 +1,8 @@
 // The thread's WORDS that are not the model's: Spud's scripted lines, and the first verdict.
 //
 // Both live here, in shared, because both sides need them to be the same sentences: the server
-// writes them into the thread, the app may render one before the round trip lands. The design is
-// `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
-// in the product, so change the design first.
+// writes them into the thread, the app may render one before the round trip lands. A sentence
+// changed here is a sentence changed in the product.
 
 import { kcalNumbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor } from "./chat-copy.ts";
@@ -268,7 +267,7 @@ export interface FirstVerdictInput {
   eatenToday: { kcal: number; protein_g: number; satfat_g: number; sodium_mg: number };
   via: "photo" | "text";
   verdicts: MealVerdicts;
-  /** The camera note, quoted back first — copy.md § Step 13. */
+  /** The camera note, quoted back first. */
   caption?: string | null;
 }
 
@@ -292,7 +291,7 @@ export function verdictHeadline(verdicts: MealVerdicts, lang: Lang): string | nu
 }
 
 /**
- * Spud's first verdict — copy.md § Step 14, word for word. Spoken ONCE, on the account's first
+ * Spud's first verdict. Spoken ONCE, on the account's first
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
  *
