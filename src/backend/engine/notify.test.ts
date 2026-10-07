@@ -216,6 +216,19 @@ describe("the evening sweep", () => {
     expect(push.sent.map((m) => m.to)).toEqual(["ExponentPushToken[paid]"]);
   });
 
+  it("speaks each account's own language in one sweep, never the first account's (#471)", async () => {
+    const en = await onboard({ lang: "en" });
+    const de = await onboard({ lang: "de" });
+    await store.putPushToken(en, "ExponentPushToken[en]", "ios");
+    await store.putPushToken(de, "ExponentPushToken[de]", "ios");
+
+    await eveningSweep(deps, { date: DAY, now: NOW });
+    const title = (to: string) => push.sent.find((m) => m.to === to)?.title;
+    expect(title("ExponentPushToken[en]")).toBe(NOTIFICATION_COPY.en!.nudge.title);
+    expect(title("ExponentPushToken[de]")).toBe(NOTIFICATION_COPY.de!.nudge.title);
+    expect(title("ExponentPushToken[en]")).not.toBe(title("ExponentPushToken[de]"));
+  });
+
   it("drops a token the push service says is gone, and keeps the others", async () => {
     const userId = await subscriberWithDevice("ExponentPushToken[dead]");
     await store.putPushToken(userId, "ExponentPushToken[alive]", "ios");
