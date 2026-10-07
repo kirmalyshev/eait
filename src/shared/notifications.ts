@@ -241,6 +241,35 @@ export function storedNotificationCopy(stored: unknown): NotificationCopySet {
 /** 20:30 in the server's zone, as R1 specifies. The reminders ride the same slot. */
 export const REMINDER_TIME = { hour: 20, minute: 30 } as const;
 
+/**
+ * The reply field under the 20:30 message (ieat-app#731). The server names the category on the
+ * push; the app registers it at startup with these words, so the field and its button speak the
+ * account's language. What is typed there takes the chat's typed-meal path, nothing new.
+ */
+export const LOG_REPLY_CATEGORY = "log-reply";
+export const LOG_REPLY_ACTION = "log";
+
+export interface LogReplyCopy {
+  /** The button that opens the field, and the a11y label of the action. */
+  button: string;
+  /** The field's send button. */
+  submit: string;
+  placeholder: string;
+}
+
+export const LOG_REPLY_COPY: Localized<LogReplyCopy> = {
+  en: { button: "Log a meal", submit: "Log", placeholder: "What did you eat?" },
+  fr: { button: "Noter un repas", submit: "Noter", placeholder: "Qu'as-tu mangé ?" },
+  de: { button: "Mahlzeit eintragen", submit: "Eintragen", placeholder: "Was hast du gegessen?" },
+  it: { button: "Registra un pasto", submit: "Registra", placeholder: "Cosa hai mangiato?" },
+  es: { button: "Apuntar una comida", submit: "Apuntar", placeholder: "¿Qué has comido?" },
+  vi: { button: "Ghi một bữa ăn", submit: "Ghi", placeholder: "Bạn đã ăn gì?" },
+  id: { button: "Catat makanan", submit: "Catat", placeholder: "Kamu makan apa?" },
+  ru: { button: "Записать еду", submit: "Записать", placeholder: "Что было на тарелке?" },
+};
+
+export const logReplyCopyFor = (lang: Lang): LogReplyCopy => t(lang)(LOG_REPLY_COPY);
+
 /** The id the APP schedules itself. `evening` is a push and is never local. */
 export type TrialReminderId = Extract<NotificationId, "trial-end">;
 

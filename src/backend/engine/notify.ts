@@ -27,7 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
+  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
   kcalNumbers, trialReminder, validateNotificationCopy,
@@ -235,7 +235,7 @@ export async function eveningSweep(
       // leaders racing this loop (a handover mid-sweep) both compose; only one's claim lands.
       if (!await deps.store.claimEveningLine(userId, opts.date)) { skipped++; continue; }
       for (const device of await deps.store.pushTokensFor(userId)) {
-        messages.push({ to: device.token, title: message.title, body: message.body });
+        messages.push({ to: device.token, title: message.title, body: message.body, categoryId: LOG_REPLY_CATEGORY });
         owner.set(device.token, userId);
       }
     } catch (e) {

@@ -17,6 +17,11 @@ export interface PushMessage {
   body: string;
   /** What a tap opens, read by the app (ieat-app#1318: `{ mealId }`). */
   data?: Record<string, string>;
+  /**
+   * The iOS notification category the app registered (ieat-app#731): `log-reply` puts a text field
+   * under the 20:30 line, and what is typed there is logged like a chat message.
+   */
+  categoryId?: string;
 }
 
 /**
