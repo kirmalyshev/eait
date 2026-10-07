@@ -17,9 +17,9 @@ import { PgBoss, fromBunSql } from "pg-boss";
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
-  OnboardingContentSet, Profile, Provider, Struggle,
+  OnboardingContentSet, Profile, Provider, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -226,6 +226,11 @@ alter table users add column if not exists role text not null default 'user';
 -- is "asked, nothing picked". A not-null-with-default would erase that distinction.
 alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
+
+-- The streak length the user aims for (7, 14 or 30 days). NULL = never asked, which is what resume
+-- checks; Home's streak chip reads it. The vocabulary is checked on the write (engine/profile.ts)
+-- and again on the read, so a value from a newer binary is unrenderable here, not wrong.
+alter table users add column if not exists streak_goal_days integer;
 
 -- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
 -- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
@@ -1015,6 +1020,9 @@ function toProfile(r: UserRow): Profile {
     struggles: r.struggles === null || r.struggles === undefined
       ? null
       : ((r.struggles as string[]).filter((s) => (STRUGGLES as readonly string[]).includes(s)) as Struggle[]),
+    streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
+      ? (Number(r.streak_goal_days) as StreakGoal)
+      : null,
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -1089,7 +1097,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 

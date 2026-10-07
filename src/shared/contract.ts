@@ -6,7 +6,7 @@
 
 import type {
   ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,
-  Struggle, Units,
+  Struggle, StreakGoal, Units,
 } from "./types.ts";
 import type { Diet, MedicalTag } from "./targets.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
@@ -741,6 +741,8 @@ export interface PatchProfileRequest {
    * picked. Resume reads that difference; a client sending `null` clears it back to unasked.
    */
   struggles?: Struggle[] | null;
+  /** The streak length aimed for; `null` clears it back to unasked. */
+  streak_goal_days?: StreakGoal | null;
   country?: string | null;
   restrictions?: string[];
   /**
