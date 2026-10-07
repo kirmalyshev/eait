@@ -11,6 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -57,6 +58,37 @@ export interface JobRecord {
   updatedAt: number;
   /** The turn's answer; null until settled, and again once the day's forgetting has run. */
   outcome: object | null;
+}
+
+/** One account the push tick visits. */
+export interface PushAudienceRow { userId: string; timezone: string | null }
+
+/** A message about to be sent to ONE device. `id` is the `sendId` the push `data` carries. */
+export interface NewSend {
+  id: string;
+  kind: SendKind;
+  ref: string | null;
+  templateKey: string;
+  lang: string;
+  variant: string | null;
+  token: string;
+  state: SendLogState;
+}
+
+export interface SendPatch {
+  state: SendLogState;
+  ticketId?: string | null;
+  receiptError?: string | null;
+  /** Stamp `receipt_at`: this patch is the receipt's answer. */
+  receipt?: boolean;
+}
+
+export interface SendLogRow extends NewSend {
+  userId: string;
+  ticketId: string | null;
+  receiptError: string | null;
+  createdAt: string;
+  receiptAt: string | null;
 }
 
 export interface StoreDeadline {
@@ -848,23 +880,35 @@ export interface Store {
   /** Scoped. Every device this account can be reached on. */
   pushTokensFor(userId: string): Promise<PushToken[]>;
   /**
-   * Every account with at least one device, for the nightly sweep. Reads across users — the one
-   * other place in this interface that does, and it is the same kind of read as `onboardingFunnel`.
-   *
-   * Ids only, and no paging: at one row per installed app this is a list of strings, and the sweep
-   * that consumes it does the per-user work one account at a time. It is the thing to revisit
-   * first if this product ever has enough users for a list of their ids to be a problem.
+   * Every account with at least one device and the zone it dates its days in, for the per-minute
+   * push tick. Reads across users, like `onboardingFunnel`. `timezone` is null until the app has
+   * told us one; the caller then falls back to the instance zone.
    */
-  usersWithPushTokens(): Promise<string[]>;
+  pushAudience(): Promise<PushAudienceRow[]>;
+  /** Scoped. The zone the app reported, or null. */
+  timezoneOf(userId: string): Promise<string | null>;
+  /** Scoped. Store the zone the app reported on open (already validated by the caller). */
+  setTimezone(userId: string, timezone: string): Promise<void>;
 
   /**
-   * Claim the evening line for `date` (the server's local `YYYY-MM-DD`) on this account's row —
-   * the durable half of the one-message-a-day budget. One atomic write: true when this call
-   * stamped the day, false when the row already carried today or a later one, so a second
-   * replica — or this one restarted across the hour — cannot send it twice. Claimed BEFORE the
-   * send: a crash in the gap costs that night, never a second message.
+   * Claim the ONE outbound message this account may get on `localDate` (its own local day) — the
+   * durable half of R1, for every sender. One atomic insert on `(user_id, local_date)`: claimed, or
+   * the kind that already holds the day. First claim wins and nothing evicts it; a higher kind gets
+   * the day by claiming BEFORE a lower one (the tick claims in rank order). A claim is not a send:
+   * a crash in the gap costs that day, never a second message.
    */
-  claimEveningLine(userId: string, date: string): Promise<boolean>;
+  claimPushSlot(
+    userId: string, localDate: string, kind: PushKind, ref: string | null,
+  ): Promise<{ claimed: true } | { claimed: false; heldBy: PushKind }>;
+
+  /** Scoped. One row per message per device, written `queued` BEFORE the send so the id can ride in `data`. */
+  createSend(userId: string, row: NewSend): Promise<void>;
+  /** Scoped. Move a row on: the ticket result, then (with `receipt: true`) the receipt result. */
+  settleSend(userId: string, id: string, patch: SendPatch): Promise<void>;
+  /** Accepted rows whose receipt has not been read yet, oldest first, across users. */
+  sendsAwaitingReceipt(limit: number): Promise<SendLogRow[]>;
+  /** Scoped. This account's newest rows first. */
+  sendLogFor(userId: string, limit: number): Promise<SendLogRow[]>;
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**

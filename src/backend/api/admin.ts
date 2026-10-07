@@ -48,7 +48,7 @@ import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
-  resetNotificationCopy,
+  resetNotificationCopy, sendTestPush,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -408,6 +408,24 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
       }
       const view = await setUserCap(deps, userId, n as number | null);
       return view ? json(view) : notFound();
+    }
+  }
+
+  // ── Push: test one account, read what it was sent ──────────────────────────────────────────
+  //
+  // The test goes through `push_slot` like every sender, so a second one the same local day is a 409
+  // that says which kind holds the day. The log never carries a token: it names the device by
+  // nothing, and what it records is the state each message reached.
+  const push = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/push-(test|log)$/);
+  if (push) {
+    const userId = push[1]!;
+    if (req.method === "POST" && push[2] === "test") {
+      const out = await sendTestPush(deps, userId);
+      return json(out, out.ok ? 200 : 409);
+    }
+    if (req.method === "GET" && push[2] === "log") {
+      const rows = await deps.store.sendLogFor(userId, 20);
+      return json({ sends: rows.map(({ token: _token, ...row }) => row) });
     }
   }
 

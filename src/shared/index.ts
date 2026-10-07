@@ -68,3 +68,4 @@ export * from "./app/pay-copy.ts";
 export * from "./app/plan-copy.ts";
 export * from "./plan-reveal.ts";
 export * from "./app/you-copy.ts";
+export * from "./push.ts";

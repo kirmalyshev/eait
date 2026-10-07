@@ -13,11 +13,13 @@
 // necessarily seen: meals logged on another device are in `GET /day` and nowhere else. A local
 // notification cannot carry a number it does not know.
 //
-// THE BUDGET HAS TWO LOCKS. The timer runs only on the replica holding the cluster's leadership
-// (`index.ts`, `tryLeadership`), and the row is the second: `claimEveningLine` stamps
-// `users.last_notified_date` atomically BEFORE the send, so a second leader mid-handover — or
-// this one restarted across the hour — finds today claimed and stays silent. A claim is not a
-// send: a crash in the gap costs that night, which is the side R1 wants to fail on.
+// THE BUDGET IS ONE ROW PER (USER, LOCAL DAY), `push_slot`, claimed by EVERY sender BEFORE it sends
+// (ieat-app#1765). The tick runs every minute on the leader, and a second leader mid-handover — or
+// this one restarted mid-evening — finds the day claimed and stays silent. A claim is not a send:
+// a crash in the gap costs that day, which is the side R1 wants to fail on. The day is the
+// ACCOUNT's local day (`users.timezone`, reported by the app; the instance zone until it has), and
+// the trial-reminder day is claimed here as `trial` so nothing else goes out on it. Every message
+// is a `send_log` row, written before the send and settled from the ticket and then the receipt.
 //
 // THE LINE IS WHAT A SUBSCRIPTION BUYS; THE NUDGE IS NOT (#730, ruled by Kirill 6 Oct). Only a live
 // entitlement gets the sentence that reads the day against the plan. Every other onboarded account,
@@ -26,31 +28,22 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
+  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, entitlementActive, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
   kcalNumbers, trialReminder, validateNotificationCopy,
-  type Lang, type NotificationCopy, type NotificationCopyValidation, type NotificationId,
+  type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationCopyValidation, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import { sumTotals } from "./meals.ts";
 import type { EngineDeps } from "./deps.ts";
-
-/**
- * A ticket, plus the account whose device it was addressed to.
- *
- * The owner is carried rather than looked up again. A dead token has to be deleted through
- * `dropPushToken`, which is user-scoped like every other store write, and the sweep already knew
- * whose device it was when it composed the message — asking the database again, once per dead
- * token, is `1 + accounts-with-a-device` queries for something already in hand.
- */
-export type SweptTicket = PushTicket & { userId: string };
 
 /** One composed message, before it is addressed to any device. */
 export interface DailyNotification {
   id: NotificationId;
   title: string;
   body: string;
+  lang: Lang;
 }
 
 /**
@@ -121,6 +114,7 @@ export async function dailyNotification(
   userId: string,
   date: string,
   now: number = Date.now(),
+  zone: string = deps.config.timezone,
 ): Promise<DailyNotification | null> {
   const stored = await deps.store.getEntitlement(userId);
   if (!entitlementActive(stored?.expiresAt, now)) {
@@ -128,7 +122,7 @@ export async function dailyNotification(
     // still behind the same claim, and no trial reminder can fall on it — there is no trial.
     const profile = await deps.store.getProfile(userId);
     if (!profile?.onboarded_at) return null;
-    return { id: "nudge", ...fillNotification(await notificationCopy(deps, profile.lang), "nudge", {}) };
+    return { id: "nudge", lang: profile.lang, ...fillNotification(await notificationCopy(deps, profile.lang), "nudge", {}) };
   }
 
   // The reminder is a LOCAL notification, scheduled on the phone at trial start. Sending one
@@ -141,7 +135,7 @@ export async function dailyNotification(
   // device speaks" the same day.
   const which = dailyMessage(date, trialReminder(
     { active: true, expiresAt: stored?.expiresAt ?? null, trial: stored?.trial === true, lapsed: false },
-    deps.config.timezone, now,
+    zone, now,
   ));
   if (which !== "evening") return null;
 
@@ -167,159 +161,252 @@ export async function dailyNotification(
     }, lang),
   }, { empty: meals.length === 0 });
 
-  return { id: "evening", ...filled };
+  return { id: "evening", lang, ...filled };
 }
 
-export interface SweepResult {
-  /** Accounts with a device that were considered. */
-  users: number;
-  /** Messages the push service accepted. */
-  sent: number;
-  /** Accounts with nothing to be told today — a reminder day, a lapsed account, no profile. */
-  skipped: number;
-  /**
-   * Everything that did not go out, of two kinds: an account whose message could not be COMPOSED
-   * (a store read threw), and a message the push service refused or could not be handed.
-   *
-   * One number because nothing acts on the difference — tomorrow's sweep retries both, there is no
-   * queue, and a 20:30 line delivered the following afternoon would be worse than one that never
-   * arrived. The distinction is in the log lines, which name the kind and neither the account nor
-   * the device.
-   */
-  failed: number;
-  /** Tokens dropped because the ticket said the device is gone. */
-  dropped: number;
-  /** Accepted tickets, for `collectPushReceipts` to follow up on minutes later. */
-  tickets: SweptTicket[];
+/** What one send pass did. Counts only: a log line names neither an account nor a device. */
+export interface SendOutcome { sent: number; failed: number; dropped: number }
+
+/** What a `send_log` row records about a message besides its device. */
+export interface SendMeta {
+  kind: SendKind;
+  ref: string | null;
+  templateKey: string;
+  lang: Lang;
+  variant?: string | null;
 }
 
 /**
- * The nightly sweep: compose one message per account with a device, and send them.
+ * Send one message to each of an account's devices, and write it down.
  *
- * ONE batch across every account, because Expo's API is batched and a request per user is a
- * request per user. The per-account work is sequential and deliberately dull — this runs once a
- * day against a table of installed apps, and the thing to revisit when that table is large is
- * `usersWithPushTokens`, which returns every id at once.
+ * Every sender goes through here, so every send has a `send_log` row: written `queued` BEFORE the
+ * send (its id rides in the push `data` as `sendId`, which phase 3 reads to attribute an open),
+ * then settled from the ticket. A dead token is dropped through the scoped write.
  *
- * NOTHING HERE LOGS A TOKEN OR A BODY. The body carries what somebody ate and the token addresses
- * their phone; counts are what a log needs.
+ * NEVER THROWS for a push service that is down: the rows are settled `refused` and the caller
+ * counts them. Nothing here logs a token or a body.
  */
-export async function eveningSweep(
+export async function sendLogged(
   deps: EngineDeps,
-  opts: { date: string; now?: number },
-): Promise<SweepResult> {
-  const now = opts.now ?? Date.now();
-  const userIds = await deps.store.usersWithPushTokens();
-
+  userId: string,
+  devices: { token: string }[],
+  meta: SendMeta,
+  message: Omit<PushMessage, "to" | "data">,
+  data: Record<string, string> = {},
+): Promise<SendOutcome> {
+  const out: SendOutcome = { sent: 0, failed: 0, dropped: 0 };
+  if (devices.length === 0) return out;
+  const ids = new Map<string, string>(); // token -> send_log id
   const messages: PushMessage[] = [];
-  // token -> the account it belongs to, so a dead token is deleted through the scoped write
-  // without a second lookup. One entry per message; a token is a primary key in both stores, so
-  // it cannot name two accounts.
-  const owner = new Map<string, string>();
-  let skipped = 0;
-  let broken = 0;
-  for (const userId of userIds) {
-    // ONE ACCOUNT AT A TIME, and one account's failure is one account's failure.
-    //
-    // Composing a message is three or four store reads, and any of them can throw — a transient
-    // Postgres error, a legacy profile row `explainTargets` was not written for. Unguarded, that
-    // exception leaves this function before anything is sent, so every OTHER subscriber's evening
-    // line, already composed and sitting in `messages`, goes in the bin with it, the accounts after
-    // it are never considered, and the counts are never reported. One bad row would cost everybody
-    // the night, and the only trace would be a single line naming no account.
-    try {
-      const message = await dailyNotification(deps, userId, opts.date, now);
-      if (message === null) { skipped++; continue; }
-      // The day's ONE message, claimed on the row before it is spent — see the header. Two
-      // leaders racing this loop (a handover mid-sweep) both compose; only one's claim lands.
-      if (!await deps.store.claimEveningLine(userId, opts.date)) { skipped++; continue; }
-      for (const device of await deps.store.pushTokensFor(userId)) {
-        messages.push({ to: device.token, title: message.title, body: message.body, categoryId: LOG_REPLY_CATEGORY });
-        owner.set(device.token, userId);
-      }
-    } catch (e) {
-      // The message, never the account and never the device. What is useful here is that a number
-      // of accounts failed, and tomorrow's sweep will try them again.
-      console.error(`[eait] evening sweep: composing failed for one account: ${(e as Error)?.message ?? e}`);
-      broken++;
-    }
+  for (const device of devices) {
+    const id = crypto.randomUUID();
+    await deps.store.createSend(userId, {
+      id, kind: meta.kind, ref: meta.ref, templateKey: meta.templateKey, lang: meta.lang,
+      variant: meta.variant ?? null, token: device.token, state: "queued",
+    });
+    ids.set(device.token, id);
+    messages.push({ ...message, to: device.token, data: { ...data, sendId: id } });
   }
-
-  const result: SweepResult = {
-    users: userIds.length, sent: 0, skipped, failed: broken, dropped: 0, tickets: [],
-  };
-
-  // Every sweep logs its counts, INCLUDING a night on which nothing qualified. A run that says
-  // nothing is indistinguishable from a run that did not happen, and the timer that arms this is
-  // the part with nothing else watching it.
-  const report = () => {
-    console.log(
-      `[eait] evening sweep ${opts.date}: ${result.users} account(s) with a device, `
-      + `${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed, `
-      + `${result.dropped} token(s) dropped`,
-    );
-    return result;
-  };
-
-  if (messages.length === 0) return report();
 
   let tickets: PushTicket[];
   try {
     tickets = await deps.push.send(messages);
   } catch (e) {
-    // A push service that is down is not a reason for the sweep to be down. Every message in the
-    // batch is counted as failed and tomorrow's sweep tries again; there is no queue, on purpose —
-    // a stale 20:30 line delivered the following afternoon is worse than one that never arrives.
-    console.error(`[eait] evening sweep: push send failed for ${messages.length} message(s): ${(e as Error)?.message ?? e}`);
-    result.failed += messages.length;
-    return report();
+    console.error(`[eait] push send failed for ${messages.length} message(s): ${(e as Error)?.message ?? e}`);
+    for (const id of ids.values()) await deps.store.settleSend(userId, id, { state: "refused", receiptError: "send-failed" });
+    out.failed = messages.length;
+    return out;
   }
 
   for (const ticket of tickets) {
-    const userId = owner.get(ticket.token);
-    // A ticket for a token this sweep did not send is not something to act on. It cannot happen
-    // against a correct push service; acting on it would mean deleting a row on a stranger's say-so.
-    if (userId === undefined) { result.failed++; continue; }
+    const id = ids.get(ticket.token);
+    // A ticket for a token this call did not send is not something to act on: acting would mean
+    // deleting a row on a stranger's say-so.
+    if (id === undefined) { out.failed++; continue; }
+    ids.delete(ticket.token);
     if (ticket.error === "device-not-registered") {
-      if (await deps.store.dropPushToken(userId, ticket.token)) result.dropped++;
-      result.failed++;
-      continue;
+      await deps.store.settleSend(userId, id, { state: "dead", receiptError: ticket.error });
+      if (await deps.store.dropPushToken(userId, ticket.token)) out.dropped++;
+      out.failed++;
+    } else if (ticket.error !== null) {
+      await deps.store.settleSend(userId, id, { state: "refused", receiptError: ticket.error });
+      out.failed++;
+    } else {
+      await deps.store.settleSend(userId, id, { state: "accepted", ticketId: ticket.id });
+      out.sent++;
     }
-    if (ticket.error !== null) { result.failed++; continue; }
-    result.sent++;
-    if (ticket.id !== null) result.tickets.push({ ...ticket, userId });
   }
+  // A message the service gave no ticket for was not accepted.
+  for (const id of ids.values()) {
+    await deps.store.settleSend(userId, id, { state: "refused", receiptError: "no-ticket" });
+    out.failed++;
+  }
+  return out;
+}
 
-  return report();
+/** How long the evening line may be late before the night is dropped: a stale 20:30 is worse than none. */
+export const CATCH_UP_MS = 2 * 60 * 60 * 1000;
+
+/** The zone an account dates its days in: its own, when the app has reported a usable one. */
+function zoneOf(deps: EngineDeps, reported: string | null): string {
+  return reported !== null && isTimezone(reported) ? reported : deps.config.timezone;
+}
+
+export interface TickResult {
+  /** Accounts with a device that were visited. */
+  users: number;
+  sent: number;
+  /** Visited, nothing to send now: not their hour, nothing to say, or the day was already taken. */
+  skipped: number;
+  failed: number;
+  dropped: number;
 }
 
 /**
- * The second half of a send, minutes later: read the receipts and drop what has gone away.
+ * The per-minute tick: for every account whose OWN local clock has passed the evening line (and is
+ * within the two-hour catch-up), claim the day and send.
+ *
+ * Replaces the nightly sweep. The slot, not a timer, is what makes it safe to run every minute and
+ * on two replicas: `claimPushSlot` is the only gate.
+ *
+ * Claims go in rank order. The trial-reminder day is claimed here as `trial` (the PHONE sends that
+ * notification, locally) from the first tick of the local day, so no lower kind can take it.
+ *
+ * ponytail: visits every account with a device each minute (two or three reads each). Fine for
+ * thousands; past that, select the due set in the store instead of filtering here.
+ */
+export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): Promise<TickResult> {
+  const now = opts.now ?? Date.now();
+  const audience = await deps.store.pushAudience();
+  const result: TickResult = { users: audience.length, sent: 0, skipped: 0, failed: 0, dropped: 0 };
+  let broken = 0;
+  for (const { userId, timezone } of audience) {
+    // ONE ACCOUNT AT A TIME: one account's failing read is one account's failure, not everybody's night.
+    try {
+      const zone = zoneOf(deps, timezone);
+      const date = localDate(zone, new Date(now));
+
+      if (await isTrialReminderDay(deps, userId, date, now, zone)) {
+        await deps.store.claimPushSlot(userId, date, "trial", null);
+        result.skipped++;
+        continue;
+      }
+
+      const at = instantOf(zone, date, deps.config.eveningLineTime);
+      if (now < at || now >= at + CATCH_UP_MS) { result.skipped++; continue; }
+
+      const message = await dailyNotification(deps, userId, date, now, zone);
+      if (message === null) { result.skipped++; continue; }
+      // The subscriber's line reads the day against the plan (`streak`); everyone else's plain
+      // nudge is the lower `evening` kind.
+      const kind: PushKind = message.id === "evening" ? "streak" : "evening";
+      const claim = await deps.store.claimPushSlot(userId, date, kind, message.id);
+      if (!claim.claimed) { result.skipped++; continue; } // slot-taken
+      const out = await sendLogged(
+        deps, userId, await deps.store.pushTokensFor(userId),
+        { kind, ref: message.id, templateKey: message.id, lang: message.lang },
+        { title: message.title, body: message.body, categoryId: LOG_REPLY_CATEGORY },
+      );
+      result.sent += out.sent; result.failed += out.failed; result.dropped += out.dropped;
+    } catch (e) {
+      console.error(`[eait] push tick: one account failed: ${(e as Error)?.message ?? e}`);
+      broken++;
+    }
+  }
+  result.failed += broken;
+  // A tick that did something says so; a minute with nothing to do stays silent.
+  if (result.sent + result.failed + result.dropped > 0) {
+    console.log(
+      `[eait] push tick: ${result.users} account(s) with a device, ${result.sent} sent, `
+      + `${result.skipped} skipped, ${result.failed} failed, ${result.dropped} token(s) dropped`,
+    );
+  }
+  return result;
+}
+
+/** True on the day the DEVICE sends the trial-ends reminder: this server must say nothing then. */
+async function isTrialReminderDay(
+  deps: EngineDeps, userId: string, date: string, now: number, zone: string,
+): Promise<boolean> {
+  const stored = await deps.store.getEntitlement(userId);
+  if (!entitlementActive(stored?.expiresAt, now)) return false;
+  return dailyMessage(date, trialReminder(
+    { active: true, expiresAt: stored?.expiresAt ?? null, trial: stored?.trial === true, lapsed: false },
+    zone, now,
+  )) !== "evening";
+}
+
+export type TestPushResult =
+  | { ok: true; sent: number }
+  | { ok: false; reason: "no-device" }
+  | { ok: false; reason: "slot-taken"; heldBy: PushKind };
+
+/**
+ * The super-admin's "send test push" for ONE account. It goes through the slot like any sender, so
+ * a second test the same local day is refused and says why (`slot-taken`, and which kind holds it).
+ * The words are the shipped `nudge` copy in the account's own language, so there is no new string.
+ */
+export async function sendTestPush(
+  deps: EngineDeps, userId: string, now: number = Date.now(),
+): Promise<TestPushResult> {
+  const devices = await deps.store.pushTokensFor(userId);
+  if (devices.length === 0) return { ok: false, reason: "no-device" };
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return { ok: false, reason: "no-device" };
+  const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
+  const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", "admin-test");
+  if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
+  const copy = fillNotification(await notificationCopy(deps, profile.lang), "nudge", {});
+  const out = await sendLogged(
+    deps, userId, devices,
+    { kind: "campaign", ref: "admin-test", templateKey: "nudge", lang: profile.lang, variant: "admin-test" },
+    { title: copy.title, body: copy.body },
+  );
+  return { ok: true, sent: out.sent };
+}
+
+/** Receipts older than this are gone from Expo; the row stops waiting for one. */
+const RECEIPT_GIVE_UP_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The second half of a send, minutes later: read the receipts of accepted rows and settle them.
  *
  * `DeviceNotRegistered` usually arrives HERE rather than in the ticket — the app was deleted, Apple
- * told Expo, and Expo tells us on the receipt. Without this the row survives every sweep and this
- * server pushes to a phone that no longer has the app on it, every night, forever.
- *
- * A receipt that is not ready yet is absent from the map, and absent is not a failure: it is
- * checked again on nobody's schedule and the token is simply kept.
+ * told Expo, and Expo tells us on the receipt. A receipt not ready yet is absent from the map and
+ * the row stays `accepted`; it is asked for again on the next pass. Returns tokens dropped.
  */
-export async function collectPushReceipts(deps: EngineDeps, tickets: SweptTicket[]): Promise<number> {
-  const ids = tickets.map((t) => t.id).filter((id): id is string => id !== null);
-  if (ids.length === 0) return 0;
+export async function collectPushReceipts(deps: EngineDeps, now: number = Date.now()): Promise<number> {
+  const waiting = (await deps.store.sendsAwaitingReceipt(500))
+    .filter((r) => now - Date.parse(r.createdAt) >= RECEIPT_DELAY_MS);
+  if (waiting.length === 0) return 0;
 
   let receipts: Map<string, string | null>;
   try {
-    receipts = await deps.push.receipts(ids);
+    receipts = await deps.push.receipts(waiting.map((r) => r.ticketId!));
   } catch (e) {
-    console.error(`[eait] push receipts failed for ${ids.length} ticket(s): ${(e as Error)?.message ?? e}`);
+    console.error(`[eait] push receipts failed for ${waiting.length} ticket(s): ${(e as Error)?.message ?? e}`);
     return 0;
   }
 
   let dropped = 0;
-  for (const ticket of tickets) {
-    if (ticket.id === null) continue;
-    if (receipts.get(ticket.id) !== "device-not-registered") continue;
-    if (await deps.store.dropPushToken(ticket.userId, ticket.token)) dropped++;
+  for (const row of waiting) {
+    if (!receipts.has(row.ticketId!)) {
+      // Expo forgets a receipt after a day. The row leaves the queue (`receipt_at` set, reason
+      // recorded) so a pile of never-arriving ones cannot starve newer rows behind the page limit.
+      if (now - Date.parse(row.createdAt) > RECEIPT_GIVE_UP_MS) {
+        await deps.store.settleSend(row.userId, row.id, { state: row.state, receiptError: "no-receipt", receipt: true });
+      }
+      continue;
+    }
+    const error = receipts.get(row.ticketId!) ?? null;
+    if (error === null) {
+      await deps.store.settleSend(row.userId, row.id, { state: "delivered-to-apns", receipt: true });
+    } else if (error === "device-not-registered") {
+      await deps.store.settleSend(row.userId, row.id, { state: "dead", receiptError: error, receipt: true });
+      if (await deps.store.dropPushToken(row.userId, row.token)) dropped++;
+    } else {
+      await deps.store.settleSend(row.userId, row.id, { state: "refused", receiptError: error, receipt: true });
+    }
   }
   if (dropped > 0) console.log(`[eait] push receipts: dropped ${dropped} token(s) for devices that are gone`);
   return dropped;
@@ -334,27 +421,6 @@ export async function collectPushReceipts(deps: EngineDeps, tickets: SweptTicket
  * cost of this number being wrong is a dead token surviving until tomorrow's sweep.
  */
 export const RECEIPT_DELAY_MS = 15 * 60 * 1000;
-
-/**
- * Milliseconds until the next `hour:minute` in `zone`.
- *
- * A timer to the NEXT OCCURRENCE, not a fixed 24-hour interval, and that is the whole reason this
- * function exists: a repeating 24-hour timer set before a DST transition drifts by an hour and
- * stays drifted, so the "20:30 line" arrives at 19:30 for half the year. Nothing in any log says
- * so, and the only people who can see it are the ones receiving it.
- *
- * The day boundary comes from `dates.ts`, like every other date in this product.
- */
-export function msUntilNextEveningLine(
-  zone: string,
-  time: { hour: number; minute: number },
-  now: number = Date.now(),
-): number {
-  const today = localDate(zone, new Date(now));
-  const at = instantOf(zone, today, time);
-  // `dateMinus(-1)` is tomorrow, by calendar arithmetic — never `now + 86_400_000`.
-  return (at > now ? at : instantOf(zone, dateMinus(today, -1), time)) - now;
-}
 
 /** The UTC instant at which the wall clock in `zone` reads `date` at `time`. */
 function instantOf(zone: string, date: string, time: { hour: number; minute: number }): number {

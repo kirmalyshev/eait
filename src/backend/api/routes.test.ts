@@ -1958,6 +1958,18 @@ describe("push tokens", () => {
     expect(await store.pushTokensFor(userId)).toEqual([{ token: pushToken, platform: "ios" }]);
   });
 
+  it("stores the zone the app reports on open, and ignores one it cannot use", async () => {
+    const t = await session();
+    const userId = (await store.userIdForToken(t))!;
+    const tz = async () => (await store.pushAudience()).find((r) => r.userId === userId)?.timezone;
+    await post(ROUTES.pushToken, { token: token(), platform: "ios", timezone: "Asia/Tokyo" }, t);
+    expect(await tz()).toBe("Asia/Tokyo");
+    // An unusable zone is not a reason to refuse the token: the registration still lands, the zone stays.
+    const res = await post(ROUTES.pushToken, { token: token(), platform: "ios", timezone: "Mars/Base" }, t);
+    expect(res.status).toBe(200);
+    expect(await tz()).toBe("Asia/Tokyo");
+  });
+
   it("is idempotent — the app re-registers on every launch", async () => {
     const t = await session();
     const pushToken = token();

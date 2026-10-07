@@ -19,7 +19,7 @@ import { isAgentProvider, localAgentPorts, probeAgentCli } from "./llm/local-age
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, drainJobs, eveningSweep, startJobs, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, pushTick, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -290,49 +290,36 @@ const verifier: Verifier = demo
       googleAudiences: config.googleAudiences,
     });
 
-// ── The 20:30 line ───────────────────────────────────────────────────────────────────────────
+// ── Push: the per-minute tick ────────────────────────────────────────────────────────────────
 //
-// A timer to the NEXT occurrence, re-armed after every run, rather than a fixed 24-hour interval.
-// The two differ twice a year: an interval started before a DST transition drifts an hour and stays
-// drifted, so the "20:30 line" arrives at 19:30 for half the year — which nothing in any log says
-// and which only the people receiving it can see.
-//
-// `msUntilNextEveningLine` computes it against `config.timezone` through the same date functions
-// the rest of the product dates meals with.
-//
-// The receipts are read separately, RECEIPT_DELAY_MS after the send: Expo does not know what Apple
-// did with a message at the moment it accepts it, and `DeviceNotRegistered` — the one outcome that
-// drops a row — normally arrives on that second read.
+// Every account dates its day in ITS OWN zone (`users.timezone`, reported by the app on open;
+// `config.timezone` when it has not), so there is no single 20:30 to arm a timer for. A tick every
+// minute asks each account whether its local clock has passed the evening line (two-hour catch-up,
+// then the night is dropped), and `push_slot` is what makes that safe to repeat and safe on two
+// replicas: the day is claimed before the send, and a second claim is refused. Receipts are read on
+// the same beat, once Expo has had time to produce them, from the `send_log` rows still `accepted`.
 if (config.pushEnabled) {
-  const runSweep = async () => {
-    try {
-      // The leader alone composes and sends. The per-account claim inside the sweep is the
-      // backstop for the mid-handover race; this gate is what keeps a second replica quiet
-      // every other night.
-      if (leader) {
-        const result = await eveningSweep(deps, { date: localDate(config.timezone) });
-        // The receipts stay with whoever swept: a read lost with the process costs a dead token
-        // one more night, as it always has.
-        if (result.tickets.length > 0) {
-          setTimeout(() => {
-            void collectPushReceipts(deps, result.tickets).catch((e) => {
-              console.error(`[eait] push receipts failed: ${(e as Error)?.message ?? e}`);
-            });
-          }, RECEIPT_DELAY_MS).unref?.();
-        }
+  const TICK_MS = 60_000;
+  // A tick that outlives its minute (a slow push service, a big audience) must not be joined by the
+  // next one: two overlapping ticks would compose, and race the slot, for the same accounts.
+  let ticking = false;
+  setInterval(() => {
+    // The leader alone ticks; the slot is the backstop for a handover mid-minute.
+    if (!leader || ticking) return;
+    ticking = true;
+    void (async () => {
+      try {
+        await pushTick(deps);
+        await collectPushReceipts(deps);
+      } catch (e) {
+        // One bad minute must not take the timer with it.
+        console.error(`[eait] push tick failed: ${(e as Error)?.message ?? e}`);
+      } finally {
+        ticking = false;
       }
-    } catch (e) {
-      // One bad night must not take the timer with it, or the loop stops silently until a restart.
-      console.error(`[eait] evening sweep failed: ${(e as Error)?.message ?? e}`);
-    }
-    arm();
-  };
-  const arm = () => {
-    const wait = msUntilNextEveningLine(config.timezone, config.eveningLineTime);
-    setTimeout(() => { void runSweep(); }, wait);
-    console.log(`[eait] next evening line in ${Math.round(wait / 60_000)} minute(s)`);
-  };
-  arm();
+    })();
+  }, TICK_MS).unref?.();
+  console.log("[eait] push tick armed (every minute, per-account local time)");
 }
 
 /**

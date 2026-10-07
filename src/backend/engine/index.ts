@@ -21,9 +21,9 @@ export { appendLines, chatHistory } from "./chat.ts";
 export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { weights, mergedWeights } from "./weights.ts";
 export {
-  collectPushReceipts, dailyNotification, eveningSweep, msUntilNextEveningLine, notificationCopy,
+  collectPushReceipts, dailyNotification, pushTick, sendLogged, sendTestPush, notificationCopy,
   resetNotificationCopy, saveNotificationCopy, RECEIPT_DELAY_MS,
-  type DailyNotification, type SweepResult,
+  type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
 export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
