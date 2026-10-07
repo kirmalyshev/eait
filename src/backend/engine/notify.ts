@@ -27,6 +27,7 @@
 // the habit is not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+import { mirrorLegacyCopy, sendableCopy } from "./push-templates.ts";
 import {
   LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, entitlementActive, isTimezone,
   eveningPrescription,
@@ -91,6 +92,8 @@ export async function saveNotificationCopy(
   // write the whole thing back, which is safe only while nobody else is saving: two admins on two
   // languages, and the later write carries a snapshot from before the earlier one landed.
   await deps.store.putNotificationCopy(lang, result.content);
+  // The legacy editor and the templates are one set of words: without this its edit is saved and never sent.
+  await mirrorLegacyCopy(deps, lang, result.content);
   return result;
 }
 
@@ -98,6 +101,7 @@ export async function saveNotificationCopy(
 export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
   const restored = notificationCopyFor(lang);
   await deps.store.putNotificationCopy(lang, restored);
+  await mirrorLegacyCopy(deps, lang, restored);
   return restored;
 }
 
@@ -122,7 +126,11 @@ export async function dailyNotification(
     // still behind the same claim, and no trial reminder can fall on it — there is no trial.
     const profile = await deps.store.getProfile(userId);
     if (!profile?.onboarded_at) return null;
-    return { id: "nudge", lang: profile.lang, ...fillNotification(await notificationCopy(deps, profile.lang), "nudge", {}) };
+    // A key with a missing or draft language is not sent at all (`sendableCopy`): half of a
+    // translated set on a lock screen is worse than silence.
+    const copy = await sendableCopy(deps, "nudge", profile.lang);
+    if (!copy) return null;
+    return { id: "nudge", lang: profile.lang, ...fillNotification(copy, "nudge", {}) };
   }
 
   // The reminder is a LOCAL notification, scheduled on the phone at trial start. Sending one
@@ -152,7 +160,8 @@ export async function dailyNotification(
   // way for the same reason (`numbers`), because "1,900" reads as one point nine to half of Europe.
   const lang = profile.lang;
   const n = kcalNumbers(lang);
-  const copy = await notificationCopy(deps, lang);
+  const copy = await sendableCopy(deps, "evening", lang);
+  if (!copy) return null;
   const filled = fillNotification(copy, "evening", {
     eaten: n(totals.kcal),
     plan: n(targets.kcal),

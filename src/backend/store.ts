@@ -16,7 +16,7 @@ import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
-  OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
+  OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker, PushTemplateRow } from "@eait/shared";
 import type { FoodRef, OffProduct } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
@@ -987,6 +987,22 @@ export interface Store {
    * `putOnboardingContent` above carries the argument; it applies here unchanged, minus the version.
    */
   putNotificationCopy(lang: Lang, copy: NotificationCopy): Promise<void>;
+
+  // ── Push templates ─────────────────────────────────────────────────────────────────────────
+  //
+  // One row per (key, lang, variant) with a draft|reviewed status — the rules are
+  // `shared/push-templates.ts`. Rows belong to nobody (the instance's copy), so like the
+  // notification copy they take no `userId`.
+
+  /** Every template row, any status. */
+  listPushTemplates(): Promise<PushTemplateRow[]>;
+  /**
+   * Insert rows whose (key, lang, variant) is absent; leave the present ones alone. How the
+   * shipped copy migrates in: idempotent and race-safe, and it can never overwrite an admin's edit.
+   */
+  seedPushTemplates(rows: PushTemplateRow[]): Promise<void>;
+  /** Insert or replace one row, whole. The caller has validated it and set the review fields. */
+  putPushTemplate(row: PushTemplateRow): Promise<void>;
 
   // ── The prompts the model is sent ───────────────────────────────────────────────────────────
   //

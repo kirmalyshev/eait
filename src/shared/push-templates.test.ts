@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { LANGS, type Lang } from "./types.ts";
-import { NOTIFICATION_COPY, NOTIFICATION_IDS } from "./notifications.ts";
+import { NOTIFICATION_IDS, notificationCopyFor } from "./notifications.ts";
 import {
   PUSH_TEMPLATE_VARIANTS, pickVariant, pluralCategories, pushClaimErrors, pushKeyGaps,
   pushRowsFromCopy, copyFromPushRows, validatePushTemplate, validatePushText,
@@ -10,7 +10,7 @@ import {
 const stamp = "2026-10-08T00:00:00.000Z";
 const reviewedRows = (): PushTemplateRow[] =>
   LANGS.flatMap((lang) =>
-    pushRowsFromCopy(lang, NOTIFICATION_COPY[lang]).map((r) => ({
+    pushRowsFromCopy(lang, notificationCopyFor(lang)).map((r) => ({
       ...r, status: "reviewed" as const, reviewed_by: "t", reviewed_at: stamp, updated_at: stamp,
     })),
   );
@@ -104,10 +104,10 @@ describe("existing copy round-trips unchanged", () => {
   for (const lang of LANGS) {
     test(lang, () => {
       const rows = reviewedRows().filter((r) => r.lang === lang);
-      expect(copyFromPushRows(rows, lang, NOTIFICATION_COPY.en)).toEqual(NOTIFICATION_COPY[lang]);
+      expect(copyFromPushRows(rows, lang, notificationCopyFor("en"))).toEqual(notificationCopyFor(lang));
     });
     test(`${lang} passes validation and the gate`, () => {
-      for (const r of pushRowsFromCopy(lang, NOTIFICATION_COPY[lang])) {
+      for (const r of pushRowsFromCopy(lang, notificationCopyFor(lang))) {
         expect(validatePushTemplate(r)).toEqual({ ok: true });
         expect(pushClaimErrors(r.title, r.body)).toEqual([]);
       }
