@@ -47,7 +47,7 @@ describe("the order of the conversation", () => {
   it("is the design's — v2, one question a screen", () => {
     expect(ids(profile())).toEqual([
       "welcome", "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "activity", "target_weight_kg", "pace", "struggles",
+      "activity", "target_weight_kg", "pace", "struggles", "streak_goal_days",
       "diet", "medical", "ontrack", "how", "summary", "signup",
     ]);
   });
@@ -122,7 +122,7 @@ describe("where a killed run picks up", () => {
     // Medical is answered by `onboarded_at`, exactly the rule `restrictions` always had.
     const midRun = profile({
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-      activity: "some", target_weight_kg: 88, pace: "steady", struggles: ["busy"],
+      activity: "some", target_weight_kg: 88, pace: "steady", struggles: ["busy"], streak_goal_days: 14,
     });
     expect(isAnswered(promptById("diet"), midRun)).toBe(false);
     expect(isAnswered(promptById("medical"), midRun)).toBe(false);

@@ -472,7 +472,7 @@ describe("the analytics vocabulary", () => {
     // enumerable picks — including struggles, diet and medical, whose v2 lists are tamer than the
     // retired eight — travel as tag lists the way `restrictions` always did.
     for (const f of REPORTABLE_FIELDS) {
-      expect(["goal", "sex", "activity", "pace", "struggles", "diet", "medical", "country"]).toContain(f);
+      expect(["goal", "sex", "activity", "pace", "struggles", "streak_goal_days", "diet", "medical", "country"]).toContain(f);
     }
     for (const f of ["weight_kg", "height_cm", "birth_year", "target_weight_kg"]) {
       expect(REPORTABLE_FIELDS as readonly string[]).not.toContain(f);
