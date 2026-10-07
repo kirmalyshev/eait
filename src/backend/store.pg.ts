@@ -284,6 +284,8 @@ begin
 end
 $do$;
 create index if not exists send_log_user_idx on send_log(user_id, created_at desc);
+-- The admin's opens view reads a window of ALL accounts' sends by time.
+create index if not exists send_log_created_idx on send_log(created_at);
 create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
 -- One row per (account, send) the phone reported opened: the primary key is the dedup, and the FK to
 -- send_log is the ownership, since the insert selects through it (an id from another account matches
@@ -2228,6 +2230,9 @@ export async function postgresStore(
             select ${intoUserId}, local_date, kind, ref, created_at from push_slot where user_id = ${fromUserId}
           on conflict (user_id, local_date) do nothing`;
         await tx`update send_log set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // The opens follow their sends. A send id is unique across accounts, so the survivor can
+        // hold no row for the same (user, send) and there is nothing to dedupe against.
+        await tx`update push_open set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`
           update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
           from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
@@ -2963,18 +2968,26 @@ export async function postgresStore(
 
     async pushOpenStats(days, timezone) {
       const since = new Date(now() - days * 24 * 60 * 60 * 1000).toISOString();
+      // `at` is the send's instant to the millisecond, which is all the JS side can name: a meal
+      // stamped at exactly the send's own `createdAt` must land inside [at, at + 24 h) however many
+      // microseconds Postgres kept. `reached` leaves out what no phone ever got (dead, refused,
+      // dry), so a stray open or the meal that followed is not a conversion.
       const rows = await sql`
+        with s as (
+          select *, date_trunc('milliseconds', created_at) as at,
+                 state not in ('dead', 'refused', 'dry') as reached
+          from send_log where created_at >= ${since}
+        )
         select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
                count(*)::int as sent,
                count(*) filter (where s.state in ('accepted', 'delivered-to-apns', 'expired'))::int as accepted,
                count(*) filter (where s.state = 'dead')::int as dead,
-               count(o.send_id)::int as opened,
-               count(*) filter (where exists (
+               count(*) filter (where s.reached and o.send_id is not null)::int as opened,
+               count(*) filter (where s.reached and exists (
                  select 1 from meals m
-                 where m.user_id = s.user_id and m.ts >= s.created_at and m.ts < s.created_at + interval '24 hours'
+                 where m.user_id = s.user_id and m.ts >= s.at and m.ts < s.at + interval '24 hours'
                ))::int as converted
-        from send_log s left join push_open o on o.send_id = s.id
-        where s.created_at >= ${since}
+        from s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
         group by 1, 2, 3
         order by 1 desc, 3`;
       return (rows as Record<string, unknown>[]).map((r) => ({

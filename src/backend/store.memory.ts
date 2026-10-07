@@ -135,7 +135,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   /** `push_slot`: `${userId}|${localDate}` -> the kind holding that day. */
   const pushSlots = new Map<string, PushKind>();
   const sendLog = new Map<string, SendLogRow>();
-  /** `push_open`: the send ids the phone reported opened. Keyed on the send, which names its account. */
+  /** `push_open`: `${userId}|${sendId}` for each send the phone reported opened — the table's primary key. */
   const pushOpens = new Set<string>();
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
@@ -281,7 +281,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
-    for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(k); }
+    for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
     freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -763,7 +763,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!pushSlots.has(into)) pushSlots.set(into, kind);
         pushSlots.delete(k);
       }
-      for (const [id, r] of sendLog) if (r.userId === fromUserId) sendLog.set(id, { ...r, userId: intoUserId });
+      for (const [id, r] of sendLog) {
+        if (r.userId !== fromUserId) continue;
+        sendLog.set(id, { ...r, userId: intoUserId });
+        // The open follows its send, as `push_open` does in Postgres.
+        if (pushOpens.delete(`${fromUserId}|${id}`)) pushOpens.add(`${intoUserId}|${id}`);
+      }
 
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
@@ -942,8 +947,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async recordPushOpen(userId, sendId, _action) {
       const row = sendLog.get(sendId);
-      if (!row || row.userId !== userId || pushOpens.has(sendId)) return false;
-      pushOpens.add(sendId);
+      const key = `${userId}|${sendId}`;
+      if (!row || row.userId !== userId || pushOpens.has(key)) return false;
+      pushOpens.add(key);
       return true;
     },
 
@@ -961,9 +967,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         // `expired` (no receipt within 24 h) is accepted-but-unconfirmed, never dead.
         if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) row.accepted++;
         if (r.state === "dead") row.dead++;
-        if (pushOpens.has(r.id)) row.opened++;
+        // A send that never reached a phone (`dead`, `refused`, `dry`) cannot have been opened or
+        // acted on: counting its stray open or the meal that followed would be a false conversion.
+        const reached = r.state !== "dead" && r.state !== "refused" && r.state !== "dry";
+        if (reached && pushOpens.has(`${r.userId}|${r.id}`)) row.opened++;
         // [send, send + 24 h): a meal at the send's own instant counts, one a day later does not.
-        if ([...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) row.converted++;
+        if (reached && [...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) row.converted++;
         out.set(key, row);
       }
       return [...out.values()].sort((a, b) => b.day.localeCompare(a.day) || a.templateKey.localeCompare(b.templateKey));
