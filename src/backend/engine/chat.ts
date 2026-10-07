@@ -25,7 +25,7 @@ export interface Remembered {
   lines: ChatAppend[];
   undo?: () => Promise<void>;
   /** A meal whose earlier comments these lines replace; they go only once the new lines are certain to be written (#1752). */
-  supersede?: string;
+  supersede?: string | undefined;
 }
 
 // The only claim an `undo` hands back is the once-per-account greeting: a release that fails
