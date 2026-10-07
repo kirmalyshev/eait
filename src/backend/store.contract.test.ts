@@ -3833,3 +3833,27 @@ if (PG_URL) {
     });
   });
 }
+
+// A send_log made by the first push build has no `expired` in its state check; a redeploy widens it.
+if (PG_URL) {
+  describe("migrating a send_log whose state check predates `expired`", () => {
+    it("widens the constraint, once, and accepts the new state", async () => {
+      const sql = await rawSql();
+      await postgresStore(PG_URL, { maxConnections: 2 });
+      await sql`alter table send_log drop constraint send_log_state_check`;
+      await sql`alter table send_log add constraint send_log_state_check
+        check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry'))`;
+
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+      const id = crypto.randomUUID();
+      await store.createSend(userId, {
+        id, kind: "evening", ref: null, templateKey: "nudge", lang: "en", variant: null,
+        token: `ExponentPushToken[${RUN}-exp]`, state: "queued",
+      });
+      await store.settleSend(userId, id, { state: "expired", receiptError: "no-receipt", receipt: true });
+      expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "expired", receiptError: "no-receipt" });
+      await sql.end();
+    });
+  });
+}

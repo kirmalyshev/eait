@@ -18,7 +18,8 @@ export type PushKind = (typeof PUSH_KINDS)[number];
  */
 export type SendKind = PushKind | "transactional";
 
-export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry"] as const;
+/** `expired`: accepted by the push service, and its receipt never came within a day. Terminal. */
+export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired"] as const;
 export type SendLogState = (typeof SEND_STATES)[number];
 
 /** True when `a` takes the day over `b`. Equal kinds do not outrank each other. */

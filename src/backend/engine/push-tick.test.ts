@@ -313,7 +313,7 @@ describe("what the old sweep's tests guarded, on the tick", () => {
     const silent = { ...push, receipts: async () => new Map<string, never>() };
     await collectPushReceipts({ ...deps, push: silent }, Date.now() + 25 * 60 * MIN);
     expect((await store.sendsAwaitingReceipt(10))).toEqual([]);
-    expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "accepted", receiptError: "no-receipt" });
+    expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "expired", receiptError: "no-receipt" });
   });
 });
 

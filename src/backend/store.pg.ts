@@ -264,12 +264,24 @@ create table if not exists send_log (
   lang          text not null,
   variant       text,
   token         text not null,
-  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry')),
+  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired')),
   ticket_id     text,
   receipt_error text,
   created_at    timestamptz not null default now(),
   receipt_at    timestamptz
 );
+-- A table made by the first push build carries the constraint without .expired.; widen it once.
+-- Guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock.
+do $do$
+begin
+  if exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_state_check'
+             and pg_get_constraintdef(oid) not like '%expired%') then
+    alter table send_log drop constraint send_log_state_check;
+    alter table send_log add constraint send_log_state_check
+      check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired'));
+  end if;
+end
+$do$;
 create index if not exists send_log_user_idx on send_log(user_id, created_at desc);
 create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
 -- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
