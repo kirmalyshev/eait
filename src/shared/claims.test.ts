@@ -248,6 +248,7 @@ describe("every sentence this product ships", () => {
         "how.photoAlt": copy.how.photoAlt,
         "units.years": copy.units.years,
         "pace.rateSuffix": copy.pace.rateSuffix,
+        "pace.echo": copy.pace.echo,
         // W3's chart words too — the accessible name is a template, and a claim in it reads the
         // same out loud as on the page.
         "chart.estimateAria": copy.chart.estimateAria,

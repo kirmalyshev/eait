@@ -9,7 +9,7 @@
 
 import {
   BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
-  minHealthyWeightKg, numbers, ONBOARDING_NEUTRAL, pacePreview, PACES, rulerLabels, RULER_TICKS,
+  minHealthyWeightKg, numbers, ONBOARDING_NEUTRAL, paceEcho, pacePreview, PACES, rulerLabels, RULER_TICKS,
   optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
   targetRange,
   weightDisplay, weightDisplayValue,
@@ -49,7 +49,7 @@ export interface QuestionView {
 }
 
 /** The page scaffold every question shares: dash → say → (error) → [seg] → form. */
-function page(v: QuestionView, opts: { seg?: string; control: string; foot?: string }): string {
+function page(v: QuestionView, opts: { seg?: string; control: string; foot?: string; echo?: string | null }): string {
   const copy = chatCopyFor(v.lang);
   const error = v.error
     ? `<p class="notice" id="answer-error" role="alert">${escape(v.error)}</p>` : "";
@@ -61,6 +61,7 @@ function page(v: QuestionView, opts: { seg?: string; control: string; foot?: str
 ${dash(v.prompt.place, v.lang)}
 ${backLink(v.back, pageCopyFor(v.lang).back)}
 ${say(PLACE_MOOD[v.prompt.place] ?? "happy", v.lines, v.lang)}
+${opts.echo ? `<p class="t13 m qecho">${escape(opts.echo)}</p>` : ""}
 ${error}
 ${opts.seg ?? ""}
 <form class="qform" method="post" action="${escape(v.action)}" novalidate>
@@ -438,7 +439,7 @@ export function question(v: QuestionView): string {
       return page(v, { seg, control });
     }
     case "pace":
-      return page(v, { control: paceControl(v) });
+      return page(v, { control: paceControl(v), echo: paceEcho(v.profile, v.units, v.lang) });
     default:
       // A field prompt this file does not draw is a bug, not a page — fail loud in dev.
       return page(v, {

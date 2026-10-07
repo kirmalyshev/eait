@@ -687,6 +687,15 @@ export function weightDisplay(kg: number, units: Units | null, lang: Lang): stri
 }
 
 /**
+ * The pace screen's answer echo (#1693): the two weights the user just gave, restated above "How
+ * fast?". Null until both exist and differ — there is nothing to echo, and no verdict is added.
+ */
+export function paceEcho(p: Profile, units: Units | null, lang: Lang): string | null {
+  if (p.weight_kg === null || p.target_weight_kg === null || p.weight_kg === p.target_weight_kg) return null;
+  return fill(chatCopyFor(lang).pace.echo, { from: weightDisplay(p.weight_kg, units, lang), to: weightDisplay(p.target_weight_kg, units, lang) });
+}
+
+/**
  * The on-track beat's caption — the FIRST picked struggle in LIST order writes it ("a card speaks
  * to one struggle"), and nothing picked means no caption rather than a guessed one.
  */

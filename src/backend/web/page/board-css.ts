@@ -69,6 +69,7 @@ export const BOARD_CSS = `
 
 /* ── the ask ── */
 .ob .say { display: flex; gap: 12px; align-items: flex-start; }
+.ob .qecho { margin: -14px 0 0 40px; }
 .ob .spud { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-tint);
             display: inline-flex; align-items: center; justify-content: center; margin-top: 2px; }
 .ob .spud svg { width: 78%; height: 78%; display: block; }
