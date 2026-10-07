@@ -1409,6 +1409,21 @@ function contract(name: string, make: () => Promise<Store>) {
         expect((await lines(other)).map((l) => [l.kind, l.mealId])).toEqual([["photo", om.id], ["meal", om.id]]);
       });
 
+      it("deletes the assistant's comments on a meal and neither its cards nor the user's words (#1752)", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+          { role: "assistant", kind: "text", text: "Sodium is high", mealId: m.id },
+          { role: "user", kind: "text", text: "half that", mealId: m.id },
+          { role: "assistant", kind: "text", text: "unrelated" },
+        ]);
+        expect(await s.deleteMealComments(other, m.id)).toBe(0);
+        expect(await s.deleteMealComments(u, m.id)).toBe(1);
+        expect((await lines(u)).map((l) => [l.kind, l.text])).toEqual([["meal", null], ["text", "half that"], ["text", "unrelated"]]);
+      });
+
       it("replaces a line's text, for its owner only", async () => {
         const s = await open();
         const u = await user(); const other = await user();

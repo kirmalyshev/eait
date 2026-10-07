@@ -182,7 +182,7 @@ describe("written into the thread", () => {
     const out = await editMeal(deps, userId, meal0.mealId, { items: [rice(200, kcal / 2), salmon(140, kcal / 2)], kcal: after });
     if (out.kind !== "updated") throw new Error(`expected updated, got ${out.kind}`);
     const t = await thread(userId);
-    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
+    expect(t.filter((e) => e.kind === "meal")).toHaveLength(1);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
     expect(text(last)).toBe(`Rice 150 → 200g: ${kcal} → ${after}kcal. Calories still high for one meal.`);
@@ -197,7 +197,7 @@ describe("written into the thread", () => {
     expect(res.kind).toBe("updated");
     if (res.kind !== "updated") throw new Error();
     const t = await thread(userId);
-    expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
+    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "text"]]);
     const last = t.at(-1)!;
     expect(last.role === "assistant" && last.kind === "text" && last.speaker).toBe("gabie");
     // The demo correction halves both items: rice 150 → 75, salmon 140 → 70, kcal 540 → 270 —
@@ -246,7 +246,7 @@ describe("written into the thread", () => {
     if (out.kind !== "updated") throw new Error(`expected updated, got ${out.kind}`);
     expect(out.line).toBeNull();
     const t = await thread(userId);
-    expect(t.at(-1)!.kind).toBe("meal");
+    expect(t.filter((e) => e.kind === "meal")).toHaveLength(1);
   });
 
   it("is scoped like every other write: another account's meal id is target-gone and writes nothing", async () => {
