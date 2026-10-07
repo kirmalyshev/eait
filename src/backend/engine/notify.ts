@@ -13,11 +13,13 @@
 // necessarily seen: meals logged on another device are in `GET /day` and nowhere else. A local
 // notification cannot carry a number it does not know.
 //
-// THE BUDGET HAS TWO LOCKS. The timer runs only on the replica holding the cluster's leadership
-// (`index.ts`, `tryLeadership`), and the row is the second: `claimEveningLine` stamps
-// `users.last_notified_date` atomically BEFORE the send, so a second leader mid-handover — or
-// this one restarted across the hour — finds today claimed and stays silent. A claim is not a
-// send: a crash in the gap costs that night, which is the side R1 wants to fail on.
+// THE BUDGET IS ONE ROW PER (USER, LOCAL DAY), `push_slot`, claimed by EVERY sender BEFORE it sends
+// (ieat-app#1765). The tick runs every minute on the leader, and a second leader mid-handover — or
+// this one restarted mid-evening — finds the day claimed and stays silent. A claim is not a send:
+// a crash in the gap costs that day, which is the side R1 wants to fail on. The day is the
+// ACCOUNT's local day (`users.timezone`, reported by the app; the instance zone until it has), and
+// the trial-reminder day is claimed here as `trial` so nothing else goes out on it. Every message
+// is a `send_log` row, written before the send and settled from the ticket and then the receipt.
 //
 // THE LINE IS WHAT A SUBSCRIPTION BUYS; THE NUDGE IS NOT (#730, ruled by Kirill 6 Oct). Only a live
 // entitlement gets the sentence that reads the day against the plan. Every other onboarded account,

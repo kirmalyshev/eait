@@ -1001,6 +1001,13 @@ export type RedateMealResponse = MealRedated | TargetGone;
 export interface PushTokenRequest {
   token: string;
   platform: "ios";
+  /**
+   * The IANA zone the phone dates its days in (`Intl.DateTimeFormat().resolvedOptions().timeZone`),
+   * sent on every launch. Optional on the wire and ignored when it is not a zone this server knows,
+   * so an older build, or a runtime that reports nothing, still registers. The 20:30 line and the
+   * one-a-day slot use it; absent, they use the instance zone.
+   */
+  timezone?: string;
 }
 
 /** A bound on a value that is stored per device and re-sent on every launch. Expo's are ~40 chars. */

@@ -3586,10 +3586,10 @@ if (PG_URL) {
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
         "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
-        "pruneHealthDaysBefore",
+        "pruneHealthDaysBefore", "pushAudience",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
-        "releaseJobs", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
-        "pushAudience", "sendsAwaitingReceipt", "userIdForToken",
+        "releaseJobs", "revokeToken", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
+        "userIdForToken",
       ]);
     });
 
@@ -3631,5 +3631,26 @@ if (PG_URL) {
 } else {
   describe("row-level security — postgres", () => {
     it.skip("SKIPPED: set TEST_DATABASE_URL to run against real Postgres", () => {});
+  });
+}
+
+// The switch-over day. Before push_slot, "this account was sent today's line" was
+// `users.last_notified_date`. A deploy that forgot it would send the evening line twice on the day
+// it lands, to everybody who already got it.
+if (PG_URL) {
+  describe("migrating a database that claimed the evening line on users.last_notified_date", () => {
+    it("carries that claim into push_slot, once, without overwriting a newer one", async () => {
+      const sql = await rawSql();
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+      await sql`update users set last_notified_date = '2026-10-08' where id = ${userId}`;
+
+      const redeployed = await postgresStore(PG_URL, { maxConnections: 2 });
+      expect(await redeployed.claimPushSlot(userId, "2026-10-08", "campaign", null))
+        .toEqual({ claimed: false, heldBy: "streak" });
+      // and it is a claim for that day only
+      expect(await redeployed.claimPushSlot(userId, "2026-10-09", "streak", null)).toEqual({ claimed: true });
+      await sql.end();
+    });
   });
 }

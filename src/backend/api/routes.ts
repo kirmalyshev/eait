@@ -22,7 +22,7 @@ import {
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type AttachPhotosResponse, type DeleteLineResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
-  HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
+  HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
 } from "@eait/shared";
@@ -739,6 +739,7 @@ export function createRouter(
         if (req.method === "POST") {
           if (!isPushTokenRequest(body)) return json({ error: "push token required" }, 400);
           await store.putPushToken(userId, body.token, body.platform);
+          if (isTimezone(body.timezone)) await store.setTimezone(userId, body.timezone);
           return json({ registered: true } satisfies PushTokenResponse);
         }
         const token = (body as { token?: unknown } | null)?.token;
