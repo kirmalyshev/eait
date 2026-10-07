@@ -989,6 +989,13 @@ export interface Store {
    * alphabetical, so both stores order identically. At most `limit`, which the engine clamps.
    */
   searchFoods(query: string, limit: number): Promise<FoodRef[]>;
+  /**
+   * The rows an analyzer's item could be grounded in: an English name carrying EVERY word, as a
+   * whole word or its plural, and all four macros present. Shortest name first, so the generic
+   * entry ("Apples, raw") comes before the composites that contain it. The ranking is the engine's
+   * (`engine/ground.ts`); this only bounds the pool.
+   */
+  foodCandidates(words: string[], limit: number): Promise<FoodRef[]>;
   /** One barcoded product, or null — a miss is the common case and the label-read path's cue. */
   offProductByBarcode(barcode: string): Promise<OffProduct | null>;
   /**

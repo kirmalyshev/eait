@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import type { FoodRef } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
-import { groundAnalysis } from "./ground.ts";
+import { groundAnalysis, lookupWords, pickFood } from "./ground.ts";
 import { prepareAnalysis } from "./analysis.ts";
 
 const ref = (name_en: string, kcal: number | null, over: Partial<FoodRef> = {}): FoodRef => ({
@@ -17,9 +17,9 @@ const ref = (name_en: string, kcal: number | null, over: Partial<FoodRef> = {}):
 
 const depsWith = (catalog: FoodRef[] | Error): EngineDeps => ({
   store: {
-    searchFoods: async (q: string) => {
+    foodCandidates: async (w: string[]) => {
       if (catalog instanceof Error) throw catalog;
-      return catalog.filter((f) => f.name_en!.includes(q.toLowerCase().split(" ")[0]!));
+      return catalog.filter((f) => w.every((x) => f.name_en!.toLowerCase().includes(x)));
     },
   },
 } as unknown as EngineDeps);
@@ -80,5 +80,31 @@ describe("grounding items in the catalog", () => {
   test("not-food and an empty plate pass through untouched", async () => {
     const none = { ...meal([]), isFood: false };
     expect((await groundAnalysis(depsWith([]), none)).analysis).toBe(none);
+  });
+});
+
+describe("ranking the candidates", () => {
+  const item = (name_en: string, d: number) => ({ name: name_en, name_en, grams: 100, kcal_per_100g: d });
+  const pick = (name_en: string, d: number, rows: FoodRef[]) => pickFood(item(name_en, d), rows)?.name_en ?? null;
+
+  test("the food leads the name: the generic entry beats a tart, a pineapple and a branded product", () => {
+    const rows = [ref("Apple tart", 227), ref("Pineapple, raw", 50), ref("Lean Pockets, Apple", 250), ref("Apples, raw, all varieties", 52)];
+    expect(pick("apple", 53, rows)).toBe("Apples, raw, all varieties");
+  });
+  test("a named preparation picks the row prepared that way, and plain defaults to raw", () => {
+    const rows = [ref("Chicken, breast, raw", 120), ref("Chicken, breast, cooked, fried", 220), ref("Chicken, breast, cooked, roasted", 165)];
+    expect(pick("fried chicken breast", 200, rows)).toBe("Chicken, breast, cooked, fried");
+    expect(pick("chicken breast", 130, rows)).toBe("Chicken, breast, raw");
+  });
+  test("meatless is never a match for meat, unless the model said so", () => {
+    const rows = [ref("Meatballs, meatless", 197)];
+    expect(pick("meatballs", 180, rows)).toBeNull();
+    expect(pick("meatless meatballs", 180, rows)).toBe("Meatballs, meatless");
+  });
+  test("a poor best candidate is a miss", () => {
+    expect(pick("mini quiche", 233, [ref("Egg tart, quiche style lorraine pie pastry", 233)])).toBeNull();
+  });
+  test("the lookup drops preparation and filler words and stems plurals", () => {
+    expect(lookupWords("Fried chicken drumsticks with the skin")).toEqual(["chicken", "drumstick", "skin"]);
   });
 });
