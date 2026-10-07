@@ -333,15 +333,14 @@ will ever use it, it does not belong here — put it in that side and keep this 
   reproducibly.
 - **A meal's date changes ONLY via re-date.** `EditMealRequest` has no `date` field, so the manual
   editor cannot reach it. `MealPatch` does, for the one sanctioned path.
-- **Onboarding is ONE CHAT with Spud, and the design is `product/design/onboarding/`.** `copy.md` is
-  every sentence and is the source of truth: change it before changing a string. The ten profile
-  questions are asked one at a time in `ONBOARDING_STEPS` order, plus ONE that collects no profile
-  field (what has been hard) whose answer lives in the stored thread rather than in a column, and
-  `REPORTABLE_FIELDS` has no room for it by construction, which is what keeps "binge episodes" out
-  of a funnel row. **A question earns its place by having a reader.** There were four; why now, the
-  hardest moment and eating out were cut on 2026-08-26 because nothing in `src/` read back what they
-  wrote — the user pays for a question like that and never sees it come back. `struggles` survived
-  because it picks the support cards a sentence later, which the user does see.
+- **Onboarding is plain screens, one question each, and the design is `product/design/onboarding/`**
+  (ruled in `product/design/DIRECTION.md` § The onboarding flow). `copy.md` quotes every sentence
+  the phone shows, in English: change both in the same change. The answers are asked one at a time
+  in `ONBOARDING_STEPS` order; `diet` and `medical` are two views of the one `restrictions` column.
+  **A question earns its place by having a reader.** Why now, the hardest moment and eating out
+  were cut on 2026-08-26 because nothing in `src/` read back what they wrote — the user pays for a
+  question like that and never sees it come back. `struggles` survived because it picks the
+  on-track caption one screen later and Chat's first starters, which the user does see.
 - **Onboarding: the WORDS are editable, the QUESTIONS are not.** `src/shared/onboarding.ts` holds
   three layers and the line between them is the whole design. STEPS are the profile fields the
   calorie target needs — fixed in code. SCREENS are how those fields are grouped and the unit the
