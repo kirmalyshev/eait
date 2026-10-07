@@ -3840,6 +3840,7 @@
           "target_weight_kg",
           "pace",
           "struggles",
+          "streak_goal_days",
           "ontrack",
           "diet",
           "medical",
@@ -6355,6 +6356,7 @@
           "target",
           "pace",
           "struggles",
+          "streak",
           "diet",
           "medical",
           "country"
@@ -6573,6 +6575,17 @@
               }
             ],
             "description": "The \"what's been hard\" picks — stored, so `null` = not asked and `[]` = asked, nothing picked. Resume reads that difference; a client sending `null` clears it back to unasked."
+          },
+          "streak_goal_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreakGoal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The streak length aimed for; `null` clears it back to unasked."
           },
           "country": {
             "type": [
@@ -7053,6 +7066,17 @@
             ],
             "description": "The \"what's been hard\" picks, stored in LIST order (`STRUGGLES`). `null` = the question was never asked — that distinction is what resume checks: an empty array is an answer, `null` is an interruption."
           },
+          "streak_goal_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreakGoal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it."
+          },
           "country": {
             "type": [
               "string",
@@ -7108,6 +7132,7 @@
           "pace",
           "units",
           "struggles",
+          "streak_goal_days",
           "country",
           "restrictions",
           "medical_limitations",
@@ -7140,6 +7165,7 @@
               "pace",
               "units",
               "struggles",
+              "streak_goal_days",
               "country",
               "restrictions",
               "diet",
@@ -7510,6 +7536,14 @@
           "other"
         ],
         "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
+      },
+      "StreakGoal": {
+        "type": "number",
+        "enum": [
+          7,
+          14,
+          30
+        ]
       },
       "Struggle": {
         "type": "string",

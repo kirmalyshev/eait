@@ -275,6 +275,7 @@ const ANSWERS: Record<string, string | string[]> = {
   target_weight_kg: "70",
   pace: "steady",
   struggles: ["habits"],
+  streak_goal_days: "14",
   diet: "mediterranean",
   medical: [],
 };
@@ -742,7 +743,7 @@ describe("the questions", () => {
     expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toEqual([]);
     expect(asked).toEqual([
       "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "activity", "target_weight_kg", "pace", "struggles", "diet", "medical",
+      "activity", "target_weight_kg", "pace", "struggles", "streak_goal_days", "diet", "medical",
     ]);
   });
 

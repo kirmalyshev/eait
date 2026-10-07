@@ -21,7 +21,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, country: null,
+    units: null, struggles: null, streak_goal_days: null, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
     ...over,
@@ -472,7 +472,7 @@ describe("the analytics vocabulary", () => {
     // enumerable picks — including struggles, diet and medical, whose v2 lists are tamer than the
     // retired eight — travel as tag lists the way `restrictions` always did.
     for (const f of REPORTABLE_FIELDS) {
-      expect(["goal", "sex", "activity", "pace", "struggles", "diet", "medical", "country"]).toContain(f);
+      expect(["goal", "sex", "activity", "pace", "struggles", "streak_goal_days", "diet", "medical", "country"]).toContain(f);
     }
     for (const f of ["weight_kg", "height_cm", "birth_year", "target_weight_kg"]) {
       expect(REPORTABLE_FIELDS as readonly string[]).not.toContain(f);

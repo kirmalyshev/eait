@@ -104,6 +104,15 @@ const FR: OnboardingContent = {
       },
     },
     {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Quelle série viser ?"] } },
+      options: {
+        "7": { label: "7 jours" },
+        "14": { label: "14 jours" },
+        "30": { label: "30 jours" },
+      },
+    },
+    {
       id: "diet",
       asks: { diet: { lines: ["Tu suis un régime particulier ?"] } },
       options: {
@@ -226,6 +235,15 @@ const DE: OnboardingContent = {
         support: { label: "Fehlende Unterstützung" },
         busy: { label: "Voller Terminkalender" },
         ideas: { label: "Fehlende Essensideen" },
+      },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Welche Serie peilst du an?"] } },
+      options: {
+        "7": { label: "7 Tage" },
+        "14": { label: "14 Tage" },
+        "30": { label: "30 Tage" },
       },
     },
     {
@@ -354,6 +372,15 @@ const IT: OnboardingContent = {
       },
     },
     {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Quale serie vuoi raggiungere?"] } },
+      options: {
+        "7": { label: "7 giorni" },
+        "14": { label: "14 giorni" },
+        "30": { label: "30 giorni" },
+      },
+    },
+    {
       id: "diet",
       asks: { diet: { lines: ["Segui una dieta?"] } },
       options: {
@@ -476,6 +503,15 @@ const ES: OnboardingContent = {
         support: { label: "Falta de apoyo" },
         busy: { label: "Agenda ocupada" },
         ideas: { label: "Falta de ideas para comer" },
+      },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["¿Qué racha quieres lograr?"] } },
+      options: {
+        "7": { label: "7 días" },
+        "14": { label: "14 días" },
+        "30": { label: "30 días" },
       },
     },
     {
@@ -604,6 +640,15 @@ const VI: OnboardingContent = {
       },
     },
     {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Bạn muốn đạt chuỗi bao nhiêu ngày?"] } },
+      options: {
+        "7": { label: "7 ngày" },
+        "14": { label: "14 ngày" },
+        "30": { label: "30 ngày" },
+      },
+    },
+    {
       id: "diet",
       asks: { diet: { lines: ["Bạn có theo chế độ ăn nào không?"] } },
       options: {
@@ -729,6 +774,15 @@ const ID: OnboardingContent = {
       },
     },
     {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["Mau target streak berapa hari?"] } },
+      options: {
+        "7": { label: "7 hari" },
+        "14": { label: "14 hari" },
+        "30": { label: "30 hari" },
+      },
+    },
+    {
       id: "diet",
       asks: { diet: { lines: ["Apakah kamu menjalani diet?"] } },
       options: {
@@ -851,6 +905,15 @@ const RU: OnboardingContent = {
         support: { label: "Не хватает поддержки" },
         busy: { label: "Плотный график" },
         ideas: { label: "Не хватает идей для еды" },
+      },
+    },
+    {
+      id: "streak",
+      asks: { streak_goal_days: { lines: ["На какую серию настроимся?"] } },
+      options: {
+        "7": { label: "7 дн." },
+        "14": { label: "14 дн." },
+        "30": { label: "30 дн." },
       },
     },
     {

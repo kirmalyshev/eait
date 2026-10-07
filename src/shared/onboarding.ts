@@ -33,7 +33,7 @@
 
 import type { Lang, Profile, Struggle } from "./types.ts";
 import { genderedRussian, LANG_TAG } from "./lang.ts";
-import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
+import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
 import { DIETS, MEDICAL_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
 
@@ -53,7 +53,7 @@ import { lintCopy } from "./claims.ts";
  */
 export const ONBOARDING_STEPS = [
   "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "target_weight_kg", "pace",
-  "struggles", "diet", "medical", "country",
+  "struggles", "streak_goal_days", "diet", "medical", "country",
 ] as const;
 /**
  * The answer keys, in flow order. Most name the profile column the answer lands in; `diet` and
@@ -90,7 +90,7 @@ export function stepApplies(step: OnboardingStep, p: Profile): boolean {
  */
 export const ONBOARDING_SCREENS = [
   "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "diet", "medical", "country",
+  "struggles", "streak", "diet", "medical", "country",
 ] as const;
 export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
 
@@ -133,7 +133,7 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  */
 export const ONBOARDING_PLACES = [
   "welcome", "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "health",
+  "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -182,6 +182,7 @@ export const SCREEN_FIELDS: Record<OnboardingScreenId, readonly OnboardingStep[]
   target: ["target_weight_kg"],
   pace: ["pace"],
   struggles: ["struggles"],
+  streak: ["streak_goal_days"],
   diet: ["diet"],
   medical: ["medical"],
   country: ["country"],
@@ -679,6 +680,7 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
   activity: ACTIVITY_LEVELS,
   pace: PACES,
   struggles: STRUGGLES,
+  streak: STREAK_GOALS.map(String),
   diet: DIETS,
   // "none" is a drawn row ("None of these"), not a tag — answering with it stores [].
   medical: [...MEDICAL_TAGS, "none"],
@@ -894,6 +896,17 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         support: { label: "Lack of support" },
         busy: { label: "Busy schedule" },
         ideas: { label: "Lack of meal inspiration" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Pick a streak to aim for"] },
+      },
+      options: {
+        "7": { label: "7 days" },
+        "14": { label: "14 days" },
+        "30": { label: "30 days" },
       },
     },
     {
@@ -1409,7 +1422,7 @@ export interface OnboardingEvent {
  * The enumerated picks are reportable — a tag list is already what `restrictions` sent — while a
  * typed number or free text never is. */
 export const REPORTABLE_FIELDS: readonly OnboardingStep[] = [
-  "goal", "sex", "activity", "pace", "struggles", "diet", "medical", "country",
+  "goal", "sex", "activity", "pace", "struggles", "streak_goal_days", "diet", "medical", "country",
 ];
 
 export function isReportableField(field: string): boolean {

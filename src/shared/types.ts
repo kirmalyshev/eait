@@ -71,6 +71,10 @@ export type Units = (typeof UNITS)[number];
  * order is load-bearing: the first picked writes the On-track caption and every pick orders
  * Chat's starters. Replaces the shipped eight (`struggleCard` et al.), which are retired.
  */
+/** The streak lengths the onboarding question offers; Home draws progress toward the chosen one. */
+export const STREAK_GOALS = [7, 14, 30] as const;
+export type StreakGoal = (typeof STREAK_GOALS)[number];
+
 export const STRUGGLES = ["consistency", "habits", "support", "busy", "ideas"] as const;
 export type Struggle = (typeof STRUGGLES)[number];
 
@@ -130,6 +134,8 @@ export interface Profile {
    * an interruption.
    */
   struggles: Struggle[] | null;
+  /** Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it. */
+  streak_goal_days: StreakGoal | null;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
   /**

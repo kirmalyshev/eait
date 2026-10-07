@@ -7,7 +7,7 @@
 // simply be told no.
 
 import { MAX_PROFILE_TEXT,
-  DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STRUGGLES, UNITS,
+  DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STREAK_GOALS, STRUGGLES, UNITS,
   checkTargetWeight, explainTargets,
   ageFrom, isAcceptableWeightKg, isDietTag, isMedicalTag, dateMinus, localDate, migrateActivityLevel, offerMath,
   paywallPrice, perMonth, threadCopyFor,
@@ -308,6 +308,12 @@ export async function patchProfile(
     patch.struggles = req.struggles === null
       ? null
       : STRUGGLES.filter((t) => (req.struggles as unknown[]).includes(t));
+  }
+  if (req.streak_goal_days !== undefined) {
+    if (req.streak_goal_days !== null && !(STREAK_GOALS as readonly number[]).includes(req.streak_goal_days)) {
+      return reject("streak_goal_days", "out-of-range");
+    }
+    patch.streak_goal_days = req.streak_goal_days;
   }
   if (req.country !== undefined) {
     if (req.country !== null && (typeof req.country !== "string" || req.country.length > MAX_COUNTRY)) {
