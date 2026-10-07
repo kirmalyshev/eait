@@ -22,7 +22,7 @@ export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { weights, mergedWeights } from "./weights.ts";
 export {
   collectPushReceipts, dailyNotification, pushTick, sendLogged, sendTestPush, notificationCopy,
-  resetNotificationCopy, saveNotificationCopy, RECEIPT_DELAY_MS,
+  RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
 export { recordPushOpen, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";
@@ -39,6 +39,7 @@ export {
 } from "./onboarding.ts";
 export { livePrompts, promptHistory, savePrompt, type PromptView, type PromptSave } from "./prompts.ts";
 export { foodSearch, productByBarcode } from "./foods.ts";
+export { listPushTemplates, reviewPushTemplate, savePushTemplate, type PushTemplateListing } from "./push-templates.ts";
 // The onboarding sequence lives in `@eait/shared` so the app derives the same "what's next" the
 // server validates against. Re-exported here only so engine callers have one import.
 export { stepApplies, ONBOARDING_STEPS, type OnboardingStep } from "@eait/shared";

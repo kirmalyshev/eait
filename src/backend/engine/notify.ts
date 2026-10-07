@@ -27,12 +27,13 @@
 // the habit is not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+import { sendableCopy } from "./push-templates.ts";
 import {
   LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, entitlementActive, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
-  kcalNumbers, trialReminder, validateNotificationCopy,
-  type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationCopyValidation, type NotificationId,
+  kcalNumbers, trialReminder,
+  type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import { sumTotals } from "./meals.ts";
@@ -73,35 +74,6 @@ export async function notificationCopy(deps: EngineDeps, lang: Lang): Promise<No
 }
 
 /**
- * Save admin-edited copy, after validating it.
- *
- * On the WRITE. A template that reached the send path with a placeholder nothing fills renders a
- * literal `{plan}` on a lock screen, and there is no client-side tolerance that recovers it — the
- * message has already been delivered. The claims gate runs here too: a notification is public copy
- * that arrives unasked, on the phone of somebody who told us about their kidneys.
- */
-export async function saveNotificationCopy(
-  deps: EngineDeps,
-  input: unknown,
-  lang: Lang,
-): Promise<NotificationCopyValidation> {
-  const result = validateNotificationCopy(input);
-  if (!result.ok) return result;
-  // ONE LANGUAGE, and the store merges it into the other seven. This used to read the set here and
-  // write the whole thing back, which is safe only while nobody else is saving: two admins on two
-  // languages, and the later write carries a snapshot from before the earlier one landed.
-  await deps.store.putNotificationCopy(lang, result.content);
-  return result;
-}
-
-/** Restore the shipped words for one language. The undo button for an edit that went wrong. */
-export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
-  const restored = notificationCopyFor(lang);
-  await deps.store.putNotificationCopy(lang, restored);
-  return restored;
-}
-
-/**
  * The ONE message this account gets on `date`, or null when it gets none.
  *
  * A subscriber gets the 20:30 line, which reads the day against the plan; any other onboarded
@@ -122,7 +94,11 @@ export async function dailyNotification(
     // still behind the same claim, and no trial reminder can fall on it — there is no trial.
     const profile = await deps.store.getProfile(userId);
     if (!profile?.onboarded_at) return null;
-    return { id: "nudge", lang: profile.lang, ...fillNotification(await notificationCopy(deps, profile.lang), "nudge", {}) };
+    // A key with a missing or draft language is not sent at all (`sendableCopy`): half of a
+    // translated set on a lock screen is worse than silence.
+    const copy = await sendableCopy(deps, "nudge", profile.lang);
+    if (!copy) return null;
+    return { id: "nudge", lang: profile.lang, ...fillNotification(copy, "nudge", {}) };
   }
 
   // The reminder is a LOCAL notification, scheduled on the phone at trial start. Sending one
@@ -152,7 +128,8 @@ export async function dailyNotification(
   // way for the same reason (`numbers`), because "1,900" reads as one point nine to half of Europe.
   const lang = profile.lang;
   const n = kcalNumbers(lang);
-  const copy = await notificationCopy(deps, lang);
+  const copy = await sendableCopy(deps, "evening", lang);
+  if (!copy) return null;
   const filled = fillNotification(copy, "evening", {
     eaten: n(totals.kcal),
     plan: n(targets.kcal),
@@ -339,6 +316,7 @@ async function isTrialReminderDay(
 export type TestPushResult =
   | { ok: true; sent: number }
   | { ok: false; reason: "no-device" }
+  | { ok: false; reason: "template-incomplete" }
   | { ok: false; reason: "slot-taken"; heldBy: PushKind };
 
 /**
@@ -353,10 +331,13 @@ export async function sendTestPush(
   if (devices.length === 0) return { ok: false, reason: "no-device" };
   const profile = await deps.store.getProfile(userId);
   if (!profile) return { ok: false, reason: "no-device" };
+  // Checked BEFORE the slot is claimed: a refused key must not spend the day's one message.
+  const sendable = await sendableCopy(deps, "nudge", profile.lang);
+  if (!sendable) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", "admin-test");
   if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
-  const copy = fillNotification(await notificationCopy(deps, profile.lang), "nudge", {});
+  const copy = fillNotification(sendable, "nudge", {});
   const out = await sendLogged(
     deps, userId, devices,
     { kind: "campaign", ref: "admin-test", templateKey: "nudge", lang: profile.lang, variant: "admin-test" },

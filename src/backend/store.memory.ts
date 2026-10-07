@@ -8,7 +8,7 @@ import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
-  Profile, Provider, PushKind,
+  Profile, Provider, PushKind, PushTemplateRow,
 } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
@@ -174,6 +174,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   let chatSeq = 0;
   const firstVerdictSpoken = new Set<string>();
   let notificationCopy = (opts.seed?.notificationCopy ?? null) as NotificationCopySet | null;
+  // Keyed (key, lang, variant), as the Postgres primary key is.
+  const pushTemplates = new Map<string, PushTemplateRow>();
+  const pushTemplateId = (r: Pick<PushTemplateRow, "key" | "lang" | "variant">) => `${r.key}/${r.lang}/${r.variant}`;
   // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
@@ -1004,6 +1007,18 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getNotificationCopy() {
       return notificationCopy ? clone(notificationCopy) : null;
+    },
+
+    async listPushTemplates() {
+      return [...pushTemplates.values()].map(clone).sort((a, b) => pushTemplateId(a).localeCompare(pushTemplateId(b)));
+    },
+
+    async seedPushTemplates(rows) {
+      for (const r of rows) if (!pushTemplates.has(pushTemplateId(r))) pushTemplates.set(pushTemplateId(r), clone(r));
+    },
+
+    async putPushTemplate(row) {
+      pushTemplates.set(pushTemplateId(row), clone(row));
     },
 
     async getPrompts() {

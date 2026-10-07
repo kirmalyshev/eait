@@ -2582,6 +2582,28 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getNotificationCopy())?.de?.evening.title).toBe(`Abend ${RUN}`);
     });
 
+    it("seeds push templates once, never over an edit, and lists what it holds", async () => {
+      const s = await open();
+      const at = new Date().toISOString();
+      const row = (variant: string, body: string) => ({
+        key: `probe-${RUN}` as never, lang: "vi" as const, variant, title: `T ${RUN}`, body, status: "reviewed" as const,
+        reviewed_by: "migration", reviewed_at: at, updated_at: at,
+      });
+      await s.seedPushTemplates([row("default", `seed ${RUN}`), row("empty", `seed-empty ${RUN}`)]);
+      // An admin's edit lands; a second boot's seed must not take it back.
+      await s.putPushTemplate({ ...row("default", `edited ${RUN}`), status: "draft", reviewed_by: null, reviewed_at: null });
+      await s.seedPushTemplates([row("default", `seed ${RUN}`)]);
+      const mine = (await s.listPushTemplates()).filter((r) => r.key === (`probe-${RUN}` as never));
+      const byVariant = Object.fromEntries(mine.map((r) => [r.variant, r]));
+      expect(byVariant.default!.body).toBe(`edited ${RUN}`);
+      expect(byVariant.default!.status).toBe("draft");
+      expect(byVariant.default!.reviewed_by).toBeNull();
+      expect(byVariant.default!.reviewed_at).toBeNull();
+      expect(byVariant.empty!.body).toBe(`seed-empty ${RUN}`);
+      expect(byVariant.empty!.reviewed_by).toBe("migration");
+      expect(new Date(byVariant.empty!.reviewed_at!).toISOString()).toBe(at);
+    });
+
     it("ignores an onboarding event id it has already stored", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
@@ -3854,11 +3876,11 @@ if (PG_URL) {
         "adminListUsers", "adminMetrics", "claimJob", "claimPairingCode",
         "countClipAnalyses", "countGlobalAnalyses", "createUser", "expireJobs", "forgetJobs", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
-        "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
+        "listPushTemplates", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
         "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
-        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushToken",
-        "releaseJobs", "revokeToken", "searchFoods", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
+        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken",
+        "releaseJobs", "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken",
       ]);
     });

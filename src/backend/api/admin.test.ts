@@ -92,8 +92,7 @@ describe("the admin is off unless somebody holds the role", () => {
     //
     // The property survives the move from a shared token, and gains something: deleting the last
     // admin account switches the surface off, which no environment variable could do.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications",
-      "/admin/api/prompts",
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
@@ -136,7 +135,7 @@ describe("the admin credential", () => {
     // withholding. An anonymous request gets 401 above, because the public page already proves the
     // route exists and confusing the person who IS allowed in buys nothing.
     const token = await session();
-    for (const path of ["/admin/api/content", "/admin/api/funnel", "/admin/api/notifications", "/admin/api/prompts"]) {
+    for (const path of ["/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates"]) {
       const res = await handle(new Request(url(path), {
         headers: { authorization: `Bearer ${token}` },
       }));
@@ -298,43 +297,34 @@ describe("the copy editor's ?lang=", () => {
     expect(body.labels.ru).toBe("Русский");
   });
 
-  it("carries the same rules to the notification copy, which reaches a lock screen", async () => {
-    const ru = structuredClone(NOTIFICATION_COPY.ru!);
-    ru.evening.title = "Вечер";
-    expect((await admin("PUT", "/admin/api/notifications?lang=ru", { copy: ru })).status).toBe(200);
-    const back = await (await admin("GET", "/admin/api/notifications?lang=ru")).json() as
-      { lang: string; copy: NonNullable<typeof NOTIFICATION_COPY.ru> };
-    expect(back.lang).toBe("ru");
-    expect(back.copy.evening.title).toBe("Вечер");
-    // ...and English is untouched by a Russian save.
-    expect(((await (await admin("GET", "/admin/api/notifications")).json()) as
-      { copy: typeof DEFAULT_NOTIFICATION_COPY }).copy.evening.title)
-      .toBe(DEFAULT_NOTIFICATION_COPY.evening.title);
-  });
-
-  it("REFUSES a German health claim, which the English-only gate used to wave through", async () => {
-    // The exact payload a security review demonstrated: structurally valid, every placeholder
-    // present, and `lintCopy` had no German pattern — so it landed in `notification_copy->'de'`
-    // and composed at 20:30 to every German account with a push token. A push notification
-    // arrives unasked, with no review and no recall, and §5 UWG / HWG is this product's own
-    // jurisdiction.
-    const de = structuredClone(NOTIFICATION_COPY.de!);
-    de.evening.body = "Garantierter Gewichtsverlust. {eaten} von {plan}. {tomorrow}";
-    const res = await admin("PUT", "/admin/api/notifications?lang=de", { copy: de });
-    expect(res.status).toBe(422);
-    const said = JSON.stringify(await res.json());
-    expect(said).toContain("guarantee");
-    expect(said).toContain("weight-promise");
-  });
-
   it("REFUSES Russian that tells the reader their gender", async () => {
-    // The guard is compiled-in-table protection unless it runs here too: a stored revision
-    // replaces those tables for every user.
-    const ru = structuredClone(NOTIFICATION_COPY.ru!);
-    ru.evening.body = "Что ты ел? {eaten} из {plan}ккал. {tomorrow}";
-    const res = await admin("PUT", "/admin/api/notifications?lang=ru", { copy: ru });
+    // A stored row replaces the compiled-in tables for every user, so the guard has to run on the write.
+    const ru = { key: "nudge", lang: "ru", variant: "default", title: "Еда", body: "Что ты ел? Запиши." };
+    const res = await admin("PUT", "/admin/api/push-templates", { template: ru, status: "reviewed" });
     expect(res.status).toBe(422);
     expect(JSON.stringify(await res.json())).toContain("gender");
+  });
+
+  it("lists push templates, saves a draft, and refuses to review one the claims gate rejects", async () => {
+    const listed = await (await admin("GET", "/admin/api/push-templates")).json() as
+      { rows: { key: string; lang: string; status: string }[]; keys: { key: string; gaps: string[] }[]; langs: string[] };
+    expect(listed.langs).toEqual([...LANGS]);
+    expect(listed.keys.every((k) => k.gaps.length === 0)).toBe(true);
+    const claim = { key: "nudge", lang: "de", variant: "default", title: "Heute", body: "Garantierter Gewichtsverlust" };
+    const refused = await admin("PUT", "/admin/api/push-templates", { template: claim, status: "reviewed" });
+    expect(refused.status).toBe(422);
+    expect(((await refused.json()) as { errors: string[] }).errors.length).toBeGreaterThan(0);
+    expect((await admin("PUT", "/admin/api/push-templates", { template: claim, status: "draft" })).status).toBe(200);
+    const after = await (await admin("GET", "/admin/api/push-templates")).json() as
+      { keys: { key: string; gaps: string[] }[] };
+    expect(after.keys.find((k) => k.key === "nudge")!.gaps).toEqual(["de/default"]);
+    expect((await admin("POST", "/admin/api/push-templates/review", { key: "nudge", lang: "de", variant: "default" })).status).toBe(422);
+    const fixed = { ...claim, body: "Halte fest, was du heute gegessen hast." };
+    const ok = await admin("PUT", "/admin/api/push-templates", { template: fixed, status: "reviewed" });
+    expect(ok.status).toBe(200);
+    const row = ((await ok.json()) as { row: { status: string; reviewed_by: string | null } }).row;
+    expect(row.status).toBe("reviewed");
+    expect(row.reviewed_by).not.toBeNull();
   });
 });
 
@@ -474,73 +464,6 @@ describe("editing the system prompts", () => {
 // The notification copy: the same three verbs on the same credential, and the same rule that the
 // validation runs on the WRITE. A lock screen is the one surface where "we will fix it in the next
 // fetch" is not available — the message has already been delivered.
-describe("editing the notification copy", () => {
-  beforeEach(async () => { await mountWithAdmin(); });
-
-  it("serves the shipped copy and the placeholders the editor needs", async () => {
-    const res = await admin("GET", "/admin/api/notifications");
-    expect(res.status).toBe(200);
-    const body = await res.json() as {
-      copy: Record<string, { title: string; body: string }>;
-      meta: { ids: string[]; placeholders: Record<string, string[]> };
-    };
-    expect(body.copy.evening!.body).toContain("{eaten}");
-    expect(body.meta.ids).toEqual(["trial-end", "evening", "nudge"]);
-    expect(body.meta.placeholders["evening.body"]).toEqual(["eaten", "plan", "tomorrow"]);
-  });
-
-  it("saves a rewrite", async () => {
-    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-    const copy = { ...current.copy, "trial-end": { title: "Tomorrow it ends", body: "The day before the free trial ends." } };
-    expect((await admin("PUT", "/admin/api/notifications", { copy })).status).toBe(200);
-    const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
-    expect(after.copy["trial-end"]!.title).toBe("Tomorrow it ends");
-  });
-
-  it("422s a template the composer cannot fill, with every reason", async () => {
-    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-    const res = await admin("PUT", "/admin/api/notifications", {
-      copy: { ...current.copy, evening: { title: "Evening", body: "{weight} today.", emptyBody: "Nothing." } },
-    });
-    expect(res.status).toBe(422);
-    const { errors } = await res.json() as { errors: string[] };
-    expect(errors.length).toBeGreaterThan(1);
-    expect(errors.join(" ")).toContain("{weight}");
-  });
-
-  it("422s a health claim rather than putting one on a lock screen", async () => {
-    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-    const res = await admin("PUT", "/admin/api/notifications", {
-      copy: { ...current.copy, "trial-end": { title: "Last day", body: "One more week and this cures it." } },
-    });
-    expect(res.status).toBe(422);
-    expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("claim");
-  });
-
-  it("restores the shipped copy", async () => {
-    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-    await admin("PUT", "/admin/api/notifications", {
-      copy: { ...current.copy, "trial-end": { title: "Edited", body: "Edited body." } },
-    });
-    expect((await admin("POST", "/admin/api/notifications/reset", {})).status).toBe(200);
-    const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
-    expect(after.copy["trial-end"]!.title).toBe("The trial ends tomorrow");
-  });
-
-  it("gives an ordinary user's bearer token a 404 here too", async () => {
-    // Same rule, same answer, on every path under /admin — see "the admin credential" above for
-    // why an identified non-admin is told nothing rather than told no.
-    const token = await session();
-    const res = await handle(new Request(url("/admin/api/notifications"), {
-      headers: { authorization: `Bearer ${token}` },
-    }));
-    expect(res.status).toBe(404);
-  });
-});
-
-// The page is a string, so nothing typechecks it and nothing runs it. A syntax error in that
-// script serves a 200 and an admin surface that does nothing at all, and the only symptom is a
-// console message in one browser. These two assertions are what stands in for a bundler.
 describe("the admin page", () => {
   it("parses as JavaScript", () => {
     const script = /<script nonce="[^"]*">([\s\S]*?)<\/script>/.exec(ADMIN_PAGE)?.[1];
@@ -822,19 +745,17 @@ describe("the audit line", () => {
       await admin("GET", "/admin/api/content");
       await admin("PUT", "/admin/api/content", { content: structuredClone(DEFAULT_ONBOARDING_CONTENT) });
       await admin("POST", "/admin/api/content/reset", {});
-      const { copy } = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
-      await admin("PUT", "/admin/api/notifications", {
-        copy: { ...copy, evening: { title: "Evening", body: "{weight} today.", emptyBody: "Nothing." } },
+      await admin("PUT", "/admin/api/push-templates", {
+        template: { key: "evening", lang: "en", variant: "default", title: "Evening", body: "{weight} today." },
+        status: "draft",
       });
-      await admin("POST", "/admin/api/notifications/reset", {});
       await admin("GET", `/admin/api/users/${subject}/cap`);
       await admin("PUT", `/admin/api/users/${subject}/cap`, { freeAnalyses: 40 });
     });
     expect(audit(lines)).toEqual([
       `[eait] admin write: ${adminId} PUT /admin/api/content -> 200`,
       `[eait] admin write: ${adminId} POST /admin/api/content/reset -> 200`,
-      `[eait] admin write: ${adminId} PUT /admin/api/notifications -> 422`,
-      `[eait] admin write: ${adminId} POST /admin/api/notifications/reset -> 200`,
+      `[eait] admin write: ${adminId} PUT /admin/api/push-templates -> 422`,
       `[eait] admin write: ${adminId} PUT /admin/api/users/${subject}/cap -> 200`,
     ]);
   });
@@ -844,7 +765,7 @@ describe("the audit line", () => {
     content.welcome.lines = ["Photograph dinner, marker q7x.", "Ready when you are."];
     const lines = await logged(async () => {
       expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
-      await admin("PUT", "/admin/api/notifications?note=q7x", { copy: {} });
+      await admin("PUT", "/admin/api/push-templates?note=q7x", { template: {}, status: "draft" });
     });
     expect(audit(lines)).toHaveLength(2);
     expect(lines.join("\n")).not.toContain("q7x");

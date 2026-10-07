@@ -18,7 +18,7 @@ import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
-  OnboardingContentSet, Profile, Provider, Struggle, StreakGoal,
+  OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
 import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
@@ -810,6 +810,22 @@ create table if not exists notification_copy (
   updated_at timestamptz not null default now()
 );
 
+-- Push copy as reviewed, per-language templates (ieat-app#1758). Rows belong to nobody — the
+-- instance's words, like notification_copy — so no user_id and no RLS. The primary key is the
+-- identity, and the checks are the two enums the code also declares.
+create table if not exists push_templates (
+  key         text not null,
+  lang        text not null check (lang in ('en','fr','de','it','es','vi','id','ru')),
+  variant     text not null,
+  title       text not null,
+  body        text not null,
+  status      text not null check (status in ('draft','reviewed')),
+  reviewed_by text,
+  reviewed_at timestamptz,
+  updated_at  timestamptz not null default now(),
+  primary key (key, lang, variant)
+);
+
 -- The system prompts, when an admin has overridden one. APPEND-ONLY.
 --
 -- (key, version) rather than one row per key, and that is the difference from the two tables
@@ -1305,6 +1321,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   promptRevisions: "unscoped",
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
+  listPushTemplates: "unscoped",
+  seedPushTemplates: "unscoped",
+  putPushTemplate: "unscoped",
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
@@ -2428,6 +2447,41 @@ export async function postgresStore(
                      else coalesce(notification_copy.copy, '{}'::jsonb) end,
                 array[${lang}], ${copy}::jsonb, true),
               updated_at = now()`;
+    },
+
+    async listPushTemplates() {
+      const rows = await sql`
+        select key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at
+        from push_templates order by key, lang, variant`;
+      const iso = (v: unknown) => (v == null ? null : new Date(v as string).toISOString());
+      return rows.map((r: Record<string, unknown>) => ({
+        key: r.key, lang: r.lang, variant: r.variant, title: r.title, body: r.body, status: r.status,
+        reviewed_by: (r.reviewed_by as string | null) ?? null,
+        reviewed_at: iso(r.reviewed_at), updated_at: iso(r.updated_at)!,
+      })) as PushTemplateRow[];
+    },
+
+    async seedPushTemplates(rows) {
+      // `do nothing` on the key: the shipped copy can arrive twice, from two replicas, and can
+      // never overwrite what an admin has since saved.
+      for (const r of rows) {
+        await sql`
+          insert into push_templates (key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at)
+          values (${r.key}, ${r.lang}, ${r.variant}, ${r.title}, ${r.body}, ${r.status},
+                  ${r.reviewed_by}, ${r.reviewed_at}, ${r.updated_at})
+          on conflict (key, lang, variant) do nothing`;
+      }
+    },
+
+    async putPushTemplate(r) {
+      await sql`
+        insert into push_templates (key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at)
+        values (${r.key}, ${r.lang}, ${r.variant}, ${r.title}, ${r.body}, ${r.status},
+                ${r.reviewed_by}, ${r.reviewed_at}, ${r.updated_at})
+        on conflict (key, lang, variant) do update
+          set title = excluded.title, body = excluded.body, status = excluded.status,
+              reviewed_by = excluded.reviewed_by, reviewed_at = excluded.reviewed_at,
+              updated_at = excluded.updated_at`;
     },
 
     async putOnboardingContent(lang, content, floorVersion) {
