@@ -49,6 +49,7 @@ import {
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
   resetNotificationCopy, sendTestPush, pushOpenView,
+  listPushTemplates, reviewPushTemplate, savePushTemplate,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -172,10 +173,10 @@ export async function adminRoutes(
   // route and a subject id, never what changed, which is the hazard "errors are logged, never
   // returned" exists for. NEVER THE BEARER: `userId` is what it resolved to, and the path goes in
   // without its query string (#372).
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return await behindTheRole(req, url, deps);
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return await behindTheRole(req, url, deps, userId);
   let outcome: number | "threw" = "threw";
   try {
-    const res = await behindTheRole(req, url, deps);
+    const res = await behindTheRole(req, url, deps, userId);
     outcome = res.status;
     return res;
   } finally {
@@ -184,7 +185,7 @@ export async function adminRoutes(
 }
 
 /** Every route behind the role. `adminRoutes` is its only caller, and only after the check. */
-async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<Response> {
+async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: string): Promise<Response> {
   const { pathname } = url;
 
   // ── Onboarding copy ────────────────────────────────────────────────────────────────────────
@@ -235,6 +236,31 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
 
   if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
     return json({ copy: await resetNotificationCopy(deps, editorLang(url)) });
+  }
+
+  // ── Push templates (#1758) ─────────────────────────────────────────────────────────────────
+  //
+  // Per key × language × variant, with a draft|reviewed status. `reviewed_by` is the admin ACCOUNT
+  // id, never a name. A refusal is 422 with every error — the plural, placeholder and claims-gate
+  // messages — so the editor shows the gate's own words.
+  if (req.method === "GET" && pathname === "/admin/api/push-templates") {
+    return json({
+      ...(await listPushTemplates(deps)),
+      langs: LANGS,
+      meta: { placeholders: NOTIFICATION_PLACEHOLDERS },
+    });
+  }
+
+  if (req.method === "PUT" && pathname === "/admin/api/push-templates") {
+    const body = await req.json() as { template?: unknown; status?: unknown };
+    const result = await savePushTemplate(deps, body?.template, body?.status, adminId);
+    return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, 422);
+  }
+
+  if (req.method === "POST" && pathname === "/admin/api/push-templates/review") {
+    const body = await req.json() as { key?: unknown; lang?: unknown; variant?: unknown };
+    const result = await reviewPushTemplate(deps, { key: body?.key, lang: body?.lang, variant: body?.variant }, adminId);
+    return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, 422);
   }
 
   // ── The system prompts ─────────────────────────────────────────────────────────────────────

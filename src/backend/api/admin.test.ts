@@ -93,7 +93,7 @@ describe("the admin is off unless somebody holds the role", () => {
     // The property survives the move from a shared token, and gains something: deleting the last
     // admin account switches the surface off, which no environment variable could do.
     for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications",
-      "/admin/api/prompts",
+      "/admin/api/prompts", "/admin/api/push-templates",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
@@ -136,7 +136,7 @@ describe("the admin credential", () => {
     // withholding. An anonymous request gets 401 above, because the public page already proves the
     // route exists and confusing the person who IS allowed in buys nothing.
     const token = await session();
-    for (const path of ["/admin/api/content", "/admin/api/funnel", "/admin/api/notifications", "/admin/api/prompts"]) {
+    for (const path of ["/admin/api/content", "/admin/api/funnel", "/admin/api/notifications", "/admin/api/prompts", "/admin/api/push-templates"]) {
       const res = await handle(new Request(url(path), {
         headers: { authorization: `Bearer ${token}` },
       }));
@@ -310,6 +310,28 @@ describe("the copy editor's ?lang=", () => {
     expect(((await (await admin("GET", "/admin/api/notifications")).json()) as
       { copy: typeof DEFAULT_NOTIFICATION_COPY }).copy.evening.title)
       .toBe(DEFAULT_NOTIFICATION_COPY.evening.title);
+  });
+
+  it("lists push templates, saves a draft, and refuses to review one the claims gate rejects", async () => {
+    const listed = await (await admin("GET", "/admin/api/push-templates")).json() as
+      { rows: { key: string; lang: string; status: string }[]; keys: { key: string; gaps: string[] }[]; langs: string[] };
+    expect(listed.langs).toEqual([...LANGS]);
+    expect(listed.keys.every((k) => k.gaps.length === 0)).toBe(true);
+    const claim = { key: "nudge", lang: "de", variant: "default", title: "Heute", body: "Garantierter Gewichtsverlust" };
+    const refused = await admin("PUT", "/admin/api/push-templates", { template: claim, status: "reviewed" });
+    expect(refused.status).toBe(422);
+    expect(((await refused.json()) as { errors: string[] }).errors.length).toBeGreaterThan(0);
+    expect((await admin("PUT", "/admin/api/push-templates", { template: claim, status: "draft" })).status).toBe(200);
+    const after = await (await admin("GET", "/admin/api/push-templates")).json() as
+      { keys: { key: string; gaps: string[] }[] };
+    expect(after.keys.find((k) => k.key === "nudge")!.gaps).toEqual(["de/default"]);
+    expect((await admin("POST", "/admin/api/push-templates/review", { key: "nudge", lang: "de", variant: "default" })).status).toBe(422);
+    const fixed = { ...claim, body: "Halte fest, was du heute gegessen hast." };
+    const ok = await admin("PUT", "/admin/api/push-templates", { template: fixed, status: "reviewed" });
+    expect(ok.status).toBe(200);
+    const row = ((await ok.json()) as { row: { status: string; reviewed_by: string | null } }).row;
+    expect(row.status).toBe("reviewed");
+    expect(row.reviewed_by).not.toBeNull();
   });
 
   it("REFUSES a German health claim, which the English-only gate used to wave through", async () => {
