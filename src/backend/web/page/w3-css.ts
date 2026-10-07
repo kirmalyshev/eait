@@ -42,6 +42,7 @@ export const W3_CSS = `
 .ob .pln .ax { font-weight: 600; }
 .ob .pln .ax.end { fill: var(--ink); font-weight: 700; }
 .ob .pln .oc { padding: 16px 16px 14px; }
+.ob .pln .pmeth { margin: 0 4px; line-height: 1.45; }
 .ob .pln .oc .top { align-items: flex-end; }
 .ob .pln .oc .r { text-align: right; }
 .ob .pln .oc .r .row { justify-content: flex-end; gap: 6px; }

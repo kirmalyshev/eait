@@ -54,6 +54,7 @@ ${left}
 <div class="pcol">
 ${outcomeCard(v)}
 ${bars ? waterfallCard(v, bars) : ""}
+<p class="t12 m pmeth">${escape(COPY.method)}<br>${escape(COPY.methodSource)}</p>
 </div>
 </div>
 <div class="pfoot"><div class="slot">
