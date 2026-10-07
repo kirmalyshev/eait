@@ -560,8 +560,7 @@ export function languageLine(lang: string): string {
 /**
  * Spud, answering a question. #1041 (Kirill's ruling 2026-09-28) merged the thread's two
  * voices into one: the mascot who logs is the voice behind the Chat tab — every
- * assistant line is his. His rules are
- * `product/design/onboarding/copy.md`'s — honest numbers, no cheering, no shame, one concrete
+ * assistant line is his. His rules are honest numbers, no cheering, no shame, one concrete
  * thing — and every rule below has a test naming it.
  *
  * The tools are described to the model in `COACH_TOOL_DEFS`; the prompt only says WHEN to reach

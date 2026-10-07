@@ -19,11 +19,10 @@
 // this one restarted across the hour — finds today claimed and stays silent. A claim is not a
 // send: a crash in the gap costs that night, which is the side R1 wants to fail on.
 //
-// THE LINE IS WHAT A SUBSCRIPTION BUYS; THE NUDGE IS NOT (#730, ruled by Kirill 6 Oct). copy.md
-// § Step 15 lists "The 20:30 line — one a day" on the card, so only a live entitlement gets the
-// sentence that reads the day against the plan. Every other onboarded account, a lapsed one
-// included, gets the plain `nudge` at the same hour under the same one-a-day claim: the habit is
-// not gated behind the conversion it exists to produce.
+// THE LINE IS WHAT A SUBSCRIPTION BUYS; THE NUDGE IS NOT (#730, ruled by Kirill 6 Oct). Only a live
+// entitlement gets the sentence that reads the day against the plan. Every other onboarded account,
+// a lapsed one included, gets the plain `nudge` at the same hour under the same one-a-day claim:
+// the habit is not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {

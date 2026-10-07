@@ -132,9 +132,9 @@ describe("the shipped copy", () => {
     for (const promise of [/\bno card\b/, /\bno trial\b/, /nothing to cancel/]) {
       expect(words).not.toMatch(promise);
     }
-    // An unqualified "free" is the one claim DECISIONS.md rules out by name. copy.md allows exactly
-    // two forms — "free to try" and "N days free" — so those are stripped before looking, which is
-    // what keeps this enforceable rather than a comment somebody has to remember.
+    // An unqualified "free" is the one claim DECISIONS.md rules out by name. design-notes.md allows
+    // exactly two forms — "free to try" and "N days free" — so those are stripped before looking,
+    // which is what keeps this enforceable rather than a comment somebody has to remember.
     const unqualified = words
       .replace(/\bfree to try\b/g, "")
       .replace(/\b(a week|\d+ days?) free\b/g, "")

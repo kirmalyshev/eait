@@ -464,7 +464,7 @@ describe("the question after the card", () => {
   });
 
   it("says nothing on the account's first meal", async () => {
-    // The first card is the introduction — copy.md gives it Spud's verdict, and a question on top
+    // The first card is the introduction — it carries the first verdict, and a question on top
     // of that is an interrogation before the product has shown what it does.
     const userId = await onboard();
     const d = makeDeps({}, asks());

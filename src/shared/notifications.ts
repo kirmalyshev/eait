@@ -1,9 +1,9 @@
 // The two messages this product is allowed to send, and the arithmetic that decides which.
 //
-// copy.md § Step 15 promises exactly two: "I'll remind you the day before it ends, never the day
-// after" (ieat-app#1591: the 3-day trial gets ONE trial-ends reminder, not two), and "At 20:30 you
-// get one line — today against the plan, and one concrete thing for tomorrow." Nothing else may be
-// sent, and R1's budget
+// The scripted `trial-started` and `trial-day-one` lines (`chat-copy.ts`) promise exactly two:
+// "I'll remind you the day before it ends, never the day after" (ieat-app#1591: the 3-day trial
+// gets ONE trial-ends reminder, not two), and "At 20:30 you get one line — today against the plan,
+// and one concrete thing for tomorrow." Nothing else may be sent, and R1's budget
 // (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day INCLUDING the
 // reminder — which is what `dailyMessage` is: the reminder day emits the reminder INSTEAD OF the
 // evening line, never as well as it.

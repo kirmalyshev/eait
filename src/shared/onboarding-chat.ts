@@ -22,12 +22,10 @@
 //      that has not been given yet.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
-// WHAT IS STORED AND WHAT IS NOT. `goal`, `sex`, `birth_year`, `height_cm`, `weight_kg`,
-// `target_weight_kg`, `pace`, `activity`, `country` and `restrictions` are profile columns, and
-// they are the whole input to `explainTargets`. The one conversation question — what has been hard
-// — is NOT stored on the profile: it is answered into the thread (which is the record, and is
-// erased with the account), and `REPORTABLE_FIELDS` has no room for it, which is the point. "Binge
-// episodes" is a disclosure, not a preference.
+// WHAT IS STORED. `goal`, `sex`, `birth_year`, `height_cm`, `weight_kg`, `target_weight_kg`,
+// `pace`, `activity`, `struggles`, `country` and `restrictions` are profile columns. All but
+// `struggles` and `country` feed `explainTargets`; `struggles` picks the on-track caption and
+// Chat's first starters, and it is an enumerated pick, so `REPORTABLE_FIELDS` reports it.
 //
 // THERE WERE FOUR. "Why now", "the hardest moment" and "eating out" were cut on 2026-08-26 under
 // rule 2: each wrote a value — a bucket, a moment, a frequency — that nothing in `src/` ever read
@@ -52,7 +50,7 @@ import {
 // ── The prompts ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Everything Spud asks or shows, in the order of `copy.md` steps 1–12.
+ * Everything Spud asks or shows, in the order a user meets it (`ONBOARDING_PLACES`).
  *
  * A prompt with a `field` fills a profile column and its answer survives the app being killed. A
  * prompt without one is conversation: asked while the run is live, skipped on a resume that has
@@ -280,7 +278,7 @@ export function askPlaceholder(prompt: ChatPrompt, content: OnboardingContent): 
   return prompt.field ? askContent(content, prompt.field)?.placeholder ?? null : null;
 }
 
-/** The idle placeholder, everywhere a prompt does not name its own. copy.md § Step 01. */
+/** The idle placeholder, everywhere a prompt does not name its own. */
 export const IDLE_PLACEHOLDER = (lang: Lang): string => chatCopyFor(lang).idlePlaceholder;
 
 const conversationAsks = (lang: Lang): Record<string, readonly string[]> =>
@@ -307,7 +305,7 @@ export interface SupportCard {
   source?: string;
 }
 
-/** copy.md § Step 03 — the under-16 stop. The refusal is the server's; this is how it reads. */
+/** copy.md § Age — the under-16 stop. The refusal is the server's; this is how it reads. */
 export const UNDER_AGE_CARD = (lang: Lang): SupportCard =>
   filled(chatCopyFor(lang).underAgeCard, { age: String(MIN_AGE) });
 
@@ -330,7 +328,7 @@ export const UNDER_AGE_LINES = (lang: Lang) => {
   };
 };
 
-/** copy.md § Step 05 — the target below a healthy BMI. The server refuses it; this explains it. */
+/** copy.md § Target — the target below a healthy BMI. The server refuses it; this explains it. */
 export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard {
   return filled(chatCopyFor(lang).belowHealthy, { kg: numbers(lang)(minHealthyKg) });
 }
@@ -445,7 +443,7 @@ export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number,
 export const ONBOARDING_NEUTRAL = { heightCm: 170, weightKg: 75, ageYears: 30 } as const;
 
 /**
- * copy.md § Step 05 — the wrong-direction check.
+ * copy.md § Target — the wrong-direction check.
  *
  * The tree remembers what was chosen at step 02. Asking to "gain" to a number below the current
  * weight used to be accepted, and `explainTargets` then added a surplus aimed at a lower number:
@@ -511,7 +509,7 @@ export function minHealthyKg(heightCm: number): number {
 // ── The plan ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * copy.md § Step 12 — the share-cap note, with the percentage read from the constant.
+ * The share-cap note, with the percentage read from the constant.
  *
  * "maintenance" is a word the chat never introduced, so the sentence says "what your body burns in
  * a day" — which is the label on the row directly above it in the calc card.

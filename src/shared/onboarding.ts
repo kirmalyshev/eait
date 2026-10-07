@@ -19,7 +19,7 @@
 // and the branch logic that makes a reply speak to the branch taken — lives in `onboarding-chat.ts`,
 // compiled in, under test, and NOT admin-editable. An admin text box in front of a health statistic
 // is an unsubstantiated claim with no gate in front of it — the `claims.ts` reasoning — so a cited
-// figure stays code. `product/design/onboarding/copy.md` is the source of truth for both halves.
+// figure stays code. `product/design/onboarding/copy.md` quotes both halves in English.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
 // FIELD-DERIVED, NOT A STEP COUNTER. The current question is whichever field is still null. A
@@ -42,18 +42,14 @@ import { lintCopy } from "./claims.ts";
 /**
  * The questions, in order. Each names the profile field that answers it.
  *
- * THE ORDER IS THE DESIGN'S (`product/design/onboarding/copy.md`, steps 2–13): goal, then who you
- * are, then your numbers, then where you want to be and how fast, then how you move. Two things
+ * THE ORDER IS THE DESIGN'S (`product/design/DIRECTION.md` § The onboarding flow): goal, then who
+ * you are, then your numbers, then how you move, then where you want to be and how fast. Two things
  * downstream depend on it and would be wrong if it changed:
  *
- *   - the BMR quick win is spoken the moment weight lands (step 5), which needs sex, age and
- *     height already answered;
  *   - the wrong-direction check on the goal weight ("you're at 93 and asked to lose to 95") reads
- *     the current weight, so weight comes first.
- *
- * Activity used to come before the target because the old target SCREEN previewed a landing date
- * per pace and that preview needed the multiplier. The chat does not preview — the date arrives
- * once, on the plan — so the design's order stands unopposed.
+ *     the current weight, so weight comes first;
+ *   - the pace screen prints a landing month and a kcal a day, which need the activity multiplier,
+ *     so activity comes before the target.
  */
 export const ONBOARDING_STEPS = [
   "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "target_weight_kg", "pace",
@@ -310,8 +306,9 @@ export interface OnboardingScreenContent {
  * that reads one screen is a rule that moves the sentence to the next one:
  *   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison
  *     argument we lose.
- *   - never claim "free" bare. `copy.md` allows exactly two qualified forms, "free to try" and
- *     "N days free"; §5 of the cross-read rules out the unqualified claim by name.
+ *   - never claim "free" bare. `design-notes.md` § The plans allows exactly two qualified forms,
+ *     "free to try" and "N days free"; §5 of the cross-read rules out the unqualified claim by
+ *     name.
  *   - never promise away the card, the trial, or the cancelling. This is the rule that did not
  *     exist, which is how a sentence contradicting docs/PAYWALL.md survived the merge that added
  *     the paywall — asserted in four E2E flows the whole time, one of which shoots the App Store
@@ -372,7 +369,7 @@ export interface OnboardingSummaryContent {
   macros: { protein: string; carbs: string; fat: string; satfat: string };
   /** One tap behind the marker — the share-cap explainer, `{share}` filled from `targets.ts`. */
   capNote: string;
-  /** The one button. It opens the camera — see `copy.md` § Step 15. */
+  /** The plan's button. The phone's plan button is `continueLabel`, not this. */
   cta: string;
 }
 
@@ -740,7 +737,8 @@ export const PLAN_CHART_TICKS_MS = { area: 600, endDot: 1100, targetChip: 1200 }
  * means a backend outage degrades onboarding to "the words are a version old", not to "the app
  * does not work".
  *
- * Every sentence below is `product/design/onboarding/copy.md`, verbatim. Change the design first.
+ * `product/design/onboarding/copy.md` quotes every sentence below that the phone shows; change both
+ * in the same change.
  */
 export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the

@@ -47,7 +47,7 @@ describe("scripted lines", () => {
   });
 });
 
-// copy.md § Step 14. The numbers are the plan's and the day's; the words are the design's.
+// The numbers are the plan's and the day's; the words are the design's.
 describe("the first verdict", () => {
   const targets = { kcal: 1454, protein_g: 110, fat_g: 48, carbs_g: 203 };
   const meal = { kcal: 612, protein_g: 38, satfat_g: 4, sodium_mg: 900, confidence: "high" };

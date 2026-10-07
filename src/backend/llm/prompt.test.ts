@@ -164,8 +164,8 @@ test("the coach prompt states Spud's rules, as the thread's one voice", () => {
     "Never invent a number",
     "needs get_meals, today included",
     "needs get_health",
-    // Unconditional, as copy.md has it ("numbers about food, never comments about your body"):
-    // the first draft said "unless they ask", and "am I fat?" got "within a healthy range".
+    // Unconditional — numbers about food, never comments about the body: the first draft said
+    // "unless they ask", and "am I fat?" got "within a healthy range".
     "Never comment on the user's body, even when they ask",
     "No medical advice",
     "Do not explain the medication",
