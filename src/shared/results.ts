@@ -73,8 +73,13 @@ export type Refusal =
    * app answers it with the paywall, and `limits.sampleUsed` lets it do so before asking.
    */
   | { kind: "subscription-required" }
-  /** The engine failed to produce an analysis. Already logged; the surface just apologises. */
-  | { kind: "analysis-failed" }
+  /**
+   * The engine failed to produce an analysis. Already logged; the surface just apologises.
+   * `retryable` is set only when the gateway said overloaded (429/503) before generating anything:
+   * nothing was billed or charged, so sending the same photo again is free. Absent for every
+   * failure that may have cost money, and for one a re-send cannot fix (402, 401).
+   */
+  | { kind: "analysis-failed"; retryable?: true }
   /** The upload is not a JPEG, PNG or WebP. Refused before anything is charged. */
   | { kind: "unsupported-image" }
   /** A re-analysis of a meal that has no stored photo. */
