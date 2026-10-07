@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { PushKind, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
+import type { CampaignStatus, NotificationId, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -89,6 +89,35 @@ export interface SendLogRow extends NewSend {
   receiptError: string | null;
   createdAt: string;
   receiptAt: string | null;
+}
+
+/** A manual push campaign (ieat-app#1761). `segment` is the allowlisted predicate set, never SQL. */
+export interface CampaignRow {
+  id: string;
+  name: string;
+  templateKey: NotificationId;
+  segment: Segment;
+  status: CampaignStatus;
+  /** `HH:MM`, the account's own local time. */
+  localSendTime: string;
+  rolloutPct: number;
+  promotional: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CampaignPatch = Partial<Pick<CampaignRow,
+  "name" | "templateKey" | "segment" | "status" | "localSendTime" | "rolloutPct" | "promotional">>;
+
+/** What a campaign's `send_log` rows say. Test sends and dry rows are counted apart from real sends. */
+export interface CampaignReport {
+  sent: number;
+  accepted: number;
+  dead: number;
+  dry: number;
+  opened: number;
+  test: number;
 }
 
 /** One day of one template's life, for the admin's push view (#1759). */
@@ -938,6 +967,26 @@ export interface Store {
    * opened and converted. Reads across users — the admin's view of the campaign, never an account's.
    */
   pushOpenStats(days: number, timezone: string): Promise<PushStatRow[]>;
+
+  // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
+  listCampaigns(): Promise<CampaignRow[]>;
+  getCampaign(id: string): Promise<CampaignRow | null>;
+  createCampaign(row: CampaignRow): Promise<void>;
+  /** The updated row, or null when there is no such campaign. */
+  updateCampaign(id: string, patch: CampaignPatch): Promise<CampaignRow | null>;
+  /**
+   * `scheduled` -> `running`, guarded in the statement: true only when this call moved it. A
+   * campaign killed or paused between the runner's read and this write stays so.
+   */
+  markCampaignRunning(id: string): Promise<boolean>;
+  /** The global switch. Re-read by the runner before every account, so a flip stops a run mid-batch. */
+  campaignsKilled(): Promise<boolean>;
+  setCampaignsKilled(killed: boolean): Promise<void>;
+  /** Scoped. Has this account already been handed this campaign? */
+  hasCampaignSend(userId: string, campaignId: string): Promise<boolean>;
+  /** Scoped. Record that this account is handed this campaign: true for exactly one caller. */
+  claimCampaignSend(userId: string, campaignId: string): Promise<boolean>;
+  campaignReport(campaignId: string): Promise<CampaignReport>;
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
