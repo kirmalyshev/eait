@@ -10,6 +10,7 @@
  * and `{eaten}` is the product's placeholder syntax and ICU's at once.
  */
 import { lintCopy } from "./claims.ts";
+import { genderedRussian } from "./lang.ts";
 import {
   MAX_NOTIFICATION_BODY, MAX_NOTIFICATION_TITLE, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS,
   type NotificationCopy, type NotificationId,
@@ -177,6 +178,13 @@ const HEALTH_VALUE = new RegExp(
 /** Claims-gate problems for one template's words — the landing's rules plus the value rule. */
 export function pushClaimErrors(title: string, body: string): string[] {
   const errors = lintCopy({ title, body }).map((v) => `${v.field}: "${v.span}" is a ${v.pattern} claim`);
+  // Russian past tense and short adjectives agree with the reader's gender and have no neutral
+  // form. Needs no `lang`: nothing but Russian has Cyrillic. Admin-typed Russian replaces the
+  // compiled-in tables for every user, so the build-time guard alone does not cover it.
+  for (const g of genderedRussian({ title, body })) {
+    errors.push(`${g.at} tells a Russian reader their gender ("${g.text}") — Russian past tense`
+      + " and short adjectives agree, so this greets half your readers as the wrong person");
+  }
   for (const [field, text] of [["title", title], ["body", body]] as const) {
     const m = HEALTH_VALUE.exec(text);
     if (m) errors.push(`${field}: "${m[0].trim()}" is a health value`);

@@ -96,6 +96,13 @@ describe("health values in eight languages", () => {
   for (const text of fine) test(`allows "${text}"`, () => expect(pushClaimErrors("Hi", text)).toEqual([]));
 });
 
+describe("Russian gender guard", () => {
+  test("a past-tense line to the reader is refused, a neutral one is not", () => {
+    expect(pushClaimErrors("Вечер", "Что ты ел? {eaten} из {plan}ккал.").join()).toContain("gender");
+    expect(pushClaimErrors("Вечер", "Запиши сегодняшнюю еду — хватит одного фото.")).toEqual([]);
+  });
+});
+
 describe("the empty-day variant has no title of its own", () => {
   test("a title on it is refused, none is required", () => {
     const base = { key: "evening", lang: "en", variant: "empty", body: "Nothing — {plan} {tomorrow}" };

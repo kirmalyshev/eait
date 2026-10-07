@@ -40,6 +40,11 @@ export async function ensurePushTemplates(deps: EngineDeps): Promise<void> {
     }
   }
   await deps.store.seedPushTemplates(rows);
+  // Rows seeded before the empty variant lost its title (61d2a13) still carry one the sender never
+  // reads. Strip it, keeping status and review fields as they are.
+  for (const r of await deps.store.listPushTemplates()) {
+    if (r.variant === "empty" && r.title !== "") await deps.store.putPushTemplate({ ...r, title: "" });
+  }
   seeded.add(deps.store);
 }
 

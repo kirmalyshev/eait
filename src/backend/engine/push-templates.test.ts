@@ -112,6 +112,26 @@ describe("push templates", () => {
     expect((await savePushTemplate(deps, nudge("en"), "published", "k")).ok).toBe(false);
   });
 
+  it("old stored Russian that tells the reader their gender migrates as a draft", async () => {
+    await store.putNotificationCopy("ru", {
+      ...notificationCopyFor("ru"), nudge: { title: "Еда", body: "Что ты ел сегодня?" },
+    });
+    const { keys } = await listPushTemplates(deps);
+    expect(keys.find((k) => k.key === "nudge")!.gaps).toEqual(["ru/default"]);
+  });
+
+  it("strips a title an older seed left on an empty-day row, keeping its review", async () => {
+    const at = new Date().toISOString();
+    await store.seedPushTemplates([{
+      key: "evening", lang: "en", variant: "empty", title: "Old title", body: "Nothing — {plan} {tomorrow}",
+      status: "reviewed", reviewed_by: "x", reviewed_at: at, updated_at: at,
+    }]);
+    const row = (await listPushTemplates(deps)).rows.find((r) => r.key === "evening" && r.lang === "en" && r.variant === "empty")!;
+    expect(row.title).toBe("");
+    expect(row.status).toBe("reviewed");
+    expect(row.reviewed_by).toBe("x");
+  });
+
   it("seeds once per process, not once per send", async () => {
     let seeds = 0;
     const real = store.seedPushTemplates.bind(store);

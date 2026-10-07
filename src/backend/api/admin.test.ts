@@ -297,6 +297,14 @@ describe("the copy editor's ?lang=", () => {
     expect(body.labels.ru).toBe("Русский");
   });
 
+  it("REFUSES Russian that tells the reader their gender", async () => {
+    // A stored row replaces the compiled-in tables for every user, so the guard has to run on the write.
+    const ru = { key: "nudge", lang: "ru", variant: "default", title: "Еда", body: "Что ты ел? Запиши." };
+    const res = await admin("PUT", "/admin/api/push-templates", { template: ru, status: "reviewed" });
+    expect(res.status).toBe(422);
+    expect(JSON.stringify(await res.json())).toContain("gender");
+  });
+
   it("lists push templates, saves a draft, and refuses to review one the claims gate rejects", async () => {
     const listed = await (await admin("GET", "/admin/api/push-templates")).json() as
       { rows: { key: string; lang: string; status: string }[]; keys: { key: string; gaps: string[] }[]; langs: string[] };
