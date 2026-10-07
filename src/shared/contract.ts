@@ -1079,6 +1079,13 @@ export function isPushOpenRequest(body: unknown): body is PushOpenRequest {
     && (b.action === undefined || (PUSH_OPEN_ACTIONS as readonly unknown[]).includes(b.action));
 }
 
+/** The open to report for a notification response, or null when the push carried no `sendId`. */
+export function pushOpenFrom(data: unknown, reply: boolean): PushOpenRequest | null {
+  const sendId = (data as { sendId?: unknown } | null | undefined)?.sendId;
+  const body = { sendId, action: reply ? "reply" : "tap" };
+  return isPushOpenRequest(body) ? body : null;
+}
+
 /** Always `{ ok: true }`: recorded, deduplicated and not-yours are indistinguishable on purpose. */
 export interface PushOpenResponse {
   ok: true;
