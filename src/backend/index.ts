@@ -300,9 +300,13 @@ const verifier: Verifier = demo
 // the same beat, once Expo has had time to produce them, from the `send_log` rows still `accepted`.
 if (config.pushEnabled) {
   const TICK_MS = 60_000;
+  // A tick that outlives its minute (a slow push service, a big audience) must not be joined by the
+  // next one: two overlapping ticks would compose, and race the slot, for the same accounts.
+  let ticking = false;
   setInterval(() => {
     // The leader alone ticks; the slot is the backstop for a handover mid-minute.
-    if (!leader) return;
+    if (!leader || ticking) return;
+    ticking = true;
     void (async () => {
       try {
         await pushTick(deps);
@@ -310,6 +314,8 @@ if (config.pushEnabled) {
       } catch (e) {
         // One bad minute must not take the timer with it.
         console.error(`[eait] push tick failed: ${(e as Error)?.message ?? e}`);
+      } finally {
+        ticking = false;
       }
     })();
   }, TICK_MS).unref?.();

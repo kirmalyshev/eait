@@ -884,6 +884,8 @@ export interface Store {
    * told us one; the caller then falls back to the instance zone.
    */
   pushAudience(): Promise<PushAudienceRow[]>;
+  /** Scoped. The zone the app reported, or null. */
+  timezoneOf(userId: string): Promise<string | null>;
   /** Scoped. Store the zone the app reported on open (already validated by the caller). */
   setTimezone(userId: string, timezone: string): Promise<void>;
 

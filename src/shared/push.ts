@@ -4,8 +4,12 @@
 // enforces it; this file is the rank that says who wins when several senders want the same day,
 // and the states a `send_log` row moves through. Rank lives here once so no sender carries a copy.
 
-/** Highest priority first. A lower kind never evicts a higher one. */
-export const PUSH_KINDS = ["trial", "streak", "onboarding", "campaign"] as const;
+/**
+ * Highest priority first. A lower kind never evicts a higher one. `streak` is the habit line a
+ * subscriber earns; `evening` is the plain 20:30 line (the nudge included) that every other
+ * onboarded account gets.
+ */
+export const PUSH_KINDS = ["trial", "streak", "evening", "onboarding", "campaign"] as const;
 export type PushKind = (typeof PUSH_KINDS)[number];
 
 /**
@@ -22,10 +26,19 @@ export function outranks(a: PushKind, b: PushKind): boolean {
   return PUSH_KINDS.indexOf(a) < PUSH_KINDS.indexOf(b);
 }
 
-// `Intl.supportedValuesOf` omits "UTC" in some runtimes; it is a zone `localDate` accepts.
-const ZONES = new Set<string>([...Intl.supportedValuesOf("timeZone"), "UTC"]);
-
-/** An IANA zone name this runtime can date with. The app sends its own on app open. */
+/**
+ * An IANA zone name this runtime can date with. The app sends its own on app open.
+ *
+ * Asked of `Intl.DateTimeFormat` itself, the thing `localDate` dates with, rather than checked
+ * against `Intl.supportedValuesOf("timeZone")`: that list is canonical names only and, in bun 1.4,
+ * leaves out names a phone really reports (Asia/Kolkata, Asia/Ho_Chi_Minh, Europe/Kyiv, Etc/UTC).
+ */
 export function isTimezone(v: unknown): v is string {
-  return typeof v === "string" && ZONES.has(v);
+  if (typeof v !== "string" || v.length === 0 || v.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: v });
+    return true;
+  } catch {
+    return false;
+  }
 }

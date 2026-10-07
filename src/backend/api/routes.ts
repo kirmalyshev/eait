@@ -740,6 +740,8 @@ export function createRouter(
           if (!isPushTokenRequest(body)) return json({ error: "push token required" }, 400);
           await store.putPushToken(userId, body.token, body.platform);
           if (isTimezone(body.timezone)) await store.setTimezone(userId, body.timezone);
+          // Counted, never quoted: the value is the caller's and the log is nobody's business.
+          else if (body.timezone !== undefined) console.log("[eait] push token: ignored a timezone this runtime cannot date with");
           return json({ registered: true } satisfies PushTokenResponse);
         }
         const token = (body as { token?: unknown } | null)?.token;

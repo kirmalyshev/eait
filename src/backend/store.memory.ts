@@ -749,6 +749,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       for (const [t, row] of pushTokens) {
         if (row.userId === fromUserId) pushTokens.set(t, { ...row, userId: intoUserId });
       }
+      // The day's slot moves too, never over a day the survivor already holds (see store.pg).
+      for (const [k, kind] of [...pushSlots]) {
+        if (!k.startsWith(`${fromUserId}|`)) continue;
+        const into = `${intoUserId}|${k.slice(fromUserId.length + 1)}`;
+        if (!pushSlots.has(into)) pushSlots.set(into, kind);
+        pushSlots.delete(k);
+      }
+      for (const [id, r] of sendLog) if (r.userId === fromUserId) sendLog.set(id, { ...r, userId: intoUserId });
 
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
@@ -763,6 +771,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       roles.delete(fromUserId);
       // The claim stamp dies with the row, like `createdAt` above: the surviving account's own
       // `last_notified_date` is the answer, and Postgres drops the merged-away one with the row.
+      const fromZone = timezones.get(fromUserId);
+      if (fromZone !== undefined && !timezones.has(intoUserId)) timezones.set(intoUserId, fromZone);
       timezones.delete(fromUserId);
       return moved;
     },
@@ -874,6 +884,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async pushAudience() {
       return [...new Set([...pushTokens.values()].map((r) => r.userId))]
         .map((userId) => ({ userId, timezone: timezones.get(userId) ?? null }));
+    },
+
+    async timezoneOf(userId) {
+      return timezones.get(userId) ?? null;
     },
 
     async setTimezone(userId, timezone) {

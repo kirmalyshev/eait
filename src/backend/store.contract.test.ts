@@ -1010,6 +1010,24 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(r.filter((x) => x.claimed).length).toBe(1);
       });
 
+      it("keeps the surviving account's own claim on a merge, and gives it the merged-away one's otherwise", async () => {
+        const s = await open();
+        const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+        const real = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.claimPushSlot(anon, "2026-10-08", "evening", "evening");
+        await s.claimPushSlot(anon, "2026-10-09", "campaign", "c1");
+        await s.claimPushSlot(real, "2026-10-09", "streak", "evening");
+        await s.setTimezone(anon, "Asia/Tokyo");
+
+        await s.mergeUsers(anon, real);
+
+        // today's line was already sent to the phone that is now `real`: no second one
+        expect(await s.claimPushSlot(real, "2026-10-08", "streak", null)).toEqual({ claimed: false, heldBy: "evening" });
+        // and a day both held stays the survivor's
+        expect(await s.claimPushSlot(real, "2026-10-09", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.timezoneOf(real)).toBe("Asia/Tokyo");
+      });
+
       it("refuses a claim for an account that does not exist", async () => {
         const s = await open();
         await expect(s.claimPushSlot(crypto.randomUUID(), "2026-10-08", "streak", null)).rejects.toThrow();
@@ -3647,9 +3665,32 @@ if (PG_URL) {
 
       const redeployed = await postgresStore(PG_URL, { maxConnections: 2 });
       expect(await redeployed.claimPushSlot(userId, "2026-10-08", "campaign", null))
-        .toEqual({ claimed: false, heldBy: "streak" });
+        .toEqual({ claimed: false, heldBy: "evening" });
       // and it is a claim for that day only
       expect(await redeployed.claimPushSlot(userId, "2026-10-09", "streak", null)).toEqual({ claimed: true });
+      await sql.end();
+    });
+  });
+}
+
+// ROLLING DEPLOY / ROLLBACK: the previous build claims on users.last_notified_date.
+if (PG_URL) {
+  describe("the evening line's legacy claim column", () => {
+    it("is read as a claimed day, written with every claim, and ignored for any other day", async () => {
+      const sql = await rawSql();
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+
+      // an OLD replica claims 2026-11-02 after this build has started
+      await sql`update users set last_notified_date = '2026-11-02' where id = ${userId}`;
+      expect(await store.claimPushSlot(userId, "2026-11-02", "campaign", null)).toEqual({ claimed: false, heldBy: "evening" });
+      // a day the old column does not name is free, and does not block a user whose phone is behind it
+      expect(await store.claimPushSlot(userId, "2026-11-01", "campaign", null)).toEqual({ claimed: true });
+
+      // and this build's claim keeps an old replica silent (it sends only when the column is older)
+      expect(await store.claimPushSlot(userId, "2026-11-03", "streak", null)).toEqual({ claimed: true });
+      const [row] = await sql`select last_notified_date from users where id = ${userId}`;
+      expect((row as Record<string, unknown>).last_notified_date).toBe("2026-11-03");
       await sql.end();
     });
   });

@@ -297,11 +297,14 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
 
       const message = await dailyNotification(deps, userId, date, now, zone);
       if (message === null) { result.skipped++; continue; }
-      const claim = await deps.store.claimPushSlot(userId, date, "streak", message.id);
+      // The subscriber's line reads the day against the plan (`streak`); everyone else's plain
+      // nudge is the lower `evening` kind.
+      const kind: PushKind = message.id === "evening" ? "streak" : "evening";
+      const claim = await deps.store.claimPushSlot(userId, date, kind, message.id);
       if (!claim.claimed) { result.skipped++; continue; } // slot-taken
       const out = await sendLogged(
         deps, userId, await deps.store.pushTokensFor(userId),
-        { kind: "streak", ref: message.id, templateKey: message.id, lang: message.lang },
+        { kind, ref: message.id, templateKey: message.id, lang: message.lang },
         { title: message.title, body: message.body, categoryId: LOG_REPLY_CATEGORY },
       );
       result.sent += out.sent; result.failed += out.failed; result.dropped += out.dropped;
@@ -350,7 +353,7 @@ export async function sendTestPush(
   if (devices.length === 0) return { ok: false, reason: "no-device" };
   const profile = await deps.store.getProfile(userId);
   if (!profile) return { ok: false, reason: "no-device" };
-  const zone = zoneOf(deps, (await deps.store.pushAudience()).find((r) => r.userId === userId)?.timezone ?? null);
+  const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", "admin-test");
   if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
   const copy = fillNotification(await notificationCopy(deps, profile.lang), "nudge", {});
@@ -363,7 +366,7 @@ export async function sendTestPush(
 }
 
 /** Receipts older than this are gone from Expo; the row stops waiting for one. */
-const RECEIPT_GIVE_UP_MS = 25 * 60 * 60 * 1000;
+const RECEIPT_GIVE_UP_MS = 24 * 60 * 60 * 1000;
 
 /**
  * The second half of a send, minutes later: read the receipts of accepted rows and settle them.
@@ -388,7 +391,8 @@ export async function collectPushReceipts(deps: EngineDeps, now: number = Date.n
   let dropped = 0;
   for (const row of waiting) {
     if (!receipts.has(row.ticketId!)) {
-      // Expo forgets a receipt after a day; stop asking, keep the state we know.
+      // Expo forgets a receipt after a day. The row leaves the queue (`receipt_at` set, reason
+      // recorded) so a pile of never-arriving ones cannot starve newer rows behind the page limit.
       if (now - Date.parse(row.createdAt) > RECEIPT_GIVE_UP_MS) {
         await deps.store.settleSend(row.userId, row.id, { state: row.state, receiptError: "no-receipt", receipt: true });
       }

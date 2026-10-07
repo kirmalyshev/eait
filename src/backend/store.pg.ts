@@ -243,7 +243,7 @@ alter table users add column if not exists timezone text;
 create table if not exists push_slot (
   user_id    uuid not null references users(id) on delete cascade,
   local_date text not null,
-  kind       text not null check (kind in ('trial','streak','onboarding','campaign')),
+  kind       text not null check (kind in ('trial','streak','evening','onboarding','campaign')),
   ref        text,
   created_at timestamptz not null default now(),
   primary key (user_id, local_date)
@@ -252,7 +252,7 @@ create table if not exists push_slot (
 create table if not exists send_log (
   id            text primary key,
   user_id       uuid not null references users(id) on delete cascade,
-  kind          text not null check (kind in ('trial','streak','onboarding','campaign','transactional')),
+  kind          text not null check (kind in ('trial','streak','evening','onboarding','campaign','transactional')),
   ref           text,
   template_key  text not null,
   lang          text not null,
@@ -268,7 +268,7 @@ create index if not exists send_log_user_idx on send_log(user_id, created_at des
 create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
 -- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
 insert into push_slot (user_id, local_date, kind, ref)
-  select id, last_notified_date, 'streak', 'evening' from users where last_notified_date is not null
+  select id, last_notified_date, 'evening', 'evening' from users where last_notified_date is not null
   on conflict do nothing;
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
@@ -1183,6 +1183,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   dropPushToken: 0,
   pushTokensFor: 0,
   setTimezone: 0,
+  timezoneOf: 0,
   claimPushSlot: 0,
   createSend: 0,
   settleSend: 0,
@@ -2056,6 +2057,18 @@ export async function postgresStore(
         // launch; leaving it on the emptied account would send that account's numbers to a phone
         // whose owner has since signed in as somebody else.
         await tx`update push_tokens set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // THE DAY'S SLOT MOVES TOO. The anonymous session may already have been sent today's line;
+        // a surviving account without it would be sent a second one. Never over a day the
+        // surviving account already holds (its claim stands), and the send history follows so a
+        // `sendId` in a delivered push still resolves.
+        await tx`
+          insert into push_slot (user_id, local_date, kind, ref, created_at)
+            select ${intoUserId}, local_date, kind, ref, created_at from push_slot where user_id = ${fromUserId}
+          on conflict (user_id, local_date) do nothing`;
+        await tx`update send_log set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        await tx`
+          update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
+          from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
 
         // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
         // working rather than silently start addressing someone else's diary.
@@ -2644,6 +2657,11 @@ export async function postgresStore(
       }));
     },
 
+    async timezoneOf(userId) {
+      const rows = await sql`select timezone from users where id = ${userId}`;
+      return ((rows[0] as Record<string, unknown> | undefined)?.timezone as string | null | undefined) ?? null;
+    },
+
     async setTimezone(userId, timezone) {
       await sql`update users set timezone = ${timezone} where id = ${userId}`;
     },
@@ -2651,10 +2669,24 @@ export async function postgresStore(
     async claimPushSlot(userId, localDate, kind, ref) {
       // The primary key IS the guard. A missing account fails the foreign key and throws, which is
       // louder than the old `claimEveningLine`'s false and right for a sender that must not go on.
+      //
+      // ROLLING DEPLOYS AND ROLLBACKS: the previous build claims the evening line on
+      // `users.last_notified_date`, and for one deploy both builds can be sending. So the old column
+      // is READ as a claimed day (exactly that day: a user who flew west must not be blocked by a
+      // date their phone has not reached) and WRITTEN with every claim, which keeps an old replica
+      // silent on a day this one took. Drop both when no old build can run.
+      const legacy = await sql`select 1 from users
+        where id = ${userId} and last_notified_date = ${localDate}
+          and not exists (select 1 from push_slot where user_id = ${userId} and local_date = ${localDate})`;
+      if (legacy.length > 0) return { claimed: false as const, heldBy: "evening" as PushKind };
       const won = await sql`insert into push_slot (user_id, local_date, kind, ref)
         values (${userId}, ${localDate}, ${kind}, ${ref})
         on conflict (user_id, local_date) do nothing returning kind`;
-      if (won.length > 0) return { claimed: true as const };
+      if (won.length > 0) {
+        await sql`update users set last_notified_date = ${localDate}
+          where id = ${userId} and (last_notified_date is null or last_notified_date < ${localDate})`;
+        return { claimed: true as const };
+      }
       const held = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
       return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
     },

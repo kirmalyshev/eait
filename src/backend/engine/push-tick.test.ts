@@ -28,8 +28,8 @@ beforeEach(() => {
 });
 
 let seq = 0;
-async function account(opts: { tz?: string; token?: string; trialExpires?: string } = {}): Promise<string> {
-  const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+async function account(opts: { tz?: string; token?: string; trialExpires?: string; lang?: "en" | "de" | "fr"; free?: boolean } = {}): Promise<string> {
+  const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), opts.lang ?? "en");
   await store.addIdentity(userId, "google", "g-" + userId.slice(0, 8));
   const out = await patchProfile(deps, userId, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
@@ -37,7 +37,7 @@ async function account(opts: { tz?: string; token?: string; trialExpires?: strin
     restrictions: [], complete_onboarding: true,
   });
   if (!out || !out.ok) throw new Error("onboarding failed");
-  await store.putEntitlement(userId, {
+  if (!opts.free) await store.putEntitlement(userId, {
     expiresAt: opts.trialExpires ?? PAID_UNTIL, productId: "com.eait.fit.ios.yearly",
     trial: opts.trialExpires !== undefined, eventAt: new Date(Date.now() + ++seq * 1000).toISOString(),
   });
@@ -230,5 +230,98 @@ describe("one bad account is not the whole tick", () => {
     console.error = () => {};
     try { await pushTick({ ...deps, store: flaky as Store }, { now: BERLIN_2030 }); } finally { console.error = err; }
     expect(push.sent).toHaveLength(1);
+  });
+});
+
+describe("who gets which kind", () => {
+  it("a subscriber's line claims `streak`, the plain nudge `evening`", async () => {
+    const sub = await account({ token: "ExponentPushToken[sub]" });
+    const free = await account({ free: true, token: "ExponentPushToken[free]" });
+    await pushTick(deps, { now: BERLIN_2030 });
+    expect((await store.sendLogFor(sub, 1))[0]?.kind).toBe("streak");
+    expect((await store.sendLogFor(free, 1))[0]).toMatchObject({ kind: "evening", templateKey: "nudge" });
+    expect(await store.claimPushSlot(free, "2026-08-20", "campaign", null)).toEqual({ claimed: false, heldBy: "evening" });
+  });
+});
+
+// Ported from the nightly sweep's tests: each is a regression that came from something real.
+describe("what the old sweep's tests guarded, on the tick", () => {
+  it("speaks each account's own language in one pass, never the first account's (#471)", async () => {
+    await account({ lang: "de", token: "ExponentPushToken[de]" });
+    await account({ lang: "fr", token: "ExponentPushToken[fr]" });
+    await account({ lang: "en", token: "ExponentPushToken[en]" });
+    await pushTick(deps, { now: BERLIN_2030 });
+    expect(push.sent).toHaveLength(3);
+    const titles = new Set(push.sent.map((m) => `${m.title}|${m.body}`));
+    expect(titles.size).toBe(3);
+    const rows = await Promise.all((await store.pushAudience()).map((a) => store.sendLogFor(a.userId, 1)));
+    expect(rows.flat().map((r) => r.lang).sort()).toEqual(["de", "en", "fr"]);
+  });
+
+  it("never puts a user's own words on a lock screen", async () => {
+    const userId = await account();
+    await store.insertMeal({
+      id: crypto.randomUUID(), user_id: userId, ts: "2026-08-20T12:00:00.000Z", date: "2026-08-20",
+      isFood: true, items: [{ name: "Zanzibar stew", grams: 200 }], kcal: 900, protein_g: 30,
+      carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
+      verdicts: {}, healthScore: null, confidence: "high", notes: "my private note", corrected: false, model: "test",
+    });
+    await pushTick(deps, { now: BERLIN_2030 });
+    const text = JSON.stringify(push.sent);
+    expect(text).not.toContain("Zanzibar");
+    expect(text).not.toContain("private note");
+  });
+
+  it("acts on no ticket for a token this send did not address (a stranger's ticket)", async () => {
+    const userId = await account({ token: "ExponentPushToken[mine]" });
+    const stranger = { ...push, send: async () => [{ token: "ExponentPushToken[stranger]", id: "x", error: "device-not-registered" as const }] };
+    const out = await (await import("./notify.ts")).sendLogged(
+      { ...deps, push: stranger }, userId, await store.pushTokensFor(userId),
+      { kind: "streak", ref: null, templateKey: "evening", lang: "en" }, { title: "t", body: "b" },
+    );
+    expect(out).toMatchObject({ sent: 0, dropped: 0 });
+    expect(await store.pushTokensFor(userId)).toHaveLength(1); // nothing deleted on a stranger's say-so
+    expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "refused", receiptError: "no-ticket" });
+  });
+
+  it("counts every message of a batch the service refused (the shape expoPush really produces) and keeps the tokens", async () => {
+    const userId = await account({ token: "ExponentPushToken[refused-a]" });
+    await store.putPushToken(userId, "ExponentPushToken[refused-b]", "ios");
+    const refusing = { ...push, send: async (ms: { to: string }[]) => ms.map((m) => ({ token: m.to, id: null, error: "other" as const })) };
+    const out = await pushTick({ ...deps, push: refusing }, { now: BERLIN_2030 });
+    expect(out).toMatchObject({ sent: 0, failed: 2, dropped: 0 });
+    expect(await store.pushTokensFor(userId)).toHaveLength(2);
+    expect((await store.sendLogFor(userId, 5)).every((r) => r.state === "refused")).toBe(true);
+  });
+
+  it("names no account and no device when a failure is logged", async () => {
+    const userId = await account({ token: "ExponentPushToken[named]" });
+    const flaky = { ...store, getProfile: async () => { throw new Error("db blip"); } };
+    const lines: string[] = [];
+    const err = console.error;
+    console.error = (...a: unknown[]) => { lines.push(a.join(" ")); };
+    try { await pushTick({ ...deps, store: flaky as Store }, { now: BERLIN_2030 }); } finally { console.error = err; }
+    expect(lines.length).toBeGreaterThan(0);
+    const all = lines.join("\n");
+    expect(all).not.toContain(userId);
+    expect(all).not.toContain("named");
+  });
+
+  it("a row whose receipt never comes leaves the queue after a day, and cannot starve a newer one", async () => {
+    const userId = await account();
+    await pushTick(deps, { now: BERLIN_2030 });
+    const silent = { ...push, receipts: async () => new Map<string, never>() };
+    await collectPushReceipts({ ...deps, push: silent }, Date.now() + 25 * 60 * MIN);
+    expect((await store.sendsAwaitingReceipt(10))).toEqual([]);
+    expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "accepted", receiptError: "no-receipt" });
+  });
+});
+
+describe("the admin test push reads the account's zone through a scoped getter", () => {
+  it("dates the slot in the account's own zone", async () => {
+    const userId = await account({ tz: "Asia/Tokyo" });
+    const now = Date.parse("2026-08-20T20:00:00Z"); // 05:00 on the 21st in Tokyo
+    expect(await sendTestPush(deps, userId, now)).toEqual({ ok: true, sent: 1 });
+    expect(await store.claimPushSlot(userId, "2026-08-21", "campaign", null)).toEqual({ claimed: false, heldBy: "campaign" });
   });
 });
