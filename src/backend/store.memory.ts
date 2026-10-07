@@ -958,7 +958,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         const key = `${day}|${r.kind}|${r.templateKey}`;
         const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, opened: 0, converted: 0 };
         row.sent++;
-        if (r.state === "accepted" || r.state === "delivered-to-apns") row.accepted++;
+        // `expired` (no receipt within 24 h) is accepted-but-unconfirmed, never dead.
+        if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) row.accepted++;
         if (r.state === "dead") row.dead++;
         if (pushOpens.has(r.id)) row.opened++;
         // [send, send + 24 h): a meal at the send's own instant counts, one a day later does not.

@@ -2966,7 +2966,7 @@ export async function postgresStore(
       const rows = await sql`
         select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
                count(*)::int as sent,
-               count(*) filter (where s.state in ('accepted', 'delivered-to-apns'))::int as accepted,
+               count(*) filter (where s.state in ('accepted', 'delivered-to-apns', 'expired'))::int as accepted,
                count(*) filter (where s.state = 'dead')::int as dead,
                count(o.send_id)::int as opened,
                count(*) filter (where exists (

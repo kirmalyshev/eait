@@ -99,7 +99,7 @@ export interface PushStatRow {
   templateKey: string;
   /** Every message handed to the sender, whatever became of it. */
   sent: number;
-  /** Expo took it (`accepted`) or Apple did (`delivered-to-apns`). */
+  /** Expo took it (`accepted`), Apple did (`delivered-to-apns`), or no receipt ever came (`expired`) — never `dead`. */
   accepted: number;
   dead: number;
   /** Sends the phone reported opened. */
