@@ -422,6 +422,7 @@ export function question(v: QuestionView): string {
     case "activity":
     case "diet":
     case "struggles":
+    case "streak":
     case "medical":
       return page(v, { control: optionControl(v) });
     case "age":
