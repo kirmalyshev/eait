@@ -13,7 +13,7 @@ import { dateMinus, isCalendarDate } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { trialReminder } from "../../shared/entitlement.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
-import { homeCopyFor, macroTip, type MacroTipKind } from "../../shared/app/home-copy.ts";
+import { homeCopyFor, macroTip, streakChip, type MacroTipKind } from "../../shared/app/home-copy.ts";
 import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { enqueue, inPlace, queueEl, queueLength, queuedMealIds } from "../queue.ts";
 import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -144,10 +144,8 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
     // The streak chip goes FIRST — Home's own item sits before the date row, not beside the
     // brand (the boards' wtop, design's ruling on #91).
     if (barStreak > 0) {
-      frame.bar.append(kitEl(tagx({
-        icon: "streak", text: n(barStreak),
-        aria: fill(L.phoneStreakAria, { n: n(barStreak) }),
-      })));
+      const chip = streakChip(barStreak, me.profile.streak_goal_days, lang, n);
+      frame.bar.append(kitEl(tagx({ icon: "streak", text: chip.text, aria: chip.aria })));
     }
     // The boards' `.calb` — the native date picker is the only bar control left (F, #335).
     frame.bar.append(cal.button, cal.input);

@@ -6,7 +6,8 @@
 
 import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
-  DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
+  DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
+  OnboardingContentSet, OnboardingEvent,
   Profile, Provider, PushKind,
 } from "@eait/shared";
 import {
@@ -197,6 +198,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `${userId}\n${date}` -> the typed weigh-in. One row per day — `putWeight` upserts, the last
   // write of a day winning, which is `on conflict` on Postgres and a `set` here.
   const weights = new Map<string, { userId: string; date: string; kg: number }>();
+  // The food catalog — global reference data, keyed on the row's own ids: food_ref on
+  // `<source>:<code>`, off_product on the barcode itself.
+  const foodRefs = new Map<string, FoodRef>();
+  const offProducts = new Map<string, OffProduct>();
   // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
   // rather than validated, because the whole point of those shapes is that no current type fits.
   let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
@@ -769,8 +774,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // own role is the answer; carrying one across would let an anonymous session hand an admin
       // grant to somebody else's account. Postgres gets this for free by not listing the column.
       roles.delete(fromUserId);
-      // The claim stamp dies with the row, like `createdAt` above: the surviving account's own
-      // `last_notified_date` is the answer, and Postgres drops the merged-away one with the row.
+      // The merged-away zone and slots were handled above (the zone only fills a gap); what is left
+      // of it dies with the row, as Postgres drops it.
       const fromZone = timezones.get(fromUserId);
       if (fromZone !== undefined && !timezones.has(intoUserId)) timezones.set(intoUserId, fromZone);
       timezones.delete(fromUserId);
@@ -988,6 +993,47 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async putNotificationCopy(lang, copy) {
       // Merged and migrated, for `putOnboardingContent`'s reasons.
       notificationCopy = clone({ ...legacyLanguageMap(notificationCopy), [lang]: copy }) as typeof notificationCopy;
+    },
+
+    // ── The food catalog ────────────────────────────────────────────────────────────────────
+
+    async searchFoods(query, limit) {
+      // Same match and same order as Postgres: case-insensitive substring in any of the three
+      // name columns, earliest position first, then shortest name, then alphabetical.
+      const needle = query.toLowerCase();
+      const score = (f: FoodRef) =>
+        Math.min(...[f.name, f.name_de, f.name_en]
+          .filter((n): n is string => n !== null)
+          .map((n) => { const i = n.toLowerCase().indexOf(needle); return i < 0 ? Infinity : i; }));
+      return [...foodRefs.values()]
+        .filter((f) => score(f) !== Infinity)
+        .sort((a, b) =>
+          score(a) - score(b) || a.name.length - b.name.length || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+        .slice(0, limit)
+        .map(clone);
+    },
+
+    async offProductByBarcode(barcode) {
+      const row = offProducts.get(barcode);
+      return row ? clone(row) : null;
+    },
+
+    async putFoodRefs(foodRows) {
+      for (const row of foodRows) foodRefs.set(row.id, clone(row));
+      return foodRows.length;
+    },
+
+    async putOffProducts(products) {
+      let written = 0;
+      for (const row of products) {
+        const existing = offProducts.get(row.barcode);
+        // The Postgres `where` clause, stated the same way: an `off` row may replace a
+        // `label-ocr` row only when the dump row carries a calorie figure.
+        if (existing && row.source === "off" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
+        offProducts.set(row.barcode, clone(row));
+        written++;
+      }
+      return written;
     },
 
     async recordOnboardingEvents(userId, events) {
@@ -1261,6 +1307,21 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (m.userId === userId && m.kind !== "photo" && m.mealId === mealId) { chat.splice(i, 1); n++; }
       }
       return n;
+    },
+    async deleteMealComments(userId, mealId) {
+      const mine = chat.filter((m) => m.userId === userId);
+      const untagged = (m: ChatMessage) => m.role === "assistant" && m.kind === "text" && m.mealId === null;
+      const doomed = new Set<string>();
+      mine.forEach((m, i) => {
+        if (m.role === "assistant" && m.kind === "text" && m.mealId === mealId) { doomed.add(m.id); return; }
+        // Legacy rows (before #1752) carry no meal id: they belong to the card they directly follow.
+        if (!untagged(m)) return;
+        let j = i - 1;
+        while (j >= 0 && untagged(mine[j]!)) j--;
+        if (j >= 0 && mine[j]!.kind === "meal" && mine[j]!.mealId === mealId) doomed.add(m.id);
+      });
+      for (let i = chat.length - 1; i >= 0; i--) if (doomed.has(chat[i]!.id)) chat.splice(i, 1);
+      return doomed.size;
     },
     async updateLineText(userId, lineId, text) {
       const m = chat.find((l) => l.id === lineId && l.userId === userId);

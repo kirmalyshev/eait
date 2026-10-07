@@ -20,7 +20,7 @@ import { clampDayOffset, emptyEstimate, type AnalyzedMeal } from "../llm/port.ts
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { applyCorrection, changeLine, dropOtherPendings, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
-import { remember } from "./chat.ts";
+import { afterCorrection, remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -400,6 +400,7 @@ async function keep(
   await remember(deps, userId, async () => {
     // The words go in when they are said, so a turn taken while a proposal sits lands after them.
     // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
+    let supersede: string | undefined;
     const lines: ChatAppend[] = [{
       role: "user", kind: "text", text, clientId, intent: how.intent, analysisId: how.analysisId,
       // A proposal's line names its proposal; the meal takes that id when confirmed. An AMENDED
@@ -411,7 +412,8 @@ async function keep(
     if (result.kind === "answered") {
       lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
-      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
+      // #1752: a re-date keeps its card; a correction writes none — the meal's own card updates in place.
+      if (result.kind === "redated") lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind, speaker: "gabie" });
       // #119: the ONE computed line — the coach's — names the change and what the verdicts did. A
       // correction always carried a focus meal; `before` being null is the target-gone case,
       // which returned before this thunk.
@@ -419,9 +421,9 @@ async function keep(
         const meal = await deps.store.getMeal(userId, result.mealId);
         const line = meal ? changeLine(before, meal, profile) : null;
         result.line = line;
-        if (line) lines.push({ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId: result.mealId });
+        if (meal) { const after = await afterCorrection(deps, userId, meal, result.totals, line); lines.push(...after.lines); supersede = after.supersede; }
       }
     }
-    return lines;
+    return { lines, supersede };
   });
 }

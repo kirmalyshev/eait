@@ -3165,6 +3165,142 @@
           }
         ]
       }
+    },
+    "/v1/foods": {
+      "get": {
+        "operationId": "get_foods",
+        "summary": "Search the generic-food catalog by name, in any language a source carries.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Name substring, case-insensitive.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size; capped server-side.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/products/{barcode}": {
+      "get": {
+        "operationId": "get_product",
+        "summary": "The barcoded product the catalog knows — a miss is `product: null`, not an error.",
+        "parameters": [
+          {
+            "name": "barcode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3704,6 +3840,7 @@
           "target_weight_kg",
           "pace",
           "struggles",
+          "streak_goal_days",
           "ontrack",
           "diet",
           "medical",
@@ -4246,6 +4383,230 @@
         ],
         "additionalProperties": false,
         "description": "The one offer a decline leads to: the cheaper yearly plan, its regular price struck through."
+      },
+      "FoodAttribution": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "citation": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "citation",
+          "url"
+        ],
+        "additionalProperties": false,
+        "description": "The citation a surface must show beside a source's data — `source` to name the database, `citation` the words its licence asks for, `url` the link-back."
+      },
+      "FoodNutrient": {
+        "type": "object",
+        "properties": {
+          "v": {
+            "type": "number"
+          },
+          "u": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "v",
+          "u"
+        ],
+        "additionalProperties": false,
+        "description": "One nutrient value as the source published it — per 100 g of edible portion, `u` its unit."
+      },
+      "FoodPortion": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "grams": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "grams"
+        ],
+        "additionalProperties": false,
+        "description": "A named serving — \"1 slice\", \"1 cup\" — with its weight in grams. What a diary entry needs."
+      },
+      "FoodRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "`<source>:<the source's own code>` — `bls:C131000`, `usda-fndds:2345187`."
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodSource"
+          },
+          "name": {
+            "type": "string",
+            "description": "The source's primary-language name — German for BLS, French for CIQUAL, English for USDA."
+          },
+          "name_de": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The German and English names where the source carries them — the columns search matches."
+          },
+          "name_en": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "names": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Names in any OTHER language the source publishes (FCDB's FR/IT, Frida's Danish)."
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kcal_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "protein_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "carbs_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fat_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "satfat_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fiber_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sugar_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sodium_mg_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nutrients": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FoodNutrient"
+            },
+            "description": "The source's FULL nutrient vector, keyed by the source's own code — `FASAT` for BLS, `606` for USDA — so no source's vocabulary is flattened into ours. `{}` when the row carries only macros."
+          },
+          "portions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodPortion"
+            },
+            "description": "Named servings with weights — the FNDDS \"1 slice\"/\"1 cup\" table. `[]` when the source has none."
+          },
+          "source_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A link back to the source's own record of this food, when it publishes one."
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "name",
+          "name_de",
+          "name_en",
+          "names",
+          "category",
+          "kcal_per_100g",
+          "protein_g_per_100g",
+          "carbs_g_per_100g",
+          "fat_g_per_100g",
+          "satfat_g_per_100g",
+          "fiber_g_per_100g",
+          "sugar_g_per_100g",
+          "sodium_mg_per_100g",
+          "nutrients",
+          "portions",
+          "source_url"
+        ],
+        "additionalProperties": false,
+        "description": "One generic food: the catalog row, the wire shape and the store row are the same object.\n\nThe eight macro columns are what `MealAnalysis` carries — a catalog row can become a meal item without a unit conversation first. They are NULLABLE on purpose: sources differ in completeness (BLS publishes 138 nutrients per food, a label photo may carry four), and a missing figure must read as missing rather than as zero."
+      },
+      "FoodSearchResponse": {
+        "type": "object",
+        "properties": {
+          "foods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodRef"
+            }
+          },
+          "attributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodAttribution"
+            }
+          }
+        },
+        "required": [
+          "foods",
+          "attributions"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/foods`: the generic foods whose names contain `q`, ranked closest-first, capped server- side. `attributions` carries the citation each source in the result owes — the client renders them rather than knowing which databases it searched."
+      },
+      "FoodSource": {
+        "type": "string",
+        "enum": [
+          "bls",
+          "ciqual",
+          "frida",
+          "fcdb",
+          "usda-foundation",
+          "usda-sr",
+          "usda-fndds",
+          "curated"
+        ]
       },
       "FoodTargets": {
         "type": "object",
@@ -5538,6 +5899,142 @@
       "MessageResponse": {
         "$ref": "#/components/schemas/HandleTextResult"
       },
+      "OffProduct": {
+        "type": "object",
+        "properties": {
+          "barcode": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProductSource"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "serving_g": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Declared serving in grams, parsed from \"15 g\" / \"1 Stück (30 g)\"."
+          },
+          "package_g": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Declared package size in grams (OFF `product_quantity`)."
+          },
+          "kcal_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "protein_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "carbs_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fat_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "satfat_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fiber_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sugar_g_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sodium_mg_per_100g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "nutriscore": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Nutri-Score a–e as OFF carries it, or null."
+          },
+          "nova_group": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "NOVA processing group 1–4, or null."
+          },
+          "ingredients": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "What the row keeps of the source beyond the columns above — the OFF record's raw `nutriments` and category tags. `{}` for a label-OCR row, whose parse is the columns themselves."
+          }
+        },
+        "required": [
+          "barcode",
+          "source",
+          "name",
+          "brand",
+          "serving_g",
+          "package_g",
+          "kcal_per_100g",
+          "protein_g_per_100g",
+          "carbs_g_per_100g",
+          "fat_g_per_100g",
+          "satfat_g_per_100g",
+          "fiber_g_per_100g",
+          "sugar_g_per_100g",
+          "sodium_mg_per_100g",
+          "nutriscore",
+          "nova_group",
+          "ingredients",
+          "image_url",
+          "data"
+        ],
+        "additionalProperties": false,
+        "description": "One barcoded product. `barcode` is the identity — GTIN digits with no separators — so the dump ingest, the label-OCR write-back and the scan lookup all address the same row.\n\nEverything but the barcode is nullable or empty by design: a real OFF row may be little more than a name and the seven label fields."
+      },
       "OnboardingAction": {
         "type": "string",
         "enum": [
@@ -5859,6 +6356,7 @@
           "target",
           "pace",
           "struggles",
+          "streak",
           "diet",
           "medical",
           "country"
@@ -6077,6 +6575,17 @@
               }
             ],
             "description": "The \"what's been hard\" picks — stored, so `null` = not asked and `[]` = asked, nothing picked. Resume reads that difference; a client sending `null` clears it back to unasked."
+          },
+          "streak_goal_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreakGoal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The streak length aimed for; `null` clears it back to unasked."
           },
           "country": {
             "type": [
@@ -6412,6 +6921,44 @@
         "additionalProperties": false,
         "description": "The goal's arc for `WeightsResponse.projection` — where the plan started, where the last weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null` carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback band, or a delta pointed away from the target each mean there is nothing to draw, and `null` is what those answer rather than an invented figure.\n\n`startKg` is the weight the arc begins at — the earliest weigh-in logged on or after onboarding (the row the onboarding `PATCH` writes), never a health backfill from before it; with none that young it is the earliest logged weight at all, and with none at all it is `currentKg`. When the newest weigh-in has drifted back past that start — further from the target than the plan began — `startKg` is `currentKg` instead, so the headline, the \"down\" figure and \"to go\" describe the one distance that is left (`ieat-app#1486`). `month` is localized in the account's language; past `beyondHorizon` it is still computed, and the client draws \"over two years\" instead."
       },
+      "ProductResponse": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OffProduct"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FoodAttribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "product",
+          "attribution"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/products/:barcode`. `product` is null on a miss — an ordinary answer, since a miss is where the label-read path begins — and `attribution` is null with it, so the two can never be drawn apart."
+      },
+      "ProductSource": {
+        "type": "string",
+        "enum": [
+          "off",
+          "label-ocr"
+        ]
+      },
       "Profile": {
         "type": "object",
         "properties": {
@@ -6519,6 +7066,17 @@
             ],
             "description": "The \"what's been hard\" picks, stored in LIST order (`STRUGGLES`). `null` = the question was never asked — that distinction is what resume checks: an empty array is an answer, `null` is an interruption."
           },
+          "streak_goal_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreakGoal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it."
+          },
           "country": {
             "type": [
               "string",
@@ -6574,6 +7132,7 @@
           "pace",
           "units",
           "struggles",
+          "streak_goal_days",
           "country",
           "restrictions",
           "medical_limitations",
@@ -6606,6 +7165,7 @@
               "pace",
               "units",
               "struggles",
+              "streak_goal_days",
               "country",
               "restrictions",
               "diet",
@@ -6980,6 +7540,14 @@
           "other"
         ],
         "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
+      },
+      "StreakGoal": {
+        "type": "number",
+        "enum": [
+          7,
+          14,
+          30
+        ]
       },
       "Struggle": {
         "type": "string",

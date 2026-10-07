@@ -200,9 +200,10 @@ describe("editLine", () => {
     expect(meal?.photos).toBe(2);
     expect((await store.getLine(userId, lineId))?.text).toBe("rice, and an egg");
     const after = await thread(d, userId);
-    // The photo line updates in place; a re-read that changed numbers appends the one computed
-    // line and nothing else.
-    expect(after.map((e) => e.id)).toEqual([...before.map((e) => e.id), after.at(-1)!.id]);
+    // The photo line and the card stay where they are; the meal's earlier comments are replaced by
+    // the change line (#1752).
+    const kept = (t: typeof after) => t.filter((e) => !(e.role === "assistant" && e.kind === "text")).map((e) => e.id);
+    expect(kept(after)).toEqual(kept(before));
     expect(after.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
     expect(events.some((e) => e.kind === "item")).toBe(true);
   });

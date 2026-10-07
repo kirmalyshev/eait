@@ -33,7 +33,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type ActivityLevel, type MealRecord } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type ActivityLevel, type FoodRef, type MealRecord, type OffProduct } from "@eait/shared";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -1488,6 +1488,21 @@ function contract(name: string, make: () => Promise<Store>) {
         expect((await lines(other)).map((l) => [l.kind, l.mealId])).toEqual([["photo", om.id], ["meal", om.id]]);
       });
 
+      it("deletes the assistant's comments on a meal and neither its cards nor the user's words (#1752)", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+          { role: "assistant", kind: "text", text: "Sodium is high", mealId: m.id },
+          { role: "user", kind: "text", text: "half that", mealId: m.id },
+          { role: "assistant", kind: "text", text: "unrelated" },
+        ]);
+        expect(await s.deleteMealComments(other, m.id)).toBe(0);
+        expect(await s.deleteMealComments(u, m.id)).toBe(1);
+        expect((await lines(u)).map((l) => [l.kind, l.text])).toEqual([["meal", null], ["text", "half that"], ["text", "unrelated"]]);
+      });
+
       it("replaces a line's text, for its owner only", async () => {
         const s = await open();
         const u = await user(); const other = await user();
@@ -2537,6 +2552,129 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.pruneHealthDaysBefore("2001-01-02")).toBeGreaterThanOrEqual(2);
       expect((await s.healthDaysSince(a, "0000-01-01")).map((d) => d.date)).toEqual(["2001-01-02"]);
       expect(await s.healthDaysSince(b, "0000-01-01")).toEqual([]);
+    });
+
+    // ── The food catalog ──────────────────────────────────────────────────────────────────────
+    //
+    // GLOBAL tables — no user anywhere, which is the point of running these here: the suite above
+    // proves scoping on every method that takes a userId, and these prove the catalog needs none.
+
+    describe("the food catalog", () => {
+      // Ids and barcodes carry this RUN's tag so a re-run on the same database is an upsert, not
+      // a collision with the previous suite's fixtures.
+      const ref = (over: Partial<FoodRef> & { id: string; name: string }): FoodRef => ({
+        source: "bls", name_de: null, name_en: null, names: {}, category: null,
+        kcal_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null,
+        fat_g_per_100g: null, satfat_g_per_100g: null, fiber_g_per_100g: null,
+        sugar_g_per_100g: null, sodium_mg_per_100g: null,
+        nutrients: {}, portions: [], source_url: null,
+        ...over,
+      });
+      const prod = (over: Partial<OffProduct> & { barcode: string }): OffProduct => ({
+        source: "off", name: "", brand: null, serving_g: null, package_g: null,
+        kcal_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null,
+        fat_g_per_100g: null, satfat_g_per_100g: null, fiber_g_per_100g: null,
+        sugar_g_per_100g: null, sodium_mg_per_100g: null,
+        nutriscore: null, nova_group: null, ingredients: null, image_url: null, data: {},
+        ...over,
+      });
+      const barcode = (tag: string) => `${RUN}${tag}`.replace(/\D/g, "7").slice(0, 13).padEnd(13, "0");
+
+      it("stores a generic food and finds it by name, case-insensitively", async () => {
+        const s = await open();
+        await s.putFoodRefs([
+          ref({ id: `${RUN}:f1`, name: `${RUN} Haferflocken` }),
+          ref({ id: `${RUN}:f2`, name: `${RUN} Vollkornbrot` }),
+        ]);
+        const hits = await s.searchFoods(`${RUN} hafer`, 10);
+        expect(hits.map((f) => f.id)).toEqual([`${RUN}:f1`]);
+      });
+
+      it("matches name_de and name_en as well as the primary name", async () => {
+        const s = await open();
+        await s.putFoodRefs([
+          ref({ id: `${RUN}:de1`, name: `${RUN} Hafer`, name_en: `${RUN}-en-oat` }),
+          ref({ id: `${RUN}:de2`, name: `${RUN} Gerste`, name_de: `${RUN}-de-barley` }),
+        ]);
+        expect((await s.searchFoods(`${RUN}-en-oat`, 10)).map((f) => f.id)).toEqual([`${RUN}:de1`]);
+        expect((await s.searchFoods(`${RUN}-de-barley`, 10)).map((f) => f.id)).toEqual([`${RUN}:de2`]);
+      });
+
+      it("ranks the earliest match first, then the shortest name", async () => {
+        const s = await open();
+        await s.putFoodRefs([
+          ref({ id: `${RUN}:r1`, name: `Vollkorn-${RUN}-Hafer` }),  // the match lands mid-name
+          ref({ id: `${RUN}:r2`, name: `${RUN}-Hafer` }),          // and here at position 0
+        ]);
+        const hits = await s.searchFoods(`${RUN}-hafer`, 10);
+        expect(hits.map((f) => f.id)).toEqual([`${RUN}:r2`, `${RUN}:r1`]);
+      });
+
+      it("bounds the answer at the limit the caller passed", async () => {
+        const s = await open();
+        await s.putFoodRefs(Array.from({ length: 5 }, (_, i) =>
+          ref({ id: `${RUN}:lim${i}`, name: `${RUN} limit ${i}` })));
+        expect((await s.searchFoods(`${RUN} limit`, 2)).length).toBe(2);
+      });
+
+      it("upserts a food by id — a newer dump replaces the row rather than adding one", async () => {
+        const s = await open();
+        await s.putFoodRefs([ref({ id: `${RUN}:up1`, name: `${RUN} old`, kcal_per_100g: 10 })]);
+        await s.putFoodRefs([ref({ id: `${RUN}:up1`, name: `${RUN} new`, kcal_per_100g: 20 })]);
+        const mine = (await s.searchFoods(`${RUN} `, 50)).filter((f) => f.id === `${RUN}:up1`);
+        expect(mine.length).toBe(1);
+        expect(mine[0]!.name).toBe(`${RUN} new`);
+        expect(mine[0]!.kcal_per_100g).toBe(20);
+      });
+
+      it("keeps the source's whole nutrient vector, and the portions, verbatim", async () => {
+        const s = await open();
+        await s.putFoodRefs([ref({
+          id: `${RUN}:nut`, name: `${RUN} nut`,
+          nutrients: { FASAT: { v: 1.2, u: "g" }, VITC: { v: 12, u: "mg" } },
+          portions: [{ label: "1 slice", grams: 30 }],
+        })]);
+        const [hit] = await s.searchFoods(`${RUN} nut`, 10);
+        expect(hit!.nutrients["FASAT"]).toEqual({ v: 1.2, u: "g" });
+        expect(hit!.portions).toEqual([{ label: "1 slice", grams: 30 }]);
+      });
+
+      it("answers the barcoded product, and null for one it does not know", async () => {
+        const s = await open();
+        await s.putOffProducts([prod({ barcode: barcode("1"), name: `${RUN} Nutella`, kcal_per_100g: 539 })]);
+        const hit = await s.offProductByBarcode(barcode("1"));
+        expect(hit?.name).toBe(`${RUN} Nutella`);
+        expect(await s.offProductByBarcode("9999999999999")).toBeNull();
+      });
+
+      it("upserts a product by barcode rather than duplicating it", async () => {
+        const s = await open();
+        await s.putOffProducts([prod({ barcode: barcode("2"), name: `${RUN} v1` })]);
+        await s.putOffProducts([prod({ barcode: barcode("2"), name: `${RUN} v2`, kcal_per_100g: 100 })]);
+        const hit = await s.offProductByBarcode(barcode("2"));
+        expect(hit?.name).toBe(`${RUN} v2`);
+        expect(hit?.kcal_per_100g).toBe(100);
+      });
+
+      it("never lets an empty OFF row erase a label-ocr contribution", async () => {
+        const s = await open();
+        // The write-back path: a phone read the label and the catalog kept it.
+        await s.putOffProducts([prod({ barcode: barcode("3"), source: "label-ocr", name: `${RUN} scanned`, kcal_per_100g: 250 })]);
+        // Then a dump ingest arrives knowing nothing but the name.
+        await s.putOffProducts([prod({ barcode: barcode("3"), source: "off", name: `${RUN} sparse` })]);
+        const hit = await s.offProductByBarcode(barcode("3"));
+        expect(hit?.source).toBe("label-ocr");
+        expect(hit?.kcal_per_100g).toBe(250);
+      });
+
+      it("lets an OFF row that carries real content replace a contributed one", async () => {
+        const s = await open();
+        await s.putOffProducts([prod({ barcode: barcode("4"), source: "label-ocr", name: `${RUN} scanned`, kcal_per_100g: 250 })]);
+        await s.putOffProducts([prod({ barcode: barcode("4"), source: "off", name: `${RUN} enriched`, kcal_per_100g: 251 })]);
+        const hit = await s.offProductByBarcode(barcode("4"));
+        expect(hit?.source).toBe("off");
+        expect(hit?.name).toBe(`${RUN} enriched`);
+      });
     });
   });
 }
@@ -3602,11 +3740,11 @@ if (PG_URL) {
         "adminListUsers", "adminMetrics", "claimJob", "claimPairingCode",
         "countClipAnalyses", "countGlobalAnalyses", "createUser", "expireJobs", "forgetJobs", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
-        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions",
+        "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
         "pruneHealthDaysBefore", "pushAudience",
-        "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
-        "releaseJobs", "revokeToken", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
+        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushToken",
+        "releaseJobs", "revokeToken", "searchFoods", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken",
       ]);
     });

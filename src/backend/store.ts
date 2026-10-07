@@ -17,6 +17,7 @@ import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
+import type { FoodRef, OffProduct } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
 /**
@@ -1015,6 +1016,40 @@ export interface Store {
    */
   adminMetrics(query: AdminMetricsQuery): Promise<AdminMetrics>;
 
+  // ── The food catalog (`food_ref`, `off_product`) ─────────────────────────────────────────────
+  //
+  // GLOBAL, like the prompts above and for the same reason: a BLS oat or a jar of Nutella is not
+  // anybody's data, so these methods take no `userId` and sit in `unscoped` in SCOPE. The tables
+  // carry no `user_id`, so the row-level policies never see them at all.
+  //
+  // The WRITE side is the ingest: the bulk loaders in `scripts/` pour a source's rows through
+  // `putFoodRefs`/`putOffProducts`, and the same two statements are what a future label-OCR
+  // write-back calls with a batch of one — which is why `off_product` is keyed on the barcode
+  // itself rather than a synthetic id.
+
+  /**
+   * The generic foods whose `name`, `name_de` or `name_en` contains `query`, case-insensitive —
+   * closest match first (the name the needle lands earliest in), then the shortest name, then
+   * alphabetical, so both stores order identically. At most `limit`, which the engine clamps.
+   */
+  searchFoods(query: string, limit: number): Promise<FoodRef[]>;
+  /** One barcoded product, or null — a miss is the common case and the label-read path's cue. */
+  offProductByBarcode(barcode: string): Promise<OffProduct | null>;
+  /**
+   * Upsert generic foods by `id`. Returns the number of rows written — an ingest reports it,
+   * and a test reads whether an upsert landed.
+   */
+  putFoodRefs(rows: FoodRef[]): Promise<number>;
+  /**
+   * Upsert products by `barcode`. Returns the number of rows written.
+   *
+   * One rule of precedence, stated HERE rather than by the callers: a `label-ocr` row is a phone's
+   * read of the actual package, so a dump row (`source: 'off'`) may overwrite it only when the
+   * dump row carries a calorie figure — an empty OFF row never displaces a contributed one. A
+   * `label-ocr` row always lands.
+   */
+  putOffProducts(rows: OffProduct[]): Promise<number>;
+
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   /** False when a meal with this id already exists — a confirm racing itself; the first one won. */
   insertMeal(record: MealRecord): Promise<boolean>;
@@ -1119,6 +1154,8 @@ export interface Store {
   deleteLine(userId: string, lineId: string): Promise<boolean>;
   /** Every non-photo line naming the caller's meal — its cards and what was said about it; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
   deleteMealLines(userId: string, mealId: string): Promise<number>;
+  /** The assistant's TEXT lines naming the caller's meal — the verdicts and change lines said about it; how many went. Its cards and the user's words stay (#1752). */
+  deleteMealComments(userId: string, mealId: string): Promise<number>;
   /** True when the caller's line existed and now holds `text`. */
   updateLineText(userId: string, lineId: string, text: string | null): Promise<boolean>;
   /**
@@ -1403,7 +1440,7 @@ export function blankProfile(userId: string, lang: Lang): Profile {
   return {
     user_id: userId, lang, goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, country: null,
+    units: null, struggles: null, streak_goal_days: null, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
   };

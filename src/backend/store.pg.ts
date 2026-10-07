@@ -16,10 +16,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
 import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
-  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
-  OnboardingContentSet, Profile, Provider, Struggle,
+  DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
+  MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
+  OnboardingContentSet, Profile, Provider, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -228,6 +229,11 @@ alter table users add column if not exists role text not null default 'user';
 -- is "asked, nothing picked". A not-null-with-default would erase that distinction.
 alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
+
+-- The streak length the user aims for (7, 14 or 30 days). NULL = never asked, which is what resume
+-- checks; Home's streak chip reads it. The vocabulary is checked on the write (engine/profile.ts)
+-- and again on the read, so a value from a newer binary is unrenderable here, not wrong.
+alter table users add column if not exists streak_goal_days integer;
 
 -- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
 -- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
@@ -873,6 +879,82 @@ create table if not exists weights (
 -- input, and a PATCH must not be able to write it -- recordConsent is the only writer.
 alter table users add column if not exists terms_accepted_at timestamptz;
 alter table users add column if not exists marketing_consent_at timestamptz;
+
+-- ── The food catalog ─────────────────────────────────────────────────────────────────────────
+--
+-- Reference data, not user data: no user_id, no RLS, and the methods over them are 'unscoped' in
+-- SCOPE -- the same standing onboarding_content already has.
+--
+-- food_ref is the GENERIC table: whole foods and staples, one row per (source, the source's own
+-- code). source is written out as a check constraint, drop-and-add like llm_prompts_key_check,
+-- for the same reason: the enum is where a reviewer sees which licences are in the database, and
+-- 'fcdb' is in it before its first row because Switzerland's table wants written permission for
+-- commercial use. 'curated' is the placeholder for a hand-maintained (restaurant) list.
+--
+-- The eight macro columns are the app's own nutrient list — a catalog row can become a meal item
+-- without a unit conversion — and all nullable: sources differ wildly in completeness and a
+-- missing figure is missing, never zero. nutrients keeps the source's WHOLE vector keyed by its
+-- own code (BLS's 138 components, USDA's numbered list), so nothing a source measured is thrown
+-- away; portions is the FNDDS "1 slice"/"1 cup" weight table, empty elsewhere.
+create table if not exists food_ref (
+  id                   text primary key,
+  source               text not null,
+  name                 text not null,
+  name_de              text,
+  name_en              text,
+  names                jsonb not null default '{}',
+  category             text,
+  kcal_per_100g        double precision,
+  protein_g_per_100g   double precision,
+  carbs_g_per_100g     double precision,
+  fat_g_per_100g       double precision,
+  satfat_g_per_100g    double precision,
+  fiber_g_per_100g     double precision,
+  sugar_g_per_100g     double precision,
+  sodium_mg_per_100g   double precision,
+  nutrients            jsonb not null default '{}',
+  portions             jsonb not null default '[]',
+  source_url           text,
+  updated_at           timestamptz not null default now()
+);
+alter table food_ref drop constraint if exists food_ref_source_check;
+alter table food_ref add constraint food_ref_source_check
+  check (source in ('bls', 'ciqual', 'frida', 'fcdb', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
+-- The search is a substring match over the three name columns, no index can serve it, and the
+-- table is single-digit thousands of rows: a scan is the right plan here.
+
+-- off_product is the BARCODED table: packaged products, keyed on the barcode itself (GTIN digits)
+-- because the scan, the dump ingest and the label-OCR write-back all address the same row that
+-- way. source distinguishes 'off' (the Open Food Facts nightly dump, ODbL -- the UI owes it the
+-- "Contains data from Open Food Facts" attribution in FOOD_ATTRIBUTION) from 'label-ocr' (a
+-- phone's read of the actual label, written back so the next scan of the same barcode is a hit).
+-- Everything but the barcode is nullable by design: a real OFF row is often a name and seven
+-- label fields.
+create table if not exists off_product (
+  barcode              text primary key,
+  source               text not null,
+  name                 text not null default '',
+  brand                text,
+  serving_g            double precision,
+  package_g            double precision,
+  kcal_per_100g        double precision,
+  protein_g_per_100g   double precision,
+  carbs_g_per_100g     double precision,
+  fat_g_per_100g       double precision,
+  satfat_g_per_100g    double precision,
+  fiber_g_per_100g     double precision,
+  sugar_g_per_100g     double precision,
+  sodium_mg_per_100g   double precision,
+  nutriscore           text,
+  nova_group           smallint,
+  ingredients          text,
+  image_url            text,
+  data                 jsonb not null default '{}',
+  updated_at           timestamptz not null default now()
+);
+alter table off_product drop constraint if exists off_product_source_check;
+alter table off_product add constraint off_product_source_check
+  check (source in ('off', 'label-ocr'));
 ${RLS_DDL}
 `;
 
@@ -897,6 +979,51 @@ const toPromptRevision = (r: Record<string, unknown>): PromptRevision => ({
   text: String(r.text),
   source: (r.source === "admin" ? "admin" : "shipped"),
   updated_at: new Date(r.updated_at as string).toISOString(),
+});
+
+/** A `food_ref` row as the wire shape — column names are already the field names. */
+const toFoodRef = (r: Record<string, unknown>): FoodRef => ({
+  id: String(r.id),
+  source: String(r.source) as FoodRef["source"],
+  name: String(r.name),
+  name_de: r.name_de === null || r.name_de === undefined ? null : String(r.name_de),
+  name_en: r.name_en === null || r.name_en === undefined ? null : String(r.name_en),
+  names: json<Record<string, string>>(r.names, {}),
+  category: r.category === null || r.category === undefined ? null : String(r.category),
+  kcal_per_100g: nullableNum(r.kcal_per_100g),
+  protein_g_per_100g: nullableNum(r.protein_g_per_100g),
+  carbs_g_per_100g: nullableNum(r.carbs_g_per_100g),
+  fat_g_per_100g: nullableNum(r.fat_g_per_100g),
+  satfat_g_per_100g: nullableNum(r.satfat_g_per_100g),
+  fiber_g_per_100g: nullableNum(r.fiber_g_per_100g),
+  sugar_g_per_100g: nullableNum(r.sugar_g_per_100g),
+  sodium_mg_per_100g: nullableNum(r.sodium_mg_per_100g),
+  nutrients: json<Record<string, FoodNutrient>>(r.nutrients, {}),
+  portions: json<FoodPortion[]>(r.portions, []),
+  source_url: r.source_url === null || r.source_url === undefined ? null : String(r.source_url),
+});
+
+/** An `off_product` row as the wire shape. */
+const toOffProduct = (r: Record<string, unknown>): OffProduct => ({
+  barcode: String(r.barcode),
+  source: String(r.source) as OffProduct["source"],
+  name: String(r.name),
+  brand: r.brand === null || r.brand === undefined ? null : String(r.brand),
+  serving_g: nullableNum(r.serving_g),
+  package_g: nullableNum(r.package_g),
+  kcal_per_100g: nullableNum(r.kcal_per_100g),
+  protein_g_per_100g: nullableNum(r.protein_g_per_100g),
+  carbs_g_per_100g: nullableNum(r.carbs_g_per_100g),
+  fat_g_per_100g: nullableNum(r.fat_g_per_100g),
+  satfat_g_per_100g: nullableNum(r.satfat_g_per_100g),
+  fiber_g_per_100g: nullableNum(r.fiber_g_per_100g),
+  sugar_g_per_100g: nullableNum(r.sugar_g_per_100g),
+  sodium_mg_per_100g: nullableNum(r.sodium_mg_per_100g),
+  nutriscore: r.nutriscore === null || r.nutriscore === undefined ? null : String(r.nutriscore),
+  nova_group: nullableNum(r.nova_group),
+  ingredients: r.ingredients === null || r.ingredients === undefined ? null : String(r.ingredients),
+  image_url: r.image_url === null || r.image_url === undefined ? null : String(r.image_url),
+  data: json<Record<string, unknown>>(r.data, {}),
 });
 
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
@@ -932,6 +1059,9 @@ function toProfile(r: UserRow): Profile {
     struggles: r.struggles === null || r.struggles === undefined
       ? null
       : ((r.struggles as string[]).filter((s) => (STRUGGLES as readonly string[]).includes(s)) as Struggle[]),
+    streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
+      ? (Number(r.streak_goal_days) as StreakGoal)
+      : null,
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -1006,7 +1136,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 
@@ -1150,6 +1280,12 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
 
+  // ── The food catalog: global reference data, like the copy tables above.
+  searchFoods: "unscoped",
+  offProductByBarcode: "unscoped",
+  putFoodRefs: "unscoped",
+  putOffProducts: "unscoped",
+
   // ── The pool itself, and the election that lives beside it on its own connection.
   tryLeadership: "raw",
   releaseLeadership: "raw",
@@ -1210,6 +1346,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   carrierLineFor: 0,
   deleteLine: 0,
   deleteMealLines: 0,
+  deleteMealComments: 0,
   updateLineText: 0,
   claimFirstVerdict: 0,
   releaseFirstVerdict: 0,
@@ -2304,6 +2441,85 @@ export async function postgresStore(
       return Number(rows[0]!.version);
     },
 
+    // ── The food catalog ────────────────────────────────────────────────────────────────────
+
+    async searchFoods(query, limit) {
+      // `%` and `_` in the needle are literals, not pattern chars — the query is a name fragment,
+      // never a LIKE the caller composes. `position` ranks the name the match lands earliest in.
+      const like = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      const needle = query.toLowerCase();
+      const rows = await sql`
+        select * from food_ref
+        where name ilike ${like} escape '\'
+           or coalesce(name_de, '') ilike ${like} escape '\'
+           or coalesce(name_en, '') ilike ${like} escape '\'
+        order by least(
+            nullif(position(${needle} in lower(name)), 0),
+            nullif(position(${needle} in lower(coalesce(name_de, ''))), 0),
+            nullif(position(${needle} in lower(coalesce(name_en, ''))), 0)
+          ), length(name), name
+        limit ${limit}`;
+      return rows.map(toFoodRef);
+    },
+
+    async offProductByBarcode(barcode) {
+      const rows = await sql`select * from off_product where barcode = ${barcode}`;
+      return rows[0] ? toOffProduct(rows[0]) : null;
+    },
+
+    async putFoodRefs(foodRows) {
+      if (foodRows.length === 0) return 0;
+      let written = 0;
+      // Batches of 500: one statement per food would make the BLS ingest a 7k-round-trip walk.
+      for (let i = 0; i < foodRows.length; i += 500) {
+        const batch = foodRows.slice(i, i + 500);
+        const back = await sql`
+          insert into food_ref ${sql(batch as never)}
+          on conflict (id) do update set
+            source = excluded.source, name = excluded.name,
+            name_de = excluded.name_de, name_en = excluded.name_en, names = excluded.names,
+            category = excluded.category,
+            kcal_per_100g = excluded.kcal_per_100g, protein_g_per_100g = excluded.protein_g_per_100g,
+            carbs_g_per_100g = excluded.carbs_g_per_100g, fat_g_per_100g = excluded.fat_g_per_100g,
+            satfat_g_per_100g = excluded.satfat_g_per_100g, fiber_g_per_100g = excluded.fiber_g_per_100g,
+            sugar_g_per_100g = excluded.sugar_g_per_100g, sodium_mg_per_100g = excluded.sodium_mg_per_100g,
+            nutrients = excluded.nutrients, portions = excluded.portions,
+            source_url = excluded.source_url, updated_at = now()
+          returning id`;
+        written += back.length;
+      }
+      return written;
+    },
+
+    async putOffProducts(products) {
+      if (products.length === 0) return 0;
+      let written = 0;
+      for (let i = 0; i < products.length; i += 500) {
+        const batch = products.slice(i, i + 500);
+        // THE PRECEDENCE RULE, IN THE STATEMENT: a `label-ocr` row is a phone's read of the real
+        // package, so an `off` row may replace it only when the dump row carries a calorie figure —
+        // an empty OFF record never erases a contributed one. `label-ocr` rows always land.
+        const back = await sql`
+          insert into off_product ${sql(batch as never)}
+          on conflict (barcode) do update set
+            source = excluded.source, name = excluded.name, brand = excluded.brand,
+            serving_g = excluded.serving_g, package_g = excluded.package_g,
+            kcal_per_100g = excluded.kcal_per_100g, protein_g_per_100g = excluded.protein_g_per_100g,
+            carbs_g_per_100g = excluded.carbs_g_per_100g, fat_g_per_100g = excluded.fat_g_per_100g,
+            satfat_g_per_100g = excluded.satfat_g_per_100g, fiber_g_per_100g = excluded.fiber_g_per_100g,
+            sugar_g_per_100g = excluded.sugar_g_per_100g, sodium_mg_per_100g = excluded.sodium_mg_per_100g,
+            nutriscore = excluded.nutriscore, nova_group = excluded.nova_group,
+            ingredients = excluded.ingredients, image_url = excluded.image_url,
+            data = excluded.data, updated_at = now()
+          where excluded.source <> 'off'
+             or off_product.source = 'off'
+             or excluded.kcal_per_100g is not null
+          returning barcode`;
+        written += back.length;
+      }
+      return written;
+    },
+
     async recordOnboardingEvents(userId, events) {
       if (events.length === 0) return 0;
       let added = 0;
@@ -2784,6 +3000,19 @@ export async function postgresStore(
     async deleteMealLines(userId, mealId) {
       if (!UUID.test(mealId)) return 0;
       const rows = await sql`delete from chat_messages where user_id = ${userId} and kind <> 'photo' and meal_id = ${mealId} returning id`;
+      return rows.length;
+    },
+    async deleteMealComments(userId, mealId) {
+      if (!UUID.test(mealId)) return 0;
+      // Rows from before #1752 carry no meal id: they belong to the card they directly follow.
+      const rows = await sql`
+        delete from chat_messages c where c.user_id = ${userId} and c.role = 'assistant' and c.kind = 'text'
+          and (c.meal_id = ${mealId} or (c.meal_id is null and exists (
+            select 1 from chat_messages card where card.user_id = c.user_id and card.kind = 'meal' and card.meal_id = ${mealId}
+              and card.seq < c.seq and not exists (
+                select 1 from chat_messages x where x.user_id = c.user_id and x.seq > card.seq and x.seq < c.seq
+                  and not (x.role = 'assistant' and x.kind = 'text' and x.meal_id is null)))))
+        returning c.id`;
       return rows.length;
     },
     async updateLineText(userId, lineId, text) {
