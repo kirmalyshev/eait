@@ -391,10 +391,10 @@ export async function collectPushReceipts(deps: EngineDeps, now: number = Date.n
   let dropped = 0;
   for (const row of waiting) {
     if (!receipts.has(row.ticketId!)) {
-      // Expo forgets a receipt after a day. The row leaves the queue (`receipt_at` set, reason
+      // Expo forgets a receipt after a day. The row leaves the queue (terminal `expired`, reason
       // recorded) so a pile of never-arriving ones cannot starve newer rows behind the page limit.
       if (now - Date.parse(row.createdAt) > RECEIPT_GIVE_UP_MS) {
-        await deps.store.settleSend(row.userId, row.id, { state: row.state, receiptError: "no-receipt", receipt: true });
+        await deps.store.settleSend(row.userId, row.id, { state: "expired", receiptError: "no-receipt", receipt: true });
       }
       continue;
     }
