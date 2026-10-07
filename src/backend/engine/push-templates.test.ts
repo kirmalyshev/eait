@@ -8,7 +8,7 @@ import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
 import { dailyNotification } from "./notify.ts";
 import {
-  listPushTemplates, reviewPushTemplate, rotatedVariant, savePushTemplate, sendableCopy,
+  listPushTemplates, reviewPushTemplate, rotatedVariant, savePushTemplate, sendLogUses, sendableCopy,
 } from "./push-templates.ts";
 
 const CONFIG: Config = {
@@ -171,5 +171,18 @@ describe("rotation port", () => {
     const uses = async () => [{ variant: "a", sentAt: NOW - day }];
     expect(await rotatedVariant("u", "evening", uses, NOW, ["a", "b"])).toBe("b");
     expect(await rotatedVariant("u", "evening", async () => [], NOW, ["a", "b"])).toBe("a");
+  });
+});
+
+describe("rotation over the real send_log", () => {
+  it("avoids a variant this user was sent in the last 7 days", async () => {
+    const now = Date.now();
+    await store.createSend(userId, {
+      id: crypto.randomUUID(), kind: "campaign", ref: null, templateKey: "evening", lang: "en",
+      variant: "default", token: "tok", state: "accepted",
+    });
+    const uses = sendLogUses(deps);
+    expect((await uses(userId, "evening")).map((u) => u.variant)).toEqual(["default"]);
+    expect(await rotatedVariant(userId, "evening", uses, now, ["default", "b"])).toBe("b");
   });
 });

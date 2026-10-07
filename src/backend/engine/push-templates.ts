@@ -137,12 +137,15 @@ export async function sendableCopy(
 /**
  * Rotation: the variant for this user, not used for them in the last 7 days.
  *
- * `uses` is a PORT — phase 1 (#1765) owns `send_log`; until it merges this reads a memory fake in
- * the tests and `noUses` in production, i.e. the first variant. Swapping the real reader in is one
- * line at the call site.
+ * `uses` is a port so tests can hand it a fixed history; `sendLogUses` is the real reader, over
+ * phase 1's `send_log` (#1765): this user's recent sends of this template key, by variant.
  */
 export type VariantUses = (userId: string, key: NotificationId) => Promise<{ variant: string; sentAt: number }[]>;
-export const noUses: VariantUses = async () => [];
+
+export const sendLogUses = (deps: EngineDeps): VariantUses => async (userId, key) =>
+  (await deps.store.sendLogFor(userId, 200))
+    .filter((r) => r.templateKey === key && r.variant !== null)
+    .map((r) => ({ variant: r.variant as string, sentAt: Date.parse(r.createdAt) }));
 
 export async function rotatedVariant(
   userId: string,
