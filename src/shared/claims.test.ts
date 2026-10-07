@@ -26,6 +26,7 @@ import { HEALTH_SCREEN_COPY } from "./health-copy.ts";
 import { ONBOARDING_CONTENT } from "./onboarding-content.ts";
 import { chatCopyFor } from "./onboarding-chat-copy.ts";
 import { projectionMonth } from "./projection.ts";
+import { PLAN_COPY } from "./app/plan-copy.ts";
 
 /** Every phrase the gate must refuse, by family and by language. */
 const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> = {
@@ -178,6 +179,16 @@ describe("every sentence this product ships", () => {
       };
       walk(copy, "");
       expect(lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
+    }
+  });
+
+  it("passes the claims gate over the plan reveal's own words, in all eight (#1692)", () => {
+    // The methodology note names an equation and a source at the moment of decision — exactly
+    // where a health claim would do the most harm, so the whole table walks the full set.
+    for (const lang of LANGS) {
+      const copy = PLAN_COPY[lang];
+      if (!copy) continue;
+      expect(lintCopy({ ...copy }).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
     }
   });
 
