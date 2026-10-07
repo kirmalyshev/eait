@@ -108,7 +108,26 @@ export async function afterLog(
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
   return capVerdictLines({ meal, targets: day.targets, verdicts: meal.verdicts, eatenToday: day.eatenToday }, day.lang)
-    .map((text) => ({ role: "assistant" as const, kind: "text" as const, text, speaker: "gabie" as const }));
+    .map((text) => ({ role: "assistant" as const, kind: "text" as const, text, speaker: "gabie" as const, mealId: meal.id }));
+}
+
+/**
+ * What a CORRECTED meal says under its card (#1752): the one change line (#119) and the cap lines
+ * recomputed from the corrected numbers. The card stays where it is — a correction writes none —
+ * and every earlier comment about this meal goes, so nothing in the thread describes numbers the
+ * meal no longer has.
+ */
+export async function afterCorrection(
+  deps: EngineDeps,
+  userId: string,
+  meal: MealRecord,
+  totals: DailyTotals,
+  changeLine: string | null,
+): Promise<ChatAppend[]> {
+  await deps.store.deleteMealComments(userId, meal.id);
+  const change: ChatAppend[] = changeLine
+    ? [{ role: "assistant", kind: "text", text: changeLine, speaker: "gabie", mealId: meal.id }] : [];
+  return [...change, ...await afterLog(deps, userId, meal, totals)];
 }
 
 /**

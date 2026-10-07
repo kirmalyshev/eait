@@ -1075,6 +1075,8 @@ export interface Store {
   deleteLine(userId: string, lineId: string): Promise<boolean>;
   /** Every non-photo line naming the caller's meal — its cards and what was said about it; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
   deleteMealLines(userId: string, mealId: string): Promise<number>;
+  /** The assistant's TEXT lines naming the caller's meal — the verdicts and change lines said about it; how many went. Its cards and the user's words stay (#1752). */
+  deleteMealComments(userId: string, mealId: string): Promise<number>;
   /** True when the caller's line existed and now holds `text`. */
   updateLineText(userId: string, lineId: string, text: string | null): Promise<boolean>;
   /**

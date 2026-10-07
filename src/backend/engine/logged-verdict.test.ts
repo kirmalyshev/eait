@@ -12,7 +12,7 @@ import type { LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
-import { chatHistory, logPhotoMeal, patchProfile, type EngineDeps } from "./index.ts";
+import { chatHistory, editMeal, logPhotoMeal, patchProfile, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -141,5 +141,37 @@ describe("the logged-meal verdict line", () => {
     await logPhotoMeal(deps, a, photo());
     const bt = (await thread(b)).map(text);
     expect(bt.some((x) => x.includes("one meal:"))).toBe(false);
+  });
+});
+
+// Kirill, prod 8 Oct (#1752): a correction is ONE meal message, and the comments under it are about
+// the corrected meal only — no card per event, no verdict line about numbers that are gone.
+describe("a correction keeps the thread about the corrected meal only", () => {
+  const cards = (t: { kind: string; mealId?: string | null }[], mealId: string) => t.filter((e) => e.kind === "meal" && e.mealId === mealId);
+
+  it("replaces the old verdict lines with the corrected meal's, and writes no second card", async () => {
+    deps = makeDeps(plates([0, 0, 300], [8, 1100]));
+    const userId = await onboard({ restrictions: ["ldl", "kidneys"] });
+    await logPhotoMeal(deps, userId, photo());
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error(res.kind);
+    await editMeal(deps, userId, res.mealId, { satfat_g: 9, sodium_mg: 300 });
+    const t = await thread(userId);
+    expect(cards(t, res.mealId)).toHaveLength(1);
+    const said = t.filter((e) => e.role === "assistant" && e.kind === "text").map(text);
+    expect(said.some((l) => l.includes("1,100"))).toBe(false);
+    expect(said.filter((l) => l.startsWith("Saturated fat")).length).toBe(1);
+    expect(said.some((l) => l.includes("9 of your 13g"))).toBe(true);
+  });
+
+  it("leaves no verdict line when the correction puts the meal back on plan", async () => {
+    deps = makeDeps(plates([0, 0, 300], [8, 1100]));
+    const userId = await onboard({ restrictions: ["ldl", "kidneys"] });
+    await logPhotoMeal(deps, userId, photo());
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error(res.kind);
+    await editMeal(deps, userId, res.mealId, { satfat_g: 1, sodium_mg: 100 });
+    const said = (await thread(userId)).filter((e) => e.role === "assistant" && e.kind === "text").map(text);
+    expect(said.some((l) => /Saturated fat|Sodium/.test(l) && l.includes("for one meal"))).toBe(false);
   });
 });

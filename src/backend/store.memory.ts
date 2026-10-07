@@ -1208,6 +1208,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       return n;
     },
+    async deleteMealComments(userId, mealId) {
+      let n = 0;
+      for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i]!;
+        if (m.userId === userId && m.role === "assistant" && m.kind === "text" && m.mealId === mealId) { chat.splice(i, 1); n++; }
+      }
+      return n;
+    },
     async updateLineText(userId, lineId, text) {
       const m = chat.find((l) => l.id === lineId && l.userId === userId);
       if (!m) return false;

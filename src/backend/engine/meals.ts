@@ -26,7 +26,7 @@ import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { afterLog, firstVerdict, remember } from "./chat.ts";
+import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
@@ -480,10 +480,7 @@ export async function editMeal(
   // SAME string rides the result — the screen that made the write is where it is shown first.
   const line = profile ? changeLine(existing, updated, profile) : null;
   if (opts.thread !== false) {
-    await remember(deps, userId, async () => [
-      { role: "assistant", kind: "meal", mealId, event: "updated", speaker: "gabie" },
-      ...(line ? [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId } as const] : []),
-    ]);
+    await remember(deps, userId, () => afterCorrection(deps, userId, updated, totals, line));
   }
   return {
     kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
@@ -762,7 +759,7 @@ export async function rewriteMeal(
   // #119: a re-read is an edit like any other — the same computed line names what it changed,
   // written only when the read actually moved something.
   const line = changeLine(existing, updated, profile);
-  if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie", mealId: existing.id }]);
+  await remember(deps, userId, () => afterCorrection(deps, userId, updated, totals, line));
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
     via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),

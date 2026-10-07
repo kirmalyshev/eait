@@ -283,28 +283,33 @@ export function mealIdOf(e: ThreadEntry): string | null {
 }
 
 /**
- * One meal, one place in the thread — its NEWEST mention, and nothing above it (#301).
+ * One meal, one message in the thread — at its FIRST place, showing its NEWEST mention (#301, #1752).
  *
- * The stored thread keeps a card per EVENT: logging writes one, every correction and re-date writes
- * another. `chatHistory` resolves each of them to the meal as it is NOW, so two cards for one meal
- * are not a history — they are the same numbers, the same verdicts and the same picture printed
- * twice, and one correction made the screen read as though the meal had been logged again. The live
- * result the screen renders before its page arrives is the same meal too, and is deduplicated here
- * against the stored card rather than by the accident of `mergeThread` dropping every live line.
+ * A correction updates the meal's own message in place: the card sits where the meal was logged and
+ * shows the meal as it is now, so what was said under it and what was said after it stay in order.
+ * Threads written before #1752 carry a card per correction and re-date (`chatHistory` resolves each
+ * to the meal as it is NOW, so they are the same numbers, picture and verdicts printed twice), and
+ * the live result the screen renders before its page arrives is the same meal too; all of those
+ * collapse here to the first card's place. A correction made after the first card scrolled out of
+ * the loaded pages leaves its card where it is — there is nothing above it to join.
  *
  * At render, not on the way in: the entries are what the server sent and what a page will reconcile
  * against, and a rule about what a reader may see twice belongs where the reader is.
  */
 export function oneCardPerMeal(entries: ThreadEntry[]): ThreadEntry[] {
-  const newest = new Map<string, number>();
+  const first = new Map<string, number>();
+  const newest = new Map<string, ThreadEntry>();
   entries.forEach((e, i) => {
     const id = mealIdOf(e);
-    if (id !== null) newest.set(id, i);
+    if (id === null) return;
+    if (!first.has(id)) first.set(id, i);
+    newest.set(id, e);
   });
-  if (newest.size === 0) return entries;
-  return entries.filter((e, i) => {
+  if (first.size === 0) return entries;
+  return entries.flatMap((e, i) => {
     const id = mealIdOf(e);
-    return id === null || newest.get(id) === i;
+    if (id === null) return [e];
+    return first.get(id) === i ? [newest.get(id)!] : [];
   });
 }
 

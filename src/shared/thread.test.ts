@@ -238,12 +238,12 @@ describe("oneCardPerMeal — #301", () => {
   const upd = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry =>
     ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m, speaker: null });
 
-  it("keeps only the newest card for a meal, in the newest one's place", () => {
+  it("keeps one card for a meal, in the FIRST card's place showing the newest (#1752)", () => {
     const first = card(meal("m1", 300));
     const between = said("Anything else?");
     const second = upd(meal("m1", 870));
     const kept = oneCardPerMeal(fromHistory([first, between, second]));
-    expect(kept.map((e) => e.id)).toEqual([between.id, second.id]);
+    expect(kept.map((e) => e.id)).toEqual([second.id, between.id]);
   });
 
   it("drops the stored card under a live result for the same meal, and keeps the live one", () => {
