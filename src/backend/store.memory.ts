@@ -7,7 +7,7 @@
 import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
-  Profile, Provider,
+  Profile, Provider, PushKind,
 } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
@@ -17,7 +17,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken, type SendLogRow,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -126,11 +126,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const entitlements = new Map<string, StoredWithClocks>();
   const freeAnalyses = new Map<string, number>(); // userId -> the admin's own sample size
   /**
-   * The evening line's claim stamp (the `last_notified_date` column). A map for the same reason
+   * Per-user push state kept beside the profile (`users.timezone`, `push_slot`, `send_log`). Maps for the same reason
    * `roles` and `consents` are: the column lives on `users`, not on `Profile`, and this store's
    * profiles hold only what the port declares.
    */
-  const lastNotified = new Map<string, string>();
+  const timezones = new Map<string, string>();
+  /** `push_slot`: `${userId}|${localDate}` -> the kind holding that day. */
+  const pushSlots = new Map<string, PushKind>();
+  const sendLog = new Map<string, SendLogRow>();
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
     a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
@@ -269,7 +272,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // that consented and was deleted keeps neither the record nor the timestamp.
     consents.delete(userId);
     // The evening line's claim goes with the account, like the consent stamp beside it.
-    lastNotified.delete(userId);
+    timezones.delete(userId);
+    for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
+    for (const [k, r] of sendLog) if (r.userId === userId) sendLog.delete(k);
     freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -758,7 +763,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       roles.delete(fromUserId);
       // The claim stamp dies with the row, like `createdAt` above: the surviving account's own
       // `last_notified_date` is the answer, and Postgres drops the merged-away one with the row.
-      lastNotified.delete(fromUserId);
+      timezones.delete(fromUserId);
       return moved;
     },
 
@@ -866,17 +871,52 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return out;
     },
 
-    async usersWithPushTokens() {
-      return [...new Set([...pushTokens.values()].map((r) => r.userId))];
+    async pushAudience() {
+      return [...new Set([...pushTokens.values()].map((r) => r.userId))]
+        .map((userId) => ({ userId, timezone: timezones.get(userId) ?? null }));
     },
 
-    async claimEveningLine(userId, date) {
-      // Same answer the Postgres `update … returning` gives: an id that names no account is false.
-      if (!users.has(userId)) return false;
-      const was = lastNotified.get(userId);
-      if (was !== undefined && was >= date) return false;
-      lastNotified.set(userId, date);
-      return true;
+    async setTimezone(userId, timezone) {
+      if (users.has(userId)) timezones.set(userId, timezone);
+    },
+
+    async claimPushSlot(userId, localDate, kind) {
+      // Postgres refuses an unknown account through the foreign key; so does this.
+      if (!users.has(userId)) throw new Error("push_slot: no such user");
+      const key = `${userId}|${localDate}`;
+      const held = pushSlots.get(key);
+      if (held !== undefined) return { claimed: false, heldBy: held };
+      pushSlots.set(key, kind);
+      return { claimed: true };
+    },
+
+    async createSend(userId, row) {
+      if (!users.has(userId)) throw new Error("send_log: no such user");
+      sendLog.set(row.id, {
+        ...row, userId, ticketId: null, receiptError: null,
+        createdAt: new Date().toISOString(), receiptAt: null,
+      });
+    },
+
+    async settleSend(userId, id, patch) {
+      const row = sendLog.get(id);
+      if (!row || row.userId !== userId) return;
+      sendLog.set(id, {
+        ...row, state: patch.state,
+        ticketId: patch.ticketId !== undefined ? patch.ticketId : row.ticketId,
+        receiptError: patch.receiptError !== undefined ? patch.receiptError : row.receiptError,
+        receiptAt: patch.receipt ? new Date().toISOString() : row.receiptAt,
+      });
+    },
+
+    async sendsAwaitingReceipt(limit) {
+      return [...sendLog.values()]
+        .filter((r) => r.state === "accepted" && r.ticketId !== null && r.receiptAt === null)
+        .slice(0, limit);
+    },
+
+    async sendLogFor(userId, limit) {
+      return [...sendLog.values()].filter((r) => r.userId === userId).reverse().slice(0, limit);
     },
 
     async getOnboardingContent() {

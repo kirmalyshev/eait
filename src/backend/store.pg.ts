@@ -14,6 +14,7 @@
 import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
+import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
   OnboardingContentSet, Profile, Provider, Struggle,
@@ -27,7 +28,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type SendLogRow, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -96,6 +97,8 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   onboarding_events: "user_id",
   chat_messages: "user_id",
   push_tokens: "user_id",
+  push_slot: "user_id",
+  send_log: "user_id",
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
@@ -231,6 +234,42 @@ alter table users add column if not exists struggles text[];
 -- restarted across 20:30 — cannot each send it, because the claim is the row, not a timer in one
 -- process. A claim, not a send: a crash in the gap costs that night, never a second message.
 alter table users add column if not exists last_notified_date text;
+
+-- Push p1 (ieat-app#1765). The one-a-day rule becomes one lock for EVERY sender: a row per
+-- (user, LOCAL day), first insert wins. users.timezone is the IANA zone the app reported on open;
+-- null falls back to the instance zone. last_notified_date stays as a column (a rollback of the
+-- code finds it) but nothing writes it any more; its state moves into push_slot once, below.
+alter table users add column if not exists timezone text;
+create table if not exists push_slot (
+  user_id    uuid not null references users(id) on delete cascade,
+  local_date text not null,
+  kind       text not null check (kind in ('trial','streak','onboarding','campaign')),
+  ref        text,
+  created_at timestamptz not null default now(),
+  primary key (user_id, local_date)
+);
+-- One row per message per device. id rides in the push data as sendId.
+create table if not exists send_log (
+  id            text primary key,
+  user_id       uuid not null references users(id) on delete cascade,
+  kind          text not null check (kind in ('trial','streak','onboarding','campaign','transactional')),
+  ref           text,
+  template_key  text not null,
+  lang          text not null,
+  variant       text,
+  token         text not null,
+  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry')),
+  ticket_id     text,
+  receipt_error text,
+  created_at    timestamptz not null default now(),
+  receipt_at    timestamptz
+);
+create index if not exists send_log_user_idx on send_log(user_id, created_at desc);
+create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
+-- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
+insert into push_slot (user_id, local_date, kind, ref)
+  select id, last_notified_date, 'streak', 'evening' from users where last_notified_date is not null
+  on conflict do nothing;
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
 -- stored value moves to the nearest of them; #1078 made it four — none / few / some / many — so
@@ -1091,7 +1130,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   onboardingFunnel: "unscoped",
   countGlobalAnalyses: "unscoped",
   countClipAnalyses: "unscoped",
-  usersWithPushTokens: "unscoped",
+  pushAudience: "unscoped",
+  sendsAwaitingReceipt: "unscoped",
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
@@ -1142,7 +1182,11 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putEntitlement: 0,
   dropPushToken: 0,
   pushTokensFor: 0,
-  claimEveningLine: 0,
+  setTimezone: 0,
+  claimPushSlot: 0,
+  createSend: 0,
+  settleSend: 0,
+  sendLogFor: 0,
   recordOnboardingEvents: 0,
   getMeal: 0,
   getMeals: 0,
@@ -2591,19 +2635,55 @@ export async function postgresStore(
       }));
     },
 
-    async usersWithPushTokens() {
-      const rows = await sql`select distinct user_id from push_tokens`;
-      return (rows as Record<string, unknown>[]).map((r) => r.user_id as string);
+    async pushAudience() {
+      const rows = await sql`
+        select u.id, u.timezone from users u
+        where exists (select 1 from push_tokens t where t.user_id = u.id)`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        userId: r.id as string, timezone: (r.timezone as string | null) ?? null,
+      }));
     },
 
-    async claimEveningLine(userId, date) {
-      // The claim IS the guard: strictly-later dates win, equal and earlier lose, and the losing
-      // replica's composed batch is simply never sent. `returning` so a row that matched nothing
-      // — an id that names no account — answers false like every other write here.
-      const rows = await sql`update users set last_notified_date = ${date}
-        where id = ${userId} and (last_notified_date is null or last_notified_date < ${date})
-        returning id`;
-      return rows.length > 0;
+    async setTimezone(userId, timezone) {
+      await sql`update users set timezone = ${timezone} where id = ${userId}`;
+    },
+
+    async claimPushSlot(userId, localDate, kind, ref) {
+      // The primary key IS the guard. A missing account fails the foreign key and throws, which is
+      // louder than the old `claimEveningLine`'s false and right for a sender that must not go on.
+      const won = await sql`insert into push_slot (user_id, local_date, kind, ref)
+        values (${userId}, ${localDate}, ${kind}, ${ref})
+        on conflict (user_id, local_date) do nothing returning kind`;
+      if (won.length > 0) return { claimed: true as const };
+      const held = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
+      return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
+    },
+
+    async createSend(userId, r) {
+      await sql`insert into send_log (id, user_id, kind, ref, template_key, lang, variant, token, state)
+        values (${r.id}, ${userId}, ${r.kind}, ${r.ref}, ${r.templateKey}, ${r.lang}, ${r.variant}, ${r.token}, ${r.state})`;
+    },
+
+    async settleSend(userId, id, patch) {
+      await sql`update send_log set
+          state = ${patch.state},
+          ticket_id = case when ${patch.ticketId !== undefined} then ${patch.ticketId ?? null} else ticket_id end,
+          receipt_error = case when ${patch.receiptError !== undefined} then ${patch.receiptError ?? null} else receipt_error end,
+          receipt_at = case when ${patch.receipt === true} then now() else receipt_at end
+        where id = ${id} and user_id = ${userId}`;
+    },
+
+    async sendsAwaitingReceipt(limit) {
+      const rows = await sql`select * from send_log
+        where state = 'accepted' and receipt_at is null and ticket_id is not null
+        order by created_at limit ${limit}`;
+      return (rows as Record<string, unknown>[]).map(sendRow);
+    },
+
+    async sendLogFor(userId, limit) {
+      const rows = await sql`select * from send_log where user_id = ${userId}
+        order by created_at desc, id limit ${limit}`;
+      return (rows as Record<string, unknown>[]).map(sendRow);
     },
 
     async appendChat(userId, lines) {
@@ -3256,3 +3336,15 @@ export async function postgresStore(
 
   return store;
 }
+
+function sendRow(r: Record<string, unknown>): SendLogRow {
+  return {
+    id: r.id as string, userId: r.user_id as string, kind: r.kind as SendKind, ref: (r.ref as string | null) ?? null,
+    templateKey: r.template_key as string, lang: r.lang as string, variant: (r.variant as string | null) ?? null,
+    token: r.token as string, state: r.state as SendLogState, ticketId: (r.ticket_id as string | null) ?? null,
+    receiptError: (r.receipt_error as string | null) ?? null,
+    createdAt: new Date(r.created_at as string).toISOString(),
+    receiptAt: r.receipt_at ? new Date(r.receipt_at as string).toISOString() : null,
+  };
+}
+

@@ -977,15 +977,76 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.pushTokensFor(theirs)).toEqual([]);
     });
 
-    it("lists the accounts the evening sweep has to visit, once each", async () => {
+    it("lists the accounts the push tick has to visit, once each, with their zone", async () => {
       const s = await open();
       const withToken = (await s.upsertDeviceUser(device(), "en")).userId;
       const without = (await s.upsertDeviceUser(device(), "en")).userId;
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-a]`, "ios");
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-b]`, "ios");
-      const users = await s.usersWithPushTokens();
-      expect(users.filter((u) => u === withToken)).toEqual([withToken]);
-      expect(users).not.toContain(without);
+      const rows = await s.pushAudience();
+      expect(rows.filter((r) => r.userId === withToken)).toEqual([{ userId: withToken, timezone: null }]);
+      expect(rows.map((r) => r.userId)).not.toContain(without);
+      await s.setTimezone(withToken, "Asia/Tokyo");
+      expect((await s.pushAudience()).find((r) => r.userId === withToken)?.timezone).toBe("Asia/Tokyo");
+    });
+
+    describe("push_slot and send_log", () => {
+      it("gives a local day to the first claim and names the holder to the second", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.claimPushSlot(u, "2026-10-08", "streak", "evening")).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1")).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(u, "2026-10-08", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(u, "2026-10-09", "campaign", "c1")).toEqual({ claimed: true });
+      });
+
+      it("lets exactly one of two racing claims win", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const r = await Promise.all([
+          s.claimPushSlot(u, "2026-10-08", "streak", null),
+          s.claimPushSlot(u, "2026-10-08", "streak", null),
+        ]);
+        expect(r.filter((x) => x.claimed).length).toBe(1);
+      });
+
+      it("refuses a claim for an account that does not exist", async () => {
+        const s = await open();
+        await expect(s.claimPushSlot(crypto.randomUUID(), "2026-10-08", "streak", null)).rejects.toThrow();
+      });
+
+      it("records a send, settles it from the ticket, then from the receipt", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = crypto.randomUUID();
+        await s.createSend(u, {
+          id, kind: "streak", ref: "evening", templateKey: "evening", lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-log]`, state: "queued",
+        });
+        await s.settleSend(u, id, { state: "accepted", ticketId: `t-${RUN}` });
+        expect((await s.sendsAwaitingReceipt(100)).map((r) => r.id)).toContain(id);
+        await s.settleSend(u, id, { state: "delivered-to-apns", receipt: true });
+        expect((await s.sendsAwaitingReceipt(100)).map((r) => r.id)).not.toContain(id);
+        const [row] = await s.sendLogFor(u, 5);
+        expect(row).toMatchObject({
+          id, userId: u, kind: "streak", state: "delivered-to-apns", ticketId: `t-${RUN}`, receiptError: null,
+        });
+        expect(row!.receiptAt).not.toBeNull();
+      });
+
+      it("keeps one account's send log out of another's", async () => {
+        const s = await open();
+        const a = (await s.upsertDeviceUser(device(), "en")).userId;
+        const b = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = crypto.randomUUID();
+        await s.createSend(a, {
+          id, kind: "transactional", ref: null, templateKey: "photo", lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-scope]`, state: "queued",
+        });
+        await s.settleSend(b, id, { state: "refused" }); // not b's row: must change nothing
+        expect((await s.sendLogFor(b, 5)).length).toBe(0);
+        expect((await s.sendLogFor(a, 5))[0]?.state).toBe("queued");
+      });
     });
 
     it("MOVES a device to the account an anonymous session merged into", async () => {
@@ -1004,7 +1065,7 @@ function contract(name: string, make: () => Promise<Store>) {
       // dead account would send it to a phone whose owner is now somebody else.
       expect(await s.pushTokensFor(real)).toEqual([{ token, platform: "ios" }]);
       expect(await s.pushTokensFor(anon)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(anon);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(anon);
     });
 
     it("erases push tokens when removing the last identity deletes the account", async () => {
@@ -1019,7 +1080,7 @@ function contract(name: string, make: () => Promise<Store>) {
       // not leave behind a device this server would go on pushing to every night.
       expect(await s.removeIdentity(userId, "device", deviceId)).toBe("account-deleted");
       expect(await s.pushTokensFor(userId)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(userId);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(userId);
     });
 
     it("erases push tokens with the account", async () => {
@@ -1028,7 +1089,7 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putPushToken(userId, `ExponentPushToken[${RUN}-erased]`, "ios");
       await s.deleteUser(userId);
       expect(await s.pushTokensFor(userId)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(userId);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(userId);
     });
 
     it("resolves a token to its user, and stops after revocation", async () => {
@@ -3528,7 +3589,7 @@ if (PG_URL) {
         "pruneHealthDaysBefore",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
         "releaseJobs", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
-        "userIdForToken", "usersWithPushTokens",
+        "pushAudience", "sendsAwaitingReceipt", "userIdForToken",
       ]);
     });
 

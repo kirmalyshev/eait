@@ -16,6 +16,7 @@ import { deleteMealById } from "./lines.ts";
 import { editMeal, logPhotoTurn, reanalyzeMeal, type LogPhotoInput } from "./meals.ts";
 import { textTurn } from "./text.ts";
 import { bounded } from "./turns.ts";
+import { sendLogged } from "./notify.ts";
 
 const LEASE_MS = 30_000;
 const HEARTBEAT_MS = 10_000;
@@ -375,8 +376,12 @@ async function pushCounted(deps: EngineDeps, userId: string, logged: MealLogged)
       left: rest >= 0 ? whole(rest) : null,
       over: rest < 0 ? whole(-rest) : null,
     });
-    const tickets = await deps.push.send(devices.map((d) => ({ to: d.token, ...copy, data: { mealId: logged.mealId } })));
-    for (const t of tickets) if (t.error === "device-not-registered") await deps.store.dropPushToken(userId, t.token);
+    // A reply to the user's own action: logged, never claims the slot (R1 counts outbound only).
+    await sendLogged(
+      deps, userId, devices,
+      { kind: "transactional", ref: logged.mealId, templateKey: "photo-counted", lang: profile.lang },
+      copy, { mealId: logged.mealId },
+    );
   } catch (e) {
     console.error(`[eait] queued photo push failed: ${(e as Error)?.message ?? e}`);
   }
@@ -394,8 +399,11 @@ async function pushUpdated(deps: EngineDeps, userId: string, updated: MealUpdate
       names: updated.analysis.items.map((i) => i.name).slice(0, 2).join(", "),
       kcal: `${whole(updated.analysis.kcal)}${unit}`, was: `${whole(wasKcal)}${unit}`,
     });
-    const tickets = await deps.push.send(devices.map((d) => ({ to: d.token, title, body: "", data: { mealId: updated.mealId } })));
-    for (const t of tickets) if (t.error === "device-not-registered") await deps.store.dropPushToken(userId, t.token);
+    await sendLogged(
+      deps, userId, devices,
+      { kind: "transactional", ref: updated.mealId, templateKey: "meal-updated", lang: profile.lang },
+      { title, body: "" }, { mealId: updated.mealId },
+    );
   } catch (e) {
     console.error(`[eait] queued update push failed: ${(e as Error)?.message ?? e}`);
   }

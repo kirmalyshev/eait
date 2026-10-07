@@ -15,7 +15,7 @@ export type PushKind = (typeof PUSH_KINDS)[number];
 export type SendKind = PushKind | "transactional";
 
 export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry"] as const;
-export type SendState = (typeof SEND_STATES)[number];
+export type SendLogState = (typeof SEND_STATES)[number];
 
 /** True when `a` takes the day over `b`. Equal kinds do not outrank each other. */
 export function outranks(a: PushKind, b: PushKind): boolean {

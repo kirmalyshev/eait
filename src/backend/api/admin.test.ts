@@ -1139,3 +1139,40 @@ describe("the per-account sample", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("the admin's test push (ieat-app#1765)", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  async function withDevice(): Promise<string> {
+    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    await store.putPushToken(userId, "ExponentPushToken[admin-test]", "ios");
+    return userId;
+  }
+
+  it("sends once, then refuses the same local day with the reason and who holds it", async () => {
+    const userId = await withDevice();
+    const first = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({ ok: true, sent: 1 });
+    const second = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
+    expect(second.status).toBe(409);
+    expect(await second.json()).toEqual({ ok: false, reason: "slot-taken", heldBy: "campaign" });
+  });
+
+  it("answers no-device for an account with none", async () => {
+    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const res = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ ok: false, reason: "no-device" });
+  });
+
+  it("shows the send log without a token, and is 404 to everyone but the admin", async () => {
+    const userId = await withDevice();
+    await admin("POST", `/admin/api/users/${userId}/push-test`, {});
+    const log = await (await admin("GET", `/admin/api/users/${userId}/push-log`)).json() as { sends: Record<string, unknown>[] };
+    expect(log.sends).toHaveLength(1);
+    expect(log.sends[0]).toMatchObject({ kind: "campaign", state: "accepted" });
+    expect(JSON.stringify(log)).not.toContain("ExponentPushToken");
+    expect((await admin("POST", `/admin/api/users/${userId}/push-test`, {}, "")).status).toBe(401);
+  });
+});
