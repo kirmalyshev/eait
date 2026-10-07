@@ -1209,12 +1209,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return n;
     },
     async deleteMealComments(userId, mealId) {
-      let n = 0;
-      for (let i = chat.length - 1; i >= 0; i--) {
-        const m = chat[i]!;
-        if (m.userId === userId && m.role === "assistant" && m.kind === "text" && m.mealId === mealId) { chat.splice(i, 1); n++; }
-      }
-      return n;
+      const mine = chat.filter((m) => m.userId === userId);
+      const untagged = (m: ChatMessage) => m.role === "assistant" && m.kind === "text" && m.mealId === null;
+      const doomed = new Set<string>();
+      mine.forEach((m, i) => {
+        if (m.role === "assistant" && m.kind === "text" && m.mealId === mealId) { doomed.add(m.id); return; }
+        // Legacy rows (before #1752) carry no meal id: they belong to the card they directly follow.
+        if (!untagged(m)) return;
+        let j = i - 1;
+        while (j >= 0 && untagged(mine[j]!)) j--;
+        if (j >= 0 && mine[j]!.kind === "meal" && mine[j]!.mealId === mealId) doomed.add(m.id);
+      });
+      for (let i = chat.length - 1; i >= 0; i--) if (doomed.has(chat[i]!.id)) chat.splice(i, 1);
+      return doomed.size;
     },
     async updateLineText(userId, lineId, text) {
       const m = chat.find((l) => l.id === lineId && l.userId === userId);

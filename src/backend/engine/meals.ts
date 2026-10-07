@@ -759,7 +759,7 @@ export async function rewriteMeal(
   // #119: a re-read is an edit like any other — the same computed line names what it changed,
   // written only when the read actually moved something.
   const line = changeLine(existing, updated, profile);
-  await remember(deps, userId, () => afterCorrection(deps, userId, updated, totals, line));
+  if (line) await remember(deps, userId, () => afterCorrection(deps, userId, updated, totals, line));
   return {
     kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
     via: "reanalysis", line, ...verdictWordsFor(updated.verdicts, profile.lang),

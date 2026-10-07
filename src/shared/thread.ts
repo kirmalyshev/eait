@@ -298,15 +298,29 @@ export function mealIdOf(e: ThreadEntry): string | null {
  */
 export function oneCardPerMeal(entries: ThreadEntry[]): ThreadEntry[] {
   const first = new Map<string, number>();
+  const count = new Map<string, number>();
   const newest = new Map<string, ThreadEntry>();
   entries.forEach((e, i) => {
     const id = mealIdOf(e);
     if (id === null) return;
     if (!first.has(id)) first.set(id, i);
+    count.set(id, (count.get(id) ?? 0) + 1);
     newest.set(id, e);
   });
   if (first.size === 0) return entries;
+  // A corrected meal's old verdict lines (written before #1752, tied to no meal id) are the stored
+  // lines directly under its first card; they describe numbers it no longer has.
+  const stale = new Set<number>();
+  for (const [id, at] of first) {
+    if ((count.get(id) ?? 0) < 2) continue;
+    for (let i = at + 1; i < entries.length; i++) {
+      const e = entries[i]!;
+      if (e.role !== "assistant" || e.stored !== true || e.result.kind !== "answered") break;
+      stale.add(i);
+    }
+  }
   return entries.flatMap((e, i) => {
+    if (stale.has(i)) return [];
     const id = mealIdOf(e);
     if (id === null) return [e];
     return first.get(id) === i ? [newest.get(id)!] : [];

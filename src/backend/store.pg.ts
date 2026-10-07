@@ -2677,7 +2677,15 @@ export async function postgresStore(
     },
     async deleteMealComments(userId, mealId) {
       if (!UUID.test(mealId)) return 0;
-      const rows = await sql`delete from chat_messages where user_id = ${userId} and role = 'assistant' and kind = 'text' and meal_id = ${mealId} returning id`;
+      // Rows from before #1752 carry no meal id: they belong to the card they directly follow.
+      const rows = await sql`
+        delete from chat_messages c where c.user_id = ${userId} and c.role = 'assistant' and c.kind = 'text'
+          and (c.meal_id = ${mealId} or (c.meal_id is null and exists (
+            select 1 from chat_messages card where card.user_id = c.user_id and card.kind = 'meal' and card.meal_id = ${mealId}
+              and card.seq < c.seq and not exists (
+                select 1 from chat_messages x where x.user_id = c.user_id and x.seq > card.seq and x.seq < c.seq
+                  and not (x.role = 'assistant' and x.kind = 'text' and x.meal_id is null)))))
+        returning c.id`;
       return rows.length;
     },
     async updateLineText(userId, lineId, text) {

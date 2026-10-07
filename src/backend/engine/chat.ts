@@ -24,6 +24,8 @@ const MAX_THREAD_LINES = 10_000;
 export interface Remembered {
   lines: ChatAppend[];
   undo?: () => Promise<void>;
+  /** A meal whose earlier comments these lines replace; they go only once the new lines are certain to be written (#1752). */
+  supersede?: string;
 }
 
 // The only claim an `undo` hands back is the once-per-account greeting: a release that fails
@@ -58,6 +60,7 @@ export async function remember(
       await undo?.().catch(release);
       return;
     }
+    if (r.supersede) await deps.store.deleteMealComments(userId, r.supersede);
     await deps.store.appendChat(userId, r.lines);
   } catch (e) {
     console.error(`[eait] thread write failed: ${(e as Error)?.message ?? e}`);
@@ -123,11 +126,10 @@ export async function afterCorrection(
   meal: MealRecord,
   totals: DailyTotals,
   changeLine: string | null,
-): Promise<ChatAppend[]> {
-  await deps.store.deleteMealComments(userId, meal.id);
+): Promise<Remembered> {
   const change: ChatAppend[] = changeLine
     ? [{ role: "assistant", kind: "text", text: changeLine, speaker: "gabie", mealId: meal.id }] : [];
-  return [...change, ...await afterLog(deps, userId, meal, totals)];
+  return { lines: [...change, ...await afterLog(deps, userId, meal, totals)], supersede: meal.id };
 }
 
 /**
@@ -153,7 +155,7 @@ export async function firstVerdict(
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, satfat_g: meal.satfat_g, sodium_mg: meal.sodium_mg, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g, satfat_g: totals.satfat_g, sodium_mg: totals.sodium_mg },
-  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
+  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const, mealId: meal.id }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
   return { lines, undo: () => deps.store.releaseFirstVerdict(userId) };

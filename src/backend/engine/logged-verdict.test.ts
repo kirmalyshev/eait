@@ -12,7 +12,7 @@ import type { LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
-import { chatHistory, editMeal, logPhotoMeal, patchProfile, type EngineDeps } from "./index.ts";
+import { chatHistory, confirmPendingMeal, editMeal, handleText, logPhotoMeal, patchProfile, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -173,5 +173,52 @@ describe("a correction keeps the thread about the corrected meal only", () => {
     await editMeal(deps, userId, res.mealId, { satfat_g: 1, sodium_mg: 100 });
     const said = (await thread(userId)).filter((e) => e.role === "assistant" && e.kind === "text").map(text);
     expect(said.some((l) => /Saturated fat|Sodium/.test(l) && l.includes("for one meal"))).toBe(false);
+  });
+
+  const verdictRows = async (userId: string) =>
+    (await store.chatBefore(userId, null, 100)).filter((m) => m.role === "assistant" && m.kind === "text" && m.text?.includes("for one meal"));
+
+  it("tags the verdict lines with their meal on the photo path", async () => {
+    deps = makeDeps(plates([0, 0, 300], [8, 1100]));
+    const userId = await onboard({ restrictions: ["ldl", "kidneys"] });
+    await logPhotoMeal(deps, userId, photo());
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error(res.kind);
+    const rows = await verdictRows(userId);
+    expect(rows).toHaveLength(2);
+    for (const r of rows) expect(r.mealId).toBe(res.mealId);
+  });
+
+  it("tags the verdict lines with their meal on the typed, confirmed path", async () => {
+    const plate = (await plates([8, 1100]).analyzePhoto({ images: [jpeg()] } as never)) as never;
+    deps = makeDeps({ ...demoPorts(), routeText: async () => ({ intent: "meal", analysis: plate, dayOffset: 0 }) });
+    const userId = await onboard({ restrictions: ["ldl", "kidneys"] });
+    await logPhotoMeal(deps, userId, photo()); // spend the greeting
+    const res = await handleText(deps, userId, { text: "burger and fries" });
+    if (res.kind !== "proposed") throw new Error(res.kind);
+    const c = await confirmPendingMeal(deps, userId, res.pendingId);
+    if (c.kind !== "logged") throw new Error(c.kind);
+    const rows = await verdictRows(userId);
+    expect(rows.some((r) => r.mealId === c.mealId)).toBe(true);
+    for (const r of rows) expect(r.mealId).not.toBeNull();
+  });
+
+  it("clears the legacy, untagged verdict lines under a card and the stale 'updated' card (Kirill's 8 Oct thread)", async () => {
+    deps = makeDeps(plates([0, 0, 300], [8, 1100]));
+    const userId = await onboard({ restrictions: ["ldl", "kidneys"] });
+    await logPhotoMeal(deps, userId, photo());
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error(res.kind);
+    // Rewrite this meal's tagged lines as prod holds them: no meal id, plus a second card from the correction.
+    await store.deleteMealComments(userId, res.mealId);
+    await store.appendChat(userId, [
+      { role: "assistant", kind: "text", text: "Sodium is high for one meal: 750 of your 2,000mg.", speaker: "gabie" },
+      { role: "assistant", kind: "text", text: "Saturated fat is very high for one meal: 12 of your 13g.", speaker: "gabie" },
+      { role: "user", kind: "text", text: "it's not vegan" },
+      { role: "assistant", kind: "meal", mealId: res.mealId, event: "updated", speaker: "gabie" },
+    ]);
+    expect(await verdictRows(userId)).toHaveLength(2);
+    await editMeal(deps, userId, res.mealId, { satfat_g: 1, sodium_mg: 100 }, { thread: true });
+    expect(await verdictRows(userId)).toHaveLength(0);
   });
 });

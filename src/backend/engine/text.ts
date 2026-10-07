@@ -400,6 +400,7 @@ async function keep(
   await remember(deps, userId, async () => {
     // The words go in when they are said, so a turn taken while a proposal sits lands after them.
     // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
+    let supersede: string | undefined;
     const lines: ChatAppend[] = [{
       role: "user", kind: "text", text, clientId, intent: how.intent, analysisId: how.analysisId,
       // A proposal's line names its proposal; the meal takes that id when confirmed. An AMENDED
@@ -420,9 +421,9 @@ async function keep(
         const meal = await deps.store.getMeal(userId, result.mealId);
         const line = meal ? changeLine(before, meal, profile) : null;
         result.line = line;
-        if (meal) lines.push(...await afterCorrection(deps, userId, meal, result.totals, line));
+        if (meal) { const after = await afterCorrection(deps, userId, meal, result.totals, line); lines.push(...after.lines); supersede = after.supersede; }
       }
     }
-    return lines;
+    return { lines, supersede };
   });
 }
