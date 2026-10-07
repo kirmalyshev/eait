@@ -87,8 +87,10 @@ export const MealItemSchema = z.object({
   // Optional in the SHAPE — a missing one must not reject the analysis — but the description is
   // the ask: a single-value enum and an optional string are both fields a weak model reads as
   // "fill me everywhere / never", and qwen3-vl did exactly that on all nine audited reads (#317).
-  name_en: z.string().optional()
-    .describe("Canonical English name for lookups, never displayed. Set it on every item."),
+  // REQUIRED, because the catalog lookup keys on it (ieat-app#1757): optional, qwen3-vl left it null
+  // on every item of a 30-photo run and nothing could be grounded.
+  name_en: z.string().min(1)
+    .describe("Canonical English food name for catalog lookup, never displayed: a plain generic name such as 'chicken breast' or 'white rice'."),
   kcal: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
   carbs_g: z.number().nonnegative(),

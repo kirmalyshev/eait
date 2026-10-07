@@ -13,7 +13,7 @@ import type { FoodRef, MealItem } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
 
-const CANDIDATES = 5;
+const CANDIDATES = 20;
 /**
  * How far the catalog's density may sit from the model's own for the match to be believed. Raw rice
  * (365 kcal/100 g) against a plate of cooked rice (130) is a 2.8× gap and a wrong answer by 180%;

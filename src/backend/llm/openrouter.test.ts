@@ -679,7 +679,7 @@ const PHOTO_INPUT = {
 
 const MEAL = {
   isFood: true,
-  items: [{ name: "Egg", grams: 60, kcal: 90, protein_g: 7, carbs_g: 0, fat_g: 6, kcal_per_100g: 150 }],
+  items: [{ name: "Egg", name_en: "egg", grams: 60, kcal: 90, protein_g: 7, carbs_g: 0, fat_g: 6, kcal_per_100g: 150 }],
   kcal: 90, protein_g: 7, carbs_g: 0, fat_g: 6, satfat_g: 2, fiber_g: 0, sugar_g: 0, sodium_mg: 100,
   confidence: "high", notes: "",
 };
