@@ -2586,14 +2586,14 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const at = new Date().toISOString();
       const row = (variant: string, body: string) => ({
-        key: "evening" as const, lang: "vi" as const, variant, title: `T ${RUN}`, body, status: "reviewed" as const,
+        key: `probe-${RUN}` as never, lang: "vi" as const, variant, title: `T ${RUN}`, body, status: "reviewed" as const,
         reviewed_by: "migration", reviewed_at: at, updated_at: at,
       });
       await s.seedPushTemplates([row("default", `seed ${RUN}`), row("empty", `seed-empty ${RUN}`)]);
       // An admin's edit lands; a second boot's seed must not take it back.
       await s.putPushTemplate({ ...row("default", `edited ${RUN}`), status: "draft", reviewed_by: null, reviewed_at: null });
       await s.seedPushTemplates([row("default", `seed ${RUN}`)]);
-      const mine = (await s.listPushTemplates()).filter((r) => r.lang === "vi" && r.key === "evening");
+      const mine = (await s.listPushTemplates()).filter((r) => r.key === (`probe-${RUN}` as never));
       const byVariant = Object.fromEntries(mine.map((r) => [r.variant, r]));
       expect(byVariant.default!.body).toBe(`edited ${RUN}`);
       expect(byVariant.default!.status).toBe("draft");
