@@ -1176,3 +1176,30 @@ describe("the admin's test push (ieat-app#1765)", () => {
     expect((await admin("POST", `/admin/api/users/${userId}/push-test`, {}, "")).status).toBe(401);
   });
 });
+
+describe("the admin's push opens view (ieat-app#1759)", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  it("counts sent, accepted, dead, opened and converted per template, and names no account", async () => {
+    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const sendId = crypto.randomUUID();
+    await store.createSend(userId, {
+      id: sendId, kind: "campaign", ref: null, templateKey: "view-t", lang: "en", variant: null,
+      token: "ExponentPushToken[view]", state: "accepted",
+    });
+    await store.recordPushOpen(userId, sendId, "tap");
+    const res = await admin("GET", "/admin/api/push/stats?days=3");
+    expect(res.status).toBe(200);
+    const view = await res.json() as { days: number; timezone: string; rows: Record<string, unknown>[] };
+    expect(view.days).toBe(3);
+    expect(view.rows.find((r) => r.templateKey === "view-t")).toMatchObject({
+      kind: "campaign", sent: 1, accepted: 1, dead: 0, opened: 1, converted: 0,
+    });
+    expect(JSON.stringify(view)).not.toContain(userId);
+    expect(JSON.stringify(view)).not.toContain("ExponentPushToken");
+  });
+
+  it("is closed to anyone but the admin", async () => {
+    expect((await admin("GET", "/admin/api/push/stats", undefined, "")).status).toBe(401);
+  });
+});

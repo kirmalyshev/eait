@@ -2733,6 +2733,69 @@
         ]
       }
     },
+    "/v1/push/open": {
+      "post": {
+        "operationId": "post_pushOpen",
+        "summary": "Report that a push was opened. Recorded once per send; an id that is not this account's answers the same.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushOpenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOpenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/diary/day": {
       "get": {
         "operationId": "get_day",
@@ -7298,6 +7361,42 @@
           "google",
           "telegram"
         ]
+      },
+      "PushOpenAction": {
+        "type": "string",
+        "enum": [
+          "tap",
+          "reply"
+        ]
+      },
+      "PushOpenRequest": {
+        "type": "object",
+        "properties": {
+          "sendId": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/PushOpenAction"
+          }
+        },
+        "required": [
+          "sendId"
+        ],
+        "additionalProperties": false
+      },
+      "PushOpenResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false,
+        "description": "Always `{ ok: true }`: recorded, deduplicated and not-yours are indistinguishable on purpose."
       },
       "PushTokenRequest": {
         "type": "object",

@@ -303,6 +303,11 @@ export const ROUTES = {
    */
   pushToken: "/v1/push/token",
   /**
+   * POST — this device opened a push. See `PushOpenRequest`. Recorded once per (account, send);
+   * an id that is not this account's is a no-op that answers the same.
+   */
+  pushOpen: "/v1/push/open",
+  /**
    * PATCH — the manual edit path. See `EditMealRequest`.
    *
    * DELETE — the meal itself (#61): the meal, its photos and every card for it, and the user line
@@ -1046,6 +1051,44 @@ export function isPushTokenRequest(body: unknown): body is PushTokenRequest {
   if (typeof body !== "object" || body === null) return false;
   const b = body as Record<string, unknown>;
   return isPushToken(b.token) && b.platform === "ios";
+}
+
+/**
+ * The phone reporting that a push it received was opened (#1759). `sendId` is the `send_log` id the
+ * push `data` carried; `action` is how: the tap that opens the app, or the reply typed under the
+ * 20:30 line. Absent means a tap.
+ *
+ * A SHAPE check only. Whether the id is this account's is decided against `send_log` on the server,
+ * and the answer is the same either way, so a caller cannot probe for other accounts' ids.
+ */
+export const PUSH_OPEN_ACTIONS = ["tap", "reply"] as const;
+export type PushOpenAction = (typeof PUSH_OPEN_ACTIONS)[number];
+
+export interface PushOpenRequest {
+  sendId: string;
+  action?: PushOpenAction;
+}
+
+/** A bound on a value the phone echoes back. The ids are uuids; this is slack, not a format. */
+export const MAX_PUSH_SEND_ID = 100;
+
+export function isPushOpenRequest(body: unknown): body is PushOpenRequest {
+  if (typeof body !== "object" || body === null) return false;
+  const b = body as Record<string, unknown>;
+  return typeof b.sendId === "string" && b.sendId.length > 0 && b.sendId.length <= MAX_PUSH_SEND_ID
+    && (b.action === undefined || (PUSH_OPEN_ACTIONS as readonly unknown[]).includes(b.action));
+}
+
+/** The open to report for a notification response, or null when the push carried no `sendId`. */
+export function pushOpenFrom(data: unknown, reply: boolean): PushOpenRequest | null {
+  const sendId = (data as { sendId?: unknown } | null | undefined)?.sendId;
+  const body = { sendId, action: reply ? "reply" : "tap" };
+  return isPushOpenRequest(body) ? body : null;
+}
+
+/** Always `{ ok: true }`: recorded, deduplicated and not-yours are indistinguishable on purpose. */
+export interface PushOpenResponse {
+  ok: true;
 }
 
 /** What a register or an unregister answers. `registered` is the state AFTER the call. */

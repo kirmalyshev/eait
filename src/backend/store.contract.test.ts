@@ -1065,6 +1065,120 @@ function contract(name: string, make: () => Promise<Store>) {
         expect((await s.sendLogFor(b, 5)).length).toBe(0);
         expect((await s.sendLogFor(a, 5))[0]?.state).toBe("queued");
       });
+
+      // ── Opens (#1759) ────────────────────────────────────────────────────────────────────
+      const send = async (s: Awaited<ReturnType<typeof open>>, u: string, tag: string, state: "queued" | "accepted" | "dead" | "refused" | "dry" | "expired" = "accepted") => {
+        const id = crypto.randomUUID();
+        await s.createSend(u, {
+          id, kind: "campaign", ref: null, templateKey: `${RUN}-${tag}`, lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-${tag}]`, state,
+        });
+        return id;
+      };
+      const statsFor = async (s: Awaited<ReturnType<typeof open>>, tag: string) =>
+        (await s.pushOpenStats(2, "UTC")).filter((r) => r.templateKey === `${RUN}-${tag}`);
+
+      it("records an open once per send, however many times the phone reports it", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, u, "once");
+        expect(await s.recordPushOpen(u, id, "tap")).toBe(true);
+        expect(await s.recordPushOpen(u, id, "reply")).toBe(false);
+        const [row] = await statsFor(s, "once");
+        expect(row).toMatchObject({ sent: 1, opened: 1 });
+      });
+
+      it("records nothing for another account's send, or for an id that was never sent", async () => {
+        const s = await open();
+        const a = (await s.upsertDeviceUser(device(), "en")).userId;
+        const b = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, a, "foreign");
+        expect(await s.recordPushOpen(b, id, "tap")).toBe(false);
+        expect(await s.recordPushOpen(a, crypto.randomUUID(), "tap")).toBe(false);
+        expect((await statsFor(s, "foreign"))[0]).toMatchObject({ sent: 1, opened: 0 });
+        // b's attempt must not have used up a's open.
+        expect(await s.recordPushOpen(a, id, "tap")).toBe(true);
+      });
+
+      it("counts sent, accepted and dead per template", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await send(s, u, "states", "accepted");
+        await send(s, u, "states", "dead");
+        await send(s, u, "states", "queued");
+        expect((await statsFor(s, "states"))[0]).toMatchObject({ sent: 3, accepted: 1, dead: 1, opened: 0 });
+      });
+
+      it("counts a send as converted when a meal was logged within 24 h AFTER it, and not otherwise", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, u, "conv");
+        const at = new Date((await s.sendLogFor(u, 1))[0]!.createdAt).getTime();
+        const at_ = (ms: number) => new Date(at + ms).toISOString();
+        const MIN = 60_000, DAY = 24 * 60 * MIN;
+        // Before the send, and a minute past the window: neither counts.
+        await s.insertMeal(meal(u, { ts: at_(-MIN) }));
+        await s.insertMeal(meal(u, { ts: at_(DAY + MIN) }));
+        expect((await statsFor(s, "conv"))[0]).toMatchObject({ sent: 1, converted: 0 });
+        // Another account's meal inside the window does not count either.
+        const other = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.insertMeal(meal(other, { ts: at_(MIN) }));
+        expect((await statsFor(s, "conv"))[0]!.converted).toBe(0);
+        // A minute before the window closes does.
+        await s.insertMeal(meal(u, { ts: at_(DAY - MIN) }));
+        expect((await statsFor(s, "conv"))[0]).toMatchObject({ sent: 1, converted: 1, opened: 0 });
+        expect(id).toBeTruthy();
+      });
+
+      it("converts on the send's own instant and not on the instant 24 h later: [send, send + 24 h)", async () => {
+        const s = await open();
+        const edge = async (tag: string, offsetMs: number) => {
+          const u = (await s.upsertDeviceUser(device(), "en")).userId;
+          await send(s, u, tag);
+          const at = Date.parse((await s.sendLogFor(u, 1))[0]!.createdAt);
+          await s.insertMeal(meal(u, { ts: new Date(at + offsetMs).toISOString() }));
+          return (await statsFor(s, tag))[0]!.converted;
+        };
+        expect(await edge("edge0", 0)).toBe(1);
+        expect(await edge("edge24", 24 * 60 * 60_000)).toBe(0);
+        expect(await edge("edge24m", 24 * 60 * 60_000 - 1)).toBe(1);
+      });
+
+      it("counts neither opens nor conversions for a send that never reached a phone", async () => {
+        const s = await open();
+        for (const state of ["dead", "refused", "dry"] as const) {
+          const u = (await s.upsertDeviceUser(device(), "en")).userId;
+          const id = await send(s, u, `never-${state}`, state);
+          await s.recordPushOpen(u, id, "tap");
+          const at = Date.parse((await s.sendLogFor(u, 1))[0]!.createdAt);
+          await s.insertMeal(meal(u, { ts: new Date(at + 60_000).toISOString() }));
+          expect((await statsFor(s, `never-${state}`))[0]).toMatchObject({ sent: 1, opened: 0, converted: 0 });
+        }
+      });
+
+      it("counts an expired send (no receipt in 24 h) as accepted, never dead", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await send(s, u, "expired", "expired");
+        expect((await statsFor(s, "expired"))[0]).toMatchObject({ sent: 1, accepted: 1, dead: 0 });
+      });
+
+      it("keeps an open when an anonymous session merges into the account that survives", async () => {
+        const s = await open();
+        const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+        const real = (await s.upsertDeviceUser(device(), "en")).userId;
+        const opened = await send(s, anon, "merge-open");
+        const unopened = await send(s, anon, "merge-unopened");
+        expect(await s.recordPushOpen(anon, opened, "tap")).toBe(true);
+
+        await s.mergeUsers(anon, real);
+
+        const rows = (await s.pushOpenStats(2, "UTC")).filter((r) => r.templateKey.startsWith(`${RUN}-merge-`));
+        expect(rows.find((r) => r.templateKey === `${RUN}-merge-open`)).toMatchObject({ sent: 1, opened: 1 });
+        // Already recorded stays recorded under the survivor; an unopened send is the survivor's to open.
+        expect(await s.recordPushOpen(real, opened, "tap")).toBe(false);
+        expect(await s.recordPushOpen(real, unopened, "tap")).toBe(true);
+      });
     });
 
     it("MOVES a device to the account an anonymous session merged into", async () => {
@@ -3742,7 +3856,7 @@ if (PG_URL) {
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
         "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
-        "pruneHealthDaysBefore", "pushAudience",
+        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
         "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushToken",
         "releaseJobs", "revokeToken", "searchFoods", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken",
@@ -3840,6 +3954,8 @@ if (PG_URL) {
     it("widens the constraint, once, and accepts the new state", async () => {
       const sql = await rawSql();
       await postgresStore(PG_URL, { maxConnections: 2 });
+      // Other cases leave `expired` rows behind; the old constraint cannot be added over them.
+      await sql`delete from send_log where state = 'expired'`;
       await sql`alter table send_log drop constraint send_log_state_check`;
       await sql`alter table send_log add constraint send_log_state_check
         check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry'))`;

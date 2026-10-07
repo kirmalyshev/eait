@@ -29,7 +29,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type SendLogRow, type Store,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -100,6 +100,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   push_tokens: "user_id",
   push_slot: "user_id",
   send_log: "user_id",
+  push_open: "user_id",
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
@@ -283,7 +284,19 @@ begin
 end
 $do$;
 create index if not exists send_log_user_idx on send_log(user_id, created_at desc);
+-- The admin's opens view reads a window of ALL accounts' sends by time.
+create index if not exists send_log_created_idx on send_log(created_at);
 create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
+-- One row per (account, send) the phone reported opened: the primary key is the dedup, and the FK to
+-- send_log is the ownership, since the insert selects through it (an id from another account matches
+-- nothing). Gone with the send, and with the account.
+create table if not exists push_open (
+  user_id   uuid not null references users(id) on delete cascade,
+  send_id   text not null references send_log(id) on delete cascade,
+  opened_at timestamptz not null default now(),
+  action    text not null check (action in ('tap','reply')),
+  primary key (user_id, send_id)
+);
 -- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
 insert into push_slot (user_id, local_date, kind, ref)
   select id, last_notified_date, 'evening', 'evening' from users where last_notified_date is not null
@@ -1274,6 +1287,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   countClipAnalyses: "unscoped",
   pushAudience: "unscoped",
   sendsAwaitingReceipt: "unscoped",
+  pushOpenStats: "unscoped",
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
@@ -1336,6 +1350,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   createSend: 0,
   settleSend: 0,
   sendLogFor: 0,
+  recordPushOpen: 0,
   recordOnboardingEvents: 0,
   getMeal: 0,
   getMeals: 0,
@@ -2215,6 +2230,9 @@ export async function postgresStore(
             select ${intoUserId}, local_date, kind, ref, created_at from push_slot where user_id = ${fromUserId}
           on conflict (user_id, local_date) do nothing`;
         await tx`update send_log set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // The opens follow their sends. A send id is unique across accounts, so the survivor can
+        // hold no row for the same (user, send) and there is nothing to dedupe against.
+        await tx`update push_open set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`
           update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
           from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
@@ -2938,6 +2956,45 @@ export async function postgresStore(
         where state = 'accepted' and receipt_at is null and ticket_id is not null
         order by created_at limit ${limit}`;
       return (rows as Record<string, unknown>[]).map(sendRow);
+    },
+
+    async recordPushOpen(userId, sendId, action) {
+      const rows = await sql`
+        insert into push_open (user_id, send_id, action)
+        select user_id, id, ${action} from send_log where id = ${sendId} and user_id = ${userId}
+        on conflict do nothing returning send_id`;
+      return (rows as unknown[]).length > 0;
+    },
+
+    async pushOpenStats(days, timezone) {
+      const since = new Date(now() - days * 24 * 60 * 60 * 1000).toISOString();
+      // `at` is the send's instant to the millisecond, which is all the JS side can name: a meal
+      // stamped at exactly the send's own `createdAt` must land inside [at, at + 24 h) however many
+      // microseconds Postgres kept. `reached` leaves out what no phone ever got (dead, refused,
+      // dry), so a stray open or the meal that followed is not a conversion.
+      const rows = await sql`
+        with s as (
+          select *, date_trunc('milliseconds', created_at) as at,
+                 state not in ('dead', 'refused', 'dry') as reached
+          from send_log where created_at >= ${since}
+        )
+        select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
+               count(*)::int as sent,
+               count(*) filter (where s.state in ('accepted', 'delivered-to-apns', 'expired'))::int as accepted,
+               count(*) filter (where s.state = 'dead')::int as dead,
+               count(*) filter (where s.reached and o.send_id is not null)::int as opened,
+               count(*) filter (where s.reached and exists (
+                 select 1 from meals m
+                 where m.user_id = s.user_id and m.ts >= s.at and m.ts < s.at + interval '24 hours'
+               ))::int as converted
+        from s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
+        group by 1, 2, 3
+        order by 1 desc, 3`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        day: r.day as string, kind: r.kind as PushStatRow["kind"], templateKey: r.template_key as string,
+        sent: r.sent as number, accepted: r.accepted as number, dead: r.dead as number,
+        opened: r.opened as number, converted: r.converted as number,
+      }));
     },
 
     async sendLogFor(userId, limit) {

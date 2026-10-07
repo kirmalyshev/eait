@@ -18,7 +18,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken, type SendLogRow,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -135,6 +135,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   /** `push_slot`: `${userId}|${localDate}` -> the kind holding that day. */
   const pushSlots = new Map<string, PushKind>();
   const sendLog = new Map<string, SendLogRow>();
+  /** `push_open`: `${userId}|${sendId}` for each send the phone reported opened — the table's primary key. */
+  const pushOpens = new Set<string>();
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
     a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
@@ -279,7 +281,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
-    for (const [k, r] of sendLog) if (r.userId === userId) sendLog.delete(k);
+    for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
     freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -761,7 +763,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!pushSlots.has(into)) pushSlots.set(into, kind);
         pushSlots.delete(k);
       }
-      for (const [id, r] of sendLog) if (r.userId === fromUserId) sendLog.set(id, { ...r, userId: intoUserId });
+      for (const [id, r] of sendLog) {
+        if (r.userId !== fromUserId) continue;
+        sendLog.set(id, { ...r, userId: intoUserId });
+        // The open follows its send, as `push_open` does in Postgres.
+        if (pushOpens.delete(`${fromUserId}|${id}`)) pushOpens.add(`${intoUserId}|${id}`);
+      }
 
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
@@ -936,6 +943,39 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async sendLogFor(userId, limit) {
       return [...sendLog.values()].filter((r) => r.userId === userId).reverse().slice(0, limit);
+    },
+
+    async recordPushOpen(userId, sendId, _action) {
+      const row = sendLog.get(sendId);
+      const key = `${userId}|${sendId}`;
+      if (!row || row.userId !== userId || pushOpens.has(key)) return false;
+      pushOpens.add(key);
+      return true;
+    },
+
+    async pushOpenStats(days, timezone) {
+      const since = now() - days * 24 * 60 * 60 * 1000;
+      const DAY = 24 * 60 * 60 * 1000;
+      const out = new Map<string, PushStatRow>();
+      for (const r of sendLog.values()) {
+        const at = Date.parse(r.createdAt);
+        if (at < since) continue;
+        const day = localDate(timezone, new Date(at));
+        const key = `${day}|${r.kind}|${r.templateKey}`;
+        const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, opened: 0, converted: 0 };
+        row.sent++;
+        // `expired` (no receipt within 24 h) is accepted-but-unconfirmed, never dead.
+        if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) row.accepted++;
+        if (r.state === "dead") row.dead++;
+        // A send that never reached a phone (`dead`, `refused`, `dry`) cannot have been opened or
+        // acted on: counting its stray open or the meal that followed would be a false conversion.
+        const reached = r.state !== "dead" && r.state !== "refused" && r.state !== "dry";
+        if (reached && pushOpens.has(`${r.userId}|${r.id}`)) row.opened++;
+        // [send, send + 24 h): a meal at the send's own instant counts, one a day later does not.
+        if (reached && [...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) row.converted++;
+        out.set(key, row);
+      }
+      return [...out.values()].sort((a, b) => b.day.localeCompare(a.day) || a.templateKey.localeCompare(b.templateKey));
     },
 
     async getOnboardingContent() {
