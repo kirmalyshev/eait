@@ -686,6 +686,20 @@ export function weightDisplay(kg: number, units: Units | null, lang: Lang): stri
   return `${numbers(lang)(Math.round(v * 10) / 10)}${spellUnit(lang, u)}`;
 }
 
+/** A maintainer's goal is a band, not a point (#1694): ±2% of today's weight, CalZen's 62 → 61–63. */
+export const MAINTAIN_BAND_SHARE = 0.02;
+
+/**
+ * The maintain goal's band, "78–82kg": whole display units, at least one either side, so the band
+ * reads the same in kg and lb rather than as two converted decimals.
+ */
+export function maintainRange(kg: number, units: Units | null, lang: Lang): string {
+  const v = units === "imperial" ? kg * LB_PER_KG : kg;
+  const band = Math.max(1, Math.round(v * MAINTAIN_BAND_SHARE));
+  const n = numbers(lang);
+  return `${n(Math.round(v) - band)}–${n(Math.round(v) + band)}${spellUnit(lang, units === "imperial" ? "lb" : "kg")}`;
+}
+
 /**
  * The pace screen's answer echo (#1693): the two weights the user just gave, restated above "How
  * fast?". Null until both exist and differ — there is nothing to echo, and no verdict is added.

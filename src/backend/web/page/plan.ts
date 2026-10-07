@@ -1,5 +1,5 @@
 import {
-  fill, kcalNumbers, LANG_LABEL, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
+  fill, kcalNumbers, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
   planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
   wholeNumbers, youCopyFor,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
@@ -160,6 +160,7 @@ function balanceCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>, b: NonNu
     `<i class="gx ${cls}" style="--d:${sec(delay)};animation-duration:${sec(dur)};flex:${flex}">${escape(text)}</i>`;
   return `<div class="card jc">
 <b class="d d22 goal">${escape(fill(COPY.goalStay, { kg: weightDisplay(v.profile.weight_kg!, v.profile.units, v.lang) }))}</b>
+<div class="t13 m">${escape(fill(COPY.goalRange, { range: maintainRange(v.profile.weight_kg!, v.profile.units, v.lang) }))}</div>
 <div class="bal">
 <span class="t13 semi">${escape(COPY.youBurn)}</span>
 <div class="brow" style="width:${pct(b.share.burn)}">${seg(b.burn.rest, dRest, 0.6, "rest", kn(b.burn.rest))}${seg(b.burn.days, dDays, 0.3, "days", sn(b.burn.days))}</div>
