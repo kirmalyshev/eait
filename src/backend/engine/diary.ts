@@ -2,7 +2,7 @@
 // Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
 
 import {
-  dateMinus, dayHealthScore, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
+  dateMinus, dayHealthScore, loggedStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
   verdictLabels, windowStart,
   type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
@@ -115,10 +115,6 @@ export async function days(
   // Dates only: a meal's `date` is already the account's zone, so one logged past local midnight
   // belongs to the day the user is in, which is the boundary this must not get wrong.
   const loggedDates = new Set(rows.filter((r) => r.date <= today).map((r) => r.date));
-  let streak = 0;
-  for (let d = loggedDates.has(today) ? today : dateMinus(today, 1); loggedDates.has(d); d = dateMinus(d, 1)) {
-    streak++;
-  }
-
+  const streak = loggedStreak(loggedDates, today);
   return { days: out, targetKcal, streak };
 }

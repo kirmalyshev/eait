@@ -205,3 +205,15 @@ export function windowStart(today: string, days: number): string {
   const whole = Number.isNaN(days) ? 1 : Math.floor(days);
   return dateMinus(today, Math.min(MAX_WINDOW_DAYS, Math.max(1, whole)) - 1);
 }
+
+/**
+ * Consecutive logged days ending today — or yesterday, while today is still open (a day that has
+ * not ended has not broken anything). `logged` holds dates with at least one meal, in the account's
+ * zone. The one definition: the diary reads it for the streak it shows, the push tick for the
+ * streak it protects.
+ */
+export function loggedStreak(logged: ReadonlySet<string>, today: string): number {
+  let streak = 0;
+  for (let d = logged.has(today) ? today : dateMinus(today, 1); logged.has(d); d = dateMinus(d, 1)) streak++;
+  return streak;
+}
