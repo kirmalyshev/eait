@@ -225,10 +225,9 @@ naming it too.
   not the free way around the ask — and `checkCaps` answers every later one with
   `subscription-required` (402) until the webhook has written an entitlement. `limits.sampleUsed`
   tells the app, and the app opens the paywall on it; the refusal is the authority, the sheet only its
-  rendering. **The sheet is RevenueCat's, authored in their dashboard** and presented by
-  `RevenueCatUI.presentPaywall()` — so its copy ships with no review and no deploy, and the landing
-  page's claims gate does not run over it. `presentPaywallIfNeeded` is never used: it gates on the
-  SDK's own `CustomerInfo`, which is the copy this app may not branch on. A purchase ends by polling
+  rendering. **The sheet is the app's own** (`src/mobile/lib/paywall-sheet.tsx` in the app repo, drawn from
+  `product/design/pro/phone/pay-*.html`) and its words are `PAY_COPY` (`src/shared/app/pay-copy.ts`) — so they ship with a build, in every shipped language, and
+  `pay-copy.test.ts` puts them through the claims gate. RevenueCat supplies offerings and purchase calls only; no RevenueCat paywall is built or presented. The app never branches on the SDK's own `CustomerInfo`. A purchase ends by polling
   OUR profile until the webhook has landed (`lib/paywall.tsx`), because for those seconds the phone
   says subscribed and the server still answers 402. **And then the app carries out the action the
   sheet interrupted** — the photo, the typed meal, the correction, the question — on its own: a gate
