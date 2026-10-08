@@ -41,7 +41,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  CAMPAIGN_STATUSES, CAMPAIGN_TEMPLATE_KEYS, ENTITLEMENT_STATES, SINCE_LOG_BANDS, STREAK_BANDS, LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
+  CAMPAIGN_STATUSES, ENTITLEMENT_STATES, SINCE_LOG_BANDS, STREAK_BANDS, LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
   SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
@@ -251,7 +251,7 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
       return json({
         ...(await campaignOverview(deps)),
         options: {
-          langs: LANGS, templateKeys: CAMPAIGN_TEMPLATE_KEYS, statuses: CAMPAIGN_STATUSES,
+          langs: LANGS, statuses: CAMPAIGN_STATUSES,
           entitlement: ENTITLEMENT_STATES, streakBands: STREAK_BANDS, sinceLog: SINCE_LOG_BANDS,
           staffCount: deps.config.campaignStaffIds.length,
         },

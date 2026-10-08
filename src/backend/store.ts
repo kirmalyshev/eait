@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { CampaignStatus, NotificationId, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
+import type { CampaignStatus, CampaignTemplateKey, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -95,7 +95,7 @@ export interface SendLogRow extends NewSend {
 export interface CampaignRow {
   id: string;
   name: string;
-  templateKey: NotificationId;
+  templateKey: CampaignTemplateKey;
   segment: Segment;
   status: CampaignStatus;
   /** `HH:MM`, the account's own local time. */

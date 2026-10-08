@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import type { PushTemplateRow } from "@eait/shared";
+import { LANGS, type PushTemplateRow } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
@@ -10,7 +10,6 @@ import {
   updateCampaign,
 } from "./campaign.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
-import { ensurePushTemplates } from "./push-templates.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -54,9 +53,22 @@ async function account(opts: { tz?: string; lang?: "en" | "de" | "fr"; consent?:
   return userId;
 }
 
+/** A campaign's own copy in all eight languages, reviewed unless `draftLang` names one left as a draft. */
+async function copy(key = "campaign:win-back", draftLang?: string): Promise<void> {
+  for (const lang of LANGS) {
+    await store.putPushTemplate({
+      key: key as PushTemplateRow["key"], lang, variant: "default", title: `Hi ${lang}`, body: `Body ${lang}`,
+      status: lang === draftLang ? "draft" : "reviewed", reviewed_by: "t", reviewed_at: "2026-10-08T00:00:00.000Z",
+      updated_at: "2026-10-08T00:00:00.000Z",
+    });
+  }
+}
+
 async function campaign(over: Record<string, unknown> = {}, status: "draft" | "scheduled" = "scheduled"): Promise<CampaignRow> {
+  const key = (over.templateKey as string | undefined) ?? "campaign:win-back";
+  if ((await store.listPushTemplates()).every((r) => r.key !== key)) await copy(key);
   const made = await createCampaign(deps, {
-    name: "Win-back", templateKey: "nudge", segment: {}, localSendTime: "18:30", rolloutPct: 100,
+    name: "Win-back", templateKey: key, segment: {}, localSendTime: "18:30", rolloutPct: 100,
     promotional: false, ...over,
   }, "admin-1");
   if (!made.ok) throw new Error(made.errors.join("; "));
@@ -70,23 +82,44 @@ async function campaign(over: Record<string, unknown> = {}, status: "draft" | "s
 describe("creating and activating", () => {
   it("refuses a segment predicate that is not on the allowlist", async () => {
     const r = await createCampaign(deps, {
-      name: "x", templateKey: "nudge", segment: { sql: "1=1" }, localSendTime: "18:30", rolloutPct: 10, promotional: false,
+      name: "x", templateKey: "campaign:win-back", segment: { sql: "1=1" }, localSendTime: "18:30", rolloutPct: 10, promotional: false,
     }, "a");
     expect(r).toEqual({ ok: false, errors: ["unknown predicate: sql"] });
   });
 
   it("will not activate while the template has a draft or missing language", async () => {
-    await ensurePushTemplates(deps);
-    const rows = await store.listPushTemplates();
-    const de = rows.find((r) => r.key === "nudge" && r.lang === "de")!;
-    await store.putPushTemplate({ ...de, status: "draft" } as PushTemplateRow);
+    await copy("campaign:win-back", "de");
     const c = await campaign({}, "draft");
     const r = await setCampaignStatus(deps, c.id, "scheduled");
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors.join(" ")).toContain("de/");
     expect((await store.getCampaign(c.id))?.status).toBe("draft");
-    await store.putPushTemplate(de);
+    await copy("campaign:win-back");
     expect((await setCampaignStatus(deps, c.id, "scheduled")).ok).toBe(true);
+  });
+
+  it("will not activate a campaign that has no copy at all", async () => {
+    const made = await createCampaign(deps, {
+      name: "x", templateKey: "campaign:nothing-yet", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: false,
+    }, "a");
+    if (!made.ok) throw new Error("create");
+    const r = await setCampaignStatus(deps, made.row.id, "scheduled");
+    expect(r.ok).toBe(false);
+  });
+
+  it("refuses a system key as a campaign's template", async () => {
+    for (const templateKey of ["nudge", "evening", "trial-end", "campaign:evening"]) {
+      const r = await createCampaign(deps, { name: "x", templateKey, segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: false }, "a");
+      expect(r.ok).toBe(false);
+    }
+  });
+
+  it("refuses to activate a promotional campaign until the tips-and-offers consent exists", async () => {
+    const c = await campaign({ promotional: true }, "draft");
+    const r = await setCampaignStatus(deps, c.id, "scheduled");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(" ")).toContain("tips-and-offers consent");
+    expect((await store.getCampaign(c.id))?.status).toBe("draft");
   });
 
   it("walks the status machine and stops at killed", async () => {
@@ -118,13 +151,13 @@ describe("segments", () => {
     const out = await runCampaigns(deps, { now: BERLIN_1830 });
     expect(out.sent).toBe(1);
     expect(push.sent).toHaveLength(1);
-    expect((await store.sendLogFor(de, 5))[0]).toMatchObject({ kind: "campaign", templateKey: "nudge", lang: "de" });
+    expect((await store.sendLogFor(de, 5))[0]).toMatchObject({ kind: "campaign", templateKey: "campaign:win-back", lang: "de", state: "accepted" });
   });
 
-  it("selects by entitlement, onboarding and tips consent", async () => {
+  it("selects by entitlement and onboarding", async () => {
     const paid = await account();
     await account({ free: true });
-    await campaign({ segment: { entitlement: ["active"], onboarded: true, tipsConsent: true } });
+    await campaign({ segment: { entitlement: ["active"], onboarded: true } });
     await runCampaigns(deps, { now: BERLIN_1830 });
     expect(push.sent).toHaveLength(1);
     expect((await store.sendLogFor(paid, 5))).toHaveLength(1);
@@ -147,13 +180,63 @@ describe("segments", () => {
     expect((await store.sendLogFor(logger, 5))).toHaveLength(0);
   });
 
-  it("a promotional campaign reaches only accounts with tips and offers on, whatever the segment", async () => {
-    const yes = await account({ consent: true });
-    const no = await account({ consent: false });
-    await campaign({ promotional: true, segment: {} });
+  it("a tips-and-offers predicate matches nobody until that consent exists, and the signup box is not it", async () => {
+    await account({ consent: true });
+    await campaign({ segment: { tipsConsent: true } });
     await runCampaigns(deps, { now: BERLIN_1830 });
-    expect(await store.sendLogFor(yes, 5)).toHaveLength(1);
-    expect(await store.sendLogFor(no, 5)).toHaveLength(0);
+    expect(push.sent).toHaveLength(0);
+  });
+
+  it("a promotional campaign forced live in the store still reaches nobody", async () => {
+    await account({ consent: true });
+    const c = await campaign({ promotional: true }, "draft");
+    await store.updateCampaign(c.id, { status: "scheduled" });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(push.sent).toHaveLength(0);
+  });
+
+  it("sinceLog reads the whole history: a last log 61, 200 or 400 days ago is lapsed, not never", async () => {
+    const meal = (userId: string, date: string) => ({
+      id: crypto.randomUUID(), user_id: userId, ts: `${date}T10:00:00.000Z`, date,
+      isFood: true, items: [{ name: "x", grams: 1 }], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
+      fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const,
+      notes: "", corrected: false, model: "t",
+    });
+    const ago = (n: number) => new Date(Date.parse("2026-08-20T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
+    const old: string[] = [];
+    for (const n of [59, 60, 61, 200, 400]) { const u = await account(); await store.insertMeal(meal(u, ago(n))); old.push(u); }
+    const never = await account();
+    await campaign({ name: "lapsed", segment: { sinceLog: ["lapsed"] } });
+    await campaign({ name: "never", segment: { sinceLog: ["never"] } });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    const reached = async (u: string) => (await store.sendLogFor(u, 10)).map((r) => r.ref);
+    const lapsedC = (await store.listCampaigns()).find((c) => c.name === "lapsed")!.id;
+    const neverC = (await store.listCampaigns()).find((c) => c.name === "never")!.id;
+    // The slot gives one message a day, so each account is reached by ONE of the two, never both.
+    for (const u of old) expect(await reached(u)).toEqual([lapsedC]);
+    expect(await reached(never)).toEqual([neverC]);
+  });
+
+  it("never reaches an account with a streak of 3 or more, whatever the segment says; 2 is reached", async () => {
+    const meal = (userId: string, date: string) => ({
+      id: crypto.randomUUID(), user_id: userId, ts: `${date}T10:00:00.000Z`, date,
+      isFood: true, items: [{ name: "x", grams: 1 }], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
+      fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const,
+      notes: "", corrected: false, model: "t",
+    });
+    const three = await account();
+    const two = await account();
+    for (const d of ["2026-08-20", "2026-08-19", "2026-08-18"]) await store.insertMeal(meal(three, d));
+    for (const d of ["2026-08-20", "2026-08-19"]) await store.insertMeal(meal(two, d));
+    await campaign({ segment: {} });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(await store.sendLogFor(three, 5)).toHaveLength(0);
+    expect(await store.sendLogFor(two, 5)).toHaveLength(1);
+    // A streak that ended yesterday is still a streak today.
+    const yesterday = await account();
+    for (const d of ["2026-08-19", "2026-08-18", "2026-08-17"]) await store.insertMeal(meal(yesterday, d));
+    await runCampaigns(deps, { now: BERLIN_1830 + 60_000 });
+    expect(await store.sendLogFor(yesterday, 5)).toHaveLength(0);
   });
 
   it("staffOnly reaches the allowlist and nobody else", async () => {
@@ -277,6 +360,16 @@ describe("the one-a-day slot", () => {
 });
 
 describe("kill switches", () => {
+  it("are not read for an account that is not due", async () => {
+    await account();
+    await campaign();
+    let reads = 0;
+    const inner = store.campaignsKilled.bind(store);
+    store.campaignsKilled = async () => { reads++; return inner(); };
+    await runCampaigns(deps, { now: BERLIN_1830 - 60 * MIN });
+    expect(reads).toBe(1); // the one before the batch; none per account
+  });
+
   it("the global switch stops a run in the middle of the batch", async () => {
     for (let i = 0; i < 6; i++) await account();
     await campaign();
@@ -357,10 +450,8 @@ describe("test send", () => {
   it("refuses when the template is incomplete, before taking the slot", async () => {
     const me = await account();
     staff = [me];
-    await ensurePushTemplates(deps);
-    const de = (await store.listPushTemplates()).find((r) => r.key === "nudge" && r.lang === "de")!;
-    await store.putPushTemplate({ ...de, status: "draft" } as PushTemplateRow);
     const c = await campaign({ segment: { staffOnly: true } }, "draft");
+    await copy("campaign:win-back", "de");
     expect(await testSendCampaign(deps, c.id, me, BERLIN_1830)).toEqual({ ok: false, reason: "template-incomplete" });
     expect(await store.claimPushSlot(me, "2026-08-20", "evening", null)).toEqual({ claimed: true });
   });
@@ -370,9 +461,7 @@ describe("a campaign never goes out on a template that stopped being complete", 
   it("the runner re-checks the template each batch", async () => {
     await account({ lang: "de" });
     await campaign();
-    await ensurePushTemplates(deps);
-    const de = (await store.listPushTemplates()).find((r) => r.key === "nudge" && r.lang === "de")!;
-    await store.putPushTemplate({ ...de, status: "draft" } as PushTemplateRow);
+    await copy("campaign:win-back", "de");
     await runCampaigns(deps, { now: BERLIN_1830 });
     expect(push.sent).toHaveLength(0);
   });

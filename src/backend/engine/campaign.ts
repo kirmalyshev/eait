@@ -10,23 +10,29 @@
 //   - ONCE PER ACCOUNT. `campaign_send` is a primary key, claimed after the slot, before the send.
 //   - THE KILL SWITCHES are re-read before EVERY account, not once per batch, so a flip stops a run
 //     between two sends. The global one is a row; the per-campaign one is the campaign's own status.
-//   - THE TEMPLATE is re-checked each batch: a language edited back to draft after activation stops
-//     the sends rather than putting half a translated set on lock screens.
-//   - PROMOTIONAL campaigns reach only accounts with "tips and offers" ON, whatever the segment says.
+//   - THE TEMPLATE is the campaign's OWN copy (`campaign:<slug>`, eight languages, reviewed, no
+//     placeholders) and is re-checked each batch: a language edited back to draft after activation
+//     stops the sends rather than putting half a translated set on lock screens.
+//   - A STREAK IS NEVER INTERRUPTED. An account with a streak of CAMPAIGN_STREAK_GUARD_DAYS or more
+//     is never reached, a hard rule and not a segment predicate. A campaign may take the day from
+//     the plain evening line or nudge (that day the campaign IS the message), never from the habit line.
+//   - PROMOTIONAL campaigns need the "tips and offers" consent, which is not collected yet (phase 4):
+//     consent is false for everybody, so activation of a promotional campaign is refused and no
+//     promotional message can go out. Wire `tipsConsent` in `factsFor` once that flag exists.
 //
 // ponytail: visits every account with a device, per campaign, per minute, and the cheap filters
 // (window, rollout, already-handed) run before any read. Past thousands of accounts, select the due
 // set in the store instead.
 
 import {
-  CAMPAIGN_STATUSES, entitlementLive, habitOf, inRollout, localDate, matchesSegment, pushKeyGaps,
-  validateCampaignInput, fillNotification,
-  type CampaignInput, type CampaignStatus, type Lang, type NotificationId, type PushKind, type SegmentFacts,
+  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, entitlementLive, habitOf, inRollout, isCampaignTemplateKey, localDate, matchesSegment,
+  pushKeyGaps, validateCampaignInput,
+  type CampaignInput, type CampaignStatus, type CampaignTemplateKey, type Lang, type PushKind, type PushTemplateRow, type SegmentFacts,
 } from "@eait/shared";
 import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { CATCH_UP_MS, instantOf, sendLogged, zoneOf } from "./notify.ts";
-import { ensurePushTemplates, sendableCopy } from "./push-templates.ts";
+import { campaignWords } from "./push-templates.ts";
 
 type Result<T> = ({ ok: true } & T) | { ok: false; errors: string[] };
 
@@ -41,9 +47,8 @@ const TRANSITIONS: Record<CampaignStatus, readonly CampaignStatus[]> = {
 void CAMPAIGN_STATUSES;
 
 /** What stops `key` from being sent: one `lang/variant` per row that is absent or still a draft. */
-async function templateGaps(deps: EngineDeps, key: NotificationId): Promise<string[]> {
-  await ensurePushTemplates(deps);
-  return pushKeyGaps(await deps.store.listPushTemplates(), key);
+async function templateGaps(deps: EngineDeps, key: CampaignTemplateKey): Promise<string[]> {
+  return pushKeyGaps((await deps.store.listPushTemplates()).filter((r) => r.key === key), key);
 }
 
 export async function createCampaign(
@@ -86,6 +91,9 @@ export async function setCampaignStatus(
   if (!current) return { ok: false, errors: ["no such campaign"] };
   if (!TRANSITIONS[current.status].includes(to)) return { ok: false, errors: [`a ${current.status} campaign cannot become ${to}`] };
   if (to === "scheduled") {
+    if (current.promotional) {
+      return { ok: false, errors: ["a promotional campaign cannot be activated yet: the tips-and-offers consent is not collected (push phase 4)"] };
+    }
     const gaps = await templateGaps(deps, current.templateKey);
     if (gaps.length > 0) return { ok: false, errors: [`template ${current.templateKey} is not complete: ${gaps.join(", ")}`] };
   }
@@ -97,36 +105,57 @@ export async function setCampaignsKilled(deps: EngineDeps, killed: boolean): Pro
   await deps.store.setCampaignsKilled(killed);
 }
 
+/** One campaign key's copy: every row it has, and what stops it being sent. */
+export interface CampaignCopy {
+  key: CampaignTemplateKey;
+  rows: PushTemplateRow[];
+  gaps: string[];
+}
+
 export interface CampaignOverview {
   killed: boolean;
+  copy: CampaignCopy[];
   campaigns: (CampaignRow & { report: CampaignReport })[];
 }
 
 export async function campaignOverview(deps: EngineDeps): Promise<CampaignOverview> {
   const rows = await deps.store.listCampaigns();
+  const templates = (await deps.store.listPushTemplates()).filter((r) => isCampaignTemplateKey(r.key));
+  // Keys a campaign names but nobody has written yet are listed too, with every language missing.
+  const keys = [...new Set([...templates.map((r) => r.key), ...rows.map((c) => c.templateKey)])] as CampaignTemplateKey[];
   return {
     killed: await deps.store.campaignsKilled(),
+    copy: keys.sort().map((key) => {
+      const own = templates.filter((r) => r.key === key);
+      return { key, rows: own, gaps: pushKeyGaps(own, key) };
+    }),
     campaigns: await Promise.all(rows.map(async (c) => ({ ...c, report: await deps.store.campaignReport(c.id) }))),
   };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** How far back the streak and last-log reads look; a streak past this is "strong" all the same. */
-const HABIT_DAYS = 60;
+
+/**
+ * THE "TIPS AND OFFERS" CONSENT IS NOT COLLECTED YET. `marketing_consent_at` is the signup box, which
+ * can never be withdrawn, so it is the wrong flag and is not read. Until push phase 4 lands its own,
+ * consent is false for every account: a promotional campaign reaches nobody and cannot be activated.
+ */
+const TIPS_CONSENT = false;
 
 /** Everything a segment can ask about one account, or null when it has no profile. */
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const stored = await deps.store.getEntitlement(userId);
-  const since = localDate("UTC", new Date(Date.parse(`${date}T00:00:00Z`) - HABIT_DAYS * DAY_MS));
-  const logged = (await deps.store.totalsSince(userId, since)).map((d) => d.date);
+  // The WHOLE history: a "lapsed" account is one whose last log is old, and a window would read a
+  // 61-day-old last log as "never". ponytail: one read per account that passed the cheap filters;
+  // store a last-logged date on the account if this ever shows up in a profile.
+  const logged = (await deps.store.totalsSince(userId, "1970-01-01")).map((d) => d.date);
   return {
     lang: profile.lang,
     entitlement: !entitlementLive(stored, now) ? "none" : stored?.trial === true ? "trial" : "active",
     onboarded: Boolean(profile.onboarded_at),
     ...habitOf(logged, date),
-    tipsConsent: (await deps.store.consentOf(userId))?.marketingConsentAt != null,
+    tipsConsent: TIPS_CONSENT,
     staff: deps.config.campaignStaffIds.includes(userId),
   };
 }
@@ -134,6 +163,7 @@ async function factsFor(deps: EngineDeps, userId: string, date: string, now: num
 /** True when this campaign may reach this account at all, schedule aside. */
 function reaches(c: CampaignRow, userId: string, f: SegmentFacts): boolean {
   if (!inRollout(userId, c.id, c.rolloutPct)) return false;
+  if (f.streakDays >= CAMPAIGN_STREAK_GUARD_DAYS) return false;
   if (c.promotional && !f.tipsConsent) return false;
   return matchesSegment(c.segment, f);
 }
@@ -161,22 +191,24 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
   for (const listed of live) {
     out.campaigns++;
     for (const { userId, timezone } of audience) {
-      // Re-read BEFORE every account: a kill between two sends stops the run between them.
-      if (await deps.store.campaignsKilled()) return out;
-      const c = await deps.store.getCampaign(listed.id);
-      if (!c || (c.status !== "scheduled" && c.status !== "running")) break;
       try {
+        // The cheap filters first; the kill switches are re-read only for an account that is due, so
+        // a kill between two SENDS still stops the run between them and an idle minute costs nothing.
         const zone = zoneOf(deps, timezone);
         const date = localDate(zone, new Date(now));
-        const [hh, mm] = c.localSendTime.split(":").map(Number) as [number, number];
+        const [hh, mm] = listed.localSendTime.split(":").map(Number) as [number, number];
         const at = instantOf(zone, date, { hour: hh, minute: mm });
         if (now < at || now >= at + CATCH_UP_MS) continue;
+        if (!inRollout(userId, listed.id, listed.rolloutPct)) continue;
+        if (await deps.store.hasCampaignSend(userId, listed.id)) continue;
+        if (await deps.store.campaignsKilled()) return out;
+        const c = await deps.store.getCampaign(listed.id);
+        if (!c || (c.status !== "scheduled" && c.status !== "running")) break;
         if (!inRollout(userId, c.id, c.rolloutPct)) continue;
-        if (await deps.store.hasCampaignSend(userId, c.id)) continue;
         const facts = await factsFor(deps, userId, date, now);
         if (!facts || !reaches(c, userId, facts)) continue;
-        const copy = await sendableCopy(deps, c.templateKey, facts.lang);
-        if (!copy) continue; // an incomplete template is not sent, and does not spend the day
+        const words = await campaignWords(deps, c.templateKey, facts.lang);
+        if (!words) continue; // an incomplete template is not sent, and does not spend the day
         const devices = await deps.store.pushTokensFor(userId);
         if (devices.length === 0) continue;
 
@@ -184,7 +216,6 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         if (!slot.claimed) { out.slotTaken++; continue; }
         if (!(await deps.store.claimCampaignSend(userId, c.id))) continue;
         await deps.store.markCampaignRunning(c.id);
-        const words = fillNotification(copy, c.templateKey, {});
         const sent = await sendLogged(
           deps, userId, devices,
           { kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang },
@@ -193,7 +224,7 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         out.sent += sent.sent;
         out.failed += sent.failed;
       } catch (e) {
-        console.error(`[eait] campaign ${c.id}: one account failed: ${(e as Error)?.message ?? e}`);
+        console.error(`[eait] campaign ${listed.id}: one account failed: ${(e as Error)?.message ?? e}`);
         out.failed++;
       }
     }
@@ -257,12 +288,11 @@ export async function testSendCampaign(
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };
   // Before the slot: a refused template must not spend the day's one message.
-  const copy = await sendableCopy(deps, c.templateKey, profile.lang as Lang);
-  if (!copy) return { ok: false, reason: "template-incomplete" };
+  const words = await campaignWords(deps, c.templateKey, profile.lang as Lang);
+  if (!words) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", c.id);
   if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
-  const words = fillNotification(copy, c.templateKey, {});
   const out = await sendLogged(
     deps, userId, devices,
     { kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: profile.lang, variant: "test" },

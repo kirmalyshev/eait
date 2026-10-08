@@ -6,7 +6,7 @@ import {
 
 const facts = (over: Partial<SegmentFacts> = {}): SegmentFacts => ({
   lang: "en", entitlement: "none", onboarded: true, streakBand: "none", sinceLog: "never",
-  tipsConsent: true, staff: false, ...over,
+  tipsConsent: true, staff: false, streakDays: 0, ...over,
 });
 
 describe("validateSegment", () => {
@@ -52,9 +52,9 @@ describe("matchesSegment", () => {
 
 describe("habitOf", () => {
   const today = "2026-10-08";
-  test("no days logged", () => expect(habitOf([], today)).toEqual({ streakBand: "none", sinceLog: "never" }));
+  test("no days logged", () => expect(habitOf([], today)).toEqual({ streakDays: 0, streakBand: "none", sinceLog: "never" }));
   test("logged today, three in a row", () => {
-    expect(habitOf(["2026-10-08", "2026-10-07", "2026-10-06"], today)).toEqual({ streakBand: "building", sinceLog: "today" });
+    expect(habitOf(["2026-10-08", "2026-10-07", "2026-10-06"], today)).toEqual({ streakDays: 3, streakBand: "building", sinceLog: "today" });
   });
   test("a streak survives a day not yet logged", () => {
     expect(habitOf(["2026-10-07", "2026-10-06"], today).streakBand).toBe("building");
@@ -63,8 +63,13 @@ describe("habitOf", () => {
     const days = Array.from({ length: 7 }, (_, i) => `2026-10-0${8 - i}`);
     expect(habitOf(days, today).streakBand).toBe("strong");
   });
+  test("the last-log band holds at any age: 59, 60, 61 and 400 days are lapsed, nothing logged is never", () => {
+    const ago = (n: number) => new Date(Date.parse("2026-10-08T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
+    for (const n of [59, 60, 61, 400]) expect(habitOf([ago(n)], today).sinceLog).toBe("lapsed");
+    expect(habitOf([], today).sinceLog).toBe("never");
+  });
   test("a gap breaks the streak and sets the band for days since", () => {
-    expect(habitOf(["2026-10-01"], today)).toEqual({ streakBand: "none", sinceLog: "lapsed" });
+    expect(habitOf(["2026-10-01"], today)).toEqual({ streakDays: 0, streakBand: "none", sinceLog: "lapsed" });
     expect(habitOf(["2026-10-05"], today).sinceLog).toBe("lapsing");
     expect(habitOf(["2026-10-06"], today).sinceLog).toBe("recent");
   });
@@ -102,7 +107,7 @@ describe("rollout", () => {
 });
 
 describe("validateCampaignInput", () => {
-  const ok = { name: "Win-back", templateKey: "nudge", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: true };
+  const ok = { name: "Win-back", templateKey: "campaign:win-back", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: true };
   test("accepts a complete campaign", () => expect(validateCampaignInput(ok).ok).toBe(true));
   test("refuses a bad time, percentage, template or name", () => {
     expect(validateCampaignInput({ ...ok, localSendTime: "25:00" }).ok).toBe(false);
@@ -110,8 +115,9 @@ describe("validateCampaignInput", () => {
     expect(validateCampaignInput({ ...ok, rolloutPct: 101 }).ok).toBe(false);
     expect(validateCampaignInput({ ...ok, rolloutPct: 1.5 }).ok).toBe(false);
     expect(validateCampaignInput({ ...ok, templateKey: "nope" }).ok).toBe(false);
-    expect(validateCampaignInput({ ...ok, templateKey: "evening" }).ok).toBe(false);
-    expect(validateCampaignInput({ ...ok, templateKey: "trial-end" }).ok).toBe(false);
+    for (const k of ["nudge", "evening", "trial-end", "campaign:evening", "campaign:streak", "campaign:", "campaign:Bad Slug", "campaign:a_b", "streak"]) {
+      expect(validateCampaignInput({ ...ok, templateKey: k }).ok).toBe(false);
+    }
     expect(validateCampaignInput({ ...ok, name: "  " }).ok).toBe(false);
   });
 });

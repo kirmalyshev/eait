@@ -5,14 +5,8 @@
 // picks from what is listed here, and an unknown key is refused rather than ignored (a typo that
 // silently widened the audience would be a broadcast to everybody).
 
-import type { NotificationId } from "./notifications.ts";
+import { isCampaignTemplateKey, type CampaignTemplateKey } from "./push-templates.ts";
 import { LANGS, type Lang } from "./types.ts";
-
-/**
- * The templates a campaign may send: the ones whose words need nothing computed per account.
- * `evening` fills the day's totals and `trial-end` is the billing reminder, so neither is a campaign.
- */
-export const CAMPAIGN_TEMPLATE_KEYS = ["nudge"] as const satisfies readonly NotificationId[];
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "running", "paused", "done", "killed"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
@@ -45,6 +39,8 @@ export interface SegmentFacts {
   lang: Lang;
   entitlement: EntitlementState;
   onboarded: boolean;
+  /** Consecutive logged days. Not a segment predicate: a campaign never reaches a streak of 3 or more. */
+  streakDays: number;
   streakBand: StreakBand;
   sinceLog: SinceLogBand;
   tipsConsent: boolean;
@@ -99,19 +95,28 @@ const dayNumber = (d: string): number => Date.parse(`${d}T00:00:00Z`) / DAY_MS;
  * Streak and last-log band from the dates an account logged a meal on (any order, `YYYY-MM-DD`),
  * read against `today` in the account's zone. A streak survives today not being logged yet.
  */
-export function habitOf(loggedDates: readonly string[], today: string): { streakBand: StreakBand; sinceLog: SinceLogBand } {
+export function habitOf(
+  loggedDates: readonly string[], today: string,
+): { streakDays: number; streakBand: StreakBand; sinceLog: SinceLogBand } {
   const days = new Set(loggedDates.filter((d) => d <= today).map(dayNumber));
-  if (days.size === 0) return { streakBand: "none", sinceLog: "never" };
+  if (days.size === 0) return { streakDays: 0, streakBand: "none", sinceLog: "never" };
   const t = dayNumber(today);
   const last = Math.max(...days);
   const gap = t - last;
   let streak = 0;
   if (gap <= 1) for (let d = last; days.has(d); d--) streak++;
   return {
+    streakDays: streak,
     streakBand: streak === 0 ? "none" : streak < 7 ? "building" : "strong",
     sinceLog: gap === 0 ? "today" : gap <= 2 ? "recent" : gap <= 6 ? "lapsing" : "lapsed",
   };
 }
+
+/**
+ * A streak this long is the habit line's to protect: no campaign reaches such an account, whatever
+ * its segment says. A rule, not a predicate, so no segment can switch it off.
+ */
+export const CAMPAIGN_STREAK_GUARD_DAYS = 3;
 
 /** FNV-1a, 32 bit: stable across runtimes and processes, which a rollout must be. */
 function fnv1a(s: string): number {
@@ -135,7 +140,7 @@ export function inRollout(userId: string, campaignId: string, pct: number): bool
 
 export interface CampaignInput {
   name: string;
-  templateKey: NotificationId;
+  templateKey: CampaignTemplateKey;
   segment: Segment;
   /** `HH:MM`, the account's own local time. */
   localSendTime: string;
@@ -151,8 +156,8 @@ export function validateCampaignInput(raw: unknown): CampaignValidation {
   const errors: string[] = [];
   const name = typeof r.name === "string" ? r.name.trim() : "";
   if (name.length === 0 || name.length > 80) errors.push("name must be 1-80 characters");
-  if (!(CAMPAIGN_TEMPLATE_KEYS as readonly unknown[]).includes(r.templateKey)) {
-    errors.push(`templateKey must be one of: ${CAMPAIGN_TEMPLATE_KEYS.join(", ")}`);
+  if (!isCampaignTemplateKey(r.templateKey)) {
+    errors.push("templateKey must be campaign:<slug> (lowercase words joined by hyphens, not a system message name)");
   }
   const seg = validateSegment(r.segment ?? {});
   if (!seg.ok) errors.push(...seg.errors);
@@ -167,7 +172,7 @@ export function validateCampaignInput(raw: unknown): CampaignValidation {
   return {
     ok: true,
     input: {
-      name, templateKey: r.templateKey as NotificationId, segment: seg.segment,
+      name, templateKey: r.templateKey as CampaignTemplateKey, segment: seg.segment,
       localSendTime: r.localSendTime as string, rolloutPct: r.rolloutPct as number,
       promotional: r.promotional as boolean,
     },

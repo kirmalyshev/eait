@@ -992,7 +992,7 @@ function contract(name: string, make: () => Promise<Store>) {
 
     describe("campaigns", () => {
       const row = (id: string, over: Partial<CampaignRow> = {}): CampaignRow => ({
-        id, name: `${RUN}-camp`, templateKey: "nudge", segment: { langs: ["en"] }, status: "draft",
+        id, name: `${RUN}-camp`, templateKey: "campaign:win-back", segment: { langs: ["en"] }, status: "draft",
         localSendTime: "18:30", rolloutPct: 10, promotional: true, createdBy: null,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over,
       });
@@ -1002,7 +1002,7 @@ function contract(name: string, make: () => Promise<Store>) {
         const id = crypto.randomUUID();
         await s.createCampaign(row(id));
         const got = await s.getCampaign(id);
-        expect(got).toMatchObject({ id, templateKey: "nudge", segment: { langs: ["en"] }, status: "draft", rolloutPct: 10 });
+        expect(got).toMatchObject({ id, templateKey: "campaign:win-back", segment: { langs: ["en"] }, status: "draft", rolloutPct: 10 });
         expect((await s.listCampaigns()).map((c) => c.id)).toContain(id);
         expect(await s.getCampaign(crypto.randomUUID())).toBeNull();
       });

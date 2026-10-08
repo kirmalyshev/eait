@@ -5,7 +5,7 @@
 import {
   LANGS, NOTIFICATION_IDS, PUSH_TEMPLATE_VARIANTS, copyFromPushRows, pickVariant, pushClaimErrors,
   pushKeyGaps, pushRowsFromCopy, validatePushTemplate,
-  type Lang, type NotificationCopy, type NotificationId, type PushTemplateRow, type PushTemplateText,
+  type CampaignTemplateKey, type Lang, type NotificationCopy, type NotificationId, type PushTemplateRow, type PushTemplateText,
 } from "@eait/shared";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -155,4 +155,19 @@ export async function rotatedVariant(
   among: readonly string[] = PUSH_TEMPLATE_VARIANTS[key],
 ): Promise<string> {
   return pickVariant(among, await uses(userId, key), now);
+}
+
+/**
+ * A campaign's words for one account's language: the `default` row of its own `campaign:<slug>` key,
+ * or null while any of the eight languages is missing or still a draft. Null means REFUSE, as for a
+ * system key: half of a translated set on a lock screen is worse than silence. No placeholders, so
+ * there is nothing to fill.
+ */
+export async function campaignWords(
+  deps: EngineDeps, key: CampaignTemplateKey, lang: Lang,
+): Promise<{ title: string; body: string } | null> {
+  const rows = (await deps.store.listPushTemplates()).filter((r) => r.key === key);
+  if (pushKeyGaps(rows, key).length > 0) return null;
+  const row = rows.find((r) => r.lang === lang && r.variant === "default");
+  return row ? { title: row.title, body: row.body } : null;
 }

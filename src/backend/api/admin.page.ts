@@ -205,6 +205,19 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   </p>
   <h3>New campaign</h3>
   <div id="campaign-form"></div>
+  <h3>Campaign copy</h3>
+  <p class="muted">
+    A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+    gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+    scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+    gender checks as every other push text.
+  </p>
+  <datalist id="campaign-keys"></datalist>
+  <table id="campaign-copy">
+    <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="campaign-copy-form"></div>
 
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
   <p class="muted" id="funnel-summary">Loading…</p>
@@ -756,8 +769,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var host = $("campaign-form");
     host.textContent = "";
     var name = document.createElement("input"); name.placeholder = "Name";
-    var tpl = document.createElement("select");
-    o.templateKeys.forEach(function (k) { var opt = document.createElement("option"); opt.value = k; opt.textContent = k; tpl.appendChild(opt); });
+    var tpl = document.createElement("input"); tpl.placeholder = "campaign:spring-win-back"; tpl.setAttribute("list", "campaign-keys");
     var time = document.createElement("input"); time.type = "time"; time.value = "18:30";
     var pctIn = document.createElement("input"); pctIn.type = "number"; pctIn.min = "0"; pctIn.max = "100"; pctIn.value = "10";
     var promo = document.createElement("input"); promo.type = "checkbox"; promo.checked = true; promo.style.width = "auto";
@@ -769,7 +781,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var tips = triState("tipsConsent");
     var staff = triState("staffOnly");
     var row1 = document.createElement("div"); row1.className = "row wrap";
-    [campaignField("Name", name), campaignField("Template", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn)].forEach(function (f) { row1.appendChild(f); });
+    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn)].forEach(function (f) { row1.appendChild(f); });
     host.appendChild(row1);
     host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
     host.appendChild(campaignField("Languages (none ticked = all)", langs));
@@ -798,9 +810,57 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     host.appendChild(create);
   }
 
+
+  function buildCopyForm(o) {
+    var host = $("campaign-copy-form");
+    host.textContent = "";
+    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
+    var lang = document.createElement("select");
+    o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
+    var title = document.createElement("input"); title.placeholder = "Title";
+    var body = document.createElement("textarea"); body.placeholder = "Body";
+    var row = document.createElement("div"); row.className = "row wrap";
+    [campaignField("Key", key), campaignField("Language", lang), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
+    host.appendChild(row);
+    host.appendChild(campaignField("Body", body));
+    // Picking a key and language shows what is saved there.
+    var fill = function () {
+      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value; })[0];
+      title.value = hit ? hit.title : "";
+      body.value = hit ? hit.body : "";
+    };
+    key.addEventListener("change", fill);
+    lang.addEventListener("change", fill);
+    var save = function (status) {
+      return function () {
+        campaignErrors(null);
+        api("PUT", "/admin/api/push-templates", {
+          template: { key: key.value.trim(), lang: lang.value, variant: "default", title: title.value, body: body.value },
+          status: status
+        }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
+      };
+    };
+    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
+    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
+    host.appendChild(draft);
+    host.appendChild(rev);
+  }
+
+  var copyRows = [];
+
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
-      if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); }
+      if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); buildCopyForm(v.options); }
+      copyRows = [];
+      var keys = $("campaign-keys"); keys.textContent = "";
+      var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
+      v.copy.forEach(function (c) {
+        copyRows = copyRows.concat(c.rows);
+        var opt = document.createElement("option"); opt.value = c.key; keys.appendChild(opt);
+        var tr = document.createElement("tr");
+        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t) { var td = document.createElement("td"); td.textContent = t; tr.appendChild(td); });
+        copyBody.appendChild(tr);
+      });
       $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
       $("campaigns-summary").textContent =
         v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the test allowlist";

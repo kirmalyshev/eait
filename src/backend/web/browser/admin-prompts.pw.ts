@@ -108,10 +108,10 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   const campaignCalls = (over.campaignCalls ?? []) as { method: string; path: string; body: unknown }[];
   let campaignKilled = false;
   const campaignRows: Record<string, unknown>[] = [
-    { id: "c-1", name: "Win-back, German", templateKey: "nudge", segment: { langs: ["de"], sinceLog: ["lapsed"] }, status: "running",
+    { id: "c-1", name: "Win-back, German", templateKey: "campaign:win-back", segment: { langs: ["de"], sinceLog: ["lapsed"] }, status: "running",
       localSendTime: "18:30", rolloutPct: 40, promotional: true, createdBy: "a", createdAt: "2026-10-08T00:00:00.000Z",
       updatedAt: "2026-10-08T00:00:00.000Z", report: { sent: 120, accepted: 118, dead: 2, dry: 0, opened: 18, test: 1 } },
-    { id: "c-2", name: "Staff check", templateKey: "nudge", segment: { staffOnly: true }, status: "draft",
+    { id: "c-2", name: "Staff check", templateKey: "campaign:staff-check", segment: { staffOnly: true }, status: "draft",
       localSendTime: "09:00", rolloutPct: 100, promotional: false, createdBy: "a", createdAt: "2026-10-08T00:00:00.000Z",
       updatedAt: "2026-10-08T00:00:00.000Z", report: { sent: 0, accepted: 0, dead: 0, dry: 3, opened: 0, test: 0 } },
   ];
@@ -123,8 +123,15 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     if (req.method() === "GET") {
       return r.fulfill(json({
         killed: campaignKilled, campaigns: campaignRows,
+        copy: [
+          { key: "campaign:staff-check", rows: [], gaps: LANGS.map((l) => `${l}/default`) },
+          { key: "campaign:win-back", gaps: [], rows: LANGS.map((lang) => ({
+            key: "campaign:win-back", lang, variant: "default", title: `Hi ${lang}`, body: `Body ${lang}`, status: "reviewed",
+            reviewed_by: "a", reviewed_at: "2026-10-08T00:00:00.000Z", updated_at: "2026-10-08T00:00:00.000Z",
+          })) },
+        ],
         options: {
-          langs: LANGS, templateKeys: ["nudge"], statuses: ["draft", "scheduled", "running", "paused", "done", "killed"],
+          langs: LANGS, statuses: ["draft", "scheduled", "running", "paused", "done", "killed"],
           entitlement: ["active", "trial", "none"], streakBands: ["none", "building", "strong"],
           sinceLog: ["today", "recent", "lapsing", "lapsed", "never"], staffCount: 1,
         },
@@ -319,13 +326,18 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await expect(table.getByText("18 (15%)")).toBeVisible();
   await expect(page.locator("#campaigns-state")).toHaveText("running normally");
 
+  await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
+  await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
+  await expect(page.locator("#campaign-copy")).toContainText("complete");
+  await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
   await page.locator("#campaign-form input[placeholder=Name]").fill("Spring");
+  await page.locator("#campaign-form input[placeholder='campaign:spring-win-back']").fill("campaign:spring");
   await page.locator('#campaign-form [data-name=langs] input[value=fr]').check();
   await page.locator('#campaign-form select[data-name=staffOnly]').selectOption("true");
   await page.getByRole("button", { name: "Create draft" }).click();
   await expect.poll(() => calls.find((c) => c.method === "POST" && c.path === "/admin/api/campaigns")).toBeTruthy();
   expect(calls.find((c) => c.path === "/admin/api/campaigns")!.body).toMatchObject({
-    name: "Spring", templateKey: "nudge", segment: { langs: ["fr"], staffOnly: true }, localSendTime: "18:30", rolloutPct: 10, promotional: true,
+    name: "Spring", templateKey: "campaign:spring", segment: { langs: ["fr"], staffOnly: true }, localSendTime: "18:30", rolloutPct: 10, promotional: true,
   });
 
   await table.locator("tr").filter({ hasText: "Staff check" }).getByRole("button", { name: "Dry run" }).click();
@@ -334,6 +346,29 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await table.locator("tr").filter({ hasText: "Win-back" }).getByRole("button", { name: "Test send" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("not-staff");
   expect(errors.filter((e) => !/409/.test(e))).toEqual([]);
+});
+
+test("the campaign copy editor loads a saved language and saves a draft and a reviewed row", async ({ page }) => {
+  const errors = watchConsole(page);
+  const calls: { method: string; path: string; body: unknown }[] = [];
+  await stubAdmin(page, { campaignCalls: calls });
+  await page.route("**/admin/api/push-templates", (r) => r.request().method() === "PUT"
+    ? (calls.push({ method: "PUT", path: "/admin/api/push-templates", body: r.request().postDataJSON() }), r.fulfill({ status: 200, contentType: "application/json", body: "{\"row\":{}}" }))
+    : r.fallback());
+  await openAdmin(page);
+  const form = page.locator("#campaign-copy-form");
+  await form.locator("input[placeholder='campaign:spring-win-back']").fill("campaign:win-back");
+  await form.locator("select").selectOption("de");
+  await form.locator("input[placeholder='campaign:spring-win-back']").dispatchEvent("change");
+  await expect(form.locator("input[placeholder=Title]")).toHaveValue("Hi de");
+  await form.locator("input[placeholder=Title]").fill("Hallo");
+  await form.locator("textarea").fill("Ein Satz für alle.");
+  await form.getByRole("button", { name: "Save as reviewed" }).click();
+  await expect.poll(() => calls.find((c) => c.method === "PUT")).toBeTruthy();
+  expect(calls.find((c) => c.method === "PUT")!.body).toEqual({
+    template: { key: "campaign:win-back", lang: "de", variant: "default", title: "Hallo", body: "Ein Satz für alle." }, status: "reviewed",
+  });
+  expect(errors).toEqual([]);
 });
 
 test("the campaigns panel stops everything behind a confirm, and a 422 is shown in its box", async ({ page }) => {
