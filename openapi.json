@@ -2796,6 +2796,69 @@
         ]
       }
     },
+    "/v1/push/delivered": {
+      "post": {
+        "operationId": "post_pushDelivered",
+        "summary": "Report that a push reached the device (sent by the notification extension). Recorded once per send; an id that is not this account's answers the same.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeliveredRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOpenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/push/consent": {
       "get": {
         "operationId": "get_pushConsent",
@@ -7488,6 +7551,19 @@
         ],
         "additionalProperties": false,
         "description": "`at` is when it was turned on, or null while it is off."
+      },
+      "PushDeliveredRequest": {
+        "type": "object",
+        "properties": {
+          "sendId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sendId"
+        ],
+        "additionalProperties": false,
+        "description": "The notification service extension reporting that a push reached the device (ieat-app#1763). It carries no `action` and claims nothing: a beacon is not a message. `sendId` is the same `send_log` id an open carries."
       },
       "PushOpenAction": {
         "type": "string",

@@ -1987,6 +1987,47 @@ describe("push opens (ieat-app#1759)", () => {
   });
 });
 
+describe("push delivered beacon", () => {
+  async function sendFor(t: string): Promise<string> {
+    const id = crypto.randomUUID();
+    await store.createSend((await store.userIdForToken(t))!, {
+      id, kind: "campaign", ref: null, templateKey: "deliv-t", lang: "en", variant: null,
+      token: "ExponentPushToken[deliv]", state: "accepted",
+    });
+    return id;
+  }
+  const delivered = async () =>
+    (await store.pushOpenStats(2, "UTC")).filter((r) => r.templateKey === "deliv-t").reduce((n, r) => n + r.delivered, 0);
+
+  it("records a delivery once, however often it is reported", async () => {
+    const t = await session();
+    const sendId = await sendFor(t);
+    for (let i = 0; i < 2; i++) {
+      const res = await post(ROUTES.pushDelivered, { sendId }, t);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    }
+    expect(await delivered()).toBe(1);
+  });
+
+  it("answers the same for another account's send and records nothing", async () => {
+    const mine = await session();
+    const sendId = await sendFor(await session());
+    const res = await post(ROUTES.pushDelivered, { sendId }, mine);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(await delivered()).toBe(0);
+  });
+
+  it("refuses a body without a send id, and needs a session", async () => {
+    const t = await session();
+    for (const body of [{}, { sendId: "" }, { sendId: 4 }]) {
+      expect((await post(ROUTES.pushDelivered, body, t)).status).toBe(400);
+    }
+    expect((await post(ROUTES.pushDelivered, { sendId: "x" })).status).toBe(401);
+  });
+});
+
 describe("push consent (tips and offers)", () => {
   it("is off by default, turns on with a moment, off again, and needs a session and a boolean", async () => {
     const t = await session();

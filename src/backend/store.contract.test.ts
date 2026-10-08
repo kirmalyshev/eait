@@ -1262,6 +1262,23 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(await s.recordPushOpen(a, id, "tap")).toBe(true);
       });
 
+      it("records a delivery once per send, for its own account only, and leaves the receipt state alone", async () => {
+        const s = await open();
+        const a = (await s.upsertDeviceUser(device(), "en")).userId;
+        const b = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, a, "deliv");
+        expect(await s.recordPushDelivered(b, id)).toBe(false);
+        expect(await s.recordPushDelivered(a, crypto.randomUUID())).toBe(false);
+        expect((await statsFor(s, "deliv"))[0]).toMatchObject({ sent: 1, delivered: 0 });
+        expect(await s.recordPushDelivered(a, id)).toBe(true);
+        expect(await s.recordPushDelivered(a, id)).toBe(false);
+        // The beacon can beat the receipt: settling afterwards must keep the delivery.
+        await s.settleSend(a, id, { state: "delivered-to-apns" });
+        const [row] = await statsFor(s, "deliv");
+        expect(row).toMatchObject({ sent: 1, accepted: 1, delivered: 1, opened: 0 });
+        expect((await s.sendLogFor(a, 5)).find((r) => r.id === id)!.deliveredAt).not.toBeNull();
+      });
+
       it("counts sent, accepted and dead per template", async () => {
         const s = await open();
         const u = (await s.upsertDeviceUser(device(), "en")).userId;

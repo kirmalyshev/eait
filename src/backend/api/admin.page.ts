@@ -172,7 +172,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <p class="muted" id="pushes-summary">Loading…</p>
   <table id="pushes">
     <thead>
-      <tr><th>Day</th><th>Kind</th><th>Template</th><th>Sent</th><th>Accepted</th><th>Dead</th><th>Opened</th><th>Converted</th></tr>
+      <tr><th>Day</th><th>Kind</th><th>Template</th><th>Sent</th><th>Accepted</th><th>Dead</th><th>Delivered</th><th>Opened</th><th>Converted</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -688,7 +688,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       body.textContent = "";
       v.rows.forEach(function (r) {
         var tr = document.createElement("tr");
-        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.opened, r.converted].forEach(function (t) {
+        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t) {
           var td = document.createElement("td");
           td.textContent = String(t);
           tr.appendChild(td);

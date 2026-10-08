@@ -6,7 +6,7 @@
 // not the caller's. A route that distinguished them would let a caller probe for other accounts'
 // send ids.
 
-import type { PushOpenRequest, PushOpenResponse } from "@eait/shared";
+import type { PushDeliveredRequest, PushDeliveredResponse, PushOpenRequest, PushOpenResponse } from "@eait/shared";
 import type { PushStatRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
@@ -18,6 +18,14 @@ export async function recordPushOpen(
   deps: EngineDeps, userId: string, body: PushOpenRequest,
 ): Promise<PushOpenResponse> {
   await deps.store.recordPushOpen(userId, body.sendId, body.action ?? "tap");
+  return { ok: true };
+}
+
+/** The notification extension's beacon (ieat-app#1763). Same answer whatever the store decided. */
+export async function recordPushDelivered(
+  deps: EngineDeps, userId: string, body: PushDeliveredRequest,
+): Promise<PushDeliveredResponse> {
+  await deps.store.recordPushDelivered(userId, body.sendId);
   return { ok: true };
 }
 

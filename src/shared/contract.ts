@@ -307,6 +307,8 @@ export const ROUTES = {
    * an id that is not this account's is a no-op that answers the same.
    */
   pushOpen: "/v1/push/open",
+  /** POST — the notification extension reports a push arrived. See `PushDeliveredRequest`. */
+  pushDelivered: "/v1/push/delivered",
   /**
    * GET — the tips-and-offers consent (`PushConsentResponse`); POST — set it (`PushConsentRequest`).
    * Default OFF. Onboarding and streak reminders do not depend on it.
@@ -1091,10 +1093,28 @@ export function pushOpenFrom(data: unknown, reply: boolean): PushOpenRequest | n
   return isPushOpenRequest(body) ? body : null;
 }
 
+/**
+ * The notification service extension reporting that a push reached the device (ieat-app#1763).
+ * It carries no `action` and claims nothing: a beacon is not a message. `sendId` is the same
+ * `send_log` id an open carries.
+ */
+export interface PushDeliveredRequest {
+  sendId: string;
+}
+
+export function isPushDeliveredRequest(body: unknown): body is PushDeliveredRequest {
+  if (typeof body !== "object" || body === null) return false;
+  const id = (body as Record<string, unknown>).sendId;
+  return typeof id === "string" && id.length > 0 && id.length <= MAX_PUSH_SEND_ID;
+}
+
 /** Always `{ ok: true }`: recorded, deduplicated and not-yours are indistinguishable on purpose. */
 export interface PushOpenResponse {
   ok: true;
 }
+
+/** Same answer as an open, for the same reason. */
+export type PushDeliveredResponse = PushOpenResponse;
 
 export interface PushConsentRequest {
   offers: boolean;

@@ -947,7 +947,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!users.has(userId)) throw new Error("send_log: no such user");
       sendLog.set(row.id, {
         ...row, userId, ticketId: null, receiptError: null,
-        createdAt: new Date().toISOString(), receiptAt: null,
+        createdAt: new Date().toISOString(), receiptAt: null, deliveredAt: null,
       });
     },
 
@@ -980,6 +980,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return true;
     },
 
+    async recordPushDelivered(userId, sendId) {
+      const row = sendLog.get(sendId);
+      if (!row || row.userId !== userId || row.deliveredAt !== null) return false;
+      row.deliveredAt = new Date().toISOString();
+      return true;
+    },
+
     async pushOpenStats(days, timezone) {
       const since = now() - days * 24 * 60 * 60 * 1000;
       const DAY = 24 * 60 * 60 * 1000;
@@ -989,13 +996,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (at < since || r.state === "would_have_sent") continue;
         const day = localDate(timezone, new Date(at));
         const key = `${day}|${r.kind}|${r.templateKey}`;
-        const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, opened: 0, converted: 0 };
+        const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, delivered: 0, opened: 0, converted: 0 };
         row.sent++;
         // `expired` (no receipt within 24 h) is accepted-but-unconfirmed, never dead.
         if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) row.accepted++;
         if (r.state === "dead") row.dead++;
         // A send that never reached a phone (`dead`, `refused`, `dry`) cannot have been opened or
         // acted on: counting its stray open or the meal that followed would be a false conversion.
+        if (r.deliveredAt !== null) row.delivered++;
         const reached = r.state !== "dead" && r.state !== "refused" && r.state !== "dry";
         if (reached && pushOpens.has(`${r.userId}|${r.id}`)) row.opened++;
         // [send, send + 24 h): a meal at the send's own instant counts, one a day later does not.
