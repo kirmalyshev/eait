@@ -19,7 +19,7 @@ import { isAgentProvider, localAgentPorts, probeAgentCli } from "./llm/local-age
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, drainJobs, pushTick, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, pushTick, runCampaigns, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -310,6 +310,8 @@ if (config.pushEnabled) {
     void (async () => {
       try {
         await pushTick(deps);
+        // After the sweep: its rank-ordered claims for this minute are already made.
+        await runCampaigns(deps);
         await collectPushReceipts(deps);
       } catch (e) {
         // One bad minute must not take the timer with it.

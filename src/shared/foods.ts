@@ -36,7 +36,7 @@ export interface FoodPortion {
  * research leaves room for, one row per published item.
  */
 export const FOOD_SOURCES = [
-  "bls", "ciqual", "frida", "fcdb",
+  "bls", "ciqual", "frida", "fcdb", "matvaretabellen",
   "usda-foundation", "usda-sr", "usda-fndds",
   "curated",
 ] as const;
@@ -162,6 +162,11 @@ export const FOOD_ATTRIBUTION: Partial<Record<FoodSource | ProductSource, FoodAt
     source: "frida",
     citation: "© Frida Food Data (frida.fooddata.dk), version 5.5",
     url: "https://frida.fooddata.dk",
+  },
+  matvaretabellen: {
+    source: "matvaretabellen",
+    citation: "Matvaretabellen, Mattilsynet (Norwegian Food Safety Authority). Licensed under the Norwegian Licence for Open Government Data (NLOD) 2.0",
+    url: "https://www.matvaretabellen.no",
   },
   fcdb: {
     source: "fcdb",

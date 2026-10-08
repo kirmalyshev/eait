@@ -227,7 +227,7 @@ export async function sendLogged(
 export const CATCH_UP_MS = 2 * 60 * 60 * 1000;
 
 /** The zone an account dates its days in: its own, when the app has reported a usable one. */
-function zoneOf(deps: EngineDeps, reported: string | null): string {
+export function zoneOf(deps: EngineDeps, reported: string | null): string {
   return reported !== null && isTimezone(reported) ? reported : deps.config.timezone;
 }
 

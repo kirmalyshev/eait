@@ -92,7 +92,7 @@ describe("the admin is off unless somebody holds the role", () => {
     //
     // The property survives the move from a shared token, and gains something: deleting the last
     // admin account switches the surface off, which no environment variable could do.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates",
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates", "/admin/api/campaigns",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
@@ -1122,5 +1122,119 @@ describe("the admin's push opens view (ieat-app#1759)", () => {
 
   it("is closed to anyone but the admin", async () => {
     expect((await admin("GET", "/admin/api/push/stats", undefined, "")).status).toBe(401);
+  });
+});
+
+describe("campaigns (ieat-app#1761)", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+  const input = { name: "Win-back", templateKey: "campaign:win-back", segment: { langs: ["de"] }, localSendTime: "18:30", rolloutPct: 10, promotional: true };
+  const create = async (over: Record<string, unknown> = {}) =>
+    await (await admin("POST", "/admin/api/campaigns", { ...input, ...over })).json() as { row: { id: string; status: string } };
+
+  it("lists nothing at first, with the options the form is drawn from", async () => {
+    const body = await (await admin("GET", "/admin/api/campaigns")).json() as
+      { killed: boolean; campaigns: unknown[]; options: { langs: string[]; streakBands: string[] } };
+    expect(body.killed).toBe(false);
+    expect(body.campaigns).toEqual([]);
+    expect(body.options.langs).toEqual([...LANGS]);
+  });
+
+  it("lists a key a campaign names with every language missing, and refuses a placeholder or a system key in campaign copy", async () => {
+    await create();
+    const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { copy: { key: string; gaps: string[] }[] };
+    expect(listed.copy[0]).toMatchObject({ key: "campaign:win-back" });
+    expect(listed.copy[0]!.gaps).toHaveLength(8);
+    const ph = await admin("PUT", "/admin/api/push-templates", {
+      template: { key: "campaign:win-back", lang: "en", variant: "default", title: "Hi", body: "You ate {eaten}." }, status: "draft",
+    });
+    expect(ph.status).toBe(422);
+    const sys = await admin("PUT", "/admin/api/push-templates", {
+      template: { key: "campaign:nudge", lang: "en", variant: "default", title: "Hi", body: "Text." }, status: "draft",
+    });
+    expect(sys.status).toBe(422);
+  });
+
+  it("creates a draft, records who made it, and refuses a predicate off the allowlist with 422", async () => {
+    const made = await create();
+    expect(made.row.status).toBe("draft");
+    const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { campaigns: { id: string; createdBy: string | null; report: object }[] };
+    expect(listed.campaigns[0]).toMatchObject({ id: made.row.id });
+    expect(listed.campaigns[0]!.createdBy).not.toBeNull();
+    expect(listed.campaigns[0]!.report).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0 });
+    const bad = await admin("POST", "/admin/api/campaigns", { ...input, segment: { sql: "1=1" } });
+    expect(bad.status).toBe(422);
+    expect(await bad.json()).toEqual({ errors: ["unknown predicate: sql"] });
+  });
+
+  it("refuses to schedule a campaign with no copy, and a promotional one, with 422", async () => {
+    const noCopy = await create({ promotional: false });
+    const r1 = await admin("POST", `/admin/api/campaigns/${noCopy.row.id}/status`, { status: "scheduled" });
+    expect(r1.status).toBe(422);
+    const promo = await create();
+    const r2 = await admin("POST", `/admin/api/campaigns/${promo.row.id}/status`, { status: "scheduled" });
+    expect(r2.status).toBe(422);
+    expect(JSON.stringify(await r2.json())).toContain("tips-and-offers consent");
+  });
+
+  it("schedules a campaign whose copy is complete in all eight languages", async () => {
+    for (const lang of LANGS) {
+      const put = await admin("PUT", "/admin/api/push-templates", {
+        template: { key: "campaign:win-back", lang, variant: "default", title: "Hello", body: "A line for everyone." }, status: "reviewed",
+      });
+      expect(put.status).toBe(200);
+    }
+    const made = await create({ promotional: false });
+    const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { copy: { key: string; gaps: string[]; rows: unknown[] }[] };
+    expect(listed.copy).toEqual([expect.objectContaining({ key: "campaign:win-back", gaps: [] })]);
+    expect(listed.copy[0]!.rows).toHaveLength(8);
+    const ok = await admin("POST", `/admin/api/campaigns/${made.row.id}/status`, { status: "scheduled" });
+    expect(ok.status).toBe(200);
+    expect((await ok.json() as { row: { status: string } }).row.status).toBe("scheduled");
+    const again = await admin("POST", `/admin/api/campaigns/${made.row.id}/status`, { status: "draft" });
+    expect(again.status).toBe(422);
+    const unknown = await admin("POST", "/admin/api/campaigns/nope/status", { status: "scheduled" });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("edits a campaign, and a dry run of a campaign with no copy is refused", async () => {
+    const made = await create();
+    const up = await admin("PATCH", `/admin/api/campaigns/${made.row.id}`, { rolloutPct: 50 });
+    expect((await up.json() as { row: { rolloutPct: number } }).row.rolloutPct).toBe(50);
+    const dry = await admin("POST", `/admin/api/campaigns/${made.row.id}/dry-run`);
+    expect(dry.status).toBe(409);
+    expect(await dry.json()).toEqual({ ok: false, reason: "template-incomplete" });
+  });
+
+  it("refuses a test send to an account that is not on the staff allowlist with 409", async () => {
+    const made = await create();
+    const out = await admin("POST", `/admin/api/campaigns/${made.row.id}/test`, { userId: "00000000-0000-4000-8000-000000000000" });
+    expect(out.status).toBe(409);
+    expect(await out.json()).toEqual({ ok: false, reason: "not-staff" });
+  });
+
+  it("flips the global kill switch both ways", async () => {
+    await admin("POST", "/admin/api/campaigns/kill", { killed: true });
+    expect(((await (await admin("GET", "/admin/api/campaigns")).json()) as { killed: boolean }).killed).toBe(true);
+    await admin("POST", "/admin/api/campaigns/kill", { killed: false });
+    expect(((await (await admin("GET", "/admin/api/campaigns")).json()) as { killed: boolean }).killed).toBe(false);
+    expect((await admin("POST", "/admin/api/campaigns/kill", { killed: "yes" })).status).toBe(422);
+  });
+});
+
+describe("campaign routes are the admin's alone (ieat-app#1761)", () => {
+  it("answer an ordinary signed-in account with 404 and an anonymous caller with 401, and change nothing", async () => {
+    await mountWithAdmin();
+    const ordinary = await session();
+    const paths: [string, string][] = [
+      ["GET", "/admin/api/campaigns"], ["POST", "/admin/api/campaigns"], ["POST", "/admin/api/campaigns/kill"],
+      ["PATCH", "/admin/api/campaigns/x"], ["POST", "/admin/api/campaigns/x/status"],
+      ["POST", "/admin/api/campaigns/x/dry-run"], ["POST", "/admin/api/campaigns/x/test"],
+    ];
+    for (const [method, path] of paths) {
+      expect((await admin(method, path, {}, ordinary)).status).toBe(404);
+      expect((await admin(method, path, {}, "")).status).toBe(401);
+    }
+    expect(await store.campaignsKilled()).toBe(false);
+    expect(await store.listCampaigns()).toEqual([]);
   });
 });

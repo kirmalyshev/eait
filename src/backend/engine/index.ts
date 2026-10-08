@@ -25,6 +25,11 @@ export {
   RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
+export {
+  campaignOverview, createCampaign, dryRunCampaign, runCampaigns, setCampaignStatus, setCampaignsKilled,
+  testSendCampaign, updateCampaign,
+  type CampaignOverview, type CampaignRunResult, type CampaignTestResult, type DryRunResult,
+} from "./campaign.ts";
 export { recordPushOpen, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";
 export { pushConsent, setPushConsent, pushOffersAllowed } from "./push-consent.ts";
 export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";

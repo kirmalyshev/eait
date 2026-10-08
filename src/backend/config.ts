@@ -356,6 +356,11 @@ export interface Config {
    * replaced by a pre-role dump leaves an instance nobody can administer.
    */
   adminBootstrapUserId: string;
+  /**
+   * User ids a campaign TEST send may reach, and what a `staffOnly` segment selects. Empty means
+   * no test send is possible and a staff-only campaign reaches nobody.
+   */
+  campaignStaffIds: string[];
 
   // ── Notifications ────────────────────────────────────────────────────────────────────────
   //
@@ -576,6 +581,7 @@ export function configDefaults(): Config {
     telegramBotToken: "",
     telegramBotUsername: "",
     adminBootstrapUserId: "",
+    campaignStaffIds: [],
     landingUrl: "",
     termsUrl: "",
     donateKofiUrl: "",
@@ -736,6 +742,7 @@ export function loadConfig(): Config {
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
     telegramBotToken: telegramBotTokenFromEnv(),
     adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
+    campaignStaffIds: process.env.EAIT__BACKEND__CAMPAIGN_STAFF_IDS === undefined ? d.campaignStaffIds : list("EAIT__BACKEND__CAMPAIGN_STAFF_IDS"),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),

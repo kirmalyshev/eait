@@ -41,7 +41,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
+  CAMPAIGN_STATUSES, ENTITLEMENT_STATES, SINCE_LOG_BANDS, STREAK_BANDS, LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
   SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
@@ -50,6 +50,7 @@ import {
   onboardingFunnel, promptHistory, savePrompt,
   sendTestPush, pushOpenView,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
+  campaignOverview, createCampaign, dryRunCampaign, setCampaignStatus, setCampaignsKilled, testSendCampaign, updateCampaign,
   resetOnboardingContent, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -237,6 +238,60 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
     const body = await req.json() as { key?: unknown; lang?: unknown; variant?: unknown };
     const result = await reviewPushTemplate(deps, { key: body?.key, lang: body?.lang, variant: body?.variant }, adminId);
     return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, 422);
+  }
+
+  // ── Push campaigns (ieat-app#1761) ─────────────────────────────────────────────────────────
+  //
+  // A segment is the allowlist in `@eait/shared` and nothing else: a predicate it does not name is a
+  // 422 with the reason, never ignored. Status moves only along the machine in `engine/campaign.ts`;
+  // scheduling needs a complete template. A test send and a dry run never take a campaign's one
+  // send per account. The global kill switch is `POST /admin/api/campaigns/kill`.
+  if (pathname === "/admin/api/campaigns") {
+    if (req.method === "GET") {
+      return json({
+        ...(await campaignOverview(deps)),
+        options: {
+          langs: LANGS, statuses: CAMPAIGN_STATUSES,
+          entitlement: ENTITLEMENT_STATES, streakBands: STREAK_BANDS, sinceLog: SINCE_LOG_BANDS,
+          staffCount: deps.config.campaignStaffIds.length,
+        },
+      });
+    }
+    if (req.method === "POST") {
+      const result = await createCampaign(deps, await req.json().catch(() => null), adminId);
+      return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, 422);
+    }
+  }
+
+  if (req.method === "POST" && pathname === "/admin/api/campaigns/kill") {
+    const body = await req.json().catch(() => null) as { killed?: unknown } | null;
+    if (typeof body?.killed !== "boolean") return json({ errors: ["killed must be true or false"] }, 422);
+    await setCampaignsKilled(deps, body.killed);
+    return json({ killed: body.killed });
+  }
+
+  const camp = pathname.match(/^\/admin\/api\/campaigns\/([\w-]{1,64})(?:\/(status|dry-run|test))?$/);
+  if (camp) {
+    const id = camp[1]!;
+    const body = (req.method === "GET" ? null : await req.json().catch(() => null)) as Record<string, unknown> | null;
+    if (req.method === "PATCH" && camp[2] === undefined) {
+      const result = await updateCampaign(deps, id, body ?? {});
+      return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, result.errors[0] === "no such campaign" ? 404 : 422);
+    }
+    if (req.method === "POST" && camp[2] === "status") {
+      const to = body?.status;
+      if (typeof to !== "string" || !(CAMPAIGN_STATUSES as readonly string[]).includes(to)) return json({ errors: ["unknown status"] }, 422);
+      const result = await setCampaignStatus(deps, id, to as (typeof CAMPAIGN_STATUSES)[number]);
+      return result.ok ? json({ row: result.row }) : json({ errors: result.errors }, result.errors[0] === "no such campaign" ? 404 : 422);
+    }
+    if (req.method === "POST" && camp[2] === "dry-run") {
+      const out = await dryRunCampaign(deps, id);
+      return json(out, out.ok ? 200 : out.reason === "no-such-campaign" ? 404 : 409);
+    }
+    if (req.method === "POST" && camp[2] === "test") {
+      const out = await testSendCampaign(deps, id, typeof body?.userId === "string" ? body.userId : "");
+      return json(out, out.ok ? 200 : out.reason === "no-such-campaign" ? 404 : 409);
+    }
   }
 
   // ── The system prompts ─────────────────────────────────────────────────────────────────────

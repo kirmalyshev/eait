@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { PushKind, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
+import type { CampaignStatus, CampaignTemplateKey, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -95,6 +95,35 @@ export interface SendLogRow extends NewSend {
   receiptError: string | null;
   createdAt: string;
   receiptAt: string | null;
+}
+
+/** A manual push campaign (ieat-app#1761). `segment` is the allowlisted predicate set, never SQL. */
+export interface CampaignRow {
+  id: string;
+  name: string;
+  templateKey: CampaignTemplateKey;
+  segment: Segment;
+  status: CampaignStatus;
+  /** `HH:MM`, the account's own local time. */
+  localSendTime: string;
+  rolloutPct: number;
+  promotional: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CampaignPatch = Partial<Pick<CampaignRow,
+  "name" | "templateKey" | "segment" | "status" | "localSendTime" | "rolloutPct" | "promotional">>;
+
+/** What a campaign's `send_log` rows say. Test sends and dry rows are counted apart from real sends. */
+export interface CampaignReport {
+  sent: number;
+  accepted: number;
+  dead: number;
+  dry: number;
+  opened: number;
+  test: number;
 }
 
 /** One day of one template's life, for the admin's push view (#1759). */
@@ -951,6 +980,26 @@ export interface Store {
    */
   pushOpenStats(days: number, timezone: string): Promise<PushStatRow[]>;
 
+  // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
+  listCampaigns(): Promise<CampaignRow[]>;
+  getCampaign(id: string): Promise<CampaignRow | null>;
+  createCampaign(row: CampaignRow): Promise<void>;
+  /** The updated row, or null when there is no such campaign. */
+  updateCampaign(id: string, patch: CampaignPatch): Promise<CampaignRow | null>;
+  /**
+   * `scheduled` -> `running`, guarded in the statement: true only when this call moved it. A
+   * campaign killed or paused between the runner's read and this write stays so.
+   */
+  markCampaignRunning(id: string): Promise<boolean>;
+  /** The global switch. Re-read by the runner before every account, so a flip stops a run mid-batch. */
+  campaignsKilled(): Promise<boolean>;
+  setCampaignsKilled(killed: boolean): Promise<void>;
+  /** Scoped. Has this account already been handed this campaign? */
+  hasCampaignSend(userId: string, campaignId: string): Promise<boolean>;
+  /** Scoped. Record that this account is handed this campaign: true for exactly one caller. */
+  claimCampaignSend(userId: string, campaignId: string): Promise<boolean>;
+  campaignReport(campaignId: string): Promise<CampaignReport>;
+
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
    * The admin-edited onboarding copy, PER LANGUAGE, or null when nothing has ever been saved.
@@ -1090,6 +1139,13 @@ export interface Store {
    * alphabetical, so both stores order identically. At most `limit`, which the engine clamps.
    */
   searchFoods(query: string, limit: number): Promise<FoodRef[]>;
+  /**
+   * The rows an analyzer's item could be grounded in: an English name carrying EVERY word, as a
+   * whole word or its plural, and all four macros present. Shortest name first, so the generic
+   * entry ("Apples, raw") comes before the composites that contain it. The ranking is the engine's
+   * (`engine/ground.ts`); this only bounds the pool.
+   */
+  foodCandidates(words: string[], limit: number): Promise<FoodRef[]>;
   /** One barcoded product, or null — a miss is the common case and the label-read path's cue. */
   offProductByBarcode(barcode: string): Promise<OffProduct | null>;
   /**

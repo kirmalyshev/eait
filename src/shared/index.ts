@@ -70,3 +70,4 @@ export * from "./app/plan-copy.ts";
 export * from "./plan-reveal.ts";
 export * from "./app/you-copy.ts";
 export * from "./push.ts";
+export * from "./campaign.ts";

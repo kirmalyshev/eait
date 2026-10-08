@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { LANGS, type Lang } from "./types.ts";
 import { NOTIFICATION_IDS, notificationCopyFor } from "./notifications.ts";
 import {
-  PUSH_TEMPLATE_VARIANTS, pickVariant, pluralCategories, pushClaimErrors, pushKeyGaps,
+  PUSH_TEMPLATE_VARIANTS, isCampaignTemplateKey, pickVariant, pluralCategories, pushClaimErrors, pushKeyGaps,
   pushRowsFromCopy, copyFromPushRows, validatePushTemplate, validatePushText,
   type PushTemplateRow,
 } from "./push-templates.ts";
@@ -158,5 +158,32 @@ describe("rotation", () => {
   test("all used: the least recently used wins", () => {
     const used = [{ variant: "a", sentAt: now - 1 * day }, { variant: "b", sentAt: now - 5 * day }];
     expect(pickVariant(["a", "b"], used, now)).toBe("b");
+  });
+});
+
+describe("campaign template keys", () => {
+  const row = (key: string, lang: string, over: Record<string, unknown> = {}) =>
+    ({ key, lang, variant: "default", title: "Hello", body: "Plain words for everyone.", ...over });
+
+  test("accept campaign:<slug>, one default variant", () => {
+    expect(validatePushTemplate(row("campaign:win-back", "en")).ok).toBe(true);
+    expect(validatePushTemplate(row("campaign:win-back", "en", { variant: "empty" })).ok).toBe(false);
+  });
+  test("refuse a placeholder: a campaign is the same words for everybody", () => {
+    const r = validatePushTemplate(row("campaign:win-back", "en", { body: "You ate {eaten} today." }));
+    expect(r.ok).toBe(false);
+  });
+  test("reserve the system names, with or without the prefix", () => {
+    for (const k of ["campaign:evening", "campaign:nudge", "campaign:trial-end", "campaign:streak", "campaign:onboarding", "campaign:campaign", "campaign:Bad"]) {
+      expect(isCampaignTemplateKey(k)).toBe(false);
+      expect(validatePushTemplate(row(k, "en")).ok).toBe(false);
+    }
+    expect(isCampaignTemplateKey("campaign:win-back-2")).toBe(true);
+  });
+  test("complete only when all eight languages are reviewed", () => {
+    const reviewed = LANGS.map((lang) => ({ ...row("campaign:win-back", lang), status: "reviewed", reviewed_by: "a", reviewed_at: "x", updated_at: "x" }));
+    expect(pushKeyGaps(reviewed as never, "campaign:win-back")).toEqual([]);
+    const missing = reviewed.filter((r) => r.lang !== "ru");
+    expect(pushKeyGaps(missing as never, "campaign:win-back")).toEqual(["ru/default"]);
   });
 });
