@@ -212,6 +212,20 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(stamped?.marketingConsentAt).not.toBeNull();
     });
 
+    it("setMarketingConsent: on keeps the first moment, off clears it, scoped to the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.setMarketingConsent(userId, true);
+      const first = (await s.consentOf(userId))?.marketingConsentAt;
+      expect(first).not.toBeNull();
+      await s.setMarketingConsent(userId, true);
+      expect((await s.consentOf(userId))?.marketingConsentAt).toEqual(first);
+      expect((await s.consentOf(other))?.marketingConsentAt).toBeNull();
+      await s.setMarketingConsent(userId, false);
+      expect((await s.consentOf(userId))?.marketingConsentAt).toBeNull();
+    });
+
     it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {
       // The marketing box starts empty on every screen, so an unticked answer is the absence of a
       // NEW consent, not a withdrawal of a stored one — a returning sign-in must not un-consent
@@ -984,7 +998,9 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-a]`, "ios");
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-b]`, "ios");
       const rows = await s.pushAudience();
-      expect(rows.filter((r) => r.userId === withToken)).toEqual([{ userId: withToken, timezone: null }]);
+      expect(rows.filter((r) => r.userId === withToken)).toEqual([
+        { userId: withToken, timezone: null, createdAt: expect.any(String), onboardedAt: null },
+      ]);
       expect(rows.map((r) => r.userId)).not.toContain(without);
       await s.setTimezone(withToken, "Asia/Tokyo");
       expect((await s.pushAudience()).find((r) => r.userId === withToken)?.timezone).toBe("Asia/Tokyo");
