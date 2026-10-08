@@ -18,7 +18,22 @@ import { expoPush } from "./expo.ts";
 import { logPush } from "./log.ts";
 import type { PushPort } from "./port.ts";
 
-type PushConfig = Pick<Config, "pushEnabled" | "expoPushAccessToken" | "pushTimeoutMs" | "pushImageHost">;
+type PushConfig = Pick<Config, "pushEnabled" | "expoPushAccessToken" | "pushTimeoutMs" | "publicApiUrl">;
+
+/**
+ * Push images are served from the API host and from nowhere else, so the allowed host is the one
+ * this server already announces as its own, never a second setting that has to agree with it
+ * (the app's notification extension allows exactly the host of the API origin it talks to).
+ * No `publicApiUrl` means no image is ever sent.
+ */
+export function apiHostOf(publicApiUrl: string): string | undefined {
+  try {
+    const u = new URL(publicApiUrl);
+    return u.protocol === "https:" ? u.hostname : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function choosePush(config: PushConfig, demo: boolean): PushPort {
   if (demo || !config.pushEnabled) return logPush();
@@ -30,5 +45,5 @@ export function choosePush(config: PushConfig, demo: boolean): PushPort {
     );
     return logPush();
   }
-  return expoPush({ accessToken: config.expoPushAccessToken, timeoutMs: config.pushTimeoutMs, imageHost: config.pushImageHost });
+  return expoPush({ accessToken: config.expoPushAccessToken, timeoutMs: config.pushTimeoutMs, imageHost: apiHostOf(config.publicApiUrl) });
 }
