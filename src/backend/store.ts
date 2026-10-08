@@ -967,6 +967,13 @@ export interface Store {
     userId: string, localDate: string, kind: PushKind, ref: string | null,
   ): Promise<{ claimed: true } | { claimed: false; heldBy: PushKind }>;
 
+  /**
+   * Scoped. The kind holding `localDate` for this account, or null when the day is free. A READ: it
+   * claims nothing. Mirrors `claimPushSlot`, including the legacy `last_notified_date` an old build
+   * wrote, so "free" means exactly "a claim would win".
+   */
+  pushSlotOf(userId: string, localDate: string): Promise<PushKind | null>;
+
   /** Scoped. One row per message per device, written `queued` BEFORE the send so the id can ride in `data`. */
   createSend(userId: string, row: NewSend): Promise<void>;
   /** Scoped. Move a row on: the ticket result, then (with `receipt: true`) the receipt result. */

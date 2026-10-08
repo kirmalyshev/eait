@@ -923,6 +923,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return { claimed: true };
     },
 
+    async pushSlotOf(userId, localDate) {
+      return pushSlots.get(`${userId}|${localDate}`) ?? null;
+    },
+
     async createSend(userId, row) {
       if (!users.has(userId)) throw new Error("send_log: no such user");
       sendLog.set(row.id, {
@@ -1056,7 +1060,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         const reached = r.state !== "dead" && r.state !== "refused";
         const at = Date.parse(r.createdAt);
         if (!held && reached && pushOpens.has(`${r.userId}|${r.id}`)) mine.opened = true;
-        if (reached && [...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) mine.converted = true;
+        // INTENT TO TREAT: a meal within 24 h of the account's send counts whatever became of the
+        // delivery. The holdout has no dead rows, so filtering them out here would lower only the treated rate.
+        if ([...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) mine.converted = true;
         users.set(r.userId, mine);
         groups.set(name, users);
       }

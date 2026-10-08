@@ -1074,6 +1074,18 @@ function contract(name: string, make: () => Promise<Store>) {
         });
       });
 
+      it("reads which kind holds a local day without claiming it", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.pushSlotOf(u, "2026-10-08")).toBeNull();
+        expect(await s.pushSlotOf(u, "2026-10-08")).toBeNull(); // reading twice claimed nothing
+        expect(await s.claimPushSlot(u, "2026-10-08", "streak", null)).toEqual({ claimed: true });
+        expect(await s.pushSlotOf(u, "2026-10-08")).toBe("streak");
+        expect(await s.pushSlotOf(u, "2026-10-09")).toBeNull();
+        const other = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.pushSlotOf(other, "2026-10-08")).toBeNull(); // scoped: another account's day
+      });
+
       it("round-trips variants and holdout, and edits them", async () => {
         const s = await open();
         const id = crypto.randomUUID();
@@ -1108,11 +1120,12 @@ function contract(name: string, make: () => Promise<Store>) {
         await s.insertMeal(meal(a1, { ts: new Date(sa1.at + MIN).toISOString() }));
         await s.insertMeal(meal(b1, { ts: new Date(sa1.at + MIN).toISOString() }));
         await s.insertMeal(meal(h1, { ts: new Date(sh1.at + MIN).toISOString() }));
-        await s.insertMeal(meal(d1, { ts: new Date(sa1.at + MIN).toISOString() })); // dead: never reached, so not a conversion
+        await s.insertMeal(meal(d1, { ts: new Date(sa1.at + MIN).toISOString() })); // dead, but the account is still in its arm
         const r = await s.campaignReport(id);
         expect(r).toMatchObject({ sent: 4, accepted: 3, dead: 1, held: 2 });
+        // Intent to treat: the dead send's account logged a meal after its send, and counts as converted.
         expect(r.groups).toEqual([
-          { group: "b", users: 2, opened: 0, converted: 1 },
+          { group: "b", users: 2, opened: 0, converted: 2 },
           { group: "default", users: 2, opened: 1, converted: 1 },
           { group: "holdout", users: 2, opened: 0, converted: 1 },
         ]);

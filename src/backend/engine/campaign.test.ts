@@ -568,6 +568,32 @@ describe("holdout", () => {
     }
   });
 
+  it("logs a held-out account only on a day its slot is free, exactly like a treated one is retried", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 80; i++) users.push(await account());
+    const c = await campaign({ holdoutPct: 10 });
+    const held = users.filter((u) => inHoldout(u, c.id, 10));
+    expect(held.length).toBeGreaterThan(2);
+    // Another sender (a streak line, a trial reminder, ...) already holds today for every account.
+    for (const u of users) await store.claimPushSlot(u, "2026-08-20", "streak", null);
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    for (const u of users) expect(await store.sendLogFor(u, 5)).toHaveLength(0); // no row, treated or held
+    for (const u of held) expect(await store.hasCampaignSend(u, c.id)).toBe(false); // retried, not spent
+    expect(push.sent).toHaveLength(0);
+    // Reading the slot claimed nothing: the day is still the other sender's.
+    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-20")).toBe("streak");
+    // The next free day: one would_have_sent row for each held-out account, a push for the rest.
+    await runCampaigns(deps, { now: BERLIN_1830 + DAY });
+    for (const u of held) {
+      const rows = await store.sendLogFor(u, 5);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.state).toBe("would_have_sent");
+    }
+    expect(push.sent).toHaveLength(users.length - held.length);
+    // And it is the slot of the NEW day that stayed free: a held-out account claimed nothing.
+    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-21")).toBeNull();
+  });
+
   it("logs a held-out account once, however many ticks run", async () => {
     const users: string[] = [];
     for (let i = 0; i < 60; i++) users.push(await account());

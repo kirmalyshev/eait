@@ -1404,6 +1404,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setTimezone: 0,
   timezoneOf: 0,
   claimPushSlot: 0,
+  pushSlotOf: 0,
   createSend: 0,
   settleSend: 0,
   sendLogFor: 0,
@@ -3049,6 +3050,14 @@ export async function postgresStore(
       return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
     },
 
+    async pushSlotOf(userId, localDate) {
+      const rows = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
+      if (rows[0]) return (rows[0] as Record<string, unknown>).kind as PushKind;
+      // The same legacy read `claimPushSlot` makes, so "free" is exactly "a claim would win".
+      const legacy = await sql`select 1 from users where id = ${userId} and last_notified_date = ${localDate}`;
+      return legacy.length > 0 ? ("evening" as PushKind) : null;
+    },
+
     async createSend(userId, r) {
       await sql`insert into send_log (id, user_id, kind, ref, template_key, lang, variant, token, state)
         values (${r.id}, ${userId}, ${r.kind}, ${r.ref}, ${r.templateKey}, ${r.lang}, ${r.variant}, ${r.token}, ${r.state})`;
@@ -3181,8 +3190,10 @@ export async function postgresStore(
           count(*) filter (where s.variant is distinct from 'test' and s.state = 'would_have_sent')::int as held
         from send_log s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
         where s.kind = 'campaign' and s.ref = ${campaignId}`;
-      // By ACCOUNT, because the comparison is of people. `reached` leaves out what no phone was sent;
-      // a held-out account's row counts for conversion only, since nothing was sent it to open.
+      // By ACCOUNT, because the comparison is of people, and INTENT TO TREAT for conversion: a meal after
+      // the send counts whatever became of the delivery (the holdout has no dead rows, so filtering
+      // them out would lower only the treated rate). Opened keeps its delivery filter; a held-out
+      // account has nothing to open.
       const groups = await sql`
         with s as (
           select user_id, id, state, created_at,
@@ -3194,7 +3205,7 @@ export async function postgresStore(
                count(distinct user_id)::int as users,
                count(distinct user_id) filter (where grp <> 'holdout' and state not in ('dead','refused') and exists (
                  select 1 from push_open o where o.user_id = s.user_id and o.send_id = s.id))::int as opened,
-               count(distinct user_id) filter (where state not in ('dead','refused') and exists (
+               count(distinct user_id) filter (where exists (
                  select 1 from meals m
                  where m.user_id = s.user_id and m.ts >= date_trunc('milliseconds', s.created_at)
                    and m.ts < date_trunc('milliseconds', s.created_at) + interval '24 hours'))::int as converted

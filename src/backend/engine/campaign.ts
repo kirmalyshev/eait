@@ -240,6 +240,10 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         // message stays free for another sender, and it is logged once (the same once-per-account
         // claim) so the report has a control group with a send time to measure from.
         if (inHoldout(userId, c.id, c.holdoutPct)) {
+          // Only on a day a treated account COULD have been sent: its slot is read, never claimed. If
+          // another sender holds the day, skip without recording anything, so it is retried exactly
+          // like a treated account, and the control group never includes a day nobody would have sent.
+          if (await deps.store.pushSlotOf(userId, date)) { out.slotTaken++; continue; }
           if (await deps.store.claimCampaignSend(userId, c.id)) {
             await deps.store.createSend(userId, {
               id: crypto.randomUUID(), kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang,
