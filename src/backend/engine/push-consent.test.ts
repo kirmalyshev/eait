@@ -34,6 +34,14 @@ describe("tips-and-offers consent", () => {
     expect(await setPushConsent(deps, userId, true)).toEqual(first);
   });
 
+  it("is not the sign-up box: ticked marketing consent is still OFF, and toggling leaves it alone", async () => {
+    await deps.store.recordConsent(userId, { terms: true, marketing: true });
+    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null });
+    await setPushConsent(deps, userId, true);
+    await setPushConsent(deps, userId, false);
+    expect((await deps.store.consentOf(userId))?.marketingConsentAt).not.toBeNull();
+  });
+
   it("is per account", async () => {
     const other = (await deps.store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
     await setPushConsent(deps, userId, true);

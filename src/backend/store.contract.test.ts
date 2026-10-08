@@ -212,18 +212,21 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(stamped?.marketingConsentAt).not.toBeNull();
     });
 
-    it("setMarketingConsent: on keeps the first moment, off clears it, scoped to the account", async () => {
+    it("push offers: own column, first moment stands, off clears, never touches the sign-up consent", async () => {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const other = (await s.upsertDeviceUser(device(), "en")).userId;
-      await s.setMarketingConsent(userId, true);
-      const first = (await s.consentOf(userId))?.marketingConsentAt;
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      expect(await s.pushOffersOf(userId)).toBeNull(); // the sign-up tick is not an opt-in
+      await s.setPushOffers(userId, true);
+      const first = await s.pushOffersOf(userId);
       expect(first).not.toBeNull();
-      await s.setMarketingConsent(userId, true);
-      expect((await s.consentOf(userId))?.marketingConsentAt).toEqual(first);
-      expect((await s.consentOf(other))?.marketingConsentAt).toBeNull();
-      await s.setMarketingConsent(userId, false);
-      expect((await s.consentOf(userId))?.marketingConsentAt).toBeNull();
+      await s.setPushOffers(userId, true);
+      expect(await s.pushOffersOf(userId)).toEqual(first);
+      expect(await s.pushOffersOf(other)).toBeNull();
+      await s.setPushOffers(userId, false);
+      expect(await s.pushOffersOf(userId)).toBeNull();
+      expect((await s.consentOf(userId))?.marketingConsentAt).not.toBeNull();
     });
 
     it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {

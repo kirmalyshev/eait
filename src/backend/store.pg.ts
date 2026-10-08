@@ -946,6 +946,9 @@ create table if not exists weights (
 -- input, and a PATCH must not be able to write it -- recordConsent is the only writer.
 alter table users add column if not exists terms_accepted_at timestamptz;
 alter table users add column if not exists marketing_consent_at timestamptz;
+-- The "tips and offers" PUSH opt-in (Apple 4.5.4), set from the in-app toggle only. Not the sign-up
+-- box above: a different consent. Null = off, the default.
+alter table users add column if not exists push_offers_at timestamptz;
 
 -- ── The food catalog ─────────────────────────────────────────────────────────────────────────
 --
@@ -1389,7 +1392,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setRole: 0,
   // S8: the sign-up consent stamps — an account's own rows, like every other write here.
   recordConsent: 0,
-  setMarketingConsent: 0,
+  pushOffersOf: 0,
+  setPushOffers: 0,
   consentOf: 0,
   getProfile: 0,
   patchProfile: 0,
@@ -1777,9 +1781,15 @@ export async function postgresStore(
         where id = ${userId}`;
     },
 
-    async setMarketingConsent(userId, on) {
-      await sql`update users set marketing_consent_at = case
-          when ${on} then coalesce(marketing_consent_at, now()) else null end
+    async pushOffersOf(userId) {
+      const rows = await sql`select push_offers_at from users where id = ${userId}`;
+      const at = (rows[0] as { push_offers_at: string | Date | null } | undefined)?.push_offers_at ?? null;
+      return at === null ? null : new Date(at).toISOString();
+    },
+
+    async setPushOffers(userId, on) {
+      await sql`update users set push_offers_at = case
+          when ${on} then coalesce(push_offers_at, now()) else null end
         where id = ${userId}`;
     },
 

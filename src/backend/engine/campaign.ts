@@ -16,9 +16,9 @@
 //   - A STREAK IS NEVER INTERRUPTED. An account with a streak of CAMPAIGN_STREAK_GUARD_DAYS or more
 //     is never reached, a hard rule and not a segment predicate. A campaign may take the day from
 //     the plain evening line or nudge (that day the campaign IS the message), never from the habit line.
-//   - PROMOTIONAL campaigns need the "tips and offers" consent, which is not collected yet (phase 4):
-//     consent is false for everybody, so activation of a promotional campaign is refused and no
-//     promotional message can go out. Wire `tipsConsent` in `factsFor` once that flag exists.
+//   - PROMOTIONAL campaigns reach only accounts that turned "tips and offers" on in the app
+//     (`push_offers_at`, read in `factsFor`; the sign-up box is a different consent). The in-app
+//     toggle has not shipped, so activation of a promotional campaign stays refused until it does.
 //
 // ponytail: visits every account with a device, per campaign, per minute, and the cheap filters
 // (window, rollout, already-handed) run before any read. Past thousands of accounts, select the due
@@ -33,6 +33,7 @@ import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { CATCH_UP_MS, instantOf, sendLogged, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
+import { pushOffersAllowed } from "./push-consent.ts";
 
 type Result<T> = ({ ok: true } & T) | { ok: false; errors: string[] };
 
@@ -57,7 +58,7 @@ async function activationProblems(
 ): Promise<string[]> {
   const problems: string[] = [];
   if (c.promotional) {
-    problems.push("a promotional campaign cannot be live yet: the tips-and-offers consent is not collected (push phase 4)");
+    problems.push("a promotional campaign cannot be live yet: the in-app tips-and-offers consent toggle has not shipped");
   }
   const gaps = await templateGaps(deps, c.templateKey);
   if (gaps.length > 0) problems.push(`template ${c.templateKey} is not complete: ${gaps.join(", ")}`);
@@ -146,13 +147,6 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
 }
 
 
-/**
- * THE "TIPS AND OFFERS" CONSENT IS NOT COLLECTED YET. `marketing_consent_at` is the signup box, which
- * can never be withdrawn, so it is the wrong flag and is not read. Until push phase 4 lands its own,
- * consent is false for every account: a promotional campaign reaches nobody and cannot be activated.
- */
-const TIPS_CONSENT = false;
-
 /** Everything a segment can ask about one account, or null when it has no profile. */
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {
   const profile = await deps.store.getProfile(userId);
@@ -167,7 +161,8 @@ async function factsFor(deps: EngineDeps, userId: string, date: string, now: num
     entitlement: !entitlementLive(stored, now) ? "none" : stored?.trial === true ? "trial" : "active",
     onboarded: Boolean(profile.onboarded_at),
     ...habitOf(logged, date),
-    tipsConsent: TIPS_CONSENT,
+    // The in-app Tips-and-offers toggle (`users.push_offers_at`), default off. Not the sign-up box.
+    tipsConsent: await pushOffersAllowed(deps, userId),
     staff: deps.config.campaignStaffIds.includes(userId),
   };
 }

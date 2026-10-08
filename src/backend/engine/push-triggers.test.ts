@@ -145,3 +145,29 @@ describe("streak-at-risk trigger", () => {
     expect(second).not.toBe(first);
   });
 });
+
+describe("the trial-ends day outranks both triggers", () => {
+  const trialEndingAfter = (userId: string, n: number) =>
+    store.putEntitlement(userId, {
+      expiresAt: `${dateMinus(TODAY, -(n + 1))}T10:00:00.000Z`, productId: "com.eait.fit.ios.yearly",
+      trial: true, eventAt: new Date().toISOString(),
+    });
+
+  it("onboarding day 1/3/7 on the reminder day sends nothing: the slot is `trial`", async () => {
+    for (const n of [1, 3, 7]) {
+      const userId = await account();
+      await trialEndingAfter(userId, n);
+      await pushTick(deps, { now: evening(n) });
+      expect(await store.sendLogFor(userId, 5), `day ${n}`).toHaveLength(0);
+      expect(await sendTestPush(deps, userId, evening(n))).toEqual({ ok: false, reason: "slot-taken", heldBy: "trial" });
+    }
+  });
+
+  it("a streak at risk on the reminder day sends nothing", async () => {
+    const userId = await account();
+    for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(10 - k)));
+    await trialEndingAfter(userId, 10);
+    await pushTick(deps, { now: evening(10) });
+    expect(push.sent).toHaveLength(0);
+  });
+});

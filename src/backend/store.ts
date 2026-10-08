@@ -863,11 +863,13 @@ export interface Store {
    */
   recordConsent(userId: string, consent: { terms: boolean; marketing: boolean }): Promise<void>;
   /**
-   * Scoped. The settings toggle for tips and offers: `on` stamps `marketing_consent_at` unless it is
-   * already set (the first moment stands), off clears it. The withdrawal `recordConsent` leaves to a
-   * settings act.
+   * Scoped. The "tips and offers" push opt-in: when it was turned on, or null (the default). Its own
+   * column, deliberately NOT `marketing_consent_at`: that is the sign-up box, a different consent
+   * with a different meaning, and neither may read or move the other.
    */
-  setMarketingConsent(userId: string, on: boolean): Promise<void>;
+  pushOffersOf(userId: string): Promise<string | null>;
+  /** Scoped. On stamps now unless already set (the first moment stands); off clears it. */
+  setPushOffers(userId: string, on: boolean): Promise<void>;
   /** What is stored for the account, or null when there is no such account. For the audit surface and tests. */
   consentOf(userId: string): Promise<{ termsAcceptedAt: string | null; marketingConsentAt: string | null } | null>;
 
