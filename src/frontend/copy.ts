@@ -161,8 +161,6 @@ export interface WebCopy {
   /** The top bar's "+ Log" chooser: the button and the hint under the tiles (the tiles' and Close's words are `shell-copy`'s). */
   logButton: string;
   plusHint: string;
-  /** `{name}` — a chip's remove button. */
-  removeFile: string;
   /** `{text}` — a queued photo's caption. */
   photoWithCaption: string;
   /** The three macros the verdict card reports, under the big kcal. */
@@ -249,7 +247,6 @@ const EN: WebCopy = {
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   logButton: "Log",
   plusHint: "or paste (⌘V) or drop a photo anywhere",
-  removeFile: "Remove {name}",
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
@@ -336,7 +333,6 @@ const FR: WebCopy = {
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   logButton: "Ajouter",
   plusHint: "ou colle (⌘V) ou dépose une photo n'importe où",
-  removeFile: "Retirer {name}",
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
@@ -423,7 +419,6 @@ const DE: WebCopy = {
   photosCount: { one: "{n} Foto", few: "{n} Fotos", many: "{n} Fotos", other: "{n} Fotos" },
   logButton: "Eintragen",
   plusHint: "oder einfügen (⌘V) oder ein Foto irgendwo ablegen",
-  removeFile: "{name} entfernen",
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
@@ -510,7 +505,6 @@ const IT: WebCopy = {
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   logButton: "Registra",
   plusHint: "oppure incolla (⌘V) o trascina una foto ovunque",
-  removeFile: "Rimuovi {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
@@ -597,7 +591,6 @@ const ES: WebCopy = {
   photosCount: { one: "{n} foto", few: "{n} fotos", many: "{n} fotos", other: "{n} fotos" },
   logButton: "Registrar",
   plusHint: "o pega (⌘V) o suelta una foto en cualquier parte",
-  removeFile: "Quitar {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
@@ -684,7 +677,6 @@ const VI: WebCopy = {
   photosCount: { one: "{n} bức ảnh", few: "{n} bức ảnh", many: "{n} bức ảnh", other: "{n} bức ảnh" },
   logButton: "Ghi",
   plusHint: "hoặc dán (⌘V) hoặc thả ảnh vào bất kỳ đâu",
-  removeFile: "Xóa {name}",
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Chất béo",
   refusals: {
@@ -771,7 +763,6 @@ const ID: WebCopy = {
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   logButton: "Catat",
   plusHint: "atau tempel (⌘V) atau jatuhkan foto di mana saja",
-  removeFile: "Hapus {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbohidrat", statFat: "Lemak",
   refusals: {
@@ -858,7 +849,6 @@ const RU: WebCopy = {
   photosCount: { one: "{n} фото", few: "{n} фото", many: "{n} фото", other: "{n} фото" },
   logButton: "Записать",
   plusHint: "или вставь (⌘V), или перетащи фото в любое место",
-  removeFile: "Убрать {name}",
   photoWithCaption: "Фото: {text}",
   statProtein: "Белки", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {

@@ -26,6 +26,8 @@ export interface ShellCopy {
   plusPhoto: string;
   plusText: string;
   closeLog: string;
+  /** `{name}` — an attached file chip's remove button. */
+  removeFile: string;
 }
 
 export const SHELL_COPY: Localized<ShellCopy> = {
@@ -40,6 +42,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Photo",
     plusText: "Text",
     closeLog: "Close",
+    removeFile: "Remove {name}",
   },
   fr: {
     navHome: "Accueil",
@@ -52,6 +55,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Photo",
     plusText: "Texte",
     closeLog: "Fermer",
+    removeFile: "Retirer {name}",
   },
   de: {
     navHome: "Start",
@@ -64,6 +68,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Foto",
     plusText: "Text",
     closeLog: "Schließen",
+    removeFile: "{name} entfernen",
   },
   it: {
     navHome: "Home",
@@ -76,6 +81,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Foto",
     plusText: "Testo",
     closeLog: "Chiudi",
+    removeFile: "Rimuovi {name}",
   },
   es: {
     navHome: "Inicio",
@@ -88,6 +94,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Foto",
     plusText: "Texto",
     closeLog: "Cerrar",
+    removeFile: "Quitar {name}",
   },
   vi: {
     navHome: "Trang chủ",
@@ -100,6 +107,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Ảnh",
     plusText: "Văn bản",
     closeLog: "Đóng",
+    removeFile: "Xóa {name}",
   },
   id: {
     navHome: "Beranda",
@@ -112,6 +120,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Foto",
     plusText: "Teks",
     closeLog: "Tutup",
+    removeFile: "Hapus {name}",
   },
   ru: {
     navHome: "Главная",
@@ -124,6 +133,7 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     plusPhoto: "Фото",
     plusText: "Текст",
     closeLog: "Закрыть",
+    removeFile: "Убрать {name}",
   },
 };
 

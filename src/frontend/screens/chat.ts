@@ -558,7 +558,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
       label.append(el("b", "", f.name), el("em", "", `${typeLabel(f)} · ${sizeLabel(f.size)}`));
       const x = el("button", "") as HTMLButtonElement;
       x.type = "button";
-      x.setAttribute("aria-label", fill(COPY.removeFile, { name: f.name }));
+      x.setAttribute("aria-label", fill(shellCopyFor(lang).removeFile, { name: f.name }));
       x.append(el("i", "ico i-x"));
       x.addEventListener("click", () => { attached = attached.filter((a) => a !== f); arm(); });
       chip.append(el("i", "ico i-file"), label, x);
