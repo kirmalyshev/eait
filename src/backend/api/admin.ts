@@ -48,7 +48,7 @@ import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
-  sendTestPush, pushOpenView,
+  sendTestPush, pushOpenView, sendAdminPush,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
   campaignOverview, createCampaign, dryRunCampaign, setCampaignStatus, setCampaignsKilled, testSendCampaign, updateCampaign,
   resetOnboardingContent, saveOnboardingContent, setUserCap, userCap,
@@ -357,6 +357,18 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
       ...(q === "" ? {} : { q }),
       ...(cursor === "" ? {} : { cursor }),
     }));
+  }
+
+  // ── Staff flag and the push composer (eait#531) ───────────────────────────────────────────
+  const staffRoute = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/staff$/);
+  if (staffRoute && req.method === "PUT") {
+    const body = await req.json().catch(() => null) as { staff?: unknown } | null;
+    if (typeof body?.staff !== "boolean") return json({ errors: ["staff: true or false"] }, 422);
+    return await deps.store.setStaff(staffRoute[1]!, body.staff) ? json({ staff: body.staff }) : notFound();
+  }
+  if (req.method === "POST" && pathname === "/admin/api/push/send") {
+    const out = await sendAdminPush(deps, adminId, await req.json().catch(() => null));
+    return json(out, out.ok ? 200 : 422);
   }
 
   // ── ONE ACCOUNT'S THREAD ───────────────────────────────────────────────────────────────────
