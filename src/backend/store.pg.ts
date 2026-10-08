@@ -3145,7 +3145,7 @@ export async function postgresStore(
         with s as (
           select *, date_trunc('milliseconds', created_at) as at,
                  state not in ('dead', 'refused', 'dry') as reached
-          from send_log where created_at >= ${since} and state <> 'would_have_sent'
+          from send_log where created_at >= ${since} and state <> 'would_have_sent' and ref is distinct from 'admin-test'
         )
         select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
                count(*)::int as sent,
