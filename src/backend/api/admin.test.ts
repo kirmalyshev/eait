@@ -1,4 +1,4 @@
-import { fakePush } from "../push/fake.ts";
+import { fakePush, type FakePush } from "../push/fake.ts";
 // The onboarding API, and the admin behind it.
 //
 // This file is mostly about who is allowed to do what. The admin edits the first thing every new
@@ -39,6 +39,7 @@ const base: Config = {
 
 let store: Store;
 let handle: (req: Request) => Promise<Response>;
+let push: FakePush;
 /** The bearer of an account holding the admin role. Re-minted per test by `mountWithAdmin`. */
 let adminBearer: string;
 
@@ -46,7 +47,8 @@ const url = (p: string) => `http://localhost${p}`;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush() };
+  push = fakePush();
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push };
   handle = createRouter(deps, store, verifier);
 }
 
@@ -1078,6 +1080,36 @@ describe("the admin's test push (ieat-app#1765)", () => {
     const second = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
     expect(second.status).toBe(409);
     expect(await second.json()).toEqual({ ok: false, reason: "slot-taken", heldBy: "campaign" });
+  });
+
+  describe("with an image", () => {
+    const API = "https://api.eait.fit";
+    beforeEach(async () => { await mountWithAdmin({ ...base, publicApiUrl: API }); });
+
+    it("sends an image from the API host with the message", async () => {
+      const userId = await withDevice();
+      const imageUrl = `${API}/start/assets/img/push-test.png`;
+      const res = await admin("POST", `/admin/api/users/${userId}/push-test`, { imageUrl });
+      expect(res.status).toBe(200);
+      expect(push.sent[0]!.imageUrl).toBe(imageUrl);
+    });
+
+    it("refuses an image from anywhere else with 400, before the day's slot is spent", async () => {
+      const userId = await withDevice();
+      for (const imageUrl of ["https://evil.example/a.png", "http://api.eait.fit/a.png", 7]) {
+        const res = await admin("POST", `/admin/api/users/${userId}/push-test`, { imageUrl });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ ok: false, reason: "image-not-allowed" });
+      }
+      expect(push.sent).toHaveLength(0);
+      expect((await admin("POST", `/admin/api/users/${userId}/push-test`, {})).status).toBe(200);
+    });
+  });
+
+  it("refuses any image when the server has no public API origin", async () => {
+    const userId = await withDevice();
+    const res = await admin("POST", `/admin/api/users/${userId}/push-test`, { imageUrl: "https://api.eait.fit/a.png" });
+    expect(res.status).toBe(400);
   });
 
   it("answers no-device for an account with none", async () => {

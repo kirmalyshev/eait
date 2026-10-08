@@ -40,6 +40,8 @@ import type { PushMessage, PushTicket } from "../push/port.ts";
 import type { PushAudienceRow } from "../store.ts";
 import { sumTotals } from "./meals.ts";
 import type { EngineDeps } from "./deps.ts";
+import { apiHostOf } from "../push/choose.ts";
+import { ownImage } from "../push/expo.ts";
 
 /** One composed message, before it is addressed to any device. */
 export interface DailyNotification {
@@ -389,6 +391,7 @@ async function isTrialReminderDay(
 
 export type TestPushResult =
   | { ok: true; sent: number }
+  | { ok: false; reason: "image-not-allowed" }
   | { ok: false; reason: "no-device" }
   | { ok: false; reason: "template-incomplete" }
   | { ok: false; reason: "slot-taken"; heldBy: PushKind };
@@ -397,10 +400,17 @@ export type TestPushResult =
  * The super-admin's "send test push" for ONE account. It goes through the slot like any sender, so
  * a second test the same local day is refused and says why (`slot-taken`, and which kind holds it).
  * The words are the shipped `nudge` copy in the account's own language, so there is no new string.
+ * `imageUrl` rides along for the device check of the notification extension; it must be https on
+ * this server's own public API host, and is refused BEFORE the slot is claimed.
  */
 export async function sendTestPush(
-  deps: EngineDeps, userId: string, now: number = Date.now(),
+  deps: EngineDeps, userId: string, now: number = Date.now(), imageUrl?: unknown,
 ): Promise<TestPushResult> {
+  let image: string | undefined;
+  if (imageUrl !== undefined) {
+    image = typeof imageUrl === "string" ? ownImage(imageUrl, apiHostOf(deps.config.publicApiUrl)) : undefined;
+    if (image === undefined) return { ok: false, reason: "image-not-allowed" };
+  }
   const devices = await deps.store.pushTokensFor(userId);
   if (devices.length === 0) return { ok: false, reason: "no-device" };
   const profile = await deps.store.getProfile(userId);
@@ -415,7 +425,7 @@ export async function sendTestPush(
   const out = await sendLogged(
     deps, userId, devices,
     { kind: "campaign", ref: "admin-test", templateKey: "nudge", lang: profile.lang, variant: "admin-test" },
-    { title: copy.title, body: copy.body },
+    { title: copy.title, body: copy.body, ...(image ? { imageUrl: image } : {}) },
   );
   return { ok: true, sent: out.sent };
 }
