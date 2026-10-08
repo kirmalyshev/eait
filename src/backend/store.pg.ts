@@ -225,6 +225,10 @@ alter table users add column if not exists weight_measured_at timestamptz;
 -- (No backticks anywhere in this file's SQL: it is one template literal, and a backtick ends it.)
 alter table users add column if not exists role text not null default 'user';
 
+-- Staff (eait#531): a test send may reach the account and a staffOnly segment selects it. Set in the
+-- admin users list only; absent from PROFILE_COLUMNS and from mergeUsers, like role.
+alter table users add column if not exists staff boolean not null default false;
+
 -- Onboarding v2 (S5, #82). units is the cm|ft,in / kg|lb display toggle — storage stays metric,
 -- this is presentation only. struggles is the "what's been hard" picks in LIST order and is
 -- NULLABLE on purpose: null is "the question was never asked" — what resume checks — while '{}'
@@ -1396,6 +1400,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putPairingCode: 0,
   roleOf: 0,
   setRole: 0,
+  isStaff: 0,
+  setStaff: 0,
   // S8: the sign-up consent stamps — an account's own rows, like every other write here.
   recordConsent: 0,
   pushOffersOf: 0,
@@ -1779,6 +1785,16 @@ export async function postgresStore(
       return rows.length > 0;
     },
 
+    async isStaff(userId) {
+      const rows = await sql`select staff from users where id = ${userId}`;
+      return (rows[0] as { staff: boolean } | undefined)?.staff === true;
+    },
+
+    async setStaff(userId, staff) {
+      const rows = await sql`update users set staff = ${staff} where id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+
     async recordConsent(userId, consent) {
       // One statement: `terms_accepted_at` is stamped on every call that reaches this — the routes
       // refuse one without the box ticked — and `marketing_consent_at` only ever moves forward:
@@ -2026,7 +2042,7 @@ export async function postgresStore(
       // primary key's table) — the alternative is a query per row, which is what makes an admin
       // list slow enough that somebody eventually adds a cache to it.
       const rows = await sql`
-        select u.id, u.created_at, u.onboarded_at, u.free_analyses,
+        select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, (u.push_offers_at is not null) as push_offers,
                u.entitlement_expires_at, u.entitlement_lifetime_product_id,
                u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial,
                (select array_agg(i.provider order by i.linked_at asc)
@@ -2074,6 +2090,8 @@ export async function postgresStore(
           analysesToday: num(r.today),
           spent: num(r.spent),
           lastSeen: r.last_seen === null ? null : new Date(r.last_seen as string).toISOString(),
+          staff: r.staff === true,
+          pushOffers: r.push_offers === true,
         })),
         nextCursor: more && last
           ? `${new Date(last.created_at as string).toISOString()}~${String(last.id)}`
