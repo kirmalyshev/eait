@@ -52,6 +52,8 @@ export interface ChatScreenCopy {
 
   /** The proposal card's question (web + phone `chat-proposal.html`, `phone/chat-expired.html`). */
   proposalCheck: string;
+  /** The one-time tip above the composer's paperclip. */
+  attachHint: string;
   /** Its two answers (`chat-proposal.html`, both clients). */
   proposalAccept: string;
   proposalDecline: string;
@@ -255,7 +257,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Earlier messages",
     movedCaption: "Moved — now on {day}.",
     composerThread: "Tell me what you ate, or ask",
-    proposalCheck: "Logging to today — look right?",
+    proposalCheck: "Logging to today, look right?",
+    attachHint: "Attach files for Spud to read",
     proposalAccept: "Log it",
     proposalDecline: "No",
     expired: "That one timed out. Describe it again and I'll re-read it.",
@@ -351,7 +354,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Messages plus anciens",
     movedCaption: "Déplacé — nouveau jour : {day}.",
     composerThread: "Dis-moi ce que tu as mangé, ou demande",
-    proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
+    proposalCheck: "Je l'ajoute à aujourd'hui, ça te va ?",
+    attachHint: "Joins des fichiers pour que Spud les lise",
     proposalAccept: "Enregistrer",
     proposalDecline: "Non",
     expired: "Celui-là a expiré. Décris-le à nouveau et je le relis.",
@@ -447,7 +451,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Ältere Nachrichten",
     movedCaption: "Verschoben — neuer Tag: {day}.",
     composerThread: "Sag mir, was du gegessen hast, oder frag",
-    proposalCheck: "Ich trage es für heute ein — passt das?",
+    proposalCheck: "Ich trage es für heute ein, passt das?",
+    attachHint: "Hänge Dateien an, die Spud lesen soll",
     proposalAccept: "Eintragen",
     proposalDecline: "Nein",
     expired: "Das ist abgelaufen. Beschreib es noch einmal, dann lese ich es neu.",
@@ -543,7 +548,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Messaggi precedenti",
     movedCaption: "Spostato — nuovo giorno: {day}.",
     composerThread: "Dimmi cosa hai mangiato, o chiedi",
-    proposalCheck: "Lo registro per oggi — va bene?",
+    proposalCheck: "Lo registro per oggi, va bene?",
+    attachHint: "Allega file che Spud possa leggere",
     proposalAccept: "Registralo",
     proposalDecline: "No",
     expired: "Tempo scaduto. Descrivilo di nuovo e lo rileggo.",
@@ -639,7 +645,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Mensajes anteriores",
     movedCaption: "Movida al {day}.",
     composerThread: "Dime qué has comido, o pregunta",
-    proposalCheck: "Lo registro en hoy — ¿te cuadra?",
+    proposalCheck: "Lo registro en hoy, ¿te cuadra?",
+    attachHint: "Adjunta archivos para que Spud los lea",
     proposalAccept: "Registrarla",
     proposalDecline: "No",
     expired: "Esa caducó. Descríbela otra vez y la vuelvo a leer.",
@@ -735,7 +742,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Tin nhắn cũ hơn",
     movedCaption: "Đã chuyển — ngày mới: {day}.",
     composerThread: "Kể mình nghe bạn đã ăn gì, hoặc hỏi",
-    proposalCheck: "Ghi vào hôm nay — đúng chứ?",
+    proposalCheck: "Ghi vào hôm nay, đúng chứ?",
+    attachHint: "Đính kèm tệp để Spud đọc",
     proposalAccept: "Ghi lại",
     proposalDecline: "Không",
     expired: "Cái đó đã hết giờ. Mô tả lại và mình sẽ đọc lại.",
@@ -831,7 +839,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Pesan sebelumnya",
     movedCaption: "Dipindahkan — hari baru: {day}.",
     composerThread: "Beri tahu aku apa yang kamu makan, atau tanya",
-    proposalCheck: "Kucatat untuk hari ini — benar?",
+    proposalCheck: "Kucatat untuk hari ini, benar?",
+    attachHint: "Lampirkan file agar Spud bisa membacanya",
     proposalAccept: "Catat",
     proposalDecline: "Tidak",
     expired: "Yang itu kedaluwarsa. Deskripsikan lagi dan aku baca ulang.",
@@ -927,7 +936,8 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
     earlier: "Предыдущие сообщения",
     movedCaption: "Перенесено — новый день: {day}.",
     composerThread: "Расскажи мне, что было на тарелке, или спроси",
-    proposalCheck: "Записываю на сегодня — верно?",
+    proposalCheck: "Записываю на сегодня, верно?",
+    attachHint: "Прикрепи файлы, чтобы Spud их прочитал",
     proposalAccept: "Записать",
     proposalDecline: "Нет",
     expired: "Время вышло. Опиши ещё раз, и я перечитаю.",

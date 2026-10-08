@@ -64,7 +64,7 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.greeting).toBe("Tell me what you ate, or ask me anything.");
     expect(en.composerAsk).toBe("What did you eat?");
     expect(en.composerThread).toBe("Tell me what you ate, or ask");
-    expect(en.proposalCheck).toBe("Logging to today — look right?");
+    expect(en.proposalCheck).toBe("Logging to today, look right?");
     expect(en.proposalAccept).toBe("Log it");
     expect(en.proposalDecline).toBe("No");
     expect(en.loadFailed).toBe("Couldn't load the conversation.");
