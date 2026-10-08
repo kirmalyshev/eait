@@ -9,6 +9,8 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import { localDate } from "../../shared/dates.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
@@ -24,10 +26,10 @@ import { blobSrc, gramMacsEl, optionRowEl, spudAvatarEl, verdictListEl } from ".
 import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
-  COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
+  COPY, MESSAGES, dayPickerButton, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   failBadge, heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
-  setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names,
+  setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names, type Frame,
 } from "../shell.ts";
 
 const copy = () => chatScreenCopyFor(lang);
@@ -49,7 +51,7 @@ let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null 
 /** A reader up in older lines (`chat-latest`): where each scroller stood, and how many rows she had seen. */
 let readerUp: { tops: number[]; seen: number } | null = null;
 
-export async function chatScreen(): Promise<HTMLElement> {
+export async function chatScreen(frame: Frame): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
   // thread drawn below already holds what it did.
   const outstanding = outstandingTurn();
@@ -538,25 +540,53 @@ export async function chatScreen(): Promise<HTMLElement> {
   // `multiline` — the same opt-in Home takes (#170): the field wraps and grows to the
   // `.compose textarea.box` cap, then scrolls (ieat-app#1289).
   const comp = composerRow(coachName() !== null
-    ? copy().composerThread : copy().composerAsk, { multiline: true });
-  const { picker, words, send, count } = comp;
+    ? copy().composerThread : copy().composerAsk, { multiline: true, sendInside: true });
+  const { picker, words, send, chips } = comp;
   // Telegram's attach (#1520): a paperclip, not the upload round.
   comp.add.replaceChildren(el("i", "ico i-paperclip"));
-  /** The composer as the mode says: count the picked photos, and name Send for what it sends. */
+  const cfield = words.parentElement!;
+  /** What is attached, in the order it was picked: chips above the field, nothing sent until Send. */
+  let attached: File[] = [];
+  const typeLabel = (f: File): string => (f.type.split("/")[1] ?? "file").toUpperCase().replace("JPEG", "JPG");
+  const sizeLabel = (n: number): string => {
+    const nf = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 1 });
+    return n >= 1024 * 1024 ? `${nf.format(n / 1024 / 1024)} MB` : `${nf.format(Math.max(1, Math.round(n / 1024)))} KB`;
+  };
+  /** The composer as the mode says: the chips, the send's colour, and its NAME for what this press sends. */
   const arm = (): void => {
-    const picked = picker.files?.length ?? 0;
-    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
-    // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
-    // row, which showed as a stray space before Send.
-    count.hidden = count.textContent === "";
+    chips.replaceChildren(...attached.map((f) => {
+      const chip = el("span", "chip");
+      const label = el("span", "");
+      label.append(el("b", "", f.name), el("em", "", `${typeLabel(f)} · ${sizeLabel(f.size)}`));
+      const x = el("button", "") as HTMLButtonElement;
+      x.type = "button";
+      x.setAttribute("aria-label", fill(shellCopyFor(lang).removeFile, { name: f.name }));
+      x.append(el("i", "ico i-x"));
+      x.addEventListener("click", () => { attached = attached.filter((a) => a !== f); arm(); });
+      chip.append(el("i", "ico i-file"), label, x);
+      return chip;
+    }));
+    chips.hidden = attached.length === 0;
+    cfield.classList.toggle("on", attached.length > 0 || words.value.trim() !== "");
     // Send's NAME says what this press does — words, or the photos that are attached — because
     // the arrow does not.
-    send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
+    send.setAttribute("aria-label", attached.length > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
   };
-  picker.addEventListener("change", arm);
+  const attach = (files: File[]): void => {
+    attached = [...attached, ...files];
+    arm();
+  };
+  picker.addEventListener("change", () => { attach([...(picker.files ?? [])]); picker.value = ""; });
+  words.addEventListener("input", arm);
+  words.addEventListener("paste", (e) => {
+    const images = [...(e as ClipboardEvent).clipboardData?.files ?? []].filter((f) => f.type.startsWith("image/"));
+    if (images.length === 0) return;
+    e.preventDefault();
+    attach(images);
+  });
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const files = [...(picker.files ?? [])];
+    const files = attached;
     const text = words.value.trim();
     if (files.length === 0 && text === "") return;
     // THE SERVER'S NUMBERS, off the profile, never compiled in: they differ between environments,
@@ -578,32 +608,32 @@ export async function chatScreen(): Promise<HTMLElement> {
         // ANGLES ON THE FOCUSED MEAL, not a new turn: the sheet's upload posts to the meal's own
         // collection — the words in the box stay for the correction turn that reads them.
         await api<AttachPhotosResponse>(MEAL_PHOTOS(focusMeal.id), { method: "POST", body: form });
-        picker.value = "";
+        attached = [];
         arm();
         return;
       }
       // The field gives the words up NOW — her bubble already carries them ("web-chat-busy", #70) —
       // and takes them back only when the send throws before the turn ever took the line.
       if (files.length > 0) {
-        words.value = "";
+        words.value = ""; arm();
         try {
           const saved = await sendHers({
             id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
             capturedAt: new Date().toISOString(),
           });
-          picker.value = "";
+          attached = [];
           arm();
           return saved;
-        } catch (e) { words.value = text; throw e; }
+        } catch (e) { words.value = text; arm(); throw e; }
       }
-      words.value = "";
+      words.value = ""; arm();
       try {
         return await sendHers({
           id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
           capturedAt: new Date().toISOString(),
           ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
         });
-      } catch (e) { words.value = text; throw e; }
+      } catch (e) { words.value = text; arm(); throw e; }
     });
   });
   arm();
@@ -623,6 +653,60 @@ export async function chatScreen(): Promise<HTMLElement> {
     await draw();
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   });
+  // The web's + (the boards' "+ Log"): a button in the top bar that opens two tiles over a veil —
+  // Photo (the file picker) and Text (the composer, focused). It turns into an ink Close above the
+  // veil; Esc or a click on the veil closes it too.
+  const logBtn = el("button", "cp-log") as HTMLButtonElement;
+  logBtn.type = "button";
+  logBtn.setAttribute("aria-haspopup", "menu");
+  logBtn.setAttribute("aria-label", shellCopyFor(lang).logMeal);
+  const logFace = (open: boolean): void => {
+    logBtn.classList.toggle("cp-close", open);
+    logBtn.setAttribute("aria-expanded", String(open));
+    logBtn.replaceChildren(el("i", `ico i-${open ? "x" : "plus"}`), open ? shellCopyFor(lang).closeLog : COPY.logButton);
+  };
+  logFace(false);
+  let veil: HTMLElement | null = null;
+  const closeLog = (): void => { veil?.remove(); veil = null; logFace(false); };
+  const onKey = (e: KeyboardEvent): void => {
+    if (!wrap.isConnected) { removeEventListener("keydown", onKey); return; }
+    if (e.key === "Escape" && veil !== null) closeLog();
+  };
+  addEventListener("keydown", onKey);
+  const tile = (icon: IconName, label: string, go: () => void): HTMLElement => {
+    const t = el("button", "cp-tile") as HTMLButtonElement;
+    t.type = "button";
+    t.setAttribute("role", "menuitem");
+    t.append(el("i", `ico i-${icon}`), el("b", "", label));
+    t.addEventListener("click", () => { closeLog(); go(); });
+    return t;
+  };
+  logBtn.addEventListener("click", () => {
+    if (veil !== null) { closeLog(); return; }
+    veil = el("div", "cp-veil");
+    const menu = el("div", "cp-wgrid");
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", shellCopyFor(lang).logMeal);
+    const row = el("div", "cp-wrow");
+    row.append(tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()), tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()));
+    menu.append(row, el("p", "cp-hint", COPY.plusHint));
+    veil.append(menu);
+    veil.addEventListener("click", (e) => { if (e.target === veil || e.target === menu) closeLog(); });
+    wrap.append(veil);
+    logFace(true);
+    row.querySelector<HTMLElement>("button")?.focus();
+  });
+  clear(frame.bar);
+  frame.bar.append(logBtn);
+  // The calendar at the bar's right, as on Home: a picked day opens Home on it.
+  if (me !== null) {
+    const cal = dayPickerButton({
+      label: homeCopyFor(lang).pickDay,
+      value: () => localDate(me.timezone), max: () => localDate(me.timezone),
+      onPick: (d) => { location.hash = `#/?d=${encodeURIComponent(d)}`; },
+    });
+    frame.bar.append(cal.button, cal.input);
+  }
   // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
   wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form);
   // What the turn that was out said, if it answered after its own screen was gone.

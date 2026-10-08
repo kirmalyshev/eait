@@ -221,10 +221,14 @@ export const ICONS = {
   // ── Tabs ──
   home: line('<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>'),
   progress: line('<path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/>'),
-  chat: line('<path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H9l-5 4z"/>'),
+  chat: line('<path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H9l-5 3z"/>'),
   you: line('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
 
   // ── UI chrome ──
+  /** The web chat's attached-file chip (the boards' `DOC`). */
+  file: line('<path d="M7 3h7l5 5v13H7zM14 3v5h5"/>'),
+  /** The "+ Log" chooser's Text tile (the boards' `KEYS`). */
+  keyboard: line('<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M8 14h8"/>'),
   camera: line('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'),
   paperclip: line('<path d="M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/>'),
   "camera-off": line('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/><path d="M3 3l18 18"/>'),

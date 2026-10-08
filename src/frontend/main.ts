@@ -16,7 +16,7 @@ import { acceptDrops, restoreJobs } from "./queue.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
 screen("#/meal/", (frame) => mealScreen(frame));
-screen("#/chat", () => chatScreen());
+screen("#/chat", (frame) => chatScreen(frame));
 screen("#/pay", (frame) => payScreen(frame));
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));
