@@ -12,19 +12,27 @@
 // travel, and never reproducibly for whoever goes looking. The server sends its zone in
 // `ProfileResponse.timezone` and the phone aggregates in that.
 
+// One formatter per shape per zone: a `new Intl.DateTimeFormat` costs ~40x a `.format` call, and
+// `aggregateDays` runs `localDate` once per health sample — thousands of them on a first sync.
+const ZONED_FORMATS = new Map<string, Intl.DateTimeFormat>();
+function zonedFormat(
+  zone: string, locale: string, options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  const key = `${locale} ${zone}`;
+  let fmt = ZONED_FORMATS.get(key);
+  if (!fmt) ZONED_FORMATS.set(key, (fmt = new Intl.DateTimeFormat(locale, { ...options, timeZone: zone })));
+  return fmt;
+}
+
 /** `YYYY-MM-DD` for an instant, in the given IANA zone. */
 export function localDate(zone: string, at: Date = new Date()): string {
   // `en-CA` formats as YYYY-MM-DD, which is the format we want and avoids hand-assembling parts.
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(at);
+  return zonedFormat(zone, "en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
 }
 
 /** `HH:MM` for an instant, in the given zone. Fed to the analyzer so it can infer the meal type. */
 export function localTime(zone: string, at: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: zone, hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(at);
+  return zonedFormat(zone, "en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(at);
 }
 
 /**
@@ -59,8 +67,8 @@ export function dateMinusMonths(date: string, months: number): string {
 /** The wall clock `zone` shows for an instant, re-read as if it were UTC. Its distance from the real instant is the zone's offset. */
 function wallClockAsUtc(zone: string, at: Date): number {
   const p: Record<string, string> = {};
-  for (const part of new Intl.DateTimeFormat("en-US", {
-    timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+  for (const part of zonedFormat(zone, "en-US", {
+    hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
   }).formatToParts(at)) p[part.type] = part.value;
   return Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!);

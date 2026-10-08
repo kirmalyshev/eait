@@ -71,10 +71,15 @@ function landing(from: Date, weeks: number): Date {
 }
 
 /** A month name from CLDR; the 15th is the anchor that no zone can move into a neighbour. */
-const monthName = (lang: Lang, year: number, month: number, withYear: boolean): string =>
-  new Intl.DateTimeFormat(LANG_TAG[lang], {
+const MONTH_FORMATS = new Map<string, Intl.DateTimeFormat>();
+const monthName = (lang: Lang, year: number, month: number, withYear: boolean): string => {
+  const key = `${lang} ${withYear}`;
+  let fmt = MONTH_FORMATS.get(key);
+  if (!fmt) MONTH_FORMATS.set(key, (fmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
     month: "short", ...(withYear ? { year: "numeric" } : {}), timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month, 15)));
+  })));
+  return fmt.format(new Date(Date.UTC(year, month, 15)));
+};
 
 /** The date axis on a real time scale, its month names from `Intl`. */
 export function planJourneyTicks(from: Date, weeks: number, lang: Lang): PlanJourneyTick[] {
