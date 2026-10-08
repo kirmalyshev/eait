@@ -56,7 +56,15 @@ describe("push templates", () => {
     const a = await listPushTemplates(deps);
     const b = await listPushTemplates(deps);
     expect(b.rows.length).toBe(a.rows.length);
-    expect(a.rows.length).toBe(LANGS.length * 4); // trial-end, evening x2, nudge
+    expect(a.rows.length).toBe(LANGS.length * 16); // trial-end, evening x2, nudge, and 3 triggers x 4 variants
+  });
+
+  it("the trigger keys pass the claims and gender gate in every variant of every language", async () => {
+    const { keys } = await listPushTemplates(deps);
+    for (const k of keys.filter((k) => /^(onboarding|streak)/.test(k.key))) {
+      expect(k.gaps, k.key).toEqual([]);
+      expect(k.variants.length).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("a language left as a draft makes the sender refuse the key — for every language", async () => {

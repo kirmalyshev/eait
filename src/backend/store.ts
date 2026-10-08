@@ -61,7 +61,13 @@ export interface JobRecord {
 }
 
 /** One account the push tick visits. */
-export interface PushAudienceRow { userId: string; timezone: string | null }
+export interface PushAudienceRow {
+  userId: string;
+  timezone: string | null;
+  /** When the account was made and when it finished onboarding (ISO), for the day-1/3/7 schedule. */
+  createdAt: string;
+  onboardedAt: string | null;
+}
 
 /** A message about to be sent to ONE device. `id` is the `sendId` the push `data` carries. */
 export interface NewSend {
@@ -856,6 +862,14 @@ export interface Store {
    * consent that already stands.
    */
   recordConsent(userId: string, consent: { terms: boolean; marketing: boolean }): Promise<void>;
+  /**
+   * Scoped. The "tips and offers" push opt-in: when it was turned on, or null (the default). Its own
+   * column, deliberately NOT `marketing_consent_at`: that is the sign-up box, a different consent
+   * with a different meaning, and neither may read or move the other.
+   */
+  pushOffersOf(userId: string): Promise<string | null>;
+  /** Scoped. On stamps now unless already set (the first moment stands); off clears it. */
+  setPushOffers(userId: string, on: boolean): Promise<void>;
   /** What is stored for the account, or null when there is no such account. For the audit surface and tests. */
   consentOf(userId: string): Promise<{ termsAcceptedAt: string | null; marketingConsentAt: string | null } | null>;
 

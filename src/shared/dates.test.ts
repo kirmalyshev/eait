@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  loggedStreak,
   dateMinus, dateMinusMonths, isCalendarDate, localDate, localTime, monthGrid,
   monthOf, monthShift, weekStart, windowStart, zonedMidnight,
 } from "./dates.ts";
@@ -159,5 +160,20 @@ describe("dateMinusMonths", () => {
     expect(dateMinusMonths("2026-03-31", 1)).toBe("2026-02-28");
     expect(dateMinusMonths("2024-03-31", 1)).toBe("2024-02-29");
     expect(dateMinusMonths("2026-10-31", 1)).toBe("2026-09-30");
+  });
+});
+
+describe("loggedStreak", () => {
+  const logged = (...d: string[]) => new Set(d);
+  test("counts back from today when today is logged", () => {
+    expect(loggedStreak(logged("2026-10-08", "2026-10-07", "2026-10-06"), "2026-10-08")).toBe(3);
+  });
+  test("counts back from yesterday while today is still open", () => {
+    expect(loggedStreak(logged("2026-10-07", "2026-10-06", "2026-10-05"), "2026-10-08")).toBe(3);
+  });
+  test("a gap ends the run, and nothing logged is zero", () => {
+    expect(loggedStreak(logged("2026-10-08", "2026-10-06"), "2026-10-08")).toBe(1);
+    expect(loggedStreak(logged(), "2026-10-08")).toBe(0);
+    expect(loggedStreak(logged("2026-10-05"), "2026-10-08")).toBe(0);
   });
 });

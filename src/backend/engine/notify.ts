@@ -27,15 +27,17 @@
 // the habit is not gated behind the conversion it exists to produce.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { sendableCopy } from "./push-templates.ts";
+import { rotatedVariant, sendableCopy, sendLogUses } from "./push-templates.ts";
 import {
-  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, dailyMessage, entitlementActive, isTimezone,
+  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, PUSH_TEMPLATE_VARIANTS, dailyMessage, loggedStreak, windowStart,
+  DIARY_WINDOW_DAYS, entitlementActive, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
   kcalNumbers, trialReminder,
   type Lang, type NotificationCopy, type PushKind, type SendKind, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
+import type { PushAudienceRow } from "../store.ts";
 import { sumTotals } from "./meals.ts";
 import type { EngineDeps } from "./deps.ts";
 
@@ -257,7 +259,8 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
   const audience = await deps.store.pushAudience();
   const result: TickResult = { users: audience.length, sent: 0, skipped: 0, failed: 0, dropped: 0 };
   let broken = 0;
-  for (const { userId, timezone } of audience) {
+  for (const audienceRow of audience) {
+    const { userId, timezone } = audienceRow;
     // ONE ACCOUNT AT A TIME: one account's failing read is one account's failure, not everybody's night.
     try {
       const zone = zoneOf(deps, timezone);
@@ -271,6 +274,27 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
 
       const at = instantOf(zone, date, deps.config.eveningLineTime);
       if (now < at || now >= at + CATCH_UP_MS) { result.skipped++; continue; }
+
+      // The triggers go before the evening line and share its slot: a day that gets a streak or an
+      // onboarding push gets nothing else.
+      const trigger = await triggerNotification(deps, audienceRow, date, now, zone);
+      if (trigger !== null) {
+        const claim = await deps.store.claimPushSlot(userId, date, trigger.kind, trigger.message.id);
+        if (!claim.claimed) { result.skipped++; continue; }
+        const out = await sendLogged(
+          deps, userId, await deps.store.pushTokensFor(userId),
+          {
+            kind: trigger.kind, ref: trigger.message.id, templateKey: trigger.message.id,
+            lang: trigger.message.lang, variant: trigger.variant,
+          },
+          {
+            title: trigger.message.title, body: trigger.message.body,
+            ...(trigger.message.id === "onboarding-start" ? {} : { categoryId: LOG_REPLY_CATEGORY }),
+          },
+        );
+        result.sent += out.sent; result.failed += out.failed; result.dropped += out.dropped;
+        continue;
+      }
 
       const message = await dailyNotification(deps, userId, date, now, zone);
       if (message === null) { result.skipped++; continue; }
@@ -299,6 +323,56 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
     );
   }
   return result;
+}
+
+/** Local days on which an account that has logged nothing is nudged, counted from onboarding. */
+export const ONBOARDING_PUSH_DAYS = [1, 3, 7] as const;
+/** A streak this long, with nothing logged yet today, is worth a reminder. */
+export const STREAK_PUSH_MIN = 3;
+
+export interface TriggerPush {
+  kind: Extract<PushKind, "streak" | "onboarding">;
+  message: DailyNotification;
+  variant: string;
+}
+
+/** Whole calendar days from `from` to `to`, both `YYYY-MM-DD`. */
+const daysBetween = (from: string, to: string): number => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+
+/**
+ * The trigger push this account is due tonight, or null. Streak-at-risk first (it needs logged
+ * days, so it can never coincide with onboarding, which needs none). Reads only; the caller
+ * claims the slot.
+ */
+async function triggerNotification(
+  deps: EngineDeps, who: PushAudienceRow, date: string, now: number, zone: string,
+): Promise<TriggerPush | null> {
+  const { userId } = who;
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return null;
+  const logged = new Set((await deps.store.totalsSince(userId, windowStart(date, DIARY_WINDOW_DAYS))).map((r) => r.date));
+
+  let key: NotificationId | null = null;
+  if (profile.onboarded_at && !logged.has(date) && loggedStreak(logged, date) >= STREAK_PUSH_MIN) {
+    key = "streak-risk";
+  } else {
+    const since = daysBetween(localDate(zone, new Date(who.onboardedAt ?? who.createdAt)), date);
+    if (!(ONBOARDING_PUSH_DAYS as readonly number[]).includes(since)) return null;
+    // "No first meal" is nothing logged EVER, not nothing in the diary window.
+    if (who.onboardedAt && (await deps.store.totalsSince(userId, "0001-01-01")).length > 0) return null;
+    key = who.onboardedAt ? "onboarding-photo" : "onboarding-start";
+  }
+
+  const copy = await sendableCopy(deps, key, profile.lang);
+  if (!copy) return null;
+  const variant = await rotatedVariant(userId, key, sendLogUses(deps), now, PUSH_TEMPLATE_VARIANTS[key]);
+  const body = variant === "default" ? copy[key].body : copy[key].alternates?.[variant];
+  if (body === undefined) return null;
+  return {
+    kind: key === "streak-risk" ? "streak" : "onboarding",
+    variant,
+    message: { id: key, lang: profile.lang, title: copy[key].title, body },
+  };
 }
 
 /** True on the day the DEVICE sends the trial-ends reminder: this server must say nothing then. */

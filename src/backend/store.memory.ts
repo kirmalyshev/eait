@@ -100,6 +100,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // entitlement and the role — the admin's list (#374) is the only reader, and a store that could
   // not answer it would be a store the panel had to guess against.
   const createdAt = new Map<string, number>();
+  const pushOffers = new Map<string, string>();
   /**
    * Roles, in their own map rather than on the profile (#391a).
    *
@@ -285,6 +286,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Same again (S8): consent stamps are `users` columns in Postgres and a map here — an account
     // that consented and was deleted keeps neither the record nor the timestamp.
     consents.delete(userId);
+    pushOffers.delete(userId);
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
@@ -414,6 +416,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         termsAcceptedAt: new Date().toISOString(),
         marketingConsentAt: consent.marketing ? new Date().toISOString() : prior.marketingConsentAt,
       });
+    },
+
+    async pushOffersOf(userId) {
+      return pushOffers.get(userId) ?? null;
+    },
+
+    async setPushOffers(userId, on) {
+      if (!users.has(userId)) return;
+      if (!on) pushOffers.delete(userId);
+      else if (!pushOffers.has(userId)) pushOffers.set(userId, new Date().toISOString());
     },
 
     async consentOf(userId) {
@@ -902,7 +914,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async pushAudience() {
       return [...new Set([...pushTokens.values()].map((r) => r.userId))]
-        .map((userId) => ({ userId, timezone: timezones.get(userId) ?? null }));
+        .map((userId) => ({
+          userId, timezone: timezones.get(userId) ?? null,
+          createdAt: new Date(createdAt.get(userId) ?? 0).toISOString(),
+          onboardedAt: users.get(userId)?.onboarded_at ?? null,
+        }));
     },
 
     async timezoneOf(userId) {

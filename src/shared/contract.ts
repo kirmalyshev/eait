@@ -308,6 +308,11 @@ export const ROUTES = {
    */
   pushOpen: "/v1/push/open",
   /**
+   * GET — the tips-and-offers consent (`PushConsentResponse`); POST — set it (`PushConsentRequest`).
+   * Default OFF. Onboarding and streak reminders do not depend on it.
+   */
+  pushConsent: "/v1/push/consent",
+  /**
    * PATCH — the manual edit path. See `EditMealRequest`.
    *
    * DELETE — the meal itself (#61): the meal, its photos and every card for it, and the user line
@@ -1089,6 +1094,20 @@ export function pushOpenFrom(data: unknown, reply: boolean): PushOpenRequest | n
 /** Always `{ ok: true }`: recorded, deduplicated and not-yours are indistinguishable on purpose. */
 export interface PushOpenResponse {
   ok: true;
+}
+
+export interface PushConsentRequest {
+  offers: boolean;
+}
+
+/** `at` is when it was turned on, or null while it is off. */
+export interface PushConsentResponse {
+  offers: boolean;
+  at: string | null;
+}
+
+export function isPushConsentRequest(body: unknown): body is PushConsentRequest {
+  return typeof body === "object" && body !== null && typeof (body as Record<string, unknown>).offers === "boolean";
 }
 
 /** What a register or an unregister answers. `registered` is the state AFTER the call. */

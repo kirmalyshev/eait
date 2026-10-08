@@ -10,6 +10,7 @@ import {
   updateCampaign,
 } from "./campaign.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
+import { setPushConsent } from "./push-consent.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -202,6 +203,17 @@ describe("segments", () => {
     await campaign({ segment: { tipsConsent: true } });
     await runCampaigns(deps, { now: BERLIN_1830 });
     expect(push.sent).toHaveLength(0);
+  });
+
+  it("a promotional campaign skips an account with the toggle off and reaches one with it on", async () => {
+    const off = await account({ consent: true }); // ticked the sign-up box: not an opt-in
+    const on = await account({ consent: false });
+    await setPushConsent(deps, on, true);
+    const c = await campaign({ promotional: true }, "draft");
+    await store.updateCampaign(c.id, { status: "scheduled" });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(await store.sendLogFor(off, 5)).toHaveLength(0);
+    expect(await store.sendLogFor(on, 5)).toHaveLength(1);
   });
 
   it("a promotional campaign forced live in the store still reaches nobody", async () => {

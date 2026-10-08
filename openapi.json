@@ -2796,6 +2796,100 @@
         ]
       }
     },
+    "/v1/push/consent": {
+      "get": {
+        "operationId": "get_pushConsent",
+        "summary": "Whether tips-and-offers pushes are allowed (default off) and since when.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushConsentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_pushConsent",
+        "summary": "Turn tips-and-offers pushes on or off. Reminders do not depend on it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushConsentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushConsentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/diary/day": {
       "get": {
         "operationId": "get_day",
@@ -7362,6 +7456,38 @@
           "google",
           "telegram"
         ]
+      },
+      "PushConsentRequest": {
+        "type": "object",
+        "properties": {
+          "offers": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "offers"
+        ],
+        "additionalProperties": false
+      },
+      "PushConsentResponse": {
+        "type": "object",
+        "properties": {
+          "offers": {
+            "type": "boolean"
+          },
+          "at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "offers",
+          "at"
+        ],
+        "additionalProperties": false,
+        "description": "`at` is when it was turned on, or null while it is off."
       },
       "PushOpenAction": {
         "type": "string",

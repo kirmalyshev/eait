@@ -22,7 +22,7 @@ import {
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type AttachPhotosResponse, type DeleteLineResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
-  HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushOpenRequest, isPushToken, isPushTokenRequest, isTimezone, type PushTokenResponse,
+  HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushConsentRequest, isPushOpenRequest, isPushToken, isPushTokenRequest, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
   MAX_FOOD_QUERY, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
@@ -37,7 +37,7 @@ import {
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
-  attachPhotos, recordPushOpen,
+  attachPhotos, recordPushOpen, pushConsent, setPushConsent,
   reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
   foodSearch, productByBarcode,
 } from "../engine/index.ts";
@@ -764,6 +764,15 @@ export function createRouter(
         const body = await req.json().catch(() => null);
         if (!isPushOpenRequest(body)) return json({ error: "send id required" }, 400);
         return json(await recordPushOpen(deps, userId, body));
+      }
+
+      if (pathname === ROUTES.pushConsent && (req.method === "GET" || req.method === "POST")) {
+        if (req.method === "GET") return json(await pushConsent(deps, userId));
+        const wait = limit(req, peer, "push-consent", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body = await req.json().catch(() => null);
+        if (!isPushConsentRequest(body)) return json({ error: "offers (boolean) required" }, 400);
+        return json(await setPushConsent(deps, userId, body.offers));
       }
 
       // ── Chat ──────────────────────────────────────────────────────────────────────────────

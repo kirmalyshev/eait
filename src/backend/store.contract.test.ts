@@ -212,6 +212,23 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(stamped?.marketingConsentAt).not.toBeNull();
     });
 
+    it("push offers: own column, first moment stands, off clears, never touches the sign-up consent", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      expect(await s.pushOffersOf(userId)).toBeNull(); // the sign-up tick is not an opt-in
+      await s.setPushOffers(userId, true);
+      const first = await s.pushOffersOf(userId);
+      expect(first).not.toBeNull();
+      await s.setPushOffers(userId, true);
+      expect(await s.pushOffersOf(userId)).toEqual(first);
+      expect(await s.pushOffersOf(other)).toBeNull();
+      await s.setPushOffers(userId, false);
+      expect(await s.pushOffersOf(userId)).toBeNull();
+      expect((await s.consentOf(userId))?.marketingConsentAt).not.toBeNull();
+    });
+
     it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {
       // The marketing box starts empty on every screen, so an unticked answer is the absence of a
       // NEW consent, not a withdrawal of a stored one — a returning sign-in must not un-consent
@@ -984,7 +1001,9 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-a]`, "ios");
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-b]`, "ios");
       const rows = await s.pushAudience();
-      expect(rows.filter((r) => r.userId === withToken)).toEqual([{ userId: withToken, timezone: null }]);
+      expect(rows.filter((r) => r.userId === withToken)).toEqual([
+        { userId: withToken, timezone: null, createdAt: expect.any(String), onboardedAt: null },
+      ]);
       expect(rows.map((r) => r.userId)).not.toContain(without);
       await s.setTimezone(withToken, "Asia/Tokyo");
       expect((await s.pushAudience()).find((r) => r.userId === withToken)?.timezone).toBe("Asia/Tokyo");
