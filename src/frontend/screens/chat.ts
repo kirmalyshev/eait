@@ -9,6 +9,8 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import { localDate } from "../../shared/dates.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
@@ -24,7 +26,7 @@ import { blobSrc, gramMacsEl, optionRowEl, spudAvatarEl, verdictListEl } from ".
 import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
 import {
-  COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
+  COPY, MESSAGES, dayPickerButton, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   failBadge, heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names, type Frame,
@@ -696,6 +698,15 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
   });
   clear(frame.bar);
   frame.bar.append(logBtn);
+  // The calendar at the bar's right, as on Home: a picked day opens Home on it.
+  if (me !== null) {
+    const cal = dayPickerButton({
+      label: homeCopyFor(lang).pickDay,
+      value: () => localDate(me.timezone), max: () => localDate(me.timezone),
+      onPick: (d) => { location.hash = `#/?d=${encodeURIComponent(d)}`; },
+    });
+    frame.bar.append(cal.button, cal.input);
+  }
   // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
   wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form);
   // What the turn that was out said, if it answered after its own screen was gone.

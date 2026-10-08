@@ -23,7 +23,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
    line only — drawn from the siblings, so a row never needs to know its neighbours. The time sits
    inside, bottom-right, sharing the last line when it fits. Starter and suggestion cards are not
    bubbles and do not break his run's face. */
-.chat { background: var(--chat-ground); }
+#app:has(.chat), .wmain:has(.chat) { background: var(--chat-ground); }
 .thread { gap: 2px; padding: 8px 12px 4px; }
 .thread > li.me + li.them, .thread > li.them + li.me { margin-top: 8px; }
 .thread > li.me { display: block; }
@@ -90,7 +90,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 
 /* The composer sits ON the ground (the boards' pinned row): .comp's own --bg cover is the
    page's, not the chat's. */
-.chat .comp { background: var(--chat-ground); }
+.chat .comp { background: transparent; }
 /* the composer, option A (ieat-app#1633): a bare paperclip left of ONE field at radius 17 with the
    round send INSIDE its right end — grey while empty, the accent once there are words or files — and
    the attached files as chips above (name, type · size, × with a 44 tap area). */
