@@ -158,6 +158,11 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
 }
 
 
+/** Staff is the account's DB flag, set in the admin; the env list is only a bootstrap fallback. */
+export async function isStaffAccount(deps: EngineDeps, userId: string): Promise<boolean> {
+  return deps.config.campaignStaffIds.includes(userId) || await deps.store.isStaff(userId);
+}
+
 /** Everything a segment can ask about one account, or null when it has no profile. */
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {
   const profile = await deps.store.getProfile(userId);
@@ -174,7 +179,7 @@ async function factsFor(deps: EngineDeps, userId: string, date: string, now: num
     ...habitOf(logged, date),
     // The in-app Tips-and-offers toggle (`users.push_offers_at`), default off. Not the sign-up box.
     tipsConsent: await pushOffersAllowed(deps, userId),
-    staff: deps.config.campaignStaffIds.includes(userId),
+    staff: await isStaffAccount(deps, userId),
   };
 }
 
@@ -322,7 +327,7 @@ export async function testSendCampaign(
 ): Promise<CampaignTestResult> {
   const c = await deps.store.getCampaign(id);
   if (!c) return { ok: false, reason: "no-such-campaign" };
-  if (!deps.config.campaignStaffIds.includes(userId)) return { ok: false, reason: "not-staff" };
+  if (!await isStaffAccount(deps, userId)) return { ok: false, reason: "not-staff" };
   const devices = await deps.store.pushTokensFor(userId);
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };

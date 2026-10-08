@@ -1086,6 +1086,18 @@ export function isPushOpenRequest(body: unknown): body is PushOpenRequest {
     && (b.action === undefined || (PUSH_OPEN_ACTIONS as readonly unknown[]).includes(b.action));
 }
 
+/**
+ * The screens a push tap may open (eait#531), carried as `data.route`. A closed list, never a path or
+ * a URL: the sender can only name one of these and the app's open listener navigates only to a known
+ * one, so a push cannot steer the app anywhere else.
+ */
+export const PUSH_ROUTES = ["home", "chat", "progress", "camera", "settings", "profile", "subscription"] as const;
+export type PushRoute = (typeof PUSH_ROUTES)[number];
+export const isPushRoute = (v: unknown): v is PushRoute => (PUSH_ROUTES as readonly unknown[]).includes(v);
+
+/** Most accounts one admin send may name. */
+export const ADMIN_PUSH_MAX_RECIPIENTS = 50;
+
 /** The open to report for a notification response, or null when the push carried no `sendId`. */
 export function pushOpenFrom(data: unknown, reply: boolean): PushOpenRequest | null {
   const sendId = (data as { sendId?: unknown } | null | undefined)?.sendId;
