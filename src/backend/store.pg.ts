@@ -1327,6 +1327,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
+  foodCandidates: "unscoped",
   offProductByBarcode: "unscoped",
   putFoodRefs: "unscoped",
   putOffProducts: "unscoped",
@@ -2527,6 +2528,20 @@ export async function postgresStore(
 
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
+    async foodCandidates(words, limit) {
+      // Words arrive as letters and digits only (`engine/ground.ts`), so they are safe in a pattern.
+      const patterns = words.map((w) => `\\y${w.replace(/[^\p{L}\p{N}]/gu, "")}(s|es)?\\y`);
+      if (patterns.length === 0) return [];
+      const rows = await sql`
+        select * from food_ref
+        where name_en is not null
+          and kcal_per_100g is not null and protein_g_per_100g is not null
+          and carbs_g_per_100g is not null and fat_g_per_100g is not null
+          and name_en ~* all(${toPgTextArray(patterns)}::text[])
+        order by length(name_en), name_en
+        limit ${limit}`;
+      return rows.map(toFoodRef);
+    },
     async searchFoods(query, limit) {
       // `%` and `_` in the needle are literals, not pattern chars — the query is a name fragment,
       // never a LIKE the caller composes. `position` ranks the name the match lands earliest in.

@@ -1052,6 +1052,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
+    async foodCandidates(words, limit) {
+      const res = words.map((w) => new RegExp(`\\b${w.replace(/[^\p{L}\p{N}]/gu, "")}(s|es)?\\b`, "iu"));
+      if (res.length === 0) return [];
+      return [...foodRefs.values()]
+        .filter((f) => f.name_en !== null && f.kcal_per_100g !== null && f.protein_g_per_100g !== null
+          && f.carbs_g_per_100g !== null && f.fat_g_per_100g !== null && res.every((r) => r.test(f.name_en!)))
+        .sort((a, b) => a.name_en!.length - b.name_en!.length || (a.name_en! < b.name_en! ? -1 : 1))
+        .slice(0, limit)
+        .map(clone);
+    },
     async searchFoods(query, limit) {
       // Same match and same order as Postgres: case-insensitive substring in any of the three
       // name columns, earliest position first, then shortest name, then alphabetical.
