@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { itemScanner } from "./partial.ts";
 
 const ITEM = (name: string) =>
-  `{"name":"${name}","grams":100,"kcal":150,"protein_g":10,"carbs_g":5,"fat_g":8,"kcal_per_100g":150}`;
+  `{"name":"${name}","name_en":"${name.toLowerCase()}","grams":100,"kcal":150,"protein_g":10,"carbs_g":5,"fat_g":8,"kcal_per_100g":150}`;
 const DOC = `{"isFood":true,"scale":{"reference":"plate","plate_diameter_cm":27},"items":[${ITEM("Rice")},${ITEM("Chicken")}],"kcal":300,"protein_g":20,"carbs_g":10,"fat_g":16,"satfat_g":2,"fiber_g":1,"sugar_g":0,"sodium_mg":200,"confidence":"high","notes":"a { brace } in [ notes ]","question":{"text":"Oil?","options":["Yes","No"]}}`;
 
 function run(chunks: string[]) {

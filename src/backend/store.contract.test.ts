@@ -2808,6 +2808,22 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(hits.map((f) => f.id)).toEqual([`${RUN}:f1`]);
       });
 
+      it("foodCandidates: whole words or plurals, every word, complete macros, shortest name first", async () => {
+        const s = await open();
+        const macros = { kcal_per_100g: 50, protein_g_per_100g: 1, carbs_g_per_100g: 10, fat_g_per_100g: 0.5 };
+        await s.putFoodRefs([
+          ref({ id: `${RUN}:c1`, name: "x", name_en: "Zorbfruits, raw, all varieties", ...macros }),
+          ref({ id: `${RUN}:c2`, name: "x", name_en: "Zorbfruit tart", ...macros }),
+          ref({ id: `${RUN}:c3`, name: "x", name_en: "Pinezorbfruit, raw", ...macros }),
+          ref({ id: `${RUN}:c4`, name: "x", name_en: "Zorbfruit, no protein figure", ...macros, protein_g_per_100g: null }),
+          ref({ id: `${RUN}:c5`, name: "x", name_en: "Zorbfruit raw tart", ...macros }),
+        ]);
+        const got = (await s.foodCandidates(["zorbfruit"], 20)).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
+        expect(got).toEqual([`${RUN}:c2`, `${RUN}:c5`, `${RUN}:c1`]);
+        const both = (await s.foodCandidates(["zorbfruit", "raw"], 20)).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
+        expect(both).toEqual([`${RUN}:c5`, `${RUN}:c1`]);
+      });
+
       it("matches name_de and name_en as well as the primary name", async () => {
         const s = await open();
         await s.putFoodRefs([
@@ -3956,15 +3972,15 @@ if (PG_URL) {
         .sort();
       expect(unscoped).toEqual([
         "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
-        "countClipAnalyses", "countGlobalAnalyses", "createCampaign", "createUser", "expireJobs", "forgetJobs",
-        "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent", "getPrompts",
-        "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates", "markCampaignRunning",
-        "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
-        "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens", "pruneHealthDaysBefore",
-        "pushAudience", "pushOpenStats", "putFoodRefs", "putNotificationCopy", "putOffProducts",
-        "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs", "revokeToken",
-        "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled", "updateCampaign",
-        "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
+        "countClipAnalyses", "countGlobalAnalyses", "createCampaign", "createUser", "expireJobs", "foodCandidates",
+        "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
+        "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates",
+        "markCampaignRunning", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel",
+        "promptRevisions", "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
+        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats", "putFoodRefs", "putNotificationCopy",
+        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs",
+        "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
+        "updateCampaign", "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
       ]);
     });
 
