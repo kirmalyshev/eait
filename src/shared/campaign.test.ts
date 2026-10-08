@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { CAMPAIGN_VARIANTS } from "./push-templates.ts";
 import {
-  compareRates, inHoldout, variantOf, habitOf, inRollout, matchesSegment, rolloutBucket, validateCampaignInput, validateSegment,
+  compareRates, effectOf, inHoldout, variantOf, habitOf, inRollout, matchesSegment, rolloutBucket, validateCampaignInput, validateSegment,
   type SegmentFacts,
 } from "./campaign.ts";
 
@@ -234,5 +234,23 @@ describe("campaign input: variants and holdout", () => {
   test("refuse 0 or 5 variants, a fractional count, and a holdout over 10 or negative", () => {
     for (const v of [0, 5, 1.5, "2"]) expect(validateCampaignInput({ ...base, variants: v }).ok).toBe(false);
     for (const h of [-1, 11, 2.5, "5"]) expect(validateCampaignInput({ ...base, holdoutPct: h }).ok).toBe(false);
+  });
+});
+
+describe("effectOf", () => {
+  test("treated is every arm summed, holdout is its own group", () => {
+    const e = effectOf([
+      { group: "b", users: 400, opened: 90, converted: 120 },
+      { group: "default", users: 600, opened: 150, converted: 180 },
+      { group: "holdout", users: 100, opened: 0, converted: 20 },
+    ])!;
+    expect(e.treated).toEqual({ n: 1000, x: 300 });
+    expect(e.holdout).toEqual({ n: 100, x: 20 });
+    expect(e.comparison).toEqual(compareRates({ n: 1000, x: 300 }, { n: 100, x: 20 })!);
+  });
+  test("has no effect to report without a holdout or without treated accounts", () => {
+    expect(effectOf([{ group: "default", users: 10, opened: 1, converted: 1 }])).toBeNull();
+    expect(effectOf([{ group: "holdout", users: 10, opened: 0, converted: 1 }])).toBeNull();
+    expect(effectOf([])).toBeNull();
   });
 });

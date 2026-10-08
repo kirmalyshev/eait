@@ -102,15 +102,32 @@ export interface CampaignRow {
   localSendTime: string;
   rolloutPct: number;
   promotional: boolean;
+  /** 1-4 copy variants. Fixed once the campaign leaves draft: changing it would reassign accounts. */
+  variants: number;
+  /** 0-10. Fixed once the campaign leaves draft, for the same reason. */
+  holdoutPct: number;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export type CampaignPatch = Partial<Pick<CampaignRow,
-  "name" | "templateKey" | "segment" | "status" | "localSendTime" | "rolloutPct" | "promotional">>;
+  "name" | "templateKey" | "segment" | "status" | "localSendTime" | "rolloutPct" | "promotional" | "variants" | "holdoutPct">>;
 
-/** What a campaign's `send_log` rows say. Test sends and dry rows are counted apart from real sends. */
+/** One arm of a campaign, or the holdout (`group: "holdout"`), counted in ACCOUNTS. */
+export interface CampaignGroupStat {
+  group: string;
+  users: number;
+  /** Accounts that opened what they were sent. Always 0 for the holdout: nothing was sent. */
+  opened: number;
+  /** Accounts that logged a meal within 24 h of the send (of the would-have-sent, for the holdout). */
+  converted: number;
+}
+
+/**
+ * What a campaign's `send_log` rows say. Test sends, dry rows and held-out rows are counted apart from
+ * real sends. `sent`/`accepted`/`dead`/`opened` count rows (one per device); `groups` counts accounts.
+ */
 export interface CampaignReport {
   sent: number;
   accepted: number;
@@ -118,6 +135,9 @@ export interface CampaignReport {
   dry: number;
   opened: number;
   test: number;
+  /** Accounts held out. */
+  held: number;
+  groups: CampaignGroupStat[];
 }
 
 /** One day of one template's life, for the admin's push view (#1759). */

@@ -188,6 +188,21 @@ export function compareRates(treated: RateGroup, holdout: RateGroup): RateCompar
   return { treatedRate: p1, holdoutRate: p2, diff, lo, hi, significant: lo > 0 || hi < 0 };
 }
 
+/** A report's per-group counts: what `effectOf` reads. Structural, so this file needs nothing from the backend. */
+export interface GroupCount { group: string; users: number; opened: number; converted: number }
+
+/**
+ * Treated minus holdout conversion for a campaign's report groups: every arm summed against the
+ * `holdout` group. Null when either side has no accounts, because there is nothing to compare.
+ */
+export function effectOf(groups: readonly GroupCount[]): { treated: RateGroup; holdout: RateGroup; comparison: RateComparison } | null {
+  const sum = (gs: readonly GroupCount[]): RateGroup => ({ n: gs.reduce((a, g) => a + g.users, 0), x: gs.reduce((a, g) => a + g.converted, 0) });
+  const treated = sum(groups.filter((g) => g.group !== "holdout"));
+  const holdout = sum(groups.filter((g) => g.group === "holdout"));
+  const comparison = compareRates(treated, holdout);
+  return comparison ? { treated, holdout, comparison } : null;
+}
+
 export interface CampaignInput {
   name: string;
   templateKey: CampaignTemplateKey;

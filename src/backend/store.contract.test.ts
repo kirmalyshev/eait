@@ -993,7 +993,7 @@ function contract(name: string, make: () => Promise<Store>) {
     describe("campaigns", () => {
       const row = (id: string, over: Partial<CampaignRow> = {}): CampaignRow => ({
         id, name: `${RUN}-camp`, templateKey: "campaign:win-back", segment: { langs: ["en"] }, status: "draft",
-        localSendTime: "18:30", rolloutPct: 10, promotional: true, createdBy: null,
+        localSendTime: "18:30", rolloutPct: 10, promotional: true, variants: 1, holdoutPct: 0, createdBy: null,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over,
       });
 
@@ -1068,7 +1068,55 @@ function contract(name: string, make: () => Promise<Store>) {
         await mk("dry", "dry");
         await mk("accepted", "test");
         await s.recordPushOpen(u, real, "tap");
-        expect(await s.campaignReport(id)).toEqual({ sent: 2, accepted: 1, dead: 1, dry: 1, opened: 1, test: 1 });
+        expect(await s.campaignReport(id)).toEqual({
+          sent: 2, accepted: 1, dead: 1, dry: 1, opened: 1, test: 1, held: 0,
+          groups: [{ group: "default", users: 1, opened: 1, converted: 0 }],
+        });
+      });
+
+      it("round-trips variants and holdout, and edits them", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id, { variants: 3, holdoutPct: 7 }));
+        expect(await s.getCampaign(id)).toMatchObject({ variants: 3, holdoutPct: 7 });
+        expect(await s.updateCampaign(id, { variants: 2, holdoutPct: 5 })).toMatchObject({ variants: 2, holdoutPct: 5, rolloutPct: 10 });
+      });
+
+      it("keeps a held-out account's would_have_sent row out of the push stats, and reports it as its own group", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id, { variants: 2, holdoutPct: 10 }));
+        const MIN = 60_000;
+        const mk = async (u: string, variant: string, state: "accepted" | "would_have_sent" | "dead") => {
+          const sid = crypto.randomUUID();
+          await s.createSend(u, {
+            id: sid, kind: "campaign", ref: id, templateKey: `${RUN}-p6`, lang: "en", variant,
+            token: `ExponentPushToken[${RUN}-p6-${sid}]`, state,
+          });
+          return { sid, at: new Date((await s.sendLogFor(u, 1))[0]!.createdAt).getTime() };
+        };
+        const user = async () => (await s.upsertDeviceUser(device(), "en")).userId;
+        const [a1, a2, b1, h1, h2, d1] = [await user(), await user(), await user(), await user(), await user(), await user()];
+        const sa1 = await mk(a1, "default", "accepted");
+        await mk(a2, "default", "accepted");
+        await mk(b1, "b", "accepted");
+        const sh1 = await mk(h1, "default", "would_have_sent");
+        await mk(h2, "b", "would_have_sent");
+        await mk(d1, "b", "dead");
+        await s.recordPushOpen(a1, sa1.sid, "tap");
+        await s.recordPushOpen(h1, sh1.sid, "tap"); // a held-out account was never sent anything: no open can count
+        await s.insertMeal(meal(a1, { ts: new Date(sa1.at + MIN).toISOString() }));
+        await s.insertMeal(meal(b1, { ts: new Date(sa1.at + MIN).toISOString() }));
+        await s.insertMeal(meal(h1, { ts: new Date(sh1.at + MIN).toISOString() }));
+        await s.insertMeal(meal(d1, { ts: new Date(sa1.at + MIN).toISOString() })); // dead: never reached, so not a conversion
+        const r = await s.campaignReport(id);
+        expect(r).toMatchObject({ sent: 4, accepted: 3, dead: 1, held: 2 });
+        expect(r.groups).toEqual([
+          { group: "b", users: 2, opened: 0, converted: 1 },
+          { group: "default", users: 2, opened: 1, converted: 1 },
+          { group: "holdout", users: 2, opened: 0, converted: 1 },
+        ]);
+        expect((await s.pushOpenStats(2, "UTC")).filter((x) => x.templateKey === `${RUN}-p6`).reduce((n, x) => n + x.sent, 0)).toBe(4);
       });
     });
 
@@ -4075,8 +4123,8 @@ if (PG_URL) {
     it("widens the constraint, once, and accepts the new state", async () => {
       const sql = await rawSql();
       await postgresStore(PG_URL, { maxConnections: 2 });
-      // Other cases leave `expired` rows behind; the old constraint cannot be added over them.
-      await sql`delete from send_log where state = 'expired'`;
+      // Other cases leave `expired` and `would_have_sent` rows behind; the old constraint cannot be added over them.
+      await sql`delete from send_log where state in ('expired', 'would_have_sent')`;
       await sql`alter table send_log drop constraint send_log_state_check`;
       await sql`alter table send_log add constraint send_log_state_check
         check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry'))`;
@@ -4090,6 +4138,12 @@ if (PG_URL) {
       });
       await store.settleSend(userId, id, { state: "expired", receiptError: "no-receipt", receipt: true });
       expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "expired", receiptError: "no-receipt" });
+      // And the holdout's state, which the same widening carries.
+      await store.createSend(userId, {
+        id: crypto.randomUUID(), kind: "campaign", ref: null, templateKey: "campaign:mig", lang: "en", variant: "default",
+        token: "holdout", state: "would_have_sent",
+      });
+      expect((await store.sendLogFor(userId, 1))[0]!.state).toBe("would_have_sent");
       await sql.end();
     });
   });

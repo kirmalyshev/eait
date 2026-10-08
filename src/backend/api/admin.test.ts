@@ -1139,6 +1139,19 @@ describe("campaigns (ieat-app#1761)", () => {
     expect(body.options.langs).toEqual([...LANGS]);
   });
 
+  it("creates an A/B campaign with a holdout, refuses 5 variants or an 11% holdout, and a variant b copy row", async () => {
+    const made = await create({ variants: 2, holdoutPct: 5 });
+    const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { campaigns: { variants: number; holdoutPct: number; effect: unknown }[] };
+    expect(listed.campaigns[0]).toMatchObject({ variants: 2, holdoutPct: 5, effect: null });
+    expect(made.row.status).toBe("draft");
+    expect((await admin("POST", "/admin/api/campaigns", { ...input, variants: 5 })).status).toBe(422);
+    expect((await admin("POST", "/admin/api/campaigns", { ...input, holdoutPct: 11 })).status).toBe(422);
+    const b = await admin("PUT", "/admin/api/push-templates", {
+      template: { key: "campaign:win-back", lang: "en", variant: "b", title: "Hi", body: "The b arm." }, status: "draft",
+    });
+    expect(b.status).toBe(200);
+  });
+
   it("lists a key a campaign names with every language missing, and refuses a placeholder or a system key in campaign copy", async () => {
     await create();
     const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { copy: { key: string; gaps: string[] }[] };
@@ -1160,7 +1173,7 @@ describe("campaigns (ieat-app#1761)", () => {
     const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { campaigns: { id: string; createdBy: string | null; report: object }[] };
     expect(listed.campaigns[0]).toMatchObject({ id: made.row.id });
     expect(listed.campaigns[0]!.createdBy).not.toBeNull();
-    expect(listed.campaigns[0]!.report).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0 });
+    expect(listed.campaigns[0]!.report).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0, held: 0, groups: [] });
     const bad = await admin("POST", "/admin/api/campaigns", { ...input, segment: { sql: "1=1" } });
     expect(bad.status).toBe(422);
     expect(await bad.json()).toEqual({ errors: ["unknown predicate: sql"] });
