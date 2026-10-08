@@ -485,8 +485,9 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
   if (push) {
     const userId = push[1]!;
     if (req.method === "POST" && push[2] === "test") {
-      const out = await sendTestPush(deps, userId);
-      return json(out, out.ok ? 200 : 409);
+      const body = await req.json().catch(() => null) as { imageUrl?: unknown } | null;
+      const out = await sendTestPush(deps, userId, Date.now(), body?.imageUrl);
+      return json(out, out.ok ? 200 : !out.ok && out.reason === "image-not-allowed" ? 400 : 409);
     }
     if (req.method === "GET" && push[2] === "log") {
       const rows = await deps.store.sendLogFor(userId, 20);

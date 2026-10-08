@@ -2145,6 +2145,13 @@ describe("the web surface and the landing are one product", () => {
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
   });
 
+  it("serves the push test image as a PNG", async () => {
+    const res = await get("/start/assets/img/push-test.png");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    expect([...new Uint8Array(await res.arrayBuffer()).slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  });
+
   it("404s a name none of the asset routes ships — the allowlist, not the filesystem, answers", async () => {
     for (const path of [
       "/start/assets/welcome/nope.mp4",

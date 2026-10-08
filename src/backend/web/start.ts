@@ -571,7 +571,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     if (!(IMG_FILES as readonly string[]).includes(name)) return notFound();
     return new Response(Bun.file(new URL(`../../shared/assets/img/${name}`, import.meta.url)), {
       headers: {
-        "content-type": "image/webp",
+        "content-type": name.endsWith(".png") ? "image/png" : "image/webp",
         "cache-control": "public, max-age=31536000, immutable",
       },
     });

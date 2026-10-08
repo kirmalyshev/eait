@@ -43,7 +43,7 @@ function toError(details: unknown): PushError {
 }
 
 /** The image to send: https, on exactly our host, no credentials. Anything else is not sent. */
-function ownImage(url: string | undefined, host: string | undefined): string | undefined {
+export function ownImage(url: string | undefined, host: string | undefined): string | undefined {
   if (!url || !host) return undefined;
   try {
     const u = new URL(url);
