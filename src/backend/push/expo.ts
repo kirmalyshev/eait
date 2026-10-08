@@ -53,6 +53,11 @@ export function ownImage(url: string | undefined, host: string | undefined): str
   }
 }
 
+/** An HTTP-level refusal, carrying the status so `send` can tell a rejected credential from a bad night. */
+class HttpError extends Error {
+  constructor(message: string, readonly status: number) { super(message); }
+}
+
 export function expoPush(opts: ExpoPushOptions): PushPort {
   const sendUrl = opts.sendUrl ?? SEND_URL;
   const receiptsUrl = opts.receiptsUrl ?? RECEIPTS_URL;
@@ -74,7 +79,7 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
     if (!res.ok) {
       // The status, never the body: an error body from a push service echoes the request, and the
       // request carries device tokens and a sentence about what somebody ate.
-      throw new Error(`expo push ${url} answered ${res.status}`);
+      throw new HttpError(`expo push ${url} answered ${res.status}`, res.status);
     }
     return await res.json();
   };
@@ -107,7 +112,9 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
           // The status, never the body — `post` has already stripped it. This chunk's messages get
           // "other", which keeps their tokens: a provider having a bad night is not a dead device.
           console.error(`[eait] expo push: a batch of ${chunk.length} failed: ${(e as Error)?.message ?? e}`);
-          for (const m of chunk) tickets.push({ token: m.to, id: null, error: "other" });
+          const status = (e as HttpError)?.status;
+          const error: PushError = status === 401 || status === 403 ? "provider-unauthorized" : "other";
+          for (const m of chunk) tickets.push({ token: m.to, id: null, error });
           continue;
         }
         chunk.forEach((m, j) => {
