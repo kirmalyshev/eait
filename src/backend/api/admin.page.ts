@@ -127,6 +127,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
    rendered unstyled. Found by driving real Chrome — the unit tests assert the policy string and
    cannot see what it forbids. */
 .gate-error { color: var(--bad); font-size: 13px; }
+  #composer .row { flex-wrap: wrap; align-items: center; }
+  #composer .row > * { flex: 1 1 160px; }
+  #composer .row > button { flex: 0 0 auto; }
+  @media (max-width: 600px) {
+    #composer .row > *, #composer .row > button { flex: 1 1 100%; }
+  }
 </style>
 </head>
 <body>
