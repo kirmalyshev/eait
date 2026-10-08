@@ -743,3 +743,25 @@ describe("the PKCS#8 guard words", () => {
     });
   });
 });
+
+describe("the fooddb read key", () => {
+  // Shaped like a key and not one: this repository is public.
+  const KEY = "fdb_not-a-real-key_not-a-real-key";
+
+  it("is empty unless set, trimmed, and never reaches a printable config", () => {
+    withRequired();
+    expect(loadConfig().fooddbReadKey).toBe("");
+    expect(loadConfig().fooddbUrl).toBe("https://food-api.eait.fit");
+    expect(JSON.stringify(redact(loadConfig()))).toContain("fooddbReadKey");
+
+    withRequired({ EAIT__BACKEND__FOODDB_READ_KEY: ` ${KEY}\n`, EAIT__BACKEND__FOODDB_URL: "https://f.test" });
+    expect(loadConfig().fooddbReadKey).toBe(KEY);
+    expect(loadConfig().fooddbUrl).toBe("https://f.test");
+    expect(JSON.stringify(redact(loadConfig()))).not.toContain("not-a-real-key");
+  });
+
+  it("is never read under --demo, which must not reach for a network", () => {
+    process.env.EAIT__BACKEND__FOODDB_READ_KEY = KEY;
+    expect(demoConfig().fooddbReadKey).toBe("");
+  });
+});
