@@ -1,7 +1,7 @@
 // The super-admin's push composer (eait#531): chosen accounts, a shipped campaign template sent in
 // each account's own language, and the screen a tap opens. Every send claims the account's push slot
-// like any sender (R1 — only the staff TEST send bypasses it), skips promotional copy to accounts
-// without push_offers_at, and is logged under `admin:<adminId>`.
+// like any sender (R1 — only the staff TEST send bypasses it), skips EVERY account without push_offers_at
+// (every composer send is promotional; there is no request field to say otherwise), and is logged under `admin:<adminId>`.
 
 import { ADMIN_PUSH_MAX_RECIPIENTS, CAMPAIGN_VARIANTS, isCampaignTemplateKey, isPushRoute, localDate, type CampaignTemplateKey, type Lang, type PushKind, type PushRoute } from "@eait/shared";
 import { apiHostOf } from "../push/choose.ts";
@@ -28,7 +28,6 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
   if (b.confirmCount !== ids.length) errors.push("confirmCount: must equal the number of accounts shown");
   if (!isCampaignTemplateKey(b.templateKey)) errors.push("templateKey: a campaign template");
   if (!isPushRoute(b.route)) errors.push("route: a known screen");
-  if (typeof b.promotional !== "boolean") errors.push("promotional: true or false");
   let image: string | undefined;
   if (b.imageUrl !== undefined) {
     image = typeof b.imageUrl === "string" ? ownImage(b.imageUrl, apiHostOf(deps.config.publicApiUrl)) : undefined;
@@ -43,7 +42,7 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
     const skip = (skipped: AdminPushSkip, heldBy?: PushKind) => results.push({ userId, skipped, ...(heldBy ? { heldBy } : {}) });
     const profile = await deps.store.getProfile(userId);
     if (!profile) { skip("no-account"); continue; }
-    if (b.promotional === true && !await pushOffersAllowed(deps, userId)) { skip("no-offers"); continue; }
+    if (!await pushOffersAllowed(deps, userId)) { skip("no-offers"); continue; }
     const devices = await deps.store.pushTokensFor(userId);
     if (devices.length === 0) { skip("no-device"); continue; }
     // Before the slot: a refused template must not spend the day's one message.
