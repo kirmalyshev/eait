@@ -977,15 +977,208 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.pushTokensFor(theirs)).toEqual([]);
     });
 
-    it("lists the accounts the evening sweep has to visit, once each", async () => {
+    it("lists the accounts the push tick has to visit, once each, with their zone", async () => {
       const s = await open();
       const withToken = (await s.upsertDeviceUser(device(), "en")).userId;
       const without = (await s.upsertDeviceUser(device(), "en")).userId;
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-a]`, "ios");
       await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-b]`, "ios");
-      const users = await s.usersWithPushTokens();
-      expect(users.filter((u) => u === withToken)).toEqual([withToken]);
-      expect(users).not.toContain(without);
+      const rows = await s.pushAudience();
+      expect(rows.filter((r) => r.userId === withToken)).toEqual([{ userId: withToken, timezone: null }]);
+      expect(rows.map((r) => r.userId)).not.toContain(without);
+      await s.setTimezone(withToken, "Asia/Tokyo");
+      expect((await s.pushAudience()).find((r) => r.userId === withToken)?.timezone).toBe("Asia/Tokyo");
+    });
+
+    describe("push_slot and send_log", () => {
+      it("gives a local day to the first claim and names the holder to the second", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.claimPushSlot(u, "2026-10-08", "streak", "evening")).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1")).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(u, "2026-10-08", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(u, "2026-10-09", "campaign", "c1")).toEqual({ claimed: true });
+      });
+
+      it("lets exactly one of two racing claims win", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const r = await Promise.all([
+          s.claimPushSlot(u, "2026-10-08", "streak", null),
+          s.claimPushSlot(u, "2026-10-08", "streak", null),
+        ]);
+        expect(r.filter((x) => x.claimed).length).toBe(1);
+      });
+
+      it("keeps the surviving account's own claim on a merge, and gives it the merged-away one's otherwise", async () => {
+        const s = await open();
+        const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+        const real = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.claimPushSlot(anon, "2026-10-08", "evening", "evening");
+        await s.claimPushSlot(anon, "2026-10-09", "campaign", "c1");
+        await s.claimPushSlot(real, "2026-10-09", "streak", "evening");
+        await s.setTimezone(anon, "Asia/Tokyo");
+
+        await s.mergeUsers(anon, real);
+
+        // today's line was already sent to the phone that is now `real`: no second one
+        expect(await s.claimPushSlot(real, "2026-10-08", "streak", null)).toEqual({ claimed: false, heldBy: "evening" });
+        // and a day both held stays the survivor's
+        expect(await s.claimPushSlot(real, "2026-10-09", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.timezoneOf(real)).toBe("Asia/Tokyo");
+      });
+
+      it("refuses a claim for an account that does not exist", async () => {
+        const s = await open();
+        await expect(s.claimPushSlot(crypto.randomUUID(), "2026-10-08", "streak", null)).rejects.toThrow();
+      });
+
+      it("records a send, settles it from the ticket, then from the receipt", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = crypto.randomUUID();
+        await s.createSend(u, {
+          id, kind: "streak", ref: "evening", templateKey: "evening", lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-log]`, state: "queued",
+        });
+        await s.settleSend(u, id, { state: "accepted", ticketId: `t-${RUN}` });
+        expect((await s.sendsAwaitingReceipt(100)).map((r) => r.id)).toContain(id);
+        await s.settleSend(u, id, { state: "delivered-to-apns", receipt: true });
+        expect((await s.sendsAwaitingReceipt(100)).map((r) => r.id)).not.toContain(id);
+        const [row] = await s.sendLogFor(u, 5);
+        expect(row).toMatchObject({
+          id, userId: u, kind: "streak", state: "delivered-to-apns", ticketId: `t-${RUN}`, receiptError: null,
+        });
+        expect(row!.receiptAt).not.toBeNull();
+      });
+
+      it("keeps one account's send log out of another's", async () => {
+        const s = await open();
+        const a = (await s.upsertDeviceUser(device(), "en")).userId;
+        const b = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = crypto.randomUUID();
+        await s.createSend(a, {
+          id, kind: "transactional", ref: null, templateKey: "photo", lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-scope]`, state: "queued",
+        });
+        await s.settleSend(b, id, { state: "refused" }); // not b's row: must change nothing
+        expect((await s.sendLogFor(b, 5)).length).toBe(0);
+        expect((await s.sendLogFor(a, 5))[0]?.state).toBe("queued");
+      });
+
+      // ── Opens (#1759) ────────────────────────────────────────────────────────────────────
+      const send = async (s: Awaited<ReturnType<typeof open>>, u: string, tag: string, state: "queued" | "accepted" | "dead" | "refused" | "dry" | "expired" = "accepted") => {
+        const id = crypto.randomUUID();
+        await s.createSend(u, {
+          id, kind: "campaign", ref: null, templateKey: `${RUN}-${tag}`, lang: "en", variant: null,
+          token: `ExponentPushToken[${RUN}-${tag}]`, state,
+        });
+        return id;
+      };
+      const statsFor = async (s: Awaited<ReturnType<typeof open>>, tag: string) =>
+        (await s.pushOpenStats(2, "UTC")).filter((r) => r.templateKey === `${RUN}-${tag}`);
+
+      it("records an open once per send, however many times the phone reports it", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, u, "once");
+        expect(await s.recordPushOpen(u, id, "tap")).toBe(true);
+        expect(await s.recordPushOpen(u, id, "reply")).toBe(false);
+        const [row] = await statsFor(s, "once");
+        expect(row).toMatchObject({ sent: 1, opened: 1 });
+      });
+
+      it("records nothing for another account's send, or for an id that was never sent", async () => {
+        const s = await open();
+        const a = (await s.upsertDeviceUser(device(), "en")).userId;
+        const b = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, a, "foreign");
+        expect(await s.recordPushOpen(b, id, "tap")).toBe(false);
+        expect(await s.recordPushOpen(a, crypto.randomUUID(), "tap")).toBe(false);
+        expect((await statsFor(s, "foreign"))[0]).toMatchObject({ sent: 1, opened: 0 });
+        // b's attempt must not have used up a's open.
+        expect(await s.recordPushOpen(a, id, "tap")).toBe(true);
+      });
+
+      it("counts sent, accepted and dead per template", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await send(s, u, "states", "accepted");
+        await send(s, u, "states", "dead");
+        await send(s, u, "states", "queued");
+        expect((await statsFor(s, "states"))[0]).toMatchObject({ sent: 3, accepted: 1, dead: 1, opened: 0 });
+      });
+
+      it("counts a send as converted when a meal was logged within 24 h AFTER it, and not otherwise", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const id = await send(s, u, "conv");
+        const at = new Date((await s.sendLogFor(u, 1))[0]!.createdAt).getTime();
+        const at_ = (ms: number) => new Date(at + ms).toISOString();
+        const MIN = 60_000, DAY = 24 * 60 * MIN;
+        // Before the send, and a minute past the window: neither counts.
+        await s.insertMeal(meal(u, { ts: at_(-MIN) }));
+        await s.insertMeal(meal(u, { ts: at_(DAY + MIN) }));
+        expect((await statsFor(s, "conv"))[0]).toMatchObject({ sent: 1, converted: 0 });
+        // Another account's meal inside the window does not count either.
+        const other = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.insertMeal(meal(other, { ts: at_(MIN) }));
+        expect((await statsFor(s, "conv"))[0]!.converted).toBe(0);
+        // A minute before the window closes does.
+        await s.insertMeal(meal(u, { ts: at_(DAY - MIN) }));
+        expect((await statsFor(s, "conv"))[0]).toMatchObject({ sent: 1, converted: 1, opened: 0 });
+        expect(id).toBeTruthy();
+      });
+
+      it("converts on the send's own instant and not on the instant 24 h later: [send, send + 24 h)", async () => {
+        const s = await open();
+        const edge = async (tag: string, offsetMs: number) => {
+          const u = (await s.upsertDeviceUser(device(), "en")).userId;
+          await send(s, u, tag);
+          const at = Date.parse((await s.sendLogFor(u, 1))[0]!.createdAt);
+          await s.insertMeal(meal(u, { ts: new Date(at + offsetMs).toISOString() }));
+          return (await statsFor(s, tag))[0]!.converted;
+        };
+        expect(await edge("edge0", 0)).toBe(1);
+        expect(await edge("edge24", 24 * 60 * 60_000)).toBe(0);
+        expect(await edge("edge24m", 24 * 60 * 60_000 - 1)).toBe(1);
+      });
+
+      it("counts neither opens nor conversions for a send that never reached a phone", async () => {
+        const s = await open();
+        for (const state of ["dead", "refused", "dry"] as const) {
+          const u = (await s.upsertDeviceUser(device(), "en")).userId;
+          const id = await send(s, u, `never-${state}`, state);
+          await s.recordPushOpen(u, id, "tap");
+          const at = Date.parse((await s.sendLogFor(u, 1))[0]!.createdAt);
+          await s.insertMeal(meal(u, { ts: new Date(at + 60_000).toISOString() }));
+          expect((await statsFor(s, `never-${state}`))[0]).toMatchObject({ sent: 1, opened: 0, converted: 0 });
+        }
+      });
+
+      it("counts an expired send (no receipt in 24 h) as accepted, never dead", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await send(s, u, "expired", "expired");
+        expect((await statsFor(s, "expired"))[0]).toMatchObject({ sent: 1, accepted: 1, dead: 0 });
+      });
+
+      it("keeps an open when an anonymous session merges into the account that survives", async () => {
+        const s = await open();
+        const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+        const real = (await s.upsertDeviceUser(device(), "en")).userId;
+        const opened = await send(s, anon, "merge-open");
+        const unopened = await send(s, anon, "merge-unopened");
+        expect(await s.recordPushOpen(anon, opened, "tap")).toBe(true);
+
+        await s.mergeUsers(anon, real);
+
+        const rows = (await s.pushOpenStats(2, "UTC")).filter((r) => r.templateKey.startsWith(`${RUN}-merge-`));
+        expect(rows.find((r) => r.templateKey === `${RUN}-merge-open`)).toMatchObject({ sent: 1, opened: 1 });
+        // Already recorded stays recorded under the survivor; an unopened send is the survivor's to open.
+        expect(await s.recordPushOpen(real, opened, "tap")).toBe(false);
+        expect(await s.recordPushOpen(real, unopened, "tap")).toBe(true);
+      });
     });
 
     it("MOVES a device to the account an anonymous session merged into", async () => {
@@ -1004,7 +1197,7 @@ function contract(name: string, make: () => Promise<Store>) {
       // dead account would send it to a phone whose owner is now somebody else.
       expect(await s.pushTokensFor(real)).toEqual([{ token, platform: "ios" }]);
       expect(await s.pushTokensFor(anon)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(anon);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(anon);
     });
 
     it("erases push tokens when removing the last identity deletes the account", async () => {
@@ -1019,7 +1212,7 @@ function contract(name: string, make: () => Promise<Store>) {
       // not leave behind a device this server would go on pushing to every night.
       expect(await s.removeIdentity(userId, "device", deviceId)).toBe("account-deleted");
       expect(await s.pushTokensFor(userId)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(userId);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(userId);
     });
 
     it("erases push tokens with the account", async () => {
@@ -1028,7 +1221,7 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putPushToken(userId, `ExponentPushToken[${RUN}-erased]`, "ios");
       await s.deleteUser(userId);
       expect(await s.pushTokensFor(userId)).toEqual([]);
-      expect(await s.usersWithPushTokens()).not.toContain(userId);
+      expect((await s.pushAudience()).map((r) => r.userId)).not.toContain(userId);
     });
 
     it("resolves a token to its user, and stops after revocation", async () => {
@@ -1407,6 +1600,21 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(await s.deleteMealLines(u, m.id)).toBe(2);
         expect((await lines(u)).map((l) => [l.kind, l.mealId])).toEqual([["photo", m.id], ["text", null], ["meal", n.id]]);
         expect((await lines(other)).map((l) => [l.kind, l.mealId])).toEqual([["photo", om.id], ["meal", om.id]]);
+      });
+
+      it("deletes the assistant's comments on a meal and neither its cards nor the user's words (#1752)", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+          { role: "assistant", kind: "text", text: "Sodium is high", mealId: m.id },
+          { role: "user", kind: "text", text: "half that", mealId: m.id },
+          { role: "assistant", kind: "text", text: "unrelated" },
+        ]);
+        expect(await s.deleteMealComments(other, m.id)).toBe(0);
+        expect(await s.deleteMealComments(u, m.id)).toBe(1);
+        expect((await lines(u)).map((l) => [l.kind, l.text])).toEqual([["meal", null], ["text", "half that"], ["text", "unrelated"]]);
       });
 
       it("replaces a line's text, for its owner only", async () => {
@@ -2372,6 +2580,28 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putNotificationCopy("de", german);
       await s.putNotificationCopy("en", edited);
       expect((await s.getNotificationCopy())?.de?.evening.title).toBe(`Abend ${RUN}`);
+    });
+
+    it("seeds push templates once, never over an edit, and lists what it holds", async () => {
+      const s = await open();
+      const at = new Date().toISOString();
+      const row = (variant: string, body: string) => ({
+        key: `probe-${RUN}` as never, lang: "vi" as const, variant, title: `T ${RUN}`, body, status: "reviewed" as const,
+        reviewed_by: "migration", reviewed_at: at, updated_at: at,
+      });
+      await s.seedPushTemplates([row("default", `seed ${RUN}`), row("empty", `seed-empty ${RUN}`)]);
+      // An admin's edit lands; a second boot's seed must not take it back.
+      await s.putPushTemplate({ ...row("default", `edited ${RUN}`), status: "draft", reviewed_by: null, reviewed_at: null });
+      await s.seedPushTemplates([row("default", `seed ${RUN}`)]);
+      const mine = (await s.listPushTemplates()).filter((r) => r.key === (`probe-${RUN}` as never));
+      const byVariant = Object.fromEntries(mine.map((r) => [r.variant, r]));
+      expect(byVariant.default!.body).toBe(`edited ${RUN}`);
+      expect(byVariant.default!.status).toBe("draft");
+      expect(byVariant.default!.reviewed_by).toBeNull();
+      expect(byVariant.default!.reviewed_at).toBeNull();
+      expect(byVariant.empty!.body).toBe(`seed-empty ${RUN}`);
+      expect(byVariant.empty!.reviewed_by).toBe("migration");
+      expect(new Date(byVariant.empty!.reviewed_at!).toISOString()).toBe(at);
     });
 
     it("ignores an onboarding event id it has already stored", async () => {
@@ -3662,12 +3892,12 @@ if (PG_URL) {
         "adminListUsers", "adminMetrics", "claimJob", "claimPairingCode",
         "countClipAnalyses", "countGlobalAnalyses", "createUser", "expireJobs", "foodCandidates", "forgetJobs", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
-        "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
+        "listPushTemplates", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
         "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
-        "pruneHealthDaysBefore",
-        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushToken",
-        "releaseJobs", "revokeToken", "searchFoods", "upsertDeviceUser", "userIdForIdentity",
-        "userIdForToken", "usersWithPushTokens",
+        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
+        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken",
+        "releaseJobs", "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
+        "userIdForToken",
       ]);
     });
 
@@ -3709,5 +3939,75 @@ if (PG_URL) {
 } else {
   describe("row-level security — postgres", () => {
     it.skip("SKIPPED: set TEST_DATABASE_URL to run against real Postgres", () => {});
+  });
+}
+
+// The switch-over day. Before push_slot, "this account was sent today's line" was
+// `users.last_notified_date`. A deploy that forgot it would send the evening line twice on the day
+// it lands, to everybody who already got it.
+if (PG_URL) {
+  describe("migrating a database that claimed the evening line on users.last_notified_date", () => {
+    it("carries that claim into push_slot, once, without overwriting a newer one", async () => {
+      const sql = await rawSql();
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+      await sql`update users set last_notified_date = '2026-10-08' where id = ${userId}`;
+
+      const redeployed = await postgresStore(PG_URL, { maxConnections: 2 });
+      expect(await redeployed.claimPushSlot(userId, "2026-10-08", "campaign", null))
+        .toEqual({ claimed: false, heldBy: "evening" });
+      // and it is a claim for that day only
+      expect(await redeployed.claimPushSlot(userId, "2026-10-09", "streak", null)).toEqual({ claimed: true });
+      await sql.end();
+    });
+  });
+}
+
+// ROLLING DEPLOY / ROLLBACK: the previous build claims on users.last_notified_date.
+if (PG_URL) {
+  describe("the evening line's legacy claim column", () => {
+    it("is read as a claimed day, written with every claim, and ignored for any other day", async () => {
+      const sql = await rawSql();
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+
+      // an OLD replica claims 2026-11-02 after this build has started
+      await sql`update users set last_notified_date = '2026-11-02' where id = ${userId}`;
+      expect(await store.claimPushSlot(userId, "2026-11-02", "campaign", null)).toEqual({ claimed: false, heldBy: "evening" });
+      // a day the old column does not name is free, and does not block a user whose phone is behind it
+      expect(await store.claimPushSlot(userId, "2026-11-01", "campaign", null)).toEqual({ claimed: true });
+
+      // and this build's claim keeps an old replica silent (it sends only when the column is older)
+      expect(await store.claimPushSlot(userId, "2026-11-03", "streak", null)).toEqual({ claimed: true });
+      const [row] = await sql`select last_notified_date from users where id = ${userId}`;
+      expect((row as Record<string, unknown>).last_notified_date).toBe("2026-11-03");
+      await sql.end();
+    });
+  });
+}
+
+// A send_log made by the first push build has no `expired` in its state check; a redeploy widens it.
+if (PG_URL) {
+  describe("migrating a send_log whose state check predates `expired`", () => {
+    it("widens the constraint, once, and accepts the new state", async () => {
+      const sql = await rawSql();
+      await postgresStore(PG_URL, { maxConnections: 2 });
+      // Other cases leave `expired` rows behind; the old constraint cannot be added over them.
+      await sql`delete from send_log where state = 'expired'`;
+      await sql`alter table send_log drop constraint send_log_state_check`;
+      await sql`alter table send_log add constraint send_log_state_check
+        check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry'))`;
+
+      const store = await postgresStore(PG_URL, { maxConnections: 2 });
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+      const id = crypto.randomUUID();
+      await store.createSend(userId, {
+        id, kind: "evening", ref: null, templateKey: "nudge", lang: "en", variant: null,
+        token: `ExponentPushToken[${RUN}-exp]`, state: "queued",
+      });
+      await store.settleSend(userId, id, { state: "expired", receiptError: "no-receipt", receipt: true });
+      expect((await store.sendLogFor(userId, 1))[0]).toMatchObject({ state: "expired", receiptError: "no-receipt" });
+      await sql.end();
+    });
   });
 }

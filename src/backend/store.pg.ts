@@ -14,12 +14,13 @@
 import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
+import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
-  OnboardingContentSet, Profile, Provider, Struggle,
+  OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -28,7 +29,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
+  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -97,6 +98,9 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   onboarding_events: "user_id",
   chat_messages: "user_id",
   push_tokens: "user_id",
+  push_slot: "user_id",
+  send_log: "user_id",
+  push_open: "user_id",
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
@@ -227,11 +231,76 @@ alter table users add column if not exists role text not null default 'user';
 alter table users add column if not exists units text;
 alter table users add column if not exists struggles text[];
 
+-- The streak length the user aims for (7, 14 or 30 days). NULL = never asked, which is what resume
+-- checks; Home's streak chip reads it. The vocabulary is checked on the write (engine/profile.ts)
+-- and again on the read, so a value from a newer binary is unrenderable here, not wrong.
+alter table users add column if not exists streak_goal_days integer;
+
 -- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
 -- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
 -- restarted across 20:30 — cannot each send it, because the claim is the row, not a timer in one
 -- process. A claim, not a send: a crash in the gap costs that night, never a second message.
 alter table users add column if not exists last_notified_date text;
+
+-- Push p1 (ieat-app#1765). The one-a-day rule becomes one lock for EVERY sender: a row per
+-- (user, LOCAL day), first insert wins. users.timezone is the IANA zone the app reported on open;
+-- null falls back to the instance zone. last_notified_date stays as a column (a rollback of the
+-- code finds it) but nothing writes it any more; its state moves into push_slot once, below.
+alter table users add column if not exists timezone text;
+create table if not exists push_slot (
+  user_id    uuid not null references users(id) on delete cascade,
+  local_date text not null,
+  kind       text not null check (kind in ('trial','streak','evening','onboarding','campaign')),
+  ref        text,
+  created_at timestamptz not null default now(),
+  primary key (user_id, local_date)
+);
+-- One row per message per device. id rides in the push data as sendId.
+create table if not exists send_log (
+  id            text primary key,
+  user_id       uuid not null references users(id) on delete cascade,
+  kind          text not null check (kind in ('trial','streak','evening','onboarding','campaign','transactional')),
+  ref           text,
+  template_key  text not null,
+  lang          text not null,
+  variant       text,
+  token         text not null,
+  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired')),
+  ticket_id     text,
+  receipt_error text,
+  created_at    timestamptz not null default now(),
+  receipt_at    timestamptz
+);
+-- A table made by the first push build carries the constraint without .expired.; widen it once.
+-- Guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock.
+do $do$
+begin
+  if exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_state_check'
+             and pg_get_constraintdef(oid) not like '%expired%') then
+    alter table send_log drop constraint send_log_state_check;
+    alter table send_log add constraint send_log_state_check
+      check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired'));
+  end if;
+end
+$do$;
+create index if not exists send_log_user_idx on send_log(user_id, created_at desc);
+-- The admin's opens view reads a window of ALL accounts' sends by time.
+create index if not exists send_log_created_idx on send_log(created_at);
+create index if not exists send_log_receipt_idx on send_log(created_at) where state = 'accepted' and receipt_at is null;
+-- One row per (account, send) the phone reported opened: the primary key is the dedup, and the FK to
+-- send_log is the ownership, since the insert selects through it (an id from another account matches
+-- nothing). Gone with the send, and with the account.
+create table if not exists push_open (
+  user_id   uuid not null references users(id) on delete cascade,
+  send_id   text not null references send_log(id) on delete cascade,
+  opened_at timestamptz not null default now(),
+  action    text not null check (action in ('tap','reply')),
+  primary key (user_id, send_id)
+);
+-- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
+insert into push_slot (user_id, local_date, kind, ref)
+  select id, last_notified_date, 'evening', 'evening' from users where last_notified_date is not null
+  on conflict do nothing;
 
 -- Targets v2 (decision 7): five activity levels became three — few / some / many — and every
 -- stored value moves to the nearest of them; #1078 made it four — none / few / some / many — so
@@ -741,6 +810,22 @@ create table if not exists notification_copy (
   updated_at timestamptz not null default now()
 );
 
+-- Push copy as reviewed, per-language templates (ieat-app#1758). Rows belong to nobody — the
+-- instance's words, like notification_copy — so no user_id and no RLS. The primary key is the
+-- identity, and the checks are the two enums the code also declares.
+create table if not exists push_templates (
+  key         text not null,
+  lang        text not null check (lang in ('en','fr','de','it','es','vi','id','ru')),
+  variant     text not null,
+  title       text not null,
+  body        text not null,
+  status      text not null check (status in ('draft','reviewed')),
+  reviewed_by text,
+  reviewed_at timestamptz,
+  updated_at  timestamptz not null default now(),
+  primary key (key, lang, variant)
+);
+
 -- The system prompts, when an admin has overridden one. APPEND-ONLY.
 --
 -- (key, version) rather than one row per key, and that is the difference from the two tables
@@ -875,7 +960,7 @@ create table if not exists food_ref (
 );
 alter table food_ref drop constraint if exists food_ref_source_check;
 alter table food_ref add constraint food_ref_source_check
-  check (source in ('bls', 'ciqual', 'frida', 'fcdb', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
+  check (source in ('bls', 'ciqual', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
 -- The search is a substring match over the three name columns, no index can serve it, and the
 -- table is single-digit thousands of rows: a scan is the right plan here.
 
@@ -1015,6 +1100,9 @@ function toProfile(r: UserRow): Profile {
     struggles: r.struggles === null || r.struggles === undefined
       ? null
       : ((r.struggles as string[]).filter((s) => (STRUGGLES as readonly string[]).includes(s)) as Struggle[]),
+    streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
+      ? (Number(r.streak_goal_days) as StreakGoal)
+      : null,
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -1089,7 +1177,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 
@@ -1213,7 +1301,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   onboardingFunnel: "unscoped",
   countGlobalAnalyses: "unscoped",
   countClipAnalyses: "unscoped",
-  usersWithPushTokens: "unscoped",
+  pushAudience: "unscoped",
+  sendsAwaitingReceipt: "unscoped",
+  pushOpenStats: "unscoped",
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
@@ -1231,6 +1321,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   promptRevisions: "unscoped",
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
+  listPushTemplates: "unscoped",
+  seedPushTemplates: "unscoped",
+  putPushTemplate: "unscoped",
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
@@ -1271,7 +1364,13 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putEntitlement: 0,
   dropPushToken: 0,
   pushTokensFor: 0,
-  claimEveningLine: 0,
+  setTimezone: 0,
+  timezoneOf: 0,
+  claimPushSlot: 0,
+  createSend: 0,
+  settleSend: 0,
+  sendLogFor: 0,
+  recordPushOpen: 0,
   recordOnboardingEvents: 0,
   getMeal: 0,
   getMeals: 0,
@@ -1294,6 +1393,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   carrierLineFor: 0,
   deleteLine: 0,
   deleteMealLines: 0,
+  deleteMealComments: 0,
   updateLineText: 0,
   claimFirstVerdict: 0,
   releaseFirstVerdict: 0,
@@ -2141,6 +2241,21 @@ export async function postgresStore(
         // launch; leaving it on the emptied account would send that account's numbers to a phone
         // whose owner has since signed in as somebody else.
         await tx`update push_tokens set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // THE DAY'S SLOT MOVES TOO. The anonymous session may already have been sent today's line;
+        // a surviving account without it would be sent a second one. Never over a day the
+        // surviving account already holds (its claim stands), and the send history follows so a
+        // `sendId` in a delivered push still resolves.
+        await tx`
+          insert into push_slot (user_id, local_date, kind, ref, created_at)
+            select ${intoUserId}, local_date, kind, ref, created_at from push_slot where user_id = ${fromUserId}
+          on conflict (user_id, local_date) do nothing`;
+        await tx`update send_log set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // The opens follow their sends. A send id is unique across accounts, so the survivor can
+        // hold no row for the same (user, send) and there is nothing to dedupe against.
+        await tx`update push_open set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        await tx`
+          update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
+          from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
 
         // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
         // working rather than silently start addressing someone else's diary.
@@ -2333,6 +2448,41 @@ export async function postgresStore(
                      else coalesce(notification_copy.copy, '{}'::jsonb) end,
                 array[${lang}], ${copy}::jsonb, true),
               updated_at = now()`;
+    },
+
+    async listPushTemplates() {
+      const rows = await sql`
+        select key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at
+        from push_templates order by key, lang, variant`;
+      const iso = (v: unknown) => (v == null ? null : new Date(v as string).toISOString());
+      return rows.map((r: Record<string, unknown>) => ({
+        key: r.key, lang: r.lang, variant: r.variant, title: r.title, body: r.body, status: r.status,
+        reviewed_by: (r.reviewed_by as string | null) ?? null,
+        reviewed_at: iso(r.reviewed_at), updated_at: iso(r.updated_at)!,
+      })) as PushTemplateRow[];
+    },
+
+    async seedPushTemplates(rows) {
+      // `do nothing` on the key: the shipped copy can arrive twice, from two replicas, and can
+      // never overwrite what an admin has since saved.
+      for (const r of rows) {
+        await sql`
+          insert into push_templates (key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at)
+          values (${r.key}, ${r.lang}, ${r.variant}, ${r.title}, ${r.body}, ${r.status},
+                  ${r.reviewed_by}, ${r.reviewed_at}, ${r.updated_at})
+          on conflict (key, lang, variant) do nothing`;
+      }
+    },
+
+    async putPushTemplate(r) {
+      await sql`
+        insert into push_templates (key, lang, variant, title, body, status, reviewed_by, reviewed_at, updated_at)
+        values (${r.key}, ${r.lang}, ${r.variant}, ${r.title}, ${r.body}, ${r.status},
+                ${r.reviewed_by}, ${r.reviewed_at}, ${r.updated_at})
+        on conflict (key, lang, variant) do update
+          set title = excluded.title, body = excluded.body, status = excluded.status,
+              reviewed_by = excluded.reviewed_by, reviewed_at = excluded.reviewed_at,
+              updated_at = excluded.updated_at`;
     },
 
     async putOnboardingContent(lang, content, floorVersion) {
@@ -2813,19 +2963,113 @@ export async function postgresStore(
       }));
     },
 
-    async usersWithPushTokens() {
-      const rows = await sql`select distinct user_id from push_tokens`;
-      return (rows as Record<string, unknown>[]).map((r) => r.user_id as string);
+    async pushAudience() {
+      const rows = await sql`
+        select u.id, u.timezone from users u
+        where exists (select 1 from push_tokens t where t.user_id = u.id)`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        userId: r.id as string, timezone: (r.timezone as string | null) ?? null,
+      }));
     },
 
-    async claimEveningLine(userId, date) {
-      // The claim IS the guard: strictly-later dates win, equal and earlier lose, and the losing
-      // replica's composed batch is simply never sent. `returning` so a row that matched nothing
-      // — an id that names no account — answers false like every other write here.
-      const rows = await sql`update users set last_notified_date = ${date}
-        where id = ${userId} and (last_notified_date is null or last_notified_date < ${date})
-        returning id`;
-      return rows.length > 0;
+    async timezoneOf(userId) {
+      const rows = await sql`select timezone from users where id = ${userId}`;
+      return ((rows[0] as Record<string, unknown> | undefined)?.timezone as string | null | undefined) ?? null;
+    },
+
+    async setTimezone(userId, timezone) {
+      await sql`update users set timezone = ${timezone} where id = ${userId}`;
+    },
+
+    async claimPushSlot(userId, localDate, kind, ref) {
+      // The primary key IS the guard. A missing account fails the foreign key and throws, which is
+      // louder than the old `claimEveningLine`'s false and right for a sender that must not go on.
+      //
+      // ROLLING DEPLOYS AND ROLLBACKS: the previous build claims the evening line on
+      // `users.last_notified_date`, and for one deploy both builds can be sending. So the old column
+      // is READ as a claimed day (exactly that day: a user who flew west must not be blocked by a
+      // date their phone has not reached) and WRITTEN with every claim, which keeps an old replica
+      // silent on a day this one took. Drop both when no old build can run.
+      const legacy = await sql`select 1 from users
+        where id = ${userId} and last_notified_date = ${localDate}
+          and not exists (select 1 from push_slot where user_id = ${userId} and local_date = ${localDate})`;
+      if (legacy.length > 0) return { claimed: false as const, heldBy: "evening" as PushKind };
+      const won = await sql`insert into push_slot (user_id, local_date, kind, ref)
+        values (${userId}, ${localDate}, ${kind}, ${ref})
+        on conflict (user_id, local_date) do nothing returning kind`;
+      if (won.length > 0) {
+        await sql`update users set last_notified_date = ${localDate}
+          where id = ${userId} and (last_notified_date is null or last_notified_date < ${localDate})`;
+        return { claimed: true as const };
+      }
+      const held = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
+      return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
+    },
+
+    async createSend(userId, r) {
+      await sql`insert into send_log (id, user_id, kind, ref, template_key, lang, variant, token, state)
+        values (${r.id}, ${userId}, ${r.kind}, ${r.ref}, ${r.templateKey}, ${r.lang}, ${r.variant}, ${r.token}, ${r.state})`;
+    },
+
+    async settleSend(userId, id, patch) {
+      await sql`update send_log set
+          state = ${patch.state},
+          ticket_id = case when ${patch.ticketId !== undefined} then ${patch.ticketId ?? null} else ticket_id end,
+          receipt_error = case when ${patch.receiptError !== undefined} then ${patch.receiptError ?? null} else receipt_error end,
+          receipt_at = case when ${patch.receipt === true} then now() else receipt_at end
+        where id = ${id} and user_id = ${userId}`;
+    },
+
+    async sendsAwaitingReceipt(limit) {
+      const rows = await sql`select * from send_log
+        where state = 'accepted' and receipt_at is null and ticket_id is not null
+        order by created_at limit ${limit}`;
+      return (rows as Record<string, unknown>[]).map(sendRow);
+    },
+
+    async recordPushOpen(userId, sendId, action) {
+      const rows = await sql`
+        insert into push_open (user_id, send_id, action)
+        select user_id, id, ${action} from send_log where id = ${sendId} and user_id = ${userId}
+        on conflict do nothing returning send_id`;
+      return (rows as unknown[]).length > 0;
+    },
+
+    async pushOpenStats(days, timezone) {
+      const since = new Date(now() - days * 24 * 60 * 60 * 1000).toISOString();
+      // `at` is the send's instant to the millisecond, which is all the JS side can name: a meal
+      // stamped at exactly the send's own `createdAt` must land inside [at, at + 24 h) however many
+      // microseconds Postgres kept. `reached` leaves out what no phone ever got (dead, refused,
+      // dry), so a stray open or the meal that followed is not a conversion.
+      const rows = await sql`
+        with s as (
+          select *, date_trunc('milliseconds', created_at) as at,
+                 state not in ('dead', 'refused', 'dry') as reached
+          from send_log where created_at >= ${since}
+        )
+        select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
+               count(*)::int as sent,
+               count(*) filter (where s.state in ('accepted', 'delivered-to-apns', 'expired'))::int as accepted,
+               count(*) filter (where s.state = 'dead')::int as dead,
+               count(*) filter (where s.reached and o.send_id is not null)::int as opened,
+               count(*) filter (where s.reached and exists (
+                 select 1 from meals m
+                 where m.user_id = s.user_id and m.ts >= s.at and m.ts < s.at + interval '24 hours'
+               ))::int as converted
+        from s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
+        group by 1, 2, 3
+        order by 1 desc, 3`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        day: r.day as string, kind: r.kind as PushStatRow["kind"], templateKey: r.template_key as string,
+        sent: r.sent as number, accepted: r.accepted as number, dead: r.dead as number,
+        opened: r.opened as number, converted: r.converted as number,
+      }));
+    },
+
+    async sendLogFor(userId, limit) {
+      const rows = await sql`select * from send_log where user_id = ${userId}
+        order by created_at desc, id limit ${limit}`;
+      return (rows as Record<string, unknown>[]).map(sendRow);
     },
 
     async appendChat(userId, lines) {
@@ -2894,6 +3138,19 @@ export async function postgresStore(
     async deleteMealLines(userId, mealId) {
       if (!UUID.test(mealId)) return 0;
       const rows = await sql`delete from chat_messages where user_id = ${userId} and kind <> 'photo' and meal_id = ${mealId} returning id`;
+      return rows.length;
+    },
+    async deleteMealComments(userId, mealId) {
+      if (!UUID.test(mealId)) return 0;
+      // Rows from before #1752 carry no meal id: they belong to the card they directly follow.
+      const rows = await sql`
+        delete from chat_messages c where c.user_id = ${userId} and c.role = 'assistant' and c.kind = 'text'
+          and (c.meal_id = ${mealId} or (c.meal_id is null and exists (
+            select 1 from chat_messages card where card.user_id = c.user_id and card.kind = 'meal' and card.meal_id = ${mealId}
+              and card.seq < c.seq and not exists (
+                select 1 from chat_messages x where x.user_id = c.user_id and x.seq > card.seq and x.seq < c.seq
+                  and not (x.role = 'assistant' and x.kind = 'text' and x.meal_id is null)))))
+        returning c.id`;
       return rows.length;
     },
     async updateLineText(userId, lineId, text) {
@@ -3478,3 +3735,15 @@ export async function postgresStore(
 
   return store;
 }
+
+function sendRow(r: Record<string, unknown>): SendLogRow {
+  return {
+    id: r.id as string, userId: r.user_id as string, kind: r.kind as SendKind, ref: (r.ref as string | null) ?? null,
+    templateKey: r.template_key as string, lang: r.lang as string, variant: (r.variant as string | null) ?? null,
+    token: r.token as string, state: r.state as SendLogState, ticketId: (r.ticket_id as string | null) ?? null,
+    receiptError: (r.receipt_error as string | null) ?? null,
+    createdAt: new Date(r.created_at as string).toISOString(),
+    receiptAt: r.receipt_at ? new Date(r.receipt_at as string).toISOString() : null,
+  };
+}
+

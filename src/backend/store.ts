@@ -11,11 +11,12 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { PushKind, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
-  OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
+  OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker, PushTemplateRow } from "@eait/shared";
 import type { FoodRef, OffProduct } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
@@ -57,6 +58,54 @@ export interface JobRecord {
   updatedAt: number;
   /** The turn's answer; null until settled, and again once the day's forgetting has run. */
   outcome: object | null;
+}
+
+/** One account the push tick visits. */
+export interface PushAudienceRow { userId: string; timezone: string | null }
+
+/** A message about to be sent to ONE device. `id` is the `sendId` the push `data` carries. */
+export interface NewSend {
+  id: string;
+  kind: SendKind;
+  ref: string | null;
+  templateKey: string;
+  lang: string;
+  variant: string | null;
+  token: string;
+  state: SendLogState;
+}
+
+export interface SendPatch {
+  state: SendLogState;
+  ticketId?: string | null;
+  receiptError?: string | null;
+  /** Stamp `receipt_at`: this patch is the receipt's answer. */
+  receipt?: boolean;
+}
+
+export interface SendLogRow extends NewSend {
+  userId: string;
+  ticketId: string | null;
+  receiptError: string | null;
+  createdAt: string;
+  receiptAt: string | null;
+}
+
+/** One day of one template's life, for the admin's push view (#1759). */
+export interface PushStatRow {
+  /** `YYYY-MM-DD` in the zone the caller named. */
+  day: string;
+  kind: SendKind;
+  templateKey: string;
+  /** Every message handed to the sender, whatever became of it. */
+  sent: number;
+  /** Expo took it (`accepted`), Apple did (`delivered-to-apns`), or no receipt ever came (`expired`) — never `dead`. */
+  accepted: number;
+  dead: number;
+  /** Sends the phone reported opened. */
+  opened: number;
+  /** Sends followed by a meal logged by the same account within 24 h. Independent of `opened`. */
+  converted: number;
 }
 
 export interface StoreDeadline {
@@ -848,23 +897,47 @@ export interface Store {
   /** Scoped. Every device this account can be reached on. */
   pushTokensFor(userId: string): Promise<PushToken[]>;
   /**
-   * Every account with at least one device, for the nightly sweep. Reads across users — the one
-   * other place in this interface that does, and it is the same kind of read as `onboardingFunnel`.
-   *
-   * Ids only, and no paging: at one row per installed app this is a list of strings, and the sweep
-   * that consumes it does the per-user work one account at a time. It is the thing to revisit
-   * first if this product ever has enough users for a list of their ids to be a problem.
+   * Every account with at least one device and the zone it dates its days in, for the per-minute
+   * push tick. Reads across users, like `onboardingFunnel`. `timezone` is null until the app has
+   * told us one; the caller then falls back to the instance zone.
    */
-  usersWithPushTokens(): Promise<string[]>;
+  pushAudience(): Promise<PushAudienceRow[]>;
+  /** Scoped. The zone the app reported, or null. */
+  timezoneOf(userId: string): Promise<string | null>;
+  /** Scoped. Store the zone the app reported on open (already validated by the caller). */
+  setTimezone(userId: string, timezone: string): Promise<void>;
 
   /**
-   * Claim the evening line for `date` (the server's local `YYYY-MM-DD`) on this account's row —
-   * the durable half of the one-message-a-day budget. One atomic write: true when this call
-   * stamped the day, false when the row already carried today or a later one, so a second
-   * replica — or this one restarted across the hour — cannot send it twice. Claimed BEFORE the
-   * send: a crash in the gap costs that night, never a second message.
+   * Claim the ONE outbound message this account may get on `localDate` (its own local day) — the
+   * durable half of R1, for every sender. One atomic insert on `(user_id, local_date)`: claimed, or
+   * the kind that already holds the day. First claim wins and nothing evicts it; a higher kind gets
+   * the day by claiming BEFORE a lower one (the tick claims in rank order). A claim is not a send:
+   * a crash in the gap costs that day, never a second message.
    */
-  claimEveningLine(userId: string, date: string): Promise<boolean>;
+  claimPushSlot(
+    userId: string, localDate: string, kind: PushKind, ref: string | null,
+  ): Promise<{ claimed: true } | { claimed: false; heldBy: PushKind }>;
+
+  /** Scoped. One row per message per device, written `queued` BEFORE the send so the id can ride in `data`. */
+  createSend(userId: string, row: NewSend): Promise<void>;
+  /** Scoped. Move a row on: the ticket result, then (with `receipt: true`) the receipt result. */
+  settleSend(userId: string, id: string, patch: SendPatch): Promise<void>;
+  /** Accepted rows whose receipt has not been read yet, oldest first, across users. */
+  sendsAwaitingReceipt(limit: number): Promise<SendLogRow[]>;
+  /** Scoped. This account's newest rows first. */
+  sendLogFor(userId: string, limit: number): Promise<SendLogRow[]>;
+  /**
+   * Scoped. The phone reports that `sendId` was opened. True when this call wrote the row; false
+   * when the open was already recorded OR the send is not this account's (or does not exist) — the
+   * caller cannot tell those apart, deliberately. Ownership is the `send_log` row itself, so an id
+   * from another account matches nothing. One row per (account, send): the app may report twice.
+   */
+  recordPushOpen(userId: string, sendId: string, action: PushOpenAction): Promise<boolean>;
+  /**
+   * Per day (in `timezone`), kind and template over the last `days` days: sent, accepted, dead,
+   * opened and converted. Reads across users — the admin's view of the campaign, never an account's.
+   */
+  pushOpenStats(days: number, timezone: string): Promise<PushStatRow[]>;
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
@@ -914,6 +987,22 @@ export interface Store {
    * `putOnboardingContent` above carries the argument; it applies here unchanged, minus the version.
    */
   putNotificationCopy(lang: Lang, copy: NotificationCopy): Promise<void>;
+
+  // ── Push templates ─────────────────────────────────────────────────────────────────────────
+  //
+  // One row per (key, lang, variant) with a draft|reviewed status — the rules are
+  // `shared/push-templates.ts`. Rows belong to nobody (the instance's copy), so like the
+  // notification copy they take no `userId`.
+
+  /** Every template row, any status. */
+  listPushTemplates(): Promise<PushTemplateRow[]>;
+  /**
+   * Insert rows whose (key, lang, variant) is absent; leave the present ones alone. How the
+   * shipped copy migrates in: idempotent and race-safe, and it can never overwrite an admin's edit.
+   */
+  seedPushTemplates(rows: PushTemplateRow[]): Promise<void>;
+  /** Insert or replace one row, whole. The caller has validated it and set the review fields. */
+  putPushTemplate(row: PushTemplateRow): Promise<void>;
 
   // ── The prompts the model is sent ───────────────────────────────────────────────────────────
   //
@@ -1117,6 +1206,8 @@ export interface Store {
   deleteLine(userId: string, lineId: string): Promise<boolean>;
   /** Every non-photo line naming the caller's meal — its cards and what was said about it; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
   deleteMealLines(userId: string, mealId: string): Promise<number>;
+  /** The assistant's TEXT lines naming the caller's meal — the verdicts and change lines said about it; how many went. Its cards and the user's words stay (#1752). */
+  deleteMealComments(userId: string, mealId: string): Promise<number>;
   /** True when the caller's line existed and now holds `text`. */
   updateLineText(userId: string, lineId: string, text: string | null): Promise<boolean>;
   /**
@@ -1401,7 +1492,7 @@ export function blankProfile(userId: string, lang: Lang): Profile {
   return {
     user_id: userId, lang, goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, country: null,
+    units: null, struggles: null, streak_goal_days: null, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
   };

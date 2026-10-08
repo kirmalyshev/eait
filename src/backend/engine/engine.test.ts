@@ -1512,7 +1512,7 @@ describe("the thread", () => {
     expect((await editMeal(deps, userId, res.mealId, { items: renamed })).kind).toBe("updated");
     const t = await thread(userId);
     expect(t.slice(before).map(text).filter((x) => x?.includes("→"))).toEqual([]);
-    expect(t.slice(before).some((e) => e.kind === "meal")).toBe(true);
+    expect(t.slice(before).some((e) => e.kind === "meal")).toBe(false);
     await editMeal(deps, userId, res.mealId, { kcal: res.analysis.kcal + 100 });
     expect((await thread(userId)).map(text).some((x) => x?.includes(`→ ${res.analysis.kcal + 100}kcal`))).toBe(true);
   });
@@ -1677,14 +1677,14 @@ describe("the thread", () => {
     expect((await thread(userId)).map(text)).toEqual(["two eggs and toast", "Dropped it.", "a banana"]);
   });
 
-  it("keeps a manual edit from the editor as an updated card, like a correction from chat", async () => {
+  it("keeps a manual edit from the editor on the one card, like a correction from chat", async () => {
     const userId = await onboard();
     const meal = await logPhotoMeal(deps, userId, photo());
     if (meal.kind !== "logged") throw new Error("expected logged");
     await editMeal(deps, userId, meal.mealId, { kcal: 100 });
     const cards = (await thread(userId)).flatMap((e) => (e.kind === "meal" ? [e] : []));
-    expect(cards.map((c) => c.event)).toEqual(["logged", "updated"]);
-    expect(cards[1]!.meal!.kcal).toBe(100);
+    expect(cards.map((c) => c.event)).toEqual(["logged"]);
+    expect(cards[0]!.meal!.kcal).toBe(100);
   });
 
   it("never fails the turn when even the release fails: logged, not thrown", async () => {
@@ -1744,12 +1744,12 @@ describe("the thread", () => {
     if (meal.kind !== "logged") throw new Error("expected logged");
     await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
     let t = await thread(userId);
-    expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
+    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "text"]]);
     expect(t.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
     expect(text(t.at(-1)!)).toContain("→");
     await editMeal(deps, userId, meal.mealId, { kcal: 100 });
     t = await thread(userId);
-    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
+    expect(t.filter((e) => e.kind === "meal")).toHaveLength(1);
     expect(t.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
     expect(text(t.at(-1)!)).toContain("→ 100kcal");
   });
@@ -1797,7 +1797,7 @@ describe("the thread", () => {
     const t = await thread(userId);
     // words, updated card, and #119's change line — which names the EDIT and says nothing about
     // today's budget, so a yesterday meal earns it like any other.
-    expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
+    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "text"]]);
     expect(text(t.at(-1)!)).toContain("→");
     expect(text(t.at(-1)!)).not.toContain("left today");
   });
@@ -1979,15 +1979,14 @@ describe("the thread", () => {
     expect(stored).not.toContain("{loseTail}");
   });
 
-  it("keeps a correction as an updated card, and both cards read the meal as it is now", async () => {
+  it("keeps a correction on the one card, which reads the meal as it is now", async () => {
     const userId = await onboard();
     const meal = await logPhotoMeal(deps, userId, photo());
     if (meal.kind !== "logged") throw new Error("expected logged");
     await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
     const cards = (await thread(userId)).flatMap((e) => (e.kind === "meal" ? [e] : []));
-    expect(cards.map((c) => c.event)).toEqual(["logged", "updated"]);
-    // One meal, two moments, read on request: a stored verdict would describe numbers since changed.
-    expect(cards[0]!.meal!.kcal).toBe(cards[1]!.meal!.kcal);
+    expect(cards.map((c) => c.event)).toEqual(["logged"]);
+    // One message, read on request: a stored verdict would describe numbers since changed.
     expect(cards[0]!.meal!.kcal).toBeLessThan(meal.analysis.kcal);
   });
 

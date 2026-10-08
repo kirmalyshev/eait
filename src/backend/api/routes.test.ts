@@ -1945,6 +1945,48 @@ describe("rate limits", () => {
   });
 });
 
+describe("push opens (ieat-app#1759)", () => {
+  async function sendFor(t: string): Promise<string> {
+    const id = crypto.randomUUID();
+    await store.createSend((await store.userIdForToken(t))!, {
+      id, kind: "campaign", ref: null, templateKey: "route-t", lang: "en", variant: null,
+      token: "ExponentPushToken[route]", state: "accepted",
+    });
+    return id;
+  }
+  const opened = async () =>
+    (await store.pushOpenStats(2, "UTC")).filter((r) => r.templateKey === "route-t").reduce((n, r) => n + r.opened, 0);
+
+  it("records an open, once, however often it is reported", async () => {
+    const t = await session();
+    const sendId = await sendFor(t);
+    for (let i = 0; i < 2; i++) {
+      const res = await post(ROUTES.pushOpen, { sendId, action: "tap" }, t);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ ok: true });
+    }
+    expect(await opened()).toBe(1);
+  });
+
+  it("answers the same for another account's send and records nothing", async () => {
+    const mine = await session();
+    const theirs = await session();
+    const sendId = await sendFor(theirs);
+    const res = await post(ROUTES.pushOpen, { sendId }, mine);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(await opened()).toBe(0);
+  });
+
+  it("refuses a body that is not an open, and needs a session", async () => {
+    const t = await session();
+    for (const body of [{}, { sendId: "" }, { sendId: 4 }, { sendId: "x", action: "swipe" }]) {
+      expect((await post(ROUTES.pushOpen, body, t)).status).toBe(400);
+    }
+    expect((await post(ROUTES.pushOpen, { sendId: "x" })).status).toBe(401);
+  });
+});
+
 describe("push tokens", () => {
   const token = () => `ExponentPushToken[${crypto.randomUUID().slice(0, 12)}]`;
 
@@ -1956,6 +1998,18 @@ describe("push tokens", () => {
     expect(await res.json()).toEqual({ registered: true });
     const userId = (await store.userIdForToken(t))!;
     expect(await store.pushTokensFor(userId)).toEqual([{ token: pushToken, platform: "ios" }]);
+  });
+
+  it("stores the zone the app reports on open, and ignores one it cannot use", async () => {
+    const t = await session();
+    const userId = (await store.userIdForToken(t))!;
+    const tz = async () => (await store.pushAudience()).find((r) => r.userId === userId)?.timezone;
+    await post(ROUTES.pushToken, { token: token(), platform: "ios", timezone: "Asia/Tokyo" }, t);
+    expect(await tz()).toBe("Asia/Tokyo");
+    // An unusable zone is not a reason to refuse the token: the registration still lands, the zone stays.
+    const res = await post(ROUTES.pushToken, { token: token(), platform: "ios", timezone: "Mars/Base" }, t);
+    expect(res.status).toBe(200);
+    expect(await tz()).toBe("Asia/Tokyo");
   });
 
   it("is idempotent — the app re-registers on every launch", async () => {

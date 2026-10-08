@@ -20,7 +20,7 @@
 
 import {
   ageFrom,
-  AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STREAK_GOALS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   countryOptions, fill,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
@@ -34,7 +34,7 @@ import {
   payCopyFor, paywallPrice, perMonth,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
-  type Profile, type Struggle, type UnitSystem,
+  type Profile, type StreakGoal, type Struggle, type UnitSystem,
 } from "@eait/shared";
 import type { PayPlanRow } from "@eait/shared/ui/kit";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
@@ -404,6 +404,11 @@ function answerFor(
         struggles: answers.filter((a): a is Struggle => (STRUGGLES as readonly string[]).includes(a)),
       },
     };
+  }
+  if (field === "streak_goal_days") {
+    const days = Number(answers[0]);
+    if (!(STREAK_GOALS as readonly number[]).includes(days)) return { kind: "missing" };
+    return { kind: "patch", patch: { streak_goal_days: days as StreakGoal } };
   }
   if (field === "medical") {
     // "None of these" is exclusive BY MEANING: a browser with no script can tick it beside a real
@@ -1591,6 +1596,7 @@ function currentAnswer(prompt: ChatPrompt, p: Profile): string[] {
     return age === null ? [] : [String(age)];
   }
   if (prompt.field === "struggles") return p.struggles ?? [];
+  if (prompt.field === "streak_goal_days") return p.streak_goal_days === null ? [] : [String(p.streak_goal_days)];
   // The two write views read back through the shared readers — `medical` ticks "none" for the
   // empty set, and `diet` reads balanced when no diet tag survives.
   if (prompt.field === "diet") return [dietOf(p.restrictions)];

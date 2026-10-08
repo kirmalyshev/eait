@@ -35,7 +35,7 @@ export async function logMeal(page: Page) {
   expect(res.status(), await res.text()).toBe(200);
 }
 
-/** The answers the ten onboarding questions take, by the prompt id the page names. */
+/** The answers the onboarding questions take, by the prompt id the page names. */
 const ANSWERS: Record<string, string> = {
   goal: "lose",
   sex: "male",
@@ -45,6 +45,7 @@ const ANSWERS: Record<string, string> = {
   activity: "some",
   target_weight_kg: "92",
   pace: "steady",
+  streak_goal_days: "14",
   diet: "balanced",
   country: "de",
 };

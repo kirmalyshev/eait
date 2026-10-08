@@ -48,6 +48,8 @@ export interface HomeCopy {
   phoneToday: string;
   /** phone: the streak chip's accessible name — `phone/today.html` draws `aria-label="4-day streak"`. */
   phoneStreakAria: string;
+  /** phone: the same chip with a streak goal set — drawn "4/14", read "4 of 14 days". */
+  phoneStreakGoalAria: string;
   /**
    * phone: Spud's one line under the meals — `phone/today-picker` draws it behind the sheet.
    * `{nutrient}` is the constraining macro's name as the sentence wants it (`verdictNoun`) and
@@ -174,6 +176,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   en: {
     phoneToday: "Today",
     phoneStreakAria: "{n}-day streak",
+    phoneStreakGoalAria: "{n} of {goal} days",
     phoneDayNote: "Keep dinner lean: {grams}g of {nutrient} to go.",
     phoneGoToDay: "Go to {day}",
     pickerPrevMonth: "Previous month",
@@ -237,6 +240,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   fr: {
     phoneToday: "Aujourd'hui",
     phoneStreakAria: "Série de {n} jours",
+    phoneStreakGoalAria: "{n} jours sur {goal}",
     phoneDayNote: "Dîner léger : il te reste {grams}g de {nutrient}.",
     phoneGoToDay: "Aller au {day}",
     pickerPrevMonth: "Mois précédent",
@@ -300,6 +304,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   de: {
     phoneToday: "Heute",
     phoneStreakAria: "{n} Tage in Folge",
+    phoneStreakGoalAria: "{n} von {goal} Tagen",
     phoneDayNote: "Halte das Abendessen leicht: Bei {nutrient} sind nur noch {grams}g übrig.",
     phoneGoToDay: "Zu {day} springen",
     pickerPrevMonth: "Vorheriger Monat",
@@ -363,6 +368,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   it: {
     phoneToday: "Oggi",
     phoneStreakAria: "Serie di {n} giorni",
+    phoneStreakGoalAria: "{n} giorni su {goal}",
     phoneDayNote: "Cena leggera: ancora {grams}g di {nutrient}.",
     phoneGoToDay: "Vai a {day}",
     pickerPrevMonth: "Mese precedente",
@@ -426,6 +432,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   es: {
     phoneToday: "Hoy",
     phoneStreakAria: "Racha de {n} días",
+    phoneStreakGoalAria: "{n} de {goal} días",
     phoneDayNote: "Cena ligera: quedan {grams}g de {nutrient}.",
     phoneGoToDay: "Ir a {day}",
     pickerPrevMonth: "Mes anterior",
@@ -489,6 +496,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   vi: {
     phoneToday: "Hôm nay",
     phoneStreakAria: "Chuỗi {n} ngày",
+    phoneStreakGoalAria: "{n} trên {goal} ngày",
     phoneDayNote: "Ăn tối nhẹ thôi: còn {grams}g {nutrient}.",
     phoneGoToDay: "Đến {day}",
     pickerPrevMonth: "Tháng trước",
@@ -552,6 +560,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   id: {
     phoneToday: "Hari ini",
     phoneStreakAria: "Runtunan {n} hari",
+    phoneStreakGoalAria: "{n} dari {goal} hari",
     phoneDayNote: "Makan malam ringan saja: sisa {grams}g {nutrient}.",
     phoneGoToDay: "Ke {day}",
     pickerPrevMonth: "Bulan sebelumnya",
@@ -615,6 +624,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
   ru: {
     phoneToday: "Сегодня",
     phoneStreakAria: "Серия: {n} дн.",
+    phoneStreakGoalAria: "{n} из {goal} дн.",
     phoneDayNote: "На ужин — что-то лёгкое: {nutrient} — не больше {grams}г.",
     phoneGoToDay: "Открыть {day}",
     pickerPrevMonth: "Предыдущий месяц",
@@ -676,6 +686,16 @@ export const HOME_COPY: Localized<HomeCopy> = {
     queue: { uploading: "Загрузка фото · 1 из 4", waiting: "Ждёт отправки", notMeal: "Не похоже на еду", unread: "Не удалось прочитать фото", nothingCounted: "Ничего не учтено.", retake: "Переснять", remove: "Удалить", question: "Учтено как ≈{kcal}. Одна деталь сделает оценку точнее.", answer: "Ответить на 1 вопрос", dropTitle: "Перетащи фото куда угодно, чтобы записать", dropSub: "или вставь его в поле ввода", addedTitle: "Добавлено в твой день", addedSub: "Мы посчитаем. Приложение можно закрыть.", beingRead: "{time} · читаем, приложение можно закрыть", found: "Найдено продуктов: {n}" },
   },
 };
+
+/** The streak chip's text and accessible name: "4/14" and "4 of 14 days" with a goal, else as before. */
+export function streakChip(
+  streak: number, goal: number | null, lang: Lang, n: (v: number) => string,
+): { text: string; aria: string } {
+  const c = homeCopyFor(lang);
+  return goal === null
+    ? { text: n(streak), aria: c.phoneStreakAria.replace("{n}", n(streak)) }
+    : { text: `${n(streak)}/${n(goal)}`, aria: c.phoneStreakGoalAria.replace("{n}", n(streak)).replace("{goal}", n(goal)) };
+}
 
 export const homeCopyFor = (lang: Lang): HomeCopy => t(lang)(HOME_COPY);
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   MAX_HEALTH_DAYS_PER_BATCH, MAX_ITEM_NAME, MAX_MEAL_AMOUNT, MAX_MEAL_ITEMS, healthDayBatches,
-  healthDaysFrom, healthSyncLanded, isEditMealRequest, isRedateMealRequest,
+  healthDaysFrom, healthSyncLanded, isEditMealRequest, isPushOpenRequest, isRedateMealRequest, pushOpenFrom, ROUTES,
 } from "./contract.ts";
 import { emptyHealthDay } from "./health.ts";
 
@@ -104,5 +104,46 @@ describe("isRedateMealRequest", () => {
     expect(isRedateMealRequest({ dayOffset: Number.NaN })).toBe(false);
     expect(isRedateMealRequest({})).toBe(false);
     expect(isRedateMealRequest("2026-09-26")).toBe(false);
+  });
+});
+
+// The open is reported by the phone about a push it received, so the body is only a shape check:
+// whose id it is gets decided server-side against send_log, never here.
+describe("isPushOpenRequest", () => {
+  it("accepts a sendId with no action, a tap, or a reply", () => {
+    expect(isPushOpenRequest({ sendId: "abc-123" })).toBe(true);
+    expect(isPushOpenRequest({ sendId: "abc-123", action: "tap" })).toBe(true);
+    expect(isPushOpenRequest({ sendId: "abc-123", action: "reply" })).toBe(true);
+  });
+
+  it("refuses a missing, empty, over-long or non-string sendId, and an unknown action", () => {
+    expect(isPushOpenRequest(null)).toBe(false);
+    expect(isPushOpenRequest({})).toBe(false);
+    expect(isPushOpenRequest({ sendId: "" })).toBe(false);
+    expect(isPushOpenRequest({ sendId: 7 })).toBe(false);
+    expect(isPushOpenRequest({ sendId: "x".repeat(101) })).toBe(false);
+    expect(isPushOpenRequest({ sendId: "abc", action: "swipe" })).toBe(false);
+  });
+
+  it("has its own route next to the token", () => {
+    expect(ROUTES.pushOpen).toBe("/v1/push/open");
+  });
+});
+
+// What the phone makes of a notification response: the push `data` carries `sendId` (phase 1), and
+// a response without one — a local reminder, an older server's push — is simply not reported.
+describe("pushOpenFrom", () => {
+  it("reads the sendId off the push data, as a tap by default and a reply when typed", () => {
+    expect(pushOpenFrom({ sendId: "s1", mealId: "m" }, false)).toEqual({ sendId: "s1", action: "tap" });
+    expect(pushOpenFrom({ sendId: "s1" }, true)).toEqual({ sendId: "s1", action: "reply" });
+  });
+
+  it("returns null when there is nothing to attribute", () => {
+    expect(pushOpenFrom(undefined, false)).toBeNull();
+    expect(pushOpenFrom(null, false)).toBeNull();
+    expect(pushOpenFrom({}, false)).toBeNull();
+    expect(pushOpenFrom({ sendId: 5 }, false)).toBeNull();
+    expect(pushOpenFrom({ sendId: "" }, false)).toBeNull();
+    expect(pushOpenFrom({ sendId: "x".repeat(101) }, false)).toBeNull();
   });
 });

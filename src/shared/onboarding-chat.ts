@@ -40,7 +40,7 @@ import { projectGoal, projectionMonth, previewProjection } from "./projection.ts
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
+import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
 import type { Goal, Lang, Pace, Profile, Struggle, Units, Verdict, VerdictDimension } from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
@@ -58,7 +58,7 @@ import {
  */
 export type ChatPromptId =
   | "welcome" | "goal" | "how" | "sex" | "birth_year" | "height_cm" | "weight_kg"
-  | "activity" | "target_weight_kg" | "pace" | "struggles" | "ontrack"
+  | "activity" | "target_weight_kg" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
   | "diet" | "medical" | "summary" | "signup" | "country" | "health";
 
 /**
@@ -108,6 +108,7 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
   { id: "pace", place: "pace", field: "pace", kind: "choice", options: PACES },
   { id: "struggles", place: "struggles", field: "struggles", kind: "chips", options: STRUGGLES },
+  { id: "streak_goal_days", place: "streak", field: "streak_goal_days", kind: "choice", options: STREAK_GOALS.map(String) },
   // `diet` and `medical` carry "fields" that are not profile columns: they are the two VIEWS of
   // `restrictions` (see `OnboardingStep`). The server merges each answer inside the one array.
   { id: "diet", place: "diet", field: "diet", kind: "choice", options: DIETS },
