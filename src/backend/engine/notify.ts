@@ -397,11 +397,18 @@ export type TestPushResult =
   | { ok: false; reason: "image-not-allowed" }
   | { ok: false; reason: "no-device" }
   | { ok: false; reason: "template-incomplete" }
+  | { ok: false; reason: "test-cap" }
   | { ok: false; reason: "slot-taken"; heldBy: PushKind };
+
+/** Tests a staff account may send per local day: a bound against a stuck button, not a rule of the product. */
+export const TEST_PUSH_DAILY_CAP = 10;
 
 /**
  * The super-admin's "send test push" for ONE account. It goes through the slot like any sender, so
  * a second test the same local day is refused and says why (`slot-taken`, and which kind holds it).
+ * The ONE exception to R1 (Kirill, #529): an account in `campaignStaffIds` (the server's list, never
+ * a request field) sends without reading or claiming the slot, so testing never spends the day
+ * from the real senders, and is bounded by `TEST_PUSH_DAILY_CAP` instead. No other sender bypasses.
  * The words are the shipped `nudge` copy in the account's own language, so there is no new string.
  * `imageUrl` rides along for the device check of the notification extension; it must be https on
  * this server's own public API host, and is refused BEFORE the slot is claimed.
@@ -422,8 +429,15 @@ export async function sendTestPush(
   const sendable = await sendableCopy(deps, "nudge", profile.lang);
   if (!sendable) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
-  const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", "admin-test");
-  if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
+  const today = localDate(zone, new Date(now));
+  if (deps.config.campaignStaffIds.includes(userId)) {
+    const tests = (await deps.store.sendLogFor(userId, TEST_PUSH_DAILY_CAP * devices.length * 2))
+      .filter((r) => r.ref === "admin-test" && localDate(zone, new Date(r.createdAt)) === today);
+    if (tests.length >= TEST_PUSH_DAILY_CAP * devices.length) return { ok: false, reason: "test-cap" };
+  } else {
+    const claim = await deps.store.claimPushSlot(userId, today, "campaign", "admin-test");
+    if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
+  }
   const copy = fillNotification(sendable, "nudge", {});
   const out = await sendLogged(
     deps, userId, devices,
