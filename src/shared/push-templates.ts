@@ -36,9 +36,13 @@ export function isCampaignTemplateKey(k: unknown): k is CampaignTemplateKey {
   return slug.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && !RESERVED_SLUGS.includes(slug);
 }
 
-/** The variants a key declares, system or campaign. */
+/** The copy variants a campaign can carry, in assignment order. The first is the one every campaign has. */
+export const CAMPAIGN_VARIANTS = ["default", "b", "c", "d"] as const;
+export type CampaignVariant = (typeof CAMPAIGN_VARIANTS)[number];
+
+/** The variants a key may hold: a campaign's four names, a system key's own list. */
 export function variantsOf(key: PushTemplateKey): readonly string[] {
-  return isCampaignTemplateKey(key) ? ["default"] : PUSH_TEMPLATE_VARIANTS[key as NotificationId];
+  return isCampaignTemplateKey(key) ? CAMPAIGN_VARIANTS : PUSH_TEMPLATE_VARIANTS[key as NotificationId];
 }
 
 export interface PushTemplateRow {
@@ -165,7 +169,8 @@ export function validatePushTemplate(input: PushTemplateText | Record<string, un
   }
   const fields: [string, unknown, string, number][] = [];
   // Only the default variant has a title; the others are sent under it.
-  if (variant === "default") fields.push(["title", title, `${key}.title`, MAX_NOTIFICATION_TITLE]);
+  // A campaign variant is a whole message (an A/B arm), so every one of them has its own title.
+  if (variant === "default" || isCampaignTemplateKey(key)) fields.push(["title", title, `${key}.title`, MAX_NOTIFICATION_TITLE]);
   else if (title !== undefined && title !== "") errors.push(`${variant} has no title of its own`);
   fields.push(["body", body, `${key}.${bodyField(variant)}`, MAX_NOTIFICATION_BODY]);
   for (const [name, value, declaredAt, max] of fields) {
@@ -218,10 +223,16 @@ export function pushClaimErrors(title: string, body: string): string[] {
  * What stops `key` from being sent: one `lang/variant` per row that is absent or still a draft.
  * Empty means complete.
  */
-export function pushKeyGaps(rows: readonly PushTemplateRow[], key: PushTemplateKey): string[] {
+export function pushKeyGaps(
+  rows: readonly PushTemplateRow[], key: PushTemplateKey,
+  /** A campaign in use needs only its first `n` variants; the others are free to stay unwritten. */
+  variantCount?: number,
+): string[] {
   const gaps: string[] = [];
+  const all = variantsOf(key);
+  const needed = all.slice(0, variantCount ?? (isCampaignTemplateKey(key) ? 1 : all.length));
   for (const lang of LANGS) {
-    for (const variant of variantsOf(key)) {
+    for (const variant of needed) {
       const row = rows.find((r) => r.key === key && r.lang === lang && r.variant === variant);
       if (row?.status !== "reviewed") gaps.push(`${lang}/${variant}`);
     }

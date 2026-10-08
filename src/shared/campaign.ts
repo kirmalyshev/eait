@@ -5,7 +5,7 @@
 // picks from what is listed here, and an unknown key is refused rather than ignored (a typo that
 // silently widened the audience would be a broadcast to everybody).
 
-import { isCampaignTemplateKey, type CampaignTemplateKey } from "./push-templates.ts";
+import { CAMPAIGN_VARIANTS, isCampaignTemplateKey, type CampaignTemplateKey } from "./push-templates.ts";
 import { LANGS, type Lang } from "./types.ts";
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "running", "paused", "done", "killed"] as const;
@@ -142,6 +142,52 @@ export function inRollout(userId: string, campaignId: string, pct: number): bool
   return rolloutBucket(userId, campaignId) < pct;
 }
 
+/** The largest share an A/B holdout may keep out. */
+export const MAX_HOLDOUT_PCT = 10;
+
+/**
+ * Which of a campaign's `n` variants this account gets: `fnv1a("variant:campaign:user") % n`. A function
+ * of the pair alone, so there is no assignment table, and a salt of its own so it is independent of the
+ * rollout bucket and the holdout.
+ */
+export function variantOf(userId: string, campaignId: string, n: number): number {
+  return n <= 1 ? 0 : fnv1a(`variant:${campaignId}:${userId}`) % n;
+}
+
+/**
+ * True when this account is held out: a SEPARATE salt from the rollout, so the held-out are a random
+ * share of whoever the rollout reaches rather than its lowest buckets. Raising the percentage only adds.
+ */
+export function inHoldout(userId: string, campaignId: string, pct: number): boolean {
+  return pct > 0 && fnv1a(`holdout:${campaignId}:${userId}`) % 100 < pct;
+}
+
+export interface RateGroup { n: number; x: number }
+
+export interface RateComparison {
+  treatedRate: number;
+  holdoutRate: number;
+  /** Treated minus holdout. */
+  diff: number;
+  /** 95% interval on `diff`, the normal approximation: enough to tell a clear effect from noise. */
+  lo: number;
+  hi: number;
+  /** The interval excludes zero. */
+  significant: boolean;
+}
+
+/** Treated minus holdout conversion, with a simple 95% CI. Null when either group is empty. */
+export function compareRates(treated: RateGroup, holdout: RateGroup): RateComparison | null {
+  if (treated.n <= 0 || holdout.n <= 0) return null;
+  const p1 = treated.x / treated.n;
+  const p2 = holdout.x / holdout.n;
+  const se = Math.sqrt((p1 * (1 - p1)) / treated.n + (p2 * (1 - p2)) / holdout.n);
+  const diff = p1 - p2;
+  const lo = diff - 1.96 * se;
+  const hi = diff + 1.96 * se;
+  return { treatedRate: p1, holdoutRate: p2, diff, lo, hi, significant: lo > 0 || hi < 0 };
+}
+
 export interface CampaignInput {
   name: string;
   templateKey: CampaignTemplateKey;
@@ -151,6 +197,10 @@ export interface CampaignInput {
   rolloutPct: number;
   /** A promotional campaign only reaches accounts with "tips and offers" ON, whatever the segment says. */
   promotional: boolean;
+  /** 1-4 copy variants; an account gets `variantOf(user, campaign, variants)`. */
+  variants: number;
+  /** 0-10: the share of the rolled-out audience kept out, logged as `would_have_sent`. */
+  holdoutPct: number;
 }
 
 export type CampaignValidation = { ok: true; input: CampaignInput } | { ok: false; errors: string[] };
@@ -172,13 +222,21 @@ export function validateCampaignInput(raw: unknown): CampaignValidation {
     errors.push("rolloutPct must be a whole number 0-100");
   }
   if (typeof r.promotional !== "boolean") errors.push("promotional must be true or false");
+  const variants = r.variants === undefined ? 1 : r.variants;
+  if (!Number.isInteger(variants) || (variants as number) < 1 || (variants as number) > CAMPAIGN_VARIANTS.length) {
+    errors.push(`variants must be a whole number 1-${CAMPAIGN_VARIANTS.length}`);
+  }
+  const holdoutPct = r.holdoutPct === undefined ? 0 : r.holdoutPct;
+  if (!Number.isInteger(holdoutPct) || (holdoutPct as number) < 0 || (holdoutPct as number) > MAX_HOLDOUT_PCT) {
+    errors.push(`holdoutPct must be a whole number 0-${MAX_HOLDOUT_PCT}`);
+  }
   if (errors.length > 0 || !seg.ok) return { ok: false, errors };
   return {
     ok: true,
     input: {
       name, templateKey: r.templateKey as CampaignTemplateKey, segment: seg.segment,
       localSendTime: r.localSendTime as string, rolloutPct: r.rolloutPct as number,
-      promotional: r.promotional as boolean,
+      promotional: r.promotional as boolean, variants: variants as number, holdoutPct: holdoutPct as number,
     },
   };
 }

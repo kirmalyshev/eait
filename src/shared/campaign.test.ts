@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { CAMPAIGN_VARIANTS } from "./push-templates.ts";
 import {
-  habitOf, inRollout, matchesSegment, rolloutBucket, validateCampaignInput, validateSegment,
+  compareRates, inHoldout, variantOf, habitOf, inRollout, matchesSegment, rolloutBucket, validateCampaignInput, validateSegment,
   type SegmentFacts,
 } from "./campaign.ts";
 
@@ -108,7 +109,7 @@ describe("rollout", () => {
 });
 
 describe("validateCampaignInput", () => {
-  const ok = { name: "Win-back", templateKey: "campaign:win-back", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: true };
+  const ok = { name: "Win-back", templateKey: "campaign:win-back", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: true, variants: 2, holdoutPct: 5 };
   test("accepts a complete campaign", () => expect(validateCampaignInput(ok).ok).toBe(true));
   test("refuses a bad time, percentage, template or name", () => {
     expect(validateCampaignInput({ ...ok, localSendTime: "25:00" }).ok).toBe(false);
@@ -120,5 +121,118 @@ describe("validateCampaignInput", () => {
       expect(validateCampaignInput({ ...ok, templateKey: k }).ok).toBe(false);
     }
     expect(validateCampaignInput({ ...ok, name: "  " }).ok).toBe(false);
+  });
+});
+
+describe("A/B assignment", () => {
+  const ids = Array.from({ length: 10_000 }, (_, i) => `user-${i}-${(i * 2654435761) % 99991}`);
+
+  test("is deterministic, and a function of user AND campaign", () => {
+    expect(variantOf("u1", "c1", 3)).toBe(variantOf("u1", "c1", 3));
+    const differs = ids.slice(0, 200).some((u) => variantOf(u, "c1", 2) !== variantOf(u, "c2", 2));
+    expect(differs).toBe(true);
+  });
+  test("stays inside 0..n-1, and one variant is always 0", () => {
+    for (const u of ids.slice(0, 500)) {
+      expect(variantOf(u, "c", 1)).toBe(0);
+      const v = variantOf(u, "c", 4);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(4);
+    }
+  });
+  test("is balanced on 10k ids, for 2, 3 and 4 variants", () => {
+    for (const n of [2, 3, 4]) {
+      const counts = Array<number>(n).fill(0);
+      for (const u of ids) counts[variantOf(u, "camp-a", n)]!++;
+      for (const c of counts) expect(Math.abs(c / ids.length - 1 / n)).toBeLessThan(0.02);
+    }
+  });
+  test("names at most four variants, the first is the default", () => {
+    expect(CAMPAIGN_VARIANTS).toEqual(["default", "b", "c", "d"]);
+  });
+});
+
+describe("holdout", () => {
+  const ids = Array.from({ length: 10_000 }, (_, i) => `user-${i}`);
+
+  test("holds out about its percentage, and 0 holds out nobody", () => {
+    expect(ids.filter((u) => inHoldout(u, "c1", 0))).toHaveLength(0);
+    for (const pct of [5, 10]) {
+      const n = ids.filter((u) => inHoldout(u, "c1", pct)).length;
+      expect(Math.abs(n / ids.length - pct / 100)).toBeLessThan(0.015);
+    }
+  });
+  test("raising the holdout only adds accounts", () => {
+    const five = new Set(ids.filter((u) => inHoldout(u, "c1", 5)));
+    for (const u of ids.filter((x) => inHoldout(x, "c1", 10))) void u;
+    for (const u of five) expect(inHoldout(u, "c1", 10)).toBe(true);
+  });
+  test("uses its own salt: it is not the rollout bucket, nor the variant", () => {
+    const held = ids.filter((u) => inHoldout(u, "c1", 10));
+    // If the holdout shared the rollout salt, the held-out would be the lowest rollout buckets.
+    expect(held.every((u) => inRollout(u, "c1", 10))).toBe(false);
+    // And it is not tied to a variant: both variants appear among the held-out.
+    expect(new Set(held.map((u) => variantOf(u, "c1", 2))).size).toBe(2);
+  });
+  test("is disjoint from the treated by construction: one predicate decides", () => {
+    const campaign = "c1";
+    const treated = ids.filter((u) => inRollout(u, campaign, 60) && !inHoldout(u, campaign, 10));
+    const held = ids.filter((u) => inRollout(u, campaign, 60) && inHoldout(u, campaign, 10));
+    expect(treated.filter((u) => held.includes(u))).toHaveLength(0);
+    expect(treated.length + held.length).toBe(ids.filter((u) => inRollout(u, campaign, 60)).length);
+  });
+});
+
+describe("compareRates", () => {
+  test("arithmetic: rates, difference and a 95% interval", () => {
+    const r = compareRates({ n: 1000, x: 300 }, { n: 100, x: 20 })!;
+    expect(r.treatedRate).toBeCloseTo(0.3, 10);
+    expect(r.holdoutRate).toBeCloseTo(0.2, 10);
+    expect(r.diff).toBeCloseTo(0.1, 10);
+    const se = Math.sqrt((0.3 * 0.7) / 1000 + (0.2 * 0.8) / 100);
+    expect(r.lo).toBeCloseTo(0.1 - 1.96 * se, 10);
+    expect(r.hi).toBeCloseTo(0.1 + 1.96 * se, 10);
+    expect(r.lo).toBeGreaterThan(0);
+    expect(r.significant).toBe(true);
+    const noise = compareRates({ n: 100, x: 30 }, { n: 100, x: 25 })!;
+    expect(noise.lo).toBeLessThan(0);
+    expect(noise.hi).toBeGreaterThan(0);
+    expect(noise.significant).toBe(false);
+  });
+  test("a large clean difference is significant", () => {
+    const r = compareRates({ n: 5000, x: 2500 }, { n: 500, x: 100 })!;
+    expect(r.significant).toBe(true);
+    expect(r.lo).toBeGreaterThan(0);
+  });
+  test("a negative effect is significant on the other side", () => {
+    const r = compareRates({ n: 5000, x: 500 }, { n: 500, x: 250 })!;
+    expect(r.hi).toBeLessThan(0);
+    expect(r.significant).toBe(true);
+  });
+  test("has no answer without both groups, and identical groups give a zero difference", () => {
+    expect(compareRates({ n: 0, x: 0 }, { n: 10, x: 1 })).toBeNull();
+    expect(compareRates({ n: 10, x: 1 }, { n: 0, x: 0 })).toBeNull();
+    const same = compareRates({ n: 100, x: 10 }, { n: 100, x: 10 })!;
+    expect(same.diff).toBe(0);
+    expect(same.significant).toBe(false);
+  });
+  test("zero or full rates do not divide by zero", () => {
+    const r = compareRates({ n: 50, x: 0 }, { n: 50, x: 50 })!;
+    expect(Number.isFinite(r.lo) && Number.isFinite(r.hi)).toBe(true);
+  });
+});
+
+describe("campaign input: variants and holdout", () => {
+  const base = { name: "Win-back", templateKey: "campaign:win-back", segment: {}, localSendTime: "18:30", rolloutPct: 10, promotional: false };
+  test("default to one variant and no holdout", () => {
+    const r = validateCampaignInput(base);
+    expect(r.ok && r.input).toMatchObject({ variants: 1, holdoutPct: 0 });
+  });
+  test("accept 1-4 variants and a 0-10% holdout", () => {
+    expect(validateCampaignInput({ ...base, variants: 4, holdoutPct: 10 }).ok).toBe(true);
+  });
+  test("refuse 0 or 5 variants, a fractional count, and a holdout over 10 or negative", () => {
+    for (const v of [0, 5, 1.5, "2"]) expect(validateCampaignInput({ ...base, variants: v }).ok).toBe(false);
+    for (const h of [-1, 11, 2.5, "5"]) expect(validateCampaignInput({ ...base, holdoutPct: h }).ok).toBe(false);
   });
 });
