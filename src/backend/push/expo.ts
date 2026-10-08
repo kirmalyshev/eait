@@ -95,7 +95,10 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
             // mutableContent on EVERY message: the app's notification extension reports delivery
             // for all of them, and only the ones with an image have anything to attach.
             to: m.to, title: m.title, body: m.body, sound: "default", mutableContent: true,
-            ...(m.data ? { data: m.data } : {}),
+            // The image rides in `data` too: Expo delivers `data` under userInfo["body"], which the
+            // extension is known to read (the send id arrives there); richContent's place in the
+            // APNs payload is Expo's to choose.
+            ...(m.data || image ? { data: { ...m.data, ...(image ? { image } : {}) } } : {}),
             ...(m.categoryId ? { categoryId: m.categoryId } : {}),
             ...(image ? { richContent: { image } } : {}),
           };
