@@ -1354,6 +1354,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setRole: 0,
   // S8: the sign-up consent stamps — an account's own rows, like every other write here.
   recordConsent: 0,
+  setMarketingConsent: 0,
   consentOf: 0,
   getProfile: 0,
   patchProfile: 0,
@@ -1736,6 +1737,12 @@ export async function postgresStore(
       await sql`update users set
           terms_accepted_at = now(),
           marketing_consent_at = case when ${consent.marketing} then now() else marketing_consent_at end
+        where id = ${userId}`;
+    },
+
+    async setMarketingConsent(userId, on) {
+      await sql`update users set marketing_consent_at = case
+          when ${on} then coalesce(marketing_consent_at, now()) else null end
         where id = ${userId}`;
     },
 
@@ -2950,10 +2957,12 @@ export async function postgresStore(
 
     async pushAudience() {
       const rows = await sql`
-        select u.id, u.timezone from users u
+        select u.id, u.timezone, u.created_at, u.onboarded_at from users u
         where exists (select 1 from push_tokens t where t.user_id = u.id)`;
       return (rows as Record<string, unknown>[]).map((r) => ({
         userId: r.id as string, timezone: (r.timezone as string | null) ?? null,
+        createdAt: new Date(r.created_at as string | Date).toISOString(),
+        onboardedAt: r.onboarded_at ? new Date(r.onboarded_at as string | Date).toISOString() : null,
       }));
     },
 

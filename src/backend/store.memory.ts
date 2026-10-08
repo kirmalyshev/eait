@@ -412,6 +412,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       });
     },
 
+    async setMarketingConsent(userId, on) {
+      if (!users.has(userId)) return;
+      const prior = consents.get(userId) ?? { termsAcceptedAt: null, marketingConsentAt: null };
+      consents.set(userId, {
+        ...prior,
+        marketingConsentAt: on ? prior.marketingConsentAt ?? new Date().toISOString() : null,
+      });
+    },
+
     async consentOf(userId) {
       if (!users.has(userId)) return null;
       return consents.get(userId) ?? { termsAcceptedAt: null, marketingConsentAt: null };
@@ -898,7 +907,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async pushAudience() {
       return [...new Set([...pushTokens.values()].map((r) => r.userId))]
-        .map((userId) => ({ userId, timezone: timezones.get(userId) ?? null }));
+        .map((userId) => ({
+          userId, timezone: timezones.get(userId) ?? null,
+          createdAt: new Date(createdAt.get(userId) ?? 0).toISOString(),
+          onboardedAt: users.get(userId)?.onboarded_at ?? null,
+        }));
     },
 
     async timezoneOf(userId) {
