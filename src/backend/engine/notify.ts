@@ -225,7 +225,7 @@ export async function sendLogged(
 export const CATCH_UP_MS = 2 * 60 * 60 * 1000;
 
 /** The zone an account dates its days in: its own, when the app has reported a usable one. */
-function zoneOf(deps: EngineDeps, reported: string | null): string {
+export function zoneOf(deps: EngineDeps, reported: string | null): string {
   return reported !== null && isTimezone(reported) ? reported : deps.config.timezone;
 }
 
@@ -404,7 +404,7 @@ export async function collectPushReceipts(deps: EngineDeps, now: number = Date.n
 export const RECEIPT_DELAY_MS = 15 * 60 * 1000;
 
 /** The UTC instant at which the wall clock in `zone` reads `date` at `time`. */
-function instantOf(zone: string, date: string, time: { hour: number; minute: number }): number {
+export function instantOf(zone: string, date: string, time: { hour: number; minute: number }): number {
   const pad = (x: number) => String(x).padStart(2, "0");
   const naive = Date.parse(`${date}T${pad(time.hour)}:${pad(time.minute)}:00Z`);
   // Two passes. The first lands within an hour; the second corrects it when the guess fell on the

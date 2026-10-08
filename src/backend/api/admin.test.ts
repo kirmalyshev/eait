@@ -92,7 +92,7 @@ describe("the admin is off unless somebody holds the role", () => {
     //
     // The property survives the move from a shared token, and gains something: deleting the last
     // admin account switches the surface off, which no environment variable could do.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates",
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates", "/admin/api/campaigns",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
@@ -1122,5 +1122,67 @@ describe("the admin's push opens view (ieat-app#1759)", () => {
 
   it("is closed to anyone but the admin", async () => {
     expect((await admin("GET", "/admin/api/push/stats", undefined, "")).status).toBe(401);
+  });
+});
+
+describe("campaigns (ieat-app#1761)", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+  const input = { name: "Win-back", templateKey: "nudge", segment: { langs: ["de"] }, localSendTime: "18:30", rolloutPct: 10, promotional: true };
+  const create = async (over: Record<string, unknown> = {}) =>
+    await (await admin("POST", "/admin/api/campaigns", { ...input, ...over })).json() as { row: { id: string; status: string } };
+
+  it("lists nothing at first, with the options the form is drawn from", async () => {
+    const body = await (await admin("GET", "/admin/api/campaigns")).json() as
+      { killed: boolean; campaigns: unknown[]; options: { langs: string[]; templateKeys: string[]; streakBands: string[] } };
+    expect(body.killed).toBe(false);
+    expect(body.campaigns).toEqual([]);
+    expect(body.options.langs).toEqual([...LANGS]);
+    expect(body.options.templateKeys).toEqual(["nudge"]);
+  });
+
+  it("creates a draft, records who made it, and refuses a predicate off the allowlist with 422", async () => {
+    const made = await create();
+    expect(made.row.status).toBe("draft");
+    const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { campaigns: { id: string; createdBy: string | null; report: object }[] };
+    expect(listed.campaigns[0]).toMatchObject({ id: made.row.id });
+    expect(listed.campaigns[0]!.createdBy).not.toBeNull();
+    expect(listed.campaigns[0]!.report).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0 });
+    const bad = await admin("POST", "/admin/api/campaigns", { ...input, segment: { sql: "1=1" } });
+    expect(bad.status).toBe(422);
+    expect(await bad.json()).toEqual({ errors: ["unknown predicate: sql"] });
+  });
+
+  it("schedules a campaign whose template is complete, and refuses one that is not with 422", async () => {
+    const made = await create();
+    const ok = await admin("POST", `/admin/api/campaigns/${made.row.id}/status`, { status: "scheduled" });
+    expect(ok.status).toBe(200);
+    expect((await ok.json() as { row: { status: string } }).row.status).toBe("scheduled");
+    const again = await admin("POST", `/admin/api/campaigns/${made.row.id}/status`, { status: "draft" });
+    expect(again.status).toBe(422);
+    const unknown = await admin("POST", "/admin/api/campaigns/nope/status", { status: "scheduled" });
+    expect(unknown.status).toBe(404);
+  });
+
+  it("edits a campaign, and a dry run answers with how many it would reach", async () => {
+    const made = await create();
+    const up = await admin("PATCH", `/admin/api/campaigns/${made.row.id}`, { rolloutPct: 50 });
+    expect((await up.json() as { row: { rolloutPct: number } }).row.rolloutPct).toBe(50);
+    const dry = await admin("POST", `/admin/api/campaigns/${made.row.id}/dry-run`);
+    expect(await dry.json()).toEqual({ ok: true, wouldSend: 0 });
+  });
+
+  it("refuses a test send to an account that is not on the staff allowlist with 409", async () => {
+    const made = await create();
+    const out = await admin("POST", `/admin/api/campaigns/${made.row.id}/test`, { userId: "00000000-0000-4000-8000-000000000000" });
+    expect(out.status).toBe(409);
+    expect(await out.json()).toEqual({ ok: false, reason: "not-staff" });
+  });
+
+  it("flips the global kill switch both ways", async () => {
+    await admin("POST", "/admin/api/campaigns/kill", { killed: true });
+    expect(((await (await admin("GET", "/admin/api/campaigns")).json()) as { killed: boolean }).killed).toBe(true);
+    await admin("POST", "/admin/api/campaigns/kill", { killed: false });
+    expect(((await (await admin("GET", "/admin/api/campaigns")).json()) as { killed: boolean }).killed).toBe(false);
+    expect((await admin("POST", "/admin/api/campaigns/kill", { killed: "yes" })).status).toBe(422);
   });
 });

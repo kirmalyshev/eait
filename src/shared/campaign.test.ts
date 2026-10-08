@@ -110,6 +110,8 @@ describe("validateCampaignInput", () => {
     expect(validateCampaignInput({ ...ok, rolloutPct: 101 }).ok).toBe(false);
     expect(validateCampaignInput({ ...ok, rolloutPct: 1.5 }).ok).toBe(false);
     expect(validateCampaignInput({ ...ok, templateKey: "nope" }).ok).toBe(false);
+    expect(validateCampaignInput({ ...ok, templateKey: "evening" }).ok).toBe(false);
+    expect(validateCampaignInput({ ...ok, templateKey: "trial-end" }).ok).toBe(false);
     expect(validateCampaignInput({ ...ok, name: "  " }).ok).toBe(false);
   });
 });

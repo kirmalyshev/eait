@@ -5,8 +5,14 @@
 // picks from what is listed here, and an unknown key is refused rather than ignored (a typo that
 // silently widened the audience would be a broadcast to everybody).
 
-import { NOTIFICATION_IDS, type NotificationId } from "./notifications.ts";
+import type { NotificationId } from "./notifications.ts";
 import { LANGS, type Lang } from "./types.ts";
+
+/**
+ * The templates a campaign may send: the ones whose words need nothing computed per account.
+ * `evening` fills the day's totals and `trial-end` is the billing reminder, so neither is a campaign.
+ */
+export const CAMPAIGN_TEMPLATE_KEYS = ["nudge"] as const satisfies readonly NotificationId[];
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "running", "paused", "done", "killed"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
@@ -145,8 +151,8 @@ export function validateCampaignInput(raw: unknown): CampaignValidation {
   const errors: string[] = [];
   const name = typeof r.name === "string" ? r.name.trim() : "";
   if (name.length === 0 || name.length > 80) errors.push("name must be 1-80 characters");
-  if (!(NOTIFICATION_IDS as readonly unknown[]).includes(r.templateKey)) {
-    errors.push(`templateKey must be one of: ${NOTIFICATION_IDS.join(", ")}`);
+  if (!(CAMPAIGN_TEMPLATE_KEYS as readonly unknown[]).includes(r.templateKey)) {
+    errors.push(`templateKey must be one of: ${CAMPAIGN_TEMPLATE_KEYS.join(", ")}`);
   }
   const seg = validateSegment(r.segment ?? {});
   if (!seg.ok) errors.push(...seg.errors);
