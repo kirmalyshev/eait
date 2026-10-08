@@ -42,6 +42,8 @@ export type PushError =
   | "message-too-big"
   | "message-rate-exceeded"
   | "mismatched-credentials"
+  /** The service answered 401 or 403 to the request itself: the deploy's credential is wrong, not a device. */
+  | "provider-unauthorized"
   | "other";
 
 /** What `send` says about one message. `id` is the receipt id, absent when it was refused outright. */

@@ -199,6 +199,9 @@ export async function sendLogged(
     return out;
   }
 
+  if (tickets.some((t) => t.error === "provider-unauthorized")) {
+    console.error("[eait] ALERT push provider rejected our credential (401/403): every send fails until the access token is fixed");
+  }
   for (const ticket of tickets) {
     const id = ids.get(ticket.token);
     // A ticket for a token this call did not send is not something to act on: acting would mean
