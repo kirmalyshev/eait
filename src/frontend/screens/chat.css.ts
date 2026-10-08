@@ -99,10 +99,11 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .chat .compose .ib:first-child .ico { color: var(--muted); }
 .chat .cfield { flex: 1; min-width: 0; position: relative; display: flex; }
 .chat .cfield textarea.box { flex: 1; min-height: 44px; border-radius: 17px; padding: 11px 52px 11px 16px; }
-.chat .cfield .ib.p { position: absolute; right: 5px; top: 5px; width: 34px; height: 34px; flex: none; border-radius: 50%;
-  background: var(--hair); }
+/* the board's 34 round disc inside a 44 tap box (the a11y gate measures the box) */
+.chat .cfield .ib.p { --disc: var(--hair); position: absolute; right: 0; top: 0; width: 44px; height: 44px; flex: none; border-radius: 50%;
+  background: radial-gradient(circle, var(--disc) 17px, transparent 17.5px); }
 .chat .cfield .ib.p .ico { width: 18px; height: 18px; background: var(--muted); }
-.chat .cfield.on .ib.p { background: var(--accent); }
+.chat .cfield.on .ib.p { --disc: var(--accent); }
 .chat .cfield.on .ib.p .ico { background: var(--accent-ink); }
 .chat .cfield textarea.box:focus-visible { outline-offset: -2px; }
 .chat .compose textarea.box::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
