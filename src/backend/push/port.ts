@@ -24,8 +24,8 @@ export interface PushMessage {
   categoryId?: string;
   /**
    * A picture for the notification (ieat-app#1763), shown by the app's notification service
-   * extension. Only an https URL on our own image host is ever sent (`expoPush`'s `imageHost`);
-   * any other is dropped and the message goes without it.
+   * extension. Only an https URL on the host of this server's own public API origin is ever
+   * sent (`choosePush`); any other is dropped and the message goes without it.
    */
   imageUrl?: string;
 }

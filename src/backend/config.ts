@@ -386,8 +386,6 @@ export interface Config {
   expoPushAccessToken: string;
   /** How long one push request may hang. Same argument as `llmTimeoutMs`. */
   pushTimeoutMs: number;
-  /** The one host a push image may come from (hostname only). Empty: pushes carry no image. */
-  pushImageHost: string;
   /** How long a shutdown waits for queued photo and update jobs; the deploy's stop grace period must exceed it. */
   shutdownDrainMs: number;
   /** How many queued jobs one process runs at once. */
@@ -592,7 +590,6 @@ export function configDefaults(): Config {
     pushEnabled: false,
     expoPushAccessToken: "",
     pushTimeoutMs: 15_000,
-    pushImageHost: "",
     shutdownDrainMs: 60_000,
     jobConcurrency: 4,
     jobMaxQueuedMs: 600_000,
@@ -757,7 +754,6 @@ export function loadConfig(): Config {
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
     pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
-    pushImageHost: (process.env.EAIT__BACKEND__PUSH_IMAGE_HOST ?? d.pushImageHost).trim().toLowerCase(),
     shutdownDrainMs: int("EAIT__BACKEND__SHUTDOWN_DRAIN_MS", d.shutdownDrainMs),
     jobConcurrency: int("EAIT__BACKEND__JOB_CONCURRENCY", d.jobConcurrency),
     jobMaxQueuedMs: int("EAIT__BACKEND__JOB_MAX_QUEUED_MS", d.jobMaxQueuedMs),

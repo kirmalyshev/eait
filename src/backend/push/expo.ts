@@ -26,7 +26,7 @@ export interface ExpoPushOptions {
   sendUrl?: string;
   receiptsUrl?: string;
   /** The one host an `imageUrl` may name. Empty or unset: no image is ever sent. */
-  imageHost?: string;
+  imageHost?: string | undefined;
 }
 
 /** Expo's error vocabulary, narrowed to what this server acts on. */
