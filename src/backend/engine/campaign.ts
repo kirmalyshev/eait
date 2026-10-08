@@ -51,6 +51,19 @@ async function templateGaps(deps: EngineDeps, key: CampaignTemplateKey): Promise
   return pushKeyGaps((await deps.store.listPushTemplates()).filter((r) => r.key === key), key);
 }
 
+/** What stops a campaign from being live: the one rule set, read by activation AND by every later edit. */
+async function activationProblems(
+  deps: EngineDeps, c: { promotional: boolean; templateKey: CampaignTemplateKey },
+): Promise<string[]> {
+  const problems: string[] = [];
+  if (c.promotional) {
+    problems.push("a promotional campaign cannot be live yet: the tips-and-offers consent is not collected (push phase 4)");
+  }
+  const gaps = await templateGaps(deps, c.templateKey);
+  if (gaps.length > 0) problems.push(`template ${c.templateKey} is not complete: ${gaps.join(", ")}`);
+  return problems;
+}
+
 export async function createCampaign(
   deps: EngineDeps, raw: unknown, createdBy: string | null,
 ): Promise<Result<{ row: CampaignRow }>> {
@@ -75,9 +88,11 @@ export async function updateCampaign(
   };
   const v = validateCampaignInput({ ...merged, ...raw });
   if (!v.ok) return v;
-  if (current.status !== "draft" && v.input.templateKey !== current.templateKey) {
-    const gaps = await templateGaps(deps, v.input.templateKey);
-    if (gaps.length > 0) return { ok: false, errors: [`template ${v.input.templateKey} is not complete: ${gaps.join(", ")}`] };
+  // A campaign past draft is held to what activation required, whatever the edit: promotional is
+  // refused while consent is not collected, and the copy must be complete.
+  if (current.status !== "draft") {
+    const problems = await activationProblems(deps, v.input);
+    if (problems.length > 0) return { ok: false, errors: problems };
   }
   const row = await deps.store.updateCampaign(id, v.input);
   return row ? { ok: true, row } : { ok: false, errors: ["no such campaign"] };
@@ -91,11 +106,8 @@ export async function setCampaignStatus(
   if (!current) return { ok: false, errors: ["no such campaign"] };
   if (!TRANSITIONS[current.status].includes(to)) return { ok: false, errors: [`a ${current.status} campaign cannot become ${to}`] };
   if (to === "scheduled") {
-    if (current.promotional) {
-      return { ok: false, errors: ["a promotional campaign cannot be activated yet: the tips-and-offers consent is not collected (push phase 4)"] };
-    }
-    const gaps = await templateGaps(deps, current.templateKey);
-    if (gaps.length > 0) return { ok: false, errors: [`template ${current.templateKey} is not complete: ${gaps.join(", ")}`] };
+    const problems = await activationProblems(deps, current);
+    if (problems.length > 0) return { ok: false, errors: problems };
   }
   const row = await deps.store.updateCampaign(id, { status: to });
   return row ? { ok: true, row } : { ok: false, errors: ["no such campaign"] };

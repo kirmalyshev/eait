@@ -122,6 +122,23 @@ describe("creating and activating", () => {
     expect((await store.getCampaign(c.id))?.status).toBe("draft");
   });
 
+  it("applies activation's rules to an edit of a live campaign: no promotional, no incomplete copy", async () => {
+    const c = await campaign({}, "scheduled");
+    const promo = await updateCampaign(deps, c.id, { promotional: true });
+    expect(promo.ok).toBe(false);
+    if (!promo.ok) expect(promo.errors.join(" ")).toContain("tips-and-offers consent");
+    const noCopy = await updateCampaign(deps, c.id, { templateKey: "campaign:no-copy-yet" });
+    expect(noCopy.ok).toBe(false);
+    expect((await store.getCampaign(c.id))).toMatchObject({ promotional: false, templateKey: "campaign:win-back" });
+    await setCampaignStatus(deps, c.id, "paused");
+    expect((await updateCampaign(deps, c.id, { promotional: true })).ok).toBe(false);
+    // A harmless edit of a live campaign still goes through.
+    expect((await updateCampaign(deps, c.id, { rolloutPct: 30 })).ok).toBe(true);
+    // A draft may hold promotional: it is refused at activation.
+    const d = await campaign({}, "draft");
+    expect((await updateCampaign(deps, d.id, { promotional: true })).ok).toBe(true);
+  });
+
   it("walks the status machine and stops at killed", async () => {
     const c = await campaign({}, "draft");
     expect((await setCampaignStatus(deps, c.id, "paused")).ok).toBe(false); // draft cannot pause

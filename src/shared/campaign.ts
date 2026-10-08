@@ -14,8 +14,12 @@ export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 export const ENTITLEMENT_STATES = ["active", "trial", "none"] as const;
 export type EntitlementState = (typeof ENTITLEMENT_STATES)[number];
 
-/** Consecutive logged days ending today or yesterday: 0, 1-6, 7+. */
-export const STREAK_BANDS = ["none", "building", "strong"] as const;
+/**
+ * Consecutive logged days ending today or yesterday: none, or any streak. There is no longer a
+ * "strong" band: a streak of CAMPAIGN_STREAK_GUARD_DAYS or more is never reached, so only a streak of
+ * 1 or 2 can be selected at all.
+ */
+export const STREAK_BANDS = ["none", "building"] as const;
 export type StreakBand = (typeof STREAK_BANDS)[number];
 
 /** Days since the last logged day: 0, 1-2, 3-6, 7+, or never logged. */
@@ -107,7 +111,7 @@ export function habitOf(
   if (gap <= 1) for (let d = last; days.has(d); d--) streak++;
   return {
     streakDays: streak,
-    streakBand: streak === 0 ? "none" : streak < 7 ? "building" : "strong",
+    streakBand: streak === 0 ? "none" : "building",
     sinceLog: gap === 0 ? "today" : gap <= 2 ? "recent" : gap <= 6 ? "lapsing" : "lapsed",
   };
 }

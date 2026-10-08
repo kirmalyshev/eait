@@ -51,11 +51,13 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
   .checks label { display: flex; gap: 4px; align-items: center; margin: 0; }
   .checks input { width: auto; }
-  td.act { white-space: nowrap; }
-  .scrollx { overflow-x: auto; }
-  .row.wrap { flex-wrap: wrap; }
-  .row.wrap > * { flex: 1 1 140px; }
-  td.act button { margin-left: 4px; }
+  .scrollx { overflow-x: auto; scroll-padding-left: 120px; }
+  #campaigns { min-width: 760px; }
+  #campaigns th, #campaigns td { vertical-align: top; }
+  #campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--bg); min-width: 100px; max-width: 130px; white-space: normal; }
+  .acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
+  .row.flexwrap { flex-wrap: wrap; align-items: flex-start; align-content: flex-start; }
+  .row.flexwrap > * { flex: 1 1 140px; }
   p.sub { color: var(--muted); margin: 0 0 24px; }
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -188,7 +190,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
     offers on. The segment is a fixed list of choices; there is no free-form query.
   </p>
-  <div class="row wrap" id="campaigns-tools">
+  <div class="row flexwrap" id="campaigns-tools">
     <button id="campaigns-kill" class="small"></button>
     <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
   </div>
@@ -780,7 +782,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var onboarded = triState("onboarded");
     var tips = triState("tipsConsent");
     var staff = triState("staffOnly");
-    var row1 = document.createElement("div"); row1.className = "row wrap";
+    var row1 = document.createElement("div"); row1.className = "row flexwrap";
     [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn)].forEach(function (f) { row1.appendChild(f); });
     host.appendChild(row1);
     host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
@@ -788,7 +790,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     host.appendChild(campaignField("Subscription (none ticked = all)", ent));
     host.appendChild(campaignField("Streak (none ticked = all)", streak));
     host.appendChild(campaignField("Days since the last log (none ticked = all)", since));
-    var row2 = document.createElement("div"); row2.className = "row wrap";
+    var row2 = document.createElement("div"); row2.className = "row flexwrap";
     [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { row2.appendChild(f); });
     host.appendChild(row2);
     var create = document.createElement("button");
@@ -819,7 +821,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
     var title = document.createElement("input"); title.placeholder = "Title";
     var body = document.createElement("textarea"); body.placeholder = "Body";
-    var row = document.createElement("div"); row.className = "row wrap";
+    var row = document.createElement("div"); row.className = "row flexwrap";
     [campaignField("Key", key), campaignField("Language", lang), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
     host.appendChild(row);
     host.appendChild(campaignField("Body", body));
@@ -882,8 +884,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
           td.textContent = String(t);
           tr.appendChild(td);
         });
-        var act = document.createElement("td");
-        act.className = "act";
+        var cell = document.createElement("td");
+        var act = document.createElement("div");
+        act.className = "acts";
+        cell.appendChild(act);
         var set = function (to) { return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); }; };
         if (c.status === "draft" || c.status === "paused") act.appendChild(campaignAction(c.status === "draft" ? "Schedule" : "Resume", set("scheduled")));
         if (c.status === "scheduled" || c.status === "running") act.appendChild(campaignAction("Pause", set("paused")));
@@ -903,7 +907,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
           act.appendChild(campaignAction("Done", set("done"), "Mark " + c.name + " done? It stops sending for good."));
           act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed."));
         }
-        tr.appendChild(act);
+        tr.appendChild(cell);
         body.appendChild(tr);
       });
     }).catch(function (e) { $("campaigns-summary").textContent = "failed: " + e.message; });

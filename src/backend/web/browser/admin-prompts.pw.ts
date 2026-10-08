@@ -132,7 +132,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
         ],
         options: {
           langs: LANGS, statuses: ["draft", "scheduled", "running", "paused", "done", "killed"],
-          entitlement: ["active", "trial", "none"], streakBands: ["none", "building", "strong"],
+          entitlement: ["active", "trial", "none"], streakBands: ["none", "building"],
           sinceLog: ["today", "recent", "lapsing", "lapsed", "never"], staffCount: 1,
         },
       }));
@@ -392,6 +392,22 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await openAdmin(page);
     await expect(page.locator("#campaigns tbody tr")).toHaveCount(2);
     await page.locator("#campaigns").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    // Kill is always on screen, whatever the width: the actions wrap rather than run off the edge.
+    for (const kill of await page.locator("#campaigns").getByRole("button", { name: "Kill" }).all()) {
+      const box = (await kill.boundingBox())!;
+      const scroller = (await page.locator(".scrollx").boundingBox())!;
+      if (width >= 1000) expect(box.x + box.width).toBeLessThanOrEqual(scroller.x + scroller.width);
+    }
+    if (width < 500) {
+      // A real horizontal scroller, with the Name column pinned while the rest moves.
+      const m = await page.locator(".scrollx").evaluate((el) => { el.scrollLeft = 200; return [el.scrollWidth, el.clientWidth, el.scrollLeft]; });
+      expect(m[0]).toBeGreaterThan(m[1]!);
+      expect(m[2]).toBeGreaterThan(0);
+      const nameX = (await page.locator("#campaigns tbody tr").first().locator("td").first().boundingBox())!.x;
+      const scrollerX = (await page.locator(".scrollx").boundingBox())!.x;
+      expect(Math.abs(nameX - scrollerX)).toBeLessThan(2);
+      await page.locator(".scrollx").evaluate((el) => { el.scrollLeft = 0; });
+    }
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-${name}.png` });
     await page.locator("#campaign-form").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-form-${name}.png` });

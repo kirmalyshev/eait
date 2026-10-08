@@ -43,8 +43,9 @@ describe("matchesSegment", () => {
     expect(matchesSegment({ staffOnly: true }, facts({ staff: true }))).toBe(true);
   });
   test("streak band and days since last log", () => {
-    expect(matchesSegment({ streakBand: ["strong"] }, facts({ streakBand: "strong" }))).toBe(true);
-    expect(matchesSegment({ streakBand: ["strong"] }, facts({ streakBand: "building" }))).toBe(false);
+    expect(matchesSegment({ streakBand: ["building"] }, facts({ streakBand: "building" }))).toBe(true);
+    expect(matchesSegment({ streakBand: ["building"] }, facts({ streakBand: "none" }))).toBe(false);
+    expect(validateSegment({ streakBand: ["strong"] }).ok).toBe(false);
     expect(matchesSegment({ sinceLog: ["lapsed", "never"] }, facts({ sinceLog: "never" }))).toBe(true);
     expect(matchesSegment({ sinceLog: ["today"] }, facts({ sinceLog: "recent" }))).toBe(false);
   });
@@ -59,9 +60,9 @@ describe("habitOf", () => {
   test("a streak survives a day not yet logged", () => {
     expect(habitOf(["2026-10-07", "2026-10-06"], today).streakBand).toBe("building");
   });
-  test("seven in a row is strong", () => {
+  test("seven in a row is still just a streak, counted in days", () => {
     const days = Array.from({ length: 7 }, (_, i) => `2026-10-0${8 - i}`);
-    expect(habitOf(days, today).streakBand).toBe("strong");
+    expect(habitOf(days, today)).toMatchObject({ streakDays: 7, streakBand: "building" });
   });
   test("the last-log band holds at any age: 59, 60, 61 and 400 days are lapsed, nothing logged is never", () => {
     const ago = (n: number) => new Date(Date.parse("2026-10-08T00:00:00Z") - n * 86_400_000).toISOString().slice(0, 10);
