@@ -22,6 +22,10 @@ export interface ShellCopy {
   composerPhoto: string;
   /** The composer's send round — icon-only (`composerRow`). */
   composerSend: string;
+  /** The "+" chooser's two tiles (web "+ Log", the phone's +) and the word that closes it. */
+  plusPhoto: string;
+  plusText: string;
+  closeLog: string;
 }
 
 export const SHELL_COPY: Localized<ShellCopy> = {
@@ -33,6 +37,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Log a meal",
     composerPhoto: "Add a photo",
     composerSend: "Send",
+    plusPhoto: "Photo",
+    plusText: "Text",
+    closeLog: "Close",
   },
   fr: {
     navHome: "Accueil",
@@ -42,6 +49,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Enregistrer un repas",
     composerPhoto: "Ajouter une photo",
     composerSend: "Envoyer",
+    plusPhoto: "Photo",
+    plusText: "Texte",
+    closeLog: "Fermer",
   },
   de: {
     navHome: "Start",
@@ -51,6 +61,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Mahlzeit eintragen",
     composerPhoto: "Foto hinzufügen",
     composerSend: "Senden",
+    plusPhoto: "Foto",
+    plusText: "Text",
+    closeLog: "Schließen",
   },
   it: {
     navHome: "Home",
@@ -60,6 +73,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Registra un pasto",
     composerPhoto: "Aggiungi una foto",
     composerSend: "Invia",
+    plusPhoto: "Foto",
+    plusText: "Testo",
+    closeLog: "Chiudi",
   },
   es: {
     navHome: "Inicio",
@@ -69,6 +85,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Registrar una comida",
     composerPhoto: "Añadir una foto",
     composerSend: "Enviar",
+    plusPhoto: "Foto",
+    plusText: "Texto",
+    closeLog: "Cerrar",
   },
   vi: {
     navHome: "Trang chủ",
@@ -78,6 +97,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Ghi một bữa ăn",
     composerPhoto: "Thêm ảnh",
     composerSend: "Gửi",
+    plusPhoto: "Ảnh",
+    plusText: "Văn bản",
+    closeLog: "Đóng",
   },
   id: {
     navHome: "Beranda",
@@ -87,6 +109,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Catat makanan",
     composerPhoto: "Tambah foto",
     composerSend: "Kirim",
+    plusPhoto: "Foto",
+    plusText: "Teks",
+    closeLog: "Tutup",
   },
   ru: {
     navHome: "Главная",
@@ -96,6 +121,9 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     logMeal: "Записать приём пищи",
     composerPhoto: "Добавить фото",
     composerSend: "Отправить",
+    plusPhoto: "Фото",
+    plusText: "Текст",
+    closeLog: "Закрыть",
   },
 };
 

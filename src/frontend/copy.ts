@@ -158,14 +158,11 @@ export interface WebCopy {
   photosMax: string;
   /** The picker's chosen count under the composer — plural by rule, not a "(s)". */
   photosCount: CountForms;
-  /** The top bar's "+ Log" and its chooser: the button, the two tiles, the hint under them. */
+  /** The top bar's "+ Log" chooser: the button and the hint under the tiles (the tiles' and Close's words are `shell-copy`'s). */
   logButton: string;
-  plusPhoto: string;
-  plusText: string;
   plusHint: string;
   /** `{name}` — a chip's remove button. */
   removeFile: string;
-  closeLog: string;
   /** `{text}` — a queued photo's caption. */
   photoWithCaption: string;
   /** The three macros the verdict card reports, under the big kcal. */
@@ -250,9 +247,9 @@ const EN: WebCopy = {
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
-  logButton: "Log", plusPhoto: "Photo", plusText: "Text",
+  logButton: "Log",
   plusHint: "or paste (⌘V) or drop a photo anywhere",
-  removeFile: "Remove {name}", closeLog: "Close",
+  removeFile: "Remove {name}",
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
@@ -337,9 +334,9 @@ const FR: WebCopy = {
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
-  logButton: "Ajouter", plusPhoto: "Photo", plusText: "Texte",
+  logButton: "Ajouter",
   plusHint: "ou colle (⌘V) ou dépose une photo n'importe où",
-  removeFile: "Retirer {name}", closeLog: "Fermer",
+  removeFile: "Retirer {name}",
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
@@ -424,9 +421,9 @@ const DE: WebCopy = {
   offerLater: "Jetzt nicht",
   photosMax: "Pro Mahlzeit gehen bis zu {n} Fotos.",
   photosCount: { one: "{n} Foto", few: "{n} Fotos", many: "{n} Fotos", other: "{n} Fotos" },
-  logButton: "Eintragen", plusPhoto: "Foto", plusText: "Text",
+  logButton: "Eintragen",
   plusHint: "oder einfügen (⌘V) oder ein Foto irgendwo ablegen",
-  removeFile: "{name} entfernen", closeLog: "Schließen",
+  removeFile: "{name} entfernen",
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
@@ -511,9 +508,9 @@ const IT: WebCopy = {
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
-  logButton: "Registra", plusPhoto: "Foto", plusText: "Testo",
+  logButton: "Registra",
   plusHint: "oppure incolla (⌘V) o trascina una foto ovunque",
-  removeFile: "Rimuovi {name}", closeLog: "Chiudi",
+  removeFile: "Rimuovi {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
@@ -598,9 +595,9 @@ const ES: WebCopy = {
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
   photosCount: { one: "{n} foto", few: "{n} fotos", many: "{n} fotos", other: "{n} fotos" },
-  logButton: "Registrar", plusPhoto: "Foto", plusText: "Texto",
+  logButton: "Registrar",
   plusHint: "o pega (⌘V) o suelta una foto en cualquier parte",
-  removeFile: "Quitar {name}", closeLog: "Cerrar",
+  removeFile: "Quitar {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
@@ -685,9 +682,9 @@ const VI: WebCopy = {
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
   photosCount: { one: "{n} bức ảnh", few: "{n} bức ảnh", many: "{n} bức ảnh", other: "{n} bức ảnh" },
-  logButton: "Ghi", plusPhoto: "Ảnh", plusText: "Văn bản",
+  logButton: "Ghi",
   plusHint: "hoặc dán (⌘V) hoặc thả ảnh vào bất kỳ đâu",
-  removeFile: "Xóa {name}", closeLog: "Đóng",
+  removeFile: "Xóa {name}",
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Chất béo",
   refusals: {
@@ -772,9 +769,9 @@ const ID: WebCopy = {
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
-  logButton: "Catat", plusPhoto: "Foto", plusText: "Teks",
+  logButton: "Catat",
   plusHint: "atau tempel (⌘V) atau jatuhkan foto di mana saja",
-  removeFile: "Hapus {name}", closeLog: "Tutup",
+  removeFile: "Hapus {name}",
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbohidrat", statFat: "Lemak",
   refusals: {
@@ -859,9 +856,9 @@ const RU: WebCopy = {
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
   photosCount: { one: "{n} фото", few: "{n} фото", many: "{n} фото", other: "{n} фото" },
-  logButton: "Записать", plusPhoto: "Фото", plusText: "Текст",
+  logButton: "Записать",
   plusHint: "или вставь (⌘V), или перетащи фото в любое место",
-  removeFile: "Убрать {name}", closeLog: "Закрыть",
+  removeFile: "Убрать {name}",
   photoWithCaption: "Фото: {text}",
   statProtein: "Белки", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {

@@ -661,7 +661,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
   const logFace = (open: boolean): void => {
     logBtn.classList.toggle("cp-close", open);
     logBtn.setAttribute("aria-expanded", String(open));
-    logBtn.replaceChildren(el("i", `ico i-${open ? "x" : "plus"}`), open ? COPY.closeLog : COPY.logButton);
+    logBtn.replaceChildren(el("i", `ico i-${open ? "x" : "plus"}`), open ? shellCopyFor(lang).closeLog : COPY.logButton);
   };
   logFace(false);
   let veil: HTMLElement | null = null;
@@ -686,7 +686,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", shellCopyFor(lang).logMeal);
     const row = el("div", "cp-wrow");
-    row.append(tile("camera", COPY.plusPhoto, () => picker.click()), tile("keyboard", COPY.plusText, () => words.focus()));
+    row.append(tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()), tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()));
     menu.append(row, el("p", "cp-hint", COPY.plusHint));
     veil.append(menu);
     veil.addEventListener("click", (e) => { if (e.target === veil || e.target === menu) closeLog(); });

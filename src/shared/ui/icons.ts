@@ -221,7 +221,7 @@ export const ICONS = {
   // ── Tabs ──
   home: line('<path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>'),
   progress: line('<path d="M4 19h16"/><path d="M5 15l4-4 3 3 6-7"/>'),
-  chat: line('<path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H9l-5 4z"/>'),
+  chat: line('<path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H9l-5 3z"/>'),
   you: line('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
 
   // ── UI chrome ──
