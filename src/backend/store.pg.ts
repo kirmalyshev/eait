@@ -29,7 +29,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store,
+  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -101,6 +101,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   push_slot: "user_id",
   send_log: "user_id",
   push_open: "user_id",
+  campaign_send: "user_id",
   health_days: "user_id",
   weights: "user_id",
   turns: "user_id",
@@ -296,6 +297,31 @@ create table if not exists push_open (
   opened_at timestamptz not null default now(),
   action    text not null check (action in ('tap','reply')),
   primary key (user_id, send_id)
+);
+-- Manual campaigns (ieat-app#1761). segment holds allowlisted predicates (shared/campaign.ts),
+-- never SQL. campaign_send is the once-per-account guard; push_flags holds the global kill switch.
+create table if not exists campaigns (
+  id              text primary key,
+  name            text not null,
+  template_key    text not null,
+  segment         jsonb not null default '{}'::jsonb,
+  status          text not null check (status in ('draft','scheduled','running','paused','done','killed')),
+  local_send_time text not null,
+  rollout_pct     integer not null check (rollout_pct between 0 and 100),
+  promotional     boolean not null default true,
+  created_by      text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create table if not exists campaign_send (
+  user_id     uuid not null references users(id) on delete cascade,
+  campaign_id text not null references campaigns(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, campaign_id)
+);
+create table if not exists push_flags (
+  name  text primary key,
+  value boolean not null
 );
 -- The switch-over day cannot double-send: whoever the old code claimed for, the new code finds claimed.
 insert into push_slot (user_id, local_date, kind, ref)
@@ -1304,6 +1330,14 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   pushAudience: "unscoped",
   sendsAwaitingReceipt: "unscoped",
   pushOpenStats: "unscoped",
+  listCampaigns: "unscoped",
+  getCampaign: "unscoped",
+  createCampaign: "unscoped",
+  updateCampaign: "unscoped",
+  markCampaignRunning: "unscoped",
+  campaignsKilled: "unscoped",
+  setCampaignsKilled: "unscoped",
+  campaignReport: "unscoped",
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
@@ -1371,6 +1405,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   settleSend: 0,
   sendLogFor: 0,
   recordPushOpen: 0,
+  hasCampaignSend: 0,
+  claimCampaignSend: 0,
   recordOnboardingEvents: 0,
   getMeal: 0,
   getMeals: 0,
@@ -2254,6 +2290,10 @@ export async function postgresStore(
         // hold no row for the same (user, send) and there is nothing to dedupe against.
         await tx`update push_open set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`
+          insert into campaign_send (user_id, campaign_id, created_at)
+            select ${intoUserId}, campaign_id, created_at from campaign_send where user_id = ${fromUserId}
+          on conflict do nothing`;
+        await tx`
           update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
           from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
 
@@ -3066,6 +3106,79 @@ export async function postgresStore(
       }));
     },
 
+    async listCampaigns() {
+      const rows = await sql`select * from campaigns order by created_at desc, id`;
+      return (rows as Record<string, unknown>[]).map(campaignRow);
+    },
+
+    async getCampaign(id) {
+      const rows = await sql`select * from campaigns where id = ${id}`;
+      return rows[0] ? campaignRow(rows[0] as Record<string, unknown>) : null;
+    },
+
+    async createCampaign(r) {
+      await sql`insert into campaigns (id, name, template_key, segment, status, local_send_time, rollout_pct, promotional, created_by)
+        values (${r.id}, ${r.name}, ${r.templateKey}, ${r.segment}::jsonb, ${r.status},
+                ${r.localSendTime}, ${r.rolloutPct}, ${r.promotional}, ${r.createdBy})`;
+    },
+
+    async updateCampaign(id, p) {
+      // `case when` keeps one statement for any subset of fields, as `settleSend` does.
+      const rows = await sql`update campaigns set
+          name = case when ${p.name !== undefined} then ${p.name ?? null} else name end,
+          template_key = case when ${p.templateKey !== undefined} then ${p.templateKey ?? null} else template_key end,
+          segment = case when ${p.segment !== undefined} then ${p.segment ?? {}}::jsonb else segment end,
+          status = case when ${p.status !== undefined} then ${p.status ?? null} else status end,
+          local_send_time = case when ${p.localSendTime !== undefined} then ${p.localSendTime ?? null} else local_send_time end,
+          rollout_pct = case when ${p.rolloutPct !== undefined} then ${p.rolloutPct ?? null} else rollout_pct end,
+          promotional = case when ${p.promotional !== undefined} then ${p.promotional ?? null} else promotional end,
+          updated_at = now()
+        where id = ${id} returning *`;
+      return rows[0] ? campaignRow(rows[0] as Record<string, unknown>) : null;
+    },
+
+    async markCampaignRunning(id) {
+      const rows = await sql`update campaigns set status = 'running', updated_at = now()
+        where id = ${id} and status = 'scheduled' returning id`;
+      return (rows as unknown[]).length > 0;
+    },
+
+    async campaignsKilled() {
+      const rows = await sql`select value from push_flags where name = 'campaigns_killed'`;
+      return (rows[0] as Record<string, unknown> | undefined)?.value === true;
+    },
+
+    async setCampaignsKilled(killed) {
+      await sql`insert into push_flags (name, value) values ('campaigns_killed', ${killed})
+        on conflict (name) do update set value = excluded.value`;
+    },
+
+    async hasCampaignSend(userId, campaignId) {
+      const rows = await sql`select 1 from campaign_send where user_id = ${userId} and campaign_id = ${campaignId}`;
+      return (rows as unknown[]).length > 0;
+    },
+
+    async claimCampaignSend(userId, campaignId) {
+      const rows = await sql`insert into campaign_send (user_id, campaign_id) values (${userId}, ${campaignId})
+        on conflict do nothing returning campaign_id`;
+      return (rows as unknown[]).length > 0;
+    },
+
+    async campaignReport(campaignId) {
+      const rows = await sql`
+        select
+          count(*) filter (where s.variant is distinct from 'test' and s.state <> 'dry')::int as sent,
+          count(*) filter (where s.variant is distinct from 'test' and s.state in ('accepted','delivered-to-apns','expired'))::int as accepted,
+          count(*) filter (where s.variant is distinct from 'test' and s.state = 'dead')::int as dead,
+          count(*) filter (where s.variant is distinct from 'test' and s.state = 'dry')::int as dry,
+          count(*) filter (where s.variant is distinct from 'test' and s.state not in ('dead','refused','dry') and o.send_id is not null)::int as opened,
+          count(*) filter (where s.variant = 'test')::int as test
+        from send_log s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
+        where s.kind = 'campaign' and s.ref = ${campaignId}`;
+      const r = rows[0] as Record<string, number>;
+      return { sent: r.sent!, accepted: r.accepted!, dead: r.dead!, dry: r.dry!, opened: r.opened!, test: r.test! };
+    },
+
     async sendLogFor(userId, limit) {
       const rows = await sql`select * from send_log where user_id = ${userId}
         order by created_at desc, id limit ${limit}`;
@@ -3734,6 +3847,17 @@ export async function postgresStore(
   await syncShippedPrompts(store);
 
   return store;
+}
+
+function campaignRow(r: Record<string, unknown>): CampaignRow {
+  const seg = typeof r.segment === "string" ? JSON.parse(r.segment) : r.segment;
+  return {
+    id: r.id as string, name: r.name as string, templateKey: r.template_key as CampaignRow["templateKey"],
+    segment: seg as CampaignRow["segment"], status: r.status as CampaignRow["status"],
+    localSendTime: r.local_send_time as string, rolloutPct: r.rollout_pct as number,
+    promotional: r.promotional as boolean, createdBy: (r.created_by as string | null) ?? null,
+    createdAt: new Date(r.created_at as string).toISOString(), updatedAt: new Date(r.updated_at as string).toISOString(),
+  };
 }
 
 function sendRow(r: Record<string, unknown>): SendLogRow {

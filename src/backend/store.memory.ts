@@ -18,7 +18,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow,
+  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -137,6 +137,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const sendLog = new Map<string, SendLogRow>();
   /** `push_open`: `${userId}|${sendId}` for each send the phone reported opened — the table's primary key. */
   const pushOpens = new Set<string>();
+  const campaigns = new Map<string, CampaignRow>();
+  /** `campaign_send`: `${userId}|${campaignId}` -> handed. */
+  const campaignSends = new Set<string>();
+  let campaignKill = false;
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
     a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
@@ -979,6 +983,69 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         out.set(key, row);
       }
       return [...out.values()].sort((a, b) => b.day.localeCompare(a.day) || a.templateKey.localeCompare(b.templateKey));
+    },
+
+    async listCampaigns() {
+      return [...campaigns.values()].map(clone).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+    },
+
+    async getCampaign(id) {
+      const c = campaigns.get(id);
+      return c ? clone(c) : null;
+    },
+
+    async createCampaign(row) {
+      if (campaigns.has(row.id)) throw new Error("campaign: duplicate id");
+      campaigns.set(row.id, clone(row));
+    },
+
+    async updateCampaign(id, patch) {
+      const c = campaigns.get(id);
+      if (!c) return null;
+      const next: CampaignRow = { ...c, ...clone(patch), updatedAt: new Date(now()).toISOString() };
+      campaigns.set(id, next);
+      return clone(next);
+    },
+
+    async markCampaignRunning(id) {
+      const c = campaigns.get(id);
+      if (!c || c.status !== "scheduled") return false;
+      campaigns.set(id, { ...c, status: "running", updatedAt: new Date(now()).toISOString() });
+      return true;
+    },
+
+    async campaignsKilled() {
+      return campaignKill;
+    },
+
+    async setCampaignsKilled(killed) {
+      campaignKill = killed;
+    },
+
+    async hasCampaignSend(userId, campaignId) {
+      return campaignSends.has(`${userId}|${campaignId}`);
+    },
+
+    async claimCampaignSend(userId, campaignId) {
+      if (!users.has(userId)) throw new Error("campaign_send: no such user");
+      const key = `${userId}|${campaignId}`;
+      if (campaignSends.has(key)) return false;
+      campaignSends.add(key);
+      return true;
+    },
+
+    async campaignReport(campaignId) {
+      const out = { sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0 };
+      for (const r of sendLog.values()) {
+        if (r.kind !== "campaign" || r.ref !== campaignId) continue;
+        if (r.variant === "test") { out.test++; continue; }
+        if (r.state === "dry") { out.dry++; continue; }
+        out.sent++;
+        if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) out.accepted++;
+        if (r.state === "dead") out.dead++;
+        if (r.state !== "refused" && r.state !== "dead" && pushOpens.has(`${r.userId}|${r.id}`)) out.opened++;
+      }
+      return out;
     },
 
     async getOnboardingContent() {

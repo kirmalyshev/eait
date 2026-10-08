@@ -47,6 +47,17 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 96px; }
   h1 { font-size: 22px; letter-spacing: -0.4px; margin: 0 0 4px; }
   h2 { font-size: 17px; margin: 32px 0 12px; }
+  h3 { font-size: 14px; margin: 24px 0 8px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
+  .checks label { display: flex; gap: 4px; align-items: center; margin: 0; }
+  .checks input { width: auto; }
+  .scrollx { overflow-x: auto; scroll-padding-left: 120px; }
+  #campaigns { min-width: 760px; }
+  #campaigns th, #campaigns td { vertical-align: top; }
+  #campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--bg); min-width: 100px; max-width: 130px; white-space: normal; }
+  .acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
+  .row.flexwrap { flex-wrap: wrap; align-items: flex-start; align-content: flex-start; }
+  .row.flexwrap > * { flex: 1 1 140px; }
   p.sub { color: var(--muted); margin: 0 0 24px; }
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -170,6 +181,45 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     reported opened; <strong>converted</strong> is a send followed by a meal from the same account
     within 24 hours, whether or not it was opened. Counts only: no account is named here.
   </p>
+
+  <h2>Campaigns <span class="pill" id="campaigns-state"></span></h2>
+  <p class="muted" id="campaigns-summary">Loading…</p>
+  <p class="muted">
+    A campaign is one reviewed template sent once to each account in its segment, at the account's own
+    local time, behind the one-message-a-day rule: an account that already had today's message is tried
+    again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
+    offers on. The segment is a fixed list of choices; there is no free-form query.
+  </p>
+  <div class="row flexwrap" id="campaigns-tools">
+    <button id="campaigns-kill" class="small"></button>
+    <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
+  </div>
+  <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
+  <div class="scrollx"><table id="campaigns">
+    <thead>
+      <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table></div>
+  <p class="muted">
+    Sent and opened count real sends only; a dry run (who it would reach, nothing sent) and a test send are
+    counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
+  </p>
+  <h3>New campaign</h3>
+  <div id="campaign-form"></div>
+  <h3>Campaign copy</h3>
+  <p class="muted">
+    A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+    gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+    scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+    gender checks as every other push text.
+  </p>
+  <datalist id="campaign-keys"></datalist>
+  <table id="campaign-copy">
+    <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="campaign-copy-form"></div>
 
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
   <p class="muted" id="funnel-summary">Loading…</p>
@@ -645,6 +695,222 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         body.appendChild(tr);
       });
     }).catch(function (e) { $("pushes-summary").textContent = "failed: " + e.message; });
+  }
+
+  // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
+  var campaignOptions = null;
+
+  function campaignErrors(e) {
+    var box = $("campaign-errors");
+    var list = box.querySelector("ul");
+    list.textContent = "";
+    var msgs = e && e.body && e.body.errors ? e.body.errors : e && e.body && e.body.reason ? [e.body.reason] : e ? [e.message] : [];
+    msgs.forEach(function (m) { var li = document.createElement("li"); li.textContent = m; list.appendChild(li); });
+    box.classList.toggle("hidden", msgs.length === 0);
+  }
+
+  function segmentText(seg) {
+    var parts = [];
+    Object.keys(seg).forEach(function (k) {
+      var v = seg[k];
+      parts.push(k + ": " + (Array.isArray(v) ? v.join("/") : String(v)));
+    });
+    return parts.length ? parts.join(" · ") : "everyone";
+  }
+
+  function campaignAction(label, run, confirmText) {
+    var b = document.createElement("button");
+    b.className = "small";
+    b.textContent = label;
+    b.addEventListener("click", function () {
+      if (confirmText && !confirm(confirmText)) return;
+      campaignErrors(null);
+      run().then(loadCampaigns).catch(function (e) { campaignErrors(e); loadCampaigns(); });
+    });
+    return b;
+  }
+
+  function checks(name, values) {
+    var wrap = document.createElement("div");
+    wrap.className = "checks";
+    wrap.dataset.name = name;
+    values.forEach(function (v) {
+      var l = document.createElement("label");
+      var box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = v;
+      l.appendChild(box);
+      l.appendChild(document.createTextNode(v));
+      wrap.appendChild(l);
+    });
+    return wrap;
+  }
+
+  function campaignField(labelText, control) {
+    var wrap = document.createElement("div");
+    var l = document.createElement("label");
+    l.textContent = labelText;
+    wrap.appendChild(l);
+    wrap.appendChild(control);
+    return wrap;
+  }
+
+  function triState(name) {
+    var sel = document.createElement("select");
+    sel.dataset.name = name;
+    [["", "any"], ["true", "yes"], ["false", "no"]].forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = o[0];
+      opt.textContent = o[1];
+      sel.appendChild(opt);
+    });
+    return sel;
+  }
+
+  function buildCampaignForm(o) {
+    var host = $("campaign-form");
+    host.textContent = "";
+    var name = document.createElement("input"); name.placeholder = "Name";
+    var tpl = document.createElement("input"); tpl.placeholder = "campaign:spring-win-back"; tpl.setAttribute("list", "campaign-keys");
+    var time = document.createElement("input"); time.type = "time"; time.value = "18:30";
+    var pctIn = document.createElement("input"); pctIn.type = "number"; pctIn.min = "0"; pctIn.max = "100"; pctIn.value = "10";
+    var promo = document.createElement("input"); promo.type = "checkbox"; promo.checked = true; promo.style.width = "auto";
+    var langs = checks("langs", o.langs);
+    var ent = checks("entitlement", o.entitlement);
+    var streak = checks("streakBand", o.streakBands);
+    var since = checks("sinceLog", o.sinceLog);
+    var onboarded = triState("onboarded");
+    var tips = triState("tipsConsent");
+    var staff = triState("staffOnly");
+    var row1 = document.createElement("div"); row1.className = "row flexwrap";
+    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn)].forEach(function (f) { row1.appendChild(f); });
+    host.appendChild(row1);
+    host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
+    host.appendChild(campaignField("Languages (none ticked = all)", langs));
+    host.appendChild(campaignField("Subscription (none ticked = all)", ent));
+    host.appendChild(campaignField("Streak (none ticked = all)", streak));
+    host.appendChild(campaignField("Days since the last log (none ticked = all)", since));
+    var row2 = document.createElement("div"); row2.className = "row flexwrap";
+    [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { row2.appendChild(f); });
+    host.appendChild(row2);
+    var create = document.createElement("button");
+    create.className = "primary";
+    create.textContent = "Create draft";
+    create.addEventListener("click", function () {
+      var seg = {};
+      [langs, ent, streak, since].forEach(function (g) {
+        var on = Array.prototype.filter.call(g.querySelectorAll("input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
+        if (on.length) seg[g.dataset.name] = on;
+      });
+      [onboarded, tips, staff].forEach(function (sel) { if (sel.value !== "") seg[sel.dataset.name] = sel.value === "true"; });
+      campaignErrors(null);
+      api("POST", "/admin/api/campaigns", {
+        name: name.value, templateKey: tpl.value, segment: seg, localSendTime: time.value,
+        rolloutPct: Number(pctIn.value), promotional: promo.checked
+      }).then(function () { name.value = ""; return loadCampaigns(); }).catch(campaignErrors);
+    });
+    host.appendChild(create);
+  }
+
+
+  function buildCopyForm(o) {
+    var host = $("campaign-copy-form");
+    host.textContent = "";
+    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
+    var lang = document.createElement("select");
+    o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
+    var title = document.createElement("input"); title.placeholder = "Title";
+    var body = document.createElement("textarea"); body.placeholder = "Body";
+    var row = document.createElement("div"); row.className = "row flexwrap";
+    [campaignField("Key", key), campaignField("Language", lang), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
+    host.appendChild(row);
+    host.appendChild(campaignField("Body", body));
+    // Picking a key and language shows what is saved there.
+    var fill = function () {
+      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value; })[0];
+      title.value = hit ? hit.title : "";
+      body.value = hit ? hit.body : "";
+    };
+    key.addEventListener("change", fill);
+    lang.addEventListener("change", fill);
+    var save = function (status) {
+      return function () {
+        campaignErrors(null);
+        api("PUT", "/admin/api/push-templates", {
+          template: { key: key.value.trim(), lang: lang.value, variant: "default", title: title.value, body: body.value },
+          status: status
+        }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
+      };
+    };
+    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
+    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
+    host.appendChild(draft);
+    host.appendChild(rev);
+  }
+
+  var copyRows = [];
+
+  function loadCampaigns() {
+    return api("GET", "/admin/api/campaigns").then(function (v) {
+      if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); buildCopyForm(v.options); }
+      copyRows = [];
+      var keys = $("campaign-keys"); keys.textContent = "";
+      var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
+      v.copy.forEach(function (c) {
+        copyRows = copyRows.concat(c.rows);
+        var opt = document.createElement("option"); opt.value = c.key; keys.appendChild(opt);
+        var tr = document.createElement("tr");
+        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t) { var td = document.createElement("td"); td.textContent = t; tr.appendChild(td); });
+        copyBody.appendChild(tr);
+      });
+      $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
+      $("campaigns-summary").textContent =
+        v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the test allowlist";
+      var kill = $("campaigns-kill");
+      kill.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
+      kill.onclick = function () {
+        if (!v.killed && !confirm("Stop every campaign now? Runs stop between two sends.")) return;
+        campaignErrors(null);
+        api("POST", "/admin/api/campaigns/kill", { killed: !v.killed }).then(loadCampaigns).catch(campaignErrors);
+      };
+      var body = $("campaigns").querySelector("tbody");
+      body.textContent = "";
+      v.campaigns.forEach(function (c) {
+        var tr = document.createElement("tr");
+        [c.name, c.status, segmentText(c.segment) + (c.promotional ? " · promotional" : ""), c.localSendTime,
+         c.rolloutPct + "%", c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
+        ].forEach(function (t) {
+          var td = document.createElement("td");
+          td.textContent = String(t);
+          tr.appendChild(td);
+        });
+        var cell = document.createElement("td");
+        var act = document.createElement("div");
+        act.className = "acts";
+        cell.appendChild(act);
+        var set = function (to) { return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); }; };
+        if (c.status === "draft" || c.status === "paused") act.appendChild(campaignAction(c.status === "draft" ? "Schedule" : "Resume", set("scheduled")));
+        if (c.status === "scheduled" || c.status === "running") act.appendChild(campaignAction("Pause", set("paused")));
+        if (c.status !== "done" && c.status !== "killed") {
+          act.appendChild(campaignAction("Raise rollout", function () {
+            var next = Number(prompt("New rollout % (now " + c.rolloutPct + ")", String(Math.min(100, c.rolloutPct + 10))));
+            if (!(next >= 0 && next <= 100)) return Promise.resolve();
+            return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(next) });
+          }));
+          act.appendChild(campaignAction("Dry run", function () {
+            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { status("Dry run: would reach " + r.wouldSend + " account(s). Nothing was sent."); });
+          }));
+          act.appendChild(campaignAction("Test send", function () {
+            return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: $("campaigns-test-user").value.trim() })
+              .then(function (r) { status("Test send: " + r.sent + " device(s)."); });
+          }));
+          act.appendChild(campaignAction("Done", set("done"), "Mark " + c.name + " done? It stops sending for good."));
+          act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed."));
+        }
+        tr.appendChild(cell);
+        body.appendChild(tr);
+      });
+    }).catch(function (e) { $("campaigns-summary").textContent = "failed: " + e.message; });
   }
 
   function loadFunnel() {
@@ -1289,7 +1555,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadPush().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadFunnel)
+      return loadPush().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadCampaigns).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }

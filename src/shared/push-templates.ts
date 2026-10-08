@@ -15,12 +15,34 @@ import {
   MAX_NOTIFICATION_BODY, MAX_NOTIFICATION_TITLE, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS,
   type NotificationCopy, type NotificationId,
 } from "./notifications.ts";
+import { PUSH_KINDS } from "./push.ts";
 import { LANGS, type Lang } from "./types.ts";
 
 export type PushTemplateStatus = "draft" | "reviewed";
 
+/**
+ * A campaign's own copy: `campaign:<slug>`, one `default` variant, no placeholders (a campaign is
+ * the same words for everybody, so there is nothing to fill). The prefix keeps every system key
+ * (`evening`, `nudge`, `trial-end`) out of reach; the slug may not borrow a system or slot-kind name either.
+ */
+export type CampaignTemplateKey = `campaign:${string}`;
+export type PushTemplateKey = NotificationId | CampaignTemplateKey;
+
+const RESERVED_SLUGS: readonly string[] = [...NOTIFICATION_IDS, ...PUSH_KINDS, "transactional"];
+
+export function isCampaignTemplateKey(k: unknown): k is CampaignTemplateKey {
+  if (typeof k !== "string" || !k.startsWith("campaign:")) return false;
+  const slug = k.slice("campaign:".length);
+  return slug.length <= 40 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) && !RESERVED_SLUGS.includes(slug);
+}
+
+/** The variants a key declares, system or campaign. */
+export function variantsOf(key: PushTemplateKey): readonly string[] {
+  return isCampaignTemplateKey(key) ? ["default"] : PUSH_TEMPLATE_VARIANTS[key as NotificationId];
+}
+
 export interface PushTemplateRow {
-  key: NotificationId;
+  key: PushTemplateKey;
   lang: Lang;
   variant: string;
   title: string;
@@ -131,13 +153,13 @@ export function validatePushTemplate(input: PushTemplateText | Record<string, un
   const t = input as Record<string, unknown>;
   const errors: string[] = [];
   const { key, lang, variant, title, body } = t;
-  if (typeof key !== "string" || !(NOTIFICATION_IDS as readonly string[]).includes(key)) {
+  if (typeof key !== "string" || !((NOTIFICATION_IDS as readonly string[]).includes(key) || isCampaignTemplateKey(key))) {
     return { ok: false, errors: [`"${String(key)}" is not a message this product sends`] };
   }
   if (typeof lang !== "string" || !(LANGS as readonly string[]).includes(lang)) {
     return { ok: false, errors: [`"${String(lang)}" is not a language this product speaks`] };
   }
-  const variants = PUSH_TEMPLATE_VARIANTS[key as NotificationId];
+  const variants = variantsOf(key as PushTemplateKey);
   if (typeof variant !== "string" || !variants.includes(variant)) {
     return { ok: false, errors: [`${key} has no variant "${String(variant)}"`] };
   }
@@ -196,10 +218,10 @@ export function pushClaimErrors(title: string, body: string): string[] {
  * What stops `key` from being sent: one `lang/variant` per row that is absent or still a draft.
  * Empty means complete.
  */
-export function pushKeyGaps(rows: readonly PushTemplateRow[], key: NotificationId): string[] {
+export function pushKeyGaps(rows: readonly PushTemplateRow[], key: PushTemplateKey): string[] {
   const gaps: string[] = [];
   for (const lang of LANGS) {
-    for (const variant of PUSH_TEMPLATE_VARIANTS[key]) {
+    for (const variant of variantsOf(key)) {
       const row = rows.find((r) => r.key === key && r.lang === lang && r.variant === variant);
       if (row?.status !== "reviewed") gaps.push(`${lang}/${variant}`);
     }

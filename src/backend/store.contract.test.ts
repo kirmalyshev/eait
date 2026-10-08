@@ -38,7 +38,7 @@ import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { RLS_TABLES, SCOPE, postgresStore } from "./store.pg.ts";
-import type { Store, StoreOptions } from "./store.ts";
+import type { CampaignRow, Store, StoreOptions } from "./store.ts";
 
 const PG_URL = process.env.TEST_DATABASE_URL;
 
@@ -988,6 +988,88 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(rows.map((r) => r.userId)).not.toContain(without);
       await s.setTimezone(withToken, "Asia/Tokyo");
       expect((await s.pushAudience()).find((r) => r.userId === withToken)?.timezone).toBe("Asia/Tokyo");
+    });
+
+    describe("campaigns", () => {
+      const row = (id: string, over: Partial<CampaignRow> = {}): CampaignRow => ({
+        id, name: `${RUN}-camp`, templateKey: "campaign:win-back", segment: { langs: ["en"] }, status: "draft",
+        localSendTime: "18:30", rolloutPct: 10, promotional: true, createdBy: null,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over,
+      });
+
+      it("stores a campaign and reads it back, segment and all", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id));
+        const got = await s.getCampaign(id);
+        expect(got).toMatchObject({ id, templateKey: "campaign:win-back", segment: { langs: ["en"] }, status: "draft", rolloutPct: 10 });
+        expect((await s.listCampaigns()).map((c) => c.id)).toContain(id);
+        expect(await s.getCampaign(crypto.randomUUID())).toBeNull();
+      });
+
+      it("updates only what the patch names", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id));
+        const up = await s.updateCampaign(id, { rolloutPct: 50, status: "scheduled" });
+        expect(up).toMatchObject({ rolloutPct: 50, status: "scheduled", name: `${RUN}-camp`, localSendTime: "18:30" });
+        expect(await s.updateCampaign(crypto.randomUUID(), { rolloutPct: 1 })).toBeNull();
+      });
+
+      it("marks running only from scheduled, so a kill is never overwritten", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id, { status: "scheduled" }));
+        expect(await s.markCampaignRunning(id)).toBe(true);
+        expect((await s.getCampaign(id))?.status).toBe("running");
+        await s.updateCampaign(id, { status: "killed" });
+        expect(await s.markCampaignRunning(id)).toBe(false);
+        expect((await s.getCampaign(id))?.status).toBe("killed");
+      });
+
+      it("hands each account a campaign once", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id));
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const other = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.hasCampaignSend(u, id)).toBe(false);
+        expect(await s.claimCampaignSend(u, id)).toBe(true);
+        expect(await s.claimCampaignSend(u, id)).toBe(false);
+        expect(await s.hasCampaignSend(u, id)).toBe(true);
+        expect(await s.hasCampaignSend(other, id)).toBe(false);
+      });
+
+      it("keeps the global kill switch where every replica reads it", async () => {
+        const s = await open();
+        const before = await s.campaignsKilled();
+        await s.setCampaignsKilled(true);
+        expect(await s.campaignsKilled()).toBe(true);
+        await s.setCampaignsKilled(false);
+        expect(await s.campaignsKilled()).toBe(false);
+        await s.setCampaignsKilled(before);
+      });
+
+      it("reports a campaign's sends, opens and dry rows, and leaves test sends out", async () => {
+        const s = await open();
+        const id = crypto.randomUUID();
+        await s.createCampaign(row(id));
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        const mk = async (state: "accepted" | "dead" | "dry", variant: string | null) => {
+          const sid = crypto.randomUUID();
+          await s.createSend(u, {
+            id: sid, kind: "campaign", ref: id, templateKey: "nudge", lang: "en", variant,
+            token: `ExponentPushToken[${RUN}-${sid}]`, state,
+          });
+          return sid;
+        };
+        const real = await mk("accepted", null);
+        await mk("dead", null);
+        await mk("dry", "dry");
+        await mk("accepted", "test");
+        await s.recordPushOpen(u, real, "tap");
+        expect(await s.campaignReport(id)).toEqual({ sent: 2, accepted: 1, dead: 1, dry: 1, opened: 1, test: 1 });
+      });
     });
 
     describe("push_slot and send_log", () => {
@@ -3889,15 +3971,16 @@ if (PG_URL) {
         .map(([name]) => name)
         .sort();
       expect(unscoped).toEqual([
-        "adminListUsers", "adminMetrics", "claimJob", "claimPairingCode",
-        "countClipAnalyses", "countGlobalAnalyses", "createUser", "expireJobs", "foodCandidates", "forgetJobs", "forgetTurnOutcomes",
-        "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor",
-        "listPushTemplates", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel", "promptRevisions",
-        "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
-        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
-        "putFoodRefs", "putNotificationCopy", "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken",
-        "releaseJobs", "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "upsertDeviceUser", "userIdForIdentity",
-        "userIdForToken",
+        "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
+        "countClipAnalyses", "countGlobalAnalyses", "createCampaign", "createUser", "expireJobs", "foodCandidates",
+        "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
+        "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates",
+        "markCampaignRunning", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel",
+        "promptRevisions", "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
+        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats", "putFoodRefs", "putNotificationCopy",
+        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs",
+        "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
+        "updateCampaign", "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
       ]);
     });
 
