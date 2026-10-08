@@ -612,8 +612,8 @@ export function dayPickerButton(o: {
  * HEIC as happily as it once handed the app. The server refuses it before charging (415), and
  * that refusal is what a person reads.
  */
-export function composerRow(placeholder: string, opts?: { camera?: boolean; multiline?: boolean }): {
-  form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
+export function composerRow(placeholder: string, opts?: { camera?: boolean; multiline?: boolean; sendInside?: boolean }): {
+  form: HTMLFormElement; chips: HTMLElement; picker: HTMLInputElement; add: HTMLButtonElement;
   words: HTMLInputElement | HTMLTextAreaElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
 } {
   const shell = shellCopyFor(lang);
@@ -654,7 +654,12 @@ export function composerRow(placeholder: string, opts?: { camera?: boolean; mult
   // Home's composer is words + send only — the boards put photo upload on the "Upload a photo"
   // CTA there (#170), and without the camera round the field takes the column.
   if (opts?.camera !== false) row.append(add);
-  row.append(words, send);
+  // Chat's field holds its send inside its right end (the boards' `cp-field`); Home's stays a row.
+  if (opts?.sendInside === true) {
+    const field = el("div", "cfield");
+    field.append(words, send);
+    row.append(field);
+  } else row.append(words, send);
   const count = el("span", "count", "");
   count.hidden = true;
   const cancel = el("button", "act", COPY.cancel) as HTMLButtonElement;
@@ -662,8 +667,10 @@ export function composerRow(placeholder: string, opts?: { camera?: boolean; mult
   cancel.hidden = true;
   const note = el("div", "comp-note");
   note.append(count, cancel);
-  form.append(picker, row, note);
-  return { form, picker, add, words, send, count, cancel };
+  const chips = el("div", "chips");
+  chips.hidden = true;
+  form.append(picker, chips, row, note);
+  return { form, chips, picker, add, words, send, count, cancel };
 }
 
 /**

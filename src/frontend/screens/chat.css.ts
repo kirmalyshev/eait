@@ -91,11 +91,58 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 /* The composer sits ON the ground (the boards' pinned row): .comp's own --bg cover is the
    page's, not the chat's. */
 .chat .comp { background: var(--chat-ground); }
-/* the composer, Telegram's three: the paperclip bare, the field a pill whose prompt ends in an
-   ellipsis instead of wrapping, send a filled circle */
+/* the composer, option A (ieat-app#1633): a bare paperclip left of ONE field at radius 17 with the
+   round send INSIDE its right end — grey while empty, the accent once there are words or files — and
+   the attached files as chips above (name, type · size, × with a 44 tap area). */
+.chat .compose { gap: 8px; }
 .chat .compose .ib:first-child { background: none; box-shadow: none; }
 .chat .compose .ib:first-child .ico { color: var(--muted); }
+.chat .cfield { flex: 1; min-width: 0; position: relative; display: flex; }
+.chat .cfield textarea.box { flex: 1; min-height: 44px; border-radius: 17px; padding: 11px 52px 11px 16px; }
+.chat .cfield .ib.p { position: absolute; right: 5px; top: 5px; width: 34px; height: 34px; flex: none; border-radius: 50%;
+  background: var(--hair); }
+.chat .cfield .ib.p .ico { width: 18px; height: 18px; background: var(--muted); }
+.chat .cfield.on .ib.p { background: var(--accent); }
+.chat .cfield.on .ib.p .ico { background: var(--accent-ink); }
+.chat .cfield textarea.box:focus-visible { outline-offset: -2px; }
 .chat .compose textarea.box::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips { display: flex; gap: 8px; padding: 0 0 8px; overflow: hidden; }
+.chips[hidden] { display: none; }
+.chip { display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 4px 0 10px; border-radius: 16px;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); font-size: 13px; min-width: 0; }
+.chip > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.chip b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip em { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.chip .ico { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.chip button { border: 0; background: none; color: var(--muted); cursor: pointer; min-width: 44px; height: 44px; margin: -2px 0;
+  display: flex; align-items: center; justify-content: center; padding: 0; }
+.chip button .ico { width: 14px; height: 14px; }
+
+/* "+ Log" (the boards' cp-log) and its chooser: two tiles centred over a frosted veil that covers the
+   column under the bar; the button turns ink and reads Close, above it. */
+.cp-log { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 10px; border: 0; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); font: 600 15px var(--display); cursor: pointer; }
+.cp-log .ico { width: 18px; height: 18px; background: currentColor; }
+.cp-log.cp-close { position: relative; z-index: 31; background: var(--ink); color: var(--bg); }
+.cp-veil { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg) 66%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.cp-wgrid { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.cp-wrow { display: flex; gap: 16px; }
+.cp-tile { width: 200px; height: 120px; border: 0; border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: inherit;
+  box-shadow: 0 10px 30px -12px rgba(23, 25, 28, .35), 0 1px 2px rgba(23, 25, 28, .08); }
+.cp-tile .ico { width: 28px; height: 28px; }
+.cp-tile b { font-size: 17px; font-weight: 600; }
+.cp-hint { margin: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
+/* At phone width the boards' bar is brand + a compact + on row 1, the tabs on row 2. */
+@media (max-width: 760px) {
+  .wtop:has(.cp-log) .wnav { order: 3; flex: 0 0 100%; }
+  .wtop:has(.cp-log) .sp { order: 1; }
+  .wtop:has(.cp-log) .wr { order: 2; flex: 0 0 auto; }
+  .cp-log:not(.cp-close) { width: 44px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+  .cp-log:not(.cp-close) .ico { width: 22px; height: 22px; }
+}
+@media (max-width: 760px) { .cp-tile { width: 158px; height: 96px; } .cp-wrow { gap: 14px; } }
 
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
