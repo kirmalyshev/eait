@@ -171,6 +171,8 @@ services:
       # The connector ships dormant. Empty means the same process runs no bot at all; it takes no
       # inbound route either way.
       EAIT__BACKEND__TELEGRAM_BOT_TOKEN: ${EAIT__BACKEND__TELEGRAM_BOT_TOKEN:-}
+      EAIT__BACKEND__FOODDB_READ_KEY: ${EAIT__BACKEND__FOODDB_READ_KEY:-}
+      EAIT__BACKEND__FOODDB_URL: ${EAIT__BACKEND__FOODDB_URL:-https://food-api.eait.fit}
 
       # Unset = nobody holds the admin role and every path under /admin answers 404.
       EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID: ${EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID:-}

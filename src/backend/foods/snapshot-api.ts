@@ -22,6 +22,17 @@ async function get(fetchFn: Fetch, url: string, key: string, accept: string): Pr
   return res;
 }
 
+/** The newest day fooddb calls final (a day in progress can still be rebuilt). */
+export async function newestFinalDay(key: string, opts: { base?: string; fetchFn?: Fetch } = {}): Promise<string> {
+  if (!key.trim()) throw new Error("no fooddb read key: set EAIT__BACKEND__FOODDB_READ_KEY");
+  const base = (opts.base ?? FOODDB_URL_DEFAULT).replace(/\/+$/, "");
+  const list = (await (await get(opts.fetchFn ?? fetch, `${base}/v1/snapshots`, key, "application/json")).json()) as
+    { items?: { day: string; final: boolean }[] };
+  const day = list.items?.find((d) => d.final)?.day;
+  if (!day) throw new Error("fooddb has no final snapshot day yet");
+  return day;
+}
+
 /** The export of `day` (default: the newest final day) as NDJSON text, and the day it was. */
 export async function fetchSnapshotExport(
   key: string, opts: { base?: string; day?: string; fetchFn?: Fetch } = {},
@@ -29,13 +40,7 @@ export async function fetchSnapshotExport(
   if (!key.trim()) throw new Error("no fooddb read key: set EAIT__BACKEND__FOODDB_READ_KEY");
   const base = (opts.base ?? FOODDB_URL_DEFAULT).replace(/\/+$/, "");
   const fetchFn = opts.fetchFn ?? fetch;
-  let day = opts.day;
-  if (!day) {
-    const list = (await (await get(fetchFn, `${base}/v1/snapshots`, key, "application/json")).json()) as
-      { items?: { day: string; final: boolean }[] };
-    day = list.items?.find((d) => d.final)?.day;
-    if (!day) throw new Error("fooddb has no final snapshot day yet");
-  }
+  const day = opts.day ?? await newestFinalDay(key, { base, fetchFn });
   const res = await get(fetchFn, `${base}/v1/snapshots/${encodeURIComponent(day)}/export`, key, "application/x-ndjson");
   return { day, ndjson: await res.text() };
 }

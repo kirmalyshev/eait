@@ -334,6 +334,13 @@ export interface Config {
    */
   telegramBotToken: string;
   /**
+   * The read key for fooddb's catalog (`EAIT__BACKEND__FOODDB_READ_KEY`). Empty switches the daily
+   * `food_ref` refresh off, and it is the only thing that does. A secret: `redact` masks it.
+   */
+  fooddbReadKey: string;
+  /** Where that catalog lives. */
+  fooddbUrl: string;
+  /**
    * The connector's bot username, as Telegram's `getMe` answered it. NOT an environment variable:
    * written by the connector once it has reached Telegram (`index.ts`), and emptied again if the
    * token turns out dead. Every Connect Telegram link — the `/start` plan page, and the web app via
@@ -579,6 +586,8 @@ export function configDefaults(): Config {
     publicApiUrl: "",
     publicWebUrl: "",
     telegramBotToken: "",
+    fooddbReadKey: "",
+    fooddbUrl: "https://food-api.eait.fit",
     telegramBotUsername: "",
     adminBootstrapUserId: "",
     campaignStaffIds: [],
@@ -741,6 +750,8 @@ export function loadConfig(): Config {
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
     telegramBotToken: telegramBotTokenFromEnv(),
+    fooddbReadKey: (process.env.EAIT__BACKEND__FOODDB_READ_KEY ?? "").trim(),
+    fooddbUrl: (process.env.EAIT__BACKEND__FOODDB_URL ?? "").trim() || d.fooddbUrl,
     adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
     campaignStaffIds: process.env.EAIT__BACKEND__CAMPAIGN_STAFF_IDS === undefined ? d.campaignStaffIds : list("EAIT__BACKEND__CAMPAIGN_STAFF_IDS"),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
@@ -829,7 +840,7 @@ export function telegramBotTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, databaseUrl,
+    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, databaseUrl,
     ...rest
   } = c;
   return {
@@ -852,6 +863,7 @@ export function redact(c: Config): Record<string, unknown> {
     // lines of a boot log where nobody reads to the end.
     applePrivateKey: c.applePrivateKey === "" ? "(unset — Apple is off on /start)" : "***",
     telegramBotToken: c.telegramBotToken === "" ? "(unset — the Telegram connector is off)" : "***",
+    fooddbReadKey: c.fooddbReadKey === "" ? "(unset — the catalog refresh is off)" : "***",
   };
 }
 

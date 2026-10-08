@@ -11,8 +11,7 @@
 // EAIT__BACKEND__DATABASE_URL and is never printed. Which lines are kept is `foods/snapshot.ts`.
 
 import { gunzipSync } from "node:zlib";
-import type { FoodRef } from "../shared/index.ts";
-import { foodRefFromSnapshotLine, type SnapshotLine } from "../backend/foods/snapshot.ts";
+import { loadSnapshotText } from "../backend/foods/snapshot-load.ts";
 import { fetchSnapshotExport } from "../backend/foods/snapshot-api.ts";
 import { postgresStore } from "../backend/store.pg.ts";
 
@@ -39,19 +38,9 @@ if (fromApi) {
   const bytes = Buffer.from(await Bun.file(file!).arrayBuffer());
   text = (file!.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8");
 }
-const lines = text.split("\n");
 const store = await postgresStore(databaseUrl);
 try {
-  let read = 0, written = 0, batch: FoodRef[] = [];
-  const flush = async () => { if (batch.length) written += await store.putFoodRefs(batch); batch = []; };
-  for (const text of lines) {
-    if (!text.trim()) continue;
-    read++;
-    const row = foodRefFromSnapshotLine(JSON.parse(text) as SnapshotLine);
-    if (row) batch.push(row);
-    if (batch.length >= 500) await flush();
-  }
-  await flush();
+  const { read, written } = await loadSnapshotText(store, text);
   console.log(`[eait] foods-load: ${read} lines read, ${written} food_ref rows written, ${read - written} skipped`);
 } finally {
   await store.close();

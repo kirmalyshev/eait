@@ -20,6 +20,7 @@ import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
 import { collectPushReceipts, drainJobs, pushTick, runCampaigns, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
+import { refreshCatalog } from "./engine/catalog-refresh.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
@@ -208,6 +209,32 @@ const sweepHealthRetention = async () => {
     });
 };
 
+// ── Catalog refresh ──────────────────────────────────────────────────────────────────────────
+//
+// `food_ref` follows fooddb's newest final snapshot (ieat-app#1778). A no-op without
+// EAIT__BACKEND__FOODDB_READ_KEY, which is also how it stays off under --demo. Same triggers as the
+// sweep above: the leader at takeover and once a day while held. `refreshCatalog` never throws and
+// never puts the key in a message; the guard only stops a slow load overlapping the next trigger.
+let catalogDay: string | undefined;
+let catalogBusy = false;
+const refreshFoodCatalog = async () => {
+  if (catalogBusy || config.fooddbReadKey === "") return;
+  catalogBusy = true;
+  try {
+    const r = await refreshCatalog({ store }, { key: config.fooddbReadKey, base: config.fooddbUrl, lastDay: catalogDay });
+    if (r.kind === "loaded") {
+      catalogDay = r.day;
+      console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written`);
+    } else if (r.kind === "unchanged") {
+      catalogDay = r.day;
+    } else if (r.kind === "failed") {
+      console.error(`[eait] food catalog refresh failed: ${r.message}`);
+    }
+  } finally {
+    catalogBusy = false;
+  }
+};
+
 // ── Leadership: the work exactly one replica may do ──────────────────────────────────────────
 //
 // The evening line, the daily sweep and the Telegram poll each exist once per CLUSTER, not once
@@ -254,6 +281,7 @@ const elect = async (): Promise<void> => {
     console.log("[eait] this replica is the leader");
     startTelegram();
     void sweepHealthRetention();
+    void refreshFoodCatalog();
     return;
   }
   console.log("[eait] leadership lost; the singletons stop here");
@@ -263,6 +291,7 @@ const elect = async (): Promise<void> => {
 await elect();
 setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
 setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
+setInterval(() => { if (leader) void refreshFoodCatalog(); }, DAY_MS).unref?.();
 
 // In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the
