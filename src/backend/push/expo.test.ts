@@ -47,6 +47,15 @@ describe("image", () => {
     expect((await sentBody(imageClient(), "https://img.eait.fit/p/1.jpg")).richContent).toEqual({ image: "https://img.eait.fit/p/1.jpg" });
   });
 
+  it("also puts the image in data, next to the send id, where the device is known to read it", async () => {
+    const c = imageClient();
+    seen.length = 0;
+    answer = () => Response.json({ data: [{ status: "ok", id: "r1" }] });
+    await c.send([{ ...withImage("https://img.eait.fit/p/1.jpg"), data: { sendId: "s1" } }]);
+    const body = (seen[0]!.body as Record<string, unknown>[])[0]!;
+    expect(body.data).toEqual({ sendId: "s1", image: "https://img.eait.fit/p/1.jpg" });
+  });
+
   it("drops an image from any other host, over http, or with credentials, and still sends the message", async () => {
     for (const url of ["https://evil.example/1.jpg", "http://img.eait.fit/1.jpg", "https://img.eait.fit.evil.example/1.jpg", "https://u:p@img.eait.fit/1.jpg", "not a url"]) {
       const body = await sentBody(imageClient(), url);
