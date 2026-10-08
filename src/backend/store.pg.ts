@@ -266,7 +266,7 @@ create table if not exists send_log (
   lang          text not null,
   variant       text,
   token         text not null,
-  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired')),
+  state         text not null check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired','would_have_sent')),
   ticket_id     text,
   receipt_error text,
   created_at    timestamptz not null default now(),
@@ -276,11 +276,12 @@ create table if not exists send_log (
 -- Guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock.
 do $do$
 begin
-  if exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_state_check'
-             and pg_get_constraintdef(oid) not like '%expired%') then
-    alter table send_log drop constraint send_log_state_check;
+  if not exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_state_check')
+     or exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_state_check'
+                and pg_get_constraintdef(oid) not like '%would_have_sent%') then
+    alter table send_log drop constraint if exists send_log_state_check;
     alter table send_log add constraint send_log_state_check
-      check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired'));
+      check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired','would_have_sent'));
   end if;
 end
 $do$;
@@ -313,6 +314,8 @@ create table if not exists campaigns (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+alter table campaigns add column if not exists variants integer not null default 1 check (variants between 1 and 4);
+alter table campaigns add column if not exists holdout_pct integer not null default 0 check (holdout_pct between 0 and 10);
 create table if not exists campaign_send (
   user_id     uuid not null references users(id) on delete cascade,
   campaign_id text not null references campaigns(id) on delete cascade,
@@ -1406,6 +1409,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setTimezone: 0,
   timezoneOf: 0,
   claimPushSlot: 0,
+  pushSlotOf: 0,
   createSend: 0,
   settleSend: 0,
   sendLogFor: 0,
@@ -3065,6 +3069,14 @@ export async function postgresStore(
       return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
     },
 
+    async pushSlotOf(userId, localDate) {
+      const rows = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
+      if (rows[0]) return (rows[0] as Record<string, unknown>).kind as PushKind;
+      // The same legacy read `claimPushSlot` makes, so "free" is exactly "a claim would win".
+      const legacy = await sql`select 1 from users where id = ${userId} and last_notified_date = ${localDate}`;
+      return legacy.length > 0 ? ("evening" as PushKind) : null;
+    },
+
     async createSend(userId, r) {
       await sql`insert into send_log (id, user_id, kind, ref, template_key, lang, variant, token, state)
         values (${r.id}, ${userId}, ${r.kind}, ${r.ref}, ${r.templateKey}, ${r.lang}, ${r.variant}, ${r.token}, ${r.state})`;
@@ -3104,7 +3116,7 @@ export async function postgresStore(
         with s as (
           select *, date_trunc('milliseconds', created_at) as at,
                  state not in ('dead', 'refused', 'dry') as reached
-          from send_log where created_at >= ${since}
+          from send_log where created_at >= ${since} and state <> 'would_have_sent'
         )
         select (s.created_at at time zone ${timezone})::date::text as day, s.kind, s.template_key,
                count(*)::int as sent,
@@ -3136,9 +3148,9 @@ export async function postgresStore(
     },
 
     async createCampaign(r) {
-      await sql`insert into campaigns (id, name, template_key, segment, status, local_send_time, rollout_pct, promotional, created_by)
+      await sql`insert into campaigns (id, name, template_key, segment, status, local_send_time, rollout_pct, promotional, variants, holdout_pct, created_by)
         values (${r.id}, ${r.name}, ${r.templateKey}, ${r.segment}::jsonb, ${r.status},
-                ${r.localSendTime}, ${r.rolloutPct}, ${r.promotional}, ${r.createdBy})`;
+                ${r.localSendTime}, ${r.rolloutPct}, ${r.promotional}, ${r.variants}, ${r.holdoutPct}, ${r.createdBy})`;
     },
 
     async updateCampaign(id, p) {
@@ -3151,6 +3163,8 @@ export async function postgresStore(
           local_send_time = case when ${p.localSendTime !== undefined} then ${p.localSendTime ?? null} else local_send_time end,
           rollout_pct = case when ${p.rolloutPct !== undefined} then ${p.rolloutPct ?? null} else rollout_pct end,
           promotional = case when ${p.promotional !== undefined} then ${p.promotional ?? null} else promotional end,
+          variants = case when ${p.variants !== undefined} then ${p.variants ?? null} else variants end,
+          holdout_pct = case when ${p.holdoutPct !== undefined} then ${p.holdoutPct ?? null} else holdout_pct end,
           updated_at = now()
         where id = ${id} returning *`;
       return rows[0] ? campaignRow(rows[0] as Record<string, unknown>) : null;
@@ -3184,18 +3198,44 @@ export async function postgresStore(
     },
 
     async campaignReport(campaignId) {
-      const rows = await sql`
+      const totals = await sql`
         select
-          count(*) filter (where s.variant is distinct from 'test' and s.state <> 'dry')::int as sent,
+          count(*) filter (where s.variant is distinct from 'test' and s.state not in ('dry','would_have_sent'))::int as sent,
           count(*) filter (where s.variant is distinct from 'test' and s.state in ('accepted','delivered-to-apns','expired'))::int as accepted,
           count(*) filter (where s.variant is distinct from 'test' and s.state = 'dead')::int as dead,
           count(*) filter (where s.variant is distinct from 'test' and s.state = 'dry')::int as dry,
-          count(*) filter (where s.variant is distinct from 'test' and s.state not in ('dead','refused','dry') and o.send_id is not null)::int as opened,
-          count(*) filter (where s.variant = 'test')::int as test
+          count(*) filter (where s.variant is distinct from 'test' and s.state not in ('dead','refused','dry','would_have_sent') and o.send_id is not null)::int as opened,
+          count(*) filter (where s.variant = 'test')::int as test,
+          count(*) filter (where s.variant is distinct from 'test' and s.state = 'would_have_sent')::int as held
         from send_log s left join push_open o on o.user_id = s.user_id and o.send_id = s.id
         where s.kind = 'campaign' and s.ref = ${campaignId}`;
-      const r = rows[0] as Record<string, number>;
-      return { sent: r.sent!, accepted: r.accepted!, dead: r.dead!, dry: r.dry!, opened: r.opened!, test: r.test! };
+      // By ACCOUNT, because the comparison is of people, and INTENT TO TREAT for conversion: a meal after
+      // the send counts whatever became of the delivery (the holdout has no dead rows, so filtering
+      // them out would lower only the treated rate). Opened keeps its delivery filter; a held-out
+      // account has nothing to open.
+      const groups = await sql`
+        with s as (
+          select user_id, id, state, created_at,
+                 case when state = 'would_have_sent' then 'holdout' else coalesce(variant, 'default') end as grp
+          from send_log
+          where kind = 'campaign' and ref = ${campaignId} and variant is distinct from 'test' and state <> 'dry'
+        )
+        select grp,
+               count(distinct user_id)::int as users,
+               count(distinct user_id) filter (where grp <> 'holdout' and state not in ('dead','refused') and exists (
+                 select 1 from push_open o where o.user_id = s.user_id and o.send_id = s.id))::int as opened,
+               count(distinct user_id) filter (where exists (
+                 select 1 from meals m
+                 where m.user_id = s.user_id and m.ts >= date_trunc('milliseconds', s.created_at)
+                   and m.ts < date_trunc('milliseconds', s.created_at) + interval '24 hours'))::int as converted
+        from s group by grp order by grp`;
+      const t = totals[0] as Record<string, number>;
+      return {
+        sent: t.sent!, accepted: t.accepted!, dead: t.dead!, dry: t.dry!, opened: t.opened!, test: t.test!, held: t.held!,
+        groups: (groups as Record<string, unknown>[]).map((g) => ({
+          group: g.grp as string, users: g.users as number, opened: g.opened as number, converted: g.converted as number,
+        })),
+      };
     },
 
     async sendLogFor(userId, limit) {
@@ -3874,7 +3914,7 @@ function campaignRow(r: Record<string, unknown>): CampaignRow {
     id: r.id as string, name: r.name as string, templateKey: r.template_key as CampaignRow["templateKey"],
     segment: seg as CampaignRow["segment"], status: r.status as CampaignRow["status"],
     localSendTime: r.local_send_time as string, rolloutPct: r.rollout_pct as number,
-    promotional: r.promotional as boolean, createdBy: (r.created_by as string | null) ?? null,
+    promotional: r.promotional as boolean, variants: r.variants as number, holdoutPct: r.holdout_pct as number, createdBy: (r.created_by as string | null) ?? null,
     createdAt: new Date(r.created_at as string).toISOString(), updatedAt: new Date(r.updated_at as string).toISOString(),
   };
 }

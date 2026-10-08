@@ -25,7 +25,7 @@
 // set in the store instead.
 
 import {
-  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, entitlementLive, habitOf, inRollout, isCampaignTemplateKey, localDate, matchesSegment,
+  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, CAMPAIGN_VARIANTS, effectOf, entitlementLive, habitOf, inHoldout, inRollout, isCampaignTemplateKey, localDate, matchesSegment, variantOf,
   pushKeyGaps, validateCampaignInput,
   type CampaignInput, type CampaignStatus, type CampaignTemplateKey, type Lang, type PushKind, type PushTemplateRow, type SegmentFacts,
 } from "@eait/shared";
@@ -48,19 +48,19 @@ const TRANSITIONS: Record<CampaignStatus, readonly CampaignStatus[]> = {
 void CAMPAIGN_STATUSES;
 
 /** What stops `key` from being sent: one `lang/variant` per row that is absent or still a draft. */
-async function templateGaps(deps: EngineDeps, key: CampaignTemplateKey): Promise<string[]> {
-  return pushKeyGaps((await deps.store.listPushTemplates()).filter((r) => r.key === key), key);
+async function templateGaps(deps: EngineDeps, key: CampaignTemplateKey, variants: number): Promise<string[]> {
+  return pushKeyGaps((await deps.store.listPushTemplates()).filter((r) => r.key === key), key, variants);
 }
 
 /** What stops a campaign from being live: the one rule set, read by activation AND by every later edit. */
 async function activationProblems(
-  deps: EngineDeps, c: { promotional: boolean; templateKey: CampaignTemplateKey },
+  deps: EngineDeps, c: { promotional: boolean; templateKey: CampaignTemplateKey; variants: number },
 ): Promise<string[]> {
   const problems: string[] = [];
   if (c.promotional) {
     problems.push("a promotional campaign cannot be live yet: the in-app tips-and-offers consent toggle has not shipped");
   }
-  const gaps = await templateGaps(deps, c.templateKey);
+  const gaps = await templateGaps(deps, c.templateKey, c.variants);
   if (gaps.length > 0) problems.push(`template ${c.templateKey} is not complete: ${gaps.join(", ")}`);
   return problems;
 }
@@ -86,12 +86,18 @@ export async function updateCampaign(
   const merged: CampaignInput = {
     name: current.name, templateKey: current.templateKey, segment: current.segment,
     localSendTime: current.localSendTime, rolloutPct: current.rolloutPct, promotional: current.promotional,
+    variants: current.variants, holdoutPct: current.holdoutPct,
   };
   const v = validateCampaignInput({ ...merged, ...raw });
   if (!v.ok) return v;
   // A campaign past draft is held to what activation required, whatever the edit: promotional is
   // refused while consent is not collected, and the copy must be complete.
   if (current.status !== "draft") {
+    // Which arm an account is in, and whether it is held out, are functions of these two numbers:
+    // changing either mid-run would move accounts between arms and in or out of the control group.
+    if (v.input.variants !== current.variants || v.input.holdoutPct !== current.holdoutPct) {
+      return { ok: false, errors: ["variants and holdoutPct are fixed once the campaign has left draft"] };
+    }
     const problems = await activationProblems(deps, v.input);
     if (problems.length > 0) return { ok: false, errors: problems };
   }
@@ -128,7 +134,7 @@ export interface CampaignCopy {
 export interface CampaignOverview {
   killed: boolean;
   copy: CampaignCopy[];
-  campaigns: (CampaignRow & { report: CampaignReport })[];
+  campaigns: (CampaignRow & { report: CampaignReport; effect: ReturnType<typeof effectOf> })[];
 }
 
 export async function campaignOverview(deps: EngineDeps): Promise<CampaignOverview> {
@@ -140,9 +146,14 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
     killed: await deps.store.campaignsKilled(),
     copy: keys.sort().map((key) => {
       const own = templates.filter((r) => r.key === key);
-      return { key, rows: own, gaps: pushKeyGaps(own, key) };
+      // The variants a key must carry are the most any campaign using it runs.
+      const needed = Math.max(1, ...rows.filter((c) => c.templateKey === key).map((c) => c.variants));
+      return { key, rows: own, gaps: pushKeyGaps(own, key, needed) };
     }),
-    campaigns: await Promise.all(rows.map(async (c) => ({ ...c, report: await deps.store.campaignReport(c.id) }))),
+    campaigns: await Promise.all(rows.map(async (c) => {
+      const report = await deps.store.campaignReport(c.id);
+      return { ...c, report, effect: effectOf(report.groups) };
+    })),
   };
 }
 
@@ -214,10 +225,29 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         if (!inRollout(userId, c.id, c.rolloutPct)) continue;
         const facts = await factsFor(deps, userId, date, now);
         if (!facts || !reaches(c, userId, facts)) continue;
-        const words = await campaignWords(deps, c.templateKey, facts.lang);
+        const variant = CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!;
+        const words = await campaignWords(deps, c.templateKey, facts.lang, variant, c.variants);
         if (!words) continue; // an incomplete template is not sent, and does not spend the day
         const devices = await deps.store.pushTokensFor(userId);
         if (devices.length === 0) continue;
+
+        // THE HOLDOUT: due, in the segment, and kept out on purpose. It claims no slot, so the day's
+        // message stays free for another sender, and it is logged once (the same once-per-account
+        // claim) so the report has a control group with a send time to measure from.
+        if (inHoldout(userId, c.id, c.holdoutPct)) {
+          // Only on a day a treated account COULD have been sent: its slot is read, never claimed. If
+          // another sender holds the day, skip without recording anything, so it is retried exactly
+          // like a treated account, and the control group never includes a day nobody would have sent.
+          if (await deps.store.pushSlotOf(userId, date)) { out.slotTaken++; continue; }
+          if (await deps.store.claimCampaignSend(userId, c.id)) {
+            await deps.store.createSend(userId, {
+              id: crypto.randomUUID(), kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang,
+              variant, token: "holdout", state: "would_have_sent",
+            });
+            await deps.store.markCampaignRunning(c.id);
+          }
+          continue;
+        }
 
         const slot = await deps.store.claimPushSlot(userId, date, "campaign" satisfies PushKind, c.id);
         if (!slot.claimed) { out.slotTaken++; continue; }
@@ -225,7 +255,7 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         await deps.store.markCampaignRunning(c.id);
         const sent = await sendLogged(
           deps, userId, devices,
-          { kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang },
+          { kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang, variant },
           { title: words.title, body: words.body },
         );
         out.sent += sent.sent;
@@ -243,7 +273,7 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
 }
 
 export type DryRunResult =
-  | { ok: true; wouldSend: number }
+  | { ok: true; wouldSend: number; heldOut: number }
   | { ok: false; reason: "no-such-campaign" | "template-incomplete" };
 
 /**
@@ -255,24 +285,26 @@ export async function dryRunCampaign(deps: EngineDeps, id: string, opts: { now?:
   const now = opts.now ?? Date.now();
   const c = await deps.store.getCampaign(id);
   if (!c) return { ok: false, reason: "no-such-campaign" };
-  if ((await templateGaps(deps, c.templateKey)).length > 0) return { ok: false, reason: "template-incomplete" };
+  if ((await templateGaps(deps, c.templateKey, c.variants)).length > 0) return { ok: false, reason: "template-incomplete" };
   let wouldSend = 0;
+  let heldOut = 0;
   for (const { userId, timezone } of await deps.store.pushAudience()) {
     const date = localDate(zoneOf(deps, timezone), new Date(now));
     if (await deps.store.hasCampaignSend(userId, c.id)) continue;
     const facts = await factsFor(deps, userId, date, now);
     if (!facts || !reaches(c, userId, facts)) continue;
+    if (inHoldout(userId, c.id, c.holdoutPct)) { heldOut++; continue; }
     wouldSend++;
     const already = (await deps.store.sendLogFor(userId, 100)).some((r) => r.kind === "campaign" && r.ref === c.id && r.state === "dry");
     if (already) continue;
     for (const device of await deps.store.pushTokensFor(userId)) {
       await deps.store.createSend(userId, {
         id: crypto.randomUUID(), kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang,
-        variant: "dry", token: device.token, state: "dry",
+        variant: CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!, token: device.token, state: "dry",
       });
     }
   }
-  return { ok: true, wouldSend };
+  return { ok: true, wouldSend, heldOut };
 }
 
 export type CampaignTestResult =
@@ -295,7 +327,8 @@ export async function testSendCampaign(
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };
   // Before the slot: a refused template must not spend the day's one message.
-  const words = await campaignWords(deps, c.templateKey, profile.lang as Lang);
+  const variant = CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!;
+  const words = await campaignWords(deps, c.templateKey, profile.lang as Lang, variant, c.variants);
   if (!words) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", c.id);

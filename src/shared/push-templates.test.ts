@@ -180,6 +180,21 @@ describe("campaign template keys", () => {
     }
     expect(isCampaignTemplateKey("campaign:win-back-2")).toBe(true);
   });
+  test("hold up to four variants, b to d, and refuse anything else", () => {
+    for (const v of ["default", "b", "c", "d"]) expect(validatePushTemplate(row("campaign:win-back", "en", { variant: v })).ok).toBe(true);
+    expect(validatePushTemplate(row("campaign:win-back", "en", { variant: "e" })).ok).toBe(false);
+    expect(validatePushTemplate(row("campaign:win-back", "en", { variant: "empty" })).ok).toBe(false);
+  });
+  test("a campaign in use needs only the variants it runs: the gaps follow the count", () => {
+    const mk = (variants: string[]) => LANGS.flatMap((lang) => variants.map((variant) => ({
+      ...row("campaign:win-back", lang, { variant }), status: "reviewed", reviewed_by: "a", reviewed_at: "x", updated_at: "x",
+    }))) as never;
+    expect(pushKeyGaps(mk(["default"]), "campaign:win-back")).toEqual([]);
+    expect(pushKeyGaps(mk(["default"]), "campaign:win-back", 2)).toHaveLength(8); // b missing in all eight
+    expect(pushKeyGaps(mk(["default"]), "campaign:win-back", 2)[0]).toBe("en/b");
+    expect(pushKeyGaps(mk(["default", "b"]), "campaign:win-back", 2)).toEqual([]);
+    expect(pushKeyGaps(mk(["default", "b"]), "campaign:win-back", 3)).toHaveLength(8);
+  });
   test("complete only when all eight languages are reviewed", () => {
     const reviewed = LANGS.map((lang) => ({ ...row("campaign:win-back", lang), status: "reviewed", reviewed_by: "a", reviewed_at: "x", updated_at: "x" }));
     expect(pushKeyGaps(reviewed as never, "campaign:win-back")).toEqual([]);

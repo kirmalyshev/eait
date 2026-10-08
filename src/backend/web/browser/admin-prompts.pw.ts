@@ -110,10 +110,23 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   const campaignRows: Record<string, unknown>[] = [
     { id: "c-1", name: "Win-back, German", templateKey: "campaign:win-back", segment: { langs: ["de"], sinceLog: ["lapsed"] }, status: "running",
       localSendTime: "18:30", rolloutPct: 40, promotional: true, createdBy: "a", createdAt: "2026-10-08T00:00:00.000Z",
-      updatedAt: "2026-10-08T00:00:00.000Z", report: { sent: 120, accepted: 118, dead: 2, dry: 0, opened: 18, test: 1 } },
+      updatedAt: "2026-10-08T00:00:00.000Z", variants: 2, holdoutPct: 10,
+      report: {
+        sent: 120, accepted: 118, dead: 2, dry: 0, opened: 18, test: 1, held: 13,
+        groups: [
+          { group: "b", users: 60, opened: 9, converted: 24 },
+          { group: "default", users: 60, opened: 9, converted: 18 },
+          { group: "holdout", users: 13, opened: 0, converted: 2 },
+        ],
+      },
+      effect: {
+        treated: { n: 120, x: 42 }, holdout: { n: 13, x: 2 },
+        comparison: { treatedRate: 0.35, holdoutRate: 2 / 13, diff: 0.35 - 2 / 13, lo: 0.07, hi: 0.3, significant: true },
+      } },
     { id: "c-2", name: "Staff check", templateKey: "campaign:staff-check", segment: { staffOnly: true }, status: "draft",
       localSendTime: "09:00", rolloutPct: 100, promotional: false, createdBy: "a", createdAt: "2026-10-08T00:00:00.000Z",
-      updatedAt: "2026-10-08T00:00:00.000Z", report: { sent: 0, accepted: 0, dead: 0, dry: 3, opened: 0, test: 0 } },
+      updatedAt: "2026-10-08T00:00:00.000Z", variants: 1, holdoutPct: 0,
+      report: { sent: 0, accepted: 0, dead: 0, dry: 3, opened: 0, test: 0, held: 0, groups: [] }, effect: null },
   ];
   await page.route("**/admin/api/campaigns**", (r) => {
     const req = r.request();
@@ -131,14 +144,14 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
           })) },
         ],
         options: {
-          langs: LANGS, statuses: ["draft", "scheduled", "running", "paused", "done", "killed"],
+          langs: LANGS, variants: ["default", "b", "c", "d"], statuses: ["draft", "scheduled", "running", "paused", "done", "killed"],
           entitlement: ["active", "trial", "none"], streakBands: ["none", "building"],
           sinceLog: ["today", "recent", "lapsing", "lapsed", "never"], staffCount: 1,
         },
       }));
     }
     if (path.endsWith("/kill")) { campaignKilled = (body as { killed: boolean }).killed; return r.fulfill(json({ killed: campaignKilled })); }
-    if (path.endsWith("/dry-run")) return r.fulfill(json({ ok: true, wouldSend: 3 }));
+    if (path.endsWith("/dry-run")) return r.fulfill(json({ ok: true, wouldSend: 3, heldOut: 1 }));
     if (path.endsWith("/test")) return r.fulfill(json({ ok: false, reason: "not-staff" }, 409));
     if (over.campaignRefuse) return r.fulfill(json({ errors: [over.campaignRefuse] }, 422));
     return r.fulfill(json({ row: campaignRows[0] }));
@@ -324,6 +337,12 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await expect(table.locator("tbody tr")).toHaveCount(2);
   await expect(table.getByText("langs: de · sinceLog: lapsed · promotional")).toBeVisible();
   await expect(table.getByText("18 (15%)")).toBeVisible();
+  await expect(table.getByText("2 · 10% held out")).toBeVisible();
+  const arms = page.locator("#campaign-reports");
+  await expect(arms).toContainText("Win-back, German — by arm");
+  await expect(arms.locator("tr").filter({ hasText: "holdout (not sent)" })).toContainText("13");
+  await expect(arms.locator("tr").filter({ hasText: /^default/ })).toContainText("30%");
+  await expect(arms).toContainText("Treated minus holdout conversion: 19.6 pts (95% CI 7.0 pts to 30.0 pts) — the interval excludes zero.");
   await expect(page.locator("#campaigns-state")).toHaveText("running normally");
 
   await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
@@ -334,14 +353,16 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await page.locator("#campaign-form input[placeholder='campaign:spring-win-back']").fill("campaign:spring");
   await page.locator('#campaign-form [data-name=langs] input[value=fr]').check();
   await page.locator('#campaign-form select[data-name=staffOnly]').selectOption("true");
+  await page.locator("#campaign-form input[type=number]").nth(1).fill("3");
+  await page.locator("#campaign-form input[type=number]").nth(2).fill("5");
   await page.getByRole("button", { name: "Create draft" }).click();
   await expect.poll(() => calls.find((c) => c.method === "POST" && c.path === "/admin/api/campaigns")).toBeTruthy();
   expect(calls.find((c) => c.path === "/admin/api/campaigns")!.body).toMatchObject({
-    name: "Spring", templateKey: "campaign:spring", segment: { langs: ["fr"], staffOnly: true }, localSendTime: "18:30", rolloutPct: 10, promotional: true,
+    name: "Spring", templateKey: "campaign:spring", segment: { langs: ["fr"], staffOnly: true }, localSendTime: "18:30", rolloutPct: 10, promotional: true, variants: 3, holdoutPct: 5,
   });
 
   await table.locator("tr").filter({ hasText: "Staff check" }).getByRole("button", { name: "Dry run" }).click();
-  await expect(page.locator("#status")).toHaveText("Dry run: would reach 3 account(s). Nothing was sent.");
+  await expect(page.locator("#status")).toHaveText("Dry run: would reach 3 account(s), hold out 1. Nothing was sent.");
 
   await table.locator("tr").filter({ hasText: "Win-back" }).getByRole("button", { name: "Test send" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("not-staff");
@@ -358,15 +379,19 @@ test("the campaign copy editor loads a saved language and saves a draft and a re
   await openAdmin(page);
   const form = page.locator("#campaign-copy-form");
   await form.locator("input[placeholder='campaign:spring-win-back']").fill("campaign:win-back");
-  await form.locator("select").selectOption("de");
+  await form.locator("select").nth(0).selectOption("de");
+  await form.locator("select").nth(1).selectOption("b");
   await form.locator("input[placeholder='campaign:spring-win-back']").dispatchEvent("change");
+  await expect(form.locator("input[placeholder=Title]")).toHaveValue("");
+  await form.locator("select").nth(1).selectOption("default");
   await expect(form.locator("input[placeholder=Title]")).toHaveValue("Hi de");
+  await form.locator("select").nth(1).selectOption("b");
   await form.locator("input[placeholder=Title]").fill("Hallo");
   await form.locator("textarea").fill("Ein Satz für alle.");
   await form.getByRole("button", { name: "Save as reviewed" }).click();
   await expect.poll(() => calls.find((c) => c.method === "PUT")).toBeTruthy();
   expect(calls.find((c) => c.method === "PUT")!.body).toEqual({
-    template: { key: "campaign:win-back", lang: "de", variant: "default", title: "Hallo", body: "Ein Satz für alle." }, status: "reviewed",
+    template: { key: "campaign:win-back", lang: "de", variant: "b", title: "Hallo", body: "Ein Satz für alle." }, status: "reviewed",
   });
   expect(errors).toEqual([]);
 });
@@ -395,18 +420,18 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     // Kill is always on screen, whatever the width: the actions wrap rather than run off the edge.
     for (const kill of await page.locator("#campaigns").getByRole("button", { name: "Kill" }).all()) {
       const box = (await kill.boundingBox())!;
-      const scroller = (await page.locator(".scrollx").boundingBox())!;
+      const scroller = (await page.locator(".scrollx:has(#campaigns)").boundingBox())!;
       if (width >= 1000) expect(box.x + box.width).toBeLessThanOrEqual(scroller.x + scroller.width);
     }
     if (width < 500) {
       // A real horizontal scroller, with the Name column pinned while the rest moves.
-      const m = await page.locator(".scrollx").evaluate((el) => { el.scrollLeft = 200; return [el.scrollWidth, el.clientWidth, el.scrollLeft]; });
+      const m = await page.locator(".scrollx:has(#campaigns)").evaluate((el) => { el.scrollLeft = 200; return [el.scrollWidth, el.clientWidth, el.scrollLeft]; });
       expect(m[0]).toBeGreaterThan(m[1]!);
       expect(m[2]).toBeGreaterThan(0);
       const nameX = (await page.locator("#campaigns tbody tr").first().locator("td").first().boundingBox())!.x;
-      const scrollerX = (await page.locator(".scrollx").boundingBox())!.x;
+      const scrollerX = (await page.locator(".scrollx:has(#campaigns)").boundingBox())!.x;
       expect(Math.abs(nameX - scrollerX)).toBeLessThan(2);
-      await page.locator(".scrollx").evaluate((el) => { el.scrollLeft = 0; });
+      await page.locator(".scrollx:has(#campaigns)").evaluate((el) => { el.scrollLeft = 0; });
     }
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-${name}.png` });
     await page.locator("#campaign-form").evaluate((el) => el.scrollIntoView({ block: "start" }));

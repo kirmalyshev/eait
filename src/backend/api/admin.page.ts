@@ -197,13 +197,14 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
   <div class="scrollx"><table id="campaigns">
     <thead>
-      <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
+      <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Arms</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
     </thead>
     <tbody></tbody>
   </table></div>
+  <div id="campaign-reports"></div>
   <p class="muted">
-    Sent and opened count real sends only; a dry run (who it would reach, nothing sent) and a test send are
-    counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
+    Sent and opened count real sends only; a dry run (who it would reach, nothing sent), a test send and the
+    holdout are counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
   </p>
   <h3>New campaign</h3>
   <div id="campaign-form"></div>
@@ -775,6 +776,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var time = document.createElement("input"); time.type = "time"; time.value = "18:30";
     var pctIn = document.createElement("input"); pctIn.type = "number"; pctIn.min = "0"; pctIn.max = "100"; pctIn.value = "10";
     var promo = document.createElement("input"); promo.type = "checkbox"; promo.checked = true; promo.style.width = "auto";
+    var variants = document.createElement("input"); variants.type = "number"; variants.min = "1"; variants.max = "4"; variants.value = "1";
+    var holdout = document.createElement("input"); holdout.type = "number"; holdout.min = "0"; holdout.max = "10"; holdout.value = "0";
     var langs = checks("langs", o.langs);
     var ent = checks("entitlement", o.entitlement);
     var streak = checks("streakBand", o.streakBands);
@@ -783,7 +786,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var tips = triState("tipsConsent");
     var staff = triState("staffOnly");
     var row1 = document.createElement("div"); row1.className = "row flexwrap";
-    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn)].forEach(function (f) { row1.appendChild(f); });
+    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn), campaignField("Variants (1-4)", variants), campaignField("Holdout % (0-10)", holdout)].forEach(function (f) { row1.appendChild(f); });
     host.appendChild(row1);
     host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
     host.appendChild(campaignField("Languages (none ticked = all)", langs));
@@ -806,7 +809,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       campaignErrors(null);
       api("POST", "/admin/api/campaigns", {
         name: name.value, templateKey: tpl.value, segment: seg, localSendTime: time.value,
-        rolloutPct: Number(pctIn.value), promotional: promo.checked
+        rolloutPct: Number(pctIn.value), promotional: promo.checked,
+        variants: Number(variants.value), holdoutPct: Number(holdout.value)
       }).then(function () { name.value = ""; return loadCampaigns(); }).catch(campaignErrors);
     });
     host.appendChild(create);
@@ -819,25 +823,28 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
     var lang = document.createElement("select");
     o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
+    var variant = document.createElement("select");
+    o.variants.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; variant.appendChild(opt); });
     var title = document.createElement("input"); title.placeholder = "Title";
     var body = document.createElement("textarea"); body.placeholder = "Body";
     var row = document.createElement("div"); row.className = "row flexwrap";
-    [campaignField("Key", key), campaignField("Language", lang), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
+    [campaignField("Key", key), campaignField("Language", lang), campaignField("Variant", variant), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
     host.appendChild(row);
     host.appendChild(campaignField("Body", body));
     // Picking a key and language shows what is saved there.
     var fill = function () {
-      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value; })[0];
+      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value && r.variant === variant.value; })[0];
       title.value = hit ? hit.title : "";
       body.value = hit ? hit.body : "";
     };
     key.addEventListener("change", fill);
     lang.addEventListener("change", fill);
+    variant.addEventListener("change", fill);
     var save = function (status) {
       return function () {
         campaignErrors(null);
         api("PUT", "/admin/api/push-templates", {
-          template: { key: key.value.trim(), lang: lang.value, variant: "default", title: title.value, body: body.value },
+          template: { key: key.value.trim(), lang: lang.value, variant: variant.value, title: title.value, body: body.value },
           status: status
         }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
       };
@@ -849,6 +856,37 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   var copyRows = [];
+
+  function renderReports(campaigns) {
+    var host = $("campaign-reports");
+    host.textContent = "";
+    campaigns.forEach(function (c) {
+      if (!c.report.groups.length) return;
+      var h = document.createElement("h3"); h.textContent = c.name + " — by arm"; host.appendChild(h);
+      var wrap = document.createElement("div"); wrap.className = "scrollx";
+      var t = document.createElement("table");
+      var head = document.createElement("tr");
+      ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x) { var th = document.createElement("th"); th.textContent = x; head.appendChild(th); });
+      t.appendChild(head);
+      c.report.groups.forEach(function (g) {
+        var tr = document.createElement("tr");
+        [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x) {
+          var td = document.createElement("td"); td.textContent = String(x); tr.appendChild(td);
+        });
+        t.appendChild(tr);
+      });
+      wrap.appendChild(t); host.appendChild(wrap);
+      var p = document.createElement("p"); p.className = "muted";
+      var e = c.effect;
+      if (!e) p.textContent = "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.";
+      else {
+        var pp = function (x) { return (x * 100).toFixed(1) + " pts"; };
+        p.textContent = "Treated minus holdout conversion: " + pp(e.comparison.diff) + " (95% CI " + pp(e.comparison.lo) + " to " + pp(e.comparison.hi) + ") — " +
+          (e.comparison.significant ? "the interval excludes zero." : "not distinguishable from zero.");
+      }
+      host.appendChild(p);
+    });
+  }
 
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
@@ -873,12 +911,13 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         campaignErrors(null);
         api("POST", "/admin/api/campaigns/kill", { killed: !v.killed }).then(loadCampaigns).catch(campaignErrors);
       };
+      renderReports(v.campaigns);
       var body = $("campaigns").querySelector("tbody");
       body.textContent = "";
       v.campaigns.forEach(function (c) {
         var tr = document.createElement("tr");
         [c.name, c.status, segmentText(c.segment) + (c.promotional ? " · promotional" : ""), c.localSendTime,
-         c.rolloutPct + "%", c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
+         c.rolloutPct + "%", c.variants + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : ""), c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
         ].forEach(function (t) {
           var td = document.createElement("td");
           td.textContent = String(t);
@@ -898,7 +937,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
             return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(next) });
           }));
           act.appendChild(campaignAction("Dry run", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { status("Dry run: would reach " + r.wouldSend + " account(s). Nothing was sent."); });
+            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { status("Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent."); });
           }));
           act.appendChild(campaignAction("Test send", function () {
             return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: $("campaigns-test-user").value.trim() })

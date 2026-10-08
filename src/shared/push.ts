@@ -18,8 +18,13 @@ export type PushKind = (typeof PUSH_KINDS)[number];
  */
 export type SendKind = PushKind | "transactional";
 
-/** `expired`: accepted by the push service, and its receipt never came within a day. Terminal. */
-export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired"] as const;
+/**
+ * `expired`: accepted by the push service, and its receipt never came within a day. Terminal.
+ * `would_have_sent`: a campaign's holdout. The account was due the message and was kept out of it on
+ * purpose; nothing went to any push service and no slot was claimed. It exists so the report has a
+ * control group with a send time to measure conversion from.
+ */
+export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired", "would_have_sent"] as const;
 export type SendLogState = (typeof SEND_STATES)[number];
 
 /** True when `a` takes the day over `b`. Equal kinds do not outrank each other. */

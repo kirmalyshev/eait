@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { LANGS, type PushTemplateRow } from "@eait/shared";
+import { CAMPAIGN_VARIANTS, LANGS, inHoldout, variantOf, type PushTemplateRow } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { CampaignRow, Store } from "../store.ts";
 import {
-  createCampaign, dryRunCampaign, runCampaigns, setCampaignStatus, setCampaignsKilled, testSendCampaign,
+  campaignOverview, createCampaign, dryRunCampaign, runCampaigns, setCampaignStatus, setCampaignsKilled, testSendCampaign,
   updateCampaign,
 } from "./campaign.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
@@ -55,19 +55,21 @@ async function account(opts: { tz?: string; lang?: "en" | "de" | "fr"; consent?:
 }
 
 /** A campaign's own copy in all eight languages, reviewed unless `draftLang` names one left as a draft. */
-async function copy(key = "campaign:win-back", draftLang?: string): Promise<void> {
+async function copy(key = "campaign:win-back", draftLang?: string, variants = 1): Promise<void> {
   for (const lang of LANGS) {
-    await store.putPushTemplate({
-      key: key as PushTemplateRow["key"], lang, variant: "default", title: `Hi ${lang}`, body: `Body ${lang}`,
-      status: lang === draftLang ? "draft" : "reviewed", reviewed_by: "t", reviewed_at: "2026-10-08T00:00:00.000Z",
-      updated_at: "2026-10-08T00:00:00.000Z",
-    });
+    for (const variant of CAMPAIGN_VARIANTS.slice(0, variants)) {
+      await store.putPushTemplate({
+        key: key as PushTemplateRow["key"], lang, variant, title: `Hi ${lang} ${variant}`, body: `Body ${lang} ${variant}`,
+        status: lang === draftLang ? "draft" : "reviewed", reviewed_by: "t", reviewed_at: "2026-10-08T00:00:00.000Z",
+        updated_at: "2026-10-08T00:00:00.000Z",
+      });
+    }
   }
 }
 
 async function campaign(over: Record<string, unknown> = {}, status: "draft" | "scheduled" = "scheduled"): Promise<CampaignRow> {
   const key = (over.templateKey as string | undefined) ?? "campaign:win-back";
-  if ((await store.listPushTemplates()).every((r) => r.key !== key)) await copy(key);
+  if ((await store.listPushTemplates()).every((r) => r.key !== key)) await copy(key, undefined, (over.variants as number | undefined) ?? 1);
   const made = await createCampaign(deps, {
     name: "Win-back", templateKey: key, segment: {}, localSendTime: "18:30", rolloutPct: 100,
     promotional: false, ...over,
@@ -473,7 +475,7 @@ describe("test send", () => {
     await testSendCampaign(deps, c.id, me, BERLIN_1830);
     const row = (await store.sendLogFor(me, 1))[0]!;
     await store.recordPushOpen(me, row.id, "tap");
-    expect(await store.campaignReport(c.id)).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 1 });
+    expect(await store.campaignReport(c.id)).toEqual({ sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 1, held: 0, groups: [] });
   });
 
   it("refuses when the template is incomplete, before taking the slot", async () => {
@@ -492,6 +494,179 @@ describe("a campaign never goes out on a template that stopped being complete", 
     await campaign();
     await copy("campaign:win-back", "de");
     await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(push.sent).toHaveLength(0);
+  });
+});
+
+describe("A/B variants", () => {
+  it("sends each account its hashed variant's own copy, and writes the variant to send_log", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 40; i++) users.push(await account());
+    const c = await campaign({ variants: 2 });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(push.sent).toHaveLength(40);
+    const seen = new Set<string>();
+    for (const u of users) {
+      const want = CAMPAIGN_VARIANTS[variantOf(u, c.id, 2)]!;
+      const row = (await store.sendLogFor(u, 1))[0]!;
+      expect(row.variant).toBe(want);
+      const msg = push.sent.find((m) => (m.data as { sendId?: string }).sendId === row.id)!;
+      expect(msg.title).toBe(`Hi en ${want}`);
+      seen.add(want);
+    }
+    expect([...seen].sort()).toEqual(["b", "default"]);
+  });
+
+  it("will not activate until every variant it runs has reviewed copy in all eight languages", async () => {
+    const c = await campaign({ variants: 2 }, "draft"); // the helper writes both variants
+    await copy("campaign:win-back", undefined, 1); // default only: b is a draft-less gap? remove b
+    for (const lang of LANGS) await store.putPushTemplate({ key: "campaign:win-back", lang, variant: "b", title: "x", body: "y", status: "draft", reviewed_by: null, reviewed_at: null, updated_at: "2026-10-08T00:00:00.000Z" } as PushTemplateRow);
+    const r = await setCampaignStatus(deps, c.id, "scheduled");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join(" ")).toContain("en/b");
+    await copy("campaign:win-back", undefined, 2);
+    expect((await setCampaignStatus(deps, c.id, "scheduled")).ok).toBe(true);
+  });
+
+  it("fixes variants and holdout once the campaign leaves draft, because changing them would reassign accounts", async () => {
+    const d = await campaign({ variants: 2, holdoutPct: 5 }, "draft");
+    const edit = await updateCampaign(deps, d.id, { variants: 3, holdoutPct: 8 });
+    expect(edit.ok && edit.row).toMatchObject({ variants: 3, holdoutPct: 8 });
+    await copy("campaign:win-back", undefined, 3);
+    await setCampaignStatus(deps, d.id, "scheduled");
+    for (const patch of [{ variants: 2 }, { holdoutPct: 0 }]) {
+      const r = await updateCampaign(deps, d.id, patch);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.errors.join(" ")).toContain("fixed once");
+    }
+    expect((await updateCampaign(deps, d.id, { rolloutPct: 50 })).ok).toBe(true);
+  });
+
+  it("sends a test to a staff account in that account's hashed variant", async () => {
+    const me = await account();
+    staff = [me];
+    const c = await campaign({ variants: 2, segment: { staffOnly: true } }, "draft");
+    await testSendCampaign(deps, c.id, me, BERLIN_1830);
+    const want = CAMPAIGN_VARIANTS[variantOf(me, c.id, 2)]!;
+    expect(push.sent[0]!.title).toBe(`Hi en ${want}`);
+    expect((await store.sendLogFor(me, 1))[0]!.variant).toBe("test");
+  });
+});
+
+describe("holdout", () => {
+  it("keeps its share out with a would_have_sent row, no push, and no slot; the rest are sent, none of both", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 120; i++) users.push(await account());
+    const c = await campaign({ variants: 2, holdoutPct: 10 });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    const held = users.filter((u) => inHoldout(u, c.id, 10));
+    expect(held.length).toBeGreaterThan(3);
+    expect(held.length).toBeLessThan(30);
+    const sentTo = new Set(push.sent.map((m) => m.to));
+    expect(push.sent).toHaveLength(users.length - held.length);
+    for (const u of users) {
+      const rows = await store.sendLogFor(u, 5);
+      const token = (await store.pushTokensFor(u))[0]!.token;
+      if (held.includes(u)) {
+        expect(sentTo.has(token)).toBe(false);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ state: "would_have_sent", kind: "campaign", ref: c.id, variant: CAMPAIGN_VARIANTS[variantOf(u, c.id, 2)] });
+        // No slot was claimed: today's message is still free for another sender.
+        expect(await store.claimPushSlot(u, "2026-08-20", "evening", null)).toEqual({ claimed: true });
+      } else {
+        expect(sentTo.has(token)).toBe(true);
+        expect(rows[0]!.state).toBe("accepted");
+      }
+    }
+  });
+
+  it("logs a held-out account only on a day its slot is free, exactly like a treated one is retried", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 80; i++) users.push(await account());
+    const c = await campaign({ holdoutPct: 10 });
+    const held = users.filter((u) => inHoldout(u, c.id, 10));
+    expect(held.length).toBeGreaterThan(2);
+    // Another sender (a streak line, a trial reminder, ...) already holds today for every account.
+    for (const u of users) await store.claimPushSlot(u, "2026-08-20", "streak", null);
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    for (const u of users) expect(await store.sendLogFor(u, 5)).toHaveLength(0); // no row, treated or held
+    for (const u of held) expect(await store.hasCampaignSend(u, c.id)).toBe(false); // retried, not spent
+    expect(push.sent).toHaveLength(0);
+    // Reading the slot claimed nothing: the day is still the other sender's.
+    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-20")).toBe("streak");
+    // The next free day: one would_have_sent row for each held-out account, a push for the rest.
+    await runCampaigns(deps, { now: BERLIN_1830 + DAY });
+    for (const u of held) {
+      const rows = await store.sendLogFor(u, 5);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.state).toBe("would_have_sent");
+    }
+    expect(push.sent).toHaveLength(users.length - held.length);
+    // And it is the slot of the NEW day that stayed free: a held-out account claimed nothing.
+    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-21")).toBeNull();
+  });
+
+  it("logs a held-out account once, however many ticks run", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 60; i++) users.push(await account());
+    const c = await campaign({ holdoutPct: 10 });
+    for (const k of [0, 1, 2]) await runCampaigns(deps, { now: BERLIN_1830 + k * MIN });
+    await runCampaigns(deps, { now: BERLIN_1830 + DAY });
+    for (const u of users.filter((x) => inHoldout(x, c.id, 10))) expect(await store.sendLogFor(u, 5)).toHaveLength(1);
+  });
+
+  it("holds out nobody at 0%", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 40; i++) users.push(await account());
+    await campaign({ holdoutPct: 0 });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(push.sent).toHaveLength(40);
+    const rows = (await Promise.all(users.map((u) => store.sendLogFor(u, 5)))).flat();
+    expect(rows.filter((r) => r.state === "would_have_sent")).toHaveLength(0);
+  });
+
+  it("logs no holdout row for an account outside the segment, or before the hour", async () => {
+    const en: string[] = [];
+    for (let i = 0; i < 60; i++) en.push(await account({ lang: "en" }));
+    await campaign({ segment: { langs: ["de"] }, holdoutPct: 10 });
+    await runCampaigns(deps, { now: BERLIN_1830 - 60 * MIN });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    for (const u of en) expect(await store.sendLogFor(u, 5)).toHaveLength(0);
+    expect(push.sent).toHaveLength(0);
+  });
+
+  it("is reported as its own group, and the effect is treated minus holdout over accounts", async () => {
+    const users: string[] = [];
+    for (let i = 0; i < 80; i++) users.push(await account());
+    const c = await campaign({ variants: 2, holdoutPct: 10 });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    const held = new Set(users.filter((u) => inHoldout(u, c.id, 10)));
+    const meal = (userId: string) => ({
+      id: crypto.randomUUID(), user_id: userId, ts: new Date(Date.now() + 60_000).toISOString(), date: "2026-08-20",
+      isFood: true, items: [{ name: "x", grams: 1 }], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
+      fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const,
+      notes: "", corrected: false, model: "t",
+    });
+    // The store stamps a send with the wall clock, so the meals land just after it.
+    const loggers = users.slice(0, 30);
+    for (const u of loggers) await store.insertMeal(meal(u));
+    const mine = (await campaignOverview(deps)).campaigns.find((x) => x.id === c.id)!;
+    const groups = Object.fromEntries(mine.report.groups.map((g) => [g.group, g]));
+    expect(groups.holdout).toMatchObject({ users: held.size, opened: 0, converted: loggers.filter((u) => held.has(u)).length });
+    expect(groups.default!.users + groups.b!.users).toBe(users.length - held.size);
+    const treatedConverted = loggers.filter((u) => !held.has(u)).length;
+    expect(groups.default!.converted + groups.b!.converted).toBe(treatedConverted);
+    expect(mine.effect).toMatchObject({
+      treated: { n: users.length - held.size, x: treatedConverted }, holdout: { n: held.size, x: loggers.filter((u) => held.has(u)).length },
+    });
+  });
+
+  it("a dry run does not count the held-out as reached, and says how many it would hold out", async () => {
+    for (let i = 0; i < 80; i++) await account();
+    const c = await campaign({ holdoutPct: 10 }, "draft");
+    const out = await dryRunCampaign(deps, c.id, { now: BERLIN_1830 });
+    expect(out.ok && out.wouldSend + out.heldOut).toBe(80);
+    expect(out.ok && out.heldOut).toBeGreaterThan(0);
     expect(push.sent).toHaveLength(0);
   });
 });

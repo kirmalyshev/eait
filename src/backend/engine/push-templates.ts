@@ -158,16 +158,16 @@ export async function rotatedVariant(
 }
 
 /**
- * A campaign's words for one account's language: the `default` row of its own `campaign:<slug>` key,
- * or null while any of the eight languages is missing or still a draft. Null means REFUSE, as for a
- * system key: half of a translated set on a lock screen is worse than silence. No placeholders, so
- * there is nothing to fill.
+ * A campaign's words for one account: the row of its own `campaign:<slug>` key for the account's
+ * language and the variant it was assigned, or null while any language of any variant the campaign
+ * RUNS (`variantCount`) is missing or still a draft. Null means REFUSE, as for a system key: half of a
+ * translated set on a lock screen is worse than silence. No placeholders, so there is nothing to fill.
  */
 export async function campaignWords(
-  deps: EngineDeps, key: CampaignTemplateKey, lang: Lang,
+  deps: EngineDeps, key: CampaignTemplateKey, lang: Lang, variant: string, variantCount: number,
 ): Promise<{ title: string; body: string } | null> {
   const rows = (await deps.store.listPushTemplates()).filter((r) => r.key === key);
-  if (pushKeyGaps(rows, key).length > 0) return null;
-  const row = rows.find((r) => r.lang === lang && r.variant === "default");
+  if (pushKeyGaps(rows, key, variantCount).length > 0) return null;
+  const row = rows.find((r) => r.lang === lang && r.variant === variant);
   return row ? { title: row.title, body: row.body } : null;
 }

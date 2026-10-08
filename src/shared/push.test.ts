@@ -12,7 +12,7 @@ describe("push kinds", () => {
     expect(outranks("trial", "trial")).toBe(false);
   });
   it("names the send states", () => {
-    expect([...SEND_STATES]).toEqual(["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired"]);
+    expect([...SEND_STATES]).toEqual(["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired", "would_have_sent"]);
   });
 });
 

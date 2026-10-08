@@ -939,6 +939,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return { claimed: true };
     },
 
+    async pushSlotOf(userId, localDate) {
+      return pushSlots.get(`${userId}|${localDate}`) ?? null;
+    },
+
     async createSend(userId, row) {
       if (!users.has(userId)) throw new Error("send_log: no such user");
       sendLog.set(row.id, {
@@ -982,7 +986,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const out = new Map<string, PushStatRow>();
       for (const r of sendLog.values()) {
         const at = Date.parse(r.createdAt);
-        if (at < since) continue;
+        if (at < since || r.state === "would_have_sent") continue;
         const day = localDate(timezone, new Date(at));
         const key = `${day}|${r.kind}|${r.templateKey}`;
         const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, opened: 0, converted: 0 };
@@ -1051,17 +1055,42 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async campaignReport(campaignId) {
-      const out = { sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0 };
+      const out = { sent: 0, accepted: 0, dead: 0, dry: 0, opened: 0, test: 0, held: 0 };
+      const DAY = 24 * 60 * 60 * 1000;
+      const groups = new Map<string, Map<string, { opened: boolean; converted: boolean }>>();
       for (const r of sendLog.values()) {
         if (r.kind !== "campaign" || r.ref !== campaignId) continue;
         if (r.variant === "test") { out.test++; continue; }
         if (r.state === "dry") { out.dry++; continue; }
-        out.sent++;
-        if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) out.accepted++;
-        if (r.state === "dead") out.dead++;
-        if (r.state !== "refused" && r.state !== "dead" && pushOpens.has(`${r.userId}|${r.id}`)) out.opened++;
+        const held = r.state === "would_have_sent";
+        if (held) out.held++;
+        else {
+          out.sent++;
+          if (["accepted", "delivered-to-apns", "expired"].includes(r.state)) out.accepted++;
+          if (r.state === "dead") out.dead++;
+          if (r.state !== "refused" && r.state !== "dead" && pushOpens.has(`${r.userId}|${r.id}`)) out.opened++;
+        }
+        const name = held ? "holdout" : (r.variant ?? "default");
+        const users = groups.get(name) ?? new Map();
+        const mine = users.get(r.userId) ?? { opened: false, converted: false };
+        const reached = r.state !== "dead" && r.state !== "refused";
+        const at = Date.parse(r.createdAt);
+        if (!held && reached && pushOpens.has(`${r.userId}|${r.id}`)) mine.opened = true;
+        // INTENT TO TREAT: a meal within 24 h of the account's send counts whatever became of the
+        // delivery. The holdout has no dead rows, so filtering them out here would lower only the treated rate.
+        if ([...meals.values()].some((m) => m.user_id === r.userId && Date.parse(m.ts) >= at && Date.parse(m.ts) < at + DAY)) mine.converted = true;
+        users.set(r.userId, mine);
+        groups.set(name, users);
       }
-      return out;
+      // `out.held` counted rows; the report says accounts, and a held-out account has exactly one row.
+      return {
+        ...out,
+        groups: [...groups.entries()].sort(([x], [y]) => x.localeCompare(y)).map(([group, users]) => ({
+          group, users: users.size,
+          opened: [...users.values()].filter((u) => u.opened).length,
+          converted: [...users.values()].filter((u) => u.converted).length,
+        })),
+      };
     },
 
     async getOnboardingContent() {
