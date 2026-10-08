@@ -43,6 +43,9 @@ export const PUSH_TEMPLATE_VARIANTS: Record<NotificationId, readonly string[]> =
   "trial-end": ["default"],
   evening: ["default", "empty"],
   nudge: ["default"],
+  "onboarding-start": ["default", "v2", "v3", "v4"],
+  "onboarding-photo": ["default", "v2", "v3", "v4"],
+  "streak-risk": ["default", "v2", "v3", "v4"],
 };
 
 /** A variant's body is the `emptyBody` field of the legacy `NotificationCopy`. */
@@ -216,6 +219,7 @@ export function pushRowsFromCopy(lang: Lang, copy: NotificationCopy): PushTempla
     // The empty-day body is sent under the default title (one `NotificationMessage.title`), so
     // this variant carries none: a title field here would be edited and never read.
     if (m.emptyBody !== undefined) out.push({ key, lang, variant: "empty", title: "", body: m.emptyBody });
+    for (const [variant, body] of Object.entries(m.alternates ?? {})) out.push({ key, lang, variant, title: "", body });
   }
   return out;
 }
@@ -231,10 +235,16 @@ export function copyFromPushRows(
     const find = (variant: string) => rows.find((r) => r.key === key && r.lang === lang && r.variant === variant);
     const d = find("default");
     const e = find("empty");
+    const alternates = { ...base[key].alternates };
+    for (const variant of PUSH_TEMPLATE_VARIANTS[key]) {
+      const row = variant === "default" || variant === "empty" ? undefined : find(variant);
+      if (row) alternates[variant] = row.body;
+    }
     out[key] = {
       ...base[key],
       ...(d ? { title: d.title, body: d.body } : {}),
       ...(e ? { emptyBody: e.body } : {}),
+      ...(Object.keys(alternates).length > 0 ? { alternates } : {}),
     };
   }
   return out;

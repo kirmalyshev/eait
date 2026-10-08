@@ -26,7 +26,9 @@ import { genderedRussian, kcalNumbers, wholeNumbers, t, type Localized } from ".
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
-export const NOTIFICATION_IDS = ["trial-end", "evening", "nudge"] as const;
+export const NOTIFICATION_IDS = [
+  "trial-end", "evening", "nudge", "onboarding-start", "onboarding-photo", "streak-risk",
+] as const;
 export type NotificationId = (typeof NOTIFICATION_IDS)[number];
 
 export interface NotificationMessage {
@@ -40,6 +42,11 @@ export interface NotificationMessage {
    * number. It cannot carry `{eaten}` — there is nothing eaten — and the validator says so.
    */
   emptyBody?: string;
+  /**
+   * Rotation: further bodies for the same title, by variant name (`v2`…). Present only on the
+   * triggers (`onboarding-*`, `streak-risk`), which send a different line on each occasion.
+   */
+  alternates?: Record<string, string>;
 }
 
 export type NotificationCopy = Record<NotificationId, NotificationMessage>;
@@ -57,6 +64,9 @@ export const NOTIFICATION_PLACEHOLDERS: Record<string, readonly string[]> = {
   "evening.title": [], "evening.body": ["eaten", "plan", "tomorrow"],
   "evening.emptyBody": ["plan", "tomorrow"],
   "nudge.title": [], "nudge.body": [],
+  "onboarding-start.title": [], "onboarding-start.body": [],
+  "onboarding-photo.title": [], "onboarding-photo.body": [],
+  "streak-risk.title": [], "streak-risk.body": [],
 };
 
 /** iOS truncates well before these; they are a bound on abuse, not a design guide. */
@@ -86,6 +96,21 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
   },
   // The free account's line (#730): no figures, because the figures read the day against the plan
   // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Your plan is nearly ready",
+    body: "A few taps and your plan is ready.",
+    alternates: { v2: "Pick up where you stopped — it only takes a minute.", v3: "Your plan is waiting on a few answers.", v4: "Finish the last questions and your plan is yours." },
+  },
+  "onboarding-photo": {
+    title: "Your first meal",
+    body: "Take a photo of your next meal — that's all it takes to start.",
+    alternates: { v2: "One photo is enough to get going.", v3: "Your plan is set. Log your first meal when you're ready.", v4: "Next time you eat, try a photo — we handle the rest." },
+  },
+  "streak-risk": {
+    title: "Keep it going",
+    body: "You've logged a few days running. A photo today keeps the run going.",
+    alternates: { v2: "One quick photo and today counts too.", v3: "Nothing logged yet today? One meal and the run carries on.", v4: "Your run is still alive — add today with a photo." },
+  },
   nudge: {
     title: "Today's meals",
     body: "Log what you ate today — a photo is enough.",
@@ -110,6 +135,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten}kcal sur tes {plan} aujourd'hui. {tomorrow}",
       emptyBody: "Rien d'enregistré aujourd'hui — ton objectif reste {plan}kcal. {tomorrow}",
     },
+    "onboarding-start": {
+      title: "Ton plan est presque prêt",
+      body: "Quelques touches et ton plan est prêt.",
+      alternates: { v2: "Reprends là où tu t'es arrêté — une minute suffit.", v3: "Ton plan n'attend que quelques réponses.", v4: "Termine les dernières questions et ton plan est à toi." },
+    },
+    "onboarding-photo": {
+      title: "Ton premier repas",
+      body: "Prends ton prochain repas en photo — il suffit de ça pour commencer.",
+      alternates: { v2: "Une seule photo suffit pour démarrer.", v3: "Ton plan est prêt. Note ton premier repas quand tu veux.", v4: "La prochaine fois que tu manges, essaie la photo — on s'occupe du reste." },
+    },
+    "streak-risk": {
+      title: "On continue",
+      body: "Tu notes tes repas depuis plusieurs jours. Une photo aujourd'hui prolonge la série.",
+      alternates: { v2: "Une photo rapide et aujourd'hui compte aussi.", v3: "Rien de noté aujourd'hui ? Un repas et la série continue.", v4: "Ta série est toujours là — ajoute aujourd'hui avec une photo." },
+    },
     nudge: {
       title: "Les repas du jour",
       body: "Note ce que tu as mangé aujourd'hui — une photo suffit.",
@@ -124,6 +164,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Dein Tag im Vergleich zum Plan",
       body: "{eaten} von deinen {plan}kcal heute. {tomorrow}",
       emptyBody: "Heute nichts eingetragen — deine {plan}kcal sind trotzdem der Plan. {tomorrow}",
+    },
+    "onboarding-start": {
+      title: "Dein Plan ist fast fertig",
+      body: "Ein paar Taps, und dein Plan steht.",
+      alternates: { v2: "Mach da weiter, wo du aufgehört hast — es dauert nur eine Minute.", v3: "Dein Plan wartet nur noch auf ein paar Antworten.", v4: "Beantworte die letzten Fragen, dann gehört dein Plan dir." },
+    },
+    "onboarding-photo": {
+      title: "Deine erste Mahlzeit",
+      body: "Fotografier deine nächste Mahlzeit — mehr braucht es nicht für den Start.",
+      alternates: { v2: "Ein Foto reicht, um loszulegen.", v3: "Dein Plan steht. Trag deine erste Mahlzeit ein, wenn du magst.", v4: "Probier beim nächsten Essen ein Foto — den Rest übernehmen wir." },
+    },
+    "streak-risk": {
+      title: "Bleib dran",
+      body: "Du trägst schon ein paar Tage in Folge ein. Ein Foto heute führt die Reihe fort.",
+      alternates: { v2: "Ein schnelles Foto, und heute zählt auch.", v3: "Heute noch nichts eingetragen? Eine Mahlzeit, und die Reihe geht weiter.", v4: "Deine Reihe lebt noch — ergänze heute mit einem Foto." },
     },
     nudge: {
       title: "Deine Mahlzeiten heute",
@@ -140,6 +195,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} delle tue {plan}kcal oggi. {tomorrow}",
       emptyBody: "Oggi niente registrato — le tue {plan}kcal restano il piano. {tomorrow}",
     },
+    "onboarding-start": {
+      title: "Il tuo piano è quasi pronto",
+      body: "Pochi tocchi e il tuo piano è pronto.",
+      alternates: { v2: "Riprendi da dove ti eri fermato — basta un minuto.", v3: "Il tuo piano aspetta solo qualche risposta.", v4: "Rispondi alle ultime domande e il piano è tuo." },
+    },
+    "onboarding-photo": {
+      title: "Il tuo primo pasto",
+      body: "Fotografa il prossimo pasto — basta questo per iniziare.",
+      alternates: { v2: "Una foto è sufficiente per partire.", v3: "Il piano è pronto. Registra il primo pasto quando vuoi.", v4: "La prossima volta che mangi prova con una foto — al resto pensiamo noi." },
+    },
+    "streak-risk": {
+      title: "Continua così",
+      body: "Registri i pasti da qualche giorno di fila. Una foto oggi mantiene la serie.",
+      alternates: { v2: "Una foto veloce e anche oggi conta.", v3: "Ancora niente oggi? Un pasto e la serie continua.", v4: "La tua serie è ancora lì — aggiungi oggi con una foto." },
+    },
     nudge: {
       title: "I pasti di oggi",
       body: "Registra cosa hai mangiato oggi — basta una foto.",
@@ -154,6 +224,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Hoy frente al plan",
       body: "{eaten} de tus {plan}kcal hoy. {tomorrow}",
       emptyBody: "Hoy sin registros — tus {plan}kcal siguen siendo el plan. {tomorrow}",
+    },
+    "onboarding-start": {
+      title: "Tu plan está casi listo",
+      body: "Unos toques y tu plan está listo.",
+      alternates: { v2: "Retoma donde lo dejaste: solo lleva un minuto.", v3: "Tu plan solo espera unas respuestas.", v4: "Termina las últimas preguntas y el plan es tuyo." },
+    },
+    "onboarding-photo": {
+      title: "Tu primera comida",
+      body: "Haz una foto de tu próxima comida: es todo lo que hace falta para empezar.",
+      alternates: { v2: "Una foto basta para arrancar.", v3: "Tu plan está listo. Apunta tu primera comida cuando quieras.", v4: "La próxima vez que comas, prueba con una foto; del resto nos ocupamos." },
+    },
+    "streak-risk": {
+      title: "Sigue así",
+      body: "Llevas varios días seguidos apuntando. Una foto hoy mantiene la racha.",
+      alternates: { v2: "Una foto rápida y hoy también cuenta.", v3: "¿Aún sin apuntar hoy? Una comida y la racha sigue.", v4: "Tu racha sigue viva: suma hoy con una foto." },
     },
     nudge: {
       title: "Las comidas de hoy",
@@ -170,6 +255,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} trên {plan}kcal hôm nay. {tomorrow}",
       emptyBody: "Hôm nay chưa ghi gì — {plan}kcal của bạn vẫn là kế hoạch. {tomorrow}",
     },
+    "onboarding-start": {
+      title: "Kế hoạch của bạn sắp xong",
+      body: "Vài chạm nữa là kế hoạch của bạn sẵn sàng.",
+      alternates: { v2: "Tiếp tục từ chỗ bạn dừng — chỉ mất một phút.", v3: "Kế hoạch của bạn chỉ còn chờ vài câu trả lời.", v4: "Trả lời nốt các câu cuối và kế hoạch là của bạn." },
+    },
+    "onboarding-photo": {
+      title: "Bữa ăn đầu tiên",
+      body: "Chụp ảnh bữa ăn tiếp theo — chỉ cần vậy để bắt đầu.",
+      alternates: { v2: "Một tấm ảnh là đủ để bắt đầu.", v3: "Kế hoạch đã xong. Ghi bữa đầu tiên khi bạn sẵn sàng.", v4: "Lần tới khi ăn, thử chụp ảnh — phần còn lại để chúng tôi lo." },
+    },
+    "streak-risk": {
+      title: "Giữ nhịp nào",
+      body: "Bạn đã ghi chép nhiều ngày liên tiếp. Một tấm ảnh hôm nay giữ chuỗi ngày đi tiếp.",
+      alternates: { v2: "Một tấm ảnh nhanh và hôm nay cũng được tính.", v3: "Hôm nay chưa ghi gì? Một bữa là chuỗi ngày đi tiếp.", v4: "Chuỗi ngày của bạn vẫn còn — thêm hôm nay bằng một tấm ảnh." },
+    },
     nudge: {
       title: "Bữa ăn hôm nay",
       body: "Ghi lại những gì bạn ăn hôm nay — chỉ cần một tấm ảnh.",
@@ -185,6 +285,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "{eaten} dari {plan}kcal hari ini. {tomorrow}",
       emptyBody: "Hari ini belum ada catatan — {plan}kcal-mu tetap rencananya. {tomorrow}",
     },
+    "onboarding-start": {
+      title: "Rencanamu hampir siap",
+      body: "Beberapa ketukan lagi dan rencanamu siap.",
+      alternates: { v2: "Lanjutkan dari tempat kamu berhenti — hanya semenit.", v3: "Rencanamu tinggal menunggu beberapa jawaban.", v4: "Selesaikan pertanyaan terakhir dan rencana jadi milikmu." },
+    },
+    "onboarding-photo": {
+      title: "Makan pertamamu",
+      body: "Foto makanan berikutnya — itu saja yang dibutuhkan untuk mulai.",
+      alternates: { v2: "Satu foto sudah cukup untuk mulai.", v3: "Rencanamu sudah siap. Catat makan pertamamu kapan pun kamu mau.", v4: "Saat makan nanti, coba foto — sisanya kami yang urus." },
+    },
+    "streak-risk": {
+      title: "Terus berjalan",
+      body: "Kamu sudah mencatat beberapa hari berturut-turut. Satu foto hari ini menjaga rangkaiannya.",
+      alternates: { v2: "Satu foto cepat dan hari ini ikut terhitung.", v3: "Belum ada catatan hari ini? Satu makanan dan rangkaian berlanjut.", v4: "Rangkaianmu masih hidup — tambahkan hari ini dengan satu foto." },
+    },
     nudge: {
       title: "Makanan hari ini",
       body: "Catat apa yang kamu makan hari ini — cukup satu foto.",
@@ -199,6 +314,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Итоги дня",
       body: "{eaten} из твоих {plan}ккал сегодня. {tomorrow}",
       emptyBody: "Сегодня ничего не записано — твои {plan}ккал всё ещё план. {tomorrow}",
+    },
+    "onboarding-start": {
+      title: "Осталось немного до плана",
+      body: "Пара касаний — и план собран.",
+      alternates: { v2: "Вернись к вопросам — это займёт минуту.", v3: "Плану осталось дождаться нескольких ответов.", v4: "Ответь на последние вопросы — и план твой." },
+    },
+    "onboarding-photo": {
+      title: "Первый приём пищи",
+      body: "Сфотографируй следующий приём пищи — для старта этого достаточно.",
+      alternates: { v2: "Одного фото хватит, чтобы начать.", v3: "План собран. Запиши первый приём пищи, когда захочешь.", v4: "В следующий раз перед едой попробуй фото — остальное берём на себя." },
+    },
+    "streak-risk": {
+      title: "Не сбавляй ход",
+      body: "Записи идут несколько дней подряд. Фото сегодня продлит серию.",
+      alternates: { v2: "Быстрое фото — и сегодня тоже засчитан.", v3: "Сегодня ещё пусто? Один приём пищи — и серия продолжается.", v4: "Серия жива — добавь сегодня одним фото." },
     },
     nudge: {
       title: "Еда за сегодня",
