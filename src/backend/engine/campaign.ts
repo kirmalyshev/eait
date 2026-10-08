@@ -31,7 +31,7 @@ import {
 } from "@eait/shared";
 import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
-import { CATCH_UP_MS, instantOf, sendLogged, zoneOf } from "./notify.ts";
+import { CATCH_UP_MS, instantOf, isStaffAccount, sendLogged, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
 import { pushOffersAllowed } from "./push-consent.ts";
 
@@ -157,11 +157,6 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
   };
 }
 
-
-/** Staff is the account's DB flag, set in the admin; the env list is only a bootstrap fallback. */
-export async function isStaffAccount(deps: EngineDeps, userId: string): Promise<boolean> {
-  return deps.config.campaignStaffIds.includes(userId) || await deps.store.isStaff(userId);
-}
 
 /** Everything a segment can ask about one account, or null when it has no profile. */
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {

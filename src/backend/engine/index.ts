@@ -22,13 +22,13 @@ export { sendAdminPush, type AdminPushResult } from "./admin-push.ts";
 export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { weights, mergedWeights } from "./weights.ts";
 export {
-  collectPushReceipts, dailyNotification, pushTick, sendLogged, sendTestPush, notificationCopy,
+  collectPushReceipts, dailyNotification, isStaffAccount, pushTick, sendLogged, sendTestPush, notificationCopy,
   RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
 export {
   campaignOverview, createCampaign, dryRunCampaign, runCampaigns, setCampaignStatus, setCampaignsKilled,
-  isStaffAccount, testSendCampaign, updateCampaign,
+  testSendCampaign, updateCampaign,
   type CampaignOverview, type CampaignRunResult, type CampaignTestResult, type DryRunResult,
 } from "./campaign.ts";
 export { recordPushOpen, recordPushDelivered, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";
