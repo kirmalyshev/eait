@@ -324,7 +324,6 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     <div class="row">
       <select id="composer-template"></select>
       <select id="composer-route"></select>
-      <label><input type="checkbox" id="composer-promo" checked> promotional (only accounts with offers on)</label>
       <button class="primary" id="composer-send">Send</button>
     </div>
     <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
@@ -1361,10 +1360,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var key = $("composer-template").value;
     if (!ids.length || !key) { $("composer-status").textContent = "Pick accounts and a template."; return; }
     if (!window.confirm("Send " + key + " to " + ids.length + " account(s), opening " + $("composer-route").value
-      + "?" + ($("composer-promo").checked ? "\\n" + noOffers + " of them have offers off and will be skipped." : ""))) return;
+      + "?\\n" + noOffers + " of them have offers off and will be skipped (no offers consent).")) return;
     api("POST", "/admin/api/push/send", {
       userIds: ids, templateKey: key, route: $("composer-route").value,
-      promotional: $("composer-promo").checked, confirmCount: ids.length,
+      confirmCount: ids.length,
       imageUrl: $("composer-image").value.trim() || undefined
     }).then(function (r) {
       var sent = r.results.filter(function (x) { return x.sent !== undefined; }).length;
