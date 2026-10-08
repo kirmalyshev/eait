@@ -18,7 +18,7 @@ import { expoPush } from "./expo.ts";
 import { logPush } from "./log.ts";
 import type { PushPort } from "./port.ts";
 
-type PushConfig = Pick<Config, "pushEnabled" | "expoPushAccessToken" | "pushTimeoutMs">;
+type PushConfig = Pick<Config, "pushEnabled" | "expoPushAccessToken" | "pushTimeoutMs" | "pushImageHost">;
 
 export function choosePush(config: PushConfig, demo: boolean): PushPort {
   if (demo || !config.pushEnabled) return logPush();
@@ -30,5 +30,5 @@ export function choosePush(config: PushConfig, demo: boolean): PushPort {
     );
     return logPush();
   }
-  return expoPush({ accessToken: config.expoPushAccessToken, timeoutMs: config.pushTimeoutMs });
+  return expoPush({ accessToken: config.expoPushAccessToken, timeoutMs: config.pushTimeoutMs, imageHost: config.pushImageHost });
 }

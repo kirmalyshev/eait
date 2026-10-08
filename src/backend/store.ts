@@ -95,6 +95,8 @@ export interface SendLogRow extends NewSend {
   receiptError: string | null;
   createdAt: string;
   receiptAt: string | null;
+  /** When the phone's notification extension reported the push on the device; null until it does. */
+  deliveredAt: string | null;
 }
 
 /** A manual push campaign (ieat-app#1761). `segment` is the allowlisted predicate set, never SQL. */
@@ -159,6 +161,8 @@ export interface PushStatRow {
   dead: number;
   /** Sends the phone reported opened. */
   opened: number;
+  /** Sends the phone's notification extension reported on the device (ieat-app#1763). */
+  delivered: number;
   /** Sends followed by a meal logged by the same account within 24 h. Independent of `opened`. */
   converted: number;
 }
@@ -1003,6 +1007,12 @@ export interface Store {
    * from another account matches nothing. One row per (account, send): the app may report twice.
    */
   recordPushOpen(userId: string, sendId: string, action: PushOpenAction): Promise<boolean>;
+  /**
+   * Scoped. The notification extension reports that `sendId` arrived on the device. Sets
+   * `send_log.delivered_at` once and never touches `state`, so the receipt logic is unaffected.
+   * True when this call wrote it; false for a repeat, another account's send or an unknown id.
+   */
+  recordPushDelivered(userId: string, sendId: string): Promise<boolean>;
   /**
    * Per day (in `timezone`), kind and template over the last `days` days: sent, accepted, dead,
    * opened and converted. Reads across users — the admin's view of the campaign, never an account's.

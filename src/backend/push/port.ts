@@ -22,6 +22,12 @@ export interface PushMessage {
    * under the 20:30 line, and what is typed there is logged like a chat message.
    */
   categoryId?: string;
+  /**
+   * A picture for the notification (ieat-app#1763), shown by the app's notification service
+   * extension. Only an https URL on our own image host is ever sent (`expoPush`'s `imageHost`);
+   * any other is dropped and the message goes without it.
+   */
+  imageUrl?: string;
 }
 
 /**

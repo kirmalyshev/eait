@@ -5,7 +5,7 @@ import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "./index.ts";
-import { PUSH_STATS_MAX_DAYS, pushOpenView, recordPushOpen } from "./push-open.ts";
+import { PUSH_STATS_MAX_DAYS, pushOpenView, recordPushDelivered, recordPushOpen } from "./push-open.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -47,6 +47,29 @@ describe("recordPushOpen", () => {
     const { userId: stranger } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
     expect(await recordPushOpen(deps, stranger, { sendId })).toEqual({ ok: true });
     expect((await pushOpenView(deps, 7)).rows[0]!.opened).toBe(0);
+  });
+});
+
+describe("recordPushDelivered", () => {
+  it("answers ok however often the extension reports, and counts the send delivered once", async () => {
+    const { userId, sendId } = await userWithSend();
+    expect(await recordPushDelivered(deps, userId, { sendId })).toEqual({ ok: true });
+    expect(await recordPushDelivered(deps, userId, { sendId })).toEqual({ ok: true });
+    const row = (await pushOpenView(deps, 7)).rows[0]!;
+    expect(row).toMatchObject({ sent: 1, accepted: 1, delivered: 1, opened: 0 });
+  });
+
+  it("answers the same for another account's send, and records nothing", async () => {
+    const { sendId } = await userWithSend();
+    const { userId: stranger } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    expect(await recordPushDelivered(deps, stranger, { sendId })).toEqual({ ok: true });
+    expect((await pushOpenView(deps, 7)).rows[0]!.delivered).toBe(0);
+  });
+
+  it("leaves the receipt state alone", async () => {
+    const { userId, sendId } = await userWithSend();
+    await recordPushDelivered(deps, userId, { sendId });
+    expect((await store.sendLogFor(userId, 5))[0]).toMatchObject({ state: "accepted", deliveredAt: expect.any(String) });
   });
 });
 

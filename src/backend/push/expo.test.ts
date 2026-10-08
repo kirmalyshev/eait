@@ -30,6 +30,36 @@ const client = () => expoPush({
 });
 const message = (to: string) => ({ to, title: "Today against the plan", body: "1,600 of your 2,100kcal today." });
 
+describe("image", () => {
+  const withImage = (url: string) => ({ ...message("ExponentPushToken[i]"), imageUrl: url });
+  const imageClient = () => expoPush({
+    accessToken: "expo-token-not-real", timeoutMs: 5_000, imageHost: "img.eait.fit",
+    sendUrl: `${base}/send`, receiptsUrl: `${base}/receipts`,
+  });
+  const sentBody = async (c: ReturnType<typeof client>, url: string) => {
+    seen.length = 0;
+    answer = () => Response.json({ data: [{ status: "ok", id: "r1" }] });
+    await c.send([withImage(url)]);
+    return (seen[0]!.body as Record<string, unknown>[])[0]!;
+  };
+
+  it("sends an image from our own host as richContent", async () => {
+    expect((await sentBody(imageClient(), "https://img.eait.fit/p/1.jpg")).richContent).toEqual({ image: "https://img.eait.fit/p/1.jpg" });
+  });
+
+  it("drops an image from any other host, over http, or with credentials, and still sends the message", async () => {
+    for (const url of ["https://evil.example/1.jpg", "http://img.eait.fit/1.jpg", "https://img.eait.fit.evil.example/1.jpg", "https://u:p@img.eait.fit/1.jpg", "not a url"]) {
+      const body = await sentBody(imageClient(), url);
+      expect(body.richContent).toBeUndefined();
+      expect(body.mutableContent).toBe(true);
+    }
+  });
+
+  it("drops every image when no host is configured", async () => {
+    expect((await sentBody(client(), "https://img.eait.fit/p/1.jpg")).richContent).toBeUndefined();
+  });
+});
+
 describe("send", () => {
   it("posts the batch with the credential and returns one ticket per message, in order", async () => {
     seen.length = 0;
@@ -40,8 +70,8 @@ describe("send", () => {
     expect(seen[0]!.headers.get("authorization")).toBe("Bearer expo-token-not-real");
     expect(seen[0]!.headers.get("content-type")).toBe("application/json");
     expect(seen[0]!.body).toEqual([
-      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default" },
-      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default" },
+      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true },
+      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true },
     ]);
     expect(tickets).toEqual([
       { token: "ExponentPushToken[a]", id: "r1", error: null },

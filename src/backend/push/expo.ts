@@ -25,6 +25,8 @@ export interface ExpoPushOptions {
   /** Overridable so a test or a staging instance can point at a recorder. */
   sendUrl?: string;
   receiptsUrl?: string;
+  /** The one host an `imageUrl` may name. Empty or unset: no image is ever sent. */
+  imageHost?: string;
 }
 
 /** Expo's error vocabulary, narrowed to what this server acts on. */
@@ -37,6 +39,17 @@ function toError(details: unknown): PushError {
     case "MismatchedSenderId":
     case "InvalidCredentials": return "mismatched-credentials";
     default: return "other";
+  }
+}
+
+/** The image to send: https, on exactly our host, no credentials. Anything else is not sent. */
+function ownImage(url: string | undefined, host: string | undefined): string | undefined {
+  if (!url || !host) return undefined;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && u.hostname === host && u.username === "" && u.password === "" ? u.href : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -71,10 +84,17 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
       const tickets: PushTicket[] = [];
       for (let i = 0; i < messages.length; i += BATCH) {
         const chunk = messages.slice(i, i + BATCH);
-        const payload = chunk.map((m: PushMessage) => ({
-          to: m.to, title: m.title, body: m.body, sound: "default", ...(m.data ? { data: m.data } : {}),
-          ...(m.categoryId ? { categoryId: m.categoryId } : {}),
-        }));
+        const payload = chunk.map((m: PushMessage) => {
+          const image = ownImage(m.imageUrl, opts.imageHost);
+          return {
+            // mutableContent on EVERY message: the app's notification extension reports delivery
+            // for all of them, and only the ones with an image have anything to attach.
+            to: m.to, title: m.title, body: m.body, sound: "default", mutableContent: true,
+            ...(m.data ? { data: m.data } : {}),
+            ...(m.categoryId ? { categoryId: m.categoryId } : {}),
+            ...(image ? { richContent: { image } } : {}),
+          };
+        });
         // PER CHUNK, because the earlier chunks have already been ACCEPTED by Expo and will be
         // delivered. A throw escaping this loop would report them as failed — and would lose their
         // receipt ids, which is worse: `DeviceNotRegistered` normally arrives on the receipt, so

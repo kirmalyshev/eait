@@ -270,8 +270,11 @@ create table if not exists send_log (
   ticket_id     text,
   receipt_error text,
   created_at    timestamptz not null default now(),
-  receipt_at    timestamptz
+  receipt_at    timestamptz,
+  delivered_at  timestamptz
 );
+-- A table made before the notification extension (ieat-app#1763) lacks the column.
+alter table send_log add column if not exists delivered_at timestamptz;
 -- A table made by the first push build carries the constraint without .expired.; widen it once.
 -- Guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock.
 do $do$
@@ -1414,6 +1417,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   settleSend: 0,
   sendLogFor: 0,
   recordPushOpen: 0,
+  recordPushDelivered: 0,
   hasCampaignSend: 0,
   claimCampaignSend: 0,
   recordOnboardingEvents: 0,
@@ -3106,6 +3110,13 @@ export async function postgresStore(
       return (rows as unknown[]).length > 0;
     },
 
+    async recordPushDelivered(userId, sendId) {
+      const rows = await sql`
+        update send_log set delivered_at = now()
+        where id = ${sendId} and user_id = ${userId} and delivered_at is null returning id`;
+      return (rows as unknown[]).length > 0;
+    },
+
     async pushOpenStats(days, timezone) {
       const since = new Date(now() - days * 24 * 60 * 60 * 1000).toISOString();
       // `at` is the send's instant to the millisecond, which is all the JS side can name: a meal
@@ -3122,6 +3133,7 @@ export async function postgresStore(
                count(*)::int as sent,
                count(*) filter (where s.state in ('accepted', 'delivered-to-apns', 'expired'))::int as accepted,
                count(*) filter (where s.state = 'dead')::int as dead,
+               count(*) filter (where s.delivered_at is not null)::int as delivered,
                count(*) filter (where s.reached and o.send_id is not null)::int as opened,
                count(*) filter (where s.reached and exists (
                  select 1 from meals m
@@ -3133,7 +3145,7 @@ export async function postgresStore(
       return (rows as Record<string, unknown>[]).map((r) => ({
         day: r.day as string, kind: r.kind as PushStatRow["kind"], templateKey: r.template_key as string,
         sent: r.sent as number, accepted: r.accepted as number, dead: r.dead as number,
-        opened: r.opened as number, converted: r.converted as number,
+        delivered: r.delivered as number, opened: r.opened as number, converted: r.converted as number,
       }));
     },
 
@@ -3927,6 +3939,7 @@ function sendRow(r: Record<string, unknown>): SendLogRow {
     receiptError: (r.receipt_error as string | null) ?? null,
     createdAt: new Date(r.created_at as string).toISOString(),
     receiptAt: r.receipt_at ? new Date(r.receipt_at as string).toISOString() : null,
+    deliveredAt: r.delivered_at ? new Date(r.delivered_at as string).toISOString() : null,
   };
 }
 
