@@ -513,6 +513,10 @@ export interface AdminUserRow {
   spent: number;
   /** The most recent use of any of this account's sessions, or null if it has never held one. */
   lastSeen: string | null;
+  /** `users.staff`. */
+  staff: boolean;
+  /** `users.push_offers_at` is set: the account may be sent promotional pushes. */
+  pushOffers: boolean;
 }
 
 /** What the admin's list was asked for. */
@@ -866,6 +870,10 @@ export interface Store {
    * admin and you cannot have it" is information. Deleting the last admin switches the surface off.
    */
   hasAdmin(): Promise<boolean>;
+  /** Whether the account is staff (`users.staff`): a test send may reach it and `staffOnly` selects it. False for no such account. */
+  isStaff(userId: string): Promise<boolean>;
+  /** Set or clear the flag, idempotently. `false` means there is no such account. Admin surface only. */
+  setStaff(userId: string, staff: boolean): Promise<boolean>;
 
   // ── Consent (S8) ───────────────────────────────────────────────────────────────────────────
   //

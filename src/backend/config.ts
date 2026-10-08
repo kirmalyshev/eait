@@ -364,8 +364,8 @@ export interface Config {
    */
   adminBootstrapUserId: string;
   /**
-   * User ids a campaign TEST send may reach, and what a `staffOnly` segment selects. Empty means
-   * no test send is possible and a staff-only campaign reaches nobody.
+   * Bootstrap fallback for the staff flag (`users.staff`, set in the admin users list): ids listed
+   * here count as staff too. Empty means only the flag decides.
    */
   campaignStaffIds: string[];
 

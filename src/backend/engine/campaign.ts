@@ -31,7 +31,7 @@ import {
 } from "@eait/shared";
 import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
-import { CATCH_UP_MS, instantOf, sendLogged, zoneOf } from "./notify.ts";
+import { CATCH_UP_MS, instantOf, isStaffAccount, sendLogged, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
 import { pushOffersAllowed } from "./push-consent.ts";
 
@@ -174,7 +174,7 @@ async function factsFor(deps: EngineDeps, userId: string, date: string, now: num
     ...habitOf(logged, date),
     // The in-app Tips-and-offers toggle (`users.push_offers_at`), default off. Not the sign-up box.
     tipsConsent: await pushOffersAllowed(deps, userId),
-    staff: deps.config.campaignStaffIds.includes(userId),
+    staff: await isStaffAccount(deps, userId),
   };
 }
 
@@ -322,7 +322,7 @@ export async function testSendCampaign(
 ): Promise<CampaignTestResult> {
   const c = await deps.store.getCampaign(id);
   if (!c) return { ok: false, reason: "no-such-campaign" };
-  if (!deps.config.campaignStaffIds.includes(userId)) return { ok: false, reason: "not-staff" };
+  if (!await isStaffAccount(deps, userId)) return { ok: false, reason: "not-staff" };
   const devices = await deps.store.pushTokensFor(userId);
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };

@@ -231,6 +231,11 @@ export async function sendLogged(
 /** How long the evening line may be late before the night is dropped: a stale 20:30 is worse than none. */
 export const CATCH_UP_MS = 2 * 60 * 60 * 1000;
 
+/** Staff is the account's DB flag, set in the admin; the env list is only a bootstrap fallback. */
+export async function isStaffAccount(deps: EngineDeps, userId: string): Promise<boolean> {
+  return deps.config.campaignStaffIds.includes(userId) || await deps.store.isStaff(userId);
+}
+
 /** The zone an account dates its days in: its own, when the app has reported a usable one. */
 export function zoneOf(deps: EngineDeps, reported: string | null): string {
   return reported !== null && isTimezone(reported) ? reported : deps.config.timezone;
@@ -430,7 +435,7 @@ export async function sendTestPush(
   if (!sendable) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
   const today = localDate(zone, new Date(now));
-  if (deps.config.campaignStaffIds.includes(userId)) {
+  if (await isStaffAccount(deps, userId)) {
     const tests = (await deps.store.sendLogFor(userId, TEST_PUSH_DAILY_CAP * devices.length * 2))
       .filter((r) => r.ref === "admin-test" && localDate(zone, new Date(r.createdAt)) === today);
     if (tests.length >= TEST_PUSH_DAILY_CAP * devices.length) return { ok: false, reason: "test-cap" };

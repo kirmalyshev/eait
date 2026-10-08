@@ -23,6 +23,8 @@
  * so the policy on the response is `default-src 'none'` with a per-request nonce and NO
  * `'unsafe-inline'` — and a nonce cannot come from a constant.
  */
+import { ADMIN_PUSH_MAX_RECIPIENTS, PUSH_ROUTES } from "@eait/shared";
+
 export const adminPage = (nonce: string): string => `<!doctype html>
 <html lang="en">
 <head>
@@ -125,6 +127,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
    rendered unstyled. Found by driving real Chrome — the unit tests assert the policy string and
    cannot see what it forbids. */
 .gate-error { color: var(--bad); font-size: 13px; }
+  #composer .row { flex-wrap: wrap; align-items: center; }
+  #composer .row > * { flex: 1 1 160px; }
+  #composer .row > button { flex: 0 0 auto; }
+  @media (max-width: 600px) {
+    #composer .row > *, #composer .row > button { flex: 1 1 100%; }
+  }
 </style>
 </head>
 <body>
@@ -310,9 +318,22 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     </div>
     <p class="muted" id="users-status">Loading…</p>
   </div>
+  <div class="card" id="composer">
+    <strong>Send a push</strong>
+    <p class="muted" id="composer-count">Tick accounts below.</p>
+    <div class="row">
+      <select id="composer-template"></select>
+      <select id="composer-route"></select>
+      <label><input type="checkbox" id="composer-promo" checked> promotional (only accounts with offers on)</label>
+      <button class="primary" id="composer-send">Send</button>
+    </div>
+    <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
+    <p class="muted" id="composer-status"></p>
+    <ul id="composer-results"></ul>
+  </div>
   <table id="users">
     <thead>
-      <tr><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
+      <tr><th>Push</th><th>Staff</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -903,7 +924,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       });
       $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
       $("campaigns-summary").textContent =
-        v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the test allowlist";
+        v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the env bootstrap list";
       var kill = $("campaigns-kill");
       kill.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
       kill.onclick = function () {
@@ -1322,8 +1343,66 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     return days + "d ago";
   }
 
+  var picked = new Map();
+  function showPicked() {
+    $("composer-count").textContent = picked.size + " account(s) picked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
+  }
+  ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
+    var o = document.createElement("option"); o.value = r; o.textContent = "opens " + r; $("composer-route").appendChild(o);
+  });
+  api("GET", "/admin/api/campaigns").then(function (c) {
+    c.copy.filter(function (t) { return t.gaps.length === 0; }).forEach(function (t) {
+      var o = document.createElement("option"); o.value = t.key; o.textContent = t.key; $("composer-template").appendChild(o);
+    });
+  }).catch(function () {});
+  $("composer-send").addEventListener("click", function () {
+    var ids = Array.from(picked.keys());
+    var noOffers = Array.from(picked.values()).filter(function (v) { return !v; }).length;
+    var key = $("composer-template").value;
+    if (!ids.length || !key) { $("composer-status").textContent = "Pick accounts and a template."; return; }
+    if (!window.confirm("Send " + key + " to " + ids.length + " account(s), opening " + $("composer-route").value
+      + "?" + ($("composer-promo").checked ? "\\n" + noOffers + " of them have offers off and will be skipped." : ""))) return;
+    api("POST", "/admin/api/push/send", {
+      userIds: ids, templateKey: key, route: $("composer-route").value,
+      promotional: $("composer-promo").checked, confirmCount: ids.length,
+      imageUrl: $("composer-image").value.trim() || undefined
+    }).then(function (r) {
+      var sent = r.results.filter(function (x) { return x.sent !== undefined; }).length;
+      $("composer-status").textContent = sent + " sent, " + skipped.length + " skipped";
+      var list = $("composer-results"); list.textContent = "";
+      r.results.forEach(function (x) {
+        var li = document.createElement("li");
+        li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped + (x.heldBy ? " (held by " + x.heldBy + ")" : "") : "sent to " + x.sent + " device(s)");
+        list.appendChild(li);
+      });
+    }).catch(function (e) { $("composer-status").textContent = "failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message); });
+  });
+
   function userRow(u) {
     var tr = document.createElement("tr");
+    var tick = document.createElement("td");
+    var box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = picked.has(u.userId);
+    box.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (box.checked) picked.set(u.userId, u.pushOffers); else picked.delete(u.userId);
+      showPicked();
+    });
+    tick.appendChild(box);
+    tr.appendChild(tick);
+    var staffTd = document.createElement("td");
+    var staffBtn = document.createElement("button");
+    var paintStaff = function () { staffBtn.textContent = u.staff ? "staff ✓" : "make staff"; };
+    paintStaff();
+    staffBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/staff", { staff: !u.staff })
+        .then(function (r) { u.staff = r.staff; paintStaff(); })
+        .catch(function (err) { $("users-status").textContent = "staff failed: " + err.message; });
+    });
+    staffTd.appendChild(staffBtn);
+    tr.appendChild(staffTd);
     var cells = [
       u.email || shortId(u.userId),
       u.createdAt.slice(0, 10),

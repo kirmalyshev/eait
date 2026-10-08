@@ -109,6 +109,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * every key it is handed — and refused there. An absent entry is "user", never `undefined`.
    */
   const roles = new Map<string, Role>();
+  /** `users.staff`; a second set here for the same reason `roles` is a map. */
+  const staffSet = new Set<string>();
   /**
    * The sign-up consent stamps (S8). Postgres keeps them as columns on `users`; here it is a map,
    * keyed the same way and gone when the account is. An absent entry is "never given" — the two
@@ -283,6 +285,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Same argument, same reason: a column there, a map here. An admin grant that outlived its
     // account would be handed to whoever the id belonged to next.
     roles.delete(userId);
+    staffSet.delete(userId);
     // Same again (S8): consent stamps are `users` columns in Postgres and a map here — an account
     // that consented and was deleted keeps neither the record nor the timestamp.
     consents.delete(userId);
@@ -398,6 +401,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async setRole(userId, role) {
       if (!users.has(userId)) return false;
       if (role === "user") roles.delete(userId); else roles.set(userId, role);
+      return true;
+    },
+
+    async isStaff(userId) {
+      return staffSet.has(userId);
+    },
+
+    async setStaff(userId, staff) {
+      if (!users.has(userId)) return false;
+      if (staff) staffSet.add(userId); else staffSet.delete(userId);
       return true;
     },
 
@@ -584,6 +597,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           spent: analyses.filter((a) => a.userId === id).length,
           lastSeen: sessions.length === 0 ? null
             : new Date(Math.max(...sessions.map((t) => t.lastUsedAt))).toISOString(),
+          staff: staffSet.has(id),
+          pushOffers: pushOffers.has(id),
         };
       });
       const last = page[page.length - 1];
