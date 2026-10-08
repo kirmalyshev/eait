@@ -993,7 +993,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const out = new Map<string, PushStatRow>();
       for (const r of sendLog.values()) {
         const at = Date.parse(r.createdAt);
-        if (at < since || r.state === "would_have_sent") continue;
+        if (at < since || r.state === "would_have_sent" || r.ref === "admin-test") continue;
         const day = localDate(timezone, new Date(at));
         const key = `${day}|${r.kind}|${r.templateKey}`;
         const row = out.get(key) ?? { day, kind: r.kind, templateKey: r.templateKey, sent: 0, accepted: 0, dead: 0, delivered: 0, opened: 0, converted: 0 };

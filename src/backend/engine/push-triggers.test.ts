@@ -6,7 +6,7 @@ import { fakePush, type FakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
-import { instantOf, pushTick, sendTestPush } from "./notify.ts";
+import { instantOf, pushTick, sendTestPush, TEST_PUSH_DAILY_CAP } from "./notify.ts";
 
 const ZONE = "Europe/Berlin";
 const CONFIG: Config = {
@@ -169,5 +169,48 @@ describe("the trial-ends day outranks both triggers", () => {
     await trialEndingAfter(userId, 10);
     await pushTick(deps, { now: evening(10) });
     expect(push.sent).toHaveLength(0);
+  });
+});
+
+describe("admin test push for a staff account", () => {
+  const staffDeps = (userId: string): EngineDeps => ({ ...deps, config: { ...CONFIG, campaignStaffIds: [userId] } });
+
+  it("sends again the same day, neither reading nor claiming the slot", async () => {
+    const userId = await account();
+    const sd = staffDeps(userId);
+    expect(await sendTestPush(sd, userId)).toMatchObject({ ok: true });
+    expect(await sendTestPush(sd, userId)).toMatchObject({ ok: true });
+    expect(push.sent).toHaveLength(2);
+    expect(await store.claimPushSlot(userId, localDate(ZONE), "evening", "x")).toMatchObject({ claimed: true });
+  });
+
+  it("does not block the real senders that evening", async () => {
+    const userId = await account();
+    const tonight = 10;
+    for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(tonight - k)));
+    await sendTestPush(staffDeps(userId), userId, evening(tonight));
+    push.sent.length = 0;
+    await pushTick(staffDeps(userId), { now: evening(tonight) });
+    expect(push.sent).toHaveLength(1);
+  });
+
+  it("is decided by the server's staff list: a non-staff account keeps slot-taken", async () => {
+    const userId = await account();
+    expect(await sendTestPush(deps, userId)).toMatchObject({ ok: true });
+    expect(await sendTestPush(deps, userId)).toMatchObject({ ok: false, reason: "slot-taken" });
+  });
+
+  it("stops at the daily test cap", async () => {
+    const userId = await account();
+    const sd = staffDeps(userId);
+    for (let i = 0; i < TEST_PUSH_DAILY_CAP; i++) expect(await sendTestPush(sd, userId)).toMatchObject({ ok: true });
+    expect(await sendTestPush(sd, userId)).toEqual({ ok: false, reason: "test-cap" });
+  });
+
+  it("is logged as a test and left out of the push stats", async () => {
+    const userId = await account();
+    await sendTestPush(staffDeps(userId), userId);
+    expect(await lastLog(userId)).toMatchObject({ kind: "campaign", ref: "admin-test", variant: "admin-test" });
+    expect(await store.pushOpenStats(2, ZONE)).toEqual([]);
   });
 });

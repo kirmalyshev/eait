@@ -473,6 +473,12 @@ naming it too.
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
   builds call them. A dead worker's `ingredients` or `reread` re-runs once; a `note` never does (its
   chat lines would repeat) and settles `OUTCOME_UNKNOWN`.
+- **R1 (one message per user per local day, `push_slot`) has ONE exception: the admin test push for a
+  staff account** (Kirill, #529). `sendTestPush` for an id in `EAIT__BACKEND__CAMPAIGN_STAFF_IDS` neither
+  reads nor claims the slot, so a test never spends the day from the real senders; it is bounded by
+  `TEST_PUSH_DAILY_CAP` (`test-cap`, 409) instead. The server's list decides, never a request field;
+  a non-staff account keeps `slot-taken`. The row is `kind campaign`, `ref admin-test`, and
+  `pushOpenStats` and the campaign reports leave it out. No other sender gets a bypass.
 - **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
   evening line, the daily sweeps (health retention, turn outcomes, settled jobs, abandoned accounts, idle
   tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per
