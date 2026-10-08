@@ -8,7 +8,7 @@
 import type { FoodRef, FoodSource } from "@eait/shared";
 
 /** fooddb's source name -> the `food_ref.source` it is stored under. `fdc` is SR Legacy and Foundation. */
-const SOURCES: Record<string, FoodSource> = { fdc: "usda-sr", ciqual: "ciqual", frida: "frida" };
+const SOURCES: Record<string, FoodSource> = { fdc: "usda-sr", ciqual: "ciqual", frida: "frida", matvaretabellen: "matvaretabellen" };
 
 type Tagged<T> = { value: T; record?: string | null } | null | undefined;
 interface Nutrient { value: number; unit: string; basis: string }
