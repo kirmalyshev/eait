@@ -900,6 +900,10 @@ export interface Store {
    * with a different meaning, and neither may read or move the other.
    */
   pushOffersOf(userId: string): Promise<string | null>;
+  /** Scoped. The account-wide notifications opt-out: when it was turned off, or null (allowed, the default). */
+  pushOffOf(userId: string): Promise<string | null>;
+  /** Scoped. Off stamps now unless already set; on clears it. */
+  setPushOff(userId: string, off: boolean): Promise<void>;
   /** Scoped. On stamps now unless already set (the first moment stands); off clears it. */
   setPushOffers(userId: string, on: boolean): Promise<void>;
   /** What is stored for the account, or null when there is no such account. For the audit surface and tests. */

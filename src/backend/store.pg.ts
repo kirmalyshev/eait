@@ -959,6 +959,8 @@ alter table users add column if not exists marketing_consent_at timestamptz;
 -- The "tips and offers" PUSH opt-in (Apple 4.5.4), set from the in-app toggle only. Not the sign-up
 -- box above: a different consent. Null = off, the default.
 alter table users add column if not exists push_offers_at timestamptz;
+-- The account-wide notifications opt-out, set from the in-app switch only. Null = pushes allowed.
+alter table users add column if not exists push_off_at timestamptz;
 
 -- ── The food catalog ─────────────────────────────────────────────────────────────────────────
 --
@@ -1406,6 +1408,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   recordConsent: 0,
   pushOffersOf: 0,
   setPushOffers: 0,
+  pushOffOf: 0,
+  setPushOff: 0,
   consentOf: 0,
   getProfile: 0,
   patchProfile: 0,
@@ -1814,6 +1818,18 @@ export async function postgresStore(
     async setPushOffers(userId, on) {
       await sql`update users set push_offers_at = case
           when ${on} then coalesce(push_offers_at, now()) else null end
+        where id = ${userId}`;
+    },
+
+    async pushOffOf(userId) {
+      const rows = await sql`select push_off_at from users where id = ${userId}`;
+      const at = (rows[0] as { push_off_at: string | Date | null } | undefined)?.push_off_at ?? null;
+      return at === null ? null : new Date(at).toISOString();
+    },
+
+    async setPushOff(userId, off) {
+      await sql`update users set push_off_at = case
+          when ${off} then coalesce(push_off_at, now()) else null end
         where id = ${userId}`;
     },
 
@@ -3049,7 +3065,7 @@ export async function postgresStore(
     async pushAudience() {
       const rows = await sql`
         select u.id, u.timezone, u.created_at, u.onboarded_at from users u
-        where exists (select 1 from push_tokens t where t.user_id = u.id)`;
+        where u.push_off_at is null and exists (select 1 from push_tokens t where t.user_id = u.id)`;
       return (rows as Record<string, unknown>[]).map((r) => ({
         userId: r.id as string, timezone: (r.timezone as string | null) ?? null,
         createdAt: new Date(r.created_at as string | Date).toISOString(),
