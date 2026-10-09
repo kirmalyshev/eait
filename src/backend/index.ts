@@ -139,6 +139,7 @@ const deps: EngineDeps = {
           reasoningEffort: config.llmReasoningEffort,
           // Comma-separated provider names; empty disables the pin and lets OpenRouter route.
           providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
+          fallbackModels: config.llmFallbackModels.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
           baseUrl: config.llmBaseUrl,
           timeoutMs: config.llmTimeoutMs,
           maxTokens: config.llmMaxTokens,
