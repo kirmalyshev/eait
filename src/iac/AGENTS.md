@@ -34,7 +34,7 @@ infrastructure as code. It is not machine provisioning, and it is not going to b
 
 ## The one rule everything here serves
 
-**ONE ORIGIN.** Caddy serves a single hostname: `/` and `/app.js` come from the `frontend`
+**ONE ORIGIN.** Caddy serves a single hostname: `/`, `/app.js` and `/sw.js` come from the `frontend`
 container, everything else — `/api/v1/*`, `/start`, `/admin`, `/health` — from the `backend`
 container. `src/frontend/AGENTS.md` says why, and it is not routing preference: the browser client
 calls its API with relative paths under `connect-src 'self'` and the backend has no CORS header

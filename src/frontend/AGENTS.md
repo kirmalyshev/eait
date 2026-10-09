@@ -14,7 +14,7 @@ and `web` is its compose service, publishing nothing. Three applications on this
 this one, the API, and the landing page.
 
 **ONE ORIGIN, COMPOSED AT THE EDGE — and that is the property to protect.** Caddy's `@app` block
-sends `/` and `/app.js` here; `/api/v1/*`, `/start` and `/admin` go to the backend on the same
+sends `/`, `/app.js` and `/sw.js` here; `/api/v1/*`, `/start` and `/admin` go to the backend on the same
 hostname. That is what lets this client call its API with a relative path under `connect-src 'self'`
 and no CORS header anywhere. Splitting the two applications did not split the origin, and a change
 that makes the browser talk to a second one undoes the whole arrangement.
