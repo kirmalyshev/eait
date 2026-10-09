@@ -71,6 +71,13 @@ export interface Config {
    * fails at routing. The coach (`llmChatModel`) is not pinned.
    */
   llmProviderOrder: string;
+  /**
+   * Comma-separated fallback models for the nutrition calls. OpenRouter tries them, in order, when
+   * `llmModel` is rate-limited or down (it sends `models: [llmModel, ...these]`) — STILL under
+   * `llmProviderOrder` with `allow_fallbacks: false`, so each must be served by the pinned
+   * provider: the privacy promise is about providers, not models. Empty = no fallback.
+   */
+  llmFallbackModels: string;
   llmApiKey: string;
   /**
    * Where the chat-completions call goes. Env-configurable so a test instance can point at a proxy, a
@@ -542,6 +549,8 @@ export function configDefaults(): Config {
     // provider.order takes the endpoint's SLUG (`deepinfra`, the part before the `/fp8` tag),
     // not the display name — "DeepInfra" matches no provider and would fail every call.
     llmProviderOrder: "deepinfra",
+    // Verified 9 Oct on OpenRouter: served by deepinfra/fp8, image input, response_format.
+    llmFallbackModels: "qwen/qwen3-vl-30b-a3b-instruct",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
@@ -710,6 +719,7 @@ export function loadConfig(): Config {
     llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
+    llmFallbackModels: process.env.EAIT__BACKEND__LLM_FALLBACK_MODELS ?? d.llmFallbackModels,
     // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and
     // requiring it there would refuse a boot that needed no key at all.
     llmApiKey: llmProvider === "openrouter"

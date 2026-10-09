@@ -667,7 +667,7 @@ function sseFetch(chunks: string[], finish = "stop") {
   return { impl, bodies };
 }
 
-const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; providerOrder?: string[] } = {}) => openRouterPorts({
+const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; providerOrder?: string[]; fallbackModels?: string[] } = {}) => openRouterPorts({
   apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
   baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
   fetchImpl: impl, ...over,
@@ -739,6 +739,15 @@ describe("the provider pin", () => {
     const { impl, bodies } = fakeFetch([MEAL]);
     await streamPorts(impl, { providerOrder: ["deepinfra"] }).analyzePhoto(PHOTO_INPUT);
     expect(bodies[0]!.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false });
+  });
+
+  test("fallbackModels sends models: [model, ...fallbacks] under the unchanged pin; none sends no models key", async () => {
+    const { impl, bodies } = fakeFetch([MEAL, MEAL]);
+    await streamPorts(impl, { providerOrder: ["deepinfra"], fallbackModels: ["fallback-model"] }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.models).toEqual(["test-model", "fallback-model"]);
+    expect(bodies[0]!.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false });
+    await streamPorts(impl, { providerOrder: ["deepinfra"] }).analyzePhoto(PHOTO_INPUT);
+    expect("models" in bodies[1]!).toBe(false);
   });
 
   test("rides on every nutrition call — analyzer, router and correction — never the coach", async () => {

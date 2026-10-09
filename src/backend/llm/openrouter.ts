@@ -48,6 +48,12 @@ interface Options {
    * own provider list and its own privacy story. From `EAIT__BACKEND__LLM_PROVIDER_ORDER`.
    */
   providerOrder?: string[] | undefined;
+  /**
+   * Models OpenRouter may try after `model` on a rate limit or downtime (`models: [model, ...]`),
+   * on the same nutrition calls and under the same provider pin. Never the coach. From
+   * `EAIT__BACKEND__LLM_FALLBACK_MODELS`.
+   */
+  fallbackModels?: string[] | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
   /**
@@ -269,6 +275,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
         model: opts.model,
+        ...(opts.fallbackModels && opts.fallbackModels.length > 0 ? { models: [opts.model, ...opts.fallbackModels] } : {}),
         // Named on every call, because omitting it does not mean "no limit". The provider fills in
         // the model's own ceiling — 65536, forty times a measured analysis — and reserves credit
         // for the whole of it before routing, so an unbounded request is refused (402) on a balance
