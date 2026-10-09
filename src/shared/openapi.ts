@@ -168,7 +168,7 @@ export const API: readonly Endpoint[] = [
 
   // ── Push, diary, health, account ──
   { route: "pushToken", method: "POST", path: "/v1/push/token", auth: "bearer",
-    summary: "Register this device's Expo push token.",
+    summary: "Register this device's push token (an Expo token, or a Web Push subscription on web).",
     request: { json: "PushTokenRequest" }, responses: { 200: "PushTokenResponse", 400: ERROR, 429: ERROR } },
   { route: "pushToken", method: "DELETE", path: "/v1/push/token", auth: "bearer",
     summary: "Drop a push token.",

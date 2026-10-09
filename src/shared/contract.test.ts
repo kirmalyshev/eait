@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   MAX_HEALTH_DAYS_PER_BATCH, MAX_ITEM_NAME, MAX_MEAL_AMOUNT, MAX_MEAL_ITEMS, healthDayBatches,
-  healthDaysFrom, healthSyncLanded, isEditMealRequest, isPushOpenRequest, isRedateMealRequest, pushOpenFrom, ROUTES,
+  healthDaysFrom, healthSyncLanded, isEditMealRequest, isPushOpenRequest, isRedateMealRequest, pushOpenFrom, ROUTES, webPushSubscription,
 } from "./contract.ts";
 import { emptyHealthDay } from "./health.ts";
 
@@ -145,5 +145,45 @@ describe("pushOpenFrom", () => {
     expect(pushOpenFrom({ sendId: 5 }, false)).toBeNull();
     expect(pushOpenFrom({ sendId: "" }, false)).toBeNull();
     expect(pushOpenFrom({ sendId: "x".repeat(101) }, false)).toBeNull();
+  });
+});
+
+// The server POSTs to a subscription's endpoint, so the host allowlist is the SSRF guard.
+describe("webPushSubscription", () => {
+  const keys = { p256dh: "B".repeat(87), auth: "a".repeat(22) };
+  const sub = (endpoint: string, extra: object = {}) => JSON.stringify({ endpoint, keys, ...extra });
+
+  it("refuses an endpoint that is not https on an allowlisted push service", () => {
+    for (const endpoint of [
+      "http://fcm.googleapis.com/fcm/send/abc",
+      "https://evil.com/fcm/send/abc",
+      "https://fcm.googleapis.com.evil.com/fcm/send/abc",
+      "https://evilfcm.googleapis.com/x",
+      "https://169.254.169.254/latest/meta-data",
+      "https://localhost/x",
+      "https://user:pw@fcm.googleapis.com/x",
+      "https://fcm.googleapis.com:8443/x",
+    ]) expect(webPushSubscription(sub(endpoint))).toBeNull();
+  });
+
+  it("accepts each allowlisted push service", () => {
+    for (const endpoint of [
+      "https://fcm.googleapis.com/fcm/send/abc",
+      "https://web.push.apple.com/QAbc",
+      "https://updates.push.services.mozilla.com/wpush/v2/abc",
+      "https://push.services.mozilla.com/wpush/v2/abc",
+      "https://db5.notify.windows.com/?token=abc",
+    ]) expect(webPushSubscription(sub(endpoint))).not.toBeNull();
+  });
+
+  it("canonicalises: extra fields and key order do not change the result, and it re-parses to itself", () => {
+    const endpoint = "https://fcm.googleapis.com/fcm/send/abc";
+    const a = webPushSubscription(sub(endpoint));
+    const b = webPushSubscription(JSON.stringify({
+      expirationTime: null, keys: { auth: keys.auth, p256dh: keys.p256dh, extra: 1 }, endpoint, other: true,
+    }));
+    expect(a).not.toBeNull();
+    expect(b).toBe(a);
+    expect(webPushSubscription(a)).toBe(a);
   });
 });

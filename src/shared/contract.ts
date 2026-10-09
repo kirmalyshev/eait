@@ -1025,11 +1025,11 @@ export type RedateMealResponse = MealRedated | TargetGone;
  * somebody turns notifications off: a token the server keeps is a message it will try to send.
  *
  * `platform` is on the wire because the shape of this problem is per-platform and Android will not
- * be a different route. There is exactly one accepted value today.
+ * be a different route. `web` carries a Web Push subscription (`webPushSubscription`) as the token.
  */
 export interface PushTokenRequest {
   token: string;
-  platform: "ios";
+  platform: "ios" | "web";
   /**
    * The IANA zone the phone dates its days in (`Intl.DateTimeFormat().resolvedOptions().timeZone`),
    * sent on every launch. Optional on the wire and ignored when it is not a zone this server knows,
@@ -1054,10 +1054,56 @@ export function isPushToken(v: unknown): v is string {
     && /^Expo(?:nent)?PushToken\[[^\s\[\]]+\]$/.test(v);
 }
 
+/** A bound on a stored Web Push subscription (endpoint plus both keys, canonical JSON). */
+export const MAX_WEB_PUSH_TOKEN = 1000;
+
+/**
+ * The push services a browser subscription may name. The server POSTs to the endpoint, so this
+ * list is the SSRF guard: anything else is refused before it is stored, never fetched.
+ */
+const WEB_PUSH_HOSTS = ["fcm.googleapis.com", "web.push.apple.com", "push.services.mozilla.com"];
+const WEB_PUSH_HOST_SUFFIXES = [".push.services.mozilla.com", ".notify.windows.com"];
+
+const BASE64URL = /^[A-Za-z0-9_-]+={0,2}$/;
+
+/**
+ * The ONE parser for a Web Push subscription: a JSON string or object `{ endpoint, keys: { p256dh, auth } }`.
+ * Returns the CANONICAL string (fixed key order, extras such as `expirationTime` dropped) or null.
+ * The canonical string is what is stored and what a push is addressed to, so the same
+ * subscription always maps to the same row.
+ */
+export function webPushSubscription(v: unknown): string | null {
+  let o: unknown = v;
+  if (typeof v === "string") {
+    if (v.length > MAX_WEB_PUSH_TOKEN * 2) return null;
+    try { o = JSON.parse(v); } catch { return null; }
+  }
+  if (typeof o !== "object" || o === null) return null;
+  const { endpoint, keys } = o as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } | null };
+  if (typeof endpoint !== "string" || typeof keys !== "object" || keys === null) return null;
+  const { p256dh, auth } = keys;
+  if (typeof p256dh !== "string" || typeof auth !== "string") return null;
+  if (!BASE64URL.test(p256dh) || p256dh.length < 80 || p256dh.length > 100) return null;
+  if (!BASE64URL.test(auth) || auth.length < 16 || auth.length > 32) return null;
+  let u: URL;
+  try { u = new URL(endpoint); } catch { return null; }
+  if (u.protocol !== "https:" || u.username !== "" || u.password !== "" || u.port !== "") return null;
+  const host = u.hostname;
+  if (!WEB_PUSH_HOSTS.includes(host) && !WEB_PUSH_HOST_SUFFIXES.some((s) => host.endsWith(s))) return null;
+  const canonical = JSON.stringify({ endpoint: u.href, keys: { p256dh, auth } });
+  return canonical.length <= MAX_WEB_PUSH_TOKEN ? canonical : null;
+}
+
+/** The token to store or drop for a push token field: the Expo token as sent, or the canonical web subscription. */
+export function pushTokenFrom(platform: unknown, token: unknown): string | null {
+  if (platform === "ios") return isPushToken(token) ? token : null;
+  return platform === "web" ? webPushSubscription(token) : null;
+}
+
 export function isPushTokenRequest(body: unknown): body is PushTokenRequest {
   if (typeof body !== "object" || body === null) return false;
   const b = body as Record<string, unknown>;
-  return isPushToken(b.token) && b.platform === "ios";
+  return pushTokenFrom(b.platform, b.token) !== null;
 }
 
 /**
@@ -1139,6 +1185,8 @@ export interface PushConsentResponse {
   offers: boolean;
   at: string | null;
   notifications: boolean;
+  /** The VAPID public key a browser subscribes with, or null when this server does not send Web Push. */
+  webPushKey: string | null;
 }
 
 export function isPushConsentRequest(body: unknown): body is PushConsentRequest {
