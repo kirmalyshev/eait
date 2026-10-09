@@ -1308,3 +1308,18 @@ describe("campaign routes are the admin's alone (ieat-app#1761)", () => {
     expect(await store.listCampaigns()).toEqual([]);
   });
 });
+
+describe("the admin push composer route (eait#531)", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+  const payload = { userIds: [crypto.randomUUID()], templateKey: "campaign:promo", route: "chat", confirmCount: 1 };
+
+  it("404s an ordinary account and 401s an anonymous caller, sending nothing", async () => {
+    expect((await admin("POST", "/admin/api/push/send", payload, await session())).status).toBe(404);
+    expect((await admin("POST", "/admin/api/push/send", payload, "")).status).toBe(401);
+    expect(push.sent).toHaveLength(0);
+  });
+
+  it("answers an admin's malformed body with 422", async () => {
+    expect((await admin("POST", "/admin/api/push/send", { ...payload, route: "/chat" })).status).toBe(422);
+  });
+});
