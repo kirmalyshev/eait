@@ -253,7 +253,7 @@ export interface EntitlementPatch {
 }
 
 /** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
-export type PushPlatform = "ios";
+export type PushPlatform = "ios" | "web";
 
 /** One device this account can be reached on. */
 export interface PushToken {

@@ -15,6 +15,10 @@
     "grammy": "^1.46.0",
     "jose": "^6.2.12",
     "pg-boss": "12.36.0",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4"
   }
 }

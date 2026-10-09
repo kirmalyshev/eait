@@ -13,7 +13,9 @@ import type { EngineDeps } from "./deps.ts";
 
 export async function pushConsent(deps: EngineDeps, userId: string): Promise<PushConsentResponse> {
   const at = await deps.store.pushOffersOf(userId);
-  return { offers: at !== null, at, notifications: (await deps.store.pushOffOf(userId)) === null };
+  const { pushEnabled, webPushVapidPublicKey: key, webPushVapidPrivateKey, webPushSubject } = deps.config;
+  const webPushKey = pushEnabled && key !== "" && webPushVapidPrivateKey !== "" && webPushSubject !== "" ? key : null;
+  return { offers: at !== null, at, notifications: (await deps.store.pushOffOf(userId)) === null, webPushKey };
 }
 
 /** Applies whichever fields are present; an old build sends `offers` alone. */
