@@ -1082,6 +1082,31 @@ describe("the admin's test push (ieat-app#1765)", () => {
     expect(await second.json()).toEqual({ ok: false, reason: "slot-taken", heldBy: "campaign" });
   });
 
+  describe("with a target screen (ieat-app#1848)", () => {
+    it("carries a known route in the push data", async () => {
+      const userId = await withDevice();
+      expect((await admin("POST", `/admin/api/users/${userId}/push-test`, { route: "chat" })).status).toBe(200);
+      expect(push.sent[0]!.data).toMatchObject({ route: "chat" });
+    });
+
+    it("sends no route key when none is asked for", async () => {
+      const userId = await withDevice();
+      expect((await admin("POST", `/admin/api/users/${userId}/push-test`, {})).status).toBe(200);
+      expect(push.sent[0]!.data).not.toHaveProperty("route");
+    });
+
+    it("refuses an unknown route with 400, before the day's slot is spent", async () => {
+      const userId = await withDevice();
+      for (const route of ["https://evil.example", "/meal/1", "nope", 7]) {
+        const res = await admin("POST", `/admin/api/users/${userId}/push-test`, { route });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ ok: false, reason: "route-not-allowed" });
+      }
+      expect(push.sent).toHaveLength(0);
+      expect((await admin("POST", `/admin/api/users/${userId}/push-test`, {})).status).toBe(200);
+    });
+  });
+
   describe("with an image", () => {
     const API = "https://api.eait.fit";
     beforeEach(async () => { await mountWithAdmin({ ...base, publicApiUrl: API }); });
