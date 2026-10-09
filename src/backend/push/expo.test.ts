@@ -215,3 +215,15 @@ describe("receipts", () => {
     expect(seen).toHaveLength(0);
   });
 });
+
+describe("default receipts url", () => {
+  it("asks Expo's /getReceipts, the only receipts path it serves", async () => {
+    const real = globalThis.fetch;
+    let url = "";
+    globalThis.fetch = (async (u: string) => { url = u; return Response.json({ data: {} }); }) as unknown as typeof fetch;
+    try {
+      await expoPush({ accessToken: "expo-token-not-real", timeoutMs: 5_000 }).receipts(["r1"]);
+    } finally { globalThis.fetch = real; }
+    expect(url).toBe("https://exp.host/--/api/v2/push/getReceipts");
+  });
+});
