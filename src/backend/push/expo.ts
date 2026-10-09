@@ -1,7 +1,7 @@
 // Expo's push service, over HTTP.
 //
 // https://exp.host/--/api/v2/push/send takes a batch and answers with one TICKET per message;
-// /getPushNotificationReceipts answers, minutes later, with what actually happened at Apple. Both
+// /getReceipts answers, minutes later, with what actually happened at Apple. Both
 // halves matter: a ticket says Expo accepted the message, and a receipt says the device took it.
 // `DeviceNotRegistered` normally arrives on the RECEIPT — the app was deleted, Apple told Expo —
 // and a server that never reads receipts keeps pushing to a phone that has not had the app on it
@@ -14,7 +14,7 @@
 import type { PushError, PushMessage, PushPort, PushTicket } from "./port.ts";
 
 const SEND_URL = "https://exp.host/--/api/v2/push/send";
-const RECEIPTS_URL = "https://exp.host/--/api/v2/push/getPushNotificationReceipts";
+const RECEIPTS_URL = "https://exp.host/--/api/v2/push/getReceipts";
 
 /** Expo's documented batch size for both endpoints. Over it, the request is rejected whole. */
 const BATCH = 100;
