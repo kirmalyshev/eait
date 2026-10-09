@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 describe("tips-and-offers consent", () => {
   it("is OFF with no timestamp until the person turns it on", async () => {
-    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true });
+    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true, webPushKey: null });
   });
 
   it("turning it on stores the moment; turning it off clears it", async () => {
@@ -25,7 +25,7 @@ describe("tips-and-offers consent", () => {
     expect(on.offers).toBe(true);
     expect(Date.parse(on.at!)).toBeGreaterThanOrEqual(before - 1000);
     expect(await pushConsent(deps, userId)).toEqual(on);
-    expect(await setPushConsent(deps, userId, { offers: false })).toEqual({ offers: false, at: null, notifications: true });
+    expect(await setPushConsent(deps, userId, { offers: false })).toEqual({ offers: false, at: null, notifications: true, webPushKey: null });
   });
 
   it("turning it on twice keeps the first moment", async () => {
@@ -36,7 +36,7 @@ describe("tips-and-offers consent", () => {
 
   it("is not the sign-up box: ticked marketing consent is still OFF, and toggling leaves it alone", async () => {
     await deps.store.recordConsent(userId, { terms: true, marketing: true });
-    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true });
+    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true, webPushKey: null });
     await setPushConsent(deps, userId, { offers: true });
     await setPushConsent(deps, userId, { offers: false });
     expect((await deps.store.consentOf(userId))?.marketingConsentAt).not.toBeNull();
