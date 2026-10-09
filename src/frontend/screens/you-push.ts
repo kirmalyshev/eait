@@ -68,10 +68,7 @@ export async function pushRows(after: HTMLElement, words: YouCopy["web"]): Promi
       // On: this click is the gesture the permission prompt needs.
       notif.saving = true; notif.failed = false;
       try {
-        if (await subscribeWeb(key) === "denied") {
-          blocked = true; notif.on = true; notif.saving = false; paint(); return;
-        }
-        blocked = false;
+        blocked = await subscribeWeb(key) === "denied";
       } catch {
         notif.saving = false; notif.failed = true; paint(); return;
       }
