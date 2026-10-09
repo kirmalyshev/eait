@@ -39,6 +39,7 @@ import {
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import type { PushAudienceRow } from "../store.ts";
 import { sumTotals } from "./meals.ts";
+import { pushDevices } from "./push-consent.ts";
 import type { EngineDeps } from "./deps.ts";
 import { apiHostOf } from "../push/choose.ts";
 import { ownImage } from "../push/expo.ts";
@@ -292,7 +293,7 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
         const claim = await deps.store.claimPushSlot(userId, date, trigger.kind, trigger.message.id);
         if (!claim.claimed) { result.skipped++; continue; }
         const out = await sendLogged(
-          deps, userId, await deps.store.pushTokensFor(userId),
+          deps, userId, await pushDevices(deps, userId),
           {
             kind: trigger.kind, ref: trigger.message.id, templateKey: trigger.message.id,
             lang: trigger.message.lang, variant: trigger.variant,
@@ -314,7 +315,7 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
       const claim = await deps.store.claimPushSlot(userId, date, kind, message.id);
       if (!claim.claimed) { result.skipped++; continue; } // slot-taken
       const out = await sendLogged(
-        deps, userId, await deps.store.pushTokensFor(userId),
+        deps, userId, await pushDevices(deps, userId),
         { kind, ref: message.id, templateKey: message.id, lang: message.lang },
         { title: message.title, body: message.body, categoryId: LOG_REPLY_CATEGORY },
       );
@@ -429,7 +430,7 @@ export async function sendTestPush(
     image = typeof imageUrl === "string" ? ownImage(imageUrl, apiHostOf(deps.config.publicApiUrl)) : undefined;
     if (image === undefined) return { ok: false, reason: "image-not-allowed" };
   }
-  const devices = await deps.store.pushTokensFor(userId);
+  const devices = await pushDevices(deps, userId);
   if (devices.length === 0) return { ok: false, reason: "no-device" };
   const profile = await deps.store.getProfile(userId);
   if (!profile) return { ok: false, reason: "no-device" };

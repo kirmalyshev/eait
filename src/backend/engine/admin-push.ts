@@ -8,7 +8,7 @@ import { apiHostOf } from "../push/choose.ts";
 import { ownImage } from "../push/expo.ts";
 import type { EngineDeps } from "./deps.ts";
 import { sendLogged, zoneOf } from "./notify.ts";
-import { pushOffersAllowed } from "./push-consent.ts";
+import { pushDevices, pushOffersAllowed } from "./push-consent.ts";
 import { campaignWords } from "./push-templates.ts";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -43,7 +43,7 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
     const profile = await deps.store.getProfile(userId);
     if (!profile) { skip("no-account"); continue; }
     if (!await pushOffersAllowed(deps, userId)) { skip("no-offers"); continue; }
-    const devices = await deps.store.pushTokensFor(userId);
+    const devices = await pushDevices(deps, userId);
     if (devices.length === 0) { skip("no-device"); continue; }
     // Before the slot: a refused template must not spend the day's one message.
     const words = await campaignWords(deps, key, profile.lang as Lang, CAMPAIGN_VARIANTS[0]!, 1);

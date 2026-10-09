@@ -25,7 +25,7 @@ describe("admin push composer", () => {
         target_weight_kg: 65, activity: "some", pace: "steady", country: "de", restrictions: [], complete_onboarding: true,
       });
       await store.putPushToken(userId, `ExponentPushToken[${userId.slice(0, 8)}]`, "ios");
-      if (offers) await setPushConsent(deps, userId, true);
+      if (offers) await setPushConsent(deps, userId, { offers: true });
       return userId;
     };
     const without = await make(false);

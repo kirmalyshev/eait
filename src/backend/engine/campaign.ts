@@ -33,7 +33,7 @@ import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { CATCH_UP_MS, instantOf, isStaffAccount, sendLogged, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
-import { pushOffersAllowed } from "./push-consent.ts";
+import { pushDevices, pushOffersAllowed } from "./push-consent.ts";
 
 type Result<T> = ({ ok: true } & T) | { ok: false; errors: string[] };
 
@@ -228,7 +228,7 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         const variant = CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!;
         const words = await campaignWords(deps, c.templateKey, facts.lang, variant, c.variants);
         if (!words) continue; // an incomplete template is not sent, and does not spend the day
-        const devices = await deps.store.pushTokensFor(userId);
+        const devices = await pushDevices(deps, userId);
         if (devices.length === 0) continue;
 
         // THE HOLDOUT: due, in the segment, and kept out on purpose. It claims no slot, so the day's
@@ -297,7 +297,7 @@ export async function dryRunCampaign(deps: EngineDeps, id: string, opts: { now?:
     wouldSend++;
     const already = (await deps.store.sendLogFor(userId, 100)).some((r) => r.kind === "campaign" && r.ref === c.id && r.state === "dry");
     if (already) continue;
-    for (const device of await deps.store.pushTokensFor(userId)) {
+    for (const device of await pushDevices(deps, userId)) {
       await deps.store.createSend(userId, {
         id: crypto.randomUUID(), kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang,
         variant: CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!, token: device.token, state: "dry",
@@ -323,7 +323,7 @@ export async function testSendCampaign(
   const c = await deps.store.getCampaign(id);
   if (!c) return { ok: false, reason: "no-such-campaign" };
   if (!await isStaffAccount(deps, userId)) return { ok: false, reason: "not-staff" };
-  const devices = await deps.store.pushTokensFor(userId);
+  const devices = await pushDevices(deps, userId);
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };
   // Before the slot: a refused template must not spend the day's one message.
