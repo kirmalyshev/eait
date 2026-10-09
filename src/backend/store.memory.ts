@@ -101,6 +101,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // not answer it would be a store the panel had to guess against.
   const createdAt = new Map<string, number>();
   const pushOffers = new Map<string, string>();
+  const pushOff = new Map<string, string>();
   /**
    * Roles, in their own map rather than on the profile (#391a).
    *
@@ -290,6 +291,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // that consented and was deleted keeps neither the record nor the timestamp.
     consents.delete(userId);
     pushOffers.delete(userId);
+    pushOff.delete(userId);
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
@@ -439,6 +441,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!users.has(userId)) return;
       if (!on) pushOffers.delete(userId);
       else if (!pushOffers.has(userId)) pushOffers.set(userId, new Date().toISOString());
+    },
+
+    async pushOffOf(userId) {
+      return pushOff.get(userId) ?? null;
+    },
+
+    async setPushOff(userId, off) {
+      if (!users.has(userId)) return;
+      if (!off) pushOff.delete(userId);
+      else if (!pushOff.has(userId)) pushOff.set(userId, new Date().toISOString());
     },
 
     async consentOf(userId) {
@@ -929,6 +941,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async pushAudience() {
       return [...new Set([...pushTokens.values()].map((r) => r.userId))]
+        .filter((userId) => !pushOff.has(userId))
         .map((userId) => ({
           userId, timezone: timezones.get(userId) ?? null,
           createdAt: new Date(createdAt.get(userId) ?? 0).toISOString(),

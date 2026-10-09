@@ -2031,12 +2031,12 @@ describe("push delivered beacon", () => {
 describe("push consent (tips and offers)", () => {
   it("is off by default, turns on with a moment, off again, and needs a session and a boolean", async () => {
     const t = await session();
-    expect(await (await get(ROUTES.pushConsent, t)).json()).toEqual({ offers: false, at: null });
+    expect(await (await get(ROUTES.pushConsent, t)).json()).toEqual({ offers: false, at: null, notifications: true });
     const on = await (await post(ROUTES.pushConsent, { offers: true }, t)).json() as { offers: boolean; at: string };
     expect(on.offers).toBe(true);
     expect(Date.parse(on.at)).toBeGreaterThan(0);
     expect(await (await get(ROUTES.pushConsent, t)).json()).toEqual(on);
-    expect(await (await post(ROUTES.pushConsent, { offers: false }, t)).json()).toEqual({ offers: false, at: null });
+    expect(await (await post(ROUTES.pushConsent, { offers: false }, t)).json()).toEqual({ offers: false, at: null, notifications: true });
     for (const body of [{}, { offers: "yes" }]) expect((await post(ROUTES.pushConsent, body, t)).status).toBe(400);
     expect((await get(ROUTES.pushConsent)).status).toBe(401);
   });

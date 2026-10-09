@@ -210,7 +210,7 @@ describe("segments", () => {
   it("a promotional campaign skips an account with the toggle off and reaches one with it on", async () => {
     const off = await account({ consent: true }); // ticked the sign-up box: not an opt-in
     const on = await account({ consent: false });
-    await setPushConsent(deps, on, true);
+    await setPushConsent(deps, on, { offers: true });
     const c = await campaign({ promotional: true }, "draft");
     await store.updateCampaign(c.id, { status: "scheduled" });
     await runCampaigns(deps, { now: BERLIN_1830 });

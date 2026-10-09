@@ -311,7 +311,7 @@ export const ROUTES = {
   pushDelivered: "/v1/push/delivered",
   /**
    * GET — the tips-and-offers consent (`PushConsentResponse`); POST — set it (`PushConsentRequest`).
-   * Default OFF. Onboarding and streak reminders do not depend on it.
+   * Offers default OFF; `notifications` (default ON) silences every push for the account.
    */
   pushConsent: "/v1/push/consent",
   /**
@@ -1129,17 +1129,24 @@ export interface PushOpenResponse {
 export type PushDeliveredResponse = PushOpenResponse;
 
 export interface PushConsentRequest {
-  offers: boolean;
+  offers?: boolean;
+  /** The account-wide switch: false = no push of any kind. Default true. */
+  notifications?: boolean;
 }
 
-/** `at` is when it was turned on, or null while it is off. */
+/** `at` is when offers were turned on, or null while they are off. `notifications` is the account-wide switch. */
 export interface PushConsentResponse {
   offers: boolean;
   at: string | null;
+  notifications: boolean;
 }
 
 export function isPushConsentRequest(body: unknown): body is PushConsentRequest {
-  return typeof body === "object" && body !== null && typeof (body as Record<string, unknown>).offers === "boolean";
+  if (typeof body !== "object" || body === null) return false;
+  const { offers, notifications } = body as Record<string, unknown>;
+  if (offers !== undefined && typeof offers !== "boolean") return false;
+  if (notifications !== undefined && typeof notifications !== "boolean") return false;
+  return offers !== undefined || notifications !== undefined;
 }
 
 /** What a register or an unregister answers. `registered` is the state AFTER the call. */

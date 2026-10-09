@@ -16,35 +16,35 @@ beforeEach(async () => {
 
 describe("tips-and-offers consent", () => {
   it("is OFF with no timestamp until the person turns it on", async () => {
-    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null });
+    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true });
   });
 
   it("turning it on stores the moment; turning it off clears it", async () => {
     const before = Date.now();
-    const on = await setPushConsent(deps, userId, true);
+    const on = await setPushConsent(deps, userId, { offers: true });
     expect(on.offers).toBe(true);
     expect(Date.parse(on.at!)).toBeGreaterThanOrEqual(before - 1000);
     expect(await pushConsent(deps, userId)).toEqual(on);
-    expect(await setPushConsent(deps, userId, false)).toEqual({ offers: false, at: null });
+    expect(await setPushConsent(deps, userId, { offers: false })).toEqual({ offers: false, at: null, notifications: true });
   });
 
   it("turning it on twice keeps the first moment", async () => {
-    const first = await setPushConsent(deps, userId, true);
+    const first = await setPushConsent(deps, userId, { offers: true });
     await new Promise((r) => setTimeout(r, 5));
-    expect(await setPushConsent(deps, userId, true)).toEqual(first);
+    expect(await setPushConsent(deps, userId, { offers: true })).toEqual(first);
   });
 
   it("is not the sign-up box: ticked marketing consent is still OFF, and toggling leaves it alone", async () => {
     await deps.store.recordConsent(userId, { terms: true, marketing: true });
-    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null });
-    await setPushConsent(deps, userId, true);
-    await setPushConsent(deps, userId, false);
+    expect(await pushConsent(deps, userId)).toEqual({ offers: false, at: null, notifications: true });
+    await setPushConsent(deps, userId, { offers: true });
+    await setPushConsent(deps, userId, { offers: false });
     expect((await deps.store.consentOf(userId))?.marketingConsentAt).not.toBeNull();
   });
 
   it("is per account", async () => {
     const other = (await deps.store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
-    await setPushConsent(deps, userId, true);
+    await setPushConsent(deps, userId, { offers: true });
     expect((await pushConsent(deps, other)).offers).toBe(false);
   });
 });

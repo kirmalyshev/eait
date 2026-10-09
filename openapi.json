@@ -7525,11 +7525,12 @@
         "properties": {
           "offers": {
             "type": "boolean"
+          },
+          "notifications": {
+            "type": "boolean",
+            "description": "The account-wide switch: false = no push of any kind. Default true."
           }
         },
-        "required": [
-          "offers"
-        ],
         "additionalProperties": false
       },
       "PushConsentResponse": {
@@ -7543,14 +7544,18 @@
               "string",
               "null"
             ]
+          },
+          "notifications": {
+            "type": "boolean"
           }
         },
         "required": [
           "offers",
-          "at"
+          "at",
+          "notifications"
         ],
         "additionalProperties": false,
-        "description": "`at` is when it was turned on, or null while it is off."
+        "description": "`at` is when offers were turned on, or null while they are off. `notifications` is the account-wide switch."
       },
       "PushDeliveredRequest": {
         "type": "object",

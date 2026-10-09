@@ -17,6 +17,7 @@ import { editMeal, logPhotoTurn, reanalyzeMeal, type LogPhotoInput } from "./mea
 import { textTurn } from "./text.ts";
 import { bounded } from "./turns.ts";
 import { sendLogged } from "./notify.ts";
+import { pushDevices } from "./push-consent.ts";
 
 const LEASE_MS = 30_000;
 const HEARTBEAT_MS = 10_000;
@@ -364,7 +365,7 @@ export async function removePhotoJob(deps: EngineDeps, userId: string, jobId: st
 /** The one push: "Salmon fillet, White rice · 540kcal" / "Counted. 360kcal left today." A tap opens the meal. */
 async function pushCounted(deps: EngineDeps, userId: string, logged: MealLogged): Promise<void> {
   try {
-    const devices = await deps.store.pushTokensFor(userId);
+    const devices = await pushDevices(deps, userId);
     const profile = await deps.store.getProfile(userId);
     if (devices.length === 0 || !profile) return;
     const whole = kcalNumbers(profile.lang);
@@ -390,7 +391,7 @@ async function pushCounted(deps: EngineDeps, userId: string, logged: MealLogged)
 /** The one push for an update: "Salmon, rice, greens updated · 480kcal (was 540kcal)". A tap opens the meal. */
 async function pushUpdated(deps: EngineDeps, userId: string, updated: MealUpdated, wasKcal: number): Promise<void> {
   try {
-    const devices = await deps.store.pushTokensFor(userId);
+    const devices = await pushDevices(deps, userId);
     const profile = await deps.store.getProfile(userId);
     if (devices.length === 0 || !profile) return;
     const whole = kcalNumbers(profile.lang);

@@ -32,7 +32,7 @@ export {
   type CampaignOverview, type CampaignRunResult, type CampaignTestResult, type DryRunResult,
 } from "./campaign.ts";
 export { recordPushOpen, recordPushDelivered, pushOpenView, PUSH_STATS_MAX_DAYS, type PushOpenView } from "./push-open.ts";
-export { pushConsent, setPushConsent, pushOffersAllowed } from "./push-consent.ts";
+export { pushConsent, setPushConsent, pushOffersAllowed, pushDevices } from "./push-consent.ts";
 export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
 export { recordHealthDays, healthTrend, pruneAgedHealthDays } from "./health.ts";
