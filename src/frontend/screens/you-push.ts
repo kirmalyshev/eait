@@ -22,9 +22,9 @@ export async function pushRows(after: HTMLElement, words: YouCopy["web"]): Promi
 
   const make = (label: string, state: Sw, sub: () => string | null, toggle: () => Promise<void>) => {
     const row = el("div", "opt sw");
-    const text = el("div", "");
+    const text = el("div", "ot");
     const labelId = `sw-${label.replace(/\W+/g, "-")}`;
-    const lab = el("span", "", label);
+    const lab = el("span", "ot", label);
     lab.id = labelId;
     const subline = el("div", "sub");
     text.append(lab, subline);
