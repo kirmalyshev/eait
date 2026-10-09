@@ -23,19 +23,19 @@
 {$EAIT_DOMAIN} {
 	# ── THIS IS WHERE THE ONE ORIGIN IS COMPOSED ─────────────────────────────────────────────
 	#
-	# The browser sees a single name. Behind it, `/` and `/app.js` are one container and everything
+	# The browser sees a single name. Behind it, `/`, `/app.js` and `/sw.js` are one container and everything
 	# else is another. That is what lets the client call `/api/v1/*` relative under
 	# `connect-src 'self'`, with no CORS header anywhere — and it is why splitting eait into two
 	# applications did not make it two origins. `src/frontend/AGENTS.md` owns that rule.
 	#
-	# TWO EXACT PATHS, NEVER A PREFIX. `/` and `/app.js` are the whole of what the web application
+	# THREE EXACT PATHS, NEVER A PREFIX. `/`, `/app.js` and `/sw.js` are the whole of what the web application
 	# serves; a catch-all here would swallow `/api`, `/start` and `/admin`. The frontend container
 	# answers 404 on both when no bundle was built, so an instance without a web application has
 	# none rather than half of one.
 	#
 	# `path`, NEVER `path_regexp`. Caddy cleans the path before a `path` matcher sees it, so
 	# `/admin/../app.js` cannot reach this block by a spelling the backend would then normalise back.
-	@app path / /app.js
+	@app path / /app.js /sw.js
 	handle @app {
 		reverse_proxy frontend:8788
 	}

@@ -29,7 +29,8 @@ COPY src/frontend ./src/frontend
 # on the shell and the bundle BY DESIGN when no bundle is on disk, so without this the image would
 # come up healthy and serve nothing at all.
 RUN cd src/frontend && bun build ./main.ts --outdir ./dist --target browser --minify \
- && test -s ./dist/main.js
+ && bun build ./sw.ts --outdir ./dist --target browser --minify \
+ && test -s ./dist/main.js && test -s ./dist/sw.js
 
 
 FROM oven/bun:1.4.2-alpine AS runtime

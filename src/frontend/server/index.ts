@@ -46,6 +46,7 @@ export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
 
 export const SHELL_PATH = "/";
 export const BUNDLE_PATH = "/app.js";
+export const WORKER_PATH = "/sw.js";
 export const HEALTH_PATH = "/health";
 
 /** Slot 0's port. Every other slot derives its own — `src/scripts/dev-env.ts` owns that arithmetic. */
@@ -209,6 +210,16 @@ export function createWebApp(options: WebAppOptions = {}) {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
 
+    // The service worker, built beside the bundle. Never cached past a revalidation: the browser
+    // re-fetches a worker script itself, and a stale one is a push handler nobody can replace.
+    if (pathname === WORKER_PATH && req.method === "GET") {
+      const file = Bun.file(new URL("sw.js", bundlePath));
+      if (!(await file.exists())) return notFound();
+      return new Response(file, {
+        headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" },
+      });
+    }
+
     if (pathname === SHELL_PATH || pathname === BUNDLE_PATH) {
       const file = await bundle();
       if (file === null) return notFound();
@@ -253,6 +264,7 @@ export function createWebApp(options: WebAppOptions = {}) {
               // Montserrat comes off the backend's own /start/assets route — same origin here.
               "font-src 'self'",
               "connect-src 'self'",
+              "worker-src 'self'",
               "base-uri 'none'",
               // Nothing here posts a form. `/start` does, and it is a different document.
               "form-action 'none'",

@@ -11,7 +11,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 # ONE ORIGIN, COMPOSED AT THE EDGE, AND THAT IS THE PROPERTY TO PROTECT
 #
-# Caddy serves ONE hostname. `/` and `/app.js` come from the `frontend` container; everything else —
+# Caddy serves ONE hostname. `/`, `/app.js` and `/sw.js` come from the `frontend` container; everything else —
 # `/api/v1/*`, `/start`, `/admin`, `/health` — is the backend's, on the same name. That is what lets
 # the browser client call its API with a relative path under `connect-src 'self'` with no CORS
 # header anywhere, which `src/frontend/AGENTS.md` states as a rule. A deployment that puts the two

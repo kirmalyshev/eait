@@ -65,6 +65,18 @@ export const youCss = `
 .you .urows .opt .ico { width: 16px; height: 16px; flex: 0 0 16px; color: var(--muted);
   margin-left: 8px; }
 
+/* The two push switches (web/you-notifs-*): the board's 51x31 pill, a button so it takes focus. */
+.you .urows [hidden] { display: none; }
+.you .urows .opt.sw { align-items: center; padding: 13px 0; font-size: 15px; }
+.you .urows .opt .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.you .urows .swt { margin-left: auto; width: 51px; height: 31px; border-radius: 16px; flex: 0 0 51px;
+  position: relative; background: var(--line); border: 0; padding: 0; margin: 0 0 0 auto; min-height: 31px; cursor: pointer; }
+.you .urows .swt[aria-checked="true"] { background: var(--accent); }
+.you .urows .swt i { position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.you .urows .swt[aria-checked="true"] i { left: 22px; }
+.you .urows .swt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* The stagger the board draws — rise delays as classes, because the nonce policy has no style=. */
 .you .rc-1 { --d: .06s; }
 .you .rc-2 { --d: .12s; }

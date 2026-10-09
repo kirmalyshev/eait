@@ -34,6 +34,7 @@ import type {
   DaysResponse, IdentitiesResponse, OnboardingContentResponse, PairCodeResponse,
   ProfileRejected, ProfileResponse, WeightsResponse,
 } from "@eait/shared/contract";
+import { pushRows } from "./you-push.ts";
 import { api, ApiError, signOut, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl, macEl } from "../kit.ts";
@@ -272,7 +273,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       .map((i) => i.provider)
       .filter((p) => signsIn(p) && p !== "device")
       .map((p) => PROVIDER_NAME[p] ?? p);
-    card.append(optRow(you.account, listConjunction(lang, providers), () => openAccount(ids, providers)));
+    const accountRow = optRow(you.account, listConjunction(lang, providers), () => openAccount(ids, providers));
+    card.append(accountRow);
+    void pushRows(accountRow, you.web);
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     card.append(optRow(
