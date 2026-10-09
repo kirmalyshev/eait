@@ -19,7 +19,7 @@
 //     dependence invisible the day somebody changes it.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import type { ErrorResponse, NDJSON } from "@eait/shared/contract";
+import type { ErrorResponse, NDJSON, PushConsentResponse, PushOpenRequest, PushTokenRequest } from "@eait/shared/contract";
 
 let bearer: string | null = null;
 
@@ -194,3 +194,14 @@ export async function apiStream<T>(path: string, init: RequestInit = {}, onLine?
   if (last === undefined) throw new Error(`${init.method ?? "GET"} ${path}: the stream ended with no answer`);
   return JSON.parse(last) as T;
 }
+
+const json = (method: string, body: unknown): RequestInit => ({
+  method, headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+});
+
+/** Web Push: the consent (it carries the VAPID key), this browser's subscription, and a tap's report. */
+export const getPushConsent = (): Promise<PushConsentResponse> => api("/push/consent");
+export const registerPushToken = (body: PushTokenRequest): Promise<unknown> => api("/push/token", json("POST", body));
+export const dropPushToken = (token: string): Promise<unknown> =>
+  api("/push/token", json("DELETE", { platform: "web", token }));
+export const postPushOpen = (body: PushOpenRequest): Promise<unknown> => api("/push/open", json("POST", body));
