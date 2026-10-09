@@ -19,7 +19,7 @@
 //     dependence invisible the day somebody changes it.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import type { ErrorResponse, NDJSON, PushConsentResponse, PushOpenRequest, PushTokenRequest } from "@eait/shared/contract";
+import type { ErrorResponse, NDJSON, PushConsentRequest, PushConsentResponse, PushOpenRequest, PushTokenRequest } from "@eait/shared/contract";
 
 let bearer: string | null = null;
 
@@ -201,6 +201,8 @@ const json = (method: string, body: unknown): RequestInit => ({
 
 /** Web Push: the consent (it carries the VAPID key), this browser's subscription, and a tap's report. */
 export const getPushConsent = (): Promise<PushConsentResponse> => api("/push/consent");
+export const setPushConsent = (body: PushConsentRequest): Promise<PushConsentResponse> =>
+  api("/push/consent", json("POST", body));
 export const registerPushToken = (body: PushTokenRequest): Promise<unknown> => api("/push/token", json("POST", body));
 export const dropPushToken = (token: string): Promise<unknown> =>
   api("/push/token", json("DELETE", { platform: "web", token }));
