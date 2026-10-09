@@ -827,3 +827,54 @@ describe("cost", () => {
   });
 
 });
+
+// ── The plain OpenAI dialect: Ollama, vLLM, LM Studio, llama.cpp, Together, Groq ─────────────
+
+describe("the openai dialect", () => {
+  /** Records each request's headers and body, and answers `contents` in turn as the assistant. */
+  const recording = (contents: unknown[]) => {
+    const seen: { headers: Record<string, string>; body: Record<string, unknown> }[] = [];
+    const impl = (async (_url: string, init: RequestInit) => {
+      seen.push({ headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) });
+      const content = JSON.stringify(contents[Math.min(seen.length - 1, contents.length - 1)]);
+      return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return { impl, seen };
+  };
+  const openai = (impl: typeof fetch, apiKey = "") => openRouterPorts({
+    apiKey, model: "test-model", chatModel: "test-chat-model", dialect: "openai",
+    baseUrl: "http://localhost:11434/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+    // Every OpenRouter-only knob turned on, so the test proves the dialect drops them.
+    reasoningEffort: "off", providerOrder: ["deepinfra"], fallbackModels: ["fallback-model"],
+    fetchImpl: impl,
+  });
+
+  test("a schema call carries no OpenRouter-only field, and keeps everything else", async () => {
+    const { impl, seen } = recording([MEAL]);
+    await openai(impl).analyzePhoto(PHOTO_INPUT);
+    const body = seen[0]!.body;
+    for (const k of ["reasoning", "provider", "models"]) expect(k in body).toBe(false);
+    expect(body.model).toBe("test-model");
+    expect(body.max_tokens).toBe(4321);
+    expect(body.temperature).toBe(0.2);
+    expect((body.response_format as { type: string }).type).toBe("json_schema");
+  });
+
+  test("the coach sends no reasoning either", async () => {
+    const { impl, seen } = recording([{ reply: "ok", suggestions: [] }]);
+    await openai(impl).coach(COACH_INPUT, { get_meals: async () => [] });
+    expect("reasoning" in seen[0]!.body).toBe(false);
+    expect(seen[0]!.body.model).toBe("test-chat-model");
+  });
+
+  test("no key sends no authorization header and no x-title; a key sends the bearer", async () => {
+    const { impl, seen } = recording([MEAL, MEAL]);
+    await openai(impl).analyzePhoto(PHOTO_INPUT);
+    expect("authorization" in seen[0]!.headers).toBe(false);
+    expect("x-title" in seen[0]!.headers).toBe(false);
+    await openai(impl, "sk-together").analyzePhoto(PHOTO_INPUT);
+    expect(seen[1]!.headers.authorization).toBe("Bearer sk-together");
+  });
+});
