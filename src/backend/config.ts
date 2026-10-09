@@ -2,8 +2,11 @@ import { MIN_MODEL_CALL_TIMEOUT_MS, REMINDER_TIME, FREE_ANALYSES, SERVER_LLM_TIM
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 import { AGENT_PROVIDERS } from "./llm/local-agent.ts";
 
-/** Every `EAIT__BACKEND__LLM_PROVIDER` value `index.ts` can wire: the gateway, then the CLIs. */
-const LLM_PROVIDERS = ["openrouter", ...AGENT_PROVIDERS];
+/**
+ * Every `EAIT__BACKEND__LLM_PROVIDER` value `index.ts` can wire: the gateway, any plain
+ * OpenAI-compatible server (Ollama, vLLM, LM Studio, llama.cpp, Together, Groq), then the CLIs.
+ */
+const LLM_PROVIDERS = ["openrouter", "openai-compatible", ...AGENT_PROVIDERS];
 
 // Configuration, loaded once at startup and validated loudly.
 //
@@ -731,12 +734,17 @@ export function loadConfig(): Config {
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
     llmFallbackModels: process.env.EAIT__BACKEND__LLM_FALLBACK_MODELS ?? d.llmFallbackModels,
-    // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and
-    // requiring it there would refuse a boot that needed no key at all.
+    // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and an
+    // `openai-compatible` server may want none (Ollama) — requiring it there would refuse a boot
+    // that needed no key at all.
     llmApiKey: llmProvider === "openrouter"
       ? required("EAIT__BACKEND__LLM_API_KEY")
       : (process.env.EAIT__BACKEND__LLM_API_KEY ?? ""),
-    llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
+    // `openai-compatible` names its own server: the default is OpenRouter's, and falling back to it
+    // would send the photos to a gateway the operator chose not to use.
+    llmBaseUrl: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_BASE_URL")
+      : (process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl),
     llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),
     llmMaxTokens,
     llmAgentConcurrency,

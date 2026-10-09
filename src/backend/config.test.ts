@@ -93,6 +93,18 @@ describe("loadConfig", () => {
     expect(loadConfig().llmProviderOrder).toBe("");
   });
 
+  it("accepts openai-compatible with no key, but never without its own base URL", () => {
+    process.env.EAIT__BACKEND__DATABASE_URL = "postgres://u:p@localhost:5432/db";
+    process.env.EAIT__BACKEND__LLM_PROVIDER = "openai-compatible";
+    // Unset, the default base URL is OpenRouter's — a server the operator did not name.
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_BASE_URL/);
+    process.env.EAIT__BACKEND__LLM_BASE_URL = "http://localhost:11434/v1/chat/completions";
+    const c = loadConfig();
+    expect(c.llmProvider).toBe("openai-compatible");
+    expect(c.llmApiKey).toBe("");
+    expect(c.llmBaseUrl).toBe("http://localhost:11434/v1/chat/completions");
+  });
+
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
     withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "lo" });
     expect(() => loadConfig()).toThrow(/LLM_REASONING_EFFORT/);
