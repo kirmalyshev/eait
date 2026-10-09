@@ -391,6 +391,14 @@ export interface Config {
    * client without it.
    */
   expoPushAccessToken: string;
+  /**
+   * Web Push (VAPID). All three set, with `pushEnabled`, and browser pushes are sent; otherwise
+   * they are logged. The public key is sent to the client; the private key is a secret, and
+   * `redact()` masks it. `webPushSubject` is a `mailto:` or `https:` contact for the push services.
+   */
+  webPushVapidPublicKey: string;
+  webPushVapidPrivateKey: string;
+  webPushSubject: string;
   /** How long one push request may hang. Same argument as `llmTimeoutMs`. */
   pushTimeoutMs: number;
   /** How long a shutdown waits for queued photo and update jobs; the deploy's stop grace period must exceed it. */
@@ -598,6 +606,9 @@ export function configDefaults(): Config {
     donateGithubUrl: "",
     pushEnabled: false,
     expoPushAccessToken: "",
+    webPushVapidPublicKey: "",
+    webPushVapidPrivateKey: "",
+    webPushSubject: "",
     pushTimeoutMs: 15_000,
     shutdownDrainMs: 60_000,
     jobConcurrency: 4,
@@ -764,6 +775,9 @@ export function loadConfig(): Config {
     donateGithubUrl: donateUrl("EAIT__BACKEND__DONATE_GITHUB_URL", process.env.EAIT__BACKEND__DONATE_GITHUB_URL),
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
+    webPushVapidPublicKey: process.env.EAIT__BACKEND__WEB_PUSH_VAPID_PUBLIC_KEY ?? d.webPushVapidPublicKey,
+    webPushVapidPrivateKey: process.env.EAIT__BACKEND__WEB_PUSH_VAPID_PRIVATE_KEY ?? d.webPushVapidPrivateKey,
+    webPushSubject: process.env.EAIT__BACKEND__WEB_PUSH_SUBJECT ?? d.webPushSubject,
     pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
     shutdownDrainMs: int("EAIT__BACKEND__SHUTDOWN_DRAIN_MS", d.shutdownDrainMs),
     jobConcurrency: int("EAIT__BACKEND__JOB_CONCURRENCY", d.jobConcurrency),
@@ -840,7 +854,7 @@ export function telegramBotTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, databaseUrl,
+    expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, databaseUrl,
     ...rest
   } = c;
   return {
@@ -854,6 +868,7 @@ export function redact(c: Config): Record<string, unknown> {
     revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
     // Whether this server can send a notification at all is the thing worth reading in a boot log.
     expoPushAccessToken: c.expoPushAccessToken === "" ? "(unset — pushes are logged)" : "***",
+    webPushVapidPrivateKey: c.webPushVapidPrivateKey === "" ? "(unset — web pushes are logged)" : "***",
     // Google's web client secret. A real secret — ansible carries it `no_log` and reads it back off
     // the host rather than re-deriving it — and this line is the only thing between it and every
     // container log, because `...rest` above would print it verbatim on every boot.
