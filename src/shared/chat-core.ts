@@ -24,7 +24,7 @@ import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsRe
 import type { Lang } from "./types.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import { attemptOf } from "./outbox.ts";
-import type { ConfirmMealResult, HandleTextResult, MealLogged, MealProposed, TargetGone } from "./results.ts";
+import type { ConfirmMealResult, HandleTextResult, MealLogged, MealProposed, RefusedTurn, TargetGone } from "./results.ts";
 import {
   fromHistory, keepsItsWords, landedLine, lastMealId, mealIdOf, oneLiveProposal, pendingIdOf, reconcilePage, livePendings,
   threadReducer, type ThreadEntry,
@@ -66,6 +66,8 @@ export interface QueuedTurn {
   text: string;
   capturedAt: string;
   focusMealId?: string;
+  /** Kept already decided (not waiting on a connection): the outbox holds it and draws it failed, never re-sending it by itself. */
+  held?: RefusedTurn;
 }
 
 export interface ChatCoreDeps {
@@ -435,10 +437,10 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
      * stays until the outbox has it — the outbox's row for the same id is not drawn while it is on
      * screen (`queuedEntries`) — then goes, so the row takes over the same key with no gap. True when kept.
      */
-    const keep = async (): Promise<boolean> => {
+    const keep = async (held?: RefusedTurn): Promise<boolean> => {
       if (!deps.enqueue) return false;
       try {
-        await deps.enqueue({ id: asked, userId: said, text: body, capturedAt, ...(focus !== undefined ? { focusMealId: focus } : {}) });
+        await deps.enqueue({ id: asked, userId: said, text: body, capturedAt, ...(focus !== undefined ? { focusMealId: focus } : {}), ...(held ? { held } : {}) });
       } catch {
         return false;
       }
@@ -521,6 +523,8 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             // from one that may never arrive, which would leave "try again" in front of a 402.
             const p = (await deps.refreshProfile()) ?? deps.profile();
             push({ id: uid(), role: "error", kind: "analysis-failed", ...(sampleSpent(p) ? { scope: "sample" } : {}) });
+            // Her words survive a restart: held in the outbox, drawn failed with Resend/Delete (`keptState`).
+            if (await keep({ kind: "analysis-failed", ...(sampleSpent(p) ? { scope: "sample" } : {}) })) return;
           } else {
             pushFailure(e, keepsItsWords(failure.kind) ? asked : undefined);
             // The server has just said the sample is spent; the profile the composer reads has not.
