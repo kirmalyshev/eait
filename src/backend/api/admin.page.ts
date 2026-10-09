@@ -326,6 +326,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       <select id="composer-route"></select>
       <button class="primary" id="composer-send">Send</button>
     </div>
+    <div class="row">
+      <select id="composer-test-route"></select>
+      <button id="composer-test">Send test push to the one picked account</button>
+    </div>
     <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
     <p class="muted" id="composer-status"></p>
     <ul id="composer-results"></ul>
@@ -1346,8 +1350,18 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   function showPicked() {
     $("composer-count").textContent = picked.size + " account(s) picked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
   }
+  var none = document.createElement("option"); none.value = ""; none.textContent = "no target"; $("composer-test-route").appendChild(none);
   ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
-    var o = document.createElement("option"); o.value = r; o.textContent = "opens " + r; $("composer-route").appendChild(o);
+    ["composer-route", "composer-test-route"].forEach(function (id) {
+      var o = document.createElement("option"); o.value = r; o.textContent = "opens " + r; $(id).appendChild(o);
+    });
+  });
+  $("composer-test").addEventListener("click", function () {
+    if (picked.size !== 1) { $("composer-status").textContent = "Pick exactly one account for a test push."; return; }
+    var route = $("composer-test-route").value;
+    api("POST", "/admin/api/users/" + encodeURIComponent(Array.from(picked.keys())[0]) + "/push-test", route ? { route: route } : {})
+      .then(function (r) { $("composer-status").textContent = "Test push: " + r.sent + " device(s)."; })
+      .catch(function (e) { $("composer-status").textContent = "Test push refused: " + ((e.body && e.body.reason) || e.message); });
   });
   api("GET", "/admin/api/campaigns").then(function (c) {
     c.copy.filter(function (t) { return t.gaps.length === 0; }).forEach(function (t) {

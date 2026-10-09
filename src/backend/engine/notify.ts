@@ -30,7 +30,7 @@
 import { rotatedVariant, sendableCopy, sendLogUses } from "./push-templates.ts";
 import {
   LOG_REPLY_CATEGORY, NOTIFICATION_IDS, PUSH_TEMPLATE_VARIANTS, dailyMessage, loggedStreak, windowStart,
-  DIARY_WINDOW_DAYS, entitlementActive, isTimezone,
+  DIARY_WINDOW_DAYS, entitlementActive, isPushRoute, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
   kcalNumbers, trialReminder,
@@ -403,6 +403,7 @@ export type TestPushResult =
   | { ok: false; reason: "no-device" }
   | { ok: false; reason: "template-incomplete" }
   | { ok: false; reason: "test-cap" }
+  | { ok: false; reason: "route-not-allowed" }
   | { ok: false; reason: "slot-taken"; heldBy: PushKind };
 
 /** Tests a staff account may send per local day: a bound against a stuck button, not a rule of the product. */
@@ -419,8 +420,10 @@ export const TEST_PUSH_DAILY_CAP = 10;
  * this server's own public API host, and is refused BEFORE the slot is claimed.
  */
 export async function sendTestPush(
-  deps: EngineDeps, userId: string, now: number = Date.now(), imageUrl?: unknown,
+  deps: EngineDeps, userId: string, now: number = Date.now(), imageUrl?: unknown, route?: unknown,
 ): Promise<TestPushResult> {
+  // Like the image, refused BEFORE the slot or the test cap is touched. Absent sends no route.
+  if (route !== undefined && !isPushRoute(route)) return { ok: false, reason: "route-not-allowed" };
   let image: string | undefined;
   if (imageUrl !== undefined) {
     image = typeof imageUrl === "string" ? ownImage(imageUrl, apiHostOf(deps.config.publicApiUrl)) : undefined;
@@ -448,6 +451,7 @@ export async function sendTestPush(
     deps, userId, devices,
     { kind: "campaign", ref: "admin-test", templateKey: "nudge", lang: profile.lang, variant: "admin-test" },
     { title: copy.title, body: copy.body, ...(image ? { imageUrl: image } : {}) },
+    route === undefined ? {} : { route },
   );
   return { ok: true, sent: out.sent };
 }
