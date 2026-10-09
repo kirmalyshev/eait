@@ -53,7 +53,7 @@ const config: Config = demo ? demoConfig() : loadConfig();
 // than one that will not start.
 if (demo && llmArg === "real") {
   const provider = process.env.EAIT__BACKEND__LLM_PROVIDER ?? "openrouter";
-  if (provider !== "openrouter" && !isAgentProvider(provider)) {
+  if (provider !== "openrouter" && provider !== "openai-compatible" && !isAgentProvider(provider)) {
     console.error(`[eait] --llm real does not know provider "${provider}"`);
     process.exit(1);
   }
@@ -64,6 +64,15 @@ if (demo && llmArg === "real") {
       process.exit(1);
     }
     config.llmApiKey = key;
+  }
+  if (provider === "openai-compatible") {
+    const url = process.env.EAIT__BACKEND__LLM_BASE_URL ?? "";
+    if (url === "") {
+      console.error("[eait] --llm real with openai-compatible needs EAIT__BACKEND__LLM_BASE_URL");
+      process.exit(1);
+    }
+    config.llmBaseUrl = url;
+    config.llmApiKey = process.env.EAIT__BACKEND__LLM_API_KEY ?? "";
   }
   const d = configDefaults();
   config.llmProvider = provider;
@@ -141,6 +150,7 @@ const deps: EngineDeps = {
           providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
           fallbackModels: config.llmFallbackModels.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
           baseUrl: config.llmBaseUrl,
+          dialect: config.llmProvider === "openai-compatible" ? "openai" : "openrouter",
           timeoutMs: config.llmTimeoutMs,
           maxTokens: config.llmMaxTokens,
           // The one place the transport is joined to the store. It is a function rather than a value
