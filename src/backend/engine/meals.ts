@@ -25,7 +25,7 @@ import {
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
-import { groundWhenOn } from "./ground.ts";
+import { groundWhenOn, recomputeFromSnapshot } from "./ground.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -399,7 +399,12 @@ export async function editMeal(
   // re-emits with different grams would be recorded as this person's portion — when it is one
   // estimator disagreeing with the other. The prior learns from the manual editor only, where every
   // changed number is one a person typed.
-  opts: { thread?: boolean; measure?: boolean } = {},
+  //
+  // `serverItems` is the NL path's provenance escape (#562): its items were grounded by THIS server
+  // in this same turn, so their `ref`/`food` are ours rather than a client's claim, and reconciling
+  // them against the stored meal would strip the provenance of every new or renamed item. Set by
+  // `applyCorrection` only; the PATCH route and the meal-update job never do.
+  opts: { thread?: boolean; measure?: boolean; serverItems?: boolean } = {},
 ): Promise<MealUpdated | TargetGone> {
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
@@ -409,6 +414,16 @@ export async function editMeal(
   const { items: sentItems, ...sentTotals } = request;
   const patch: EditMealRequest = sentItems !== undefined && sentItems.length > 0 && sentItems.every((i) => i.grams === 0)
     ? sentTotals : request;
+
+  // A client's `ref` is a CLAIM, never provenance (#562): it survives only where the STORED meal
+  // vouches for it — a stored item with the same `ref` and the same `name`. The snapshot then
+  // comes from that stored item (the request's `food` is client text and is never stored), and
+  // the macros are recomputed `grams × per100`, so an edit to grams stays catalog-exact. Any
+  // other `ref` — unknown, renamed, invented — is dropped with its `food`, and the item is the
+  // client's estimate, as every edited item is. The totals below derive from the RECONCILED
+  // items, so a recomputed row moves the header with it.
+  const items = patch.items === undefined ? undefined
+    : opts.serverItems === true ? patch.items : reconcileRefs(patch.items, existing.items);
 
   // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
   // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
@@ -421,23 +436,23 @@ export async function editMeal(
   // goes for a macro only SOME items report: a silent item's share is unknown, never zero, so the
   // stored figure scales rather than being summed without it.
   const mergedKcal = patch.kcal
-    ?? (patch.items !== undefined && patch.items.every((i) => i.kcal !== undefined)
-      ? patch.items.reduce((s, i) => s + (i.kcal ?? 0), 0)
+    ?? (items !== undefined && items.every((i) => i.kcal !== undefined)
+      ? items.reduce((s, i) => s + (i.kcal ?? 0), 0)
       : existing.kcal);
-  const kcalRatio = patch.items !== undefined && existing.kcal !== 0
+  const kcalRatio = items !== undefined && existing.kcal !== 0
     ? mergedKcal / existing.kcal
     : 1;
   const scale = (kept: number): number => Math.round(kept * kcalRatio * 10) / 10;
   const derived = <K extends "kcal" | "protein_g" | "carbs_g" | "fat_g">(field: K, sent: number | undefined, kept: number): number => {
     if (sent !== undefined) return sent;
-    if (patch.items === undefined) return kept;
-    if (patch.items.every((i) => i[field] !== undefined)) return patch.items.reduce((s, i) => s + (i[field] ?? 0), 0);
-    return patch.items.some((i) => i[field] !== undefined) ? scale(kept) : kept;
+    if (items === undefined) return kept;
+    if (items.every((i) => i[field] !== undefined)) return items.reduce((s, i) => s + (i[field] ?? 0), 0);
+    return items.some((i) => i[field] !== undefined) ? scale(kept) : kept;
   };
   const scaled = (sent: number | undefined, kept: number): number =>
-    sent ?? (patch.items !== undefined ? scale(kept) : kept);
+    sent ?? (items !== undefined ? scale(kept) : kept);
   const merged = {
-    items: patch.items ?? existing.items,
+    items: items ?? existing.items,
     kcal: mergedKcal,
     protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
     carbs_g: derived("carbs_g", patch.carbs_g, existing.carbs_g),
@@ -464,8 +479,8 @@ export async function editMeal(
 
   // What the edit measured. AFTER the write and never able to undo it: the correction is what the
   // user asked for, and the measurement is only what we get out of it.
-  if (patch.items && opts.measure !== false) {
-    const corrections = portionCorrections(existing.items, patch.items);
+  if (items && opts.measure !== false) {
+    const corrections = portionCorrections(existing.items, items);
     if (corrections.length > 0) {
       await deps.store.recordPortionCorrections(userId, corrections).catch((e: unknown) => {
         console.error(`[eait] portion correction not recorded: ${(e as Error)?.message ?? e}`);
@@ -547,6 +562,31 @@ function portionCorrections(before: readonly MealItem[], after: readonly MealIte
     out.push({ name_en: key, grams_before, grams_after: it.grams });
   }
   return out;
+}
+
+/**
+ * The edit path's half of #562 — `groundAnalysis` writes provenance, this keeps it honest.
+ *
+ * An incoming item keeps its `ref` ONLY where the stored meal has an item with the same `ref`
+ * AND the same `name`: the pair is the claim that this is still that item. The `food` it keeps
+ * is the STORED one — the request's is client text — and the macros are recomputed from it at
+ * the new grams. A stored row grounded before provenance existed carries no `food`, so its
+ * `ref` cannot be honoured either; every other `ref` (unknown, renamed, or invented by a
+ * client) is dropped along with `food`, leaving the item an estimate.
+ */
+function reconcileRefs(sent: MealItem[], stored: readonly MealItem[]): MealItem[] {
+  const provenance = new Map<string, MealItem>();
+  for (const s of stored) {
+    if (s.ref !== undefined && s.food !== undefined) provenance.set(`${s.ref} ${s.name}`, s);
+  }
+  return sent.map((i) => {
+    const s = i.ref === undefined ? undefined : provenance.get(`${i.ref} ${i.name}`);
+    if (s?.food === undefined) {
+      const { ref: _ref, food: _food, ...estimate } = i;
+      return estimate;
+    }
+    return recomputeFromSnapshot(i, s.food);
+  });
 }
 
 /**
@@ -634,7 +674,8 @@ export async function applyCorrection(
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g,
     carbs_g: analysis.carbs_g, fat_g: analysis.fat_g, satfat_g: analysis.satfat_g,
     fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g, sodium_mg: analysis.sodium_mg,
-  }, { thread: false, measure: false });
+    // These items are the server's own grounded analysis, so their ref/food are kept, not audited.
+  }, { thread: false, measure: false, serverItems: true });
   return res.kind === "updated" ? { ...res, via: "nl" } : res;
 }
 

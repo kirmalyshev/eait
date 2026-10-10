@@ -1012,8 +1012,12 @@ create table if not exists food_ref (
   nutrients            jsonb not null default '{}',
   portions             jsonb not null default '[]',
   source_url           text,
+  attribution          jsonb not null default '[]',
   updated_at           timestamptz not null default now()
 );
+-- attribution predates the rows on any database booted before #562; the alter, not the create,
+-- is what reaches them. The texts are the export line's own attribution[].text, verbatim.
+alter table food_ref add column if not exists attribution jsonb not null default '[]';
 alter table food_ref drop constraint if exists food_ref_source_check;
 alter table food_ref add constraint food_ref_source_check
   check (source in ('bls', 'ciqual', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
@@ -1098,6 +1102,7 @@ const toFoodRef = (r: Record<string, unknown>): FoodRef => ({
   nutrients: json<Record<string, FoodNutrient>>(r.nutrients, {}),
   portions: json<FoodPortion[]>(r.portions, []),
   source_url: r.source_url === null || r.source_url === undefined ? null : String(r.source_url),
+  attribution: json<string[]>(r.attribution, []),
 });
 
 /** An `off_product` row as the wire shape. */
@@ -2720,7 +2725,8 @@ export async function postgresStore(
             satfat_g_per_100g = excluded.satfat_g_per_100g, fiber_g_per_100g = excluded.fiber_g_per_100g,
             sugar_g_per_100g = excluded.sugar_g_per_100g, sodium_mg_per_100g = excluded.sodium_mg_per_100g,
             nutrients = excluded.nutrients, portions = excluded.portions,
-            source_url = excluded.source_url, updated_at = now()
+            source_url = excluded.source_url, attribution = excluded.attribution,
+            updated_at = now()
           returning id`;
         written += back.length;
       }
