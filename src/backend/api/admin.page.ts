@@ -179,11 +179,84 @@ td.drop { color: var(--bad); }
 td.empty { white-space: normal; text-align: center; color: var(--muted); padding: 28px 12px; }
 #users tbody tr, #diary tbody tr { cursor: pointer; }
 #users tbody tr:hover td, #diary tbody tr:hover td { background: var(--bg); }
-#campaigns { min-width: 760px; }
-#campaigns th, #campaigns td { vertical-align: top; }
-#campaigns td { white-space: normal; }
-#campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--surface); min-width: 100px; max-width: 130px; white-space: normal; }
-.acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
+/* ── Campaigns: the list on the left, the open campaign on the right ── */
+.hacts { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.hacts .wide { display: inline; }
+.camps { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.camps-l { flex: 0 0 440px; min-width: 0; }
+.camps-r { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.alist { margin-bottom: 0; }
+.alist button.citem {
+  display: flex; width: 100%; height: auto; justify-content: flex-start; gap: 10px; padding: 11px 14px; border-radius: 0;
+  box-shadow: none; background: transparent; border-bottom: 1px solid var(--hair); text-align: left; white-space: normal; font-weight: 400;
+}
+.alist button.citem:last-child { border-bottom: 0; }
+.alist button.citem:hover { background: var(--bg); box-shadow: none; }
+.alist button.citem.on, .alist button.citem.on:hover { background: var(--accent-tint); }
+.alist button.citem:focus-visible { outline-offset: -2px; }
+.citem .t { flex: 1; min-width: 0; }
+.citem .t b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.citem .t > span { font-size: 12px; color: var(--muted); }
+.abar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; width: 64px; flex: 0 0 64px; }
+.abar i { display: block; height: 100%; background: var(--accent); }
+.ph { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
+.ph b { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.ph .grow { flex: 1; }
+.ph .hint { font-size: 12px; color: var(--muted); }
+.pb { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmeta { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); }
+.cmeta b { color: var(--ink); }
+.pb p, .pb .card { margin: 0; }
+.cfine { font-size: 12px; color: var(--muted); }
+.aerr.ok { background: var(--accent-tint); color: var(--accent); }
+.mwrap { position: relative; }
+.amenu {
+  position: absolute; right: 0; top: 38px; z-index: 2; min-width: 200px; padding: 4px; display: flex; flex-direction: column;
+  background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--hair), 0 12px 32px -12px rgba(23,25,28,.3);
+}
+.amenu button { width: 100%; justify-content: flex-start; height: 32px; padding: 0 10px; border-radius: 6px; box-shadow: none; background: transparent; font-weight: 500; }
+.amenu button:hover { background: var(--bg); box-shadow: none; }
+.amenu button.d { color: var(--bad); }
+.amenu hr { border: 0; border-top: 1px solid var(--hair); margin: 4px 0; width: 100%; }
+button.dd { background: var(--bad); color: #fff; box-shadow: none; }
+button.dd:hover { filter: brightness(1.08); box-shadow: none; }
+.cscrim { position: fixed; inset: 0; background: rgba(23,25,28,.36); z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cdlg { background: var(--surface); border-radius: 14px; padding: 20px; width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px -20px rgba(23,25,28,.4); }
+.cdlg h2 { margin: 0; font-size: 17px; }
+.cdlg p { margin: 0; }
+.cact { display: flex; justify-content: flex-end; gap: 8px; }
+.cnew { max-width: 900px; }
+.cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cform label { margin: 0 0 4px; }
+.cform .grp { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cform .flags { display: flex; flex-wrap: wrap; gap: 12px 16px; }
+.cform .field { display: flex; flex-direction: column; min-width: 0; }
+.cform .cfoot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.checks .cchip {
+  position: relative; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; margin: 0; cursor: pointer;
+  font-size: 12px; font-weight: 600; background: var(--bg); color: var(--muted); box-shadow: 0 0 0 1px var(--hair);
+}
+.cchip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.checks .cchip:has(input:checked) { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
+.checks .cchip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.aseg { display: inline-flex; align-self: flex-start; padding: 2px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); }
+.aseg button { height: 28px; padding: 0 10px; border-radius: 7px; box-shadow: none; background: transparent; color: var(--muted); font-size: 12px; }
+.aseg button:hover { box-shadow: none; }
+.aseg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(23,25,28,.08); }
+.cform .promo { display: flex; align-items: center; gap: 8px; }
+button.asw { position: relative; width: 34px; height: 20px; padding: 0; border-radius: 10px; background: var(--line); box-shadow: none; flex: 0 0 34px; }
+button.asw:hover { box-shadow: none; }
+button.asw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+button.asw[aria-checked=true] { background: var(--accent); }
+button.asw[aria-checked=true]::after { left: 16px; }
+@media (max-width: 760px) {
+  .camps { flex-direction: column; align-items: stretch; gap: 10px; }
+  .camps-l { flex: none; }
+  .alist { max-height: 300px; overflow-y: auto; }
+  .cgrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) { .hacts .wide { display: none; } .hacts button { height: 26px; padding: 0 9px; font-size: 12px; } }
 #push-grid { scroll-padding-left: 120px; }
 #push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
 #push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
@@ -417,49 +490,44 @@ button.quiet { box-shadow: none; color: var(--muted); }
 <section class="view hidden" id="view-campaigns">
   <div id="state-campaigns"></div>
   <div class="vbody hidden" id="body-campaigns">
-    <p class="muted"><span class="chip n" id="campaigns-state"></span> <span id="campaigns-summary"></span></p>
-    <p class="muted">
-      A campaign is one reviewed template sent once to each account in its segment, at the account's own
-      local time, behind the one-message-a-day rule: an account that already had today's message is tried
-      again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
-      offers on. The segment is a fixed list of choices; there is no free-form query.
-    </p>
-    <div class="row flexwrap" id="campaigns-tools">
-      <button id="campaigns-kill" class="small danger"></button>
-      <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
-    </div>
-    <p class="muted" id="campaign-note"></p>
+    <div class="aerr hidden" id="campaigns-state">All campaigns are stopped. Resume all campaigns starts them where they stopped.</div>
     <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
-    <div id="campaigns-empty" class="card hidden">
-      <div class="astate"><b>No campaigns yet.</b><span>A campaign starts as a draft; nothing sends until you schedule it.</span>
-        <button class="primary" id="campaign-new">New campaign</button></div>
+    <div id="camp-list-mode">
+      <div id="campaigns-empty" class="card flush hidden">
+        <div class="astate"><b>No campaigns yet.</b><span>A campaign starts as a draft; nothing sends until you schedule it.</span>
+          <button class="primary" id="campaign-new">New campaign</button></div>
+      </div>
+      <div class="camps" id="camps">
+        <div class="camps-l"><div class="card flush alist" id="camp-list"></div></div>
+        <div class="card flush camps-r" id="camp-detail"></div>
+      </div>
+      <h2>Campaign copy</h2>
+      <p class="muted">
+        A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+        gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+        scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+        gender checks as every other push text.
+      </p>
+      <datalist id="campaign-keys"></datalist>
+      <div class="card flush"><div class="scrollx"><table id="campaign-copy">
+        <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+        <tbody></tbody>
+      </table></div></div>
+      <div class="card" id="campaign-copy-form"></div>
     </div>
-    <div class="card flush"><div class="scrollx"><table id="campaigns">
-      <thead>
-        <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Arms</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div id="campaign-reports"></div>
-    <p class="muted">
-      Sent and opened count real sends only; a dry run (who it would reach, nothing sent), a test send and the
-      holdout are counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
-    </p>
-    <h2>New campaign</h2>
-    <div class="card" id="campaign-form"></div>
-    <h2>Campaign copy</h2>
-    <p class="muted">
-      A campaign sends its own words, one title and one body per language, with no placeholders: everybody
-      gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
-      scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
-      gender checks as every other push text.
-    </p>
-    <datalist id="campaign-keys"></datalist>
-    <div class="card flush"><div class="scrollx"><table id="campaign-copy">
-      <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div class="card" id="campaign-copy-form"></div>
+    <div id="camp-new-mode" class="hidden">
+      <div class="card flush cnew">
+        <div class="ph"><b>New campaign</b><span class="hint">starts as a draft; Schedule sends it</span></div>
+        <div class="pb cform" id="campaign-form"></div>
+      </div>
+    </div>
+    <div class="cscrim hidden" id="camp-confirm">
+      <div class="cdlg" role="dialog" aria-modal="true" aria-labelledby="camp-confirm-title">
+        <h2 id="camp-confirm-title"></h2>
+        <p class="muted" id="camp-confirm-text"></p>
+        <div class="cact"><button id="camp-confirm-cancel">Cancel</button><button class="dd" id="camp-confirm-ok"></button></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1049,6 +1117,11 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
   var campaignOptions = null;
+  var campData = null;      // the last /admin/api/campaigns answer
+  var campSel = null;       // id of the open campaign
+  var campNote = null;      // { id, text }: the dry run or test send line of one campaign
+  var campMode = "list";    // "list" or "new"
+  var campTestUser = "";
 
   function campaignErrors(e) {
     var box = $("campaign-errors");
@@ -1059,33 +1132,32 @@ button.quiet { box-shadow: none; color: var(--muted); }
     box.classList.toggle("hidden", msgs.length === 0);
   }
 
-  function segmentText(seg) {
-    var parts = [];
-    Object.keys(seg).forEach(function (k) {
-      var v = seg[k];
-      parts.push(k + ": " + (Array.isArray(v) ? v.join("/") : String(v)));
+  var SEG_LABEL = { langs: "lang", entitlement: "subscription", streakBand: "streak", sinceLog: "last log" };
+  var SEG_FLAG = { onboarded: ["onboarded", "not onboarded"], tipsConsent: ["tips and offers on", "tips and offers off"], staffOnly: ["staff only", "not staff only"] };
+  function segmentChips(c) {
+    var out = [];
+    Object.keys(c.segment).forEach(function (k) {
+      var v = c.segment[k];
+      if (SEG_FLAG[k]) out.push(SEG_FLAG[k][v ? 0 : 1]);
+      else out.push((SEG_LABEL[k] || k) + ": " + (Array.isArray(v) ? v.join(", ") : String(v)));
     });
-    return parts.length ? parts.join(" · ") : "everyone";
+    if (!out.length) out.push("everyone");
+    if (c.promotional) out.push("promotional");
+    return out;
   }
 
-  function campaignAction(label, run, confirmText, danger) {
-    var b = document.createElement("button");
-    b.className = danger ? "small danger" : "small";
-    b.textContent = label;
-    b.addEventListener("click", function () {
-      if (confirmText && !confirm(confirmText)) return;
-      campaignErrors(null);
-      run().then(loadCampaigns).catch(function (e) { campaignErrors(e); loadCampaigns(); });
-    });
-    return b;
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
   }
 
   function checks(name, values) {
-    var wrap = document.createElement("div");
-    wrap.className = "checks";
+    var wrap = el("div", "checks");
     wrap.dataset.name = name;
     values.forEach(function (v) {
-      var l = document.createElement("label");
+      var l = el("label", "cchip");
       var box = document.createElement("input");
       box.type = "checkbox";
       box.value = v;
@@ -1097,24 +1169,26 @@ button.quiet { box-shadow: none; color: var(--muted); }
   }
 
   function campaignField(labelText, control) {
-    var wrap = document.createElement("div");
-    var l = document.createElement("label");
-    l.textContent = labelText;
-    wrap.appendChild(l);
+    var wrap = el("div", "field");
+    wrap.appendChild(el("label", null, labelText));
     wrap.appendChild(control);
     return wrap;
   }
 
+  // any / yes / no, one of three, read from dataset.value ("" is any).
   function triState(name) {
-    var sel = document.createElement("select");
-    sel.dataset.name = name;
+    var seg = el("span", "aseg");
+    seg.dataset.name = name;
+    seg.dataset.value = "";
     [["", "any"], ["true", "yes"], ["false", "no"]].forEach(function (o) {
-      var opt = document.createElement("option");
-      opt.value = o[0];
-      opt.textContent = o[1];
-      sel.appendChild(opt);
+      var b = el("button", o[0] === "" ? "on" : "", o[1]);
+      b.addEventListener("click", function () {
+        seg.dataset.value = o[0];
+        Array.prototype.forEach.call(seg.children, function (x) { x.classList.toggle("on", x === b); });
+      });
+      seg.appendChild(b);
     });
-    return sel;
+    return seg;
   }
 
   function buildCampaignForm(o) {
@@ -1124,9 +1198,11 @@ button.quiet { box-shadow: none; color: var(--muted); }
     var tpl = document.createElement("input"); tpl.placeholder = "campaign:spring-win-back"; tpl.setAttribute("list", "campaign-keys");
     var time = document.createElement("input"); time.type = "time"; time.value = "18:30";
     var pctIn = document.createElement("input"); pctIn.type = "number"; pctIn.min = "0"; pctIn.max = "100"; pctIn.value = "10";
-    var promo = document.createElement("input"); promo.type = "checkbox"; promo.checked = true; promo.style.width = "auto";
     var variants = document.createElement("input"); variants.type = "number"; variants.min = "1"; variants.max = "4"; variants.value = "1";
     var holdout = document.createElement("input"); holdout.type = "number"; holdout.min = "0"; holdout.max = "10"; holdout.value = "0";
+    var promo = el("button", "asw");
+    promo.setAttribute("role", "switch"); promo.setAttribute("aria-label", "Promotional"); promo.setAttribute("aria-checked", "true");
+    promo.addEventListener("click", function () { promo.setAttribute("aria-checked", promo.getAttribute("aria-checked") === "true" ? "false" : "true"); });
     var langs = checks("langs", o.langs);
     var ent = checks("entitlement", o.entitlement);
     var streak = checks("streakBand", o.streakBands);
@@ -1134,37 +1210,47 @@ button.quiet { box-shadow: none; color: var(--muted); }
     var onboarded = triState("onboarded");
     var tips = triState("tipsConsent");
     var staff = triState("staffOnly");
-    var row1 = document.createElement("div"); row1.className = "row flexwrap";
-    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn), campaignField("Variants (1-4)", variants), campaignField("Holdout % (0-10)", holdout)].forEach(function (f) { row1.appendChild(f); });
-    host.appendChild(row1);
-    host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
-    host.appendChild(campaignField("Languages (none ticked = all)", langs));
-    host.appendChild(campaignField("Subscription (none ticked = all)", ent));
-    host.appendChild(campaignField("Streak (none ticked = all)", streak));
-    host.appendChild(campaignField("Days since the last log (none ticked = all)", since));
-    var row2 = document.createElement("div"); row2.className = "row flexwrap";
-    [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { row2.appendChild(f); });
-    host.appendChild(row2);
-    var create = document.createElement("button");
-    create.className = "primary";
-    create.textContent = "Create draft";
+    var grid = el("div", "cgrid");
+    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn), campaignField("Variants (1-4)", variants), campaignField("Holdout % (0-10)", holdout)].forEach(function (f) { grid.appendChild(f); });
+    host.appendChild(grid);
+    host.appendChild(el("span", "grp", "Who gets it · none ticked = all"));
+    host.appendChild(campaignField("Languages", langs));
+    host.appendChild(campaignField("Subscription", ent));
+    host.appendChild(campaignField("Streak", streak));
+    host.appendChild(campaignField("Days since the last log", since));
+    var flags = el("div", "flags");
+    [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { flags.appendChild(f); });
+    host.appendChild(flags);
+    var pr = el("div", "promo");
+    pr.appendChild(promo);
+    pr.appendChild(el("span", null, "Promotional — only accounts with tips and offers on"));
+    host.appendChild(pr);
+    var foot = el("div", "cfoot");
+    var cancel = el("button", null, "Cancel");
+    cancel.addEventListener("click", function () { campaignErrors(null); campMode = "list"; renderCampaigns(); });
+    var create = el("button", "primary", "Create draft");
     create.addEventListener("click", function () {
       var seg = {};
       [langs, ent, streak, since].forEach(function (g) {
         var on = Array.prototype.filter.call(g.querySelectorAll("input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
         if (on.length) seg[g.dataset.name] = on;
       });
-      [onboarded, tips, staff].forEach(function (sel) { if (sel.value !== "") seg[sel.dataset.name] = sel.value === "true"; });
+      [onboarded, tips, staff].forEach(function (sel) { if (sel.dataset.value !== "") seg[sel.dataset.name] = sel.dataset.value === "true"; });
       campaignErrors(null);
       api("POST", "/admin/api/campaigns", {
         name: name.value, templateKey: tpl.value, segment: seg, localSendTime: time.value,
-        rolloutPct: Number(pctIn.value), promotional: promo.checked,
+        rolloutPct: Number(pctIn.value), promotional: promo.getAttribute("aria-checked") === "true",
         variants: Number(variants.value), holdoutPct: Number(holdout.value)
-      }).then(function () { name.value = ""; return loadCampaigns(); }).catch(campaignErrors);
+      }).then(function (r) {
+        campMode = "list";
+        if (r && r.row && r.row.id) campSel = r.row.id;
+        return loadCampaigns();
+      }).catch(campaignErrors);
     });
-    host.appendChild(create);
+    foot.appendChild(cancel);
+    foot.appendChild(create);
+    host.appendChild(foot);
   }
-
 
   function buildCopyForm(o) {
     var host = $("campaign-copy-form");
@@ -1206,41 +1292,241 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   var copyRows = [];
 
-  function renderReports(campaigns) {
-    var host = $("campaign-reports");
+  // A confirm in the page, in the board's words; Escape and a click outside it cancel.
+  var campConfirmGo = null;
+  function campConfirm(title, text, okLabel, go) {
+    $("camp-confirm-title").textContent = title;
+    $("camp-confirm-text").textContent = text;
+    $("camp-confirm-ok").textContent = okLabel;
+    campConfirmGo = go;
+    $("camp-confirm").classList.remove("hidden");
+    $("camp-confirm-cancel").focus();
+  }
+  function campConfirmClose() { campConfirmGo = null; $("camp-confirm").classList.add("hidden"); }
+  $("camp-confirm-cancel").addEventListener("click", campConfirmClose);
+  $("camp-confirm-ok").addEventListener("click", function () { var go = campConfirmGo; campConfirmClose(); if (go) go(); });
+  $("camp-confirm").addEventListener("click", function (e) { if (e.target === $("camp-confirm")) campConfirmClose(); });
+
+  function campMenusClose() {
+    Array.prototype.forEach.call(document.querySelectorAll("#camp-detail .amenu"), function (m) { m.classList.add("hidden"); });
+  }
+  document.addEventListener("click", function (e) { if (!e.target.closest || !e.target.closest(".mwrap")) campMenusClose(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    campMenusClose();
+    campConfirmClose();
+  });
+
+  // One action on one campaign: clear the line, run it, read the list again. A refusal is shown
+  // in the errors box and the list is read again anyway, so the screen never lies about the state.
+  function campRun(run) {
+    campaignErrors(null);
+    campNote = null;
+    return run().then(function () { return loadCampaigns(); }, function (e) { campaignErrors(e); return loadCampaigns(); }).catch(campaignErrors);
+  }
+
+  function campStatus(c, to) {
+    return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); };
+  }
+
+  var CHIP_TONE = { running: "g", scheduled: "", paused: "w", killed: "b", done: "n", draft: "n" };
+  function statusChip(status) { return el("span", ("chip " + (CHIP_TONE[status] || "n")).trim(), status); }
+
+  function renderList(v) {
+    var host = $("camp-list");
     host.textContent = "";
-    campaigns.forEach(function (c) {
-      if (!c.report.groups.length) return;
-      var h = document.createElement("h3"); h.textContent = c.name + " — by arm"; host.appendChild(h);
-      var frame = document.createElement("div"); frame.className = "card flush";
-      var wrap = document.createElement("div"); wrap.className = "scrollx";
-      var t = document.createElement("table");
-      var head = document.createElement("tr");
-      ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x, i) { var th = document.createElement("th"); th.textContent = x; if (i) th.className = "r"; head.appendChild(th); });
-      t.appendChild(head);
-      c.report.groups.forEach(function (g) {
-        var tr = document.createElement("tr");
-        [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x, i) { td(tr, x, i, 1); });
-        t.appendChild(tr);
+    v.campaigns.forEach(function (c) {
+      var b = el("button", c.id === campSel ? "citem on" : "citem");
+      if (c.id === campSel) b.setAttribute("aria-current", "true");
+      var t = el("span", "t");
+      t.appendChild(el("b", null, c.name));
+      t.appendChild(el("span", null, c.report.sent + " sent · rollout " + c.rolloutPct + "%"));
+      var bar = el("div", "abar");
+      var fill = document.createElement("i");
+      fill.style.width = Math.max(0, Math.min(100, c.rolloutPct)) + "%";
+      bar.appendChild(fill);
+      b.appendChild(t);
+      b.appendChild(bar);
+      b.appendChild(statusChip(c.status));
+      b.addEventListener("click", function () {
+        campSel = c.id;
+        campNote = null;
+        campaignErrors(null);
+        renderCampaigns();
       });
-      wrap.appendChild(t); frame.appendChild(wrap); host.appendChild(frame);
-      var p = document.createElement("p"); p.className = "muted";
-      var e = c.effect;
-      if (!e) p.textContent = "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.";
-      else {
-        var pp = function (x) { return (x * 100).toFixed(1) + " pts"; };
-        p.textContent = "Treated minus holdout conversion: " + pp(e.comparison.diff) + " (95% CI " + pp(e.comparison.lo) + " to " + pp(e.comparison.hi) + ") — " +
-          (e.comparison.significant ? "the interval excludes zero." : "not distinguishable from zero.");
-      }
-      host.appendChild(p);
+      host.appendChild(b);
     });
   }
 
-  var STATUS_TONE = { running: "g", scheduled: "w", paused: "w", killed: "b", done: "n", draft: "n" };
+  function armsTable(c) {
+    var frame = el("div", "card flush");
+    var wrap = el("div", "scrollx");
+    var t = document.createElement("table");
+    var head = document.createElement("tr");
+    ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x, i) { var th = el("th", i ? "r" : "", x); head.appendChild(th); });
+    var thead = document.createElement("thead"); thead.appendChild(head); t.appendChild(thead);
+    var tbody = document.createElement("tbody");
+    c.report.groups.forEach(function (g) {
+      var tr = document.createElement("tr");
+      [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x, i) { td(tr, x, i, 1); });
+      tbody.appendChild(tr);
+    });
+    t.appendChild(tbody);
+    wrap.appendChild(t);
+    frame.appendChild(wrap);
+    return frame;
+  }
+
+  function renderDetail(v) {
+    var host = $("camp-detail");
+    host.textContent = "";
+    var c = v.campaigns.filter(function (x) { return x.id === campSel; })[0];
+    if (!c) return;
+    var ph = el("div", "ph");
+    ph.appendChild(el("b", null, c.name));
+    ph.appendChild(statusChip(c.status));
+    ph.appendChild(el("span", "grow"));
+    var next = c.status === "draft" ? ["Schedule", "scheduled"] : c.status === "paused" ? ["Resume", "scheduled"] : c.status === "scheduled" || c.status === "running" ? ["Pause", "paused"] : null;
+    if (next) {
+      var main = el("button", "primary", next[0]);
+      main.addEventListener("click", function () { campRun(campStatus(c, next[1])); });
+      ph.appendChild(main);
+    }
+    if (c.status !== "done" && c.status !== "killed") {
+      var mw = el("div", "mwrap");
+      var more = el("button", null, "⋯");
+      more.setAttribute("aria-label", "More actions");
+      more.setAttribute("aria-haspopup", "true");
+      var menu = el("div", "amenu hidden");
+      var item = function (label, cls, fn) {
+        var b = el("button", cls, label);
+        b.addEventListener("click", function () { menu.classList.add("hidden"); fn(); });
+        menu.appendChild(b);
+      };
+      item("Raise rollout", "", function () {
+        campRun(function () {
+          var to = Number(prompt("New rollout % (now " + c.rolloutPct + ")", String(Math.min(100, c.rolloutPct + 10))));
+          if (!(to >= 0 && to <= 100)) return Promise.resolve();
+          return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(to) });
+        });
+      });
+      item("Dry run", "", function () {
+        campRun(function () {
+          return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) {
+            campNote = { id: c.id, text: "Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent." };
+          });
+        });
+      });
+      item("Test send", "", function () {
+        campRun(function () {
+          var who = prompt("Staff account id to send the test to", campTestUser);
+          if (who === null) return Promise.resolve();
+          campTestUser = who.trim();
+          return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: campTestUser })
+            .then(function (r) { campNote = { id: c.id, text: "Test send: " + r.sent + " device(s)." }; });
+        });
+      });
+      menu.appendChild(document.createElement("hr"));
+      item("Done", "", function () {
+        campConfirm("Mark " + c.name + " done?", "It stops sending for good.", "Done", function () { campRun(campStatus(c, "done")); });
+      });
+      item("Kill", "d", function () {
+        campConfirm("Kill " + c.name + "?", "It stops now and cannot be resumed. Pause stops it and keeps Resume.", "Kill", function () { campRun(campStatus(c, "killed")); });
+      });
+      more.addEventListener("click", function () {
+        var open = menu.classList.contains("hidden");
+        campMenusClose();
+        menu.classList.toggle("hidden", !open);
+      });
+      mw.appendChild(more);
+      mw.appendChild(menu);
+      ph.appendChild(mw);
+    }
+    host.appendChild(ph);
+
+    var pb = el("div", "pb");
+    if (campNote && campNote.id === c.id) pb.appendChild(el("div", "aerr ok", campNote.text));
+    var chips = el("div", "chips");
+    segmentChips(c).forEach(function (t) { chips.appendChild(el("span", "chip n", t)); });
+    pb.appendChild(chips);
+    var meta = el("div", "cmeta");
+    var send = el("span", null, "Send at ");
+    send.appendChild(el("b", null, c.localSendTime + " local"));
+    var roll = el("span", null, "Rollout ");
+    roll.appendChild(el("b", null, c.rolloutPct + "%"));
+    meta.appendChild(send);
+    meta.appendChild(roll);
+    meta.appendChild(el("span", null, c.variants + (c.variants === 1 ? " arm" : " arms") + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : "")));
+    pb.appendChild(meta);
+    if (c.report.groups.length) {
+      pb.appendChild(armsTable(c));
+      var e = c.effect;
+      var p;
+      if (!e) p = el("p", "cfine", "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.");
+      else {
+        var pp = function (x) { return (x * 100).toFixed(1) + " pts"; };
+        p = el("p", null, "Treated minus holdout conversion: " + pp(e.comparison.diff) + " (95% CI " + pp(e.comparison.lo) + " to " + pp(e.comparison.hi) + ") — " +
+          (e.comparison.significant ? "the interval excludes zero." : "not distinguishable from zero."));
+      }
+      pb.appendChild(p);
+    }
+    var copy = v.copy.filter(function (k) { return k.key === c.templateKey; })[0];
+    pb.appendChild(el("span", "cfine", "Copy: " + c.templateKey + " · " +
+      (!copy ? "nothing written yet" : copy.gaps.length ? "missing or draft: " + copy.gaps.join(", ") : "complete in " + v.options.langs.length + " languages")));
+    host.appendChild(pb);
+  }
+
+  // The header's right side belongs to the open view, so it is built once and shown for #campaigns.
+  var headActs = el("div", "hacts hidden");
+  var stopAll = el("button");
+  var newCamp = el("button", "primary", "New");
+  newCamp.appendChild(el("span", "wide", " campaign"));
+  headActs.appendChild(stopAll);
+  headActs.appendChild(newCamp);
+  document.querySelector(".ahead").appendChild(headActs);
+  function openNewCampaign() {
+    campaignErrors(null);
+    buildCampaignForm(campaignOptions);
+    campMode = "new";
+    renderCampaigns();
+    window.scrollTo(0, 0);
+  }
+  newCamp.addEventListener("click", openNewCampaign);
+  $("campaign-new").addEventListener("click", openNewCampaign);
+  stopAll.addEventListener("click", function () {
+    var killed = campData.killed;
+    var go = function () {
+      campaignErrors(null);
+      api("POST", "/admin/api/campaigns/kill", { killed: !killed }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
+    };
+    if (killed) go();
+    else campConfirm("Stop every campaign now?", "Runs stop between two sends. Resume all campaigns starts them where they stopped.", "Stop all campaigns", go);
+  });
+  function syncHead() {
+    var none = !campData || campData.campaigns.length === 0;
+    headActs.classList.toggle("hidden", location.hash !== "#campaigns" || !campData || campMode !== "list");
+    newCamp.classList.toggle("hidden", none);
+  }
+  window.addEventListener("hashchange", syncHead);
+
+  function renderCampaigns() {
+    var v = campData;
+    var none = v.campaigns.length === 0;
+    $("camp-list-mode").classList.toggle("hidden", campMode !== "list");
+    $("camp-new-mode").classList.toggle("hidden", campMode !== "new");
+    $("campaigns-state").classList.toggle("hidden", !v.killed);
+    $("campaigns-empty").classList.toggle("hidden", !none);
+    $("camps").classList.toggle("hidden", none);
+    stopAll.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
+    if (!v.campaigns.some(function (c) { return c.id === campSel; })) campSel = none ? null : v.campaigns[0].id;
+    if (!none) { renderList(v); renderDetail(v); }
+    syncHead();
+  }
 
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
-      if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); buildCopyForm(v.options); }
+      if (!campaignOptions) { campaignOptions = v.options; buildCopyForm(v.options); }
+      campData = v;
       copyRows = [];
       var keys = $("campaign-keys"); keys.textContent = "";
       var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
@@ -1251,64 +1537,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
         [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
         copyBody.appendChild(tr);
       });
-      $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
-      $("campaigns-state").className = v.killed ? "chip b" : "chip g";
-      $("campaigns-summary").textContent =
-        v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the env bootstrap list";
-      var kill = $("campaigns-kill");
-      kill.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
-      kill.onclick = function () {
-        if (!v.killed && !confirm("Stop every campaign now? Runs stop between two sends.")) return;
-        campaignErrors(null);
-        api("POST", "/admin/api/campaigns/kill", { killed: !v.killed }).then(loadCampaigns).catch(campaignErrors);
-      };
-      renderReports(v.campaigns);
-      var body = $("campaigns").querySelector("tbody");
-      body.textContent = "";
-      v.campaigns.forEach(function (c) {
-        var tr = document.createElement("tr");
-        [c.name, c.status, segmentText(c.segment) + (c.promotional ? " · promotional" : ""), c.localSendTime,
-         c.rolloutPct + "%", c.variants + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : ""), c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
-        ].forEach(function (t) {
-          var cellTd = td(tr, t, 0, 99);
-          // The status is the one cell that is a verdict, so it wears the chip.
-          if (cellTd === tr.children[1]) {
-            cellTd.textContent = "";
-            var chip = document.createElement("span");
-            chip.className = "chip " + (STATUS_TONE[c.status] || "n");
-            chip.textContent = c.status;
-            cellTd.appendChild(chip);
-          }
-        });
-        var cell = document.createElement("td");
-        var act = document.createElement("div");
-        act.className = "acts";
-        cell.appendChild(act);
-        var set = function (to) { return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); }; };
-        if (c.status === "draft" || c.status === "paused") act.appendChild(campaignAction(c.status === "draft" ? "Schedule" : "Resume", set("scheduled")));
-        if (c.status === "scheduled" || c.status === "running") act.appendChild(campaignAction("Pause", set("paused")));
-        if (c.status !== "done" && c.status !== "killed") {
-          act.appendChild(campaignAction("Raise rollout", function () {
-            var next = Number(prompt("New rollout % (now " + c.rolloutPct + ")", String(Math.min(100, c.rolloutPct + 10))));
-            if (!(next >= 0 && next <= 100)) return Promise.resolve();
-            return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(next) });
-          }));
-          act.appendChild(campaignAction("Dry run", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { $("campaign-note").textContent = "Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent."; });
-          }));
-          act.appendChild(campaignAction("Test send", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: $("campaigns-test-user").value.trim() })
-              .then(function (r) { $("campaign-note").textContent = "Test send: " + r.sent + " device(s)."; });
-          }));
-          act.appendChild(campaignAction("Done", set("done"), "Mark " + c.name + " done? It stops sending for good."));
-          act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed.", true));
-        }
-        tr.appendChild(cell);
-        body.appendChild(tr);
-      });
-      // Nothing yet is a state with a way forward, not an empty table.
-      $("campaigns-empty").classList.toggle("hidden", v.campaigns.length > 0);
-      $("campaigns").parentNode.parentNode.classList.toggle("hidden", v.campaigns.length === 0);
+      renderCampaigns();
     });
   }
 

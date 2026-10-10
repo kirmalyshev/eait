@@ -393,26 +393,28 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   const calls: { method: string; path: string; body: unknown }[] = [];
   await stubAdmin(page, { campaignCalls: calls });
   await openAdmin(page, "campaigns");
-  const table = page.locator("#campaigns");
-  await expect(table.locator("tbody tr")).toHaveCount(2);
-  await expect(table.getByText("langs: de · sinceLog: lapsed · promotional")).toBeVisible();
-  await expect(table.getByText("18 (15%)")).toBeVisible();
-  await expect(table.getByText("2 · 10% held out")).toBeVisible();
-  const arms = page.locator("#campaign-reports");
-  await expect(arms).toContainText("Win-back, German — by arm");
+  const list = page.locator("#camp-list");
+  const detail = page.locator("#camp-detail");
+  await expect(list.locator("button")).toHaveCount(2);
+  await expect(detail.getByText("lang: de")).toBeVisible();
+  await expect(detail.getByText("last log: lapsed")).toBeVisible();
+  await expect(detail.getByText("promotional")).toBeVisible();
+  await expect(detail).toContainText("2 arms · 10% held out");
+  const arms = detail;
   await expect(arms.locator("tr").filter({ hasText: "holdout (not sent)" })).toContainText("13");
   await expect(arms.locator("tr").filter({ hasText: /^default/ })).toContainText("30%");
   await expect(arms).toContainText("Treated minus holdout conversion: 19.6 pts (95% CI 7.0 pts to 30.0 pts) — the interval excludes zero.");
-  await expect(page.locator("#campaigns-state")).toHaveText("running normally");
+  await expect(page.getByRole("button", { name: "Stop all campaigns" })).toBeVisible();
 
   await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
   await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
   await expect(page.locator("#campaign-copy")).toContainText("complete");
   await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
+  await page.getByRole("button", { name: "New campaign" }).click();
   await page.locator("#campaign-form input[placeholder=Name]").fill("Spring");
   await page.locator("#campaign-form input[placeholder='campaign:spring-win-back']").fill("campaign:spring");
   await page.locator('#campaign-form [data-name=langs] input[value=fr]').check();
-  await page.locator('#campaign-form select[data-name=staffOnly]').selectOption("true");
+  await page.locator('#campaign-form [data-name=staffOnly]').getByRole("button", { name: "yes" }).click();
   await page.locator("#campaign-form input[type=number]").nth(1).fill("3");
   await page.locator("#campaign-form input[type=number]").nth(2).fill("5");
   await page.getByRole("button", { name: "Create draft" }).click();
@@ -421,10 +423,15 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
     name: "Spring", templateKey: "campaign:spring", segment: { langs: ["fr"], staffOnly: true }, localSendTime: "18:30", rolloutPct: 10, promotional: true, variants: 3, holdoutPct: 5,
   });
 
-  await table.locator("tr").filter({ hasText: "Staff check" }).getByRole("button", { name: "Dry run" }).click();
-  await expect(page.locator("#campaign-note")).toHaveText("Dry run: would reach 3 account(s), hold out 1. Nothing was sent.");
+  await list.getByRole("button", { name: /Staff check/ }).click();
+  await detail.getByRole("button", { name: "More actions" }).click();
+  await detail.getByRole("button", { name: "Dry run" }).click();
+  await expect(detail).toContainText("Dry run: would reach 3 account(s), hold out 1. Nothing was sent.");
 
-  await table.locator("tr").filter({ hasText: "Win-back" }).getByRole("button", { name: "Test send" }).click();
+  await list.getByRole("button", { name: /Win-back/ }).click();
+  await detail.getByRole("button", { name: "More actions" }).click();
+  page.once("dialog", (d) => d.accept("staff-1"));
+  await detail.getByRole("button", { name: "Test send" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("not-staff");
   expect(errors.filter((e) => !/409/.test(e))).toEqual([]);
 });
@@ -461,10 +468,11 @@ test("the campaigns panel stops everything behind a confirm, and a 422 is shown 
   const calls: { method: string; path: string; body: unknown }[] = [];
   await stubAdmin(page, { campaignCalls: calls, campaignRefuse: "unknown predicate: sql" });
   await openAdmin(page, "campaigns");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Stop all campaigns" }).click();
-  await expect(page.locator("#campaigns-state")).toHaveText("ALL CAMPAIGNS STOPPED");
+  await page.locator("#camp-confirm").getByRole("button", { name: "Stop all campaigns" }).click();
+  await expect(page.locator("#campaigns-state")).toContainText("All campaigns are stopped");
   await expect(page.getByRole("button", { name: "Resume all campaigns" })).toBeVisible();
+  await page.getByRole("button", { name: "New campaign" }).click();
   await page.getByRole("button", { name: "Create draft" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("unknown predicate: sql");
   expect(errors).toEqual([]);
@@ -475,24 +483,11 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await page.setViewportSize({ width, height });
     await stubAdmin(page);
     await openAdmin(page, "campaigns");
-    await expect(page.locator("#campaigns tbody tr")).toHaveCount(2);
-    await page.locator("#campaigns").evaluate((el) => el.scrollIntoView({ block: "start" }));
-    // Kill is always on screen, whatever the width: the actions wrap rather than run off the edge.
-    for (const kill of await page.locator("#campaigns").getByRole("button", { name: "Kill" }).all()) {
-      const box = (await kill.boundingBox())!;
-      const scroller = (await page.locator(".scrollx:has(#campaigns)").boundingBox())!;
-      if (width >= 1000) expect(box.x + box.width).toBeLessThanOrEqual(scroller.x + scroller.width);
-    }
-    if (width < 500) {
-      // A real horizontal scroller, with the Name column pinned while the rest moves.
-      const m = await page.locator(".scrollx:has(#campaigns)").evaluate((el) => { el.scrollLeft = 200; return [el.scrollWidth, el.clientWidth, el.scrollLeft]; });
-      expect(m[0]).toBeGreaterThan(m[1]!);
-      expect(m[2]).toBeGreaterThan(0);
-      const nameX = (await page.locator("#campaigns tbody tr").first().locator("td").first().boundingBox())!.x;
-      const scrollerX = (await page.locator(".scrollx:has(#campaigns)").boundingBox())!.x;
-      expect(Math.abs(nameX - scrollerX)).toBeLessThan(2);
-      await page.locator(".scrollx:has(#campaigns)").evaluate((el) => { el.scrollLeft = 0; });
-    }
+    await expect(page.locator("#camp-list button")).toHaveCount(2);
+    // The page never scrolls sideways, and Kill is one click inside the menu.
+    expect(await page.locator("html").evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.locator("#camp-detail").getByRole("button", { name: "More actions" }).click();
+    await expect(page.locator("#camp-detail").getByRole("button", { name: "Kill" })).toBeVisible();
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-${name}.png` });
     await page.locator("#campaign-form").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-form-${name}.png` });
