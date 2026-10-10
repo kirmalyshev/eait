@@ -16,7 +16,9 @@ llm/              port.ts + prompt.ts + openrouter.ts + demo.ts + local-agent.ts
                   ENGINE builds (engine/coach.ts). `local-agent.ts` is the SECOND provider —
                   `EAIT__BACKEND__LLM_PROVIDER=claude-cli|codex-cli` runs a coding-agent CLI on the
                   host behind the same port; dev and self-hosted only, and adding a CLI is one
-                  entry in its `ADAPTERS`.
+                  entry in its `ADAPTERS`. `openai-compatible` is the THIRD: openrouter.ts in its
+                  `openai` dialect, against any plain OpenAI chat-completions server (Ollama, vLLM,
+                  LM Studio, llama.cpp, Together, Groq) — see "A self-hosted model server" below.
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
 push/             outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
@@ -139,6 +141,38 @@ route. A route that computes is a rule the tests cannot reach.
   at boot. It is not on `Profile`, so no `PATCH` can write it in either store; it is not in the
   column list `mergeUsers` copies, so no merge can carry it. Deleting the last admin switches the
   surface off, which the variable never could.
+
+## A self-hosted model server
+
+`EAIT__BACKEND__LLM_PROVIDER=openai-compatible` runs the same transport, `openRouterPorts`, with
+`dialect: "openai"`. **That dialect sends nothing only OpenRouter understands**: no `reasoning` (the
+coach's fixed `low` included), no `provider` pin, no `models` fallback, no `x-title`, and no
+`authorization` when the key is empty — a strict server refuses a body carrying a field it does not
+know, and a local one wants no key. Everything else is the same request: `json_schema`, tools,
+streaming, `max_tokens`, `temperature`. A new OpenRouter-only field goes behind the same `openRouter`
+flag in that file, or this provider breaks on the next request.
+
+- **It names its own server and its own models, or it does not boot.** `LLM_BASE_URL`, `LLM_MODEL` and
+  `LLM_CHAT_MODEL` are required for it, because every default is OpenRouter's: an unset base URL
+  would send the photos to a gateway the operator chose not to use, and an unset model names one no
+  self-hosted server has. `LLM_REASONING_EFFORT`, `LLM_PROVIDER_ORDER` and `LLM_FALLBACK_MODELS` are
+  ignored. In the prod container `docker-compose.prod.yml` fills those three with OpenRouter's values
+  when they are missing, so there the env file, not the boot check, is what sets them.
+- **What the server must do**: `LLM_MODEL` reads images, and `response_format` `json_schema` is
+  honoured — otherwise every photo fails the schema twice and is `analysis-failed`.
+- **Cost is computed, not reported.** Such a server returns token counts and no `usage.cost`, so its
+  calls are unpriced (null: the cost report counts them as unpriced, never as zero) unless
+  `LLM_INPUT_PRICE_PER_MTOK` and `LLM_OUTPUT_PRICE_PER_MTOK` are both set; then cost is
+  `(prompt × input + completion × output) / 1e6`, and 0 is a real price. A streamed request asks
+  for the usage chunk (`stream_options.include_usage`), which a plain server sends only on request.
+  One price pair covers both models. OpenRouter ignores both settings.
+- **It is a different processor.** Production runs OpenRouter, and the privacy page names it and its
+  providers. Pointing production at another server changes who sees the photos, so the privacy page
+  changes FIRST — the order the Alibaba fallback followed (ieat-app#1908 before #1914).
+
+Verified against a real Ollama (0.9.0, CPU, `qwen2.5vl:3b` + `qwen2.5:3b`, 2026-10-10): a photo
+streamed and parsed in 164 s, the coach answered in 123 s. Proof that the wiring works, not of
+accuracy — that is `docs/ACCURACY.md`'s question, per model.
 
 ## Windows and bounds
 
