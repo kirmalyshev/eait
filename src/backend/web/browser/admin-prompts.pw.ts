@@ -430,8 +430,9 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
 
   await list.getByRole("button", { name: /Win-back/ }).click();
   await detail.getByRole("button", { name: "More actions" }).click();
-  page.once("dialog", (d) => d.accept("staff-1"));
   await detail.getByRole("button", { name: "Test send" }).click();
+  await page.locator("#confirm-input").fill("staff-1");
+  await page.locator("#confirm").getByRole("button", { name: "Test send" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("not-staff");
   expect(errors.filter((e) => !/409/.test(e))).toEqual([]);
 });
@@ -469,7 +470,7 @@ test("the campaigns panel stops everything behind a confirm, and a 422 is shown 
   await stubAdmin(page, { campaignCalls: calls, campaignRefuse: "unknown predicate: sql" });
   await openAdmin(page, "campaigns");
   await page.getByRole("button", { name: "Stop all campaigns" }).click();
-  await page.locator("#camp-confirm").getByRole("button", { name: "Stop all campaigns" }).click();
+  await page.locator("#confirm").getByRole("button", { name: "Stop all campaigns" }).click();
   await expect(page.locator("#campaigns-state")).toContainText("All campaigns are stopped");
   await expect(page.getByRole("button", { name: "Resume all campaigns" })).toBeVisible();
   await page.getByRole("button", { name: "New campaign" }).click();

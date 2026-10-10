@@ -221,11 +221,6 @@ td.empty { white-space: normal; text-align: center; color: var(--muted); padding
 .amenu hr { border: 0; border-top: 1px solid var(--hair); margin: 4px 0; width: 100%; }
 button.dd { background: var(--bad); color: #fff; box-shadow: none; }
 button.dd:hover { filter: brightness(1.08); box-shadow: none; }
-.cscrim { position: fixed; inset: 0; background: rgba(23,25,28,.36); z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.cdlg { background: var(--surface); border-radius: 14px; padding: 20px; width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px -20px rgba(23,25,28,.4); }
-.cdlg h2 { margin: 0; font-size: 17px; }
-.cdlg p { margin: 0; }
-.cact { display: flex; justify-content: flex-end; gap: 8px; }
 .cnew { max-width: 900px; }
 .cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cform label { margin: 0 0 4px; }
@@ -240,16 +235,7 @@ button.dd:hover { filter: brightness(1.08); box-shadow: none; }
 .cchip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .checks .cchip:has(input:checked) { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
 .checks .cchip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-.aseg { display: inline-flex; align-self: flex-start; padding: 2px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); }
-.aseg button { height: 28px; padding: 0 10px; border-radius: 7px; box-shadow: none; background: transparent; color: var(--muted); font-size: 12px; }
-.aseg button:hover { box-shadow: none; }
-.aseg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(23,25,28,.08); }
 .cform .promo { display: flex; align-items: center; gap: 8px; }
-button.asw { position: relative; width: 34px; height: 20px; padding: 0; border-radius: 10px; background: var(--line); box-shadow: none; flex: 0 0 34px; }
-button.asw:hover { box-shadow: none; }
-button.asw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
-button.asw[aria-checked=true] { background: var(--accent); }
-button.asw[aria-checked=true]::after { left: 16px; }
 @media (max-width: 760px) {
   .camps { flex-direction: column; align-items: stretch; gap: 10px; }
   .camps-l { flex: none; }
@@ -318,10 +304,7 @@ pre { overflow-x: auto; max-width: 100%; }
   flex: 0 0 420px; width: 420px; background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
   overflow: hidden; position: sticky; top: 12px; min-width: 0;
 }
-.apane > .ph { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
 .apane > .ph .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.apane > .ph b { font-size: 15px; }
-.apane > .pb { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
 .amono { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 .aseg { display: inline-flex; align-self: flex-start; max-width: 100%; padding: 2px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); }
 .aseg button { height: 28px; padding: 0 10px; border-radius: 7px; background: transparent; box-shadow: none; font-size: 12px; color: var(--muted); }
@@ -521,13 +504,6 @@ button.quiet { box-shadow: none; color: var(--muted); }
         <div class="pb cform" id="campaign-form"></div>
       </div>
     </div>
-    <div class="cscrim hidden" id="camp-confirm">
-      <div class="cdlg" role="dialog" aria-modal="true" aria-labelledby="camp-confirm-title">
-        <h2 id="camp-confirm-title"></h2>
-        <p class="muted" id="camp-confirm-text"></p>
-        <div class="cact"><button id="camp-confirm-cancel">Cancel</button><button class="dd" id="camp-confirm-ok"></button></div>
-      </div>
-    </div>
   </div>
 </section>
 
@@ -656,6 +632,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
   <div class="adlg" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <h2 id="confirm-title"></h2>
     <p class="muted" id="confirm-text"></p>
+    <input class="hidden" id="confirm-input" autocomplete="off">
     <div class="btns">
       <button id="confirm-cancel">Cancel</button>
       <button class="primary" id="confirm-ok"></button>
@@ -1201,8 +1178,8 @@ button.quiet { box-shadow: none; color: var(--muted); }
     var variants = document.createElement("input"); variants.type = "number"; variants.min = "1"; variants.max = "4"; variants.value = "1";
     var holdout = document.createElement("input"); holdout.type = "number"; holdout.min = "0"; holdout.max = "10"; holdout.value = "0";
     var promo = el("button", "asw");
-    promo.setAttribute("role", "switch"); promo.setAttribute("aria-label", "Promotional"); promo.setAttribute("aria-checked", "true");
-    promo.addEventListener("click", function () { promo.setAttribute("aria-checked", promo.getAttribute("aria-checked") === "true" ? "false" : "true"); });
+    promo.setAttribute("role", "switch"); promo.setAttribute("aria-label", "Promotional"); promo.setAttribute("aria-checked", "true"); promo.classList.add("on");
+    promo.addEventListener("click", function () { var on = promo.getAttribute("aria-checked") !== "true"; promo.setAttribute("aria-checked", String(on)); promo.classList.toggle("on", on); });
     var langs = checks("langs", o.langs);
     var ent = checks("entitlement", o.entitlement);
     var streak = checks("streakBand", o.streakBands);
@@ -1292,21 +1269,6 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   var copyRows = [];
 
-  // A confirm in the page, in the board's words; Escape and a click outside it cancel.
-  var campConfirmGo = null;
-  function campConfirm(title, text, okLabel, go) {
-    $("camp-confirm-title").textContent = title;
-    $("camp-confirm-text").textContent = text;
-    $("camp-confirm-ok").textContent = okLabel;
-    campConfirmGo = go;
-    $("camp-confirm").classList.remove("hidden");
-    $("camp-confirm-cancel").focus();
-  }
-  function campConfirmClose() { campConfirmGo = null; $("camp-confirm").classList.add("hidden"); }
-  $("camp-confirm-cancel").addEventListener("click", campConfirmClose);
-  $("camp-confirm-ok").addEventListener("click", function () { var go = campConfirmGo; campConfirmClose(); if (go) go(); });
-  $("camp-confirm").addEventListener("click", function (e) { if (e.target === $("camp-confirm")) campConfirmClose(); });
-
   function campMenusClose() {
     Array.prototype.forEach.call(document.querySelectorAll("#camp-detail .amenu"), function (m) { m.classList.add("hidden"); });
   }
@@ -1314,7 +1276,6 @@ button.quiet { box-shadow: none; color: var(--muted); }
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     campMenusClose();
-    campConfirmClose();
   });
 
   // One action on one campaign: clear the line, run it, read the list again. A refusal is shown
@@ -1418,20 +1379,20 @@ button.quiet { box-shadow: none; color: var(--muted); }
         });
       });
       item("Test send", "", function () {
-        campRun(function () {
-          var who = prompt("Staff account id to send the test to", campTestUser);
-          if (who === null) return Promise.resolve();
+        askConfirm("Test send " + c.name, "Sends this campaign's text to one staff account's devices. Nobody else gets it.", "Test send", function (who) {
           campTestUser = who.trim();
-          return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: campTestUser })
-            .then(function (r) { campNote = { id: c.id, text: "Test send: " + r.sent + " device(s)." }; });
-        });
+          campRun(function () {
+            return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: campTestUser })
+              .then(function (r) { campNote = { id: c.id, text: "Test send: " + r.sent + " device(s)." }; });
+          });
+        }, { input: campTestUser, placeholder: "Staff account id" });
       });
       menu.appendChild(document.createElement("hr"));
       item("Done", "", function () {
-        campConfirm("Mark " + c.name + " done?", "It stops sending for good.", "Done", function () { campRun(campStatus(c, "done")); });
+        askConfirm("Mark " + c.name + " done?", "It stops sending for good.", "Done", function () { campRun(campStatus(c, "done")); });
       });
       item("Kill", "d", function () {
-        campConfirm("Kill " + c.name + "?", "It stops now and cannot be resumed. Pause stops it and keeps Resume.", "Kill", function () { campRun(campStatus(c, "killed")); });
+        askConfirm("Kill " + c.name + "?", "It stops now and cannot be resumed. Pause stops it and keeps Resume.", "Kill", function () { campRun(campStatus(c, "killed")); }, { danger: true });
       });
       more.addEventListener("click", function () {
         var open = menu.classList.contains("hidden");
@@ -1500,7 +1461,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
       api("POST", "/admin/api/campaigns/kill", { killed: !killed }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
     };
     if (killed) go();
-    else campConfirm("Stop every campaign now?", "Runs stop between two sends. Resume all campaigns starts them where they stopped.", "Stop all campaigns", go);
+    else askConfirm("Stop every campaign now?", "Runs stop between two sends. Resume all campaigns starts them where they stopped.", "Stop all campaigns", go, { danger: true });
   });
   function syncHead() {
     var none = !campData || campData.campaigns.length === 0;
@@ -2086,17 +2047,26 @@ button.quiet { box-shadow: none; color: var(--muted); }
   // A privilege change is asked about first, both ways: staff can open this page and change every
   // setting on it, and taking it away from the wrong account locks somebody out.
   var onConfirm = null;
-  function askConfirm(title, text, okLabel, ok) {
+  // opts.danger paints the button red; opts.input (a string, the first value) adds one text field
+  // and hands what was typed to ok.
+  function askConfirm(title, text, okLabel, ok, opts) {
+    opts = opts || {};
     $("confirm-title").textContent = title;
     $("confirm-text").textContent = text;
     $("confirm-ok").textContent = okLabel;
+    $("confirm-ok").className = opts.danger ? "dd" : "primary";
+    var field = $("confirm-input");
+    field.classList.toggle("hidden", typeof opts.input !== "string");
+    field.value = opts.input || "";
+    field.placeholder = opts.placeholder || "";
     onConfirm = ok;
     $("confirm").classList.remove("hidden");
-    $("confirm-cancel").focus();
+    (typeof opts.input === "string" ? field : $("confirm-cancel")).focus();
   }
   function closeConfirm() { onConfirm = null; $("confirm").classList.add("hidden"); }
   $("confirm-cancel").addEventListener("click", closeConfirm);
-  $("confirm-ok").addEventListener("click", function () { var go = onConfirm; closeConfirm(); if (go) go(); });
+  $("confirm-ok").addEventListener("click", function () { var go = onConfirm; var typed = $("confirm-input").value; closeConfirm(); if (go) go(typed); });
+  $("confirm-input").addEventListener("keydown", function (e) { if (e.key === "Enter") $("confirm-ok").click(); });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("confirm").classList.contains("hidden")) closeConfirm();
   });
