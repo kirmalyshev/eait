@@ -1026,8 +1026,21 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // A referrer paying for a live period banks the days behind it; one who is not gets a dated week from now.
       const paying = Date.parse(entitlements.get(referrerId)?.expiresAt ?? "") > now();
       referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, originalTransactionId, revoked: false, bucket: paying ? "banked" : "bonus" });
-      if (paying) bankedDays.set(referrerId, (bankedDays.get(referrerId) ?? 0) + days);
-      else bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId)));
+      if (paying) {
+        bankedDays.set(referrerId, (bankedDays.get(referrerId) ?? 0) + days);
+        return true;
+      }
+      // Not paying: a dated week, after whatever is already running — the dated week, or the banked
+      // days running from a lapse — and the bank FOLDED into the date in the same write, its grants
+      // relabelled 'bonus' so a later revoke takes their days off the date they now live in.
+      const banked = bankedDays.get(referrerId) ?? 0;
+      const expires = entitlements.get(referrerId)?.expiresAt;
+      const running = banked > 0 && expires ? new Date(Date.parse(expires) + banked * DAY_MS).toISOString() : null;
+      bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), running));
+      if (banked > 0) {
+        bankedDays.set(referrerId, 0);
+        for (const g of referralGrants.values()) if (g.referrerId === referrerId && g.bucket === "banked" && !g.revoked) g.bucket = "bonus";
+      }
       return true;
     },
 

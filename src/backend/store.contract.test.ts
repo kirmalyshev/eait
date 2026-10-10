@@ -3874,6 +3874,28 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.bankedDays(referrer)).toBe(11);
     });
 
+    // Review 4: a reward earned while the referrer is LAPSED with banked days running starts after
+    // what is left of the bank, and folds the bank into the date in the same write.
+    it("adds a reward earned in a lapse after the banked days still running, and folds them", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      await s.redeemReferral(a, await codeOf(s, referrer), 7);
+      await s.redeemReferral(b, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 7, `t-a-${RUN}`, "");
+      expect(await s.bankedDays(referrer)).toBe(7);
+      // The subscription ended two days ago: five of the seven are left.
+      await s.putEntitlement(referrer, { expiresAt: at(-2), productId: "monthly", eventAt: at(-1), trial: false });
+      expect(await s.grantReferralWeek(b, at(0), 7, `t-b-${RUN}`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(12));
+      expect(await s.bankedDays(referrer)).toBe(0);
+      // The folded grant was relabelled with its days: revoking it takes them off the date.
+      expect(await s.revokeReferralWeek(a, `t-a-${RUN}`)).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(5));
+      expect(await s.bankedDays(referrer)).toBe(0);
+    });
+
     it("takes a reward into the dated week for a referrer who is not paying", async () => {
       const s = await open();
       const referrer = await s.createUser("en");

@@ -2722,12 +2722,26 @@ export async function postgresStore(
              and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
           -- Either key: this friend already granted, or this subscription already earned one.
           on conflict do nothing
-          returning referrer_id, bucket, days)
+          returning referrer_id, bucket, days),
+        -- A dated reward FOLDS a running bank into the date (below): the referrer's banked grants
+        -- move to 'bonus' with it, so a later revoke takes their days off the date they now live in.
+        relabel as (
+          update referral_grants o set bucket = 'bonus'
+          from g join users r on r.id = g.referrer_id
+          where g.bucket = 'bonus' and r.referral_banked_days > 0
+            and o.referrer_id = g.referrer_id and o.bucket = 'banked' and o.revoked_at is null
+          returning o.referred_id)
         update users r set
+          -- Not paying: after whatever is already running — the dated week, or the banked days
+          -- running from the subscription's end — and the bank folded in.
           bonus_until = case when g.bucket = 'bonus'
-            then greatest(${t}::timestamptz, r.bonus_until) + make_interval(days => g.days) else r.bonus_until end,
+            then greatest(${t}::timestamptz, r.bonus_until,
+                          case when r.referral_banked_days > 0
+                               then r.entitlement_expires_at + make_interval(days => r.referral_banked_days) end)
+                 + make_interval(days => g.days)
+            else r.bonus_until end,
           referral_banked_days = case when g.bucket = 'banked'
-            then r.referral_banked_days + g.days else r.referral_banked_days end
+            then r.referral_banked_days + g.days else 0 end
         from g where r.id = g.referrer_id
         returning r.id`;
       if (rows.length > 0) return true;
