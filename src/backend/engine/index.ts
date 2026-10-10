@@ -5,9 +5,9 @@ export type { EngineDeps } from "./deps.ts";
 export { checkCaps, type CapScope } from "./caps.ts";
 export { adminUserChat, adminUserDiary, ADMIN_MEAL_ROWS, type AdminDiary } from "./admin.ts";
 export {
-  adminUsers, applyRevenueCatEvent, dailyPhotoCap, entitlementFor, freeAnalysesFor, setUserCap,
+  adminUsers, adminUserSummary, applyRevenueCatEvent, dailyPhotoCap, entitlementFor, freeAnalysesFor, setUserCap,
   userCap,
-  type AdminUser, type AdminUsers, type ApplyOutcome, type RevenueCatEvent, type UserCap,
+  type AdminUser, type AdminUserSummary, type AdminUsers, type ApplyOutcome, type RevenueCatEvent, type UserCap,
 } from "./entitlement.ts";
 export {
   estimatePhoto, logPhotoMeal, editMeal, applyCorrection, attachPhotos, changeLine, confirmPendingMeal, cancelPendingMeal, pendingMeals, reanalyzeMeal, redateMeal, sumTotals,
