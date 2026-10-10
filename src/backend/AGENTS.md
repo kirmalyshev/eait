@@ -512,9 +512,11 @@ naming it too.
   sender)` and exists for idempotency: the tick runs every minute on two replicas, so each sender
   claims its day BEFORE it sends. The sender is `pushSenderOf(kind, ref)` — the tick's scheduled
   message (a trigger or the evening line, one sender) or `campaign:<ref>` (a campaign id,
-  `admin:<adminId>`, `admin-test`). **The only bound is per account**: `users.push_daily_max` (admin,
-  Accounts), else `EAIT__BACKEND__PUSH_DAILY_MAX`, else none, counted over that day's claims in the
-  same locked statement. **`claimSend` (`engine/notify.ts`) is the one place every sender claims**,
+  `admin-test`, or one composer send: `admin:<adminId>:<request uuid>`, so composer sends are not
+  limited to one a day). **The only bound is per account**: `users.push_daily_max` (admin,
+  Accounts), else `EAIT__BACKEND__PUSH_DAILY_MAX`, else none, counted over that day's claims inside one
+  transaction that holds the account row's lock to the insert; a lost race on the same sender is
+  `sender-taken`, never a throw. **`claimSend` (`engine/notify.ts`) is the one place every sender claims**,
   so a refusal there (`sender-taken` or `account-cap`) is the whole rule; a new sender calls it and
   nothing else. A campaign is still once per account (`claimCampaignSend`); a repeat setting is added
   only when a campaign needs one. The trial-ends day is no longer silent: the phone's local

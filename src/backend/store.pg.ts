@@ -1673,7 +1673,8 @@ export async function postgresStore(
     if (mine.length > 0) return "sender-taken";
     // ROLLING DEPLOYS: the previous build holds the scheduled message in push_slot. Drop with the write.
     if (kind !== "campaign") {
-      const old = await sql`select 1 from push_slot where user_id = ${userId} and local_date = ${localDate}`;
+      const old = await sql`select 1 from push_slot
+        where user_id = ${userId} and local_date = ${localDate} and kind <> 'campaign'`;
       if (old.length > 0) return "sender-taken";
     }
     const own = await sql`select push_daily_max from users where id = ${userId}`;
@@ -3341,22 +3342,27 @@ export async function postgresStore(
     },
 
     async claimPushSlot(userId, localDate, kind, ref, defaultMax = null) {
-      // The account row is the lock: this account's claims run one at a time, so the count below and
-      // the insert cannot interleave. A missing account throws, which is louder than a false and
-      // right for a sender that must not go on.
-      const u = await sql`select push_daily_max from users where id = ${userId} for update`;
-      if (u.length === 0) throw new Error("push_claim: no such user");
-      const verdict = await claimVerdict(userId, localDate, kind, ref, defaultMax);
-      if (verdict !== null) return { claimed: false as const, reason: verdict };
-      await sql`insert into push_claim (user_id, local_date, sender, kind, ref)
-        values (${userId}, ${localDate}, ${pushSenderOf(kind, ref)}, ${kind}, ${ref})`;
-      // ROLLING DEPLOYS: the previous build claims the scheduled message on push_slot. Writing it
-      // there keeps an old replica silent on a day this one took. Drop with `claimVerdict`'s read.
-      if (kind !== "campaign") {
-        await sql`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, ${localDate}, ${kind}, ${ref})
-          on conflict (user_id, local_date) do nothing`;
-      }
-      return { claimed: true as const };
+      // ONE transaction, so the account-row lock below is held to the insert: this account's claims
+      // run one at a time and the count cannot interleave with another sender's insert. A missing
+      // account throws, which is louder than a false and right for a sender that must not go on.
+      return inTx(async (tx) => {
+        const u = await tx`select push_daily_max from users where id = ${userId} for update`;
+        if (u.length === 0) throw new Error("push_claim: no such user");
+        const verdict = await claimVerdict(userId, localDate, kind, ref, defaultMax);
+        if (verdict !== null) return { claimed: false as const, reason: verdict };
+        // The primary key is the second guard (two replicas, same sender): a loss is sender-taken, never a throw.
+        const won = await tx`insert into push_claim (user_id, local_date, sender, kind, ref)
+          values (${userId}, ${localDate}, ${pushSenderOf(kind, ref)}, ${kind}, ${ref})
+          on conflict do nothing returning sender`;
+        if (won.length === 0) return { claimed: false as const, reason: "sender-taken" as const };
+        // ROLLING DEPLOYS: the previous build claims the scheduled message on push_slot. Writing it
+        // there keeps an old replica silent on a day this one took. Drop with `claimVerdict`'s read.
+        if (kind !== "campaign") {
+          await tx`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, ${localDate}, ${kind}, ${ref})
+            on conflict (user_id, local_date) do nothing`;
+        }
+        return { claimed: true as const };
+      });
     },
 
     async pushSlotFree(userId, localDate, kind, ref, defaultMax = null) {

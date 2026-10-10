@@ -88,6 +88,17 @@ describe("admin push composer: hard rules", () => {
     expect(await store.sendLogFor(capped, 10)).toHaveLength(0);
   });
 
+  it("two composer sends to one account the same day both go", async () => {
+    const { push, deps, make } = await setup();
+    const u = await make();
+    for (let i = 0; i < 2; i++) {
+      const out = await sendAdminPush(deps, ADMIN, body([u]));
+      if (!out.ok) throw new Error("expected ok");
+      expect(out.results[0]).toMatchObject({ sent: 1 });
+    }
+    expect(push.sent).toHaveLength(2);
+  });
+
   it("refuses free text and non-campaign keys", async () => {
     const { push, deps, make } = await setup();
     const u = await make();

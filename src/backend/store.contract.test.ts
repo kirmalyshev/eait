@@ -1125,6 +1125,23 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(await s.claimPushSlot(u, "2026-10-09", "campaign", "c1")).toEqual({ claimed: true });
       });
 
+      it("lets exactly one of two concurrent claims win a bound of one, and never throws", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.setPushDailyMax(u, 1);
+        const r = await Promise.all([
+          s.claimPushSlot(u, "2026-10-08", "campaign", "c1"),
+          s.claimPushSlot(u, "2026-10-08", "campaign", "c2"),
+        ]);
+        expect(r.filter((x) => x.claimed).length).toBe(1);
+        const same = await Promise.all([
+          s.claimPushSlot(u, "2026-10-09", "campaign", "c1"),
+          s.claimPushSlot(u, "2026-10-09", "campaign", "c1"),
+        ]);
+        expect(same.filter((x) => x.claimed).length).toBe(1);
+        expect(same.find((x) => !x.claimed)).toEqual({ claimed: false, reason: "sender-taken" });
+      });
+
       it("refuses past the account's own bound, which beats the instance default, and null clears it", async () => {
         const s = await open();
         const u = (await s.upsertDeviceUser(device(), "en")).userId;
@@ -4176,6 +4193,8 @@ if (PG_URL) {
       const store = await postgresStore(PG_URL, { maxConnections: 2 });
       const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
 
+      await sql`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, '2026-11-05', 'campaign', 'admin-test')`;
+      expect(await store.claimPushSlot(userId, "2026-11-05", "streak", null)).toEqual({ claimed: true }); // an old campaign row does not silence the evening line
       await sql`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, '2026-11-02', 'evening', 'evening')`;
       expect(await store.claimPushSlot(userId, "2026-11-02", "streak", null)).toEqual({ claimed: false, reason: "sender-taken" });
       expect(await store.claimPushSlot(userId, "2026-11-02", "campaign", "c1")).toEqual({ claimed: true });

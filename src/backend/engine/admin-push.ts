@@ -38,6 +38,9 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
   const key = b.templateKey as CampaignTemplateKey;
   const route = b.route as PushRoute;
   const results: Extract<AdminPushResult, { ok: true }>["results"] = [];
+  // Each composer send is its own sender: "as many as we want" (ieat-app#1965). send_log keeps
+  // `admin:<adminId>`, which the reports read; only the claim carries the request.
+  const sendId = crypto.randomUUID();
   for (const userId of ids as string[]) {
     const skip = (skipped: AdminPushSkip) => results.push({ userId, skipped });
     const profile = await deps.store.getProfile(userId);
@@ -49,7 +52,7 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
     const words = await campaignWords(deps, key, profile.lang as Lang, CAMPAIGN_VARIANTS[0]!, 1);
     if (!words) { skip("template-incomplete"); continue; }
     const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
-    const claim = await claimSend(deps, userId, localDate(zone, new Date(now)), "campaign", `admin:${adminId}`);
+    const claim = await claimSend(deps, userId, localDate(zone, new Date(now)), "campaign", `admin:${adminId}:${sendId}`);
     if (!claim.claimed) { skip(claim.reason === "account-cap" ? "account-cap" : "slot-taken"); continue; }
     const out = await sendLogged(
       deps, userId, devices,
