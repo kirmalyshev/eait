@@ -137,6 +137,10 @@ export interface Profile {
   struggles: Struggle[] | null;
   /** Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it. */
   streak_goal_days: StreakGoal | null;
+  /** Show the Badge Unlocked moment (milestones). Default true. */
+  milestone_celebrations: boolean;
+  /** Show the streak chip on Home (milestones). Default true. */
+  streak_on_home: boolean;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
   /**

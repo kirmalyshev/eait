@@ -24,7 +24,7 @@ import {
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushConsentRequest, isPushDeliveredRequest, isPushOpenRequest, isPushTokenRequest, pushTokenFrom, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
-  DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
+  DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
   MAX_FOOD_QUERY, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
 } from "@eait/shared";
 import { narrowLang } from "@eait/shared";
@@ -38,7 +38,7 @@ import {
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
-  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
+  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
   reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
   foodSearch, productByBarcode,
@@ -1073,6 +1073,23 @@ export function createRouter(
         }
         const out = await weights(deps, userId, range);
         return out ? json(out satisfies WeightsResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (pathname === ROUTES.milestones || pathname === ROUTES.milestonesSeen) {
+        // The flag is the whole feature: off, the route does not exist.
+        if (!deps.config.milestonesEnabled) return json({ error: "not-found" }, 404);
+        if (req.method === "GET" && pathname === ROUTES.milestones) {
+          const out = await milestones(deps, userId);
+          return out ? json(out satisfies MilestonesResponse) : json({ error: "not-onboarded" }, 403);
+        }
+        if (req.method === "POST" && pathname === ROUTES.milestonesSeen) {
+          const body = await req.json() as MilestonesSeenRequest;
+          if (!Array.isArray(body?.ids) || body.ids.some((id) => typeof id !== "string")) {
+            return json({ error: "ids must be an array of strings" }, 400);
+          }
+          const out = await markSeen(deps, userId, body.ids);
+          return out ? json(out satisfies MilestonesResponse) : json({ error: "not-onboarded" }, 403);
+        }
       }
 
       // ── Health ────────────────────────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ import { chat, plan, question, shell, type PlanView } from "./page.ts";
 const PERSONA: Profile = {
   user_id: "i18n", lang: "en", goal: "lose", sex: "female", birth_year: 1990,
   height_cm: 170, weight_kg: 80, weight_measured_at: null, target_weight_kg: 70,
-  activity: "few", pace: "steady", units: null, struggles: [], streak_goal_days: null, country: "de",
+  activity: "few", pace: "steady", units: null, struggles: [], streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, country: "de",
   restrictions: [], medical_limitations: null, food_allergies: null,
   product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
 };

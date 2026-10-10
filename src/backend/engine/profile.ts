@@ -19,6 +19,7 @@ import { MIN_AGE } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
+import { evaluateMilestones } from "./milestones.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
 
@@ -318,6 +319,12 @@ export async function patchProfile(
     }
     patch.streak_goal_days = req.streak_goal_days;
   }
+  for (const key of ["milestone_celebrations", "streak_on_home"] as const) {
+    const v = req[key];
+    if (v === undefined) continue;
+    if (typeof v !== "boolean") return reject(key, "out-of-range");
+    patch[key] = v;
+  }
   if (req.country !== undefined) {
     if (req.country !== null && (typeof req.country !== "string" || req.country.length > MAX_COUNTRY)) {
       return reject("country", "out-of-range");
@@ -390,6 +397,7 @@ export async function patchProfile(
   // retyping a weight corrects the chart rather than adding a second point to it.
   if (patch.weight_kg !== undefined && patch.weight_kg !== null) {
     await deps.store.putWeight(userId, localDate(deps.config.timezone), patch.weight_kg);
+    await evaluateMilestones(deps, userId);
   }
 
   const { targets, basis } = explainTargets(profile);

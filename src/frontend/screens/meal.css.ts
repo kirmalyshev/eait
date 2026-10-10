@@ -119,6 +119,13 @@ button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ingkrow{gap:8px;margin-top:2px}
 .ingkrow .ico{width:26px;height:26px}
 .ingmeal{padding:14px 16px}
+.ingsrc{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.ingsrc .hr{margin:0}
+.ingsrcrow{font-size:15px}
+.ingsrccredit{margin-top:4px;line-height:1.4}
+.ingsrccols{gap:8px;margin-top:4px}
+.ingsrccols>div{flex:1}
+.ingsrccols b{font-size:15px}
 .ingmeal .hr{margin:10px 0}
 
 /* Narrow screens: the pair stacks, the photo over the sheet. */

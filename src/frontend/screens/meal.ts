@@ -23,6 +23,7 @@ import { dateMinus, isCalendarDate, localDate, localTime, weekStart } from "../.
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { ingredientSourceCard } from "../../shared/app/ingredient-source.ts";
 import { updateCopyFor } from "../../shared/app/update-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
@@ -357,6 +358,32 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       kcalCard.append(kcalLeft, wasK);
       dlg.append(kcalCard);
     }
+
+    // Where the numbers come from (ieat-app #1954): the item's own `ref`/`food`, drawn as stored —
+    // the server recomputes on a grams edit and the card shows what comes back.
+    const src = ingredientSourceCard(item, lang);
+    const srcCard = el("div", "card ingsrc");
+    srcCard.append(el("span", "t12 m", src.label));
+    if (src.row !== undefined) {
+      const who = el("div", "");
+      who.append(el("b", "ingsrcrow", src.row));
+      if (src.table !== undefined) who.append(el("div", "t13 m", src.table));
+      for (const credit of src.credits) who.append(el("div", "t12 m ingsrccredit", credit));
+      srcCard.append(who, el("div", "hr"));
+    }
+    for (const fig of src.figures) {
+      const block = el("div", "");
+      block.append(el("span", "t12 m", fig.label));
+      const cols = el("div", "row ingsrccols");
+      for (const c of fig.columns) {
+        const col = el("div", "");
+        col.append(el("b", "num", c.value), el("div", "t12 m", c.caption));
+        cols.append(col);
+      }
+      block.append(cols);
+      srcCard.append(block);
+    }
+    dlg.append(srcCard);
 
     // This meal's figure MOVES with the item (`previewKcal`) — the board's "540 → 605" — while
     // the verdicts stay the stored ones: the write recomputes them and a preview never guesses.

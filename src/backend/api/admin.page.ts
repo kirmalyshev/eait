@@ -23,7 +23,7 @@
  * so the policy on the response is `default-src 'none'` with a per-request nonce and NO
  * `'unsafe-inline'` — and a nonce cannot come from a constant.
  */
-import { ADMIN_PUSH_MAX_RECIPIENTS, PUSH_ROUTES } from "@eait/shared";
+import { ADMIN_PUSH_MAX_RECIPIENTS, LANG_LABEL, PUSH_ROUTES } from "@eait/shared";
 import { fontFaces } from "@eait/shared/design";
 import { lightVars } from "@eait/shared/palette";
 import { brandSvg } from "@eait/shared/ui/icons";
@@ -179,11 +179,70 @@ td.drop { color: var(--bad); }
 td.empty { white-space: normal; text-align: center; color: var(--muted); padding: 28px 12px; }
 #users tbody tr, #diary tbody tr { cursor: pointer; }
 #users tbody tr:hover td, #diary tbody tr:hover td { background: var(--bg); }
-#campaigns { min-width: 760px; }
-#campaigns th, #campaigns td { vertical-align: top; }
-#campaigns td { white-space: normal; }
-#campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--surface); min-width: 100px; max-width: 130px; white-space: normal; }
-.acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
+/* ── Campaigns: the list on the left, the open campaign on the right ── */
+.hacts { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.hacts .wide { display: inline; }
+.camps { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+.camps-l { flex: 0 0 440px; min-width: 0; }
+.camps-r { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.alist { margin-bottom: 0; }
+.alist button.citem {
+  display: flex; width: 100%; height: auto; justify-content: flex-start; gap: 10px; padding: 11px 14px; border-radius: 0;
+  box-shadow: none; background: transparent; border-bottom: 1px solid var(--hair); text-align: left; white-space: normal; font-weight: 400;
+}
+.alist button.citem:last-child { border-bottom: 0; }
+.alist button.citem:hover { background: var(--bg); box-shadow: none; }
+.alist button.citem.on, .alist button.citem.on:hover { background: var(--accent-tint); }
+.alist button.citem:focus-visible { outline-offset: -2px; }
+.citem .t { flex: 1; min-width: 0; }
+.citem .t b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.citem .t > span { font-size: 12px; color: var(--muted); }
+.abar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; width: 64px; flex: 0 0 64px; }
+.abar i { display: block; height: 100%; background: var(--accent); }
+.ph { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
+.ph b { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.ph .grow { flex: 1; }
+.ph .hint { font-size: 12px; color: var(--muted); }
+.pb { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmeta { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); }
+.cmeta b { color: var(--ink); }
+.pb p, .pb .card { margin: 0; }
+.cfine { font-size: 12px; color: var(--muted); }
+.aerr.ok { background: var(--accent-tint); color: var(--accent); }
+.mwrap { position: relative; }
+.amenu {
+  position: absolute; right: 0; top: 38px; z-index: 2; min-width: 200px; padding: 4px; display: flex; flex-direction: column;
+  background: var(--surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--hair), 0 12px 32px -12px rgba(23,25,28,.3);
+}
+.amenu button { width: 100%; justify-content: flex-start; height: 32px; padding: 0 10px; border-radius: 6px; box-shadow: none; background: transparent; font-weight: 500; }
+.amenu button:hover { background: var(--bg); box-shadow: none; }
+.amenu button.d { color: var(--bad); }
+.amenu hr { border: 0; border-top: 1px solid var(--hair); margin: 4px 0; width: 100%; }
+button.dd { background: var(--bad); color: #fff; box-shadow: none; }
+button.dd:hover { filter: brightness(1.08); box-shadow: none; }
+.cnew { max-width: 900px; }
+.cgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cform label { margin: 0 0 4px; }
+.cform .grp { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cform .flags { display: flex; flex-wrap: wrap; gap: 12px 16px; }
+.cform .field { display: flex; flex-direction: column; min-width: 0; }
+.cform .cfoot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.checks .cchip {
+  position: relative; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; margin: 0; cursor: pointer;
+  font-size: 12px; font-weight: 600; background: var(--bg); color: var(--muted); box-shadow: 0 0 0 1px var(--hair);
+}
+.cchip input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.checks .cchip:has(input:checked) { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
+.checks .cchip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cform .promo { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 760px) {
+  .camps { flex-direction: column; align-items: stretch; gap: 10px; }
+  .camps-l { flex: none; }
+  .alist { max-height: 300px; overflow-y: auto; }
+  .cgrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) { .hacts .wide { display: none; } .hacts button { height: 26px; padding: 0 9px; font-size: 12px; } }
 #push-grid { scroll-padding-left: 120px; }
 #push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
 #push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
@@ -229,6 +288,58 @@ img.shot { max-width: min(260px, 100%); border-radius: 8px; margin: 8px 8px 0 0;
   #composer .row > *, #composer .row > button { flex: 1 1 100%; }
 }
 pre { overflow-x: auto; max-width: 100%; }
+
+/* ── Accounts: the list, and the pane that opens beside it (a second screen on a phone) ── */
+.split { display: flex; gap: 16px; align-items: flex-start; }
+.split > .acol { flex: 1; min-width: 0; }
+.sbar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--hair); }
+.sbar input { flex: 1; }
+.foot { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--hair); font-size: 12px; color: var(--muted); }
+.foot.flat { padding: 10px 0 0; border-top: 0; }
+.foot .grow { flex: 1; }
+.card.flush > .astate { border: 0; }
+#users input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
+#users tbody tr.on td { background: var(--accent-tint); }
+.apane {
+  flex: 0 0 420px; width: 420px; background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
+  overflow: hidden; position: sticky; top: 12px; min-width: 0;
+}
+.apane > .ph .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.amono { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.aseg { display: inline-flex; align-self: flex-start; max-width: 100%; padding: 2px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); }
+.aseg button { height: 28px; padding: 0 10px; border-radius: 7px; background: transparent; box-shadow: none; font-size: 12px; color: var(--muted); }
+.aseg button:hover { box-shadow: none; color: var(--ink); }
+.aseg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(23,25,28,.08); }
+.tab { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kvs { display: flex; flex-direction: column; gap: 6px; }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.kv > span:last-child { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.sect { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--hair); padding-top: 10px; margin-top: 10px; }
+.sect.kv { flex-direction: row; }
+.sect p { margin: 0; }
+.sect .row { margin: 0; }
+.muted.warn { color: var(--warn); margin: 0; font-size: 12px; }
+button.quiet { box-shadow: none; color: var(--muted); }
+.ahead .back { margin-left: auto; }
+.asw { width: 34px; height: 20px; padding: 0; border-radius: 10px; background: var(--line); box-shadow: none; position: relative; flex: 0 0 34px; }
+.asw:hover { box-shadow: none; }
+.asw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.asw.on { background: var(--accent); }
+.asw.on::after { left: 16px; }
+.btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+#composer .result { background: var(--accent-tint); color: var(--accent); border-radius: var(--r-ctl); padding: 10px 14px; margin: 10px 0 0; font-weight: 500; }
+#composer ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
+#composer p.muted { margin: 8px 0 0; font-size: 12px; }
+.ascrim { position: fixed; inset: 0; background: rgba(23,25,28,.36); z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.adlg { background: var(--surface); border-radius: 14px; padding: 20px; width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px -20px rgba(23,25,28,.4); }
+.adlg h2 { margin: 0; font-size: 17px; }
+.adlg p { margin: 0; }
+@media (max-width: 760px) {
+  .split { flex-direction: column; align-items: stretch; }
+  .apane { flex: 0 0 auto; width: auto; position: static; }
+  .split.open > .acol { display: none; }
+  #pane-close { display: none; }
+}
 
 /* The save bar belongs to the onboarding copy and sits at the foot of that view alone. */
 .bar {
@@ -298,7 +409,7 @@ pre { overflow-x: auto; max-width: 100%; }
   </div>
 
   <div class="amain">
-    <div class="ahead"><h1 id="view-title">Numbers</h1></div>
+    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button></div>
     <div class="abody">
 
 <!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
@@ -362,149 +473,180 @@ pre { overflow-x: auto; max-width: 100%; }
 <section class="view hidden" id="view-campaigns">
   <div id="state-campaigns"></div>
   <div class="vbody hidden" id="body-campaigns">
-    <p class="muted"><span class="chip n" id="campaigns-state"></span> <span id="campaigns-summary"></span></p>
-    <p class="muted">
-      A campaign is one reviewed template sent once to each account in its segment, at the account's own
-      local time. It reaches an account at most once, whatever else was sent that day; only the account's
-      own pushes-a-day limit can hold it back, and then it is tried again tomorrow. A promotional campaign reaches only accounts with tips and
-      offers on. The segment is a fixed list of choices; there is no free-form query.
-    </p>
-    <div class="row flexwrap" id="campaigns-tools">
-      <button id="campaigns-kill" class="small danger"></button>
-      <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
-    </div>
-    <p class="muted" id="campaign-note"></p>
+    <div class="aerr hidden" id="campaigns-state">All campaigns are stopped. Resume all campaigns starts them where they stopped.</div>
     <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
-    <div id="campaigns-empty" class="card hidden">
-      <div class="astate"><b>No campaigns yet.</b><span>A campaign starts as a draft; nothing sends until you schedule it.</span>
-        <button class="primary" id="campaign-new">New campaign</button></div>
+    <div id="camp-list-mode">
+      <div id="campaigns-empty" class="card flush hidden">
+        <div class="astate"><b>No campaigns yet.</b><span>A campaign starts as a draft; nothing sends until you schedule it.</span>
+          <button class="primary" id="campaign-new">New campaign</button></div>
+      </div>
+      <div class="camps" id="camps">
+        <div class="camps-l"><div class="card flush alist" id="camp-list"></div></div>
+        <div class="card flush camps-r" id="camp-detail"></div>
+      </div>
+      <h2>Campaign copy</h2>
+      <p class="muted">
+        A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+        gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+        scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+        gender checks as every other push text.
+      </p>
+      <datalist id="campaign-keys"></datalist>
+      <div class="card flush"><div class="scrollx"><table id="campaign-copy">
+        <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+        <tbody></tbody>
+      </table></div></div>
+      <div class="card" id="campaign-copy-form"></div>
     </div>
-    <div class="card flush"><div class="scrollx"><table id="campaigns">
-      <thead>
-        <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Arms</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div id="campaign-reports"></div>
-    <p class="muted">
-      Sent and opened count real sends only; a dry run (who it would reach, nothing sent), a test send and the
-      holdout are counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
-    </p>
-    <h2>New campaign</h2>
-    <div class="card" id="campaign-form"></div>
-    <h2>Campaign copy</h2>
-    <p class="muted">
-      A campaign sends its own words, one title and one body per language, with no placeholders: everybody
-      gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
-      scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
-      gender checks as every other push text.
-    </p>
-    <datalist id="campaign-keys"></datalist>
-    <div class="card flush"><div class="scrollx"><table id="campaign-copy">
-      <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div class="card" id="campaign-copy-form"></div>
+    <div id="camp-new-mode" class="hidden">
+      <div class="card flush cnew">
+        <div class="ph"><b>New campaign</b><span class="hint">starts as a draft; Schedule sends it</span></div>
+        <div class="pb cform" id="campaign-form"></div>
+      </div>
+    </div>
   </div>
 </section>
 
 <section class="view hidden" id="view-accounts">
   <div id="state-accounts"></div>
   <div class="vbody hidden" id="body-accounts">
-    <p class="muted">
-      <strong>These are real people.</strong> Every row is somebody's account and the address they
-      signed in with. Read it to answer a question somebody asked you, and close it afterwards.
-      Search takes a whole email address or the beginning of a user id — nothing else matches.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="users-q" placeholder="email address, or the start of a user id"
-               autocomplete="off" spellcheck="false">
-        <button id="users-search">Search</button>
+    <div class="split" id="split">
+      <div class="acol">
+        <div class="card flush">
+          <div class="sbar">
+            <input type="text" id="users-q" placeholder="email address, or the start of a user id"
+                   autocomplete="off" spellcheck="false" aria-label="Search accounts">
+            <button id="users-search">Search</button>
+          </div>
+          <div class="scrollx" id="users-wrap"><table id="users">
+            <thead>
+              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Sample</th><th class="r">Today</th><th class="r">Last seen</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table></div>
+          <div class="astate hidden" id="users-empty"><b id="users-empty-title"></b><span id="users-empty-note"></span></div>
+          <div class="foot hidden" id="users-foot">
+            <span id="users-status"></span>
+            <span class="grow"></span>
+            <button class="small hidden" id="users-more">Load more</button>
+          </div>
+        </div>
       </div>
-      <p class="muted" id="users-status"></p>
-    </div>
-    <div class="card" id="composer">
-      <strong>Send a push</strong>
-      <p class="muted" id="composer-count">Tick accounts below.</p>
-      <div class="row">
-        <select id="composer-template"></select>
-        <select id="composer-route"></select>
-        <button class="primary" id="composer-send">Send</button>
-      </div>
-      <div class="row">
-        <select id="composer-test-route"></select>
-        <button id="composer-test">Send test push to the one picked account</button>
-      </div>
-      <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
-      <p class="muted" id="composer-status"></p>
-      <ul id="composer-results"></ul>
-    </div>
-    <div class="card flush"><div class="scrollx"><table id="users">
-      <thead>
-        <tr><th>Push</th><th>Staff</th><th>Pushes/day</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <p>
-      <button id="users-more" class="hidden">Load more</button>
-    </p>
 
-    <h2>Thread <span class="chip n" id="chat-who"></span></h2>
-    <p class="muted">
-      <strong>This is somebody's conversation, and onboarding collects medical free text.</strong>
-      Read it to answer a question about a reply that was wrong, and nothing else. It is what they
-      saw, rendered the way their app renders it. There is no way to write here, deliberately.
-    </p>
-    <div class="card">
-      <div id="chat"></div>
-      <p>
-        <button id="chat-older" class="hidden">Older</button>
-        <span class="status" id="chat-status">Choose an account above.</span>
-      </p>
-    </div>
+      <aside class="apane hidden" id="pane" aria-label="Account">
+        <div class="ph">
+          <span class="t"><b id="pane-name"></b><br><span class="amono muted" id="pane-id"></span></span>
+          <button class="small quiet" id="pane-close">Close</button>
+        </div>
+        <div class="pb">
+          <span class="aseg" id="tabs">
+            <button class="on" data-tab="profile">Profile</button>
+            <button data-tab="thread">Thread</button>
+            <button data-tab="diary">Diary</button>
+            <button data-tab="push">Send a push</button>
+          </span>
 
-    <h2>Diary <span class="chip n" id="diary-who"></span></h2>
-    <p class="muted">
-      <strong>This shows a real person's photographs and what they ate.</strong> It is here so that
-      "the analysis was wrong" can be answered, and for nothing else. Choose an account above; a meal
-      row opens the pictures behind it.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-        <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-        <button id="diary-load">Load</button>
-      </div>
-      <p class="muted" id="diary-status">Choose an account above.</p>
-    </div>
-    <div class="card flush"><div class="scrollx"><table id="diary">
-      <thead>
-        <tr><th>When</th><th>What</th><th>kcal</th><th>Verdicts</th><th>Model</th><th>Confidence</th><th>Photos</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div id="photos"></div>
+          <div id="tab-profile" class="tab">
+            <div id="pane-state"></div>
+            <div class="hidden" id="pane-body">
+              <div class="kvs">
+                <div class="kv"><span class="muted">Signed up</span><span id="p-signup"></span></div>
+                <div class="kv"><span class="muted">Plan</span><span id="p-plan"></span></div>
+                <div class="kv"><span class="muted">Language</span><span id="p-lang"></span></div>
+                <div class="kv"><span class="muted">Subscription</span><span class="chip n" id="p-sub"></span></div>
+                <div class="kv"><span class="muted">Streak</span><span id="p-streak"></span></div>
+              </div>
+              <div class="kv sect">
+                <span><b>Staff</b><br><span class="muted">Can open /admin and receive test pushes</span></span>
+                <button class="asw" id="staff-switch" role="switch" aria-checked="false" aria-label="Staff"></button>
+              </div>
+              <p class="aerr hidden" id="staff-error"></p>
+              <div class="sect">
+                <b>Analyses before the paywall</b>
+                <p class="muted" id="cap-status"></p>
+                <div class="row">
+                  <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default" aria-label="Analyses before the paywall">
+                  <button class="primary" id="cap-save">Save</button>
+                </div>
+              </div>
+              <div class="sect">
+                <b>Pushes a day</b>
+                <p class="muted" id="pushmax-status">The most this account is sent in one local day, across every sender. Empty: no limit.</p>
+                <div class="row">
+                  <input type="text" id="pushmax-n" inputmode="numeric" placeholder="no limit" aria-label="Pushes a day">
+                  <button class="primary" id="pushmax-save">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <h2>Per-account sample</h2>
-    <p class="muted">
-      How many analyses ONE account gets before the paywall, instead of the instance default. Save with
-      the box empty to put the account back on the default.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="cap-user" placeholder="user id" autocomplete="off" spellcheck="false">
-        <button id="cap-load">Load</button>
-      </div>
-      <label for="cap-n">Analyses before the paywall</label>
-      <div class="row">
-        <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default">
-        <button class="primary" id="cap-save">Save</button>
-      </div>
-      <p class="muted" id="cap-status"></p>
+          <div id="tab-thread" class="tab hidden">
+            <p class="muted warn">Medical free text: read only what the question needs. There is no way to write here, deliberately.</p>
+            <div id="thread-state"></div>
+            <div class="hidden" id="thread-body">
+              <div id="chat"></div>
+              <div class="foot flat">
+                <span id="chat-status"></span>
+                <span class="grow"></span>
+                <button class="small hidden" id="chat-older">Older</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-diary" class="tab hidden">
+            <div id="diary-state"></div>
+            <div class="hidden" id="diary-body">
+              <div class="row">
+                <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false" aria-label="From">
+                <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false" aria-label="To">
+                <button id="diary-load">Load</button>
+              </div>
+              <div class="card flush"><div class="scrollx"><table id="diary">
+                <thead>
+                  <tr><th>When</th><th>What</th><th class="r">kcal</th><th class="r">Photos</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table></div></div>
+              <p class="muted" id="diary-status"></p>
+              <div id="photos"></div>
+            </div>
+          </div>
+
+          <div id="tab-push" class="tab hidden">
+            <div id="composer">
+              <label for="composer-template">Template</label>
+              <select id="composer-template"></select>
+              <label for="composer-route">Opens</label>
+              <select id="composer-route"></select>
+              <label for="composer-image">Image</label>
+              <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
+              <div class="btns">
+                <button id="composer-test">Send test push</button>
+                <button class="primary" id="composer-send">Send</button>
+              </div>
+              <p class="result hidden" id="composer-status"></p>
+              <ul id="composer-results"></ul>
+              <p class="muted" id="composer-count"></p>
+              <p class="muted">A test goes to this account only and needs it to be staff. Send goes to the ticked accounts and skips those with tips and offers off.</p>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </section>
+
+<div class="ascrim hidden" id="confirm">
+  <div class="adlg" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p class="muted" id="confirm-text"></p>
+    <input class="hidden" id="confirm-input" autocomplete="off">
+    <div class="btns">
+      <button id="confirm-cancel">Cancel</button>
+      <button class="primary" id="confirm-ok"></button>
+    </div>
+  </div>
+</div>
 
 <section class="view hidden" id="view-onboarding">
   <div id="state-onboarding"></div>
@@ -960,6 +1102,11 @@ pre { overflow-x: auto; max-width: 100%; }
 
   // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
   var campaignOptions = null;
+  var campData = null;      // the last /admin/api/campaigns answer
+  var campSel = null;       // id of the open campaign
+  var campNote = null;      // { id, text }: the dry run or test send line of one campaign
+  var campMode = "list";    // "list" or "new"
+  var campTestUser = "";
 
   function campaignErrors(e) {
     var box = $("campaign-errors");
@@ -970,33 +1117,32 @@ pre { overflow-x: auto; max-width: 100%; }
     box.classList.toggle("hidden", msgs.length === 0);
   }
 
-  function segmentText(seg) {
-    var parts = [];
-    Object.keys(seg).forEach(function (k) {
-      var v = seg[k];
-      parts.push(k + ": " + (Array.isArray(v) ? v.join("/") : String(v)));
+  var SEG_LABEL = { langs: "lang", entitlement: "subscription", streakBand: "streak", sinceLog: "last log" };
+  var SEG_FLAG = { onboarded: ["onboarded", "not onboarded"], tipsConsent: ["tips and offers on", "tips and offers off"], staffOnly: ["staff only", "not staff only"] };
+  function segmentChips(c) {
+    var out = [];
+    Object.keys(c.segment).forEach(function (k) {
+      var v = c.segment[k];
+      if (SEG_FLAG[k]) out.push(SEG_FLAG[k][v ? 0 : 1]);
+      else out.push((SEG_LABEL[k] || k) + ": " + (Array.isArray(v) ? v.join(", ") : String(v)));
     });
-    return parts.length ? parts.join(" · ") : "everyone";
+    if (!out.length) out.push("everyone");
+    if (c.promotional) out.push("promotional");
+    return out;
   }
 
-  function campaignAction(label, run, confirmText, danger) {
-    var b = document.createElement("button");
-    b.className = danger ? "small danger" : "small";
-    b.textContent = label;
-    b.addEventListener("click", function () {
-      if (confirmText && !confirm(confirmText)) return;
-      campaignErrors(null);
-      run().then(loadCampaigns).catch(function (e) { campaignErrors(e); loadCampaigns(); });
-    });
-    return b;
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
   }
 
   function checks(name, values) {
-    var wrap = document.createElement("div");
-    wrap.className = "checks";
+    var wrap = el("div", "checks");
     wrap.dataset.name = name;
     values.forEach(function (v) {
-      var l = document.createElement("label");
+      var l = el("label", "cchip");
       var box = document.createElement("input");
       box.type = "checkbox";
       box.value = v;
@@ -1008,24 +1154,26 @@ pre { overflow-x: auto; max-width: 100%; }
   }
 
   function campaignField(labelText, control) {
-    var wrap = document.createElement("div");
-    var l = document.createElement("label");
-    l.textContent = labelText;
-    wrap.appendChild(l);
+    var wrap = el("div", "field");
+    wrap.appendChild(el("label", null, labelText));
     wrap.appendChild(control);
     return wrap;
   }
 
+  // any / yes / no, one of three, read from dataset.value ("" is any).
   function triState(name) {
-    var sel = document.createElement("select");
-    sel.dataset.name = name;
+    var seg = el("span", "aseg");
+    seg.dataset.name = name;
+    seg.dataset.value = "";
     [["", "any"], ["true", "yes"], ["false", "no"]].forEach(function (o) {
-      var opt = document.createElement("option");
-      opt.value = o[0];
-      opt.textContent = o[1];
-      sel.appendChild(opt);
+      var b = el("button", o[0] === "" ? "on" : "", o[1]);
+      b.addEventListener("click", function () {
+        seg.dataset.value = o[0];
+        Array.prototype.forEach.call(seg.children, function (x) { x.classList.toggle("on", x === b); });
+      });
+      seg.appendChild(b);
     });
-    return sel;
+    return seg;
   }
 
   function buildCampaignForm(o) {
@@ -1035,9 +1183,11 @@ pre { overflow-x: auto; max-width: 100%; }
     var tpl = document.createElement("input"); tpl.placeholder = "campaign:spring-win-back"; tpl.setAttribute("list", "campaign-keys");
     var time = document.createElement("input"); time.type = "time"; time.value = "18:30";
     var pctIn = document.createElement("input"); pctIn.type = "number"; pctIn.min = "0"; pctIn.max = "100"; pctIn.value = "10";
-    var promo = document.createElement("input"); promo.type = "checkbox"; promo.checked = true; promo.style.width = "auto";
     var variants = document.createElement("input"); variants.type = "number"; variants.min = "1"; variants.max = "4"; variants.value = "1";
     var holdout = document.createElement("input"); holdout.type = "number"; holdout.min = "0"; holdout.max = "10"; holdout.value = "0";
+    var promo = el("button", "asw");
+    promo.setAttribute("role", "switch"); promo.setAttribute("aria-label", "Promotional"); promo.setAttribute("aria-checked", "true"); promo.classList.add("on");
+    promo.addEventListener("click", function () { var on = promo.getAttribute("aria-checked") !== "true"; promo.setAttribute("aria-checked", String(on)); promo.classList.toggle("on", on); });
     var langs = checks("langs", o.langs);
     var ent = checks("entitlement", o.entitlement);
     var streak = checks("streakBand", o.streakBands);
@@ -1045,37 +1195,47 @@ pre { overflow-x: auto; max-width: 100%; }
     var onboarded = triState("onboarded");
     var tips = triState("tipsConsent");
     var staff = triState("staffOnly");
-    var row1 = document.createElement("div"); row1.className = "row flexwrap";
-    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn), campaignField("Variants (1-4)", variants), campaignField("Holdout % (0-10)", holdout)].forEach(function (f) { row1.appendChild(f); });
-    host.appendChild(row1);
-    host.appendChild(campaignField("Promotional — only accounts with tips and offers on", promo));
-    host.appendChild(campaignField("Languages (none ticked = all)", langs));
-    host.appendChild(campaignField("Subscription (none ticked = all)", ent));
-    host.appendChild(campaignField("Streak (none ticked = all)", streak));
-    host.appendChild(campaignField("Days since the last log (none ticked = all)", since));
-    var row2 = document.createElement("div"); row2.className = "row flexwrap";
-    [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { row2.appendChild(f); });
-    host.appendChild(row2);
-    var create = document.createElement("button");
-    create.className = "primary";
-    create.textContent = "Create draft";
+    var grid = el("div", "cgrid");
+    [campaignField("Name", name), campaignField("Copy key (written below)", tpl), campaignField("Local send time", time), campaignField("Rollout %", pctIn), campaignField("Variants (1-4)", variants), campaignField("Holdout % (0-10)", holdout)].forEach(function (f) { grid.appendChild(f); });
+    host.appendChild(grid);
+    host.appendChild(el("span", "grp", "Who gets it · none ticked = all"));
+    host.appendChild(campaignField("Languages", langs));
+    host.appendChild(campaignField("Subscription", ent));
+    host.appendChild(campaignField("Streak", streak));
+    host.appendChild(campaignField("Days since the last log", since));
+    var flags = el("div", "flags");
+    [campaignField("Onboarded", onboarded), campaignField("Tips and offers consent", tips), campaignField("Staff allowlist only", staff)].forEach(function (f) { flags.appendChild(f); });
+    host.appendChild(flags);
+    var pr = el("div", "promo");
+    pr.appendChild(promo);
+    pr.appendChild(el("span", null, "Promotional — only accounts with tips and offers on"));
+    host.appendChild(pr);
+    var foot = el("div", "cfoot");
+    var cancel = el("button", null, "Cancel");
+    cancel.addEventListener("click", function () { campaignErrors(null); campMode = "list"; renderCampaigns(); });
+    var create = el("button", "primary", "Create draft");
     create.addEventListener("click", function () {
       var seg = {};
       [langs, ent, streak, since].forEach(function (g) {
         var on = Array.prototype.filter.call(g.querySelectorAll("input"), function (i) { return i.checked; }).map(function (i) { return i.value; });
         if (on.length) seg[g.dataset.name] = on;
       });
-      [onboarded, tips, staff].forEach(function (sel) { if (sel.value !== "") seg[sel.dataset.name] = sel.value === "true"; });
+      [onboarded, tips, staff].forEach(function (sel) { if (sel.dataset.value !== "") seg[sel.dataset.name] = sel.dataset.value === "true"; });
       campaignErrors(null);
       api("POST", "/admin/api/campaigns", {
         name: name.value, templateKey: tpl.value, segment: seg, localSendTime: time.value,
-        rolloutPct: Number(pctIn.value), promotional: promo.checked,
+        rolloutPct: Number(pctIn.value), promotional: promo.getAttribute("aria-checked") === "true",
         variants: Number(variants.value), holdoutPct: Number(holdout.value)
-      }).then(function () { name.value = ""; return loadCampaigns(); }).catch(campaignErrors);
+      }).then(function (r) {
+        campMode = "list";
+        if (r && r.row && r.row.id) campSel = r.row.id;
+        return loadCampaigns();
+      }).catch(campaignErrors);
     });
-    host.appendChild(create);
+    foot.appendChild(cancel);
+    foot.appendChild(create);
+    host.appendChild(foot);
   }
-
 
   function buildCopyForm(o) {
     var host = $("campaign-copy-form");
@@ -1117,41 +1277,225 @@ pre { overflow-x: auto; max-width: 100%; }
 
   var copyRows = [];
 
-  function renderReports(campaigns) {
-    var host = $("campaign-reports");
+  function campMenusClose() {
+    Array.prototype.forEach.call(document.querySelectorAll("#camp-detail .amenu"), function (m) { m.classList.add("hidden"); });
+  }
+  document.addEventListener("click", function (e) { if (!e.target.closest || !e.target.closest(".mwrap")) campMenusClose(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    campMenusClose();
+  });
+
+  // One action on one campaign: clear the line, run it, read the list again. A refusal is shown
+  // in the errors box and the list is read again anyway, so the screen never lies about the state.
+  function campRun(run) {
+    campaignErrors(null);
+    campNote = null;
+    return run().then(function () { return loadCampaigns(); }, function (e) { campaignErrors(e); return loadCampaigns(); }).catch(campaignErrors);
+  }
+
+  function campStatus(c, to) {
+    return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); };
+  }
+
+  var CHIP_TONE = { running: "g", scheduled: "", paused: "w", killed: "b", done: "n", draft: "n" };
+  function statusChip(status) { return el("span", ("chip " + (CHIP_TONE[status] || "n")).trim(), status); }
+
+  function renderList(v) {
+    var host = $("camp-list");
     host.textContent = "";
-    campaigns.forEach(function (c) {
-      if (!c.report.groups.length) return;
-      var h = document.createElement("h3"); h.textContent = c.name + " — by arm"; host.appendChild(h);
-      var frame = document.createElement("div"); frame.className = "card flush";
-      var wrap = document.createElement("div"); wrap.className = "scrollx";
-      var t = document.createElement("table");
-      var head = document.createElement("tr");
-      ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x, i) { var th = document.createElement("th"); th.textContent = x; if (i) th.className = "r"; head.appendChild(th); });
-      t.appendChild(head);
-      c.report.groups.forEach(function (g) {
-        var tr = document.createElement("tr");
-        [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x, i) { td(tr, x, i, 1); });
-        t.appendChild(tr);
+    v.campaigns.forEach(function (c) {
+      var b = el("button", c.id === campSel ? "citem on" : "citem");
+      if (c.id === campSel) b.setAttribute("aria-current", "true");
+      var t = el("span", "t");
+      t.appendChild(el("b", null, c.name));
+      t.appendChild(el("span", null, c.report.sent + " sent · rollout " + c.rolloutPct + "%"));
+      var bar = el("div", "abar");
+      var fill = document.createElement("i");
+      fill.style.width = Math.max(0, Math.min(100, c.rolloutPct)) + "%";
+      bar.appendChild(fill);
+      b.appendChild(t);
+      b.appendChild(bar);
+      b.appendChild(statusChip(c.status));
+      b.addEventListener("click", function () {
+        campSel = c.id;
+        campNote = null;
+        campaignErrors(null);
+        renderCampaigns();
       });
-      wrap.appendChild(t); frame.appendChild(wrap); host.appendChild(frame);
-      var p = document.createElement("p"); p.className = "muted";
-      var e = c.effect;
-      if (!e) p.textContent = "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.";
-      else {
-        var pp = function (x) { return (x * 100).toFixed(1) + " pts"; };
-        p.textContent = "Treated minus holdout conversion: " + pp(e.comparison.diff) + " (95% CI " + pp(e.comparison.lo) + " to " + pp(e.comparison.hi) + ") — " +
-          (e.comparison.significant ? "the interval excludes zero." : "not distinguishable from zero.");
-      }
-      host.appendChild(p);
+      host.appendChild(b);
     });
   }
 
-  var STATUS_TONE = { running: "g", scheduled: "w", paused: "w", killed: "b", done: "n", draft: "n" };
+  function armsTable(c) {
+    var frame = el("div", "card flush");
+    var wrap = el("div", "scrollx");
+    var t = document.createElement("table");
+    var head = document.createElement("tr");
+    ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x, i) { var th = el("th", i ? "r" : "", x); head.appendChild(th); });
+    var thead = document.createElement("thead"); thead.appendChild(head); t.appendChild(thead);
+    var tbody = document.createElement("tbody");
+    c.report.groups.forEach(function (g) {
+      var tr = document.createElement("tr");
+      [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x, i) { td(tr, x, i, 1); });
+      tbody.appendChild(tr);
+    });
+    t.appendChild(tbody);
+    wrap.appendChild(t);
+    frame.appendChild(wrap);
+    return frame;
+  }
+
+  function renderDetail(v) {
+    var host = $("camp-detail");
+    host.textContent = "";
+    var c = v.campaigns.filter(function (x) { return x.id === campSel; })[0];
+    if (!c) return;
+    var ph = el("div", "ph");
+    ph.appendChild(el("b", null, c.name));
+    ph.appendChild(statusChip(c.status));
+    ph.appendChild(el("span", "grow"));
+    var next = c.status === "draft" ? ["Schedule", "scheduled"] : c.status === "paused" ? ["Resume", "scheduled"] : c.status === "scheduled" || c.status === "running" ? ["Pause", "paused"] : null;
+    if (next) {
+      var main = el("button", "primary", next[0]);
+      main.addEventListener("click", function () { campRun(campStatus(c, next[1])); });
+      ph.appendChild(main);
+    }
+    if (c.status !== "done" && c.status !== "killed") {
+      var mw = el("div", "mwrap");
+      var more = el("button", null, "⋯");
+      more.setAttribute("aria-label", "More actions");
+      more.setAttribute("aria-haspopup", "true");
+      var menu = el("div", "amenu hidden");
+      var item = function (label, cls, fn) {
+        var b = el("button", cls, label);
+        b.addEventListener("click", function () { menu.classList.add("hidden"); fn(); });
+        menu.appendChild(b);
+      };
+      item("Raise rollout", "", function () {
+        campRun(function () {
+          var to = Number(prompt("New rollout % (now " + c.rolloutPct + ")", String(Math.min(100, c.rolloutPct + 10))));
+          if (!(to >= 0 && to <= 100)) return Promise.resolve();
+          return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(to) });
+        });
+      });
+      item("Dry run", "", function () {
+        campRun(function () {
+          return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) {
+            campNote = { id: c.id, text: "Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent." };
+          });
+        });
+      });
+      item("Test send", "", function () {
+        askConfirm("Test send " + c.name, "Sends this campaign's text to one staff account's devices. Nobody else gets it.", "Test send", function (who) {
+          campTestUser = who.trim();
+          campRun(function () {
+            return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: campTestUser })
+              .then(function (r) { campNote = { id: c.id, text: "Test send: " + r.sent + " device(s)." }; });
+          });
+        }, { input: campTestUser, placeholder: "Staff account id" });
+      });
+      menu.appendChild(document.createElement("hr"));
+      item("Done", "", function () {
+        askConfirm("Mark " + c.name + " done?", "It stops sending for good.", "Done", function () { campRun(campStatus(c, "done")); });
+      });
+      item("Kill", "d", function () {
+        askConfirm("Kill " + c.name + "?", "It stops now and cannot be resumed. Pause stops it and keeps Resume.", "Kill", function () { campRun(campStatus(c, "killed")); }, { danger: true });
+      });
+      more.addEventListener("click", function () {
+        var open = menu.classList.contains("hidden");
+        campMenusClose();
+        menu.classList.toggle("hidden", !open);
+      });
+      mw.appendChild(more);
+      mw.appendChild(menu);
+      ph.appendChild(mw);
+    }
+    host.appendChild(ph);
+
+    var pb = el("div", "pb");
+    if (campNote && campNote.id === c.id) pb.appendChild(el("div", "aerr ok", campNote.text));
+    var chips = el("div", "chips");
+    segmentChips(c).forEach(function (t) { chips.appendChild(el("span", "chip n", t)); });
+    pb.appendChild(chips);
+    var meta = el("div", "cmeta");
+    var send = el("span", null, "Send at ");
+    send.appendChild(el("b", null, c.localSendTime + " local"));
+    var roll = el("span", null, "Rollout ");
+    roll.appendChild(el("b", null, c.rolloutPct + "%"));
+    meta.appendChild(send);
+    meta.appendChild(roll);
+    meta.appendChild(el("span", null, c.variants + (c.variants === 1 ? " arm" : " arms") + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : "")));
+    pb.appendChild(meta);
+    if (c.report.groups.length) {
+      pb.appendChild(armsTable(c));
+      var e = c.effect;
+      var p;
+      if (!e) p = el("p", "cfine", "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.");
+      else {
+        var pp = function (x) { return (x * 100).toFixed(1) + " pts"; };
+        p = el("p", null, "Treated minus holdout conversion: " + pp(e.comparison.diff) + " (95% CI " + pp(e.comparison.lo) + " to " + pp(e.comparison.hi) + ") — " +
+          (e.comparison.significant ? "the interval excludes zero." : "not distinguishable from zero."));
+      }
+      pb.appendChild(p);
+    }
+    var copy = v.copy.filter(function (k) { return k.key === c.templateKey; })[0];
+    pb.appendChild(el("span", "cfine", "Copy: " + c.templateKey + " · " +
+      (!copy ? "nothing written yet" : copy.gaps.length ? "missing or draft: " + copy.gaps.join(", ") : "complete in " + v.options.langs.length + " languages")));
+    host.appendChild(pb);
+  }
+
+  // The header's right side belongs to the open view, so it is built once and shown for #campaigns.
+  var headActs = el("div", "hacts hidden");
+  var stopAll = el("button");
+  var newCamp = el("button", "primary", "New");
+  newCamp.appendChild(el("span", "wide", " campaign"));
+  headActs.appendChild(stopAll);
+  headActs.appendChild(newCamp);
+  document.querySelector(".ahead").appendChild(headActs);
+  function openNewCampaign() {
+    campaignErrors(null);
+    buildCampaignForm(campaignOptions);
+    campMode = "new";
+    renderCampaigns();
+    window.scrollTo(0, 0);
+  }
+  newCamp.addEventListener("click", openNewCampaign);
+  $("campaign-new").addEventListener("click", openNewCampaign);
+  stopAll.addEventListener("click", function () {
+    var killed = campData.killed;
+    var go = function () {
+      campaignErrors(null);
+      api("POST", "/admin/api/campaigns/kill", { killed: !killed }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
+    };
+    if (killed) go();
+    else askConfirm("Stop every campaign now?", "Runs stop between two sends. Resume all campaigns starts them where they stopped.", "Stop all campaigns", go, { danger: true });
+  });
+  function syncHead() {
+    var none = !campData || campData.campaigns.length === 0;
+    headActs.classList.toggle("hidden", location.hash !== "#campaigns" || !campData || campMode !== "list");
+    newCamp.classList.toggle("hidden", none);
+  }
+  window.addEventListener("hashchange", syncHead);
+
+  function renderCampaigns() {
+    var v = campData;
+    var none = v.campaigns.length === 0;
+    $("camp-list-mode").classList.toggle("hidden", campMode !== "list");
+    $("camp-new-mode").classList.toggle("hidden", campMode !== "new");
+    $("campaigns-state").classList.toggle("hidden", !v.killed);
+    $("campaigns-empty").classList.toggle("hidden", !none);
+    $("camps").classList.toggle("hidden", none);
+    stopAll.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
+    if (!v.campaigns.some(function (c) { return c.id === campSel; })) campSel = none ? null : v.campaigns[0].id;
+    if (!none) { renderList(v); renderDetail(v); }
+    syncHead();
+  }
 
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
-      if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); buildCopyForm(v.options); }
+      if (!campaignOptions) { campaignOptions = v.options; buildCopyForm(v.options); }
+      campData = v;
       copyRows = [];
       var keys = $("campaign-keys"); keys.textContent = "";
       var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
@@ -1162,64 +1506,7 @@ pre { overflow-x: auto; max-width: 100%; }
         [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
         copyBody.appendChild(tr);
       });
-      $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
-      $("campaigns-state").className = v.killed ? "chip b" : "chip g";
-      $("campaigns-summary").textContent =
-        v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the env bootstrap list";
-      var kill = $("campaigns-kill");
-      kill.textContent = v.killed ? "Resume all campaigns" : "Stop all campaigns";
-      kill.onclick = function () {
-        if (!v.killed && !confirm("Stop every campaign now? Runs stop between two sends.")) return;
-        campaignErrors(null);
-        api("POST", "/admin/api/campaigns/kill", { killed: !v.killed }).then(loadCampaigns).catch(campaignErrors);
-      };
-      renderReports(v.campaigns);
-      var body = $("campaigns").querySelector("tbody");
-      body.textContent = "";
-      v.campaigns.forEach(function (c) {
-        var tr = document.createElement("tr");
-        [c.name, c.status, segmentText(c.segment) + (c.promotional ? " · promotional" : ""), c.localSendTime,
-         c.rolloutPct + "%", c.variants + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : ""), c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
-        ].forEach(function (t) {
-          var cellTd = td(tr, t, 0, 99);
-          // The status is the one cell that is a verdict, so it wears the chip.
-          if (cellTd === tr.children[1]) {
-            cellTd.textContent = "";
-            var chip = document.createElement("span");
-            chip.className = "chip " + (STATUS_TONE[c.status] || "n");
-            chip.textContent = c.status;
-            cellTd.appendChild(chip);
-          }
-        });
-        var cell = document.createElement("td");
-        var act = document.createElement("div");
-        act.className = "acts";
-        cell.appendChild(act);
-        var set = function (to) { return function () { return api("POST", "/admin/api/campaigns/" + c.id + "/status", { status: to }); }; };
-        if (c.status === "draft" || c.status === "paused") act.appendChild(campaignAction(c.status === "draft" ? "Schedule" : "Resume", set("scheduled")));
-        if (c.status === "scheduled" || c.status === "running") act.appendChild(campaignAction("Pause", set("paused")));
-        if (c.status !== "done" && c.status !== "killed") {
-          act.appendChild(campaignAction("Raise rollout", function () {
-            var next = Number(prompt("New rollout % (now " + c.rolloutPct + ")", String(Math.min(100, c.rolloutPct + 10))));
-            if (!(next >= 0 && next <= 100)) return Promise.resolve();
-            return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(next) });
-          }));
-          act.appendChild(campaignAction("Dry run", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { $("campaign-note").textContent = "Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent."; });
-          }));
-          act.appendChild(campaignAction("Test send", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: $("campaigns-test-user").value.trim() })
-              .then(function (r) { $("campaign-note").textContent = "Test send: " + r.sent + " device(s)."; });
-          }));
-          act.appendChild(campaignAction("Done", set("done"), "Mark " + c.name + " done? It stops sending for good."));
-          act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed.", true));
-        }
-        tr.appendChild(cell);
-        body.appendChild(tr);
-      });
-      // Nothing yet is a state with a way forward, not an empty table.
-      $("campaigns-empty").classList.toggle("hidden", v.campaigns.length > 0);
-      $("campaigns").parentNode.parentNode.classList.toggle("hidden", v.campaigns.length === 0);
+      renderCampaigns();
     });
   }
 
@@ -1606,40 +1893,26 @@ pre { overflow-x: auto; max-width: 100%; }
     return api("GET", "/admin/api/switches").then(renderSwitches);
   }
 
-  // ── Per-account sample ─────────────────────────────────────────────────────────────────────
-
-  function capPath() {
-    return "/admin/api/users/" + encodeURIComponent($("cap-user").value.trim()) + "/cap";
-  }
-  function capFailed(e) {
-    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0])
-      || (e.status === 404 ? "No such account." : "failed: " + e.message);
-  }
-  function showCap(c, prefix) {
-    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
-    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
-      + (c.freeAnalyses === null ? " (instance default)" : "");
-  }
-  $("cap-load").addEventListener("click", function () {
-    api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
-  });
-  $("cap-save").addEventListener("click", function () {
-    var raw = $("cap-n").value.trim();
-    api("PUT", capPath(), { freeAnalyses: raw === "" ? null : Number(raw) })
-      .then(function (c) { showCap(c, "saved — "); }).catch(capFailed);
-  });
-
-  // ── Accounts (#374) ────────────────────────────────────────────────────────────────────────
+  // ── Accounts (#374, #571) ──────────────────────────────────────────────────────────────────
   //
   // A READ, and the widest one in the product: every account, with the address on it. The server
   // checks the role on every request under /admin, so nothing here is a permission — it is a table.
-  //
-  // Every value reaches the DOM through textContent, like everything else on this page. An address
-  // somebody typed at a provider is still somebody's text.
+  // A row opens the detail pane: profile (with the staff switch and the per-account sample),
+  // thread, diary, and the push composer. Every value reaches the DOM through textContent: an
+  // address somebody typed at a provider is still somebody's text.
 
   var usersCursor = null;
+  var sel = null;            // the account whose pane is open
+  var loadedTab = {};        // tab -> user id it was last loaded for
+  var tab = "profile";
+  var picked = new Map();    // ticked rows: user id -> pushOffers
+  var langLabel = ${JSON.stringify(LANG_LABEL)};
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var provNames = { apple: "Apple", google: "Google" };
 
   function shortId(id) { return id.slice(0, 8); }
+  function dmon(iso) { var d = iso.slice(0, 10).split("-"); return Number(d[2]) + " " + months[Number(d[1]) - 1]; }
+  function via(u) { return (u.providers || []).map(function (p) { return provNames[p] || p; }).join(", ") || "—"; }
 
   function ago(iso) {
     if (!iso) return "never";
@@ -1649,23 +1922,232 @@ pre { overflow-x: auto; max-width: 100%; }
     return days + "d ago";
   }
 
-  var picked = new Map();
-  function showPicked() {
-    $("composer-count").textContent = picked.size + " account(s) picked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
+  // The Paid chip and the Subscription line say the same thing, so one function says it.
+  function paidOf(u) {
+    if (u.entitled) {
+      var trial = !!(u.entitlement && u.entitlement.trial);
+      var ends = u.entitlement && u.entitlement.expiresAt && !u.entitlement.lifetimeProductId
+        ? " · ends " + dmon(u.entitlement.expiresAt) : "";
+      return { cls: trial ? "w" : "g", text: trial ? "trial" : "paid", long: (trial ? "trial" : "paid") + ends };
+    }
+    var t = u.onboardedAt ? "free" : "not onboarded";
+    return { cls: "n", text: t, long: t };
   }
-  var none = document.createElement("option"); none.value = ""; none.textContent = "no target"; $("composer-test-route").appendChild(none);
-  ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
-    ["composer-route", "composer-test-route"].forEach(function (id) {
-      var o = document.createElement("option"); o.value = r; o.textContent = "opens " + r; $(id).appendChild(o);
+
+  function hasId(tr, id) { return tr.getAttribute("data-id") === id; }
+
+  function markRows() {
+    Array.prototype.forEach.call($("users").querySelectorAll("tbody tr"), function (tr) {
+      tr.classList.toggle("on", !!sel && hasId(tr, sel.userId));
     });
+  }
+
+  // On a phone the list and the pane take turns, and the header says which one it is.
+  var phone = window.matchMedia("(max-width: 760px)");
+  function setHead() {
+    var inPane = !!sel && phone.matches && !$("view-accounts").classList.contains("hidden");
+    $("split").classList.toggle("open", !!sel);
+    if (!$("view-accounts").classList.contains("hidden")) $("view-title").textContent = inPane ? "Account" : "Accounts";
+    $("view-back").classList.toggle("hidden", !inPane);
+  }
+  phone.addEventListener("change", setHead);
+
+  function closePane() {
+    sel = null;
+    releasePhotos();
+    $("pane").classList.add("hidden");
+    markRows();
+    setHead();
+  }
+  $("pane-close").addEventListener("click", closePane);
+  $("view-back").addEventListener("click", closePane);
+
+  function selectUser(u) {
+    sel = u;
+    loadedTab = {};
+    chatUser = null;
+    diaryUser = null;
+    releasePhotos();
+    $("chat").textContent = "";
+    $("diary").querySelector("tbody").textContent = "";
+    $("diary-from").value = "";
+    $("diary-to").value = "";
+    $("composer-status").classList.add("hidden");
+    $("composer-results").textContent = "";
+    $("pane-name").textContent = u.email || shortId(u.userId);
+    $("pane-id").textContent = u.userId;
+    $("pane").classList.remove("hidden");
+    markRows();
+    showPicked();
+    setHead();
+    showTab("profile");
+  }
+
+  // ── The tabs ───────────────────────────────────────────────────────────────────────────────
+
+  var TABS = {
+    profile: function () { return loadProfile(); },
+    thread: function () { return loadChat(false); },
+    diary: function () { return loadDiary(true); },
+    push: function () {}
+  };
+
+  function showTab(t) {
+    tab = t;
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs [data-tab]"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-tab") === t);
+    });
+    Object.keys(TABS).forEach(function (k) { $("tab-" + k).classList.toggle("hidden", k !== t); });
+    if (sel && loadedTab[t] !== sel.userId) { loadedTab[t] = sel.userId; TABS[t](); }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs [data-tab]"), function (b) {
+    b.addEventListener("click", function () { showTab(b.getAttribute("data-tab")); });
   });
+
+  // ── Profile ────────────────────────────────────────────────────────────────────────────────
+
+  function capPath(id) { return "/admin/api/users/" + encodeURIComponent(id) + "/cap"; }
+
+  function showCap(c, prefix) {
+    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
+    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
+      + (c.freeAnalyses === null ? " (instance default)" : "");
+  }
+
+  function paintStaff(on) {
+    $("staff-switch").classList.toggle("on", on);
+    $("staff-switch").setAttribute("aria-checked", on ? "true" : "false");
+  }
+
+  function fillProfile(s, cap) {
+    $("p-signup").textContent = dmon(s.createdAt) + " · " + via(s);
+    var t = s.targets;
+    $("p-plan").textContent = !t ? "not onboarded"
+      : Math.round(t.kcal) + " kcal a day · " + (t.goal === "maintain" ? "maintain"
+        : t.goal + " " + Math.abs(t.paceKgPerWeek) + " kg/week");
+    $("p-lang").textContent = (langLabel[s.lang] || s.lang) + (s.timezone ? " · " + s.timezone : "");
+    var paid = paidOf(s);
+    var chip = $("p-sub");
+    chip.className = "chip " + paid.cls;
+    chip.textContent = paid.long;
+    $("p-streak").textContent = s.streakDays + (s.streakDays === 1 ? " day" : " days");
+    paintStaff(s.staff);
+    $("staff-error").classList.add("hidden");
+    showCap(cap);
+    $("pushmax-n").value = sel.pushDailyMax === null || sel.pushDailyMax === undefined ? "" : String(sel.pushDailyMax);
+  }
+
+  function loadProfile() {
+    var u = sel;
+    paintBox($("pane-state"), $("pane-body"), "loading");
+    var base = "/admin/api/users/" + encodeURIComponent(u.userId);
+    return Promise.all([api("GET", base), api("GET", capPath(u.userId))]).then(function (r) {
+      if (sel !== u) return;
+      u.staff = r[0].staff;
+      fillProfile(r[0], r[1]);
+      paintBox($("pane-state"), $("pane-body"), "ready");
+    }, function (e) {
+      if (sel !== u) return;
+      loadedTab.profile = null;
+      paintBox($("pane-state"), $("pane-body"), "error", e, "this account", loadProfile, true);
+    });
+  }
+
+  // A privilege change is asked about first, both ways: staff can open this page and change every
+  // setting on it, and taking it away from the wrong account locks somebody out.
+  var onConfirm = null;
+  // opts.danger paints the button red; opts.input (a string, the first value) adds one text field
+  // and hands what was typed to ok.
+  function askConfirm(title, text, okLabel, ok, opts) {
+    opts = opts || {};
+    $("confirm-title").textContent = title;
+    $("confirm-text").textContent = text;
+    $("confirm-ok").textContent = okLabel;
+    $("confirm-ok").className = opts.danger ? "dd" : "primary";
+    var field = $("confirm-input");
+    field.classList.toggle("hidden", typeof opts.input !== "string");
+    field.value = opts.input || "";
+    field.placeholder = opts.placeholder || "";
+    onConfirm = ok;
+    $("confirm").classList.remove("hidden");
+    (typeof opts.input === "string" ? field : $("confirm-cancel")).focus();
+  }
+  function closeConfirm() { onConfirm = null; $("confirm").classList.add("hidden"); }
+  $("confirm-cancel").addEventListener("click", closeConfirm);
+  $("confirm-ok").addEventListener("click", function () { var go = onConfirm; var typed = $("confirm-input").value; closeConfirm(); if (go) go(typed); });
+  $("confirm-input").addEventListener("keydown", function (e) { if (e.key === "Enter") $("confirm-ok").click(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("confirm").classList.contains("hidden")) closeConfirm();
+  });
+
+  $("staff-switch").addEventListener("click", function () {
+    var u = sel;
+    var next = !u.staff;
+    var who = u.email || shortId(u.userId);
+    askConfirm(
+      (next ? "Make " : "Remove staff from ") + who + (next ? " staff?" : "?"),
+      next ? "Staff can open /admin, change every setting here and receive test pushes."
+        : "They lose access to /admin and stop receiving test pushes.",
+      next ? "Make staff" : "Remove staff",
+      function () {
+        api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/staff", { staff: next }).then(function (r) {
+          u.staff = r.staff;
+          if (sel === u) { paintStaff(u.staff); $("staff-error").classList.add("hidden"); }
+        }).catch(function (err) {
+          if (sel !== u) return;
+          $("staff-error").textContent = "Staff change failed: " + err.message;
+          $("staff-error").classList.remove("hidden");
+        });
+      }
+    );
+  });
+
+  function capFailed(e) {
+    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0]) || "failed: " + e.message;
+  }
+  $("cap-save").addEventListener("click", function () {
+    var u = sel;
+    var raw = $("cap-n").value.trim();
+    api("PUT", capPath(u.userId), { freeAnalyses: raw === "" ? null : Number(raw) })
+      .then(function (c) { if (sel === u) showCap(c, "saved — "); }).catch(function (e) { if (sel === u) capFailed(e); });
+  });
+
+  $("pushmax-save").addEventListener("click", function () {
+    var u = sel;
+    var raw = $("pushmax-n").value.trim();
+    api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/push-cap", { pushDailyMax: raw === "" ? null : Number(raw) })
+      .then(function (r) { u.pushDailyMax = r.pushDailyMax; if (sel === u) $("pushmax-status").textContent = "saved — " + (r.pushDailyMax === null ? "no limit" : r.pushDailyMax + " a day"); })
+      .catch(function (e) { if (sel === u) $("pushmax-status").textContent = "failed: " + e.message; });
+  });
+
+  // ── The push composer ──────────────────────────────────────────────────────────────────────
+
+  function showPicked() {
+    $("composer-count").textContent = picked.size + " account(s) ticked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
+  }
+  ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
+    var o = document.createElement("option"); o.value = r; o.textContent = r; $("composer-route").appendChild(o);
+  });
+  function say(text) { var p = $("composer-status"); p.textContent = text; p.classList.remove("hidden"); }
+
   $("composer-test").addEventListener("click", function () {
-    if (picked.size !== 1) { $("composer-status").textContent = "Pick exactly one account for a test push."; return; }
-    var route = $("composer-test-route").value;
-    api("POST", "/admin/api/users/" + encodeURIComponent(Array.from(picked.keys())[0]) + "/push-test", route ? { route: route } : {})
-      .then(function (r) { $("composer-status").textContent = "Test push: " + r.sent + " device(s)."; })
-      .catch(function (e) { $("composer-status").textContent = "Test push refused: " + ((e.body && e.body.reason) || e.message); });
+    var u = sel;
+    var image = $("composer-image").value.trim();
+    var base = "/admin/api/users/" + encodeURIComponent(u.userId);
+    var body = { route: $("composer-route").value };
+    if (image) body.imageUrl = image;
+    say("Sending…");
+    api("POST", base + "/push-test", body).then(function (r) {
+      // The send log is where the push's state is kept; the newest row is this one.
+      return api("GET", base + "/push-log").then(function (log) {
+        var row = log.sends[0];
+        return row ? " · send_log " + shortId(row.id) + " " + row.state : "";
+      }, function () { return ""; }).then(function (tail) {
+        say("Test push: sent to " + r.sent + (r.sent === 1 ? " device" : " devices") + tail);
+      });
+    }).catch(function (e) { say("Test push refused: " + ((e.body && e.body.reason) || e.message)); });
   });
+
   // The sendable campaign copy, for the composer. Fetched with the Accounts view, once; the
   // composer is a secondary control there, so a failure leaves its list empty and nothing else.
   function loadComposerTemplates() {
@@ -1675,11 +2157,12 @@ pre { overflow-x: auto; max-width: 100%; }
       });
     }).catch(function () {});
   }
+
   $("composer-send").addEventListener("click", function () {
     var ids = Array.from(picked.keys());
     var noOffers = Array.from(picked.values()).filter(function (v) { return !v; }).length;
     var key = $("composer-template").value;
-    if (!ids.length || !key) { $("composer-status").textContent = "Pick accounts and a template."; return; }
+    if (!ids.length || !key) { say("Tick accounts in the list and pick a template."); return; }
     if (!window.confirm("Send " + key + " to " + ids.length + " account(s), opening " + $("composer-route").value
       + "?\\n" + noOffers + " of them have offers off and will be skipped (no offers consent).")) return;
     api("POST", "/admin/api/push/send", {
@@ -1688,21 +2171,26 @@ pre { overflow-x: auto; max-width: 100%; }
       imageUrl: $("composer-image").value.trim() || undefined
     }).then(function (r) {
       var sent = r.results.filter(function (x) { return x.sent !== undefined; }).length;
-      $("composer-status").textContent = sent + " sent, " + skipped.length + " skipped";
+      say(sent + " sent, " + (r.results.length - sent) + " skipped");
       var list = $("composer-results"); list.textContent = "";
       r.results.forEach(function (x) {
         var li = document.createElement("li");
         li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped : "sent to " + x.sent + " device(s)");
         list.appendChild(li);
       });
-    }).catch(function (e) { $("composer-status").textContent = "failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message); });
+    }).catch(function (e) { say("failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message)); });
   });
+
+  // ── The list ───────────────────────────────────────────────────────────────────────────────
 
   function userRow(u) {
     var tr = document.createElement("tr");
+    tr.setAttribute("data-id", u.userId);
+    if (sel && sel.userId === u.userId) tr.className = "on";
     var tick = document.createElement("td");
     var box = document.createElement("input");
     box.type = "checkbox";
+    box.setAttribute("aria-label", "Include " + (u.email || shortId(u.userId)) + " in the push");
     box.checked = picked.has(u.userId);
     box.addEventListener("click", function (e) {
       e.stopPropagation();
@@ -1711,65 +2199,29 @@ pre { overflow-x: auto; max-width: 100%; }
     });
     tick.appendChild(box);
     tr.appendChild(tick);
-    var staffTd = document.createElement("td");
-    var staffBtn = document.createElement("button");
-    var paintStaff = function () { staffBtn.textContent = u.staff ? "staff ✓" : "make staff"; };
-    paintStaff();
-    staffBtn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/staff", { staff: !u.staff })
-        .then(function (r) { u.staff = r.staff; paintStaff(); })
-        .catch(function (err) { $("users-status").textContent = "staff failed: " + err.message; });
-    });
-    staffTd.appendChild(staffBtn);
-    tr.appendChild(staffTd);
-    var capTd = document.createElement("td");
-    var capBtn = document.createElement("button");
-    var paintCap = function () { capBtn.textContent = u.pushDailyMax === null ? "no limit" : String(u.pushDailyMax); };
-    paintCap();
-    capBtn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var raw = window.prompt("Pushes a day for this account (empty: no limit)", u.pushDailyMax === null ? "" : String(u.pushDailyMax));
-      if (raw === null) return;
-      api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/push-cap", { pushDailyMax: raw.trim() === "" ? null : Number(raw) })
-        .then(function (r) { u.pushDailyMax = r.pushDailyMax; paintCap(); })
-        .catch(function (err) { $("users-status").textContent = "pushes/day failed: " + err.message; });
-    });
-    capTd.appendChild(capBtn);
-    tr.appendChild(capTd);
+    var paid = paidOf(u);
+    var chip = document.createElement("span");
+    chip.className = "chip " + paid.cls;
+    chip.textContent = paid.text;
     var cells = [
       u.email || shortId(u.userId),
-      u.createdAt.slice(0, 10),
-      (u.providers || []).join(", ") || "—",
-      u.entitled ? "yes" : (u.onboardedAt ? "no" : "not onboarded"),
-      // The number that is actually enforced, with the account's own beside it when it has one:
-      // "effective" is what checkCaps refuses with, and the panel must not compute a second answer.
-      u.spent + " / " + u.effective + (u.freeAnalyses === null ? " (default)" : ""),
+      dmon(u.createdAt),
+      via(u),
+      chip,
+      // The number that is actually enforced: "effective" is what checkCaps refuses with, and the
+      // panel must not compute a second answer.
+      u.spent + " / " + u.effective,
       String(u.analysesToday),
       ago(u.lastSeen)
     ];
-    cells.forEach(function (text, i) {
+    cells.forEach(function (c, i) {
       var td = document.createElement("td");
-      td.textContent = text;
+      if (typeof c === "string") td.textContent = c; else td.appendChild(c);
+      if (i >= 4) td.className = "r";
       if (i === 0) td.title = u.userId;
       tr.appendChild(td);
     });
-    // The id is what the sample box below takes, and typing a uuid off a screen is how a typo
-    // becomes a cap set on a stranger.
-    tr.addEventListener("click", function () {
-      $("cap-user").value = u.userId;
-      api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
-      // AND the thread, because #376's point is that you reach it from the list rather than by
-      // typing a uuid off a screen.
-      loadChat(u.userId, false);
-      $("chat-who").scrollIntoView({ block: "center" });
-      // AND the diary, because #375's whole point is that you reach it from the list rather than
-      // by typing a uuid off a screen.
-      $("diary-from").value = "";
-      $("diary-to").value = "";
-      loadDiary(u.userId);
-      // ONE scroll, to the thread above: two would fight, and the diary sits right below it.
-    });
+    tr.addEventListener("click", function () { selectUser(u); });
     return tr;
   }
 
@@ -1783,10 +2235,14 @@ pre { overflow-x: auto; max-width: 100%; }
       if (!append) body.textContent = "";
       page.users.forEach(function (u) { body.appendChild(userRow(u)); });
       usersCursor = page.nextCursor;
+      var n = body.childElementCount;
       $("users-more").classList.toggle("hidden", !page.nextCursor);
-      $("users-status").textContent = body.childElementCount === 0
-        ? (q ? "Nothing matches that. It takes a whole address, or the start of an id." : "No accounts yet.")
-        : body.childElementCount + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
+      $("users-wrap").classList.toggle("hidden", n === 0);
+      $("users-empty").classList.toggle("hidden", n !== 0);
+      $("users-foot").classList.toggle("hidden", n === 0);
+      $("users-empty-title").textContent = q ? "Nothing matches that." : "No accounts yet.";
+      $("users-empty-note").textContent = q ? "It takes a whole address, or the start of an id." : "";
+      $("users-status").textContent = n + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
     });
   }
 
@@ -1794,7 +2250,10 @@ pre { overflow-x: auto; max-width: 100%; }
   // after that fails beside the box that asked.
   function usersAgain(append) {
     if (!append) usersCursor = null;
-    loadUsers(append).catch(function (e) { $("users-status").textContent = "failed: " + e.message; });
+    loadUsers(append).catch(function (e) {
+      $("users-foot").classList.remove("hidden");
+      $("users-status").textContent = "failed: " + e.message;
+    });
   }
   $("users-search").addEventListener("click", function () { usersAgain(false); });
   $("users-q").addEventListener("keydown", function (e) {
@@ -1859,13 +2318,14 @@ pre { overflow-x: auto; max-width: 100%; }
     return row;
   }
 
-  function loadChat(userId, older) {
-    if (userId) { chatUser = userId; chatBefore = null; }
-    if (!chatUser) { $("chat-status").textContent = "Choose an account above."; return Promise.resolve(); }
+  function loadChat(older) {
+    var userId = sel && sel.userId;
+    if (!userId) return Promise.resolve();
+    if (!older) { chatUser = userId; chatBefore = null; paintBox($("thread-state"), $("thread-body"), "loading"); }
     var path = "/admin/api/users/" + chatUser + "/chat?limit=50";
     if (older && chatBefore) path += "&before=" + chatBefore;
-    $("chat-who").textContent = chatUser.slice(0, 8);
     return api("GET", path).then(function (view) {
+      if (!sel || sel.userId !== userId) return;
       var host = $("chat");
       if (!older) host.textContent = "";
       var frag = document.createDocumentFragment();
@@ -1877,10 +2337,16 @@ pre { overflow-x: auto; max-width: 100%; }
       $("chat-status").textContent = host.childElementCount === 0
         ? "Nothing said yet."
         : host.childElementCount + " lines";
-    }).catch(function (e) { $("chat-status").textContent = "failed: " + e.message; });
+      paintBox($("thread-state"), $("thread-body"), "ready");
+    }).catch(function (e) {
+      if (!sel || sel.userId !== userId) return;
+      if (older) { $("chat-status").textContent = "failed: " + e.message; return; }
+      loadedTab.thread = null;
+      paintBox($("thread-state"), $("thread-body"), "error", e, "the thread", function () { loadedTab.thread = userId; loadChat(false); }, true);
+    });
   }
 
-  $("chat-older").addEventListener("click", function () { loadChat(null, true); });
+  $("chat-older").addEventListener("click", function () { loadChat(true); });
   // ── One account's diary, and the pictures behind a meal (#375) ─────────────────────────────
   //
   // READ-ONLY, and rendered rather than recomputed: the verdicts drawn here are the ones the row
@@ -1940,27 +2406,35 @@ pre { overflow-x: auto; max-width: 100%; }
     var verdicts = Object.keys(m.verdicts || {}).map(function (k) {
       return k + ": " + m.verdicts[k];
     }).join(", ");
+    // What the model said about the meal rides under its name, so the table keeps the board's four
+    // columns and nothing that answers "the analysis was wrong" is dropped.
+    var detail = [m.model, m.confidence, verdicts].filter(Boolean).join(" · ");
     var cells = [
-      m.ts.slice(0, 16).replace("T", " "),
+      dmon(m.ts) + " " + m.ts.slice(11, 16),
       (names || (m.isFood ? "Meal" : "Not food")) + (m.corrected ? " (corrected)" : ""),
-      String(Math.round(m.kcal)),
-      verdicts || "—",
-      m.model || "—",
-      m.confidence || "—",
+      m.isFood ? String(Math.round(m.kcal)) : "—",
       String(m.photos || 0)
     ];
-    cells.forEach(function (text) {
+    cells.forEach(function (text, i) {
       var td = document.createElement("td");
       td.textContent = text;
+      if (i >= 2) td.className = "r";
+      if (i === 1 && detail) {
+        var sub = document.createElement("div");
+        sub.className = "muted";
+        sub.textContent = detail;
+        td.appendChild(sub);
+      }
       tr.appendChild(td);
     });
     tr.addEventListener("click", function () { showPhotos(m); });
     return tr;
   }
 
-  function loadDiary(userId) {
-    if (userId) diaryUser = userId;
-    if (!diaryUser) { $("diary-status").textContent = "Choose an account above."; return Promise.resolve(); }
+  function loadDiary(first) {
+    var userId = sel && sel.userId;
+    if (!userId) return Promise.resolve();
+    diaryUser = userId;
     releasePhotos();
     var path = "/admin/api/users/" + diaryUser + "/meals";
     var from = $("diary-from").value.trim();
@@ -1969,8 +2443,9 @@ pre { overflow-x: auto; max-width: 100%; }
     if (from) query.push("from=" + encodeURIComponent(from));
     if (to) query.push("to=" + encodeURIComponent(to));
     if (query.length) path += "?" + query.join("&");
-    $("diary-who").textContent = diaryUser.slice(0, 8);
+    if (first) paintBox($("diary-state"), $("diary-body"), "loading");
     return api("GET", path).then(function (view) {
+      if (!sel || sel.userId !== userId) return;
       var body = $("diary").querySelector("tbody");
       body.textContent = "";
       view.meals.forEach(function (m) { body.appendChild(mealRow(m)); });
@@ -1985,10 +2460,16 @@ pre { overflow-x: auto; max-width: 100%; }
       $("diary-status").textContent = view.meals.length === 0
         ? "Nothing logged in that window." + plan
         : view.meals.length + " meals" + plan;
-    }).catch(function (e) { $("diary-status").textContent = "failed: " + e.message; });
+      paintBox($("diary-state"), $("diary-body"), "ready");
+    }).catch(function (e) {
+      if (!sel || sel.userId !== userId) return;
+      if (!first) { $("diary-status").textContent = "failed: " + e.message; return; }
+      loadedTab.diary = null;
+      paintBox($("diary-state"), $("diary-body"), "error", e, "the diary", function () { loadedTab.diary = userId; loadDiary(true); }, true);
+    });
   }
 
-  $("diary-load").addEventListener("click", function () { loadDiary(null); });
+  $("diary-load").addEventListener("click", function () { loadDiary(false); });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
@@ -2080,7 +2561,7 @@ pre { overflow-x: auto; max-width: 100%; }
     pushes: { title: "Pushes", load: loadPushes },
     funnel: { title: "Funnel", load: loadFunnel },
     campaigns: { title: "Campaigns", load: loadCampaigns },
-    accounts: { title: "Accounts", load: function () { loadComposerTemplates(); return loadUsers(false); } },
+    accounts: { title: "Accounts", load: function () { loadComposerTemplates(); usersCursor = null; return loadUsers(false); } },
     onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
     // The shell already read the templates to count what needs review, so the first open draws
     // from that answer instead of asking twice.
@@ -2104,30 +2585,35 @@ pre { overflow-x: auto; max-width: 100%; }
     return box;
   }
 
-  function paint(id, kind, err) {
-    var box = $("state-" + id);
+  // One state box and the body it stands in for: loading, error with a way to try again, or the
+  // body itself. The views and the account pane both draw theirs through this.
+  function paintBox(box, body, kind, err, what, retry, inner) {
     box.textContent = "";
-    $("body-" + id).classList.toggle("hidden", kind !== "ready");
+    body.classList.toggle("hidden", kind !== "ready");
     if (kind === "loading") box.appendChild(skeleton());
     if (kind !== "error") return;
     var bar = document.createElement("div");
     bar.className = "aerr";
     var msg = document.createElement("span");
-    msg.textContent = "Couldn't load " + VIEWS[id].title.toLowerCase() + ". "
+    msg.textContent = "Couldn't load " + what + ". "
       + (err && err.status ? "The server answered " + err.status + "." : "The request did not get an answer.");
     var sp = document.createElement("span");
     sp.className = "sp";
     var again = document.createElement("button");
     again.textContent = "Try again";
-    again.addEventListener("click", function () { run(id); });
+    again.addEventListener("click", retry);
     bar.appendChild(msg);
     bar.appendChild(sp);
     bar.appendChild(again);
     box.appendChild(bar);
     var note = document.createElement("p");
     note.className = "muted";
-    note.textContent = "Only this view failed. The others load on their own.";
+    note.textContent = inner ? "Only this part failed. The rest of the account is unaffected." : "Only this view failed. The others load on their own.";
     box.appendChild(note);
+  }
+
+  function paint(id, kind, err) {
+    paintBox($("state-" + id), $("body-" + id), kind, err, VIEWS[id].title.toLowerCase(), function () { run(id); });
   }
 
   function run(id) {
@@ -2160,6 +2646,7 @@ pre { overflow-x: auto; max-width: 100%; }
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     $("switcher").value = id;
+    setHead();
     window.scrollTo(0, 0);
     if (!state[id]) run(id);
   }

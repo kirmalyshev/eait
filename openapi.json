@@ -3401,6 +3401,132 @@
         ]
       }
     },
+    "/v1/milestones": {
+      "get": {
+        "operationId": "get_milestones",
+        "summary": "The 36-badge wall, the streak and the badges not yet seen. 404 while milestones are off.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestonesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/milestones/seen": {
+      "post": {
+        "operationId": "post_milestonesSeen",
+        "summary": "Marks earned badges seen.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestonesSeenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MilestonesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "get_healthTrend",
@@ -4537,6 +4663,13 @@
               "ended"
             ],
             "description": "`bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak."
+          },
+          "unseenBadges": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Badge ids earned and not yet seen, so a screen that already reads days can open Badge Unlocked. Always empty while milestones are switched off."
           }
         },
         "required": [
@@ -4544,7 +4677,8 @@
           "targetKcal",
           "streak",
           "streakLongest",
-          "streakState"
+          "streakState",
+          "unseenBadges"
         ],
         "additionalProperties": false,
         "description": "`GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer."
@@ -6496,6 +6630,72 @@
       "MessageResponse": {
         "$ref": "#/components/schemas/HandleTextResult"
       },
+      "MilestonesResponse": {
+        "type": "object",
+        "properties": {
+          "streak": {
+            "type": "number",
+            "description": "The current streak, as  {@link  DaysResponse.streak } ."
+          },
+          "streakLongest": {
+            "type": "number",
+            "description": "The longest streak this account has had."
+          },
+          "badges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "earnedAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "earnedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unseen": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Earned ids not yet marked seen, oldest first."
+          }
+        },
+        "required": [
+          "streak",
+          "streakLongest",
+          "badges",
+          "unseen"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/milestones` — the wall. `badges` is every one of the 36, in Cal AI's order."
+      },
+      "MilestonesSeenRequest": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/milestones/seen`. Unknown and unearned ids are ignored."
+      },
       "OffProduct": {
         "type": "object",
         "properties": {
@@ -7184,6 +7384,14 @@
             ],
             "description": "The streak length aimed for; `null` clears it back to unasked."
           },
+          "milestone_celebrations": {
+            "type": "boolean",
+            "description": "Show the Badge Unlocked moment. Default true."
+          },
+          "streak_on_home": {
+            "type": "boolean",
+            "description": "Show the streak chip on Home. Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -7677,6 +7885,14 @@
             ],
             "description": "Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it."
           },
+          "milestone_celebrations": {
+            "type": "boolean",
+            "description": "Show the Badge Unlocked moment (milestones). Default true."
+          },
+          "streak_on_home": {
+            "type": "boolean",
+            "description": "Show the streak chip on Home (milestones). Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -7733,6 +7949,8 @@
           "units",
           "struggles",
           "streak_goal_days",
+          "milestone_celebrations",
+          "streak_on_home",
           "country",
           "restrictions",
           "medical_limitations",
@@ -7766,6 +7984,8 @@
               "units",
               "struggles",
               "streak_goal_days",
+              "milestone_celebrations",
+              "streak_on_home",
               "country",
               "restrictions",
               "diet",
