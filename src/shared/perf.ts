@@ -55,6 +55,9 @@ export const PERF_SCREENS = [
   // Cold launch: process start → the first screen a user can act on.
   "boot",
   "signin",
+  // The email sign-in flow (ieat-app#1961): the address screen, then the code screen it lands on.
+  "email-address",
+  "email-code",
   "onboarding",
   "today",
   "progress",
@@ -102,6 +105,12 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
 
   // Static copy and two buttons. Nothing is fetched, so there is nothing to be slow.
   signin: { paintMs: 100, readyMs: 100 },
+
+  // The email sign-in screens (ieat-app#1961): a heading, one field and a countdown that needs
+  // no request to start. Neither screen fetches anything — the code a send produces arrives by
+  // mail, off the clock — so both are complete on their first frame.
+  "email-address": { paintMs: 100, readyMs: 100 },
+  "email-code": { paintMs: 100, readyMs: 100 },
 
   // The conversation. It opens on the COMPILED-IN copy and upgrades in place when the server's
   // arrives, so it is never waiting on a request — that is a design rule in `onboarding.tsx` and
