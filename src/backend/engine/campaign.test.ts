@@ -244,12 +244,12 @@ describe("segments", () => {
     const reached = async (u: string) => (await store.sendLogFor(u, 10)).map((r) => r.ref);
     const lapsedC = (await store.listCampaigns()).find((c) => c.name === "lapsed")!.id;
     const neverC = (await store.listCampaigns()).find((c) => c.name === "never")!.id;
-    // The slot gives one message a day, so each account is reached by ONE of the two, never both.
+    // Each account matches exactly one of the two segments.
     for (const u of old) expect(await reached(u)).toEqual([lapsedC]);
     expect(await reached(never)).toEqual([neverC]);
   });
 
-  it("never reaches an account with a streak of 3 or more, whatever the segment says; 2 is reached", async () => {
+  it("reaches an account on a streak of 3 or more like any other, and the streak band still selects", async () => {
     const meal = (userId: string, date: string) => ({
       id: crypto.randomUUID(), user_id: userId, ts: `${date}T10:00:00.000Z`, date,
       isFood: true, items: [{ name: "x", grams: 1 }], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
@@ -262,13 +262,14 @@ describe("segments", () => {
     for (const d of ["2026-08-20", "2026-08-19"]) await store.insertMeal(meal(two, d));
     await campaign({ segment: {} });
     await runCampaigns(deps, { now: BERLIN_1830 });
-    expect(await store.sendLogFor(three, 5)).toHaveLength(0);
+    expect(await store.sendLogFor(three, 5)).toHaveLength(1);
     expect(await store.sendLogFor(two, 5)).toHaveLength(1);
-    // A streak that ended yesterday is still a streak today.
-    const yesterday = await account();
-    for (const d of ["2026-08-19", "2026-08-18", "2026-08-17"]) await store.insertMeal(meal(yesterday, d));
+    // Targeting by streak is the segment's job: "none" does not reach a streak of any length.
+    const quiet = await account();
+    for (const d of ["2026-08-19", "2026-08-18", "2026-08-17"]) await store.insertMeal(meal(quiet, d));
+    const none = await campaign({ segment: { streakBand: ["none"] } });
     await runCampaigns(deps, { now: BERLIN_1830 + 60_000 });
-    expect(await store.sendLogFor(yesterday, 5)).toHaveLength(0);
+    expect((await store.sendLogFor(quiet, 5)).filter((r) => r.ref === none.id)).toHaveLength(0);
   });
 
   it("staffOnly reaches the allowlist and nobody else", async () => {
