@@ -60,6 +60,7 @@ export * from "./app/log-copy.ts";
 export * from "./app/home-copy.ts";
 export * from "./app/update-copy.ts";
 export * from "./app/meal-copy.ts";
+export * from "./app/ingredient-source.ts";
 export * from "./app/bmi-copy.ts";
 export * from "./app/progress-copy.ts";
 export * from "./app/shell-copy.ts";
