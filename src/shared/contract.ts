@@ -67,6 +67,12 @@ export const REFUSAL_STATUS = {
   "referral-own": 422,
   /** This account already joined with a code. The first one stands; this grants nothing. */
   "referral-already": 409,
+  /**
+   * This account has already bought eait — a paid period or the lifetime unlock, live or not; a
+   * free trial that never converted does not count. A referral is for somebody who has not paid
+   * yet, so nothing is stored and nobody's week moves.
+   */
+  "referral-paid": 409,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
@@ -417,7 +423,7 @@ export const ROUTES = {
   /**
    * POST {@link ReferralRedeemRequest} — apply a friend's code, once per account, ever. Answers
    * the {@link ProfileResponse} with the week already live; `referral-unknown`/`-own` 422,
-   * `referral-already` 409. The referrer's own week is never granted here: only the purchase
+   * `referral-already`/`-paid` 409. The referrer's own week is never granted here: only the purchase
    * webhook grants it, at the friend's first paid period.
    */
   referralRedeem: "/v1/referral/redeem",

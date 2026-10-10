@@ -280,6 +280,11 @@ msgstr "Có gì sai thì cứ nói — “một nửa cơm thôi”, “không c
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Liên kết mời dành cho thành viên mới, và tài khoản này đã mua eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Ghi lại"
 

@@ -280,6 +280,11 @@ msgstr "Se qualcosa non torna, dimmelo — «metà del riso», «niente avocado�
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "I link d'invito sono per i nuovi iscritti, e questo account ha già acquistato eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Registra"
 

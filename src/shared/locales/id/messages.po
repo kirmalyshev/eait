@@ -280,6 +280,11 @@ msgstr "Kalau ada yang meleset, bilang saja — \"nasinya setengah\", \"tanpa al
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Tautan undangan untuk anggota baru, dan akun ini sudah membeli eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Catat"
 

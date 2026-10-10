@@ -82,6 +82,35 @@ describe("redeeming a friend's link", () => {
   });
 });
 
+// Must-fix (#597 review): the referral is for somebody who has not paid. A renewal of a plan bought
+// before the code applied must never pay the referrer — so the code is refused there, and a
+// payment from before the code applied, however late it is delivered, pays nobody.
+describe("a friend who had already paid", () => {
+  it("is refused at redemption, with its own kind", async () => {
+    const referrer = await account();
+    const friend = await account();
+    await applyRevenueCatEvent(deps, paid(friend));
+    expect(await redeemReferral(deps, friend, await codeOf(referrer))).toEqual({ kind: "referral-paid" });
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+
+  it("may still join from a free trial, and the referrer is paid when it converts", async () => {
+    const referrer = await account();
+    const friend = await account();
+    await applyRevenueCatEvent(deps, paid(friend, { trial: true }));
+    expect("kind" in await redeemReferral(deps, friend, await codeOf(referrer))).toBe(false);
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
+    expect(await daysLeft(referrer)).toBe(7);
+  });
+
+  it("earns nothing from a payment made before the code applied, delivered after it", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { eventTimestampMs: Date.now() - 60_000 }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+});
+
 describe("the referral week is a grant", () => {
   it("lifts the sample refusal while it runs", async () => {
     const me = await account();

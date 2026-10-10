@@ -41,7 +41,7 @@ export async function referralView(deps: EngineDeps, userId: string): Promise<Re
   };
 }
 
-export type RedeemRefusal = { kind: "referral-unknown" | "referral-own" | "referral-already" };
+export type RedeemRefusal = { kind: "referral-unknown" | "referral-own" | "referral-already" | "referral-paid" };
 
 /**
  * Apply a friend's code to the caller's account and start the caller's week. `input` is whatever

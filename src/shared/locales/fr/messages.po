@@ -280,6 +280,11 @@ msgstr "Si quelque chose cloche, dis-le — \"la moitié du riz\", \"pas d'avoca
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Les liens d'invitation sont pour les nouveaux membres, et ce compte a déjà acheté eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Enregistrer"
 

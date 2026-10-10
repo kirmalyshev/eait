@@ -3619,6 +3619,47 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.redeemReferral(me, await codeOf(s, friendOf), 7)).toBe("ok");
     });
 
+    // Must-fix (#597 review): a code is for somebody who has not paid yet. An account that ever
+    // bought anything is refused — a trial that never converted is not a purchase and may still
+    // join — and a payment from before the code applied never pays the referrer, even delivered late.
+    it("refuses an account that has ever paid, and lets a trial that never converted join", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const code = await codeOf(s, referrer);
+      const payer = await s.createUser("en");
+      await s.putEntitlement(payer, { expiresAt: at(-1), productId: "monthly", eventAt: at(-30), trial: false });
+      expect(await s.redeemReferral(payer, code, 7)).toBe("paid");
+      expect(await s.bonusUntil(payer)).toBeNull();
+      const lifer = await s.createUser("en");
+      await s.putEntitlement(lifer, { lifetimeProductId: "lifetime", productId: "lifetime", eventAt: at(-30) });
+      expect(await s.redeemReferral(lifer, code, 7)).toBe("paid");
+      const trialist = await s.createUser("en");
+      await s.putEntitlement(trialist, { expiresAt: at(-1), productId: "monthly", eventAt: at(-5), trial: true });
+      expect(await s.redeemReferral(trialist, code, 7)).toBe("ok");
+    });
+
+    it("never pays for a period that started before the code applied", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(-1), 7)).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBeNull();
+      expect(await s.grantReferralWeek(friend, at(0), 7)).toBe(true);
+    });
+
+    it("does not carry a referral onto a merged-into account that has paid", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const anon = await s.createUser("en");
+      const real = await s.createUser("en");
+      await s.putEntitlement(real, { expiresAt: at(30), productId: "monthly", eventAt: at(-30), trial: false });
+      await s.redeemReferral(anon, await codeOf(s, referrer), 7);
+      await s.mergeUsers(anon, real);
+      expect((await s.referralOf(real))!.applied).toBe(false);
+      expect(await s.grantReferralWeek(real, at(1), 7)).toBe(false);
+    });
+
     it("is not writable through a profile patch", async () => {
       const s = await open();
       const referrer = await s.createUser("en");

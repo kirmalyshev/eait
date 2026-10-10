@@ -137,6 +137,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    */
   const referralCodes = new Map<string, string>(); // userId -> code
   const referredBy = new Map<string, string>(); // friend -> referrer
+  const referredAt = new Map<string, number>(); // friend -> when the code applied
+  /** "Bought something": any stored purchase except a free trial that never converted. */
+  const hasPaid = (userId: string): boolean => {
+    const e = entitlements.get(userId);
+    return !!e && !(e.trial === true && e.lifetimeProductId === null);
+  };
   const bonusUntil = new Map<string, string>(); // userId -> ISO
   /** `referral_grants`, keyed on the friend as its primary key is. */
   const referralGrants = new Map<string, { referrerId: string; eventAt: string; days: number }>();
@@ -316,6 +322,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const eraseReferrals = (userId: string): void => {
     referralCodes.delete(userId);
     referredBy.delete(userId);
+    referredAt.delete(userId);
     bonusUntil.delete(userId);
     for (const [friend, referrer] of referredBy) if (referrer === userId) referredBy.delete(friend);
     for (const [friend, g] of referralGrants) if (friend === userId || g.referrerId === userId) referralGrants.delete(friend);
@@ -876,8 +883,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // anonymous one's fills a gap (never as the survivor's own code), the later week wins, and
       // what the anonymous account earned or was granted follows the person.
       const fromReferrer = referredBy.get(fromUserId);
-      if (!referredBy.has(intoUserId) && fromReferrer !== undefined && fromReferrer !== intoUserId) {
+      // Never onto an account that has paid: a code is refused there, and a merge is not a way round it.
+      if (!referredBy.has(intoUserId) && fromReferrer !== undefined && fromReferrer !== intoUserId && !hasPaid(intoUserId)) {
         referredBy.set(intoUserId, fromReferrer);
+        referredAt.set(intoUserId, referredAt.get(fromUserId)!);
       }
       const fromBonus = bonusUntil.get(fromUserId);
       if (fromBonus !== undefined) bonusUntil.set(intoUserId, newest(bonusUntil.get(intoUserId), fromBonus));
@@ -948,7 +957,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (owner === userId) return "own";
       if (owner === undefined) return "unknown";
       if (referredBy.has(userId) || !users.has(userId)) return "already";
+      if (hasPaid(userId)) return "paid";
       referredBy.set(userId, owner);
+      referredAt.set(userId, now());
       bonusUntil.set(userId, extend(days, bonusUntil.get(userId)));
       return "ok";
     },
@@ -956,6 +967,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async grantReferralWeek(referredId, eventAt, days) {
       const referrerId = referredBy.get(referredId);
       if (referrerId === undefined || referralGrants.has(referredId)) return false;
+      if (Date.parse(eventAt) < referredAt.get(referredId)!) return false;
       referralGrants.set(referredId, { referrerId, eventAt, days });
       bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), entitlements.get(referrerId)?.expiresAt));
       return true;

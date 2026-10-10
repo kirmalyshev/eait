@@ -520,6 +520,9 @@ create index if not exists users_referred_by_idx on users (referred_by) where re
 -- granted by this server rather than bought. Never touches entitlement_event_at, the
 -- "bought something" marker, so a friend whose week ended is not lapsed.
 alter table users add column if not exists bonus_until timestamptz;
+-- When the code applied, stamped by the same guarded update. A payment from before it never pays
+-- the referrer: grantReferralWeek compares the event's time against it inside its own insert.
+alter table users add column if not exists referred_at timestamptz;
 -- One row per friend whose first paid period earned their referrer a reward: the primary key is
 -- what makes it once per friend, ever. days is the reward as granted (a week for monthly, two
 -- for yearly), so weeks earned is a sum rather than a guess about which product it was.
@@ -2531,7 +2534,9 @@ export async function postgresStore(
         await tx`
           update users into_u set
             referred_by = coalesce(into_u.referred_by,
-              case when from_u.referred_by <> into_u.id then from_u.referred_by end),
+              case when from_u.referred_by <> into_u.id and not (into_u.entitlement_event_at is not null and not (into_u.entitlement_trial and into_u.entitlement_lifetime_product_id is null)) then from_u.referred_by end),
+            referred_at = case when into_u.referred_by is null and from_u.referred_by <> into_u.id and not (into_u.entitlement_event_at is not null and not (into_u.entitlement_trial and into_u.entitlement_lifetime_product_id is null))
+              then from_u.referred_at else into_u.referred_at end,
             bonus_until = greatest(into_u.bonus_until, from_u.bonus_until)
           from users from_u
           where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
@@ -2611,16 +2616,20 @@ export async function postgresStore(
       const applied = await sql`
         update users me set
           referred_by = ref.id,
+          referred_at = ${at}::timestamptz,
           bonus_until = greatest(${at}::timestamptz, me.bonus_until) + make_interval(days => ${days}::int)
         from users ref
-        where me.id = ${userId} and me.referred_by is null
+        where me.id = ${userId} and me.referred_by is null and not (me.entitlement_event_at is not null and not (me.entitlement_trial and me.entitlement_lifetime_product_id is null))
+          -- "bought something": any purchase but a free trial that never converted (see RedeemOutcome)
           and ref.referral_code = ${code} and ref.id <> ${userId}
         returning me.id`;
       if (applied.length > 0) return "ok";
       // Nothing written; these reads only name the refusal.
       const owner = await sql`select id from users where referral_code = ${code}`;
       if (owner.length === 0) return "unknown";
-      return String(owner[0].id) === userId ? "own" : "already";
+      if (String(owner[0].id) === userId) return "own";
+      const me = await sql`select referred_by is not null as referred from users where id = ${userId}`;
+      return me[0]?.referred === false ? "paid" : "already";
     },
 
     async grantReferralWeek(referredId, eventAt, days) {
@@ -2634,6 +2643,7 @@ export async function postgresStore(
           insert into referral_grants (referred_id, referrer_id, event_at, days)
           select id, referred_by, ${new Date(eventAt)}, ${days}::int
             from users where id = ${referredId} and referred_by is not null
+              and referred_at <= ${new Date(eventAt)}
           on conflict (referred_id) do nothing
           returning referrer_id, days)
         update users r set bonus_until =

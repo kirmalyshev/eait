@@ -280,6 +280,11 @@ msgstr "Wenn etwas nicht stimmt, sag es — „halber Reis“, „keine Avocado�
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Einladungslinks sind für neue Mitglieder, und dieses Konto hat eait schon gekauft."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Eintragen"
 

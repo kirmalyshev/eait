@@ -117,6 +117,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
     "referral-unknown": i18n._("tg.refusal.referral-unknown", undefined, { message: "That invite link doesn't match anyone. Check it, or skip." }),
     "referral-own": i18n._("tg.refusal.referral-own", undefined, { message: "That's your own invite link. A friend's link goes here." }),
     "referral-already": i18n._("tg.refusal.referral-already", undefined, { message: "This account already joined with a friend's link." }),
+    "referral-paid": i18n._("tg.refusal.referral-paid", undefined, { message: "Invite links are for new members, and this account has already bought eait." }),
   },
 });
 

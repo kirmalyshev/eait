@@ -280,6 +280,11 @@ msgstr "Если что-то не так, скажи — «риса полови
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Ссылки-приглашения — для новых участников, а этот аккаунт уже покупал eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Записать"
 

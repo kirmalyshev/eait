@@ -280,6 +280,11 @@ msgstr "Si algo falla, dilo — \"la mitad del arroz\", \"sin aguacate\" — o t
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Los enlaces de invitación son para miembros nuevos, y esta cuenta ya compró eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Registrar"
 

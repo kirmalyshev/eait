@@ -281,8 +281,13 @@ export interface ReferralRow {
   shares: number;
 }
 
-/** What applying a code did. Only `ok` wrote anything. */
-export type RedeemOutcome = "ok" | "unknown" | "own" | "already";
+/**
+ * What applying a code did. Only `ok` wrote anything. `paid`: the account has bought something —
+ * a subscription period that was paid for, or the lifetime unlock, live or not. A free trial that
+ * never converted is not a purchase and does not refuse: the trial is the product's own offer, and
+ * the friend has still paid nothing a referral could be claimed against.
+ */
+export type RedeemOutcome = "ok" | "unknown" | "own" | "already" | "paid";
 
 /** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
 export type PushPlatform = "ios" | "web";
@@ -1050,11 +1055,14 @@ export interface Store {
    * `greatest(now, bonus_until) + days`, in the same statement that sets `referred_by` — and that
    * statement only matches while `referred_by` is still null, so two racing redemptions apply one.
    * The other answers are read after the guarded write found nothing to do, and wrote nothing.
+   * The same statement refuses an account that has ever paid (`paid`), and stamps `referred_at` —
+   * what `grantReferralWeek` compares a payment's time against.
    */
   redeemReferral(userId: string, code: string, days: number): Promise<RedeemOutcome>;
   /**
    * The referrer's reward for `referredId`'s first paid period: record the grant (once per friend,
-   * ever — the insert is `on conflict do nothing`) and, only if it inserted, move the REFERRER's
+   * ever — the insert is `on conflict do nothing`; only a payment at or after `referred_at`, compared
+   * inside that insert) and, only if it inserted, move the REFERRER's
    * `bonus_until` to `greatest(now, bonus_until, their subscription's expiry) + days`. False when
    * nothing was granted: nobody referred this account, or its referrer was already paid for it.
    * `referredId` comes from a verified webhook delivery, never from a client.
