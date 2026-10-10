@@ -11,7 +11,7 @@ import type { Store, StoreOptions } from "../store.ts";
 import {
   adminUsers, applyRevenueCatEvent, checkCaps, entitlementFor, profileView, type EngineDeps, type RevenueCatEvent,
 } from "./index.ts";
-import { redeemReferral, referralRewardDays, shareReferral } from "./referral.ts";
+import { isLinkPreview, openInvite, redeemReferral, referralAdminView, referralRewardDays, shareReferral } from "./referral.ts";
 
 const DAY = 86_400_000;
 const CONFIG: Config = {
@@ -371,5 +371,42 @@ describe("sharing the link", () => {
       expect(await shareReferral(deps, me, bad)).toBe(false);
     }
     expect((await store.referralOf(me))!.shares).toBe(2);
+  });
+});
+
+describe("the invite page's opens", () => {
+  const SAFARI = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+
+  it("counts a person opening a known code, and not a link preview fetching it", async () => {
+    const me = await account();
+    const code = await codeOf(me);
+    await openInvite(deps, code.toLowerCase(), SAFARI);
+    for (const ua of [
+      "facebookexternalhit/1.1 Facebot Twitterbot/1.0", "WhatsApp/2.23.20.0 A", "TelegramBot (like TwitterBot)",
+      "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)", "Mozilla/5.0 (compatible; Discordbot/2.0)", "",
+    ]) await openInvite(deps, code, ua);
+    await openInvite(deps, "ZZZZZZ", SAFARI);
+    const days = (await referralAdminView(deps, 7)).days;
+    expect(days.reduce((n, d) => n + d.opened, 0)).toBe(1);
+  });
+
+  it("knows a preview fetcher from a browser", () => {
+    expect(isLinkPreview(SAFARI)).toBe(false);
+    expect(isLinkPreview("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/129.0 Safari/537.36")).toBe(false);
+    expect(isLinkPreview("Googlebot/2.1")).toBe(true);
+    expect(isLinkPreview(null)).toBe(true);
+  });
+});
+
+describe("the admin's referral view", () => {
+  it("counts the step's refusals, garbage included, and clamps its window", async () => {
+    const me = await account();
+    await redeemReferral(deps, me, "not a code");
+    await redeemReferral(deps, me, await codeOf(me));
+    const view = await referralAdminView(deps, 9999);
+    expect(view.window).toBe(90);
+    expect(view.timezone).toBe(CONFIG.timezone);
+    expect(view.refusals).toEqual({ unknown: 1, own: 1, already: 0, paid: 0 });
+    expect((await referralAdminView(deps, Number.NaN)).window).toBe(7);
   });
 });

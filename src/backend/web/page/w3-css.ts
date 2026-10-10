@@ -134,6 +134,16 @@ export const W3_CSS = `
   font-size: 24px; font-weight: 700; letter-spacing: .45em; font-variant-numeric: tabular-nums; }
 .ob .eml input.codein.bad { box-shadow: inset 0 0 0 1.5px var(--bad); }
 .ob .eml .eml-note { font-size: 13px; font-weight: 600; margin: 0; }
+/* Refer a friend (#899): the invite page and the friend's-link step — ob-referral-*.html. */
+.ob .ref { max-width: 420px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.ob .ref form { display: flex; flex-direction: column; gap: 10px; }
+.ob .ref .wctas { flex-direction: column; gap: 6px; margin-top: 10px; }
+.ob .ref .wctas .cta { width: 100%; }
+.ob .ref input { font: inherit; font-size: 17px; height: 54px; padding: 0 16px; border: 1.5px solid var(--ink);
+  border-radius: 14px; background: var(--surface); color: var(--ink); }
+.ob .ref .note { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
+.ob .ref .note[role=status] { color: var(--accent); font-weight: 600; text-align: left; }
+.ob .ref .notice { font-size: 13px; font-weight: 600; color: var(--bad); margin: 0; }
 .ob .eml .eml-note.bad { color: var(--bad); }
 .ob .eml .eml-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ob .eml .eml-row form { display: contents; }

@@ -4023,6 +4023,56 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.referralOf(referrer)).toMatchObject({ joined: 0, subscribed: 0 });
     });
 
+    // The admin's Referrals view: counts by day, by channel and by refusal — global by definition,
+    // so on a shared Postgres every assertion is a DIFFERENCE across the actions it makes.
+    it("counts shares, opens, joins, payments and refusals for the admin, naming nobody", async () => {
+      const s = await open();
+      const before = await s.referralStats(7, "Europe/Berlin");
+      const referrer = await s.createUser("en");
+      const [a, b, c] = [await s.createUser("en"), await s.createUser("en"), await s.createUser("en")];
+      const code = await codeOf(s, referrer);
+      await s.recordReferralShare(referrer, "messages");
+      await s.recordReferralShare(referrer, "messages");
+      await s.recordReferralShare(a, "copy");
+      expect(await s.recordReferralOpen(code)).toBe(true);
+      expect(await s.recordReferralOpen(code)).toBe(true);
+      expect(await s.recordReferralOpen("ZZZZZZ")).toBe(false);
+      await s.redeemReferral(b, code, 7);
+      await s.redeemReferral(c, code, 7);
+      await s.grantReferralWeek(b, at(0), 7, `t-stats-b-${RUN}`, "");
+      await s.grantReferralWeek(c, at(0), 14, `t-stats-c-${RUN}`, "");
+      // A void grant — a refund that came first — paid nobody and counts nowhere.
+      const d = await s.createUser("en");
+      await s.redeemReferral(d, code, 7);
+      await s.revokeReferralWeek(d, `t-stats-d-${RUN}`);
+      await s.recordReferralRefusal("unknown");
+      await s.recordReferralRefusal("paid");
+      await s.recordReferralRefusal("own");
+      await s.recordReferralRefusal("already");
+      await s.recordReferralRefusal("unknown");
+      const after = await s.referralStats(7, "Europe/Berlin");
+
+      const day = (st: typeof after) => st.days.find((d) => d.day === "2026-10-10") ?? { shared: 0, opened: 0, joined: 0, paid: 0 };
+      const via = (st: typeof after, v: string) => st.via.find((x) => x.via === v)?.shares ?? 0;
+      expect({
+        shared: day(after).shared - day(before).shared, opened: day(after).opened - day(before).opened,
+        joined: day(after).joined - day(before).joined, paid: day(after).paid - day(before).paid,
+      }).toEqual({ shared: 3, opened: 2, joined: 3, paid: 2 });
+      expect(via(after, "messages") - via(before, "messages")).toBe(2);
+      expect(via(after, "copy") - via(before, "copy")).toBe(1);
+      expect({
+        unknown: after.refusals.unknown - before.refusals.unknown,
+        own: after.refusals.own - before.refusals.own,
+        already: after.refusals.already - before.refusals.already,
+        paid: after.refusals.paid - before.refusals.paid,
+      }).toEqual({ unknown: 2, own: 1, already: 1, paid: 1 });
+      expect(after.sharers - before.sharers).toBe(2);
+      expect(after.sharersJoined - before.sharersJoined).toBe(1);
+      expect(after.paidMonthly - before.paidMonthly).toBe(1);
+      expect(after.paidYearly - before.paidYearly).toBe(1);
+      expect(after.daysGranted - before.daysGranted).toBe(21);
+    });
+
     it("shows the referral week on the admin's row", async () => {
       const s = await open();
       const referrer = await s.createUser("en");
@@ -4646,7 +4696,7 @@ if (PG_URL) {
         // and scoping to a user that may not exist yet is not a concept the table has (#569).
         "putEmailCode",
         "putFoodRefs", "putNotificationCopy",
-        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "redeemReferral", "referralOf", "releaseJobs", "revokeReferralWeek",
+        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "recordReferralOpen", "recordReferralRefusal", "redeemReferral", "referralOf", "referralStats", "releaseJobs", "revokeReferralWeek",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
         "setSwitch", "spendEmailCode", "switchEnabled", "switchHistory", "updateCampaign",
         "upsertDeviceUser", "userIdForIdentity", "userIdForToken",

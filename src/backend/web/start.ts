@@ -25,7 +25,7 @@ import {
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, defaultUnits, dietOf, disabledScreens, ftInToCm,
   heightToCm, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, projectGoal,
+  isRefusal, MAX_USER_LINE, medicalOf, normalizeReferralCode, offerHeadline, optionLabel, planGoalLine, projectGoal,
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestionFirst,
@@ -43,7 +43,7 @@ import { emailSignInEnabled } from "../mail/choose.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
-  cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal,
+  cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal, redeemReferral, referralLink,
   onboardingContent, mintPairingCode, patchProfile, profileView, redeemPairingCode,
   sendEmailCode, signInWithProvider, verifyEmailCode,
   EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
@@ -56,7 +56,7 @@ import {
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
   chat, country, emailAddress, emailCode, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
-  signUp, stopped,
+  referralStep, signUp, stopped,
   FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal,
@@ -145,6 +145,15 @@ const browserLang = (req: Request): Lang =>
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
+/**
+ * A friend's code from `/start?ref=` (#899), carried across the walk and the provider round trip
+ * to the friend's-link step, which fills its field from it. The code alone — a code is public by
+ * design, so this holds nothing a person could be identified by. Applied nowhere until they press
+ * Continue on that step.
+ */
+const REF_COOKIE = "eait_ref";
+const REF_MAX_AGE = 7 * 24 * 60 * 60;
+const REFERRAL_PATH = `${START_PREFIX}/referral`;
 const OAUTH_COOKIE = "eait_oauth";
 const OAUTH_TTL_S = 600;
 /**
@@ -529,12 +538,16 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
   // ── The front door ────────────────────────────────────────────────────────────────────────
   if (req.method === "GET" && (pathname === START_PREFIX || pathname === `${START_PREFIX}/`)) {
+    // A friend's link (`/r/<code>` → `/start?ref=<code>`): kept for the friend's-link step, set on
+    // whichever answer this is. A `ref` that is not a code is ignored, never stored.
+    const ref = normalizeReferralCode(url.searchParams.get("ref") ?? "");
+    const refCookie = ref === null ? [] : [setCookie(REF_COOKIE, ref, { secure, maxAge: REF_MAX_AGE })];
     // A session mid-flow resumes where its account is — the questions, the plan, the deferred
     // country, or the product itself — rather than the welcome a returning user has no use for.
     // The welcome only exists for somebody with no session at all.
     if (userId !== null) {
       const profile = await ctx.store.getProfile(userId);
-      if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile));
+      if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile), refCookie);
     }
     // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
     // account to ask. Everything past it reads `profile.lang`, which the first answer's account
@@ -545,7 +558,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     return html(frontDoor(content.welcome, {
       q: `${START_PREFIX}/q`,
       signup: `${START_PREFIX}/signup`,
-    }, lang));
+    }, lang), 200, { cookies: refCookie });
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -1430,9 +1443,49 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         return ask(pageCopyFor(lang).answerRequired);
       }
       await patchProfile(ctx.deps, userId, { country: chosen });
-      // The stored profile read above still says country=null — the handoff is known without
-      // re-reading it: onboarded, signed in, country just written. That is the end of `/start`.
-      return seeOther(ctx.hasWebApp ? "/" : CHAT_PATH);
+      // The stored profile read above still says country=null. Onboarded, signed in, country just
+      // written: what is left is the optional friend's-link step, then the product.
+      return seeOther(REFERRAL_PATH);
+    }
+    return notFound();
+  }
+
+  // ── The friend's link, after the country (#899) ───────────────────────────────────────────
+  //
+  // OPTIONAL, and the last step: Skip is a link to the product and stores nothing. Reached from
+  // the country's POST only; a session that left here resumes at the product, because a step that
+  // can be skipped is not one a returning tab must be sent back to. The field is filled from the
+  // `?ref=` the walk started with. Applying it is the engine's — once per account, the friend's
+  // week at once, the referrer's never from here — and its three refusals are words on this page.
+  if (pathname === REFERRAL_PATH) {
+    const handoff = ctx.hasWebApp ? "/" : CHAT_PATH;
+    if (profile.onboarded_at === null) return seeOther(`${START_PREFIX}/q`);
+    if (await isAnonymous(ctx.deps, userId)) return seeOther(`${START_PREFIX}/signup`);
+    if (profile.country === null) return seeOther(`${START_PREFIX}/country`);
+    const lang = profile.lang;
+    const copy = pageCopyFor(lang);
+    const ref = normalizeReferralCode(cookies[REF_COOKIE] ?? "");
+    const page = (value: string, notice: { ok: boolean; text: string } | null, done: boolean, set: string[] = []) =>
+      html(referralStep({ value, notice, done, action: REFERRAL_PATH, next: handoff, lang }), 200, { cookies: set });
+
+    if (req.method === "GET") {
+      // Already joined with one — in the app, or on an earlier pass: nothing to ask.
+      if ((await profileView(ctx.deps, userId))?.referral.applied) return seeOther(handoff);
+      return page(ref === null ? "" : referralLink(ctx.deps.config, ref).replace(/^https?:\/\//, ""), null, false);
+    }
+    if (req.method === "POST") {
+      // A code is guessed against every account, so it takes the sign-in allowance per address.
+      const wait = ctx.limitAuth();
+      if (wait !== null) return tooManyAttempts(wait, lang);
+      const form = await req.formData().catch(() => null);
+      const typed = form?.get("code");
+      const value = typeof typed === "string" ? typed.slice(0, 200) : "";
+      const out = await redeemReferral(ctx.deps, userId, value);
+      const gone = [clearCookie(REF_COOKIE, secure)];
+      if (!("kind" in out)) return page(value, { ok: true, text: copy.referralApplied }, true, gone);
+      if (out.kind === "referral-already") return page(value, { ok: false, text: copy.referralAlready }, true, gone);
+      if (out.kind === "referral-paid") return page(value, { ok: false, text: copy.referralPaid }, true, gone);
+      return page(value, { ok: false, text: out.kind === "referral-own" ? copy.referralOwn : copy.referralUnknown }, false);
     }
     return notFound();
   }

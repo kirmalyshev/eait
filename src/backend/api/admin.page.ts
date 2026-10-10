@@ -461,6 +461,7 @@ details.how p { margin-top: 8px; }
     <a href="#pushes" data-nav="pushes">Pushes</a>
     <a href="#funnel" data-nav="funnel">Funnel</a>
     <a href="#campaigns" data-nav="campaigns">Campaigns</a>
+    <a href="#referrals" data-nav="referrals">Referrals</a>
     <a href="#accounts" data-nav="accounts">Accounts</a>
     <h6>Content</h6>
     <a href="#onboarding" data-nav="onboarding">Onboarding copy</a>
@@ -478,6 +479,7 @@ details.how p { margin-top: 8px; }
         <option value="pushes">Pushes</option>
         <option value="funnel">Funnel</option>
         <option value="campaigns">Campaigns</option>
+        <option value="referrals">Referrals</option>
         <option value="accounts">Accounts</option>
       </optgroup>
       <optgroup label="Content">
@@ -545,6 +547,40 @@ details.how p { margin-top: 8px; }
         <tbody></tbody>
       </table></div>
     </div>
+  </div></div>
+</section>
+
+<!-- Refer a friend (#899): shared, opened, joined, paid. Counts only — no account named. -->
+<section class="view hidden" id="view-referrals">
+  <div id="state-referrals"></div>
+  <div class="vbody hidden" id="body-referrals"><div class="nv">
+    <div class="akpi" id="referrals-kpi"></div>
+    <div class="card flush">
+      <div class="ph"><b>By day</b><span class="grow"></span><span class="hint" id="referrals-zone"></span><button class="small quiet" id="referrals-more"></button></div>
+      <div class="scrollx"><table id="referrals-days">
+        <thead><tr><th>Day</th><th class="r">Shared</th><th class="r">Opened</th><th class="r">Joined</th><th class="r">Paid</th></tr></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table></div>
+    </div>
+    <div class="card flush">
+      <div class="ph"><b>Shared via</b></div>
+      <div class="scrollx"><table id="referrals-via">
+        <thead><tr><th>Where</th><th class="r">Shares</th><th class="r"></th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+    <div class="card flush">
+      <div class="ph"><b>Refused at the step</b></div>
+      <div class="scrollx"><table id="referrals-refused">
+        <thead><tr><th>Why</th><th class="r">Count</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+    <div class="card flush">
+      <div class="scrollx"><table id="referrals-sharers"><tbody></tbody></table></div>
+    </div>
+    <p class="muted"><strong>Counts only.</strong> A share is the share sheet finishing, on the app or the web (a cancel counts nothing; Copy link counts). An open is a request to /r/&lt;code&gt;, served by the backend; no IP or device stored, link previews not counted. Joined is an invite that applied; paid is the friend's first payment, which gives the referrer a week on monthly and two on yearly.</p>
   </div></div>
 </section>
 
@@ -1263,7 +1299,7 @@ details.how p { margin-top: 8px; }
   }
 
   // The window each reporting view reads over, picked in the header: 7, 30 or 90 days.
-  var windows = { numbers: 7, pushes: 7, funnel: 7 };
+  var windows = { numbers: 7, pushes: 7, funnel: 7, referrals: 7 };
 
   function drawWindow(id) {
     var seg = $("head-window");
@@ -1812,6 +1848,88 @@ details.how p { margin-top: 8px; }
     $("funnel-more").textContent = slim ? "Show all columns" : "Show fewer columns";
     $("funnel-hint").classList.toggle("hidden", !slim);
   });
+
+  // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────
+  //
+  // Every number is the server's count over the window; nothing here names an account.
+  var refData = null;
+  var refAll = false;
+  // The labels the clients send as via, as the board names them; anything else shows as sent.
+  var VIA_LABEL = { messages: "Messages", whatsapp: "WhatsApp", telegram: "Telegram", copy: "Copy link", "web-share": "Browser share sheet" };
+  var REFUSAL_LABEL = { unknown: "No such link", own: "Their own link", already: "Already joined with one", paid: "Had already paid" };
+
+  function renderReferrals() {
+    var v = refData;
+    var shared = sum(v.days, function (d) { return d.shared; });
+    var opened = sum(v.days, function (d) { return d.opened; });
+    var joined = sum(v.days, function (d) { return d.joined; });
+    var paid = sum(v.days, function (d) { return d.paid; });
+    var kp = $("referrals-kpi");
+    kp.textContent = "";
+    kpi(kp, "Shared · " + v.window + " days", String(shared), "", "share sheet finished");
+    kpi(kp, "Link opened", String(opened), "", shared ? (Math.round((opened / shared) * 10) / 10) + " per share" : "");
+    kpi(kp, "Joined", String(joined), "", (opened ? pct(joined, opened) + " of opens · " : "") + "a week each");
+    var weeks = Math.floor(v.daysGranted / 7);
+    kpi(kp, "Paid", String(paid), "", v.paidMonthly + " monthly · " + v.paidYearly + " yearly · " + weeks + (weeks === 1 ? " week" : " weeks") + " to referrers");
+    $("referrals-zone").textContent = v.timezone;
+
+    // Every day of the window, the empty ones too — newest first, the last seven unless asked.
+    var byDay = {};
+    v.days.forEach(function (d) { byDay[d.day] = d; });
+    var today = Date.parse(dayInZone(v.timezone) + "T00:00:00Z");
+    var rows = [];
+    for (var i = 0; i < v.window; i++) {
+      var day = new Date(today - i * 86400000).toISOString().slice(0, 10);
+      rows.push(byDay[day] || { day: day, shared: 0, opened: 0, joined: 0, paid: 0 });
+    }
+    moreButton($("referrals-more"), rows.length, 7, refAll, "days");
+    var body = $("referrals-days").querySelector("tbody");
+    body.textContent = "";
+    (refAll ? rows : rows.slice(0, 7)).forEach(function (r) {
+      var tr = document.createElement("tr");
+      [dayLabel(r.day), r.shared, r.opened, r.joined, r.paid].forEach(function (t, i) { td(tr, t, i, 1); });
+      body.appendChild(tr);
+    });
+    var foot = $("referrals-days").querySelector("tfoot");
+    foot.textContent = "";
+    var tot = document.createElement("tr");
+    [v.window + " days", shared, opened, joined, paid].forEach(function (t, i) { td(tot, t, i, 1); });
+    foot.appendChild(tot);
+
+    var via = $("referrals-via").querySelector("tbody");
+    via.textContent = "";
+    v.via.forEach(function (r) {
+      var tr = document.createElement("tr");
+      [VIA_LABEL[r.via] || r.via, r.shares, pct(r.shares, shared)].forEach(function (t, i) { td(tr, t, i, 1); });
+      via.appendChild(tr);
+    });
+    emptyRow(via, 3, "Nothing was shared in this window.");
+
+    var refused = $("referrals-refused").querySelector("tbody");
+    refused.textContent = "";
+    ["unknown", "own", "already", "paid"].forEach(function (k) {
+      var tr = document.createElement("tr");
+      [REFUSAL_LABEL[k], v.refusals[k]].forEach(function (t, i) { td(tr, t, i, 1); });
+      refused.appendChild(tr);
+    });
+
+    var sharers = $("referrals-sharers").querySelector("tbody");
+    sharers.textContent = "";
+    [["Accounts that shared", v.sharers], ["… with a friend who joined", v.sharersJoined]].forEach(function (p) {
+      var tr = document.createElement("tr");
+      p.forEach(function (t, i) { td(tr, t, i, 1); });
+      sharers.appendChild(tr);
+    });
+  }
+
+  function loadReferrals() {
+    return api("GET", "/admin/api/referrals?days=" + windows.referrals).then(function (v) {
+      refData = v;
+      renderReferrals();
+    });
+  }
+
+  $("referrals-more").addEventListener("click", function () { refAll = !refAll; renderReferrals(); });
 
   // ── Push templates ─────────────────────────────────────────────────────────────────────────
   //
@@ -3021,6 +3139,7 @@ details.how p { margin-top: 8px; }
     pushes: { title: "Pushes", load: loadPushes },
     funnel: { title: "Funnel", load: loadFunnel },
     campaigns: { title: "Campaigns", load: loadCampaigns },
+    referrals: { title: "Referrals", load: loadReferrals },
     accounts: { title: "Accounts", load: function () { loadComposerTemplates(); usersCursor = null; return loadUsers(false); } },
     onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
     // The shell already read the templates to count what needs review, so the first open draws

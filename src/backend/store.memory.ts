@@ -20,7 +20,7 @@ import { type ChatMessage,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type MilestoneRow, type Role,
   type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow, type SwitchFlip,
-  type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
+  type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto, type ReferralRefusal, type ReferralStats,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -168,8 +168,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     ({ referrerId, eventAt, days: 0, transactionId, originalTransactionId: "", revoked: true, bucket: "bonus" });
   /** `referral_refunds`: every refunded transaction of a referred account, so its payment, if late, earns nothing. */
   const referralRefunds = new Map<string, string>(); // transaction -> the friend's account
-  /** `referral_events`: a share is a label and an instant, nothing that names the person. */
-  const referralShares: { referrerId: string; via: string; at: number }[] = [];
+  /** `referral_events`: a share or an open is a label and an instant, nothing that names the person. */
+  const referralShares: { kind: "share" | "open"; referrerId: string; via: string; at: number }[] = [];
+  /** `referral_refusals`: a reason and an instant, no account. */
+  const referralRefusals: { reason: ReferralRefusal; at: number }[] = [];
   /** A code nobody holds — Postgres's `new_referral_code()`. */
   const newReferralCode = (): string => {
     const taken = new Set(referralCodes.values());
@@ -1062,7 +1064,55 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async recordReferralShare(userId, via) {
-      if (users.has(userId)) referralShares.push({ referrerId: userId, via, at: now() });
+      if (users.has(userId)) referralShares.push({ kind: "share", referrerId: userId, via, at: now() });
+    },
+
+    async recordReferralOpen(code) {
+      const owner = [...referralCodes].find(([, c]) => c === code)?.[0];
+      if (owner === undefined) return false;
+      referralShares.push({ kind: "open", referrerId: owner, via: "", at: now() });
+      return true;
+    },
+
+    async recordReferralRefusal(reason) {
+      referralRefusals.push({ reason, at: now() });
+    },
+
+    async referralStats(days, timezone) {
+      const since = now() - days * 24 * 60 * 60 * 1000;
+      const rows = new Map<string, ReferralStats["days"][number]>();
+      const row = (at: number) => {
+        const day = localDate(timezone, new Date(at));
+        let r = rows.get(day);
+        if (!r) rows.set(day, r = { day, shared: 0, opened: 0, joined: 0, paid: 0 });
+        return r;
+      };
+      const events = referralShares.filter((e) => e.at >= since);
+      const via = new Map<string, number>();
+      for (const e of events) {
+        if (e.kind === "open") { row(e.at).opened++; continue; }
+        row(e.at).shared++;
+        via.set(e.via, (via.get(e.via) ?? 0) + 1);
+      }
+      const joined = [...referredAt].filter(([, at]) => at >= since);
+      for (const [, at] of joined) row(at).joined++;
+      // A revoked or void grant paid nobody anything.
+      const grants = [...referralGrants.values()].filter((g) => !g.revoked && Date.parse(g.eventAt) >= since);
+      for (const g of grants) row(Date.parse(g.eventAt)).paid++;
+      const sharers = new Set(events.filter((e) => e.kind === "share").map((e) => e.referrerId));
+      const joinedThrough = new Set(joined.map(([friend]) => referredBy.get(friend)));
+      const refusals = { unknown: 0, own: 0, already: 0, paid: 0 };
+      for (const r of referralRefusals) if (r.at >= since) refusals[r.reason]++;
+      return {
+        days: [...rows.values()].sort((a, b) => b.day.localeCompare(a.day)),
+        via: [...via].map(([v, shares]) => ({ via: v, shares })).sort((a, b) => b.shares - a.shares || a.via.localeCompare(b.via)),
+        refusals,
+        sharers: sharers.size,
+        sharersJoined: [...sharers].filter((id) => joinedThrough.has(id)).length,
+        paidMonthly: grants.filter((g) => g.days < 14).length,
+        paidYearly: grants.filter((g) => g.days >= 14).length,
+        daysGranted: grants.reduce((n, g) => n + g.days, 0),
+      };
     },
 
     async revokeReferralWeek(referredId, transactionId) {
@@ -1087,7 +1137,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         joined: [...referredBy.values()].filter((r) => r === userId).length,
         subscribed: grants.length,
         daysEarned: grants.reduce((n, g) => n + g.days, 0),
-        shares: referralShares.filter((e) => e.referrerId === userId).length,
+        shares: referralShares.filter((e) => e.kind === "share" && e.referrerId === userId).length,
       };
     },
 

@@ -12,6 +12,9 @@ import { YOU_COPY, youCopyFor, youFacts } from "./you-copy.ts";
 
 function flatten(node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> {
   if (typeof node === "string") { out[at] = node; return out; }
+  // A plural table (`CountForms`) is ONE entry: its categories are the language's own, so English's
+  // one/other and Russian's one/few/many/other are the same key. Its `other` stands for it.
+  if (typeof node === "object" && node !== null && "other" in node) { out[at] = (node as { other: string }).other; return out; }
   if (typeof node === "object" && node !== null) {
     for (const [k, v] of Object.entries(node)) flatten(v, at === "" ? k : `${at}.${k}`, out);
   }

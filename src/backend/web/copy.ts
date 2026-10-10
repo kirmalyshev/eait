@@ -169,6 +169,29 @@ export interface PageCopy {
   emailResendWait: string;
   emailResend: string;
   emailDifferent: string;
+  /**
+   * The invite page a friend's link opens (#899) — `/r/<code>`, the same page on a phone and a
+   * desktop. `{link}` in `inviteCopied` is the link without its scheme, as it is read off a screen.
+   */
+  inviteTitle: string;
+  inviteHeading: string;
+  inviteLead: string;
+  inviteApp: string;
+  inviteWeb: string;
+  inviteCopied: string;
+  /** The friend's-link step, after the country (#899). Optional: Skip is always there. */
+  referralAsk: string;
+  referralLead: string;
+  /** The field's accessible label. */
+  referralField: string;
+  referralSkip: string;
+  referralTryAgain: string;
+  referralApplied: string;
+  referralUnknown: string;
+  referralOwn: string;
+  referralAlready: string;
+  /** An account that has already bought eait: invite links are for people who have not. */
+  referralPaid: string;
 }
 
 const EN: PageCopy = {
@@ -281,6 +304,22 @@ const EN: PageCopy = {
   emailResendWait: "Resend code in {time}",
   emailResend: "Resend code",
   emailDifferent: "Use a different email",
+  inviteTitle: "A week of eait from a friend",
+  inviteHeading: "A friend sent you a week of eait",
+  inviteLead: "Snap a meal and see what's in it. Join with this link and the week is yours, free, from the day you sign up.",
+  inviteApp: "Get the iPhone app",
+  inviteWeb: "Start on the web",
+  inviteCopied: "Invite {link} is copied for the app.",
+  referralAsk: "Did a friend send you a link?",
+  referralLead: "Optional. Join with it and your first week of eait is free.",
+  referralField: "Friend's invite link",
+  referralSkip: "Skip",
+  referralTryAgain: "Try again",
+  referralApplied: "Invite applied. Your free week starts now.",
+  referralUnknown: "That link doesn't match anyone. Check it, or skip.",
+  referralOwn: "That's your own link. A friend's link goes here.",
+  referralAlready: "This account already joined with a friend's link.",
+  referralPaid: "Invite links are for new members, and this account has already bought eait.",
 };
 
 const FR: PageCopy = {
@@ -365,6 +404,22 @@ const FR: PageCopy = {
   emailResendWait: "Renvoyer le code dans {time}",
   emailResend: "Renvoyer le code",
   emailDifferent: "Utiliser un autre e-mail",
+  inviteTitle: "Une semaine d'eait offerte par un ami",
+  inviteHeading: "Un ami t'offre une semaine d'eait",
+  inviteLead: "Photographie un repas et vois ce qu'il contient. Rejoins eait avec ce lien et la semaine est à toi, gratuite, dès ton inscription.",
+  inviteApp: "Télécharger l'app iPhone",
+  inviteWeb: "Commencer sur le web",
+  inviteCopied: "L'invitation {link} est copiée pour l'app.",
+  referralAsk: "Un ami t'a envoyé un lien ?",
+  referralLead: "Facultatif. Rejoins eait avec ce lien et ta première semaine d'eait est gratuite.",
+  referralField: "Lien d'invitation d'un ami",
+  referralSkip: "Passer",
+  referralTryAgain: "Réessayer",
+  referralApplied: "Invitation appliquée. Ta semaine gratuite commence maintenant.",
+  referralUnknown: "Ce lien ne correspond à personne. Vérifie-le ou passe cette étape.",
+  referralOwn: "C'est ton propre lien. Ici, c'est le lien d'un ami.",
+  referralAlready: "Ce compte a déjà rejoint eait avec le lien d'un ami.",
+  referralPaid: "Les liens d'invitation sont pour les nouveaux membres, et ce compte a déjà acheté eait.",
 };
 
 const DE: PageCopy = {
@@ -449,6 +504,22 @@ const DE: PageCopy = {
   emailResendWait: "Code erneut senden in {time}",
   emailResend: "Code erneut senden",
   emailDifferent: "Andere E-Mail-Adresse verwenden",
+  inviteTitle: "Eine Woche eait von Freunden",
+  inviteHeading: "Jemand schenkt dir eine Woche eait",
+  inviteLead: "Fotografier eine Mahlzeit und sieh, was drin ist. Melde dich mit diesem Link an, und die Woche gehört dir, kostenlos, ab dem Tag der Anmeldung.",
+  inviteApp: "iPhone-App holen",
+  inviteWeb: "Im Web starten",
+  inviteCopied: "Die Einladung {link} ist für die App kopiert.",
+  referralAsk: "Hat dir jemand einen Link geschickt?",
+  referralLead: "Optional. Melde dich damit an, und deine erste Woche eait ist kostenlos.",
+  referralField: "Einladungslink von Freunden",
+  referralSkip: "Überspringen",
+  referralTryAgain: "Noch mal",
+  referralApplied: "Einladung angenommen. Deine kostenlose Woche beginnt jetzt.",
+  referralUnknown: "Dieser Link passt zu niemandem. Prüf ihn oder überspring den Schritt.",
+  referralOwn: "Das ist dein eigener Link. Hier gehört der Link von Freunden hin.",
+  referralAlready: "Dieses Konto ist schon über einen Einladungslink beigetreten.",
+  referralPaid: "Einladungslinks sind für neue Mitglieder, und dieses Konto hat eait schon gekauft.",
 };
 
 const IT: PageCopy = {
@@ -533,6 +604,22 @@ const IT: PageCopy = {
   emailResendWait: "Reinvia il codice tra {time}",
   emailResend: "Reinvia il codice",
   emailDifferent: "Usa un'altra email",
+  inviteTitle: "Una settimana di eait da un amico",
+  inviteHeading: "Un amico ti regala una settimana di eait",
+  inviteLead: "Fotografa un pasto e scopri cosa contiene. Iscriviti con questo link e la settimana è tua, gratis, dal giorno in cui ti registri.",
+  inviteApp: "Scarica l'app per iPhone",
+  inviteWeb: "Inizia sul web",
+  inviteCopied: "L'invito {link} è copiato per l'app.",
+  referralAsk: "Un amico ti ha mandato un link?",
+  referralLead: "Facoltativo. Iscriviti con questo link e la tua prima settimana di eait è gratis.",
+  referralField: "Link d'invito di un amico",
+  referralSkip: "Salta",
+  referralTryAgain: "Riprova",
+  referralApplied: "Invito applicato. La tua settimana gratis inizia ora.",
+  referralUnknown: "Questo link non corrisponde a nessuno. Controllalo o salta il passaggio.",
+  referralOwn: "Questo è il tuo link. Qui va il link di un amico.",
+  referralAlready: "Questo account si è già iscritto con il link di un amico.",
+  referralPaid: "I link d'invito sono per i nuovi iscritti, e questo account ha già acquistato eait.",
 };
 
 const ES: PageCopy = {
@@ -617,6 +704,22 @@ const ES: PageCopy = {
   emailResendWait: "Reenviar el código en {time}",
   emailResend: "Reenviar el código",
   emailDifferent: "Usar otro correo",
+  inviteTitle: "Una semana de eait de parte de un amigo",
+  inviteHeading: "Un amigo te regala una semana de eait",
+  inviteLead: "Fotografía una comida y mira lo que lleva. Únete con este enlace y la semana es tuya, gratis, desde el día en que te registres.",
+  inviteApp: "Descargar la app para iPhone",
+  inviteWeb: "Empezar en la web",
+  inviteCopied: "La invitación {link} está copiada para la app.",
+  referralAsk: "¿Te ha enviado un amigo un enlace?",
+  referralLead: "Opcional. Únete con él y tu primera semana de eait es gratis.",
+  referralField: "Enlace de invitación de un amigo",
+  referralSkip: "Omitir",
+  referralTryAgain: "Intentar de nuevo",
+  referralApplied: "Invitación aplicada. Tu semana gratis empieza ahora.",
+  referralUnknown: "Ese enlace no coincide con nadie. Revísalo u omítelo.",
+  referralOwn: "Ese es tu propio enlace. Aquí va el enlace de un amigo.",
+  referralAlready: "Esta cuenta ya se unió con el enlace de un amigo.",
+  referralPaid: "Los enlaces de invitación son para miembros nuevos, y esta cuenta ya compró eait.",
 };
 
 const VI: PageCopy = {
@@ -701,6 +804,22 @@ const VI: PageCopy = {
   emailResendWait: "Gửi lại mã sau {time}",
   emailResend: "Gửi lại mã",
   emailDifferent: "Dùng email khác",
+  inviteTitle: "Một tuần eait từ bạn bè",
+  inviteHeading: "Bạn bè tặng bạn một tuần eait",
+  inviteLead: "Chụp một bữa ăn và xem trong đó có gì. Tham gia bằng liên kết này và tuần đó là của bạn, miễn phí, từ ngày bạn đăng ký.",
+  inviteApp: "Tải ứng dụng iPhone",
+  inviteWeb: "Bắt đầu trên web",
+  inviteCopied: "Lời mời {link} đã được sao chép cho ứng dụng.",
+  referralAsk: "Bạn bè có gửi cho bạn một liên kết không?",
+  referralLead: "Không bắt buộc. Tham gia bằng liên kết này và tuần đầu tiên dùng eait của bạn được miễn phí.",
+  referralField: "Liên kết mời của bạn bè",
+  referralSkip: "Bỏ qua",
+  referralTryAgain: "Thử lại",
+  referralApplied: "Đã áp dụng lời mời. Tuần miễn phí của bạn bắt đầu từ bây giờ.",
+  referralUnknown: "Liên kết này không khớp với ai. Hãy kiểm tra lại hoặc bỏ qua.",
+  referralOwn: "Đây là liên kết của chính bạn. Hãy dán liên kết của bạn bè vào đây.",
+  referralAlready: "Tài khoản này đã tham gia bằng liên kết của bạn bè.",
+  referralPaid: "Liên kết mời dành cho thành viên mới, và tài khoản này đã mua eait.",
 };
 
 const ID: PageCopy = {
@@ -785,6 +904,22 @@ const ID: PageCopy = {
   emailResendWait: "Kirim ulang kode dalam {time}",
   emailResend: "Kirim ulang kode",
   emailDifferent: "Pakai email lain",
+  inviteTitle: "Seminggu eait dari teman",
+  inviteHeading: "Temanmu mengirimimu seminggu eait",
+  inviteLead: "Foto makananmu dan lihat isinya. Bergabung lewat tautan ini dan minggu itu milikmu, gratis, sejak hari kamu mendaftar.",
+  inviteApp: "Unduh aplikasi iPhone",
+  inviteWeb: "Mulai di web",
+  inviteCopied: "Undangan {link} sudah disalin untuk aplikasi.",
+  referralAsk: "Apakah ada teman yang mengirimimu tautan?",
+  referralLead: "Opsional. Bergabung lewat tautan ini dan minggu pertamamu di eait gratis.",
+  referralField: "Tautan undangan dari teman",
+  referralSkip: "Lewati",
+  referralTryAgain: "Coba lagi",
+  referralApplied: "Undangan diterapkan. Minggu gratismu dimulai sekarang.",
+  referralUnknown: "Tautan itu tidak cocok dengan siapa pun. Periksa lagi, atau lewati.",
+  referralOwn: "Itu tautanmu sendiri. Tautan dari teman yang dimasukkan di sini.",
+  referralAlready: "Akun ini sudah bergabung lewat tautan dari teman.",
+  referralPaid: "Tautan undangan untuk anggota baru, dan akun ini sudah membeli eait.",
 };
 
 const RU: PageCopy = {
@@ -869,6 +1004,22 @@ const RU: PageCopy = {
   emailResendWait: "Отправить код снова через {time}",
   emailResend: "Отправить код снова",
   emailDifferent: "Использовать другую почту",
+  inviteTitle: "Неделя eait от друга",
+  inviteHeading: "Друг дарит тебе неделю eait",
+  inviteLead: "Сфотографируй еду и узнай, что в ней. Присоединяйся по этой ссылке, и неделя твоя, бесплатно, с того дня, как ты зарегистрируешься.",
+  inviteApp: "Скачать приложение для iPhone",
+  inviteWeb: "Начать в браузере",
+  inviteCopied: "Приглашение {link} скопировано для приложения.",
+  referralAsk: "Тебе прислали ссылку-приглашение?",
+  referralLead: "Необязательно. Присоединись по этой ссылке, и первая неделя eait будет бесплатной.",
+  referralField: "Ссылка-приглашение от друга",
+  referralSkip: "Пропустить",
+  referralTryAgain: "Попробовать ещё",
+  referralApplied: "Приглашение принято. Твоя бесплатная неделя начинается сейчас.",
+  referralUnknown: "Эта ссылка никому не принадлежит. Проверь её или пропусти шаг.",
+  referralOwn: "Это твоя собственная ссылка. Сюда нужна ссылка друга.",
+  referralAlready: "Этот аккаунт уже присоединился по ссылке друга.",
+  referralPaid: "Ссылки-приглашения — для новых участников, а покупка eait на этом аккаунте уже есть.",
 };
 
 /** Every sentence `/start` writes for itself, keyed by language. */

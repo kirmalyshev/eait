@@ -289,6 +289,27 @@ export interface ReferralRow {
  */
 export type RedeemOutcome = "ok" | "unknown" | "own" | "already" | "paid";
 
+/** Why the friend's-link step refused a code — every refusal, counted for the admin. */
+export type ReferralRefusal = Exclude<RedeemOutcome, "ok">;
+
+/**
+ * The admin's Referrals view over a window (#899): counts, never accounts. Days are calendar days
+ * in the zone asked for, newest first, and only days with something on them.
+ */
+export interface ReferralStats {
+  days: { day: string; shared: number; opened: number; joined: number; paid: number }[];
+  /** Shares by channel label, most first. */
+  via: { via: string; shares: number }[];
+  refusals: Record<ReferralRefusal, number>;
+  /** Accounts that shared in the window, and of those the ones a friend joined through in it. */
+  sharers: number;
+  sharersJoined: number;
+  /** Rewards granted in the window, by size: a yearly friend's is two weeks or more. */
+  paidMonthly: number;
+  paidYearly: number;
+  daysGranted: number;
+}
+
 /** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
 export type PushPlatform = "ios" | "web";
 
@@ -1104,6 +1125,12 @@ export interface Store {
   revokeReferralWeek(referredId: string, transactionId: string): Promise<boolean>;
   /** Count one share of this account's link. `via` is a short label, already validated. */
   recordReferralShare(userId: string, via: string): Promise<void>;
+  /** Count one open of the invite page for `code`. False when no account holds it — nothing counted. */
+  recordReferralOpen(code: string): Promise<boolean>;
+  /** Count one refusal at the friend's-link step. Names no account: the reason and the instant. */
+  recordReferralRefusal(reason: ReferralRefusal): Promise<void>;
+  /** The admin's view of the last `days` days. Global, so unscoped; counts only. */
+  referralStats(days: number, timezone: string): Promise<ReferralStats>;
   /** Null when there is no such account. Counts other accounts' rows, so it reads unscoped. */
   referralOf(userId: string): Promise<ReferralRow | null>;
 

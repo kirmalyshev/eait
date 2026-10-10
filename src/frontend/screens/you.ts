@@ -14,7 +14,7 @@
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState, TRIAL_DAYS } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
-import { dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, weekdayDayMonthAt, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, weekdayDayMonthAt, wholeNumbers } from "../../shared/lang.ts";
 import {
   countryLabel, countryOptions, screenOptions, screenOptionValues,
 } from "../../shared/onboarding.ts";
@@ -36,7 +36,7 @@ import type {
 } from "@eait/shared/contract";
 import { pushRows } from "./you-push.ts";
 import { milestonesCopyFor } from "../../shared/app/milestones-copy.ts";
-import { api, ApiError, signOut, Unauthenticated } from "../api.ts";
+import { api, apiSend, ApiError, signOut, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl, macEl } from "../kit.ts";
 import { ico, tagx } from "../../shared/ui/kit.ts";
@@ -360,6 +360,60 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     setLastThread([]);
     location.hash = "#/";
     await render();
+  };
+
+  // ── Refer a friend (#899): one Share link button, the counts under it — never who. ───────────
+
+  const referralCard = (): HTMLElement | null => {
+    const r = me!.referral;
+    // A server older than the field sends none, and there is no link to share then.
+    if (!r?.link) return null;
+    const R = you.referral;
+    const card = el("div", "card refcard");
+    card.setAttribute("aria-label", R.label);
+    card.append(el("span", "lab", R.label), el("p", "t13 m", R.body));
+    const btn = el("button", "cta p") as HTMLButtonElement;
+    btn.type = "button";
+    btn.append(kitEl(`<i class="ico i-share" aria-hidden="true"></i>`), document.createTextNode(R.share));
+    // The share sheet where the browser has one, else the clipboard. Counted when it FINISHED —
+    // a cancelled sheet counts nothing — by a channel label only: a browser does not say which app.
+    const counted = (via: string) => apiSend("/referral/shared", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ via }),
+    }).catch(() => {});
+    btn.addEventListener("click", () => {
+      const text = fill(R.shareText, { link: r.link });
+      if (typeof navigator.share === "function") {
+        void navigator.share({ text }).then(() => counted("web-share"), () => {});
+        return;
+      }
+      void navigator.clipboard?.writeText(text).then(() => { toast(R.copied); void counted("copy"); }, () => {});
+    });
+    card.append(btn);
+    // The board's lines (you-referral-pending / -earned), plural in every language by `countText`.
+    const count = countText(lang);
+    const joined = count(R.friendsJoined, r.joined);
+    const earned = r.weeksEarned > 0 ? [count(R.weeksEarned, r.weeksEarned)] : [];
+    const counts = r.weeksEarned > 0 || r.subscribed > 0
+      ? [`${joined} · ${count(R.friendsSubscribed, r.subscribed)}`]
+      : r.joined > 0 ? [`${joined} · ${R.onFreeWeek}`, R.pending] : [];
+    // What the weeks mean for THIS account, both the server's numbers: the bank behind a running
+    // subscription (whole weeks when it is whole weeks, else days — a lapse spends whole days), or
+    // the date while the bonus is the grant keeping the account in. Never both: the server sends
+    // `bonusUntil` only with no live subscription, and `bankedDays` only with one.
+    const banked = r.bankedDays ?? 0;
+    const bonus = me!.entitlement.bonusUntil ?? null;
+    const own = banked > 0
+      ? [banked % 7 === 0 ? count(R.bankedWeeks, banked / 7) : count(R.bankedDays, banked)]
+      // The template's full stop ends the sentence; a short date that already ends in one (fr, de,
+      // ru: "30. Okt.", "30 oct.", "30 окт.") gives it up rather than print two.
+      : bonus !== null ? [fill(R.until, { date: subDate(bonus).replace(/\.$/, "") })] : [];
+    const lines = [...earned, ...own, ...counts];
+    if (lines.length > 0) {
+      const st = el("div", "refst");
+      for (const l of lines) st.append(el("div", "t13", l));
+      card.append(st);
+    }
+    return card;
   };
 
   const signOutCard = (): HTMLElement => {
@@ -842,7 +896,8 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     // anonymity: `ids` null keeps the card up.
     const anonymous = ids !== null
       && !(ids.identities ?? []).some((i) => signsIn(i.provider) && i.provider !== "device");
-    clear(rightCol).append(rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
+    const refer = anonymous ? null : referralCard();
+    clear(rightCol).append(...(refer ? [refer] : []), rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
   }
 
   await draw();

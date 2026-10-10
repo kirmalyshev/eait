@@ -17,7 +17,7 @@
 // Weight-bearing templates come in `…Kg`/`…Lb` pairs: the unit word lives in the template and
 // the client picks by `Profile.units` — a kg figure and a lb figure are not one string.
 
-import { LANG_TAG, listConjunction, numbers, t, type Localized } from "../lang.ts";
+import { LANG_TAG, listConjunction, numbers, t, type CountForms, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 import { healthLabel } from "../health-copy.ts";
 import { heightText, type UnitSystem } from "../ui/units.ts";
@@ -92,6 +92,39 @@ export interface YouCopy {
   subscriptionFree: string;
   /** The account row — and the phone's account screen title: "Account". */
   account: string;
+  /**
+   * Refer a friend (#899) — the card above the settings list, on both clients. One Share link
+   * button; the status lines under it are counts, never names. `{link}` is the account's own
+   * invite link (`ProfileResponse.referral.link`), `{n}` and `{m}` bare numbers.
+   */
+  referral: {
+    label: string;
+    body: string;
+    share: string;
+    /** What the share sheet carries, or the clipboard where there is none. */
+    shareText: string;
+    /** Said after Copy link, where there was no share sheet to say it. */
+    copied: string;
+    /** Friends who joined — "2 friends joined" — by `countText`, one form per plural category. */
+    friendsJoined: CountForms;
+    /** Of those, the ones who paid — "1 subscribed" — after a " · ". */
+    friendsSubscribed: CountForms;
+    /** After `friendsJoined` while nothing is earned: "on their free week". */
+    onFreeWeek: string;
+    /** Under `joined` while nothing is earned yet. */
+    pending: string;
+    /** The weeks the friends' payments added: "2 free weeks earned". */
+    weeksEarned: CountForms;
+    /**
+     * A paying referrer's bank (`ProfileResponse.referral.bankedDays`), in whole weeks when it is
+     * whole weeks, else in days (a lapse spends whole days, so a bank can be 10): Kirill's words,
+     * "2 free weeks banked, used if you stop", plural by `countText` like the friend counts.
+     */
+    bankedWeeks: CountForms;
+    bankedDays: CountForms;
+    /** While the referral bonus is the grant keeping the account in (`Entitlement.bonusUntil`): "{date}" is a day and month. */
+    until: string;
+  };
 
   /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
       the same component on both surfaces, so its captions come from one table. */
@@ -361,6 +394,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "ended",
     subscriptionFree: "free",
     account: "Account",
+    referral: {
+      label: "Refer a friend",
+      body: "Send a friend your link. They get a week of eait free. You get a free week when they buy Monthly, and 2 if they buy Yearly.",
+      share: "Share link",
+      shareText: "A week of eait free: {link}",
+      copied: "Link copied",
+      friendsJoined: { one: "{n} friend joined", other: "{n} friends joined" },
+      friendsSubscribed: { other: "{n} subscribed" },
+      onFreeWeek: "on their free week",
+      pending: "Your week comes with their first payment, two if they go yearly.",
+      weeksEarned: { one: "{n} free week earned", other: "{n} free weeks earned" },
+      bankedWeeks: { one: "{n} free week banked, used if you stop", other: "{n} free weeks banked, used if you stop" },
+      bankedDays: { one: "{n} free day banked, used if you stop", other: "{n} free days banked, used if you stop" },
+      until: "eait is yours until {date}.",
+    },
     web: {
       units: "Units",
       unitsMetric: "kg · cm",
@@ -485,6 +533,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminé",
     subscriptionFree: "gratuit",
     account: "Compte",
+    referral: {
+      label: "Parrainer un ami",
+      body: "Envoie ton lien à un ami. Il reçoit une semaine d'eait gratuite. Tu reçois une semaine gratuite quand il prend le Mensuel, et 2 s'il prend l'Annuel.",
+      share: "Partager le lien",
+      shareText: "Une semaine d'eait gratuite : {link}",
+      copied: "Lien copié",
+      friendsJoined: { one: "{n} ami inscrit", other: "{n} amis inscrits" },
+      friendsSubscribed: { one: "{n} abonné", other: "{n} abonnés" },
+      onFreeWeek: "en semaine gratuite",
+      pending: "Ta semaine arrive avec leur premier paiement, deux s'ils choisissent l'annuel.",
+      weeksEarned: { one: "{n} semaine gratuite gagnée", other: "{n} semaines gratuites gagnées" },
+      bankedWeeks: { one: "{n} semaine gratuite en réserve, utilisée si tu arrêtes", other: "{n} semaines gratuites en réserve, utilisées si tu arrêtes" },
+      bankedDays: { one: "{n} jour gratuit en réserve, utilisé si tu arrêtes", other: "{n} jours gratuits en réserve, utilisés si tu arrêtes" },
+      until: "eait est à toi jusqu'au {date}.",
+    },
     web: {
       units: "Unités",
       unitsMetric: "kg · cm",
@@ -609,6 +672,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "beendet",
     subscriptionFree: "kostenlos",
     account: "Konto",
+    referral: {
+      label: "Freunde einladen",
+      body: "Schick Freunden deinen Link. Sie bekommen eine Woche eait kostenlos. Du bekommst eine Woche kostenlos, wenn sie Monatlich kaufen, und 2, wenn sie Jährlich kaufen.",
+      share: "Link teilen",
+      shareText: "Eine Woche eait kostenlos: {link}",
+      copied: "Link kopiert",
+      friendsJoined: { one: "{n} Person beigetreten", other: "{n} Personen beigetreten" },
+      friendsSubscribed: { other: "{n} abonniert" },
+      onFreeWeek: "in der kostenlosen Woche",
+      pending: "Deine Woche kommt mit ihrer ersten Zahlung, zwei, wenn sie jährlich wählen.",
+      weeksEarned: { one: "{n} kostenlose Woche verdient", other: "{n} kostenlose Wochen verdient" },
+      bankedWeeks: { one: "{n} kostenlose Woche auf Vorrat, gilt, wenn du aufhörst", other: "{n} kostenlose Wochen auf Vorrat, gelten, wenn du aufhörst" },
+      bankedDays: { one: "{n} kostenloser Tag auf Vorrat, gilt, wenn du aufhörst", other: "{n} kostenlose Tage auf Vorrat, gelten, wenn du aufhörst" },
+      until: "eait gehört dir bis {date}.",
+    },
     web: {
       units: "Einheiten",
       unitsMetric: "kg · cm",
@@ -733,6 +811,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminato",
     subscriptionFree: "gratuito",
     account: "Account",
+    referral: {
+      label: "Invita un amico",
+      body: "Manda il tuo link a un amico. Riceve una settimana di eait gratis. Tu ricevi una settimana gratis quando sceglie il Mensile, e 2 se sceglie l'Annuale.",
+      share: "Condividi il link",
+      shareText: "Una settimana di eait gratis: {link}",
+      copied: "Link copiato",
+      friendsJoined: { one: "{n} amico iscritto", other: "{n} amici iscritti" },
+      friendsSubscribed: { one: "{n} abbonato", other: "{n} abbonati" },
+      onFreeWeek: "nella settimana gratis",
+      pending: "La tua settimana arriva con il loro primo pagamento, due se scelgono l'annuale.",
+      weeksEarned: { one: "{n} settimana gratis guadagnata", other: "{n} settimane gratis guadagnate" },
+      bankedWeeks: { one: "{n} settimana gratis da parte, usata se smetti", other: "{n} settimane gratis da parte, usate se smetti" },
+      bankedDays: { one: "{n} giorno gratis da parte, usato se smetti", other: "{n} giorni gratis da parte, usati se smetti" },
+      until: "eait è tuo fino al {date}.",
+    },
     web: {
       units: "Unità",
       unitsMetric: "kg · cm",
@@ -857,6 +950,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminada",
     subscriptionFree: "gratis",
     account: "Cuenta",
+    referral: {
+      label: "Invita a un amigo",
+      body: "Envía tu enlace a un amigo. Recibe una semana de eait gratis. Tú recibes una semana gratis cuando compre el Mensual, y 2 si compra el Anual.",
+      share: "Compartir enlace",
+      shareText: "Una semana de eait gratis: {link}",
+      copied: "Enlace copiado",
+      friendsJoined: { one: "{n} amigo se unió", other: "{n} amigos se unieron" },
+      friendsSubscribed: { one: "{n} suscrito", other: "{n} suscritos" },
+      onFreeWeek: "en su semana gratis",
+      pending: "Tu semana llega con su primer pago, dos si eligen el anual.",
+      weeksEarned: { one: "{n} semana gratis ganada", other: "{n} semanas gratis ganadas" },
+      bankedWeeks: { one: "{n} semana gratis guardada, se usa si lo dejas", other: "{n} semanas gratis guardadas, se usan si lo dejas" },
+      bankedDays: { one: "{n} día gratis guardado, se usa si lo dejas", other: "{n} días gratis guardados, se usan si lo dejas" },
+      until: "eait es tuyo hasta el {date}.",
+    },
     web: {
       units: "Unidades",
       unitsMetric: "kg · cm",
@@ -981,6 +1089,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "đã kết thúc",
     subscriptionFree: "miễn phí",
     account: "Tài khoản",
+    referral: {
+      label: "Giới thiệu bạn bè",
+      body: "Gửi liên kết của bạn cho bạn bè. Họ được một tuần eait miễn phí. Bạn được một tuần miễn phí khi họ mua gói Tháng, và 2 tuần nếu họ mua gói Năm.",
+      share: "Chia sẻ liên kết",
+      shareText: "Một tuần eait miễn phí: {link}",
+      copied: "Đã sao chép liên kết",
+      friendsJoined: { other: "{n} bạn đã tham gia" },
+      friendsSubscribed: { other: "{n} đã đăng ký" },
+      onFreeWeek: "đang dùng tuần miễn phí",
+      pending: "Tuần của bạn đến cùng lần thanh toán đầu tiên của họ, hai tuần nếu họ chọn gói năm.",
+      weeksEarned: { other: "{n} tuần miễn phí đã nhận" },
+      bankedWeeks: { other: "{n} tuần miễn phí để dành, dùng khi bạn ngừng gói" },
+      bankedDays: { other: "{n} ngày miễn phí để dành, dùng khi bạn ngừng gói" },
+      until: "eait là của bạn đến {date}.",
+    },
     web: {
       units: "Đơn vị",
       unitsMetric: "kg · cm",
@@ -1105,6 +1228,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "berakhir",
     subscriptionFree: "gratis",
     account: "Akun",
+    referral: {
+      label: "Ajak teman",
+      body: "Kirim tautanmu ke teman. Mereka dapat seminggu eait gratis. Kamu dapat seminggu gratis saat mereka membeli paket Bulanan, dan 2 minggu jika mereka membeli paket Tahunan.",
+      share: "Bagikan tautan",
+      shareText: "Seminggu eait gratis: {link}",
+      copied: "Tautan disalin",
+      friendsJoined: { other: "{n} teman bergabung" },
+      friendsSubscribed: { other: "{n} berlangganan" },
+      onFreeWeek: "sedang di minggu gratis",
+      pending: "Minggu gratismu datang dengan pembayaran pertama mereka, dua minggu jika mereka memilih tahunan.",
+      weeksEarned: { other: "{n} minggu gratis didapat" },
+      bankedWeeks: { other: "{n} minggu gratis tersimpan, dipakai jika kamu berhenti" },
+      bankedDays: { other: "{n} hari gratis tersimpan, dipakai jika kamu berhenti" },
+      until: "eait milikmu sampai {date}.",
+    },
     web: {
       units: "Unit",
       unitsMetric: "kg · cm",
@@ -1229,6 +1367,21 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "закончилась",
     subscriptionFree: "бесплатно",
     account: "Аккаунт",
+    referral: {
+      label: "Пригласить друга",
+      body: "Отправь другу свою ссылку. Он получит неделю eait бесплатно. Ты получишь бесплатную неделю, когда друг купит Месячный план, и 2 недели, если Годовой.",
+      share: "Поделиться ссылкой",
+      shareText: "Неделя eait бесплатно: {link}",
+      copied: "Ссылка скопирована",
+      friendsJoined: { one: "{n} друг по твоей ссылке", few: "{n} друга по твоей ссылке", many: "{n} друзей по твоей ссылке", other: "{n} друга по твоей ссылке" },
+      friendsSubscribed: { other: "{n} с подпиской" },
+      onFreeWeek: "на бесплатной неделе",
+      pending: "Твоя неделя придёт с их первым платежом, две — если они выберут годовой.",
+      weeksEarned: { one: "{n} бесплатная неделя за друзей", few: "{n} бесплатные недели за друзей", many: "{n} бесплатных недель за друзей", other: "{n} бесплатной недели за друзей" },
+      bankedWeeks: { one: "{n} бесплатная неделя в запасе, пойдёт в ход, если прервёшь подписку", few: "{n} бесплатные недели в запасе, пойдут в ход, если прервёшь подписку", many: "{n} бесплатных недель в запасе, пойдут в ход, если прервёшь подписку", other: "{n} бесплатной недели в запасе, пойдут в ход, если прервёшь подписку" },
+      bankedDays: { one: "{n} бесплатный день в запасе, пойдёт в ход, если прервёшь подписку", few: "{n} бесплатных дня в запасе, пойдут в ход, если прервёшь подписку", many: "{n} бесплатных дней в запасе, пойдут в ход, если прервёшь подписку", other: "{n} бесплатного дня в запасе, пойдут в ход, если прервёшь подписку" },
+      until: "eait твой до {date}.",
+    },
     web: {
       units: "Единицы",
       unitsMetric: "кг · см",

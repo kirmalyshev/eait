@@ -68,6 +68,10 @@ test("the whole W3 walk: plan, sign-up, country, first meal — and back", async
   await page.locator('.cty .opt:has(input[value="de"])').click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
 
+  // ── The friend's link (#899): optional, and Skip stores nothing ─────────────────────────
+  await expect(page).toHaveURL(/\/start\/referral$/);
+  await page.getByRole("link", { name: "Skip", exact: true }).click();
+
   // ── The first meal, in the app ──────────────────────────────────────────────────────────
   await expect(page.getByRole("button", { name: "Upload a photo" })).toBeVisible();
 

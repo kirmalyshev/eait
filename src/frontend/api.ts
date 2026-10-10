@@ -129,6 +129,11 @@ async function call(path: string, init: RequestInit): Promise<Response> {
   return res;
 }
 
+/** A write answered with no body (204) — `api` would try to parse one. */
+export async function apiSend(path: string, init: RequestInit): Promise<void> {
+  await call(path, init);
+}
+
 /**
  * A binary read — a stored meal photo — as its Blob. The bearer is a header, so a plain `<img>`
  * could never carry it; the CSP's `connect-src 'self'` refuses even a fetch of an object URL, so

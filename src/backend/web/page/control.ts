@@ -315,6 +315,16 @@ export const CONTROL_SCRIPT = `(function () {
     });
   }
 
+  // ── the invite page: "Get the iPhone app" copies the link first, so the app can paste it ─────
+  main.querySelectorAll("a[data-copy]").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      if (!navigator.clipboard) return;
+      e.preventDefault();
+      var go = function () { location.href = a.href; };
+      navigator.clipboard.writeText(a.getAttribute("data-copy") || "").then(go, go);
+    });
+  });
+
   // ── the unit toggle carries the draft across its POST ───────────────────────────────────────
   main.querySelectorAll("form.seg").forEach(function (seg) {
     seg.addEventListener("submit", function () {

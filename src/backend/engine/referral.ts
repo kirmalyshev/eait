@@ -8,6 +8,7 @@
 
 import { normalizeReferralCode, type ProfileResponse, type ReferralView } from "@eait/shared";
 import type { Config } from "../config.ts";
+import type { ReferralStats } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 import { readReferralBonus } from "./entitlement.ts";
@@ -31,11 +32,14 @@ export function referralRewardDays(config: Config, productId: string): number {
 /** Where the link points: the landing page, else the web app, else this API. */
 const linkBase = (c: Config): string => c.landingUrl || c.publicWebUrl || c.publicApiUrl;
 
+/** An account's invite link — `<origin>/r/<code>`. */
+export const referralLink = (c: Config, code: string): string => `${linkBase(c)}/r/${code}`;
+
 export async function referralView(deps: EngineDeps, userId: string): Promise<ReferralView> {
   const [row, bonus] = await Promise.all([deps.store.referralOf(userId), readReferralBonus(deps, userId)]);
   return {
     bankedDays: bonus.bankedShown,
-    link: row ? `${linkBase(deps.config)}/r/${row.code}` : "",
+    link: row ? referralLink(deps.config, row.code) : "",
     applied: row?.applied ?? false,
     joined: row?.joined ?? 0,
     subscribed: row?.subscribed ?? 0,
@@ -53,9 +57,12 @@ export async function redeemReferral(
   deps: EngineDeps, userId: string, input: unknown,
 ): Promise<ProfileResponse | RedeemRefusal> {
   const code = typeof input === "string" ? normalizeReferralCode(input) : null;
-  if (code === null) return { kind: "referral-unknown" };
-  const out = await deps.store.redeemReferral(userId, code, deps.config.referralFriendDays);
-  if (out !== "ok") return { kind: `referral-${out}` };
+  const out = code === null ? "unknown" : await deps.store.redeemReferral(userId, code, deps.config.referralFriendDays);
+  if (out !== "ok") {
+    // Counted for the admin's "refused at the step", by reason alone.
+    await deps.store.recordReferralRefusal(out);
+    return { kind: `referral-${out}` };
+  }
   // The caller's own account, which the redemption has just written to.
   return (await profileView(deps, userId))!;
 }
@@ -69,4 +76,35 @@ export async function shareReferral(deps: EngineDeps, userId: string, via: unkno
   if (!VIA.test(label)) return false;
   await deps.store.recordReferralShare(userId, label);
   return true;
+}
+
+/**
+ * A link-preview fetcher rather than a person: the messaging apps fetch a shared link to draw its
+ * card, and counting those would count every share as an open. No user agent at all is one too.
+ */
+export const isLinkPreview = (userAgent: string | null): boolean =>
+  !userAgent || /bot\b|bot\/|crawler|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|embedly|skype|vkshare|curl|wget|python|headless/i.test(userAgent);
+
+/**
+ * Count one open of the invite page for `input`'s code — a request to `/r/<code>`. Nothing about
+ * the visitor is kept: not the address, not the device, not the agent string read here.
+ */
+export async function openInvite(deps: EngineDeps, input: string, userAgent: string | null): Promise<void> {
+  const code = normalizeReferralCode(input);
+  if (code !== null && !isLinkPreview(userAgent)) await deps.store.recordReferralOpen(code);
+}
+
+/** The admin's window, in days: 7, 30 and 90 are what the header offers; anything else is clamped. */
+const ADMIN_MAX_DAYS = 90;
+
+export interface ReferralAdminView extends ReferralStats {
+  window: number;
+  timezone: string;
+}
+
+/** The admin's Referrals view (#899): counts over the last `days` days, in this server's zone. */
+export async function referralAdminView(deps: EngineDeps, days: number): Promise<ReferralAdminView> {
+  const window = Number.isFinite(days) ? Math.min(ADMIN_MAX_DAYS, Math.max(1, Math.floor(days))) : 7;
+  const timezone = deps.config.timezone;
+  return { window, timezone, ...await deps.store.referralStats(window, timezone) };
 }
