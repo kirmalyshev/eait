@@ -44,12 +44,12 @@ const withProfile = async (page: import("@playwright/test").Page, edit: (p: Reco
 
 test("a paying referrer is told the whole weeks banked behind the subscription", async ({ inWebApp: page }) => {
   await withProfile(page, (p) => { p.referral.bankedDays = 14; });
-  await expect(page.getByLabel("Refer a friend")).toContainText("Free weeks banked: 2. Used if you stop.");
+  await expect(page.getByLabel("Refer a friend")).toContainText("2 free weeks banked, used if you stop");
 });
 
 test("a bank that is not whole weeks is told in days", async ({ inWebApp: page }) => {
   await withProfile(page, (p) => { p.referral.bankedDays = 10; });
-  await expect(page.getByLabel("Refer a friend")).toContainText("Free days banked: 10. Used if you stop.");
+  await expect(page.getByLabel("Refer a friend")).toContainText("10 free days banked, used if you stop");
 });
 
 test("while the bonus keeps the account in, the card says until when", async ({ inWebApp: page }) => {

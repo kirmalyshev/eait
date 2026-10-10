@@ -117,11 +117,11 @@ export interface YouCopy {
     weeksEarned: CountForms;
     /**
      * A paying referrer's bank (`ProfileResponse.referral.bankedDays`), in whole weeks when it is
-     * whole weeks, else in days (a lapse spends whole days, so a bank can be 10): "{n}" is a bare
-     * number, and the label-colon form keeps it plural-free in every language.
+     * whole weeks, else in days (a lapse spends whole days, so a bank can be 10): Kirill's words,
+     * "2 free weeks banked, used if you stop", plural by `countText` like the friend counts.
      */
-    bankedWeeks: string;
-    bankedDays: string;
+    bankedWeeks: CountForms;
+    bankedDays: CountForms;
     /** While the referral bonus is the grant keeping the account in (`Entitlement.bonusUntil`): "{date}" is a day and month. */
     until: string;
   };
@@ -405,8 +405,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "on their free week",
       pending: "Your week comes with their first payment, two if they go yearly.",
       weeksEarned: { one: "{n} free week earned", other: "{n} free weeks earned" },
-      bankedWeeks: "Free weeks banked: {n}. Used if you stop.",
-      bankedDays: "Free days banked: {n}. Used if you stop.",
+      bankedWeeks: { one: "{n} free week banked, used if you stop", other: "{n} free weeks banked, used if you stop" },
+      bankedDays: { one: "{n} free day banked, used if you stop", other: "{n} free days banked, used if you stop" },
       until: "eait is yours until {date}.",
     },
     web: {
@@ -544,8 +544,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "en semaine gratuite",
       pending: "Ta semaine arrive avec leur premier paiement, deux s'ils choisissent l'annuel.",
       weeksEarned: { one: "{n} semaine gratuite gagnée", other: "{n} semaines gratuites gagnées" },
-      bankedWeeks: "Semaines gratuites en réserve : {n}. Utilisées si tu arrêtes.",
-      bankedDays: "Jours gratuits en réserve : {n}. Utilisés si tu arrêtes.",
+      bankedWeeks: { one: "{n} semaine gratuite en réserve, utilisée si tu arrêtes", other: "{n} semaines gratuites en réserve, utilisées si tu arrêtes" },
+      bankedDays: { one: "{n} jour gratuit en réserve, utilisé si tu arrêtes", other: "{n} jours gratuits en réserve, utilisés si tu arrêtes" },
       until: "eait est à toi jusqu'au {date}.",
     },
     web: {
@@ -683,8 +683,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "in der kostenlosen Woche",
       pending: "Deine Woche kommt mit ihrer ersten Zahlung, zwei, wenn sie jährlich wählen.",
       weeksEarned: { one: "{n} kostenlose Woche verdient", other: "{n} kostenlose Wochen verdient" },
-      bankedWeeks: "Kostenlose Wochen auf Vorrat: {n}. Gelten, wenn du aufhörst.",
-      bankedDays: "Kostenlose Tage auf Vorrat: {n}. Gelten, wenn du aufhörst.",
+      bankedWeeks: { one: "{n} kostenlose Woche auf Vorrat, gilt, wenn du aufhörst", other: "{n} kostenlose Wochen auf Vorrat, gelten, wenn du aufhörst" },
+      bankedDays: { one: "{n} kostenloser Tag auf Vorrat, gilt, wenn du aufhörst", other: "{n} kostenlose Tage auf Vorrat, gelten, wenn du aufhörst" },
       until: "eait gehört dir bis {date}.",
     },
     web: {
@@ -822,8 +822,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "nella settimana gratis",
       pending: "La tua settimana arriva con il loro primo pagamento, due se scelgono l'annuale.",
       weeksEarned: { one: "{n} settimana gratis guadagnata", other: "{n} settimane gratis guadagnate" },
-      bankedWeeks: "Settimane gratis da parte: {n}. Usate se smetti.",
-      bankedDays: "Giorni gratis da parte: {n}. Usati se smetti.",
+      bankedWeeks: { one: "{n} settimana gratis da parte, usata se smetti", other: "{n} settimane gratis da parte, usate se smetti" },
+      bankedDays: { one: "{n} giorno gratis da parte, usato se smetti", other: "{n} giorni gratis da parte, usati se smetti" },
       until: "eait è tuo fino al {date}.",
     },
     web: {
@@ -961,8 +961,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "en su semana gratis",
       pending: "Tu semana llega con su primer pago, dos si eligen el anual.",
       weeksEarned: { one: "{n} semana gratis ganada", other: "{n} semanas gratis ganadas" },
-      bankedWeeks: "Semanas gratis guardadas: {n}. Se usan si lo dejas.",
-      bankedDays: "Días gratis guardados: {n}. Se usan si lo dejas.",
+      bankedWeeks: { one: "{n} semana gratis guardada, se usa si lo dejas", other: "{n} semanas gratis guardadas, se usan si lo dejas" },
+      bankedDays: { one: "{n} día gratis guardado, se usa si lo dejas", other: "{n} días gratis guardados, se usan si lo dejas" },
       until: "eait es tuyo hasta el {date}.",
     },
     web: {
@@ -1100,8 +1100,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "đang dùng tuần miễn phí",
       pending: "Tuần của bạn đến cùng lần thanh toán đầu tiên của họ, hai tuần nếu họ chọn gói năm.",
       weeksEarned: { other: "{n} tuần miễn phí đã nhận" },
-      bankedWeeks: "Tuần miễn phí để dành: {n}. Dùng khi bạn ngừng gói.",
-      bankedDays: "Ngày miễn phí để dành: {n}. Dùng khi bạn ngừng gói.",
+      bankedWeeks: { other: "{n} tuần miễn phí để dành, dùng khi bạn ngừng gói" },
+      bankedDays: { other: "{n} ngày miễn phí để dành, dùng khi bạn ngừng gói" },
       until: "eait là của bạn đến {date}.",
     },
     web: {
@@ -1239,8 +1239,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "sedang di minggu gratis",
       pending: "Minggu gratismu datang dengan pembayaran pertama mereka, dua minggu jika mereka memilih tahunan.",
       weeksEarned: { other: "{n} minggu gratis didapat" },
-      bankedWeeks: "Minggu gratis tersimpan: {n}. Dipakai jika kamu berhenti.",
-      bankedDays: "Hari gratis tersimpan: {n}. Dipakai jika kamu berhenti.",
+      bankedWeeks: { other: "{n} minggu gratis tersimpan, dipakai jika kamu berhenti" },
+      bankedDays: { other: "{n} hari gratis tersimpan, dipakai jika kamu berhenti" },
       until: "eait milikmu sampai {date}.",
     },
     web: {
@@ -1378,8 +1378,8 @@ export const YOU_COPY: Localized<YouCopy> = {
       onFreeWeek: "на бесплатной неделе",
       pending: "Твоя неделя придёт с их первым платежом, две — если они выберут годовой.",
       weeksEarned: { one: "{n} бесплатная неделя за друзей", few: "{n} бесплатные недели за друзей", many: "{n} бесплатных недель за друзей", other: "{n} бесплатной недели за друзей" },
-      bankedWeeks: "Бесплатных недель в запасе: {n}. Пойдут в ход, если прервёшь подписку.",
-      bankedDays: "Бесплатных дней в запасе: {n}. Пойдут в ход, если прервёшь подписку.",
+      bankedWeeks: { one: "{n} бесплатная неделя в запасе, пойдёт в ход, если прервёшь подписку", few: "{n} бесплатные недели в запасе, пойдут в ход, если прервёшь подписку", many: "{n} бесплатных недель в запасе, пойдут в ход, если прервёшь подписку", other: "{n} бесплатной недели в запасе, пойдут в ход, если прервёшь подписку" },
+      bankedDays: { one: "{n} бесплатный день в запасе, пойдёт в ход, если прервёшь подписку", few: "{n} бесплатных дня в запасе, пойдут в ход, если прервёшь подписку", many: "{n} бесплатных дней в запасе, пойдут в ход, если прервёшь подписку", other: "{n} бесплатного дня в запасе, пойдут в ход, если прервёшь подписку" },
       until: "eait твой до {date}.",
     },
     web: {

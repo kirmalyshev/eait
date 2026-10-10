@@ -403,7 +403,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const banked = r.bankedDays ?? 0;
     const bonus = me!.entitlement.bonusUntil ?? null;
     const own = banked > 0
-      ? [banked % 7 === 0 ? fill(R.bankedWeeks, { n: String(banked / 7) }) : fill(R.bankedDays, { n: String(banked) })]
+      ? [banked % 7 === 0 ? count(R.bankedWeeks, banked / 7) : count(R.bankedDays, banked)]
       : bonus !== null ? [fill(R.until, { date: subDate(bonus) })] : [];
     const lines = [...earned, ...own, ...counts];
     if (lines.length > 0) {
