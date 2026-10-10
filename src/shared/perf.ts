@@ -68,6 +68,8 @@ export const PERF_SCREENS = [
   "you-basis",
   "you-account",
   "you-subscription",
+  "you-milestones",
+  "milestones",
   "camera",
   "meal",
   "meal-fix",
@@ -203,6 +205,12 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "you-basis": { paintMs: 100, readyMs: 100 },
   "you-account": { paintMs: 100, readyMs: 100 },
   "you-subscription": { paintMs: 100, readyMs: 100 },
+  // Profile › Milestones: two switches read off the profile already in the session.
+  "you-milestones": { paintMs: 100, readyMs: 100 },
+
+  // The badge wall (ieat-app#1956): one read of `GET /v1/milestones`, a flat list of 36 medals that
+  // are bundled images, so the allowance is the request and nothing else — the same cold case `meal` has.
+  milestones: { paintMs: 100, readyMs: 250 },
 
   // A native capture session has to start. That is not JavaScript and not something a budget can
   // argue with, so the allowance is real and stated rather than hidden.
