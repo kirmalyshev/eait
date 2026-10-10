@@ -425,6 +425,16 @@ msgstr "Bilang apa yang meleset — \"nasinya setengah\", \"tanpa alpukat\", \"t
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Kode ini sudah kedaluwarsa. Minta yang baru di web atau di aplikasi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Kodenya salah. Cek email terbaru dari eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Hasilnya tidak masuk. Coba lagi."
 

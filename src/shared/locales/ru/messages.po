@@ -425,6 +425,16 @@ msgstr "Скажи, что не так — «риса половина», «бе
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Срок действия кода истёк. Возьми новый в вебе или в приложении."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Код не тот. Посмотри последнее письмо от eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Ответ не пришёл. Попробуй ещё раз."
 

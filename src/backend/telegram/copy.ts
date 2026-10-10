@@ -109,6 +109,10 @@ const COPY = (i18n: I18n): TelegramCopy => ({
     "analysis-failed": i18n._("tg.refusal.analysis-failed", undefined, { message: "That did not come back. Try it again." }),
     "unsupported-image": i18n._("tg.refusal.unsupported-image", undefined, { message: "That file is not a photo this can read. JPEG, PNG or WebP." }),
     "no-photo": i18n._("tg.refusal.no-photo", undefined, { message: "That photo did not come through. Send it again." }),
+    // The email sign-in's two refusals (#569). The bot never reaches them — a `Refusal` it would
+    // say needs the route's own words, and `REFUSAL_STATUS` is one list for every transport.
+    "code-wrong": i18n._("tg.refusal.code-wrong", undefined, { message: "That code isn't right. Check the newest email from eait." }),
+    "code-dead": i18n._("tg.refusal.code-dead", undefined, { message: "That code has expired. Ask for a new one on the web or in the app." }),
   },
 });
 

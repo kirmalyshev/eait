@@ -425,6 +425,16 @@ msgstr "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "That code has expired. Ask for a new one on the web or in the app."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "That code isn't right. Check the newest email from eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "That did not come back. Try it again."
 

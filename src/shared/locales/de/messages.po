@@ -425,6 +425,16 @@ msgstr "Sag mir, was nicht stimmt — „halber Reis“, „keine Avocado“, �
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Dieser Code ist abgelaufen. Lass dir einen neuen im Web oder in der App schicken."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Der Code stimmt nicht. Schau in die neueste E-Mail von eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Da kam nichts zurück. Versuch es noch einmal."
 
