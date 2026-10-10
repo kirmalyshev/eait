@@ -255,14 +255,13 @@ test("the food database switches show the default, PUT a flip, and re-render fro
 
   const photo = page.locator('#switches [data-switch="grounding.photo"]');
   const text = page.locator('#switches [data-switch="grounding.text"]');
-  await expect(photo).toContainText("on");
+  await expect(photo.getByRole("switch")).toHaveAttribute("aria-checked", "true");
   await expect(photo).toContainText("default");
   await expect(text).toContainText("default");
 
-  await photo.getByRole("button", { name: "Turn off" }).click();
-  await expect(photo).toContainText("off");
-  await expect(photo).toContainText("changed by admin-1 at 2026-10-10T11:00:00.000Z");
-  await expect(photo.getByRole("button", { name: "Turn on" })).toBeVisible();
+  await photo.getByRole("switch").click();
+  await expect(photo.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  await expect(photo).toContainText(/changed by admin-1 at \d+ \w{3} \d\d:\d\d/);
   // The other switch is untouched, and the flip is listed.
   await expect(text).toContainText("default");
   await expect(page.locator("#switch-recent")).toContainText("Photo off");
@@ -369,8 +368,8 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await stubAdmin(page);
     await openAdmin(page, "food");
     const panel = page.locator("#switches");
-    await panel.getByRole("button", { name: "Turn off" }).first().click();
-    await expect(panel.getByRole("button", { name: "Turn on" })).toHaveCount(1);
+    await panel.getByRole("switch").first().click();
+    await expect(panel.locator('[aria-checked="false"]')).toHaveCount(1);
     await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
     // The page as a whole may scroll for other panels; this one must not.
     for (const id of ["#switches", "#switch-recent"]) {
