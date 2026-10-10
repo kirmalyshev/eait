@@ -11,7 +11,7 @@
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
 import {
-  DIARY_WINDOW_DAYS, KCAL_PER_KG, entitlementActive, entitlementLive, explainTargets, localDate, loggedStreak,
+  DIARY_WINDOW_DAYS, KCAL_PER_KG, entitlementActive, entitlementLive, explainTargets, forgivingStreak, localDate,
   trialDaysLeft, windowStart, type Entitlement, type Goal, type Lang,
 } from "@eait/shared";
 import type { Config } from "../config.ts";
@@ -107,7 +107,7 @@ export async function adminUsers(
 /**
  * One account's summary for the admin's detail pane. `targets` is `explainTargets` — the very call
  * `profileView` makes — and `paceKgPerWeek` is the pace the target actually carries (signed, after
- * both guards), read off `basis.appliedDeltaKcal`. `streakDays` is `loggedStreak` over the same
+ * both guards), read off `basis.appliedDeltaKcal`. `streakDays` is `forgivingStreak` (#574) over the same
  * window `engine/diary.ts` walks. Null when there is no such account.
  */
 export interface AdminUserSummary extends AdminUserRow {
@@ -141,7 +141,7 @@ export async function adminUserSummary(deps: EngineDeps, userId: string): Promis
       paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
     },
     entitled: entitlementLive(row.entitlement, Date.now()),
-    streakDays: loggedStreak(new Set(totals.filter((r) => r.date <= today).map((r) => r.date)), today),
+    streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 
