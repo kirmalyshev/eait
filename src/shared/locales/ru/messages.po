@@ -456,7 +456,7 @@ msgstr "Этот формат не поддерживается. Нужен JPEG
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-unknown"
-msgstr "Эта ссылка-приглашение никому не принадлежит. Проверьте её или пропустите шаг."
+msgstr "Эта ссылка-приглашение никому не принадлежит. Проверь её или пропусти шаг."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -506,7 +506,7 @@ msgstr "Пока это предел. Попробуй позже."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-own"
-msgstr "Это ваша собственная ссылка-приглашение. Сюда нужна ссылка друга."
+msgstr "Это твоя собственная ссылка-приглашение. Сюда нужна ссылка друга."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
