@@ -5737,6 +5737,10 @@
           "modelCallTimeoutMs": {
             "type": "number",
             "description": "The server's budget for ONE model call, in ms — `EAIT__BACKEND__LLM_TIMEOUT_MS` as this server is actually running it.\n\nSENT, BECAUSE IT IS ENV-CONFIGURED. It differs between environments and production sets it explicitly, so an app that computed its wait from a number compiled into its binary is the second copy this interface exists to abolish — and the failure is silent in the worst direction: the phone abandons a turn the server is still running and still billing, with no error on either side.\n\nTHE PER-CALL NUMBER RATHER THAN A WAIT, because how many budgets a turn spends depends on the ROUTE and only the client knows which one it is about to call. `clientModelTimeoutMs` turns it into a wait with `PHOTO_MODEL_CALLS` or `TEXT_MODEL_CALLS`; `DEFAULT_MODEL_TIMEOUT_MS` is the fallback for a client with no profile yet, exactly as `maxPhotosPerMeal` is."
+          },
+          "emailSignIn": {
+            "type": "boolean",
+            "description": "Whether this server signs in by email (#569). False when it has no mailer (no Resend key): the routes answer 404 and the client draws no \"Continue with email\". Sent, never compiled in, because whether a key is configured is a fact about the environment, not the build."
           }
         },
         "required": [
@@ -5746,7 +5750,8 @@
           "sampleUsed",
           "sampleRemaining",
           "diaryWindowDays",
-          "modelCallTimeoutMs"
+          "modelCallTimeoutMs",
+          "emailSignIn"
         ],
         "additionalProperties": false,
         "description": "The server's effective limits, as told to the client.\n\nThese are ENV-CONFIGURED on the server (`EAIT__BACKEND__MAX_UPLOAD_MB`, `EAIT__BACKEND__MAX_PHOTOS_PER_MEAL`) and therefore differ between environments — which is exactly why they are sent rather than compiled into the app. A limit the server enforces and the client separately hardcodes is two numbers that must agree, and the failure when they stop agreeing is a user picking four photos and being refused by a server that allows two.\n\nThe constants below are the DEFAULTS and the fallback for a client that has not loaded a profile yet. They are not the authority; the server is."

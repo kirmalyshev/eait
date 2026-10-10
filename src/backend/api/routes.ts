@@ -29,6 +29,7 @@ import {
 } from "@eait/shared";
 import { narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
+import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
@@ -497,6 +498,7 @@ export function createRouter(
       // which addresses are accounts. The send caps answer 429 instead: they refuse by time, not
       // by identity.
       if (req.method === "POST" && pathname === ROUTES.authEmailCode) {
+        if (!emailSignInEnabled(deps.config)) return json({ error: "not found" }, 404);
         const body = await req.json() as AuthEmailCodeRequest;
         const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
         if (!EMAIL_ADDRESS.test(email)) return json({ error: "email invalid" }, 400);
@@ -508,6 +510,7 @@ export function createRouter(
       // And the spend half. OPTIONALLY authenticated for the same reason the OAuth routes are:
       // a bearer means "link this identity to the account I am already using".
       if (req.method === "POST" && pathname === ROUTES.authEmailVerify) {
+        if (!emailSignInEnabled(deps.config)) return json({ error: "not found" }, 404);
         const body = await req.json() as AuthEmailVerifyRequest;
         const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
         if (!EMAIL_ADDRESS.test(email)) return json({ error: "email invalid" }, 400);

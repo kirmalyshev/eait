@@ -2352,6 +2352,25 @@ describe("POST /v1/meals/:id/reanalyze", () => {
   });
 });
 
+describe("email sign-in without a mailer (#569)", () => {
+  it("does not exist: both routes 404 and the profile tells the client to hide the button", async () => {
+    const off = memoryStore();
+    const h = createRouter(
+      { store: off, config: { ...CONFIG, mailProvider: "off" }, llm: demoPorts(), push: fakePush(), mail: logMail() },
+      off, testVerifier,
+    );
+    const post = (route: string, body: unknown) =>
+      h(new Request(url(route), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    expect((await post(ROUTES.authEmailCode, { email: "a@example.com" })).status).toBe(404);
+    expect((await post(ROUTES.authEmailVerify, { email: "a@example.com", code: "123456", terms: true })).status).toBe(404);
+
+    const device = await post(ROUTES.authDevice, { deviceId: "d".repeat(32) });
+    const { token } = await device.json() as { token: string };
+    const profile = await h(new Request(url(ROUTES.profile), { headers: { authorization: `Bearer ${token}` } }));
+    expect(((await profile.json()) as { limits: { emailSignIn: boolean } }).limits.emailSignIn).toBe(false);
+  });
+});
+
 describe("POST /v1/meals/update/queue", () => {
   it("takes a note with no meal — a chat send — and still wants one on the bound kinds", async () => {
     const token = await session();
