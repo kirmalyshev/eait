@@ -1,16 +1,21 @@
-// The outbound-message budget, as vocabulary both sides read.
+// The outbound-message vocabulary, as both sides read it.
 //
-// R1 is one outbound message per user per LOCAL day. `push_slot` (backend) is the lock that
-// enforces it; this file is the rank that says who wins when several senders want the same day,
-// and the states a `send_log` row moves through. Rank lives here once so no sender carries a copy.
+// There is NO cross-sender daily cap (ieat-app#1965). `push_claim` (backend) is keyed by (account,
+// LOCAL day, sender): each sender sends at most once a day for its own reason, which is what makes
+// a per-minute tick idempotent. The only bound is the account's `push_daily_max` (and the optional
+// instance default), enforced in the one claim every sender goes through.
 
-/**
- * Highest priority first. A lower kind never evicts a higher one. `streak` is the habit line a
- * subscriber earns; `evening` is the plain 20:30 line (the nudge included) that every other
- * onboarded account gets.
- */
+/** The kinds a `send_log` / `push_claim` row may carry. The tick sends one scheduled message of the first four. */
 export const PUSH_KINDS = ["trial", "streak", "evening", "onboarding", "campaign"] as const;
 export type PushKind = (typeof PUSH_KINDS)[number];
+
+/**
+ * Who a claim belongs to. Every scheduled kind is the tick's ONE scheduled message (a trigger or the
+ * evening line, never both); a campaign is its `ref` (a campaign id, `admin:<id>`, `admin-test`).
+ */
+export function pushSenderOf(kind: PushKind, ref: string | null): string {
+  return kind === "campaign" ? `campaign:${ref ?? ""}` : "scheduled";
+}
 
 /**
  * What a `send_log` row may be about: any slot kind, plus the reply to the user's own action
@@ -26,11 +31,6 @@ export type SendKind = PushKind | "transactional";
  */
 export const SEND_STATES = ["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired", "would_have_sent"] as const;
 export type SendLogState = (typeof SEND_STATES)[number];
-
-/** True when `a` takes the day over `b`. Equal kinds do not outrank each other. */
-export function outranks(a: PushKind, b: PushKind): boolean {
-  return PUSH_KINDS.indexOf(a) < PUSH_KINDS.indexOf(b);
-}
 
 /**
  * An IANA zone name this runtime can date with. The app sends its own on app open.
