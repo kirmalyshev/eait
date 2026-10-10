@@ -121,6 +121,8 @@ const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
 
+if (demo) await (await import("./dev/demo-catalog.ts")).loadDemoCatalog(store);
+
 // THE ADMIN IS GRANTED HERE OR NOWHERE (#391a).
 //
 // Out of band, at boot, from a UUID in configuration — never from a request, and never by a
