@@ -27,3 +27,4 @@ export * from "./page/stopped.ts";
 export * from "./page/chat.ts";
 export * from "./page/plan.ts";
 export * from "./page/country.ts";
+export * from "./page/referral.ts";

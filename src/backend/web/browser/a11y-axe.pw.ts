@@ -35,6 +35,14 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     expect(await axeFindings(page)).toEqual([]);
   });
 
+  // #899: the page a friend's link opens. A code nobody holds still draws the page.
+  test(`/r/<code> has no axe violations at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto("/r/K7M2QD");
+    await expect(page.getByRole("link", { name: "Start on the web" })).toBeVisible();
+    expect(await axeFindings(page)).toEqual([]);
+  });
+
   test(`/start/plan has no axe violations at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await signIn(page, `pw-axe-plan-${width}-${Date.now()}`);

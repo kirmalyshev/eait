@@ -320,6 +320,11 @@ export interface Config {
    * "a week if friends sign up monthly, two weeks if yearly"); see `referralRewardDays`.
    */
   referralRewardDays: Readonly<Record<string, number>>;
+  /**
+   * The App Store listing the invite page's "Get the iPhone app" opens (`EAIT__BACKEND__APP_STORE_URL`),
+   * `ct=referral` appended. Empty draws no such button: a host with no app has no listing.
+   */
+  appStoreUrl: string;
 
   /**
    * The credential for `/admin` — onboarding copy and the funnel.
@@ -539,6 +544,13 @@ function list(name: string): string[] {
   return (process.env[name] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+/** Empty, or an https URL. Anything else is a startup error rather than a dead button. */
+function httpsUrl(name: string, raw: string | undefined): string {
+  const v = (raw ?? "").trim();
+  if (v !== "" && !/^https:\/\/\S+$/.test(v)) throw new Error(`[eait] ${name} must be an https URL, not "${v}"`);
+  return v;
+}
+
 /** `productId=days` pairs. A pair that does not read is a startup error, not a reward of nothing. */
 function referralRewardDaysFromEnv(pairs: string[]): Record<string, number> {
   return Object.fromEntries(pairs.map((pair) => {
@@ -698,6 +710,7 @@ export function configDefaults(): Config {
     revenueCatAcceptSandbox: false,
     referralFriendDays: 7,
     referralRewardDays: {},
+    appStoreUrl: "",
     publicApiUrl: "",
     publicWebUrl: "",
     telegramBotToken: "",
@@ -916,6 +929,7 @@ export function loadConfig(): Config {
     referralFriendDays: int("EAIT__BACKEND__REFERRAL_FRIEND_DAYS", d.referralFriendDays),
     referralRewardDays: process.env.EAIT__BACKEND__REFERRAL_REWARD_DAYS === undefined
       ? d.referralRewardDays : referralRewardDaysFromEnv(list("EAIT__BACKEND__REFERRAL_REWARD_DAYS")),
+    appStoreUrl: httpsUrl("EAIT__BACKEND__APP_STORE_URL", process.env.EAIT__BACKEND__APP_STORE_URL),
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
     telegramBotToken: telegramBotTokenFromEnv(),

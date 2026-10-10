@@ -73,7 +73,7 @@ describe("what /start says for itself, in eight languages", () => {
         if (typeof v !== "string") continue;
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
-            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab", "days", "n", "price", "email", "min", "time"],
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab", "days", "n", "price", "email", "min", "time", "link"],
             `${lang}.${k}`,
           ).toContain(m[1] ?? "");
         }

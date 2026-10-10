@@ -406,7 +406,7 @@ describe("the admin's referral view", () => {
     const view = await referralAdminView(deps, 9999);
     expect(view.window).toBe(90);
     expect(view.timezone).toBe(CONFIG.timezone);
-    expect(view.refusals).toEqual({ unknown: 1, own: 1, already: 0 });
+    expect(view.refusals).toEqual({ unknown: 1, own: 1, already: 0, paid: 0 });
     expect((await referralAdminView(deps, Number.NaN)).window).toBe(7);
   });
 });

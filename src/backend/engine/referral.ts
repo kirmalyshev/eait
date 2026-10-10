@@ -32,11 +32,14 @@ export function referralRewardDays(config: Config, productId: string): number {
 /** Where the link points: the landing page, else the web app, else this API. */
 const linkBase = (c: Config): string => c.landingUrl || c.publicWebUrl || c.publicApiUrl;
 
+/** An account's invite link — `<origin>/r/<code>`. */
+export const referralLink = (c: Config, code: string): string => `${linkBase(c)}/r/${code}`;
+
 export async function referralView(deps: EngineDeps, userId: string): Promise<ReferralView> {
   const [row, bonus] = await Promise.all([deps.store.referralOf(userId), readReferralBonus(deps, userId)]);
   return {
     bankedDays: bonus.bankedShown,
-    link: row ? `${linkBase(deps.config)}/r/${row.code}` : "",
+    link: row ? referralLink(deps.config, row.code) : "",
     applied: row?.applied ?? false,
     joined: row?.joined ?? 0,
     subscribed: row?.subscribed ?? 0,

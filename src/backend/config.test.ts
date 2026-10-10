@@ -33,7 +33,7 @@ const VARS = [
   "EAIT__BACKEND__LANDING_URL", "EAIT__BACKEND__TERMS_URL",
   "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN", "EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX",
   "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
-  "EAIT__BACKEND__REFERRAL_FRIEND_DAYS", "EAIT__BACKEND__REFERRAL_REWARD_DAYS",
+  "EAIT__BACKEND__REFERRAL_FRIEND_DAYS", "EAIT__BACKEND__REFERRAL_REWARD_DAYS", "EAIT__BACKEND__APP_STORE_URL",
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__WEB_PUSH_VAPID_PUBLIC_KEY", "EAIT__BACKEND__WEB_PUSH_VAPID_PRIVATE_KEY", "EAIT__BACKEND__WEB_PUSH_SUBJECT", "EAIT__BACKEND__PUSH_TIMEOUT_MS", "EAIT__BACKEND__SHUTDOWN_DRAIN_MS",
   "EAIT__BACKEND__JOB_CONCURRENCY", "EAIT__BACKEND__JOB_MAX_QUEUED_MS",
   "EAIT__BACKEND__EVENING_LINE_TIME",
@@ -515,6 +515,15 @@ describe("the paid tier", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__REFERRAL_REWARD_DAYS/);
     withRequired({ EAIT__BACKEND__REFERRAL_REWARD_DAYS: "yearly=-1" });
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__REFERRAL_REWARD_DAYS/);
+  });
+
+  it("takes an https App Store link or none", () => {
+    withRequired();
+    expect(loadConfig().appStoreUrl).toBe("");
+    withRequired({ EAIT__BACKEND__APP_STORE_URL: "https://apps.apple.com/app/id0000000000" });
+    expect(loadConfig().appStoreUrl).toBe("https://apps.apple.com/app/id0000000000");
+    withRequired({ EAIT__BACKEND__APP_STORE_URL: "javascript:alert(1)" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__APP_STORE_URL/);
   });
 
   // The old per-day free cap described a tier that no longer exists. Setting it must be a startup

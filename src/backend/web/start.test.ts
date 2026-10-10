@@ -2919,3 +2919,105 @@ describe("the counter and Back (#53)", () => {
   });
 });
 
+
+// ── Refer a friend (#899): the invite page, `/start?ref=`, and the step after the country ──────
+describe("refer a friend", () => {
+  const SAFARI = { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1" };
+  const LISTING = "https://apps.apple.com/app/id0000000000";
+  const codeOf = async (userId: string) => (await store.referralOf(userId))!.code;
+  const opens = async () => (await store.referralStats(7, CONFIG.timezone)).days.reduce((n, d) => n + d.opened, 0);
+
+  it("serves the invite page, counting a person's open and not a preview's", async () => {
+    router({ ...CONFIG, appStoreUrl: LISTING, landingUrl: "https://eait.fit" });
+    const referrer = await store.createUser("en");
+    const code = await codeOf(referrer);
+    const res = await get(`/r/${code.toLowerCase()}`, undefined, SAFARI);
+    expect(res.status).toBe(200);
+    const page = await res.text();
+    expect(page).toContain(escape(PAGE_COPY.inviteHeading));
+    expect(page).toContain(`href="${LISTING}?ct=referral"`);
+    expect(page).toContain(`data-copy="https://eait.fit/r/${code}"`);
+    expect(page).toContain(`href="/start?ref=${code}"`);
+    expect(page).toContain(escape(fill(PAGE_COPY.inviteCopied, { link: `eait.fit/r/${code}` })));
+    // It sets nothing and is no one's session.
+    expect(res.headers.getSetCookie()).toEqual([]);
+    await get(`/r/${code}`, undefined, { "user-agent": "facebookexternalhit/1.1" });
+    await handle(new Request(`https://api.eait.fit/r/${code}`, { method: "HEAD", headers: SAFARI }));
+    expect(await opens()).toBe(1);
+  });
+
+  it("draws no app button where the host names no listing, and 404s a path that holds no code", async () => {
+    const page = await (await get("/r/K7M2QD", undefined, SAFARI)).text();
+    expect(page).not.toContain("ct=referral");
+    expect(page).toContain(PAGE_COPY.inviteWeb);
+    expect((await get("/r/not-a-code", undefined, SAFARI)).status).toBe(404);
+    expect(await opens()).toBe(0);
+  });
+
+  it("carries ?ref= through the walk to the step after the country, and applies it there", async () => {
+    const referrer = await store.createUser("en");
+    const code = await codeOf(referrer);
+    const door = await get(`/start?ref=${code.toLowerCase()}`);
+    const ref = cookieFrom(door, "eait_ref");
+    expect(ref).toBe(`eait_ref=${code}`);
+    expect(door.headers.getSetCookie().find((c) => c.startsWith("eait_ref="))).toContain("HttpOnly");
+
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("ref-walk", "google", undefined, session);
+    const country = await post("/start/country", { answer: "de" }, signed);
+    expect(country.headers.get("location")).toBe("/start/referral");
+
+    const step = await (await get("/start/referral", `${signed}; ${ref}`)).text();
+    expect(step).toContain(`value="api.eait.fit/r/${code}"`);
+    expect(step).toContain(escape(PAGE_COPY.referralAsk));
+
+    const applied = await post("/start/referral", { code: `api.eait.fit/r/${code}` }, `${signed}; ${ref}`);
+    expect(applied.status).toBe(200);
+    const html = await applied.text();
+    expect(html).toContain(escape(PAGE_COPY.referralApplied));
+    expect(html).toContain(`href="/start/chat"`);
+    expect(applied.headers.getSetCookie().some((c) => c.startsWith("eait_ref=;"))).toBe(true);
+    const userId = await webUser(signed);
+    expect((await store.referralOf(userId))!.applied).toBe(true);
+    expect(await store.bonusUntil(userId)).not.toBeNull();
+    // Done once: the step is not asked again.
+    expect((await get("/start/referral", signed)).headers.get("location")).toBe("/start/chat");
+  });
+
+  it("answers each refusal in words, keeping what was typed, and Skip stores nothing", async () => {
+    const { session, userId } = await signedUp("ref-refusals");
+    const empty = await (await get("/start/referral", session)).text();
+    expect(empty).toContain(`value=""`);
+    expect(empty).toContain(`href="/start/chat">${escape(PAGE_COPY.referralSkip)}`);
+
+    const unknown = await (await post("/start/referral", { code: "K7M2QB" }, session)).text();
+    expect(unknown).toContain(escape(PAGE_COPY.referralUnknown));
+    expect(unknown).toContain(`value="K7M2QB"`);
+    const own = await (await post("/start/referral", { code: await codeOf(userId) }, session)).text();
+    expect(own).toContain(escape(PAGE_COPY.referralOwn));
+    expect((await store.referralOf(userId))!.applied).toBe(false);
+
+    const first = await store.createUser("en");
+    await store.redeemReferral(userId, await codeOf(first), 7);
+    const already = await (await post("/start/referral", { code: await codeOf(await store.createUser("en")) }, session)).text();
+    expect(already).toContain(escape(PAGE_COPY.referralAlready));
+    expect((await store.referralStats(7, CONFIG.timezone)).refusals).toEqual({ unknown: 1, own: 1, already: 1, paid: 0 });
+  });
+
+  // #597 refuses an account that has already bought eait; the step says so and moves on.
+  it("words the refusal for an account that has already paid, and asks nothing more", async () => {
+    const { session, userId } = await signedUp("ref-paid");
+    await store.putEntitlement(userId, { expiresAt: new Date(Date.now() + 86_400_000).toISOString(), productId: "monthly", eventAt: new Date().toISOString(), trial: false });
+    const page = await (await post("/start/referral", { code: await codeOf(await store.createUser("en")) }, session)).text();
+    expect(page).toContain(escape(PAGE_COPY.referralPaid));
+    expect(page).toContain(`href="/start/chat">${escape(PAGE_COPY.continueLabel)}`);
+    expect((await store.referralStats(7, CONFIG.timezone)).refusals.paid).toBe(1);
+  });
+
+  it("is not reachable before the walk has got there", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    expect((await get("/start/referral", session)).headers.get("location")).toBe("/start/signup");
+    const signed = await signIn("ref-early", "google", undefined, session);
+    expect((await get("/start/referral", signed)).headers.get("location")).toBe("/start/country");
+  });
+});

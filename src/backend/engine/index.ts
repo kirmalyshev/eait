@@ -36,7 +36,7 @@ export { recordPushOpen, recordPushDelivered, pushOpenView, PUSH_STATS_MAX_DAYS,
 export { pushConsent, setPushConsent, pushOffersAllowed, pushDevices } from "./push-consent.ts";
 export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export {
-  isLinkPreview, openInvite, redeemReferral, referralAdminView, referralRewardDays, referralView, shareReferral,
+  isLinkPreview, openInvite, redeemReferral, referralAdminView, referralLink, referralRewardDays, referralView, shareReferral,
   type RedeemRefusal, type ReferralAdminView,
 } from "./referral.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";

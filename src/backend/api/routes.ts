@@ -47,6 +47,7 @@ import {
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
 import { isStartPath, startRoutes } from "../web/start.ts";
+import { inviteRoute, isInvitePath } from "../web/invite.ts";
 import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook } from "./revenuecat.ts";
 import { APPLE_NOTIFICATIONS_PATH, appleNotifications } from "./apple-notifications.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
@@ -373,6 +374,11 @@ export function createRouter(
         if (web && new URL(web).host !== url.host) {
           return Response.redirect(`${web}${pathname}${url.search}`, 301);
         }
+      }
+
+      // A friend's invite link (#899): no account, no cookie, before any user is resolved.
+      if (isInvitePath(pathname)) {
+        return await inviteRoute(req, url, deps, Object.keys(providers).length > 0);
       }
 
       // Onboarding in a browser, on ITS OWN session cookie and before any user is resolved.
