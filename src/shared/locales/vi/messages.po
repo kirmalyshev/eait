@@ -450,6 +450,11 @@ msgstr "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG ho�
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Liên kết mời này không khớp với ai. Hãy kiểm tra lại hoặc bỏ qua."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Liên kết đó đã hết hạn. Mở trang kế hoạch trên web rồi bấm Kết nối Telegram lần nữa."
 
@@ -495,6 +500,11 @@ msgstr "Tạm thời đó là giới hạn. Thử lại sau nhé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Đây là liên kết mời của chính bạn. Hãy dán liên kết của bạn bè vào đây."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "ứng dụng"
 
@@ -502,6 +512,11 @@ msgstr "ứng dụng"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Ở đây không có bữa nào đang mở để sửa. Kể mình nghe bạn ăn gì rồi ghi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Tài khoản này đã tham gia bằng liên kết của bạn bè."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

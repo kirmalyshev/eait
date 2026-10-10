@@ -2387,3 +2387,53 @@ describe("POST /v1/meals/update/queue", () => {
     expect((await post(ROUTES.mealUpdateQueue, { kind: "reread", clientId: crypto.randomUUID() }, token)).status).toBe(400);
   });
 });
+
+describe("refer a friend (#899)", () => {
+  const me = async (token: string) => await (await get(ROUTES.profile, token)).json() as ProfileResponse;
+
+  it("applies a friend's link once, and answers each refusal at its status", async () => {
+    const referrer = await session();
+    const friend = await session();
+    const link = (await me(referrer)).referral.link;
+    expect(link).toMatch(/\/r\/[A-HJ-NP-Z2-9]{6}$/);
+
+    expect((await post(ROUTES.referralRedeem, { code: "ZZZZZZ" }, friend)).status).toBe(422);
+    expect(await (await post(ROUTES.referralRedeem, { code: (await me(friend)).referral.link }, friend)).json())
+      .toEqual({ error: "referral-own" });
+    expect((await post(ROUTES.referralRedeem, {}, friend)).status).toBe(422);
+
+    const res = await post(ROUTES.referralRedeem, { code: link }, friend);
+    expect(res.status).toBe(200);
+    const view = await res.json() as ProfileResponse;
+    expect(view.referral.applied).toBe(true);
+    expect(view.entitlement.active).toBe(true);
+
+    const again = await post(ROUTES.referralRedeem, { code: link }, friend);
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: "referral-already" });
+    // The referrer is told someone joined and is granted nothing: their week comes from a payment.
+    expect((await me(referrer)).referral).toMatchObject({ joined: 1, subscribed: 0, weeksEarned: 0 });
+    expect((await me(referrer)).entitlement.active).toBe(false);
+  });
+
+  it("will not take a referral through the profile", async () => {
+    const referrer = await session();
+    const token = await session();
+    const userId = (await me(referrer)).profile.user_id;
+    await patch(ROUTES.profile, { referred_by: userId, bonus_until: "2099-01-01T00:00:00.000Z" }, token);
+    expect((await me(token)).referral.applied).toBe(false);
+    expect((await me(token)).entitlement.active).toBe(false);
+  });
+
+  it("counts a share by its label, 204, and refuses free text", async () => {
+    const token = await session();
+    expect((await post(ROUTES.referralShared, { via: "whatsapp" }, token)).status).toBe(204);
+    expect((await post(ROUTES.referralShared, { via: "my friend Anna" }, token)).status).toBe(400);
+    expect((await post(ROUTES.referralShared, {}, token)).status).toBe(400);
+  });
+
+  it("needs a session", async () => {
+    expect((await post(ROUTES.referralRedeem, { code: "K7M2QD" })).status).toBe(401);
+    expect((await post(ROUTES.referralShared, { via: "copy" })).status).toBe(401);
+  });
+});

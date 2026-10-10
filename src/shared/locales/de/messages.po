@@ -450,6 +450,11 @@ msgstr "Dieses Dateiformat geht hier nicht. Nimm JPEG, PNG oder WebP."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Dieser Einladungslink passt zu niemandem. Prüf ihn oder überspring den Schritt."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Dieser Link ist abgelaufen. Öffne deinen Plan im Web und drück noch einmal auf Telegram verbinden."
 
@@ -495,6 +500,11 @@ msgstr "Limit erreicht. Versuch es später noch einmal."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Das ist dein eigener Einladungslink. Hier gehört der Link von Freunden hin."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "der App"
 
@@ -502,6 +512,11 @@ msgstr "der App"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Hier ist keine Mahlzeit offen, die ich ändern könnte. Sag mir, was du gegessen hast, und trag es neu ein."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Dieses Konto ist schon über den Link von Freunden beigetreten."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

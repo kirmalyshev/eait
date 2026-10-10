@@ -21,6 +21,7 @@ import type { EngineDeps } from "./deps.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
 import { evaluateMilestones } from "./milestones.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
+import { referralView } from "./referral.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
 
 /**
@@ -171,6 +172,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     coachName: threadCopyFor(profile.lang).coach.name,
     hasLoggedMeal: await hasLoggedMeal(deps, userId),
     donate: donateOf(deps.config),
+    referral: await referralView(deps, userId),
   };
 }
 
@@ -416,6 +418,7 @@ export async function patchProfile(
       coachName: threadCopyFor(profile.lang).coach.name,
       donate: donateOf(deps.config),
       hasLoggedMeal: await hasLoggedMeal(deps, userId),
+      referral: await referralView(deps, userId),
     },
   };
 }

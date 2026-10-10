@@ -17,6 +17,7 @@ import {
 import type { Config } from "../config.ts";
 import type { AdminUserRow, EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { referralRewardDays } from "./referral.ts";
 
 /**
  * The photos-per-day allowance of an ENTITLED account, resolved in one place.
@@ -275,12 +276,28 @@ export async function applyRevenueCatEvent(
   // than the one already applied — and does not pretend to tell them apart: the write is one
   // statement whose WHERE clause carries both conditions, and splitting the reason would mean a
   // second query asking a question nothing acts on. Both are ordinary, and both answer 200.
-  const written = await deps.store.putEntitlement(event.appUserId, {
-    ...patch,
-    productId: event.productId,
-    eventAt: new Date(event.eventTimestampMs).toISOString(),
-  });
+  const eventAt = new Date(event.eventTimestampMs).toISOString();
+  const written = await deps.store.putEntitlement(event.appUserId, { ...patch, productId: event.productId, eventAt });
+  await rewardReferrer(deps, event, eventAt);
   return written ? { applied: true } : { applied: false, reason: "not-applied" };
+}
+
+/** The deliveries that mean money changed hands for a subscription period. */
+const PAYMENTS = new Set(["INITIAL_PURCHASE", "RENEWAL"]);
+
+/**
+ * The referrer's reward (#899), at the friend's first PAID period: a purchase or renewal of the
+ * configured entitlement, with a period, not a trial, not sandbox — a simulated purchase may
+ * be accepted to exercise the tier, but it earns nobody anything. The store makes it once per
+ * friend, ever, so a renewal, a redelivery or a second plan grants nothing more.
+ *
+ * NOT GATED ON THE ENTITLEMENT WRITE. A paid period delivered after a newer event is refused there
+ * as stale and is still a payment; and a delivery whose grant failed is retried by RevenueCat,
+ * which only helps if the retry — refused as already applied — still reaches this.
+ */
+async function rewardReferrer(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
+  if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial || event.sandbox) return;
+  await deps.store.grantReferralWeek(event.appUserId, eventAt, referralRewardDays(deps.config, event.productId));
 }
 
 /** This delivery changes neither grant. */

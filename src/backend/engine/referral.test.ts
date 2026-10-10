@@ -1,0 +1,208 @@
+// Refer a friend (#899): the friend's week at redemption, the referrer's at the friend's first
+// paid period, and the third grant both of them make — which every reader of "paid" must count.
+
+import { beforeEach, describe, expect, it } from "bun:test";
+import { configDefaults, type Config } from "../config.ts";
+import { demoPorts } from "../llm/demo.ts";
+import { logMail } from "../mail/log.ts";
+import { fakePush } from "../push/fake.ts";
+import { memoryStore } from "../store.memory.ts";
+import type { Store, StoreOptions } from "../store.ts";
+import {
+  adminUsers, applyRevenueCatEvent, checkCaps, entitlementFor, profileView, type EngineDeps, type RevenueCatEvent,
+} from "./index.ts";
+import { redeemReferral, referralRewardDays, shareReferral } from "./referral.ts";
+
+const DAY = 86_400_000;
+const CONFIG: Config = {
+  ...configDefaults(),
+  port: 0, databaseUrl: "memory://test",
+  llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
+  freeAnalyses: 0, landingUrl: "https://eait.fit",
+};
+
+let store: Store;
+let deps: EngineDeps;
+function mount(opts: StoreOptions = {}, over: Partial<Config> = {}) {
+  store = memoryStore(opts);
+  deps = { store, config: { ...CONFIG, ...over }, llm: demoPorts(), push: fakePush(), mail: logMail() };
+}
+beforeEach(() => mount());
+
+const account = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+const codeOf = async (userId: string) => (await store.referralOf(userId))!.code;
+/** `referrer` and a `friend` who joined with its link. */
+async function pair() {
+  const referrer = await account();
+  const friend = await account();
+  const out = await redeemReferral(deps, friend, await codeOf(referrer));
+  if ("kind" in out) throw new Error(out.kind);
+  return { referrer, friend };
+}
+
+let seq = 0;
+const paid = (appUserId: string, over: Partial<RevenueCatEvent> = {}): RevenueCatEvent => ({
+  appUserId, type: "INITIAL_PURCHASE", entitlementIds: [CONFIG.revenueCatEntitlementId],
+  expirationAtMs: Date.now() + 30 * DAY, productId: "com.eait.fit.ios.monthly", trial: false,
+  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, ...over,
+});
+const daysLeft = async (userId: string) => {
+  const until = await store.bonusUntil(userId);
+  return until === null ? null : Math.round((Date.parse(until) - Date.now()) / DAY);
+};
+
+describe("redeeming a friend's link", () => {
+  it("accepts the link or the code as typed, and starts the friend's week at once", async () => {
+    const referrer = await account();
+    const friend = await account();
+    const out = await redeemReferral(deps, friend, ` https://eait.fit/r/${(await codeOf(referrer)).toLowerCase()} `);
+    if ("kind" in out) throw new Error(out.kind);
+    expect(out.referral.applied).toBe(true);
+    expect(out.entitlement).toMatchObject({ active: true, expiresAt: null, trial: false, lapsed: false });
+    expect(out.entitlement.bonusUntil).toBe(await store.bonusUntil(friend));
+    expect(await daysLeft(friend)).toBe(7);
+  });
+
+  it("takes the friend's days from config", async () => {
+    mount({}, { referralFriendDays: 3 });
+    const { friend } = await pair();
+    expect(await daysLeft(friend)).toBe(3);
+  });
+
+  it("refuses an unknown code, the account's own, and a second one, granting nothing", async () => {
+    const me = await account();
+    expect(await redeemReferral(deps, me, "ZZZZZZ")).toEqual({ kind: "referral-unknown" });
+    expect(await redeemReferral(deps, me, "not a code")).toEqual({ kind: "referral-unknown" });
+    expect(await redeemReferral(deps, me, 42)).toEqual({ kind: "referral-unknown" });
+    expect(await redeemReferral(deps, me, await codeOf(me))).toEqual({ kind: "referral-own" });
+    expect(await store.bonusUntil(me)).toBeNull();
+    const { friend } = await pair();
+    expect(await redeemReferral(deps, friend, await codeOf(await account()))).toEqual({ kind: "referral-already" });
+    expect(await daysLeft(friend)).toBe(7);
+  });
+});
+
+describe("the referral week is a grant", () => {
+  it("lifts the sample refusal while it runs", async () => {
+    const me = await account();
+    await store.addIdentity(me, "google", `g-${me}`);
+    expect(await checkCaps(deps, me, "2026-10-10", "photo")).toEqual({ kind: "subscription-required" });
+    await redeemReferral(deps, me, await codeOf(await account()));
+    expect(await checkCaps(deps, me, "2026-10-10", "photo")).toBeNull();
+  });
+
+  it("ends on its date, and a friend whose week ended without paying is not lapsed", async () => {
+    mount({ now: () => Date.now() - 8 * DAY });
+    const { friend } = await pair();
+    expect(await entitlementFor(deps, friend)).toMatchObject({ active: false, lapsed: false, bonusUntil: null });
+  });
+
+  it("describes only the subscription when one is live, and sends the week only when it is alone", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend));
+    const e = await entitlementFor(deps, friend);
+    expect(e).toMatchObject({ active: true, trial: false, bonusUntil: null, productId: "com.eait.fit.ios.monthly" });
+    expect(e.expiresAt).not.toBeNull();
+    expect((await entitlementFor(deps, referrer)).bonusUntil).toBe(await store.bonusUntil(referrer));
+  });
+
+  it("counts on the admin's list", async () => {
+    const { friend } = await pair();
+    const row = (await adminUsers(deps, { q: friend, limit: 1 })).users[0]!;
+    expect(row.entitlement).toBeNull();
+    expect(row.entitled).toBe(true);
+  });
+});
+
+describe("the referrer's reward", () => {
+  it("is a week for a monthly friend and two for a yearly one, past the referrer's own access", async () => {
+    const monthly = await pair();
+    await applyRevenueCatEvent(deps, paid(monthly.friend));
+    expect(await daysLeft(monthly.referrer)).toBe(7);
+
+    const yearly = await pair();
+    await applyRevenueCatEvent(deps, paid(yearly.referrer, { expirationAtMs: Date.now() + 30 * DAY }));
+    await applyRevenueCatEvent(deps, paid(yearly.friend, { productId: "com.eait.fit.ios.yearly" }));
+    expect(await daysLeft(yearly.referrer)).toBe(44);
+  });
+
+  it("is granted once per friend, ever", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend));
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL", productId: "com.eait.fit.ios.yearly" }));
+    expect(await daysLeft(referrer)).toBe(7);
+    expect((await profileView(deps, referrer))!.referral).toMatchObject({ joined: 1, subscribed: 1, weeksEarned: 1 });
+  });
+
+  it("waits out a free trial and comes with the first paid period", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { trial: true }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
+    expect(await daysLeft(referrer)).toBe(7);
+  });
+
+  it("is never granted by a sandbox purchase, a lifetime, a cancellation, or another entitlement", async () => {
+    mount({}, { revenueCatAcceptSandbox: true });
+    const { referrer, friend } = await pair();
+    expect(await applyRevenueCatEvent(deps, paid(friend, { sandbox: true }))).toEqual({ applied: true });
+    await applyRevenueCatEvent(deps, paid(friend, { type: "NON_RENEWING_PURCHASE", expirationAtMs: null, productId: "lifetime" }));
+    await applyRevenueCatEvent(deps, paid(friend, { type: "CANCELLATION" }));
+    await applyRevenueCatEvent(deps, paid(friend, { entitlementIds: ["something-else"] }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+
+  // A paid period delivered after a newer event is not written, but it is still a payment: the
+  // grant is its own once-only write, so the friend who paid still earns the referrer the week.
+  it("is granted for a paid period delivered out of order", async () => {
+    const { referrer, friend } = await pair();
+    const late = paid(friend);
+    await applyRevenueCatEvent(deps, paid(friend, { type: "CANCELLATION", trial: true }));
+    expect(await applyRevenueCatEvent(deps, late)).toEqual({ applied: false, reason: "not-applied" });
+    expect(await daysLeft(referrer)).toBe(7);
+  });
+
+  it("is nothing for an account nobody referred", async () => {
+    const loner = await account();
+    expect(await applyRevenueCatEvent(deps, paid(loner))).toEqual({ applied: true });
+    expect(await store.bonusUntil(loner)).toBeNull();
+  });
+
+  it("reads the product's days from config before its name", () => {
+    const config = { ...CONFIG, referralRewardDays: { "pro.annual.v2": 21, "plan-y": 14 } };
+    expect(referralRewardDays(config, "pro.annual.v2")).toBe(21);
+    expect(referralRewardDays(config, "plan-y")).toBe(14);
+    expect(referralRewardDays(config, "com.eait.fit.ios.yearly")).toBe(14);
+    expect(referralRewardDays(config, "eait_pro_annual")).toBe(14);
+    expect(referralRewardDays(config, "com.eait.fit.ios.monthly")).toBe(7);
+    expect(referralRewardDays(config, "anything")).toBe(7);
+  });
+});
+
+describe("the profile's referral card", () => {
+  it("carries the link, and counts without naming anybody", async () => {
+    const { referrer } = await pair();
+    const view = (await profileView(deps, referrer))!.referral;
+    expect(view).toEqual({
+      link: `https://eait.fit/r/${await codeOf(referrer)}`, applied: false, joined: 1, subscribed: 0, weeksEarned: 0,
+    });
+  });
+
+  it("falls back to the web origin, then the API's, for the link", async () => {
+    mount({}, { landingUrl: "", publicWebUrl: "https://app.example" });
+    const me = await account();
+    expect((await profileView(deps, me))!.referral.link).toBe(`https://app.example/r/${await codeOf(me)}`);
+  });
+});
+
+describe("sharing the link", () => {
+  it("counts a short label and refuses anything else", async () => {
+    const me = await account();
+    expect(await shareReferral(deps, me, "Messages")).toBe(true);
+    expect(await shareReferral(deps, me, "whatsapp")).toBe(true);
+    for (const bad of ["", " ", "a".repeat(33), "hi there", "<script>", 7, null]) {
+      expect(await shareReferral(deps, me, bad)).toBe(false);
+    }
+    expect((await store.referralOf(me))!.shares).toBe(2);
+  });
+});

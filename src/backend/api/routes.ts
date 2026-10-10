@@ -26,6 +26,7 @@ import {
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
   MAX_FOOD_QUERY, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
+  type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
 import { narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
@@ -41,7 +42,7 @@ import {
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
   reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
-  foodSearch, productByBarcode,
+  foodSearch, productByBarcode, redeemReferral, shareReferral,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
@@ -1090,6 +1091,26 @@ export function createRouter(
           const out = await markSeen(deps, userId, body.ids);
           return out ? json(out satisfies MilestonesResponse) : json({ error: "not-onboarded" }, 403);
         }
+      }
+
+      // ── Refer a friend (#899) ─────────────────────────────────────────────────────────────
+      //
+      // Neither route grants the REFERRER anything: that week comes only from the purchase webhook.
+      // Redeeming is guessing a code against the whole table, so it shares the sign-in allowance per
+      // address — the same shape of request, a credential tried against what this server knows.
+      if (req.method === "POST" && pathname === ROUTES.referralRedeem) {
+        const wait = limit(req, peer, "referral", deps.config.authRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body = await req.json().catch(() => null) as Partial<ReferralRedeemRequest> | null;
+        const out = await redeemReferral(deps, userId, body?.code);
+        return "kind" in out ? refusal(out) : json(out);
+      }
+      if (req.method === "POST" && pathname === ROUTES.referralShared) {
+        const wait = limit(req, peer, "referral-shared", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body = await req.json().catch(() => null) as Partial<ReferralSharedRequest> | null;
+        if (!await shareReferral(deps, userId, body?.via)) return json({ error: "via must be a short label" }, 400);
+        return new Response(null, { status: 204 });
       }
 
       // ── Health ────────────────────────────────────────────────────────────────────────────
