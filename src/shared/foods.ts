@@ -35,12 +35,27 @@ export interface FoodPortion {
  * is the same kind of placeholder — the hand-maintained restaurant-chain table the sourcing
  * research leaves room for, one row per published item.
  */
-export const FOOD_SOURCES = [
+export const FOOD_SOURCE_IDS = [
   "bls", "ciqual", "frida", "fcdb", "matvaretabellen",
   "usda-foundation", "usda-sr", "usda-fndds",
   "curated",
 ] as const;
-export type FoodSource = (typeof FOOD_SOURCES)[number];
+export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
+
+/**
+ * The sources a meal item's `ref` can point at today, each named once with its licence (#562).
+ *
+ * These are the four sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
+ * else), a subset of `FOOD_SOURCE_IDS` — the schema's other ids are placeholders and fallbacks no
+ * snapshot has ever written. A surface that names a source reads this; a `ref` prefix absent from
+ * it is a source nothing here has met, to be shown unnamed rather than invented.
+ */
+export const FOOD_SOURCES: Partial<Record<FoodSource, { name: string; licence: string }>> = {
+  "usda-sr": { name: "USDA FoodData Central", licence: "CC0-1.0" },
+  ciqual: { name: "CIQUAL", licence: "etalab-2.0" },
+  matvaretabellen: { name: "Matvaretabellen", licence: "NLOD-2.0" },
+  frida: { name: "Frida", licence: "CC-BY-4.0" },
+};
 
 /**
  * Where an `off_product` row came from.
@@ -90,6 +105,26 @@ export interface FoodRef {
   portions: FoodPortion[];
   /** A link back to the source's own record of this food, when it publishes one. */
   source_url: string | null;
+  /**
+   * The attribution texts the row's own sources ask for, verbatim, as fooddb's export line
+   * publishes them. `[]` for a CC0 row; a merged product can carry more than one.
+   */
+  attribution: string[];
+}
+
+/**
+ * The read-only copy of the `food_ref` row a meal item was grounded against (#562), stored WITH
+ * the meal at the moment of grounding: a catalog refresh changes `food_ref` and never a stored
+ * meal. Written by the server only — a client-sent `food` is discarded on every write.
+ */
+export interface FoodSnapshot {
+  /** The row's name as `food_ref` has it — English for all four sources today. */
+  name: string;
+  /** The `ref` id's prefix, the row's `source`. */
+  source: FoodSource;
+  per100: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+  /** The row's own attribution texts, verbatim; `[]` for CC0. */
+  attribution: string[];
 }
 
 /**

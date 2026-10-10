@@ -953,7 +953,26 @@ export interface EditMealRequest {
 
 const EDIT_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
 const ITEM_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const;
-const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", "role", ...ITEM_NUMBERS]);
+// `ref` and `food` are in the list because clients echo the items back: a meal card sends the
+// server-emitted provenance untouched. The server discards a request's `food` on every write and
+// re-derives both from the stored meal (#562), so a sent one only has to be small and shaped.
+const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", "role", "ref", "food", ...ITEM_NUMBERS]);
+const PER100_KEYS = ["kcal", "protein_g", "carbs_g", "fat_g"] as const;
+const MAX_SNAPSHOT_NAME = 200;
+const MAX_SNAPSHOT_ATTRIBUTIONS = 8;
+const MAX_SNAPSHOT_ATTRIBUTION = 500;
+/** The shape a client echoes, not the truth: `editMeal` replaces this with the stored row's. */
+const isFoodSnapshot = (v: unknown): boolean => {
+  if (typeof v !== "object" || v === null) return false;
+  const f = v as Record<string, unknown>;
+  const p = f.per100;
+  return typeof f.name === "string" && f.name.length <= MAX_SNAPSHOT_NAME
+    && typeof f.source === "string" && f.source.length <= MAX_SNAPSHOT_NAME
+    && typeof p === "object" && p !== null
+    && PER100_KEYS.every((k) => amount((p as Record<string, unknown>)[k]))
+    && Array.isArray(f.attribution) && f.attribution.length <= MAX_SNAPSHOT_ATTRIBUTIONS
+    && f.attribution.every((a) => typeof a === "string" && a.length <= MAX_SNAPSHOT_ATTRIBUTION);
+};
 /** An edit's items are bounded like every other client string: their names reach every later prompt that day. */
 export const MAX_MEAL_ITEMS = 50;
 export const MAX_ITEM_NAME = 120;
@@ -984,6 +1003,9 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
       // one value the type has rather than bounded as a string: it is stored as given, and a row
       // claiming a role nothing implements is a lie the repertoire and every later reader believe.
       if (item.role !== undefined && item.role !== "cooking-fat") return false;
+      // Echoed provenance, bounded like every other client string; the server re-derives both.
+      if (item.ref !== undefined && (typeof item.ref !== "string" || item.ref.length > MAX_ITEM_NAME)) return false;
+      if (item.food !== undefined && !isFoodSnapshot(item.food)) return false;
       for (const k of ITEM_NUMBERS) if (item[k] !== undefined && !amount(item[k])) return false;
     }
   }

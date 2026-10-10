@@ -6,6 +6,7 @@
 // differs (`Profile` gains the anthropometrics a computed calorie target needs) the difference is
 // commented. See `docs/PORTED_FROM_EAIT.md`.
 
+import type { FoodSnapshot } from "./foods.ts";
 import type { HealthScore } from "./scores.ts";
 
 export type Goal = "lose" | "maintain" | "gain";
@@ -186,6 +187,16 @@ export interface MealItem {
    * row stored before this existed.
    */
   role?: "cooking-fat" | undefined;
+  /**
+   * A `food_ref` id ("ciqual:20346") — the catalog row the item's numbers were grounded against
+   * (#562). Absent = the model's own estimate.
+   */
+  ref?: string | undefined;
+  /**
+   * READ-ONLY snapshot of the row `ref` names, written by the server when it grounds. Ignored on
+   * every write — the server re-derives it from the STORED meal, never from what a client sent.
+   */
+  food?: FoodSnapshot | undefined;
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are ever set. */

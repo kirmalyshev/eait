@@ -4767,6 +4767,13 @@
               "null"
             ],
             "description": "A link back to the source's own record of this food, when it publishes one."
+          },
+          "attribution": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The attribution texts the row's own sources ask for, verbatim, as fooddb's export line publishes them. `[]` for a CC0 row; a merged product can carry more than one."
           }
         },
         "required": [
@@ -4787,7 +4794,8 @@
           "sodium_mg_per_100g",
           "nutrients",
           "portions",
-          "source_url"
+          "source_url",
+          "attribution"
         ],
         "additionalProperties": false,
         "description": "One generic food: the catalog row, the wire shape and the store row are the same object.\n\nThe eight macro columns are what `MealAnalysis` carries — a catalog row can become a meal item without a unit conversation first. They are NULLABLE on purpose: sources differ in completeness (BLS publishes 138 nutrients per food, a label photo may carry four), and a missing figure must read as missing rather than as zero."
@@ -4814,6 +4822,58 @@
         ],
         "additionalProperties": false,
         "description": "`GET /v1/foods`: the generic foods whose names contain `q`, ranked closest-first, capped server- side. `attributions` carries the citation each source in the result owes — the client renders them rather than knowing which databases it searched."
+      },
+      "FoodSnapshot": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The row's name as `food_ref` has it — English for all four sources today."
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodSource",
+            "description": "The `ref` id's prefix, the row's `source`."
+          },
+          "per100": {
+            "type": "object",
+            "properties": {
+              "kcal": {
+                "type": "number"
+              },
+              "protein_g": {
+                "type": "number"
+              },
+              "carbs_g": {
+                "type": "number"
+              },
+              "fat_g": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "kcal",
+              "protein_g",
+              "carbs_g",
+              "fat_g"
+            ],
+            "additionalProperties": false
+          },
+          "attribution": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The row's own attribution texts, verbatim; `[]` for CC0."
+          }
+        },
+        "required": [
+          "name",
+          "source",
+          "per100",
+          "attribution"
+        ],
+        "additionalProperties": false,
+        "description": "The read-only copy of the `food_ref` row a meal item was grounded against (#562), stored WITH the meal at the moment of grounding: a catalog refresh changes `food_ref` and never a stored meal. Written by the server only — a client-sent `food` is discarded on every write."
       },
       "FoodSource": {
         "type": "string",
@@ -5603,6 +5663,14 @@
             "type": "string",
             "const": "cooking-fat",
             "description": "Fat the dish was cooked or dressed with, listed as its own row rather than folded into another item's numbers — so the user can see it, and take it off. Absent on plain food, and on every row stored before this existed."
+          },
+          "ref": {
+            "type": "string",
+            "description": "A `food_ref` id (\"ciqual:20346\") — the catalog row the item's numbers were grounded against (#562). Absent = the model's own estimate."
+          },
+          "food": {
+            "$ref": "#/components/schemas/FoodSnapshot",
+            "description": "READ-ONLY snapshot of the row `ref` names, written by the server when it grounds. Ignored on every write — the server re-derives it from the STORED meal, never from what a client sent."
           }
         },
         "required": [
