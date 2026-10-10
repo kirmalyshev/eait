@@ -537,6 +537,15 @@ create index if not exists referral_grants_referrer_idx on referral_grants (refe
 -- happened. A revoked row stays: the primary key is what keeps that friend from earning it again.
 alter table referral_grants add column if not exists transaction_id text not null default '';
 alter table referral_grants add column if not exists revoked_at timestamptz;
+-- One store subscription earns one referral, on whichever account it lands: Apple's
+-- original_transaction_id is the subscription's own, the same across renewals and accounts.
+-- '' is a delivery that named none, which is no subscription at all and so never collides.
+alter table referral_grants add column if not exists original_transaction_id text not null default '';
+create unique index if not exists referral_grants_subscription_key
+  on referral_grants (original_transaction_id) where original_transaction_id <> '';
+-- The grant's length before its last re-size to an earlier paid period, set by the same update
+-- (the SET reads the row it locked), which is how the referrer's week moves by the difference.
+alter table referral_grants add column if not exists resized_from integer;
 -- Counts, never people: a share is the label of the channel and the instant, no address, no
 -- device, nothing about whoever it was sent to.
 create table if not exists referral_events (
@@ -2638,7 +2647,7 @@ export async function postgresStore(
       return me[0]?.referred === false ? "paid" : "already";
     },
 
-    async grantReferralWeek(referredId, eventAt, days, transactionId) {
+    async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
       // RevenueCat can name an id that is not one of ours; a uuid column would throw on it.
       if (!UUID.test(referredId)) return false;
       // One statement: the insert is the once-per-friend guard, and the referrer's week moves only
@@ -2646,17 +2655,35 @@ export async function postgresStore(
       // subscription they are paying for.
       const rows = await sql`
         with g as (
-          insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id)
-          select id, referred_by, ${new Date(eventAt)}, ${days}::int, ${transactionId}
+          insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, original_transaction_id)
+          select id, referred_by, ${new Date(eventAt)}, ${days}::int, ${transactionId}, ${originalTransactionId}
             from users where id = ${referredId} and referred_by is not null
               and referred_at <= ${new Date(eventAt)}
-          on conflict (referred_id) do nothing
+          -- Either key: this friend already granted, or this subscription already earned one.
+          on conflict do nothing
           returning referrer_id, days)
         update users r set bonus_until =
           greatest(${new Date(now())}::timestamptz, r.bonus_until, r.entitlement_expires_at) + make_interval(days => g.days)
         from g where r.id = g.referrer_id
         returning r.id`;
-      return rows.length > 0;
+      if (rows.length > 0) return true;
+      // Not a new grant. An EARLIER paid period than the one granted from, delivered late, re-sizes
+      // it — one guarded update: only an unrevoked grant whose own period is later than this one,
+      // and only a payment at or after the code applied.
+      const resized = await sql`
+        with g as (
+          update referral_grants g set
+            resized_from = g.days, days = ${days}::int,
+            event_at = ${new Date(eventAt)}, transaction_id = ${transactionId}
+          from users f
+          where g.referred_id = ${referredId} and g.revoked_at is null and g.event_at > ${new Date(eventAt)}
+            and f.id = g.referred_id and f.referred_at <= ${new Date(eventAt)}
+          returning g.referrer_id, g.days - g.resized_from as delta)
+        update users r set bonus_until =
+          greatest(${new Date(now())}::timestamptz, r.bonus_until + make_interval(days => g.delta))
+        from g where r.id = g.referrer_id
+        returning r.id`;
+      return resized.length > 0;
     },
 
     async revokeReferralWeek(referredId, transactionId) {

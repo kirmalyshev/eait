@@ -229,6 +229,12 @@ export interface RevenueCatEvent {
    */
   transactionId: string;
   /**
+   * The store's `original_transaction_id`: the subscription itself, stable across its renewals and
+   * across every account it is restored to — so one Apple subscription earns a referral at most
+   * once, whichever account it lands on (#899). "" when the delivery has none.
+   */
+  originalTransactionId: string;
+  /**
    * A CANCELLATION whose `cancel_reason` is CUSTOMER_SUPPORT — a refund. RevenueCat sends it only
    * when the LATEST period is refunded; a refund of an earlier one is never delivered, so a reward
    * whose period was not the latest when refunded cannot be taken back (the accepted ceiling).
@@ -319,6 +325,7 @@ async function referralReward(deps: EngineDeps, event: RevenueCatEvent, eventAt:
   if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial || event.sandbox) return;
   await deps.store.grantReferralWeek(
     event.appUserId, eventAt, referralRewardDays(deps.config, event.productId), event.transactionId,
+    event.originalTransactionId,
   );
 }
 

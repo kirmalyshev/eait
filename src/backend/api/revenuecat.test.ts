@@ -300,10 +300,12 @@ describe("parseRevenueCatEvent", () => {
     const at = { app_user_id: crypto.randomUUID(), event_timestamp_ms: Date.now(), entitlement_ids: ["eait_fit_pro"] };
     expect(parseRevenueCatEvent({ event: { ...at, type: "CANCELLATION", transaction_id: "2000001", cancel_reason: "CUSTOMER_SUPPORT" } }))
       .toMatchObject({ transactionId: "2000001", refund: true });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", transaction_id: "2000002", original_transaction_id: "2000001" } }))
+      .toMatchObject({ transactionId: "2000002", originalTransactionId: "2000001" });
     expect(parseRevenueCatEvent({ event: { ...at, type: "CANCELLATION", transaction_id: "2000001", cancel_reason: "UNSUBSCRIBE" } }))
       .toMatchObject({ refund: false });
     expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", cancel_reason: "CUSTOMER_SUPPORT" } }))
-      .toMatchObject({ transactionId: "", refund: false });
+      .toMatchObject({ transactionId: "", originalTransactionId: "", refund: false });
   });
 
   const id = crypto.randomUUID();

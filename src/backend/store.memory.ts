@@ -145,7 +145,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   };
   const bonusUntil = new Map<string, string>(); // userId -> ISO
   /** `referral_grants`, keyed on the friend as its primary key is. */
-  const referralGrants = new Map<string, { referrerId: string; eventAt: string; days: number; transactionId: string; revoked: boolean }>();
+  const referralGrants = new Map<string, {
+    referrerId: string; eventAt: string; days: number; transactionId: string; originalTransactionId: string; revoked: boolean;
+  }>();
   /** `referral_events`: a share is a label and an instant, nothing that names the person. */
   const referralShares: { referrerId: string; via: string; at: number }[] = [];
   /** A code nobody holds — Postgres's `new_referral_code()`. */
@@ -964,11 +966,25 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return "ok";
     },
 
-    async grantReferralWeek(referredId, eventAt, days, transactionId) {
+    async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
       const referrerId = referredBy.get(referredId);
-      if (referrerId === undefined || referralGrants.has(referredId)) return false;
+      if (referrerId === undefined) return false;
       if (Date.parse(eventAt) < referredAt.get(referredId)!) return false;
-      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, revoked: false });
+      const held = referralGrants.get(referredId);
+      if (held) {
+        // An earlier paid period, delivered late: the grant becomes its, by the difference.
+        if (held.revoked || Date.parse(held.eventAt) <= Date.parse(eventAt)) return false;
+        const until = bonusUntil.get(held.referrerId);
+        if (until !== undefined) {
+          bonusUntil.set(held.referrerId, new Date(Math.max(now(), Date.parse(until) + (days - held.days) * 86_400_000)).toISOString());
+        }
+        Object.assign(held, { eventAt, days, transactionId });
+        return true;
+      }
+      if (originalTransactionId !== "" && [...referralGrants.values()].some((g) => g.originalTransactionId === originalTransactionId)) {
+        return false;
+      }
+      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, originalTransactionId, revoked: false });
       bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), entitlements.get(referrerId)?.expiresAt));
       return true;
     },

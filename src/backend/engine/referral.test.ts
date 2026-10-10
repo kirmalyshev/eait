@@ -44,7 +44,7 @@ let seq = 0;
 const paid = (appUserId: string, over: Partial<RevenueCatEvent> = {}): RevenueCatEvent => ({
   appUserId, type: "INITIAL_PURCHASE", entitlementIds: [CONFIG.revenueCatEntitlementId],
   expirationAtMs: Date.now() + 30 * DAY, productId: "com.eait.fit.ios.monthly", trial: false,
-  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, transactionId: `txn-${seq}`, refund: false, ...over,
+  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, transactionId: `txn-${seq}`, originalTransactionId: "", refund: false, ...over,
 });
 const daysLeft = async (userId: string) => {
   const until = await store.bonusUntil(userId);
@@ -113,6 +113,26 @@ describe("a friend who had already paid", () => {
 
 // Must-fix (#597 review): a refund of the paid period that earned the reward revokes it — only
 // that one: "will not renew" is not a refund, and a refund of a later renewal is not that period.
+describe("deliveries out of order, and one subscription on several accounts", () => {
+  it("pays for the earliest paid period, whichever arrives first", async () => {
+    const { referrer, friend } = await pair();
+    const first = Date.now() + 10_000;
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL", eventTimestampMs: first + 60_000 }));
+    await applyRevenueCatEvent(deps, paid(friend, { productId: "com.eait.fit.ios.yearly", eventTimestampMs: first }));
+    expect(await daysLeft(referrer)).toBe(14);
+  });
+
+  it("pays once for one store subscription, whichever account it lands on", async () => {
+    const referrer = await account();
+    const [a, b] = [await account(), await account()];
+    await redeemReferral(deps, a, await codeOf(referrer));
+    await redeemReferral(deps, b, await codeOf(referrer));
+    await applyRevenueCatEvent(deps, paid(a, { originalTransactionId: "apple-sub-1" }));
+    await applyRevenueCatEvent(deps, paid(b, { originalTransactionId: "apple-sub-1" }));
+    expect(await daysLeft(referrer)).toBe(7);
+  });
+});
+
 describe("a refunded first payment", () => {
   const refund = (friend: string, transactionId: string, over: Partial<RevenueCatEvent> = {}) =>
     paid(friend, { type: "CANCELLATION", transactionId, refund: true, ...over });

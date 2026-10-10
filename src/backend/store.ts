@@ -1065,9 +1065,17 @@ export interface Store {
    * inside that insert) and, only if it inserted, move the REFERRER's
    * `bonus_until` to `greatest(now, bonus_until, their subscription's expiry) + days`. False when
    * nothing was granted: nobody referred this account, or its referrer was already paid for it.
+   *
+   * THE EARLIEST PAID PERIOD DECIDES. Deliveries are not ordered: a paid event OLDER than the one
+   * the grant was made from re-sizes it to its own length and transaction, moving the referrer's
+   * week by the difference (never below now), in one guarded update — `event_at > eventAt`, not
+   * revoked. That is a `true` too. And one store subscription (`originalTransactionId`, unique when
+   * not "") earns one grant, whichever account it lands on.
    * `referredId` comes from a verified webhook delivery, never from a client.
    */
-  grantReferralWeek(referredId: string, eventAt: string, days: number, transactionId: string): Promise<boolean>;
+  grantReferralWeek(
+    referredId: string, eventAt: string, days: number, transactionId: string, originalTransactionId: string,
+  ): Promise<boolean>;
   /**
    * Take back the reward `referredId`'s payment earned, on that payment's refund: only when the
    * grant's transaction is `transactionId` (never ""), and only once. The referrer's `bonus_until`
