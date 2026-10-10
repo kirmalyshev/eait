@@ -426,7 +426,7 @@ naming it too.
   literal, so `tsc` never looks inside it and `bun test` never runs it; a `null` dereference there
   reaches production with every check green. `web/browser/admin-prompts.pw.ts` is what covers the
   prompts panel — it fetches the real page and stubs only `/admin/api/*`, so what is under test is
-  the page's own JavaScript. (And: no backtick may appear anywhere inside that literal. The failure
+  the page's own JavaScript. The page is a shell: hash routes (`#numbers` … `#food`), one view at a time, each fetching its own data the first time it opens, so a failing endpoint is an error INSIDE its view and the gate/denied cards come from the session check alone (the push-templates read, which also feeds the nav badge: 404 is denied, 401 is signed out). Its tokens and typeface are `shared/palette.ts` / `design.ts`, hence `font-src 'self'` in its CSP. (And: no backtick may appear anywhere inside that literal. The failure
   is a parse error a hundred lines away.)
 - **What did NOT move, and must not:** `normalizePromptText` (a containment boundary, not editable
   content), every `build*` function (they interpolate the user's own data and enforce its caps — a

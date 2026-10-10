@@ -24,6 +24,9 @@
  * `'unsafe-inline'` — and a nonce cannot come from a constant.
  */
 import { ADMIN_PUSH_MAX_RECIPIENTS, PUSH_ROUTES } from "@eait/shared";
+import { fontFaces } from "@eait/shared/design";
+import { lightVars } from "@eait/shared/palette";
+import { brandSvg } from "@eait/shared/ui/icons";
 
 export const adminPage = (nonce: string): string => `<!doctype html>
 <html lang="en">
@@ -36,384 +39,586 @@ export const adminPage = (nonce: string): string => `<!doctype html>
      page load. A console that always has an error in it is a console nobody reads. -->
 <link rel="icon" href="data:,">
 <style nonce="${nonce}">
-  :root {
-    --bg: #0B0B0C; --surface: #141517; --raised: #1C1E21; --border: #26292E;
-    --text: #F4F4F5; --muted: #9BA1AA; --faint: #6B7178;
-    --accent: #C8F751; --accent-text: #10130A; --bad: #F87171; --care: #7DD3FC;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 96px; }
-  h1 { font-size: 22px; letter-spacing: -0.4px; margin: 0 0 4px; }
-  h2 { font-size: 17px; margin: 32px 0 12px; }
-  h3 { font-size: 14px; margin: 24px 0 8px; }
-  .checks { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
-  .checks label { display: flex; gap: 4px; align-items: center; margin: 0; }
-  .checks input { width: auto; }
-  .scrollx { overflow-x: auto; scroll-padding-left: 120px; }
-  #campaigns { min-width: 760px; }
-  #campaigns th, #campaigns td { vertical-align: top; }
-  #campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--bg); min-width: 100px; max-width: 130px; white-space: normal; }
-  .acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
-  .row.flexwrap { flex-wrap: wrap; align-items: flex-start; align-content: flex-start; }
-  .row.flexwrap > * { flex: 1 1 140px; }
-  p.sub { color: var(--muted); margin: 0 0 24px; }
-  .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px; margin-bottom: 12px;
-  }
-  .card header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .card header .id { font-weight: 700; letter-spacing: -0.2px; }
-  .card header .grow { flex: 1; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], textarea, select {
-    width: 100%; background: var(--raised); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px;
-    font: inherit; font-size: 14px;
-  }
-  textarea { min-height: 60px; resize: vertical; }
-  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .row { display: flex; gap: 10px; }
-  .row > * { flex: 1; min-width: 0; }
-  button {
-    background: var(--raised); color: var(--text); border: 1px solid var(--border);
-    border-radius: 8px; padding: 8px 12px; font: inherit; font-size: 13px; cursor: pointer;
-  }
-  button:hover { border-color: var(--faint); }
-  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
-  button.small { padding: 4px 8px; font-size: 12px; }
-  .options { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 10px; }
-  .opt { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
-  .opt code { color: var(--care); font-size: 12px; min-width: 84px; }
-  .bar {
-    position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface);
-    border-top: 1px solid var(--border); padding: 12px 16px;
-    display: flex; gap: 10px; align-items: center; justify-content: flex-end;
-  }
-  .bar .status { margin-right: auto; color: var(--muted); font-size: 13px; }
-  .errors { border: 1px solid var(--bad); background: rgba(248,113,113,0.08); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
-  .errors ul { margin: 6px 0 0; padding-left: 18px; }
-  .errors li { color: var(--bad); font-size: 13px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .line { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .line:last-child { border-bottom: 0; }
-  .line .who { flex: 0 0 52px; color: var(--muted); }
-  .line .when { margin-left: auto; color: var(--faint); white-space: nowrap; }
-  .line .how { color: var(--faint); white-space: nowrap; }
-  .line.them .who { color: var(--care); }
-  img.shot { max-width: 260px; border-radius: 8px; margin: 8px 8px 0 0; vertical-align: top; }
-  th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border); }
-  th:first-child, td:first-child { text-align: left; }
-  th { color: var(--muted); font-weight: 500; }
-  td.drop { color: var(--bad); }
-  .pill { font-size: 11px; color: var(--faint); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
-  .gate { max-width: 420px; margin: 15vh auto; }
-  .hidden { display: none; }
-  #push-grid { overflow-x: auto; }
-  #push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
-  #push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
-  #push-grid { scroll-padding-left: 120px; }
-  #push-grid td:first-child, #push-grid th:first-child { position: sticky; left: 0; background: var(--bg); white-space: normal; min-width: 100px; max-width: 120px; }
-  .cell { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; }
-  .cell.reviewed { color: var(--ok, #4ade80); border-color: var(--ok, #4ade80); }
-  .cell.draft { color: var(--bad); border-color: var(--bad); }
-  .cell.sel { outline: 2px solid var(--accent, #60a5fa); }
-  .muted { color: var(--muted); font-size: 13px; }
-/* WAS AN INLINE style="" ATTRIBUTE, and a nonce does not cover one: a nonce authorises <style>
-   and <script> ELEMENTS, never a style attribute, so the browser refused it and the error text
-   rendered unstyled. Found by driving real Chrome — the unit tests assert the policy string and
-   cannot see what it forbids. */
+/* THE TOKENS COME FROM shared/palette.ts, and the typeface from shared/design.ts, exactly as the
+   web application takes them (frontend/server/index.ts): Register P, one copy. The hand-rolled dark
+   set this page carried was a second palette to keep in step with the first, and it was the one
+   that did not match anything the product ships. Light only, like the other web surfaces. The
+   typeface files are served by /start (public, whitelisted by name), so font-src 'self' is all the
+   CSP adds. */
+:root { ${lightVars}
+  --sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --r-card: 12px; --r-ctl: 10px; --r-btn: 8px;
+  --shadow: 0 1px 2px rgba(23,25,28,.06), 0 8px 24px -16px rgba(23,25,28,.18);
+}
+${fontFaces("/start/assets/fonts")}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body { font: 400 13px/1.4 var(--sans); -webkit-font-smoothing: antialiased; }
+h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 28px 0 8px; }
+h3 { font-size: 13px; font-weight: 700; margin: 20px 0 8px; }
+a { color: inherit; }
+code { font-size: 12px; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: 13px; }
+p.muted { max-width: 78ch; margin: 0 0 10px; }
+.status { color: var(--muted); font-size: 13px; }
+
+/* ── the shell: a left nav on a desk, a switcher on a phone ── */
+.adm { display: flex; min-height: 100vh; }
+.anav {
+  width: 216px; flex: 0 0 216px; background: var(--surface); border-right: 1px solid var(--hair);
+  padding: 18px 12px; display: flex; flex-direction: column; gap: 2px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -0.02em; }
+.appicon { display: block; flex: 0 0 auto; }
+.brand small { font-weight: 600; font-size: 11px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+.anav .brand { padding: 0 10px 14px; }
+.anav h6 { margin: 14px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.anav a {
+  display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 10px;
+  border-radius: 8px; color: var(--ink); font-weight: 500; text-decoration: none;
+}
+.anav a:hover { background: var(--bg); }
+.anav a.on { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+.anav a b { font-size: 11px; font-weight: 600; color: var(--warn); background: var(--warn-tint); border-radius: 9px; padding: 1px 7px; }
+.anav .who { margin-top: auto; padding: 10px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--hair); }
+.atop {
+  display: none; align-items: center; gap: 10px; height: 52px; padding: 0 14px; background: var(--surface);
+  border-bottom: 1px solid var(--hair); position: sticky; top: 0; z-index: 2;
+}
+.atop select { width: auto; margin-left: auto; font-weight: 600; max-width: 60%; }
+.amain { flex: 1; min-width: 0; }
+.ahead { display: flex; align-items: center; gap: 12px; padding: 20px 28px 14px; }
+.abody { padding: 0 28px 28px; }
+.view > .vbody > :first-child { margin-top: 0; }
+@media (max-width: 760px) {
+  .adm { flex-direction: column; }
+  .anav { display: none; }
+  .atop { display: flex; }
+  .ahead { padding: 14px 14px 10px; }
+  .ahead h1 { font-size: 20px; }
+  .abody { padding: 0 14px 20px; }
+}
+
+/* ── the gate and the denied card: one card, centred ── */
+.center { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.gatecard { width: 100%; max-width: 420px; padding: 28px; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.gatecard .brand { font-size: 17px; }
+.gatecard h2 { margin: 0; font-size: 17px; }
+.gatecard p { margin: 0; color: var(--muted); }
+.gatecard .actions { margin-top: 4px; }
 .gate-error { color: var(--bad); font-size: 13px; }
-  #composer .row { flex-wrap: wrap; align-items: center; }
-  #composer .row > * { flex: 1 1 160px; }
-  #composer .row > button { flex: 0 0 auto; }
-  @media (max-width: 600px) {
-    #composer .row > *, #composer .row > button { flex: 1 1 100%; }
-  }
+
+/* ── the primitives ── */
+/* Cards, and a card that is only a frame for a table. */
+.card {
+  background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
+  padding: 16px; margin-bottom: 12px; min-width: 0;
+}
+.card.flush { padding: 0; overflow: hidden; }
+.card header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.card header .id { font-weight: 700; letter-spacing: -0.01em; }
+.card header .grow { flex: 1; }
+
+/* Buttons: default, primary, danger. A link that acts like one wears .btn. */
+button, a.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 0; border-radius: var(--r-btn); background: var(--surface); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line); font: 600 13px var(--sans); white-space: nowrap; cursor: pointer; text-decoration: none;
+}
+button:hover, a.btn:hover { box-shadow: 0 0 0 1px var(--muted); }
+button.primary, a.btn.primary { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+button.primary:hover, a.btn.primary:hover { filter: brightness(1.08); }
+button.danger { color: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+button.small { height: 26px; padding: 0 9px; font-size: 12px; }
+a.btn.big { height: 40px; padding: 0 20px; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Status chip. Neutral by default; g is on plan, w needs a look, b is wrong. */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 11px;
+  font-size: 12px; font-weight: 600; background: var(--bg); color: var(--muted); box-shadow: 0 0 0 1px var(--hair); white-space: nowrap;
+}
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.n::before { display: none; }
+.chip:empty { display: none; }
+.chip.g { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
+.chip.w { background: var(--warn-tint); color: var(--warn); box-shadow: none; }
+.chip.b { background: var(--bad-tint); color: var(--bad); box-shadow: none; }
+
+/* Inputs. */
+label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
+input:not([type=checkbox]), textarea, select {
+  width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 0; border-radius: var(--r-btn);
+  background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); font: 400 13px var(--sans);
+}
+textarea { height: auto; min-height: 64px; padding: 8px 10px; line-height: 1.45; resize: vertical; }
+input::placeholder, textarea::placeholder { color: var(--faint); }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input[type=checkbox] { width: auto; accent-color: var(--accent); }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
+.checks label { display: flex; gap: 4px; align-items: center; margin: 0; font-weight: 500; color: var(--ink); }
+.row { display: flex; gap: 10px; margin-bottom: 8px; }
+.row > * { flex: 1; min-width: 0; }
+.row > button { flex: 0 0 auto; }
+.row.flexwrap { flex-wrap: wrap; align-items: flex-start; align-content: flex-start; }
+.row.flexwrap > * { flex: 1 1 140px; }
+.row.flexwrap > button { flex: 0 0 auto; }
+
+/* Tables live in a card and scroll INSIDE it: the page never scrolls sideways. */
+.scrollx { overflow-x: auto; max-width: 100%; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--hair); white-space: nowrap; background: var(--surface); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+th.r, td.r { text-align: right; font-variant-numeric: tabular-nums; }
+td.drop { color: var(--bad); }
+td.empty { white-space: normal; text-align: center; color: var(--muted); padding: 28px 12px; }
+#users tbody tr, #diary tbody tr { cursor: pointer; }
+#users tbody tr:hover td, #diary tbody tr:hover td { background: var(--bg); }
+#campaigns { min-width: 760px; }
+#campaigns th, #campaigns td { vertical-align: top; }
+#campaigns td { white-space: normal; }
+#campaigns td:first-child, #campaigns th:first-child { position: sticky; left: 0; background: var(--surface); min-width: 100px; max-width: 130px; white-space: normal; }
+.acts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; min-width: 220px; max-width: 300px; margin-left: auto; }
+#push-grid { scroll-padding-left: 120px; }
+#push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
+#push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
+#push-grid td:first-child, #push-grid th:first-child { position: sticky; left: 0; background: var(--surface); white-space: normal; min-width: 100px; max-width: 120px; }
+.cell { height: 22px; padding: 0 8px; border-radius: 11px; font-size: 11px; font-weight: 600; box-shadow: 0 0 0 1px var(--hair); background: transparent; color: var(--muted); }
+.cell.reviewed { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
+.cell.draft { background: var(--warn-tint); color: var(--warn); box-shadow: none; }
+.cell.sel { outline: 2px solid var(--accent); }
+
+/* The three states every view can be in besides its content: loading, empty, error. */
+.sk { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; }
+.sk-row { display: flex; gap: 14px; padding: 13px 14px; border-bottom: 1px solid var(--hair); }
+.sk-row:last-child { border-bottom: 0; }
+.sk-row i { display: block; height: 10px; border-radius: 5px; background: var(--hair); width: 90px; }
+.sk-row i:nth-child(2) { width: 40px; }
+.sk-row i:nth-child(3) { width: 56px; }
+.sk-row i:nth-child(4) { width: 64px; }
+.astate { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 20px; text-align: center; color: var(--muted); }
+.astate b { color: var(--ink); font-size: 14px; }
+.aerr { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bad-tint); color: var(--bad); font-weight: 500; border-radius: var(--r-ctl); }
+.aerr .sp { flex: 1; }
+.aerr button { color: var(--ink); }
+.errors { background: var(--bad-tint); color: var(--bad); border-radius: var(--r-ctl); padding: 12px 14px; margin-bottom: 14px; }
+.errors ul { margin: 6px 0 0; padding-left: 18px; }
+.errors li { font-size: 13px; }
+
+/* Parts of the views that are still the old panels, in the new vocabulary. */
+.options { border-top: 1px solid var(--hair); margin-top: 14px; padding-top: 10px; }
+.opt { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.opt code { color: var(--care); min-width: 84px; }
+.opt input { flex: 1; }
+.line { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0; border-bottom: 1px solid var(--hair); font-size: 13px; }
+.line:last-child { border-bottom: 0; }
+.line .who { flex: 0 0 52px; color: var(--muted); }
+.line .when { margin-left: auto; color: var(--faint); white-space: nowrap; }
+.line .how { color: var(--faint); white-space: nowrap; }
+.line.them .who { color: var(--care); }
+img.shot { max-width: min(260px, 100%); border-radius: 8px; margin: 8px 8px 0 0; vertical-align: top; }
+#composer .row { flex-wrap: wrap; align-items: center; }
+#composer .row > * { flex: 1 1 160px; }
+#composer .row > button { flex: 0 0 auto; }
+@media (max-width: 600px) {
+  #composer .row > *, #composer .row > button { flex: 1 1 100%; }
+}
+pre { overflow-x: auto; max-width: 100%; }
+
+/* The save bar belongs to the onboarding copy and sits at the foot of that view alone. */
+.bar {
+  position: sticky; bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end;
+  background: var(--surface); border-radius: var(--r-card); padding: 12px 14px; box-shadow: 0 0 0 1px var(--hair), var(--shadow);
+}
+.bar .status { margin-right: auto; }
+.bar select { width: auto; }
 </style>
 </head>
 <body>
 
-<div class="wrap gate" id="gate">
-  <h1>eait admin</h1>
-  <p class="sub">Sign in with the account that holds the admin role. There is no separate password.</p>
-  <p id="gate-error" class="hidden gate-error"></p>
-  <p><a class="primary" id="signin" href="/start">Sign in</a></p>
+<div class="center" id="gate">
+  <div class="card gatecard">
+    <div class="brand">${brandSvg("eait", { size: 20, class: "appicon" })}eait admin</div>
+    <p>Sign in with a staff account.</p>
+    <p id="gate-error" class="hidden gate-error"></p>
+    <div class="actions"><a class="btn primary big" id="signin" href="/start">Sign in</a></div>
+  </div>
 </div>
 
-<div class="wrap hidden" id="app">
-  <h1>Onboarding</h1>
-  <p class="sub">
-    Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
-    The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
-    and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
-    version, which is what the funnel below is grouped by.
-  </p>
-  <p class="sub">
-    One language at a time. A save replaces the language in the picker and nothing beside it, and
-    takes the next version number — one counter across all eight, so no two revisions ever share
-    one and the funnel below can still say which words it counted. The eight shipped revisions are
-    one editorial revision and share a number; they stop sharing it the first time anybody saves.
-    A language nobody has saved serves the copy the app ships with, in that language — never
-    English, because half an onboarding in English is worse than none of it.
-  </p>
-
-  <h2>The numbers <span class="pill" id="metrics-window"></span></h2>
-  <p class="muted" id="metrics-summary">Loading…</p>
-  <table id="metrics">
-    <thead>
-      <tr><th>Day</th><th>Signups</th><th>Activated</th><th>Analyses</th><th>Spend</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p class="muted">
-    <strong>Analyses, not money.</strong> Nothing records what a model call cost, so this counts
-    calls and states the cap in the same units — the instance's budget is a count too. Came back
-    means <em>logged something</em> on that day, which is narrower than opening the app and is the
-    only version of it this database can answer about a day in the past.
-  </p>
-
-  <h2>Pushes <span class="pill" id="pushes-window"></span></h2>
-  <p class="muted" id="pushes-summary">Loading…</p>
-  <table id="pushes">
-    <thead>
-      <tr><th>Day</th><th>Kind</th><th>Template</th><th>Sent</th><th>Accepted</th><th>Dead</th><th>Delivered</th><th>Opened</th><th>Converted</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p class="muted">
-    Per day the message went out, in the instance's zone. <strong>Opened</strong> is a send the phone
-    reported opened; <strong>converted</strong> is a send followed by a meal from the same account
-    within 24 hours, whether or not it was opened. Counts only: no account is named here.
-  </p>
-
-  <h2>Campaigns <span class="pill" id="campaigns-state"></span></h2>
-  <p class="muted" id="campaigns-summary">Loading…</p>
-  <p class="muted">
-    A campaign is one reviewed template sent once to each account in its segment, at the account's own
-    local time, behind the one-message-a-day rule: an account that already had today's message is tried
-    again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
-    offers on. The segment is a fixed list of choices; there is no free-form query.
-  </p>
-  <div class="row flexwrap" id="campaigns-tools">
-    <button id="campaigns-kill" class="small"></button>
-    <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
+<div class="center hidden" id="denied">
+  <div class="card gatecard">
+    <div class="brand">${brandSvg("eait", { size: 20, class: "appicon" })}eait admin</div>
+    <h2>That account cannot administer this instance.</h2>
+    <p>It is signed in, but it is not staff. Ask a staff member to make this account staff, or sign in with another.</p>
+    <div class="actions"><button id="other-account">Sign in with another account</button></div>
   </div>
-  <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
-  <div class="scrollx"><table id="campaigns">
-    <thead>
-      <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Arms</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
-    </thead>
-    <tbody></tbody>
-  </table></div>
-  <div id="campaign-reports"></div>
-  <p class="muted">
-    Sent and opened count real sends only; a dry run (who it would reach, nothing sent), a test send and the
-    holdout are counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
-  </p>
-  <h3>New campaign</h3>
-  <div id="campaign-form"></div>
-  <h3>Campaign copy</h3>
-  <p class="muted">
-    A campaign sends its own words, one title and one body per language, with no placeholders: everybody
-    gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
-    scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
-    gender checks as every other push text.
-  </p>
-  <datalist id="campaign-keys"></datalist>
-  <table id="campaign-copy">
-    <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <div id="campaign-copy-form"></div>
+</div>
 
-  <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
-  <p class="muted" id="funnel-summary">Loading…</p>
-  <table id="funnel">
-    <thead>
-      <tr><th>Screen</th><th>Views</th><th>Answers</th><th>Drop</th><th>Back</th><th>Refused</th><th>Median</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p class="muted">
-    Drop is views minus answers on that screen: the people who saw the question and did not answer it.
-    Median is how long an answer took.
-  </p>
-
-  <div id="errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-
-  <h2>The welcome screen</h2>
-  <p class="muted">
-    The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
-    competitor there, do not write "free", and do not promise away the card, the trial or the
-    cancelling: the app sells a subscription behind a free trial, so those are no longer true.
-    Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
-    the whole app works without an account at all.
-  </p>
-  <div id="welcome"></div>
-
-  <h2>Screens</h2>
-  <div id="screens"></div>
-
-  <h2>Working out the number</h2>
-  <p class="muted">
-    Labels only. Every figure beside them is computed from the person's own answers and cannot be
-    edited here.
-  </p>
-  <div id="building"></div>
-
-  <h2>The plan screen</h2>
-  <p class="muted">
-    <code>{weeks}</code> and <code>{month}</code> are substituted into the projection line. It is
-    hidden entirely for anyone the arithmetic cannot honestly project.
-  </p>
-  <div id="summary"></div>
-
-  <h2>Push templates</h2>
-  <p class="muted">
-    The words of every push, per language, and the only place they live. The <code>trial-end</code>
-    line is <em>local</em>: the phone sends it, so the server never reads it, but it is reviewed here
-    like the rest. A message is sent only when <strong>all eight
-    languages</strong> have a <em>reviewed</em> row for each of its variants; one draft or gap in
-    any language stops that message for everybody. Marking a row reviewed runs the claims gate
-    (no health claims, no health values); a refusal is shown below in the gate's own words. The
-    braces are filled by the server and a plural block needs exactly the categories its language has.
-  </p>
-  <div id="push-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-  <div id="push-grid"></div>
-  <div id="push-edit"></div>
-  <span class="status" id="push-status"></span>
-
-  <h2>Food database</h2>
-  <p class="muted">
-    When on, the items a model recognises are matched against the food catalog and take its numbers.
-    Off, the analysis keeps the model's own. A switch takes effect on the next request with no
-    deploy, and every flip is kept below.
-  </p>
-  <div id="switches"></div>
-  <span class="status" id="switch-status"></span>
-  <div id="switch-recent" class="muted"></div>
-
-  <h2>System prompts</h2>
-  <p class="muted">
-    <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
-    reviewed — what you save is what the next analysis is asked. The five are what the server sends:
-    the photo analyzer, the text router and the two prompts behind it, and
-    the coach. They are stored as rows, so a save takes effect on the next request with no deploy.
-  </p>
-  <p class="muted">
-    A prompt marked <em>shipped</em> is the text this build was written with, and a deploy keeps it
-    current. The moment you save one it becomes <em>yours</em>, and no later deploy will touch it —
-    including to carry across a change made in the code. <strong>Restore shipped</strong> puts the
-    build's text back, and is itself a save. Nothing is overwritten: every version is kept, and
-    <strong>History</strong> shows what was being sent and from when.
-  </p>
-  <div id="prompt-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-  <div id="prompts"></div>
-
-  <h2>Accounts</h2>
-  <p class="muted">
-    <strong>These are real people.</strong> Every row is somebody's account and the address they
-    signed in with. Read it to answer a question somebody asked you, and close it afterwards.
-    Search takes a whole email address or the beginning of a user id — nothing else matches.
-  </p>
-  <div class="card">
-    <div class="row">
-      <input type="text" id="users-q" placeholder="email address, or the start of a user id"
-             autocomplete="off" spellcheck="false">
-      <button id="users-search">Search</button>
-    </div>
-    <p class="muted" id="users-status">Loading…</p>
+<div class="adm hidden" id="app">
+  <nav class="anav" aria-label="Admin">
+    <span class="brand">${brandSvg("eait", { size: 20, class: "appicon" })}eait <small>admin</small></span>
+    <h6>Operate</h6>
+    <a href="#numbers" data-nav="numbers">Numbers</a>
+    <a href="#pushes" data-nav="pushes">Pushes</a>
+    <a href="#funnel" data-nav="funnel">Funnel</a>
+    <a href="#campaigns" data-nav="campaigns">Campaigns</a>
+    <a href="#accounts" data-nav="accounts">Accounts</a>
+    <h6>Content</h6>
+    <a href="#onboarding" data-nav="onboarding">Onboarding copy</a>
+    <a href="#templates" data-nav="templates">Push templates<b id="templates-badge" class="hidden"></b></a>
+    <a href="#prompts" data-nav="prompts">System prompts</a>
+    <h6>System</h6>
+    <a href="#food" data-nav="food">Food database</a>
+    <div class="who">Signed in · staff</div>
+  </nav>
+  <div class="atop">
+    <span class="brand">eait admin</span>
+    <select id="switcher" aria-label="View">
+      <optgroup label="Operate">
+        <option value="numbers">Numbers</option>
+        <option value="pushes">Pushes</option>
+        <option value="funnel">Funnel</option>
+        <option value="campaigns">Campaigns</option>
+        <option value="accounts">Accounts</option>
+      </optgroup>
+      <optgroup label="Content">
+        <option value="onboarding">Onboarding copy</option>
+        <option value="templates">Push templates</option>
+        <option value="prompts">System prompts</option>
+      </optgroup>
+      <optgroup label="System">
+        <option value="food">Food database</option>
+      </optgroup>
+    </select>
   </div>
-  <div class="card" id="composer">
-    <strong>Send a push</strong>
-    <p class="muted" id="composer-count">Tick accounts below.</p>
-    <div class="row">
-      <select id="composer-template"></select>
-      <select id="composer-route"></select>
-      <button class="primary" id="composer-send">Send</button>
-    </div>
-    <div class="row">
-      <select id="composer-test-route"></select>
-      <button id="composer-test">Send test push to the one picked account</button>
-    </div>
-    <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
-    <p class="muted" id="composer-status"></p>
-    <ul id="composer-results"></ul>
-  </div>
-  <table id="users">
-    <thead>
-      <tr><th>Push</th><th>Staff</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p>
-    <button id="users-more" class="hidden">Load more</button>
-  </p>
 
-  <h2>Thread <span class="pill" id="chat-who"></span></h2>
-  <p class="muted">
-    <strong>This is somebody's conversation, and onboarding collects medical free text.</strong>
-    Read it to answer a question about a reply that was wrong, and nothing else. It is what they
-    saw, rendered the way their app renders it. There is no way to write here, deliberately.
-  </p>
-  <div class="card">
-    <div id="chat"></div>
-    <p>
-      <button id="chat-older" class="hidden">Older</button>
-      <span class="status" id="chat-status">Choose an account above.</span>
+  <div class="amain">
+    <div class="ahead"><h1 id="view-title">Numbers</h1></div>
+    <div class="abody">
+
+<!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
+     once the view's own data has arrived. A view loads the first time it is opened, and a failure
+     stays inside it: the gate and the denied card come from the session check and nothing else. -->
+
+<section class="view hidden" id="view-numbers">
+  <div id="state-numbers"></div>
+  <div class="vbody hidden" id="body-numbers">
+    <p class="muted"><span class="chip n" id="metrics-window"></span> <span id="metrics-summary"></span></p>
+    <div class="card flush"><div class="scrollx"><table id="metrics">
+      <thead>
+        <tr><th>Day</th><th class="r">Signups</th><th class="r">Activated</th><th class="r">Analyses</th><th class="r">Spend</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <p class="muted">
+      <strong>Analyses, not money.</strong> Spend is what the provider billed; an unpriced call shows its count.
+      Came back means <em>logged something</em> on that day, which is narrower than opening the app and is the
+      only version of it this database can answer about a day in the past.
     </p>
   </div>
-  <h2>Diary <span class="pill" id="diary-who"></span></h2>
-  <p class="muted">
-    <strong>This shows a real person's photographs and what they ate.</strong> It is here so that
-    "the analysis was wrong" can be answered, and for nothing else. Choose an account above; a meal
-    row opens the pictures behind it.
-  </p>
-  <div class="card">
-    <div class="row">
-      <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-      <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-      <button id="diary-load">Load</button>
-    </div>
-    <p class="muted" id="diary-status">Choose an account above.</p>
-  </div>
-  <table id="diary">
-    <thead>
-      <tr><th>When</th><th>What</th><th>kcal</th><th>Verdicts</th><th>Model</th><th>Confidence</th><th>Photos</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <div id="photos"></div>
+</section>
 
-  <h2>Per-account sample</h2>
-  <p class="muted">
-    How many analyses ONE account gets before the paywall, instead of the instance default. Save with
-    the box empty to put the account back on the default.
-  </p>
-  <div class="card">
-    <div class="row">
-      <input type="text" id="cap-user" placeholder="user id" autocomplete="off" spellcheck="false">
-      <button id="cap-load">Load</button>
-    </div>
-    <label for="cap-n">Analyses before the paywall</label>
-    <div class="row">
-      <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default">
-      <button class="primary" id="cap-save">Save</button>
-    </div>
-    <p class="muted" id="cap-status"></p>
+<section class="view hidden" id="view-pushes">
+  <div id="state-pushes"></div>
+  <div class="vbody hidden" id="body-pushes">
+    <p class="muted"><span class="chip n" id="pushes-window"></span> <span id="pushes-summary"></span></p>
+    <div class="card flush"><div class="scrollx"><table id="pushes">
+      <thead>
+        <tr><th>Day</th><th>Kind</th><th>Template</th><th class="r">Sent</th><th class="r">Accepted</th><th class="r">Dead</th><th class="r">Delivered</th><th class="r">Opened</th><th class="r">Converted</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <p class="muted">
+      Per day the message went out, in the instance's zone. <strong>Opened</strong> is a send the phone
+      reported opened; <strong>converted</strong> is a send followed by a meal from the same account
+      within 24 hours, whether or not it was opened. Counts only: no account is named here.
+    </p>
   </div>
-</div>
+</section>
 
-<div class="bar hidden" id="bar">
-  <span class="status" id="status"></span>
-  <select id="lang" aria-label="Language"></select>
-  <button id="reload">Reload</button>
-  <button id="reset">Restore defaults</button>
-  <button class="primary" id="save">Save</button>
+<section class="view hidden" id="view-funnel">
+  <div id="state-funnel"></div>
+  <div class="vbody hidden" id="body-funnel">
+    <p class="muted"><span class="chip n" id="funnel-window"></span> <span id="funnel-summary"></span></p>
+    <div class="card flush"><div class="scrollx"><table id="funnel">
+      <thead>
+        <tr><th>Screen</th><th class="r">Views</th><th class="r">Answers</th><th class="r">Drop</th><th class="r">Back</th><th class="r">Refused</th><th class="r">Median</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <p class="muted">
+      Drop is views minus answers on that screen: the people who saw the question and did not answer it.
+      Median is how long an answer took. The runs are grouped by the content version they saw, which a
+      save in Onboarding copy bumps.
+    </p>
+  </div>
+</section>
+
+<section class="view hidden" id="view-campaigns">
+  <div id="state-campaigns"></div>
+  <div class="vbody hidden" id="body-campaigns">
+    <p class="muted"><span class="chip n" id="campaigns-state"></span> <span id="campaigns-summary"></span></p>
+    <p class="muted">
+      A campaign is one reviewed template sent once to each account in its segment, at the account's own
+      local time, behind the one-message-a-day rule: an account that already had today's message is tried
+      again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
+      offers on. The segment is a fixed list of choices; there is no free-form query.
+    </p>
+    <div class="row flexwrap" id="campaigns-tools">
+      <button id="campaigns-kill" class="small danger"></button>
+      <input id="campaigns-test-user" placeholder="Staff account id for test sends" autocomplete="off">
+    </div>
+    <p class="muted" id="campaign-note"></p>
+    <div id="campaign-errors" class="errors hidden"><strong>Not done.</strong><ul></ul></div>
+    <div id="campaigns-empty" class="card hidden">
+      <div class="astate"><b>No campaigns yet.</b><span>A campaign starts as a draft; nothing sends until you schedule it.</span>
+        <button class="primary" id="campaign-new">New campaign</button></div>
+    </div>
+    <div class="card flush"><div class="scrollx"><table id="campaigns">
+      <thead>
+        <tr><th>Name</th><th>Status</th><th>Segment</th><th>Send at</th><th>Rollout</th><th>Arms</th><th>Sent</th><th>Opened</th><th>Dry</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <div id="campaign-reports"></div>
+    <p class="muted">
+      Sent and opened count real sends only; a dry run (who it would reach, nothing sent), a test send and the
+      holdout are counted apart. Raising the rollout only adds accounts. Killing a campaign stops it between two sends.
+    </p>
+    <h2>New campaign</h2>
+    <div class="card" id="campaign-form"></div>
+    <h2>Campaign copy</h2>
+    <p class="muted">
+      A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+      gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+      scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+      gender checks as every other push text.
+    </p>
+    <datalist id="campaign-keys"></datalist>
+    <div class="card flush"><div class="scrollx"><table id="campaign-copy">
+      <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+      <tbody></tbody>
+    </table></div></div>
+    <div class="card" id="campaign-copy-form"></div>
+  </div>
+</section>
+
+<section class="view hidden" id="view-accounts">
+  <div id="state-accounts"></div>
+  <div class="vbody hidden" id="body-accounts">
+    <p class="muted">
+      <strong>These are real people.</strong> Every row is somebody's account and the address they
+      signed in with. Read it to answer a question somebody asked you, and close it afterwards.
+      Search takes a whole email address or the beginning of a user id — nothing else matches.
+    </p>
+    <div class="card">
+      <div class="row">
+        <input type="text" id="users-q" placeholder="email address, or the start of a user id"
+               autocomplete="off" spellcheck="false">
+        <button id="users-search">Search</button>
+      </div>
+      <p class="muted" id="users-status"></p>
+    </div>
+    <div class="card" id="composer">
+      <strong>Send a push</strong>
+      <p class="muted" id="composer-count">Tick accounts below.</p>
+      <div class="row">
+        <select id="composer-template"></select>
+        <select id="composer-route"></select>
+        <button class="primary" id="composer-send">Send</button>
+      </div>
+      <div class="row">
+        <select id="composer-test-route"></select>
+        <button id="composer-test">Send test push to the one picked account</button>
+      </div>
+      <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
+      <p class="muted" id="composer-status"></p>
+      <ul id="composer-results"></ul>
+    </div>
+    <div class="card flush"><div class="scrollx"><table id="users">
+      <thead>
+        <tr><th>Push</th><th>Staff</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <p>
+      <button id="users-more" class="hidden">Load more</button>
+    </p>
+
+    <h2>Thread <span class="chip n" id="chat-who"></span></h2>
+    <p class="muted">
+      <strong>This is somebody's conversation, and onboarding collects medical free text.</strong>
+      Read it to answer a question about a reply that was wrong, and nothing else. It is what they
+      saw, rendered the way their app renders it. There is no way to write here, deliberately.
+    </p>
+    <div class="card">
+      <div id="chat"></div>
+      <p>
+        <button id="chat-older" class="hidden">Older</button>
+        <span class="status" id="chat-status">Choose an account above.</span>
+      </p>
+    </div>
+
+    <h2>Diary <span class="chip n" id="diary-who"></span></h2>
+    <p class="muted">
+      <strong>This shows a real person's photographs and what they ate.</strong> It is here so that
+      "the analysis was wrong" can be answered, and for nothing else. Choose an account above; a meal
+      row opens the pictures behind it.
+    </p>
+    <div class="card">
+      <div class="row">
+        <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
+        <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
+        <button id="diary-load">Load</button>
+      </div>
+      <p class="muted" id="diary-status">Choose an account above.</p>
+    </div>
+    <div class="card flush"><div class="scrollx"><table id="diary">
+      <thead>
+        <tr><th>When</th><th>What</th><th>kcal</th><th>Verdicts</th><th>Model</th><th>Confidence</th><th>Photos</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table></div></div>
+    <div id="photos"></div>
+
+    <h2>Per-account sample</h2>
+    <p class="muted">
+      How many analyses ONE account gets before the paywall, instead of the instance default. Save with
+      the box empty to put the account back on the default.
+    </p>
+    <div class="card">
+      <div class="row">
+        <input type="text" id="cap-user" placeholder="user id" autocomplete="off" spellcheck="false">
+        <button id="cap-load">Load</button>
+      </div>
+      <label for="cap-n">Analyses before the paywall</label>
+      <div class="row">
+        <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default">
+        <button class="primary" id="cap-save">Save</button>
+      </div>
+      <p class="muted" id="cap-status"></p>
+    </div>
+  </div>
+</section>
+
+<section class="view hidden" id="view-onboarding">
+  <div id="state-onboarding"></div>
+  <div class="vbody hidden" id="body-onboarding">
+    <p class="muted">
+      Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
+      The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
+      and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
+      version, which is what the funnel is grouped by.
+    </p>
+    <p class="muted">
+      One language at a time. A save replaces the language in the picker and nothing beside it, and
+      takes the next version number — one counter across all eight, so no two revisions ever share
+      one and the funnel can still say which words it counted. The eight shipped revisions are
+      one editorial revision and share a number; they stop sharing it the first time anybody saves.
+      A language nobody has saved serves the copy the app ships with, in that language — never
+      English, because half an onboarding in English is worse than none of it.
+    </p>
+
+    <div id="errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+
+    <h2>The welcome screen</h2>
+    <p class="muted">
+      The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
+      competitor there, do not write "free", and do not promise away the card, the trial or the
+      cancelling: the app sells a subscription behind a free trial, so those are no longer true.
+      Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
+      the whole app works without an account at all.
+    </p>
+    <div id="welcome"></div>
+
+    <h2>Screens</h2>
+    <div id="screens"></div>
+
+    <h2>Working out the number</h2>
+    <p class="muted">
+      Labels only. Every figure beside them is computed from the person's own answers and cannot be
+      edited here.
+    </p>
+    <div id="building"></div>
+
+    <h2>The plan screen</h2>
+    <p class="muted">
+      <code>{weeks}</code> and <code>{month}</code> are substituted into the projection line. It is
+      hidden entirely for anyone the arithmetic cannot honestly project.
+    </p>
+    <div id="summary"></div>
+
+    <div class="bar" id="bar">
+      <span class="status" id="status"></span>
+      <select id="lang" aria-label="Language"></select>
+      <button id="reload">Reload</button>
+      <button id="reset">Restore defaults</button>
+      <button class="primary" id="save">Save</button>
+    </div>
+  </div>
+</section>
+
+<section class="view hidden" id="view-templates">
+  <div id="state-templates"></div>
+  <div class="vbody hidden" id="body-templates">
+    <p class="muted">
+      The words of every push, per language, and the only place they live. The <code>trial-end</code>
+      line is <em>local</em>: the phone sends it, so the server never reads it, but it is reviewed here
+      like the rest. A message is sent only when <strong>all eight
+      languages</strong> have a <em>reviewed</em> row for each of its variants; one draft or gap in
+      any language stops that message for everybody. Marking a row reviewed runs the claims gate
+      (no health claims, no health values); a refusal is shown below in the gate's own words. The
+      braces are filled by the server and a plural block needs exactly the categories its language has.
+    </p>
+    <div id="push-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+    <div class="card flush"><div id="push-grid" class="scrollx"></div></div>
+    <div id="push-edit"></div>
+    <span class="status" id="push-status"></span>
+  </div>
+</section>
+
+<section class="view hidden" id="view-prompts">
+  <div id="state-prompts"></div>
+  <div class="vbody hidden" id="body-prompts">
+    <p class="muted">
+      <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
+      reviewed — what you save is what the next analysis is asked. The five are what the server sends:
+      the photo analyzer, the text router and the two prompts behind it, and
+      the coach. They are stored as rows, so a save takes effect on the next request with no deploy.
+    </p>
+    <p class="muted">
+      A prompt marked <em>shipped</em> is the text this build was written with, and a deploy keeps it
+      current. The moment you save one it becomes <em>yours</em>, and no later deploy will touch it —
+      including to carry across a change made in the code. <strong>Restore shipped</strong> puts the
+      build's text back, and is itself a save. Nothing is overwritten: every version is kept, and
+      <strong>History</strong> shows what was being sent and from when.
+    </p>
+    <div id="prompt-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+    <div id="prompts"></div>
+  </div>
+</section>
+
+<section class="view hidden" id="view-food">
+  <div id="state-food"></div>
+  <div class="vbody hidden" id="body-food">
+    <p class="muted">
+      When on, the items a model recognises are matched against the food catalog and take its numbers.
+      Off, the analysis keeps the model's own. A switch takes effect on the next request with no
+      deploy, and every flip is kept below.
+    </p>
+    <div id="switches"></div>
+    <span class="status" id="switch-status"></span>
+    <div id="switch-recent" class="muted"></div>
+  </div>
+</section>
+
+    </div>
+  </div>
 </div>
 
 <script nonce="${nonce}">
@@ -449,7 +654,9 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       body: body ? JSON.stringify(body) : undefined
     }).then(function (res) {
       return res.text().then(function (text) {
-        var parsed = text ? JSON.parse(text) : {};
+        // A 500 from a proxy is HTML, and a view's error must say 500 rather than "Unexpected token".
+        var parsed = {};
+        try { parsed = text ? JSON.parse(text) : {}; } catch (_) { if (res.ok) throw new Error("unreadable answer"); }
         if (!res.ok) { var err = new Error(parsed.error || res.status); err.body = parsed; err.status = res.status; throw err; }
         return parsed;
       });
@@ -502,7 +709,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       head.appendChild(toggle);
     } else {
       var pill = document.createElement("span");
-      pill.className = "pill";
+      pill.className = "chip n";
       pill.textContent = "required — feeds the target";
       head.appendChild(pill);
     }
@@ -682,6 +889,27 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     return d.unpriced ? usd + " · " + d.unpriced + " unpriced" : usd;
   }
 
+  // A cell, right-aligned from column "from" on: numbers read down a column, words read across.
+  function td(tr, text, i, from) {
+    var c = document.createElement("td");
+    c.textContent = String(text);
+    if (i >= from) c.classList.add("r");
+    tr.appendChild(c);
+    return c;
+  }
+
+  // The empty state of a table: one row that says so, in the table's own width.
+  function emptyRow(body, cols, text) {
+    if (body.childElementCount) return;
+    var tr = document.createElement("tr");
+    var c = document.createElement("td");
+    c.colSpan = cols;
+    c.className = "empty";
+    c.textContent = text;
+    tr.appendChild(c);
+    body.appendChild(tr);
+  }
+
   function loadMetrics() {
     return api("GET", "/admin/api/metrics?days=30").then(function (m) {
       $("metrics-window").textContent = "last " + m.days.length + " days";
@@ -701,15 +929,14 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       m.days.slice().reverse().forEach(function (d) {
         var tr = document.createElement("tr");
         [d.date, String(d.signups), String(d.activations), String(d.analyses), spend(d)].forEach(function (t, i) {
-          var td = document.createElement("td");
-          td.textContent = t;
+          var c = td(tr, t, i, 1);
           // The one number that can hit a wall, marked when it is at it.
-          if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) td.className = "drop";
-          tr.appendChild(td);
+          if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) c.classList.add("drop");
         });
         body.appendChild(tr);
       });
-    }).catch(function (e) { $("metrics-summary").textContent = "failed: " + e.message; });
+      emptyRow(body, 5, "No days to show yet.");
+    });
   }
 
   function loadPushes() {
@@ -722,14 +949,13 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       body.textContent = "";
       v.rows.forEach(function (r) {
         var tr = document.createElement("tr");
-        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t) {
-          var td = document.createElement("td");
-          td.textContent = String(t);
-          tr.appendChild(td);
+        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t, i) {
+          td(tr, t, i, 3);
         });
         body.appendChild(tr);
       });
-    }).catch(function (e) { $("pushes-summary").textContent = "failed: " + e.message; });
+      emptyRow(body, 9, "Nothing has been sent in this window.");
+    });
   }
 
   // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
@@ -753,9 +979,9 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     return parts.length ? parts.join(" · ") : "everyone";
   }
 
-  function campaignAction(label, run, confirmText) {
+  function campaignAction(label, run, confirmText, danger) {
     var b = document.createElement("button");
-    b.className = "small";
+    b.className = danger ? "small danger" : "small";
     b.textContent = label;
     b.addEventListener("click", function () {
       if (confirmText && !confirm(confirmText)) return;
@@ -897,19 +1123,18 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     campaigns.forEach(function (c) {
       if (!c.report.groups.length) return;
       var h = document.createElement("h3"); h.textContent = c.name + " — by arm"; host.appendChild(h);
+      var frame = document.createElement("div"); frame.className = "card flush";
       var wrap = document.createElement("div"); wrap.className = "scrollx";
       var t = document.createElement("table");
       var head = document.createElement("tr");
-      ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x) { var th = document.createElement("th"); th.textContent = x; head.appendChild(th); });
+      ["Arm", "Accounts", "Opened", "Converted", "Conversion"].forEach(function (x, i) { var th = document.createElement("th"); th.textContent = x; if (i) th.className = "r"; head.appendChild(th); });
       t.appendChild(head);
       c.report.groups.forEach(function (g) {
         var tr = document.createElement("tr");
-        [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x) {
-          var td = document.createElement("td"); td.textContent = String(x); tr.appendChild(td);
-        });
+        [g.group === "holdout" ? "holdout (not sent)" : g.group, g.users, g.group === "holdout" ? "—" : g.opened + " (" + pct(g.opened, g.users) + ")", g.converted, pct(g.converted, g.users)].forEach(function (x, i) { td(tr, x, i, 1); });
         t.appendChild(tr);
       });
-      wrap.appendChild(t); host.appendChild(wrap);
+      wrap.appendChild(t); frame.appendChild(wrap); host.appendChild(frame);
       var p = document.createElement("p"); p.className = "muted";
       var e = c.effect;
       if (!e) p.textContent = "No treated-minus-holdout figure yet: it needs sent accounts and a holdout.";
@@ -922,6 +1147,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     });
   }
 
+  var STATUS_TONE = { running: "g", scheduled: "w", paused: "w", killed: "b", done: "n", draft: "n" };
+
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
       if (!campaignOptions) { campaignOptions = v.options; buildCampaignForm(v.options); buildCopyForm(v.options); }
@@ -932,10 +1159,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         copyRows = copyRows.concat(c.rows);
         var opt = document.createElement("option"); opt.value = c.key; keys.appendChild(opt);
         var tr = document.createElement("tr");
-        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t) { var td = document.createElement("td"); td.textContent = t; tr.appendChild(td); });
+        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
         copyBody.appendChild(tr);
       });
       $("campaigns-state").textContent = v.killed ? "ALL CAMPAIGNS STOPPED" : "running normally";
+      $("campaigns-state").className = v.killed ? "chip b" : "chip g";
       $("campaigns-summary").textContent =
         v.campaigns.length + " campaign(s) · " + v.options.staffCount + " staff account(s) on the env bootstrap list";
       var kill = $("campaigns-kill");
@@ -953,9 +1181,15 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         [c.name, c.status, segmentText(c.segment) + (c.promotional ? " · promotional" : ""), c.localSendTime,
          c.rolloutPct + "%", c.variants + (c.holdoutPct ? " · " + c.holdoutPct + "% held out" : ""), c.report.sent, c.report.opened + " (" + pct(c.report.opened, c.report.sent) + ")", c.report.dry
         ].forEach(function (t) {
-          var td = document.createElement("td");
-          td.textContent = String(t);
-          tr.appendChild(td);
+          var cellTd = td(tr, t, 0, 99);
+          // The status is the one cell that is a verdict, so it wears the chip.
+          if (cellTd === tr.children[1]) {
+            cellTd.textContent = "";
+            var chip = document.createElement("span");
+            chip.className = "chip " + (STATUS_TONE[c.status] || "n");
+            chip.textContent = c.status;
+            cellTd.appendChild(chip);
+          }
         });
         var cell = document.createElement("td");
         var act = document.createElement("div");
@@ -971,19 +1205,22 @@ export const adminPage = (nonce: string): string => `<!doctype html>
             return api("PATCH", "/admin/api/campaigns/" + c.id, { rolloutPct: Math.round(next) });
           }));
           act.appendChild(campaignAction("Dry run", function () {
-            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { status("Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent."); });
+            return api("POST", "/admin/api/campaigns/" + c.id + "/dry-run").then(function (r) { $("campaign-note").textContent = "Dry run: would reach " + r.wouldSend + " account(s), hold out " + r.heldOut + ". Nothing was sent."; });
           }));
           act.appendChild(campaignAction("Test send", function () {
             return api("POST", "/admin/api/campaigns/" + c.id + "/test", { userId: $("campaigns-test-user").value.trim() })
-              .then(function (r) { status("Test send: " + r.sent + " device(s)."); });
+              .then(function (r) { $("campaign-note").textContent = "Test send: " + r.sent + " device(s)."; });
           }));
           act.appendChild(campaignAction("Done", set("done"), "Mark " + c.name + " done? It stops sending for good."));
-          act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed."));
+          act.appendChild(campaignAction("Kill", set("killed"), "Kill " + c.name + "? It stops now and cannot be resumed.", true));
         }
         tr.appendChild(cell);
         body.appendChild(tr);
       });
-    }).catch(function (e) { $("campaigns-summary").textContent = "failed: " + e.message; });
+      // Nothing yet is a state with a way forward, not an empty table.
+      $("campaigns-empty").classList.toggle("hidden", v.campaigns.length > 0);
+      $("campaigns").parentNode.parentNode.classList.toggle("hidden", v.campaigns.length === 0);
+    });
   }
 
   function loadFunnel() {
@@ -1007,13 +1244,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
           r.medianMs == null ? "—" : (r.medianMs / 1000).toFixed(1) + "s"
         ];
         cells.forEach(function (text, i) {
-          var td = document.createElement("td");
-          td.textContent = text;
-          if (i === 3 && drop > 0) td.className = "drop";
-          tr.appendChild(td);
+          var c = td(tr, text, i, 1);
+          if (i === 3 && drop > 0) c.classList.add("drop");
         });
         body.appendChild(tr);
       });
+      emptyRow(body, 7, "No onboarding runs in this window.");
     });
   }
 
@@ -1065,11 +1301,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
         name.textContent = k.key + " / " + variant;
         if (i === 0) {
           var pill = document.createElement("span");
-          pill.className = "pill";
+          pill.className = k.gaps.length ? "chip w" : "chip g";
           pill.textContent = k.gaps.length ? "blocked: " + k.gaps.length + " missing" : "sendable";
           if (k.key === "trial-end") {
             var loc = document.createElement("span");
-            loc.className = "pill";
+            loc.className = "chip n";
             loc.textContent = "local";
             name.appendChild(document.createTextNode(" "));
             name.appendChild(loc);
@@ -1162,6 +1398,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   function loadPush() {
     return api("GET", "/admin/api/push-templates").then(function (res) {
       push = res;
+      badge();
       renderPush();
     });
   }
@@ -1334,7 +1571,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       name.style.minWidth = "60px";
       name.textContent = SWITCH_LABELS[sw.key] || sw.key;
       var state = document.createElement("span");
-      state.className = "pill";
+      state.className = sw.enabled ? "chip g" : "chip n";
       state.textContent = sw.enabled ? "on" : "off";
       var when = document.createElement("span");
       when.className = "muted";
@@ -1429,11 +1666,15 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       .then(function (r) { $("composer-status").textContent = "Test push: " + r.sent + " device(s)."; })
       .catch(function (e) { $("composer-status").textContent = "Test push refused: " + ((e.body && e.body.reason) || e.message); });
   });
-  api("GET", "/admin/api/campaigns").then(function (c) {
-    c.copy.filter(function (t) { return t.gaps.length === 0; }).forEach(function (t) {
-      var o = document.createElement("option"); o.value = t.key; o.textContent = t.key; $("composer-template").appendChild(o);
-    });
-  }).catch(function () {});
+  // The sendable campaign copy, for the composer. Fetched with the Accounts view, once; the
+  // composer is a secondary control there, so a failure leaves its list empty and nothing else.
+  function loadComposerTemplates() {
+    return api("GET", "/admin/api/campaigns").then(function (c) {
+      c.copy.filter(function (t) { return t.gaps.length === 0; }).forEach(function (t) {
+        var o = document.createElement("option"); o.value = t.key; o.textContent = t.key; $("composer-template").appendChild(o);
+      });
+    }).catch(function () {});
+  }
   $("composer-send").addEventListener("click", function () {
     var ids = Array.from(picked.keys());
     var noOffers = Array.from(picked.values()).filter(function (v) { return !v; }).length;
@@ -1532,14 +1773,20 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       $("users-status").textContent = body.childElementCount === 0
         ? (q ? "Nothing matches that. It takes a whole address, or the start of an id." : "No accounts yet.")
         : body.childElementCount + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
-    }).catch(function (e) { $("users-status").textContent = "failed: " + e.message; });
+    });
   }
 
-  $("users-search").addEventListener("click", function () { usersCursor = null; loadUsers(false); });
+  // The first load is the view's, and its failure is the view's error state. A search or a page
+  // after that fails beside the box that asked.
+  function usersAgain(append) {
+    if (!append) usersCursor = null;
+    loadUsers(append).catch(function (e) { $("users-status").textContent = "failed: " + e.message; });
+  }
+  $("users-search").addEventListener("click", function () { usersAgain(false); });
   $("users-q").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { usersCursor = null; loadUsers(false); }
+    if (e.key === "Enter") usersAgain(false);
   });
-  $("users-more").addEventListener("click", function () { loadUsers(true); });
+  $("users-more").addEventListener("click", function () { usersAgain(true); });
 
   // ── One account's thread (#376) ────────────────────────────────────────────────────────────
   //
@@ -1731,7 +1978,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
-  function load(which) {
+  // The onboarding copy, and nothing else: every other view loads its own data.
+  function loadOnboarding(which) {
     asked = which || lang;
     return api("GET", atLang("/admin/api/content")).then(function (res) {
       content = res.content;
@@ -1741,8 +1989,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       // DEFENSIVE, because this page outlives the server it was built against — the same drift
       // usableContent exists for, one floor down. A server that predates the picker sends none of
       // these three, and calling forEach on an undefined list does not degrade the picker: it
-      // throws inside load, enter catches it, and the ADMIN is told their account cannot administer
-      // this instance. The whole page, lost to a select box.
+      // throws inside the load, and the view shows an error for a select box.
       //
       // NO BACKTICKS ANYWHERE IN THIS FILE: it is one template literal, and one in a comment ends
       // it. The server then fails to start, which is how this comment learned its own rule.
@@ -1752,8 +1999,6 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadPush().then(loadSwitches).then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadCampaigns).then(loadFunnel)
-        .then(function () { return loadUsers(false); });
     });
   }
 
@@ -1790,7 +2035,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     var was = lang;
     disable(true);
     status("loading " + (labels[next] || next) + "…");
-    load(next).then(function () {
+    loadOnboarding(next).then(function () {
       status(labels[lang] || lang);
     }).catch(function (e) {
       // Put BOTH back where the data still is, or the page lies about what Save would write.
@@ -1809,36 +2054,155 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     }
   }
 
+  // ── The shell ──────────────────────────────────────────────────────────────────────────────
+  //
+  // One view at a time, chosen by the hash. A view fetches its own data the first time it is
+  // opened and says so in its own box: loading, or an error with a way to try again. Nothing on
+  // this side of the session check can produce the gate or the denied card, so a 500 from one
+  // endpoint is a message in one view and every other view still works.
+
+  var VIEWS = {
+    numbers: { title: "Numbers", load: loadMetrics },
+    pushes: { title: "Pushes", load: loadPushes },
+    funnel: { title: "Funnel", load: loadFunnel },
+    campaigns: { title: "Campaigns", load: loadCampaigns },
+    accounts: { title: "Accounts", load: function () { loadComposerTemplates(); return loadUsers(false); } },
+    onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
+    // The shell already read the templates to count what needs review, so the first open draws
+    // from that answer instead of asking twice.
+    templates: { title: "Push templates", load: function () { return push ? Promise.resolve(renderPush()) : loadPush(); } },
+    prompts: { title: "System prompts", load: loadPrompts },
+    food: { title: "Food database", load: loadSwitches }
+  };
+
+  // view id -> "loading" | "ready". Absent: never opened, failed, or stale and due a read.
+  var state = {};
+
+  function skeleton() {
+    var box = document.createElement("div");
+    box.className = "sk";
+    for (var r = 0; r < 7; r++) {
+      var row = document.createElement("div");
+      row.className = "sk-row";
+      for (var c = 0; c < 4; c++) row.appendChild(document.createElement("i"));
+      box.appendChild(row);
+    }
+    return box;
+  }
+
+  function paint(id, kind, err) {
+    var box = $("state-" + id);
+    box.textContent = "";
+    $("body-" + id).classList.toggle("hidden", kind !== "ready");
+    if (kind === "loading") box.appendChild(skeleton());
+    if (kind !== "error") return;
+    var bar = document.createElement("div");
+    bar.className = "aerr";
+    var msg = document.createElement("span");
+    msg.textContent = "Couldn't load " + VIEWS[id].title.toLowerCase() + ". "
+      + (err && err.status ? "The server answered " + err.status + "." : "The request did not get an answer.");
+    var sp = document.createElement("span");
+    sp.className = "sp";
+    var again = document.createElement("button");
+    again.textContent = "Try again";
+    again.addEventListener("click", function () { run(id); });
+    bar.appendChild(msg);
+    bar.appendChild(sp);
+    bar.appendChild(again);
+    box.appendChild(bar);
+    var note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = "Only this view failed. The others load on their own.";
+    box.appendChild(note);
+  }
+
+  function run(id) {
+    state[id] = "loading";
+    paint(id, "loading");
+    VIEWS[id].load().then(function () {
+      state[id] = "ready";
+      paint(id, "ready");
+    }, function (e) {
+      delete state[id];
+      paint(id, "error", e);
+    });
+  }
+
+  function badge() {
+    var n = 0;
+    if (push && push.keys) push.keys.forEach(function (k) { n += k.gaps.length; });
+    var el = $("templates-badge");
+    el.textContent = String(n);
+    el.classList.toggle("hidden", n === 0);
+  }
+
+  function show(id) {
+    Object.keys(VIEWS).forEach(function (v) { $("view-" + v).classList.toggle("hidden", v !== id); });
+    $("view-title").textContent = VIEWS[id].title;
+    document.title = "eait admin — " + VIEWS[id].title;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-nav]"), function (a) {
+      var on = a.getAttribute("data-nav") === id;
+      a.classList.toggle("on", on);
+      if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    $("switcher").value = id;
+    window.scrollTo(0, 0);
+    if (!state[id]) run(id);
+  }
+
+  function route() {
+    var id = location.hash.replace("#", "");
+    show(VIEWS[id] ? id : "numbers");
+  }
+
+  window.addEventListener("hashchange", function () { if (token) route(); });
+  $("switcher").addEventListener("change", function () { location.hash = $("switcher").value; });
+
+  // Trade the /start session cookie for a bearer, then ask the one question that decides whether
+  // this account is let in: the push templates, which the shell needs anyway for its badge. The
+  // role check is the server's — 404 is what an account without the role gets, the same answer an
+  // instance with no admin gives — and it is the ONLY way to reach the denied card.
   function enter() {
-    // Trade the /start session cookie for a bearer. A POST, because SameSite=Lax withholds the
-    // cookie from a cross-site POST and that is what guards it; the token comes back in the body,
-    // never in a URL.
+    // A POST, because SameSite=Lax withholds the cookie from a cross-site POST and that is what
+    // guards it; the token comes back in the body, never in a URL.
     // redirect: "manual", and it is the difference between two very different messages. With no
     // session the route answers 303 to /start; fetch FOLLOWS that by default, gets 200 HTML back,
-    // and res.ok is true — so the JSON parse threw and the catch below told an administrator their
-    // account could not administer this instance. An opaque redirect is a signed-out browser.
+    // and res.ok is true — so an opaque redirect is a signed-out browser.
     return fetch("/start/session/token", { method: "POST", redirect: "manual" }).then(function (res) {
       if (res.type === "opaqueredirect" || res.status === 0 || res.status === 303) throw new Error("signed-out");
       if (!res.ok) throw new Error("signed-out");
       return res.json();
     }).then(function (body) {
       token = body.token;
-      return load();
+      return api("GET", "/admin/api/push-templates").then(function (res) { push = res; }, function (e) {
+        if (e.status === 404) throw new Error("denied");
+        if (e.status === 401) throw new Error("signed-out");
+        // Anything else is that view's to report when it is opened; the shell still comes up.
+      });
     }).then(function () {
+      badge();
       $("gate").classList.add("hidden");
+      $("denied").classList.add("hidden");
       $("app").classList.remove("hidden");
-      $("bar").classList.remove("hidden");
+      route();
     }).catch(function (e) {
       token = "";
+      if (e.message === "denied") {
+        $("gate").classList.add("hidden");
+        $("denied").classList.remove("hidden");
+        return;
+      }
       var msg = $("gate-error");
-      // 404 is what an account without the role gets, and it is deliberately the same answer an
-      // instance with no admin at all gives. Say the one true thing rather than guessing which.
-      msg.textContent = e.message === "signed-out"
-        ? ""
-        : "That account cannot administer this instance.";
-      if (msg.textContent) msg.classList.remove("hidden");
+      msg.textContent = e.message === "signed-out" ? "" : "Could not reach the server. Reload to try again.";
+      msg.classList.toggle("hidden", !msg.textContent);
     });
   }
+
+  $("other-account").addEventListener("click", function () {
+    fetch("/start/session/signout", { method: "POST", redirect: "manual" }).catch(function () {}).then(function () {
+      location.assign("/start");
+    });
+  });
 
   // Try on load: somebody arriving here from /start is already signed in, and asking them to press
   // a button to discover that is a button with no question behind it.
@@ -1851,7 +2215,9 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       showErrors(null);
       render();
       status("saved — version " + content.version);
-      return loadFunnel();
+      // The funnel is grouped by content version, and this just made a new one: read it again
+      // the next time that view is opened.
+      delete state.funnel;
     }).catch(function (e) {
       showErrors((e.body && e.body.errors) || [e.message]);
       status("not saved");
@@ -1869,7 +2235,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   });
 
   $("reload").addEventListener("click", function () {
-    load().then(function () { status("reloaded — version " + content.version); });
+    loadOnboarding().then(function () { status("reloaded — version " + content.version); })
+      .catch(function (e) { status("failed: " + e.message); });
   });
 
 })();

@@ -31,7 +31,7 @@ const NONCE = "pw-nonce";
 /** The policy `adminRoutes` serves the page under. Copied so a CSP violation still fails here. */
 const CSP =
   `default-src 'none'; style-src 'nonce-${NONCE}'; script-src 'nonce-${NONCE}'; `
-  + "connect-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
+  + "connect-src 'self'; font-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
   + "frame-ancestors 'none'";
 
 /** `editorMeta()` in `api/admin.ts`, which is not exported. Same constants, same shape. */
@@ -201,9 +201,9 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   });
 }
 
-/** The panel lives behind the gate, so every test waits for the page to be let in first. */
-async function openAdmin(page: import("@playwright/test").Page) {
-  await page.goto("/admin");
+/** The panel lives behind the gate and then behind a route, so every test waits to be let in and opens its view. */
+async function openAdmin(page: import("@playwright/test").Page, view: string) {
+  await page.goto(`/admin#${view}`);
   await expect(page.locator("#app")).toBeVisible();
 }
 
@@ -229,7 +229,7 @@ function watchConsole(page: import("@playwright/test").Page, allow?: RegExp): st
 test("the panel renders one card per prompt, and says who wrote each", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await openAdmin(page);
+  await openAdmin(page, "prompts");
 
   const panel = page.locator("#prompts");
   // Five prompts — the glance was retired in #216 and PROMPT_KEYS no longer carries it.
@@ -251,7 +251,7 @@ test("the food database switches show the default, PUT a flip, and re-render fro
   const errors = watchConsole(page);
   const switchCalls: { path: string; body: unknown }[] = [];
   await stubAdmin(page, { switchCalls });
-  await openAdmin(page);
+  await openAdmin(page, "food");
 
   const photo = page.locator('#switches [data-switch="grounding.photo"]');
   const text = page.locator('#switches [data-switch="grounding.text"]');
@@ -273,7 +273,7 @@ test("the food database switches show the default, PUT a flip, and re-render fro
 test("History opens the revisions, newest first, with the whole text of each", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await openAdmin(page);
+  await openAdmin(page, "prompts");
 
   const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
   await card.getByRole("button", { name: "History" }).click();
@@ -289,7 +289,7 @@ test("History opens the revisions, newest first, with the whole text of each", a
 test("saving asks first, and an unchanged prompt is not a save at all", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await openAdmin(page);
+  await openAdmin(page, "prompts");
 
   const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
   // Untouched: the button refuses without a dialog, because there is nothing to confirm.
@@ -315,7 +315,7 @@ test("a 409 lands beside the button, not in the page's error box", async ({ page
   await stubAdmin(page, {
     put: { status: 409, contentType: "application/json", body: JSON.stringify({ errors: ["somebody else saved this prompt a moment ago — reload it and apply your change on top"] }) },
   });
-  await openAdmin(page);
+  await openAdmin(page, "prompts");
 
   page.on("dialog", (d) => void d.accept());
   const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
@@ -330,7 +330,7 @@ test("a 409 lands beside the button, not in the page's error box", async ({ page
 test("the push grid lists every key x language, edits a cell, and shows the gate's refusal", async ({ page }) => {
   const errors = watchConsole(page, /Failed to load resource/);
   await stubAdmin(page, { pushRefuse: 'body: "Guaranteed weight loss" is a guarantee claim' });
-  await openAdmin(page);
+  await openAdmin(page, "templates");
 
   const grid = page.locator("#push-grid");
   // trial-end, evening x2, nudge, and three triggers x four variants: sixteen rows of eight reviewed cells, every key sendable.
@@ -351,7 +351,7 @@ test("the push grid lists every key x language, edits a cell, and shows the gate
 test("a draft turns its key into blocked", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await openAdmin(page);
+  await openAdmin(page, "templates");
   const row = page.locator("#push-grid tr").filter({ hasText: "nudge" });
   await row.locator("button.cell").nth(7).click(); // ru
   await page.locator("#push-edit").getByRole("button", { name: "Save as draft" }).click();
@@ -364,7 +364,7 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
   test(`food database panel at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await stubAdmin(page);
-    await openAdmin(page);
+    await openAdmin(page, "food");
     const panel = page.locator("#switches");
     await panel.getByRole("button", { name: "Turn off" }).first().click();
     await expect(panel.getByRole("button", { name: "Turn on" })).toHaveCount(1);
@@ -381,7 +381,7 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
   test(`push templates panel at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await stubAdmin(page);
-    await openAdmin(page);
+    await openAdmin(page, "templates");
     await page.locator("#push-grid tr").filter({ hasText: "evening / empty" }).locator("button.cell").nth(3).click();
     await page.locator("#push-grid").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.screenshot({ path: `/tmp/p2-push-admin-${name}.png` });
@@ -392,7 +392,7 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   const errors = watchConsole(page, /422/);
   const calls: { method: string; path: string; body: unknown }[] = [];
   await stubAdmin(page, { campaignCalls: calls });
-  await openAdmin(page);
+  await openAdmin(page, "campaigns");
   const table = page.locator("#campaigns");
   await expect(table.locator("tbody tr")).toHaveCount(2);
   await expect(table.getByText("langs: de · sinceLog: lapsed · promotional")).toBeVisible();
@@ -422,7 +422,7 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   });
 
   await table.locator("tr").filter({ hasText: "Staff check" }).getByRole("button", { name: "Dry run" }).click();
-  await expect(page.locator("#status")).toHaveText("Dry run: would reach 3 account(s), hold out 1. Nothing was sent.");
+  await expect(page.locator("#campaign-note")).toHaveText("Dry run: would reach 3 account(s), hold out 1. Nothing was sent.");
 
   await table.locator("tr").filter({ hasText: "Win-back" }).getByRole("button", { name: "Test send" }).click();
   await expect(page.locator("#campaign-errors")).toContainText("not-staff");
@@ -436,7 +436,7 @@ test("the campaign copy editor loads a saved language and saves a draft and a re
   await page.route("**/admin/api/push-templates", (r) => r.request().method() === "PUT"
     ? (calls.push({ method: "PUT", path: "/admin/api/push-templates", body: r.request().postDataJSON() }), r.fulfill({ status: 200, contentType: "application/json", body: "{\"row\":{}}" }))
     : r.fallback());
-  await openAdmin(page);
+  await openAdmin(page, "campaigns");
   const form = page.locator("#campaign-copy-form");
   await form.locator("input[placeholder='campaign:spring-win-back']").fill("campaign:win-back");
   await form.locator("select").nth(0).selectOption("de");
@@ -460,7 +460,7 @@ test("the campaigns panel stops everything behind a confirm, and a 422 is shown 
   const errors = watchConsole(page, /42[22]/);
   const calls: { method: string; path: string; body: unknown }[] = [];
   await stubAdmin(page, { campaignCalls: calls, campaignRefuse: "unknown predicate: sql" });
-  await openAdmin(page);
+  await openAdmin(page, "campaigns");
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Stop all campaigns" }).click();
   await expect(page.locator("#campaigns-state")).toHaveText("ALL CAMPAIGNS STOPPED");
@@ -474,7 +474,7 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
   test(`campaigns panel at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await stubAdmin(page);
-    await openAdmin(page);
+    await openAdmin(page, "campaigns");
     await expect(page.locator("#campaigns tbody tr")).toHaveCount(2);
     await page.locator("#campaigns").evaluate((el) => el.scrollIntoView({ block: "start" }));
     // Kill is always on screen, whatever the width: the actions wrap rather than run off the edge.
