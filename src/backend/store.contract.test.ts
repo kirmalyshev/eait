@@ -4121,10 +4121,15 @@ if (PG_URL) {
         "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates",
         "markCampaignRunning", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel",
         "promptRevisions", "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
-        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats", "putFoodRefs", "putNotificationCopy",
+        "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
+        // email_codes belongs to no account — the address is the subject of a future identity,
+        // and scoping to a user that may not exist yet is not a concept the table has (#569).
+        "putEmailCode",
+        "putFoodRefs", "putNotificationCopy",
         "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
-        "setSwitch", "switchEnabled", "switchHistory", "updateCampaign", "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
+        "setSwitch", "spendEmailCode", "switchEnabled", "switchHistory", "updateCampaign",
+        "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
       ]);
     });
 
