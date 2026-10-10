@@ -13,6 +13,7 @@ import type {
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
+import { timingSafeEqual } from "./auth/timingsafe.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, SWITCH_KEYS, ADMIN_USER_PAGE_MAX,
@@ -176,6 +177,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // itself would be the one environment where a dump is a way in, and demo mode is where this
   // flow gets driven.
   const pairingCodes = new Map<string, { userId: string; expiresAt: number }>();
+  // Email sign-in codes, keyed by row id — spent rows are KEPT (`usedAt` set), because the
+  // hour's sends are counted from them, exactly as the Postgres table keeps them (#569).
+  const emailCodes = new Map<string, {
+    email: string; codeHash: string; createdAt: number; expiresAt: number;
+    attempts: number; usedAt: number | null;
+  }>();
   // Append-only; `seq` comes from a monotonic counter, never reused, the same way the Postgres
   // bigserial is. Rows of a deleted user are removed, so it gaps.
   const chat: ChatMessage[] = [];
@@ -1468,6 +1475,42 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (row === undefined) return null;
       pairingCodes.delete(codeHash);
       return row.expiresAt > now() ? row.userId : null;
+    },
+
+    async putEmailCode(email, codeHash, expiresAt, limits) {
+      const at = now();
+      // The same single-read arithmetic as the Postgres statement: count the hour's sends, then
+      // admit or refuse. Refused sends leave the live code untouched — the resend that was too
+      // soon does not kill the code a person is still holding.
+      for (const [id, c] of emailCodes) if (at - c.createdAt > 24 * 60 * 60 * 1000) emailCodes.delete(id);
+      const sent = [...emailCodes.values()].filter((c) => c.email === email && at - c.createdAt < 60 * 60 * 1000);
+      const last = sent.reduce((m, c) => Math.max(m, c.createdAt), 0);
+      if (limits.perHour > 0 && sent.length >= limits.perHour) {
+        const first = sent.reduce((m, c) => Math.min(m, c.createdAt), Number.MAX_SAFE_INTEGER);
+        return Math.max(1, Math.ceil((first + 60 * 60 * 1000 - at) / 1000));
+      }
+      if (last > 0 && at - last < limits.resendSec * 1000) {
+        return Math.max(1, Math.ceil((last + limits.resendSec * 1000 - at) / 1000));
+      }
+      for (const c of emailCodes.values()) {
+        if (c.email === email && c.usedAt === null) c.usedAt = at;
+      }
+      emailCodes.set(crypto.randomUUID(), { email, codeHash, createdAt: at, expiresAt, attempts: 0, usedAt: null });
+      return null;
+    },
+
+    async spendEmailCode(email, codeHash, maxAttempts) {
+      const row = [...emailCodes.values()]
+        .filter((c) => c.email === email && c.usedAt === null && c.expiresAt > now())
+        .sort((a, b) => b.createdAt - a.createdAt)[0];
+      if (row === undefined) return "dead";
+      if (!timingSafeEqual(row.codeHash, codeHash)) {
+        row.attempts += 1;
+        if (row.attempts >= maxAttempts) row.usedAt = now();
+        return "wrong";
+      }
+      row.usedAt = now();
+      return "ok";
     },
 
     async appendChat(userId, lines) {
