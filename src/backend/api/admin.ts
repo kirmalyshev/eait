@@ -380,6 +380,17 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
   }
 
   // ── Staff flag and the push composer (eait#531) ───────────────────────────────────────────
+  // Push: the account's own daily bound (ieat-app#1965). Null clears it back to the instance default.
+  const pushCap = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/push-cap$/);
+  if (pushCap && req.method === "PUT") {
+    const body = await req.json().catch(() => null) as { pushDailyMax?: unknown } | null;
+    const n = body?.pushDailyMax;
+    if (n !== null && !(Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 2_147_483_647)) {
+      return json({ errors: ["pushDailyMax must be a whole number of sends a day, or null for no limit"] }, 422);
+    }
+    return await deps.store.setPushDailyMax(pushCap[1]!, n as number | null) ? json({ pushDailyMax: n }) : notFound();
+  }
+
   const staffRoute = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/staff$/);
   if (staffRoute && req.method === "PUT") {
     const body = await req.json().catch(() => null) as { staff?: unknown } | null;
@@ -510,8 +521,8 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
 
   // ── Push: test one account, read what it was sent ──────────────────────────────────────────
   //
-  // The test goes through `push_slot` like every sender, so a second one the same local day is a 409
-  // that says which kind holds the day. The log never carries a token: it names the device by
+  // The test claims like every sender, so a second one the same local day is a 409 (`slot-taken`),
+  // and an account at its bound is a 409 `account-cap`. The log never carries a token: it names the device by
   // nothing, and what it records is the state each message reached.
   const push = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/push-(test|log)$/);
   if (push) {

@@ -365,8 +365,8 @@ pre { overflow-x: auto; max-width: 100%; }
     <p class="muted"><span class="chip n" id="campaigns-state"></span> <span id="campaigns-summary"></span></p>
     <p class="muted">
       A campaign is one reviewed template sent once to each account in its segment, at the account's own
-      local time, behind the one-message-a-day rule: an account that already had today's message is tried
-      again tomorrow, never sent a second. A promotional campaign reaches only accounts with tips and
+      local time. It reaches an account at most once, whatever else was sent that day; only the account's
+      own pushes-a-day limit can hold it back, and then it is tried again tomorrow. A promotional campaign reaches only accounts with tips and
       offers on. The segment is a fixed list of choices; there is no free-form query.
     </p>
     <div class="row flexwrap" id="campaigns-tools">
@@ -442,7 +442,7 @@ pre { overflow-x: auto; max-width: 100%; }
     </div>
     <div class="card flush"><div class="scrollx"><table id="users">
       <thead>
-        <tr><th>Push</th><th>Staff</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
+        <tr><th>Push</th><th>Staff</th><th>Pushes/day</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
       </thead>
       <tbody></tbody>
     </table></div></div>
@@ -1692,7 +1692,7 @@ pre { overflow-x: auto; max-width: 100%; }
       var list = $("composer-results"); list.textContent = "";
       r.results.forEach(function (x) {
         var li = document.createElement("li");
-        li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped + (x.heldBy ? " (held by " + x.heldBy + ")" : "") : "sent to " + x.sent + " device(s)");
+        li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped : "sent to " + x.sent + " device(s)");
         list.appendChild(li);
       });
     }).catch(function (e) { $("composer-status").textContent = "failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message); });
@@ -1723,6 +1723,20 @@ pre { overflow-x: auto; max-width: 100%; }
     });
     staffTd.appendChild(staffBtn);
     tr.appendChild(staffTd);
+    var capTd = document.createElement("td");
+    var capBtn = document.createElement("button");
+    var paintCap = function () { capBtn.textContent = u.pushDailyMax === null ? "no limit" : String(u.pushDailyMax); };
+    paintCap();
+    capBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var raw = window.prompt("Pushes a day for this account (empty: no limit)", u.pushDailyMax === null ? "" : String(u.pushDailyMax));
+      if (raw === null) return;
+      api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/push-cap", { pushDailyMax: raw.trim() === "" ? null : Number(raw) })
+        .then(function (r) { u.pushDailyMax = r.pushDailyMax; paintCap(); })
+        .catch(function (err) { $("users-status").textContent = "pushes/day failed: " + err.message; });
+    });
+    capTd.appendChild(capBtn);
+    tr.appendChild(capTd);
     var cells = [
       u.email || shortId(u.userId),
       u.createdAt.slice(0, 10),

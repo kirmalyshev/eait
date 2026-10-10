@@ -507,17 +507,28 @@ naming it too.
   The numbers stay the old ones until the write lands. POST /v1/messages and PATCH /v1/meals/:id stay: shipped
   builds call them. A dead worker's `ingredients` or `reread` re-runs once; a `note` never does (its
   chat lines would repeat) and settles `OUTCOME_UNKNOWN`.
-- **R1 (one message per user per local day, `push_slot`) has ONE exception: the admin test push for a
-  staff account** (Kirill, #529). `sendTestPush` for a staff account (users.staff, set in the admin users list; EAIT__BACKEND__CAMPAIGN_STAFF_IDS is only a bootstrap fallback) neither
-  reads nor claims the slot, so a test never spends the day from the real senders; it is bounded by
-  `TEST_PUSH_DAILY_CAP` (`test-cap`, 409) instead. The server's flag decides, never a request field;
-  a non-staff account keeps `slot-taken`. The row is `kind campaign`, `ref admin-test`, and
-  `pushOpenStats` and the campaign reports leave it out. No other sender gets a bypass. The admin push composer (sendAdminPush, eait#531) claims the slot for every recipient, staff included.
+- **There is no cross-sender daily cap on pushes** (Kirill, ieat-app#1965; R1, the Telegram bot's
+  one-a-day rule, is retired for app pushes). `push_claim` is one row per `(user, local day,
+  sender)` and exists for idempotency: the tick runs every minute on two replicas, so each sender
+  claims its day BEFORE it sends. The sender is `pushSenderOf(kind, ref)` — the tick's scheduled
+  message (a trigger or the evening line, one sender) or `campaign:<ref>` (a campaign id,
+  `admin:<adminId>`, `admin-test`). **The only bound is per account**: `users.push_daily_max` (admin,
+  Accounts), else `EAIT__BACKEND__PUSH_DAILY_MAX`, else none, counted over that day's claims in the
+  same locked statement. **`claimSend` (`engine/notify.ts`) is the one place every sender claims**,
+  so a refusal there (`sender-taken` or `account-cap`) is the whole rule; a new sender calls it and
+  nothing else. A campaign is still once per account (`claimCampaignSend`); a repeat setting is added
+  only when a campaign needs one. The trial-ends day is no longer silent: the phone's local
+  reminder stays and the evening line goes as well. The staff test push (`sendTestPush`, users.staff
+  or EAIT__BACKEND__CAMPAIGN_STAFF_IDS as a bootstrap fallback) claims nothing and is bounded by
+  `TEST_PUSH_DAILY_CAP` (`test-cap`, 409), a stuck-button bound and not a product rule; a non-staff
+  test is the `admin-test` sender. Unchanged: Apple 4.5.4 (promotional only with tips and offers
+  on), the account-wide notifications switch, the claims gate. `push_slot` is written by the
+  scheduled sender only while a build that still reads it can run; drop it with that shim.
 - **The singletons run on the LEADER, and leadership is a Postgres advisory lock** (#414). The
   evening line, the daily sweeps (health retention, turn outcomes, settled jobs, abandoned accounts, idle
   tokens, expired pendings) and the Telegram poll each exist once per cluster, not once per
   process: `index.ts` contests `store.tryLeadership()` every 15 s, the lock is a session lock on
   its own connection so it dies with the holder, and a SIGTERM drains then releases rather than
-  making the next leader wait. The 20:30 line's second lock is `users.last_notified_date`,
+  making the next leader wait. The 20:30 line's second lock is its `push_claim` row,
   claimed atomically before the send — a second leader mid-handover finds the day already taken.
   `migrate()` runs under a second advisory lock, because two replicas can boot at once.
