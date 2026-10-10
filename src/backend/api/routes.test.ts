@@ -15,6 +15,7 @@ import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 import { redeemPairingCode } from "../engine/pairing.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 
 /** 64 bytes that pass the engine's magic-byte check as a JPEG. */
 const jpegBytes = (fill: number) => { const b = new Uint8Array(64).fill(fill); b[0] = 0xff; b[1] = 0xd8; return b; };
@@ -127,7 +128,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 
 beforeEach(() => {
   store = memoryStore();
-  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
   handle = createRouter(deps, store, testVerifier);
 });
 
@@ -146,7 +147,7 @@ describe("auth", () => {
     // says demo, the ports answering do not.
     const real = { ...demoPorts(), canned: false };
     const handleReal = createRouter(
-      { store, config: CONFIG, llm: real, push: fakePush() },
+      { store, config: CONFIG, llm: real, push: fakePush(), mail: logMail() },
       store, testVerifier,
     );
     expect(CONFIG.llmProvider).toBe("demo");
@@ -239,7 +240,7 @@ describe("profile", () => {
     const viewFor = async (webPaywall: Config["webPaywall"], locale = "en-GB") => {
       const s = memoryStore();
       const h = createRouter(
-        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), push: fakePush() },
+        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), push: fakePush(), mail: logMail() },
         s, testVerifier);
       const res = await h(new Request(url(ROUTES.authDevice), {
         method: "POST", headers: { "content-type": "application/json" },
@@ -449,7 +450,7 @@ describe("photo", () => {
   // there is held by the client, whose "Send again" is a NEW id: the second meal (#708 review).
   it("lets a re-sent turn past the address limit that a new turn meets", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, analysisRateLimitPerDay: 1 }, llm: demoPorts(), push: fakePush() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, analysisRateLimitPerDay: 1 }, llm: demoPorts(), push: fakePush(), mail: logMail() };
     handle = createRouter(deps, store, testVerifier);
     const said = crypto.randomUUID();
     const send = (key: string) => handle(new Request(url(ROUTES.messages), {
@@ -467,7 +468,7 @@ describe("photo", () => {
 
   it("402s once the sample is spent — the status the app opens the paywall on", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), push: fakePush() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), push: fakePush(), mail: logMail() };
     handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
@@ -1126,7 +1127,7 @@ describe("errors", () => {
   it("never returns an internal error message to the client", async () => {
     const exploding: EngineDeps = {
       store, config: CONFIG,
-      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, push: fakePush(),
+      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, push: fakePush(), mail: logMail(),
     };
     const token = await session();
     handle = createRouter(exploding, store, testVerifier);
@@ -1552,7 +1553,7 @@ describe("POST /v1/auth/pair", () => {
   it("sends the pairing address on the browser's origin, not the API's", async () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1571,7 +1572,7 @@ describe("POST /v1/auth/pair", () => {
   it("falls back to the API's own origin, which is every host that has not moved yet", async () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1589,7 +1590,7 @@ describe("POST /v1/auth/pair", () => {
     // on a dead token. A copy taken at router construction would keep a link to a bot that is gone.
     const s = memoryStore();
     const config: Config = { ...CONFIG };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
     const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -1632,7 +1633,7 @@ describe("POST /v1/auth/pair", () => {
 
     const { code } = await (await post(ROUTES.authPair, { userId: victim }, mine)).json() as PairCodeResponse;
     const paired = await redeemPairingCode(
-      { store, config: CONFIG, llm: demoPorts(), push: fakePush() },
+      { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() },
       code,
     );
     const landedOn = await store.userIdForToken(paired!);
@@ -1644,7 +1645,7 @@ describe("POST /v1/auth/pair", () => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, authRateLimitPerHour: 2 };
     const h = createRouter(
-      { store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+      { store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
     const address = "203.0.113.77";
     const reg = await h(new Request(url(ROUTES.authDevice), {
       method: "POST",
@@ -1673,7 +1674,7 @@ describe("rate limits", () => {
   const routerWith = (over: Partial<Config>) => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, ...over };
-    return createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+    return createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
   };
 
   /** A device registration from a stated address, as Caddy would present it. */
@@ -2126,7 +2127,7 @@ describe("push tokens", () => {
     // can invent as many valid-looking ones as it likes.
     const s = memoryStore();
     const config = { ...CONFIG, linesRateLimitPerHour: 3 };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush() }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
     const res = await h(new Request(url(ROUTES.authDevice), {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
@@ -2248,7 +2249,7 @@ describe("the stream's keepalive", () => {
         return demoPorts().analyzePhoto(input, onDelta);
       },
     };
-    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush() };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush(), mail: logMail() };
     const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
     const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
     const { token } = await res.json() as { token: string };
@@ -2283,7 +2284,7 @@ describe("the text turn, streamed (#508)", () => {
         return demoPorts().routeText(...args);
       },
     };
-    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush() };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, push: fakePush(), mail: logMail() };
     const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
     const res = await h(new Request(url(ROUTES.messages), {
       method: "POST",

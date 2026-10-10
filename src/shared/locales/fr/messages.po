@@ -425,6 +425,16 @@ msgstr "Dis-moi ce qui cloche — « la moitié du riz », « pas d'avocat
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Ce code a expiré. Demande-en un nouveau sur le web ou dans l'app."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Ce n'est pas le bon code. Regarde le dernier e-mail d'eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Pas de réponse. Réessaie."
 

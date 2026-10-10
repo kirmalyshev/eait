@@ -8,6 +8,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { dateMinus, emptyHealthDay, localDate, localTime } from "@eait/shared";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { remember } from "./chat.ts";
 import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
@@ -30,7 +31,7 @@ let store: Store;
 let deps: EngineDeps;
 
 function makeDeps(over: Partial<Config> = {}, llm: LlmPorts = demoPorts()): EngineDeps {
-  return { store, config: { ...CONFIG, ...over }, llm, push: fakePush() };
+  return { store, config: { ...CONFIG, ...over }, llm, push: fakePush(), mail: logMail() };
 }
 
 /** A fully onboarded user. Returns the id. */

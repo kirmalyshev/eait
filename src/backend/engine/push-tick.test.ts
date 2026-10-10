@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
@@ -24,7 +25,7 @@ let deps: EngineDeps;
 beforeEach(() => {
   store = memoryStore();
   push = fakePush();
-  deps = { store, config: CONFIG, llm: demoPorts(), push };
+  deps = { store, config: CONFIG, llm: demoPorts(), push, mail: logMail() };
 });
 
 let seq = 0;

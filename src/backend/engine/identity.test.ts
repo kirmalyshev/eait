@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
@@ -23,7 +24,7 @@ const CONFIG: Config = {
 };
 
 let store: Store;
-const depsFor = (s: Store): EngineDeps => ({ store: s, config: CONFIG, llm: demoPorts(), push: fakePush() });
+const depsFor = (s: Store): EngineDeps => ({ store: s, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() });
 
 /** The ticked boxes a sign-up carries — the terms box is what the call cannot be made without. */
 const CONSENT = { terms: true, marketing: false };

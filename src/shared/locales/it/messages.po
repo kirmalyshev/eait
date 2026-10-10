@@ -425,6 +425,16 @@ msgstr "Dimmi cosa non torna — «metà del riso», «niente avocado», «erano
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Questo codice è scaduto. Chiedine uno nuovo sul web o nell'app."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Il codice non è giusto. Controlla l'ultima email di eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Nessuna risposta. Riprova."
 

@@ -175,6 +175,13 @@ services:
       EAIT__BACKEND__FOODDB_READ_KEY: ${EAIT__BACKEND__FOODDB_READ_KEY:-}
       EAIT__BACKEND__FOODDB_URL: ${EAIT__BACKEND__FOODDB_URL:-https://food-api.eait.fit}
 
+      # The sign-in code's transport (#569). `log` prints the code instead of sending — fine for a
+      # local run, and a boot that refuses only once somebody asks for `resend` without the key.
+      EAIT__BACKEND__MAIL_PROVIDER: ${EAIT__BACKEND__MAIL_PROVIDER:-log}
+      EAIT__BACKEND__RESEND_API_KEY: ${EAIT__BACKEND__RESEND_API_KEY:-}
+      EAIT__BACKEND__MAIL_FROM: ${EAIT__BACKEND__MAIL_FROM:-eait <login@eait.fit>}
+      EAIT__BACKEND__EMAIL_CODES_PER_HOUR: ${EAIT__BACKEND__EMAIL_CODES_PER_HOUR:-5}
+
       # Unset = nobody holds the admin role and every path under /admin answers 404.
       EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID: ${EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID:-}
       EAIT__BACKEND__CAMPAIGN_STAFF_IDS: ${EAIT__BACKEND__CAMPAIGN_STAFF_IDS:-}

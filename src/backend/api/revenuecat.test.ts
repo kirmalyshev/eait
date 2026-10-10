@@ -14,6 +14,7 @@ import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import {
   REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook, describeTransfer, parseRevenueCatEvent,
 } from "./revenuecat.ts";
@@ -38,7 +39,7 @@ let handle: (req: Request) => Promise<Response>;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush(), mail: logMail() };
   handle = createRouter(deps, store, verifier);
 }
 

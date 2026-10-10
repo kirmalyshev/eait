@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { EngineDeps } from "./index.ts";
 import { pushConsent, setPushConsent } from "./push-consent.ts";
@@ -10,7 +11,7 @@ let deps: EngineDeps;
 let userId: string;
 beforeEach(async () => {
   const store = memoryStore();
-  deps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push: fakePush(), mail: logMail() };
   userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
 });
 

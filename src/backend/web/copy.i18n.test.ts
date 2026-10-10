@@ -36,7 +36,8 @@ describe("what /start says for itself, in eight languages", () => {
     for (const lang of LANGS) {
       expect(Object.keys(pageCopyFor(lang)).sort(), lang).toEqual(keys);
       for (const [k, v] of Object.entries(pageCopyFor(lang))) {
-        expect(v.trim(), `${lang}.${k}`).not.toBe("");
+        // CountForms leaves ({n} per plural category) are objects, not strings.
+        if (typeof v === "string") expect(v.trim(), `${lang}.${k}`).not.toBe("");
       }
     }
   });
@@ -45,9 +46,12 @@ describe("what /start says for itself, in eight languages", () => {
     for (const lang of LANGS) {
       const copy = pageCopyFor(lang);
       expect(copy.belowHealthyTarget, lang).toContain("{kg}");
-      // The pairing hint names the tab the phone's control lives on — `{tab}` is filled with
-      // SHELL_COPY's navProfile, so a translation that drops it renders "in ." for nothing.
-      expect(copy.pairLead, lang).toContain("{tab}");
+      // The code page's lead names the address the code went to — `{email}` is filled with it,
+      // so a translation that drops it renders "sent to ." over a page that cannot explain.
+      expect(copy.emailCodeLead, lang).toContain("{email}");
+      // The too-many note's one number is a counted minute form — `{min}` holds the whole
+      // "12 minutes" the language's own count rule produces.
+      expect(copy.emailTooMany, lang).toContain("{min}");
       // A meal card's three. Dropping `{unit}` is how `UNIT_KCAL` and a translation come apart.
       for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
         expect(copy.cardMacros, `${lang}.cardMacros`).toContain(ph);
@@ -64,9 +68,12 @@ describe("what /start says for itself, in eight languages", () => {
       // The sign-up screen's words live in `SIGNUP_COPY` (#110) — the same placeholder discipline
       // applies there.
       for (const [k, v] of Object.entries({ ...copy, ...signupCopyFor(lang) })) {
+        // CountForms leaves ({n} per plural category) are objects, not strings — their `{n}`
+        // is the one placeholder a count form may carry, and it is whitelisted already.
+        if (typeof v !== "string") continue;
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
-            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab", "days", "n", "price"],
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy", "tab", "days", "n", "price", "email", "min", "time"],
             `${lang}.${k}`,
           ).toContain(m[1] ?? "");
         }
@@ -78,7 +85,12 @@ describe("what /start says for itself, in eight languages", () => {
     // Stated rather than hidden: `claims.ts` matches English patterns, so running it over the
     // German would pass regardless and prove nothing. The seven translations are protected by
     // being translations OF this.
-    expect(lintCopy({ ...pageCopyFor("en"), ...signupCopyFor("en") })).toEqual([]);
+    expect(lintCopy(
+      // The strings, for the same reason as the walk above — `Record<string, string>`
+      // is what lintCopy takes and a CountForms leaf is not a string.
+      Object.fromEntries(Object.entries({ ...pageCopyFor("en"), ...signupCopyFor("en") })
+        .filter((e): e is [string, string] => typeof e[1] === "string")),
+    )).toEqual([]);
   });
 
   it("declares its language to the browser, because a screen reader picks a voice from it", () => {

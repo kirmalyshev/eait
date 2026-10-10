@@ -452,6 +452,34 @@ export interface Config {
   donateBmcUrl: string;
   donateGithubUrl: string;
 
+  // ── Mail ──────────────────────────────────────────────────────────────────────────────────
+  //
+  // The sign-in code's transport (#569). `log` by default, everywhere: a development server that
+  // mailed real inboxes the first time somebody ran it would be a development server nobody could
+  // run twice — the same rule the push block states above.
+
+  /**
+   * `resend` or `log` — which implementation `mail/choose.ts` wires. `log` prints the code to the
+   * server log instead of sending; it is the default and the only provider dev, tests and
+   * `--demo` need.
+   */
+  mailProvider: string;
+  /**
+   * Resend's API key. A secret: `redact()` masks it. Required only when `mailProvider` is
+   * `resend` — an instance that never sends mail has no use for it, and `log` never reads it.
+   */
+  resendApiKey: string;
+  /**
+   * The From the sign-in mail carries. `eait <login@eait.fit>` is the default — the sender
+   * fooddb's portal already delivers from, so SPF and DKIM on the domain already cover it.
+   */
+  mailFrom: string;
+  /**
+   * Sign-in code sends per recipient per hour, on top of `authRateLimitPerHour`. The per-ADDRESS
+   * bound cannot stop one network mailing one mailbox, and this is what can. Zero disables it.
+   */
+  emailCodesPerHour: number;
+
 }
 
 /** A donation link: empty is off; a set one must be an http(s) URL a browser can open. */
@@ -624,6 +652,10 @@ export function configDefaults(): Config {
     jobMaxQueuedMs: 600_000,
     // The one number the shipped copy states out loud, so it has exactly one source.
     eveningLineTime: { hour: REMINDER_TIME.hour, minute: REMINDER_TIME.minute },
+    mailProvider: "log",
+    resendApiKey: "",
+    mailFrom: "eait <login@eait.fit>",
+    emailCodesPerHour: 5,
   };
 }
 
@@ -661,6 +693,18 @@ export function loadConfig(): Config {
   const llmAgentConcurrency = int("EAIT__BACKEND__LLM_AGENT_CONCURRENCY", d.llmAgentConcurrency);
   if (llmAgentConcurrency < 1) {
     throw new Error("[eait] EAIT__BACKEND__LLM_AGENT_CONCURRENCY must be at least 1");
+  }
+
+  // `log` needs nothing; `resend` needs its key. Asking for Resend with no key is not "log
+  // anyway" — a sign-in button that answers 204 while the code goes to a log nobody reads is a
+  // working page that cannot work, and startup is the only time that misconfiguration is loud.
+  const mailProvider = process.env.EAIT__BACKEND__MAIL_PROVIDER ?? d.mailProvider;
+  if (mailProvider !== "log" && mailProvider !== "resend") {
+    throw new Error(`[eait] EAIT__BACKEND__MAIL_PROVIDER must be log or resend, not "${mailProvider}"`);
+  }
+  const resendApiKey = process.env.EAIT__BACKEND__RESEND_API_KEY ?? d.resendApiKey;
+  if (mailProvider === "resend" && resendApiKey === "") {
+    throw new Error("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
   }
 
   // The web sign-in's audience, checked at BOOT rather than at the end of somebody's first sign-up.
@@ -793,6 +837,10 @@ export function loadConfig(): Config {
     jobConcurrency: int("EAIT__BACKEND__JOB_CONCURRENCY", d.jobConcurrency),
     jobMaxQueuedMs: int("EAIT__BACKEND__JOB_MAX_QUEUED_MS", d.jobMaxQueuedMs),
     eveningLineTime,
+    mailProvider,
+    resendApiKey,
+    mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
+    emailCodesPerHour: int("EAIT__BACKEND__EMAIL_CODES_PER_HOUR", d.emailCodesPerHour),
   };
 }
 
@@ -864,7 +912,7 @@ export function telegramBotTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, databaseUrl,
+    expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, resendApiKey: _rs, databaseUrl,
     ...rest
   } = c;
   return {
@@ -889,6 +937,7 @@ export function redact(c: Config): Record<string, unknown> {
     applePrivateKey: c.applePrivateKey === "" ? "(unset — Apple is off on /start)" : "***",
     telegramBotToken: c.telegramBotToken === "" ? "(unset — the Telegram connector is off)" : "***",
     fooddbReadKey: c.fooddbReadKey === "" ? "(unset — the catalog refresh is off)" : "***",
+    resendApiKey: c.resendApiKey === "" ? "(unset — mail is logged)" : "***",
   };
 }
 

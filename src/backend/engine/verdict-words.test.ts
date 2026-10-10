@@ -17,6 +17,7 @@ import type { AnalyzedMeal, LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import {
   chatHistory, confirmPendingMeal, day, editMeal, handleText, logPhotoMeal, patchProfile,
   pendingMeals, type EngineDeps,
@@ -39,7 +40,7 @@ beforeEach(() => {
 });
 
 function makeDeps(llm: LlmPorts = demoPorts()): EngineDeps {
-  return { store, config: CONFIG, llm, push: fakePush() };
+  return { store, config: CONFIG, llm, push: fakePush(), mail: logMail() };
 }
 
 async function onboard(lang: Lang = "en", over: Record<string, unknown> = {}): Promise<string> {

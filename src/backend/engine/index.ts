@@ -37,8 +37,12 @@ export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
 export { recordHealthDays, healthTrend, pruneAgedHealthDays } from "./health.ts";
 export {
-  signInWithProvider, identitiesFor, isAnonymous, linkTelegram, revokeAppleIdentity, unlinkIdentity,
+  completeSignIn, signInWithProvider, identitiesFor, isAnonymous, linkTelegram, revokeAppleIdentity, unlinkIdentity,
 } from "./identity.ts";
+export {
+  EMAIL_ADDRESS, EMAIL_CODE_ATTEMPTS, EMAIL_CODE_TTL_MS, EMAIL_RESEND_SEC,
+  newEmailCode, normalizeEmail, sendEmailCode, verifyEmailCode,
+} from "./email.ts";
 export {
   onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
   adminMetrics, type AdminMetricsView,

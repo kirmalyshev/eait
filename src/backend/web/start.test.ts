@@ -29,6 +29,7 @@ import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import { chatHistory, day, handleText, linkTelegram, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { escape, PAGE_COPY } from "./page.ts";
 import { pageCopyFor } from "./copy.ts";
 import { createWebApp } from "../../frontend/server/index.ts";
@@ -132,7 +133,7 @@ function router(
   store = memoryStore(storeOpts);
   // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
   const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
-  deps = { store, config: withWeb, llm, push: fakePush() };
+  deps = { store, config: withWeb, llm, push: fakePush(), mail: logMail() };
   const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }
@@ -390,8 +391,10 @@ describe("the sign-up screen", () => {
     // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
     expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
     expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
-    // The pairing card names where the code comes from — the shipped tab's own word.
-    expect(html).toContain(PAGE_COPY.pairLead.replace("{tab}", "Profile"));
+    // No pairing card — `email-signin` removed it (#569): the three providers fill the page's
+    // one decision, and `/start/pair` posts still redeem.
+    expect(html).not.toContain('action="/start/pair"');
+    expect(html).toContain('action="/start/email"');
   });
 
   it("offers only what is configured", async () => {
@@ -399,13 +402,8 @@ describe("the sign-up screen", () => {
     const html = await (await get("/start/signup")).text();
     expect(html).toContain("Continue with Apple");
     expect(html).not.toContain("Continue with Google");
-  });
-
-  it("carries the pairing card, for somebody whose account is on a phone already", async () => {
-    const html = await (await get("/start/signup")).text();
-    expect(html).toContain('action="/start/pair"');
-    expect(html).toContain('method="post"');
-    expect(html).toContain('name="code"');
+    // Email is not a configurable provider — it is offered wherever the surface exists.
+    expect(html).toContain("Continue with email");
   });
 });
 
@@ -1082,14 +1080,13 @@ describe("pairing a browser with an app account", () => {
     expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 
-  it("offers the form on the sign-up screen, and it posts", async () => {
-    // Under S8 the front door is the welcome — a person holding a code their phone minted is
-    // somebody who already has an account, which is the door the sign-up screen is for.
+  it("posts, though the card itself is gone (#569)", async () => {
+    // The sign-in page no longer draws the form — the email boards took its slot — but the route
+    // it posted to stays: a code minted on a phone still redeems on a POST.
     const html = await (await get("/start/signup")).text();
-    expect(html).toContain('action="/start/pair"');
-    expect(html).toContain('method="post"');
-    expect(html).toContain('name="code"');
-    expect(html).toContain(PAGE_COPY.pairButton);
+    expect(html).not.toContain('action="/start/pair"');
+    const res = await post("/start/pair", { code: "ZZZZZZZZ" });
+    expect(res.status).toBe(303);
   });
 
   it("gives a paired session no more than a signed-in one: the cookie still buys nothing on the API", async () => {
@@ -1110,7 +1107,11 @@ describe("the copy this surface writes", () => {
    * build. What is new here is this file's own public marketing copy, and that is what is gated.
    */
   it("passes the claims gate", () => {
-    expect(lintCopy({ ...PAGE_COPY })).toEqual([]);
+    expect(lintCopy(
+      // Strings only — `emailMinutes` is a CountForms leaf, and lintCopy takes a flat
+      // `Record<string, string>`.
+      Object.fromEntries(Object.entries({ ...PAGE_COPY }).filter((e): e is [string, string] => typeof e[1] === "string")),
+    )).toEqual([]);
   });
 });
 

@@ -425,6 +425,16 @@ msgstr "Nói mình biết chỗ nào sai — “một nửa cơm thôi”, “kh
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Mã này đã hết hạn. Hãy lấy mã mới trên web hoặc trong ứng dụng."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Mã chưa đúng. Kiểm tra email mới nhất từ eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "Chưa nhận được kết quả. Thử lại nhé."
 

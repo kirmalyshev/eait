@@ -9,6 +9,7 @@ import { FOOD_SEARCH_MAX_LIMIT, normalizeBarcode, type FoodRef, type OffProduct 
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -25,7 +26,7 @@ let deps: EngineDeps;
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
 });
 
 const food = (over: Partial<FoodRef> & { id: string; name: string }): FoodRef => ({

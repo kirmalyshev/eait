@@ -11,7 +11,7 @@
 
 import { PROVIDERS, signsIn } from "@eait/shared";
 import type { AuthProviderResponse, Lang, LinkOutcome, Provider } from "@eait/shared";
-import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type IdentityVerifier, type VerifiedIdentity } from "../auth/verify.ts";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { claimCode } from "./pairing.ts";
@@ -63,6 +63,26 @@ export async function signInWithProvider(
   // Throws `AuthError` on anything wrong with the token. The route turns that into a 401 and logs
   // the reason; the reason never reaches the client, because it can echo the token.
   const verified = await verifier.verify(provider, idToken, nonce);
+  return completeSignIn(deps, provider, verified, currentUserId, lang, consent);
+}
+
+/**
+ * The five outcomes, on a subject that is already trusted (#569).
+ *
+ * `signInWithProvider` reaches this through the provider's signature-verified ID token;
+ * `verifyEmailCode` reaches it with the address a live, single-use code just proved — the code IS
+ * the verification, and by the time this runs the mail has already been spent. A third caller is
+ * fine the day it can PROVE a subject; a parallel copy of the merge rules is not, which is why
+ * the rest of the sign-in lives here and not in two providers' callers.
+ */
+export async function completeSignIn(
+  deps: EngineDeps,
+  provider: Provider,
+  verified: VerifiedIdentity,
+  currentUserId: string | null,
+  lang: Lang,
+  consent: { terms: boolean; marketing: boolean },
+): Promise<AuthProviderResponse> {
   const existing = await deps.store.userIdForIdentity(provider, verified.subject);
 
   let userId: string;
@@ -174,7 +194,7 @@ export async function signInWithProvider(
 async function recordEmail(
   deps: EngineDeps,
   userId: string,
-  provider: "apple" | "google",
+  provider: Provider,
   verified: { subject: string; email?: string },
   outcome: LinkOutcome,
 ): Promise<void> {

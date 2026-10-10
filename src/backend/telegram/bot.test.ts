@@ -8,6 +8,7 @@ import type { UserFromGetMe } from "grammy/types";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { mintPairingCode, patchProfile, type EngineDeps } from "../engine/index.ts";
@@ -40,7 +41,7 @@ let quiet: ReturnType<typeof spyOn>[] = [];
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush(), mail: logMail() };
   quiet = [spyOn(console, "warn").mockImplementation(() => {}), spyOn(console, "error").mockImplementation(() => {})];
 });
 afterEach(() => { for (const q of quiet) q.mockRestore(); });

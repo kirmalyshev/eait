@@ -3,6 +3,7 @@ import { ADMIN_PUSH_MAX_RECIPIENTS, CAMPAIGN_VARIANTS, LANGS, PUSH_ROUTES, local
 import { configDefaults } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import { sendAdminPush } from "./admin-push.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
@@ -12,7 +13,7 @@ import { setPushConsent } from "./push-consent.ts";
 describe("admin push composer", () => {
   it("skips an account without push_offers_at even when the body says promotional:false", async () => {
     const store = memoryStore();
-    const deps: EngineDeps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push: fakePush() };
+    const deps: EngineDeps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push: fakePush(), mail: logMail() };
     for (const lang of LANGS) {
       await store.putPushTemplate({
         key: "campaign:promo" as PushTemplateRow["key"], lang, variant: CAMPAIGN_VARIANTS[0]!, title: `Hi ${lang}`, body: `Body ${lang}`,
@@ -47,7 +48,7 @@ describe("admin push composer: hard rules", () => {
   const setup = async (templateLangs: readonly (typeof LANGS)[number][] = LANGS) => {
     const store = memoryStore();
     const push = fakePush();
-    const deps: EngineDeps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push };
+    const deps: EngineDeps = { store, config: { ...configDefaults(), port: 0, databaseUrl: "memory://t" }, llm: demoPorts(), push, mail: logMail() };
     for (const lang of templateLangs) {
       await store.putPushTemplate({
         key: "campaign:promo" as PushTemplateRow["key"], lang, variant: CAMPAIGN_VARIANTS[0]!, title: `Hi ${lang}`, body: `Body ${lang}`,

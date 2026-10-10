@@ -45,6 +45,18 @@ export const REFUSAL_STATUS = {
   "analysis-failed": 502,
   "unsupported-image": 415,
   "no-photo": 404,
+  /**
+   * Email sign-in (#569): the code typed did not match the live one, and it may be tried again —
+   * five wrong tries burn it, which is when `code-dead` takes over. 401 like `sign-in-failed`,
+   * because a wrong credential is not a malformed request.
+   */
+  "code-wrong": 401,
+  /**
+   * The code can never match again: expired (ten minutes), already used, burnt by five wrong
+   * tries, superseded by a newer send — or never sent. One answer for all of them, 410 because
+   * the resource is gone rather than the guess wrong.
+   */
+  "code-dead": 410,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
@@ -201,6 +213,19 @@ export const ROUTES = {
   authDevice: "/v1/auth/device",
   authApple: "/v1/auth/apple",
   authGoogle: "/v1/auth/google",
+  /**
+   * POST — send a six-digit sign-in code to `email` (#569). Answers 204 whether or not the
+   * address has an account, so the route cannot enumerate one; a malformed address is a 400 and
+   * a spent send allowance a 429.
+   */
+  authEmailCode: "/v1/auth/email/code",
+  /**
+   * POST — trade `email` + the six-digit `code` for {@link AuthProviderResponse}, the same shape
+   * Apple and Google return. `code-wrong` is 401, `code-dead` 410, the sign-in allowance 429.
+   * Optionally authenticated, like the other two providers: a bearer links the identity to the
+   * caller's account.
+   */
+  authEmailVerify: "/v1/auth/email/verify",
   /** Drops the caller's own token. Sign-out, not account deletion. */
   authSignOut: "/v1/auth/signout",
   /**
@@ -446,16 +471,21 @@ export interface AuthDeviceResponse {
  *
  * `telegram` is a numeric Telegram user id, as a string, attached by spending a pairing code in the
  * bot (`linkTelegram`). It is a second transport onto an account made elsewhere, never a sign-in.
+ *
+ * `email` is the address itself, trimmed and lowercased, proven by a six-digit code sent to it
+ * (#569). It is NEVER joined to an `identities.email` elsewhere: an address that also sits on an
+ * Apple or Google identity is a separate account — Apple private relay makes the match unreliable,
+ * and a merge would hand that account to whoever controls the inbox.
  */
-export const PROVIDERS = ["device", "apple", "google", "telegram"] as const;
+export const PROVIDERS = ["device", "apple", "google", "telegram", "email"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 /**
  * Does this provider put somebody INTO an account?
  *
- * `device`, `apple` and `google` each mint a session: the anonymous credential the install was born
- * with, and the two verified ones. `telegram` does not and must never — it is a transport onto an
- * account made elsewhere (#205), and the bot issues no token.
+ * `device`, `apple`, `google` and `email` each mint a session: the anonymous credential the install
+ * was born with, and the three verified ones. `telegram` does not and must never — it is a
+ * transport onto an account made elsewhere (#205), and the bot issues no token.
  *
  * ONE PREDICATE, HERE, because two rules older than `telegram` decide things by counting identity
  * rows: an account dies when its last way in is removed (`Store.removeIdentity`), and an account is
@@ -465,7 +495,7 @@ export type Provider = (typeof PROVIDERS)[number];
  * account asks this.
  */
 export const signsIn = (provider: string): boolean =>
-  provider === "device" || provider === "apple" || provider === "google";
+  provider === "device" || provider === "apple" || provider === "google" || provider === "email";
 
 /**
  * A provider's brand name, for the rows that say who somebody signed in with. Brand names are not
@@ -473,7 +503,7 @@ export const signsIn = (provider: string): boolean =>
  * table. One copy for every surface: the web You screen and the phone's account board were each
  * carrying their own.
  */
-export const PROVIDER_NAME: Record<string, string> = { apple: "Apple", google: "Google" };
+export const PROVIDER_NAME: Record<string, string> = { apple: "Apple", google: "Google", email: "Email" };
 
 /**
  * Sign in with Apple / Google.
@@ -512,6 +542,33 @@ export interface AuthProviderRequest {
    * (a timestamp; null means never given). EU consent needs the date, which is why a boolean
    * is not what is stored.
    */
+  terms: boolean;
+  marketing?: boolean;
+}
+
+/**
+ * Ask for a six-digit sign-in code by email (#569). The answer is 204 either way — an account
+ * exists or not, the mail went out or the send was refused by one of the send caps — so the route
+ * tells nobody which addresses are accounts. A malformed address is the only 400.
+ *
+ * `locale` is the language the mail is written in, narrowed server-side like everywhere else.
+ */
+export interface AuthEmailCodeRequest {
+  email: string;
+  locale?: string;
+}
+
+/**
+ * The code half of email sign-in. `terms` is the required consent box, exactly as on
+ * {@link AuthProviderRequest} — the server refuses without it. `locale` is read only when this
+ * sign-in creates the account, the same rule as the OAuth providers'.
+ */
+export interface AuthEmailVerifyRequest {
+  /** The address the code was sent to — the identity's subject, trimmed and lowercased. */
+  email: string;
+  /** The six digits the mail carried. */
+  code: string;
+  locale?: string;
   terms: boolean;
   marketing?: boolean;
 }

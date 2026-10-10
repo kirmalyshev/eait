@@ -852,6 +852,49 @@ export interface Store {
    * cannot make it live again.
    */
   claimPairingCode(codeHash: string): Promise<string | null>;
+
+  // ── Email sign-in codes ──────────────────────────────────────────────────────────────────────
+  //
+  // The six-digit code that IS the `email` provider's credential (#569). Same rule as pairing
+  // codes and tokens: the column is `code_hash` and there is no column holding the digits, so a
+  // dump names the addresses codes were sent to without letting its reader spend one.
+  //
+  // Rows belong to NO account — an email row names an address, and the account is what a
+  // successful spend resolves to — so the table carries no `user_id`, is not in `RLS_TABLES`, and
+  // both methods are "unscoped". That is not a loosening of the per-user rule: there is nothing
+  // per-user here to scope by.
+
+  /**
+   * Hold `codeHash` for `email` until `expiresAt` (epoch ms), superseding every live code the
+   * address already had. Returns null on accept, or the seconds the caller should wait when the
+   * send is refused.
+   *
+   * TWO REFUSALS, decided inside the statement and not by a read the caller did first — sends
+   * racing the same address must not both slip under the cap: at most `limits.perHour` sends per
+   * recipient inside the trailing hour (0 disables it), and none inside `limits.resendSec` of the
+   * previous one.
+   *
+   * SPENT ROWS ARE KEPT — `used_at` marks the verified, the burnt and the superseded — because
+   * the hour's sends are counted from them. Deleting on supersede would let a resend loop mail
+   * one mailbox without bound, and forgetting a burn would let the attacker mint tries forever.
+   */
+  putEmailCode(
+    email: string,
+    codeHash: string,
+    expiresAt: number,
+    limits: { perHour: number; resendSec: number },
+  ): Promise<number | null>;
+
+  /**
+   * Try `codeHash` against `email`'s live code. `"ok"` consumed it (single use), `"wrong"` did
+   * not match — and the `maxAttempts`-th wrong burns the row with that attempt — `"dead"` means
+   * no live row at all: expired, used, burnt, superseded, or never sent. One answer for all of
+   * those is deliberate.
+   *
+   * The hash COMPARISON is the store's, through `auth/timingsafe.ts` — the presented hash is
+   * never trusted into the WHERE clause's truth, only into the constant-time compare.
+   */
+  spendEmailCode(email: string, codeHash: string, maxAttempts: number): Promise<"ok" | "wrong" | "dead">;
   /**
    * Move everything owned by `fromUserId` onto `intoUserId`, then delete the empty account.
    * Returns the number of meals moved. Photos move with their meals.

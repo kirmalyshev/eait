@@ -3,6 +3,7 @@ import { CAMPAIGN_VARIANTS, LANGS, inHoldout, variantOf, type PushTemplateRow } 
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { CampaignRow, Store } from "../store.ts";
 import {
@@ -31,7 +32,7 @@ beforeEach(() => {
   store = memoryStore();
   push = fakePush();
   staff = [];
-  deps = { store, config: { ...CONFIG, get campaignStaffIds() { return staff; } } as Config, llm: demoPorts(), push };
+  deps = { store, config: { ...CONFIG, get campaignStaffIds() { return staff; } } as Config, llm: demoPorts(), push, mail: logMail() };
 });
 
 let seq = 0;

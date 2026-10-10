@@ -210,6 +210,129 @@
         ]
       }
     },
+    "/v1/auth/email/code": {
+      "post": {
+        "operationId": "post_authEmailCode",
+        "summary": "Send a six-digit sign-in code to the address. Always 204, whether or not it has an account.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthEmailCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "204",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/auth/email/verify": {
+      "post": {
+        "operationId": "post_authEmailVerify",
+        "summary": "Trade the six-digit code for a session. With a bearer, links the identity to the current account instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthEmailVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/auth/signout": {
       "post": {
         "operationId": "post_authSignOut",
@@ -719,6 +842,16 @@
               }
             }
           },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "411": {
             "description": "Length required",
             "content": {
@@ -1219,6 +1352,16 @@
               }
             }
           },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "411": {
             "description": "Length required",
             "content": {
@@ -1597,6 +1740,16 @@
               }
             }
           },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "411": {
             "description": "Length required",
             "content": {
@@ -1732,6 +1885,16 @@
           },
           "409": {
             "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -2234,6 +2397,16 @@
               }
             }
           },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "415": {
             "description": "Unsupported image",
             "content": {
@@ -2533,6 +2706,16 @@
           },
           "409": {
             "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
             "content": {
               "application/json": {
                 "schema": {
@@ -3739,6 +3922,51 @@
           "created"
         ],
         "additionalProperties": false
+      },
+      "AuthEmailCodeRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false,
+        "description": "Ask for a six-digit sign-in code by email (#569). The answer is 204 either way — an account exists or not, the mail went out or the send was refused by one of the send caps — so the route tells nobody which addresses are accounts. A malformed address is the only 400.\n\n`locale` is the language the mail is written in, narrowed server-side like everywhere else."
+      },
+      "AuthEmailVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The address the code was sent to — the identity's subject, trimmed and lowercased."
+          },
+          "code": {
+            "type": "string",
+            "description": "The six digits the mail carried."
+          },
+          "locale": {
+            "type": "string"
+          },
+          "terms": {
+            "type": "boolean"
+          },
+          "marketing": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email",
+          "code",
+          "terms"
+        ],
+        "additionalProperties": false,
+        "description": "The code half of email sign-in. `terms` is the required consent box, exactly as on  {@link  AuthProviderRequest }  — the server refuses without it. `locale` is read only when this sign-in creates the account, the same rule as the OAuth providers'."
       },
       "AuthProviderRequest": {
         "type": "object",
@@ -7597,7 +7825,8 @@
           "device",
           "apple",
           "google",
-          "telegram"
+          "telegram",
+          "email"
         ]
       },
       "PushConsentRequest": {

@@ -30,7 +30,7 @@ import {
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestionFirst,
   switchedLine, targetRange, TARGET_STEP_KG, threadCopyFor, weightToKg,
-  LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
+  LANGS_READY, acceptLang, acceptLanguageTags, countText, numbers, signupCopyFor, verdictPillLabel,
   payCopyFor, paywallPrice, perMonth,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type CountryCode, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
@@ -44,7 +44,9 @@ import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal,
   onboardingContent, mintPairingCode, patchProfile, profileView, redeemPairingCode,
-  signInWithProvider, type EngineDeps,
+  sendEmailCode, signInWithProvider, verifyEmailCode,
+  EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
+  type EngineDeps,
 } from "../engine/index.ts";
 import { blankProfile, type Store } from "../store.ts";
 import {
@@ -52,7 +54,7 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, country, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
+  chat, country, emailAddress, emailCode, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
   signUp, stopped,
   FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
   type PageCopy,
@@ -144,6 +146,15 @@ const browserLang = (req: Request): Lang =>
 const SESSION_COOKIE = "eait_web";
 const OAUTH_COOKIE = "eait_oauth";
 const OAUTH_TTL_S = 600;
+/**
+ * The email sign-in's two cookies (#569). `eait_emailc` is the consent record only a ticked
+ * terms box can mint — the surface's own `eait_oauth` — and `eait_email` the address a live code
+ * was sent to plus the send time, which is what the code page's countdown reads. `~` splits
+ * them: `encodeURIComponent` leaves it alone, and the address can never carry one unencoded.
+ */
+const EMAIL_CONSENT_COOKIE = "eait_emailc";
+const EMAIL_COOKIE = "eait_email";
+const EMAIL_TTL_S = 600;
 
 /**
  * The most Apple's `form_post` callback may weigh.
@@ -646,9 +657,14 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const lang = profile?.lang ?? browserLang(req);
     const PAGE_COPY = pageCopyFor(lang);
     return html(signUp({
-      providers: offered.map((p) => ({
-        id: p, action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
-      })),
+      providers: [
+        ...offered.map((p) => ({
+          id: p as "apple" | "google", action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+        })),
+        // Email is always offered where this surface exists at all — the code's transport is
+        // `deps.mail`, not a third-party account, so there is nothing here to be unconfigured.
+        { id: "email" as const, action: `${START_PREFIX}/email`, label: signupCopyFor(lang).continueEmail },
+      ],
       error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
         : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
         : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
@@ -775,6 +791,152 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         clearCookie(OAUTH_COOKIE, secure),
         // No Max-Age: a session cookie, gone when the browser closes. The token itself expires on
         // idle time server-side, which is the authority.
+        setCookie(SESSION_COOKIE, result.token, { secure }),
+      ],
+    );
+  }
+
+  // ── Sign in with email (#569): the third provider ────────────────────────────────────────
+  //
+  // THE KICKOFF IS A POST FOR THE SAME REASON THE OAUTH ONE IS: the terms tick is what makes it
+  // legal, and `eait_emailc` is the consent record only a ticked box can mint — this surface's
+  // `eait_oauth`, minus the provider round trip the mail replaces. `eait_email` holds the
+  // address a live code was sent to plus the send time — the countdown's source — and a code
+  // page with neither is a page naming a code nobody sent, sent back to the page that sends one.
+  if (pathname === `${START_PREFIX}/email`) {
+    if (req.method === "GET") return seeOther(`${START_PREFIX}/signup`);
+    if (req.method !== "POST") return notFound();
+    const form = await req.formData().catch(() => null);
+    if (form === null || form.get("terms") === null) {
+      return seeOther(`${START_PREFIX}/signup?error=terms`);
+    }
+    return seeOther(`${START_PREFIX}/email/address`, [
+      setCookie(EMAIL_CONSENT_COOKIE, form.get("marketing") !== null ? "m" : "t", {
+        secure, maxAge: EMAIL_TTL_S,
+      }),
+    ]);
+  }
+
+  // What the two cookies say, read once for every email path: `emailAddr` is the address a live
+  // code was sent to (validated, because a cookie is client-held), `emailSentAt` when.
+  const [emailCookieAddr, emailCookieAt] = (cookies[EMAIL_COOKIE] ?? "").split("~");
+  const emailAddr = emailCookieAddr !== undefined && EMAIL_ADDRESS.test(emailCookieAddr)
+    ? emailCookieAddr : null;
+  const emailSentAt = Number(emailCookieAt);
+  // The countdown the code page draws, rendered once — a no-JavaScript page cannot tick.
+  const emailResendWait = () => Number.isFinite(emailSentAt)
+    ? Math.max(0, EMAIL_RESEND_SEC - Math.floor((Date.now() - emailSentAt) / 1000)) : 0;
+  // The too-many note, filled the same way whichever bound refused — the board says one wait, in
+  // minutes, and nothing about which limit it was, because the difference names the address's
+  // mail count to anybody watching.
+  const emailTooManyNote = (lang: Lang, sec: number) =>
+    fill(pageCopyFor(lang).emailTooMany, {
+      min: countText(lang)(pageCopyFor(lang).emailMinutes, Math.max(1, Math.ceil(sec / 60))),
+    });
+
+  if (pathname === `${START_PREFIX}/email/address`) {
+    // The consent cookie is the ticket in: arriving without one means the terms were never
+    // collected, and only the sign-up screen collects them.
+    if (cookies[EMAIL_CONSENT_COOKIE] === undefined) {
+      return seeOther(`${START_PREFIX}/signup?error=terms`);
+    }
+    const lang = browserLang(req);
+    const PAGE_COPY = pageCopyFor(lang);
+    if (req.method === "GET") {
+      const wait = Number(url.searchParams.get("wait"));
+      return html(emailAddress({
+        email: emailAddr ?? "",
+        error: url.searchParams.get("error") === "address" ? PAGE_COPY.emailBad
+          : url.searchParams.get("error") === "too-many" && Number.isFinite(wait) && wait > 0
+            ? emailTooManyNote(lang, wait)
+          : null,
+        lang,
+      }));
+    }
+    if (req.method !== "POST") return notFound();
+    const form = await req.formData().catch(() => null);
+    const email = normalizeEmail(String(form?.get("email") ?? ""));
+    if (!EMAIL_ADDRESS.test(email)) {
+      return seeOther(`${START_PREFIX}/email/address?error=address`);
+    }
+    // The shared sign-in allowance first, the per-recipient cap inside the send — the same two
+    // locks the API route holds, answered the same way: one wait, whichever bound it was.
+    const limited = ctx.limitAuth();
+    if (limited !== null) {
+      return seeOther(`${START_PREFIX}/email/address?error=too-many&wait=${limited}`);
+    }
+    const refused = await sendEmailCode(ctx.deps, email, lang);
+    if (refused !== null) {
+      return seeOther(`${START_PREFIX}/email/address?error=too-many&wait=${refused}`);
+    }
+    return seeOther(`${START_PREFIX}/email/code`, [
+      setCookie(EMAIL_COOKIE, `${email}~${Date.now()}`, { secure, maxAge: EMAIL_TTL_S }),
+    ]);
+  }
+
+  if (pathname === `${START_PREFIX}/email/resend`) {
+    if (req.method !== "POST") return notFound();
+    if (emailAddr === null || cookies[EMAIL_CONSENT_COOKIE] === undefined) {
+      return seeOther(`${START_PREFIX}/email/address`);
+    }
+    const lang = browserLang(req);
+    const limited = ctx.limitAuth();
+    if (limited !== null) {
+      return seeOther(`${START_PREFIX}/email/code?error=too-many&wait=${limited}`);
+    }
+    const refused = await sendEmailCode(ctx.deps, emailAddr, lang);
+    if (refused !== null) {
+      return seeOther(`${START_PREFIX}/email/code?error=too-many&wait=${refused}`);
+    }
+    return seeOther(`${START_PREFIX}/email/code`, [
+      setCookie(EMAIL_COOKIE, `${emailAddr}~${Date.now()}`, { secure, maxAge: EMAIL_TTL_S }),
+    ]);
+  }
+
+  if (pathname === `${START_PREFIX}/email/code`) {
+    if (emailAddr === null || cookies[EMAIL_CONSENT_COOKIE] === undefined) {
+      return seeOther(`${START_PREFIX}/email/address`);
+    }
+    const lang = browserLang(req);
+    if (req.method === "GET") {
+      const wait = Number(url.searchParams.get("wait"));
+      const error = url.searchParams.get("error");
+      return html(emailCode({
+        email: emailAddr,
+        resendWaitSec: emailResendWait(),
+        state: error === "wrong" ? "wrong"
+          : error === "dead" ? "dead"
+          : error === "too-many" ? "too-many" : null,
+        tooManyNote: error === "too-many" && Number.isFinite(wait) && wait > 0
+          ? emailTooManyNote(lang, wait) : undefined,
+        lang,
+      }));
+    }
+    if (req.method !== "POST") return notFound();
+    const form = await req.formData().catch(() => null);
+    const code = String(form?.get("code") ?? "");
+    // The session-minter — rate limited like the OAuth callback, which it is the email answer
+    // to. The session account goes in for the same reason too: onboarding ran on it, so an
+    // unknown address attaches to IT and the answers stay.
+    const limited = ctx.limitAuth();
+    if (limited !== null) {
+      return seeOther(`${START_PREFIX}/email/code?error=too-many&wait=${limited}`);
+    }
+    const result = await verifyEmailCode(
+      ctx.deps, emailAddr, code, userId, lang,
+      { terms: true, marketing: cookies[EMAIL_CONSENT_COOKIE] === "m" },
+    );
+    if ("kind" in result) {
+      return seeOther(`${START_PREFIX}/email/code?error=${result.kind === "code-wrong" ? "wrong" : "dead"}`);
+    }
+    const landed = await ctx.store.getProfile(result.userId);
+    return seeOther(
+      landed === null ? `${START_PREFIX}/q` : await resumeTo(ctx, result.userId, landed),
+      [
+        clearCookie(EMAIL_COOKIE, secure),
+        clearCookie(EMAIL_CONSENT_COOKIE, secure),
+        // No Max-Age: a session cookie, gone when the browser closes — the same shape the OAuth
+        // callback mints.
         setCookie(SESSION_COOKIE, result.token, { secure }),
       ],
     );

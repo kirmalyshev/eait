@@ -9,6 +9,7 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { healthTrend, pruneAgedHealthDays, recordHealthDays } from "./health.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
 
@@ -24,7 +25,7 @@ let deps: EngineDeps;
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
 });
 
 async function onboard(over: Record<string, unknown> = {}): Promise<string> {

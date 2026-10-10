@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "./index.ts";
@@ -19,7 +20,7 @@ let deps: EngineDeps;
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
 });
 
 async function userWithSend(): Promise<{ userId: string; sendId: string }> {

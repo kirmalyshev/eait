@@ -24,6 +24,7 @@ import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHeal
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
+import { timingSafeEqual } from "./auth/timingsafe.ts";
 import { syncShippedPrompts } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
@@ -624,6 +625,29 @@ create table if not exists pairing_codes (
   user_id    uuid not null unique references users(id) on delete cascade,
   expires_at timestamptz not null
 );
+
+-- Email sign-in codes, as SHA-256 hashes (#569).
+--
+-- Same rule as tokens and pairing codes: code_hash is the column and there is no column holding
+-- the digits, so the nightly dump names the addresses codes were sent to without letting its
+-- reader spend one.
+--
+-- NO user_id AND NO REFERENCE TO ONE: a row names an address, and the account is what a spend
+-- resolves to, so the table belongs to nobody and stays out of RLS_TABLES. Spent rows are kept —
+-- used_at marks the verified, the burnt and the superseded — because putEmailCode counts the
+-- hour's sends from them; deleting on supersede would let a resend loop mail one mailbox without
+-- bound.
+-- (No backticks in this string: it is a template literal, and one would end it.)
+create table if not exists email_codes (
+  id         uuid primary key,
+  email      text not null,
+  code_hash  text not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  attempts   integer not null default 0,
+  used_at    timestamptz
+);
+create index if not exists email_codes_email_idx on email_codes(email, created_at);
 
 -- What a user's own edits say about their portions. One row per corrected item per edit, kept raw
 -- rather than as a running ratio: the summary is a median, and a median cannot be updated in place
@@ -1343,6 +1367,10 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   userIdForIdentity: "unscoped",
   identityFor: "unscoped",
   claimPairingCode: "unscoped",
+  // Email sign-in codes name an ADDRESS, and the account is what a spend resolves to — there is
+  // no user to scope them by. The address itself is the row's only scope, in the predicate.
+  putEmailCode: "unscoped",
+  spendEmailCode: "unscoped",
   // A token is revoked by the token. The holder of a session is signing it out and the row is the
   // only thing naming the account.
   revokeToken: "unscoped",
@@ -3079,6 +3107,73 @@ export async function postgresStore(
         delete from pairing_codes where code_hash = ${codeHash} returning user_id, expires_at`;
       if (rows.length === 0) return null;
       return new Date(rows[0].expires_at as string).getTime() > now() ? String(rows[0].user_id) : null;
+    },
+
+    async putEmailCode(email, codeHash, expiresAt, limits) {
+      // ONE STATEMENT, because the two caps and the supersede share the same read: `prior` counts
+      // the trailing hour's sends once, `ins` exists only while both limits admit the send, and
+      // `sup` burns the address's earlier live codes only when the new row landed. The CTEs share
+      // the statement's snapshot, so `sup` cannot see `ins`'s own row — which is exactly the row
+      // it must not mark.
+      //
+      // The wait the caller gets is computed on the DATABASE's clock, not this process's: the two
+      // can differ, and a resend refused by the server's minute would otherwise tell the client a
+      // second it cannot keep.
+      const rows = await sql`
+        with prior as (
+          select count(*)::int as n, min(created_at) as first_sent, max(created_at) as last_sent
+            from email_codes
+           where email = ${email} and created_at > now() - interval '1 hour'
+        ), ins as (
+          insert into email_codes (id, email, code_hash, expires_at)
+          select ${crypto.randomUUID()}, ${email}, ${codeHash}, ${new Date(expiresAt)}
+           where (${limits.perHour} <= 0 or (select n from prior) < ${limits.perHour})
+             and ((select last_sent from prior) is null
+                  or (select last_sent from prior) <= now() - make_interval(secs => ${limits.resendSec}))
+          returning email
+        ), sup as (
+          update email_codes set used_at = now()
+           where email = ${email} and used_at is null and exists (select 1 from ins)
+        ), sweep as (
+          delete from email_codes where created_at < now() - interval '1 day'
+        )
+        select exists(select 1 from ins) as ok,
+               greatest(
+                 case when ${limits.perHour} > 0 and (select n from prior) >= ${limits.perHour}
+                      then ceil(extract(epoch from ((select first_sent from prior) + interval '1 hour' - now())))
+                      else 0 end,
+                 ceil(extract(epoch from ((select last_sent from prior) + make_interval(secs => ${limits.resendSec}) - now())))
+               )::int as wait_s`;
+      if (rows[0].ok) return null;
+      return Math.max(1, Number(rows[0].wait_s));
+    },
+
+    async spendEmailCode(email, codeHash, maxAttempts) {
+      // The row and the compare are two steps BY DESIGN: the hash must be read out and compared
+      // constant-time (`auth/timingsafe.ts`), never trusted into a WHERE clause — `code_hash = $x`
+      // would be Postgres's early-exit compare, which is the timing side channel timingsafe.ts
+      // exists to close.
+      const live = await sql`
+        select id, code_hash from email_codes
+         where email = ${email} and used_at is null and expires_at > now()
+         order by created_at desc limit 1`;
+      if (live.length === 0) return "dead";
+      const row = live[0];
+      if (!timingSafeEqual(String(row.code_hash), codeHash)) {
+        // The attempt is COUNTED first and burnt on the max-th, in the same guarded update: the
+        // `used_at is null` keeps a concurrent successful spend from being overwritten by a
+        // guess that arrived after it.
+        await sql`update email_codes
+                     set attempts = attempts + 1,
+                         used_at = case when attempts + 1 >= ${maxAttempts} then now() else used_at end
+                   where id = ${row.id} and used_at is null`;
+        return "wrong";
+      }
+      // `used_at is null` is the single-use guarantee: a second verify racing the first waits on
+      // the row lock, sees the mark, and answers "dead" — the code was already spent.
+      const consumed = await sql`update email_codes set used_at = now()
+        where id = ${row.id} and used_at is null returning id`;
+      return consumed.length > 0 ? "ok" : "dead";
     },
 
     async putPushToken(userId, token, platform) {

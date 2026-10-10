@@ -425,6 +425,16 @@ msgstr "Dime qué falla — \"la mitad del arroz\", \"sin aguacate\", \"eran 500
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Este código ha caducado. Pide uno nuevo en la web o en la app."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "El código no es correcto. Mira el último correo de eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
 msgstr "No volvió nada. Inténtalo otra vez."
 

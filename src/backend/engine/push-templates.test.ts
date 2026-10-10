@@ -3,6 +3,7 @@ import { LANGS, NOTIFICATION_IDS, copyFromPushRows, notificationCopyFor } from "
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
@@ -26,7 +27,7 @@ let userId: string;
 
 beforeEach(async () => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
   // A free, onboarded account: its one daily message is the nudge.
   userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
   await store.addIdentity(userId, "google", "g-" + userId.slice(0, 8));

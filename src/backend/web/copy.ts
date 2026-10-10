@@ -13,7 +13,7 @@
 // anything past the front door, and the front door reads `Accept-Language`, which is the only
 // signal there is before an account exists.
 
-import { t, type Lang, type Localized } from "@eait/shared";
+import { t, type CountForms, type Lang, type Localized } from "@eait/shared";
 
 export interface PageCopy {
   frontDoorLead: string;
@@ -69,11 +69,6 @@ export interface PageCopy {
   chatPhotoSend: string;
   chatCaption: string;
   errorSignIn: string;
-  pairHeading: string;
-  /** `{tab}` is filled with the shipped tab's own name (SHELL_COPY.navProfile). */
-  pairLead: string;
-  pairLabel: string;
-  pairButton: string;
   /**
    * The account-split guard on the post-sign-up handoff (the country screen — the last `/start`
    * page a signed-in account sees). `{provider}` is the one they actually used; see the note in
@@ -143,6 +138,37 @@ export interface PageCopy {
    * identity — the sign-up screen is the remedy, not an apology.
    */
   chatRefusalIdentity: string;
+
+  // ── Email sign-in (#569) ─────────────────────────────────────────────────────────────────
+  // The third provider beside Apple and Google — the boards `web/email-address.html`,
+  // `web/email-code*.html` and `web/email-too-many.html`. The mail's own words live in
+  // `mail/copy.ts`; these are the two pages'.
+  //
+  // `{email}` inside `emailCodeLead` is the address, already escaped by the caller. `{min}`
+  // inside `emailTooMany` is a whole `countText` minute form, filled the same way — the
+  // sentence's word order stays the translator's. `{time}` inside `emailResendWait` is an
+  // M:SS countdown, rendered once per load — a no-JavaScript page cannot tick.
+  titleEmail: string;
+  emailHeading: string;
+  emailLead: string;
+  /** The email input's accessible label. */
+  emailFieldLabel: string;
+  emailSend: string;
+  /** A malformed address, back on the address page — the board draws no state for one. */
+  emailBad: string;
+  emailTooMany: string;
+  /** The count `emailTooMany`'s `{min}` is filled with — one form per plural category the language has. */
+  emailMinutes: CountForms;
+  emailCodeHeading: string;
+  emailCodeLead: string;
+  /** The code input's accessible label. */
+  emailCodeLabel: string;
+  emailCodeWrong: string;
+  emailCodeDead: string;
+  emailCodeNew: string;
+  emailResendWait: string;
+  emailResend: string;
+  emailDifferent: string;
 }
 
 const EN: PageCopy = {
@@ -195,10 +221,6 @@ const EN: PageCopy = {
    * tab named by its shipped label rather than the board's older name: `{tab}` is filled with
    * `SHELL_COPY.navProfile` ("Profile"), the screen the phone's pairing control lives on.
    */
-  pairHeading: "Have a pairing code?",
-  pairLead: "Your phone makes one in {tab}.",
-  pairLabel: "Your pairing code",
-  pairButton: "Pair this browser",
   /**
    * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
    * the app offers both buttons, and the other one lands in a different account with onboarding to
@@ -242,6 +264,23 @@ const EN: PageCopy = {
   languageSave: "Save",
   tooManyAttempts: "Too many attempts from this address. Try again shortly.\n",
   chatRefusalIdentity: "Sign in with Apple or Google to keep going — the sign-up screen is one step back.",
+  titleEmail: "Sign in with email",
+  emailHeading: "Sign in with email",
+  emailLead: "We'll email you a 6-digit code. No password.",
+  emailFieldLabel: "Your email address",
+  emailSend: "Send code",
+  emailBad: "That doesn't look like an email address.",
+  emailTooMany: "Too many tries. Try again in {min}.",
+  emailMinutes: { one: "{n} minute", other: "{n} minutes" },
+  emailCodeHeading: "Check your inbox",
+  emailCodeLead: "Enter the 6-digit code we sent to {email}. It works for 10 minutes.",
+  emailCodeLabel: "The 6-digit code",
+  emailCodeWrong: "That code isn't right. Check the newest email from eait.",
+  emailCodeDead: "This code has expired. Send a new one to keep going.",
+  emailCodeNew: "Send a new code",
+  emailResendWait: "Resend code in {time}",
+  emailResend: "Resend code",
+  emailDifferent: "Use a different email",
 };
 
 const FR: PageCopy = {
@@ -280,10 +319,6 @@ const FR: PageCopy = {
   chatPhotoSend: "Envoyer la photo",
   chatCaption: "Quelque chose que je devrais savoir ? (facultatif)",
   errorSignIn: "Cette connexion n'a pas abouti. Réessaie.",
-  pairHeading: "Tu as un code d'association ?",
-  pairLead: "Ton téléphone en crée un dans {tab}.",
-  pairLabel: "Ton code d'association",
-  pairButton: "Associer ce navigateur",
   sameAccountHint: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
   sameAccountHintGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
   errorPair: "Ce code n'a pas marché. Un code marche une fois, et seulement cinq minutes après sa création.",
@@ -313,6 +348,23 @@ const FR: PageCopy = {
   languageSave: "Enregistrer",
   tooManyAttempts: "Trop de tentatives depuis cette adresse. Réessaie dans un moment.\n",
   chatRefusalIdentity: "Connecte-toi avec Apple ou Google pour continuer — l'écran d'inscription est juste avant.",
+  titleEmail: "Connexion par e-mail",
+  emailHeading: "Connexion par e-mail",
+  emailLead: "On t'envoie un code à 6 chiffres par e-mail. Pas de mot de passe.",
+  emailFieldLabel: "Ton adresse e-mail",
+  emailSend: "Envoyer le code",
+  emailBad: "Ça ne ressemble pas à une adresse e-mail.",
+  emailTooMany: "Trop d'essais. Réessaie dans {min}.",
+  emailMinutes: { one: "{n} minute", other: "{n} minutes" },
+  emailCodeHeading: "Regarde ta boîte",
+  emailCodeLead: "Entre le code à 6 chiffres envoyé à {email}. Il fonctionne pendant 10 minutes.",
+  emailCodeLabel: "Le code à 6 chiffres",
+  emailCodeWrong: "Ce n'est pas le bon code. Regarde le dernier e-mail d'eait.",
+  emailCodeDead: "Ce code a expiré. Envoie-t'en un nouveau pour continuer.",
+  emailCodeNew: "Envoyer un nouveau code",
+  emailResendWait: "Renvoyer le code dans {time}",
+  emailResend: "Renvoyer le code",
+  emailDifferent: "Utiliser un autre e-mail",
 };
 
 const DE: PageCopy = {
@@ -351,10 +403,6 @@ const DE: PageCopy = {
   chatPhotoSend: "Foto senden",
   chatCaption: "Soll ich noch etwas wissen? (optional)",
   errorSignIn: "Diese Anmeldung ist nicht durchgegangen. Versuch es noch einmal.",
-  pairHeading: "Hast du einen Kopplungscode?",
-  pairLead: "Dein iPhone erstellt ihn in {tab}.",
-  pairLabel: "Dein Kopplungscode",
-  pairButton: "Diesen Browser koppeln",
   sameAccountHint: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   sameAccountHintGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   errorPair: "Dieser Code hat nicht funktioniert. Ein Code gilt einmal und nur fünf Minuten nach seiner Erzeugung.",
@@ -384,6 +432,23 @@ const DE: PageCopy = {
   languageSave: "Speichern",
   tooManyAttempts: "Zu viele Versuche von dieser Adresse. Versuch es gleich noch einmal.\n",
   chatRefusalIdentity: "Melde dich mit Apple oder Google an, um weiterzumachen — der Anmeldeschirm ist einen Schritt zurück.",
+  titleEmail: "Anmeldung per E-Mail",
+  emailHeading: "Anmeldung per E-Mail",
+  emailLead: "Wir schicken dir einen 6-stelligen Code per E-Mail. Kein Passwort.",
+  emailFieldLabel: "Deine E-Mail-Adresse",
+  emailSend: "Code senden",
+  emailBad: "Das sieht nicht nach einer E-Mail-Adresse aus.",
+  emailTooMany: "Zu viele Versuche. Versuch es in {min} erneut.",
+  emailMinutes: { one: "{n} Minute", other: "{n} Minuten" },
+  emailCodeHeading: "Schau in dein Postfach",
+  emailCodeLead: "Gib den 6-stelligen Code ein, den wir an {email} geschickt haben. Er gilt 10 Minuten.",
+  emailCodeLabel: "Der 6-stellige Code",
+  emailCodeWrong: "Der Code stimmt nicht. Schau in die neueste E-Mail von eait.",
+  emailCodeDead: "Dieser Code ist abgelaufen. Schick dir einen neuen, um weiterzumachen.",
+  emailCodeNew: "Neuen Code senden",
+  emailResendWait: "Code erneut senden in {time}",
+  emailResend: "Code erneut senden",
+  emailDifferent: "Andere E-Mail-Adresse verwenden",
 };
 
 const IT: PageCopy = {
@@ -422,10 +487,6 @@ const IT: PageCopy = {
   chatPhotoSend: "Invia la foto",
   chatCaption: "C'è qualcosa che dovrei sapere? (facoltativo)",
   errorSignIn: "Quell'accesso non è andato a buon fine. Riprova.",
-  pairHeading: "Hai un codice di abbinamento?",
-  pairLead: "Il telefono ne crea uno in {tab}.",
-  pairLabel: "Il tuo codice di abbinamento",
-  pairButton: "Abbina questo browser",
   sameAccountHint: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   sameAccountHintGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   errorPair: "Quel codice non ha funzionato. Un codice vale una volta sola, e solo per cinque minuti da quando è stato creato.",
@@ -455,6 +516,23 @@ const IT: PageCopy = {
   languageSave: "Salva",
   tooManyAttempts: "Troppi tentativi da questo indirizzo. Riprova tra poco.\n",
   chatRefusalIdentity: "Accedi con Apple o Google per continuare — la schermata di registrazione è un passo indietro.",
+  titleEmail: "Accesso con l'email",
+  emailHeading: "Accedi con l'email",
+  emailLead: "Ti mandiamo un codice a 6 cifre via email. Niente password.",
+  emailFieldLabel: "La tua email",
+  emailSend: "Invia il codice",
+  emailBad: "Non sembra un indirizzo email.",
+  emailTooMany: "Troppi tentativi. Riprova tra {min}.",
+  emailMinutes: { one: "{n} minuto", other: "{n} minuti" },
+  emailCodeHeading: "Controlla la posta",
+  emailCodeLead: "Inserisci il codice a 6 cifre che abbiamo inviato a {email}. Funziona per 10 minuti.",
+  emailCodeLabel: "Il codice a 6 cifre",
+  emailCodeWrong: "Il codice non è giusto. Controlla l'ultima email di eait.",
+  emailCodeDead: "Questo codice è scaduto. Fattone mandare uno nuovo per continuare.",
+  emailCodeNew: "Invia un nuovo codice",
+  emailResendWait: "Reinvia il codice tra {time}",
+  emailResend: "Reinvia il codice",
+  emailDifferent: "Usa un'altra email",
 };
 
 const ES: PageCopy = {
@@ -493,10 +571,6 @@ const ES: PageCopy = {
   chatPhotoSend: "Enviar la foto",
   chatCaption: "¿Algo que deba saber? (opcional)",
   errorSignIn: "Ese inicio de sesión no se completó. Inténtalo otra vez.",
-  pairHeading: "¿Tienes un código de vinculación?",
-  pairLead: "Tu teléfono crea uno en {tab}.",
-  pairLabel: "Tu código de vinculación",
-  pairButton: "Vincular este navegador",
   sameAccountHint: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   sameAccountHintGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   errorPair: "Ese código no funcionó. Un código vale una vez, y solo durante cinco minutos desde que se crea.",
@@ -526,6 +600,23 @@ const ES: PageCopy = {
   languageSave: "Guardar",
   tooManyAttempts: "Demasiados intentos desde esta dirección. Inténtalo dentro de un momento.\n",
   chatRefusalIdentity: "Inicia sesión con Apple o Google para continuar — la pantalla de registro está a un paso.",
+  titleEmail: "Acceso por correo",
+  emailHeading: "Accede con tu correo",
+  emailLead: "Te enviamos un código de 6 dígitos por correo. Sin contraseña.",
+  emailFieldLabel: "Tu correo",
+  emailSend: "Enviar código",
+  emailBad: "Eso no parece una dirección de correo.",
+  emailTooMany: "Demasiados intentos. Prueba de nuevo en {min}.",
+  emailMinutes: { one: "{n} minuto", other: "{n} minutos" },
+  emailCodeHeading: "Mira tu bandeja",
+  emailCodeLead: "Escribe el código de 6 dígitos que enviamos a {email}. Funciona durante 10 minutos.",
+  emailCodeLabel: "El código de 6 dígitos",
+  emailCodeWrong: "El código no es correcto. Mira el último correo de eait.",
+  emailCodeDead: "Este código ha caducado. Pide uno nuevo para continuar.",
+  emailCodeNew: "Enviar un código nuevo",
+  emailResendWait: "Reenviar el código en {time}",
+  emailResend: "Reenviar el código",
+  emailDifferent: "Usar otro correo",
 };
 
 const VI: PageCopy = {
@@ -564,10 +655,6 @@ const VI: PageCopy = {
   chatPhotoSend: "Gửi ảnh",
   chatCaption: "Có gì mình nên biết không? (không bắt buộc)",
   errorSignIn: "Lần đăng nhập đó chưa hòan tất. Thử lại nhé.",
-  pairHeading: "Bạn có mã ghép nối không?",
-  pairLead: "Điện thoại tạo một mã trong {tab}.",
-  pairLabel: "Mã ghép nối của bạn",
-  pairButton: "Ghép trình duyệt này",
   sameAccountHint: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   sameAccountHintGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   errorPair: "Mã đó không dùng được. Mỗi mã chỉ dùng một lần, và chỉ trong năm phút kể từ khi tạo.",
@@ -597,6 +684,23 @@ const VI: PageCopy = {
   languageSave: "Lưu",
   tooManyAttempts: "Quá nhiều lần thử từ địa chỉ này. Thử lại sau một lát nhé.\n",
   chatRefusalIdentity: "Đăng nhập bằng Apple hoặc Google để tiếp tục — màn hình đăng ký chỉ cách một bước.",
+  titleEmail: "Đăng nhập bằng email",
+  emailHeading: "Đăng nhập bằng email",
+  emailLead: "Chúng tôi sẽ gửi mã 6 số qua email. Không cần mật khẩu.",
+  emailFieldLabel: "Địa chỉ email của bạn",
+  emailSend: "Gửi mã",
+  emailBad: "Địa chỉ email này chưa đúng.",
+  emailTooMany: "Thử quá nhiều lần. Thử lại sau {min}.",
+  emailMinutes: { other: "{n} phút" },
+  emailCodeHeading: "Kiểm tra hộp thư của bạn",
+  emailCodeLead: "Nhập mã 6 số chúng tôi đã gửi đến {email}. Mã có hiệu lực trong 10 phút.",
+  emailCodeLabel: "Mã 6 số",
+  emailCodeWrong: "Mã chưa đúng. Kiểm tra email mới nhất từ eait.",
+  emailCodeDead: "Mã này đã hết hạn. Gửi mã mới để tiếp tục.",
+  emailCodeNew: "Gửi mã mới",
+  emailResendWait: "Gửi lại mã sau {time}",
+  emailResend: "Gửi lại mã",
+  emailDifferent: "Dùng email khác",
 };
 
 const ID: PageCopy = {
@@ -635,10 +739,6 @@ const ID: PageCopy = {
   chatPhotoSend: "Kirim fotonya",
   chatCaption: "Ada yang perlu aku tahu? (opsional)",
   errorSignIn: "Proses masuk itu tidak selesai. Coba lagi.",
-  pairHeading: "Punya kode penautan?",
-  pairLead: "Ponselmu membuatnya di tab {tab}.",
-  pairLabel: "Kode penautanmu",
-  pairButton: "Tautkan browser ini",
   sameAccountHint: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   sameAccountHintGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   errorPair: "Kode itu tidak berhasil. Kode berlaku sekali, dan hanya lima menit setelah dibuat.",
@@ -668,6 +768,23 @@ const ID: PageCopy = {
   languageSave: "Simpan",
   tooManyAttempts: "Terlalu banyak percobaan dari alamat ini. Coba lagi sebentar.\n",
   chatRefusalIdentity: "Masuk dengan Apple atau Google untuk lanjut — layar pendaftaran ada satu langkah sebelumnya.",
+  titleEmail: "Masuk dengan email",
+  emailHeading: "Masuk dengan email",
+  emailLead: "Kami kirimkan kode 6 digit ke email-mu. Tanpa kata sandi.",
+  emailFieldLabel: "Alamat email-mu",
+  emailSend: "Kirim kode",
+  emailBad: "Itu bukan alamat email yang benar.",
+  emailTooMany: "Terlalu banyak percobaan. Coba lagi dalam {min}.",
+  emailMinutes: { other: "{n} menit" },
+  emailCodeHeading: "Cek kotak masukmu",
+  emailCodeLead: "Masukkan kode 6 digit yang kami kirim ke {email}. Kode ini berlaku 10 menit.",
+  emailCodeLabel: "Kode 6 digit",
+  emailCodeWrong: "Kodenya salah. Cek email terbaru dari eait.",
+  emailCodeDead: "Kode ini sudah kedaluwarsa. Kirim kode baru untuk lanjut.",
+  emailCodeNew: "Kirim kode baru",
+  emailResendWait: "Kirim ulang kode dalam {time}",
+  emailResend: "Kirim ulang kode",
+  emailDifferent: "Pakai email lain",
 };
 
 const RU: PageCopy = {
@@ -706,10 +823,6 @@ const RU: PageCopy = {
   chatPhotoSend: "Отправить фото",
   chatCaption: "Есть что-то, что мне стоит знать? (необязательно)",
   errorSignIn: "Этот вход не завершился. Попробуй ещё раз.",
-  pairHeading: "Есть код привязки?",
-  pairLead: "Телефон создаёт его в разделе {tab}.",
-  pairLabel: "Твой код привязки",
-  pairButton: "Привязать этот браузер",
   sameAccountHint: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
   sameAccountHintGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
   errorPair: "Этот код не сработал. Код работает один раз и только пять минут после создания.",
@@ -739,6 +852,23 @@ const RU: PageCopy = {
   languageSave: "Сохранить",
   tooManyAttempts: "Слишком много попыток с этого адреса. Попробуй чуть позже.\n",
   chatRefusalIdentity: "Войди через Apple или Google, чтобы продолжить — экран регистрации — на шаг назад.",
+  titleEmail: "Вход по e-mail",
+  emailHeading: "Вход по e-mail",
+  emailLead: "Мы пришлём код из 6 цифр на почту. Без пароля.",
+  emailFieldLabel: "Твой e-mail",
+  emailSend: "Отправить код",
+  emailBad: "Это не похоже на адрес e-mail.",
+  emailTooMany: "Слишком много попыток. Повтори через {min}.",
+  emailMinutes: { one: "{n} минута", few: "{n} минуты", many: "{n} минут", other: "{n} минут" },
+  emailCodeHeading: "Проверь почту",
+  emailCodeLead: "Введи код из 6 цифр, который мы отправили на {email}. Он работает 10 минут.",
+  emailCodeLabel: "Код из 6 цифр",
+  emailCodeWrong: "Код не тот. Посмотри последнее письмо от eait.",
+  emailCodeDead: "Срок действия кода истёк. Отправь новый, чтобы продолжить.",
+  emailCodeNew: "Отправить новый код",
+  emailResendWait: "Отправить код снова через {time}",
+  emailResend: "Отправить код снова",
+  emailDifferent: "Использовать другую почту",
 };
 
 /** Every sentence `/start` writes for itself, keyed by language. */
