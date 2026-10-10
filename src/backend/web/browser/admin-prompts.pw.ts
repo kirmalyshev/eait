@@ -278,11 +278,12 @@ test("History opens the revisions, newest first, with the whole text of each", a
   const card = page.locator("#prompts .card").filter({ hasText: "route" }).first();
   await card.getByRole("button", { name: "History" }).click();
 
-  await expect(card.getByText(/version 4 — admin/)).toBeVisible();
-  await expect(card.getByText(/version 1 — shipped/)).toBeVisible();
+  const history = page.locator("#prompt-history");
+  await expect(history.getByText("version 4", { exact: true })).toBeVisible();
+  await expect(history.getByText(/shipped · /)).toBeVisible();
   // The append-only table's whole point: the superseded text is still readable.
-  await card.locator("details").last().click();
-  await expect(card.getByText("You are the text side of a nutrition tracker.")).toBeVisible();
+  await history.locator("details").last().locator("summary").click();
+  await expect(history.getByText("You are the text side of a nutrition tracker.")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -333,6 +334,7 @@ test("the push grid lists every key x language, edits a cell, and shows the gate
   await openAdmin(page, "templates");
 
   const grid = page.locator("#push-grid");
+  await page.locator("#push-f-all").click();
   // trial-end, evening x2, nudge, and three triggers x four variants: sixteen rows of eight reviewed cells, every key sendable.
   await expect(grid.locator("tr")).toHaveCount(17);
   await expect(grid.locator("button.cell.reviewed")).toHaveCount(128);
@@ -342,7 +344,7 @@ test("the push grid lists every key x language, edits a cell, and shows the gate
   const edit = page.locator("#push-edit");
   await expect(edit.locator("textarea")).toHaveValue(/Log what you ate today/);
   await edit.locator("textarea").fill("Guaranteed weight loss");
-  await edit.getByRole("button", { name: "Save and mark reviewed" }).click();
+  await edit.getByRole("button", { name: "Save as reviewed" }).click();
   await expect(page.locator("#push-errors")).toBeVisible();
   await expect(page.locator("#push-errors")).toContainText("guarantee claim");
   expect(errors).toEqual([]);
@@ -352,6 +354,7 @@ test("a draft turns its key into blocked", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
   await openAdmin(page, "templates");
+  await page.locator("#push-f-all").click();
   const row = page.locator("#push-grid tr").filter({ hasText: "nudge" });
   await row.locator("button.cell").nth(7).click(); // ru
   await page.locator("#push-edit").getByRole("button", { name: "Save as draft" }).click();
@@ -382,6 +385,7 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await page.setViewportSize({ width, height });
     await stubAdmin(page);
     await openAdmin(page, "templates");
+    await page.locator("#push-f-all").click();
     await page.locator("#push-grid tr").filter({ hasText: "evening / empty" }).locator("button.cell").nth(3).click();
     await page.locator("#push-grid").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await page.screenshot({ path: `/tmp/p2-push-admin-${name}.png` });
@@ -406,10 +410,6 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await expect(arms).toContainText("Treated minus holdout conversion: 19.6 pts (95% CI 7.0 pts to 30.0 pts) — the interval excludes zero.");
   await expect(page.getByRole("button", { name: "Stop all campaigns" })).toBeVisible();
 
-  await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
-  await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
-  await expect(page.locator("#campaign-copy")).toContainText("complete");
-  await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
   await page.getByRole("button", { name: "New campaign" }).click();
   await page.locator("#campaign-form input[placeholder=Name]").fill("Spring");
   await page.locator("#campaign-form input[placeholder='campaign:spring-win-back']").fill("campaign:spring");
@@ -444,7 +444,12 @@ test("the campaign copy editor loads a saved language and saves a draft and a re
   await page.route("**/admin/api/push-templates", (r) => r.request().method() === "PUT"
     ? (calls.push({ method: "PUT", path: "/admin/api/push-templates", body: r.request().postDataJSON() }), r.fulfill({ status: 200, contentType: "application/json", body: "{\"row\":{}}" }))
     : r.fallback());
-  await openAdmin(page, "campaigns");
+  await openAdmin(page, "templates");
+  await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
+  await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
+  await expect(page.locator("#campaign-copy")).toContainText("complete");
+  await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
+  await page.getByRole("button", { name: "New campaign copy" }).click();
   const form = page.locator("#campaign-copy-form");
   await form.locator("input[placeholder='campaign:spring-win-back']").fill("campaign:win-back");
   await form.locator("select").nth(0).selectOption("de");

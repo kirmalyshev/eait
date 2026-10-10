@@ -243,14 +243,24 @@ button.dd:hover { filter: brightness(1.08); box-shadow: none; }
   .cgrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) { .hacts .wide { display: none; } .hacts button { height: 26px; padding: 0 9px; font-size: 12px; } }
+/* Push templates: the grid, filtered to what needs a look, with the editor beside it. */
 #push-grid { scroll-padding-left: 120px; }
-#push-grid table td, #push-grid table th { padding: 4px 6px; text-align: center; white-space: nowrap; }
-#push-grid table td:first-child, #push-grid table th:first-child { text-align: left; }
-#push-grid td:first-child, #push-grid th:first-child { position: sticky; left: 0; background: var(--surface); white-space: normal; min-width: 100px; max-width: 120px; }
-.cell { height: 22px; padding: 0 8px; border-radius: 11px; font-size: 11px; font-weight: 600; box-shadow: 0 0 0 1px var(--hair); background: transparent; color: var(--muted); }
-.cell.reviewed { background: var(--accent-tint); color: var(--accent); box-shadow: none; }
-.cell.draft { background: var(--warn-tint); color: var(--warn); box-shadow: none; }
-.cell.sel { outline: 2px solid var(--accent); }
+#push-grid table td, #push-grid table th { padding: 8px 6px; text-align: center; white-space: nowrap; }
+#push-grid table td:first-child, #push-grid table th:first-child { text-align: left; padding-left: 14px; }
+#push-grid td:first-child, #push-grid th:first-child { position: sticky; left: 0; background: var(--surface); white-space: normal; min-width: 150px; max-width: 190px; }
+#push-grid td:first-child .chip { margin: 3px 4px 0 0; height: 20px; font-size: 11px; }
+.cell { height: 22px; padding: 0 8px; border-radius: 11px; font-size: 11px; font-weight: 600; box-shadow: none; background: transparent; color: var(--muted); }
+.cell:hover { box-shadow: 0 0 0 1px var(--muted); }
+.cell.reviewed { padding: 0 6px; font-size: 13px; }
+.cell.draft { background: var(--warn-tint); color: var(--warn); }
+.cell.missing { background: var(--bad-tint); color: var(--bad); }
+.cell.sel { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bh { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--hair); }
+.bh .grow { flex: 1; }
+#push-edit .pb { gap: 4px; }
+#push-edit .pb label { margin: 8px 0 0; }
+#push-edit .btns { margin-top: 10px; }
+.pane-note { font-size: 12px; color: var(--muted); }
 
 /* The three states every view can be in besides its content: loading, empty, error. */
 .sk { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; }
@@ -347,7 +357,50 @@ button.quiet { box-shadow: none; color: var(--muted); }
   background: var(--surface); border-radius: var(--r-card); padding: 12px 14px; box-shadow: 0 0 0 1px var(--hair), var(--shadow);
 }
 .bar .status { margin-right: auto; }
-.bar select { width: auto; }
+.bar .status.warn { color: var(--warn); }
+.ahead select { width: auto; margin-left: auto; }
+#copy-new { margin-left: auto; }
+
+/* Onboarding copy: a sub-nav across its four sections, one section at a time. */
+.obsplit { display: flex; gap: 16px; align-items: flex-start; }
+.obsplit > .acol { flex: 1; min-width: 0; }
+.subnav { flex: 0 0 220px; width: 220px; background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; position: sticky; top: 12px; }
+.subnav button { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; width: 100%; height: auto; min-height: 40px; padding: 8px 14px; border-radius: 0; box-shadow: none; border-bottom: 1px solid var(--hair); text-align: left; }
+.subnav button:last-child { border-bottom: 0; }
+.subnav button:hover { background: var(--bg); box-shadow: none; }
+.subnav button.on { background: var(--accent-tint); color: var(--accent); }
+.subnav small { font-weight: 400; font-size: 12px; color: var(--muted); }
+#body-onboarding textarea { min-height: 48px; }
+details.how { margin-bottom: 14px; }
+details.how summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+details.how p { margin-top: 8px; }
+@media (max-width: 760px) {
+  .obsplit { flex-direction: column; align-items: stretch; }
+  .subnav { flex: 0 0 auto; width: auto; position: static; display: flex; overflow-x: auto; }
+  .subnav button { width: auto; flex: 0 0 auto; border-bottom: 0; border-right: 1px solid var(--hair); white-space: nowrap; }
+  .subnav small { display: none; }
+}
+
+/* System prompts: a card each, and one history pane beside them. */
+.pcol { display: flex; gap: 16px; align-items: flex-start; }
+.pcol > .acol { flex: 1; min-width: 0; }
+.pcard header { margin-bottom: 10px; flex-wrap: nowrap; align-items: baseline; }
+.pcard header .id { font: 700 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pcard header .muted { font-size: 12px; font-weight: 500; flex: 1; min-width: 0; }
+.pcard textarea { min-height: 150px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pact { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.pact .status { margin-right: auto; min-width: 0; }
+.status.bad { color: var(--bad); }
+#prompt-history { flex: 0 0 360px; width: 360px; }
+#prompt-history details { border-bottom: 1px solid var(--hair); }
+#prompt-history summary { padding: 10px 16px; cursor: pointer; display: flex; flex-direction: column; }
+#prompt-history summary small { font-size: 12px; color: var(--muted); }
+#prompt-history pre { margin: 0; padding: 0 16px 12px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+@media (max-width: 760px) {
+  .pcol { flex-direction: column; align-items: stretch; }
+  #prompt-history { flex: 0 0 auto; width: auto; }
+  .pcard header { flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
@@ -409,7 +462,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
   </div>
 
   <div class="amain">
-    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button></div>
+    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button><select id="lang" class="hidden" aria-label="Language"></select><button class="hidden" id="copy-new">New campaign copy</button></div>
     <div class="abody">
 
 <!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
@@ -484,19 +537,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
         <div class="camps-l"><div class="card flush alist" id="camp-list"></div></div>
         <div class="card flush camps-r" id="camp-detail"></div>
       </div>
-      <h2>Campaign copy</h2>
-      <p class="muted">
-        A campaign sends its own words, one title and one body per language, with no placeholders: everybody
-        gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
-        scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
-        gender checks as every other push text.
-      </p>
       <datalist id="campaign-keys"></datalist>
-      <div class="card flush"><div class="scrollx"><table id="campaign-copy">
-        <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
-        <tbody></tbody>
-      </table></div></div>
-      <div class="card" id="campaign-copy-form"></div>
     </div>
     <div id="camp-new-mode" class="hidden">
       <div class="card flush cnew">
@@ -643,56 +684,67 @@ button.quiet { box-shadow: none; color: var(--muted); }
 <section class="view hidden" id="view-onboarding">
   <div id="state-onboarding"></div>
   <div class="vbody hidden" id="body-onboarding">
-    <p class="muted">
-      Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
-      The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
-      and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
-      version, which is what the funnel is grouped by.
-    </p>
-    <p class="muted">
-      One language at a time. A save replaces the language in the picker and nothing beside it, and
-      takes the next version number — one counter across all eight, so no two revisions ever share
-      one and the funnel can still say which words it counted. The eight shipped revisions are
-      one editorial revision and share a number; they stop sharing it the first time anybody saves.
-      A language nobody has saved serves the copy the app ships with, in that language — never
-      English, because half an onboarding in English is worse than none of it.
-    </p>
+    <div class="obsplit">
+      <nav class="subnav" id="ob-nav" aria-label="Onboarding sections"></nav>
+      <div class="acol">
+        <details class="how">
+          <summary>How saving works</summary>
+          <p class="muted">
+            Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
+            The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
+            and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
+            version, which is what the funnel is grouped by.
+          </p>
+          <p class="muted">
+            One language at a time. A save replaces the language in the picker and nothing beside it, and
+            takes the next version number — one counter across all eight, so no two revisions ever share
+            one and the funnel can still say which words it counted. The eight shipped revisions are
+            one editorial revision and share a number; they stop sharing it the first time anybody saves.
+            A language nobody has saved serves the copy the app ships with, in that language — never
+            English, because half an onboarding in English is worse than none of it.
+          </p>
+        </details>
 
-    <div id="errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+        <div id="errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
 
-    <h2>The welcome screen</h2>
-    <p class="muted">
-      The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
-      competitor there, do not write "free", and do not promise away the card, the trial or the
-      cancelling: the app sells a subscription behind a free trial, so those are no longer true.
-      Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
-      the whole app works without an account at all.
-    </p>
-    <div id="welcome"></div>
+        <div id="ob-welcome" data-sec="welcome">
+          <p class="muted">
+            The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
+            competitor there, do not write "free", and do not promise away the card, the trial or the
+            cancelling: the app sells a subscription behind a free trial, so those are no longer true.
+            Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
+            the whole app works without an account at all.
+          </p>
+          <div id="welcome"></div>
+        </div>
 
-    <h2>Screens</h2>
-    <div id="screens"></div>
+        <div id="ob-screens" data-sec="screens">
+          <div id="screens"></div>
+        </div>
 
-    <h2>Working out the number</h2>
-    <p class="muted">
-      Labels only. Every figure beside them is computed from the person's own answers and cannot be
-      edited here.
-    </p>
-    <div id="building"></div>
+        <div id="ob-building" data-sec="building">
+          <p class="muted">
+            Labels only. Every figure beside them is computed from the person's own answers and cannot be
+            edited here.
+          </p>
+          <div id="building"></div>
+        </div>
 
-    <h2>The plan screen</h2>
-    <p class="muted">
-      <code>{weeks}</code> and <code>{month}</code> are substituted into the projection line. It is
-      hidden entirely for anyone the arithmetic cannot honestly project.
-    </p>
-    <div id="summary"></div>
+        <div id="ob-summary" data-sec="summary">
+          <p class="muted">
+            <code>{weeks}</code> and <code>{month}</code> are substituted into the projection line. It is
+            hidden entirely for anyone the arithmetic cannot honestly project.
+          </p>
+          <div id="summary"></div>
+        </div>
 
-    <div class="bar" id="bar">
-      <span class="status" id="status"></span>
-      <select id="lang" aria-label="Language"></select>
-      <button id="reload">Reload</button>
-      <button id="reset">Restore defaults</button>
-      <button class="primary" id="save">Save</button>
+        <div class="bar" id="bar">
+          <span class="status" id="status"></span>
+          <button id="reload">Reload</button>
+          <button id="reset">Restore defaults</button>
+          <button class="primary" id="save">Save</button>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -710,9 +762,33 @@ button.quiet { box-shadow: none; color: var(--muted); }
       braces are filled by the server and a plural block needs exactly the categories its language has.
     </p>
     <div id="push-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-    <div class="card flush"><div id="push-grid" class="scrollx"></div></div>
-    <div id="push-edit"></div>
-    <span class="status" id="push-status"></span>
+    <div class="split">
+      <div class="acol">
+        <div class="card flush">
+          <div class="bh">
+            <span class="aseg" id="push-filter">
+              <button id="push-f-need" class="on"></button>
+              <button id="push-f-all"></button>
+            </span>
+            <span class="grow"></span>
+            <span class="muted">✓ reviewed</span>
+          </div>
+          <div id="push-grid" class="scrollx"></div>
+        </div>
+      </div>
+      <div class="apane hidden" id="push-edit"></div>
+    </div>
+    <h2>Campaign copy</h2>
+    <p class="muted">
+      A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+      gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+      scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+      gender checks as every other push text.
+    </p>
+    <div class="card flush"><div class="scrollx"><table id="campaign-copy">
+      <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+      <tbody></tbody>
+    </table></div></div>
   </div>
 </section>
 
@@ -733,7 +809,10 @@ button.quiet { box-shadow: none; color: var(--muted); }
       <strong>History</strong> shows what was being sent and from when.
     </p>
     <div id="prompt-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
-    <div id="prompts"></div>
+    <div class="pcol">
+      <div class="acol"><div id="prompts"></div></div>
+      <div class="apane hidden" id="prompt-history"></div>
+    </div>
   </div>
 </section>
 
@@ -803,7 +882,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
   var asked = lang;
   function atLang(path) { return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + encodeURIComponent(asked); }
 
-  function status(msg) { $("status").textContent = msg; }
+  function status(msg) { var el = $("status"); el.textContent = msg; el.classList.remove("warn"); }
 
   // ── Building the editor ────────────────────────────────────────────────────────────────────
 
@@ -927,10 +1006,20 @@ button.quiet { box-shadow: none; color: var(--muted); }
     return card;
   }
 
+  function sectionHead(card, text) {
+    var head = document.createElement("header");
+    var id = document.createElement("span");
+    id.className = "id";
+    id.textContent = text;
+    head.appendChild(id);
+    card.appendChild(head);
+  }
+
   function welcomeCard() {
     var w = content.welcome;
     var card = document.createElement("div");
     card.className = "card";
+    sectionHead(card, "Welcome screen");
     // Rendered from the array each time, so removing a bubble is emptying its box rather than
     // hunting for a delete control. The validator refuses an empty list, which is the guard.
     w.lines.forEach(function (line, i) {
@@ -950,6 +1039,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
     var b = content.building;
     var card = document.createElement("div");
     card.className = "card";
+    sectionHead(card, "Working out the number");
     b.lines.forEach(function (line, i) {
       field(card, "Bubble " + (i + 1), line, function (v) { b.lines[i] = v; }, true);
     });
@@ -966,6 +1056,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
     var s = content.summary;
     var card = document.createElement("div");
     card.className = "card";
+    sectionHead(card, "Plan screen");
     s.lines.forEach(function (line, i) {
       field(card, "Bubble " + (i + 1), line, function (v) { s.lines[i] = v; }, true);
     });
@@ -979,7 +1070,54 @@ button.quiet { box-shadow: none; color: var(--muted); }
     return card;
   }
 
-  function render() {
+  // The four sections take turns beside a sub-nav; the save bar below them is for all four.
+  var obSec = "welcome";
+  var OB_SECS = [["welcome", "Welcome screen"], ["screens", "Screens"], ["building", "Working out the number"], ["summary", "Plan screen"]];
+
+  function renderObNav() {
+    var nav = $("ob-nav");
+    nav.textContent = "";
+    OB_SECS.forEach(function (sec) {
+      var b = document.createElement("button");
+      b.textContent = sec[1];
+      if (sec[0] === "screens") {
+        var n = document.createElement("small");
+        n.textContent = content.screens.length + " questions";
+        b.appendChild(n);
+      }
+      b.classList.toggle("on", sec[0] === obSec);
+      if (sec[0] === obSec) b.setAttribute("aria-current", "true");
+      b.addEventListener("click", function () { obSec = sec[0]; renderObNav(); });
+      nav.appendChild(b);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#body-onboarding [data-sec]"), function (el) {
+      el.classList.toggle("hidden", el.getAttribute("data-sec") !== obSec);
+    });
+  }
+
+  // What is on screen against what was last loaded or saved: the number of fields that differ.
+  var saved = null;
+  function diffCount(a, b) {
+    if (a !== null && b !== null && typeof a === "object" && typeof b === "object") {
+      var keys = {}, n = 0;
+      Object.keys(a).concat(Object.keys(b)).forEach(function (k) { keys[k] = 1; });
+      Object.keys(keys).forEach(function (k) { n += diffCount(a[k], b[k]); });
+      return n;
+    }
+    return a === b ? 0 : 1;
+  }
+  function unsaved() {
+    var n = saved ? diffCount(saved, content) : 0;
+    var el = $("status");
+    el.classList.toggle("warn", n > 0);
+    el.textContent = n > 0 ? n + " unsaved change" + (n === 1 ? "" : "s") : "version " + content.version;
+  }
+  $("body-onboarding").addEventListener("input", unsaved);
+  $("body-onboarding").addEventListener("change", unsaved);
+
+  // fresh: the content was just loaded, saved or restored, so it is the new baseline. The cards
+  // fill in missing parts of the document as they draw, so the baseline is taken after the draw.
+  function render(fresh) {
     var host = $("screens");
     host.textContent = "";
     content.screens.forEach(function (s) { host.appendChild(screenCard(s)); });
@@ -991,7 +1129,9 @@ button.quiet { box-shadow: none; color: var(--muted); }
     one("welcome", welcomeCard);
     one("building", buildingCard);
     one("summary", summaryCard);
-    status("version " + content.version);
+    renderObNav();
+    if (fresh) saved = JSON.parse(JSON.stringify(content));
+    unsaved();
   }
 
   function showErrors(list) {
@@ -1229,46 +1369,6 @@ button.quiet { box-shadow: none; color: var(--muted); }
     host.appendChild(foot);
   }
 
-  function buildCopyForm(o) {
-    var host = $("campaign-copy-form");
-    host.textContent = "";
-    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
-    var lang = document.createElement("select");
-    o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
-    var variant = document.createElement("select");
-    o.variants.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; variant.appendChild(opt); });
-    var title = document.createElement("input"); title.placeholder = "Title";
-    var body = document.createElement("textarea"); body.placeholder = "Body";
-    var row = document.createElement("div"); row.className = "row flexwrap";
-    [campaignField("Key", key), campaignField("Language", lang), campaignField("Variant", variant), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
-    host.appendChild(row);
-    host.appendChild(campaignField("Body", body));
-    // Picking a key and language shows what is saved there.
-    var fill = function () {
-      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value && r.variant === variant.value; })[0];
-      title.value = hit ? hit.title : "";
-      body.value = hit ? hit.body : "";
-    };
-    key.addEventListener("change", fill);
-    lang.addEventListener("change", fill);
-    variant.addEventListener("change", fill);
-    var save = function (status) {
-      return function () {
-        campaignErrors(null);
-        api("PUT", "/admin/api/push-templates", {
-          template: { key: key.value.trim(), lang: lang.value, variant: variant.value, title: title.value, body: body.value },
-          status: status
-        }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
-      };
-    };
-    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
-    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
-    host.appendChild(draft);
-    host.appendChild(rev);
-  }
-
-  var copyRows = [];
-
   function campMenusClose() {
     Array.prototype.forEach.call(document.querySelectorAll("#camp-detail .amenu"), function (m) { m.classList.add("hidden"); });
   }
@@ -1486,18 +1586,9 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
-      if (!campaignOptions) { campaignOptions = v.options; buildCopyForm(v.options); }
+      if (!campaignOptions) campaignOptions = v.options;
       campData = v;
-      copyRows = [];
-      var keys = $("campaign-keys"); keys.textContent = "";
-      var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
-      v.copy.forEach(function (c) {
-        copyRows = copyRows.concat(c.rows);
-        var opt = document.createElement("option"); opt.value = c.key; keys.appendChild(opt);
-        var tr = document.createElement("tr");
-        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
-        copyBody.appendChild(tr);
-      });
+      copyKeys(v.copy);
       renderCampaigns();
     });
   }
@@ -1559,10 +1650,54 @@ button.quiet { box-shadow: none; color: var(--muted); }
     box.classList.remove("hidden");
   }
 
+  // The grid shows what needs a look. A row (key x variant) needs one when the server lists a gap
+  // for that variant: a language still a draft or not written at all. "All" is one press away.
+  var pushAll = false;
+  var pushMsg = "";
+  var pushNote = null;
+
+  function gapVariant(g) { return g.slice(g.indexOf("/") + 1); }
+  function needsReview(k, variant) {
+    return k.gaps.some(function (g) { return gapVariant(g) === variant; });
+  }
+  function pushCounts() {
+    var need = 0, all = 0;
+    push.keys.forEach(function (k) {
+      k.variants.forEach(function (variant) { all++; if (needsReview(k, variant)) need++; });
+    });
+    return { need: need, all: all };
+  }
+
+  function pushCell(k, l, variant) {
+    var td = document.createElement("td");
+    var row = pushRow(k.key, l, variant);
+    var status = row ? row.status : "missing";
+    var b = document.createElement("button");
+    b.className = "cell " + status;
+    if (pushSel && pushSel.key === k.key && pushSel.lang === l && pushSel.variant === variant) b.className += " sel";
+    b.textContent = status === "reviewed" ? "✓" : status;
+    b.setAttribute("aria-label", k.key + " / " + variant + " / " + l + ": " + status);
+    b.addEventListener("click", function () {
+      pushSel = { key: k.key, lang: l, variant: variant };
+      copyOpen = false;
+      pushMsg = "";
+      pushErrors(null);
+      renderPush();
+    });
+    td.appendChild(b);
+    return td;
+  }
+
   function renderPush() {
+    var counts = pushCounts();
+    $("push-f-need").textContent = "Needs review · " + counts.need;
+    $("push-f-all").textContent = "All · " + counts.all;
+    $("push-f-need").classList.toggle("on", !pushAll);
+    $("push-f-all").classList.toggle("on", pushAll);
     var grid = $("push-grid");
     grid.textContent = "";
     var table = document.createElement("table");
+    var thead = document.createElement("thead");
     var head = document.createElement("tr");
     var corner = document.createElement("th");
     corner.textContent = "message";
@@ -1572,101 +1707,225 @@ button.quiet { box-shadow: none; color: var(--muted); }
       th.textContent = l;
       head.appendChild(th);
     });
-    table.appendChild(head);
+    thead.appendChild(head);
+    table.appendChild(thead);
+    var tbody = document.createElement("tbody");
     push.keys.forEach(function (k) {
-      k.variants.forEach(function (variant, i) {
+      var first = true;
+      k.variants.forEach(function (variant) {
+        if (!pushAll && !needsReview(k, variant)) return;
         var tr = document.createElement("tr");
         var name = document.createElement("td");
-        name.textContent = k.key + " / " + variant;
-        if (i === 0) {
-          var pill = document.createElement("span");
-          pill.className = k.gaps.length ? "chip w" : "chip g";
-          pill.textContent = k.gaps.length ? "blocked: " + k.gaps.length + " missing" : "sendable";
+        var label = document.createElement("b");
+        label.textContent = k.key + " / " + variant;
+        name.appendChild(label);
+        if (first) {
+          first = false;
+          name.appendChild(document.createElement("br"));
           if (k.key === "trial-end") {
             var loc = document.createElement("span");
             loc.className = "chip n";
             loc.textContent = "local";
-            name.appendChild(document.createTextNode(" "));
             name.appendChild(loc);
           }
-          name.appendChild(document.createTextNode(" "));
+          var pill = document.createElement("span");
+          pill.className = k.gaps.length ? "chip w" : "chip g";
+          pill.textContent = k.gaps.length ? "blocked: " + k.gaps.length + " missing" : "sendable";
           name.appendChild(pill);
         }
         tr.appendChild(name);
-        push.langs.forEach(function (l) {
-          var td = document.createElement("td");
-          var row = pushRow(k.key, l, variant);
-          var b = document.createElement("button");
-          b.className = "cell " + (row ? row.status : "draft");
-          if (pushSel && pushSel.key === k.key && pushSel.lang === l && pushSel.variant === variant) b.className += " sel";
-          b.textContent = row ? row.status : "missing";
-          b.addEventListener("click", function () {
-            pushSel = { key: k.key, lang: l, variant: variant };
-            pushErrors(null);
-            renderPush();
-          });
-          td.appendChild(b);
-          tr.appendChild(td);
-        });
-        table.appendChild(tr);
+        push.langs.forEach(function (l) { tr.appendChild(pushCell(k, l, variant)); });
+        tbody.appendChild(tr);
       });
     });
+    emptyRow(tbody, push.langs.length + 1, "Nothing needs review. Every message is reviewed in every language.");
+    table.appendChild(tbody);
     grid.appendChild(table);
     renderPushEdit();
   }
 
-  function pushSave(draft, status) {
-    $("push-status").textContent = "saving…";
-    api("PUT", "/admin/api/push-templates", { template: draft, status: status }).then(function () {
-      pushErrors(null);
-      $("push-status").textContent = status === "reviewed" ? "saved and reviewed" : "saved as draft";
-      return loadPush();
-    }).catch(function (e) {
-      pushErrors((e.body && e.body.errors) || [e.message]);
-      $("push-status").textContent = "not saved";
+  $("push-f-need").addEventListener("click", function () { pushAll = false; if (push) renderPush(); });
+  $("push-f-all").addEventListener("click", function () { pushAll = true; if (push) renderPush(); });
+
+  // The campaign copy: one title and one body per language, for the keys campaigns name. Read from
+  // the campaigns endpoint, which is where the server says which keys are in use and how complete.
+  var copyData = null;
+  var copyOpen = false;
+
+  function copyKeys(list) {
+    var keys = $("campaign-keys");
+    keys.textContent = "";
+    list.forEach(function (c) {
+      var opt = document.createElement("option");
+      opt.value = c.key;
+      keys.appendChild(opt);
     });
   }
 
+  function loadCopy() {
+    var body = $("campaign-copy").querySelector("tbody");
+    return api("GET", "/admin/api/campaigns").then(function (v) {
+      copyData = v;
+      copyKeys(v.copy);
+      body.textContent = "";
+      v.copy.forEach(function (c) {
+        var tr = document.createElement("tr");
+        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
+        body.appendChild(tr);
+      });
+      emptyRow(body, 2, "No campaign has written any copy yet.");
+      if (copyOpen) renderPushEdit();
+    }, function () {
+      copyData = null;
+      body.textContent = "";
+      emptyRow(body, 2, "Couldn't load the campaign copy.");
+    });
+  }
+
+  function renderCopyForm(pane) {
+    var head = document.createElement("div");
+    head.className = "ph";
+    var name = document.createElement("b");
+    name.textContent = "New campaign copy";
+    head.appendChild(name);
+    pane.appendChild(head);
+    var host = document.createElement("div");
+    host.className = "pb";
+    host.id = "campaign-copy-form";
+    pane.appendChild(host);
+    var rows = [];
+    ((copyData && copyData.copy) || []).forEach(function (c) { rows = rows.concat(c.rows); });
+    var variants = (copyData && copyData.options && copyData.options.variants) || ["default"];
+    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
+    var lang = document.createElement("select");
+    push.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
+    var variant = document.createElement("select");
+    variants.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; variant.appendChild(opt); });
+    var title = document.createElement("input"); title.placeholder = "Title";
+    var body = document.createElement("textarea"); body.placeholder = "Body";
+    var row = document.createElement("div"); row.className = "row flexwrap";
+    [campaignField("Key", key), campaignField("Language", lang), campaignField("Variant", variant), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
+    host.appendChild(row);
+    host.appendChild(campaignField("Body", body));
+    // Picking a key and language shows what is saved there.
+    var fill = function () {
+      var hit = rows.filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value && r.variant === variant.value; })[0];
+      title.value = hit ? hit.title : "";
+      body.value = hit ? hit.body : "";
+    };
+    key.addEventListener("change", fill);
+    lang.addEventListener("change", fill);
+    variant.addEventListener("change", fill);
+    var save = function (status) {
+      return function () {
+        pushErrors(null);
+        pushSay("saving…");
+        api("PUT", "/admin/api/push-templates", {
+          template: { key: key.value.trim(), lang: lang.value, variant: variant.value, title: title.value, body: body.value },
+          status: status
+        }).then(function () {
+          pushSay(status === "reviewed" ? "saved and reviewed" : "saved as draft");
+          return loadPush().then(loadCopy);
+        }).catch(function (e) {
+          pushErrors((e.body && e.body.errors) || [e.message]);
+          pushSay("not saved");
+        });
+      };
+    };
+    var btns = document.createElement("div");
+    btns.className = "btns";
+    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
+    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
+    btns.appendChild(draft);
+    btns.appendChild(rev);
+    host.appendChild(btns);
+    var msg = document.createElement("span");
+    msg.className = "pane-note";
+    msg.textContent = pushMsg;
+    pushNote = msg;
+    host.appendChild(msg);
+  }
+
+  $("copy-new").addEventListener("click", function () {
+    copyOpen = true;
+    pushSel = null;
+    pushMsg = "";
+    pushErrors(null);
+    if (push) renderPush();
+    $("push-edit").scrollIntoView({ block: "nearest" });
+  });
+
+  function pushSave(draft, status) {
+    pushSay("saving…");
+    api("PUT", "/admin/api/push-templates", { template: draft, status: status }).then(function () {
+      pushErrors(null);
+      pushSay(status === "reviewed" ? "saved and reviewed" : "saved as draft");
+      return loadPush();
+    }).catch(function (e) {
+      pushErrors((e.body && e.body.errors) || [e.message]);
+      pushSay("not saved");
+    });
+  }
+
+  function pushSay(text) {
+    pushMsg = text;
+    if (pushNote) pushNote.textContent = text;
+  }
+
   function renderPushEdit() {
-    var host = $("push-edit");
-    host.textContent = "";
-    if (!pushSel) return;
+    var pane = $("push-edit");
+    pane.textContent = "";
+    pane.classList.toggle("hidden", !pushSel && !copyOpen);
+    if (!pushSel) { if (copyOpen) renderCopyForm(pane); return; }
     var row = pushRow(pushSel.key, pushSel.lang, pushSel.variant);
     var draft = {
       key: pushSel.key, lang: pushSel.lang, variant: pushSel.variant,
       title: row ? row.title : "", body: row ? row.body : ""
     };
-    var card = document.createElement("div");
-    card.className = "card";
-    var head = document.createElement("header");
-    var name = document.createElement("span");
-    name.className = "id";
+    var head = document.createElement("div");
+    head.className = "ph";
+    var name = document.createElement("b");
     name.textContent = draft.key + " / " + draft.variant + " / " + draft.lang;
-    head.appendChild(name);
     var who = document.createElement("span");
     who.className = "muted";
     who.textContent = row && row.reviewed_at ? "reviewed " + row.reviewed_at.slice(0, 10) : "not reviewed";
+    head.appendChild(name);
     head.appendChild(who);
-    card.appendChild(head);
+    pane.appendChild(head);
+    var card = document.createElement("div");
+    card.className = "pb";
     var at = draft.key + "." + (draft.variant === "empty" ? "emptyBody" : "body");
     // Only the default variant has a title: the others are sent under it.
     if (draft.variant === "default") {
       field(card, "Title" + holes2(draft.key + ".title"), draft.title, function (v) { draft.title = v; });
     }
     field(card, "Body" + holes2(at), draft.body, function (v) { draft.body = v; }, true);
-    var p = document.createElement("p");
+    var p = document.createElement("div");
+    p.className = "btns";
     var d = document.createElement("button");
     d.textContent = "Save as draft";
     d.addEventListener("click", function () { pushSave(draft, "draft"); });
     var r = document.createElement("button");
     r.className = "primary";
-    r.textContent = "Save and mark reviewed";
+    r.textContent = "Save as reviewed";
     r.addEventListener("click", function () { pushSave(draft, "reviewed"); });
     p.appendChild(d);
-    p.appendChild(document.createTextNode(" "));
     p.appendChild(r);
     card.appendChild(p);
-    host.appendChild(card);
+    var msg = document.createElement("span");
+    msg.className = "pane-note";
+    msg.textContent = pushMsg;
+    pushNote = msg;
+    card.appendChild(msg);
+    // What the reviewer is translating from, for every language but English itself.
+    var en = draft.lang === "en" ? null : pushRow(draft.key, "en", draft.variant);
+    if (en && en.body) {
+      var ref = document.createElement("span");
+      ref.className = "pane-note";
+      ref.textContent = "English: \u201c" + en.body + "\u201d";
+      card.appendChild(ref);
+    }
+    pane.appendChild(card);
   }
 
   function holes2(at) {
@@ -1721,67 +1980,69 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   function promptCard(p) {
     var card = document.createElement("div");
-    card.className = "card";
+    card.className = "card pcard";
 
-    var head = document.createElement("div");
-    head.className = "row";
-    var name = document.createElement("strong");
+    var head = document.createElement("header");
+    var name = document.createElement("span");
+    name.className = "id";
     name.textContent = p.key;
     var stamp = document.createElement("span");
     stamp.className = "muted";
     stamp.textContent = promptStamp(p);
+    var history = document.createElement("button");
+    history.className = "small quiet";
+    history.textContent = "History";
     head.appendChild(name);
     head.appendChild(stamp);
+    head.appendChild(history);
     card.appendChild(head);
 
     var box = document.createElement("textarea");
-    box.rows = 14;
+    box.rows = 10;
     box.spellcheck = false;
     box.value = p.text;
-    box.style.width = "100%";
-    box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
     card.appendChild(box);
 
-    var actions = document.createElement("p");
+    var actions = document.createElement("div");
+    actions.className = "pact";
+    var status = document.createElement("span");
+    status.className = "status";
+    var restore = document.createElement("button");
+    restore.textContent = "Restore shipped";
     var save = document.createElement("button");
     save.className = "primary";
     save.textContent = "Save " + p.key;
-    var restore = document.createElement("button");
-    restore.textContent = "Restore shipped";
-    var history = document.createElement("button");
-    history.textContent = "History";
-    var status = document.createElement("span");
-    status.className = "status";
-    actions.appendChild(save);
-    actions.appendChild(restore);
-    actions.appendChild(history);
     actions.appendChild(status);
+    actions.appendChild(restore);
+    actions.appendChild(save);
     card.appendChild(actions);
 
-    var log = document.createElement("div");
-    log.className = "hidden";
-    card.appendChild(log);
+    function say(text, bad) {
+      status.textContent = text;
+      status.classList.toggle("bad", !!bad);
+    }
 
     function put(text, verb) {
-      status.textContent = "saving…";
+      say("saving…");
       api("PUT", "/admin/api/prompts", { key: p.key, text: text }).then(function () {
         promptErrors(null);
+        closeHistory();
         return loadPrompts();
       }).then(function () {
-        status.textContent = verb;
+        say(verb);
       }).catch(function (e) {
         // A 409 is not a rejected prompt — the words were fine and somebody else simply got there
         // first. It belongs beside the button that has to be pressed again, not in the error box
         // at the top of a page the person has scrolled away from.
         var msgs = (e.body && e.body.errors) || [e.message];
-        if (e.status === 409) { status.textContent = msgs[0]; return; }
+        if (e.status === 409) { say(msgs[0], true); return; }
         promptErrors(msgs);
-        status.textContent = "not saved";
+        say("not saved", true);
       });
     }
 
     save.addEventListener("click", function () {
-      if (box.value === p.text) { status.textContent = "no change"; return; }
+      if (box.value === p.text) { say("no change"); return; }
       if (!confirm("Save " + p.key + "? Every analysis after this is asked the new text, and no later deploy will change it back.")) return;
       put(box.value, "saved");
     });
@@ -1792,28 +2053,53 @@ button.quiet { box-shadow: none; color: var(--muted); }
     });
 
     history.addEventListener("click", function () {
-      if (!log.classList.contains("hidden")) { log.classList.add("hidden"); return; }
-      status.textContent = "loading…";
+      var pane = $("prompt-history");
+      if (historyOf === p.key && !pane.classList.contains("hidden")) { closeHistory(); return; }
+      say("loading…");
       api("GET", "/admin/api/prompts/" + encodeURIComponent(p.key) + "/revisions").then(function (res) {
-        log.textContent = "";
+        historyOf = p.key;
+        pane.textContent = "";
+        var ph = document.createElement("div");
+        ph.className = "ph";
+        var title = document.createElement("b");
+        title.textContent = p.key + " · history";
+        var sp = document.createElement("span");
+        sp.className = "muted";
+        sp.textContent = res.revisions.length + " version(s)";
+        ph.appendChild(title);
+        ph.appendChild(sp);
+        pane.appendChild(ph);
         res.revisions.forEach(function (r) {
           var item = document.createElement("details");
           var sum = document.createElement("summary");
-          sum.textContent = "version " + r.version + " — " + r.source
-            + " — " + new Date(r.updated_at).toLocaleString();
+          var v = document.createElement("b");
+          v.textContent = "version " + r.version;
+          var sub = document.createElement("small");
+          sub.textContent = (r.source === "admin" ? "yours" : r.source) + " · " + new Date(r.updated_at).toLocaleString();
+          sum.appendChild(v);
+          sum.appendChild(sub);
           var pre = document.createElement("pre");
           pre.textContent = r.text;
-          pre.style.whiteSpace = "pre-wrap";
           item.appendChild(sum);
           item.appendChild(pre);
-          log.appendChild(item);
+          pane.appendChild(item);
         });
-        log.classList.remove("hidden");
-        status.textContent = res.revisions.length + " version(s)";
-      }).catch(function (e) { status.textContent = "failed: " + e.message; });
+        pane.classList.remove("hidden");
+        pane.scrollIntoView({ block: "nearest" });
+        say("");
+      }).catch(function (e) { say("failed: " + e.message, true); });
     });
 
     return card;
+  }
+
+  // One history pane for the view, whichever prompt opened it.
+  var historyOf = null;
+  function closeHistory() {
+    historyOf = null;
+    var pane = $("prompt-history");
+    pane.classList.add("hidden");
+    pane.textContent = "";
   }
 
   function renderPrompts() {
@@ -2476,7 +2762,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
       langs = res.langs || [];
       labels = res.labels || {};
       renderLangs();
-      render();
+      render(true);
     });
   }
 
@@ -2548,7 +2834,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
     onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
     // The shell already read the templates to count what needs review, so the first open draws
     // from that answer instead of asking twice.
-    templates: { title: "Push templates", load: function () { return push ? Promise.resolve(renderPush()) : loadPush(); } },
+    templates: { title: "Push templates", load: function () { return (push ? Promise.resolve(renderPush()) : loadPush()).then(loadCopy); } },
     prompts: { title: "System prompts", load: loadPrompts },
     food: { title: "Food database", load: loadSwitches }
   };
@@ -2613,7 +2899,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
 
   function badge() {
     var n = 0;
-    if (push && push.keys) push.keys.forEach(function (k) { n += k.gaps.length; });
+    if (push && push.keys) n = pushCounts().need;
     var el = $("templates-badge");
     el.textContent = String(n);
     el.classList.toggle("hidden", n === 0);
@@ -2622,6 +2908,8 @@ button.quiet { box-shadow: none; color: var(--muted); }
   function show(id) {
     Object.keys(VIEWS).forEach(function (v) { $("view-" + v).classList.toggle("hidden", v !== id); });
     $("view-title").textContent = VIEWS[id].title;
+    $("lang").classList.toggle("hidden", id !== "onboarding");
+    $("copy-new").classList.toggle("hidden", id !== "templates");
     document.title = "eait admin — " + VIEWS[id].title;
     Array.prototype.forEach.call(document.querySelectorAll("[data-nav]"), function (a) {
       var on = a.getAttribute("data-nav") === id;
@@ -2697,7 +2985,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
     api("PUT", atLang("/admin/api/content"), { content: content }).then(function (res) {
       content = res.content;
       showErrors(null);
-      render();
+      render(true);
       status("saved — version " + content.version);
       // The funnel is grouped by content version, and this just made a new one: read it again
       // the next time that view is opened.
@@ -2709,13 +2997,20 @@ button.quiet { box-shadow: none; color: var(--muted); }
   });
 
   $("reset").addEventListener("click", function () {
-    if (!confirm("Restore the copy the app ships with? Your edits are replaced.")) return;
-    api("POST", atLang("/admin/api/content/reset"), {}).then(function (res) {
-      content = res.content;
-      showErrors(null);
-      render();
-      status("restored — version " + content.version);
-    }).catch(function (e) { status("failed: " + e.message); });
+    askConfirm(
+      "Restore the " + (labels[lang] || lang) + " defaults?",
+      "Every word on every onboarding screen goes back to the build's text. Saved changes are lost.",
+      "Restore defaults",
+      function () {
+        api("POST", atLang("/admin/api/content/reset"), {}).then(function (res) {
+          content = res.content;
+          showErrors(null);
+          render(true);
+          status("restored — version " + content.version);
+        }).catch(function (e) { status("failed: " + e.message); });
+      },
+      { danger: true }
+    );
   });
 
   $("reload").addEventListener("click", function () {
