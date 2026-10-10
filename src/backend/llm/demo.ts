@@ -228,6 +228,35 @@ export function demoPorts(): LlmPorts {
       };
     }
 
+    // NO MEAL IN FOCUS: the same words can still mean the day's last logged meal — what a real
+    // router reads from the thread context and `todayMeals` (#1347, `mealIndex`). The demo picks
+    // the newest; a correction of nothing logged stays a new meal below.
+    if (!input.focusMeal && input.todayMeals.length > 0 && /half|половин/.test(text)) {
+      const n = input.todayMeals.length - 1;
+      const base = input.todayMeals[n]!;
+      const cut = (v?: number) => (v === undefined ? undefined : Math.round(v / 2 * 10) / 10);
+      const items = base.items.map((i) => ({
+        ...i, grams: Math.round(i.grams / 2),
+        kcal: cut(i.kcal), protein_g: cut(i.protein_g), carbs_g: cut(i.carbs_g), fat_g: cut(i.fat_g),
+      }));
+      const corrected = {
+        isFood: true,
+        confidence: "high",
+        items,
+        kcal: Math.round(base.kcal / 2),
+        protein_g: Math.round(base.protein_g / 2 * 10) / 10,
+        carbs_g: Math.round(base.carbs_g / 2 * 10) / 10,
+        fat_g: Math.round(base.fat_g / 2 * 10) / 10,
+        satfat_g: Math.round(base.satfat_g / 2 * 10) / 10,
+        fiber_g: Math.round(base.fiber_g / 2 * 10) / 10,
+        sugar_g: Math.round(base.sugar_g / 2 * 10) / 10,
+        sodium_mg: Math.round(base.sodium_mg / 2),
+        notes: "Adjusted from your correction (demo analyzer).",
+      };
+      input.onDelta?.(JSON.stringify({ items }));
+      return { intent: "correction", analysis: corrected, mealIndex: n };
+    }
+
     if (input.focusMeal && /yesterday|вчера|gestern|move to/.test(text)) {
       return { intent: "redate", dayOffset: clampDayOffset(/yesterday|вчера|gestern/.test(text) ? 1 : 0) };
     }

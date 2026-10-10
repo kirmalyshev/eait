@@ -13,8 +13,8 @@ import { remember } from "./chat.ts";
 import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
-  appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, redateMeal, stepApplies, week, type EngineDeps,
+  appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, drainJobs, editMeal, handleText,
+  logPhotoMeal, patchProfile, photoJob, profileView, queueMealUpdate, reanalyzeMeal, redateMeal, startJobs, stepApplies, week, type EngineDeps,
 } from "./index.ts";
 import { MAX_DAY_OFFSET } from "../llm/port.ts";
 
@@ -2701,5 +2701,93 @@ describe("the grounding switches", () => {
     await store.putFoodRefs([oats]);
     store.switchEnabled = async () => { throw new Error("db down"); };
     expect(await photoKcal()).toBe(140);
+  });
+});
+
+// A send into the update queue that names no meal is a CHAT SEND (#1347): the same router
+// `/v1/messages` runs decides what the words mean — a correction of the meal they mean lands on it
+// as `updated`, a new food is the new-meal proposal it always was, and nothing ever settles as a
+// refusal of a different meal, because the job never picks a meal itself.
+describe("a note job that names no meal (#1347)", () => {
+  const settle = async (userId: string, clientId: string) => {
+    const until = Date.now() + 10_000;
+    for (;;) {
+      const j = await photoJob(deps, userId, clientId);
+      if (!j || j.kind === "settled") return j;
+      if (Date.now() > until) throw new Error("job never settled");
+      await new Promise((r) => setTimeout(r, 15));
+    }
+  };
+  const logged = async (d: EngineDeps, userId: string) => {
+    const res = await logPhotoMeal(d, userId, photo(4));
+    if (!isMeal(res) || res.kind !== "logged") throw new Error(`expected logged, got ${res.kind}`);
+    return res;
+  };
+
+  it("a correction of the day's meal lands on it — bound mid-run, settled updated", async () => {
+    const userId = await onboard();
+    const res = await logged(deps, userId);
+    startJobs(deps);
+    const clientId = crypto.randomUUID();
+    expect(await queueMealUpdate(deps, userId, { kind: "note", text: "half that", clientId })).toEqual({ kind: "queued", jobId: clientId });
+    const j = await settle(userId, clientId);
+    expect(j).toMatchObject({ kind: "settled", result: { kind: "updated", mealId: res.mealId } });
+    expect(await store.getJob(userId, clientId)).toMatchObject({ mealId: res.mealId });
+    // The row it landed on carries the halved numbers the context correction computed.
+    expect((await store.getMeal(userId, res.mealId))!.kcal).toBe(Math.round(res.analysis.kcal / 2));
+    await drainJobs(deps, 1000);
+  });
+
+  it("a new food is the new meal it always was — a proposal, never a refusal of the logged one", async () => {
+    const userId = await onboard();
+    await logged(deps, userId);
+    startJobs(deps);
+    const clientId = crypto.randomUUID();
+    await queueMealUpdate(deps, userId, { kind: "note", text: "an espresso and a croissant", clientId });
+    const j = await settle(userId, clientId);
+    expect(j).toMatchObject({ kind: "settled", result: { kind: "proposed" } });
+    expect(await store.getJob(userId, clientId)).toMatchObject({ mealId: null });
+    await drainJobs(deps, 1000);
+  });
+
+  it("a question settles `answered` — the same outcome `/v1/messages` returns", async () => {
+    const userId = await onboard();
+    await logged(deps, userId);
+    startJobs(deps);
+    const clientId = crypto.randomUUID();
+    await queueMealUpdate(deps, userId, { kind: "note", text: "how much protein have I had today?", clientId });
+    const j = await settle(userId, clientId);
+    expect(j).toMatchObject({ kind: "settled", result: { kind: "answered" } });
+    expect(await store.getJob(userId, clientId)).toMatchObject({ mealId: null });
+    await drainJobs(deps, 1000);
+  });
+
+  it("bound or not, one account's updates share the group — a send's meal is named mid-run", async () => {
+    const userId = await onboard();
+    const res = await logged(deps, userId);
+    const bound = crypto.randomUUID(), unbound = crypto.randomUUID();
+    await queueMealUpdate(deps, userId, { kind: "note", mealId: res.mealId, text: "half that", clientId: bound });
+    await queueMealUpdate(deps, userId, { kind: "note", text: "half that", clientId: unbound });
+    const registry = [{ kind: "meal-update", version: 1, grouped: true }];
+    expect((await store.claimJob("w1", registry, 30_000))?.clientId).toBe(bound);
+    // The send's target is the router's to name — its group can't be a meal nobody has named,
+    // so it waits where a bound update on that same meal would wait (#1347).
+    expect(await store.claimJob("w2", registry, 30_000)).toBeNull();
+    expect(await store.settleJob(userId, bound, "w1", { kind: "done" })).toBe(true);
+    expect((await store.claimJob("w2", registry, 30_000))?.clientId).toBe(unbound);
+    await store.releaseJobs("w2");
+  });
+
+  it("a bound note is unchanged: a different meal's words still come back `proposed`", async () => {
+    const userId = await onboard();
+    const res = await logged(deps, userId);
+    startJobs(deps);
+    const clientId = crypto.randomUUID();
+    await queueMealUpdate(deps, userId, { kind: "note", mealId: res.mealId, text: "a coffee", clientId });
+    const j = await settle(userId, clientId);
+    // Server semantics identical to the unbound send — the refusal a bound job shows is the
+    // CLIENT's reading of `proposed` against the meal it named, not a different result.
+    expect(j).toMatchObject({ kind: "settled", result: { kind: "proposed" } });
+    await drainJobs(deps, 1000);
   });
 });

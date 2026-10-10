@@ -2370,3 +2370,20 @@ describe("email sign-in without a mailer (#569)", () => {
     expect(((await profile.json()) as { limits: { emailSignIn: boolean } }).limits.emailSignIn).toBe(false);
   });
 });
+
+describe("POST /v1/meals/update/queue", () => {
+  it("takes a note with no meal — a chat send — and still wants one on the bound kinds", async () => {
+    const token = await session();
+    const clientId = crypto.randomUUID();
+    const res = await post(ROUTES.mealUpdateQueue, { kind: "note", text: "half that", clientId }, token);
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ kind: "queued", jobId: clientId });
+    // A note that names a meal keeps working; a malformed one is refused either way.
+    const bound = crypto.randomUUID();
+    expect((await post(ROUTES.mealUpdateQueue, { kind: "note", mealId: crypto.randomUUID(), text: "half that", clientId: bound }, token)).status).toBe(202);
+    expect((await post(ROUTES.mealUpdateQueue, { kind: "note", mealId: 5, text: "half that", clientId: crypto.randomUUID() }, token)).status).toBe(400);
+    // The bound kinds still refuse the field's absence.
+    expect((await post(ROUTES.mealUpdateQueue, { kind: "ingredients", edit: { kcal: 500 }, clientId: crypto.randomUUID() }, token)).status).toBe(400);
+    expect((await post(ROUTES.mealUpdateQueue, { kind: "reread", clientId: crypto.randomUUID() }, token)).status).toBe(400);
+  });
+});

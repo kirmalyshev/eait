@@ -827,3 +827,96 @@ describe("cost", () => {
   });
 
 });
+
+// ── The plain OpenAI dialect: Ollama, vLLM, LM Studio, llama.cpp, Together, Groq ─────────────
+
+describe("the openai dialect", () => {
+  /** Records each request's headers and body, and answers `contents` in turn as the assistant. */
+  const recording = (contents: unknown[]) => {
+    const seen: { headers: Record<string, string>; body: Record<string, unknown> }[] = [];
+    const impl = (async (_url: string, init: RequestInit) => {
+      seen.push({ headers: init.headers as Record<string, string>, body: JSON.parse(String(init.body)) });
+      const content = JSON.stringify(contents[Math.min(seen.length - 1, contents.length - 1)]);
+      return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content } }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return { impl, seen };
+  };
+  const openai = (impl: typeof fetch, apiKey = "") => openRouterPorts({
+    apiKey, model: "test-model", chatModel: "test-chat-model", dialect: "openai",
+    baseUrl: "http://localhost:11434/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+    // Every OpenRouter-only knob turned on, so the test proves the dialect drops them.
+    reasoningEffort: "off", providerOrder: ["deepinfra"], fallbackModels: ["fallback-model"],
+    fetchImpl: impl,
+  });
+
+  test("a schema call carries no OpenRouter-only field, and keeps everything else", async () => {
+    const { impl, seen } = recording([MEAL]);
+    await openai(impl).analyzePhoto(PHOTO_INPUT);
+    const body = seen[0]!.body;
+    for (const k of ["reasoning", "provider", "models"]) expect(k in body).toBe(false);
+    expect(body.model).toBe("test-model");
+    expect(body.max_tokens).toBe(4321);
+    expect(body.temperature).toBe(0.2);
+    expect((body.response_format as { type: string }).type).toBe("json_schema");
+  });
+
+  test("the coach sends no reasoning either", async () => {
+    const { impl, seen } = recording([{ reply: "ok", suggestions: [] }]);
+    await openai(impl).coach(COACH_INPUT, { get_meals: async () => [] });
+    expect("reasoning" in seen[0]!.body).toBe(false);
+    expect(seen[0]!.body.model).toBe("test-chat-model");
+  });
+
+  test("no key sends no authorization header and no x-title; a key sends the bearer", async () => {
+    const { impl, seen } = recording([MEAL, MEAL]);
+    await openai(impl).analyzePhoto(PHOTO_INPUT);
+    expect("authorization" in seen[0]!.headers).toBe(false);
+    expect("x-title" in seen[0]!.headers).toBe(false);
+    await openai(impl, "sk-together").analyzePhoto(PHOTO_INPUT);
+    expect(seen[1]!.headers.authorization).toBe("Bearer sk-together");
+  });
+
+  describe("cost", () => {
+    /** One reply carrying `usage` token counts and no `usage.cost`, as a self-hosted server sends. */
+    const tokens = (usage: object) => (async () => new Response(JSON.stringify({
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(MEAL) } }], usage,
+    }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
+    const priced = (impl: typeof fetch, dialect: "openai" | "openrouter", pricePerMTok?: { input: number; output: number }) =>
+      openRouterPorts({
+        apiKey: "", model: "test-model", chatModel: "test-chat-model", dialect, pricePerMTok,
+        baseUrl: "http://localhost:11434/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321, fetchImpl: impl,
+      });
+    const costOf = async (llm: ReturnType<typeof openRouterPorts>) => {
+      const seen: (number | null)[] = [];
+      await llm.analyzePhoto({ ...PHOTO_INPUT, onCost: (c) => { seen.push(c); } });
+      return seen;
+    };
+
+    test("a configured price turns the usage token counts into dollars", async () => {
+      const seen = await costOf(priced(tokens({ prompt_tokens: 1000, completion_tokens: 200 }), "openai", { input: 2, output: 10 }));
+      expect(seen).toHaveLength(1);
+      expect(seen[0]).toBeCloseTo(0.004, 10);
+    });
+
+    test("a price of zero is a cost of zero, not unpriced", async () => {
+      expect(await costOf(priced(tokens({ prompt_tokens: 1000, completion_tokens: 200 }), "openai", { input: 0, output: 0 }))).toEqual([0]);
+    });
+
+    test("no price, or no token counts, is unpriced", async () => {
+      expect(await costOf(priced(tokens({ prompt_tokens: 1000, completion_tokens: 200 }), "openai"))).toEqual([null]);
+      expect(await costOf(priced(tokens({}), "openai", { input: 2, output: 10 }))).toEqual([null]);
+    });
+
+    test("OpenRouter ignores the price: its own usage.cost is the bill", async () => {
+      expect(await costOf(priced(tokens({ prompt_tokens: 1000, completion_tokens: 200 }), "openrouter", { input: 2, output: 10 }))).toEqual([null]);
+    });
+
+    test("a streamed request asks for the usage chunk, which a plain server sends only on request", async () => {
+      const { impl, bodies } = sseFetch([JSON.stringify(MEAL)]);
+      await priced(impl, "openai", { input: 2, output: 10 }).analyzePhoto(PHOTO_INPUT, () => {});
+      expect(bodies[0]!.stream_options).toEqual({ include_usage: true });
+    });
+  });
+});

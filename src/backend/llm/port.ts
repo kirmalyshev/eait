@@ -138,7 +138,8 @@ export type AnalyzePhoto = (input: PhotoInput, onDelta?: (text: string) => void)
 export type RouteResult =
   | { intent: "answer"; text: string }
   | { intent: "meal"; analysis: AnalyzedMeal; dayOffset: number }
-  | { intent: "correction"; analysis: AnalyzedMeal }
+  /** `mealIndex` names which of `todayMeals` the message corrects when no meal is in focus; with one, it is absent. */
+  | { intent: "correction"; analysis: AnalyzedMeal; mealIndex?: number }
   | { intent: "redate"; dayOffset: number };
 
 /**
@@ -150,9 +151,18 @@ export type RouteResult =
  * the model nothing to copy, and it fell back to a generic portion (#441).
  */
 export interface RecentMeal {
+  /** The row's own id: the engine resolves a `mealIndex` back to it; the router never prints it. */
+  mealId: string;
   items: MealItem[];
   kcal: number;
   protein_g: number;
+  /** The meal-level numbers no item carries — a context correction rebuilds its totals from them. */
+  carbs_g: number;
+  fat_g: number;
+  satfat_g: number;
+  fiber_g: number;
+  sugar_g: number;
+  sodium_mg: number;
 }
 
 export interface TextInput {
@@ -163,7 +173,7 @@ export interface TextInput {
   todayMeals: RecentMeal[];
   /** The last week's per-day sums — the other half of the router's context. */
   week: DayTotals[];
-  /** The meal a correction would apply to. Absent means corrections are not available this turn. */
+  /** The meal a correction would apply to. Absent means only a `mealIndex`-named one is. */
   focusMeal?: MealAnalysis;
   /**
    * Loads the focus meal's stored photos; present only when it has some. A loader rather than the
@@ -171,6 +181,12 @@ export interface TextInput {
    * meal stands in focus must not read a row of them.
    */
   loadFocusImages?: () => Promise<Uint8Array[]>;
+  /**
+   * Resolves a `mealIndex` the router picked out of `todayMeals` to that meal's full analysis and
+   * stored photos, for the correction call behind a send that names no meal (#1347). Null when the
+   * index does not land on a logged row.
+   */
+  resolveMeal?: (index: number) => Promise<{ analysis: MealAnalysis; images: Uint8Array[] } | null>;
   /**
    * The question Spud asked about that meal, still unanswered.
    *

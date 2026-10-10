@@ -23,6 +23,7 @@ const VARS = [
   "EAIT__BACKEND__LLM_REASONING_EFFORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
+  "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
   "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
@@ -93,6 +94,40 @@ describe("loadConfig", () => {
     expect(loadConfig().llmProviderOrder).toBe("alibaba,novita");
     withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "" });
     expect(loadConfig().llmProviderOrder).toBe("");
+  });
+
+  it("accepts openai-compatible with no key, but never without its own models and base URL", () => {
+    process.env.EAIT__BACKEND__DATABASE_URL = "postgres://u:p@localhost:5432/db";
+    process.env.EAIT__BACKEND__LLM_PROVIDER = "openai-compatible";
+    // The compiled-in model ids are OpenRouter's, which no self-hosted server has.
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_MODEL/);
+    process.env.EAIT__BACKEND__LLM_MODEL = "qwen2.5vl:3b";
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_CHAT_MODEL/);
+    process.env.EAIT__BACKEND__LLM_CHAT_MODEL = "qwen3:8b";
+    // Unset, the default base URL is OpenRouter's — a server the operator did not name.
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_BASE_URL/);
+    process.env.EAIT__BACKEND__LLM_BASE_URL = "http://localhost:11434/v1/chat/completions";
+    const c = loadConfig();
+    expect(c.llmProvider).toBe("openai-compatible");
+    expect(c.llmApiKey).toBe("");
+    expect(c.llmBaseUrl).toBe("http://localhost:11434/v1/chat/completions");
+    expect(c.llmModel).toBe("qwen2.5vl:3b");
+    expect(c.llmChatModel).toBe("qwen3:8b");
+    expect(c.llmPricePerMTok).toBeNull();
+  });
+
+  it("reads a self-hosted price per million tokens, both halves or neither", () => {
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0.2", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(loadConfig().llmPricePerMTok).toEqual({ input: 0.2, output: 0.6 });
+    // Zero is a price: a box you own costs nothing per call, and that is not the same as unknown.
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0" });
+    expect(loadConfig().llmPricePerMTok).toEqual({ input: 0, output: 0 });
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0.2", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "-1", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "cheap", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
   });
 
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
