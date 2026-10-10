@@ -29,7 +29,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store,
+  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type SendLogRow, type Store, type SwitchFlip, type SwitchKey,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -911,6 +911,21 @@ delete from llm_prompts where key = 'glance';
 alter table llm_prompts add constraint llm_prompts_key_check
   check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'coach'));
 
+-- THE ADMIN SWITCHES (#563). Append-only: the current value is the newest row per key and every
+-- earlier row is the audit trail of who flipped what and when. GLOBAL, for llm_prompts's reasons
+-- (no user_id, not in RLS_TABLES). The key list is written out by hand and compared with
+-- SWITCH_KEYS by switches.schema.test.ts. A key with no row is ON.
+create table if not exists admin_switches (
+  id      bigserial primary key,
+  key     text not null,
+  enabled boolean not null,
+  set_by  uuid not null,
+  set_at  timestamptz not null default now()
+);
+alter table admin_switches drop constraint if exists admin_switches_key_check;
+alter table admin_switches add constraint admin_switches_key_check
+  check (key in ('grounding.photo', 'grounding.text'));
+
 -- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
 -- of numbers per day, and a per-second heart rate series would be a large pile of special-category
 -- data whose only property is risk.
@@ -1368,6 +1383,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getPrompts: "unscoped",
   putPrompt: "unscoped",
   promptRevisions: "unscoped",
+  switchEnabled: "unscoped",
+  setSwitch: "unscoped",
+  switchHistory: "unscoped",
   getNotificationCopy: "unscoped",
   putNotificationCopy: "unscoped",
   listPushTemplates: "unscoped",
@@ -2519,6 +2537,26 @@ export async function postgresStore(
         )
         returning version`;
       return Number(rows[0]!.version);
+    },
+
+    async switchEnabled(key) {
+      const rows = await sql`select enabled from admin_switches where key = ${key} order by id desc limit 1`;
+      return rows.length === 0 ? null : Boolean(rows[0]!.enabled);
+    },
+
+    async setSwitch(key, enabled, adminId) {
+      await sql`insert into admin_switches (key, enabled, set_by) values (${key}, ${enabled}, ${adminId})`;
+    },
+
+    async switchHistory(limit) {
+      const rows = await sql`
+        select key, enabled, set_by, set_at from admin_switches order by id desc limit ${limit}`;
+      return rows.map((r: Record<string, unknown>) => ({
+        key: String(r.key) as SwitchKey,
+        enabled: Boolean(r.enabled),
+        set_by: String(r.set_by),
+        set_at: new Date(r.set_at as string).toISOString(),
+      }));
     },
 
     async putNotificationCopy(lang, copy) {

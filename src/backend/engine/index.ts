@@ -44,6 +44,7 @@ export {
   adminMetrics, type AdminMetricsView,
   onboardingFunnel,
 } from "./onboarding.ts";
+export { adminSwitches, saveSwitch, type SwitchView } from "./switches.ts";
 export { livePrompts, promptHistory, savePrompt, type PromptView, type PromptSave } from "./prompts.ts";
 export { foodSearch, productByBarcode } from "./foods.ts";
 export { listPushTemplates, reviewPushTemplate, savePushTemplate, type PushTemplateListing } from "./push-templates.ts";

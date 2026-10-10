@@ -38,7 +38,7 @@ import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { RLS_TABLES, SCOPE, postgresStore } from "./store.pg.ts";
-import type { CampaignRow, Store, StoreOptions } from "./store.ts";
+import { SWITCH_KEYS, type CampaignRow, type Store, type StoreOptions } from "./store.ts";
 
 const PG_URL = process.env.TEST_DATABASE_URL;
 
@@ -104,7 +104,12 @@ function contract(name: string, make: () => Promise<Store>) {
     // Isolation comes from every test minting its own users and device ids instead.
     let store: Store | null = null;
     const open = async () => (store ??= await make());
+    // Set once a test below flips a switch: the table is global and persists, so they go back ON.
+    let touchedSwitches = false;
     afterAll(async () => {
+      if (store && touchedSwitches) {
+        for (const key of SWITCH_KEYS) await store.setSwitch(key, true, crypto.randomUUID());
+      }
       // The shipped prompts go back HERE, not at the end of each prompt test: an assertion that
       // throws skips everything after it, and `stored coach <run>` left behind IS what a server
       // pointed at this database would then be sending. `finally`, so a restore that fails still
@@ -2869,6 +2874,45 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.healthDaysSince(b, "0000-01-01")).toEqual([]);
     });
 
+    // ── The admin switches (#563) ─────────────────────────────────────────────────────────────
+
+    describe("the admin switches", () => {
+      it("reads null for a switch nobody has set, then the newest value", async () => {
+        const s = await open();
+        if ((await s.switchHistory(1)).length === 0) {
+          expect(await s.switchEnabled("grounding.photo")).toBeNull();
+          expect(await s.switchEnabled("grounding.text")).toBeNull();
+        }
+        touchedSwitches = true;
+        const admin = crypto.randomUUID();
+        await s.setSwitch("grounding.photo", false, admin);
+        expect(await s.switchEnabled("grounding.photo")).toBe(false);
+        await s.setSwitch("grounding.photo", true, admin);
+        expect(await s.switchEnabled("grounding.photo")).toBe(true);
+      });
+
+      it("keeps every flip, newest first, with who and when", async () => {
+        const s = await open();
+        touchedSwitches = true;
+        const a = crypto.randomUUID();
+        const b = crypto.randomUUID();
+        await s.setSwitch("grounding.text", false, a);
+        await s.setSwitch("grounding.photo", false, b);
+        const [newest, older] = await s.switchHistory(2);
+        expect(newest).toMatchObject({ key: "grounding.photo", enabled: false, set_by: b });
+        expect(older).toMatchObject({ key: "grounding.text", enabled: false, set_by: a });
+        expect(Number.isNaN(Date.parse(newest!.set_at))).toBe(false);
+        expect((await s.switchHistory(1)).length).toBe(1);
+        // Independent keys: the text flip did not touch the photo one.
+        expect(await s.switchEnabled("grounding.text")).toBe(false);
+      });
+
+      it("refuses a key the code does not know", async () => {
+        const s = await open();
+        await expect(s.setSwitch("grounding.nope" as never, false, crypto.randomUUID())).rejects.toThrow();
+      });
+    });
+
     // ── The food catalog ──────────────────────────────────────────────────────────────────────
     //
     // GLOBAL tables — no user anywhere, which is the point of running these here: the suite above
@@ -4080,7 +4124,7 @@ if (PG_URL) {
         "pruneHealthDaysBefore", "pushAudience", "pushOpenStats", "putFoodRefs", "putNotificationCopy",
         "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
-        "updateCampaign", "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
+        "setSwitch", "switchEnabled", "switchHistory", "updateCampaign", "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
       ]);
     });
 

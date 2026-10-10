@@ -25,7 +25,7 @@ import {
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
-import { groundAnalysis } from "./ground.ts";
+import { groundWhenOn } from "./ground.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -200,7 +200,7 @@ export async function analyzePhotos(
   // and the prompt-side fields come off. Before the `isFood` gate, so both answers get the same
   // treatment. `question` is handed back rather than dropped — it is the only one of the two that
   // has anywhere to go.
-  const prepared = prepareAnalysis((await groundAnalysis(deps, analysis)).analysis);
+  const prepared = prepareAnalysis((await groundWhenOn(deps, "grounding.photo", analysis)).analysis);
   analysis = prepared.analysis;
 
   if (!analysis.isFood) {

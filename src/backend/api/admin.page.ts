@@ -287,6 +287,16 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <div id="push-edit"></div>
   <span class="status" id="push-status"></span>
 
+  <h2>Food database</h2>
+  <p class="muted">
+    When on, the items a model recognises are matched against the food catalog and take its numbers.
+    Off, the analysis keeps the model's own. A switch takes effect on the next request with no
+    deploy, and every flip is kept below.
+  </p>
+  <div id="switches"></div>
+  <span class="status" id="switch-status"></span>
+  <div id="switch-recent" class="muted"></div>
+
   <h2>System prompts</h2>
   <p class="muted">
     <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
@@ -1303,6 +1313,62 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     });
   }
 
+  // ── Food database switches (#563) ──────────────────────────────────────────────────────────
+
+  var SWITCH_LABELS = { "grounding.photo": "Photo", "grounding.text": "Text" };
+
+  function switchWhen(by, at) {
+    return at ? "changed by " + by + " at " + at : "default";
+  }
+
+  function renderSwitches(res) {
+    var host = $("switches");
+    host.textContent = "";
+    res.switches.forEach(function (sw) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.setAttribute("data-switch", sw.key);
+      var head = document.createElement("div");
+      head.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:10px";
+      var name = document.createElement("strong");
+      name.style.minWidth = "60px";
+      name.textContent = SWITCH_LABELS[sw.key] || sw.key;
+      var state = document.createElement("span");
+      state.className = "pill";
+      state.textContent = sw.enabled ? "on" : "off";
+      var when = document.createElement("span");
+      when.className = "muted";
+      when.style.flex = "1 1 160px";
+      when.textContent = switchWhen(sw.setBy, sw.setAt);
+      var toggle = document.createElement("button");
+      toggle.textContent = sw.enabled ? "Turn off" : "Turn on";
+      toggle.addEventListener("click", function () {
+        $("switch-status").textContent = "saving…";
+        api("PUT", "/admin/api/switches/" + encodeURIComponent(sw.key), { enabled: !sw.enabled }).then(loadSwitches, function (e) {
+          $("switch-status").textContent = "failed: " + e.message;
+        });
+      });
+      head.appendChild(name);
+      head.appendChild(state);
+      head.appendChild(when);
+      head.appendChild(toggle);
+      card.appendChild(head);
+      host.appendChild(card);
+    });
+    var recent = $("switch-recent");
+    recent.textContent = "";
+    res.recent.forEach(function (f) {
+      var line = document.createElement("div");
+      line.textContent = (SWITCH_LABELS[f.key] || f.key) + " " + (f.enabled ? "on" : "off") + " — " + f.set_by + " at " + f.set_at;
+      recent.appendChild(line);
+    });
+    $("switch-status").textContent = "";
+  }
+
+  function loadSwitches() {
+    return api("GET", "/admin/api/switches").then(renderSwitches);
+  }
+
   // ── Per-account sample ─────────────────────────────────────────────────────────────────────
 
   function capPath() {
@@ -1686,7 +1752,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels || {};
       renderLangs();
       render();
-      return loadPush().then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadCampaigns).then(loadFunnel)
+      return loadPush().then(loadSwitches).then(loadPrompts).then(loadMetrics).then(loadPushes).then(loadCampaigns).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }

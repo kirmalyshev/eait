@@ -1323,3 +1323,46 @@ describe("the admin push composer route (eait#531)", () => {
     expect((await admin("POST", "/admin/api/push/send", { ...payload, route: "/chat" })).status).toBe(422);
   });
 });
+
+// The food-database switches (#563): the same role rule as everything behind /admin, and the row
+// is written under the admin the request resolved to, never one the body names.
+describe("the grounding switches", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  it("GET answers the default (on, never set) for both keys and no history", async () => {
+    const res = await admin("GET", "/admin/api/switches");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { switches: { key: string; enabled: boolean; setBy: string | null; setAt: string | null }[]; recent: unknown[] };
+    expect(body.switches).toEqual([
+      { key: "grounding.photo", enabled: true, setBy: null, setAt: null },
+      { key: "grounding.text", enabled: true, setBy: null, setAt: null },
+    ]);
+    expect(body.recent).toEqual([]);
+  });
+
+  it("PUT appends a row under the resolved admin and the store reads it back", async () => {
+    const adminId = (await store.userIdForToken(adminBearer))!;
+    const res = await admin("PUT", "/admin/api/switches/grounding.photo", { enabled: false, set_by: "someone-else", setBy: "x" });
+    expect(res.status).toBe(200);
+    expect(await store.switchEnabled("grounding.photo")).toBe(false);
+    expect(await store.switchEnabled("grounding.text")).toBeNull();
+    const [row] = await store.switchHistory(5);
+    expect(row).toMatchObject({ key: "grounding.photo", enabled: false, set_by: adminId });
+    const body = await res.json() as { switches: { key: string; enabled: boolean; setBy: string }[] };
+    expect(body.switches.find((s) => s.key === "grounding.photo")).toMatchObject({ enabled: false, setBy: adminId });
+  });
+
+  it("PUT 422s an unknown key and a non-boolean, and writes nothing", async () => {
+    expect((await admin("PUT", "/admin/api/switches/grounding.nope", { enabled: false })).status).toBe(422);
+    expect((await admin("PUT", "/admin/api/switches/grounding.text", { enabled: "false" })).status).toBe(422);
+    expect((await admin("PUT", "/admin/api/switches/grounding.text", {})).status).toBe(422);
+    expect(await store.switchHistory(5)).toEqual([]);
+  });
+
+  it("answers a non-admin 404 on both verbs and writes nothing", async () => {
+    const plain = await session();
+    expect((await admin("GET", "/admin/api/switches", undefined, plain)).status).toBe(404);
+    expect((await admin("PUT", "/admin/api/switches/grounding.photo", { enabled: false }, plain)).status).toBe(404);
+    expect(await store.switchHistory(5)).toEqual([]);
+  });
+});
