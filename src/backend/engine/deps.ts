@@ -7,6 +7,7 @@
 import type { Config } from "../config.ts";
 import type { Store } from "../store.ts";
 import type { LlmPorts } from "../llm/port.ts";
+import type { MailPort } from "../mail/port.ts";
 import type { PushPort } from "../push/port.ts";
 
 export interface EngineDeps {
@@ -21,4 +22,9 @@ export interface EngineDeps {
    * network. A process with no Expo credential gets the logging implementation.
    */
   push: PushPort;
+  /**
+   * How a sign-in code reaches an inbox (#569). Same port argument as `push`: a dev run, a test
+   * and `--demo` get the `log` implementation, which prints the code instead of delivering it.
+   */
+  mail: MailPort;
 }

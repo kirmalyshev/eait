@@ -4,6 +4,7 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import type { EngineDeps } from "./deps.ts";
 import { identitiesFor, isAnonymous, linkTelegram } from "./identity.ts";
 import { PAIR_TTL_MS, mintPairingCode, redeemPairingCode } from "./pairing.ts";
@@ -23,7 +24,7 @@ const anonymous = async () =>
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
 });
 
 describe("minting", () => {

@@ -6,6 +6,7 @@ import type { LlmPorts, PhotoInput } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { chatHistory, confirmPendingMeal, deleteLine, deleteMealById, editLine, handleText, logPhotoMeal, patchProfile, sumTotals, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
@@ -18,7 +19,7 @@ const CONFIG: Config = {
 let store: Store;
 let deps: EngineDeps;
 function makeDeps(over: Partial<Config> = {}, llm: LlmPorts = demoPorts()): EngineDeps {
-  return { store, config: { ...CONFIG, ...over }, llm, push: fakePush() };
+  return { store, config: { ...CONFIG, ...over }, llm, push: fakePush(), mail: logMail() };
 }
 async function onboard(): Promise<string> {
   const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");

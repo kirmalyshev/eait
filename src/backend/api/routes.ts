@@ -16,7 +16,7 @@
 
 import {
   IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isMealUpdateRequest, isRedateMealRequest,
-  type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest, type ClipEstimateResponse,
+  type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
@@ -35,7 +35,8 @@ import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
-  unlinkIdentity,
+  sendEmailCode, unlinkIdentity, verifyEmailCode,
+  EMAIL_ADDRESS, normalizeEmail,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
   reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
@@ -428,7 +429,8 @@ export function createRouter(
       // as somebody cares to loop.
       if (req.method === "POST"
         && (pathname === ROUTES.authDevice || pathname === ROUTES.authApple
-          || pathname === ROUTES.authGoogle)) {
+          || pathname === ROUTES.authGoogle || pathname === ROUTES.authEmailCode
+          || pathname === ROUTES.authEmailVerify)) {
         const wait = limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR);
         if (wait !== null) {
           // A distinct error from `cap-exceeded`: nothing has been spent, and the app words the two
@@ -488,6 +490,40 @@ export function createRouter(
           }
           throw e;
         }
+      }
+
+      // Sign in with email (#569), the send half. 204 ALWAYS — the same answer whether the address
+      // has an account, the mail went out, or nothing did — so the route is not an oracle for
+      // which addresses are accounts. The send caps answer 429 instead: they refuse by time, not
+      // by identity.
+      if (req.method === "POST" && pathname === ROUTES.authEmailCode) {
+        const body = await req.json() as AuthEmailCodeRequest;
+        const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+        if (!EMAIL_ADDRESS.test(email)) return json({ error: "email invalid" }, 400);
+        const wait = await sendEmailCode(deps, email, toLang(body.locale));
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        return new Response(null, { status: 204 });
+      }
+
+      // And the spend half. OPTIONALLY authenticated for the same reason the OAuth routes are:
+      // a bearer means "link this identity to the account I am already using".
+      if (req.method === "POST" && pathname === ROUTES.authEmailVerify) {
+        const body = await req.json() as AuthEmailVerifyRequest;
+        const email = typeof body.email === "string" ? normalizeEmail(body.email) : "";
+        if (!EMAIL_ADDRESS.test(email)) return json({ error: "email invalid" }, 400);
+        if (typeof body.code !== "string" || body.code.trim() === "") {
+          return json({ error: "code required" }, 400);
+        }
+        // The terms box is required — refused before the code is spent, so a missing tick cannot
+        // consume the code a person is still typing.
+        if (body.terms !== true) return json({ error: "terms-required" }, 400);
+        const current = await resolveUserId(req);
+        const result = await verifyEmailCode(
+          deps, email, body.code, current, toLang(body.locale),
+          { terms: true, marketing: body.marketing === true },
+        );
+        if ("kind" in result) return refusal(result);
+        return json(result satisfies AuthProviderResponse);
       }
 
       const userId = await resolveUserId(req);

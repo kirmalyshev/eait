@@ -1,4 +1,5 @@
 import { fakePush, type FakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 // The onboarding API, and the admin behind it.
 //
 // This file is mostly about who is allowed to do what. The admin edits the first thing every new
@@ -48,7 +49,7 @@ const url = (p: string) => `http://localhost${p}`;
 function mount(config: Config) {
   store = memoryStore();
   push = fakePush();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), push };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push, mail: logMail() };
   handle = createRouter(deps, store, verifier);
 }
 

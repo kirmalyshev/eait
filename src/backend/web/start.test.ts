@@ -29,6 +29,7 @@ import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import { chatHistory, day, handleText, linkTelegram, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
 import { fakePush } from "../push/fake.ts";
+import { logMail } from "../mail/log.ts";
 import { escape, PAGE_COPY } from "./page.ts";
 import { pageCopyFor } from "./copy.ts";
 import { createWebApp } from "../../frontend/server/index.ts";
@@ -132,7 +133,7 @@ function router(
   store = memoryStore(storeOpts);
   // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
   const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
-  deps = { store, config: withWeb, llm, push: fakePush() };
+  deps = { store, config: withWeb, llm, push: fakePush(), mail: logMail() };
   const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }

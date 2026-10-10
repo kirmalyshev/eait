@@ -17,6 +17,7 @@ import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
 import { isAgentProvider, localAgentPorts, probeAgentCli } from "./llm/local-agent.ts";
 import { choosePush } from "./push/choose.ts";
+import { chooseMail } from "./mail/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
 import { collectPushReceipts, drainJobs, pushTick, runCampaigns, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
@@ -123,6 +124,10 @@ if (config.adminBootstrapUserId !== "") {
 
 const push = choosePush(config, demo);
 
+// Same rule push has: `log` needs nothing and is the default; `resend` reached `loadConfig`
+// already, so a missing key never gets this far — the process refused to boot first.
+const mail = chooseMail(config);
+
 // A `*-cli` provider answers through a binary ON THIS HOST — `claude -p`, `codex exec` — paid for
 // by the operator's own agent subscription and authenticated here, which is why it exists for
 // development and self-hosting and is never the prod default. The probe IS the "never prod by
@@ -142,6 +147,7 @@ const deps: EngineDeps = {
   store,
   config,
   push,
+  mail,
   llm: cannedLlm
     ? demoPorts()
     : isAgentProvider(config.llmProvider)
