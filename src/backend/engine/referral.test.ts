@@ -168,6 +168,22 @@ describe("the referrer's reward", () => {
     expect(await store.bonusUntil(loner)).toBeNull();
   });
 
+  // Must-fix (#597 review): the lengths end to end, through the webhook, per product.
+  it("pays each product's length through the webhook: the config's, else the name's, month before year", async () => {
+    mount({}, { referralRewardDays: { "pro.annual.v2": 21, "plan-y": 14 } });
+    const cases: [string, number][] = [
+      ["com.eait.fit.ios.monthly", 7], ["com.eait.fit.ios.yearly", 14], ["eait_pro_annual", 14],
+      ["pro.annual.v2", 21], ["plan-y", 14], ["anything", 7],
+      // Both words in one id: never the longer reward on a guess.
+      ["eait_monthly_yearly_promo", 7],
+    ];
+    for (const [productId, days] of cases) {
+      const { referrer, friend } = await pair();
+      await applyRevenueCatEvent(deps, paid(friend, { productId }));
+      expect(await daysLeft(referrer), productId).toBe(days);
+    }
+  });
+
   it("reads the product's days from config before its name", () => {
     const config = { ...CONFIG, referralRewardDays: { "pro.annual.v2": 21, "plan-y": 14 } };
     expect(referralRewardDays(config, "pro.annual.v2")).toBe(21);

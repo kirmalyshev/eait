@@ -11,11 +11,20 @@ import type { Config } from "../config.ts";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 
-/** The referrer's reward for a friend paying for `productId`: the config's own entry, else a week, two for a yearly product. */
+/**
+ * The referrer's reward for a friend paying for `productId`: the config's own entry, else a week,
+ * two for a product whose id names a year.
+ *
+ * THE CONFIG MAP IS THE ANSWER; the name is the fallback for a host that never set it, by the rule
+ * the web client already uses to tell the two plans apart (`frontend/screens/today.ts`). A guess
+ * only ever pays LESS: an id that names a month anywhere is a week even if it also says "year"
+ * ("eait_monthly_yearly_promo"). The ceiling: a yearly product whose id says neither "year" nor
+ * "annual" pays a week until it is listed in `EAIT__BACKEND__REFERRAL_REWARD_DAYS`.
+ */
 export function referralRewardDays(config: Config, productId: string): number {
-  // By the id's name, the rule the web client already uses to tell the two plans apart
-  // (`frontend/screens/today.ts`); the config entry is for a product id that does not say.
-  return config.referralRewardDays[productId] ?? (/year|annual/i.test(productId) ? 14 : 7);
+  const listed = config.referralRewardDays[productId];
+  if (listed !== undefined) return listed;
+  return /year|annual/i.test(productId) && !/month/i.test(productId) ? 14 : 7;
 }
 
 /** Where the link points: the landing page, else the web app, else this API. */
