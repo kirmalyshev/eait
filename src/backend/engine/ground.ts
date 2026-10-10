@@ -9,7 +9,7 @@
 // Local catalog only (`food_ref`, loaded from the nightly fooddb snapshot): fooddb's README says
 // eait never calls the service live, and a lookup here must not be able to fail a meal.
 
-import type { FoodRef, MealItem } from "@eait/shared";
+import type { FoodRef, FoodSnapshot, MealItem } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -104,17 +104,40 @@ export function pickFood(item: MealItem, candidates: FoodRef[]): Complete | null
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** The item with the catalog's nutrition for its grams. */
-function groundItem(item: MealItem, f: Complete): MealItem {
+/**
+ * The read-only row copy a grounded item carries (#562): name, source, per-100 g macros and the
+ * row's own attribution texts, verbatim. Stored WITH the meal — a catalog refresh changes
+ * `food_ref` and never a stored meal, which is why edits recompute from this and not the row.
+ */
+const foodSnapshot = (f: Complete): FoodSnapshot => ({
+  name: f.name,
+  source: f.source,
+  per100: { kcal: f.kcal_per_100g, protein_g: f.protein_g_per_100g, carbs_g: f.carbs_g_per_100g, fat_g: f.fat_g_per_100g },
+  attribution: f.attribution ?? [],
+});
+
+/**
+ * The item at its own grams with a snapshot's nutrition: `grams × per100`, catalog-exact.
+ * Shared by grounding (the row it just picked) and by `editMeal` (the STORED item's snapshot,
+ * so an edit to grams stays catalog-exact while a client-sent `food` never lands).
+ */
+export function recomputeFromSnapshot(item: MealItem, food: FoodSnapshot): MealItem {
   const k = item.grams / 100;
   return {
     ...item,
-    kcal: Math.round(f.kcal_per_100g * k),
-    protein_g: round1(f.protein_g_per_100g * k),
-    carbs_g: round1(f.carbs_g_per_100g * k),
-    fat_g: round1(f.fat_g_per_100g * k),
-    kcal_per_100g: f.kcal_per_100g,
+    kcal: Math.round(food.per100.kcal * k),
+    protein_g: round1(food.per100.protein_g * k),
+    carbs_g: round1(food.per100.carbs_g * k),
+    fat_g: round1(food.per100.fat_g * k),
+    kcal_per_100g: food.per100.kcal,
+    food,
   };
+}
+
+/** The item with the catalog's nutrition and provenance for its grams. */
+function groundItem(item: MealItem, f: Complete): MealItem {
+  // `ref` last: a stale one on the incoming item could never survive the row we just chose.
+  return { ...recomputeFromSnapshot(item, foodSnapshot(f)), ref: f.id };
 }
 
 /**

@@ -11,7 +11,7 @@ const ref = (name_en: string, kcal: number | null, over: Partial<FoodRef> = {}):
   id: `usda-sr:${name_en}`, source: "usda-sr", name: name_en, name_de: null, name_en, names: {}, category: null,
   kcal_per_100g: kcal, protein_g_per_100g: 10, carbs_g_per_100g: 20, fat_g_per_100g: 5,
   satfat_g_per_100g: null, fiber_g_per_100g: null, sugar_g_per_100g: null, sodium_mg_per_100g: null,
-  nutrients: {}, portions: [],
+  nutrients: {}, portions: [], source_url: null, attribution: [],
   ...over,
 } as FoodRef);
 

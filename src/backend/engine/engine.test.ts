@@ -2533,7 +2533,7 @@ describe("text turns are grounded in the food catalog", () => {
     id: "usda-sr:oat-porridge", source: "usda-sr", name: "oat porridge", name_de: null, name_en: "oat porridge",
     names: {}, category: null, kcal_per_100g: 70, protein_g_per_100g: 2.5, carbs_g_per_100g: 12, fat_g_per_100g: 1.5,
     satfat_g_per_100g: null, fiber_g_per_100g: null, sugar_g_per_100g: null, sodium_mg_per_100g: null,
-    nutrients: {}, portions: [],
+    nutrients: {}, portions: [], source_url: null, attribution: [],
   } as unknown as FoodRef;
   const item = (name_en: string) => ({
     name: name_en, name_en, grams: 200, kcal: 160, protein_g: 5, carbs_g: 26, fat_g: 4, kcal_per_100g: 80,
@@ -2554,7 +2554,11 @@ describe("text turns are grounded in the food catalog", () => {
     const res = await handleText(makeDeps({}, typed("oat porridge")), await onboard(), { text: "porridge" });
     if (res.kind !== "proposed") throw new Error(`expected proposed, got ${res.kind}`);
     expect(res.analysis.kcal).toBe(140);
-    expect(res.analysis.items[0]).toMatchObject({ kcal: 140, protein_g: 5, carbs_g: 24, fat_g: 3, kcal_per_100g: 70 });
+    expect(res.analysis.items[0]).toMatchObject({
+      kcal: 140, protein_g: 5, carbs_g: 24, fat_g: 3, kcal_per_100g: 70,
+      ref: "usda-sr:oat-porridge",
+      food: { name: "oat porridge", source: "usda-sr", per100: { kcal: 70, protein_g: 2.5, carbs_g: 12, fat_g: 1.5 }, attribution: [] },
+    });
   });
 
   it("a typed meal with no catalog match keeps the model's numbers", async () => {
@@ -2592,7 +2596,7 @@ describe("the grounding switches", () => {
     id: "usda-sr:oat-porridge", source: "usda-sr", name: "oat porridge", name_de: null, name_en: "oat porridge",
     names: {}, category: null, kcal_per_100g: 70, protein_g_per_100g: 2.5, carbs_g_per_100g: 12, fat_g_per_100g: 1.5,
     satfat_g_per_100g: null, fiber_g_per_100g: null, sugar_g_per_100g: null, sodium_mg_per_100g: null,
-    nutrients: {}, portions: [],
+    nutrients: {}, portions: [], source_url: null, attribution: [],
   } as unknown as FoodRef;
   const plate: AnalyzedMeal = {
     isFood: true,
@@ -2627,6 +2631,15 @@ describe("the grounding switches", () => {
     await store.setSwitch("grounding.photo", false, ADMIN);
     expect(await photoKcal()).toBe(160);
     expect(await textKcal()).toBe(140);
+  });
+
+  it("a switch off is a plain estimate: the items carry neither ref nor food", async () => {
+    await store.putFoodRefs([oats]);
+    await store.setSwitch("grounding.photo", false, ADMIN);
+    const res = await logPhotoMeal(makeDeps({}, llm), await onboard(), photo());
+    if (res.kind !== "logged") throw new Error(`expected logged, got ${res.kind}`);
+    expect(res.analysis.items[0]).not.toHaveProperty("ref");
+    expect(res.analysis.items[0]).not.toHaveProperty("food");
   });
 
   it("grounding.text off keeps the model's numbers on a typed meal and leaves photo grounded", async () => {
