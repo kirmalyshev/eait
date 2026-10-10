@@ -45,13 +45,13 @@ import {
   SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
-  adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts,
+  adminMetrics, adminSwitches, adminUserChat, adminUserDiary, adminUsers, livePrompts,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
   sendTestPush, pushOpenView, sendAdminPush,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
   campaignOverview, createCampaign, dryRunCampaign, setCampaignStatus, setCampaignsKilled, testSendCampaign, updateCampaign,
-  resetOnboardingContent, saveOnboardingContent, setUserCap, userCap,
+  resetOnboardingContent, saveOnboardingContent, saveSwitch, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
 import { adminPage } from "./admin.page.ts";
@@ -325,6 +325,19 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
   if (req.method === "GET" && revisions) {
     const history = await promptHistory(deps, revisions[1]);
     return history ? json({ key: revisions[1], revisions: history }) : notFound();
+  }
+
+  // ── The switches (#563) ────────────────────────────────────────────────────────────────────
+  //
+  // `set_by` is the admin this request resolved to, never a field of the body.
+  if (req.method === "GET" && pathname === "/admin/api/switches") {
+    return json(await adminSwitches(deps));
+  }
+  const sw = /^\/admin\/api\/switches\/([a-z._]+)$/.exec(pathname);
+  if (req.method === "PUT" && sw) {
+    const body = await req.json().catch(() => null) as { enabled?: unknown } | null;
+    const result = await saveSwitch(deps, sw[1], body?.enabled, adminId);
+    return result.ok ? json(await adminSwitches(deps)) : json({ errors: result.errors }, 422);
   }
 
   if (req.method === "GET" && pathname === "/admin/api/funnel") {

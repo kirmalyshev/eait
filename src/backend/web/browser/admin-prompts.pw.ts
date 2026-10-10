@@ -168,6 +168,26 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   await page.route("**/admin/api/users**", (r) => r.fulfill(json({
     users: [], nextCursor: null, defaultFreeAnalyses: 15,
   })));
+  // The grounding switches (#563): a stub with memory, so a PUT is followed by a re-read that shows it.
+  const switchCalls = (over.switchCalls ?? []) as { path: string; body: unknown }[];
+  const flips: { key: string; enabled: boolean; set_by: string; set_at: string }[] = [];
+  const switchView = () => ({
+    switches: ["grounding.photo", "grounding.text"].map((key) => {
+      const last = flips.find((f) => f.key === key);
+      return { key, enabled: last?.enabled ?? true, setBy: last?.set_by ?? null, setAt: last?.set_at ?? null };
+    }),
+    recent: flips.slice(0, 20),
+  });
+  await page.route("**/admin/api/switches**", (r) => {
+    const req = r.request();
+    if (req.method() === "PUT") {
+      const path = new URL(req.url()).pathname;
+      const body = req.postDataJSON() as { enabled: boolean };
+      switchCalls.push({ path, body });
+      flips.unshift({ key: path.split("/").pop()!, enabled: body.enabled, set_by: "admin-1", set_at: "2026-10-10T11:00:00.000Z" });
+    }
+    return r.fulfill(json(switchView()));
+  });
   await page.route("**/admin/api/prompts/*/revisions", (r) => r.fulfill(json({
     key: "route",
     revisions: [
@@ -224,6 +244,29 @@ test("the panel renders one card per prompt, and says who wrote each", async ({ 
 
   // The text is editable, not a rendering of it.
   await expect(panel.locator("textarea").first()).toHaveValue(/You estimate the nutritional content/);
+  expect(errors).toEqual([]);
+});
+
+test("the food database switches show the default, PUT a flip, and re-render from the re-read", async ({ page }) => {
+  const errors = watchConsole(page);
+  const switchCalls: { path: string; body: unknown }[] = [];
+  await stubAdmin(page, { switchCalls });
+  await openAdmin(page);
+
+  const photo = page.locator('#switches [data-switch="grounding.photo"]');
+  const text = page.locator('#switches [data-switch="grounding.text"]');
+  await expect(photo).toContainText("on");
+  await expect(photo).toContainText("default");
+  await expect(text).toContainText("default");
+
+  await photo.getByRole("button", { name: "Turn off" }).click();
+  await expect(photo).toContainText("off");
+  await expect(photo).toContainText("changed by admin-1 at 2026-10-10T11:00:00.000Z");
+  await expect(photo.getByRole("button", { name: "Turn on" })).toBeVisible();
+  // The other switch is untouched, and the flip is listed.
+  await expect(text).toContainText("default");
+  await expect(page.locator("#switch-recent")).toContainText("Photo off");
+  expect(switchCalls).toEqual([{ path: "/admin/api/switches/grounding.photo", body: { enabled: false } }]);
   expect(errors).toEqual([]);
 });
 
@@ -316,6 +359,23 @@ test("a draft turns its key into blocked", async ({ page }) => {
   await expect(row.locator("button.cell.draft")).toHaveCount(1);
   expect(errors).toEqual([]);
 });
+
+for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as const) {
+  test(`food database panel at ${name}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await stubAdmin(page);
+    await openAdmin(page);
+    const panel = page.locator("#switches");
+    await panel.getByRole("button", { name: "Turn off" }).first().click();
+    await expect(panel.getByRole("button", { name: "Turn on" })).toHaveCount(1);
+    await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    // The page as a whole may scroll for other panels; this one must not.
+    for (const id of ["#switches", "#switch-recent"]) {
+      expect(await page.locator(id).evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    await page.screenshot({ path: `/tmp/fd563-switches-${name}.png` });
+  });
+}
 
 for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as const) {
   test(`push templates panel at ${name}px`, async ({ page }) => {

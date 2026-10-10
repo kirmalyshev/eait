@@ -2585,3 +2585,68 @@ describe("text turns are grounded in the food catalog", () => {
     expect(res.analysis.kcal).toBe(160);
   });
 });
+
+// The admin's grounding switches (#563): separate per path, default on, read per request.
+describe("the grounding switches", () => {
+  const oats = {
+    id: "usda-sr:oat-porridge", source: "usda-sr", name: "oat porridge", name_de: null, name_en: "oat porridge",
+    names: {}, category: null, kcal_per_100g: 70, protein_g_per_100g: 2.5, carbs_g_per_100g: 12, fat_g_per_100g: 1.5,
+    satfat_g_per_100g: null, fiber_g_per_100g: null, sugar_g_per_100g: null, sodium_mg_per_100g: null,
+    nutrients: {}, portions: [],
+  } as unknown as FoodRef;
+  const plate: AnalyzedMeal = {
+    isFood: true,
+    items: [{ name: "oat porridge", name_en: "oat porridge", grams: 200, kcal: 160, protein_g: 5, carbs_g: 26, fat_g: 4, kcal_per_100g: 80 }],
+    kcal: 160, protein_g: 5, carbs_g: 26, fat_g: 4, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, confidence: "high", notes: "",
+  };
+  const llm: LlmPorts = {
+    ...demoPorts(),
+    analyzePhoto: async () => plate,
+    routeText: async () => ({ intent: "meal", analysis: plate, dayOffset: 0 }),
+  };
+  const photoKcal = async () => {
+    const res = await logPhotoMeal(makeDeps({}, llm), await onboard(), photo());
+    if (res.kind !== "logged") throw new Error(`expected logged, got ${res.kind}`);
+    return res.analysis.kcal;
+  };
+  const textKcal = async () => {
+    const res = await handleText(makeDeps({}, llm), await onboard(), { text: "porridge" });
+    if (res.kind !== "proposed") throw new Error(`expected proposed, got ${res.kind}`);
+    return res.analysis.kcal;
+  };
+  const ADMIN = "00000000-0000-4000-8000-000000000001";
+
+  it("no stored row grounds both paths", async () => {
+    await store.putFoodRefs([oats]);
+    expect(await photoKcal()).toBe(140);
+    expect(await textKcal()).toBe(140);
+  });
+
+  it("grounding.photo off keeps the model's numbers on a photo and leaves text grounded", async () => {
+    await store.putFoodRefs([oats]);
+    await store.setSwitch("grounding.photo", false, ADMIN);
+    expect(await photoKcal()).toBe(160);
+    expect(await textKcal()).toBe(140);
+  });
+
+  it("grounding.text off keeps the model's numbers on a typed meal and leaves photo grounded", async () => {
+    await store.putFoodRefs([oats]);
+    await store.setSwitch("grounding.text", false, ADMIN);
+    expect(await textKcal()).toBe(160);
+    expect(await photoKcal()).toBe(140);
+  });
+
+  it("is read per request: flipping back on grounds the next meal", async () => {
+    await store.putFoodRefs([oats]);
+    await store.setSwitch("grounding.photo", false, ADMIN);
+    expect(await photoKcal()).toBe(160);
+    await store.setSwitch("grounding.photo", true, ADMIN);
+    expect(await photoKcal()).toBe(140);
+  });
+
+  it("a read that throws counts as on and never fails the meal", async () => {
+    await store.putFoodRefs([oats]);
+    store.switchEnabled = async () => { throw new Error("db down"); };
+    expect(await photoKcal()).toBe(140);
+  });
+});
