@@ -1243,7 +1243,8 @@ details.how p { margin-top: 8px; }
     var v = el("div", "v2", value);
     if (suffix) { v.appendChild(document.createTextNode(" ")); v.appendChild(el("small", null, suffix)); }
     card.appendChild(v);
-    if (sub) card.appendChild(el("div", tone ? "dl " + tone : "dl", sub));
+    // sub is one line, or a list of them; tone colours the first.
+    [].concat(sub || []).forEach(function (line, i) { card.appendChild(el("div", tone && !i ? "dl " + tone : "dl", line)); });
     host.appendChild(card);
   }
 
@@ -1274,6 +1275,7 @@ details.how p { margin-top: 8px; }
   }
 
   var numData = null;       // the last /admin/api/metrics answer, oldest day first
+  var numAgg = null;        // the same read over exactly the selected window: retention and latency
   var numAll = false;       // the table shows every day, not the last seven
 
   function renderNumbers() {
@@ -1297,8 +1299,16 @@ details.how p { margin-top: 8px; }
     } else {
       kpi(kp, "Signups · " + week.length + " days", String(signups), "", "");
     }
-    kpi(kp, "Came back next day", pct(m.d1.returned, m.d1.eligible), "", m.d1.returned + " of " + m.d1.eligible);
-    kpi(kp, "Photo turn, p50", secs(m.latency.total.p50), "", "p95 " + secs(m.latency.total.p95) + " · n=" + m.latency.n);
+    // These three cover the selected window itself, which is why they come from their own read.
+    var a = numAgg;
+    kpi(kp, "Came back next day", pct(a.d1.returned, a.d1.eligible), "", [
+      a.d1.returned + " of " + a.d1.eligible,
+      "on day 7 " + a.d7.returned + " of " + a.d7.eligible + " (" + pct(a.d7.returned, a.d7.eligible) + ")"
+    ]);
+    kpi(kp, "Photo turn, p50", secs(a.latency.total.p50), "", [
+      "p95 " + secs(a.latency.total.p95) + " · n=" + a.latency.n,
+      secs(a.latency.queue.p50) + " to the call · " + secs(a.latency.firstItem.p50) + " to first item"
+    ]);
 
     var all = days.slice(0, Math.max(N, 30));
     var shown = numAll ? all : days.slice(0, 7);
@@ -1331,7 +1341,13 @@ details.how p { margin-top: 8px; }
   }
 
   function loadMetrics() {
-    return api("GET", "/admin/api/metrics?days=" + Math.max(30, 2 * windows.numbers)).then(function (m) {
+    var n = windows.numbers, wide = Math.max(30, 2 * n);
+    return Promise.all([
+      api("GET", "/admin/api/metrics?days=" + wide),
+      n === wide ? null : api("GET", "/admin/api/metrics?days=" + n)
+    ]).then(function (r) {
+      var m = r[0];
+      numAgg = r[1] || m;
       numData = m;
       renderNumbers();
     });
