@@ -8501,6 +8501,10 @@
           "weeksEarned": {
             "type": "number",
             "description": "Weeks those rewards added: one per monthly friend, two per yearly one."
+          },
+          "bankedDays": {
+            "type": "number",
+            "description": "Whole days of referral bonus BANKED past a live subscription's end (Kirill, 10 Oct): a paying referrer's weeks queue after the period they paid for and are used only if they stop — \"N free weeks banked, used if you stop\". Computed here from `bonus_until` and the subscription's expiry; 0 with no live subscription (the weeks are then in use, and `Entitlement.bonusUntil` says until when), for a lifetime holder (nothing to stop), and when nothing is banked."
           }
         },
         "required": [
@@ -8508,7 +8512,8 @@
           "applied",
           "joined",
           "subscribed",
-          "weeksEarned"
+          "weeksEarned",
+          "bankedDays"
         ],
         "additionalProperties": false,
         "description": "Refer a friend, as the Profile card shows it (#899). COUNTS, NEVER PEOPLE: the referrer is not told who joined, and nothing here could tell them."

@@ -291,8 +291,21 @@ describe("the profile's referral card", () => {
     const { referrer } = await pair();
     const view = (await profileView(deps, referrer))!.referral;
     expect(view).toEqual({
-      link: `https://eait.fit/r/${await codeOf(referrer)}`, applied: false, joined: 1, subscribed: 0, weeksEarned: 0,
+      link: `https://eait.fit/r/${await codeOf(referrer)}`, applied: false, joined: 1, subscribed: 0, weeksEarned: 0, bankedDays: 0,
     });
+  });
+
+  // Kirill, 10 Oct: a paying referrer's weeks are BANKED after their subscription and shown.
+  it("says how many days are banked past a live subscription, and none otherwise", async () => {
+    const { referrer, friend } = await pair();
+    expect((await profileView(deps, referrer))!.referral.bankedDays).toBe(0);
+    await applyRevenueCatEvent(deps, paid(referrer, { expirationAtMs: Date.now() + 30 * DAY }));
+    await applyRevenueCatEvent(deps, paid(friend, { productId: "com.eait.fit.ios.yearly" }));
+    expect((await profileView(deps, referrer))!.referral.bankedDays).toBe(14);
+    // Without a live subscription the weeks are in use, not banked.
+    const other = await pair();
+    await applyRevenueCatEvent(deps, paid(other.friend));
+    expect((await profileView(deps, other.referrer))!.referral.bankedDays).toBe(0);
   });
 
   it("falls back to the web origin, then the API's, for the link", async () => {

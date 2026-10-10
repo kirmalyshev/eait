@@ -836,6 +836,14 @@ export interface ReferralView {
   subscribed: number;
   /** Weeks those rewards added: one per monthly friend, two per yearly one. */
   weeksEarned: number;
+  /**
+   * Whole days of referral bonus BANKED past a live subscription's end (Kirill, 10 Oct): a paying
+   * referrer's weeks queue after the period they paid for and are used only if they stop — "N free
+   * weeks banked, used if you stop". Computed here from `bonus_until` and the subscription's expiry;
+   * 0 with no live subscription (the weeks are then in use, and `Entitlement.bonusUntil` says until
+   * when), for a lifetime holder (nothing to stop), and when nothing is banked.
+   */
+  bankedDays: number;
 }
 
 /** `POST /v1/referral/redeem`. `code` is the pasted link or the typed code — `normalizeReferralCode` reads either. */
