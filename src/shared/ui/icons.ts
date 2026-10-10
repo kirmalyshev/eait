@@ -238,6 +238,8 @@ export const ICONS = {
     '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/><path d="M3 3l18 18"/>',
   ),
   upload: line('<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>'),
+  // Refer a friend's Share link (#899) — the boards' share glyph: the arrow out of the open box.
+  share: line('<path d="M12 15V3M7 8l5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>'),
   "chevron-left": line('<path d="M15 5l-7 7 7 7"/>'),
   "chevron-right": line('<path d="M9 5l7 7-7 7"/>'),
   "chevron-down": line('<path d="M6 9l6 6 6-6"/>'),

@@ -56,6 +56,11 @@ export const youCss = `
 /* The flat card — hairline-separated rows, label then a quiet value and the chevron where the
    row opens something (the boards' "padding:13px 0; font-size:15px" rows). */
 .you .card.flat { box-shadow: 0 0 0 1px var(--hair); padding: 4px 16px; }
+/* Refer a friend (#899) — web/you-referral*.html: label, the one line, Share link, the counts. */
+.you .refcard { display: flex; flex-direction: column; }
+.you .refcard p { margin: 6px 0 0; }
+.you .refcard .cta { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.you .refcard .refst { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 4px; }
 .you .urows .opt { padding: 13px 0; font-size: 15px; font-weight: 500; }
 .you .urows .opt .ov { margin-left: auto; font-size: 13px; color: var(--muted); }
 /* The Support row's provider links (#200) — quiet, and each one reachable on its own (44px). */

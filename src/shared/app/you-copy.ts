@@ -92,6 +92,26 @@ export interface YouCopy {
   subscriptionFree: string;
   /** The account row — and the phone's account screen title: "Account". */
   account: string;
+  /**
+   * Refer a friend (#899) — the card above the settings list, on both clients. One Share link
+   * button; the status lines under it are counts, never names. `{link}` is the account's own
+   * invite link (`ProfileResponse.referral.link`), `{n}` and `{m}` bare numbers.
+   */
+  referral: {
+    label: string;
+    body: string;
+    share: string;
+    /** What the share sheet carries, or the clipboard where there is none. */
+    shareText: string;
+    /** Said after Copy link, where there was no share sheet to say it. */
+    copied: string;
+    /** Friends who joined, and of those the ones who paid. */
+    joined: string;
+    /** Under `joined` while nothing is earned yet. */
+    pending: string;
+    /** The weeks the friends' payments added. */
+    earned: string;
+  };
 
   /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
       the same component on both surfaces, so its captions come from one table. */
@@ -361,6 +381,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "ended",
     subscriptionFree: "free",
     account: "Account",
+    referral: {
+      label: "Refer a friend",
+      body: "Send a friend your link. They get a week of eait free. You get a free week when they buy Monthly, and 2 if they buy Yearly.",
+      share: "Share link",
+      shareText: "A week of eait free: {link}",
+      copied: "Link copied",
+      joined: "Friends joined: {n} · subscribed: {m}",
+      pending: "Your week comes with their first payment, two if they go yearly.",
+      earned: "Free weeks earned: {n}",
+    },
     web: {
       units: "Units",
       unitsMetric: "kg · cm",
@@ -485,6 +515,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminé",
     subscriptionFree: "gratuit",
     account: "Compte",
+    referral: {
+      label: "Parrainer un ami",
+      body: "Envoie ton lien à un ami. Il reçoit une semaine d'eait gratuite. Tu reçois une semaine gratuite quand il prend le Mensuel, et 2 s'il prend l'Annuel.",
+      share: "Partager le lien",
+      shareText: "Une semaine d'eait gratuite : {link}",
+      copied: "Lien copié",
+      joined: "Amis inscrits : {n} · abonnés : {m}",
+      pending: "Ta semaine arrive avec leur premier paiement, deux s'ils choisissent l'annuel.",
+      earned: "Semaines gratuites gagnées : {n}",
+    },
     web: {
       units: "Unités",
       unitsMetric: "kg · cm",
@@ -609,6 +649,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "beendet",
     subscriptionFree: "kostenlos",
     account: "Konto",
+    referral: {
+      label: "Freunde einladen",
+      body: "Schick Freunden deinen Link. Sie bekommen eine Woche eait kostenlos. Du bekommst eine Woche kostenlos, wenn sie Monatlich kaufen, und 2, wenn sie Jährlich kaufen.",
+      share: "Link teilen",
+      shareText: "Eine Woche eait kostenlos: {link}",
+      copied: "Link kopiert",
+      joined: "Beigetreten: {n} · abonniert: {m}",
+      pending: "Deine Woche kommt mit ihrer ersten Zahlung, zwei, wenn sie jährlich wählen.",
+      earned: "Kostenlose Wochen verdient: {n}",
+    },
     web: {
       units: "Einheiten",
       unitsMetric: "kg · cm",
@@ -733,6 +783,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminato",
     subscriptionFree: "gratuito",
     account: "Account",
+    referral: {
+      label: "Invita un amico",
+      body: "Manda il tuo link a un amico. Riceve una settimana di eait gratis. Tu ricevi una settimana gratis quando sceglie il Mensile, e 2 se sceglie l'Annuale.",
+      share: "Condividi il link",
+      shareText: "Una settimana di eait gratis: {link}",
+      copied: "Link copiato",
+      joined: "Amici iscritti: {n} · abbonati: {m}",
+      pending: "La tua settimana arriva con il loro primo pagamento, due se scelgono l'annuale.",
+      earned: "Settimane gratis guadagnate: {n}",
+    },
     web: {
       units: "Unità",
       unitsMetric: "kg · cm",
@@ -857,6 +917,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "terminada",
     subscriptionFree: "gratis",
     account: "Cuenta",
+    referral: {
+      label: "Invita a un amigo",
+      body: "Envía tu enlace a un amigo. Recibe una semana de eait gratis. Tú recibes una semana gratis cuando compre el Mensual, y 2 si compra el Anual.",
+      share: "Compartir enlace",
+      shareText: "Una semana de eait gratis: {link}",
+      copied: "Enlace copiado",
+      joined: "Amigos unidos: {n} · suscritos: {m}",
+      pending: "Tu semana llega con su primer pago, dos si eligen el anual.",
+      earned: "Semanas gratis ganadas: {n}",
+    },
     web: {
       units: "Unidades",
       unitsMetric: "kg · cm",
@@ -981,6 +1051,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "đã kết thúc",
     subscriptionFree: "miễn phí",
     account: "Tài khoản",
+    referral: {
+      label: "Giới thiệu bạn bè",
+      body: "Gửi liên kết của bạn cho bạn bè. Họ được một tuần eait miễn phí. Bạn được một tuần miễn phí khi họ mua gói Tháng, và 2 tuần nếu họ mua gói Năm.",
+      share: "Chia sẻ liên kết",
+      shareText: "Một tuần eait miễn phí: {link}",
+      copied: "Đã sao chép liên kết",
+      joined: "Bạn bè đã tham gia: {n} · đã đăng ký: {m}",
+      pending: "Tuần của bạn đến cùng lần thanh toán đầu tiên của họ, hai tuần nếu họ chọn gói năm.",
+      earned: "Tuần miễn phí đã nhận: {n}",
+    },
     web: {
       units: "Đơn vị",
       unitsMetric: "kg · cm",
@@ -1105,6 +1185,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "berakhir",
     subscriptionFree: "gratis",
     account: "Akun",
+    referral: {
+      label: "Ajak teman",
+      body: "Kirim tautanmu ke teman. Mereka dapat seminggu eait gratis. Kamu dapat seminggu gratis saat mereka membeli paket Bulanan, dan 2 minggu jika mereka membeli paket Tahunan.",
+      share: "Bagikan tautan",
+      shareText: "Seminggu eait gratis: {link}",
+      copied: "Tautan disalin",
+      joined: "Teman bergabung: {n} · berlangganan: {m}",
+      pending: "Minggu gratismu datang dengan pembayaran pertama mereka, dua minggu jika mereka memilih tahunan.",
+      earned: "Minggu gratis didapat: {n}",
+    },
     web: {
       units: "Unit",
       unitsMetric: "kg · cm",
@@ -1229,6 +1319,16 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionEndedNoDate: "закончилась",
     subscriptionFree: "бесплатно",
     account: "Аккаунт",
+    referral: {
+      label: "Пригласить друга",
+      body: "Отправь другу свою ссылку. Он получит неделю eait бесплатно. Ты получишь бесплатную неделю, когда друг купит Месячный план, и 2 недели, если Годовой.",
+      share: "Поделиться ссылкой",
+      shareText: "Неделя eait бесплатно: {link}",
+      copied: "Ссылка скопирована",
+      joined: "Друзей по ссылке: {n} · с подпиской: {m}",
+      pending: "Твоя неделя придёт с их первым платежом, две — если они выберут годовой.",
+      earned: "Бесплатных недель: {n}",
+    },
     web: {
       units: "Единицы",
       unitsMetric: "кг · см",
