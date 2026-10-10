@@ -47,6 +47,7 @@ const WEB_MODULES = new Set([
   "onboarding.ts",     // the profile editor's option vocabulary and CLDR country names (#474)
   "onboarding-content.ts", // the compiled fallback when /onboarding's labels have not landed
   "first-meal-copy.ts",
+  "milestones.ts",     // the 36 badges: ids, names, criteria — pure, reads dates.ts only
 ]);
 
 /** Where a shared module may never let the bundle reach. */

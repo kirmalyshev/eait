@@ -24,7 +24,8 @@ import { tagx } from "../../shared/ui/kit.ts";
 import type {
   DaysResponse, PlanProjection, ProfileResponse, WeightsResponse,
 } from "@eait/shared";
-import { api, Unauthenticated } from "../api.ts";
+import { api, getMilestones, Unauthenticated } from "../api.ts";
+import { earnedCount, streakCard } from "./milestones.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { bmiBarEl, kitEl, weekBarsEl, weightChartEl } from "../kit.ts";
 import {
@@ -232,26 +233,6 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
-  // ── Streak — the count is the server's; the dots are this week's logged days, M–S. ──
-  const streakCardEl = (d: DaysResponse): HTMLElement => {
-    const card = el("div", "card rise rc-3");
-    const head = el("div", "row between");
-    head.append(
-      el("span", "lab", copy.streakLabel),
-      el("b", "num", countText(lang)(copy.streakDays, d.streak)),
-    );
-    const dots = el("div", "row between stk");
-    d.days.forEach((day, i) => {
-      const cell = el("div", "sd");
-      const dot = el("i", day.logged ? "sdot on" : "sdot");
-      if (day.logged) dot.append(el("i", "ico i-check"));
-      cell.append(dot, el("span", "sdl", letters[i] ?? ""));
-      dots.append(cell);
-    });
-    card.append(head, dots);
-    return card;
-  };
-
   // ── The BMI card — the server's figure, the neutral band labels, the "?" explains. ──
   const bmiCardEl = (w: WeightsResponse): HTMLElement => {
     const card = el("div", "card rise rc-4");
@@ -310,9 +291,10 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   };
 
   // ── The draw: weights for the range, and the week the two right-hand cards read. ──
-  const [w, d] = await Promise.all([
+  const [w, d, ms] = await Promise.all([
     api<WeightsResponse>(`/weights?range=${range}`),
     api<DaysResponse>(`/diary/days?from=${monday}&to=${sunday}`),
+    getMilestones().catch(() => null),
   ]);
 
   // The boards' bar on every tab: the streak chip — .wnar keeps it to the wrapped ≤760 row,
@@ -336,7 +318,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   fillWeight(w);
   leftCol.append(wCard);
   if (w.projection !== null) leftCol.append(goalCardEl(w.projection));
-  rightCol.append(weekCardEl(d), streakCardEl(d), bmiCardEl(w));
+  rightCol.append(weekCardEl(d), streakCard(d, earnedCount(ms)), bmiCardEl(w));
 
   return wrap;
 }

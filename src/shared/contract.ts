@@ -1458,6 +1458,10 @@ export interface DaysResponse {
   streakLongest: number;
   /** `bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak. */
   streakState: StreakRead["state"];
+  /** The length the streak had when it ended (`streakState` `ended`), else 0 — the card's "ended at 12". */
+  streakEndedAt: number;
+  /** The account's calorie floor in kcal — sent, never recomputed: a day under it bends the streak. */
+  floorKcal: number;
   /**
    * Badge ids earned and not yet seen, so a screen that already reads days can open Badge
    * Unlocked. Always empty while milestones are switched off.

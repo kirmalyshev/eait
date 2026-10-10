@@ -224,6 +224,8 @@ export interface StreakRead {
   longest: number;
   /** `ended` when the streak is 0 and an earlier one existed; `bent` while a forgiven day sits in the last 7. */
   state: "holding" | "bent" | "ended";
+  /** The length the last streak had when two missed days ended it; 0 while one is running. */
+  endedAt: number;
   /** One mark per date from the first date with meals through today. */
   marks: ReadonlyMap<string, StreakMark>;
 }
@@ -240,10 +242,11 @@ export interface StreakRead {
 export function forgivingStreak(kcalByDate: ReadonlyMap<string, number>, today: string, floorKcal: number): StreakRead {
   const first = [...kcalByDate.keys()].filter((d) => d <= today).sort()[0];
   const marks = new Map<string, StreakMark>();
-  if (first === undefined) return { streak: 0, longest: 0, state: "holding", marks };
+  if (first === undefined) return { streak: 0, longest: 0, state: "holding", endedAt: 0, marks };
 
   let run = 0;
   let longest = 0;
+  let lastRun = 0;
   for (let d = first; d <= today; d = dateMinus(d, -1)) {
     const kcal = kcalByDate.get(d);
     if (kcal !== undefined && kcal >= floorKcal) {
@@ -255,6 +258,7 @@ export function forgivingStreak(kcalByDate: ReadonlyMap<string, number>, today: 
     } else {
       const prev = dateMinus(d, 1);
       if (marks.get(prev) === "bent") {
+        lastRun = run;
         run = 0;
         marks.set(prev, "missed");
         marks.set(d, "missed");
@@ -267,5 +271,5 @@ export function forgivingStreak(kcalByDate: ReadonlyMap<string, number>, today: 
   const weekStart = dateMinus(today, 6);
   const bentRecently = [...marks].some(([d, m]) => m === "bent" && d >= weekStart);
   const state = run === 0 && longest > 0 ? "ended" : bentRecently ? "bent" : "holding";
-  return { streak: run, longest, state, marks };
+  return { streak: run, longest, state, endedAt: run === 0 ? lastRun : 0, marks };
 }
