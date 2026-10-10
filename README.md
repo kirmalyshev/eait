@@ -32,7 +32,10 @@ Open the web application on the port it prints — no database, no model key: ca
 seeded fixtures, and the app talking to the demo backend through its dev proxy.
 
 Against Postgres and a real model, put `EAIT__BACKEND__LLM_API_KEY` in `.env` (`.env.example` is
-the full inventory of what the server reads, with every default), then:
+the full inventory of what the server reads, with every default). To run on your own model
+server instead of OpenRouter (Ollama, vLLM, LM Studio, llama.cpp, Together, Groq), set
+`EAIT__BACKEND__LLM_PROVIDER=openai-compatible` with its base URL and models; `.env.example`
+carries a commented Ollama setup. Then:
 
 ```sh
 ./dev up --all        # Postgres, the backend, the web app — detached, on this worktree's ports
@@ -64,7 +67,8 @@ no CORS header, so splitting the two across two names breaks the security model,
 routing.
 
 **It ships the application, not the machine.** Bring your own server with Docker on it, a domain
-whose A record already points at that server, and a key from a model provider. Then, on the server:
+whose A record already points at that server, and a key from a model provider — or your own
+OpenAI-compatible model server (`.env.prod.example`, `EAIT__BACKEND__LLM_PROVIDER`). Then, on the server:
 
 ```sh
 cp .env.prod.example .env.prod && chmod 600 .env.prod   # then fill it in

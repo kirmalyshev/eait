@@ -2,8 +2,11 @@ import { MIN_MODEL_CALL_TIMEOUT_MS, REMINDER_TIME, FREE_ANALYSES, SERVER_LLM_TIM
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 import { AGENT_PROVIDERS } from "./llm/local-agent.ts";
 
-/** Every `EAIT__BACKEND__LLM_PROVIDER` value `index.ts` can wire: the gateway, then the CLIs. */
-const LLM_PROVIDERS = ["openrouter", ...AGENT_PROVIDERS];
+/**
+ * Every `EAIT__BACKEND__LLM_PROVIDER` value `index.ts` can wire: the gateway, any plain
+ * OpenAI-compatible server (Ollama, vLLM, LM Studio, llama.cpp, Together, Groq), then the CLIs.
+ */
+const LLM_PROVIDERS = ["openrouter", "openai-compatible", ...AGENT_PROVIDERS];
 
 // Configuration, loaded once at startup and validated loudly.
 //
@@ -79,6 +82,14 @@ export interface Config {
    */
   llmFallbackModels: string;
   llmApiKey: string;
+  /**
+   * What an `openai-compatible` call costs, in US dollars per million prompt and completion tokens,
+   * priced from the `usage` the server returns. Such a server reports no `usage.cost`, so without
+   * this every call is unpriced; zero is a real price (a box you own), null is "unknown". One pair
+   * for both models — ponytail: a per-model price the day the analyzer and the coach differ.
+   * Ignored on OpenRouter, whose own `usage.cost` is the bill.
+   */
+  llmPricePerMTok: { input: number; output: number } | null;
   /**
    * Where the chat-completions call goes. Env-configurable so a test instance can point at a proxy, a
    * gateway, or a recorded fixture server without a code change — and so nothing has to guess
@@ -496,6 +507,21 @@ function list(name: string): string[] {
   return (process.env[name] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+/** Both halves of the self-hosted price, or neither; each a non-negative number of dollars. */
+function llmPricePerMTokFromEnv(): { input: number; output: number } | null {
+  const input = process.env.EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK ?? "";
+  const output = process.env.EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK ?? "";
+  if (input === "" && output === "") return null;
+  const price = { input: Number(input), output: Number(output) };
+  if (input === "" || output === "" || !(price.input >= 0) || !(price.output >= 0)) {
+    throw new Error(
+      "[eait] EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK and EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK " +
+      "are set together, each a non-negative number of US dollars per million tokens",
+    );
+  }
+  return price;
+}
+
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`[eait] ${name} is required and not set`);
@@ -588,6 +614,7 @@ export function configDefaults(): Config {
     // Verified 9 Oct on OpenRouter: served by deepinfra/fp8, image input, response_format.
     llmFallbackModels: "qwen/qwen3-vl-30b-a3b-instruct",
     llmApiKey: "",
+    llmPricePerMTok: null,
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
     llmMaxTokens: 16_000,
@@ -770,17 +797,29 @@ export function loadConfig(): Config {
     databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
     databaseMaxConnections: int("EAIT__BACKEND__DATABASE_MAX_CONNECTIONS", d.databaseMaxConnections),
     llmProvider,
-    llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
-    llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
+    // The compiled-in ids are OpenRouter's, a spelling no self-hosted server has: refused at boot
+    // rather than at the first photo.
+    llmModel: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_MODEL")
+      : (process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel),
+    llmChatModel: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_CHAT_MODEL")
+      : (process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel),
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
     llmFallbackModels: process.env.EAIT__BACKEND__LLM_FALLBACK_MODELS ?? d.llmFallbackModels,
-    // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and
-    // requiring it there would refuse a boot that needed no key at all.
+    // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and an
+    // `openai-compatible` server may want none (Ollama) — requiring it there would refuse a boot
+    // that needed no key at all.
     llmApiKey: llmProvider === "openrouter"
       ? required("EAIT__BACKEND__LLM_API_KEY")
       : (process.env.EAIT__BACKEND__LLM_API_KEY ?? ""),
-    llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
+    // `openai-compatible` names its own server: the default is OpenRouter's, and falling back to it
+    // would send the photos to a gateway the operator chose not to use.
+    llmPricePerMTok: llmPricePerMTokFromEnv(),
+    llmBaseUrl: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_BASE_URL")
+      : (process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl),
     llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),
     llmMaxTokens,
     llmAgentConcurrency,

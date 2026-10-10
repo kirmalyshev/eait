@@ -54,6 +54,20 @@ interface Options {
    * `EAIT__BACKEND__LLM_FALLBACK_MODELS`.
    */
   fallbackModels?: string[] | undefined;
+  /**
+   * `openrouter` (the default) or `openai`: any server that speaks plain OpenAI chat completions —
+   * Ollama, vLLM, LM Studio, llama.cpp, Together, Groq. Those have no `reasoning`, `provider` or
+   * `models` field and a strict one refuses a body that carries them, so `openai` sends none of the
+   * three, no `x-title`, and no `authorization` when `apiKey` is empty (a local server wants none).
+   * From `EAIT__BACKEND__LLM_PROVIDER=openai-compatible`.
+   */
+  dialect?: "openrouter" | "openai";
+  /**
+   * US dollars per million prompt and completion tokens, for the `openai` dialect only: a plain
+   * server reports token counts and no `usage.cost`, so this is what prices its calls. Absent, they
+   * are unpriced. From `EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK` / `..._OUTPUT_PRICE_PER_MTOK`.
+   */
+  pricePerMTok?: { input: number; output: number } | null | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
   /**
@@ -115,9 +129,23 @@ function costOf(usage: unknown): number | null {
   return typeof u?.cost === "number" && u.is_byok !== true ? u.cost : null;
 }
 
+/** A plain server's `usage` token counts at the configured price, or null when either is missing. */
+function tokenCost(usage: unknown, price: { input: number; output: number } | null | undefined): number | null {
+  const u = usage as { prompt_tokens?: unknown; completion_tokens?: unknown } | null | undefined;
+  if (!price || typeof u?.prompt_tokens !== "number" || typeof u.completion_tokens !== "number") return null;
+  return (u.prompt_tokens * price.input + u.completion_tokens * price.output) / 1_000_000;
+}
+
 export function openRouterPorts(opts: Options): LlmPorts {
   const doFetch = opts.fetchImpl ?? fetch;
   const url = opts.baseUrl;
+  const openRouter = (opts.dialect ?? "openrouter") === "openrouter";
+  const priceOf = (usage: unknown) => openRouter ? costOf(usage) : tokenCost(usage, opts.pricePerMTok);
+  const headers: Record<string, string> = {
+    ...(openRouter || opts.apiKey !== "" ? { authorization: `Bearer ${opts.apiKey}` } : {}),
+    "content-type": "application/json",
+    ...(openRouter ? { "x-title": "eait" } : {}),
+  };
   /**
    * ONE RESOLUTION PER PORT CALL, not per HTTP request: `routeText` can make two model calls and
    * resolves once, so a prompt edit landing between them cannot analyse a meal under different
@@ -169,12 +197,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
     try {
       res = await doFetch(url, {
         method: "POST",
-        headers: {
-          authorization: `Bearer ${opts.apiKey}`,
-          "content-type": "application/json",
-          "x-title": "eait",
-        },
-        body: JSON.stringify(onDelta ? { ...(body as object), stream: true } : body),
+        headers,
+        // A plain server sends the closing usage chunk only when asked; OpenRouter always does.
+        body: JSON.stringify(onDelta
+          ? { ...(body as object), stream: true, ...(openRouter ? {} : { stream_options: { include_usage: true } }) }
+          : body),
         signal,
       });
 
@@ -188,7 +215,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }
       if (!onDelta) {
         const payload = await res.json() as { choices?: Choice[]; usage?: unknown };
-        cost = costOf(payload.usage);
+        cost = priceOf(payload.usage);
         return payload;
       }
 
@@ -215,7 +242,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
           // parse below fails, and without this the log says "not valid JSON" and nothing else.
           if (j.error) console.error(`[eait] llm stream error: ${JSON.stringify(j.error).slice(0, 300)}`);
           // Every stream ends with one chunk carrying the request's usage, just before [DONE].
-          if (j.usage !== undefined) cost = costOf(j.usage);
+          if (j.usage !== undefined) cost = priceOf(j.usage);
           const ch = j.choices?.[0];
           if (!ch) continue;
           if (typeof ch.delta?.content === "string" && ch.delta.content !== "") {
@@ -275,7 +302,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
         model: opts.model,
-        ...(opts.fallbackModels && opts.fallbackModels.length > 0 ? { models: [opts.model, ...opts.fallbackModels] } : {}),
+        ...(openRouter && opts.fallbackModels && opts.fallbackModels.length > 0 ? { models: [opts.model, ...opts.fallbackModels] } : {}),
         // Named on every call, because omitting it does not mean "no limit". The provider fills in
         // the model's own ceiling — 65536, forty times a measured analysis — and reserves credit
         // for the whole of it before routing, so an unbounded request is refused (402) on a balance
@@ -285,12 +312,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // Named on every call, so the provider's own default cannot drift under us: every call
         // this app makes wants the same answer twice.
         temperature: 0.2,
-        ...(opts.reasoningEffort === "off"
+        ...(!openRouter ? {} : opts.reasoningEffort === "off"
           ? { reasoning: { enabled: false } }
           : opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
         // Pinned, when configured: the privacy page names OpenRouter + the serving provider and
         // nobody else, so the request may not fall back to a provider it does not name.
-        ...(opts.providerOrder && opts.providerOrder.length > 0
+        ...(openRouter && opts.providerOrder && opts.providerOrder.length > 0
           ? { provider: { order: opts.providerOrder, allow_fallbacks: false } } : {}),
         messages: attempt === 0 ? messages : [
           ...messages,
@@ -592,7 +619,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         temperature: 0.4,
         // A chat answer wants seconds. OpenRouter normalises this across the providers that
         // reason and ignores it on the ones that do not.
-        reasoning: { effort: "low" },
+        ...(openRouter ? { reasoning: { effort: "low" } } : {}),
         messages,
         ...(mayCallTools ? {} : {
           response_format: {
