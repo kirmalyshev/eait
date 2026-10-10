@@ -595,12 +595,34 @@ create table if not exists referral_refunds (
 -- device, nothing about whoever it was sent to.
 create table if not exists referral_events (
   id          bigserial primary key,
-  kind        text not null check (kind in ('share')),
+  kind        text not null,
   referrer_id uuid not null references users(id) on delete cascade,
   via         text not null,
   at          timestamptz not null
 );
 create index if not exists referral_events_referrer_idx on referral_events (referrer_id);
+-- An open of the invite page is the referrer's too: the code it was opened for names them. Re-added
+-- on every boot like food_ref's, so a database that first had only 'share' takes 'open'.
+-- GUARDED like the grants' bucket check: only when missing or different, never a lock per boot.
+do $do$
+begin
+  if (select pg_get_constraintdef(oid) from pg_constraint
+       where conrelid = 'referral_events'::regclass and conname = 'referral_events_kind_check')
+     is distinct from 'CHECK ((kind = ANY (ARRAY[''share''::text, ''open''::text])))'
+  then
+    alter table referral_events drop constraint if exists referral_events_kind_check;
+    alter table referral_events add constraint referral_events_kind_check check (kind in ('share', 'open'));
+  end if;
+end
+$do$;
+create index if not exists referral_events_at_idx on referral_events (at);
+-- The friend's-link step's refusals, for the admin. No account at all: an unknown code belongs
+-- to nobody, and the others would name the person who typed it.
+create table if not exists referral_refusals (
+  id     bigserial primary key,
+  reason text not null check (reason in ('unknown', 'own', 'already', 'paid')),
+  at     timestamptz not null
+);
 -- When Spud spoke the first verdict. Null until then; the claim is one atomic update.
 alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
@@ -1606,6 +1628,11 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   // Its refund, from the same webhook: the referrer's row again.
   revokeReferralWeek: "unscoped",
   referralOf: "unscoped",
+  // The invite page is opened by nobody signed in: the code names the referrer whose count it is.
+  recordReferralOpen: "unscoped",
+  // A refusal names nobody, and the admin's view counts every account's rows.
+  recordReferralRefusal: "unscoped",
+  referralStats: "unscoped",
 
   // ── Everything else names its user, and almost always first.
   issueToken: 0,
@@ -2862,6 +2889,57 @@ export async function postgresStore(
     async recordReferralShare(userId, via) {
       await sql`insert into referral_events (kind, referrer_id, via, at)
                 select 'share', id, ${via}, ${new Date(now())} from users where id = ${userId}`;
+    },
+
+    async recordReferralOpen(code) {
+      const rows = await sql`
+        insert into referral_events (kind, referrer_id, via, at)
+        select 'open', id, '', ${new Date(now())} from users where referral_code = ${code}
+        returning id`;
+      return rows.length > 0;
+    },
+
+    async recordReferralRefusal(reason) {
+      await sql`insert into referral_refusals (reason, at) values (${reason}, ${new Date(now())})`;
+    },
+
+    async referralStats(days, timezone) {
+      const since = new Date(now() - days * 24 * 60 * 60 * 1000);
+      const perDay = await sql`
+        select d.day, sum(d.shared)::int as shared, sum(d.opened)::int as opened,
+               sum(d.joined)::int as joined, sum(d.paid)::int as paid
+        from (
+          select (at at time zone ${timezone})::date::text as day, (kind = 'share')::int as shared, (kind = 'open')::int as opened, 0 as joined, 0 as paid
+            from referral_events where at >= ${since}
+          union all
+          select (referred_at at time zone ${timezone})::date::text, 0, 0, 1, 0 from users where referred_at >= ${since}
+          union all
+          select (event_at at time zone ${timezone})::date::text, 0, 0, 0, 1 from referral_grants where event_at >= ${since} and revoked_at is null
+        ) d group by d.day order by d.day desc`;
+      const via = await sql`
+        select via, count(*)::int as shares from referral_events
+        where kind = 'share' and at >= ${since} group by via order by 2 desc, 1`;
+      const refusals = await sql`
+        select reason, count(*)::int as n from referral_refusals where at >= ${since} group by reason`;
+      const totals = await sql`
+        with sharers as (select distinct referrer_id from referral_events where kind = 'share' and at >= ${since})
+        select (select count(*) from sharers)::int as sharers,
+               (select count(*) from sharers s where exists (
+                  select 1 from users f where f.referred_by = s.referrer_id and f.referred_at >= ${since}))::int as sharers_joined,
+               (select count(*) from referral_grants where event_at >= ${since} and revoked_at is null and days < 14)::int as monthly,
+               (select count(*) from referral_grants where event_at >= ${since} and revoked_at is null and days >= 14)::int as yearly,
+               (select coalesce(sum(days), 0) from referral_grants where event_at >= ${since} and revoked_at is null)::int as granted`;
+      const t = totals[0] as Record<string, number>;
+      const by = Object.fromEntries((refusals as { reason: string; n: number }[]).map((r) => [r.reason, r.n]));
+      return {
+        days: (perDay as Record<string, unknown>[]).map((r) => ({
+          day: String(r.day), shared: num(r.shared), opened: num(r.opened), joined: num(r.joined), paid: num(r.paid),
+        })),
+        via: (via as { via: string; shares: number }[]).map((r) => ({ via: r.via, shares: num(r.shares) })),
+        refusals: { unknown: by.unknown ?? 0, own: by.own ?? 0, already: by.already ?? 0, paid: by.paid ?? 0 },
+        sharers: num(t.sharers), sharersJoined: num(t.sharers_joined),
+        paidMonthly: num(t.monthly), paidYearly: num(t.yearly), daysGranted: num(t.granted),
+      };
     },
 
     async referralOf(userId) {
