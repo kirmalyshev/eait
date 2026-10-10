@@ -20,6 +20,7 @@ import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
+import type { StreakMark, StreakRead } from "./dates.ts";
 import { SNAPSHOT_MICROS, type FoodAttribution, type FoodRef, type OffProduct } from "./foods.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
@@ -1410,6 +1411,10 @@ export interface WeekResponse {
 export interface DiaryDay extends ChartDay {
   /** YYYY-MM-DD in the account's timezone. */
   date: string;
+  /** What the forgiving streak makes of this day (`forgivingStreak`); null for a future day. */
+  streak: StreakMark | null;
+  /** The day has a meal and its kcal is below the account's floor — it earns nothing. */
+  underFloor: boolean;
 }
 
 /** `GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer. */
@@ -1422,12 +1427,17 @@ export interface DaysResponse {
    */
   targetKcal: number;
   /**
-   * Consecutive calendar days with at least one logged meal, counted backwards from today in the
-   * account's timezone. Today stays open: with nothing logged yet it does not break the run, and
-   * the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is
-   * a streak a client counted itself is a streak that disagrees with the server's.
+   * The forgiving streak (#574), counted backwards from today in the account's timezone. A day
+   * counts when it has a meal AND reaches the account's calorie floor; one bent day (missed, or
+   * under the floor) is forgiven and adds nothing, two in a row end the streak. Today stays
+   * pending until it counts and never breaks it. Server-computed — a streak a client counted
+   * itself is a streak that disagrees with the server's.
    */
   streak: number;
+  /** The longest streak, the same rule over every day the server holds. */
+  streakLongest: number;
+  /** `bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak. */
+  streakState: StreakRead["state"];
 }
 
 /** One logged bodyweight: `health` came off the phone's health store, `manual` the user typed it. */

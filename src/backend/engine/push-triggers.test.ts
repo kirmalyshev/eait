@@ -47,7 +47,7 @@ async function account(opts: { onboarded?: boolean; lang?: "en" | "de" } = {}): 
 async function logOn(userId: string, date: string): Promise<void> {
   await store.insertMeal({
     id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
-    isFood: true, items: [{ name: "x", grams: 100 }], kcal: 500, protein_g: 20,
+    isFood: true, items: [{ name: "x", grams: 100 }], kcal: 1600, protein_g: 20,
     carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
     verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
   });

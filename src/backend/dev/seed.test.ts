@@ -180,7 +180,7 @@ describe("seedDevData", () => {
 
     const range = await daysRead(deps, anna!.userId, back(3), today);
     expect(range).not.toBeNull();
-    expect(range!.streak).toBe(4);
+    expect(range!.streak).toBe(3);
     expect(range!.days.map((d) => d.kcal)).toEqual([1386, 1429, 1308, 1066]);
     expect(range!.targetKcal).toBe(1434);
 

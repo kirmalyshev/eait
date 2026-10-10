@@ -2,7 +2,7 @@
 // Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
 
 import {
-  dateMinus, dayHealthScore, loggedStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
+  dateMinus, dayHealthScore, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
   verdictLabels, windowStart,
   type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
@@ -74,15 +74,14 @@ export async function week(
  * target sent once.
  *
  * Two reads of the same rows. The page fills `[from, to]` one row per day because the strip draws
- * a day whether or not it has meals; the streak walks the same list backwards from today (or from
- * yesterday while today is still open — a day that has not ended has not broken anything), so the
- * store is asked for the whole diary horizon and the answer is computed here rather than by any
- * client counting days itself.
+ * a day whether or not it has meals; the forgiving streak (`forgivingStreak`, floor from
+ * `explainTargets`) walks the same list from its first day to today, so the store is asked for the
+ * whole diary horizon and the answer is computed here rather than by any client counting days itself.
  *
  * THE WINDOW ASKED FOR IS THE WHOLE HORIZON, not `[from, to]`: a run can be older than the strip
  * being drawn, and a streak that stopped answering at `from` would say 7 to somebody on day 40.
  * `totalsSince` returns only days that have meals, which is also exactly the set the streak walks
- * — "a day with nothing produces NO ROW" is the same rule that makes the walk stop at a gap.
+ * — "a day with nothing produces NO ROW" is a missed day to the streak, not a zero it was told.
  */
 export async function days(
   deps: EngineDeps,
@@ -94,10 +93,16 @@ export async function days(
   if (!profile) return null;
   const zone = deps.config.timezone;
   const today = localDate(zone);
-  const targetKcal = explainTargets(profile).targets.kcal;
+  const { targets, basis } = explainTargets(profile);
+  const targetKcal = targets.kcal;
+  const floor = basis.floorKcal;
 
   const rows = await deps.store.totalsSince(userId, windowStart(today, DIARY_WINDOW_DAYS));
   const totals = new Map(rows.filter((r) => r.date <= to && r.date >= from).map((r) => [r.date, r]));
+
+  // Dates only: a meal's `date` is already the account's zone, so one logged past local midnight
+  // belongs to the day the user is in, which is the boundary this must not get wrong.
+  const read = forgivingStreak(new Map(rows.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, floor);
 
   const out: DiaryDay[] = [];
   for (let d = from; d <= to; d = dateMinus(d, -1)) {
@@ -108,13 +113,10 @@ export async function days(
       when: d === today ? "today" : future ? "future" : "past",
       logged: !future && row !== undefined,
       kcal: future ? null : row?.kcal ?? 0,
+      streak: future ? null : read.marks.get(d) ?? (d === today ? "pending" : "missed"),
+      underFloor: !future && row !== undefined && row.kcal < floor,
     });
   }
 
-  // The streak: consecutive logged days ending today — or yesterday, while today is still open.
-  // Dates only: a meal's `date` is already the account's zone, so one logged past local midnight
-  // belongs to the day the user is in, which is the boundary this must not get wrong.
-  const loggedDates = new Set(rows.filter((r) => r.date <= today).map((r) => r.date));
-  const streak = loggedStreak(loggedDates, today);
-  return { days: out, targetKcal, streak };
+  return { days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state };
 }
