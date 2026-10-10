@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
-import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
+import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCall, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, emptyEstimate, imageMime } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, PROMPT_DEFAULTS,
@@ -109,6 +109,59 @@ interface Choice { finish_reason?: string; message?: { content?: string | null; 
 const UNROUTED = new Set([401, 402, 429, 503]);
 
 /**
+ * What OpenRouter reports for ONE generation — the check every `llm_calls.generation_id` invites:
+ * the model that served it, the provider, the token counts it charged for, its latency and its
+ * cost, in the shape `GET /api/v1/generation?id=…` returns them (`data` unwrapped here, metrics
+ * only — a generation's own accounting, never its content).
+ */
+export interface OpenRouterGeneration {
+  id: string;
+  model: string | null;
+  provider: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  reasoningTokens: number | null;
+  msLatency: number | null;
+  costUsd: number | null;
+}
+
+/**
+ * Fetch the accounting OpenRouter keeps for one generation id — a row's `generation_id` made
+ * verifiable against the provider's own record with the SAME key the calls run on (the regular
+ * API key, not the management key). Nulls where the record says nothing; a failure is thrown as a
+ * status, unquoted, so an upstream error string can never carry a key or a prompt out.
+ */
+export async function openRouterGeneration(
+  opts: { apiKey: string; fetchImpl?: typeof fetch }, id: string,
+): Promise<OpenRouterGeneration> {
+  const doFetch = opts.fetchImpl ?? fetch;
+  const res = await doFetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(id)}`, {
+    headers: { authorization: `Bearer ${opts.apiKey}` },
+  });
+  if (!res.ok) throw new Error(`openrouter generation http ${res.status}`);
+  const { data } = await res.json() as { data?: {
+    id?: unknown; model?: unknown; provider_name?: unknown;
+    tokens_prompt?: unknown; tokens_completion?: unknown;
+    native_tokens_prompt?: unknown; native_tokens_completion?: unknown;
+    native_tokens_reasoning?: unknown; latency?: unknown; total_cost?: unknown;
+  } };
+  const d = data ?? {};
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    id: typeof d.id === "string" ? d.id : id,
+    model: typeof d.model === "string" ? d.model : null,
+    provider: typeof d.provider_name === "string" ? d.provider_name : null,
+    // `native_tokens_*` are what the PROVIDER counted; the plain `tokens_*` are OpenRouter's own —
+    // the ones its billing answers to, and the ones a `llm_calls` row is checked against.
+    promptTokens: num(d.tokens_prompt ?? d.native_tokens_prompt),
+    completionTokens: num(d.tokens_completion ?? d.native_tokens_completion),
+    reasoningTokens: num(d.native_tokens_reasoning),
+    msLatency: num(d.latency),
+    costUsd: num(d.total_cost),
+  };
+}
+
+/**
  * Data URL for one image. The mime type is read from the magic bytes rather than trusted from the
  * upload's filename: a client that mislabels a PNG as JPEG gets a silent model-side decode failure,
  * which surfaces as "the AI is bad at my food" rather than as an error anyone can act on. Unknown
@@ -134,6 +187,121 @@ function tokenCost(usage: unknown, price: { input: number; output: number } | nu
   const u = usage as { prompt_tokens?: unknown; completion_tokens?: unknown } | null | undefined;
   if (!price || typeof u?.prompt_tokens !== "number" || typeof u.completion_tokens !== "number") return null;
   return (u.prompt_tokens * price.input + u.completion_tokens * price.output) / 1_000_000;
+}
+
+// ── Per-call metrics (#602) ─────────────────────────────────────────────────────────────────
+//
+// One row per HTTP call: what was asked, what served, what it cost, how it ended — never the
+// content. `send` fills a draft as the wire answers and emits on a transport failure; the caller
+// (`complete` or the coach loop) emits on success, because only it knows whether the reply the
+// schema was asked for was the reply that came back.
+
+/**
+ * The image count and byte sum a request body carries, read off its `image_url` parts — the two
+ * numbers an `llm_calls` row keeps where the bytes themselves never go.
+ */
+function imageStats(body: unknown): { images: number; imageBytes: number } {
+  let images = 0;
+  let imageBytes = 0;
+  const messages = (body as { messages?: { content?: unknown }[] } | null)?.messages ?? [];
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    for (const part of m.content) {
+      const p = part as { type?: string; image_url?: { url?: string } };
+      if (p.type !== "image_url" || typeof p.image_url?.url !== "string") continue;
+      images++;
+      imageBytes += dataUrlBytes(p.image_url.url);
+    }
+  }
+  return { images, imageBytes };
+}
+
+/** Bytes a `data:…;base64,` URL decodes to, computed off its length — the bytes never leave it. */
+function dataUrlBytes(url: string): number {
+  const i = url.indexOf(";base64,");
+  if (i < 0) return 0;
+  const b64 = url.length - i - ";base64,".length;
+  const padding = url.endsWith("==") ? 2 : url.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor(b64 * 3 / 4) - padding);
+}
+
+/** The token counts a `usage` block reports — nulls where it reports none. */
+function tokensOf(usage: unknown): { promptTokens: number | null; completionTokens: number | null; reasoningTokens: number | null } {
+  const u = usage as {
+    prompt_tokens?: unknown; completion_tokens?: unknown;
+    completion_tokens_details?: { reasoning_tokens?: unknown } | null;
+    reasoning_tokens?: unknown;
+  } | null | undefined;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    promptTokens: num(u?.prompt_tokens),
+    completionTokens: num(u?.completion_tokens),
+    reasoningTokens: num(u?.completion_tokens_details?.reasoning_tokens ?? u?.reasoning_tokens),
+  };
+}
+
+/**
+ * What one call measured, filled as the wire answers. `complete`/`coach` hand a fresh one to each
+ * `send` — on a transport failure `send` emits it, on a 200 the caller does, once the reply has
+ * proved itself against the schema (or failed to).
+ */
+interface CallDraft {
+  call: string;
+  attempt: number;
+  onCall?: OnCall | undefined;
+  modelRequested: string;
+  startedAt: number;
+  firstByteAt: number | null;
+  firstItemAt: number | null;
+  modelServed: string | null;
+  provider: string | null;
+  generationId: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  reasoningTokens: number | null;
+  costUsd: number | null;
+  images: number;
+  imageBytes: number;
+}
+
+/** The envelope fields a completion (or a stream chunk) carries, moved onto the draft. */
+function fillDraft(draft: CallDraft | undefined, p: { id?: unknown; model?: unknown; provider?: unknown; usage?: unknown }, costUsd: number | null): void {
+  if (!draft) return;
+  if (typeof p.model === "string") draft.modelServed = p.model;
+  if (typeof p.provider === "string") draft.provider = p.provider;
+  if (typeof p.id === "string") draft.generationId = p.id;
+  if (p.usage !== undefined) {
+    const t = tokensOf(p.usage);
+    draft.promptTokens = t.promptTokens;
+    draft.completionTokens = t.completionTokens;
+    draft.reasoningTokens = t.reasoningTokens;
+  }
+  draft.costUsd = costUsd;
+}
+
+/** Fires the caller's `onCall` with the finished metric — if it asked for one. */
+function emitCall(draft: CallDraft | undefined, status: string): void {
+  if (!draft?.onCall) return;
+  const now = Date.now();
+  draft.onCall({
+    call: draft.call,
+    modelRequested: draft.modelRequested,
+    modelServed: draft.modelServed,
+    provider: draft.provider,
+    promptTokens: draft.promptTokens,
+    completionTokens: draft.completionTokens,
+    reasoningTokens: draft.reasoningTokens,
+    costUsd: draft.costUsd,
+    msFirstByte: draft.firstByteAt === null ? null : draft.firstByteAt - draft.startedAt,
+    msFirstItem: draft.firstItemAt === null ? null : draft.firstItemAt - draft.startedAt,
+    msTotal: now - draft.startedAt,
+    status,
+    attempt: draft.attempt,
+    fallbackUsed: draft.modelServed !== null && draft.modelServed !== draft.modelRequested,
+    generationId: draft.generationId,
+    images: draft.images,
+    imageBytes: draft.imageBytes,
+  });
 }
 
 export function openRouterPorts(opts: Options): LlmPorts {
@@ -181,7 +349,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
     /** The turn's own cutoff, when this call is part of one — fires earlier than `budgetMs` only
      *  when the request the call serves is already settled unknown (#276). */
     cutoff?: AbortSignal,
-  ): Promise<{ choices?: Choice[] }> {
+    /** The metrics row this call is writing — its name and retry index (#602). */
+    call?: { name: string; attempt: number; onCall?: OnCall | undefined },
+  ): Promise<{ choices?: Choice[]; draft?: CallDraft }> {
     // A call whose turn already settled against it never reaches the wire again: #70's parallel
     // analysis aborts the moment the router names an intent that does not want it, and the next
     // attempt's fetch would be money spent on a reply nobody awaits.
@@ -192,8 +362,19 @@ export function openRouterPorts(opts: Options): LlmPorts {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), budgetMs);
     const signal = cutoff === undefined ? abort.signal : AbortSignal.any([abort.signal, cutoff]);
+    const draft: CallDraft | undefined = call === undefined ? undefined : {
+      call: call.name, attempt: call.attempt, onCall: call.onCall,
+      modelRequested: (body as { model?: string }).model ?? "",
+      startedAt: Date.now(), firstByteAt: null, firstItemAt: null,
+      modelServed: null, provider: null, generationId: null,
+      promptTokens: null, completionTokens: null, reasoningTokens: null, costUsd: null,
+      ...imageStats(body),
+    };
     let res: Response;
     let cost: number | null = null;
+    // The status the wire itself decided — the only one `send` can name on a throw. Everything a
+    // caller learns afterwards (a reply that missed the schema) is the caller's row to write.
+    let wire: string | null = null;
     try {
       res = await doFetch(url, {
         method: "POST",
@@ -204,19 +385,22 @@ export function openRouterPorts(opts: Options): LlmPorts {
           : body),
         signal,
       });
+      if (draft) draft.firstByteAt = Date.now();
 
       if (!res.ok) {
         // The status and a short body go to the log; neither reaches the client. An upstream error
         // string can echo the prompt, which carries the user's medical free text.
+        wire = `http_${res.status}`;
         const detail = (await res.text()).slice(0, 500);
         const message = `llm http ${res.status}: ${detail}`;
         const unrouted = UNROUTED.has(res.status) && !billed;
         throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
       }
       if (!onDelta) {
-        const payload = await res.json() as { choices?: Choice[]; usage?: unknown };
+        const payload = await res.json() as { choices?: Choice[]; usage?: unknown; id?: unknown; model?: unknown; provider?: unknown };
         cost = priceOf(payload.usage);
-        return payload;
+        fillDraft(draft, payload, cost);
+        return { ...(payload.choices === undefined ? {} : { choices: payload.choices }), ...(draft ? { draft } : {}) };
       }
 
       // THE STREAMED SHAPE IS REASSEMBLED INTO THE NON-STREAMED ONE, so `complete()` validates and
@@ -236,24 +420,27 @@ export function openRouterPorts(opts: Options): LlmPorts {
           if (!line.startsWith("data:")) continue;
           const data = line.slice(5).trim();
           if (data === "[DONE]") continue;
-          let j: { choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; error?: unknown; usage?: unknown };
+          let j: { choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; error?: unknown; usage?: unknown; id?: unknown; model?: unknown; provider?: unknown };
           try { j = JSON.parse(data); } catch { continue; }
           // A mid-stream error is a status that never had a status line: the content stops, the
           // parse below fails, and without this the log says "not valid JSON" and nothing else.
           if (j.error) console.error(`[eait] llm stream error: ${JSON.stringify(j.error).slice(0, 300)}`);
           // Every stream ends with one chunk carrying the request's usage, just before [DONE].
           if (j.usage !== undefined) cost = priceOf(j.usage);
+          fillDraft(draft, j, cost);
           const ch = j.choices?.[0];
           if (!ch) continue;
           if (typeof ch.delta?.content === "string" && ch.delta.content !== "") {
+            if (draft && draft.firstItemAt === null) draft.firstItemAt = Date.now();
             content += ch.delta.content;
             onDelta(ch.delta.content);
           }
           if (ch.finish_reason) finish = ch.finish_reason;
         }
       }
-      return { choices: [{ ...(finish ? { finish_reason: finish } : {}), message: { content } }] };
+      return { choices: [{ ...(finish ? { finish_reason: finish } : {}), message: { content } }], ...(draft ? { draft } : {}) };
     } catch (e) {
+      emitCall(draft, wire ?? (abort.signal.aborted ? "timeout" : cutoff?.aborted ? "aborted" : "error"));
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
       if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
@@ -294,10 +481,15 @@ export function openRouterPorts(opts: Options): LlmPorts {
     onCost?: OnCost,
     /** The turn's cutoff, forwarded to every HTTP call this makes (#276). */
     cutoff?: AbortSignal,
+    /** The metrics rows this call writes — its name; the send index is the attempt (#602). */
+    call?: { name: string; onCall?: OnCall | undefined },
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
     let retried429 = false;
+    // The send index inside this `complete()` is a row's `attempt` — a 429 retry and the schema
+    // retry each move it, so one row reads as one provider call.
+    let sends = 0;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
@@ -336,9 +528,10 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
+      const metric = () => call === undefined ? undefined : { name: call.name, attempt: sends++, onCall: call.onCall };
       let payload: Awaited<ReturnType<typeof send>>;
       try {
-        payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff);
+        payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff, metric());
       } catch (e) {
         // An unrouted 429 generated nothing: one jittered retry inside this same deadline (#1144).
         if (!(e instanceof GatewayRefusal && e.status === 429) || retried429) throw e;
@@ -347,7 +540,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         if (deadline - Date.now() - wait <= 0) throw e;
         console.error(`[eait] llm 429 on ${schemaName}; retrying once in ${Math.round(wait)}ms`);
         await new Promise((r) => setTimeout(r, wait));
-        payload = await send(body, billed || attempt > 0, deadline - Date.now(), onDelta, onCost, cutoff);
+        payload = await send(body, billed || attempt > 0, deadline - Date.now(), onDelta, onCost, cutoff, metric());
       }
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
@@ -363,6 +556,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the model instead of to the setting. Naming the bound once beats paying to guess twice.
       const truncated = choice?.finish_reason === "length";
       const bail: () => never = () => {
+        emitCall(payload.draft, "truncated");
         throw new Error(
           `llm truncated ${schemaName} at max_tokens=${opts.maxTokens}; raise EAIT__BACKEND__LLM_MAX_TOKENS`,
         );
@@ -373,12 +567,19 @@ export function openRouterPorts(opts: Options): LlmPorts {
         parsed = JSON.parse(raw);
       } catch {
         if (truncated) bail();
+        // A reply that never became JSON: retried once (schema_retry), terminal on the second
+        // attempt (parse_error) — the row says which before the throw says why.
+        emitCall(payload.draft, attempt === 0 ? "schema_retry" : "parse_error");
         lastError = "not valid JSON";
         continue;
       }
       const result = schema.safeParse(parsed);
-      if (result.success) return result.data;
+      if (result.success) {
+        emitCall(payload.draft, "ok");
+        return result.data;
+      }
       if (truncated) bail();
+      emitCall(payload.draft, attempt === 0 ? "schema_retry" : "parse_error");
       lastError = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300);
     }
     throw new Error(`llm did not satisfy ${schemaName}: ${lastError}`);
@@ -395,7 +596,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost, input.signal);
+    return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost, input.signal,
+      { name: "meal_analysis", onCall: input.onCall });
   };
 
   const routeText: RouteText = async (input) => {
@@ -436,7 +638,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     let specConfirmed = false;
     const specDelta = input.onDelta === undefined ? undefined
       : (d: string) => { if (specConfirmed) input.onDelta!(d); else specBuffered.push(d); };
-    const routing = complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal);
+    const routing = complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal,
+      { name: "route", onCall: input.onCall });
     const spec = input.focusMeal === undefined
       ? complete(
         P.text_meal,
@@ -450,6 +653,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         deadline,
         input.onCost,
         specCutoff,
+        { name: "text-meal", onCall: input.onCall },
       )
       : null;
     // Settled either way: an intent that does not use it must not leave a rejection unlistened.
@@ -523,10 +727,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
         deadline,
         input.onCost,
         input.signal,
+        { name: "text-correction", onCall: input.onCall },
       );
       // One more draw on the degenerate answer — see the meal branch below.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, input.onDelta, deadline, input.onCost, input.signal);
+        analysis = await complete(P.text_correction, withImages(correction + EMPTY_ESTIMATE_RETRY), MealAnalysisSchema, "text-correction", true, input.onDelta, deadline, input.onCost, input.signal,
+          { name: "text-correction", onCall: input.onCall });
       }
       out = { ...out, analysis };
     } else if (out.intent === "meal" && (!out.analysis || emptyEstimate(out.analysis))) {
@@ -545,13 +751,15 @@ export function openRouterPorts(opts: Options): LlmPorts {
         deadline,
         input.onCost,
         input.signal,
+        { name: "text-meal", onCall: input.onCall },
       );
       // The degenerate answer to a description it will not itemise is `isFood` with NOT ONE ITEM
       // (#248): schema-valid, and refusing it hands the user a failure over a real meal. One more
       // draw — with the emptiness named in the prompt this time — lands the items; a second empty
       // is still refused by the caller, never retried forever.
       if (emptyEstimate(analysis)) {
-        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, input.onDelta, deadline, input.onCost, input.signal);
+        analysis = await complete(P.text_meal, mealText + EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, "text-meal", true, input.onDelta, deadline, input.onCost, input.signal,
+          { name: "text-meal", onCall: input.onCall });
       }
       out = { ...out, analysis };
     }
@@ -640,9 +848,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       };
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
-      const choice = (await send(body, true, left, undefined, input.onCost, input.signal)).choices?.[0];
+      const { choices, draft } = await send(body, true, left, undefined, input.onCost, input.signal,
+        { name: "coach", attempt: round, onCall: input.onCall });
+      const choice = choices?.[0];
       const calls = choice?.message?.tool_calls ?? [];
       if (calls.length > 0 && !last) {
+        emitCall(draft, "ok");
         messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });
         for (const call of calls) {
           messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await runTool(tools, call)) });
@@ -651,7 +862,10 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }
 
       const raw = (choice?.message?.content ?? "").trim();
-      if (raw === "") throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+      if (raw === "") {
+        emitCall(draft, "parse_error");
+        throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+      }
       let parsed: unknown = null;
       try { parsed = JSON.parse(raw); } catch { /* prose, handled below */ }
       // A model that answered with a bare JSON string said a sentence, in quotes. Take the sentence.
@@ -659,9 +873,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         const p = parsed as Record<string, unknown>;
         const reply = typeof p.reply === "string" ? p.reply.trim() : "";
-        if (reply === "") throw new Error("coach returned JSON with an empty reply");
+        if (reply === "") {
+          emitCall(draft, "parse_error");
+          throw new Error("coach returned JSON with an empty reply");
+        }
         // `focus` passes as the model wrote it — a string or nothing; the engine is the one
         // that decides whether what was named is a nutrient the bar knows.
+        emitCall(draft, "ok");
         return {
           reply, suggestions: cleanSuggestions(p.suggestions),
           ...(typeof p.focus === "string" ? { focus: p.focus } : {}),
@@ -670,9 +888,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // A reply cut off mid-JSON is not prose; it is a bound too tight, and naming it beats
       // rendering half an object as a sentence.
       if (choice?.finish_reason === "length") {
+        emitCall(draft, "truncated");
         throw new Error(`llm truncated coach_reply at max_tokens=${opts.maxTokens}; raise EAIT__BACKEND__LLM_MAX_TOKENS`);
       }
       // Prose where JSON was asked for: still the answer. The chips are the only thing lost.
+      emitCall(draft, "ok");
       return { reply: raw, suggestions: [] };
     }
   };
