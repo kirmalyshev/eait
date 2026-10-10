@@ -16,7 +16,7 @@ import {
   trialDaysLeft, windowStart, type Entitlement, type Goal, type Lang,
 } from "@eait/shared";
 import type { Config } from "../config.ts";
-import type { AdminUserRow, EntitlementPatch } from "../store.ts";
+import type { AdminUserRow, EntitlementPatch, StoredEntitlement } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { referralRewardDays } from "./referral.ts";
 
@@ -98,7 +98,7 @@ export async function adminUsers(
   return {
     users: page.rows.map((row) => ({
       ...row,
-      entitled: entitlementLive(row.entitlement, now, referralBonusEnd(row.bonusUntil, row.bankedDays, row.entitlement?.expiresAt)),
+      entitled: entitlementLive(row.entitlement, now, referralBonusOf(row.entitlement, row.bonusUntil, row.bankedDays, now).end),
       effective: row.freeAnalyses ?? deps.config.freeAnalyses,
     })),
     nextCursor: page.nextCursor,
@@ -142,18 +142,37 @@ export async function adminUserSummary(deps: EngineDeps, userId: string): Promis
       goal: profile.goal ?? "maintain",
       paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
     },
-    entitled: entitlementLive(row.entitlement, Date.now(), referralBonusEnd(row.bonusUntil, row.bankedDays, row.entitlement?.expiresAt)),
+    entitled: entitlementLive(row.entitlement, Date.now(), referralBonusOf(row.entitlement, row.bonusUntil, row.bankedDays, Date.now()).end),
     streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 
-/** This account's paid tier, in the shape the profile response carries. */
-export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
+/**
+ * THE referral bonus of one account (#899), and the one place it is composed: the effective end
+ * every reader of "paid" hands `entitlementLive` (`referralBonusEnd` over the dated week, the bank
+ * and the subscription's end), and the bank as the Profile shows it — the days waiting behind a
+ * live subscription, 0 when none is live (they are already running then) or for a lifetime holder.
+ * Pure over what was read, so the admin's rows, which carry all three, call it too.
+ */
+export function referralBonusOf(
+  stored: StoredEntitlement | null, bonusUntil: string | null, bankedDays: number, now: number,
+): { end: string | null; bankedShown: number } {
+  const paying = stored !== null && stored.lifetimeProductId === null && entitlementActive(stored.expiresAt, now);
+  return { end: referralBonusEnd(bonusUntil, bankedDays, stored?.expiresAt), bankedShown: paying ? bankedDays : 0 };
+}
+
+/** `referralBonusOf` for one account, read from the store, with the record it was read against. */
+export async function readReferralBonus(deps: EngineDeps, userId: string, now = Date.now()) {
   const [stored, dated, banked] = await Promise.all([
     deps.store.getEntitlement(userId), deps.store.bonusUntil(userId), deps.store.bankedDays(userId),
   ]);
-  const bonusUntil = referralBonusEnd(dated, banked, stored?.expiresAt);
+  return { stored, ...referralBonusOf(stored, dated, banked, now) };
+}
+
+/** This account's paid tier, in the shape the profile response carries. */
+export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
   const now = Date.now();
+  const { stored, end: bonusUntil } = await readReferralBonus(deps, userId, now);
   // THE DATE IS ONLY SENT WHEN IT IS THE GRANT KEEPING THEM IN. `expiresAt` is the subscription's
   // end and is never cleared, so a lifetime holder whose monthly lapsed still has a past date on
   // the record — and reporting it raw made the settings screen say "Active until 3 January" beside
@@ -329,11 +348,14 @@ const PAYMENTS = new Set(["INITIAL_PURCHASE", "RENEWAL"]);
  */
 async function referralReward(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
   const periodStart = event.purchasedAtMs === null ? eventAt : new Date(event.purchasedAtMs).toISOString();
+  // Gated as the grant is: a simulated purchase earns nobody anything, and a simulated refund takes
+  // nothing back — or a Test Store refund could void a real friend.
+  if (event.sandbox) return;
   if (event.refund) {
     await deps.store.revokeReferralWeek(event.appUserId, event.transactionId);
     return;
   }
-  if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial || event.sandbox) return;
+  if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial) return;
   await deps.store.grantReferralWeek(
     event.appUserId, periodStart, referralRewardDays(deps.config, event.productId), event.transactionId,
     event.originalTransactionId,

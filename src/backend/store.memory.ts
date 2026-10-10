@@ -1100,7 +1100,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         const banked = bankedDays.get(userId) ?? 0;
         const lapsedAt = Date.parse(current?.expiresAt ?? "");
         if (banked > 0 && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
-          bankedDays.set(userId, Math.max(0, banked - Math.ceil((now() - lapsedAt) / DAY_MS)));
+          bankedDays.set(userId, Math.max(0, banked - Math.floor((now() - lapsedAt) / DAY_MS)));
         }
         entitlements.set(userId, {
           ...blank(current),

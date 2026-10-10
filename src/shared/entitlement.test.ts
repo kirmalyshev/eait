@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
+  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, referralBonusEnd, sampleSpent,
   subscriptionState, trialDaysLeft,
 } from "./entitlement.ts";
 
@@ -131,6 +131,23 @@ describe("entitlementLive", () => {
     expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, future)).toBe(true);
     expect(entitlementLive(null, now, past)).toBe(false);
     expect(entitlementLive(null, now, "not a date")).toBe(false);
+  });
+});
+
+describe("referralBonusEnd", () => {
+  const end = "2026-10-01T00:00:00.000Z";
+  it("is the dated week alone, or the subscription's end plus the bank, whichever is later", () => {
+    expect(referralBonusEnd(null, 0, null)).toBeNull();
+    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 0, end)).toBe("2026-10-05T00:00:00.000Z");
+    expect(referralBonusEnd(null, 7, end)).toBe("2026-10-08T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-20T00:00:00.000Z", 7, end)).toBe("2026-10-20T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 14, end)).toBe("2026-10-15T00:00:00.000Z");
+  });
+
+  it("banks nothing without a subscription end, and reads nothing it cannot parse", () => {
+    expect(referralBonusEnd(null, 7, null)).toBeNull();
+    expect(referralBonusEnd(null, 7, "garbage")).toBeNull();
+    expect(referralBonusEnd("garbage", 0, null)).toBeNull();
   });
 });
 

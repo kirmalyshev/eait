@@ -6,10 +6,11 @@
 // first paid period, because a sign-up is free to farm and a payment is not. Both weeks land in
 // `users.bonus_until`, the third grant `entitlementLive` counts.
 
-import { entitlementActive, normalizeReferralCode, type ProfileResponse, type ReferralView } from "@eait/shared";
+import { normalizeReferralCode, type ProfileResponse, type ReferralView } from "@eait/shared";
 import type { Config } from "../config.ts";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
+import { readReferralBonus } from "./entitlement.ts";
 
 /**
  * The referrer's reward for a friend paying for `productId`: the config's own entry, else a week,
@@ -31,14 +32,9 @@ export function referralRewardDays(config: Config, productId: string): number {
 const linkBase = (c: Config): string => c.landingUrl || c.publicWebUrl || c.publicApiUrl;
 
 export async function referralView(deps: EngineDeps, userId: string): Promise<ReferralView> {
-  const [row, stored, banked] = await Promise.all([
-    deps.store.referralOf(userId), deps.store.getEntitlement(userId), deps.store.bankedDays(userId),
-  ]);
-  // Banked: the days waiting behind a live subscription (and no lifetime, which never ends). With
-  // no live subscription they are already running, and `Entitlement.bonusUntil` says to when.
-  const subscribed = stored !== null && stored.lifetimeProductId === null && entitlementActive(stored.expiresAt, Date.now());
+  const [row, bonus] = await Promise.all([deps.store.referralOf(userId), readReferralBonus(deps, userId)]);
   return {
-    bankedDays: subscribed ? banked : 0,
+    bankedDays: bonus.bankedShown,
     link: row ? `${linkBase(deps.config)}/r/${row.code}` : "",
     applied: row?.applied ?? false,
     joined: row?.joined ?? 0,

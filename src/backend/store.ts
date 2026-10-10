@@ -1055,7 +1055,8 @@ export interface Store {
    * `users.referral_banked_days`: a PAYING referrer's reward, in days, waiting behind their
    * subscription rather than dated — a date set past this period's end would be overtaken by the
    * next renewal. They run from the subscription's end (`referralBonusEnd`); a new period written
-   * after a lapse (`putEntitlement`) leaves only what the lapse did not use. 0 when none.
+   * after a lapse (`putEntitlement`) leaves only what the lapse did not use — whole days of it, so a
+   * part-day lapse spends nothing of that day. 0 when none.
    */
   bankedDays(userId: string): Promise<number>;
   /**

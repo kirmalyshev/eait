@@ -3896,6 +3896,19 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.bankedDays(referrer)).toBe(0);
     });
 
+    // Review 4: a lapse uses WHOLE days — two and a half days away spend two of the bank.
+    it("spends only whole days of the bank across a partial lapse", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 14, `t-partial-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(-2.5), productId: "monthly", eventAt: at(-2), trial: false });
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(12);
+    });
+
     it("takes a reward into the dated week for a referrer who is not paying", async () => {
       const s = await open();
       const referrer = await s.createUser("en");

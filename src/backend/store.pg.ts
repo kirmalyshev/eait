@@ -551,8 +551,19 @@ alter table referral_grants add column if not exists resized_from integer;
 -- Where a grant's days went (#899 review 3): 'banked' behind a subscription that was live at the
 -- grant, or 'bonus' — the dated week. Every later move of the grant is made in the same bucket.
 alter table referral_grants add column if not exists bucket text not null default 'bonus';
-alter table referral_grants drop constraint if exists referral_grants_bucket_check;
-alter table referral_grants add constraint referral_grants_bucket_check check (bucket in ('bonus', 'banked'));
+-- GUARDED: re-adding a check on every boot takes ACCESS EXCLUSIVE and scans the table. Only when
+-- the constraint is missing or says something else (pg_constraint holds its canonical text).
+do $do$
+begin
+  if (select pg_get_constraintdef(oid) from pg_constraint
+       where conrelid = 'referral_grants'::regclass and conname = 'referral_grants_bucket_check')
+     is distinct from 'CHECK ((bucket = ANY (ARRAY[''bonus''::text, ''banked''::text])))'
+  then
+    alter table referral_grants drop constraint if exists referral_grants_bucket_check;
+    alter table referral_grants add constraint referral_grants_bucket_check check (bucket in ('bonus', 'banked'));
+  end if;
+end
+$do$;
 -- A paying referrer's reward, in days, waiting behind their subscription rather than dated: a date
 -- past this period's end would be overtaken by the next renewal. They run from the subscription's
 -- end (referralBonusEnd); a new period written after a lapse keeps only what the lapse left.
@@ -2864,7 +2875,7 @@ export async function postgresStore(
               when referral_banked_days > 0 and entitlement_expires_at < ${new Date(now())}::timestamptz
                    and ${new Date(patch.expiresAt)}::timestamptz > ${new Date(now())}::timestamptz
               then greatest(0, referral_banked_days
-                - ceil(extract(epoch from (${new Date(now())}::timestamptz - entitlement_expires_at)) / 86400)::int)
+                - floor(extract(epoch from (${new Date(now())}::timestamptz - entitlement_expires_at)) / 86400)::int)
               else referral_banked_days end,
             entitlement_expires_at       = ${new Date(patch.expiresAt)},
             entitlement_expires_event_at = ${eventAt},

@@ -164,6 +164,19 @@ describe("a refunded first payment", () => {
     expect(await daysLeft(referrer)).toBe(0);
   });
 
+  // Review 4: a refund is gated exactly as a grant is — a simulated one changes nothing real.
+  it("is never revoked or voided by a sandbox refund, even with sandbox accepted", async () => {
+    mount({}, { revenueCatAcceptSandbox: true });
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { transactionId: "t-first" }));
+    await applyRevenueCatEvent(deps, refund(friend, "t-first", { sandbox: true }));
+    expect(await daysLeft(referrer)).toBe(7);
+    const other = await pair();
+    await applyRevenueCatEvent(deps, refund(other.friend, "t-x", { sandbox: true }));
+    await applyRevenueCatEvent(deps, paid(other.friend, { transactionId: "t-x" }));
+    expect(await daysLeft(other.referrer)).toBe(7);
+  });
+
   it("earns nothing when the refund is delivered before the payment it refunds", async () => {
     const { referrer, friend } = await pair();
     await applyRevenueCatEvent(deps, refund(friend, "t-first"));
