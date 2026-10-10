@@ -63,9 +63,41 @@ type Complete = FoodRef & {
 const complete = (f: FoodRef): f is Complete =>
   f.kcal_per_100g !== null && f.protein_g_per_100g !== null && f.carbs_g_per_100g !== null && f.fat_g_per_100g !== null;
 
+/** Spellings the catalog does not share with the model (A3b): rewritten before lookup AND scoring. */
+const REWRITES: [RegExp, string][] = [
+  [/\bmeatloaf\b/gi, "meat loaf"], [/\bomelets?\b/gi, "omelette"],
+  [/\bbreadsticks?\b/gi, "bread stick"], [/\bpork knuckle\b/gi, "ham knuckle"],
+];
+const rewrite = (name: string) => REWRITES.reduce((s, [re, to]) => s.replace(re, to), name);
+
+/** "X roll" is sushi unless X says it is bread, pastry or a spring/egg roll. */
+const NON_SUSHI_ROLL = /\b(cinnamon|dinner|egg|spring|sausage|kaiser|crescent|lobster|jelly|swiss|cabbage|bread|summer|sweet)\s+rolls?\b/i;
+const isSushi = (name: string) =>
+  /\bsushi\b/i.test(name) || (/\brolls?\b/i.test(name) && !NON_SUSHI_ROLL.test(name));
+/** Sushi is looked up as `sushi` and scored as `sushi maki <filling>`. */
+const sushiName = (name: string) => {
+  const filling = words(name).filter((w) => !["sushi", "roll", "rolls", "maki"].includes(w) && !STOP.has(w) && !COOKED_AS[w]);
+  return ["sushi", "maki", ...filling].join(" ");
+};
+
+/** Size and preparation words that may lead a name; dropped only when the whole name missed. */
+const MODIFIERS = new Set([
+  "small", "large", "big", "medium", "mini", "half", "fresh", "homemade", "sliced", "diced", "chopped",
+  ...STATES, ...Object.keys(COOKED_AS),
+]);
+/** The name without its leading modifiers, or null when there are none. Never drops a noun. */
+const dropModifiers = (name: string): string | null => {
+  const w = name.trim().split(/\s+/);
+  let i = 0;
+  while (i < w.length - 1 && MODIFIERS.has(w[i]!.toLowerCase())) i++;
+  return i > 0 ? w.slice(i).join(" ") : null;
+};
+
 /** The words a row must carry: the query without stop words and without preparation words. */
-export const lookupWords = (nameEn: string): string[] =>
-  words(nameEn).filter((w) => !STOP.has(w) && !COOKED_AS[w]).map(singular);
+export const lookupWords = (nameEn: string): string[] => {
+  const n = rewrite(nameEn);
+  return isSushi(n) ? ["sushi"] : words(n).filter((w) => !STOP.has(w) && !COOKED_AS[w]).map(singular);
+};
 
 /**
  * How well a row answers a recognised name; higher is better. The head noun first (USDA writes
@@ -91,8 +123,9 @@ export function scoreFood(nameEn: string, density: number | undefined, f: Comple
 
 /** The catalog row to believe for this item among `candidates`, or null. */
 export function pickFood(item: MealItem, candidates: FoodRef[]): Complete | null {
-  const name = item.name_en?.trim();
-  if (!name) return null;
+  const raw = rewrite(item.name_en?.trim() ?? "");
+  if (!raw) return null;
+  const name = isSushi(raw) ? sushiName(raw) : raw;
   const d = item.kcal_per_100g;
   const usable = candidates.filter(complete).filter((f) =>
     (d === undefined || d <= 0 || (f.kcal_per_100g <= d * DENSITY_BAND && f.kcal_per_100g >= d / DENSITY_BAND))
@@ -103,6 +136,18 @@ export function pickFood(item: MealItem, candidates: FoodRef[]): Complete | null
     if (sc > bestScore) { best = f; bestScore = sc; }
   }
   return best && bestScore >= FLOOR ? best : null;
+}
+
+/** Full name first; on a miss, once more without its leading modifiers (A3b). */
+async function findFood(deps: EngineDeps, item: MealItem): Promise<Complete | null> {
+  const attempt = async (it: MealItem) => {
+    const w = lookupWords(it.name_en!);
+    return w.length === 0 ? null : pickFood(it, await deps.store.foodCandidates(w, POOL));
+  };
+  const hit = await attempt(item);
+  if (hit) return hit;
+  const bare = dropModifiers(item.name_en!);
+  return bare ? attempt({ ...item, name_en: bare }) : null;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -180,8 +225,7 @@ export async function groundAnalysis(
   const items = await Promise.all(analysis.items.map(async (item) => {
     if (!item.name_en?.trim() || !(item.grams > 0)) return item;
     try {
-      const w = lookupWords(item.name_en);
-      const hit = w.length === 0 ? null : pickFood(item, await deps.store.foodCandidates(w, POOL));
+      const hit = await findFood(deps, item);
       if (!hit) return item;
       grounded++;
       return groundItem(item, hit);
