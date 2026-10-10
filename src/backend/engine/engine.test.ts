@@ -2612,6 +2612,21 @@ describe("text turns are grounded in the food catalog", () => {
     expect(after.items[0]).not.toHaveProperty("food");
     expect(after.items[0]!.kcal).toBe(140);
   });
+
+  it("an edit recomputes satfat, fibre, sugar and sodium from the stored snapshots (#566)", async () => {
+    await store.putFoodRefs([{ ...oats, satfat_g_per_100g: 1, fiber_g_per_100g: 2, sugar_g_per_100g: 3, sodium_mg_per_100g: 40 }]);
+    const userId = await onboard();
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const res = await handleText(makeDeps({}, corrected("oat porridge")), userId, { text: "it was porridge", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error(`expected updated, got ${res.kind}`);
+    const stored = (await store.getMeal(userId, first.mealId))!;
+    expect(stored).toMatchObject({ satfat_g: 2, fiber_g: 4, sugar_g: 6, sodium_mg: 80 });
+
+    const edited = await editMeal(deps, userId, first.mealId, { items: stored.items.map((i) => ({ ...i, grams: 100 })) });
+    if (edited.kind !== "updated") throw new Error(`expected updated, got ${edited.kind}`);
+    expect((await store.getMeal(userId, first.mealId))!).toMatchObject({ satfat_g: 1, fiber_g: 2, sugar_g: 3, sodium_mg: 40 });
+  });
 });
 
 // The admin's grounding switches (#563): separate per path, default on, read per request.

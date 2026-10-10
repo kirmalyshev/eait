@@ -10,7 +10,7 @@
 // eait never calls the service live, and a lookup here must not be able to fail a meal.
 
 import {
-  MAX_SNAPSHOT_ATTRIBUTION, MAX_SNAPSHOT_ATTRIBUTIONS, MAX_SNAPSHOT_NAME,
+  MAX_MEAL_AMOUNT, MAX_SNAPSHOT_ATTRIBUTION, MAX_SNAPSHOT_ATTRIBUTIONS, MAX_SNAPSHOT_NAME, SNAPSHOT_MICROS,
   type FoodRef, type FoodSnapshot, type MealItem,
 } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
@@ -117,7 +117,14 @@ const foodSnapshot = (f: Complete): FoodSnapshot => ({
   // could not make the meal it grounded uneditable by echo (#562).
   name: f.name.slice(0, MAX_SNAPSHOT_NAME),
   source: f.source,
-  per100: { kcal: f.kcal_per_100g, protein_g: f.protein_g_per_100g, carbs_g: f.carbs_g_per_100g, fat_g: f.fat_g_per_100g },
+  per100: {
+    kcal: f.kcal_per_100g, protein_g: f.protein_g_per_100g, carbs_g: f.carbs_g_per_100g, fat_g: f.fat_g_per_100g,
+    // Only a value `isEditMealRequest` would accept back: an out-of-bound one is left out, not clamped.
+    ...Object.fromEntries(SNAPSHOT_MICROS.flatMap((k) => {
+      const v = f[`${k}_per_100g` as const];
+      return v !== null && v !== undefined && Number.isFinite(v) && v >= 0 && v <= MAX_MEAL_AMOUNT ? [[k, v]] : [];
+    })),
+  },
   attribution: (f.attribution ?? []).slice(0, MAX_SNAPSHOT_ATTRIBUTIONS).map((t) => t.slice(0, MAX_SNAPSHOT_ATTRIBUTION)),
 });
 
@@ -137,6 +144,22 @@ export function recomputeFromSnapshot(item: MealItem, food: FoodSnapshot): MealI
     kcal_per_100g: food.per100.kcal,
     food,
   };
+}
+
+/**
+ * The meal's satfat, fibre, sugar and sodium from the catalog, PER NUTRIENT (#566): a nutrient is
+ * `Σ grams × per100 / 100` only when every item is grounded and its snapshot carries that nutrient.
+ * Any other nutrient is absent, and the caller keeps the model's (or the scaled stored) figure.
+ */
+export function catalogMicros(items: readonly MealItem[]): Partial<Record<typeof SNAPSHOT_MICROS[number], number>> {
+  const out: Partial<Record<typeof SNAPSHOT_MICROS[number], number>> = {};
+  if (items.length === 0) return out;
+  for (const k of SNAPSHOT_MICROS) {
+    if (items.every((i) => i.food?.per100[k] !== undefined)) {
+      out[k] = round1(items.reduce((s, i) => s + (i.grams * (i.food?.per100[k] ?? 0)) / 100, 0));
+    }
+  }
+  return out;
 }
 
 /** The item with the catalog's nutrition and provenance for its grams. */
@@ -168,7 +191,7 @@ export async function groundAnalysis(
     }
   }));
   console.error(`[eait] grounding: ${grounded}/${items.length} items from the catalog`);
-  return { analysis: { ...analysis, items }, grounded };
+  return { analysis: { ...analysis, ...catalogMicros(items), items }, grounded };
 }
 
 /**
