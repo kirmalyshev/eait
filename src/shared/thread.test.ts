@@ -287,8 +287,8 @@ describe("oneCardPerMeal — #301", () => {
 });
 
 describe("oneLiveProposal / pendingIdOf — #360", () => {
-  const proposal = (id: string, pendingId: string): ThreadEntry =>
-    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt: LIVE, verdictInline: "", verdictLabels: [] } });
+  const proposal = (id: string, pendingId: string, expiresAt: string = LIVE): ThreadEntry =>
+    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt, verdictInline: "", verdictLabels: [] } });
   const totals = { guessed: false, kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
   /** The screen's `replace` on a confirm: the entry becomes the logged card, in its own place. */
   const confirm = (entries: ThreadEntry[], id: string, pendingId: string): ThreadEntry[] => {
@@ -324,6 +324,20 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
     // A third lands the same way: nothing but the newest is live.
     const three = oneLiveProposal([...retired, proposal("a3", "p3")], "en");
     expect(three.map((e) => pendingIdOf(e))).toEqual([null, null, "p3"]);
+  });
+
+  it("the live offer is the newest proposal, not the row the merge happened to place last (#1347)", () => {
+    // A chat send ran as a job carries no `pendingId` on its bubble, so `restorePendings` had no
+    // say to anchor its card under and placed it at the list's end — after a LATER send's card.
+    // Array order then retired the newer proposal and both says read "Not logged" while the
+    // superseded meal's card still offered "Log it". `expiresAt` shares the one TTL, so it orders
+    // exactly as creation does, whatever position the merge left the row in.
+    const older = proposal("a1", "p1", "2026-08-25T10:10:00.000Z");
+    const newer = proposal("a2", "p2", "2026-08-25T10:20:00.000Z");
+    const retired = oneLiveProposal([newer, older], "en");
+    expect(retired.map((e) => e.id)).toEqual(["a2", "a1"]);
+    expect(retired[0]).toEqual(newer);
+    expect(retired[1]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", "en") } });
   });
 
   it("names every live pending a new estimate is about to retire, so the cancel is real", () => {
