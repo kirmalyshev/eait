@@ -19,6 +19,7 @@ export * from "./page/shell.ts";
 export * from "./page/board.ts";
 export * from "./page/front-door.ts";
 export * from "./page/sign-up.ts";
+export * from "./page/email.ts";
 export * from "./page/question.ts";
 export * from "./page/moment.ts";
 export * from "./page/offer.ts";

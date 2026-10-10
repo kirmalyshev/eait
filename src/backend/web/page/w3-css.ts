@@ -113,6 +113,35 @@ export const W3_CSS = `
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M5 13l4 4 10-10'/></svg>");
   background-size: 13px; background-position: center; background-repeat: no-repeat; }
 .ob .sup .consent a, .ob .sup .consent u { color: inherit; }
+
+/* ── email sign-in (#569): the address and code pages. The boards draw the address field, the
+   six digit boxes and the resend row; what is drawn here is ONE field per page, because a page
+   with no JavaScript cannot auto-advance six boxes or tick a countdown — the rest is the board
+   verbatim: 52px and 56px pills, inset hairlines, the t13 note pair. */
+.ob .eml { max-width: 520px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+.ob .eml h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.12; margin: 0; }
+.ob .eml p.m { margin: 0; }
+.ob .eml p.m b { color: var(--ink); font-weight: 700; }
+.ob .eml form { display: flex; flex-direction: column; gap: 8px; }
+.ob .eml input { height: 52px; margin: 0; padding: 0 16px; border: 0; border-radius: var(--r-ctl);
+  box-shadow: inset 0 0 0 1.5px var(--line); font-size: 17px; color: var(--ink);
+  background: transparent; }
+.ob .eml input:focus { box-shadow: inset 0 0 0 1.5px var(--ink); }
+/* The code field reads like the boards' six boxes read: centred, spaced, bold. The .45em of
+   letter-spacing leaves the last glyph's space hanging, so it is padded the same amount on the
+   left to sit centred. */
+.ob .eml input.codein { height: 56px; padding: 0 0 0 .45em; text-align: center;
+  font-size: 24px; font-weight: 700; letter-spacing: .45em; font-variant-numeric: tabular-nums; }
+.ob .eml input.codein.bad { box-shadow: inset 0 0 0 1.5px var(--bad); }
+.ob .eml .eml-note { font-size: 13px; font-weight: 600; margin: 0; }
+.ob .eml .eml-note.bad { color: var(--bad); }
+.ob .eml .eml-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ob .eml .eml-row form { display: contents; }
+.ob .eml .t13.faint { color: var(--faint); font-weight: 600; }
+.ob .eml a.t13 { color: var(--accent); font-weight: 600; }
+/* A submit dressed as the boards' t13 line — a link is a GET, and a resend is a write. */
+.ob .eml button.t13 { background: none; border: 0; padding: 0; margin: 0; width: auto;
+  color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
 .ob .sup .notice { color: var(--warn); background: var(--warn-tint); padding: 10px 14px;
   border-radius: var(--r-ctl); font-size: 14px; line-height: 1.45; }
 
