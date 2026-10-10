@@ -18,7 +18,7 @@ import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, SWITCH_KEYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
-  type MealPatch, type Role,
+  type MealPatch, type MilestoneRow, type Role,
   type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow, type SwitchFlip,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
@@ -218,6 +218,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `${userId}\n${date}` -> the typed weigh-in. One row per day — `putWeight` upserts, the last
   // write of a day winning, which is `on conflict` on Postgres and a `set` here.
   const weights = new Map<string, { userId: string; date: string; kg: number }>();
+  // `${userId}\n${badgeId}` -> the earned badge; `mealLoggedAt` is meals.created_at, kept apart so a
+  // MealRecord reads back the same shape it does out of Postgres.
+  const milestones = new Map<string, { userId: string } & MilestoneRow>();
+  const mealLoggedAt = new Map<string, string>();
   // The food catalog — global reference data, keyed on the row's own ids: food_ref on
   // `<source>:<code>`, off_product on the barcode itself.
   const foodRefs = new Map<string, FoodRef>();
@@ -340,6 +344,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
     // The typed weigh-ins are the same data by another door: they go with it.
     for (const [k, w] of weights) if (w.userId === userId) weights.delete(k);
+    for (const [k, r] of milestones) if (r.userId === userId) milestones.delete(k);
   };
 
   /**
@@ -739,6 +744,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         weights.delete(k);
         const target = `${intoUserId}\n${w.date}`;
         if (!weights.has(target)) weights.set(target, { ...w, userId: intoUserId });
+      }
+      for (const [k, r] of milestones) {
+        if (r.userId !== fromUserId) continue;
+        milestones.delete(k);
+        const target = `${intoUserId}\n${r.badge_id}`;
+        if (!milestones.has(target)) milestones.set(target, { ...r, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
       // A turn the anonymous session sent is replayed by the same phone under the real account.
@@ -1293,6 +1304,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // `?? null` so a meal nobody was asked a question about reads back the same shape it does out
       // of Postgres, where an unwritten jsonb column is null and never an absent key.
       meals.set(record.id, clone({ ...record, question: record.question ?? null }));
+      mealLoggedAt.set(record.id, new Date().toISOString());
       return true;
     },
 
@@ -1397,6 +1409,34 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async putWeight(userId, date, kg) {
       weights.set(`${userId}\n${date}`, { userId, date, kg });
+    },
+
+    async milestoneMeals(userId) {
+      return [...meals.values()]
+        .filter((x) => x.user_id === userId)
+        .sort((a, b) => a.ts.localeCompare(b.ts))
+        .map((x) => ({ meal: clone(x), createdAt: mealLoggedAt.get(x.id) ?? x.ts }));
+    },
+
+    async getMilestones(userId) {
+      return [...milestones.values()]
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => a.earned_at.localeCompare(b.earned_at) || a.badge_id.localeCompare(b.badge_id))
+        .map(({ userId: _u, ...r }) => ({ ...r }));
+    },
+
+    async earnMilestones(userId, ids, at) {
+      for (const id of ids) {
+        const k = `${userId}\n${id}`;
+        if (!milestones.has(k)) milestones.set(k, { userId, badge_id: id, earned_at: at, seen_at: null });
+      }
+    },
+
+    async seeMilestones(userId, ids, at) {
+      for (const id of ids) {
+        const r = milestones.get(`${userId}\n${id}`);
+        if (r && r.seen_at === null) r.seen_at = at;
+      }
     },
 
     async weightsSince(userId, since) {

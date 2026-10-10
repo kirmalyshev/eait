@@ -105,6 +105,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   campaign_send: "user_id",
   health_days: "user_id",
   weights: "user_id",
+  milestones: "user_id",
   turns: "user_id",
 };
 
@@ -241,6 +242,11 @@ alter table users add column if not exists struggles text[];
 -- checks; Home's streak chip reads it. The vocabulary is checked on the write (engine/profile.ts)
 -- and again on the read, so a value from a newer binary is unrenderable here, not wrong.
 alter table users add column if not exists streak_goal_days integer;
+
+-- Milestones' two switches (ieat-app#1395). Booleans that default to ON, so a row from before them
+-- reads as the product's default rather than as a user who turned something off.
+alter table users add column if not exists milestone_celebrations boolean not null default true;
+alter table users add column if not exists streak_on_home boolean not null default true;
 
 -- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
 -- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
@@ -988,6 +994,20 @@ create table if not exists weights (
   primary key (user_id, date)
 );
 
+-- Milestones (ieat-app#1395). When a meal was LOGGED, apart from ts, when it was eaten: Time
+-- Traveler and Gremlin read this. Nullable with a default — a row from before the column has no
+-- logged-at, and reads as its own ts rather than as "logged on the day of the migration".
+alter table meals add column if not exists created_at timestamptz;
+alter table meals alter column created_at set default now();
+
+create table if not exists milestones (
+  user_id   uuid not null references users(id) on delete cascade,
+  badge_id  text not null,
+  earned_at timestamptz not null default now(),
+  seen_at   timestamptz,
+  primary key (user_id, badge_id)
+);
+
 -- ── S8: sign-up consent ──────────────────────────────────────────────────────────────────────
 -- The sign-up screen's two boxes, stored as the dates they were ticked — EU consent needs the
 -- date, so they are timestamps and null is "never given". On the users row so deleting the
@@ -1188,6 +1208,8 @@ function toProfile(r: UserRow): Profile {
     streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
       ? (Number(r.streak_goal_days) as StreakGoal)
       : null,
+    milestone_celebrations: r.milestone_celebrations !== false,
+    streak_on_home: r.streak_on_home !== false,
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -1262,7 +1284,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "streak_goal_days", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "milestone_celebrations", "streak_on_home", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 
@@ -1524,6 +1546,10 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putHealthDays: 0,
   healthDaysSince: 0,
   putWeight: 0,
+  milestoneMeals: 0,
+  getMilestones: 0,
+  earnMilestones: 0,
+  seeMilestones: 0,
   weightsSince: 0,
   claimTurn: 0,
   enqueueJob: 0,
@@ -2374,6 +2400,10 @@ export async function postgresStore(
               select 1 from weights t where t.user_id = ${intoUserId} and t.date = w.date
             )`;
         await tx`update weights set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // Badges: the real account's earned_at/seen_at stand; the rest move.
+        await tx`delete from milestones m where m.user_id = ${fromUserId}
+          and exists (select 1 from milestones t where t.user_id = ${intoUserId} and t.badge_id = m.badge_id)`;
+        await tx`update milestones set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // DROPPED, not repointed — the merged-away account is anonymous, so these are the device
         // identity and, since #205, possibly a `telegram` row. Repointing either would let plain
         // device auth walk back into the full account after a sign-out, or hand whoever holds that
@@ -2993,6 +3023,36 @@ export async function postgresStore(
       await sql`
         insert into weights (user_id, date, kg) values (${userId}, ${date}, ${kg})
         on conflict (user_id, date) do update set kg = excluded.kg, updated_at = now()`;
+    },
+
+    async milestoneMeals(userId) {
+      const rows = await sql`select * from meals where user_id = ${userId} order by ts asc`;
+      const restrictions = await restrictionsOf(userId);
+      return rows.map((r: MealRow & { created_at?: unknown }) => ({
+        meal: toMeal(r, restrictions),
+        createdAt: new Date((r.created_at ?? r.ts) as string).toISOString(),
+      }));
+    },
+
+    async getMilestones(userId) {
+      const rows = await sql`select badge_id, earned_at, seen_at from milestones where user_id = ${userId} order by earned_at, badge_id`;
+      return rows.map((r: Record<string, unknown>) => ({
+        badge_id: String(r.badge_id),
+        earned_at: new Date(r.earned_at as string).toISOString(),
+        seen_at: r.seen_at ? new Date(r.seen_at as string).toISOString() : null,
+      }));
+    },
+
+    async earnMilestones(userId, ids, at) {
+      for (const id of ids) {
+        await sql`insert into milestones (user_id, badge_id, earned_at) values (${userId}, ${id}, ${at}) on conflict do nothing`;
+      }
+    },
+
+    async seeMilestones(userId, ids, at) {
+      for (const id of ids) {
+        await sql`update milestones set seen_at = ${at} where user_id = ${userId} and badge_id = ${id} and seen_at is null`;
+      }
     },
 
     async weightsSince(userId, since) {

@@ -16,6 +16,7 @@ import {
   type HealthDay, type HealthDaysResponse, type HealthResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
+import { evaluateMilestones } from "./milestones.ts";
 import { profileView } from "./profile.ts";
 import { mergedWeights } from "./weights.ts";
 
@@ -74,6 +75,7 @@ export async function recordHealthDays(
   if (clean.length === 0) return { accepted: 0 };
 
   await deps.store.putHealthDays(userId, clean);
+  await evaluateMilestones(deps, userId);
 
   // ── the one metric with an effect ──
   const newest = clean

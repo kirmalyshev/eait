@@ -1,6 +1,7 @@
 // The diary reads — one day, the (deprecated) rolling window, and the `from`/`to` range the
 // Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
 
+import { unseenBadges } from "./milestones.ts";
 import {
   dateMinus, dayHealthScore, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
   verdictLabels, windowStart,
@@ -121,5 +122,8 @@ export async function days(
     });
   }
 
-  return { days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state };
+  return {
+    days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state,
+    unseenBadges: await unseenBadges(deps, userId),
+  };
 }

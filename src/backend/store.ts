@@ -192,6 +192,11 @@ export interface PendingMeal {
 }
 
 /** The columns a profile patch may touch. Mirrors `PatchProfileRequest` minus the control flags. */
+/** One earned badge. */
+export interface MilestoneRow { badge_id: string; earned_at: string; seen_at: string | null }
+/** A meal and the instant it was logged, which is not the instant it was eaten. */
+export interface MilestoneMealRow { meal: MealRecord; createdAt: string }
+
 export type ProfilePatch = Partial<Omit<Profile, "user_id">>;
 
 /**
@@ -1348,6 +1353,20 @@ export interface Store {
   /** Most recent first, `since` inclusive — the manual rows only; the engine merges in health. */
   weightsSince(userId: string, since: string): Promise<{ date: string; kg: number }[]>;
 
+  // ── Milestones (ieat-app#1395) ─────────────────────────────────────────────────────────────
+  //
+  // Badges are RECOMPUTED from the log after every meal and weight write; this table only
+  // remembers what was earned and when, so an earned badge stays earned after the numbers move.
+
+  /** Every meal of the account, oldest first, with the instant it was LOGGED (`created_at`; `ts` for rows from before the column). */
+  milestoneMeals(userId: string): Promise<MilestoneMealRow[]>;
+  /** The badges the account has earned. */
+  getMilestones(userId: string): Promise<MilestoneRow[]>;
+  /** Earn these ids at `at`. Already-earned ids are left exactly as they were. */
+  earnMilestones(userId: string, ids: string[], at: string): Promise<void>;
+  /** Mark earned ids seen at `at`. An id not earned, or already seen, is left alone. */
+  seeMilestones(userId: string, ids: string[], at: string): Promise<void>;
+
   // ── Portion corrections ────────────────────────────────────────────────────────────────────
   //
   // Every time a user changes an item's grams they are measuring the gap between their portion and
@@ -1686,7 +1705,7 @@ export function blankProfile(userId: string, lang: Lang): Profile {
   return {
     user_id: userId, lang, goal: null, sex: null, birth_year: null, height_cm: null,
     weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
-    units: null, struggles: null, streak_goal_days: null, country: null,
+    units: null, struggles: null, streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
   };
