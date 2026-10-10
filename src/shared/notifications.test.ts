@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { lintCopy } from "./claims.ts";
 import { trialReminder, trialReminderDate } from "./entitlement.ts";
 import {
-  DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, REMINDER_TIME, dailyMessage, eveningPrescription,
+  DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, REMINDER_TIME, eveningPrescription,
   fillNotification, reminderPlan, validateNotificationCopy,
 } from "./notifications.ts";
 
@@ -41,27 +41,6 @@ describe("trialReminderDate", () => {
       .toBe("2026-08-31");
     expect(trialReminderDate("2026-08-28T12:00:00Z", "Europe/Berlin", at("2026-08-25T00:00:00Z"))!)
       .toBe("2026-08-27");
-  });
-});
-
-describe("dailyMessage — R1's one message a day", () => {
-  const reminder = "2026-08-31";
-
-  it("sends the reminder on the reminder day, not the evening line", () => {
-    expect(dailyMessage("2026-08-31", reminder)).toBe("trial-end");
-  });
-
-  it("sends the evening line on every other day", () => {
-    expect(dailyMessage("2026-08-29", reminder)).toBe("evening");
-    expect(dailyMessage("2026-08-30", reminder)).toBe("evening");
-    expect(dailyMessage("2026-09-02", reminder)).toBe("evening");
-    expect(dailyMessage("2026-08-31", null)).toBe("evening");
-  });
-
-  it("only ever names one message", () => {
-    for (const date of ["2026-08-29", "2026-08-30", "2026-08-31", "2026-09-01"]) {
-      expect(NOTIFICATION_IDS).toContain(dailyMessage(date, reminder));
-    }
   });
 });
 

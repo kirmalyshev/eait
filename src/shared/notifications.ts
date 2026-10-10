@@ -3,10 +3,9 @@
 // The scripted `trial-started` and `trial-day-one` lines (`chat-copy.ts`) promise exactly two:
 // "I'll remind you the day before it ends, never the day after" (ieat-app#1591: the 3-day trial
 // gets ONE trial-ends reminder, not two), and "At 20:30 you get one line — today against the plan,
-// and one concrete thing for tomorrow." Nothing else may be sent, and R1's budget
-// (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day INCLUDING the
-// reminder — which is what `dailyMessage` is: the reminder day emits the reminder INSTEAD OF the
-// evening line, never as well as it.
+// and one concrete thing for tomorrow." Nothing else may be sent by these two. There is no
+// cross-sender daily cap (ieat-app#1965): the trial-ends day carries the phone's reminder AND the
+// evening line, which is still exactly the two the scripted lines promise.
 //
 // It lives in shared because both sides need the same answers. The phone schedules the trial
 // reminder LOCALLY, off `entitlement.expiresAt`, so it can fire it with no network and cancel
@@ -456,19 +455,6 @@ export function reminderPlan(
   const [h, m] = localTime(timezone, now).split(":").map(Number) as [number, number];
   const passed = (h % 24) * 60 + m >= REMINDER_TIME.hour * 60 + REMINDER_TIME.minute;
   return date === today && passed || date < today ? [] : [{ id: "trial-end", date }];
-}
-
-/**
- * The ONE message `date` gets. R1's budget, expressed as a function rather than as a rule in prose.
- *
- * The reminder day emits the reminder and not the evening line. Sending both would be two messages
- * on the day the user is most likely to be deciding whether to keep the app.
- */
-export function dailyMessage(
-  date: string,
-  reminderDate: string | null,
-): NotificationId {
-  return reminderDate === date ? "trial-end" : "evening";
 }
 
 /** Interpolate a message. `empty` picks the evening line's nothing-logged variant. */

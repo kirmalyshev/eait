@@ -70,19 +70,22 @@ describe("admin push composer: hard rules", () => {
   const body = (userIds: string[], over: Record<string, unknown> = {}) =>
     ({ userIds, templateKey: "campaign:promo", route: "chat", confirmCount: userIds.length, ...over });
 
-  it("R1: an account whose push slot is held is skipped with heldBy and gets no send", async () => {
+  it("another sender going first does not stop it, and the account's own bound does", async () => {
     const { store, push, deps, make } = await setup();
-    const held = await make();
-    const free = await make();
+    const went = await make();
+    const capped = await make();
     const now = Date.now();
-    const zone = zoneOf(deps, await store.timezoneOf(held));
-    expect(await store.claimPushSlot(held, localDate(zone, new Date(now)), "evening", null)).toMatchObject({ claimed: true });
-    const out = await sendAdminPush(deps, ADMIN, body([held, free]), now);
+    const zone = zoneOf(deps, await store.timezoneOf(went));
+    const day = localDate(zone, new Date(now));
+    expect(await store.claimPushSlot(went, day, "evening", null)).toMatchObject({ claimed: true });
+    await store.setPushDailyMax(capped, 1);
+    expect(await store.claimPushSlot(capped, day, "evening", null)).toMatchObject({ claimed: true });
+    const out = await sendAdminPush(deps, ADMIN, body([went, capped]), now);
     if (!out.ok) throw new Error("expected ok");
-    expect(out.results.find((r) => r.userId === held)).toEqual({ userId: held, skipped: "slot-taken", heldBy: "evening" });
-    expect(out.results.find((r) => r.userId === free)).toMatchObject({ sent: 1 });
+    expect(out.results.find((r) => r.userId === went)).toMatchObject({ sent: 1 });
+    expect(out.results.find((r) => r.userId === capped)).toEqual({ userId: capped, skipped: "account-cap" });
     expect(push.sent).toHaveLength(1);
-    expect(await store.sendLogFor(held, 10)).toHaveLength(0);
+    expect(await store.sendLogFor(capped, 10)).toHaveLength(0);
   });
 
   it("refuses free text and non-campaign keys", async () => {

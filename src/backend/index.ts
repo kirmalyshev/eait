@@ -373,16 +373,16 @@ const verifier: Verifier = cannedAuth
 // Every account dates its day in ITS OWN zone (`users.timezone`, reported by the app on open;
 // `config.timezone` when it has not), so there is no single 20:30 to arm a timer for. A tick every
 // minute asks each account whether its local clock has passed the evening line (two-hour catch-up,
-// then the night is dropped), and `push_slot` is what makes that safe to repeat and safe on two
+// then the night is dropped), and `push_claim` is what makes that safe to repeat and safe on two
 // replicas: the day is claimed before the send, and a second claim is refused. Receipts are read on
 // the same beat, once Expo has had time to produce them, from the `send_log` rows still `accepted`.
 if (config.pushEnabled) {
   const TICK_MS = 60_000;
   // A tick that outlives its minute (a slow push service, a big audience) must not be joined by the
-  // next one: two overlapping ticks would compose, and race the slot, for the same accounts.
+  // next one: two overlapping ticks would compose, and race the claim, for the same accounts.
   let ticking = false;
   setInterval(() => {
-    // The leader alone ticks; the slot is the backstop for a handover mid-minute.
+    // The leader alone ticks; the claim is the backstop for a handover mid-minute.
     if (!leader || ticking) return;
     ticking = true;
     void (async () => {

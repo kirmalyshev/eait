@@ -360,25 +360,35 @@ describe("rollout", () => {
   });
 });
 
-describe("the one-a-day slot", () => {
-  it("is respected: an account that already had its message today is skipped and not marked sent", async () => {
+describe("the claim", () => {
+  it("is not refused because the evening line went first: both reach the account the same day", async () => {
     const u = await account();
+    await store.claimPushSlot(u, "2026-08-20", "streak", "evening");
+    const c = await campaign();
+    const out = await runCampaigns(deps, { now: BERLIN_1830 });
+    expect(push.sent).toHaveLength(1);
+    expect(out.slotTaken).toBe(0);
+    expect(await store.hasCampaignSend(u, c.id)).toBe(true);
+  });
+
+  it("is refused by the account's own bound, and not marked sent: it is theirs again the next day", async () => {
+    const u = await account();
+    await store.setPushDailyMax(u, 1);
     await store.claimPushSlot(u, "2026-08-20", "streak", "evening");
     const c = await campaign();
     const out = await runCampaigns(deps, { now: BERLIN_1830 });
     expect(push.sent).toHaveLength(0);
     expect(out.slotTaken).toBe(1);
     expect(await store.hasCampaignSend(u, c.id)).toBe(false);
-    // The next day inside the window it is theirs again.
     await runCampaigns(deps, { now: BERLIN_1830 + DAY });
     expect(push.sent).toHaveLength(1);
   });
 
-  it("claims the slot as a campaign, so the evening line cannot follow it", async () => {
+  it("is its own sender, so it does not take the evening line's day", async () => {
     const u = await account();
     await campaign();
     await runCampaigns(deps, { now: BERLIN_1830 });
-    expect(await store.claimPushSlot(u, "2026-08-20", "evening", null)).toEqual({ claimed: false, heldBy: "campaign" });
+    expect(await store.claimPushSlot(u, "2026-08-20", "evening", null)).toEqual({ claimed: true });
   });
 
   it("skips an account with no device without spending its slot", async () => {
@@ -453,7 +463,7 @@ describe("dry run", () => {
 });
 
 describe("test send", () => {
-  it("goes to a staff account only, through the slot, and the real send the same day is then refused", async () => {
+  it("goes to a staff account only, as the campaign's own sender, and the real send the same day is then refused", async () => {
     const me = await account();
     const other = await account();
     staff = [me];
@@ -462,8 +472,8 @@ describe("test send", () => {
     expect(push.sent).toHaveLength(0);
     expect(await testSendCampaign(deps, c.id, me, BERLIN_1830)).toEqual({ ok: true, sent: 1 });
     expect((await store.sendLogFor(me, 5))[0]).toMatchObject({ kind: "campaign", ref: c.id, variant: "test" });
-    // A second test, and the scheduled send, the same local day: both refused by the slot.
-    expect(await testSendCampaign(deps, c.id, me, BERLIN_1830 + MIN)).toMatchObject({ ok: false, reason: "slot-taken", heldBy: "campaign" });
+    // A second test, and the scheduled send, the same local day: both refused by the sender's claim.
+    expect(await testSendCampaign(deps, c.id, me, BERLIN_1830 + MIN)).toEqual({ ok: false, reason: "slot-taken" });
     await setCampaignStatus(deps, c.id, "scheduled");
     await runCampaigns(deps, { now: BERLIN_1830 + 2 * MIN });
     expect(push.sent).toHaveLength(1);
@@ -572,7 +582,7 @@ describe("holdout", () => {
         expect(sentTo.has(token)).toBe(false);
         expect(rows).toHaveLength(1);
         expect(rows[0]).toMatchObject({ state: "would_have_sent", kind: "campaign", ref: c.id, variant: CAMPAIGN_VARIANTS[variantOf(u, c.id, 2)] });
-        // No slot was claimed: today's message is still free for another sender.
+        // Nothing was claimed: the evening line's sender is still free.
         expect(await store.claimPushSlot(u, "2026-08-20", "evening", null)).toEqual({ claimed: true });
       } else {
         expect(sentTo.has(token)).toBe(true);
@@ -581,20 +591,20 @@ describe("holdout", () => {
     }
   });
 
-  it("logs a held-out account only on a day its slot is free, exactly like a treated one is retried", async () => {
+  it("logs a held-out account only on a day the claim would win, exactly like a treated one is retried", async () => {
     const users: string[] = [];
     for (let i = 0; i < 80; i++) users.push(await account());
     const c = await campaign({ holdoutPct: 10 });
     const held = users.filter((u) => inHoldout(u, c.id, 10));
     expect(held.length).toBeGreaterThan(2);
-    // Another sender (a streak line, a trial reminder, ...) already holds today for every account.
-    for (const u of users) await store.claimPushSlot(u, "2026-08-20", "streak", null);
+    // Every account is at its own bound today: the streak line went and the bound is one.
+    for (const u of users) { await store.setPushDailyMax(u, 1); await store.claimPushSlot(u, "2026-08-20", "streak", null); }
     await runCampaigns(deps, { now: BERLIN_1830 });
     for (const u of users) expect(await store.sendLogFor(u, 5)).toHaveLength(0); // no row, treated or held
     for (const u of held) expect(await store.hasCampaignSend(u, c.id)).toBe(false); // retried, not spent
     expect(push.sent).toHaveLength(0);
-    // Reading the slot claimed nothing: the day is still the other sender's.
-    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-20")).toBe("streak");
+    // Reading the claim took nothing: the account is still at its bound, one claim.
+    for (const u of held) expect(await store.pushSlotFree(u, "2026-08-20", "campaign", c.id)).toBe(false);
     // The next free day: one would_have_sent row for each held-out account, a push for the rest.
     await runCampaigns(deps, { now: BERLIN_1830 + DAY });
     for (const u of held) {
@@ -604,7 +614,7 @@ describe("holdout", () => {
     }
     expect(push.sent).toHaveLength(users.length - held.length);
     // And it is the slot of the NEW day that stayed free: a held-out account claimed nothing.
-    for (const u of held) expect(await store.pushSlotOf(u, "2026-08-21")).toBeNull();
+    for (const u of held) expect(await store.pushSlotFree(u, "2026-08-21", "campaign", c.id)).toBe(true);
   });
 
   it("logs a held-out account once, however many ticks run", async () => {
