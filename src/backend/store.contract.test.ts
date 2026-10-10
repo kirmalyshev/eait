@@ -38,7 +38,7 @@ import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { RLS_TABLES, SCOPE, postgresStore } from "./store.pg.ts";
-import { SWITCH_KEYS, type CampaignRow, type Store, type StoreOptions } from "./store.ts";
+import { SWITCH_KEYS, type CampaignRow, type LlmCall, type Store, type StoreOptions } from "./store.ts";
 
 const PG_URL = process.env.TEST_DATABASE_URL;
 
@@ -1546,6 +1546,81 @@ function contract(name: string, make: () => Promise<Store>) {
       ]);
       expect(await s.analysisCosts(b, [typed])).toEqual([]);
       expect(await s.analysisCosts(a, [])).toEqual([]);
+    });
+
+    // #602. ONE ROW PER PROVIDER CALL — the call's metrics and never its content, scoped to the
+    // account whose turn made it. Moved by a merge, erased with the account, and a refund drops
+    // the analysis link rather than the row: the call happened whether or not it stayed billed.
+    const llmCall = (over: Partial<LlmCall> = {}): LlmCall => ({
+      analysisId: null, kind: "photo",
+      modelRequested: "qwen/qwen3-vl-235b-a22b-instruct",
+      modelServed: "qwen/qwen3-vl-235b-a22b-instruct", provider: "deepinfra",
+      promptTokens: 1200, completionTokens: 400, reasoningTokens: 0,
+      costUsd: 0.0014, msFirstByte: 8200, msFirstItem: 9100, msTotal: 33000,
+      status: "ok", attempt: 0, fallbackUsed: false,
+      generationId: "gen-abc", images: 1, imageBytes: 2_000_000, ...over,
+    });
+
+    it("keeps one metrics row per provider call, scoped to the account that made it", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const analysisId = await s.recordAnalysis(a, RUN_DATE, "photo");
+      expect(await s.recordLlmCall(a, llmCall({ analysisId }))).toBe(true);
+      // A failed call is a row too — the status is its whole reason for being.
+      expect(await s.recordLlmCall(a, llmCall({
+        analysisId, attempt: 1, status: "http_429",
+        modelServed: null, provider: null, promptTokens: null, completionTokens: null,
+        reasoningTokens: null, costUsd: null, generationId: null,
+      }))).toBe(true);
+      // A call nobody was charged for — the link is nullable by design.
+      expect(await s.recordLlmCall(a, llmCall({ kind: "coach" }))).toBe(true);
+      expect(await s.recordLlmCall(b, llmCall({ kind: "route" }))).toBe(true);
+
+      const rows = await s.llmCalls(a);
+      expect(rows.length).toBe(3);
+      expect(rows[0]).toMatchObject({
+        analysisId, kind: "photo",
+        modelRequested: "qwen/qwen3-vl-235b-a22b-instruct",
+        modelServed: "qwen/qwen3-vl-235b-a22b-instruct", provider: "deepinfra",
+        promptTokens: 1200, completionTokens: 400, reasoningTokens: 0,
+        costUsd: 0.0014, msFirstByte: 8200, msFirstItem: 9100, msTotal: 33000,
+        status: "ok", attempt: 0, fallbackUsed: false,
+        generationId: "gen-abc", images: 1, imageBytes: 2_000_000,
+      });
+      expect(rows[1]).toMatchObject({ status: "http_429", attempt: 1, modelServed: null });
+      expect(rows[2]).toMatchObject({ kind: "coach", analysisId: null });
+      // Scoped: b's row is never one of a's.
+      expect((await s.llmCalls(b)).map((r) => r.kind)).toEqual(["route"]);
+    });
+
+    it("moves an account's call rows on merge, drops the link — not the row — on refund", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      const analysisId = await s.recordAnalysis(anon, RUN_DATE, "photo");
+      await s.recordLlmCall(anon, llmCall({ analysisId }));
+      await s.recordLlmCall(anon, llmCall({ kind: "route", attempt: 0 }));
+      await s.mergeUsers(anon, real);
+      expect((await s.llmCalls(real)).length).toBe(2);
+      expect(await s.llmCalls(anon)).toEqual([]);
+
+      // `undoAnalysis` deletes the analysis row; the call it paid for still happened.
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const refunded = await s.recordAnalysis(u, RUN_DATE, "photo");
+      await s.recordLlmCall(u, llmCall({ analysisId: refunded }));
+      expect(await s.undoAnalysis(u, refunded)).toBe(true);
+      const after = await s.llmCalls(u);
+      expect(after.length).toBe(1);
+      expect(after[0]!.analysisId).toBeNull();
+    });
+
+    it("erases an account's call rows with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordLlmCall(userId, llmCall());
+      await s.deleteUser(userId);
+      expect(await s.llmCalls(userId)).toEqual([]);
     });
 
     // #708. A billed turn is claimed by the phone's id for it before anything runs, so a request

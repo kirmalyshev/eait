@@ -379,6 +379,41 @@ export interface StoredPhoto {
 }
 
 /**
+ * One PROVIDER CALL's metrics — never its content (#602).
+ *
+ * Written once per HTTP call the LLM ports make, charged or not: `analysisId` is the analysis the
+ * call was billed to, or null when the call belonged to no charged turn. `kind` is the engine's
+ * name for the call — `photo`, `clip`, `reread`, `route`, `text_meal`, `correction`, `coach` —
+ * and `status` how it ended: `ok`, `http_<n>`, `timeout`, `aborted` (the turn's own cutoff), a
+ * transport `error`, `schema_retry` (a reply that failed validation and was retried), `parse_error`
+ * (the same on the last attempt) or `truncated`. `modelServed`, `provider`, `generationId` and the
+ * token counts come off the provider's response — nulls when the call ended without one —
+ * and `fallbackUsed` is `modelServed !== modelRequested`, read off the response rather than asked.
+ */
+export interface LlmCall {
+  analysisId: string | null;
+  kind: string;
+  modelRequested: string;
+  modelServed: string | null;
+  provider: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  reasoningTokens: number | null;
+  costUsd: number | null;
+  msFirstByte: number | null;
+  msFirstItem: number | null;
+  msTotal: number;
+  status: string;
+  attempt: number;
+  fallbackUsed: boolean;
+  generationId: string | null;
+  images: number;
+  imageBytes: number;
+}
+
+export type StoredLlmCall = LlmCall & { id: string; createdAt: number };
+
+/**
  * One measurement of how this person's portions differ from the model's first read.
  *
  * `name_en` is the item's canonical English name, or its display name when it carried none — the
@@ -1617,6 +1652,19 @@ export interface Store {
   /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text" | "clip"): Promise<string>;
   /**
+   * ONE ROW PER PROVIDER CALL — the call's metrics, never its content (#602). No prompt text, no
+   * image bytes, no reply: `images` and `imageBytes` are counts and sums. Written after the call
+   * the way `addCost` is — fire and forget — so a row that cannot land is a log line, never a
+   * failed turn. Scoped `user_id = ?` like every write here; a row whose account went away mid-call
+   * answers false.
+   */
+  recordLlmCall(userId: string, call: LlmCall): Promise<boolean>;
+  /**
+   * This account's own provider-call rows, oldest first. For the metrics reader and the tests —
+   * no client route serves them. Scoped like the write.
+   */
+  llmCalls(userId: string): Promise<StoredLlmCall[]>;
+  /**
    * Add what one model call cost to the analysis that paid for it, as the provider reported it —
    * or, given null, count a call it did not price. ADDED, because one charge pays for several calls
    * and they land in any order. Scoped `id = ? AND user_id = ?`; false when no such row is theirs.
@@ -1627,7 +1675,7 @@ export interface Store {
    * (turn start) to the analyzer call; `firstItem` is call-to-first-item — null when the turn
    * never streamed one; `total` is call-to-answer. Scoped like `addCost`; false on no such row.
    */
-  recordTiming(userId: string, analysisId: string, timing: { queue: number; firstItem: number | null; total: number }): Promise<boolean>;
+  recordTiming(userId: string, analysisId: string, timing: { queue: number; firstItem: number | null; total: number; ground?: number | null }): Promise<boolean>;
   /**
    * What each of these analyses cost, for the admin's thread (#525). Scoped: only this account's
    * rows, and an id with no row — refunded, or not theirs — is simply absent, never a zero.
