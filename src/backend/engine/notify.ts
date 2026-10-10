@@ -29,7 +29,7 @@
 
 import { rotatedVariant, sendableCopy, sendLogUses } from "./push-templates.ts";
 import {
-  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, PUSH_TEMPLATE_VARIANTS, dailyMessage, loggedStreak, windowStart,
+  LOG_REPLY_CATEGORY, NOTIFICATION_IDS, PUSH_TEMPLATE_VARIANTS, dailyMessage, forgivingStreak, windowStart,
   DIARY_WINDOW_DAYS, entitlementActive, isPushRoute, isTimezone,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
@@ -361,10 +361,11 @@ async function triggerNotification(
   const { userId } = who;
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
-  const logged = new Set((await deps.store.totalsSince(userId, windowStart(date, DIARY_WINDOW_DAYS))).map((r) => r.date));
+  const rows = await deps.store.totalsSince(userId, windowStart(date, DIARY_WINDOW_DAYS));
+  const read = forgivingStreak(new Map(rows.map((r) => [r.date, r.kcal])), date, explainTargets(profile).basis.floorKcal);
 
   let key: NotificationId | null = null;
-  if (profile.onboarded_at && !logged.has(date) && loggedStreak(logged, date) >= STREAK_PUSH_MIN) {
+  if (profile.onboarded_at && !rows.some((r) => r.date === date) && read.streak >= STREAK_PUSH_MIN) {
     key = "streak-risk";
   } else {
     const since = daysBetween(localDate(zone, new Date(who.onboardedAt ?? who.createdAt)), date);

@@ -778,9 +778,9 @@ describe("the days read", () => {
 
     const today = TODAY();
     const d = (back: number) => dateMinus(today, back);
-    await store.insertMeal(aMeal(uid, d(2), 500));
-    await store.insertMeal(aMeal(uid, d(2), 300));
-    await store.insertMeal(aMeal(uid, d(0), 600));
+    await store.insertMeal(aMeal(uid, d(2), 800));
+    await store.insertMeal(aMeal(uid, d(2), 800));
+    await store.insertMeal(aMeal(uid, d(0), 1600));
 
     const res = await get(`${ROUTES.days}?from=${d(3)}&to=${d(0)}`, token);
     expect(res.status).toBe(200);
@@ -788,14 +788,14 @@ describe("the days read", () => {
 
     expect(out.days.map((day) => day.date)).toEqual([d(3), d(2), d(1), d(0)]);
     expect(out.days[0]).toMatchObject({ logged: false, kcal: 0, when: "past" });
-    expect(out.days[1]).toMatchObject({ logged: true, kcal: 800, when: "past" });
+    expect(out.days[1]).toMatchObject({ logged: true, kcal: 1600, when: "past" });
     expect(out.days[2]).toMatchObject({ logged: false, kcal: 0, when: "past" });
-    expect(out.days[3]).toMatchObject({ logged: true, kcal: 600, when: "today" });
+    expect(out.days[3]).toMatchObject({ logged: true, kcal: 1600, when: "today" });
     // The day's plan is sent once, not repeated per row: the session() profile's kcal target.
     const me = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
     expect(out.targetKcal).toBe(me.targets.kcal);
-    // Two logged days back, a blank one between: the run counts today alone.
-    expect(out.streak).toBe(1);
+    // Two logged days back, one blank between: the forgiving streak bends over it.
+    expect(out.streak).toBe(2);
   });
 
   it("marks a day after today empty rather than zero — a day not yet is not a day eaten at zero", async () => {
@@ -816,17 +816,17 @@ describe("the days read", () => {
     const today = TODAY();
     const d = (back: number) => dateMinus(today, back);
 
-    await store.insertMeal(aMeal(uid, d(1), 100));
-    await store.insertMeal(aMeal(uid, d(2), 100));
-    await store.insertMeal(aMeal(uid, d(3), 100));
-    // d(4) blank → the run is three days even though d(5) is also logged.
-    await store.insertMeal(aMeal(uid, d(5), 100));
+    await store.insertMeal(aMeal(uid, d(1), 1600));
+    await store.insertMeal(aMeal(uid, d(2), 1600));
+    await store.insertMeal(aMeal(uid, d(3), 1600));
+    // d(4) and d(5) blank → two in a row end the run at three, even though d(6) is also logged.
+    await store.insertMeal(aMeal(uid, d(6), 1600));
 
     const out = await (await get(`${ROUTES.days}?from=${d(6)}&to=${today}`, token)).json() as DaysResponse;
     expect(out.streak).toBe(3);
 
     // One logged meal today and the same run reads four.
-    await store.insertMeal(aMeal(uid, d(0), 100));
+    await store.insertMeal(aMeal(uid, d(0), 1600));
     const today2 = await (await get(`${ROUTES.days}?from=${d(6)}&to=${today}`, token)).json() as DaysResponse;
     expect(today2.streak).toBe(4);
   });

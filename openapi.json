@@ -4523,13 +4523,28 @@
           },
           "streak": {
             "type": "number",
-            "description": "Consecutive calendar days with at least one logged meal, counted backwards from today in the account's timezone. Today stays open: with nothing logged yet it does not break the run, and the streak counts from yesterday instead. A blank day ends it. Server-computed — the rule is a streak a client counted itself is a streak that disagrees with the server's."
+            "description": "The forgiving streak (#574), counted backwards from today in the account's timezone. A day counts when it has a meal AND reaches the account's calorie floor; one bent day (missed, or under the floor) is forgiven and adds nothing, two in a row end the streak. Today stays pending until it counts and never breaks it. Server-computed — a streak a client counted itself is a streak that disagrees with the server's."
+          },
+          "streakLongest": {
+            "type": "number",
+            "description": "The longest streak, the same rule over the diary window (`DIARY_WINDOW_DAYS`), not the account's whole history."
+          },
+          "streakState": {
+            "type": "string",
+            "enum": [
+              "holding",
+              "bent",
+              "ended"
+            ],
+            "description": "`bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak."
           }
         },
         "required": [
           "days",
           "targetKcal",
-          "streak"
+          "streak",
+          "streakLongest",
+          "streakState"
         ],
         "additionalProperties": false,
         "description": "`GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer."
@@ -4585,12 +4600,29 @@
           "date": {
             "type": "string",
             "description": "YYYY-MM-DD in the account's timezone."
+          },
+          "streak": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StreakMark"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the forgiving streak makes of this day (`forgivingStreak`); null for a future day and for a past day before the account's first meal, which no streak has judged."
+          },
+          "underFloor": {
+            "type": "boolean",
+            "description": "The day has a meal and its kcal is below the account's floor — it earns nothing."
           }
         },
         "required": [
           "date",
           "kcal",
           "logged",
+          "streak",
+          "underFloor",
           "when"
         ],
         "additionalProperties": false,
@@ -8214,6 +8246,16 @@
           14,
           30
         ]
+      },
+      "StreakMark": {
+        "type": "string",
+        "enum": [
+          "counted",
+          "bent",
+          "missed",
+          "pending"
+        ],
+        "description": "What the streak makes of one calendar day: `bent` is a day it forgave, `missed` one it did not."
       },
       "Struggle": {
         "type": "string",
