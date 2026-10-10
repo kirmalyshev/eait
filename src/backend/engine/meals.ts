@@ -399,7 +399,12 @@ export async function editMeal(
   // re-emits with different grams would be recorded as this person's portion — when it is one
   // estimator disagreeing with the other. The prior learns from the manual editor only, where every
   // changed number is one a person typed.
-  opts: { thread?: boolean; measure?: boolean } = {},
+  //
+  // `serverItems` is the NL path's provenance escape (#562): its items were grounded by THIS server
+  // in this same turn, so their `ref`/`food` are ours rather than a client's claim, and reconciling
+  // them against the stored meal would strip the provenance of every new or renamed item. Set by
+  // `applyCorrection` only; the PATCH route and the meal-update job never do.
+  opts: { thread?: boolean; measure?: boolean; serverItems?: boolean } = {},
 ): Promise<MealUpdated | TargetGone> {
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
@@ -417,7 +422,8 @@ export async function editMeal(
   // other `ref` — unknown, renamed, invented — is dropped with its `food`, and the item is the
   // client's estimate, as every edited item is. The totals below derive from the RECONCILED
   // items, so a recomputed row moves the header with it.
-  const items = patch.items === undefined ? undefined : reconcileRefs(patch.items, existing.items);
+  const items = patch.items === undefined ? undefined
+    : opts.serverItems === true ? patch.items : reconcileRefs(patch.items, existing.items);
 
   // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
   // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
@@ -668,7 +674,8 @@ export async function applyCorrection(
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g,
     carbs_g: analysis.carbs_g, fat_g: analysis.fat_g, satfat_g: analysis.satfat_g,
     fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g, sodium_mg: analysis.sodium_mg,
-  }, { thread: false, measure: false });
+    // These items are the server's own grounded analysis, so their ref/food are kept, not audited.
+  }, { thread: false, measure: false, serverItems: true });
   return res.kind === "updated" ? { ...res, via: "nl" } : res;
 }
 

@@ -9,7 +9,10 @@
 // Local catalog only (`food_ref`, loaded from the nightly fooddb snapshot): fooddb's README says
 // eait never calls the service live, and a lookup here must not be able to fail a meal.
 
-import type { FoodRef, FoodSnapshot, MealItem } from "@eait/shared";
+import {
+  MAX_SNAPSHOT_ATTRIBUTION, MAX_SNAPSHOT_ATTRIBUTIONS, MAX_SNAPSHOT_NAME,
+  type FoodRef, type FoodSnapshot, type MealItem,
+} from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -110,10 +113,12 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
  * `food_ref` and never a stored meal, which is why edits recompute from this and not the row.
  */
 const foodSnapshot = (f: Complete): FoodSnapshot => ({
-  name: f.name,
+  // Clamped to the bounds `isEditMealRequest` accepts, so a catalog row that ever exceeded one
+  // could not make the meal it grounded uneditable by echo (#562).
+  name: f.name.slice(0, MAX_SNAPSHOT_NAME),
   source: f.source,
   per100: { kcal: f.kcal_per_100g, protein_g: f.protein_g_per_100g, carbs_g: f.carbs_g_per_100g, fat_g: f.fat_g_per_100g },
-  attribution: f.attribution ?? [],
+  attribution: (f.attribution ?? []).slice(0, MAX_SNAPSHOT_ATTRIBUTIONS).map((t) => t.slice(0, MAX_SNAPSHOT_ATTRIBUTION)),
 });
 
 /**

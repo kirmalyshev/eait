@@ -958,9 +958,11 @@ const ITEM_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] 
 // re-derives both from the stored meal (#562), so a sent one only has to be small and shaped.
 const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", "role", "ref", "food", ...ITEM_NUMBERS]);
 const PER100_KEYS = ["kcal", "protein_g", "carbs_g", "fat_g"] as const;
-const MAX_SNAPSHOT_NAME = 200;
-const MAX_SNAPSHOT_ATTRIBUTIONS = 8;
-const MAX_SNAPSHOT_ATTRIBUTION = 500;
+// Exported because the server writes `food` too: `foodSnapshot` (engine/ground.ts) clamps to these
+// same bounds, so a row the catalog ever ships can never make a meal uneditable (#562).
+export const MAX_SNAPSHOT_NAME = 200;
+export const MAX_SNAPSHOT_ATTRIBUTIONS = 8;
+export const MAX_SNAPSHOT_ATTRIBUTION = 500;
 /** The shape a client echoes, not the truth: `editMeal` replaces this with the stored row's. */
 const isFoodSnapshot = (v: unknown): boolean => {
   if (typeof v !== "object" || v === null) return false;

@@ -2588,6 +2588,30 @@ describe("text turns are grounded in the food catalog", () => {
     if (res.kind !== "updated") throw new Error(`expected updated, got ${res.kind}`);
     expect(res.analysis.kcal).toBe(160);
   });
+
+  it("a typed correction keeps the provenance it was grounded with; a client's PATCH is reconciled (#562)", async () => {
+    await store.putFoodRefs([oats]);
+    const userId = await onboard();
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    // The correction's item is new to this meal AND the server grounded it this turn: ref+food
+    // must survive applyCorrection, or a renamed item would show "Estimate" over catalog numbers.
+    const res = await handleText(makeDeps({}, corrected("oat porridge")), userId, { text: "it was porridge", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error(`expected updated, got ${res.kind}`);
+    const stored = (await store.getMeal(userId, first.mealId))!;
+    expect(stored.items[0]).toMatchObject({ ref: "usda-sr:oat-porridge", food: { source: "usda-sr", name: "oat porridge" } });
+
+    // The SAME items sent as a client's PATCH on a meal that never had them are claims, not
+    // provenance: ref and food drop, and the item is an estimate.
+    const second = await logPhotoMeal(deps, userId, photo());
+    if (second.kind !== "logged") throw new Error("expected logged");
+    const patched = await editMeal(deps, userId, second.mealId, { items: stored.items });
+    if (patched.kind !== "updated") throw new Error(`expected updated, got ${patched.kind}`);
+    const after = (await store.getMeal(userId, second.mealId))!;
+    expect(after.items[0]).not.toHaveProperty("ref");
+    expect(after.items[0]).not.toHaveProperty("food");
+    expect(after.items[0]!.kcal).toBe(140);
+  });
 });
 
 // The admin's grounding switches (#563): separate per path, default on, read per request.
