@@ -17,7 +17,8 @@ import { postgresStore } from "../backend/store.pg.ts";
 
 const args = process.argv.slice(2);
 const fromApi = args.includes("--from-api");
-const file = args.find((a) => !a.startsWith("--") && a !== args[args.indexOf("--day") + 1]);
+const dayAt = args.indexOf("--day");
+const file = args.find((a, i) => !a.startsWith("--") && (dayAt < 0 || i !== dayAt + 1));
 const databaseUrl = process.env.EAIT__BACKEND__DATABASE_URL;
 if ((!file && !fromApi) || !databaseUrl) {
   console.error("usage: EAIT__BACKEND__DATABASE_URL=… bun src/scripts/foods-load.ts <export.ndjson[.gz]> | --from-api [--day YYYY-MM-DD]");
@@ -26,7 +27,6 @@ if ((!file && !fromApi) || !databaseUrl) {
 
 let text: string;
 if (fromApi) {
-  const dayAt = args.indexOf("--day");
   const got = await fetchSnapshotExport(process.env.EAIT__BACKEND__FOODDB_READ_KEY ?? "", {
     ...(process.env.EAIT__BACKEND__FOODDB_URL ? { base: process.env.EAIT__BACKEND__FOODDB_URL } : {}),
     ...(dayAt >= 0 && args[dayAt + 1] ? { day: args[dayAt + 1]! } : {}),
