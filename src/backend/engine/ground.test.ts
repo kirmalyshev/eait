@@ -133,3 +133,34 @@ describe("ranking the candidates", () => {
     expect(lookupWords("Fried chicken drumsticks with the skin")).toEqual(["chicken", "drumstick", "skin"]);
   });
 });
+
+describe("matcher A3b: rewrites, sushi, modifier-drop (#567)", () => {
+  test("meatloaf is looked up as two words", () => {
+    expect(lookupWords("meatloaf")).toEqual(["meat", "loaf"]);
+  });
+  test("omelet is looked up as omelette", () => {
+    expect(lookupWords("cheese omelet")).toEqual(["cheese", "omelette"]);
+  });
+  test("breadstick is looked up as bread stick", () => {
+    expect(lookupWords("breadsticks")).toEqual(["bread", "stick"]);
+  });
+  test("pork knuckle is looked up as ham knuckle", () => {
+    expect(lookupWords("pork knuckle")).toEqual(["ham", "knuckle"]);
+  });
+  test("a sushi or X-roll name looks up sushi rows and is scored as sushi maki <filling>", async () => {
+    expect(lookupWords("California roll")).toEqual(["sushi"]);
+    const rows = [ref("sushi maki salmon", 140), ref("sushi maki tuna", 130)];
+    const { analysis, grounded } = await groundAnalysis(depsWith(rows), meal([model("tuna roll", 100, 135)]));
+    expect(grounded).toBe(1);
+    expect(analysis.items[0]?.ref).toBe("usda-sr:sushi maki tuna");
+  });
+  test("a bread roll is not sushi", () => {
+    expect(lookupWords("cinnamon roll")).toEqual(["cinnamon", "roll"]);
+  });
+  test("a miss retries without leading modifiers, and never falls back to the head noun alone", async () => {
+    const hit = await groundAnalysis(depsWith([ref("salmon", 200)]), meal([model("large grilled salmon", 100, 190)]));
+    expect(hit.grounded).toBe(1);
+    const miss = await groundAnalysis(depsWith([ref("salmon", 200)]), meal([model("smoked salmon pasta", 100, 190)]));
+    expect(miss.grounded).toBe(0);
+  });
+});
