@@ -125,9 +125,6 @@ services:
       # deployed, correct and read by nobody, with no error and no log line.
       # `src/scripts/prod-env.test.ts` is the guard for that.
       EAIT__BACKEND__LLM_API_KEY: ${EAIT__BACKEND__LLM_API_KEY:?set EAIT__BACKEND__LLM_API_KEY}
-      # OPTIONAL — the Analytics API's management key, read only by
-      # src/scripts/openrouter-analytics.ts; empty means that script skips.
-      EAIT__BACKEND__OPENROUTER_MANAGEMENT_KEY: ${EAIT__BACKEND__OPENROUTER_MANAGEMENT_KEY-}
       EAIT__BACKEND__LLM_PROVIDER: ${EAIT__BACKEND__LLM_PROVIDER:-openrouter}
       EAIT__BACKEND__LLM_MODEL: ${EAIT__BACKEND__LLM_MODEL:-qwen/qwen3-vl-235b-a22b-instruct}
       EAIT__BACKEND__LLM_CHAT_MODEL: ${EAIT__BACKEND__LLM_CHAT_MODEL:-x-ai/grok-4.6}
