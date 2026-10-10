@@ -36,6 +36,8 @@ type Outcome = PhotoLast | MealUpdateLast;
 interface JobHandler {
   /** The highest `request_version` this build reads. */
   version: number;
+  /** Whether a job's `group` keeps a second one queued while the first runs. */
+  grouped?: boolean;
   calls(job: JobRecord): number;
   /** Whether a job whose worker died may run again. */
   retryable(job: JobRecord): boolean;
@@ -93,14 +95,19 @@ const HANDLERS: Record<JobKind, JobHandler> = {
   },
   "meal-update": {
     version: 1,
+    // One change at a time per meal (#1347): a second update on the same meal waits for the first.
+    grouped: true,
     calls: (job) => (job.request as MealUpdateRequest).kind === "note" ? TEXT_MODEL_CALLS : PHOTO_MODEL_CALLS,
     // `ingredients` and `reread` overwrite the meal; a note writes chat lines that a second run would repeat.
     retryable: (job) => (job.request as MealUpdateRequest).kind !== "note",
-    async run(deps, job, progress) {
+    async run(deps, job, progress, lost) {
       const { userId, clientId } = job;
+      // A dead attempt delivered nothing: its charge stays on the ledger, its sample is the user's again.
+      if (job.attempts > 1 && job.analysisId !== null) await releaseSample(deps, userId, job.analysisId);
       const input = job.request as MealUpdateRequest;
       const was = await deps.store.getMeal(userId, input.mealId);
       const to = (step: PhotoJobStep) => () => progress(step);
+      const onCharged = async (id: string) => { if (!(await deps.store.chargeJob(userId, clientId, owner, id))) throw lost(); };
       let result: MealUpdateLast;
       switch (input.kind) {
         case "ingredients":
@@ -108,13 +115,14 @@ const HANDLERS: Record<JobKind, JobHandler> = {
           result = await editMeal(deps, userId, input.mealId, input.edit);
           break;
         case "reread":
-          result = await reanalyzeMeal(deps, userId, input.mealId, (e) => { if (e.kind === "item") to(2)(); }, to(3));
+          result = await reanalyzeMeal(deps, userId, input.mealId, (e) => { if (e.kind === "item") to(2)(); }, to(3), onCharged);
           break;
         case "note":
           // The router's answer is step 2's start, the stored write step 3's.
           result = await textTurn({
             ...deps, llm: after(deps.llm, "routeText", to(2)), store: after(deps.store, "updateMeal", to(3)),
-          }, userId, { text: input.text, focusMealId: input.mealId, clientId, ...(input.capturedAt ? { capturedAt: input.capturedAt } : {}) });
+          }, userId, { text: input.text, focusMealId: input.mealId, clientId,
+            ...(input.capturedAt ? { capturedAt: input.capturedAt } : {}), job: { owner, lost } });
       }
       return {
         result,
@@ -125,7 +133,7 @@ const HANDLERS: Record<JobKind, JobHandler> = {
     },
   },
 };
-const REGISTRY = Object.entries(HANDLERS).map(([kind, h]) => ({ kind, version: h.version }));
+const REGISTRY = Object.entries(HANDLERS).map(([kind, h]) => ({ kind, version: h.version, ...(h.grouped ? { grouped: true } : {}) }));
 
 const keyOf = (userId: string, jobId: string) => `${userId}\u0000${jobId}`;
 /** Every job this process holds the lease on, by key. */
@@ -148,6 +156,8 @@ async function runJob(deps: EngineDeps, job: JobRecord): Promise<void> {
     return false;
   });
   if (job.attempts > 1 && !h.retryable(job)) {
+    // The dead attempt's charge stays on the ledger; the sample it never delivered is given back.
+    if (job.analysisId !== null) await releaseSample(deps, userId, job.analysisId).catch(failed("sample not released"));
     await settle({ kind: OUTCOME_UNKNOWN });
     return;
   }
@@ -254,7 +264,8 @@ export async function queuePhoto(
 export async function queueMealUpdate(
   deps: EngineDeps, userId: string, input: MealUpdateRequest,
 ): Promise<PhotoQueuedResponse> {
-  const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version, request: input, step: 1, photos: [] };
+  const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version,
+    request: input, step: 1, photos: [], group: `${userId}:${input.mealId}` };
   if (await deps.store.enqueueJob(userId, job)) wake();
   return { kind: "queued", jobId: input.clientId };
 }

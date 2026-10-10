@@ -110,6 +110,24 @@ function jobs(name: string, make: () => Promise<Store>) {
       expect(await s.removeJob(userId, j.clientId)).toBe(false);
     });
 
+    it("claims one grouped job at a time per group: a second one waits for the first to settle", async () => {
+      const { s, userId } = await fresh();
+      const GROUPED = [{ kind: KIND, version: 1, grouped: true }];
+      const a1 = job({ group: `${userId}:m1` }), a2 = job({ group: `${userId}:m1` });
+      const b = job({ group: `${userId}:m2` }), free = job();
+      for (const j of [a1, a2, b, free]) expect(await s.enqueueJob(userId, j)).toBe(true);
+      const claimed: string[] = [];
+      for (;;) {
+        const j = await s.claimJob("w", GROUPED, LEASE_MS);
+        if (!j) break;
+        claimed.push(j.clientId);
+      }
+      expect(claimed).toEqual(expect.arrayContaining([a1.clientId, b.clientId, free.clientId]));
+      expect(claimed).not.toContain(a2.clientId);
+      expect(await s.settleJob(userId, a1.clientId, "w", { kind: "done" })).toBe(true);
+      expect(await s.claimJob("w", GROUPED, LEASE_MS)).toMatchObject({ clientId: a2.clientId });
+    });
+
     it("hands a released job to the next claimer as a second attempt, and fences the first one out", async () => {
       const { s, userId } = await fresh();
       const j = job();

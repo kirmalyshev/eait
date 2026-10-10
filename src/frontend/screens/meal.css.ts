@@ -57,6 +57,7 @@ export const mealCss = `
 .mi:hover{background:var(--bg)}
 .mi.bad{color:var(--bad)} .mi.bad .ico{background:var(--bad)}
 .mi:disabled{opacity:.5;cursor:default}
+.mnote{padding:0 12px 8px;font-size:12px;line-height:1.4;color:var(--muted)}
 
 /* The overlays — the score breakdown at 36 % ink, the delete ask at 42 %, both boards' own dims. */
 .mscrim{position:fixed;inset:0;background:color-mix(in srgb, var(--ink) 36%, transparent);display:flex;align-items:center;

@@ -699,6 +699,8 @@ export async function reanalyzeMeal(
   onEvent?: (event: PhotoEvent) => void,
   /** The read is in and the meal is being written: the queued re-read's last step (ieat-app#1347). */
   onCounting?: () => void,
+  /** A queued job's charge record — `analyzePhotos`'s own `onCharged`, forwarded (ieat-app#1347). */
+  onCharged?: (analysisId: string) => Promise<void>,
 ): Promise<MealUpdated | TargetGone | Refusal> {
   const existing = await deps.store.getMeal(userId, mealId);
   if (!existing) return { kind: "target-gone", on: "correction" };
@@ -709,7 +711,7 @@ export async function reanalyzeMeal(
   // The words that went with the photos, as the analyzer first saw them (#608): a re-read is an
   // edit that changed nothing, so it reads the same caption the edit path would.
   const line = await deps.store.photoLineFor(userId, mealId);
-  return rewriteMeal(deps, userId, existing, profile, line?.text ?? undefined, async () => [], onEvent, onCounting);
+  return rewriteMeal(deps, userId, existing, profile, line?.text ?? undefined, async () => [], onEvent, onCounting, onCharged);
 }
 
 /**
@@ -727,6 +729,7 @@ export async function rewriteMeal(
   deps: EngineDeps, userId: string, existing: MealRecord, profile: Profile,
   caption: string | undefined, added: () => Promise<Uint8Array[]>, onEvent: ((event: PhotoEvent) => void) | undefined,
   onCounting?: () => void,
+  onCharged?: (analysisId: string) => Promise<void>,
 ): Promise<MealUpdated | TargetGone | Refusal> {
   const today = localDate(deps.config.timezone);
   // Captured here rather than trusted from `read.images`: the stored count can be stale (another
@@ -738,7 +741,7 @@ export async function rewriteMeal(
       addedBytes = await added();
       return [...(await deps.store.getPhotos(userId, existing.id)).map((p) => p.bytes), ...addedBytes];
     },
-    caption, onEvent);
+    caption, onEvent, new Date(), "photo", Date.now(), onCharged);
   if (read.kind !== "read") return read;
   onCounting?.();
   const { analysis } = read;

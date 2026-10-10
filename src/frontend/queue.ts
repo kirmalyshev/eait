@@ -169,7 +169,7 @@ export function updateBannerEl(mealId: string): HTMLElement {
     });
     const bar = el("i", "mbar");
     bar.style.width = `${waiting ? 0 : percent(job)}%`;
-    box.replaceChildren(...(waiting ? [el("span", "qstep still", homeCopyFor(lang).queue.waiting)] : []), list, bar);
+    box.replaceChildren(...(waiting ? [el("span", "qstep still", updateCopyFor(lang).waiting)] : []), list, bar);
     box.setAttribute("role", "status");
   };
   views.add(draw);
@@ -248,13 +248,14 @@ async function follow(job: Job): Promise<void> {
   }
 }
 
-/** An update lands as the meal's new numbers; anything else keeps the meal as it was. */
+/** An update lands as the meal's new numbers — a `redated` note moved it off the day — anything else keeps it as it was. */
 function settleUpdate(job: Job, result: PhotoLast | MealUpdateLast | null, words: string | null): void {
-  if (result?.kind === "updated" || result?.kind === "target-gone") { drop(job); redrawScreen(); return; }
+  if (result?.kind === "updated" || result?.kind === "redated" || result?.kind === "target-gone") { drop(job); redrawScreen(); return; }
   const failed = result === null || result.kind === "outcome-unknown" || result.kind === "analysis-failed";
   job.state = failed ? "failed" : "refused";
   job.words = result === null ? words
     : result.kind === "answered" ? result.text
+    : result.kind === "proposed" ? updateCopyFor(lang).refusedOtherMeal
     : failed ? null : refusalWords(new ApiError(0, { error: result.kind }, result.kind));
   changed();
 }
@@ -402,7 +403,7 @@ export function updateRowEl(job: Job): HTMLElement {
   mm.append(el("b", "", u.name));
   if (job.state === "reading" || job.state === "waiting") {
     ringInto(th, job);
-    mm.append(el("span", `qstep${job.state === "waiting" ? " still" : ""}`, job.state === "waiting" ? Q.waiting : job.line ?? U.steps[u.kind][0]!));
+    mm.append(el("span", `qstep${job.state === "waiting" ? " still" : ""}`, job.state === "waiting" ? U.waiting : job.line ?? U.steps[u.kind][0]!));
     const kc = el("div", "qold");
     kc.append(el("span", "num", kcalNumbers(lang)(u.kcal)), el("i", "", "→"), skeleton("34px", "14px"));
     row.append(th, mm, kc);

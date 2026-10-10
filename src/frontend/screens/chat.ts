@@ -9,6 +9,7 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { updateCopyFor } from "../../shared/app/update-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { localDate } from "../../shared/dates.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
@@ -25,6 +26,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { blobSrc, gramMacsEl, optionRowEl, spudAvatarEl, verdictListEl } from "../kit.ts";
 import { failureOf, outbox } from "../outbox.ts";
 import { shrinkPhotos } from "../photo.ts";
+import { updateFor } from "../queue.ts";
 import {
   COPY, MESSAGES, dayPickerButton, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   failBadge, heldProposal, kept, keptLineEl, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
@@ -351,11 +353,15 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     list.addEventListener("load", (ev) => {
       if ((ev.target as HTMLElement).tagName === "IMG") bottom();
     }, true);
-    // The composer's prompt is the empty thread's ask until a line is in it.
-    words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
+    // The composer's prompt is the empty thread's ask until a line is in it — a focused meal with
+    // a job running reads "This meal is updating" and Send stays off until it lands (#1347).
+    const mealUpdating = focusMeal !== null && updateFor(focusMeal.id) !== undefined;
+    words.placeholder = mealUpdating ? updateCopyFor(lang).mealUpdating
+      : focusMeal !== null ? mealCopyFor(lang).composeHint
       : entries.length === 0 || coachName() === null ? copy().composerAsk
       : copy().composerThread;
     words.setAttribute("aria-label", words.placeholder);
+    send.disabled = mealUpdating;
     if (unread !== null) throw unread;
   };
 

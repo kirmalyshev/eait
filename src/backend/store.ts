@@ -36,6 +36,11 @@ export interface NewJob {
   /** The step a queued job shows before a worker reports one. */
   step: number;
   photos: { mime: string; bytes: Uint8Array }[];
+  /**
+   * When set, jobs of the same kind sharing it claim one at a time (#1347): the meal an update
+   * job corrects, so a second change waits instead of racing the first. Absent = never grouped.
+   */
+  group?: string;
 }
 export interface JobRecord {
   userId: string;
@@ -1485,9 +1490,10 @@ export interface Store {
   /**
    * The next job this build can run — queued, or running with an expired lease and under two
    * attempts, whose kind is in `registry` at a `request_version` it reads — leased to `owner` for
-   * `leaseMs`. Two concurrent claimers never get the same job.
+   * `leaseMs`. Two concurrent claimers never get the same job, and a `grouped` entry's job with a
+   * `group` waits while a running job shares it.
    */
-  claimJob(owner: string, registry: { kind: string; version: number }[], leaseMs: number): Promise<JobRecord | null>;
+  claimJob(owner: string, registry: { kind: string; version: number; grouped?: boolean }[], leaseMs: number): Promise<JobRecord | null>;
   /** Extend every lease `owner` holds; the number held. */
   heartbeatJobs(owner: string, leaseMs: number): Promise<number>;
   /** Shutdown: hand every job `owner` still runs back to the queue, so another replica claims it at once. */

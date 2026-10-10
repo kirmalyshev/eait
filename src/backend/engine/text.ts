@@ -59,6 +59,8 @@ export interface HandleTextInput {
   clientId?: string;
   /** When the words were sent. A queued turn reads "yesterday" against the day it was typed. */
   capturedAt?: string;
+  /** A queued job's run: its charge is written under `owner`'s lease, and `lost()` ends it when the lease is gone. */
+  job?: { owner: string; lost: () => Error };
 }
 
 export async function handleText(
@@ -91,6 +93,7 @@ export async function textTurn(
   const refusal = await checkCaps(deps, userId, chargeDay, "text");
   if (refusal) return refusal;
   const { analysisId, onCost } = await charge(deps, userId, chargeDay, "text");
+  if (input.job && !(await deps.store.chargeJob(userId, input.clientId!, input.job.owner, analysisId))) throw input.job.lost();
 
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)
