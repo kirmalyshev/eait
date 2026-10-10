@@ -153,9 +153,11 @@ export async function milestonesScreen(_frame: Frame): Promise<HTMLElement> {
   top.append(back, el("h1", "d d22", c.title));
 
   const hd = el("div", "mhd");
-  for (const [id, label] of [[FLAME, c.dayStreak], [GEM, c.badgesEarned]] as const) {
+  for (const [id, label, figure] of [[FLAME, c.dayStreak, m.streak], [GEM, c.badgesEarned, earned]] as const) {
     const cell = el("div", "");
-    cell.append(img(id), el("b", "", label));
+    const mic = el("span", "mic");
+    mic.append(img(id), el("i", "", n(figure)));
+    cell.append(mic, el("b", "", label));
     hd.append(cell);
   }
 

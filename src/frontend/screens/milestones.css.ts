@@ -9,6 +9,10 @@ export const milestonesCss = `
 .mls .mtop { display: flex; align-items: center; gap: 8px; }
 .mls .mhd { display: grid; grid-template-columns: 1fr 1fr; text-align: center; }
 .mls .mhd img { width: 96px; height: 96px; object-fit: contain; display: block; margin: 0 auto; }
+.mic { position: relative; display: block; width: 96px; margin: 0 auto; }
+.mic i { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-style: normal; font-size: 30px;
+  font-weight: 800; color: #fff; letter-spacing: -.02em;
+  text-shadow: 0 1px 0 #7A2E00, 0 -1px 0 #7A2E00, 1px 0 0 #7A2E00, -1px 0 0 #7A2E00, 0 0 8px rgba(122,46,0,.9), 0 3px 5px rgba(0,0,0,.45); }
 .mls .mhd b { display: block; font-weight: 600; font-size: 16px; }
 .mls .mst { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mls .mst > div { display: flex; gap: 8px; align-items: center; background: var(--surface); border-radius: 16px;
@@ -53,6 +57,7 @@ a.mrow .ico { width: 18px; height: 18px; }
 /* Badge Unlocked — the board's 420px card, green washing to the surface. */
 .panel.mu { width: 420px; min-height: 560px; display: flex; flex-direction: column; padding: 24px 28px; position: relative;
   background: linear-gradient(160deg, #1E6B3C 0%, #5BB37E 38%, var(--surface) 62%); }
+.panel.mu:focus, .panel.mu:focus-visible { outline: 0; }
 .mu .mux { position: absolute; top: 16px; right: 16px; }
 .mu .ul { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .mu .ul img { width: 250px; height: 250px; object-fit: contain; }
