@@ -33,6 +33,7 @@ const VARS = [
   "EAIT__BACKEND__LANDING_URL", "EAIT__BACKEND__TERMS_URL",
   "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN", "EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX",
   "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
+  "EAIT__BACKEND__REFERRAL_FRIEND_DAYS", "EAIT__BACKEND__REFERRAL_REWARD_DAYS",
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__WEB_PUSH_VAPID_PUBLIC_KEY", "EAIT__BACKEND__WEB_PUSH_VAPID_PRIVATE_KEY", "EAIT__BACKEND__WEB_PUSH_SUBJECT", "EAIT__BACKEND__PUSH_TIMEOUT_MS", "EAIT__BACKEND__SHUTDOWN_DRAIN_MS",
   "EAIT__BACKEND__JOB_CONCURRENCY", "EAIT__BACKEND__JOB_MAX_QUEUED_MS",
   "EAIT__BACKEND__EVENING_LINE_TIME",
@@ -496,6 +497,24 @@ describe("the paid tier", () => {
     expect(c.freeAnalyses).toBe(7);
     expect(c.paidDailyPhotoCap).toBe(99);
     expect(c.revenueCatAcceptSandbox).toBe(true);
+  });
+
+  // #899: a friend's week and the referrer's reward per product. Unset is a week for the friend
+  // and no per-product override — the engine then tells a yearly product by its name.
+  it("reads the referral weeks, and refuses a reward entry it cannot read", () => {
+    withRequired();
+    expect(loadConfig()).toMatchObject({ referralFriendDays: 7, referralRewardDays: {} });
+    withRequired({
+      EAIT__BACKEND__REFERRAL_FRIEND_DAYS: "10",
+      EAIT__BACKEND__REFERRAL_REWARD_DAYS: " com.example.annual = 14 , com.example.month=7 ",
+    });
+    expect(loadConfig()).toMatchObject({
+      referralFriendDays: 10, referralRewardDays: { "com.example.annual": 14, "com.example.month": 7 },
+    });
+    withRequired({ EAIT__BACKEND__REFERRAL_REWARD_DAYS: "yearly" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__REFERRAL_REWARD_DAYS/);
+    withRequired({ EAIT__BACKEND__REFERRAL_REWARD_DAYS: "yearly=-1" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__REFERRAL_REWARD_DAYS/);
   });
 
   // The old per-day free cap described a tier that no longer exists. Setting it must be a startup
