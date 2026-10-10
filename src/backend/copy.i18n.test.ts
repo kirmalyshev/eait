@@ -15,8 +15,9 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "@eait/shared";
 import * as page from "./web/copy.ts";
+import * as mail from "./mail/copy.ts";
 
-const TABLES = { page };
+const TABLES = { page, mail };
 
 describe("every Localized table the backend owns", () => {
   it("speaks every language LANGS_READY claims", () => {
@@ -27,7 +28,7 @@ describe("every Localized table the backend owns", () => {
     // `localizedGaps` reports nothing for a root it found no tables in, which is indistinguishable
     // from a clean one. Asking for a language nobody has written proves it found it.
     const found = new Set(localizedGaps(TABLES, ["en", "zz" as never]).map((g) => g.table.split(".")[0]));
-    expect([...found].sort()).toEqual(["page"]);
+    expect([...found].sort()).toEqual(["mail", "page"]);
   });
   it("never tells a Russian reader what gender they are", () => {
     // Russian past tense agrees with the speaker's gender and has no neutral form, so `что ты ел?`
