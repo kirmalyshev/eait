@@ -3505,7 +3505,10 @@ export async function postgresStore(
         await boss.send(queue, {
           userId, clientId: input.clientId, kind: input.kind, requestVersion: input.requestVersion,
           request: input.request, step: input.step, items: [], updatedAt: new Date(now()).toISOString(),
-        }, { db: { executeSql: async (text, values) => ({ rows: (await tx.unsafe(text, values as unknown[])) as unknown[] }) } });
+        }, {
+          db: { executeSql: async (text, values) => ({ rows: (await tx.unsafe(text, values as unknown[])) as unknown[] }) },
+          ...(input.group !== undefined ? { group: { id: input.group } } : {}),
+        });
         for (const [i, p] of input.photos.entries()) {
           await tx`
             insert into meal_photos (id, meal_id, user_id, client_id, position, mime, bytes)
@@ -3636,9 +3639,12 @@ export async function postgresStore(
     // job whose heartbeat lapsed, up to the queue's `retryLimit` of 1 — two attempts, as before.
     // The owner and the per-job heartbeat window are ours, stamped right after the claim.
     async claimJob(owner, registry, leaseMs) {
-      for (const { kind, version } of registry) {
+      for (const { kind, version, grouped } of registry) {
         for (let v = 1; v <= version; v++) {
-          const [job] = await boss.fetch(await jobQueue(kind, v), { batchSize: 1 });
+          // `groupConcurrency: 1` is pg-boss's own answer to one-job-per-group (#1347): a created
+          // job whose group a running job already holds is filtered out of the fetch, so the next
+          // eligible job claims instead and the waiting one runs when the first settles.
+          const [job] = await boss.fetch(await jobQueue(kind, v), { batchSize: 1, ...(grouped ? { groupConcurrency: 1 } : {}) });
           if (!job) continue;
           await sql`
             update pgboss.job set heartbeat_on = now(), heartbeat_seconds = ${heartbeatSeconds(leaseMs)},

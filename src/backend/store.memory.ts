@@ -198,7 +198,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   let analysisSeq = 0;
   // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
   const turns = new Map<string, { userId: string; clientId: string; outcome: object | null; claimedAt: number }>();
-  const jobs = new Map<string, JobRecord & { photos: { mime: string; bytes: Uint8Array }[] }>();
+  const jobs = new Map<string, JobRecord & { photos: { mime: string; bytes: Uint8Array }[]; group?: string }>();
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: {
@@ -237,7 +237,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
-  const asRecord = ({ photos: _photos, ...j }: JobRecord & { photos: unknown }): JobRecord => ({
+  const asRecord = ({ photos: _photos, group: _group, ...j }: JobRecord & { photos: unknown; group?: string }): JobRecord => ({
     ...clone(j), outcome: turns.get(`${j.userId}\n${j.clientId}`)?.outcome ?? null,
   });
   // `onJobNotify`'s twin: delivered after the write, as Postgres delivers on commit.
@@ -1648,6 +1648,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         state: "queued", attempts: 0, step: input.step, items: [], leaseOwner: null, leaseUntil: null, mealId: null, analysisId: null,
         removedAt: null, followedUntil: null, pushedAt: null, createdAt: now(), updatedAt: now(), outcome: null,
         photos: input.photos.map((p) => ({ mime: p.mime, bytes: new Uint8Array(p.bytes) })),
+        ...(input.group !== undefined ? { group: input.group } : {}),
       });
       notifyEnqueued();
       return true;
@@ -1743,8 +1744,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async claimJob(owner, registry, leaseMs) {
       const j = [...jobs.values()]
-        .filter((x) => registry.some((r) => r.kind === x.kind && x.requestVersion <= r.version)
-          && (x.state === "queued" || (x.state === "running" && x.leaseUntil! < now() && x.attempts < 2)))
+        .filter((x) => {
+          const r = registry.find((r) => r.kind === x.kind && x.requestVersion <= r.version);
+          if (!r || !(x.state === "queued" || (x.state === "running" && x.leaseUntil! < now() && x.attempts < 2))) return false;
+          return !(r.grouped && x.group !== undefined
+            && [...jobs.values()].some((o) => o.state === "running" && o.kind === x.kind && o.group === x.group));
+        })
         .sort((a, b) => a.createdAt - b.createdAt)[0];
       if (!j) return null;
       j.state = "running"; j.leaseOwner = owner; j.leaseUntil = now() + leaseMs; j.attempts++; j.updatedAt = now();

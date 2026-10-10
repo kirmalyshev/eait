@@ -36,6 +36,8 @@ type Outcome = PhotoLast | MealUpdateLast;
 interface JobHandler {
   /** The highest `request_version` this build reads. */
   version: number;
+  /** Whether a job's `group` keeps a second one queued while the first runs. */
+  grouped?: boolean;
   calls(job: JobRecord): number;
   /** Whether a job whose worker died may run again. */
   retryable(job: JobRecord): boolean;
@@ -93,6 +95,8 @@ const HANDLERS: Record<JobKind, JobHandler> = {
   },
   "meal-update": {
     version: 1,
+    // One change at a time per meal (#1347): a second update on the same meal waits for the first.
+    grouped: true,
     calls: (job) => (job.request as MealUpdateRequest).kind === "note" ? TEXT_MODEL_CALLS : PHOTO_MODEL_CALLS,
     // `ingredients` and `reread` overwrite the meal; a note writes chat lines that a second run would repeat.
     retryable: (job) => (job.request as MealUpdateRequest).kind !== "note",
@@ -125,7 +129,7 @@ const HANDLERS: Record<JobKind, JobHandler> = {
     },
   },
 };
-const REGISTRY = Object.entries(HANDLERS).map(([kind, h]) => ({ kind, version: h.version }));
+const REGISTRY = Object.entries(HANDLERS).map(([kind, h]) => ({ kind, version: h.version, ...(h.grouped ? { grouped: true } : {}) }));
 
 const keyOf = (userId: string, jobId: string) => `${userId}\u0000${jobId}`;
 /** Every job this process holds the lease on, by key. */
@@ -254,7 +258,8 @@ export async function queuePhoto(
 export async function queueMealUpdate(
   deps: EngineDeps, userId: string, input: MealUpdateRequest,
 ): Promise<PhotoQueuedResponse> {
-  const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version, request: input, step: 1, photos: [] };
+  const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version,
+    request: input, step: 1, photos: [], group: `${userId} ${input.mealId}` };
   if (await deps.store.enqueueJob(userId, job)) wake();
   return { kind: "queued", jobId: input.clientId };
 }
