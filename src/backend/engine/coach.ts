@@ -13,7 +13,7 @@ import {
   type MealRecord, type Profile,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
-import type { CoachContext, CoachHistoryLine, CoachTools, OnCost } from "../llm/port.ts";
+import type { CoachContext, CoachHistoryLine, CoachTools, OnCall, OnCost } from "../llm/port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals, toAnalysis } from "./meals.ts";
@@ -34,6 +34,8 @@ export interface CoachTurnInput {
   today: string;
   /** Where the coach's calls report their cost: the analysis this turn was charged. */
   onCost?: OnCost | undefined;
+  /** Where the coach's calls report their per-call metrics — the same analysis (#602). */
+  onCall?: OnCall | undefined;
 }
 
 /**
@@ -83,7 +85,7 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
       : `around ${projectionMonth(new Date(), projected.weeks, input.profile.lang)}`,
   };
   const out = await deps.llm.coach(
-    { text: input.text, context, history: input.history, onCost: input.onCost },
+    { text: input.text, context, history: input.history, onCost: input.onCost, onCall: input.onCall },
     coachTools(deps, userId, today),
   );
   // The bar's subject is the model's; its FIGURES are the day's totals and the plan's target,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type FoodRef, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
+import type { AnalyzedMeal, LlmCallMetric, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -2404,6 +2404,48 @@ describe("what each analysis cost", () => {
     const d = await spend();
     expect(d.analyses).toBe(2);
     expect(d.costUsd).toBeCloseTo(0.5, 9);
+  });
+
+  // One llm_calls ROW PER PROVIDER CALL (#602) — the metric beside the cost, on the same analysis.
+  const metric = (call: string): LlmCallMetric => ({
+    call, modelRequested: "m", modelServed: "m", provider: "p",
+    promptTokens: 1, completionTokens: 1, reasoningTokens: 0, costUsd: 0.1,
+    msFirstByte: 1, msFirstItem: null, msTotal: 2,
+    status: "ok", attempt: 0, fallbackUsed: false, generationId: "gen-x",
+    images: 1, imageBytes: 10,
+  });
+
+  it("writes the calls a photo turn made on the analysis it charged", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => {
+        i.onCall?.(metric("meal_analysis"));
+        i.onCall?.(metric("meal_analysis"));
+        return await demoPorts().analyzePhoto(i);
+      },
+    };
+    expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("logged");
+    // Fired and forgotten like the cost — the rows land on the next microtask.
+    await new Promise((r) => setTimeout(r, 0));
+    const calls = await store.llmCalls(userId);
+    // The two the fake emitted, plus the canned one the demo port emits like a real port would.
+    expect(calls.length).toBe(3);
+    expect(calls.every((c) => c.kind === "photo" && c.status === "ok")).toBe(true);
+    expect(calls.filter((c) => c.generationId === "gen-x").length).toBe(2);
+    expect(calls.every((c) => typeof c.analysisId === "string")).toBe(true);
+  });
+
+  it("names a question turn's calls by what they were — the route, then the coach", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async (i) => { i.onCall?.(metric("route")); return { intent: "answer", text: "From the router." }; },
+      coach: async (i) => { i.onCall?.(metric("coach")); return { reply: "From the coach.", suggestions: [] }; },
+    };
+    expect((await handleText(makeDeps({}, llm), userId, { text: "how is my week?" })).kind).toBe("answered");
+    await new Promise((r) => setTimeout(r, 0));
+    expect((await store.llmCalls(userId)).map((c) => c.kind)).toEqual(["route", "coach"]);
   });
 });
 

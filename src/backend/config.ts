@@ -83,6 +83,12 @@ export interface Config {
   llmFallbackModels: string;
   llmApiKey: string;
   /**
+   * OpenRouter's MANAGEMENT key — a different credential from `llmApiKey`, and the Analytics API's
+   * (#602). Read by `src/scripts/openrouter-analytics.ts` alone; empty means that script skips,
+   * which is the state every server instance runs in.
+   */
+  openrouterManagementKey: string;
+  /**
    * What an `openai-compatible` call costs, in US dollars per million prompt and completion tokens,
    * priced from the `usage` the server returns. Such a server reports no `usage.cost`, so without
    * this every call is unpriced; zero is a real price (a box you own), null is "unknown". One pair
@@ -667,6 +673,7 @@ export function configDefaults(): Config {
     // Verified 9 Oct on OpenRouter: served by deepinfra/fp8, image input, response_format.
     llmFallbackModels: "qwen/qwen3-vl-30b-a3b-instruct",
     llmApiKey: "",
+    openrouterManagementKey: "",
     llmPricePerMTok: null,
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
@@ -889,6 +896,7 @@ export function loadConfig(): Config {
     llmApiKey: llmProvider === "openrouter"
       ? required("EAIT__BACKEND__LLM_API_KEY")
       : (process.env.EAIT__BACKEND__LLM_API_KEY ?? ""),
+    openrouterManagementKey: process.env.EAIT__BACKEND__OPENROUTER_MANAGEMENT_KEY ?? "",
     // `openai-compatible` names its own server: the default is OpenRouter's, and falling back to it
     // would send the photos to a gateway the operator chose not to use.
     llmPricePerMTok: llmPricePerMTokFromEnv(),
@@ -1032,7 +1040,7 @@ export function telegramBotTokenFromEnv(): string {
  */
 export function redact(c: Config): Record<string, unknown> {
   const {
-    llmApiKey: _k, revenueCatWebhookToken: _rc,
+    llmApiKey: _k, openrouterManagementKey: _om, revenueCatWebhookToken: _rc,
     expoPushAccessToken: _e, webPushVapidPrivateKey: _wp, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, fooddbReadKey: _fk, resendApiKey: _rs, databaseUrl,
     ...rest
   } = c;
@@ -1040,6 +1048,7 @@ export function redact(c: Config): Record<string, unknown> {
     ...rest,
     databaseUrl: databaseUrl.replace(/\/\/[^@]*@/, "//***@"),
     llmApiKey: "***",
+    openrouterManagementKey: "***",
     // Destructured out above and reinstated as a mask, so a field added to Config can never reach
     // this log by being forgotten — the omission is the default and the disclosure is the edit.
     // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
@@ -1110,6 +1119,7 @@ export function demoConfig(): Config {
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
     llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
+    openrouterManagementKey: "",
     // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account — and
     // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
     // against RevenueCat's Test Store, not here.
