@@ -158,6 +158,7 @@ const deps: EngineDeps = {
           fallbackModels: config.llmFallbackModels.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
           baseUrl: config.llmBaseUrl,
           dialect: config.llmProvider === "openai-compatible" ? "openai" : "openrouter",
+          pricePerMTok: config.llmPricePerMTok,
           timeoutMs: config.llmTimeoutMs,
           maxTokens: config.llmMaxTokens,
           // The one place the transport is joined to the store. It is a function rather than a value

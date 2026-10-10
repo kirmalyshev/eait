@@ -23,6 +23,7 @@ const VARS = [
   "EAIT__BACKEND__LLM_REASONING_EFFORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
+  "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
   "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
@@ -110,8 +111,22 @@ describe("loadConfig", () => {
     expect(c.llmBaseUrl).toBe("http://localhost:11434/v1/chat/completions");
     expect(c.llmModel).toBe("qwen2.5vl:3b");
     expect(c.llmChatModel).toBe("qwen3:8b");
+    expect(c.llmPricePerMTok).toBeNull();
   });
 
+  it("reads a self-hosted price per million tokens, both halves or neither", () => {
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0.2", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(loadConfig().llmPricePerMTok).toEqual({ input: 0.2, output: 0.6 });
+    // Zero is a price: a box you own costs nothing per call, and that is not the same as unknown.
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0" });
+    expect(loadConfig().llmPricePerMTok).toEqual({ input: 0, output: 0 });
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "0.2", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "-1", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
+    withRequired({ EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK: "cheap", EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK: "0.6" });
+    expect(() => loadConfig()).toThrow(/PRICE_PER_MTOK/);
+  });
 
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
     withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "lo" });
