@@ -768,27 +768,37 @@ describe("the fooddb read key", () => {
   });
 });
 
-describe("the sign-in mailer fails closed on a public host (#569)", () => {
-  it("refuses to boot with MAIL_PROVIDER unset and a public URL that is not loopback", () => {
+describe("the sign-in mailer fails closed, and switches email sign-in off rather than the server (#569)", () => {
+  it("is off on a public host when no provider is named — the log mailer would print codes", () => {
     withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit" });
-    expect(() => loadConfig()).toThrow(/MAIL_PROVIDER is unset on a public host \(api\.eait\.fit\)/);
+    expect(loadConfig().mailProvider).toBe("off");
     clear();
     withRequired({ EAIT__BACKEND__PUBLIC_WEB_URL: "https://app.eait.fit/" });
-    expect(() => loadConfig()).toThrow(/public host \(app\.eait\.fit\)/);
+    expect(loadConfig().mailProvider).toBe("off");
   });
 
-  it("boots on loopback or with no public URL, where the log mailer is the default", () => {
+  it("is off, not a boot failure, when resend is named and no key has arrived", () => {
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit", EAIT__BACKEND__MAIL_PROVIDER: "resend" });
+    expect(loadConfig().mailProvider).toBe("off");
+  });
+
+  it("sends with resend once the key is there", () => {
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit", EAIT__BACKEND__MAIL_PROVIDER: "resend", EAIT__BACKEND__RESEND_API_KEY: "re_test_not_real" });
+    expect(loadConfig().mailProvider).toBe("resend");
+  });
+
+  it("logs on loopback or with no public URL, and wherever log is named out loud", () => {
     withRequired();
     expect(loadConfig().mailProvider).toBe("log");
     withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "http://127.0.0.1:8787", EAIT__BACKEND__PUBLIC_WEB_URL: "http://localhost:8788" });
     expect(loadConfig().mailProvider).toBe("log");
-  });
-
-  it("boots on a public host once the provider is chosen, log included", () => {
-    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit", EAIT__BACKEND__MAIL_PROVIDER: "resend", EAIT__BACKEND__RESEND_API_KEY: "re_test_not_real" });
-    expect(loadConfig().mailProvider).toBe("resend");
     clear();
     withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://dev.tailnet.example", EAIT__BACKEND__MAIL_PROVIDER: "log" });
     expect(loadConfig().mailProvider).toBe("log");
+  });
+
+  it("refuses a provider it does not know", () => {
+    withRequired({ EAIT__BACKEND__MAIL_PROVIDER: "smtp" });
+    expect(() => loadConfig()).toThrow(/must be resend, log or off/);
   });
 });

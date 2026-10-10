@@ -144,6 +144,12 @@ export interface Limits {
    * fallback for a client with no profile yet, exactly as `maxPhotosPerMeal` is.
    */
   modelCallTimeoutMs: number;
+  /**
+   * Whether this server signs in by email (#569). False when it has no mailer (no Resend key):
+   * the routes answer 404 and the client draws no "Continue with email". Sent, never compiled in,
+   * because whether a key is configured is a fact about the environment, not the build.
+   */
+  emailSignIn: boolean;
 }
 
 /** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */

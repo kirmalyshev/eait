@@ -39,6 +39,7 @@ import {
 import type { PayPlanRow } from "@eait/shared/ui/kit";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
+import { emailSignInEnabled } from "../mail/choose.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
@@ -661,9 +662,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         ...offered.map((p) => ({
           id: p as "apple" | "google", action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
         })),
-        // Email is always offered where this surface exists at all — the code's transport is
-        // `deps.mail`, not a third-party account, so there is nothing here to be unconfigured.
-        { id: "email" as const, action: `${START_PREFIX}/email`, label: signupCopyFor(lang).continueEmail },
+        // Email only where this instance has a mailer: no Resend key, no button (Kirill, 10 Oct),
+        // on the same predicate its routes 404 on.
+        ...(emailSignInEnabled(config)
+          ? [{ id: "email" as const, action: `${START_PREFIX}/email`, label: signupCopyFor(lang).continueEmail }]
+          : []),
       ],
       error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
         : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
@@ -803,6 +806,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // `eait_oauth`, minus the provider round trip the mail replaces. `eait_email` holds the
   // address a live code was sent to plus the send time — the countdown's source — and a code
   // page with neither is a page naming a code nobody sent, sent back to the page that sends one.
+  // No mailer on this instance: every email path is a path that does not exist.
+  if ((pathname === `${START_PREFIX}/email` || pathname.startsWith(`${START_PREFIX}/email/`))
+      && !emailSignInEnabled(ctx.deps.config)) {
+    return notFound();
+  }
   if (pathname === `${START_PREFIX}/email`) {
     if (req.method === "GET") return seeOther(`${START_PREFIX}/signup`);
     if (req.method !== "POST") return notFound();
