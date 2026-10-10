@@ -145,7 +145,7 @@ export async function adminRoutes(
           // this origin could not carry the credential anyway, and the alternative — a signed URL —
           // would put a second credential for the most sensitive thing this product holds into a
           // query string, which is where #372 measured one being written into a log in full.
-          + "connect-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
+          + "connect-src 'self'; font-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
           + "frame-ancestors 'none'",
         "referrer-policy": "no-referrer",
         "x-frame-options": "DENY",
