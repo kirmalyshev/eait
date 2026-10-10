@@ -344,6 +344,21 @@ export interface PortionCorrection {
  * port stores rows and does not decide which prompts exist. The code's set is `PROMPT_KEYS`, the
  * database's is the `llm_prompts` check constraint, and a test compares the two.
  */
+/**
+ * The admin's on/off switches. Written out in the `admin_switches` check constraint BY HAND, so
+ * `switches.schema.test.ts` can catch the two drifting. A key with no stored row is ON.
+ */
+export const SWITCH_KEYS = ["grounding.photo", "grounding.text"] as const;
+export type SwitchKey = (typeof SWITCH_KEYS)[number];
+
+/** One flip of one switch: the append-only row, `set_at` an ISO string on both stores. */
+export interface SwitchFlip {
+  key: SwitchKey;
+  enabled: boolean;
+  set_by: string;
+  set_at: string;
+}
+
 export interface PromptRevision {
   key: string;
   /**
@@ -1155,6 +1170,18 @@ export interface Store {
   putPrompt(key: string, text: string, source: PromptSource): Promise<number>;
   /** Every revision of one prompt, newest first. The audit trail, and the way back. */
   promptRevisions(key: string): Promise<PromptRevision[]>;
+
+  // ── The admin switches (#563) ─────────────────────────────────────────────────────────────
+  //
+  // Append-only and GLOBAL, for `llm_prompts`'s reasons: no `userId` is taken, so there is no
+  // query here to widen past one account. The current value is the newest row per key.
+
+  /** The newest value of a switch, or null when nobody has ever set it (the caller applies the default). */
+  switchEnabled(key: SwitchKey): Promise<boolean | null>;
+  /** Append a flip. `adminId` is the resolved admin, never a request body's. */
+  setSwitch(key: SwitchKey, enabled: boolean, adminId: string): Promise<void>;
+  /** The newest `limit` flips across every key, newest first. */
+  switchHistory(limit: number): Promise<SwitchFlip[]>;
   /**
    * Append funnel events, ignoring ids already stored. Returns how many were new.
    *

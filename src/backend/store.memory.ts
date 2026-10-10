@@ -15,10 +15,10 @@ import {
 } from "./auth/tokens.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
-  ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
+  ADMIN_METRICS_MAX_DAYS, SWITCH_KEYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow,
+  type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow, type SwitchFlip,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -230,6 +230,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * out of a ROW, the way production does, rather than exercising the fallback and shipping the
    * other path untested.
    */
+  const switchRows: SwitchFlip[] = [];
   const promptRevisionRows: PromptRevision[] = PROMPT_KEYS.map((key) => ({
     key, version: 1, text: PROMPT_DEFAULTS[key], source: "shipped" as const,
     updated_at: new Date(now()).toISOString(),
@@ -1191,6 +1192,20 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // injectable clock, and a fixture that ignores it is one a time-travelling test cannot pin.
       promptRevisionRows.push({ key, version, text, source, updated_at: new Date(now()).toISOString() });
       return version;
+    },
+
+    async switchEnabled(key) {
+      return switchRows.findLast((r) => r.key === key)?.enabled ?? null;
+    },
+
+    async setSwitch(key, enabled, adminId) {
+      // Postgres's check constraint, said again: the two stores refuse the same keys.
+      if (!(SWITCH_KEYS as readonly string[]).includes(key)) throw new Error(`unknown switch: ${key}`);
+      switchRows.push({ key, enabled, set_by: adminId, set_at: new Date(now()).toISOString() });
+    },
+
+    async switchHistory(limit) {
+      return switchRows.slice().reverse().slice(0, limit).map(clone);
     },
 
     async putNotificationCopy(lang, copy) {

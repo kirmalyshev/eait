@@ -11,7 +11,9 @@
 
 import type { FoodRef, MealItem } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
+import type { SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { switchOn } from "./switches.ts";
 
 const POOL = 300;
 /** A best candidate scoring below this is a miss: the model's own estimate beats a poor match. */
@@ -139,4 +141,14 @@ export async function groundAnalysis(
   }));
   console.error(`[eait] grounding: ${grounded}/${items.length} items from the catalog`);
   return { analysis: { ...analysis, items }, grounded };
+}
+
+/**
+ * `groundAnalysis` behind the admin's switch, read per request (#563). Off hands the analysis
+ * back exactly as the model returned it.
+ */
+export async function groundWhenOn(
+  deps: EngineDeps, key: SwitchKey, analysis: AnalyzedMeal,
+): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
+  return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis) : { analysis, grounded: 0 };
 }
