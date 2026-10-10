@@ -729,8 +729,14 @@ export function loadConfig(): Config {
     databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
     databaseMaxConnections: int("EAIT__BACKEND__DATABASE_MAX_CONNECTIONS", d.databaseMaxConnections),
     llmProvider,
-    llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
-    llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
+    // The compiled-in ids are OpenRouter's, a spelling no self-hosted server has: refused at boot
+    // rather than at the first photo.
+    llmModel: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_MODEL")
+      : (process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel),
+    llmChatModel: llmProvider === "openai-compatible"
+      ? required("EAIT__BACKEND__LLM_CHAT_MODEL")
+      : (process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel),
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
     llmFallbackModels: process.env.EAIT__BACKEND__LLM_FALLBACK_MODELS ?? d.llmFallbackModels,

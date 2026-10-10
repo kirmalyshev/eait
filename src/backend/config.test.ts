@@ -93,9 +93,14 @@ describe("loadConfig", () => {
     expect(loadConfig().llmProviderOrder).toBe("");
   });
 
-  it("accepts openai-compatible with no key, but never without its own base URL", () => {
+  it("accepts openai-compatible with no key, but never without its own models and base URL", () => {
     process.env.EAIT__BACKEND__DATABASE_URL = "postgres://u:p@localhost:5432/db";
     process.env.EAIT__BACKEND__LLM_PROVIDER = "openai-compatible";
+    // The compiled-in model ids are OpenRouter's, which no self-hosted server has.
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_MODEL/);
+    process.env.EAIT__BACKEND__LLM_MODEL = "qwen2.5vl:3b";
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_CHAT_MODEL/);
+    process.env.EAIT__BACKEND__LLM_CHAT_MODEL = "qwen3:8b";
     // Unset, the default base URL is OpenRouter's — a server the operator did not name.
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_BASE_URL/);
     process.env.EAIT__BACKEND__LLM_BASE_URL = "http://localhost:11434/v1/chat/completions";
@@ -103,7 +108,10 @@ describe("loadConfig", () => {
     expect(c.llmProvider).toBe("openai-compatible");
     expect(c.llmApiKey).toBe("");
     expect(c.llmBaseUrl).toBe("http://localhost:11434/v1/chat/completions");
+    expect(c.llmModel).toBe("qwen2.5vl:3b");
+    expect(c.llmChatModel).toBe("qwen3:8b");
   });
+
 
   it("refuses a reasoning effort the provider would 400 on every charged call", () => {
     withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "lo" });

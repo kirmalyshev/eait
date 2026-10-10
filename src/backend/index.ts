@@ -73,6 +73,13 @@ if (demo && llmArg === "real") {
     }
     config.llmBaseUrl = url;
     config.llmApiKey = process.env.EAIT__BACKEND__LLM_API_KEY ?? "";
+    // The compiled-in model ids are OpenRouter's; a self-hosted server names its own.
+    for (const name of ["EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_CHAT_MODEL"]) {
+      if (!process.env[name]) {
+        console.error(`[eait] --llm real with openai-compatible needs ${name}`);
+        process.exit(1);
+      }
+    }
   }
   const d = configDefaults();
   config.llmProvider = provider;
