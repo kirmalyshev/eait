@@ -398,6 +398,13 @@ export const ROUTES = {
    * Answers {@link WeightsResponse}.
    */
   weights: "/v1/weights",
+  /**
+   * GET — the 36-badge wall and the streak, server-computed. 404 while `Config.milestonesEnabled`
+   * is off. Answers {@link MilestonesResponse}.
+   */
+  milestones: "/v1/milestones",
+  /** POST `{ ids }` — marks earned badges seen, so they leave `unseen`. Answers {@link MilestonesResponse}. */
+  milestonesSeen: "/v1/milestones/seen",
   account: "/v1/account",
 
   // Note the distinction from `health` above, which is the LIVENESS probe the deploy watches.
@@ -819,6 +826,10 @@ export interface PatchProfileRequest {
   struggles?: Struggle[] | null;
   /** The streak length aimed for; `null` clears it back to unasked. */
   streak_goal_days?: StreakGoal | null;
+  /** Show the Badge Unlocked moment. Default true. */
+  milestone_celebrations?: boolean;
+  /** Show the streak chip on Home. Default true. */
+  streak_on_home?: boolean;
   country?: string | null;
   restrictions?: string[];
   /**
@@ -1447,6 +1458,27 @@ export interface DaysResponse {
   streakLongest: number;
   /** `bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak. */
   streakState: StreakRead["state"];
+  /**
+   * Badge ids earned and not yet seen, so a screen that already reads days can open Badge
+   * Unlocked. Always empty while milestones are switched off.
+   */
+  unseenBadges: string[];
+}
+
+/** `GET /v1/milestones` — the wall. `badges` is every one of the 36, in Cal AI's order. */
+export interface MilestonesResponse {
+  /** The current streak, as {@link DaysResponse.streak}. */
+  streak: number;
+  /** The longest streak this account has had. */
+  streakLongest: number;
+  badges: { id: string; earnedAt: string | null }[];
+  /** Earned ids not yet marked seen, oldest first. */
+  unseen: string[];
+}
+
+/** `POST /v1/milestones/seen`. Unknown and unearned ids are ignored. */
+export interface MilestonesSeenRequest {
+  ids: string[];
 }
 
 /** One logged bodyweight: `health` came off the phone's health store, `manual` the user typed it. */

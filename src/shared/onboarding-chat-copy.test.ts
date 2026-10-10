@@ -130,7 +130,7 @@ describe("the readers of those tables", () => {
   const her = (lang: Lang): Profile => ({
     user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
     weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "few",
-    pace: "steady", units: null, struggles: ["consistency"], streak_goal_days: null, country: "gb",
+    pace: "steady", units: null, struggles: ["consistency"], streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, country: "gb",
     restrictions: ["vegan", "ldl"], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: null,
   });
