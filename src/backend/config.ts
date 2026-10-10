@@ -713,6 +713,22 @@ export function loadConfig(): Config {
   if (mailProvider === "resend" && resendApiKey === "") {
     throw new Error("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
   }
+  // FAIL CLOSED on a public host. The `log` mailer prints every live sign-in code, beside its
+  // address, to stdout — a credential in a log is an account for whoever reads the log. A default
+  // that reaches a deployed server by omission is the dangerous kind, so the default holds only
+  // where nobody else can reach the server: MAIL_PROVIDER unset and a public URL that names
+  // anything but a loopback host refuses to boot. Saying `log` out loud stays possible (a dev box
+  // on a tailnet), because then somebody chose it.
+  if (process.env.EAIT__BACKEND__MAIL_PROVIDER === undefined) {
+    const publicHost = [process.env.EAIT__BACKEND__PUBLIC_API_URL, process.env.EAIT__BACKEND__PUBLIC_WEB_URL]
+      .map((u) => { try { return u ? new URL(u).hostname : ""; } catch { return u ?? ""; } })
+      .find((h) => h !== "" && !["localhost", "127.0.0.1", "[::1]", "::1"].includes(h));
+    if (publicHost !== undefined) {
+      throw new Error(
+        `[eait] EAIT__BACKEND__MAIL_PROVIDER is unset on a public host (${publicHost}): the log mailer would print sign-in codes. Set it to resend (or to log, deliberately).`,
+      );
+    }
+  }
 
   // The web sign-in's audience, checked at BOOT rather than at the end of somebody's first sign-up.
   //

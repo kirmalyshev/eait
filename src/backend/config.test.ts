@@ -44,6 +44,8 @@ const VARS = [
   "EAIT__BACKEND__APPLE_PRIVATE_KEY",
   "EAIT__BACKEND__TELEGRAM_BOT_TOKEN",
   "EAIT__BACKEND__DONATE_KOFI_URL", "EAIT__BACKEND__DONATE_BMC_URL", "EAIT__BACKEND__DONATE_GITHUB_URL",
+  "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__MAIL_FROM",
+  "EAIT__BACKEND__EMAIL_CODES_PER_HOUR", "EAIT__BACKEND__EMAIL_CODES_PER_DAY",
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
@@ -763,5 +765,30 @@ describe("the fooddb read key", () => {
   it("is never read under --demo, which must not reach for a network", () => {
     process.env.EAIT__BACKEND__FOODDB_READ_KEY = KEY;
     expect(demoConfig().fooddbReadKey).toBe("");
+  });
+});
+
+describe("the sign-in mailer fails closed on a public host (#569)", () => {
+  it("refuses to boot with MAIL_PROVIDER unset and a public URL that is not loopback", () => {
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit" });
+    expect(() => loadConfig()).toThrow(/MAIL_PROVIDER is unset on a public host \(api\.eait\.fit\)/);
+    clear();
+    withRequired({ EAIT__BACKEND__PUBLIC_WEB_URL: "https://app.eait.fit/" });
+    expect(() => loadConfig()).toThrow(/public host \(app\.eait\.fit\)/);
+  });
+
+  it("boots on loopback or with no public URL, where the log mailer is the default", () => {
+    withRequired();
+    expect(loadConfig().mailProvider).toBe("log");
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "http://127.0.0.1:8787", EAIT__BACKEND__PUBLIC_WEB_URL: "http://localhost:8788" });
+    expect(loadConfig().mailProvider).toBe("log");
+  });
+
+  it("boots on a public host once the provider is chosen, log included", () => {
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://api.eait.fit", EAIT__BACKEND__MAIL_PROVIDER: "resend", EAIT__BACKEND__RESEND_API_KEY: "re_test_not_real" });
+    expect(loadConfig().mailProvider).toBe("resend");
+    clear();
+    withRequired({ EAIT__BACKEND__PUBLIC_API_URL: "https://dev.tailnet.example", EAIT__BACKEND__MAIL_PROVIDER: "log" });
+    expect(loadConfig().mailProvider).toBe("log");
   });
 });
