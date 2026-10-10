@@ -52,12 +52,35 @@ test("a bank that is not whole weeks is told in days", async ({ inWebApp: page }
   await expect(page.getByLabel("Refer a friend")).toContainText("10 free days banked, used if you stop");
 });
 
+// Twenty days out, so the date is always this year's and the form is the short day-and-month.
+const until = new Date(Date.now() + 20 * 86_400_000);
+const shortDate = (tag: string, zone: string) =>
+  new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: zone }).format(until);
+
 test("while the bonus keeps the account in, the card says until when", async ({ inWebApp: page }) => {
+  let zone = "UTC";
   await withProfile(page, (p) => {
+    zone = p.timezone;
     p.entitlement.active = true;
-    p.entitlement.bonusUntil = "2026-10-31T12:00:00.000Z";
+    p.entitlement.bonusUntil = until.toISOString();
   });
-  await expect(page.getByLabel("Refer a friend")).toContainText("eait is yours until 31 Oct.");
+  await expect(page.getByLabel("Refer a friend")).toContainText(`eait is yours until ${shortDate("en-GB", zone)}.`);
+});
+
+// German writes its short month with a full stop ("12. Okt."): the sentence's own full stop is
+// that one, never a second.
+test("a date that ends in a full stop ends the sentence once", async ({ inWebApp: page }) => {
+  let zone = "UTC";
+  await withProfile(page, (p) => {
+    zone = p.timezone;
+    p.profile.lang = "de";
+    p.entitlement.active = true;
+    p.entitlement.bonusUntil = until.toISOString();
+  });
+  const date = shortDate("de-DE", zone).replace(/\.$/, "");
+  const card = page.getByLabel(/Freunde einladen|Refer a friend/);
+  await expect(card).toContainText(`eait gehört dir bis ${date}.`);
+  await expect(card).not.toContainText("..");
 });
 
 // The board's status lines, with real plurals (#600 review).

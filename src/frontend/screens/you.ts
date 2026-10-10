@@ -404,7 +404,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const bonus = me!.entitlement.bonusUntil ?? null;
     const own = banked > 0
       ? [banked % 7 === 0 ? count(R.bankedWeeks, banked / 7) : count(R.bankedDays, banked)]
-      : bonus !== null ? [fill(R.until, { date: subDate(bonus) })] : [];
+      // The template's full stop ends the sentence; a short date that already ends in one (fr, de,
+      // ru: "30. Okt.", "30 oct.", "30 окт.") gives it up rather than print two.
+      : bonus !== null ? [fill(R.until, { date: subDate(bonus).replace(/\.$/, "") })] : [];
     const lines = [...earned, ...own, ...counts];
     if (lines.length > 0) {
       const st = el("div", "refst");
