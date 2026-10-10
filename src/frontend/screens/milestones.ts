@@ -4,9 +4,8 @@
 // here counts a day or decides a badge.
 
 import { BADGES } from "../../shared/milestones.ts";
-import { dateMinus } from "../../shared/dates.ts";
-import { LANG_TAG, countText, numbers, weekdayLetters } from "../../shared/lang.ts";
-import { milestonesCopyFor, type MilestonesCopy, type StreakLine } from "../../shared/app/milestones-copy.ts";
+import { countText, numbers, weekdayLetters } from "../../shared/lang.ts";
+import { milestonesCopyFor, streakCardLine, type MilestonesCopy } from "../../shared/app/milestones-copy.ts";
 import { ico } from "../../shared/ui/kit.ts";
 import type { DaysResponse, DiaryDay, MilestonesResponse, ProfileResponse } from "@eait/shared";
 import { api, getMilestones, postMilestonesSeen } from "../api.ts";
@@ -39,14 +38,6 @@ const milestonesRow = (c: MilestonesCopy, earned: number | null): HTMLAnchorElem
   return a;
 };
 
-/** Words for a streak line: a bold lead, then the quiet rest — both through `fill`, no markup. */
-const lineEl = (l: StreakLine, lead: Record<string, string>, rest: Record<string, string>): HTMLElement => {
-  const p = el("div", "sline");
-  p.append(el("b", "", fill(l.lead, lead)));
-  if (l.rest !== undefined) p.append(` ${fill(l.rest, rest)}`);
-  return p;
-};
-
 /**
  * The Progress streak card, in its four states (web/milestones-streak.html): holding, bent by a
  * missed day, bent by the floor, ended. `d.days` is the week the card draws; the figures and the
@@ -57,15 +48,10 @@ export function streakCard(d: DaysResponse, earned: number | null): HTMLElement 
   const s = c.streak;
   const n = numbers(lang);
   const letters = weekdayLetters(lang);
-  const tag = LANG_TAG[lang];
-  const weekday = (date: string): string =>
-    new Intl.DateTimeFormat(tag, { weekday: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
-  const cap = (w: string): string => w.charAt(0).toLocaleUpperCase(tag) + w.slice(1);
   const count = countText(lang);
 
   const ended = d.streakState === "ended";
   const bentState = d.streakState === "bent";
-  const today = d.days.find((x) => x.when === "today");
 
   const card = el("div", "card rise rc-3");
   const head = el("div", "row between");
@@ -94,30 +80,12 @@ export function streakCard(d: DaysResponse, earned: number | null): HTMLElement 
   });
   card.append(marks);
 
-  const floor = kcal(d.floorKcal);
-  if (ended) {
-    const at = n(d.streakEndedAt);
-    card.append(lineEl(s.ended, { n: at }, { n: at }));
-  } else if (bentState) {
-    const bent = [...d.days].reverse().find((x) => x.streak === "bent");
-    const yesterday = today !== undefined && bent !== undefined && bent.date === dateMinus(today.date, 1);
-    if (bent === undefined) {
-      card.append(el("div", "sline", fill(s.bentMissed.rest ?? "", { n: n(d.streak) })));
-    } else if (yesterday) {
-      const held = today?.streak === "counted";
-      const l = bent.underFloor
-        ? (held ? s.bentFloorYesterdayHeld : s.bentFloorYesterday)
-        : (held ? s.bentYesterdayHeld : s.bentYesterday);
-      card.append(lineEl(l, { floor }, { n: n(d.streak) }));
-    } else {
-      const l = bent.underFloor ? s.bentFloor : s.bentMissed;
-      const next = weekday(dateMinus(bent.date, -1));
-      card.append(lineEl(l, { day: cap(weekday(bent.date)), next, floor }, { next: cap(next), n: n(d.streak) }));
-    }
-  } else if (d.streak === 0) {
-    card.append(el("div", "sline", s.logToStart));
-  } else if (today?.streak === "pending") {
-    card.append(el("div", "sline", fill(s.logToday, { n: n(d.streak + 1) })));
+  const line = streakCardLine(d, s, lang, kcal(d.floorKcal));
+  if (line !== null) {
+    const p = el("div", "sline");
+    if (line.lead !== undefined) p.append(el("b", "", line.lead), line.rest !== undefined ? ` ${line.rest}` : "");
+    else p.append(line.rest ?? "");
+    card.append(p);
   }
   card.append(milestonesRow(c, earned));
   return card;
