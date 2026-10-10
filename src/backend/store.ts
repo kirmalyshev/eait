@@ -262,6 +262,33 @@ export interface EntitlementPatch {
   trial?: boolean;
 }
 
+/**
+ * One account's referral standing (#899), RAW: the engine turns `code` into a link and the days
+ * into weeks. Counts only — never who joined, which is the promise the Profile card makes.
+ */
+export interface ReferralRow {
+  /** This account's own code, made with the account and never changed. */
+  code: string;
+  /** This account joined with somebody's code. */
+  applied: boolean;
+  /** Accounts that joined with this one's code. */
+  joined: number;
+  /** Of the friends, the ones whose first paid period has granted this account its reward. */
+  subscribed: number;
+  /** The days those rewards added, summed. */
+  daysEarned: number;
+  /** Times this account shared its link, any channel. */
+  shares: number;
+}
+
+/**
+ * What applying a code did. Only `ok` wrote anything. `paid`: the account has bought something —
+ * a subscription period that was paid for, or the lifetime unlock, live or not. A free trial that
+ * never converted is not a purchase and does not refuse: the trial is the product's own offer, and
+ * the friend has still paid nothing a referral could be claimed against.
+ */
+export type RedeemOutcome = "ok" | "unknown" | "own" | "already" | "paid";
+
 /** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
 export type PushPlatform = "ios" | "web";
 
@@ -530,6 +557,9 @@ export interface AdminUserRow {
   email: string | null;
   /** What the account has bought, or null. Read `entitlementLive` for whether it is live. */
   entitlement: StoredEntitlement | null;
+  /** The referral week's end (`Store.bonusUntil`) and the days banked behind a subscription (`Store.bankedDays`) — `referralBonusEnd` makes them the third input `entitlementLive` takes. */
+  bonusUntil: string | null;
+  bankedDays: number;
   /** The account's own sample size, or null when it takes the instance default. */
   freeAnalyses: number | null;
   /** Analyses of BOTH scopes on the day asked for — the sample counts a typed meal too. */
@@ -1013,6 +1043,69 @@ export interface Store {
    * later write.
    */
   putEntitlement(userId: string, patch: EntitlementPatch): Promise<boolean>;
+
+  // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────
+  //
+  // `users.referral_code` (unique, made with the account), `users.referred_by` (set ONCE),
+  // `users.bonus_until` (the referral week — a third grant beside the two above, granted by this
+  // server rather than bought, which is why it is not on `StoredEntitlement`: that record's
+  // existence means "bought something"). None of the three is on `Profile`, so no PATCH reaches them.
+
+  /** The referral week's end, or null when there has never been one. Past dates are returned as they are. */
+  bonusUntil(userId: string): Promise<string | null>;
+  /**
+   * `users.referral_banked_days`: a PAYING referrer's reward, in days, waiting behind their
+   * subscription rather than dated — a date set past this period's end would be overtaken by the
+   * next renewal. They run from the subscription's end (`referralBonusEnd`); a new period written
+   * after a lapse (`putEntitlement`) leaves only what the lapse did not use — whole days of it, so a
+   * part-day lapse spends nothing of that day. 0 when none.
+   */
+  bankedDays(userId: string): Promise<number>;
+  /**
+   * Apply somebody's code to this account, and start ITS week: `bonus_until` becomes
+   * `greatest(now, bonus_until) + days`, in the same statement that sets `referred_by` — and that
+   * statement only matches while `referred_by` is still null, so two racing redemptions apply one.
+   * The other answers are read after the guarded write found nothing to do, and wrote nothing.
+   * The same statement refuses an account that has ever paid (`paid`), and stamps `referred_at` —
+   * what `grantReferralWeek` compares a payment's time against.
+   */
+  redeemReferral(userId: string, code: string, days: number): Promise<RedeemOutcome>;
+  /**
+   * The referrer's reward for `referredId`'s first paid period: record the grant (once per friend,
+   * ever — the insert is `on conflict do nothing`; only a payment at or after `referred_at`, compared
+   * inside that insert) and, only if it inserted, move the REFERRER's
+   * `bonus_until` to `greatest(now, bonus_until, their subscription's expiry) + days`. False when
+   * nothing was granted: nobody referred this account, or its referrer was already paid for it.
+   *
+   * THE EARLIEST PAID PERIOD DECIDES. Deliveries are not ordered: a paid event OLDER than the one
+   * the grant was made from re-sizes it to its own length and transaction, moving the referrer's
+   * week by the difference (never below now), in one guarded update — `event_at > eventAt`, not
+   * revoked. That is a `true` too. And one store subscription (`originalTransactionId`, unique when
+   * not "") earns one grant, whichever account it lands on.
+   *
+   * WHERE THE DAYS GO: to `referral_banked_days` when the referrer's subscription is live at the
+   * grant, else to `bonus_until` from now. The grant records which, and every later move (re-size,
+   * revoke, void) is made in that bucket.
+   *
+   * A PAYMENT FROM BEFORE `referred_at`, or after a refund of the friend arrived first, VOIDS the
+   * friend for good: with no grant, a revoked row of 0 days takes the key; with one, it is revoked.
+   * `eventAt` is when the paid PERIOD began (`purchased_at_ms`, else the event's own stamp).
+   * `referredId` comes from a verified webhook delivery, never from a client.
+   */
+  grantReferralWeek(
+    referredId: string, eventAt: string, days: number, transactionId: string, originalTransactionId: string,
+  ): Promise<boolean>;
+  /**
+   * Take back the reward `referredId`'s payment earned, on that payment's refund: only when the
+   * grant's transaction is `transactionId` (never ""), and only once. The referrer's `bonus_until`
+   * loses the grant's days, never below now; the grant row stays, marked revoked, so the friend
+   * can never earn it again. False when nothing was revoked.
+   */
+  revokeReferralWeek(referredId: string, transactionId: string): Promise<boolean>;
+  /** Count one share of this account's link. `via` is a short label, already validated. */
+  recordReferralShare(userId: string, via: string): Promise<void>;
+  /** Null when there is no such account. Counts other accounts' rows, so it reads unscoped. */
+  referralOf(userId: string): Promise<ReferralRow | null>;
 
   // ── Push tokens ────────────────────────────────────────────────────────────────────────────
   //

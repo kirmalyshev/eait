@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -131,6 +131,62 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   }
   const entitlements = new Map<string, StoredWithClocks>();
   const freeAnalyses = new Map<string, number>(); // userId -> the admin's own sample size
+  /**
+   * The referral columns of `users` (#899) — maps beside the profile for the reason `roles` is
+   * one: off `Profile`, `patchProfile` here cannot write them either.
+   */
+  const referralCodes = new Map<string, string>(); // userId -> code
+  const referredBy = new Map<string, string>(); // friend -> referrer
+  const referredAt = new Map<string, number>(); // friend -> when the code applied
+  /** "Bought something": any stored purchase except a free trial that never converted. */
+  const hasPaid = (userId: string): boolean => {
+    const e = entitlements.get(userId);
+    return !!e && !(e.trial === true && e.lifetimeProductId === null);
+  };
+  const bonusUntil = new Map<string, string>(); // userId -> ISO
+  /** `referral_grants`, keyed on the friend as its primary key is. */
+  /** `bucket`: where the days went — `bonus_until` (a dated week) or `referral_banked_days`. */
+  type Grant = {
+    referrerId: string; eventAt: string; days: number; transactionId: string; originalTransactionId: string;
+    revoked: boolean; bucket: "bonus" | "banked";
+  };
+  const referralGrants = new Map<string, Grant>();
+  /** `users.referral_banked_days` — a paying referrer's reward, waiting behind their subscription. */
+  const bankedDays = new Map<string, number>();
+  const DAY_MS = 86_400_000;
+  /** Move a grant's bucket by `delta` days: the dated week never below now (unset stays unset), the bank never below 0. */
+  const moveBucket = (g: Grant, delta: number): void => {
+    if (g.bucket === "banked") {
+      bankedDays.set(g.referrerId, Math.max(0, (bankedDays.get(g.referrerId) ?? 0) + delta));
+      return;
+    }
+    const until = bonusUntil.get(g.referrerId);
+    if (until !== undefined) bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) + delta * DAY_MS)).toISOString());
+  };
+  /** A void grant: 0 days, revoked, holding the friend's key so nothing they pay later earns. */
+  const voidGrant = (referrerId: string, eventAt: string, transactionId: string): Grant =>
+    ({ referrerId, eventAt, days: 0, transactionId, originalTransactionId: "", revoked: true, bucket: "bonus" });
+  /** `referral_refunds`: every refunded transaction of a referred account, so its payment, if late, earns nothing. */
+  const referralRefunds = new Map<string, string>(); // transaction -> the friend's account
+  /** `referral_events`: a share is a label and an instant, nothing that names the person. */
+  const referralShares: { referrerId: string; via: string; at: number }[] = [];
+  /** A code nobody holds — Postgres's `new_referral_code()`. */
+  const newReferralCode = (): string => {
+    const taken = new Set(referralCodes.values());
+    for (;;) {
+      const bytes = crypto.getRandomValues(new Uint8Array(REFERRAL_CODE_LENGTH));
+      const code = [...bytes].map((b) => REFERRAL_ALPHABET[b % REFERRAL_ALPHABET.length]).join("");
+      if (!taken.has(code)) return code;
+    }
+  };
+  /** Revoke a grant: its days off the referrer's week, never below now; an unset week stays unset. */
+  const takeBack = (g: Grant): void => {
+    g.revoked = true;
+    moveBucket(g, -g.days);
+  };
+  /** `greatest(now, …dates) + days`, ignoring absent dates the way Postgres's `greatest` ignores nulls. */
+  const extend = (days: number, ...from: (string | null | undefined)[]): string =>
+    new Date(Math.max(now(), ...from.filter((d): d is string => !!d).map(Date.parse)) + days * 86_400_000).toISOString();
   /**
    * Per-user push state kept beside the profile (`users.timezone`, `push_slot`, `send_log`). Maps for the same reason
    * `roles` and `consents` are: the column lives on `users`, not on `Profile`, and this store's
@@ -300,6 +356,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * removes the last identity — the whole point of that step being one step — and reaching
    * it through `this` would break the moment a caller detached the method, which callers do.
    */
+  /** Postgres's cascades and `on delete set null` for the referral rows of a deleted account. */
+  const eraseReferrals = (userId: string): void => {
+    referralCodes.delete(userId);
+    referredBy.delete(userId);
+    referredAt.delete(userId);
+    bankedDays.delete(userId);
+    for (const [t, owner] of referralRefunds) if (owner === userId) referralRefunds.delete(t);
+    bonusUntil.delete(userId);
+    for (const [friend, referrer] of referredBy) if (referrer === userId) referredBy.delete(friend);
+    for (const [friend, g] of referralGrants) if (friend === userId || g.referrerId === userId) referralGrants.delete(friend);
+    for (let i = referralShares.length - 1; i >= 0; i--) if (referralShares[i]!.referrerId === userId) referralShares.splice(i, 1);
+  };
+
   const eraseUser = (userId: string): void => {
     users.delete(userId);
     createdAt.delete(userId);
@@ -321,6 +390,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     pushDailyMax.delete(userId);
     for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
     freeAnalyses.delete(userId);
+    eraseReferrals(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
     for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
@@ -407,6 +477,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         devices.set(deviceId, userId);
         users.set(userId, blankProfile(userId, lang));
         createdAt.set(userId, now());
+        referralCodes.set(userId, newReferralCode());
       }
       // Re-asserted on every device auth, matching Postgres: the device map is what this method
       // resolves through and the identity row is what "is anything else still linked" counts, so
@@ -487,6 +558,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const userId = crypto.randomUUID();
       users.set(userId, blankProfile(userId, lang));
       createdAt.set(userId, now());
+      referralCodes.set(userId, newReferralCode());
       return userId;
     },
 
@@ -629,6 +701,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           providers: mine.map((i) => i.provider),
           email: mine.find((i) => i.email)?.email ?? null,
           entitlement: storedEntitlement(id),
+          bonusUntil: bonusUntil.get(id) ?? null,
+          bankedDays: bankedDays.get(id) ?? 0,
           freeAnalyses: freeAnalyses.get(id) ?? null,
           analysesToday: analyses.filter((a) => a.userId === id && a.date === today).length,
           spent: analyses.filter((a) => a.userId === id).length,
@@ -851,6 +925,30 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (pushOpens.delete(`${fromUserId}|${id}`)) pushOpens.add(`${intoUserId}|${id}`);
       }
 
+      // The referral moves as `store.pg.ts` moves it: the survivor's own `referred_by` stands, the
+      // anonymous one's fills a gap (never as the survivor's own code), the later week wins, and
+      // what the anonymous account earned or was granted follows the person.
+      const fromReferrer = referredBy.get(fromUserId);
+      // Never onto an account that has paid: a code is refused there, and a merge is not a way round it.
+      if (!referredBy.has(intoUserId) && fromReferrer !== undefined && fromReferrer !== intoUserId && !hasPaid(intoUserId)) {
+        referredBy.set(intoUserId, fromReferrer);
+        referredAt.set(intoUserId, referredAt.get(fromUserId)!);
+      }
+      const fromBanked = bankedDays.get(fromUserId);
+      if (fromBanked !== undefined) bankedDays.set(intoUserId, (bankedDays.get(intoUserId) ?? 0) + fromBanked);
+      const fromBonus = bonusUntil.get(fromUserId);
+      if (fromBonus !== undefined) bonusUntil.set(intoUserId, newest(bonusUntil.get(intoUserId), fromBonus));
+      const fromGrant = referralGrants.get(fromUserId);
+      if (fromGrant && !referralGrants.has(intoUserId)) referralGrants.set(intoUserId, fromGrant);
+      referralGrants.delete(fromUserId);
+      for (const [friend, referrer] of referredBy) {
+        if (referrer === fromUserId && friend !== intoUserId) referredBy.set(friend, intoUserId);
+      }
+      for (const [friend, g] of referralGrants) if (g.referrerId === fromUserId && friend !== intoUserId) g.referrerId = intoUserId;
+      for (const e of referralShares) if (e.referrerId === fromUserId) e.referrerId = intoUserId;
+      for (const [t, owner] of referralRefunds) if (owner === fromUserId) referralRefunds.set(t, intoUserId);
+      eraseReferrals(fromUserId);
+
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
       for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
@@ -899,6 +997,100 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return clone(next);
     },
 
+    async bonusUntil(userId) {
+      return bonusUntil.get(userId) ?? null;
+    },
+
+    async bankedDays(userId) {
+      return bankedDays.get(userId) ?? 0;
+    },
+
+    async redeemReferral(userId, code, days) {
+      const owner = [...referralCodes].find(([, c]) => c === code)?.[0];
+      if (owner === userId) return "own";
+      if (owner === undefined) return "unknown";
+      if (referredBy.has(userId) || !users.has(userId)) return "already";
+      if (hasPaid(userId)) return "paid";
+      referredBy.set(userId, owner);
+      referredAt.set(userId, now());
+      bonusUntil.set(userId, extend(days, bonusUntil.get(userId)));
+      return "ok";
+    },
+
+    async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
+      const referrerId = referredBy.get(referredId);
+      if (referrerId === undefined) return false;
+      const held = referralGrants.get(referredId);
+      if (Date.parse(eventAt) < referredAt.get(referredId)!) {
+        // Paid BEFORE the code applied: not a referral. Void the friend for good — a grant already
+        // made is taken back, and a void one stands in the key so no renewal can earn later.
+        if (held) { if (!held.revoked) takeBack(held); return false; }
+        referralGrants.set(referredId, voidGrant(referrerId, eventAt, transactionId));
+        return false;
+      }
+      if (referralRefunds.has(transactionId)) return false;
+      if (held) {
+        // An earlier paid period, delivered late: the grant becomes its, by the difference.
+        if (held.revoked || Date.parse(held.eventAt) <= Date.parse(eventAt)) return false;
+        moveBucket(held, days - held.days);
+        Object.assign(held, { eventAt, days, transactionId });
+        return true;
+      }
+      if (originalTransactionId !== "" && [...referralGrants.values()].some((g) => g.originalTransactionId === originalTransactionId)) {
+        return false;
+      }
+      // A referrer paying for a live period banks the days behind it; one who is not gets a dated week from now.
+      const paying = Date.parse(entitlements.get(referrerId)?.expiresAt ?? "") > now();
+      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, originalTransactionId, revoked: false, bucket: paying ? "banked" : "bonus" });
+      if (paying) {
+        bankedDays.set(referrerId, (bankedDays.get(referrerId) ?? 0) + days);
+        return true;
+      }
+      // Not paying: a dated week, after whatever is already running — the dated week, or the banked
+      // days running from a lapse — and the bank FOLDED into the date in the same write, its grants
+      // relabelled 'bonus' so a later revoke takes their days off the date they now live in.
+      const banked = bankedDays.get(referrerId) ?? 0;
+      const expires = entitlements.get(referrerId)?.expiresAt;
+      // The bank runs from the later of the dated week and the subscription's end (`referralBonusEnd`).
+      const running = referralBonusEnd(bonusUntil.get(referrerId) ?? null, banked, expires);
+      bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), running));
+      if (banked > 0) {
+        bankedDays.set(referrerId, 0);
+        for (const g of referralGrants.values()) if (g.referrerId === referrerId && g.bucket === "banked" && !g.revoked) g.bucket = "bonus";
+      }
+      return true;
+    },
+
+    async recordReferralShare(userId, via) {
+      if (users.has(userId)) referralShares.push({ referrerId: userId, via, at: now() });
+    },
+
+    async revokeReferralWeek(referredId, transactionId) {
+      if (transactionId === "" || !referredBy.has(referredId)) return false;
+      referralRefunds.set(transactionId, referredId);
+      const g = referralGrants.get(referredId);
+      // Refunded before any payment was granted: the friend is void, and nothing later earns.
+      if (!g) { referralGrants.set(referredId, voidGrant(referredBy.get(referredId)!, new Date(now()).toISOString(), transactionId)); return false; }
+      if (g.revoked || g.transactionId !== transactionId) return false;
+      takeBack(g);
+      return true;
+    },
+
+    async referralOf(userId) {
+      const code = referralCodes.get(userId);
+      if (code === undefined) return null;
+      // A revoked grant earned nothing: it stays only so that friend can never earn it again.
+      const grants = [...referralGrants.values()].filter((g) => g.referrerId === userId && !g.revoked);
+      return {
+        code,
+        applied: referredBy.has(userId),
+        joined: [...referredBy.values()].filter((r) => r === userId).length,
+        subscribed: grants.length,
+        daysEarned: grants.reduce((n, g) => n + g.days, 0),
+        shares: referralShares.filter((e) => e.referrerId === userId).length,
+      };
+    },
+
     async getEntitlement(userId) {
       // The per-grant clocks are the store's own bookkeeping and are deliberately NOT part of
       // `StoredEntitlement`: nothing outside here may order events, and a field that escapes the
@@ -920,6 +1112,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // to and against no other, or a late renewal would be refused by an unrelated unlock.
       if (patch.expiresAt !== undefined) {
         if (current && current.expiresEventAt !== null && Date.parse(current.expiresEventAt) >= at) return false;
+        // BANKED REFERRAL DAYS ran from the lapse: a new period after one shows how many were used,
+        // and only what is left waits behind it. Postgres does the same in the same statement.
+        const banked = bankedDays.get(userId) ?? 0;
+        // The bank started running at the later of the subscription's end and the dated week's.
+        const dated = Date.parse(bonusUntil.get(userId) ?? "");
+        const lapsedAt = Math.max(Date.parse(current?.expiresAt ?? ""), Number.isFinite(dated) ? dated : -Infinity);
+        if (banked > 0 && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
+          bankedDays.set(userId, Math.max(0, banked - Math.floor((now() - lapsedAt) / DAY_MS)));
+        }
         entitlements.set(userId, {
           ...blank(current),
           expiresAt: patch.expiresAt,

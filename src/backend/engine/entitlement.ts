@@ -12,11 +12,13 @@
 
 import {
   DIARY_WINDOW_DAYS, KCAL_PER_KG, entitlementActive, entitlementLive, explainTargets, forgivingStreak, localDate,
+  referralBonusEnd,
   trialDaysLeft, windowStart, type Entitlement, type Goal, type Lang,
 } from "@eait/shared";
 import type { Config } from "../config.ts";
-import type { AdminUserRow, EntitlementPatch } from "../store.ts";
+import type { AdminUserRow, EntitlementPatch, StoredEntitlement } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { referralRewardDays } from "./referral.ts";
 
 /**
  * The photos-per-day allowance of an ENTITLED account, resolved in one place.
@@ -96,7 +98,7 @@ export async function adminUsers(
   return {
     users: page.rows.map((row) => ({
       ...row,
-      entitled: entitlementLive(row.entitlement, now),
+      entitled: entitlementLive(row.entitlement, now, referralBonusOf(row.entitlement, row.bonusUntil, row.bankedDays, now).end),
       effective: row.freeAnalyses ?? deps.config.freeAnalyses,
     })),
     nextCursor: page.nextCursor,
@@ -140,21 +142,43 @@ export async function adminUserSummary(deps: EngineDeps, userId: string): Promis
       goal: profile.goal ?? "maintain",
       paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
     },
-    entitled: entitlementLive(row.entitlement, Date.now()),
+    entitled: entitlementLive(row.entitlement, Date.now(), referralBonusOf(row.entitlement, row.bonusUntil, row.bankedDays, Date.now()).end),
     streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 
+/**
+ * THE referral bonus of one account (#899), and the one place it is composed: the effective end
+ * every reader of "paid" hands `entitlementLive` (`referralBonusEnd` over the dated week, the bank
+ * and the subscription's end), and the bank as the Profile shows it — the days waiting behind a
+ * live subscription, 0 when none is live (they are already running then) or for a lifetime holder.
+ * Pure over what was read, so the admin's rows, which carry all three, call it too.
+ */
+export function referralBonusOf(
+  stored: StoredEntitlement | null, bonusUntil: string | null, bankedDays: number, now: number,
+): { end: string | null; bankedShown: number } {
+  const paying = stored !== null && stored.lifetimeProductId === null && entitlementActive(stored.expiresAt, now);
+  return { end: referralBonusEnd(bonusUntil, bankedDays, stored?.expiresAt), bankedShown: paying ? bankedDays : 0 };
+}
+
+/** `referralBonusOf` for one account, read from the store, with the record it was read against. */
+export async function readReferralBonus(deps: EngineDeps, userId: string, now = Date.now()) {
+  const [stored, dated, banked] = await Promise.all([
+    deps.store.getEntitlement(userId), deps.store.bonusUntil(userId), deps.store.bankedDays(userId),
+  ]);
+  return { stored, ...referralBonusOf(stored, dated, banked, now) };
+}
+
 /** This account's paid tier, in the shape the profile response carries. */
 export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
-  const stored = await deps.store.getEntitlement(userId);
   const now = Date.now();
+  const { stored, end: bonusUntil } = await readReferralBonus(deps, userId, now);
   // THE DATE IS ONLY SENT WHEN IT IS THE GRANT KEEPING THEM IN. `expiresAt` is the subscription's
   // end and is never cleared, so a lifetime holder whose monthly lapsed still has a past date on
   // the record — and reporting it raw made the settings screen say "Active until 3 January" beside
   // a "Manage subscription" button opening a Customer Center with no subscription in it. The three
   // states `Entitlement` documents are the three the app is allowed to see.
-  const active = entitlementLive(stored, now);
+  const active = entitlementLive(stored, now, bonusUntil);
   const entitlement = {
     active,
     expiresAt: entitlementActive(stored?.expiresAt, now) ? stored?.expiresAt ?? null : null,
@@ -177,6 +201,10 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
     // names ITS renewal price off the store catalog, and a lifetime id here would be a lie about
     // what renews.
     productId: entitlementActive(stored?.expiresAt, now) ? stored?.productId ?? null : null,
+    // The referral week (#899), by the same rule as `expiresAt`: only while it is the grant keeping
+    // them in. Beside a live subscription or a lifetime it would describe a grant not in force.
+    // `lapsed` above stays "bought something": a friend whose free week ended never paid.
+    bonusUntil: active && !entitlementLive(stored, now, null) ? bonusUntil : null,
   };
 }
 
@@ -217,6 +245,30 @@ export interface RevenueCatEvent {
   eventTimestampMs: number;
   /** From `environment`: an App Store sandbox or Test Store purchase, not a real one. */
   sandbox: boolean;
+  /**
+   * The store's `transaction_id`, or "" when the delivery has none. Read for the referral reward
+   * alone (#899): the grant records the transaction that earned it, so only that transaction's
+   * refund can take it back.
+   */
+  transactionId: string;
+  /**
+   * The store's `original_transaction_id`: the subscription itself, stable across its renewals and
+   * across every account it is restored to — so one Apple subscription earns a referral at most
+   * once, whichever account it lands on (#899). "" when the delivery has none.
+   */
+  originalTransactionId: string;
+  /**
+   * `purchased_at_ms`: when the paid period this event describes BEGAN, or null when absent. The
+   * referral's guards compare a period's start with the moment the code applied and order periods
+   * by it — the event's own stamp is when RevenueCat said so, which can be much later.
+   */
+  purchasedAtMs: number | null;
+  /**
+   * A CANCELLATION whose `cancel_reason` is CUSTOMER_SUPPORT — a refund. RevenueCat sends it only
+   * when the LATEST period is refunded; a refund of an earlier one is never delivered, so a reward
+   * whose period was not the latest when refunded cannot be taken back (the accepted ceiling).
+   */
+  refund: boolean;
 }
 
 export type ApplyOutcome =
@@ -271,12 +323,43 @@ export async function applyRevenueCatEvent(
   // than the one already applied — and does not pretend to tell them apart: the write is one
   // statement whose WHERE clause carries both conditions, and splitting the reason would mean a
   // second query asking a question nothing acts on. Both are ordinary, and both answer 200.
-  const written = await deps.store.putEntitlement(event.appUserId, {
-    ...patch,
-    productId: event.productId,
-    eventAt: new Date(event.eventTimestampMs).toISOString(),
-  });
+  const eventAt = new Date(event.eventTimestampMs).toISOString();
+  const written = await deps.store.putEntitlement(event.appUserId, { ...patch, productId: event.productId, eventAt });
+  await referralReward(deps, event, eventAt);
   return written ? { applied: true } : { applied: false, reason: "not-applied" };
+}
+
+/** The deliveries that mean money changed hands for a subscription period. */
+const PAYMENTS = new Set(["INITIAL_PURCHASE", "RENEWAL"]);
+
+/**
+ * The referrer's reward (#899), at the friend's first PAID period: a purchase or renewal of the
+ * configured entitlement, with a period, not a trial, not sandbox — a simulated purchase may
+ * be accepted to exercise the tier, but it earns nobody anything. The store makes it once per
+ * friend, ever, so a renewal, a redelivery or a second plan grants nothing more.
+ *
+ * AND TAKES IT BACK on a refund of the very transaction that earned it — the store matches the
+ * transaction id inside its own write, so a later renewal's refund, or a cancellation that only
+ * stops the renewal, revokes nothing. A revoked grant stays, so that friend never earns it again.
+ *
+ * NOT GATED ON THE ENTITLEMENT WRITE. A paid period delivered after a newer event is refused there
+ * as stale and is still a payment; and a delivery whose grant failed is retried by RevenueCat,
+ * which only helps if the retry — refused as already applied — still reaches this.
+ */
+async function referralReward(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
+  const periodStart = event.purchasedAtMs === null ? eventAt : new Date(event.purchasedAtMs).toISOString();
+  // Gated as the grant is: a simulated purchase earns nobody anything, and a simulated refund takes
+  // nothing back — or a Test Store refund could void a real friend.
+  if (event.sandbox) return;
+  if (event.refund) {
+    await deps.store.revokeReferralWeek(event.appUserId, event.transactionId);
+    return;
+  }
+  if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial) return;
+  await deps.store.grantReferralWeek(
+    event.appUserId, periodStart, referralRewardDays(deps.config, event.productId), event.transactionId,
+    event.originalTransactionId,
+  );
 }
 
 /** This delivery changes neither grant. */

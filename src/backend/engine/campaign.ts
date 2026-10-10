@@ -29,6 +29,7 @@ import {
 } from "@eait/shared";
 import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { readReferralBonus } from "./entitlement.ts";
 import { CATCH_UP_MS, claimSend, instantOf, isStaffAccount, sendLogged, sendRoom, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
 import { pushDevices, pushOffersAllowed } from "./push-consent.ts";
@@ -160,14 +161,14 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
-  const stored = await deps.store.getEntitlement(userId);
+  const { stored, end: bonusUntil } = await readReferralBonus(deps, userId, now);
   // The WHOLE history: a "lapsed" account is one whose last log is old, and a window would read a
   // 61-day-old last log as "never". ponytail: one read per account that passed the cheap filters;
   // store a last-logged date on the account if this ever shows up in a profile.
   const logged = (await deps.store.totalsSince(userId, "1970-01-01")).map((d) => d.date);
   return {
     lang: profile.lang,
-    entitlement: !entitlementLive(stored, now) ? "none" : stored?.trial === true ? "trial" : "active",
+    entitlement: !entitlementLive(stored, now, bonusUntil) ? "none" : stored?.trial === true ? "trial" : "active",
     onboarded: Boolean(profile.onboarded_at),
     ...habitOf(logged, date),
     // The in-app Tips-and-offers toggle (`users.push_offers_at`), default off. Not the sign-up box.

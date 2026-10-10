@@ -193,6 +193,9 @@ services:
       EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: ${EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN:-}
       EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID: ${EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID:-eait_fit_pro}
       EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: ${EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX:-0}
+      # Refer a friend (#899): the friend's week, and the referrer's reward per product id.
+      EAIT__BACKEND__REFERRAL_FRIEND_DAYS: ${EAIT__BACKEND__REFERRAL_FRIEND_DAYS:-7}
+      EAIT__BACKEND__REFERRAL_REWARD_DAYS: ${EAIT__BACKEND__REFERRAL_REWARD_DAYS:-}
       # The web paywall (#77): the plans a browser may buy and the one exit offer. All empty = the
       # host sells nothing and no paywall is drawn.
       EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL: ${EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL:-}

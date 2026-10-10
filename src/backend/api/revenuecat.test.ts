@@ -294,6 +294,24 @@ describe("describeTransfer", () => {
 });
 
 describe("parseRevenueCatEvent", () => {
+  // #899: the two fields the referral reward needs and nothing more — which transaction a payment
+  // was, and whether a cancellation is a refund (RevenueCat's CUSTOMER_SUPPORT reason).
+  it("reads the transaction and whether a cancellation is a refund", () => {
+    const at = { app_user_id: crypto.randomUUID(), event_timestamp_ms: Date.now(), entitlement_ids: ["eait_fit_pro"] };
+    expect(parseRevenueCatEvent({ event: { ...at, type: "CANCELLATION", transaction_id: "2000001", cancel_reason: "CUSTOMER_SUPPORT" } }))
+      .toMatchObject({ transactionId: "2000001", refund: true });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", transaction_id: "2000002", original_transaction_id: "2000001" } }))
+      .toMatchObject({ transactionId: "2000002", originalTransactionId: "2000001" });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", purchased_at_ms: 1_760_000_000_000 } }))
+      .toMatchObject({ purchasedAtMs: 1_760_000_000_000 });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", purchased_at_ms: "soon" } }))
+      .toMatchObject({ purchasedAtMs: null });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "CANCELLATION", transaction_id: "2000001", cancel_reason: "UNSUBSCRIBE" } }))
+      .toMatchObject({ refund: false });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", cancel_reason: "CUSTOMER_SUPPORT" } }))
+      .toMatchObject({ transactionId: "", originalTransactionId: "", refund: false });
+  });
+
   const id = crypto.randomUUID();
 
   // Both spellings are still sent, depending on the event. Reading only the plural would silently

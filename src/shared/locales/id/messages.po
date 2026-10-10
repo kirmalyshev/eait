@@ -280,6 +280,11 @@ msgstr "Kalau ada yang meleset, bilang saja — \"nasinya setengah\", \"tanpa al
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Tautan undangan untuk anggota baru, dan akun ini sudah membeli eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Catat"
 
@@ -450,6 +455,11 @@ msgstr "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Tautan undangan itu tidak cocok dengan siapa pun. Periksa lagi, atau lewati."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Tautan itu sudah kedaluwarsa. Buka halaman rencanamu di web lalu tekan Hubungkan Telegram lagi."
 
@@ -495,6 +505,11 @@ msgstr "Untuk sekarang itu batasnya. Coba lagi nanti."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Itu tautan undanganmu sendiri. Tautan dari teman yang dimasukkan di sini."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "aplikasi"
 
@@ -502,6 +517,11 @@ msgstr "aplikasi"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Tidak ada makanan yang sedang terbuka di sini untuk diubah. Sebutkan apa yang kamu makan lalu catat lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Akun ini sudah bergabung lewat tautan dari teman."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

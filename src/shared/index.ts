@@ -22,6 +22,7 @@ export * from "./scores.ts";
 export * from "./milestones.ts";
 export * from "./app/scores-copy.ts";
 export * from "./entitlement.ts";
+export * from "./referral.ts";
 export * from "./chat.ts";
 export * from "./chat-copy.ts";
 export * from "./lang.ts";

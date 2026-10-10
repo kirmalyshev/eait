@@ -280,6 +280,11 @@ msgstr "Si quelque chose cloche, dis-le — \"la moitié du riz\", \"pas d'avoca
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Les liens d'invitation sont pour les nouveaux membres, et ce compte a déjà acheté eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Enregistrer"
 
@@ -450,6 +455,11 @@ msgstr "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Ce lien d'invitation ne correspond à personne. Vérifie-le ou passe cette étape."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Ce lien a expiré. Ouvre ton plan sur le web et appuie de nouveau sur Connecter Telegram."
 
@@ -495,6 +505,11 @@ msgstr "C'est la limite pour l'instant. Réessaie plus tard."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "C'est ton propre lien d'invitation. Ici, c'est le lien d'un ami."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "l'app"
 
@@ -502,6 +517,11 @@ msgstr "l'app"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Il n'y a aucun repas ouvert ici à modifier. Dis-moi ce que tu as mangé et enregistre-le à nouveau."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Ce compte a déjà rejoint avec le lien d'un ami."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -3551,13 +3551,539 @@ function abandonedAccounts(name: string, make: (opts: StoreOptions) => Promise<S
   });
 }
 
+// ── Referrals (#899) ─────────────────────────────────────────────────────────────────────────────
+//
+// Its own suite for the reason `tokenLifetime` has one: every week here is counted from the
+// store's clock, and a clock the test holds still is what makes the dates exact.
+function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`referrals — ${name}`, () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const clock = Date.parse("2026-10-10T12:00:00Z");
+    const at = (days: number) => new Date(clock + days * DAY).toISOString();
+    let store: Store | null = null;
+    const open = async () => (store ??= await make({ now: () => clock }));
+    afterAll(async () => { await store?.close(); });
+    const codeOf = async (s: Store, userId: string) => (await s.referralOf(userId))!.code;
+
+    it("gives every account its own code from the alphabet, made with the account", async () => {
+      const s = await open();
+      const { userId: a } = await s.upsertDeviceUser(device(), "en");
+      const b = await s.createUser("en");
+      const [ca, cb] = [await codeOf(s, a), await codeOf(s, b)];
+      expect(ca).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+      expect(cb).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);
+      expect(ca).not.toBe(cb);
+      // It never changes: the link a person shared last month still works.
+      expect(await codeOf(s, a)).toBe(ca);
+      expect(await s.referralOf(crypto.randomUUID())).toBeNull();
+    });
+
+    it("applies a friend's code ONCE and starts the friend's week from now", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      expect(await s.bonusUntil(friend)).toBeNull();
+
+      expect(await s.redeemReferral(friend, await codeOf(s, referrer), 7)).toBe("ok");
+      expect(await s.bonusUntil(friend)).toBe(at(7));
+      expect((await s.referralOf(friend))!.applied).toBe(true);
+      expect(await s.referralOf(referrer)).toMatchObject({ applied: false, joined: 1, subscribed: 0, daysEarned: 0 });
+
+      // A second code, or the same one again, is refused and grants nothing more.
+      const other = await s.createUser("en");
+      expect(await s.redeemReferral(friend, await codeOf(s, other), 7)).toBe("already");
+      expect(await s.redeemReferral(friend, await codeOf(s, referrer), 7)).toBe("already");
+      expect(await s.bonusUntil(friend)).toBe(at(7));
+      expect((await s.referralOf(other))!.joined).toBe(0);
+    });
+
+    it("refuses an unknown code and the account's own, storing nothing", async () => {
+      const s = await open();
+      const me = await s.createUser("en");
+      expect(await s.redeemReferral(me, "ZZZZZZ", 7)).toBe("unknown");
+      expect(await s.redeemReferral(me, await codeOf(s, me), 7)).toBe("own");
+      expect(await s.bonusUntil(me)).toBeNull();
+      expect((await s.referralOf(me))!.applied).toBe(false);
+      // Refused, not burnt: a friend's code still applies afterwards.
+      const friendOf = await s.createUser("en");
+      expect(await s.redeemReferral(me, await codeOf(s, friendOf), 7)).toBe("ok");
+    });
+
+    // Must-fix (#597 review): a code is for somebody who has not paid yet. An account that ever
+    // bought anything is refused — a trial that never converted is not a purchase and may still
+    // join — and a payment from before the code applied never pays the referrer, even delivered late.
+    it("refuses an account that has ever paid, and lets a trial that never converted join", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const code = await codeOf(s, referrer);
+      const payer = await s.createUser("en");
+      await s.putEntitlement(payer, { expiresAt: at(-1), productId: "monthly", eventAt: at(-30), trial: false });
+      expect(await s.redeemReferral(payer, code, 7)).toBe("paid");
+      expect(await s.bonusUntil(payer)).toBeNull();
+      const lifer = await s.createUser("en");
+      await s.putEntitlement(lifer, { lifetimeProductId: "lifetime", productId: "lifetime", eventAt: at(-30) });
+      expect(await s.redeemReferral(lifer, code, 7)).toBe("paid");
+      const trialist = await s.createUser("en");
+      await s.putEntitlement(trialist, { expiresAt: at(-1), productId: "monthly", eventAt: at(-5), trial: true });
+      expect(await s.redeemReferral(trialist, code, 7)).toBe("ok");
+    });
+
+    // Review 3 (a): a friend who paid BEFORE the code applied is not a referral at all — redeem
+    // refuses one, and a payment delivered late voids the friend for good: its renewals never earn.
+    it("voids a friend whose payment from before the code arrives first, so no renewal earns", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(-1), 7, `t-early-${RUN}-5`, "")).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(1), 7, `t-renewal-${RUN}-5`, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBeNull();
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 1, subscribed: 0, daysEarned: 0 });
+    });
+
+    it("takes a reward back when the payment from before the code arrives after it", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(1), 14, `t-renewal-${RUN}-6`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.grantReferralWeek(friend, at(-1), 7, `t-early-${RUN}-6`, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBe(at(0));
+      expect(await s.grantReferralWeek(friend, at(2), 7, `t-later-${RUN}-6`, "")).toBe(false);
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 0, daysEarned: 0 });
+    });
+
+    it("does not carry a referral onto a merged-into account that has paid", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const anon = await s.createUser("en");
+      const real = await s.createUser("en");
+      await s.putEntitlement(real, { expiresAt: at(30), productId: "monthly", eventAt: at(-30), trial: false });
+      await s.redeemReferral(anon, await codeOf(s, referrer), 7);
+      await s.mergeUsers(anon, real);
+      expect((await s.referralOf(real))!.applied).toBe(false);
+      expect(await s.grantReferralWeek(real, at(1), 7, `txn-1-${RUN}-7`, "")).toBe(false);
+    });
+
+    it("is not writable through a profile patch", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const me = await s.createUser("en");
+      await s.patchProfile(me, { referred_by: referrer, bonus_until: at(30), referral_code: "AAAAAA" } as never);
+      expect(await s.bonusUntil(me)).toBeNull();
+      expect((await s.referralOf(me))!.applied).toBe(false);
+      expect((await s.referralOf(referrer))!.joined).toBe(0);
+      expect(await codeOf(s, me)).not.toBe("AAAAAA");
+    });
+
+    it("grants the referrer's reward once per friend, past where their access would end", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+
+      // Nothing live on the referrer: the reward counts from now.
+      expect(await s.grantReferralWeek(friend, at(0), 14, `txn-1-${RUN}-9`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      // Once per friend, EVER: a renewal, a redelivery, a second paid period.
+      expect(await s.grantReferralWeek(friend, at(1), 14, `txn-1-${RUN}-9`, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 1, subscribed: 1, daysEarned: 14 });
+
+      // A second friend stacks on the bonus still running.
+      const second = await s.createUser("en");
+      await s.redeemReferral(second, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(second, at(0), 7, `txn-1-${RUN}-9`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(21));
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 2, subscribed: 2, daysEarned: 21 });
+    });
+
+    // Must-fix (#597 review): RevenueCat redelivers, and two deliveries for one first period can
+    // be in flight at once. The primary key is the guard, so racing grants still pay exactly once.
+    it("grants once when the same friend's grants race", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      const raced = await Promise.all([1, 2, 3, 4].map(() => s.grantReferralWeek(friend, at(0), 7, `txn-1-${RUN}-10`, "")));
+      expect(raced.filter(Boolean)).toHaveLength(1);
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 1, daysEarned: 7 });
+    });
+
+    // Must-fix (#597 review): a refund of the period that earned the reward takes the reward back —
+    // its days off the referrer's week, never below now — and the grant stays, revoked, so that
+    // friend can never earn it again. Only the refund that names the SAME transaction does it.
+    it("revokes a refunded reward once, by its transaction, and never grants it again", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 14, `txn-first-${RUN}-11`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.revokeReferralWeek(friend, `txn-renewal-${RUN}-11`)).toBe(false);
+      expect(await s.revokeReferralWeek(friend, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.revokeReferralWeek(friend, `txn-first-${RUN}-11`)).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(0));
+      expect(await s.revokeReferralWeek(friend, `txn-first-${RUN}-11`)).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(1), 7, `txn-next-${RUN}-11`, "")).toBe(false);
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 1, subscribed: 0, daysEarned: 0 });
+    });
+
+    it("takes back only the reward's own days from a week that has grown since", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      await s.redeemReferral(a, await codeOf(s, referrer), 7);
+      await s.redeemReferral(b, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 7, `a-1-${RUN}-12`, "");
+      await s.grantReferralWeek(b, at(0), 14, `b-1-${RUN}-12`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(21));
+      await s.revokeReferralWeek(a, `a-1-${RUN}-12`);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 1, daysEarned: 14 });
+    });
+
+    // Must-fix (#597 review): deliveries arrive out of order, and the reward is the EARLIEST paid
+    // period's — a yearly first payment delivered after a monthly renewal still pays two weeks.
+    it("re-sizes the grant to an earlier paid period delivered late, moving the week by the difference", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(2), 7, `t-later-${RUN}-13`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      expect(await s.grantReferralWeek(friend, at(1), 14, `t-first-${RUN}-13`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 1, daysEarned: 14 });
+      // A later one changes nothing, and the earliest's transaction is the one a refund must name.
+      expect(await s.grantReferralWeek(friend, at(3), 7, `t-latest-${RUN}-13`, "")).toBe(false);
+      expect(await s.revokeReferralWeek(friend, `t-later-${RUN}-13`)).toBe(false);
+      expect(await s.revokeReferralWeek(friend, `t-first-${RUN}-13`)).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(0));
+      // Revoked is final: an even earlier delivery re-sizes nothing.
+      expect(await s.grantReferralWeek(friend, at(0), 14, `t-zero-${RUN}-13`, "")).toBe(false);
+    });
+
+    it("shrinks a yearly grant to the earlier monthly period delivered after it", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(2), 14, `t-yearly-${RUN}-14`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.grantReferralWeek(friend, at(1), 7, `t-monthly-${RUN}-14`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 1, daysEarned: 7 });
+    });
+
+    // A refund can be delivered before the payment it refunds. The refunded transaction is kept,
+    // and its payment, arriving late, earns nothing.
+    // Review 3 (b): a refund that arrives first voids the friend — a revoked row of 0 days takes
+    // the key — so neither its payment nor any later renewal earns.
+    it("voids the friend when a refund arrives before any payment", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.revokeReferralWeek(friend, `t-refunded-${RUN}-15`)).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(1), 7, `t-refunded-${RUN}-15`, "")).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(2), 7, `t-renewal-${RUN}-15`, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBeNull();
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 1, subscribed: 0 });
+    });
+
+    // Review 3 (SHOULD): a refund and the grant it refunds, racing. The friend's row is locked by
+    // both, so whichever lands first, the end state pays nothing.
+    it("pays nothing when a refund and its payment race", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      for (let i = 0; i < 8; i++) {
+        const friend = await s.createUser("en");
+        await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+        const t = `t-race-${i}-${RUN}-16`;
+        await Promise.all([s.revokeReferralWeek(friend, t), s.grantReferralWeek(friend, at(1), 7, t, "")]);
+      }
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 0, daysEarned: 0 });
+      expect(await s.bankedDays(referrer)).toBe(0);
+      const until = await s.bonusUntil(referrer);
+      expect(until === null || until === at(0)).toBe(true);
+    });
+
+    // Must-fix (#597 review): one store subscription earns a referral once, whichever account it
+    // lands on — the original transaction id is the subscription's, the same on every account.
+    it("grants once per store subscription, across accounts", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      await s.redeemReferral(a, await codeOf(s, referrer), 7);
+      await s.redeemReferral(b, await codeOf(s, referrer), 7);
+      const sub = `orig-${crypto.randomUUID()}`;
+      expect(await s.grantReferralWeek(a, at(0), 7, `t-a-${RUN}-17`, sub)).toBe(true);
+      expect(await s.grantReferralWeek(b, at(1), 7, `t-b-${RUN}-17`, sub)).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      // An id the store did not send is not one subscription shared by everybody.
+      const c = await s.createUser("en");
+      await s.redeemReferral(c, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(c, at(0), 7, `t-c-${RUN}-17`, "")).toBe(true);
+    });
+
+    // Review 3 (c): a paying referrer's reward is BANKED in days, not a date — a date set past this
+    // period's end would be overtaken by the next renewal and the weeks would die unseen.
+    it("banks a paying referrer's reward in days, and it survives their renewal", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-1), trial: false });
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(0), 14, `txn-1-${RUN}-18`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBeNull();
+      expect(await s.bankedDays(referrer)).toBe(14);
+      await s.putEntitlement(referrer, { expiresAt: at(60), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(14);
+      // Revoking takes it out of the bucket it went into.
+      expect(await s.revokeReferralWeek(friend, `txn-1-${RUN}-18`)).toBe(true);
+      expect(await s.bankedDays(referrer)).toBe(0);
+      expect(await s.bonusUntil(referrer)).toBeNull();
+    });
+
+    it("spends banked days from the lapse, and keeps what is left when they come back", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 14, `txn-2-${RUN}-19`, "");
+      // The subscription ended three days ago and nothing renewed it: the banked days run from then.
+      await s.putEntitlement(referrer, { expiresAt: at(-3), productId: "monthly", eventAt: at(-2), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(14);
+      // They subscribe again: three days were used, eleven wait behind the new period.
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(11);
+    });
+
+    // Review 4: a reward earned while the referrer is LAPSED with banked days running starts after
+    // what is left of the bank, and folds the bank into the date in the same write.
+    it("adds a reward earned in a lapse after the banked days still running, and folds them", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      await s.redeemReferral(a, await codeOf(s, referrer), 7);
+      await s.redeemReferral(b, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 7, `t-a-${RUN}`, "");
+      expect(await s.bankedDays(referrer)).toBe(7);
+      // The subscription ended two days ago: five of the seven are left.
+      await s.putEntitlement(referrer, { expiresAt: at(-2), productId: "monthly", eventAt: at(-1), trial: false });
+      expect(await s.grantReferralWeek(b, at(0), 7, `t-b-${RUN}`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(12));
+      expect(await s.bankedDays(referrer)).toBe(0);
+      // The folded grant was relabelled with its days: revoking it takes them off the date.
+      expect(await s.revokeReferralWeek(a, `t-a-${RUN}`)).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(5));
+      expect(await s.bankedDays(referrer)).toBe(0);
+    });
+
+    // Review 4: a lapse uses WHOLE days — two and a half days away spend two of the bank.
+    it("spends only whole days of the bank across a partial lapse", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 14, `t-partial-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(-2.5), productId: "monthly", eventAt: at(-2), trial: false });
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(12);
+    });
+
+    // Review 5: the bank runs from the LATER of the dated week and the subscription's end, so a
+    // dated week that outlasts the subscription neither eats the bank in a fold nor in a lapse.
+    it("folds the bank after a dated week that outlasts the subscription", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b, c] = [await s.createUser("en"), await s.createUser("en"), await s.createUser("en")];
+      for (const f of [a, b, c]) await s.redeemReferral(f, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 14, `t-fa-${RUN}`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      await s.putEntitlement(referrer, { expiresAt: at(7), productId: "monthly", eventAt: at(-5), trial: true });
+      await s.grantReferralWeek(b, at(0), 7, `t-fb-${RUN}`, "");
+      expect(await s.bankedDays(referrer)).toBe(7);
+      await s.putEntitlement(referrer, { expiresAt: at(-2), productId: "monthly", eventAt: at(-1), trial: true });
+      await s.grantReferralWeek(c, at(0), 7, `t-fc-${RUN}`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(28));
+      expect(await s.bankedDays(referrer)).toBe(0);
+    });
+
+    it("spends no bank while a dated week is still running through the lapse", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      for (const f of [a, b]) await s.redeemReferral(f, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 14, `t-la-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      await s.grantReferralWeek(b, at(0), 7, `t-lb-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(-3), productId: "monthly", eventAt: at(-2), trial: false });
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(7);
+    });
+
+    it("takes a reward into the dated week for a referrer who is not paying", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      await s.putEntitlement(referrer, { expiresAt: at(-1), productId: "monthly", eventAt: at(-30), trial: false });
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 7, `txn-3-${RUN}-20`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      expect(await s.bankedDays(referrer)).toBe(0);
+    });
+
+    it("grants nothing for an account nobody referred", async () => {
+      const s = await open();
+      const loner = await s.createUser("en");
+      expect(await s.grantReferralWeek(loner, at(0), 7, `txn-1-${RUN}-21`, "")).toBe(false);
+      expect(await s.grantReferralWeek(crypto.randomUUID(), at(0), 7, `txn-1-${RUN}-21`, "")).toBe(false);
+    });
+
+    it("counts a share by its label and nothing else", async () => {
+      const s = await open();
+      const me = await s.createUser("en");
+      await s.recordReferralShare(me, "messages");
+      await s.recordReferralShare(me, "copy");
+      expect((await s.referralOf(me))!.shares).toBe(2);
+    });
+
+    // Anonymous → real: a friend who redeemed during onboarding and signed in to an account that
+    // already existed keeps the week, and the account it merged into is now the referred one.
+    it("carries the referral and the week across a merge", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const anon = await s.createUser("en");
+      const real = await s.createUser("en");
+      await s.redeemReferral(anon, await codeOf(s, referrer), 7);
+      await s.mergeUsers(anon, real);
+      expect(await s.bonusUntil(real)).toBe(at(7));
+      expect((await s.referralOf(real))!.applied).toBe(true);
+      expect((await s.referralOf(referrer))!.joined).toBe(1);
+      // And it is still once: the merged account cannot apply a second code.
+      expect(await s.redeemReferral(real, await codeOf(s, await s.createUser("en")), 7)).toBe("already");
+      expect(await s.grantReferralWeek(real, at(0), 7, `txn-1-${RUN}-23`, "")).toBe(true);
+    });
+
+    it("keeps the surviving account's own referral and the later week when both have one", async () => {
+      const s = await open();
+      const first = await s.createUser("en");
+      const second = await s.createUser("en");
+      const anon = await s.createUser("en");
+      const real = await s.createUser("en");
+      await s.redeemReferral(real, await codeOf(s, first), 7);
+      await s.redeemReferral(anon, await codeOf(s, second), 7);
+      await s.grantReferralWeek(anon, at(0), 7, `txn-1-${RUN}-24`, "");
+      await s.mergeUsers(anon, real);
+      expect((await s.referralOf(first))!.joined).toBe(1);
+      expect((await s.referralOf(second))!).toMatchObject({ joined: 0, subscribed: 1 });
+      expect(await s.bonusUntil(real)).toBe(at(7));
+      // The grant moves with the person, not the account: that friend was paid for once, through
+      // the anonymous account, and the survivor's own referrer is not paid for them a second time.
+      expect(await s.grantReferralWeek(real, at(0), 7, `txn-1-${RUN}-24`, "")).toBe(false);
+    });
+
+    it("moves what the anonymous account earned as a referrer onto the real one", async () => {
+      const s = await open();
+      const anon = await s.createUser("en");
+      const real = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, anon), 7);
+      await s.recordReferralShare(anon, "copy");
+      await s.mergeUsers(anon, real);
+      expect(await s.referralOf(real)).toMatchObject({ joined: 1, shares: 1 });
+      expect(await s.grantReferralWeek(friend, at(0), 7, `txn-1-${RUN}-25`, "")).toBe(true);
+      expect(await s.bonusUntil(real)).toBe(at(7));
+    });
+
+    it("never leaves an account referred by itself after a merge", async () => {
+      const s = await open();
+      const real = await s.createUser("en");
+      const anon = await s.createUser("en");
+      await s.redeemReferral(anon, await codeOf(s, real), 7);
+      await s.mergeUsers(anon, real);
+      expect((await s.referralOf(real))!).toMatchObject({ applied: false, joined: 0 });
+    });
+
+    it("goes with an account that is deleted", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(friend, at(0), 7, `txn-1-${RUN}-27`, "");
+      await s.deleteUser(friend);
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 0, subscribed: 0 });
+    });
+
+    it("shows the referral week on the admin's row", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      const page = await s.adminListUsers({ q: friend, limit: 1, today: "2026-10-10" });
+      expect(page.rows[0]?.bonusUntil).toBe(at(7));
+      expect(page.rows[0]?.entitlement).toBeNull();
+    });
+  });
+}
+
+
 tokenLifetime("memory", async (o) => memoryStore(o));
+referrals("memory", async (o) => memoryStore(o));
 pendingLifetime("memory", async (o) => memoryStore(o));
 pairingCodes("memory", async (o) => memoryStore(o));
 abandonedAccounts("memory", async (o) => memoryStore(o));
 
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+  referrals("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+
+  // The bucket check is re-added only when it is missing or different: a boot that found it in
+  // place takes no lock on referral_grants, which the constraint's unchanged oid proves.
+  describe("the referral bucket constraint across boots — postgres", () => {
+    it("is not dropped and re-added by a second migrate", async () => {
+      const raw = await rawSql();
+      try {
+        const oid = async () => (await raw`select oid::text as o from pg_constraint where conname = 'referral_grants_bucket_check'`)[0]?.o;
+        await (await postgresStore(PG_URL, { maxConnections: TEST_POOL })).close();
+        const first = await oid();
+        expect(first).toBeDefined();
+        await (await postgresStore(PG_URL, { maxConnections: TEST_POOL })).close();
+        expect(await oid()).toBe(first);
+      } finally {
+        await raw.end();
+      }
+    });
+  });
+
+  // POSTGRES ONLY because no store call leaves a referrer's week unset under a grant; a row edited
+  // by hand can. Revoking must not invent a week there: unset stays unset, as the memory store does.
+  describe("a revoked grant over a week that was never set — postgres", () => {
+    it("leaves it unset rather than setting it to now", async () => {
+      const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const raw = await rawSql();
+      try {
+        const referrer = await s.createUser("en");
+        const friend = await s.createUser("en");
+        await s.redeemReferral(friend, (await s.referralOf(referrer))!.code, 7);
+        await s.grantReferralWeek(friend, new Date().toISOString(), 7, `t-null-${RUN}`, "");
+        await raw`update users set bonus_until = null where id = ${referrer}`;
+        expect(await s.revokeReferralWeek(friend, `t-null-${RUN}`)).toBe(true);
+        expect(await s.bonusUntil(referrer)).toBeNull();
+      } finally {
+        await raw.end();
+        await s.close();
+      }
+    });
+  });
   pendingLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pairingCodes("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   abandonedAccounts("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
@@ -4108,7 +4634,11 @@ if (PG_URL) {
         "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
         "countClipAnalyses", "countGlobalAnalyses", "createCampaign", "createUser", "expireJobs", "foodCandidates",
         "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
-        "getPrompts", "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates",
+        "getPrompts",
+        // #899: the referrer is found by code, rewarded from a webhook, and its friends counted —
+        // each of these touches a second account's row by design.
+        "grantReferralWeek",
+        "hasAdmin", "heartbeatJobs", "identityFor", "listCampaigns", "listPushTemplates",
         "markCampaignRunning", "mergeUsers", "moveIdentity", "offProductByBarcode", "onboardingFunnel",
         "promptRevisions", "pruneAbandonedAccounts", "pruneExpiredPendings", "pruneExpiredTokens",
         "pruneHealthDaysBefore", "pushAudience", "pushOpenStats",
@@ -4116,7 +4646,7 @@ if (PG_URL) {
         // and scoping to a user that may not exist yet is not a concept the table has (#569).
         "putEmailCode",
         "putFoodRefs", "putNotificationCopy",
-        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "releaseJobs",
+        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "redeemReferral", "referralOf", "releaseJobs", "revokeReferralWeek",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
         "setSwitch", "spendEmailCode", "switchEnabled", "switchHistory", "updateCampaign",
         "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
@@ -4141,7 +4671,7 @@ if (PG_URL) {
           and (c.relname = 'users' or exists (
             select 1 from information_schema.columns col
             where col.table_schema = 'public' and col.table_name = c.relname
-              and col.column_name = 'user_id'))
+              and col.column_name in ('user_id', 'referrer_id', 'referred_id')))
         order by c.relname`;
 
       // A catalog query that matched nothing -- or matched one table FEWER than the list it is

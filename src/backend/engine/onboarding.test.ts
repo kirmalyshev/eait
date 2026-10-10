@@ -110,6 +110,15 @@ describe("events", () => {
     expect(goal.medianMs).toBe(2400);
   });
 
+  // #899: the friend's-link step reports its own drop-off, on the app and on the web alike.
+  it("counts the friend's-link step as a place of its own", async () => {
+    expect(await recordOnboardingEvents(deps, userId, [
+      event({ place: "referral", action: "view" }), event({ place: "referral", action: "answer" }),
+    ])).toBe(2);
+    const rows = (await onboardingFunnel(deps, 30)).rows.map((r) => r.place);
+    expect(rows.indexOf("referral")).toBeGreaterThan(rows.indexOf("country"));
+  });
+
   it("is idempotent on the event id", async () => {
     const e = event({ action: "view" });
     expect(await recordOnboardingEvents(deps, userId, [e])).toBe(1);

@@ -113,6 +113,11 @@ const COPY = (i18n: I18n): TelegramCopy => ({
     // say needs the route's own words, and `REFUSAL_STATUS` is one list for every transport.
     "code-wrong": i18n._("tg.refusal.code-wrong", undefined, { message: "That code isn't right. Check the newest email from eait." }),
     "code-dead": i18n._("tg.refusal.code-dead", undefined, { message: "That code has expired. Ask for a new one on the web or in the app." }),
+    // Refer a friend (#899) — the same: the bot never redeems a code, the list is shared.
+    "referral-unknown": i18n._("tg.refusal.referral-unknown", undefined, { message: "That invite link doesn't match anyone. Check it, or skip." }),
+    "referral-own": i18n._("tg.refusal.referral-own", undefined, { message: "That's your own invite link. A friend's link goes here." }),
+    "referral-already": i18n._("tg.refusal.referral-already", undefined, { message: "This account already joined with a friend's link." }),
+    "referral-paid": i18n._("tg.refusal.referral-paid", undefined, { message: "Invite links are for new members, and this account has already bought eait." }),
   },
 });
 

@@ -58,6 +58,21 @@ export const REFUSAL_STATUS = {
    * the resource is gone rather than the guess wrong.
    */
   "code-dead": 410,
+  /**
+   * Refer a friend (#899): the code matches no account. Nothing stored; the field keeps what was
+   * pasted, so a typo is one fix. Also the answer to input that is not a code at all.
+   */
+  "referral-unknown": 422,
+  /** The code is this account's own. Refused, nothing stored, no week. */
+  "referral-own": 422,
+  /** This account already joined with a code. The first one stands; this grants nothing. */
+  "referral-already": 409,
+  /**
+   * This account has already bought eait — a paid period or the lifetime unlock, live or not; a
+   * free trial that never converted does not count. A referral is for somebody who has not paid
+   * yet, so nothing is stored and nobody's week moves.
+   */
+  "referral-paid": 409,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
@@ -405,6 +420,15 @@ export const ROUTES = {
   milestones: "/v1/milestones",
   /** POST `{ ids }` — marks earned badges seen, so they leave `unseen`. Answers {@link MilestonesResponse}. */
   milestonesSeen: "/v1/milestones/seen",
+  /**
+   * POST {@link ReferralRedeemRequest} — apply a friend's code, once per account, ever. Answers
+   * the {@link ProfileResponse} with the week already live; `referral-unknown`/`-own` 422,
+   * `referral-already`/`-paid` 409. The referrer's own week is never granted here: only the purchase
+   * webhook grants it, at the friend's first paid period.
+   */
+  referralRedeem: "/v1/referral/redeem",
+  /** POST {@link ReferralSharedRequest} — count one share of the caller's link. Answers 204. */
+  referralShared: "/v1/referral/shared",
   account: "/v1/account",
 
   // Note the distinction from `health` above, which is the LIVENESS probe the deploy watches.
@@ -793,6 +817,43 @@ export interface ProfileResponse {
   hasLoggedMeal: boolean;
   /** {@link DonateLinks} — the operator's donation URLs, every one null when none are set. */
   donate: DonateLinks;
+  /** {@link ReferralView} — this account's link and what it has done (#899). */
+  referral: ReferralView;
+}
+
+/**
+ * Refer a friend, as the Profile card shows it (#899). COUNTS, NEVER PEOPLE: the referrer is not
+ * told who joined, and nothing here could tell them.
+ */
+export interface ReferralView {
+  /** `<origin>/r/<code>` — the account's own link, made with the account and never changed. */
+  link: string;
+  /** This account joined with a friend's code. */
+  applied: boolean;
+  /** Accounts that joined with this one's link. */
+  joined: number;
+  /** Of those, the ones whose first payment earned this account its reward. */
+  subscribed: number;
+  /** Weeks those rewards added: one per monthly friend, two per yearly one. */
+  weeksEarned: number;
+  /**
+   * Whole days of referral bonus BANKED past a live subscription's end (Kirill, 10 Oct): a paying
+   * referrer's weeks queue after the period they paid for and are used only if they stop — "N free
+   * weeks banked, used if you stop". Computed here from `bonus_until` and the subscription's expiry;
+   * 0 with no live subscription (the weeks are then in use, and `Entitlement.bonusUntil` says until
+   * when), for a lifetime holder (nothing to stop), and when nothing is banked.
+   */
+  bankedDays: number;
+}
+
+/** `POST /v1/referral/redeem`. `code` is the pasted link or the typed code — `normalizeReferralCode` reads either. */
+export interface ReferralRedeemRequest {
+  code: string;
+}
+
+/** `POST /v1/referral/shared`. `via` is the channel's short label — `messages`, `whatsapp`, `copy` — 1–32 of `a-z0-9_.-`. */
+export interface ReferralSharedRequest {
+  via: string;
 }
 
 /**

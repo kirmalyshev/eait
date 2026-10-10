@@ -140,6 +140,17 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
     trial: e.period_type === "TRIAL",
     eventTimestampMs,
     sandbox: e.environment === "SANDBOX",
+    // #899, and the only two more: which store transaction this is, and whether a cancellation is
+    // a REFUND (RevenueCat's CUSTOMER_SUPPORT reason — "will not renew" is UNSUBSCRIBE). The
+    // referral reward is tied to the one transaction that earned it, and taken back only by its
+    // refund. Not the price, not the reason text, not anything else about the purchase.
+    transactionId: typeof e.transaction_id === "string" ? e.transaction_id : "",
+    // The SUBSCRIPTION's id, the same on every renewal and on every account it is restored to —
+    // Apple's original_transaction_id as RevenueCat passes it. One subscription earns one referral.
+    originalTransactionId: typeof e.original_transaction_id === "string" ? e.original_transaction_id : "",
+    refund: e.type === "CANCELLATION" && e.cancel_reason === "CUSTOMER_SUPPORT",
+    // When the period began — compared with when the friend's code applied.
+    purchasedAtMs: epochMs(e.purchased_at_ms),
   };
 }
 

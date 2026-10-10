@@ -842,6 +842,16 @@
               }
             }
           },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "410": {
             "description": "Expired",
             "content": {
@@ -1344,6 +1354,16 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
             "content": {
               "application/json": {
                 "schema": {
@@ -2114,6 +2134,16 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
             "content": {
               "application/json": {
                 "schema": {
@@ -3511,6 +3541,142 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/referral/redeem": {
+      "post": {
+        "operationId": "post_referralRedeem",
+        "summary": "Apply a friend's code or link, once per account. Starts the caller's free week; the referrer's week comes only from the purchase webhook.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferralRedeemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/referral/shared": {
+      "post": {
+        "operationId": "post_referralShared",
+        "summary": "Count one share of the caller's link. `via` is a short channel label; nothing about the recipient is sent or stored.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferralSharedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "204",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
             "content": {
               "application/json": {
                 "schema": {
@@ -4952,6 +5118,13 @@
               "null"
             ],
             "description": "The subscription's store product id — RevenueCat's `product_id`, e.g. `yearly` — while a subscription grant is live, so a client can ask the STORE what the renewal costs rather than compile a price in. Null while no subscription period is live (a lifetime unlock is a different grant and does not renew). OPTIONAL like `lapsed` — a server older than the field sends none, and a client that cannot name the product shows the renewal without its price."
+          },
+          "bonusUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The end of the referral week (#899) — a friend's free week, or the weeks a referrer earned — while it is the ONLY grant keeping this account in, else null. Sent on that condition for the reason `expiresAt` is: a date beside a live subscription or a lifetime unlock would describe a grant that is not the one in force. With it, `{ active: true, expiresAt: null }` is the referral week and not the lifetime unlock. OPTIONAL like `lapsed`."
           }
         },
         "required": [
@@ -7091,6 +7264,7 @@
           "ontrack",
           "summary",
           "signup",
+          "referral",
           "health"
         ]
       },
@@ -8097,6 +8271,10 @@
           "donate": {
             "$ref": "#/components/schemas/DonateLinks",
             "description": "{@link  DonateLinks }  — the operator's donation URLs, every one null when none are set."
+          },
+          "referral": {
+            "$ref": "#/components/schemas/ReferralView",
+            "description": "{@link  ReferralView }  — this account's link and what it has done (#899)."
           }
         },
         "required": [
@@ -8115,7 +8293,8 @@
           "paywall",
           "coachName",
           "hasLoggedMeal",
-          "donate"
+          "donate",
+          "referral"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -8274,6 +8453,71 @@
         ],
         "additionalProperties": false,
         "description": "`POST /v1/meals/:id/redate` — \"Move to yesterday\", as an offset: `1` is yesterday, `0` a no-op, and the bound is the chat re-date's own (`MAX_DAY_OFFSET`), clamped in the engine rather than refused — a hand-edited client that sends 40 gets the same answer the model's misparse gets.\n\nA date changes ONLY this way: `EditMealRequest` has no date field, so the manual editor cannot reach it — the offset is resolved against the account's today on the server, never sent as a `YYYY-MM-DD` a client could aim anywhere on the calendar."
+      },
+      "ReferralRedeemRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/referral/redeem`. `code` is the pasted link or the typed code — `normalizeReferralCode` reads either."
+      },
+      "ReferralSharedRequest": {
+        "type": "object",
+        "properties": {
+          "via": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "via"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/referral/shared`. `via` is the channel's short label — `messages`, `whatsapp`, `copy` — 1–32 of `a-z0-9_.-`."
+      },
+      "ReferralView": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "description": "`<origin>/r/<code>` — the account's own link, made with the account and never changed."
+          },
+          "applied": {
+            "type": "boolean",
+            "description": "This account joined with a friend's code."
+          },
+          "joined": {
+            "type": "number",
+            "description": "Accounts that joined with this one's link."
+          },
+          "subscribed": {
+            "type": "number",
+            "description": "Of those, the ones whose first payment earned this account its reward."
+          },
+          "weeksEarned": {
+            "type": "number",
+            "description": "Weeks those rewards added: one per monthly friend, two per yearly one."
+          },
+          "bankedDays": {
+            "type": "number",
+            "description": "Whole days of referral bonus BANKED past a live subscription's end (Kirill, 10 Oct): a paying referrer's weeks queue after the period they paid for and are used only if they stop — \"N free weeks banked, used if you stop\". Computed here from `bonus_until` and the subscription's expiry; 0 with no live subscription (the weeks are then in use, and `Entitlement.bonusUntil` says until when), for a lifetime holder (nothing to stop), and when nothing is banked."
+          }
+        },
+        "required": [
+          "link",
+          "applied",
+          "joined",
+          "subscribed",
+          "weeksEarned",
+          "bankedDays"
+        ],
+        "additionalProperties": false,
+        "description": "Refer a friend, as the Profile card shows it (#899). COUNTS, NEVER PEOPLE: the referrer is not told who joined, and nothing here could tell them."
       },
       "Refusal": {
         "anyOf": [

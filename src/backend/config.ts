@@ -309,6 +309,19 @@ export interface Config {
   revenueCatAcceptSandbox: boolean;
 
   /**
+   * The friend's free week (#899): days of access a code grants the account that applies it,
+   * counted from the moment it is applied (`EAIT__BACKEND__REFERRAL_FRIEND_DAYS`, default 7).
+   */
+  referralFriendDays: number;
+  /**
+   * The referrer's reward per store product, in days, granted at the friend's first PAID period
+   * (`EAIT__BACKEND__REFERRAL_REWARD_DAYS`, `productId=days` pairs, comma-separated). A product
+   * not listed is told by its id — a yearly one is two weeks, anything else one (Kirill, 10 Oct:
+   * "a week if friends sign up monthly, two weeks if yearly"); see `referralRewardDays`.
+   */
+  referralRewardDays: Readonly<Record<string, number>>;
+
+  /**
    * The credential for `/admin` — onboarding copy and the funnel.
    *
    * EMPTY MEANS THERE IS NO ADMIN. Every path under `/admin` answers 404, so a deployment that
@@ -526,6 +539,15 @@ function list(name: string): string[] {
   return (process.env[name] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+/** `productId=days` pairs. A pair that does not read is a startup error, not a reward of nothing. */
+function referralRewardDaysFromEnv(pairs: string[]): Record<string, number> {
+  return Object.fromEntries(pairs.map((pair) => {
+    const m = /^([^=\s]+)\s*=\s*(\d+)$/.exec(pair);
+    if (!m) throw new Error(`[eait] EAIT__BACKEND__REFERRAL_REWARD_DAYS takes productId=days pairs, not "${pair}"`);
+    return [m[1]!, Number(m[2])];
+  }));
+}
+
 /** Both halves of the self-hosted price, or neither; each a non-negative number of dollars. */
 function llmPricePerMTokFromEnv(): { input: number; output: number } | null {
   const input = process.env.EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK ?? "";
@@ -674,6 +696,8 @@ export function configDefaults(): Config {
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "eait_fit_pro",
     revenueCatAcceptSandbox: false,
+    referralFriendDays: 7,
+    referralRewardDays: {},
     publicApiUrl: "",
     publicWebUrl: "",
     telegramBotToken: "",
@@ -889,6 +913,9 @@ export function loadConfig(): Config {
     revenueCatEntitlementId:
       process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
     revenueCatAcceptSandbox: ["1", "true"].includes(process.env.EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX ?? ""),
+    referralFriendDays: int("EAIT__BACKEND__REFERRAL_FRIEND_DAYS", d.referralFriendDays),
+    referralRewardDays: process.env.EAIT__BACKEND__REFERRAL_REWARD_DAYS === undefined
+      ? d.referralRewardDays : referralRewardDaysFromEnv(list("EAIT__BACKEND__REFERRAL_REWARD_DAYS")),
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
     telegramBotToken: telegramBotTokenFromEnv(),

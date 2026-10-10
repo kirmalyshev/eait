@@ -280,6 +280,11 @@ msgstr "Если что-то не так, скажи — «риса полови
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Ссылки-приглашения — для новых участников, а этот аккаунт уже покупал eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Записать"
 
@@ -450,6 +455,11 @@ msgstr "Этот формат не поддерживается. Нужен JPEG
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Эта ссылка-приглашение никому не принадлежит. Проверьте её или пропустите шаг."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
 msgstr "Ссылка истекла. Открой свой план на сайте и снова нажми «Подключить Telegram»."
 
@@ -495,6 +505,11 @@ msgstr "Пока это предел. Попробуй позже."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Это ваша собственная ссылка-приглашение. Сюда нужна ссылка друга."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "приложение"
 
@@ -502,6 +517,11 @@ msgstr "приложение"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Здесь нет открытого приёма пищи, который можно было бы изменить. Скажи, что было на тарелке, и запиши заново."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Этот аккаунт уже присоединился по ссылке друга."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

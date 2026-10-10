@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
+  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, referralBonusEnd, sampleSpent,
   subscriptionState, trialDaysLeft,
 } from "./entitlement.ts";
 
@@ -94,34 +94,69 @@ describe("entitlementLive", () => {
   const past = "2026-07-25T12:00:00.000Z";
 
   it("refuses an account with no record: it has never bought anything", () => {
-    expect(entitlementLive(null, now)).toBe(false);
-    expect(entitlementLive(undefined, now)).toBe(false);
+    expect(entitlementLive(null, now, null)).toBe(false);
+    expect(entitlementLive(undefined, now, null)).toBe(false);
   });
 
   it("admits a live subscription and refuses a lapsed one", () => {
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, null)).toBe(false);
   });
 
   it("admits the lifetime unlock, which has no date to check", () => {
-    expect(entitlementLive({ expiresAt: null, lifetimeProductId: "lifetime" }, now)).toBe(true);
+    expect(entitlementLive({ expiresAt: null, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
   });
 
   // The case the two-column model exists for: refunding the unlock must not take a subscription
   // with it, and a lapsed subscription must not take the unlock with it.
   it("admits an account holding both, and keeps admitting it when one of them ends", () => {
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: "lifetime" }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: "lifetime" }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now)).toBe(true);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now, null)).toBe(true);
   });
 
   it("refuses a record where both grants are spent", () => {
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now)).toBe(false);
-    expect(entitlementLive({ expiresAt: null, lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, null)).toBe(false);
+    expect(entitlementLive({ expiresAt: null, lifetimeProductId: null }, now, null)).toBe(false);
   });
 
   it("refuses an unreadable expiry rather than trusting it", () => {
-    expect(entitlementLive({ expiresAt: "not a date", lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: "not a date", lifetimeProductId: null }, now, null)).toBe(false);
+  });
+
+  // The referral week (#899) is the third grant: it admits an account that never bought anything,
+  // and it ends on its date like a subscription does.
+  it("admits a live referral week with no record at all, and refuses it once it has ended", () => {
+    expect(entitlementLive(null, now, future)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, future)).toBe(true);
+    expect(entitlementLive(null, now, past)).toBe(false);
+    expect(entitlementLive(null, now, "not a date")).toBe(false);
+  });
+});
+
+describe("referralBonusEnd", () => {
+  const end = "2026-10-01T00:00:00.000Z";
+  // Review 5: the bank runs from the LATER of the dated week and the subscription's end — it is
+  // used when they stop, never swallowed by a dated week that outlasts the period.
+  it("is the dated week, with the bank after whichever of it and the subscription ends later", () => {
+    expect(referralBonusEnd(null, 0, null)).toBeNull();
+    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 0, end)).toBe("2026-10-05T00:00:00.000Z");
+    expect(referralBonusEnd(null, 7, end)).toBe("2026-10-08T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-20T00:00:00.000Z", 7, end)).toBe("2026-10-27T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 14, end)).toBe("2026-10-19T00:00:00.000Z");
+  });
+
+  it("keeps the bank whole when a dated week outlasts a trial started under it", () => {
+    // Fourteen dated days left, a seven-day trial starts, a friend pays: seven banked.
+    const now = Date.parse("2026-10-10T00:00:00.000Z");
+    const day = (n: number) => new Date(now + n * 86_400_000).toISOString();
+    expect(referralBonusEnd(day(14), 7, day(7))).toBe(day(21));
+  });
+
+  it("banks nothing without a subscription end, and reads nothing it cannot parse", () => {
+    expect(referralBonusEnd(null, 7, null)).toBeNull();
+    expect(referralBonusEnd(null, 7, "garbage")).toBeNull();
+    expect(referralBonusEnd("garbage", 0, null)).toBeNull();
   });
 });
 
@@ -175,6 +210,13 @@ describe("subscriptionState", () => {
   test("a paid period is 'until' its expiry", () => {
     expect(subscriptionState({ active: true, expiresAt: "2026-10-24T00:00:00.000Z", trial: false }))
       .toEqual({ kind: "until", date: "2026-10-24T00:00:00.000Z" });
+  });
+
+  // A friend on the referral week has no subscription date and no lifetime: the row says when the
+  // week ends rather than calling it forever.
+  test("a referral week is 'until' its end", () => {
+    expect(subscriptionState({ active: true, expiresAt: null, trial: false, bonusUntil: "2026-10-17T00:00:00.000Z" }))
+      .toEqual({ kind: "until", date: "2026-10-17T00:00:00.000Z" });
   });
 
   test("active with nothing to expire is the lifetime unlock", () => {
