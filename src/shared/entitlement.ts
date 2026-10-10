@@ -79,6 +79,14 @@ export interface Entitlement {
    * sends none, and a client that cannot name the product shows the renewal without its price.
    */
   productId?: string | null;
+  /**
+   * The end of the referral week (#899) — a friend's free week, or the weeks a referrer earned —
+   * while it is the ONLY grant keeping this account in, else null. Sent on that condition for the
+   * reason `expiresAt` is: a date beside a live subscription or a lifetime unlock would describe a
+   * grant that is not the one in force. With it, `{ active: true, expiresAt: null }` is the
+   * referral week and not the lifetime unlock. OPTIONAL like `lapsed`.
+   */
+  bonusUntil?: string | null;
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
@@ -128,6 +136,7 @@ export type SubscriptionState =
 
 export const subscriptionState = (e: Entitlement): SubscriptionState => {
   if (e.trialDaysLeft != null) return { kind: "trial", daysLeft: e.trialDaysLeft };
+  if (e.active && e.expiresAt === null && e.bonusUntil) return { kind: "until", date: e.bonusUntil };
   if (e.active) return e.expiresAt === null ? { kind: "lifetime" } : { kind: "until", date: e.expiresAt };
   if (e.lapsed === true) return { kind: "ended", date: e.expiresAt };
   return { kind: "free" };
@@ -280,11 +289,19 @@ export function entitlementActive(expiresAt: string | null | undefined, now: num
  * So: `lifetimeProductId` is the unlock, `expiresAt` is the subscription, neither speaks for the
  * other, and the account is entitled if EITHER says so. The absence of the RECORD is what means
  * "never bought anything".
+ *
+ * `bonusUntil` is the THIRD grant (#899): the referral week, granted by this server rather than
+ * bought, so it lives beside the record and not in it — a friend on their free week has bought
+ * nothing, and the record's absence must keep saying so (`lapsed` reads it). REQUIRED, null when
+ * there is none, so every caller has to say what it knows: a reader that left it out would be a
+ * second opinion about "paid" that disagrees with the cap for a week.
  */
 export function entitlementLive(
   record: { expiresAt: string | null; lifetimeProductId: string | null } | null | undefined,
   now: number,
+  bonusUntil: string | null | undefined,
 ): boolean {
+  if (entitlementActive(bonusUntil, now)) return true;
   if (!record) return false;
   return record.lifetimeProductId !== null || entitlementActive(record.expiresAt, now);
 }

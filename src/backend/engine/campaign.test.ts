@@ -184,6 +184,16 @@ describe("segments", () => {
     expect((await store.sendLogFor(paid, 5))).toHaveLength(1);
   });
 
+  // #899: the referral week is the third grant, and targeting agrees with the cap about it.
+  it("counts a friend on the referral week as active", async () => {
+    const referrer = await account({ free: true, noToken: true });
+    const friend = await account({ free: true });
+    expect(await store.redeemReferral(friend, (await store.referralOf(referrer))!.code, 7)).toBe("ok");
+    await campaign({ segment: { entitlement: ["active"] } });
+    await runCampaigns(deps, { now: BERLIN_1830 });
+    expect((await store.sendLogFor(friend, 5))).toHaveLength(1);
+  });
+
   it("selects by streak and days since the last log", async () => {
     const logger = await account();
     const lapsed = await account();

@@ -94,34 +94,43 @@ describe("entitlementLive", () => {
   const past = "2026-07-25T12:00:00.000Z";
 
   it("refuses an account with no record: it has never bought anything", () => {
-    expect(entitlementLive(null, now)).toBe(false);
-    expect(entitlementLive(undefined, now)).toBe(false);
+    expect(entitlementLive(null, now, null)).toBe(false);
+    expect(entitlementLive(undefined, now, null)).toBe(false);
   });
 
   it("admits a live subscription and refuses a lapsed one", () => {
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, null)).toBe(false);
   });
 
   it("admits the lifetime unlock, which has no date to check", () => {
-    expect(entitlementLive({ expiresAt: null, lifetimeProductId: "lifetime" }, now)).toBe(true);
+    expect(entitlementLive({ expiresAt: null, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
   });
 
   // The case the two-column model exists for: refunding the unlock must not take a subscription
   // with it, and a lapsed subscription must not take the unlock with it.
   it("admits an account holding both, and keeps admitting it when one of them ends", () => {
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: "lifetime" }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: "lifetime" }, now)).toBe(true);
-    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now)).toBe(true);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: "lifetime" }, now, null)).toBe(true);
+    expect(entitlementLive({ expiresAt: future, lifetimeProductId: null }, now, null)).toBe(true);
   });
 
   it("refuses a record where both grants are spent", () => {
-    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now)).toBe(false);
-    expect(entitlementLive({ expiresAt: null, lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, null)).toBe(false);
+    expect(entitlementLive({ expiresAt: null, lifetimeProductId: null }, now, null)).toBe(false);
   });
 
   it("refuses an unreadable expiry rather than trusting it", () => {
-    expect(entitlementLive({ expiresAt: "not a date", lifetimeProductId: null }, now)).toBe(false);
+    expect(entitlementLive({ expiresAt: "not a date", lifetimeProductId: null }, now, null)).toBe(false);
+  });
+
+  // The referral week (#899) is the third grant: it admits an account that never bought anything,
+  // and it ends on its date like a subscription does.
+  it("admits a live referral week with no record at all, and refuses it once it has ended", () => {
+    expect(entitlementLive(null, now, future)).toBe(true);
+    expect(entitlementLive({ expiresAt: past, lifetimeProductId: null }, now, future)).toBe(true);
+    expect(entitlementLive(null, now, past)).toBe(false);
+    expect(entitlementLive(null, now, "not a date")).toBe(false);
   });
 });
 
@@ -175,6 +184,13 @@ describe("subscriptionState", () => {
   test("a paid period is 'until' its expiry", () => {
     expect(subscriptionState({ active: true, expiresAt: "2026-10-24T00:00:00.000Z", trial: false }))
       .toEqual({ kind: "until", date: "2026-10-24T00:00:00.000Z" });
+  });
+
+  // A friend on the referral week has no subscription date and no lifetime: the row says when the
+  // week ends rather than calling it forever.
+  test("a referral week is 'until' its end", () => {
+    expect(subscriptionState({ active: true, expiresAt: null, trial: false, bonusUntil: "2026-10-17T00:00:00.000Z" }))
+      .toEqual({ kind: "until", date: "2026-10-17T00:00:00.000Z" });
   });
 
   test("active with nothing to expire is the lifetime unlock", () => {

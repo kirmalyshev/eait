@@ -96,7 +96,7 @@ export async function adminUsers(
   return {
     users: page.rows.map((row) => ({
       ...row,
-      entitled: entitlementLive(row.entitlement, now),
+      entitled: entitlementLive(row.entitlement, now, row.bonusUntil),
       effective: row.freeAnalyses ?? deps.config.freeAnalyses,
     })),
     nextCursor: page.nextCursor,
@@ -140,21 +140,21 @@ export async function adminUserSummary(deps: EngineDeps, userId: string): Promis
       goal: profile.goal ?? "maintain",
       paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
     },
-    entitled: entitlementLive(row.entitlement, Date.now()),
+    entitled: entitlementLive(row.entitlement, Date.now(), row.bonusUntil),
     streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 
 /** This account's paid tier, in the shape the profile response carries. */
 export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
-  const stored = await deps.store.getEntitlement(userId);
+  const [stored, bonusUntil] = await Promise.all([deps.store.getEntitlement(userId), deps.store.bonusUntil(userId)]);
   const now = Date.now();
   // THE DATE IS ONLY SENT WHEN IT IS THE GRANT KEEPING THEM IN. `expiresAt` is the subscription's
   // end and is never cleared, so a lifetime holder whose monthly lapsed still has a past date on
   // the record — and reporting it raw made the settings screen say "Active until 3 January" beside
   // a "Manage subscription" button opening a Customer Center with no subscription in it. The three
   // states `Entitlement` documents are the three the app is allowed to see.
-  const active = entitlementLive(stored, now);
+  const active = entitlementLive(stored, now, bonusUntil);
   const entitlement = {
     active,
     expiresAt: entitlementActive(stored?.expiresAt, now) ? stored?.expiresAt ?? null : null,
@@ -177,6 +177,10 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
     // names ITS renewal price off the store catalog, and a lifetime id here would be a lie about
     // what renews.
     productId: entitlementActive(stored?.expiresAt, now) ? stored?.productId ?? null : null,
+    // The referral week (#899), by the same rule as `expiresAt`: only while it is the grant keeping
+    // them in. Beside a live subscription or a lifetime it would describe a grant not in force.
+    // `lapsed` above stays "bought something": a friend whose free week ended never paid.
+    bonusUntil: active && !entitlementLive(stored, now, null) ? bonusUntil : null,
   };
 }
 
