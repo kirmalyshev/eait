@@ -18,7 +18,6 @@ export const milestonesCss = `
 .mls .mst b { color: var(--ink); font-size: 14px; }
 .mls .mprog { display: block; height: 5px; border-radius: 3px; background: var(--hair); overflow: hidden; margin-top: 4px; }
 .mls .mprog i { display: block; height: 100%; background: var(--ink); border-radius: 3px; }
-.mls .mwall { overflow: hidden; }
 .bwall { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px 6px; }
 @media (max-width: 760px) { .bwall { grid-template-columns: repeat(3, 1fr); } }
 .bdg { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 4px 10px; border-radius: 18px; }
