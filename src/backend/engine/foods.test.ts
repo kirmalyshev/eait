@@ -34,7 +34,7 @@ const food = (over: Partial<FoodRef> & { id: string; name: string }): FoodRef =>
   kcal_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null,
   fat_g_per_100g: null, satfat_g_per_100g: null, fiber_g_per_100g: null,
   sugar_g_per_100g: null, sodium_mg_per_100g: null,
-  nutrients: {}, portions: [], source_url: null,
+  nutrients: {}, portions: [], source_url: null, attribution: [],
   ...over,
 });
 

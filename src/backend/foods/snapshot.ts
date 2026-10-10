@@ -2,7 +2,7 @@
 //
 // fooddb's export is the product shape: every field `{value, source, licence, record}` and nutrients
 // under `per_100` keyed by INFOODS tagname. eait keeps only the generic-food sources its schema
-// names (`FOOD_SOURCES`); a line from any other source is skipped here rather than stored under a
+// names (`FOOD_SOURCE_IDS`); a line from any other source is skipped here rather than stored under a
 // licence nobody has read. Barcoded products (the OFF layer) are not generic foods and are skipped.
 
 import type { FoodRef, FoodSource } from "@eait/shared";
@@ -18,6 +18,8 @@ export interface SnapshotLine {
   category?: Tagged<string>;
   gtin14?: unknown[];
   per_100?: Record<string, Nutrient>;
+  /** The texts every contributing source asks to be shown — `{source, licence, text}` per source. */
+  attribution?: { text?: string }[];
 }
 
 /** The per-100 g figure for a tagname, or null: a 100 ml basis is not grams and a missing one is not zero. */
@@ -54,5 +56,9 @@ export function foodRefFromSnapshotLine(line: SnapshotLine): FoodRef | null {
     nutrients: {},
     portions: [],
     source_url: null,
+    // Verbatim — a merged product can carry two sources' texts (frida + matvaretabellen, say),
+    // and the client shows them exactly as the publisher worded them.
+    attribution: (line.attribution ?? []).flatMap((a) =>
+      typeof a?.text === "string" && a.text !== "" ? [a.text] : []),
   };
 }
