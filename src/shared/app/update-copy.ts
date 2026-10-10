@@ -17,8 +17,6 @@ export interface UpdateCopy {
   mealUpdating: string;
   /** The line under Delete in the updating meal's menu. */
   deleteStops: string;
-  /** The meal screen's thin banner over the step list. */
-  banner: string;
   /** The offline row: the outbox holds the change until it can send. */
   waiting: string;
   discard: string;
@@ -37,7 +35,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Couldn't apply your change", failedBody: "Your meal is as it was.", failedNote: "Your note is here: edit it, or send it again.", refusedTitle: "Couldn't make that change",
     refusedOtherMeal: "The note asked to log a different meal. Correct this one, or log the other on its own.",
     mealUpdating: "This meal is updating", deleteStops: "Delete stops the update and deletes the meal.",
-    banner: "Updating · you can close the app", waiting: "Waiting for connection. It sends itself.",
+    waiting: "Waiting for connection. It sends itself.",
     discard: "Discard", ok: "OK", push: "{names} updated · {kcal} (was {was})",
   },
   fr: {
@@ -49,7 +47,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Modification impossible à appliquer", failedBody: "Ton repas n'a pas changé.", failedNote: "Ta note est là : modifie-la, ou renvoie-la.", refusedTitle: "Cette modification n'a pas pu être faite",
     refusedOtherMeal: "Ta note demande à enregistrer un autre repas. Corrige celui-ci, ou enregistre l'autre à part.",
     mealUpdating: "Ce repas est en cours de mise à jour", deleteStops: "Supprimer arrête la mise à jour et supprime le repas.",
-    banner: "Mise à jour · tu peux fermer l'app", waiting: "En attente de connexion. Ça partira tout seul.",
+    waiting: "En attente de connexion. Ça partira tout seul.",
     discard: "Abandonner", ok: "OK", push: "{names} mis à jour · {kcal} (avant : {was})",
   },
   de: {
@@ -61,7 +59,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Änderung nicht übernommen", failedBody: "Deine Mahlzeit ist wie vorher.", failedNote: "Deine Notiz ist hier: Bearbeite sie oder schick sie noch einmal.", refusedTitle: "Diese Änderung war nicht möglich",
     refusedOtherMeal: "Die Notiz möchte eine andere Mahlzeit eintragen. Korrigiere diese, oder trage die andere separat ein.",
     mealUpdating: "Diese Mahlzeit wird gerade aktualisiert", deleteStops: "Löschen stoppt die Aktualisierung und löscht die Mahlzeit.",
-    banner: "Wird aktualisiert · du kannst die App schließen", waiting: "Warten auf Verbindung. Wird von selbst gesendet.",
+    waiting: "Warten auf Verbindung. Wird von selbst gesendet.",
     discard: "Verwerfen", ok: "OK", push: "{names} aktualisiert · {kcal} (vorher {was})",
   },
   it: {
@@ -73,7 +71,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Impossibile applicare la modifica", failedBody: "Il pasto è rimasto com'era.", failedNote: "La tua nota è qui: modificala, o inviala di nuovo.", refusedTitle: "Non è stato possibile fare questa modifica",
     refusedOtherMeal: "La nota chiede di registrare un altro pasto. Correggi questo, oppure registra l'altro da solo.",
     mealUpdating: "Questo pasto è in aggiornamento", deleteStops: "Elimina interrompe l'aggiornamento ed elimina il pasto.",
-    banner: "In aggiornamento · puoi chiudere l'app", waiting: "In attesa di connessione. Parte da solo.",
+    waiting: "In attesa di connessione. Parte da solo.",
     discard: "Scarta", ok: "OK", push: "Aggiornato: {names} · {kcal} (prima {was})",
   },
   es: {
@@ -85,7 +83,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "No se pudo aplicar el cambio", failedBody: "Tu comida sigue como estaba.", failedNote: "Tu nota está aquí: edítala o envíala otra vez.", refusedTitle: "No se pudo hacer ese cambio",
     refusedOtherMeal: "La nota pide registrar otra comida. Corrige esta, o registra la otra por separado.",
     mealUpdating: "Esta comida se está actualizando", deleteStops: "Eliminar detiene la actualización y elimina la comida.",
-    banner: "Actualizando · puedes cerrar la app", waiting: "Esperando conexión. Se envía solo.",
+    waiting: "Esperando conexión. Se envía solo.",
     discard: "Descartar", ok: "OK", push: "Actualizado: {names} · {kcal} (antes {was})",
   },
   vi: {
@@ -97,7 +95,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Không áp dụng được thay đổi", failedBody: "Bữa ăn vẫn như cũ.", failedNote: "Ghi chú của bạn ở đây: chỉnh lại, hoặc gửi lại.", refusedTitle: "Không thể thực hiện thay đổi này",
     refusedOtherMeal: "Ghi chú muốn ghi một bữa ăn khác. Sửa bữa này, hoặc ghi bữa kia riêng.",
     mealUpdating: "Bữa ăn này đang cập nhật", deleteStops: "Xóa sẽ dừng cập nhật và xóa bữa ăn.",
-    banner: "Đang cập nhật · bạn có thể đóng ứng dụng", waiting: "Đang chờ kết nối. Sẽ tự gửi.",
+    waiting: "Đang chờ kết nối. Sẽ tự gửi.",
     discard: "Bỏ", ok: "OK", push: "{names} đã cập nhật · {kcal} (trước đó {was})",
   },
   id: {
@@ -109,7 +107,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Perubahan tidak bisa diterapkan", failedBody: "Makananmu tetap seperti semula.", failedNote: "Catatanmu ada di sini: ubah, atau kirim lagi.", refusedTitle: "Perubahan itu tidak bisa dibuat",
     refusedOtherMeal: "Catatanmu meminta mencatat makanan lain. Perbaiki yang ini, atau catat yang lain secara terpisah.",
     mealUpdating: "Makanan ini sedang diperbarui", deleteStops: "Hapus menghentikan pembaruan dan menghapus makanan.",
-    banner: "Memperbarui · kamu bisa menutup aplikasi", waiting: "Menunggu koneksi. Terkirim sendiri.",
+    waiting: "Menunggu koneksi. Terkirim sendiri.",
     discard: "Buang", ok: "OK", push: "{names} diperbarui · {kcal} (sebelumnya {was})",
   },
   ru: {
@@ -121,7 +119,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     failedTitle: "Не удалось применить изменение", failedBody: "Приём пищи остался как был.", failedNote: "Твоя заметка здесь: измени её или отправь ещё раз.", refusedTitle: "Не удалось внести это изменение",
     refusedOtherMeal: "Заметка предлагает записать другой приём пищи. Исправь этот, или запиши тот отдельно.",
     mealUpdating: "Этот приём пищи обновляется", deleteStops: "Удаление остановит обновление и удалит приём пищи.",
-    banner: "Обновляем · приложение можно закрыть", waiting: "Ждём соединения. Отправится само.",
+    waiting: "Ждём соединения. Отправится само.",
     discard: "Отменить", ok: "OK", push: "{names}: обновлено · {kcal} (было {was})",
   },
 };

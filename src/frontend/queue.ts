@@ -169,7 +169,7 @@ export function updateBannerEl(mealId: string): HTMLElement {
     });
     const bar = el("i", "mbar");
     bar.style.width = `${waiting ? 0 : percent(job)}%`;
-    box.replaceChildren(el("span", "mbanner", updateCopyFor(lang).banner), ...(waiting ? [el("span", "qstep still", updateCopyFor(lang).waiting)] : []), list, bar);
+    box.replaceChildren(...(waiting ? [el("span", "qstep still", updateCopyFor(lang).waiting)] : []), list, bar);
     box.setAttribute("role", "status");
   };
   views.add(draw);

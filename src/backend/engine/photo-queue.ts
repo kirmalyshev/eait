@@ -265,7 +265,7 @@ export async function queueMealUpdate(
   deps: EngineDeps, userId: string, input: MealUpdateRequest,
 ): Promise<PhotoQueuedResponse> {
   const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version,
-    request: input, step: 1, photos: [], group: `${userId}${input.mealId}` };
+    request: input, step: 1, photos: [], group: `${userId}:${input.mealId}` };
   if (await deps.store.enqueueJob(userId, job)) wake();
   return { kind: "queued", jobId: input.clientId };
 }
