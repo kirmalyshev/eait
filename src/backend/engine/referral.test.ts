@@ -104,10 +104,19 @@ describe("a friend who had already paid", () => {
     expect(await daysLeft(referrer)).toBe(7);
   });
 
-  it("earns nothing from a payment made before the code applied, delivered after it", async () => {
+  it("earns nothing from a payment made before the code applied, delivered after it, nor from its renewals", async () => {
     const { referrer, friend } = await pair();
     await applyRevenueCatEvent(deps, paid(friend, { eventTimestampMs: Date.now() - 60_000 }));
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
     expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+
+  it("takes the reward back when that early payment is delivered after a renewal paid it", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
+    expect(await daysLeft(referrer)).toBe(7);
+    await applyRevenueCatEvent(deps, paid(friend, { eventTimestampMs: Date.now() - 60_000 }));
+    expect(await daysLeft(referrer)).toBe(0);
   });
 });
 

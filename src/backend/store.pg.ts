@@ -2662,6 +2662,25 @@ export async function postgresStore(
     async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
       // RevenueCat can name an id that is not one of ours; a uuid column would throw on it.
       if (!UUID.test(referredId)) return false;
+      // PAID BEFORE THE CODE APPLIED, delivered late: not a referral at all, so the friend is voided
+      // for good. A grant already made is taken back (its days off the referrer's week, never below
+      // now, an unset week left unset); with none, a void row takes the key so no renewal earns.
+      // Both guarded on `referred_at > eventAt` inside the write, and no-ops for any other payment.
+      await sql`
+        with g as (
+          update referral_grants g set revoked_at = ${new Date(now())}
+          from users f
+          where g.referred_id = ${referredId} and g.revoked_at is null
+            and f.id = g.referred_id and f.referred_at > ${new Date(eventAt)}
+          returning g.referrer_id, g.days)
+        update users r set bonus_until = case when r.bonus_until is null then null
+          else greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days)) end
+        from g where r.id = g.referrer_id`;
+      await sql`
+        insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, revoked_at)
+        select id, referred_by, ${new Date(eventAt)}, 0, ${transactionId}, ${new Date(now())}
+          from users where id = ${referredId} and referred_by is not null and referred_at > ${new Date(eventAt)}
+        on conflict do nothing`;
       // One statement: the insert is the once-per-friend guard, and the referrer's week moves only
       // when it inserted. Past where their access would have ended — a running week, or the
       // subscription they are paying for.

@@ -161,6 +161,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!taken.has(code)) return code;
     }
   };
+  /** Revoke a grant: its days off the referrer's week, never below now; an unset week stays unset. */
+  const takeBack = (g: { referrerId: string; days: number; revoked: boolean }): void => {
+    g.revoked = true;
+    const until = bonusUntil.get(g.referrerId);
+    if (until !== undefined) {
+      bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) - g.days * 86_400_000)).toISOString());
+    }
+  };
   /** `greatest(now, …dates) + days`, ignoring absent dates the way Postgres's `greatest` ignores nulls. */
   const extend = (days: number, ...from: (string | null | undefined)[]): string =>
     new Date(Math.max(now(), ...from.filter((d): d is string => !!d).map(Date.parse)) + days * 86_400_000).toISOString();
@@ -973,9 +981,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
       const referrerId = referredBy.get(referredId);
       if (referrerId === undefined) return false;
-      if (Date.parse(eventAt) < referredAt.get(referredId)!) return false;
-      if (referralRefunds.has(transactionId)) return false;
       const held = referralGrants.get(referredId);
+      if (Date.parse(eventAt) < referredAt.get(referredId)!) {
+        // Paid BEFORE the code applied: not a referral. Void the friend for good — a grant already
+        // made is taken back, and a void one stands in the key so no renewal can earn later.
+        if (held) { if (!held.revoked) takeBack(held); return false; }
+        referralGrants.set(referredId, { referrerId, eventAt, days: 0, transactionId, originalTransactionId: "", revoked: true });
+        return false;
+      }
+      if (referralRefunds.has(transactionId)) return false;
       if (held) {
         // An earlier paid period, delivered late: the grant becomes its, by the difference.
         if (held.revoked || Date.parse(held.eventAt) <= Date.parse(eventAt)) return false;
@@ -1003,11 +1017,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       referralRefunds.set(transactionId, referredId);
       const g = referralGrants.get(referredId);
       if (!g || g.revoked || g.transactionId !== transactionId) return false;
-      g.revoked = true;
-      const until = bonusUntil.get(g.referrerId);
-      if (until !== undefined) {
-        bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) - g.days * 86_400_000)).toISOString());
-      }
+      takeBack(g);
       return true;
     },
 

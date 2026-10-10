@@ -3638,14 +3638,30 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.redeemReferral(trialist, code, 7)).toBe("ok");
     });
 
-    it("never pays for a period that started before the code applied", async () => {
+    // Review 3 (a): a friend who paid BEFORE the code applied is not a referral at all — redeem
+    // refuses one, and a payment delivered late voids the friend for good: its renewals never earn.
+    it("voids a friend whose payment from before the code arrives first, so no renewal earns", async () => {
       const s = await open();
       const referrer = await s.createUser("en");
       const friend = await s.createUser("en");
       await s.redeemReferral(friend, await codeOf(s, referrer), 7);
-      expect(await s.grantReferralWeek(friend, at(-1), 7, `txn-1-${RUN}`, "")).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(-1), 7, `t-early-${RUN}`, "")).toBe(false);
+      expect(await s.grantReferralWeek(friend, at(1), 7, `t-renewal-${RUN}`, "")).toBe(false);
       expect(await s.bonusUntil(referrer)).toBeNull();
-      expect(await s.grantReferralWeek(friend, at(0), 7, `txn-1-${RUN}`, "")).toBe(true);
+      expect(await s.referralOf(referrer)).toMatchObject({ joined: 1, subscribed: 0, daysEarned: 0 });
+    });
+
+    it("takes a reward back when the payment from before the code arrives after it", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      expect(await s.grantReferralWeek(friend, at(1), 14, `t-renewal-${RUN}`, "")).toBe(true);
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      expect(await s.grantReferralWeek(friend, at(-1), 7, `t-early-${RUN}`, "")).toBe(false);
+      expect(await s.bonusUntil(referrer)).toBe(at(0));
+      expect(await s.grantReferralWeek(friend, at(2), 7, `t-later-${RUN}`, "")).toBe(false);
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 0, daysEarned: 0 });
     });
 
     it("does not carry a referral onto a merged-into account that has paid", async () => {
