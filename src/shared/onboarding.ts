@@ -109,7 +109,10 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
  * caption. `how` is the three-beat "whole app" picture. Both sit after the questions, before the plan. `signup` is the
  * account step between the plan and `country` — it belongs to the sign-in surface, and this list
- * only holds its place in the order. `health` is the post-sign-up Apple Health offer; on a surface
+ * only holds its place in the order. `referral` is the optional friend's-link step after the
+ * country (#899) — it stores nothing on the profile; a code is applied by its own route, and the
+ * READER of this place is the admin's funnel table, which prices the step's drop-off on the app and
+ * on the web alike. `health` is the post-sign-up Apple Health offer; on a surface
  * without it (the browser) the prompt is not emitted — see `promptsFor`.
  *
  * `struggles` MOVED OUT of this list in v2: it is a stored field now (`Profile.struggles`), so it
@@ -120,7 +123,7 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "how", "ontrack", "summary", "signup", "health",
+  "welcome", "how", "ontrack", "summary", "signup", "referral", "health",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -133,7 +136,7 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  */
 export const ONBOARDING_PLACES = [
   "welcome", "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "health",
+  "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "referral", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -141,12 +144,12 @@ export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
  * The progress dash's segments — the places between the welcome and the plan, in walk order
  * (`onboarding/*` boards, fourteen `<i>` each).
  *
- * The welcome is before the count; `signup`, `country` and `health` sit past it. So the bar is
- * `ONBOARDING_PLACES` minus those four, and
+ * The welcome is before the count; `signup`, `country`, `referral` and `health` sit past it. So
+ * the bar is `ONBOARDING_PLACES` minus those five, and
  * `summary` — the plan — is the last segment lit.
  */
 export const DASH_PLACES: readonly OnboardingPlace[] = ONBOARDING_PLACES.filter(
-  (p) => !["welcome", "signup", "country", "health"].includes(p),
+  (p) => !["welcome", "signup", "country", "referral", "health"].includes(p),
 );
 
 /** The dash position of a place, or -1 for a place that is not a segment (the welcome et al.). */

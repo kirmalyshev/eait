@@ -461,7 +461,10 @@ describe("the interstitials", () => {
     // The account step lands between the plan and the country — the design's order, fixed here.
     expect(at("summary")).toBeLessThan(at("signup"));
     expect(at("signup")).toBeLessThan(at("country"));
-    expect(at("country")).toBeLessThan(at("health"));
+    // The friend's-link step (#899) is the optional one after the country, before Apple Health.
+    expect(at("country")).toBeLessThan(at("referral"));
+    expect(at("referral")).toBeLessThan(at("health"));
+    expect(ONBOARDING_INTERSTITIALS as readonly string[]).toContain("referral");
   });
 });
 
