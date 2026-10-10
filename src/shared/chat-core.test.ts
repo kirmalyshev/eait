@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { createChatCore, type ChatClient, type ChatCore, type Failure, type QueuedTurn } from "./chat-core.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { HandleTextResult, TargetGone } from "./results.ts";
+import { hasLiveSuggestions, visibleEntries } from "./thread.ts";
 import type { ThreadEntry } from "./thread.ts";
 
 // The Chat screen's async half (#381), driven with a fake client and no renderer: the four ways a
@@ -322,6 +323,20 @@ describe("the outbox (#708)", () => {
     const offers = core.state.entries.flatMap((e) => (e.role === "assistant" && e.result.kind === "proposed" ? [e.result.pendingId] : []));
     expect(offers).toEqual(["p2"]);
     expect(core.state.entries.some((e) => e.role === "user" && e.clientId === "q1")).toBe(true);
+  });
+
+  it("a job-sent turn's answer keeps its chips onto the stored line (#1347)", async () => {
+    const { core, fake } = harness();
+    // The send ran as a job: only its OUTCOME comes back, so `send` carries its words — the
+    // stored page's say names the same clientId, and reconcilePage seats the live result's
+    // suggestions under it.
+    const answered = { kind: "answered" as const, text: "About 40g.", suggestions: ["What should I eat tonight?"] };
+    fake.pages.push(page([userLine("how much protein?", { clientId: "j1" }), said("About 40g.")]));
+    await core.landed(answered, { id: "j1", text: "how much protein?" });
+    const stored = core.state.entries.find((e) => e.role === "assistant" && e.result.kind === "answered");
+    expect(stored && "stored" in stored && stored.stored).toBe(true);
+    expect(stored && stored.role === "assistant" && stored.result.kind === "answered" ? stored.result.suggestions : []).toEqual(["What should I eat tonight?"]);
+    expect(hasLiveSuggestions(visibleEntries(core.state.entries))).toBe(true);
   });
 
   it("a queued turn that landed as anything else is read back from the thread", async () => {

@@ -407,12 +407,13 @@ export function visibleEntries(entries: ThreadEntry[]): ThreadEntry[] {
 
 /**
  * Whether the newest visible row is a live answer carrying chips — the coach's starters step aside
- * for those. Live only: the thread stores the sentence and never the chips, so a stored line never
- * carries any whatever its shape says.
+ * for those. Suggestions PROVE the answer is live on their own: the thread stores the sentence and
+ * never the chips, so the only entry that can carry them is the landed result — or the stored line
+ * `reconcilePage` kept that result's payload onto (#1229, and a job-sent turn's answer — #1347).
  */
 export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
   const tail = visible[visible.length - 1];
-  return tail !== undefined && tail.role === "assistant" && !tail.stored
+  return tail !== undefined && tail.role === "assistant"
     && tail.result.kind === "answered" && (tail.result.suggestions?.length ?? 0) > 0;
 }
 
