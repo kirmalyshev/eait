@@ -12,6 +12,7 @@ import { youScreen } from "./screens/you.ts";
 import { mealScreen } from "./screens/meal.ts";
 import { homeScreen } from "./screens/today.ts";
 import { payScreen } from "./screens/pay.ts";
+import { milestoneSettingsScreen, milestonesScreen } from "./screens/milestones.ts";
 import { acceptDrops, restoreJobs } from "./queue.ts";
 import { startPush } from "./push.ts";
 
@@ -22,6 +23,8 @@ screen("#/pay", (frame) => payScreen(frame));
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));
 screen("#/you", (frame) => youScreen(frame));
+screen("#/you/milestones", (frame) => milestoneSettingsScreen(frame));
+screen("#/milestones", (frame) => milestonesScreen(frame));
 screen("#/", (frame) => homeScreen(frame));
 
 void start().then(restoreJobs).then(() => startPush().catch(() => {}));

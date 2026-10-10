@@ -19,7 +19,7 @@
 //     dependence invisible the day somebody changes it.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import type { ErrorResponse, NDJSON, PushConsentRequest, PushConsentResponse, PushOpenRequest, PushTokenRequest } from "@eait/shared/contract";
+import type { ErrorResponse, MilestonesResponse, MilestonesSeenRequest, NDJSON, PushConsentRequest, PushConsentResponse, PushOpenRequest, PushTokenRequest } from "@eait/shared/contract";
 
 let bearer: string | null = null;
 
@@ -207,3 +207,8 @@ export const registerPushToken = (body: PushTokenRequest): Promise<unknown> => a
 export const dropPushToken = (token: string): Promise<unknown> =>
   api("/push/token", json("DELETE", { platform: "web", token }));
 export const postPushOpen = (body: PushOpenRequest): Promise<unknown> => api("/push/open", json("POST", body));
+
+/** Milestones: the wall and the streak, and the one write — which badges a celebration has shown. */
+export const getMilestones = (): Promise<MilestonesResponse> => api("/milestones");
+export const postMilestonesSeen = (ids: string[]): Promise<MilestonesResponse> =>
+  api("/milestones/seen", json("POST", { ids } satisfies MilestonesSeenRequest));

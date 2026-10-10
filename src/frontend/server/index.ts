@@ -40,6 +40,7 @@ import { mealCss } from "../screens/meal.css.ts";
 import { firstMealCss } from "../screens/first-meal.css.ts";
 import { progressCss } from "../screens/progress.css.ts";
 import { payCss } from "../screens/pay.css.ts";
+import { milestonesCss } from "../screens/milestones.css.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -48,6 +49,7 @@ export const SHELL_PATH = "/";
 export const BUNDLE_PATH = "/app.js";
 export const WORKER_PATH = "/sw.js";
 export const HEALTH_PATH = "/health";
+export const MEDAL_PATH = /^\/medals\/(\d{2}-[a-z0-9-]+)\.webp$/;
 
 /** Slot 0's port. Every other slot derives its own — `src/scripts/dev-env.ts` owns that arithmetic. */
 export const DEFAULT_PORT = 8485;
@@ -108,6 +110,7 @@ ${mealCss}
 ${firstMealCss}
 ${progressCss}
 ${payCss}
+${milestonesCss}
 /* The register's icon set, generated (#79): .ico plus an .i-<name> mask class per icon, the
    same file the boards render with — never a glyph retyped into this page. */
 ${iconCss()}
@@ -217,6 +220,17 @@ export function createWebApp(options: WebAppOptions = {}) {
       if (!(await file.exists())) return notFound();
       return new Response(file, {
         headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" },
+      });
+    }
+
+    // The 38 medal images, from `static/medals` — a name is matched against the directory's own
+    // pattern, never joined from the request, so no path can climb out of it.
+    const medal = MEDAL_PATH.exec(pathname);
+    if (medal !== null && req.method === "GET") {
+      const file = Bun.file(new URL(`../static/medals/${medal[1]}.webp`, import.meta.url));
+      if (!(await file.exists())) return notFound();
+      return new Response(file, {
+        headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400" },
       });
     }
 

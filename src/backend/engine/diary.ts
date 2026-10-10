@@ -123,7 +123,7 @@ export async function days(
   }
 
   return {
-    days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state,
+    days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state, streakEndedAt: read.endedAt, floorKcal: floor,
     unseenBadges: await unseenBadges(deps, userId),
   };
 }

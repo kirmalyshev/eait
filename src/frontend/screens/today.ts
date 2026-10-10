@@ -13,6 +13,7 @@ import { dateMinus, isCalendarDate } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { trialReminder } from "../../shared/entitlement.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
+import { badgeUnlocked } from "./milestones.ts";
 import { homeCopyFor, macroTip, streakChip, type MacroTipKind } from "../../shared/app/home-copy.ts";
 import { payCopyFor } from "../../shared/app/pay-copy.ts";
 import { enqueue, inPlace, queueEl, queueLength, queuedMealIds } from "../queue.ts";
@@ -139,13 +140,17 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
   // ── The bar: the streak chip, then the calendar — the week moves by strip swipe and keys ──
 
   let barStreak = 0;
+  let unlockOpened = false;
   const barRow = (): void => {
     clear(frame.bar);
     // The streak chip goes FIRST — Home's own item sits before the date row, not beside the
     // brand (the boards' wtop, design's ruling on #91).
-    if (barStreak > 0) {
+    if (barStreak > 0 && me.profile.streak_on_home) {
       const chip = streakChip(barStreak, me.profile.streak_goal_days, lang, n);
-      frame.bar.append(kitEl(tagx({ icon: "streak", text: chip.text, aria: chip.aria })));
+      const a = el("a", "chiplink") as HTMLAnchorElement;
+      a.href = "#/milestones";
+      a.append(kitEl(tagx({ icon: "streak", text: chip.text, aria: chip.aria })));
+      frame.bar.append(a);
     }
     // The boards' `.calb` — the native date picker is the only bar control left (F, #335).
     frame.bar.append(cal.button, cal.input);
@@ -919,6 +924,11 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
       lastDays = daysR.d;
       barStreak = lastDays.streak;
       stripPaint(lastDays);
+      // Badge Unlocked: once per draw of this screen, and only while celebrations are on.
+      if (!unlockOpened && me.profile.milestone_celebrations && lastDays.unseenBadges.length > 0) {
+        unlockOpened = true;
+        badgeUnlocked(lastDays.unseenBadges);
+      }
     }
     barRow();
 
