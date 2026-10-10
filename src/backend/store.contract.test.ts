@@ -3652,6 +3652,19 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.referralOf(referrer)).toMatchObject({ joined: 2, subscribed: 2, daysEarned: 21 });
     });
 
+    // Must-fix (#597 review): RevenueCat redelivers, and two deliveries for one first period can
+    // be in flight at once. The primary key is the guard, so racing grants still pay exactly once.
+    it("grants once when the same friend's grants race", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const friend = await s.createUser("en");
+      await s.redeemReferral(friend, await codeOf(s, referrer), 7);
+      const raced = await Promise.all([1, 2, 3, 4].map(() => s.grantReferralWeek(friend, at(0), 7)));
+      expect(raced.filter(Boolean)).toHaveLength(1);
+      expect(await s.bonusUntil(referrer)).toBe(at(7));
+      expect(await s.referralOf(referrer)).toMatchObject({ subscribed: 1, daysEarned: 7 });
+    });
+
     it("adds the reward after a subscription the referrer is paying for", async () => {
       const s = await open();
       const referrer = await s.createUser("en");

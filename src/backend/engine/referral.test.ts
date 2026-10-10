@@ -134,6 +134,15 @@ describe("the referrer's reward", () => {
     expect((await profileView(deps, referrer))!.referral).toMatchObject({ joined: 1, subscribed: 1, weeksEarned: 1 });
   });
 
+  it("pays once for the same delivery twice, and once for two deliveries racing", async () => {
+    const { referrer, friend } = await pair();
+    const event = paid(friend);
+    await applyRevenueCatEvent(deps, event);
+    await applyRevenueCatEvent(deps, event);
+    await Promise.all([applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" })), applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }))]);
+    expect(await daysLeft(referrer)).toBe(7);
+  });
+
   it("waits out a free trial and comes with the first paid period", async () => {
     const { referrer, friend } = await pair();
     await applyRevenueCatEvent(deps, paid(friend, { trial: true }));
