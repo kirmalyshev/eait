@@ -47,7 +47,7 @@ import {
 import {
   adminMetrics, adminSwitches, adminUserChat, adminUserDiary, adminUsers, adminUserSummary, livePrompts,
   onboardingContent,
-  onboardingFunnel, promptHistory, savePrompt,
+  onboardingFunnel, promptHistory, referralAdminView, savePrompt,
   sendTestPush, pushOpenView, sendAdminPush,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
   campaignOverview, createCampaign, dryRunCampaign, setCampaignStatus, setCampaignsKilled, testSendCampaign, updateCampaign,
@@ -509,6 +509,14 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
       const view = await setUserCap(deps, userId, n as number | null);
       return view ? json(view) : notFound();
     }
+  }
+
+  // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────
+  //
+  // Shared, opened, joined and paid per day, by channel and by refusal. Counts only, like the
+  // opens view below: no account, no code, nothing that names a person.
+  if (req.method === "GET" && pathname === "/admin/api/referrals") {
+    return json(await referralAdminView(deps, Number(url.searchParams.get("days") ?? 7)));
   }
 
   // ── Push: the opens view (#1759) ───────────────────────────────────────────────────────────

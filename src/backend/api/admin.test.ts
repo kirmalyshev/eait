@@ -95,7 +95,7 @@ describe("the admin is off unless somebody holds the role", () => {
     //
     // The property survives the move from a shared token, and gains something: deleting the last
     // admin account switches the surface off, which no environment variable could do.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates", "/admin/api/campaigns",
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/prompts", "/admin/api/push-templates", "/admin/api/campaigns", "/admin/api/referrals",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
@@ -1377,5 +1377,37 @@ describe("the grounding switches", () => {
     expect((await admin("GET", "/admin/api/switches", undefined, plain)).status).toBe(404);
     expect((await admin("PUT", "/admin/api/switches/grounding.photo", { enabled: false }, plain)).status).toBe(404);
     expect(await store.switchHistory(5)).toEqual([]);
+  });
+});
+
+// #899: refer a friend, counted — the Operate view after Campaigns. Counts only: no account in it.
+describe("the referrals view", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  it("answers shares, opens, joins, payments and refusals over the window, naming nobody", async () => {
+    const referrer = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const friend = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const code = (await store.referralOf(referrer))!.code;
+    await store.recordReferralShare(referrer, "messages");
+    await store.recordReferralOpen(code);
+    await store.redeemReferral(friend, code, 7);
+    await store.recordReferralRefusal("own");
+    const res = await admin("GET", "/admin/api/referrals?days=30");
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body).toMatchObject({
+      window: 30, timezone: base.timezone, via: [{ via: "messages", shares: 1 }],
+      refusals: { unknown: 0, own: 1, already: 0 }, sharers: 1, sharersJoined: 1,
+    });
+    expect(JSON.stringify(body)).not.toContain(referrer);
+    expect(JSON.stringify(body)).not.toContain(friend);
+    expect(JSON.stringify(body)).not.toContain(code);
+    expect((await (await admin("GET", "/admin/api/referrals?days=nonsense")).json() as { window: number }).window).toBe(7);
+  });
+
+  it("is on the page, in Operate after Campaigns", () => {
+    expect(ADMIN_PAGE).toMatch(/data-nav="campaigns">Campaigns<\/a>\s*<a href="#referrals" data-nav="referrals">Referrals<\/a>/);
+    expect(ADMIN_PAGE).toContain('<option value="referrals">Referrals</option>');
+    expect(ADMIN_PAGE).toContain('id="view-referrals"');
   });
 });

@@ -162,6 +162,13 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     latency: { n: 0, queue: { p50: null, p95: null }, firstItem: { p50: null, p95: null }, total: { p50: null, p95: null } },
   })));
   await page.route("**/admin/api/push/stats**", (r) => r.fulfill(json({ days: 14, timezone: "UTC", rows: [] })));
+  await page.route("**/admin/api/referrals**", (r) => r.fulfill(json({
+    window: 7, timezone: "UTC",
+    days: [{ day: new Date().toISOString().slice(0, 10), shared: 6, opened: 9, joined: 2, paid: 1 }],
+    via: [{ via: "messages", shares: 4 }, { via: "web-share", shares: 2 }],
+    refusals: { unknown: 6, own: 1, already: 2, paid: 1 }, sharers: 21, sharersJoined: 9,
+    paidMonthly: 1, paidYearly: 0, daysGranted: 7,
+  })));
   await page.route("**/admin/api/funnel**", (r) => r.fulfill(json({
     days: 30, contentVersion: 1, sessions: 0, completed: 0, rows: [],
   })));
@@ -498,3 +505,22 @@ for (const [name, width, height] of [["390", 390, 844], ["1440", 1440, 900]] as 
     await page.screenshot({ path: `/tmp/p5-campaigns-admin-form-${name}.png` });
   });
 }
+
+// #899: the Operate view after Campaigns — four counts, the days, the channels, the refusals.
+test("the referrals view draws the counts the server sent and names nobody", async ({ page }) => {
+  const errors = watchConsole(page);
+  await stubAdmin(page);
+  await openAdmin(page, "referrals");
+  const kpis = page.locator("#referrals-kpi");
+  await expect(kpis).toContainText("Shared · 7 days");
+  await expect(kpis).toContainText("1.5 per share");
+  await expect(kpis).toContainText("22% of opens · a week each");
+  await expect(kpis).toContainText("1 monthly · 0 yearly · 1 week to referrers");
+  await expect(page.locator("#referrals-days tbody tr")).toHaveCount(7);
+  await expect(page.locator("#referrals-days tfoot")).toContainText("7 days");
+  await expect(page.locator("#referrals-via")).toContainText("Browser share sheet");
+  await expect(page.locator("#referrals-refused tr").filter({ hasText: "No such link" })).toContainText("6");
+  await expect(page.locator("#referrals-refused tr").filter({ hasText: "Had already paid" })).toContainText("1");
+  await expect(page.locator("#referrals-sharers")).toContainText("… with a friend who joined");
+  expect(errors).toEqual([]);
+});
