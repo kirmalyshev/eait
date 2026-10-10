@@ -44,10 +44,10 @@ async function account(opts: { onboarded?: boolean; lang?: "en" | "de" } = {}): 
   return userId;
 }
 
-async function logOn(userId: string, date: string): Promise<void> {
+async function logOn(userId: string, date: string, kcal = 1600): Promise<void> {
   await store.insertMeal({
     id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
-    isFood: true, items: [{ name: "x", grams: 100 }], kcal: 1600, protein_g: 20,
+    isFood: true, items: [{ name: "x", grams: 100 }], kcal, protein_g: 20,
     carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
     verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
   });
@@ -106,6 +106,15 @@ describe("streak-at-risk trigger", () => {
     await pushTick(deps, { now: evening(tonight) });
     expect(push.sent).toHaveLength(1);
     expect(await lastLog(userId)).toMatchObject({ kind: "streak", templateKey: "streak-risk" });
+  });
+
+  it("a meal logged tonight under the floor is not 'nothing today': no streak-risk", async () => {
+    const userId = await account();
+    const tonight = 10;
+    for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(tonight - k)));
+    await logOn(userId, dateMinus(TODAY, -tonight), 400);
+    await pushTick(deps, { now: evening(tonight) });
+    expect(await lastLog(userId)).not.toMatchObject({ templateKey: "streak-risk" });
   });
 
   it("a streak of 2 never triggers", async () => {

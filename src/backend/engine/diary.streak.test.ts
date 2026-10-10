@@ -57,6 +57,12 @@ describe("days(): the forgiving streak", () => {
       expect(out.streakState).toBe("ended");
     });
 
+    test(`${zone}: days before the first meal are null, not missed`, async () => {
+      const { out, today } = await read(zone, { 1: floor0(), 2: floor0() });
+      expect(out.days.find((d) => d.date === dateMinus(today, 4))!.streak).toBeNull();
+      expect(out.days.find((d) => d.date === dateMinus(today, 2))!.streak).toBe("counted");
+    });
+
     test(`${zone}: yesterday counted, today pending holds`, async () => {
       const { out } = await read(zone, { 1: floor0(), 2: floor0() });
       expect([out.streak, out.streakState]).toEqual([2, "holding"]);

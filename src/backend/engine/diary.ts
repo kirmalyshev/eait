@@ -104,6 +104,9 @@ export async function days(
   // belongs to the day the user is in, which is the boundary this must not get wrong.
   const read = forgivingStreak(new Map(rows.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, floor);
 
+  // Days before the account's first meal are not missed, they are not yet a streak's to judge.
+  const first = rows.reduce<string | null>((m, r) => (r.date <= today && (m === null || r.date < m) ? r.date : m), null);
+
   const out: DiaryDay[] = [];
   for (let d = from; d <= to; d = dateMinus(d, -1)) {
     const future = d > today;
@@ -113,7 +116,7 @@ export async function days(
       when: d === today ? "today" : future ? "future" : "past",
       logged: !future && row !== undefined,
       kcal: future ? null : row?.kcal ?? 0,
-      streak: future ? null : read.marks.get(d) ?? (d === today ? "pending" : "missed"),
+      streak: future ? null : read.marks.get(d) ?? (d === today ? "pending" : first !== null && d > first ? "missed" : null),
       underFloor: !future && row !== undefined && row.kcal < floor,
     });
   }

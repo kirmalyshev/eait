@@ -365,7 +365,7 @@ async function triggerNotification(
   const read = forgivingStreak(new Map(rows.map((r) => [r.date, r.kcal])), date, explainTargets(profile).basis.floorKcal);
 
   let key: NotificationId | null = null;
-  if (profile.onboarded_at && read.marks.get(date) !== "counted" && read.streak >= STREAK_PUSH_MIN) {
+  if (profile.onboarded_at && !rows.some((r) => r.date === date) && read.streak >= STREAK_PUSH_MIN) {
     key = "streak-risk";
   } else {
     const since = daysBetween(localDate(zone, new Date(who.onboardedAt ?? who.createdAt)), date);

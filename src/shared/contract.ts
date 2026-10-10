@@ -1411,7 +1411,10 @@ export interface WeekResponse {
 export interface DiaryDay extends ChartDay {
   /** YYYY-MM-DD in the account's timezone. */
   date: string;
-  /** What the forgiving streak makes of this day (`forgivingStreak`); null for a future day. */
+  /**
+   * What the forgiving streak makes of this day (`forgivingStreak`); null for a future day and for
+   * a past day before the account's first meal, which no streak has judged.
+   */
   streak: StreakMark | null;
   /** The day has a meal and its kcal is below the account's floor — it earns nothing. */
   underFloor: boolean;
@@ -1434,7 +1437,7 @@ export interface DaysResponse {
    * itself is a streak that disagrees with the server's.
    */
   streak: number;
-  /** The longest streak, the same rule over every day the server holds. */
+  /** The longest streak, the same rule over the diary window (`DIARY_WINDOW_DAYS`), not the account's whole history. */
   streakLongest: number;
   /** `bent` while a forgiven day sits in the last seven; `ended` at 0 after an earlier streak. */
   streakState: StreakRead["state"];

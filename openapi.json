@@ -4527,7 +4527,7 @@
           },
           "streakLongest": {
             "type": "number",
-            "description": "The longest streak, the same rule over every day the server holds."
+            "description": "The longest streak, the same rule over the diary window (`DIARY_WINDOW_DAYS`), not the account's whole history."
           },
           "streakState": {
             "type": "string",
@@ -4610,7 +4610,7 @@
                 "type": "null"
               }
             ],
-            "description": "What the forgiving streak makes of this day (`forgivingStreak`); null for a future day."
+            "description": "What the forgiving streak makes of this day (`forgivingStreak`); null for a future day and for a past day before the account's first meal, which no streak has judged."
           },
           "underFloor": {
             "type": "boolean",
