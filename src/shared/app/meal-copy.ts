@@ -126,6 +126,15 @@ export interface MealCopy {
   phoneGrams: string;
   /** A failed ingredient save: `{grams}` is what was typed, still in the editor. */
   phoneIngredientKept: string;
+  /**
+   * The source card on Edit ingredient (ieat-app #1954, board `meal-source-item`): "From the food
+   * table" over the row's own name, or "Estimate" for an item no row grounded; `{amount}` is a
+   * grams figure through `phoneGrams` — "Per 100g", "For 140g". No sentence explains either one.
+   */
+  phoneSourceFromTable: string;
+  phoneSourceEstimate: string;
+  phoneSourcePer: string;
+  phoneSourceFor: string;
   /** Correct this meal, answer never came: the note is back in the field. */
   phoneNoAnswer: string;
   phoneMealMove: string;
@@ -207,6 +216,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "was {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "That didn't go through. Your {grams} is still here. Done saves it again.",
+    phoneSourceFromTable: "From the food table",
+    phoneSourceEstimate: "Estimate",
+    phoneSourcePer: "Per {amount}",
+    phoneSourceFor: "For {amount}",
     phoneNoAnswer: "That one reached me, but the answer didn't. It's here, send it again.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Not on today’s diary",
@@ -263,6 +276,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "avant : {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Ça n'est pas passé. Ton {grams} est toujours là. Terminé l'enregistre à nouveau.",
+    phoneSourceFromTable: "Depuis la table des aliments",
+    phoneSourceEstimate: "Estimation",
+    phoneSourcePer: "Pour {amount}",
+    phoneSourceFor: "Pour {amount}",
     phoneNoAnswer: "Ton message m'est bien arrivé, mais la réponse n'est pas arrivée. Il est là, renvoie-le.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
@@ -319,6 +336,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "vorher {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Das ist nicht durchgegangen. Deine {grams} sind noch da. Mit Fertig wird es erneut gespeichert.",
+    phoneSourceFromTable: "Aus der Nährwerttabelle",
+    phoneSourceEstimate: "Schätzung",
+    phoneSourcePer: "Pro {amount}",
+    phoneSourceFor: "Für {amount}",
     phoneNoAnswer: "Die ist angekommen, aber die Antwort kam nicht an. Sie steht wieder im Eingabefeld, schick sie noch einmal.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
@@ -375,6 +396,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "era {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Non è andata a buon fine. I tuoi {grams} sono ancora qui. Con Fatto si salva di nuovo.",
+    phoneSourceFromTable: "Dalla tabella alimentare",
+    phoneSourceEstimate: "Stima",
+    phoneSourcePer: "Per {amount}",
+    phoneSourceFor: "Per {amount}",
     phoneNoAnswer: "Il messaggio mi è arrivato, ma la risposta no. È qui, invialo di nuovo.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Non è nel diario di oggi",
@@ -431,6 +456,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "antes {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Eso no se completó. Tus {grams} siguen aquí. Con Listo se guarda de nuevo.",
+    phoneSourceFromTable: "De la tabla de alimentos",
+    phoneSourceEstimate: "Estimación",
+    phoneSourcePer: "Por {amount}",
+    phoneSourceFor: "Para {amount}",
     phoneNoAnswer: "Me llegó, pero la respuesta no. Está aquí, envíalo otra vez.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "No está en el diario de hoy",
@@ -487,6 +516,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "trước: {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Chưa được. {grams} của bạn vẫn còn đây. Bấm Xong để lưu lại.",
+    phoneSourceFromTable: "Từ bảng thành phần thực phẩm",
+    phoneSourceEstimate: "Ước tính",
+    phoneSourcePer: "Mỗi {amount}",
+    phoneSourceFor: "Cho {amount}",
     phoneNoAnswer: "Tin đã tới mình, nhưng câu trả lời chưa tới. Tin vẫn ở đây, gửi lại nhé.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
@@ -543,6 +576,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "tadinya {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Itu belum berhasil. {grams} milikmu masih di sini. Ketuk Selesai untuk menyimpan lagi.",
+    phoneSourceFromTable: "Dari tabel pangan",
+    phoneSourceEstimate: "Perkiraan",
+    phoneSourcePer: "Per {amount}",
+    phoneSourceFor: "Untuk {amount}",
     phoneNoAnswer: "Yang itu sampai padaku, tapi jawabannya tidak. Ada di sini, kirim lagi.",
     phoneMealMove: "{from} → {to}kcal",
     phoneGoneTitle: "Tidak ada di buku harian hari ini",
@@ -599,6 +636,10 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "было {amount}",
     phoneGrams: "{n}г",
     phoneIngredientKept: "Не получилось. Твои {grams} всё ещё здесь. «Готово» сохранит их снова.",
+    phoneSourceFromTable: "Из таблицы продуктов",
+    phoneSourceEstimate: "Оценка",
+    phoneSourcePer: "На {amount}",
+    phoneSourceFor: "Для {amount}",
     phoneNoAnswer: "Оно дошло до меня, а ответ — нет. Оно здесь, отправь ещё раз.",
     phoneMealMove: "{from} → {to}ккал",
     phoneGoneTitle: "Нет в дневнике за сегодня",
