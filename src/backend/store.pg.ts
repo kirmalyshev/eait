@@ -111,6 +111,8 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   // either that names another account (a grant, a merge) is unscoped and says why in `SCOPE`.
   referral_grants: "referrer_id",
   referral_events: "referrer_id",
+  // A refund is the friend's own row.
+  referral_refunds: "referred_id",
 };
 
 /**
@@ -546,6 +548,15 @@ create unique index if not exists referral_grants_subscription_key
 -- The grant's length before its last re-size to an earlier paid period, set by the same update
 -- (the SET reads the row it locked), which is how the referrer's week moves by the difference.
 alter table referral_grants add column if not exists resized_from integer;
+-- A refund can arrive before the payment it refunds. Every refunded transaction of a referred
+-- account is kept here, and grantReferralWeek refuses one, so the late payment earns nothing.
+-- The friend's account owns the row and takes it when it is erased: a store transaction id is a
+-- purchase somebody made, and outliving them is not this table's job.
+create table if not exists referral_refunds (
+  transaction_id text primary key,
+  referred_id    uuid not null references users(id) on delete cascade,
+  at             timestamptz not null
+);
 -- Counts, never people: a share is the label of the channel and the instant, no address, no
 -- device, nothing about whoever it was sent to.
 create table if not exists referral_events (
@@ -2563,6 +2574,7 @@ export async function postgresStore(
           where referrer_id = ${fromUserId} and referred_id <> ${intoUserId}`;
         await tx`update users set referred_by = ${intoUserId} where referred_by = ${fromUserId} and id <> ${intoUserId}`;
         await tx`update referral_events set referrer_id = ${intoUserId} where referrer_id = ${fromUserId}`;
+        await tx`update referral_refunds set referred_id = ${intoUserId} where referred_id = ${fromUserId}`;
 
         // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
         // working rather than silently start addressing someone else's diary.
@@ -2659,6 +2671,7 @@ export async function postgresStore(
           select id, referred_by, ${new Date(eventAt)}, ${days}::int, ${transactionId}, ${originalTransactionId}
             from users where id = ${referredId} and referred_by is not null
               and referred_at <= ${new Date(eventAt)}
+              and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
           -- Either key: this friend already granted, or this subscription already earned one.
           on conflict do nothing
           returning referrer_id, days)
@@ -2678,9 +2691,11 @@ export async function postgresStore(
           from users f
           where g.referred_id = ${referredId} and g.revoked_at is null and g.event_at > ${new Date(eventAt)}
             and f.id = g.referred_id and f.referred_at <= ${new Date(eventAt)}
+            and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
           returning g.referrer_id, g.days - g.resized_from as delta)
         update users r set bonus_until =
-          greatest(${new Date(now())}::timestamptz, r.bonus_until + make_interval(days => g.delta))
+          case when r.bonus_until is null then null
+            else greatest(${new Date(now())}::timestamptz, r.bonus_until + make_interval(days => g.delta)) end
         from g where r.id = g.referrer_id
         returning r.id`;
       return resized.length > 0;
@@ -2688,15 +2703,22 @@ export async function postgresStore(
 
     async revokeReferralWeek(referredId, transactionId) {
       if (!UUID.test(referredId) || transactionId === "") return false;
+      // Kept first, whether or not there is a grant to revoke yet: its payment may still be on the way.
+      await sql`
+        insert into referral_refunds (transaction_id, referred_id, at)
+        select ${transactionId}, id, ${new Date(now())} from users where id = ${referredId} and referred_by is not null
+        on conflict do nothing`;
       // One statement: the grant is marked only while it is not already, and only for the
-      // transaction it was granted for; the referrer's week loses its days only if it was.
+      // transaction it was granted for; the referrer's week loses its days only if it was. A
+      // week that was never set stays unset rather than becoming "now".
       const rows = await sql`
         with g as (
           update referral_grants set revoked_at = ${new Date(now())}
           where referred_id = ${referredId} and transaction_id = ${transactionId} and revoked_at is null
           returning referrer_id, days)
         update users r set bonus_until =
-          greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days))
+          case when r.bonus_until is null then null
+            else greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days)) end
         from g where r.id = g.referrer_id
         returning r.id`;
       return rows.length > 0;

@@ -147,6 +147,13 @@ describe("a refunded first payment", () => {
     expect(await daysLeft(referrer)).toBe(0);
   });
 
+  it("earns nothing when the refund is delivered before the payment it refunds", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, refund(friend, "t-first"));
+    await applyRevenueCatEvent(deps, paid(friend, { transactionId: "t-first", eventTimestampMs: Date.now() + 1_000 }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+
   it("is not a cancellation that only stops the renewal, nor a refund of some other period", async () => {
     const { referrer, friend } = await pair();
     await applyRevenueCatEvent(deps, paid(friend, { transactionId: "t-first" }));

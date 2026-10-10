@@ -148,6 +148,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const referralGrants = new Map<string, {
     referrerId: string; eventAt: string; days: number; transactionId: string; originalTransactionId: string; revoked: boolean;
   }>();
+  /** `referral_refunds`: every refunded transaction of a referred account, so its payment, if late, earns nothing. */
+  const referralRefunds = new Map<string, string>(); // transaction -> the friend's account
   /** `referral_events`: a share is a label and an instant, nothing that names the person. */
   const referralShares: { referrerId: string; via: string; at: number }[] = [];
   /** A code nobody holds — Postgres's `new_referral_code()`. */
@@ -325,6 +327,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     referralCodes.delete(userId);
     referredBy.delete(userId);
     referredAt.delete(userId);
+    for (const [t, owner] of referralRefunds) if (owner === userId) referralRefunds.delete(t);
     bonusUntil.delete(userId);
     for (const [friend, referrer] of referredBy) if (referrer === userId) referredBy.delete(friend);
     for (const [friend, g] of referralGrants) if (friend === userId || g.referrerId === userId) referralGrants.delete(friend);
@@ -900,6 +903,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       for (const [friend, g] of referralGrants) if (g.referrerId === fromUserId && friend !== intoUserId) g.referrerId = intoUserId;
       for (const e of referralShares) if (e.referrerId === fromUserId) e.referrerId = intoUserId;
+      for (const [t, owner] of referralRefunds) if (owner === fromUserId) referralRefunds.set(t, intoUserId);
       eraseReferrals(fromUserId);
 
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
@@ -970,6 +974,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const referrerId = referredBy.get(referredId);
       if (referrerId === undefined) return false;
       if (Date.parse(eventAt) < referredAt.get(referredId)!) return false;
+      if (referralRefunds.has(transactionId)) return false;
       const held = referralGrants.get(referredId);
       if (held) {
         // An earlier paid period, delivered late: the grant becomes its, by the difference.
@@ -994,8 +999,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async revokeReferralWeek(referredId, transactionId) {
+      if (transactionId === "" || !referredBy.has(referredId)) return false;
+      referralRefunds.set(transactionId, referredId);
       const g = referralGrants.get(referredId);
-      if (!g || g.revoked || transactionId === "" || g.transactionId !== transactionId) return false;
+      if (!g || g.revoked || g.transactionId !== transactionId) return false;
       g.revoked = true;
       const until = bonusUntil.get(g.referrerId);
       if (until !== undefined) {
