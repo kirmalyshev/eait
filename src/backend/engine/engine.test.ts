@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type FoodRef, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -2524,5 +2524,64 @@ describe("the language on the profile", () => {
     // would create a state device auth can reach and the user cannot re-set. They are equal today,
     // so this asserts the RELATIONSHIP rather than a value.
     expect(LANGS_READY.every((l) => (LANGS as readonly string[]).includes(l))).toBe(true);
+  });
+});
+
+// A typed meal and a typed correction are grounded in the catalog like a photo is (#558).
+describe("text turns are grounded in the food catalog", () => {
+  const oats = {
+    id: "usda-sr:oat-porridge", source: "usda-sr", name: "oat porridge", name_de: null, name_en: "oat porridge",
+    names: {}, category: null, kcal_per_100g: 70, protein_g_per_100g: 2.5, carbs_g_per_100g: 12, fat_g_per_100g: 1.5,
+    satfat_g_per_100g: null, fiber_g_per_100g: null, sugar_g_per_100g: null, sodium_mg_per_100g: null,
+    nutrients: {}, portions: [],
+  } as unknown as FoodRef;
+  const item = (name_en: string) => ({
+    name: name_en, name_en, grams: 200, kcal: 160, protein_g: 5, carbs_g: 26, fat_g: 4, kcal_per_100g: 80,
+  });
+  const plate = (name_en: string): AnalyzedMeal => ({
+    isFood: true, items: [item(name_en)], kcal: 160, protein_g: 5, carbs_g: 26, fat_g: 4,
+    satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, confidence: "high", notes: "",
+  });
+  const typed = (name_en: string): LlmPorts => ({
+    ...demoPorts(), routeText: async () => ({ intent: "meal", analysis: plate(name_en), dayOffset: 0 }),
+  });
+  const corrected = (name_en: string): LlmPorts => ({
+    ...demoPorts(), routeText: async () => ({ intent: "correction", analysis: plate(name_en) }),
+  });
+
+  it("a typed meal whose item matches a catalog row takes the row's numbers", async () => {
+    await store.putFoodRefs([oats]);
+    const res = await handleText(makeDeps({}, typed("oat porridge")), await onboard(), { text: "porridge" });
+    if (res.kind !== "proposed") throw new Error(`expected proposed, got ${res.kind}`);
+    expect(res.analysis.kcal).toBe(140);
+    expect(res.analysis.items[0]).toMatchObject({ kcal: 140, protein_g: 5, carbs_g: 24, fat_g: 3, kcal_per_100g: 70 });
+  });
+
+  it("a typed meal with no catalog match keeps the model's numbers", async () => {
+    await store.putFoodRefs([oats]);
+    const res = await handleText(makeDeps({}, typed("dragonfruit sorbet")), await onboard(), { text: "sorbet" });
+    if (res.kind !== "proposed") throw new Error(`expected proposed, got ${res.kind}`);
+    expect(res.analysis.kcal).toBe(160);
+  });
+
+  it("a typed correction whose item matches a catalog row takes the row's numbers", async () => {
+    await store.putFoodRefs([oats]);
+    const userId = await onboard();
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const res = await handleText(makeDeps({}, corrected("oat porridge")), userId, { text: "it was porridge", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error(`expected updated, got ${res.kind}`);
+    expect(res.analysis.kcal).toBe(140);
+    expect((await store.getMeal(userId, first.mealId))!.kcal).toBe(140);
+  });
+
+  it("a typed correction with no catalog match keeps the model's numbers", async () => {
+    await store.putFoodRefs([oats]);
+    const userId = await onboard();
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const res = await handleText(makeDeps({}, corrected("dragonfruit sorbet")), userId, { text: "it was sorbet", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error(`expected updated, got ${res.kind}`);
+    expect(res.analysis.kcal).toBe(160);
   });
 });
