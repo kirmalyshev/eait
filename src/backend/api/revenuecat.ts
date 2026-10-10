@@ -149,6 +149,8 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
     // Apple's original_transaction_id as RevenueCat passes it. One subscription earns one referral.
     originalTransactionId: typeof e.original_transaction_id === "string" ? e.original_transaction_id : "",
     refund: e.type === "CANCELLATION" && e.cancel_reason === "CUSTOMER_SUPPORT",
+    // When the period began — compared with when the friend's code applied.
+    purchasedAtMs: epochMs(e.purchased_at_ms),
   };
 }
 

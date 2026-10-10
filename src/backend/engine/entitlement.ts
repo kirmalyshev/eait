@@ -12,6 +12,7 @@
 
 import {
   DIARY_WINDOW_DAYS, KCAL_PER_KG, entitlementActive, entitlementLive, explainTargets, forgivingStreak, localDate,
+  referralBonusEnd,
   trialDaysLeft, windowStart, type Entitlement, type Goal, type Lang,
 } from "@eait/shared";
 import type { Config } from "../config.ts";
@@ -97,7 +98,7 @@ export async function adminUsers(
   return {
     users: page.rows.map((row) => ({
       ...row,
-      entitled: entitlementLive(row.entitlement, now, row.bonusUntil),
+      entitled: entitlementLive(row.entitlement, now, referralBonusEnd(row.bonusUntil, row.bankedDays, row.entitlement?.expiresAt)),
       effective: row.freeAnalyses ?? deps.config.freeAnalyses,
     })),
     nextCursor: page.nextCursor,
@@ -141,14 +142,17 @@ export async function adminUserSummary(deps: EngineDeps, userId: string): Promis
       goal: profile.goal ?? "maintain",
       paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
     },
-    entitled: entitlementLive(row.entitlement, Date.now(), row.bonusUntil),
+    entitled: entitlementLive(row.entitlement, Date.now(), referralBonusEnd(row.bonusUntil, row.bankedDays, row.entitlement?.expiresAt)),
     streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 
 /** This account's paid tier, in the shape the profile response carries. */
 export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
-  const [stored, bonusUntil] = await Promise.all([deps.store.getEntitlement(userId), deps.store.bonusUntil(userId)]);
+  const [stored, dated, banked] = await Promise.all([
+    deps.store.getEntitlement(userId), deps.store.bonusUntil(userId), deps.store.bankedDays(userId),
+  ]);
+  const bonusUntil = referralBonusEnd(dated, banked, stored?.expiresAt);
   const now = Date.now();
   // THE DATE IS ONLY SENT WHEN IT IS THE GRANT KEEPING THEM IN. `expiresAt` is the subscription's
   // end and is never cleared, so a lifetime holder whose monthly lapsed still has a past date on
@@ -235,6 +239,12 @@ export interface RevenueCatEvent {
    */
   originalTransactionId: string;
   /**
+   * `purchased_at_ms`: when the paid period this event describes BEGAN, or null when absent. The
+   * referral's guards compare a period's start with the moment the code applied and order periods
+   * by it — the event's own stamp is when RevenueCat said so, which can be much later.
+   */
+  purchasedAtMs: number | null;
+  /**
    * A CANCELLATION whose `cancel_reason` is CUSTOMER_SUPPORT — a refund. RevenueCat sends it only
    * when the LATEST period is refunded; a refund of an earlier one is never delivered, so a reward
    * whose period was not the latest when refunded cannot be taken back (the accepted ceiling).
@@ -318,13 +328,14 @@ const PAYMENTS = new Set(["INITIAL_PURCHASE", "RENEWAL"]);
  * which only helps if the retry — refused as already applied — still reaches this.
  */
 async function referralReward(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
+  const periodStart = event.purchasedAtMs === null ? eventAt : new Date(event.purchasedAtMs).toISOString();
   if (event.refund) {
     await deps.store.revokeReferralWeek(event.appUserId, event.transactionId);
     return;
   }
   if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial || event.sandbox) return;
   await deps.store.grantReferralWeek(
-    event.appUserId, eventAt, referralRewardDays(deps.config, event.productId), event.transactionId,
+    event.appUserId, periodStart, referralRewardDays(deps.config, event.productId), event.transactionId,
     event.originalTransactionId,
   );
 }

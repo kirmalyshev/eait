@@ -557,8 +557,9 @@ export interface AdminUserRow {
   email: string | null;
   /** What the account has bought, or null. Read `entitlementLive` for whether it is live. */
   entitlement: StoredEntitlement | null;
-  /** The referral week's end (`Store.bonusUntil`), the third input `entitlementLive` takes. */
+  /** The referral week's end (`Store.bonusUntil`) and the days banked behind a subscription (`Store.bankedDays`) — `referralBonusEnd` makes them the third input `entitlementLive` takes. */
   bonusUntil: string | null;
+  bankedDays: number;
   /** The account's own sample size, or null when it takes the instance default. */
   freeAnalyses: number | null;
   /** Analyses of BOTH scopes on the day asked for — the sample counts a typed meal too. */
@@ -1051,6 +1052,13 @@ export interface Store {
   /** The referral week's end, or null when there has never been one. Past dates are returned as they are. */
   bonusUntil(userId: string): Promise<string | null>;
   /**
+   * `users.referral_banked_days`: a PAYING referrer's reward, in days, waiting behind their
+   * subscription rather than dated — a date set past this period's end would be overtaken by the
+   * next renewal. They run from the subscription's end (`referralBonusEnd`); a new period written
+   * after a lapse (`putEntitlement`) leaves only what the lapse did not use. 0 when none.
+   */
+  bankedDays(userId: string): Promise<number>;
+  /**
    * Apply somebody's code to this account, and start ITS week: `bonus_until` becomes
    * `greatest(now, bonus_until) + days`, in the same statement that sets `referred_by` — and that
    * statement only matches while `referred_by` is still null, so two racing redemptions apply one.
@@ -1071,6 +1079,14 @@ export interface Store {
    * week by the difference (never below now), in one guarded update — `event_at > eventAt`, not
    * revoked. That is a `true` too. And one store subscription (`originalTransactionId`, unique when
    * not "") earns one grant, whichever account it lands on.
+   *
+   * WHERE THE DAYS GO: to `referral_banked_days` when the referrer's subscription is live at the
+   * grant, else to `bonus_until` from now. The grant records which, and every later move (re-size,
+   * revoke, void) is made in that bucket.
+   *
+   * A PAYMENT FROM BEFORE `referred_at`, or after a refund of the friend arrived first, VOIDS the
+   * friend for good: with no grant, a revoked row of 0 days takes the key; with one, it is revoked.
+   * `eventAt` is when the paid PERIOD began (`purchased_at_ms`, else the event's own stamp).
    * `referredId` comes from a verified webhook delivery, never from a client.
    */
   grantReferralWeek(

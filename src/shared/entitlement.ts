@@ -278,6 +278,22 @@ export function entitlementActive(expiresAt: string | null | undefined, now: num
 }
 
 /**
+ * The referral week's effective end (#899): the dated week (`bonus_until`), or the subscription's
+ * end plus the days BANKED behind it, whichever is later. Banked days follow the subscription as it
+ * renews and arrive exactly when it stops. Null when there is neither. This is the third input
+ * `entitlementLive` takes and what `Entitlement.bonusUntil` reports.
+ */
+export function referralBonusEnd(
+  bonusUntil: string | null, bankedDays: number, subscriptionExpiresAt: string | null | undefined,
+): string | null {
+  const end = subscriptionExpiresAt ? Date.parse(subscriptionExpiresAt) : NaN;
+  const banked = bankedDays > 0 && Number.isFinite(end) ? end + bankedDays * 86_400_000 : NaN;
+  const dated = bonusUntil ? Date.parse(bonusUntil) : NaN;
+  const at = Math.max(Number.isFinite(dated) ? dated : -Infinity, Number.isFinite(banked) ? banked : -Infinity);
+  return Number.isFinite(at) ? new Date(at).toISOString() : null;
+}
+
+/**
  * Is a STORED entitlement record live at `now`?
  *
  * TWO INDEPENDENT GRANTS, and collapsing them into one field is a bug this code already shipped

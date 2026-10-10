@@ -302,6 +302,10 @@ describe("parseRevenueCatEvent", () => {
       .toMatchObject({ transactionId: "2000001", refund: true });
     expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", transaction_id: "2000002", original_transaction_id: "2000001" } }))
       .toMatchObject({ transactionId: "2000002", originalTransactionId: "2000001" });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", purchased_at_ms: 1_760_000_000_000 } }))
+      .toMatchObject({ purchasedAtMs: 1_760_000_000_000 });
+    expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", purchased_at_ms: "soon" } }))
+      .toMatchObject({ purchasedAtMs: null });
     expect(parseRevenueCatEvent({ event: { ...at, type: "CANCELLATION", transaction_id: "2000001", cancel_reason: "UNSUBSCRIBE" } }))
       .toMatchObject({ refund: false });
     expect(parseRevenueCatEvent({ event: { ...at, type: "RENEWAL", cancel_reason: "CUSTOMER_SUPPORT" } }))

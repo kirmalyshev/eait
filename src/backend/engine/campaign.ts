@@ -25,7 +25,7 @@
 // set in the store instead.
 
 import {
-  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, CAMPAIGN_VARIANTS, effectOf, entitlementLive, habitOf, inHoldout, inRollout, isCampaignTemplateKey, localDate, matchesSegment, variantOf,
+  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, CAMPAIGN_VARIANTS, effectOf, entitlementLive, habitOf, referralBonusEnd, inHoldout, inRollout, isCampaignTemplateKey, localDate, matchesSegment, variantOf,
   pushKeyGaps, validateCampaignInput,
   type CampaignInput, type CampaignStatus, type CampaignTemplateKey, type Lang, type PushKind, type PushTemplateRow, type SegmentFacts,
 } from "@eait/shared";
@@ -162,7 +162,10 @@ export async function campaignOverview(deps: EngineDeps): Promise<CampaignOvervi
 async function factsFor(deps: EngineDeps, userId: string, date: string, now: number): Promise<SegmentFacts | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
-  const [stored, bonusUntil] = await Promise.all([deps.store.getEntitlement(userId), deps.store.bonusUntil(userId)]);
+  const [stored, dated, banked] = await Promise.all([
+    deps.store.getEntitlement(userId), deps.store.bonusUntil(userId), deps.store.bankedDays(userId),
+  ]);
+  const bonusUntil = referralBonusEnd(dated, banked, stored?.expiresAt);
   // The WHOLE history: a "lapsed" account is one whose last log is old, and a window would read a
   // 61-day-old last log as "never". ponytail: one read per account that passed the cheap filters;
   // store a last-logged date on the account if this ever shows up in a profile.

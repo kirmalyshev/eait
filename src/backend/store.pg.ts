@@ -548,6 +548,15 @@ create unique index if not exists referral_grants_subscription_key
 -- The grant's length before its last re-size to an earlier paid period, set by the same update
 -- (the SET reads the row it locked), which is how the referrer's week moves by the difference.
 alter table referral_grants add column if not exists resized_from integer;
+-- Where a grant's days went (#899 review 3): 'banked' behind a subscription that was live at the
+-- grant, or 'bonus' — the dated week. Every later move of the grant is made in the same bucket.
+alter table referral_grants add column if not exists bucket text not null default 'bonus';
+alter table referral_grants drop constraint if exists referral_grants_bucket_check;
+alter table referral_grants add constraint referral_grants_bucket_check check (bucket in ('bonus', 'banked'));
+-- A paying referrer's reward, in days, waiting behind their subscription rather than dated: a date
+-- past this period's end would be overtaken by the next renewal. They run from the subscription's
+-- end (referralBonusEnd); a new period written after a lapse keeps only what the lapse left.
+alter table users add column if not exists referral_banked_days integer not null default 0;
 -- A refund can arrive before the payment it refunds. Every refunded transaction of a referred
 -- account is kept here, and grantReferralWeek refuses one, so the late payment earns nothing.
 -- The friend's account owns the row and takes it when it is erased: a store transaction id is a
@@ -1576,6 +1585,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   // ── Everything else names its user, and almost always first.
   issueToken: 0,
   bonusUntil: 0,
+  bankedDays: 0,
   recordReferralShare: 0,
   revokeTokensFor: 0,
   addIdentity: 0,
@@ -2250,7 +2260,7 @@ export async function postgresStore(
       const rows = await sql`
         select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, (u.push_offers_at is not null) as push_offers,
                u.entitlement_expires_at, u.entitlement_lifetime_product_id,
-               u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial, u.bonus_until,
+               u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial, u.bonus_until, u.referral_banked_days,
                (select array_agg(i.provider order by i.linked_at asc)
                   from identities i where i.user_id = u.id) as providers,
                (select i.email from identities i
@@ -2292,6 +2302,7 @@ export async function postgresStore(
             trial: r.entitlement_trial === true,
           },
           bonusUntil: r.bonus_until === null ? null : new Date(r.bonus_until as string).toISOString(),
+          bankedDays: num(r.referral_banked_days),
           freeAnalyses: r.free_analyses === null || r.free_analyses === undefined
             ? null : num(r.free_analyses),
           analysesToday: num(r.today),
@@ -2563,7 +2574,8 @@ export async function postgresStore(
               case when from_u.referred_by <> into_u.id and not (into_u.entitlement_event_at is not null and not (into_u.entitlement_trial and into_u.entitlement_lifetime_product_id is null)) then from_u.referred_by end),
             referred_at = case when into_u.referred_by is null and from_u.referred_by <> into_u.id and not (into_u.entitlement_event_at is not null and not (into_u.entitlement_trial and into_u.entitlement_lifetime_product_id is null))
               then from_u.referred_at else into_u.referred_at end,
-            bonus_until = greatest(into_u.bonus_until, from_u.bonus_until)
+            bonus_until = greatest(into_u.bonus_until, from_u.bonus_until),
+            referral_banked_days = into_u.referral_banked_days + from_u.referral_banked_days
           from users from_u
           where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
         await tx`
@@ -2635,6 +2647,11 @@ export async function postgresStore(
       return at === null ? null : new Date(at).toISOString();
     },
 
+    async bankedDays(userId) {
+      const rows = await sql`select referral_banked_days from users where id = ${userId}`;
+      return num((rows[0] as { referral_banked_days?: unknown } | undefined)?.referral_banked_days ?? 0);
+    },
+
     async redeemReferral(userId, code, days) {
       // THE GUARDED STATEMENT, and the only write: it matches only while this account's
       // referred_by is still null and only a referrer that is not this account, and it starts the
@@ -2662,59 +2679,77 @@ export async function postgresStore(
     async grantReferralWeek(referredId, eventAt, days, transactionId, originalTransactionId) {
       // RevenueCat can name an id that is not one of ours; a uuid column would throw on it.
       if (!UUID.test(referredId)) return false;
+      const at = new Date(eventAt);
+      const t = new Date(now());
+      // THE FRIEND'S ROW, LOCKED for the rest of this call, and by `revokeReferralWeek` too: a
+      // refund committing between this method's refund check and its insert would otherwise leave
+      // the grant standing over a refunded payment. Every statement below runs after it.
+      await sql`select 1 from users where id = ${referredId} for update`;
       // PAID BEFORE THE CODE APPLIED, delivered late: not a referral at all, so the friend is voided
-      // for good. A grant already made is taken back (its days off the referrer's week, never below
-      // now, an unset week left unset); with none, a void row takes the key so no renewal earns.
-      // Both guarded on `referred_at > eventAt` inside the write, and no-ops for any other payment.
+      // for good. A grant already made is taken back, from the bucket it went to; with none, a void
+      // row takes the key so no renewal earns. Both guarded on `referred_at > eventAt` in the write.
       await sql`
         with g as (
-          update referral_grants g set revoked_at = ${new Date(now())}
+          update referral_grants g set revoked_at = ${t}
           from users f
           where g.referred_id = ${referredId} and g.revoked_at is null
-            and f.id = g.referred_id and f.referred_at > ${new Date(eventAt)}
-          returning g.referrer_id, g.days)
-        update users r set bonus_until = case when r.bonus_until is null then null
-          else greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days)) end
+            and f.id = g.referred_id and f.referred_at > ${at}
+          returning g.referrer_id, g.bucket, -g.days as delta)
+        -- The grant's bucket moves by delta: the dated week never below now (an unset one stays
+        -- unset), the bank never below 0.
+        update users r set
+          bonus_until = case when g.bucket = 'bonus' and r.bonus_until is not null
+            then greatest(${t}::timestamptz, r.bonus_until + make_interval(days => g.delta)) else r.bonus_until end,
+          referral_banked_days = case when g.bucket = 'banked'
+            then greatest(0, r.referral_banked_days + g.delta) else r.referral_banked_days end
         from g where r.id = g.referrer_id`;
       await sql`
         insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, revoked_at)
-        select id, referred_by, ${new Date(eventAt)}, 0, ${transactionId}, ${new Date(now())}
-          from users where id = ${referredId} and referred_by is not null and referred_at > ${new Date(eventAt)}
+        select id, referred_by, ${at}, 0, ${transactionId}, ${t}
+          from users where id = ${referredId} and referred_by is not null and referred_at > ${at}
         on conflict do nothing`;
-      // One statement: the insert is the once-per-friend guard, and the referrer's week moves only
-      // when it inserted. Past where their access would have ended — a running week, or the
-      // subscription they are paying for.
+      // One statement: the insert is the once-per-friend guard (and once per store subscription),
+      // and the referrer's reward moves only when it inserted. WHERE IT GOES is decided in the same
+      // snapshot: a referrer paying for a live period banks the days behind it, any other gets a
+      // dated week from now.
       const rows = await sql`
         with g as (
-          insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, original_transaction_id)
-          select id, referred_by, ${new Date(eventAt)}, ${days}::int, ${transactionId}, ${originalTransactionId}
-            from users where id = ${referredId} and referred_by is not null
-              and referred_at <= ${new Date(eventAt)}
-              and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
+          insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, original_transaction_id, bucket)
+          select f.id, f.referred_by, ${at}, ${days}::int, ${transactionId}, ${originalTransactionId},
+                 case when r.entitlement_expires_at > ${t} then 'banked' else 'bonus' end
+            from users f join users r on r.id = f.referred_by
+           where f.id = ${referredId} and f.referred_at <= ${at}
+             and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
           -- Either key: this friend already granted, or this subscription already earned one.
           on conflict do nothing
-          returning referrer_id, days)
-        update users r set bonus_until =
-          greatest(${new Date(now())}::timestamptz, r.bonus_until, r.entitlement_expires_at) + make_interval(days => g.days)
+          returning referrer_id, bucket, days)
+        update users r set
+          bonus_until = case when g.bucket = 'bonus'
+            then greatest(${t}::timestamptz, r.bonus_until) + make_interval(days => g.days) else r.bonus_until end,
+          referral_banked_days = case when g.bucket = 'banked'
+            then r.referral_banked_days + g.days else r.referral_banked_days end
         from g where r.id = g.referrer_id
         returning r.id`;
       if (rows.length > 0) return true;
       // Not a new grant. An EARLIER paid period than the one granted from, delivered late, re-sizes
       // it — one guarded update: only an unrevoked grant whose own period is later than this one,
-      // and only a payment at or after the code applied.
+      // and only a payment at or after the code applied — by the difference, in the grant's bucket.
       const resized = await sql`
         with g as (
           update referral_grants g set
-            resized_from = g.days, days = ${days}::int,
-            event_at = ${new Date(eventAt)}, transaction_id = ${transactionId}
+            resized_from = g.days, days = ${days}::int, event_at = ${at}, transaction_id = ${transactionId}
           from users f
-          where g.referred_id = ${referredId} and g.revoked_at is null and g.event_at > ${new Date(eventAt)}
-            and f.id = g.referred_id and f.referred_at <= ${new Date(eventAt)}
+          where g.referred_id = ${referredId} and g.revoked_at is null and g.event_at > ${at}
+            and f.id = g.referred_id and f.referred_at <= ${at}
             and not exists (select 1 from referral_refunds x where x.transaction_id = ${transactionId})
-          returning g.referrer_id, g.days - g.resized_from as delta)
-        update users r set bonus_until =
-          case when r.bonus_until is null then null
-            else greatest(${new Date(now())}::timestamptz, r.bonus_until + make_interval(days => g.delta)) end
+          returning g.referrer_id, g.bucket, g.days - g.resized_from as delta)
+        -- The grant's bucket moves by delta: the dated week never below now (an unset one stays
+        -- unset), the bank never below 0.
+        update users r set
+          bonus_until = case when g.bucket = 'bonus' and r.bonus_until is not null
+            then greatest(${t}::timestamptz, r.bonus_until + make_interval(days => g.delta)) else r.bonus_until end,
+          referral_banked_days = case when g.bucket = 'banked'
+            then greatest(0, r.referral_banked_days + g.delta) else r.referral_banked_days end
         from g where r.id = g.referrer_id
         returning r.id`;
       return resized.length > 0;
@@ -2722,22 +2757,33 @@ export async function postgresStore(
 
     async revokeReferralWeek(referredId, transactionId) {
       if (!UUID.test(referredId) || transactionId === "") return false;
+      const t = new Date(now());
+      // The friend's row, locked — see `grantReferralWeek`.
+      await sql`select 1 from users where id = ${referredId} for update`;
       // Kept first, whether or not there is a grant to revoke yet: its payment may still be on the way.
       await sql`
         insert into referral_refunds (transaction_id, referred_id, at)
-        select ${transactionId}, id, ${new Date(now())} from users where id = ${referredId} and referred_by is not null
+        select ${transactionId}, id, ${t} from users where id = ${referredId} and referred_by is not null
+        on conflict do nothing`;
+      // Refunded before any grant: the friend is void, so neither that payment nor a renewal earns.
+      await sql`
+        insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id, revoked_at)
+        select id, referred_by, ${t}, 0, ${transactionId}, ${t} from users where id = ${referredId} and referred_by is not null
         on conflict do nothing`;
       // One statement: the grant is marked only while it is not already, and only for the
-      // transaction it was granted for; the referrer's week loses its days only if it was. A
-      // week that was never set stays unset rather than becoming "now".
+      // transaction it was granted for; its days come out of the bucket they went to.
       const rows = await sql`
         with g as (
-          update referral_grants set revoked_at = ${new Date(now())}
+          update referral_grants set revoked_at = ${t}
           where referred_id = ${referredId} and transaction_id = ${transactionId} and revoked_at is null
-          returning referrer_id, days)
-        update users r set bonus_until =
-          case when r.bonus_until is null then null
-            else greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days)) end
+          returning referrer_id, bucket, -days as delta)
+        -- The grant's bucket moves by delta: the dated week never below now (an unset one stays
+        -- unset), the bank never below 0.
+        update users r set
+          bonus_until = case when g.bucket = 'bonus' and r.bonus_until is not null
+            then greatest(${t}::timestamptz, r.bonus_until + make_interval(days => g.delta)) else r.bonus_until end,
+          referral_banked_days = case when g.bucket = 'banked'
+            then greatest(0, r.referral_banked_days + g.delta) else r.referral_banked_days end
         from g where r.id = g.referrer_id
         returning r.id`;
       return rows.length > 0;
@@ -2797,6 +2843,15 @@ export async function postgresStore(
       if (patch.expiresAt !== undefined) {
         const rows = await sql`
           update users set
+            -- BANKED REFERRAL DAYS ran from the lapse (#899): a new period written after one keeps
+            -- only what the lapse did not use. Read from the row this statement locked, before the
+            -- expiry below replaces it.
+            referral_banked_days = case
+              when referral_banked_days > 0 and entitlement_expires_at < ${new Date(now())}::timestamptz
+                   and ${new Date(patch.expiresAt)}::timestamptz > ${new Date(now())}::timestamptz
+              then greatest(0, referral_banked_days
+                - ceil(extract(epoch from (${new Date(now())}::timestamptz - entitlement_expires_at)) / 86400)::int)
+              else referral_banked_days end,
             entitlement_expires_at       = ${new Date(patch.expiresAt)},
             entitlement_expires_event_at = ${eventAt},
             entitlement_product_id       = ${patch.productId},

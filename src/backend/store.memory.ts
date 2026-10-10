@@ -145,9 +145,27 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   };
   const bonusUntil = new Map<string, string>(); // userId -> ISO
   /** `referral_grants`, keyed on the friend as its primary key is. */
-  const referralGrants = new Map<string, {
-    referrerId: string; eventAt: string; days: number; transactionId: string; originalTransactionId: string; revoked: boolean;
-  }>();
+  /** `bucket`: where the days went — `bonus_until` (a dated week) or `referral_banked_days`. */
+  type Grant = {
+    referrerId: string; eventAt: string; days: number; transactionId: string; originalTransactionId: string;
+    revoked: boolean; bucket: "bonus" | "banked";
+  };
+  const referralGrants = new Map<string, Grant>();
+  /** `users.referral_banked_days` — a paying referrer's reward, waiting behind their subscription. */
+  const bankedDays = new Map<string, number>();
+  const DAY_MS = 86_400_000;
+  /** Move a grant's bucket by `delta` days: the dated week never below now (unset stays unset), the bank never below 0. */
+  const moveBucket = (g: Grant, delta: number): void => {
+    if (g.bucket === "banked") {
+      bankedDays.set(g.referrerId, Math.max(0, (bankedDays.get(g.referrerId) ?? 0) + delta));
+      return;
+    }
+    const until = bonusUntil.get(g.referrerId);
+    if (until !== undefined) bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) + delta * DAY_MS)).toISOString());
+  };
+  /** A void grant: 0 days, revoked, holding the friend's key so nothing they pay later earns. */
+  const voidGrant = (referrerId: string, eventAt: string, transactionId: string): Grant =>
+    ({ referrerId, eventAt, days: 0, transactionId, originalTransactionId: "", revoked: true, bucket: "bonus" });
   /** `referral_refunds`: every refunded transaction of a referred account, so its payment, if late, earns nothing. */
   const referralRefunds = new Map<string, string>(); // transaction -> the friend's account
   /** `referral_events`: a share is a label and an instant, nothing that names the person. */
@@ -162,12 +180,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     }
   };
   /** Revoke a grant: its days off the referrer's week, never below now; an unset week stays unset. */
-  const takeBack = (g: { referrerId: string; days: number; revoked: boolean }): void => {
+  const takeBack = (g: Grant): void => {
     g.revoked = true;
-    const until = bonusUntil.get(g.referrerId);
-    if (until !== undefined) {
-      bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) - g.days * 86_400_000)).toISOString());
-    }
+    moveBucket(g, -g.days);
   };
   /** `greatest(now, …dates) + days`, ignoring absent dates the way Postgres's `greatest` ignores nulls. */
   const extend = (days: number, ...from: (string | null | undefined)[]): string =>
@@ -335,6 +350,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     referralCodes.delete(userId);
     referredBy.delete(userId);
     referredAt.delete(userId);
+    bankedDays.delete(userId);
     for (const [t, owner] of referralRefunds) if (owner === userId) referralRefunds.delete(t);
     bonusUntil.delete(userId);
     for (const [friend, referrer] of referredBy) if (referrer === userId) referredBy.delete(friend);
@@ -674,6 +690,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           email: mine.find((i) => i.email)?.email ?? null,
           entitlement: storedEntitlement(id),
           bonusUntil: bonusUntil.get(id) ?? null,
+          bankedDays: bankedDays.get(id) ?? 0,
           freeAnalyses: freeAnalyses.get(id) ?? null,
           analysesToday: analyses.filter((a) => a.userId === id && a.date === today).length,
           spent: analyses.filter((a) => a.userId === id).length,
@@ -901,6 +918,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         referredBy.set(intoUserId, fromReferrer);
         referredAt.set(intoUserId, referredAt.get(fromUserId)!);
       }
+      const fromBanked = bankedDays.get(fromUserId);
+      if (fromBanked !== undefined) bankedDays.set(intoUserId, (bankedDays.get(intoUserId) ?? 0) + fromBanked);
       const fromBonus = bonusUntil.get(fromUserId);
       if (fromBonus !== undefined) bonusUntil.set(intoUserId, newest(bonusUntil.get(intoUserId), fromBonus));
       const fromGrant = referralGrants.get(fromUserId);
@@ -966,6 +985,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return bonusUntil.get(userId) ?? null;
     },
 
+    async bankedDays(userId) {
+      return bankedDays.get(userId) ?? 0;
+    },
+
     async redeemReferral(userId, code, days) {
       const owner = [...referralCodes].find(([, c]) => c === code)?.[0];
       if (owner === userId) return "own";
@@ -986,25 +1009,25 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         // Paid BEFORE the code applied: not a referral. Void the friend for good — a grant already
         // made is taken back, and a void one stands in the key so no renewal can earn later.
         if (held) { if (!held.revoked) takeBack(held); return false; }
-        referralGrants.set(referredId, { referrerId, eventAt, days: 0, transactionId, originalTransactionId: "", revoked: true });
+        referralGrants.set(referredId, voidGrant(referrerId, eventAt, transactionId));
         return false;
       }
       if (referralRefunds.has(transactionId)) return false;
       if (held) {
         // An earlier paid period, delivered late: the grant becomes its, by the difference.
         if (held.revoked || Date.parse(held.eventAt) <= Date.parse(eventAt)) return false;
-        const until = bonusUntil.get(held.referrerId);
-        if (until !== undefined) {
-          bonusUntil.set(held.referrerId, new Date(Math.max(now(), Date.parse(until) + (days - held.days) * 86_400_000)).toISOString());
-        }
+        moveBucket(held, days - held.days);
         Object.assign(held, { eventAt, days, transactionId });
         return true;
       }
       if (originalTransactionId !== "" && [...referralGrants.values()].some((g) => g.originalTransactionId === originalTransactionId)) {
         return false;
       }
-      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, originalTransactionId, revoked: false });
-      bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), entitlements.get(referrerId)?.expiresAt));
+      // A referrer paying for a live period banks the days behind it; one who is not gets a dated week from now.
+      const paying = Date.parse(entitlements.get(referrerId)?.expiresAt ?? "") > now();
+      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, originalTransactionId, revoked: false, bucket: paying ? "banked" : "bonus" });
+      if (paying) bankedDays.set(referrerId, (bankedDays.get(referrerId) ?? 0) + days);
+      else bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId)));
       return true;
     },
 
@@ -1016,7 +1039,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (transactionId === "" || !referredBy.has(referredId)) return false;
       referralRefunds.set(transactionId, referredId);
       const g = referralGrants.get(referredId);
-      if (!g || g.revoked || g.transactionId !== transactionId) return false;
+      // Refunded before any payment was granted: the friend is void, and nothing later earns.
+      if (!g) { referralGrants.set(referredId, voidGrant(referredBy.get(referredId)!, new Date(now()).toISOString(), transactionId)); return false; }
+      if (g.revoked || g.transactionId !== transactionId) return false;
       takeBack(g);
       return true;
     },
@@ -1057,6 +1082,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // to and against no other, or a late renewal would be refused by an unrelated unlock.
       if (patch.expiresAt !== undefined) {
         if (current && current.expiresEventAt !== null && Date.parse(current.expiresEventAt) >= at) return false;
+        // BANKED REFERRAL DAYS ran from the lapse: a new period after one shows how many were used,
+        // and only what is left waits behind it. Postgres does the same in the same statement.
+        const banked = bankedDays.get(userId) ?? 0;
+        const lapsedAt = Date.parse(current?.expiresAt ?? "");
+        if (banked > 0 && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
+          bankedDays.set(userId, Math.max(0, banked - Math.ceil((now() - lapsedAt) / DAY_MS)));
+        }
         entitlements.set(userId, {
           ...blank(current),
           expiresAt: patch.expiresAt,

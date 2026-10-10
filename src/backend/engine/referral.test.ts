@@ -44,7 +44,7 @@ let seq = 0;
 const paid = (appUserId: string, over: Partial<RevenueCatEvent> = {}): RevenueCatEvent => ({
   appUserId, type: "INITIAL_PURCHASE", entitlementIds: [CONFIG.revenueCatEntitlementId],
   expirationAtMs: Date.now() + 30 * DAY, productId: "com.eait.fit.ios.monthly", trial: false,
-  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, transactionId: `txn-${seq}`, originalTransactionId: "", refund: false, ...over,
+  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, transactionId: `txn-${seq}`, originalTransactionId: "", purchasedAtMs: null, refund: false, ...over,
 });
 const daysLeft = async (userId: string) => {
   const until = await store.bonusUntil(userId);
@@ -102,6 +102,14 @@ describe("a friend who had already paid", () => {
     expect("kind" in await redeemReferral(deps, friend, await codeOf(referrer))).toBe(false);
     await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
     expect(await daysLeft(referrer)).toBe(7);
+  });
+
+  // Review 3 (SHOULD): the period's start, not the delivery's stamp, is what is compared.
+  it("earns nothing from a period bought before the code, however late its event is stamped", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { purchasedAtMs: Date.now() - 60_000 }));
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL" }));
+    expect(await store.bonusUntil(referrer)).toBeNull();
   });
 
   it("earns nothing from a payment made before the code applied, delivered after it, nor from its renewals", async () => {
@@ -214,7 +222,7 @@ describe("the referrer's reward", () => {
     const yearly = await pair();
     await applyRevenueCatEvent(deps, paid(yearly.referrer, { expirationAtMs: Date.now() + 30 * DAY }));
     await applyRevenueCatEvent(deps, paid(yearly.friend, { productId: "com.eait.fit.ios.yearly" }));
-    expect(await daysLeft(yearly.referrer)).toBe(44);
+    expect(await store.bankedDays(yearly.referrer)).toBe(14);
   });
 
   it("is granted once per friend, ever", async () => {
@@ -315,6 +323,23 @@ describe("the profile's referral card", () => {
     const other = await pair();
     await applyRevenueCatEvent(deps, paid(other.friend));
     expect((await profileView(deps, other.referrer))!.referral.bankedDays).toBe(0);
+  });
+
+  // Review 3 (c): the banked days outlive the referrer's renewals and arrive when they stop.
+  it("keeps banked days through a referrer's renewal, and spends them when the subscription lapses", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(referrer, { expirationAtMs: Date.now() + 30 * DAY }));
+    await applyRevenueCatEvent(deps, paid(friend, { productId: "com.eait.fit.ios.yearly" }));
+    await applyRevenueCatEvent(deps, paid(referrer, { type: "RENEWAL", expirationAtMs: Date.now() + 60 * DAY }));
+    expect((await profileView(deps, referrer))!.referral.bankedDays).toBe(14);
+    expect((await entitlementFor(deps, referrer)).bonusUntil).toBeNull();
+    // It stops: the period ended a day ago. The fourteen days run from its end.
+    await applyRevenueCatEvent(deps, paid(referrer, { type: "EXPIRATION", expirationAtMs: Date.now() - DAY }));
+    const e = await entitlementFor(deps, referrer);
+    expect(e).toMatchObject({ active: true, lapsed: false, expiresAt: null });
+    expect(Math.round((Date.parse(e.bonusUntil!) - Date.now()) / DAY)).toBe(13);
+    expect((await profileView(deps, referrer))!.referral.bankedDays).toBe(0);
+    expect((await adminUsers(deps, { q: referrer, limit: 1 })).users[0]!.entitled).toBe(true);
   });
 
   it("falls back to the web origin, then the API's, for the link", async () => {

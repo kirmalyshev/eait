@@ -31,14 +31,14 @@ export function referralRewardDays(config: Config, productId: string): number {
 const linkBase = (c: Config): string => c.landingUrl || c.publicWebUrl || c.publicApiUrl;
 
 export async function referralView(deps: EngineDeps, userId: string): Promise<ReferralView> {
-  const [row, stored, bonusUntil] = await Promise.all([
-    deps.store.referralOf(userId), deps.store.getEntitlement(userId), deps.store.bonusUntil(userId),
+  const [row, stored, banked] = await Promise.all([
+    deps.store.referralOf(userId), deps.store.getEntitlement(userId), deps.store.bankedDays(userId),
   ]);
-  // Banked: what the week runs past a live subscription (and no lifetime, which never ends).
+  // Banked: the days waiting behind a live subscription (and no lifetime, which never ends). With
+  // no live subscription they are already running, and `Entitlement.bonusUntil` says to when.
   const subscribed = stored !== null && stored.lifetimeProductId === null && entitlementActive(stored.expiresAt, Date.now());
-  const banked = subscribed && bonusUntil !== null ? Date.parse(bonusUntil) - Date.parse(stored!.expiresAt!) : 0;
   return {
-    bankedDays: Math.max(0, Math.floor(banked / 86_400_000)),
+    bankedDays: subscribed ? banked : 0,
     link: row ? `${linkBase(deps.config)}/r/${row.code}` : "",
     applied: row?.applied ?? false,
     joined: row?.joined ?? 0,
