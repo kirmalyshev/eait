@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  loggedStreak,
+  forgivingStreak,
   dateMinus, dateMinusMonths, isCalendarDate, localDate, localTime, monthGrid,
   monthOf, monthShift, weekStart, windowStart, zonedMidnight,
 } from "./dates.ts";
@@ -163,17 +163,51 @@ describe("dateMinusMonths", () => {
   });
 });
 
-describe("loggedStreak", () => {
-  const logged = (...d: string[]) => new Set(d);
-  test("counts back from today when today is logged", () => {
-    expect(loggedStreak(logged("2026-10-08", "2026-10-07", "2026-10-06"), "2026-10-08")).toBe(3);
+describe("forgivingStreak", () => {
+  const F = 1500;
+  const T = "2026-10-08";
+  // [offset back from T, kcal] pairs → a map of days with meals
+  const read = (...d: [number, number][]) =>
+    forgivingStreak(new Map(d.map(([n, k]) => [dateMinus(T, n), k] as const)), T, F);
+
+  test("an empty today is pending and does not break the run", () => {
+    const r = read([1, 1800], [2, 1800], [3, 1800]);
+    expect(r.streak).toBe(3);
+    expect(r.state).toBe("holding");
+    expect(r.marks.get(T)).toBe("pending");
   });
-  test("counts back from yesterday while today is still open", () => {
-    expect(loggedStreak(logged("2026-10-07", "2026-10-06", "2026-10-05"), "2026-10-08")).toBe(3);
+  test("today counts once it reaches the floor, and not before", () => {
+    expect(read([0, 1500], [1, 1800]).streak).toBe(2);
+    const under = read([0, 900], [1, 1800]);
+    expect(under.streak).toBe(1);
+    expect(under.marks.get(T)).toBe("pending");
   });
-  test("a gap ends the run, and nothing logged is zero", () => {
-    expect(loggedStreak(logged("2026-10-08", "2026-10-06"), "2026-10-08")).toBe(1);
-    expect(loggedStreak(logged(), "2026-10-08")).toBe(0);
-    expect(loggedStreak(logged("2026-10-05"), "2026-10-08")).toBe(0);
+  test("one missed day is forgiven and adds nothing", () => {
+    const r = read([0, 1800], [1, 1800], [3, 1800], [4, 1800]);
+    expect(r.streak).toBe(4);
+    expect(r.state).toBe("bent");
+    expect(r.marks.get(dateMinus(T, 2))).toBe("bent");
+  });
+  test("one under-floor day is forgiven too", () => {
+    const r = read([0, 1800], [1, 900], [2, 1800]);
+    expect(r.streak).toBe(2);
+    expect(r.marks.get(dateMinus(T, 1))).toBe("bent");
+  });
+  test("two bent days in a row end it, missed and under-floor mixed", () => {
+    const r = read([1, 900], [3, 1800], [4, 1800]);
+    expect(r.streak).toBe(0);
+    expect(r.longest).toBe(2);
+    expect(r.state).toBe("ended");
+    expect(r.marks.get(dateMinus(T, 1))).toBe("missed");
+    expect(read([3, 1800], [4, 1800]).streak).toBe(0);
+  });
+  test("the longest survives a gap", () => {
+    const r = read([0, 1800], [1, 1800], [5, 1800], [6, 1800], [7, 1800], [8, 1800]);
+    expect(r.streak).toBe(2);
+    expect(r.longest).toBe(4);
+  });
+  test("nothing logged is a streak of zero that has not ended", () => {
+    const r = read();
+    expect([r.streak, r.longest, r.state]).toEqual([0, 0, "holding"]);
   });
 });

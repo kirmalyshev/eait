@@ -470,11 +470,13 @@ export interface Config {
   // run twice — the same rule the push block states above.
 
   /**
-   * `resend` or `log` — which implementation `mail/choose.ts` wires. `log` prints the code to the
-   * server log instead of sending; it is the default and the only provider dev, tests and
-   * `--demo` need.
+   * `resend`, `log` or `off` — what `mail/choose.ts` wires, and whether email sign-in EXISTS. `off`
+   * hides it everywhere: the API routes answer 404, `/start` draws no button, and
+   * `Limits.emailSignIn` tells the app to draw none either (Kirill, 10 Oct: no key, no email
+   * sign-in, everything else unaffected). `log` prints the code to the server log instead of
+   * sending, so it is only ever a default where nobody else can reach the server.
    */
-  mailProvider: string;
+  mailProvider: "off" | "log" | "resend";
   /**
    * Resend's API key. A secret: `redact()` masks it. Required only when `mailProvider` is
    * `resend` — an instance that never sends mail has no use for it, and `log` never reads it.
@@ -490,6 +492,12 @@ export interface Config {
    * bound cannot stop one network mailing one mailbox, and this is what can. Zero disables it.
    */
   emailCodesPerHour: number;
+  /**
+   * Sign-in code sends per recipient per day. The hourly cap alone still lets one inbox be guessed
+   * at 25 tries an hour forever (five sends, five tries each); this bounds the sustained rate. Zero
+   * disables it.
+   */
+  emailCodesPerDay: number;
 
 }
 
@@ -683,6 +691,7 @@ export function configDefaults(): Config {
     resendApiKey: "",
     mailFrom: "eait <login@eait.fit>",
     emailCodesPerHour: 5,
+    emailCodesPerDay: 10,
   };
 }
 
@@ -725,13 +734,29 @@ export function loadConfig(): Config {
   // `log` needs nothing; `resend` needs its key. Asking for Resend with no key is not "log
   // anyway" — a sign-in button that answers 204 while the code goes to a log nobody reads is a
   // working page that cannot work, and startup is the only time that misconfiguration is loud.
-  const mailProvider = process.env.EAIT__BACKEND__MAIL_PROVIDER ?? d.mailProvider;
-  if (mailProvider !== "log" && mailProvider !== "resend") {
-    throw new Error(`[eait] EAIT__BACKEND__MAIL_PROVIDER must be log or resend, not "${mailProvider}"`);
-  }
+  // Which mailer, and so whether email sign-in exists at all. FAIL CLOSED, never fail to boot: a
+  // missing key switches the feature off rather than taking the product down (Kirill, 10 Oct).
+  //   resend + key              → resend
+  //   resend with no key        → off  (the deploy wrote the provider; the key has not arrived)
+  //   log                       → log  (said out loud: a dev box on a tailnet)
+  //   off                       → off
+  //   unset, loopback or no URL → log  (dev, tests: nobody else can read that log)
+  //   unset, a public URL       → off  (the log mailer prints live codes beside their addresses —
+  //                                     a credential in a log is an account for whoever reads it)
   const resendApiKey = process.env.EAIT__BACKEND__RESEND_API_KEY ?? d.resendApiKey;
-  if (mailProvider === "resend" && resendApiKey === "") {
-    throw new Error("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
+  const mailEnv = process.env.EAIT__BACKEND__MAIL_PROVIDER;
+  if (mailEnv !== undefined && mailEnv !== "log" && mailEnv !== "resend" && mailEnv !== "off") {
+    throw new Error(`[eait] EAIT__BACKEND__MAIL_PROVIDER must be resend, log or off, not "${mailEnv}"`);
+  }
+  const publicHost = [process.env.EAIT__BACKEND__PUBLIC_API_URL, process.env.EAIT__BACKEND__PUBLIC_WEB_URL]
+    .map((u) => { try { return u ? new URL(u).hostname : ""; } catch { return u ?? ""; } })
+    .some((h) => h !== "" && !["localhost", "127.0.0.1", "[::1]", "::1"].includes(h));
+  const mailProvider: Config["mailProvider"] =
+    mailEnv === "resend" ? (resendApiKey.trim() === "" ? "off" : "resend")
+    : mailEnv === "log" || mailEnv === "off" ? mailEnv
+    : publicHost ? "off" : d.mailProvider;
+  if (mailEnv === "resend" && mailProvider === "off") {
+    console.warn("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend with no EAIT__BACKEND__RESEND_API_KEY: email sign-in is off");
   }
 
   // The web sign-in's audience, checked at BOOT rather than at the end of somebody's first sign-up.
@@ -880,6 +905,7 @@ export function loadConfig(): Config {
     resendApiKey,
     mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
     emailCodesPerHour: int("EAIT__BACKEND__EMAIL_CODES_PER_HOUR", d.emailCodesPerHour),
+    emailCodesPerDay: int("EAIT__BACKEND__EMAIL_CODES_PER_DAY", d.emailCodesPerDay),
   };
 }
 

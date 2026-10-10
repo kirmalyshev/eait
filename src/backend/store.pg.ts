@@ -3125,10 +3125,15 @@ export async function postgresStore(
           select count(*)::int as n, min(created_at) as first_sent, max(created_at) as last_sent
             from email_codes
            where email = ${email} and created_at > now() - interval '1 hour'
+        ), today as (
+          select count(*)::int as n, min(created_at) as first_sent
+            from email_codes
+           where email = ${email} and created_at > now() - interval '1 day'
         ), ins as (
           insert into email_codes (id, email, code_hash, expires_at)
           select ${crypto.randomUUID()}, ${email}, ${codeHash}, ${new Date(expiresAt)}
            where (${limits.perHour} <= 0 or (select n from prior) < ${limits.perHour})
+             and (${limits.perDay} <= 0 or (select n from today) < ${limits.perDay})
              and ((select last_sent from prior) is null
                   or (select last_sent from prior) <= now() - make_interval(secs => ${limits.resendSec}))
           returning email
@@ -3143,6 +3148,9 @@ export async function postgresStore(
                  case when ${limits.perHour} > 0 and (select n from prior) >= ${limits.perHour}
                       then ceil(extract(epoch from ((select first_sent from prior) + interval '1 hour' - now())))
                       else 0 end,
+                 case when ${limits.perDay} > 0 and (select n from today) >= ${limits.perDay}
+                      then ceil(extract(epoch from ((select first_sent from today) + interval '1 day' - now())))
+                      else 0 end,
                  ceil(extract(epoch from ((select last_sent from prior) + make_interval(secs => ${limits.resendSec}) - now())))
                )::int as wait_s`;
       if (rows[0].ok) return null;
@@ -3154,20 +3162,27 @@ export async function postgresStore(
       // constant-time (`auth/timingsafe.ts`), never trusted into a WHERE clause — `code_hash = $x`
       // would be Postgres's early-exit compare, which is the timing side channel timingsafe.ts
       // exists to close.
-      const live = await sql`
-        select id, code_hash from email_codes
-         where email = ${email} and used_at is null and expires_at > now()
-         order by created_at desc limit 1`;
-      if (live.length === 0) return "dead";
-      const row = live[0];
+      //
+      // THE ATTEMPT IS CLAIMED BEFORE THE COMPARE, in one guarded update. Reading the row and
+      // counting the miss afterwards let N parallel guesses all read it live and all be compared
+      // before the fifth increment burnt it — the cap held for a serial attacker only. Here a
+      // guess is compared only if it won one of the `maxAttempts` slots: a racing update waits on
+      // the row lock and re-checks `attempts < max` against the row the winner left.
+      const claimed = await sql`
+        update email_codes set attempts = attempts + 1
+         where id = (select id from email_codes
+                      where email = ${email} and used_at is null and expires_at > now()
+                      order by created_at desc limit 1)
+           and used_at is null and attempts < ${maxAttempts}
+        returning id, code_hash, attempts`;
+      if (claimed.length === 0) return "dead";
+      const row = claimed[0];
       if (!timingSafeEqual(String(row.code_hash), codeHash)) {
-        // The attempt is COUNTED first and burnt on the max-th, in the same guarded update: the
-        // `used_at is null` keeps a concurrent successful spend from being overwritten by a
-        // guess that arrived after it.
-        await sql`update email_codes
-                     set attempts = attempts + 1,
-                         used_at = case when attempts + 1 >= ${maxAttempts} then now() else used_at end
-                   where id = ${row.id} and used_at is null`;
+        // The max-th miss burns it; `used_at is null` keeps a concurrent successful spend from
+        // being overwritten by a guess that arrived after it.
+        if (Number(row.attempts) >= maxAttempts) {
+          await sql`update email_codes set used_at = now() where id = ${row.id} and used_at is null`;
+        }
         return "wrong";
       }
       // `used_at is null` is the single-use guarantee: a second verify racing the first waits on

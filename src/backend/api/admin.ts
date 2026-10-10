@@ -45,7 +45,7 @@ import {
   SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
-  adminMetrics, adminSwitches, adminUserChat, adminUserDiary, adminUsers, livePrompts,
+  adminMetrics, adminSwitches, adminUserChat, adminUserDiary, adminUsers, adminUserSummary, livePrompts,
   onboardingContent,
   onboardingFunnel, promptHistory, savePrompt,
   sendTestPush, pushOpenView, sendAdminPush,
@@ -370,6 +370,13 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
       ...(q === "" ? {} : { q }),
       ...(cursor === "" ? {} : { cursor }),
     }));
+  }
+
+  // ── One account's summary (#571) — the Accounts detail pane. READ-ONLY. ───────────────────
+  const summary = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
+  if (summary && req.method === "GET") {
+    const view = await adminUserSummary(deps, summary[1]!);
+    return view ? json(view) : notFound();
   }
 
   // ── Staff flag and the push composer (eait#531) ───────────────────────────────────────────

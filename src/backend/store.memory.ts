@@ -1485,6 +1485,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       for (const [id, c] of emailCodes) if (at - c.createdAt > 24 * 60 * 60 * 1000) emailCodes.delete(id);
       const sent = [...emailCodes.values()].filter((c) => c.email === email && at - c.createdAt < 60 * 60 * 1000);
       const last = sent.reduce((m, c) => Math.max(m, c.createdAt), 0);
+      const day = [...emailCodes.values()].filter((c) => c.email === email);
+      if (limits.perDay > 0 && day.length >= limits.perDay) {
+        const first = day.reduce((m, c) => Math.min(m, c.createdAt), Number.MAX_SAFE_INTEGER);
+        return Math.max(1, Math.ceil((first + 24 * 60 * 60 * 1000 - at) / 1000));
+      }
       if (limits.perHour > 0 && sent.length >= limits.perHour) {
         const first = sent.reduce((m, c) => Math.min(m, c.createdAt), Number.MAX_SAFE_INTEGER);
         return Math.max(1, Math.ceil((first + 60 * 60 * 1000 - at) / 1000));

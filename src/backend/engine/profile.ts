@@ -18,6 +18,7 @@ import { MAX_PROFILE_TEXT,
 import { MIN_AGE } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { emailSignInEnabled } from "../mail/choose.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
 
@@ -66,6 +67,8 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
     // by which a phone can learn it — and it is sent PER CALL because how many budgets a turn
     // spends depends on the route, which only the caller knows.
     modelCallTimeoutMs: deps.config.llmTimeoutMs,
+    // The same predicate the email routes 404 on, so the button and the route cannot disagree.
+    emailSignIn: emailSignInEnabled(deps.config),
   };
 }
 

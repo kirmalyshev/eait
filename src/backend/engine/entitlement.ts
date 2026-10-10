@@ -10,7 +10,10 @@
 // can grant itself an entitlement, and there must never be one: the app's copy of its own
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
-import { entitlementActive, entitlementLive, localDate, trialDaysLeft, type Entitlement } from "@eait/shared";
+import {
+  DIARY_WINDOW_DAYS, KCAL_PER_KG, entitlementActive, entitlementLive, explainTargets, forgivingStreak, localDate,
+  trialDaysLeft, windowStart, type Entitlement, type Goal, type Lang,
+} from "@eait/shared";
 import type { Config } from "../config.ts";
 import type { AdminUserRow, EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -98,6 +101,47 @@ export async function adminUsers(
     })),
     nextCursor: page.nextCursor,
     defaultFreeAnalyses: deps.config.freeAnalyses,
+  };
+}
+
+/**
+ * One account's summary for the admin's detail pane. `targets` is `explainTargets` — the very call
+ * `profileView` makes — and `paceKgPerWeek` is the pace the target actually carries (signed, after
+ * both guards), read off `basis.appliedDeltaKcal`. `streakDays` is `forgivingStreak` over the same
+ * window and floor `engine/diary.ts` uses, so it is the streak Home shows. Null when there is no such account.
+ */
+export interface AdminUserSummary extends AdminUserRow {
+  lang: Lang;
+  /** The IANA zone the phone last reported, or null while the app has never sent one. */
+  timezone: string | null;
+  targets: { kcal: number; goal: Goal; paceKgPerWeek: number } | null;
+  entitled: boolean;
+  streakDays: number;
+}
+
+export async function adminUserSummary(deps: EngineDeps, userId: string): Promise<AdminUserSummary | null> {
+  // An exact id through the list's own index seek: the prefix match on a whole id is that one row.
+  const row = (await deps.store.adminListUsers({
+    q: userId, limit: 1, today: localDate(deps.config.timezone),
+  })).rows.find((r) => r.userId === userId);
+  const profile = row && await deps.store.getProfile(userId);
+  if (!row || !profile) return null;
+  const today = localDate(deps.config.timezone);
+  const [timezone, totals] = await Promise.all([
+    deps.store.timezoneOf(userId), deps.store.totalsSince(userId, windowStart(today, DIARY_WINDOW_DAYS)),
+  ]);
+  const { targets, basis } = explainTargets(profile);
+  return {
+    ...row,
+    lang: profile.lang,
+    timezone,
+    targets: row.onboardedAt === null ? null : {
+      kcal: targets.kcal,
+      goal: profile.goal ?? "maintain",
+      paceKgPerWeek: Math.round((basis.appliedDeltaKcal * 7 / KCAL_PER_KG) * 100) / 100,
+    },
+    entitled: entitlementLive(row.entitlement, Date.now()),
+    streakDays: forgivingStreak(new Map(totals.filter((r) => r.date <= today).map((r) => [r.date, r.kcal])), today, basis.floorKcal).streak,
   };
 }
 

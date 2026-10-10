@@ -214,14 +214,58 @@ export function windowStart(today: string, days: number): string {
   return dateMinus(today, Math.min(MAX_WINDOW_DAYS, Math.max(1, whole)) - 1);
 }
 
+/** What the streak makes of one calendar day: `bent` is a day it forgave, `missed` one it did not. */
+export type StreakMark = "counted" | "bent" | "missed" | "pending";
+
+export interface StreakRead {
+  /** Consecutive counted days ending today, or yesterday while today is still pending. */
+  streak: number;
+  /** The same rule over every day given. */
+  longest: number;
+  /** `ended` when the streak is 0 and an earlier one existed; `bent` while a forgiven day sits in the last 7. */
+  state: "holding" | "bent" | "ended";
+  /** One mark per date from the first date with meals through today. */
+  marks: ReadonlyMap<string, StreakMark>;
+}
+
 /**
- * Consecutive logged days ending today — or yesterday, while today is still open (a day that has
- * not ended has not broken anything). `logged` holds dates with at least one meal, in the account's
- * zone. The one definition: the diary reads it for the streak it shows, the push tick for the
- * streak it protects.
+ * The forgiving streak (#574) — the one definition: the diary reads it for the streak it shows,
+ * the push tick for the streak it protects.
+ *
+ * `kcalByDate` holds the days that have a meal, in the account's zone (a day with nothing has no
+ * entry). A COUNTED day has a meal AND kcal at or above `floorKcal`; a day under the floor earns
+ * nothing. A BENT day is a missed or under-floor day: one is forgiven and adds nothing, two in a
+ * row end the streak. Today is `pending` until it counts and never breaks anything.
  */
-export function loggedStreak(logged: ReadonlySet<string>, today: string): number {
-  let streak = 0;
-  for (let d = logged.has(today) ? today : dateMinus(today, 1); logged.has(d); d = dateMinus(d, 1)) streak++;
-  return streak;
+export function forgivingStreak(kcalByDate: ReadonlyMap<string, number>, today: string, floorKcal: number): StreakRead {
+  const first = [...kcalByDate.keys()].filter((d) => d <= today).sort()[0];
+  const marks = new Map<string, StreakMark>();
+  if (first === undefined) return { streak: 0, longest: 0, state: "holding", marks };
+
+  let run = 0;
+  let longest = 0;
+  for (let d = first; d <= today; d = dateMinus(d, -1)) {
+    const kcal = kcalByDate.get(d);
+    if (kcal !== undefined && kcal >= floorKcal) {
+      run++;
+      longest = Math.max(longest, run);
+      marks.set(d, "counted");
+    } else if (d === today) {
+      marks.set(d, "pending");
+    } else {
+      const prev = dateMinus(d, 1);
+      if (marks.get(prev) === "bent") {
+        run = 0;
+        marks.set(prev, "missed");
+        marks.set(d, "missed");
+      } else {
+        marks.set(d, run > 0 ? "bent" : "missed");
+      }
+    }
+  }
+
+  const weekStart = dateMinus(today, 6);
+  const bentRecently = [...marks].some(([d, m]) => m === "bent" && d >= weekStart);
+  const state = run === 0 && longest > 0 ? "ended" : bentRecently ? "bent" : "holding";
+  return { streak: run, longest, state, marks };
 }
