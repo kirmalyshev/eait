@@ -15,9 +15,9 @@ export const ENTITLEMENT_STATES = ["active", "trial", "none"] as const;
 export type EntitlementState = (typeof ENTITLEMENT_STATES)[number];
 
 /**
- * Consecutive logged days ending today or yesterday: none, or any streak. There is no longer a
- * "strong" band: a streak of CAMPAIGN_STREAK_GUARD_DAYS or more is never reached, so only a streak of
- * 1 or 2 can be selected at all.
+ * Consecutive logged days ending today or yesterday: none, or any streak. There is no "strong"
+ * band, and no account is kept out of a campaign for its streak: a segment that should not reach a
+ * long streak says so with this band.
  */
 export const STREAK_BANDS = ["none", "building"] as const;
 export type StreakBand = (typeof STREAK_BANDS)[number];
@@ -115,12 +115,6 @@ export function habitOf(
     sinceLog: gap === 0 ? "today" : gap <= 2 ? "recent" : gap <= 6 ? "lapsing" : "lapsed",
   };
 }
-
-/**
- * A streak this long is the habit line's to protect: no campaign reaches such an account, whatever
- * its segment says. A rule, not a predicate, so no segment can switch it off.
- */
-export const CAMPAIGN_STREAK_GUARD_DAYS = 3;
 
 /** FNV-1a, 32 bit: stable across runtimes and processes, which a rollout must be. */
 function fnv1a(s: string): number {

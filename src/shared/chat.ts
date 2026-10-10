@@ -38,7 +38,7 @@ export const SCRIPTED_LINES = {
    *
    * The camera primer's pattern from § Step 13: say what the permission is for, and what the
    * limit is, BEFORE the OS dialog — because the OS dialog is asked once and a refusal there is
-   * final. What it promises is R1's budget, which `dailyMessage` in `notifications.ts` enforces.
+   * final. What it promises is the trial reminder and the one 20:30 line, which `reminderPlan` in `notifications.ts` and the server's tick send.
    *
    * "if you're on it" is load-bearing. The ask fires for any live entitlement, and a RESTORED
    * purchase has no trial — `reminderPlan` schedules nothing for it, so a sentence promising two

@@ -1,22 +1,22 @@
 // The super-admin's push composer (eait#531): chosen accounts, a shipped campaign template sent in
-// each account's own language, and the screen a tap opens. Every send claims the account's push slot
-// like any sender (R1 — only the staff TEST send bypasses it), skips EVERY account without push_offers_at
+// each account's own language, and the screen a tap opens. Every send claims through `claimSend`
+// like any sender (the account's bound applies; only the staff TEST send bypasses it), skips EVERY account without push_offers_at
 // (every composer send is promotional; there is no request field to say otherwise), and is logged under `admin:<adminId>`.
 
-import { ADMIN_PUSH_MAX_RECIPIENTS, CAMPAIGN_VARIANTS, isCampaignTemplateKey, isPushRoute, localDate, type CampaignTemplateKey, type Lang, type PushKind, type PushRoute } from "@eait/shared";
+import { ADMIN_PUSH_MAX_RECIPIENTS, CAMPAIGN_VARIANTS, isCampaignTemplateKey, isPushRoute, localDate, type CampaignTemplateKey, type Lang, type PushRoute } from "@eait/shared";
 import { apiHostOf } from "../push/choose.ts";
 import { ownImage } from "../push/expo.ts";
 import type { EngineDeps } from "./deps.ts";
-import { sendLogged, zoneOf } from "./notify.ts";
+import { claimSend, sendLogged, zoneOf } from "./notify.ts";
 import { pushDevices, pushOffersAllowed } from "./push-consent.ts";
 import { campaignWords } from "./push-templates.ts";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 
-export type AdminPushSkip = "no-account" | "no-device" | "no-offers" | "template-incomplete" | "slot-taken";
+export type AdminPushSkip = "no-account" | "no-device" | "no-offers" | "template-incomplete" | "slot-taken" | "account-cap";
 export type AdminPushResult =
   | { ok: false; errors: string[] }
-  | { ok: true; results: ({ userId: string } & ({ sent: number } | { skipped: AdminPushSkip; heldBy?: PushKind }))[] };
+  | { ok: true; results: ({ userId: string } & ({ sent: number } | { skipped: AdminPushSkip }))[] };
 
 export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unknown, now: number = Date.now()): Promise<AdminPushResult> {
   const b = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
@@ -38,19 +38,22 @@ export async function sendAdminPush(deps: EngineDeps, adminId: string, body: unk
   const key = b.templateKey as CampaignTemplateKey;
   const route = b.route as PushRoute;
   const results: Extract<AdminPushResult, { ok: true }>["results"] = [];
+  // Each composer send is its own sender: "as many as we want" (ieat-app#1965). send_log keeps
+  // `admin:<adminId>`, which the reports read; only the claim carries the request.
+  const sendId = crypto.randomUUID();
   for (const userId of ids as string[]) {
-    const skip = (skipped: AdminPushSkip, heldBy?: PushKind) => results.push({ userId, skipped, ...(heldBy ? { heldBy } : {}) });
+    const skip = (skipped: AdminPushSkip) => results.push({ userId, skipped });
     const profile = await deps.store.getProfile(userId);
     if (!profile) { skip("no-account"); continue; }
     if (!await pushOffersAllowed(deps, userId)) { skip("no-offers"); continue; }
     const devices = await pushDevices(deps, userId);
     if (devices.length === 0) { skip("no-device"); continue; }
-    // Before the slot: a refused template must not spend the day's one message.
+    // Before the claim: a refused template must not spend the account's bound.
     const words = await campaignWords(deps, key, profile.lang as Lang, CAMPAIGN_VARIANTS[0]!, 1);
     if (!words) { skip("template-incomplete"); continue; }
     const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
-    const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", `admin:${adminId}`);
-    if (!claim.claimed) { skip("slot-taken", claim.heldBy); continue; }
+    const claim = await claimSend(deps, userId, localDate(zone, new Date(now)), "campaign", `admin:${adminId}:${sendId}`);
+    if (!claim.claimed) { skip(claim.reason === "account-cap" ? "account-cap" : "slot-taken"); continue; }
     const out = await sendLogged(
       deps, userId, devices,
       { kind: "campaign", ref: `admin:${adminId}`, templateKey: key, lang: profile.lang, variant: "admin-send" },

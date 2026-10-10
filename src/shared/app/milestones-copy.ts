@@ -9,7 +9,9 @@
 // A `lead` is the bold first sentence of a streak line; `rest` follows it, quiet. They are two
 // strings because the client sets text with `textContent` only — no markup travels in copy.
 
-import { t, type CountForms, type Localized } from "../lang.ts";
+import { dateMinus } from "../dates.ts";
+import type { DaysResponse } from "../contract.ts";
+import { LANG_TAG, fill, numbers, t, type CountForms, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 
 export interface StreakLine { lead: string; rest?: string }
@@ -513,3 +515,47 @@ export const MILESTONES_COPY: Localized<MilestonesCopy> = {
 };
 
 export const milestonesCopyFor = (lang: Lang): MilestonesCopy => t(lang)(MILESTONES_COPY);
+
+/**
+ * The one honest line under the streak card (`web/milestones-streak.html`, `phone/milestones-streak.html`):
+ * which day bent it and why, or what to do next. `lead` is the bold first sentence, `rest` the quiet
+ * one; null where the card says nothing. `floor` is the account's floor already formatted with its
+ * unit — this file formats no kcal. Both clients draw this, so the two cannot word a state apart.
+ */
+export function streakCardLine(
+  d: DaysResponse,
+  c: MilestonesCopy["streak"],
+  lang: Lang,
+  floor: string,
+): { lead?: string; rest?: string } | null {
+  const n = numbers(lang);
+  const tag = LANG_TAG[lang];
+  const weekday = (date: string): string =>
+    new Intl.DateTimeFormat(tag, { weekday: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+  const cap = (w: string): string => w.charAt(0).toLocaleUpperCase(tag) + w.slice(1);
+  const line = (l: StreakLine, lead: Record<string, string>, rest: Record<string, string>) => ({
+    lead: fill(l.lead, lead),
+    ...(l.rest !== undefined ? { rest: fill(l.rest, rest) } : {}),
+  });
+  const today = d.days.find((x) => x.when === "today");
+  if (d.streakState === "ended") {
+    const at = n(d.streakEndedAt);
+    return line(c.ended, { n: at }, { n: at });
+  }
+  if (d.streakState === "bent") {
+    const bent = [...d.days].reverse().find((x) => x.streak === "bent");
+    if (bent === undefined) return { rest: fill(c.bentMissed.rest ?? "", { n: n(d.streak) }) };
+    if (today !== undefined && bent.date === dateMinus(today.date, 1)) {
+      const held = today.streak === "counted";
+      const l = bent.underFloor
+        ? (held ? c.bentFloorYesterdayHeld : c.bentFloorYesterday)
+        : (held ? c.bentYesterdayHeld : c.bentYesterday);
+      return line(l, { floor }, { n: n(d.streak) });
+    }
+    const next = weekday(dateMinus(bent.date, -1));
+    return line(bent.underFloor ? c.bentFloor : c.bentMissed, { day: cap(weekday(bent.date)), next, floor }, { next: cap(next), n: n(d.streak) });
+  }
+  if (d.streak === 0) return { rest: c.logToStart };
+  if (today?.streak === "pending") return { rest: fill(c.logToday, { n: n(d.streak + 1) }) };
+  return null;
+}

@@ -61,23 +61,45 @@ describe("one message a day, for every sender", () => {
     expect(push.sent).toHaveLength(1);
   });
 
-  it("claims the trial's reminder day as `trial`, sends nothing, and refuses the test push with the reason", async () => {
-    const userId = await account({ trialExpires: "2026-08-22T10:00:00Z" });
+  it("sends the evening line on the trial's reminder day too: the phone's local reminder is its own message", async () => {
+    await account({ trialExpires: "2026-08-22T10:00:00Z" });
     const now = Date.parse("2026-08-21T18:30:00Z"); // the 21st: the day the phone speaks
     await pushTick(deps, { now });
-    expect(push.sent).toHaveLength(0);
-    expect(await sendTestPush(deps, userId, now)).toEqual({ ok: false, reason: "slot-taken", heldBy: "trial" });
+    expect(push.sent).toHaveLength(1);
   });
 
-  it("the admin test push goes through the slot: the second one the same local day is refused", async () => {
+  it("the admin test push is its own sender: the second one the same local day is refused, the evening line still goes", async () => {
     const userId = await account();
     expect(await sendTestPush(deps, userId, BERLIN_2030)).toEqual({ ok: true, sent: 1 });
     expect(push.sent).toHaveLength(1);
-    expect(await sendTestPush(deps, userId, BERLIN_2030 + MIN)).toEqual({ ok: false, reason: "slot-taken", heldBy: "campaign" });
+    expect(await sendTestPush(deps, userId, BERLIN_2030 + MIN)).toEqual({ ok: false, reason: "slot-taken" });
     expect(push.sent).toHaveLength(1);
-    // and it took the evening line's day with it
+    await pushTick(deps, { now: BERLIN_2030 });
+    expect(push.sent).toHaveLength(2);
+  });
+
+  it("an account's own bound refuses the next sender with `account-cap`, and a null bound lets it go", async () => {
+    const userId = await account();
+    await store.setPushDailyMax(userId, 1);
     await pushTick(deps, { now: BERLIN_2030 });
     expect(push.sent).toHaveLength(1);
+    expect(await sendTestPush(deps, userId, BERLIN_2030 + MIN)).toEqual({ ok: false, reason: "account-cap" });
+    expect(push.sent).toHaveLength(1);
+    await store.setPushDailyMax(userId, null);
+    expect(await sendTestPush(deps, userId, BERLIN_2030 + MIN)).toEqual({ ok: true, sent: 1 });
+  });
+
+  it("the instance default bound applies to an account with none of its own, and its own beats it", async () => {
+    const capped = { ...deps, config: { ...deps.config, pushDailyMax: 1 } };
+    const plain = await account();
+    const own = await account();
+    await store.setPushDailyMax(own, 3);
+    for (const u of [plain, own]) {
+      await pushTick(capped, { now: BERLIN_2030 });
+      expect(await sendTestPush(capped, u, BERLIN_2030 + MIN)).toEqual(
+        u === plain ? { ok: false, reason: "account-cap" } : { ok: true, sent: 1 },
+      );
+    }
   });
 
   it("test push for an account with no device says so, and claims nothing", async () => {
@@ -100,7 +122,7 @@ describe("each account's own 20:30", () => {
     await pushTick(deps, { now: LA_2030 });
     expect(push.sent.map((m) => m.to)).toEqual(["ExponentPushToken[tokyo]", "ExponentPushToken[la]"]);
     // the slot is dated in the user's zone
-    expect(await store.claimPushSlot(tokyo, "2026-08-20", "campaign", null)).toEqual({ claimed: false, heldBy: "streak" });
+    expect(await store.claimPushSlot(tokyo, "2026-08-20", "evening", null)).toEqual({ claimed: false, reason: "sender-taken" });
   });
 
   it("nobody gets it before their 20:30", async () => {
@@ -241,7 +263,7 @@ describe("who gets which kind", () => {
     await pushTick(deps, { now: BERLIN_2030 });
     expect((await store.sendLogFor(sub, 1))[0]?.kind).toBe("streak");
     expect((await store.sendLogFor(free, 1))[0]).toMatchObject({ kind: "evening", templateKey: "nudge" });
-    expect(await store.claimPushSlot(free, "2026-08-20", "campaign", null)).toEqual({ claimed: false, heldBy: "evening" });
+    expect(await store.claimPushSlot(free, "2026-08-20", "streak", null)).toEqual({ claimed: false, reason: "sender-taken" });
   });
 });
 
@@ -323,6 +345,6 @@ describe("the admin test push reads the account's zone through a scoped getter",
     const userId = await account({ tz: "Asia/Tokyo" });
     const now = Date.parse("2026-08-20T20:00:00Z"); // 05:00 on the 21st in Tokyo
     expect(await sendTestPush(deps, userId, now)).toEqual({ ok: true, sent: 1 });
-    expect(await store.claimPushSlot(userId, "2026-08-21", "campaign", null)).toEqual({ claimed: false, heldBy: "campaign" });
+    expect(await store.claimPushSlot(userId, "2026-08-21", "campaign", "admin-test")).toEqual({ claimed: false, reason: "sender-taken" });
   });
 });

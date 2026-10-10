@@ -399,6 +399,12 @@ export interface Config {
    * here count as staff too. Empty means only the flag decides.
    */
   campaignStaffIds: string[];
+  /**
+   * The instance default for the most sends an account may be claimed for in one local day
+   * (`users.push_daily_max` overrides it per account). Null, the default, is no limit: there is no
+   * cross-sender daily cap (ieat-app#1965).
+   */
+  pushDailyMax: number | null;
 
   // ── Notifications ────────────────────────────────────────────────────────────────────────
   //
@@ -700,6 +706,7 @@ export function configDefaults(): Config {
     telegramBotUsername: "",
     adminBootstrapUserId: "",
     campaignStaffIds: [],
+    pushDailyMax: null,
     landingUrl: "",
     termsUrl: "",
     donateKofiUrl: "",
@@ -915,6 +922,7 @@ export function loadConfig(): Config {
     fooddbReadKey: (process.env.EAIT__BACKEND__FOODDB_READ_KEY ?? "").trim(),
     fooddbUrl: (process.env.EAIT__BACKEND__FOODDB_URL ?? "").trim() || d.fooddbUrl,
     adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
+    pushDailyMax: int("EAIT__BACKEND__PUSH_DAILY_MAX", -1) < 0 ? null : int("EAIT__BACKEND__PUSH_DAILY_MAX", -1),
     campaignStaffIds: process.env.EAIT__BACKEND__CAMPAIGN_STAFF_IDS === undefined ? d.campaignStaffIds : list("EAIT__BACKEND__CAMPAIGN_STAFF_IDS"),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.

@@ -1,15 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { PUSH_KINDS, SEND_STATES, isTimezone, outranks } from "./push.ts";
+import { PUSH_KINDS, SEND_STATES, isTimezone, pushSenderOf } from "./push.ts";
 
 describe("push kinds", () => {
-  it("ranks trial > streak > onboarding > campaign", () => {
+  it("names the kinds", () => {
     expect([...PUSH_KINDS]).toEqual(["trial", "streak", "evening", "onboarding", "campaign"]);
-    expect(outranks("trial", "streak")).toBe(true);
-    expect(outranks("streak", "evening")).toBe(true);
-    expect(outranks("evening", "onboarding")).toBe(true);
-    expect(outranks("onboarding", "campaign")).toBe(true);
-    expect(outranks("campaign", "trial")).toBe(false);
-    expect(outranks("trial", "trial")).toBe(false);
+  });
+  it("keys a claim by sender: the scheduled kinds share one, each campaign has its own", () => {
+    for (const k of ["trial", "streak", "evening", "onboarding"] as const) expect(pushSenderOf(k, "x")).toBe("scheduled");
+    expect(pushSenderOf("campaign", "c1")).toBe("campaign:c1");
+    expect(pushSenderOf("campaign", "admin:a")).not.toBe(pushSenderOf("campaign", "admin-test"));
   });
   it("names the send states", () => {
     expect([...SEND_STATES]).toEqual(["queued", "accepted", "refused", "delivered-to-apns", "dead", "dry", "expired", "would_have_sent"]);

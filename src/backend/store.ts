@@ -570,6 +570,8 @@ export interface AdminUserRow {
   lastSeen: string | null;
   /** `users.staff`. */
   staff: boolean;
+  /** `users.push_daily_max`: the account's own bound on sends a local day, or null. */
+  pushDailyMax: number | null;
   /** `users.push_offers_at` is set: the account may be sent promotional pushes. */
   pushOffers: boolean;
 }
@@ -1148,22 +1150,31 @@ export interface Store {
   setTimezone(userId: string, timezone: string): Promise<void>;
 
   /**
-   * Claim the ONE outbound message this account may get on `localDate` (its own local day) — the
-   * durable half of R1, for every sender. One atomic insert on `(user_id, local_date)`: claimed, or
-   * the kind that already holds the day. First claim wins and nothing evicts it; a higher kind gets
-   * the day by claiming BEFORE a lower one (the tick claims in rank order). A claim is not a send:
-   * a crash in the gap costs that day, never a second message.
+   * Claim a send for this account on `localDate` (its own local day). The sender is keyed by what
+   * it is: every scheduled kind (`trial`, `streak`, `evening`, `onboarding`) is the tick's ONE
+   * scheduled message, and a `campaign` is keyed by its `ref` (`campaign id`, `admin:<id>`,
+   * `admin-test`). First claim per (account, day, sender) wins; a second is `sender-taken`. There
+   * is no cap ACROSS senders — the only bound is the account's `push_daily_max`, falling back to
+   * `defaultMax` (null: none), counted over that day's claims in the same atomic step
+   * (`account-cap`). A claim is not a send: a crash in the gap costs that sender's day.
    */
   claimPushSlot(
-    userId: string, localDate: string, kind: PushKind, ref: string | null,
-  ): Promise<{ claimed: true } | { claimed: false; heldBy: PushKind }>;
+    userId: string, localDate: string, kind: PushKind, ref: string | null, defaultMax?: number | null,
+  ): Promise<{ claimed: true } | { claimed: false; reason: "sender-taken" | "account-cap" }>;
 
   /**
-   * Scoped. The kind holding `localDate` for this account, or null when the day is free. A READ: it
-   * claims nothing. Mirrors `claimPushSlot`, including the legacy `last_notified_date` an old build
-   * wrote, so "free" means exactly "a claim would win".
+   * Scoped. Whether `claimPushSlot` with the same arguments would win now. A READ: it claims
+   * nothing (the campaign holdout asks it, so a control group never includes a day nobody would
+   * have been sent on).
    */
-  pushSlotOf(userId: string, localDate: string): Promise<PushKind | null>;
+  pushSlotFree(
+    userId: string, localDate: string, kind: PushKind, ref: string | null, defaultMax?: number | null,
+  ): Promise<boolean>;
+
+  /** This account's own daily push bound, or null (take the instance default). Admin only. */
+  getPushDailyMax(userId: string): Promise<number | null>;
+  /** Set it, or clear it with null. False when there is no such user. */
+  setPushDailyMax(userId: string, n: number | null): Promise<boolean>;
 
   /** Scoped. One row per message per device, written `queued` BEFORE the send so the id can ride in `data`. */
   createSend(userId: string, row: NewSend): Promise<void>;

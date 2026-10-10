@@ -1098,73 +1098,63 @@ function contract(name: string, make: () => Promise<Store>) {
         });
       });
 
-      it("reads which kind holds a local day without claiming it", async () => {
+      it("reads whether a claim would win without taking it", async () => {
         const s = await open();
         const u = (await s.upsertDeviceUser(device(), "en")).userId;
-        expect(await s.pushSlotOf(u, "2026-10-08")).toBeNull();
-        expect(await s.pushSlotOf(u, "2026-10-08")).toBeNull(); // reading twice claimed nothing
+        expect(await s.pushSlotFree(u, "2026-10-08", "streak", null)).toBe(true);
+        expect(await s.pushSlotFree(u, "2026-10-08", "streak", null)).toBe(true); // reading twice claimed nothing
         expect(await s.claimPushSlot(u, "2026-10-08", "streak", null)).toEqual({ claimed: true });
-        expect(await s.pushSlotOf(u, "2026-10-08")).toBe("streak");
-        expect(await s.pushSlotOf(u, "2026-10-09")).toBeNull();
+        expect(await s.pushSlotFree(u, "2026-10-08", "evening", "evening")).toBe(false); // same scheduled sender
+        expect(await s.pushSlotFree(u, "2026-10-08", "campaign", "c1")).toBe(true); // another sender
+        expect(await s.pushSlotFree(u, "2026-10-09", "streak", null)).toBe(true);
         const other = (await s.upsertDeviceUser(device(), "en")).userId;
-        expect(await s.pushSlotOf(other, "2026-10-08")).toBeNull(); // scoped: another account's day
+        expect(await s.pushSlotFree(other, "2026-10-08", "streak", null)).toBe(true); // scoped: another account's day
       });
 
-      it("round-trips variants and holdout, and edits them", async () => {
-        const s = await open();
-        const id = crypto.randomUUID();
-        await s.createCampaign(row(id, { variants: 3, holdoutPct: 7 }));
-        expect(await s.getCampaign(id)).toMatchObject({ variants: 3, holdoutPct: 7 });
-        expect(await s.updateCampaign(id, { variants: 2, holdoutPct: 5 })).toMatchObject({ variants: 2, holdoutPct: 5, rolloutPct: 10 });
-      });
-
-      it("keeps a held-out account's would_have_sent row out of the push stats, and reports it as its own group", async () => {
-        const s = await open();
-        const id = crypto.randomUUID();
-        await s.createCampaign(row(id, { variants: 2, holdoutPct: 10 }));
-        const MIN = 60_000;
-        const mk = async (u: string, variant: string, state: "accepted" | "would_have_sent" | "dead") => {
-          const sid = crypto.randomUUID();
-          await s.createSend(u, {
-            id: sid, kind: "campaign", ref: id, templateKey: `${RUN}-p6`, lang: "en", variant,
-            token: `ExponentPushToken[${RUN}-p6-${sid}]`, state,
-          });
-          return { sid, at: new Date((await s.sendLogFor(u, 1))[0]!.createdAt).getTime() };
-        };
-        const user = async () => (await s.upsertDeviceUser(device(), "en")).userId;
-        const [a1, a2, b1, h1, h2, d1] = [await user(), await user(), await user(), await user(), await user(), await user()];
-        const sa1 = await mk(a1, "default", "accepted");
-        await mk(a2, "default", "accepted");
-        await mk(b1, "b", "accepted");
-        const sh1 = await mk(h1, "default", "would_have_sent");
-        await mk(h2, "b", "would_have_sent");
-        await mk(d1, "b", "dead");
-        await s.recordPushOpen(a1, sa1.sid, "tap");
-        await s.recordPushOpen(h1, sh1.sid, "tap"); // a held-out account was never sent anything: no open can count
-        await s.insertMeal(meal(a1, { ts: new Date(sa1.at + MIN).toISOString() }));
-        await s.insertMeal(meal(b1, { ts: new Date(sa1.at + MIN).toISOString() }));
-        await s.insertMeal(meal(h1, { ts: new Date(sh1.at + MIN).toISOString() }));
-        await s.insertMeal(meal(d1, { ts: new Date(sa1.at + MIN).toISOString() })); // dead, but the account is still in its arm
-        const r = await s.campaignReport(id);
-        expect(r).toMatchObject({ sent: 4, accepted: 3, dead: 1, held: 2 });
-        // Intent to treat: the dead send's account logged a meal after its send, and counts as converted.
-        expect(r.groups).toEqual([
-          { group: "b", users: 2, opened: 0, converted: 2 },
-          { group: "default", users: 2, opened: 1, converted: 1 },
-          { group: "holdout", users: 2, opened: 0, converted: 1 },
-        ]);
-        expect((await s.pushOpenStats(2, "UTC")).filter((x) => x.templateKey === `${RUN}-p6`).reduce((n, x) => n + x.sent, 0)).toBe(4);
-      });
     });
 
-    describe("push_slot and send_log", () => {
-      it("gives a local day to the first claim and names the holder to the second", async () => {
+    describe("push_claim and send_log", () => {
+      it("keys a claim by sender: two senders both go, the same sender twice does not", async () => {
         const s = await open();
         const u = (await s.upsertDeviceUser(device(), "en")).userId;
         expect(await s.claimPushSlot(u, "2026-10-08", "streak", "evening")).toEqual({ claimed: true });
-        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1")).toEqual({ claimed: false, heldBy: "streak" });
-        expect(await s.claimPushSlot(u, "2026-10-08", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1")).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c2")).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1")).toEqual({ claimed: false, reason: "sender-taken" });
+        expect(await s.claimPushSlot(u, "2026-10-08", "evening", "nudge")).toEqual({ claimed: false, reason: "sender-taken" });
         expect(await s.claimPushSlot(u, "2026-10-09", "campaign", "c1")).toEqual({ claimed: true });
+      });
+
+      it("lets exactly one of two concurrent claims win a bound of one, and never throws", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        await s.setPushDailyMax(u, 1);
+        const r = await Promise.all([
+          s.claimPushSlot(u, "2026-10-08", "campaign", "c1"),
+          s.claimPushSlot(u, "2026-10-08", "campaign", "c2"),
+        ]);
+        expect(r.filter((x) => x.claimed).length).toBe(1);
+        const same = await Promise.all([
+          s.claimPushSlot(u, "2026-10-09", "campaign", "c1"),
+          s.claimPushSlot(u, "2026-10-09", "campaign", "c1"),
+        ]);
+        expect(same.filter((x) => x.claimed).length).toBe(1);
+        expect(same.find((x) => !x.claimed)).toEqual({ claimed: false, reason: "sender-taken" });
+      });
+
+      it("refuses past the account's own bound, which beats the instance default, and null clears it", async () => {
+        const s = await open();
+        const u = (await s.upsertDeviceUser(device(), "en")).userId;
+        expect(await s.getPushDailyMax(u)).toBeNull();
+        expect(await s.setPushDailyMax(u, 1)).toBe(true);
+        expect(await s.claimPushSlot(u, "2026-10-08", "streak", "evening", 5)).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1", 5)).toEqual({ claimed: false, reason: "account-cap" });
+        expect(await s.pushSlotFree(u, "2026-10-08", "campaign", "c1", 5)).toBe(false);
+        expect(await s.claimPushSlot(u, "2026-10-09", "campaign", "c1", 5)).toEqual({ claimed: true }); // a new day
+        await s.setPushDailyMax(u, null);
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c1", 5)).toEqual({ claimed: true });
+        expect(await s.claimPushSlot(u, "2026-10-08", "campaign", "c2", 2)).toEqual({ claimed: false, reason: "account-cap" });
+        expect(await s.setPushDailyMax(crypto.randomUUID(), 1)).toBe(false);
       });
 
       it("lets exactly one of two racing claims win", async () => {
@@ -1189,9 +1179,9 @@ function contract(name: string, make: () => Promise<Store>) {
         await s.mergeUsers(anon, real);
 
         // today's line was already sent to the phone that is now `real`: no second one
-        expect(await s.claimPushSlot(real, "2026-10-08", "streak", null)).toEqual({ claimed: false, heldBy: "evening" });
-        // and a day both held stays the survivor's
-        expect(await s.claimPushSlot(real, "2026-10-09", "trial", null)).toEqual({ claimed: false, heldBy: "streak" });
+        expect(await s.claimPushSlot(real, "2026-10-08", "streak", null)).toEqual({ claimed: false, reason: "sender-taken" });
+        // and the campaign the merged-away account was handed is not sent again either
+        expect(await s.claimPushSlot(real, "2026-10-09", "campaign", "c1")).toEqual({ claimed: false, reason: "sender-taken" });
         expect(await s.timezoneOf(real)).toBe("Asia/Tokyo");
       });
 
@@ -4716,8 +4706,8 @@ if (PG_URL) {
       await sql`update users set last_notified_date = '2026-10-08' where id = ${userId}`;
 
       const redeployed = await postgresStore(PG_URL, { maxConnections: 2 });
-      expect(await redeployed.claimPushSlot(userId, "2026-10-08", "campaign", null))
-        .toEqual({ claimed: false, heldBy: "evening" });
+      expect(await redeployed.claimPushSlot(userId, "2026-10-08", "evening", "evening"))
+        .toEqual({ claimed: false, reason: "sender-taken" });
       // and it is a claim for that day only
       expect(await redeployed.claimPushSlot(userId, "2026-10-09", "streak", null)).toEqual({ claimed: true });
       await sql.end();
@@ -4725,24 +4715,23 @@ if (PG_URL) {
   });
 }
 
-// ROLLING DEPLOY / ROLLBACK: the previous build claims on users.last_notified_date.
+// ROLLING DEPLOY: the previous build holds the scheduled message in push_slot (one row a day).
 if (PG_URL) {
-  describe("the evening line's legacy claim column", () => {
-    it("is read as a claimed day, written with every claim, and ignored for any other day", async () => {
+  describe("the previous build's push_slot claim", () => {
+    it("holds the scheduled sender but not a campaign, and this build's scheduled claim is written there", async () => {
       const sql = await rawSql();
       const store = await postgresStore(PG_URL, { maxConnections: 2 });
       const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
 
-      // an OLD replica claims 2026-11-02 after this build has started
-      await sql`update users set last_notified_date = '2026-11-02' where id = ${userId}`;
-      expect(await store.claimPushSlot(userId, "2026-11-02", "campaign", null)).toEqual({ claimed: false, heldBy: "evening" });
-      // a day the old column does not name is free, and does not block a user whose phone is behind it
-      expect(await store.claimPushSlot(userId, "2026-11-01", "campaign", null)).toEqual({ claimed: true });
+      await sql`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, '2026-11-05', 'campaign', 'admin-test')`;
+      expect(await store.claimPushSlot(userId, "2026-11-05", "streak", null)).toEqual({ claimed: true }); // an old campaign row does not silence the evening line
+      await sql`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, '2026-11-02', 'evening', 'evening')`;
+      expect(await store.claimPushSlot(userId, "2026-11-02", "streak", null)).toEqual({ claimed: false, reason: "sender-taken" });
+      expect(await store.claimPushSlot(userId, "2026-11-02", "campaign", "c1")).toEqual({ claimed: true });
 
-      // and this build's claim keeps an old replica silent (it sends only when the column is older)
       expect(await store.claimPushSlot(userId, "2026-11-03", "streak", null)).toEqual({ claimed: true });
-      const [row] = await sql`select last_notified_date from users where id = ${userId}`;
-      expect((row as Record<string, unknown>).last_notified_date).toBe("2026-11-03");
+      const rows = await sql`select kind from push_slot where user_id = ${userId} and local_date = '2026-11-03'`;
+      expect(rows.length).toBe(1);
       await sql.end();
     });
   });

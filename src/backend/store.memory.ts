@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
+import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -193,8 +193,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * profiles hold only what the port declares.
    */
   const timezones = new Map<string, string>();
-  /** `push_slot`: `${userId}|${localDate}` -> the kind holding that day. */
+  /** `push_claim`: `${userId}|${localDate}|${sender}` -> the kind that claimed. */
   const pushSlots = new Map<string, PushKind>();
+  /** `users.push_daily_max`. */
+  const pushDailyMax = new Map<string, number>();
+  const pushClaimVerdict = (
+    userId: string, localDate: string, kind: PushKind, ref: string | null, defaultMax: number | null,
+  ): "sender-taken" | "account-cap" | null => {
+    const day = `${userId}|${localDate}|`;
+    if (pushSlots.has(`${day}${pushSenderOf(kind, ref)}`)) return "sender-taken";
+    const max = pushDailyMax.get(userId) ?? defaultMax;
+    if (max !== null && [...pushSlots.keys()].filter((k) => k.startsWith(day)).length >= max) return "account-cap";
+    return null;
+  };
   const sendLog = new Map<string, SendLogRow>();
   /** `push_open`: `${userId}|${sendId}` for each send the phone reported opened — the table's primary key. */
   const pushOpens = new Set<string>();
@@ -376,6 +387,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
+    pushDailyMax.delete(userId);
     for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
     freeAnalyses.delete(userId);
     eraseReferrals(userId);
@@ -697,6 +709,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           lastSeen: sessions.length === 0 ? null
             : new Date(Math.max(...sessions.map((t) => t.lastUsedAt))).toISOString(),
           staff: staffSet.has(id),
+          pushDailyMax: pushDailyMax.get(id) ?? null,
           pushOffers: pushOffers.has(id),
         };
       });
@@ -869,6 +882,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const ownCap = freeAnalyses.get(fromUserId);
       if (ownCap !== undefined && !freeAnalyses.has(intoUserId)) freeAnalyses.set(intoUserId, ownCap);
       freeAnalyses.delete(fromUserId);
+      const ownPushMax = pushDailyMax.get(fromUserId);
+      if (ownPushMax !== undefined && !pushDailyMax.has(intoUserId)) pushDailyMax.set(intoUserId, ownPushMax);
+      pushDailyMax.delete(fromUserId);
 
       // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
       // to do, and a run split across two user ids reads as two abandoned runs.
@@ -1177,18 +1193,27 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (users.has(userId)) timezones.set(userId, timezone);
     },
 
-    async claimPushSlot(userId, localDate, kind) {
+    async claimPushSlot(userId, localDate, kind, ref, defaultMax = null) {
       // Postgres refuses an unknown account through the foreign key; so does this.
-      if (!users.has(userId)) throw new Error("push_slot: no such user");
-      const key = `${userId}|${localDate}`;
-      const held = pushSlots.get(key);
-      if (held !== undefined) return { claimed: false, heldBy: held };
-      pushSlots.set(key, kind);
+      if (!users.has(userId)) throw new Error("push_claim: no such user");
+      const verdict = pushClaimVerdict(userId, localDate, kind, ref, defaultMax);
+      if (verdict !== null) return { claimed: false, reason: verdict };
+      pushSlots.set(`${userId}|${localDate}|${pushSenderOf(kind, ref)}`, kind);
       return { claimed: true };
     },
 
-    async pushSlotOf(userId, localDate) {
-      return pushSlots.get(`${userId}|${localDate}`) ?? null;
+    async pushSlotFree(userId, localDate, kind, ref, defaultMax = null) {
+      return pushClaimVerdict(userId, localDate, kind, ref, defaultMax) === null;
+    },
+
+    async getPushDailyMax(userId) {
+      return pushDailyMax.get(userId) ?? null;
+    },
+
+    async setPushDailyMax(userId, n) {
+      if (!users.has(userId)) return false;
+      if (n === null) pushDailyMax.delete(userId); else pushDailyMax.set(userId, n);
+      return true;
     },
 
     async createSend(userId, row) {

@@ -20,7 +20,7 @@ import type {
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -100,6 +100,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   chat_messages: "user_id",
   push_tokens: "user_id",
   push_slot: "user_id",
+  push_claim: "user_id",
   send_log: "user_id",
   push_open: "user_id",
   campaign_send: "user_id",
@@ -273,6 +274,19 @@ create table if not exists push_slot (
   created_at timestamptz not null default now(),
   primary key (user_id, local_date)
 );
+-- ieat-app#1965: no cross-sender cap. One row per (account, LOCAL day, SENDER): a sender sends once a
+-- day for its own reason; the only bound is users.push_daily_max (null: none). push_slot above is
+-- written only by the tick's scheduled sender while a build that still reads it can run.
+create table if not exists push_claim (
+  user_id    uuid not null references users(id) on delete cascade,
+  local_date text not null,
+  sender     text not null,
+  kind       text not null check (kind in ('trial','streak','evening','onboarding','campaign')),
+  ref        text,
+  created_at timestamptz not null default now(),
+  primary key (user_id, local_date, sender)
+);
+alter table users add column if not exists push_daily_max integer check (push_daily_max is null or push_daily_max >= 0);
 -- One row per message per device. id rides in the push data as sendId.
 create table if not exists send_log (
   id            text primary key,
@@ -1628,7 +1642,9 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setTimezone: 0,
   timezoneOf: 0,
   claimPushSlot: 0,
-  pushSlotOf: 0,
+  pushSlotFree: 0,
+  getPushDailyMax: 0,
+  setPushDailyMax: 0,
   createSend: 0,
   settleSend: 0,
   sendLogFor: 0,
@@ -1779,6 +1795,28 @@ export async function postgresStore(
       return typeof value === "function" ? value.bind(conn) : value;
     },
   }) as SQL;
+
+  /** Why a claim would lose, or null when it would win. The `claimPushSlot` rule, read once. */
+  const claimVerdict = async (
+    userId: string, localDate: string, kind: PushKind, ref: string | null, defaultMax: number | null,
+  ): Promise<"sender-taken" | "account-cap" | null> => {
+    const sender = pushSenderOf(kind, ref);
+    const mine = await sql`select 1 from push_claim
+      where user_id = ${userId} and local_date = ${localDate} and sender = ${sender}`;
+    if (mine.length > 0) return "sender-taken";
+    // ROLLING DEPLOYS: the previous build holds the scheduled message in push_slot. Drop with the write.
+    if (kind !== "campaign") {
+      const old = await sql`select 1 from push_slot
+        where user_id = ${userId} and local_date = ${localDate} and kind <> 'campaign'`;
+      if (old.length > 0) return "sender-taken";
+    }
+    const own = await sql`select push_daily_max from users where id = ${userId}`;
+    const max = own[0]?.push_daily_max === null || own[0]?.push_daily_max === undefined
+      ? defaultMax : num(own[0].push_daily_max);
+    if (max === null) return null;
+    const n = await sql`select count(*)::int as n from push_claim where user_id = ${userId} and local_date = ${localDate}`;
+    return num(n[0].n) >= max ? "account-cap" : null;
+  };
 
   /**
    * The transaction a multi-statement operation needs, reusing the one it is already inside.
@@ -2269,7 +2307,7 @@ export async function postgresStore(
       // primary key's table) — the alternative is a query per row, which is what makes an admin
       // list slow enough that somebody eventually adds a cache to it.
       const rows = await sql`
-        select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, (u.push_offers_at is not null) as push_offers,
+        select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, u.push_daily_max, (u.push_offers_at is not null) as push_offers,
                u.entitlement_expires_at, u.entitlement_lifetime_product_id,
                u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial, u.bonus_until, u.referral_banked_days,
                (select array_agg(i.provider order by i.linked_at asc)
@@ -2320,6 +2358,7 @@ export async function postgresStore(
           spent: num(r.spent),
           lastSeen: r.last_seen === null ? null : new Date(r.last_seen as string).toISOString(),
           staff: r.staff === true,
+          pushDailyMax: r.push_daily_max === null || r.push_daily_max === undefined ? null : num(r.push_daily_max),
           pushOffers: r.push_offers === true,
         })),
         nextCursor: more && last
@@ -2509,6 +2548,7 @@ export async function postgresStore(
         await tx`
           update users into_u set
             free_analyses = coalesce(into_u.free_analyses, from_u.free_analyses),
+            push_daily_max = coalesce(into_u.push_daily_max, from_u.push_daily_max),
             entitlement_event_at = greatest(into_u.entitlement_event_at, from_u.entitlement_event_at)
           from users from_u
           where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
@@ -2561,6 +2601,10 @@ export async function postgresStore(
           insert into push_slot (user_id, local_date, kind, ref, created_at)
             select ${intoUserId}, local_date, kind, ref, created_at from push_slot where user_id = ${fromUserId}
           on conflict (user_id, local_date) do nothing`;
+        await tx`
+          insert into push_claim (user_id, local_date, sender, kind, ref, created_at)
+            select ${intoUserId}, local_date, sender, kind, ref, created_at from push_claim where user_id = ${fromUserId}
+          on conflict (user_id, local_date, sender) do nothing`;
         await tx`update send_log set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // The opens follow their sends. A send id is unique across accounts, so the survivor can
         // hold no row for the same (user, send) and there is nothing to dedupe against.
@@ -3652,37 +3696,43 @@ export async function postgresStore(
       await sql`update users set timezone = ${timezone} where id = ${userId}`;
     },
 
-    async claimPushSlot(userId, localDate, kind, ref) {
-      // The primary key IS the guard. A missing account fails the foreign key and throws, which is
-      // louder than the old `claimEveningLine`'s false and right for a sender that must not go on.
-      //
-      // ROLLING DEPLOYS AND ROLLBACKS: the previous build claims the evening line on
-      // `users.last_notified_date`, and for one deploy both builds can be sending. So the old column
-      // is READ as a claimed day (exactly that day: a user who flew west must not be blocked by a
-      // date their phone has not reached) and WRITTEN with every claim, which keeps an old replica
-      // silent on a day this one took. Drop both when no old build can run.
-      const legacy = await sql`select 1 from users
-        where id = ${userId} and last_notified_date = ${localDate}
-          and not exists (select 1 from push_slot where user_id = ${userId} and local_date = ${localDate})`;
-      if (legacy.length > 0) return { claimed: false as const, heldBy: "evening" as PushKind };
-      const won = await sql`insert into push_slot (user_id, local_date, kind, ref)
-        values (${userId}, ${localDate}, ${kind}, ${ref})
-        on conflict (user_id, local_date) do nothing returning kind`;
-      if (won.length > 0) {
-        await sql`update users set last_notified_date = ${localDate}
-          where id = ${userId} and (last_notified_date is null or last_notified_date < ${localDate})`;
+    async claimPushSlot(userId, localDate, kind, ref, defaultMax = null) {
+      // ONE transaction, so the account-row lock below is held to the insert: this account's claims
+      // run one at a time and the count cannot interleave with another sender's insert. A missing
+      // account throws, which is louder than a false and right for a sender that must not go on.
+      return inTx(async (tx) => {
+        const u = await tx`select push_daily_max from users where id = ${userId} for update`;
+        if (u.length === 0) throw new Error("push_claim: no such user");
+        const verdict = await claimVerdict(userId, localDate, kind, ref, defaultMax);
+        if (verdict !== null) return { claimed: false as const, reason: verdict };
+        // The primary key is the second guard (two replicas, same sender): a loss is sender-taken, never a throw.
+        const won = await tx`insert into push_claim (user_id, local_date, sender, kind, ref)
+          values (${userId}, ${localDate}, ${pushSenderOf(kind, ref)}, ${kind}, ${ref})
+          on conflict do nothing returning sender`;
+        if (won.length === 0) return { claimed: false as const, reason: "sender-taken" as const };
+        // ROLLING DEPLOYS: the previous build claims the scheduled message on push_slot. Writing it
+        // there keeps an old replica silent on a day this one took. Drop with `claimVerdict`'s read.
+        if (kind !== "campaign") {
+          await tx`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, ${localDate}, ${kind}, ${ref})
+            on conflict (user_id, local_date) do nothing`;
+        }
         return { claimed: true as const };
-      }
-      const held = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
-      return { claimed: false as const, heldBy: (held[0] as Record<string, unknown>).kind as PushKind };
+      });
     },
 
-    async pushSlotOf(userId, localDate) {
-      const rows = await sql`select kind from push_slot where user_id = ${userId} and local_date = ${localDate}`;
-      if (rows[0]) return (rows[0] as Record<string, unknown>).kind as PushKind;
-      // The same legacy read `claimPushSlot` makes, so "free" is exactly "a claim would win".
-      const legacy = await sql`select 1 from users where id = ${userId} and last_notified_date = ${localDate}`;
-      return legacy.length > 0 ? ("evening" as PushKind) : null;
+    async pushSlotFree(userId, localDate, kind, ref, defaultMax = null) {
+      return (await claimVerdict(userId, localDate, kind, ref, defaultMax)) === null;
+    },
+
+    async getPushDailyMax(userId) {
+      const rows = await sql`select push_daily_max from users where id = ${userId}`;
+      const v = rows[0]?.push_daily_max;
+      return v === null || v === undefined ? null : num(v);
+    },
+
+    async setPushDailyMax(userId, n) {
+      const rows = await sql`update users set push_daily_max = ${n} where id = ${userId} returning id`;
+      return rows.length > 0;
     },
 
     async createSend(userId, r) {
