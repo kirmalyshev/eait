@@ -388,13 +388,20 @@ export function localAgentPorts(opts: Options): LlmPorts {
     }
     let specUsed = false;
 
-    if (out.intent === "correction" && (!out.analysis || emptyEstimate(out.analysis)) && input.focusMeal) {
+    // A correction's target: the meal in focus, or the one of today's meals the router's
+    // `mealIndex` names (#1347 — a chat send that names no meal). Same resolution as openrouter.
+    const mealIndex = typeof out.mealIndex === "number" && Number.isInteger(out.mealIndex) && out.mealIndex >= 0 && out.mealIndex < input.todayMeals.length
+      ? out.mealIndex : undefined;
+    const resolved = input.focusMeal === undefined && mealIndex !== undefined && input.resolveMeal !== undefined
+      ? await input.resolveMeal(mealIndex) : null;
+    const correctionFocus = input.focusMeal ?? resolved?.analysis;
+    if (out.intent === "correction" && (!out.analysis || emptyEstimate(out.analysis)) && correctionFocus) {
       // The stored photographs ride along, and only here — the routing call above runs on every
       // text turn from a meal screen and must not pay for images.
-      const images = input.loadFocusImages ? await input.loadFocusImages() : [];
+      const images = input.loadFocusImages ? await input.loadFocusImages() : (resolved?.images ?? []);
       const correction = buildTextCorrectionText({
         text: input.text, profile: input.profile, targets: input.targets,
-        focusMeal: input.focusMeal,
+        focusMeal: correctionFocus,
         ...(input.question !== undefined ? { question: input.question } : {}),
         ...(images.length ? { photos: images.length } : {}),
       });
@@ -430,8 +437,8 @@ export function localAgentPorts(opts: Options): LlmPorts {
         if (!out.analysis) break;
         return { intent: "meal", analysis: out.analysis, dayOffset: clampDayOffset(out.dayOffset) };
       case "correction":
-        if (!out.analysis || !input.focusMeal) break;
-        return { intent: "correction", analysis: out.analysis };
+        if (!out.analysis || (input.focusMeal === undefined && (mealIndex === undefined || resolved === null))) break;
+        return { intent: "correction", analysis: out.analysis, ...(input.focusMeal === undefined ? { mealIndex: mealIndex! } : {}) };
       case "redate":
         if (!input.focusMeal) break;
         return { intent: "redate", dayOffset: clampDayOffset(out.dayOffset) };

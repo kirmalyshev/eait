@@ -150,6 +150,8 @@ export const RouteSchema = z.object({
   // Unknown, not a bounded number: models commonly emit `null` for "today", and a strict type
   // rejects the whole response over its date field. Bounded in `clampDayOffset` instead.
   dayOffset: z.unknown().optional(),
+  // Which of today's meals a correction means (#1347); validated against `todayMeals` by the caller.
+  mealIndex: z.unknown().optional(),
 });
 // `analysis` stays OPTIONAL here, and that is a decision rather than an oversight.
 //
@@ -312,7 +314,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
 export const SYSTEM_ROUTE = `You are the text side of a nutrition tracker. Decide what the user's message means, then answer in the matching shape.
 
 intent = "meal"      the user is describing food they ate. Produce a full analysis in the \`analysis\` field — see "Producing an analysis" below, and do it in this same reply. Set dayOffset to whole days back from today (0 = today, 1 = yesterday); use 0 unless they clearly said otherwise.
-intent = "correction" the user is fixing the meal currently in focus ("half that", "no oil", "it was 200g not 400"). Produce the CORRECTED full analysis — every field, not just the changed one. Only available when a focus meal is given.
+intent = "correction" the user is fixing a meal already logged today — the one in focus, or the one of today's meals their words mean ("half that", "no oil", "it was 200g not 400"). Produce the CORRECTED full analysis — every field, not just the changed one. When no meal is in focus, set mealIndex to the number of the today-meal they mean; a correction of no meal and nothing to put it on is an "answer".
 intent = "redate"     the user is only moving the focus meal to a different day, with no change to the food. Set dayOffset.
 intent = "answer"     anything else — a question about their intake, their targets, or nutrition in general. Put the reply in text, in the user's language.
 
@@ -382,10 +384,10 @@ export const EMPTY_ESTIMATE_RETRY =
  * and its density copied. Names and meal totals alone — what these prompts used to get — left
  * the model nothing to copy, and it fell back to a generic portion (#441).
  */
-const recentMealsLines = (meals: RecentMeal[]): string =>
+const recentMealsLines = (meals: RecentMeal[], numbered = false): string =>
   meals
-    .map((m) =>
-      `- ${m.items.map((i: MealItem) => `${normalizePromptText(i.name, 60)} (${Math.round(i.grams)}g${i.kcal_per_100g !== undefined ? `, ${Math.round(i.kcal_per_100g)}kcal/100g` : ""})`).join("; ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`)
+    .map((m, n) =>
+      `${numbered ? `- Meal ${n}: ` : "- "}${m.items.map((i: MealItem) => `${normalizePromptText(i.name, 60)} (${Math.round(i.grams)}g${i.kcal_per_100g !== undefined ? `, ${Math.round(i.kcal_per_100g)}kcal/100g` : ""})`).join("; ")} — ${Math.round(m.kcal)}kcal, ${Math.round(m.protein_g)}g protein`)
     .join("\n");
 
 /**
@@ -502,7 +504,7 @@ export function buildRouteText(input: {
 
   lines.push(
     input.todayMeals.length > 0
-      ? `Today so far (each item: name (grams, kcal per 100g)):\n${recentMealsLines(input.todayMeals)}`
+      ? `Today so far (each item: name (grams, kcal per 100g)):\n${recentMealsLines(input.todayMeals, !input.focusMeal)}`
       : "Today so far: nothing logged.",
   );
   if (input.week.length > 0) {
@@ -515,7 +517,9 @@ export function buildRouteText(input: {
   if (input.focusMeal) {
     lines.push(`The meal currently in focus (corrections apply to this):\n${JSON.stringify(input.focusMeal)}`);
   } else {
-    lines.push(`No meal is in focus. "correction" and "redate" are not available this turn.`);
+    lines.push(input.todayMeals.length > 0
+      ? `No meal is in focus. If the message corrects one of the numbered meals above, intent "correction" with that meal's mealIndex — otherwise "correction" and "redate" are not available this turn.`
+      : `No meal is in focus. "correction" and "redate" are not available this turn.`);
   }
   if (profile.medical_limitations) lines.push(`Medical conditions: "${normalizePromptText(profile.medical_limitations)}"`);
   if (profile.food_allergies) lines.push(`Allergies: "${normalizePromptText(profile.food_allergies)}"`);

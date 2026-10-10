@@ -1515,6 +1515,12 @@ export interface Store {
    */
   landJobMeal(userId: string, clientId: string, owner: string, meal: MealRecord): Promise<boolean>;
   /**
+   * The meal a chat-sent note job's router resolved (#1347), stamped on the job under the lease —
+   * `landJobMeal`'s lighter sibling: the row already exists, nothing is inserted or adopted.
+   * False when `owner` no longer holds the lease.
+   */
+  bindJobMeal(userId: string, clientId: string, owner: string, mealId: string): Promise<boolean>;
+  /**
    * The next job this build can run — queued, or running with an expired lease and under two
    * attempts, whose kind is in `registry` at a `request_version` it reads — leased to `owner` for
    * `leaseMs`. Two concurrent claimers never get the same job, and a `grouped` entry's job with a
