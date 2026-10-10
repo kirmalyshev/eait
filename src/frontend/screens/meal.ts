@@ -23,6 +23,7 @@ import { dateMinus, isCalendarDate, localDate, localTime, weekStart } from "../.
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { updateCopyFor } from "../../shared/app/update-copy.ts";
 import { chatScreenCopyFor } from "../../shared/app/chat-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { scoreFactorLabel, scoresAppCopy } from "../../shared/app/scores-copy.ts";
@@ -439,7 +440,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const del = item("trash", mc.deleteCta, () => openOverlay(deleteDialog(meal)));
     del.classList.add("bad");
     // While the meal updates the one action left is Delete, which stops it (#1347).
-    if (updateFor(meal.id) !== undefined) popup.append(del);
+    if (updateFor(meal.id) !== undefined) popup.append(del, el("div", "mnote", updateCopyFor(lang).deleteStops));
     else popup.append(
       // "Correct" is the one fix verb (#1546) — a panel over this detail, not the chat.
       item("pencil", mc.phoneCorrect, () => openPanel(fixPanel(meal))),
