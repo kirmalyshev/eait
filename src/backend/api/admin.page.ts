@@ -336,6 +336,36 @@ button.quiet { box-shadow: none; color: var(--muted); }
 .asw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
 .asw.on { background: var(--accent); }
 .asw.on::after { left: 16px; }
+/* ── Numbers, Pushes, Funnel, Food database: KPI cards over a box, the boards' admin-numbers family ── */
+.nv { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.nv > .card, .nv > p.muted { margin: 0; }
+.nv > p.muted { font-size: 12px; }
+.ntools { align-self: flex-end; }
+.akpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; min-width: 0; }
+.akpi.k3 { grid-template-columns: repeat(3, 1fr); }
+.akpi > div { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); padding: 12px 14px; min-width: 0; }
+.akpi .k { font-size: 12px; color: var(--muted); font-weight: 500; }
+.akpi .v2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.akpi .v2 small { font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+.akpi .dl { font-size: 12px; font-weight: 600; color: var(--muted); }
+.akpi .dl.up { color: var(--accent); }
+.akpi .dl.dn { color: var(--bad); }
+.akpi .dl.warn { color: var(--warn); }
+.akpi i { display: block; height: 12px; width: 60%; border-radius: 6px; background: var(--hair); }
+.akpi i + i { width: 40%; margin-top: 10px; }
+tr.tot td { font-weight: 600; background: var(--bg); }
+.abar.wide { width: 160px; flex-basis: 160px; }
+#funnel.slim .x { display: none; }
+.srow { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--hair); }
+.srow:last-child { border-bottom: 0; }
+.srow .t { flex: 1; min-width: 0; }
+.srow .t b { display: block; font-weight: 600; }
+.srow .t > span { font-size: 12px; color: var(--muted); }
+.nv.food { max-width: 720px; }
+.pb.flips { gap: 6px; }
+@media (max-width: 760px) { .abar.wide { width: 72px; flex-basis: 72px; } #view-numbers .ph b, #view-pushes .ph b, #view-funnel .ph b { white-space: nowrap; } #funnel-hint, #pushes-zone { display: none; } }
+@media (max-width: 760px) { #metrics th, #metrics td, #pushes th, #pushes td, #funnel th, #funnel td { padding: 8px 10px; } }
+@media (max-width: 760px) { .akpi:not(.k3) { grid-template-columns: 1fr 1fr; gap: 8px; } .akpi { gap: 8px; } }
 .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 #composer .result { background: var(--accent-tint); color: var(--accent); border-radius: var(--r-ctl); padding: 10px 14px; margin: 10px 0 0; font-weight: 500; }
 #composer ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
@@ -471,56 +501,52 @@ details.how p { margin-top: 8px; }
 
 <section class="view hidden" id="view-numbers">
   <div id="state-numbers"></div>
-  <div class="vbody hidden" id="body-numbers">
-    <p class="muted"><span class="chip n" id="metrics-window"></span> <span id="metrics-summary"></span></p>
-    <div class="card flush"><div class="scrollx"><table id="metrics">
-      <thead>
-        <tr><th>Day</th><th class="r">Signups</th><th class="r">Activated</th><th class="r">Analyses</th><th class="r">Spend</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <p class="muted">
-      <strong>Analyses, not money.</strong> Spend is what the provider billed; an unpriced call shows its count.
-      Came back means <em>logged something</em> on that day, which is narrower than opening the app and is the
-      only version of it this database can answer about a day in the past.
-    </p>
-  </div>
+  <div class="vbody hidden" id="body-numbers"><div class="nv">
+    <div class="akpi" id="numbers-kpi"></div>
+    <div class="card flush">
+      <div class="ph"><b id="numbers-title"></b><span class="grow"></span><button class="small quiet" id="numbers-more"></button></div>
+      <div class="scrollx"><table id="metrics">
+        <thead>
+          <tr><th>Day</th><th class="r">Signups</th><th class="r">Activated</th><th class="r">Analyses</th><th class="r">Spend</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+    <p class="muted"><strong>Analyses, not money.</strong> Spend is what the provider billed; an unpriced call shows its count.</p>
+  </div></div>
 </section>
 
 <section class="view hidden" id="view-pushes">
   <div id="state-pushes"></div>
-  <div class="vbody hidden" id="body-pushes">
-    <p class="muted"><span class="chip n" id="pushes-window"></span> <span id="pushes-summary"></span></p>
-    <div class="card flush"><div class="scrollx"><table id="pushes">
-      <thead>
-        <tr><th>Day</th><th>Kind</th><th>Template</th><th class="r">Sent</th><th class="r">Accepted</th><th class="r">Dead</th><th class="r">Delivered</th><th class="r">Opened</th><th class="r">Converted</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <p class="muted">
-      Per day the message went out, in the instance's zone. <strong>Opened</strong> is a send the phone
-      reported opened; <strong>converted</strong> is a send followed by a meal from the same account
-      within 24 hours, whether or not it was opened. Counts only: no account is named here.
-    </p>
-  </div>
+  <div class="vbody hidden" id="body-pushes"><div class="nv">
+    <div class="akpi" id="pushes-kpi"></div>
+    <div class="card flush">
+      <div class="ph"><b>By day and template</b><span class="grow"></span><span class="hint" id="pushes-zone"></span><button class="small quiet" id="pushes-more"></button></div>
+      <div class="scrollx"><table id="pushes">
+        <thead>
+          <tr><th>Day</th><th>Kind</th><th>Template</th><th class="r">Sent</th><th class="r">Accepted</th><th class="r">Dead</th><th class="r">Delivered</th><th class="r">Opened</th><th class="r">Converted</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+  </div></div>
 </section>
 
 <section class="view hidden" id="view-funnel">
   <div id="state-funnel"></div>
-  <div class="vbody hidden" id="body-funnel">
-    <p class="muted"><span class="chip n" id="funnel-window"></span> <span id="funnel-summary"></span></p>
-    <div class="card flush"><div class="scrollx"><table id="funnel">
-      <thead>
-        <tr><th>Screen</th><th class="r">Views</th><th class="r">Answers</th><th class="r">Drop</th><th class="r">Back</th><th class="r">Refused</th><th class="r">Median</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <p class="muted">
-      Drop is views minus answers on that screen: the people who saw the question and did not answer it.
-      Median is how long an answer took. The runs are grouped by the content version they saw, which a
-      save in Onboarding copy bumps.
-    </p>
-  </div>
+  <div class="vbody hidden" id="body-funnel"><div class="nv">
+    <span class="aseg ntools" id="funnel-window"></span>
+    <div class="akpi k3" id="funnel-kpi"></div>
+    <div class="card flush">
+      <div class="ph"><b>Where people leave</b><span class="grow"></span><span class="hint" id="funnel-hint">Back and Refused in the full table</span><button class="small quiet" id="funnel-more">Show all columns</button></div>
+      <div class="scrollx"><table id="funnel" class="slim">
+        <thead>
+          <tr><th>Screen</th><th></th><th class="r">Views</th><th class="r">Answers</th><th class="r">Drop</th><th class="r x">Back</th><th class="r x">Refused</th><th class="r">Median</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+  </div></div>
 </section>
 
 <section class="view hidden" id="view-campaigns">
@@ -818,16 +844,14 @@ details.how p { margin-top: 8px; }
 
 <section class="view hidden" id="view-food">
   <div id="state-food"></div>
-  <div class="vbody hidden" id="body-food">
-    <p class="muted">
-      When on, the items a model recognises are matched against the food catalog and take its numbers.
-      Off, the analysis keeps the model's own. A switch takes effect on the next request with no
-      deploy, and every flip is kept below.
-    </p>
-    <div id="switches"></div>
-    <span class="status" id="switch-status"></span>
-    <div id="switch-recent" class="muted"></div>
-  </div>
+  <div class="vbody hidden" id="body-food"><div class="nv food">
+    <div class="card flush" id="switches"></div>
+    <div class="card flush">
+      <div class="ph"><b>Recent flips</b><span class="grow"></span><span class="status" id="switch-status"></span></div>
+      <div class="pb flips" id="switch-recent"></div>
+    </div>
+    <p class="muted">A flip applies to the next analysis. Nothing already logged changes.</p>
+  </div></div>
 </section>
 
     </div>
@@ -1155,7 +1179,7 @@ details.how p { margin-top: 8px; }
   }
 
   // Milliseconds as seconds, "—" for a leg nothing in the window carried.
-  function secs(ms) { return ms === null ? "—" : (ms / 1000).toFixed(1) + "s"; }
+  function secs(ms) { return ms == null ? "—" : (ms / 1000).toFixed(1) + " s"; }
 
   // What the provider priced — a floor while any analysis that day went unpriced (#484).
   function spend(d) {
@@ -1184,53 +1208,162 @@ details.how p { margin-top: 8px; }
     body.appendChild(tr);
   }
 
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // "2026-10-10" as "Sat 10 Oct". The date is a calendar day, not an instant, so it is read in UTC.
+  function dayLabel(s) {
+    var p = String(s).split("-");
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    return isNaN(d.getTime()) ? String(s) : WEEKDAYS[d.getUTCDay()] + " " + d.getUTCDate() + " " + MONTHS[d.getUTCMonth()];
+  }
+
+  // An instant as "8 Oct 10:02", in the browser's own zone.
+  function atLabel(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    var two = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getDate() + " " + MONTHS[d.getMonth()] + " " + two(d.getHours()) + ":" + two(d.getMinutes());
+  }
+
+  function sum(list, f) {
+    var n = 0;
+    list.forEach(function (x) { n += f(x); });
+    return n;
+  }
+
+  function pct1(part, whole) {
+    return whole ? (Math.round((part / whole) * 1000) / 10).toFixed(1) + "%" : "—";
+  }
+
+  // One KPI card: label, value (with an optional small suffix), and a line under it. tone is
+  // "up", "dn" or "warn", or empty for the muted default.
+  function kpi(host, label, value, suffix, sub, tone) {
+    var card = document.createElement("div");
+    card.appendChild(el("div", "k", label));
+    var v = el("div", "v2", value);
+    if (suffix) { v.appendChild(document.createTextNode(" ")); v.appendChild(el("small", null, suffix)); }
+    card.appendChild(v);
+    if (sub) card.appendChild(el("div", tone ? "dl " + tone : "dl", sub));
+    host.appendChild(card);
+  }
+
+  // The Show-all control of a box: hidden when there is nothing more to show.
+  function moreButton(btn, total, shown, all, noun) {
+    btn.classList.toggle("hidden", total <= shown);
+    btn.textContent = all ? "Show last " + shown + " " + noun : "Show all " + total + " " + noun;
+  }
+
+  var numData = null;       // the last /admin/api/metrics answer, oldest day first
+  var numAll = false;       // the table shows every day, not the last seven
+
+  function renderNumbers() {
+    var m = numData;
+    var days = m.days.slice().reverse();   // newest first on screen; the server's order is a window's
+    var today = days[0] || { analyses: 0 };
+    var week = days.slice(0, 7), before = days.slice(7, 14);
+    var kp = $("numbers-kpi");
+    kp.textContent = "";
+    if (m.dailyAnalysisCap) {
+      kpi(kp, "Analyses today", String(today.analyses), "of " + m.dailyAnalysisCap, m.headroom + " left", today.analyses >= m.dailyAnalysisCap ? "dn" : "");
+    } else {
+      kpi(kp, "Analyses today", String(today.analyses), "", "no instance cap");
+    }
+    var signups = sum(week, function (d) { return d.signups; });
+    var prior = sum(before, function (d) { return d.signups; });
+    if (before.length === 7 && prior > 0) {
+      var change = Math.round(((signups - prior) / prior) * 100);
+      kpi(kp, "Signups · " + week.length + " days", String(signups), "", (change >= 0 ? "+" : "") + change + "% on the week before", change >= 0 ? "up" : "dn");
+    } else {
+      kpi(kp, "Signups · " + week.length + " days", String(signups), "", "");
+    }
+    kpi(kp, "Came back next day", pct(m.d1.returned, m.d1.eligible), "", m.d1.returned + " of " + m.d1.eligible);
+    kpi(kp, "Photo turn, p50", secs(m.latency.total.p50), "", "p95 " + secs(m.latency.total.p95) + " · n=" + m.latency.n);
+
+    var shown = numAll ? days : week;
+    $("numbers-title").textContent = "Last " + shown.length + " days";
+    moreButton($("numbers-more"), days.length, week.length, numAll, "days");
+    var body = $("metrics").querySelector("tbody");
+    body.textContent = "";
+    shown.forEach(function (d) {
+      var tr = document.createElement("tr");
+      [dayLabel(d.date), String(d.signups), String(d.activations), String(d.analyses), spend(d)].forEach(function (t, i) {
+        var c = td(tr, t, i, 1);
+        // The one number that can hit a wall, marked when it is at it.
+        if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) c.classList.add("drop");
+      });
+      body.appendChild(tr);
+    });
+    emptyRow(body, 5, "No days to show yet.");
+    if (shown.length) {
+      var priced = shown.filter(function (d) { return d.costUsd !== null; });
+      var tot = document.createElement("tr");
+      tot.className = "tot";
+      [shown.length + " days",
+        String(sum(shown, function (d) { return d.signups; })),
+        String(sum(shown, function (d) { return d.activations; })),
+        String(sum(shown, function (d) { return d.analyses; })),
+        spend({ costUsd: priced.length ? sum(priced, function (d) { return d.costUsd; }) : null, unpriced: sum(shown, function (d) { return d.unpriced; }) })
+      ].forEach(function (t, i) { td(tot, t, i, 1); });
+      body.appendChild(tot);
+    }
+  }
+
   function loadMetrics() {
     return api("GET", "/admin/api/metrics?days=30").then(function (m) {
-      $("metrics-window").textContent = "last " + m.days.length + " days";
-      var today = m.days[m.days.length - 1] || { analyses: 0 };
-      var budget = m.dailyAnalysisCap
-        ? today.analyses + " of " + m.dailyAnalysisCap + " analyses today · " + m.headroom + " left"
-        : today.analyses + " analyses today · no instance cap";
-      $("metrics-summary").textContent = budget
-        + " · came back next day " + m.d1.returned + "/" + m.d1.eligible + " (" + pct(m.d1.returned, m.d1.eligible) + ")"
-        + " · on day 7 " + m.d7.returned + "/" + m.d7.eligible + " (" + pct(m.d7.returned, m.d7.eligible) + ")"
-        + " · photo turn p50 " + secs(m.latency.queue.p50) + " to the call"
-        + ", " + secs(m.latency.firstItem.p50) + " to first item"
-        + ", " + secs(m.latency.total.p50) + " done (p95 " + secs(m.latency.total.p95) + ", n=" + m.latency.n + ")";
-      var body = $("metrics").querySelector("tbody");
-      body.textContent = "";
-      // Newest first on screen; the server sends oldest first because that is the order a window is.
-      m.days.slice().reverse().forEach(function (d) {
-        var tr = document.createElement("tr");
-        [d.date, String(d.signups), String(d.activations), String(d.analyses), spend(d)].forEach(function (t, i) {
-          var c = td(tr, t, i, 1);
-          // The one number that can hit a wall, marked when it is at it.
-          if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) c.classList.add("drop");
-        });
-        body.appendChild(tr);
-      });
-      emptyRow(body, 5, "No days to show yet.");
+      numData = m;
+      renderNumbers();
     });
+  }
+
+  $("numbers-more").addEventListener("click", function () { numAll = !numAll; renderNumbers(); });
+
+  var pushData = null;      // the last /admin/api/push/stats answer
+  var pushAll = false;      // every day of the window, not the last seven
+
+  // Today's calendar day in the zone the instance counts push days in.
+  function dayInZone(tz) {
+    try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date()); }
+    catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+
+  function renderPushes() {
+    var v = pushData;
+    var cut = new Date(Date.parse(dayInZone(v.timezone) + "T00:00:00Z") - 6 * 86400000).toISOString().slice(0, 10);
+    var rows = v.rows.slice().sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : 0; });
+    var week = rows.filter(function (r) { return r.day >= cut; });
+    var sent = sum(week, function (r) { return r.sent; });
+    var delivered = sum(week, function (r) { return r.delivered; });
+    var opened = sum(week, function (r) { return r.opened; });
+    var dead = sum(week, function (r) { return r.dead; });
+    var kp = $("pushes-kpi");
+    kp.textContent = "";
+    kpi(kp, "Sent · 7 days", String(sent), "", "");
+    kpi(kp, "Delivered", String(delivered), "", pct(delivered, sent));
+    kpi(kp, "Opened", String(opened), "", pct1(opened, delivered) + " of delivered");
+    kpi(kp, "Dead tokens", String(dead), "", dead ? "dropped when found dead" : "", dead ? "warn" : "");
+    $("pushes-zone").textContent = v.timezone;
+    moreButton($("pushes-more"), v.days, 7, pushAll, "days");
+    var body = $("pushes").querySelector("tbody");
+    body.textContent = "";
+    (pushAll ? rows : week).forEach(function (r) {
+      var tr = document.createElement("tr");
+      [dayLabel(r.day), r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t, i) {
+        td(tr, t, i, 3);
+      });
+      body.appendChild(tr);
+    });
+    emptyRow(body, 9, "Nothing has been sent in this window.");
   }
 
   function loadPushes() {
     return api("GET", "/admin/api/push/stats?days=14").then(function (v) {
-      $("pushes-window").textContent = "last " + v.days + " days · " + v.timezone;
-      var sent = 0, opened = 0;
-      v.rows.forEach(function (r) { sent += r.sent; opened += r.opened; });
-      $("pushes-summary").textContent = sent + " sent · " + opened + " opened (" + pct(opened, sent) + ")";
-      var body = $("pushes").querySelector("tbody");
-      body.textContent = "";
-      v.rows.forEach(function (r) {
-        var tr = document.createElement("tr");
-        [r.day, r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t, i) {
-          td(tr, t, i, 3);
-        });
-        body.appendChild(tr);
-      });
-      emptyRow(body, 9, "Nothing has been sent in this window.");
+      pushData = v;
+      renderPushes();
     });
   }
+
+  $("pushes-more").addEventListener("click", function () { pushAll = !pushAll; renderPushes(); });
 
   // ── Campaigns (ieat-app#1761) ──────────────────────────────────────────────────────────────
   var campaignOptions = null;
@@ -1593,35 +1726,56 @@ details.how p { margin-top: 8px; }
     });
   }
 
+  var funnelDays = 7;       // the window the funnel is read over: 7, 30 or 90 days
+
   function loadFunnel() {
-    return api("GET", "/admin/api/funnel?days=30").then(function (f) {
-      $("funnel-window").textContent = "last " + f.days + " days · content v" + f.contentVersion;
-      var rate = f.sessions ? Math.round((f.completed / f.sessions) * 100) : 0;
-      $("funnel-summary").textContent =
-        f.sessions + " runs started · " + f.completed + " finished · " + rate + "% completion";
+    return api("GET", "/admin/api/funnel?days=" + funnelDays).then(function (f) {
+      var seg = $("funnel-window");
+      seg.textContent = "";
+      [7, 30, 90].forEach(function (n) {
+        var b = el("button", n === funnelDays ? "on" : "", n + " days");
+        b.addEventListener("click", function () {
+          if (n === funnelDays) return;
+          funnelDays = n;
+          run("funnel");
+        });
+        seg.appendChild(b);
+      });
+      var kp = $("funnel-kpi");
+      kp.textContent = "";
+      kpi(kp, "Runs started", String(f.sessions), "", "");
+      kpi(kp, "Finished", String(f.completed), "", "");
+      kpi(kp, "Completion", pct1(f.completed, f.sessions), "", "content v" + f.contentVersion);
       var body = $("funnel").querySelector("tbody");
       body.textContent = "";
       f.rows.forEach(function (r) {
         var tr = document.createElement("tr");
         var drop = r.views - r.answers;
-        var cells = [
-          r.place,
-          String(r.views),
-          String(r.answers),
-          r.views ? drop + " (" + Math.round((drop / r.views) * 100) + "%)" : "—",
-          String(r.backs),
-          String(r.rejects),
-          r.medianMs == null ? "—" : (r.medianMs / 1000).toFixed(1) + "s"
-        ];
-        cells.forEach(function (text, i) {
-          var c = td(tr, text, i, 1);
-          if (i === 3 && drop > 0) c.classList.add("drop");
+        td(tr, r.place, 0, 99);
+        // How far the run got: the people who answered this screen, of everyone who started.
+        var cell = document.createElement("td");
+        var bar = el("div", "abar wide");
+        var fill = document.createElement("i");
+        fill.style.width = (f.sessions ? Math.min(100, (r.answers / f.sessions) * 100) : 0).toFixed(1) + "%";
+        bar.appendChild(fill);
+        cell.appendChild(bar);
+        tr.appendChild(cell);
+        [String(r.views), String(r.answers), drop > 0 && r.views ? drop + " (" + pct1(drop, r.views) + ")" : r.views ? "0" : "—", String(r.backs), String(r.rejects), secs(r.medianMs)].forEach(function (text, i) {
+          var c = td(tr, text, i, 0);
+          if (i === 2 && drop > 0) c.classList.add("drop");
+          if (i === 3 || i === 4) c.classList.add("x");
         });
         body.appendChild(tr);
       });
-      emptyRow(body, 7, "No onboarding runs in this window.");
+      emptyRow(body, 8, "No onboarding runs in this window.");
     });
   }
+
+  $("funnel-more").addEventListener("click", function () {
+    var slim = $("funnel").classList.toggle("slim");
+    $("funnel-more").textContent = slim ? "Show all columns" : "Show fewer columns";
+    $("funnel-hint").classList.toggle("hidden", !slim);
+  });
 
   // ── Push templates ─────────────────────────────────────────────────────────────────────────
   //
@@ -2118,52 +2272,44 @@ details.how p { margin-top: 8px; }
   // ── Food database switches (#563) ──────────────────────────────────────────────────────────
 
   var SWITCH_LABELS = { "grounding.photo": "Photo", "grounding.text": "Text" };
+  var SWITCH_WHAT = { "grounding.photo": "ground photo analyses in the food catalog", "grounding.text": "ground typed meals in the food catalog" };
 
   function switchWhen(by, at) {
-    return at ? "changed by " + by + " at " + at : "default";
+    return at ? "changed by " + by + " at " + atLabel(at) : "default";
   }
 
   function renderSwitches(res) {
     var host = $("switches");
     host.textContent = "";
     res.switches.forEach(function (sw) {
-      var card = document.createElement("div");
-      card.className = "card";
-      card.setAttribute("data-switch", sw.key);
-      var head = document.createElement("div");
-      head.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;gap:10px";
-      var name = document.createElement("strong");
-      name.style.minWidth = "60px";
-      name.textContent = SWITCH_LABELS[sw.key] || sw.key;
-      var state = document.createElement("span");
-      state.className = sw.enabled ? "chip g" : "chip n";
-      state.textContent = sw.enabled ? "on" : "off";
-      var when = document.createElement("span");
-      when.className = "muted";
-      when.style.flex = "1 1 160px";
-      when.textContent = switchWhen(sw.setBy, sw.setAt);
-      var toggle = document.createElement("button");
-      toggle.textContent = sw.enabled ? "Turn off" : "Turn on";
+      var row = el("div", "srow");
+      row.setAttribute("data-switch", sw.key);
+      var t = el("span", "t");
+      t.appendChild(el("b", null, SWITCH_LABELS[sw.key] || sw.key));
+      t.appendChild(el("span", null, (SWITCH_WHAT[sw.key] || sw.key) + " · " + switchWhen(sw.setBy, sw.setAt)));
+      var toggle = el("button", sw.enabled ? "asw on" : "asw");
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-checked", sw.enabled ? "true" : "false");
+      toggle.setAttribute("aria-label", SWITCH_LABELS[sw.key] || sw.key);
       toggle.addEventListener("click", function () {
+        toggle.disabled = true;
         $("switch-status").textContent = "saving…";
         api("PUT", "/admin/api/switches/" + encodeURIComponent(sw.key), { enabled: !sw.enabled }).then(loadSwitches, function (e) {
+          toggle.disabled = false;
           $("switch-status").textContent = "failed: " + e.message;
         });
       });
-      head.appendChild(name);
-      head.appendChild(state);
-      head.appendChild(when);
-      head.appendChild(toggle);
-      card.appendChild(head);
-      host.appendChild(card);
+      row.appendChild(t);
+      row.appendChild(el("span", sw.enabled ? "chip g" : "chip n", sw.enabled ? "on" : "off"));
+      row.appendChild(toggle);
+      host.appendChild(row);
     });
     var recent = $("switch-recent");
     recent.textContent = "";
     res.recent.forEach(function (f) {
-      var line = document.createElement("div");
-      line.textContent = (SWITCH_LABELS[f.key] || f.key) + " " + (f.enabled ? "on" : "off") + " — " + f.set_by + " at " + f.set_at;
-      recent.appendChild(line);
+      recent.appendChild(el("span", null, (SWITCH_LABELS[f.key] || f.key) + " " + (f.enabled ? "on" : "off") + " — " + f.set_by + " at " + atLabel(f.set_at)));
     });
+    if (!res.recent.length) recent.appendChild(el("span", "muted", "No flips yet."));
     $("switch-status").textContent = "";
   }
 
@@ -2826,7 +2972,7 @@ details.how p { margin-top: 8px; }
   // endpoint is a message in one view and every other view still works.
 
   var VIEWS = {
-    numbers: { title: "Numbers", load: loadMetrics },
+    numbers: { title: "Numbers", load: loadMetrics, kpis: true },
     pushes: { title: "Pushes", load: loadPushes },
     funnel: { title: "Funnel", load: loadFunnel },
     campaigns: { title: "Campaigns", load: loadCampaigns },
@@ -2842,7 +2988,21 @@ details.how p { margin-top: 8px; }
   // view id -> "loading" | "ready". Absent: never opened, failed, or stale and due a read.
   var state = {};
 
-  function skeleton() {
+  // kpis: the view opens on KPI cards (Numbers), so its skeleton draws them above the rows.
+  function skeleton(kpis) {
+    var wrap = document.createElement("div");
+    wrap.className = "nv";
+    if (kpis) {
+      var cards = document.createElement("div");
+      cards.className = "akpi";
+      for (var k = 0; k < 4; k++) {
+        var card = document.createElement("div");
+        card.appendChild(document.createElement("i"));
+        card.appendChild(document.createElement("i"));
+        cards.appendChild(card);
+      }
+      wrap.appendChild(cards);
+    }
     var box = document.createElement("div");
     box.className = "sk";
     for (var r = 0; r < 7; r++) {
@@ -2851,15 +3011,16 @@ details.how p { margin-top: 8px; }
       for (var c = 0; c < 4; c++) row.appendChild(document.createElement("i"));
       box.appendChild(row);
     }
-    return box;
+    wrap.appendChild(box);
+    return wrap;
   }
 
   // One state box and the body it stands in for: loading, error with a way to try again, or the
   // body itself. The views and the account pane both draw theirs through this.
-  function paintBox(box, body, kind, err, what, retry, inner) {
+  function paintBox(box, body, kind, err, what, retry, inner, kpis) {
     box.textContent = "";
     body.classList.toggle("hidden", kind !== "ready");
-    if (kind === "loading") box.appendChild(skeleton());
+    if (kind === "loading") box.appendChild(skeleton(kpis));
     if (kind !== "error") return;
     var bar = document.createElement("div");
     bar.className = "aerr";
@@ -2882,7 +3043,7 @@ details.how p { margin-top: 8px; }
   }
 
   function paint(id, kind, err) {
-    paintBox($("state-" + id), $("body-" + id), kind, err, VIEWS[id].title.toLowerCase(), function () { run(id); });
+    paintBox($("state-" + id), $("body-" + id), kind, err, VIEWS[id].title.toLowerCase(), function () { run(id); }, false, VIEWS[id].kpis);
   }
 
   function run(id) {
