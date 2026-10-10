@@ -340,7 +340,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
 .nv { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .nv > .card, .nv > p.muted { margin: 0; }
 .nv > p.muted { font-size: 12px; }
-.ntools { align-self: flex-end; }
+.ahead .aseg { margin-left: auto; }
 .akpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; min-width: 0; }
 .akpi.k3 { grid-template-columns: repeat(3, 1fr); }
 .akpi > div { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair); padding: 12px 14px; min-width: 0; }
@@ -363,7 +363,7 @@ tr.tot td { font-weight: 600; background: var(--bg); }
 .srow .t > span { font-size: 12px; color: var(--muted); }
 .nv.food { max-width: 720px; }
 .pb.flips { gap: 6px; }
-@media (max-width: 760px) { .abar.wide { width: 72px; flex-basis: 72px; } #view-numbers .ph b, #view-pushes .ph b, #view-funnel .ph b { white-space: nowrap; } #funnel-hint, #pushes-zone { display: none; } }
+@media (max-width: 760px) { #head-window { display: none; } .abar.wide { width: 72px; flex-basis: 72px; } #view-numbers .ph b, #view-pushes .ph b, #view-funnel .ph b { white-space: nowrap; } #funnel-hint, #pushes-zone { display: none; } }
 @media (max-width: 760px) { #metrics th, #metrics td, #pushes th, #pushes td, #funnel th, #funnel td { padding: 8px 10px; } }
 @media (max-width: 760px) { .akpi:not(.k3) { grid-template-columns: 1fr 1fr; gap: 8px; } .akpi { gap: 8px; } }
 .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
@@ -492,7 +492,7 @@ details.how p { margin-top: 8px; }
   </div>
 
   <div class="amain">
-    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button><select id="lang" class="hidden" aria-label="Language"></select><button class="hidden" id="copy-new">New campaign copy</button></div>
+    <div class="ahead"><h1 id="view-title">Numbers</h1><span class="aseg hidden" id="head-window"></span><button class="small quiet back hidden" id="view-back">‹ All accounts</button><select id="lang" class="hidden" aria-label="Language"></select><button class="hidden" id="copy-new">New campaign copy</button></div>
     <div class="abody">
 
 <!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
@@ -535,8 +535,7 @@ details.how p { margin-top: 8px; }
 <section class="view hidden" id="view-funnel">
   <div id="state-funnel"></div>
   <div class="vbody hidden" id="body-funnel"><div class="nv">
-    <span class="aseg ntools" id="funnel-window"></span>
-    <div class="akpi k3" id="funnel-kpi"></div>
+      <div class="akpi k3" id="funnel-kpi"></div>
     <div class="card flush">
       <div class="ph"><b>Where people leave</b><span class="grow"></span><span class="hint" id="funnel-hint">Back and Refused in the full table</span><button class="small quiet" id="funnel-more">Show all columns</button></div>
       <div class="scrollx"><table id="funnel" class="slim">
@@ -1254,6 +1253,26 @@ details.how p { margin-top: 8px; }
     btn.textContent = all ? "Show last " + shown + " " + noun : "Show all " + total + " " + noun;
   }
 
+  // The window each reporting view reads over, picked in the header: 7, 30 or 90 days.
+  var windows = { numbers: 7, pushes: 7, funnel: 7 };
+
+  function drawWindow(id) {
+    var seg = $("head-window");
+    seg.classList.toggle("hidden", !(id in windows));
+    seg.textContent = "";
+    if (!(id in windows)) return;
+    [7, 30, 90].forEach(function (n) {
+      var b = el("button", n === windows[id] ? "on" : "", n + " days");
+      b.addEventListener("click", function () {
+        if (n === windows[id]) return;
+        windows[id] = n;
+        run(id);
+        drawWindow(id);
+      });
+      seg.appendChild(b);
+    });
+  }
+
   var numData = null;       // the last /admin/api/metrics answer, oldest day first
   var numAll = false;       // the table shows every day, not the last seven
 
@@ -1261,7 +1280,8 @@ details.how p { margin-top: 8px; }
     var m = numData;
     var days = m.days.slice().reverse();   // newest first on screen; the server's order is a window's
     var today = days[0] || { analyses: 0 };
-    var week = days.slice(0, 7), before = days.slice(7, 14);
+    var N = windows.numbers;
+    var week = days.slice(0, N), before = days.slice(N, 2 * N);
     var kp = $("numbers-kpi");
     kp.textContent = "";
     if (m.dailyAnalysisCap) {
@@ -1271,18 +1291,19 @@ details.how p { margin-top: 8px; }
     }
     var signups = sum(week, function (d) { return d.signups; });
     var prior = sum(before, function (d) { return d.signups; });
-    if (before.length === 7 && prior > 0) {
+    if (before.length === N && prior > 0) {
       var change = Math.round(((signups - prior) / prior) * 100);
-      kpi(kp, "Signups · " + week.length + " days", String(signups), "", (change >= 0 ? "+" : "") + change + "% on the week before", change >= 0 ? "up" : "dn");
+      kpi(kp, "Signups · " + week.length + " days", String(signups), "", (change >= 0 ? "+" : "") + change + "% on the " + (N === 7 ? "week" : N + " days") + " before", change >= 0 ? "up" : "dn");
     } else {
       kpi(kp, "Signups · " + week.length + " days", String(signups), "", "");
     }
     kpi(kp, "Came back next day", pct(m.d1.returned, m.d1.eligible), "", m.d1.returned + " of " + m.d1.eligible);
     kpi(kp, "Photo turn, p50", secs(m.latency.total.p50), "", "p95 " + secs(m.latency.total.p95) + " · n=" + m.latency.n);
 
-    var shown = numAll ? days : week;
+    var all = days.slice(0, Math.max(N, 30));
+    var shown = numAll ? all : days.slice(0, 7);
     $("numbers-title").textContent = "Last " + shown.length + " days";
-    moreButton($("numbers-more"), days.length, week.length, numAll, "days");
+    moreButton($("numbers-more"), all.length, 7, numAll, "days");
     var body = $("metrics").querySelector("tbody");
     body.textContent = "";
     shown.forEach(function (d) {
@@ -1310,7 +1331,7 @@ details.how p { margin-top: 8px; }
   }
 
   function loadMetrics() {
-    return api("GET", "/admin/api/metrics?days=30").then(function (m) {
+    return api("GET", "/admin/api/metrics?days=" + Math.max(30, 2 * windows.numbers)).then(function (m) {
       numData = m;
       renderNumbers();
     });
@@ -1329,7 +1350,9 @@ details.how p { margin-top: 8px; }
 
   function renderPushes() {
     var v = pushData;
-    var cut = new Date(Date.parse(dayInZone(v.timezone) + "T00:00:00Z") - 6 * 86400000).toISOString().slice(0, 10);
+    var today = Date.parse(dayInZone(v.timezone) + "T00:00:00Z");
+    var cutOf = function (n) { return new Date(today - (n - 1) * 86400000).toISOString().slice(0, 10); };
+    var cut = cutOf(windows.pushes);
     var rows = v.rows.slice().sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : 0; });
     var week = rows.filter(function (r) { return r.day >= cut; });
     var sent = sum(week, function (r) { return r.sent; });
@@ -1338,15 +1361,16 @@ details.how p { margin-top: 8px; }
     var dead = sum(week, function (r) { return r.dead; });
     var kp = $("pushes-kpi");
     kp.textContent = "";
-    kpi(kp, "Sent · 7 days", String(sent), "", "");
+    kpi(kp, "Sent · " + windows.pushes + " days", String(sent), "", "");
     kpi(kp, "Delivered", String(delivered), "", pct(delivered, sent));
     kpi(kp, "Opened", String(opened), "", pct1(opened, delivered) + " of delivered");
     kpi(kp, "Dead tokens", String(dead), "", dead ? "dropped when found dead" : "", dead ? "warn" : "");
     $("pushes-zone").textContent = v.timezone;
     moreButton($("pushes-more"), v.days, 7, pushAll, "days");
+    var last7 = cutOf(7);
     var body = $("pushes").querySelector("tbody");
     body.textContent = "";
-    (pushAll ? rows : week).forEach(function (r) {
+    (pushAll ? rows : rows.filter(function (r) { return r.day >= last7; })).forEach(function (r) {
       var tr = document.createElement("tr");
       [dayLabel(r.day), r.kind, r.templateKey, r.sent, r.accepted, r.dead, r.delivered, r.opened, r.converted].forEach(function (t, i) {
         td(tr, t, i, 3);
@@ -1357,7 +1381,7 @@ details.how p { margin-top: 8px; }
   }
 
   function loadPushes() {
-    return api("GET", "/admin/api/push/stats?days=14").then(function (v) {
+    return api("GET", "/admin/api/push/stats?days=" + Math.max(14, windows.pushes)).then(function (v) {
       pushData = v;
       renderPushes();
     });
@@ -1726,21 +1750,9 @@ details.how p { margin-top: 8px; }
     });
   }
 
-  var funnelDays = 7;       // the window the funnel is read over: 7, 30 or 90 days
 
   function loadFunnel() {
-    return api("GET", "/admin/api/funnel?days=" + funnelDays).then(function (f) {
-      var seg = $("funnel-window");
-      seg.textContent = "";
-      [7, 30, 90].forEach(function (n) {
-        var b = el("button", n === funnelDays ? "on" : "", n + " days");
-        b.addEventListener("click", function () {
-          if (n === funnelDays) return;
-          funnelDays = n;
-          run("funnel");
-        });
-        seg.appendChild(b);
-      });
+    return api("GET", "/admin/api/funnel?days=" + windows.funnel).then(function (f) {
       var kp = $("funnel-kpi");
       kp.textContent = "";
       kpi(kp, "Runs started", String(f.sessions), "", "");
@@ -3078,6 +3090,7 @@ details.how p { margin-top: 8px; }
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     $("switcher").value = id;
+    drawWindow(id);
     setHead();
     window.scrollTo(0, 0);
     if (!state[id]) run(id);
