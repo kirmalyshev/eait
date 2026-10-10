@@ -32,7 +32,7 @@ export const DEMO_CATALOG: readonly FoodRef[] = [
     source_url: null,
     attribution: [
       "Contains data from Matvaretabellen (https://www.matvaretabellen.no), Norwegian Food Safety Authority, made available under the Norwegian Licence for Open Government Data (NLOD) 2.0.",
-      "Contains data from Frida (https://frida.fooddata.dk), DTU National Food Institute, made available under CC BY 4.0.",
+      "Frida Food Data (https://frida.fooddata.dk), National Food Institute, Technical University of Denmark. CC BY 4.0.",
     ],
   },
 ];
