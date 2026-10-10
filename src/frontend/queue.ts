@@ -19,7 +19,8 @@ type State = "reading" | "waiting" | "question" | "refused" | "failed";
 /** What a job that changes a logged meal carries: the meal as it stood, and the body that is sent again on Try again. */
 interface Update {
   kind: MealUpdateKind;
-  mealId: string;
+  /** Null on a chat-sent note's job until its router names the meal (#1347); such a job matches no meal row. */
+  mealId: string | null;
   steps: number;
   /** What Try again sends; null on a job restored from the server, which has nothing to send again. */
   body: MealUpdateBody | null;
@@ -418,6 +419,7 @@ export function updateRowEl(job: Job): HTMLElement {
   const button = (text: string, on: () => void) => { const b = el("button", "", text); b.addEventListener("click", on); act.append(b); };
   // Edit brings what was sent back in its own field, for a refusal as well as a failure.
   const edit = (): void => {
+    if (u.mealId === null) { drop(job); return; }
     if (u.body?.kind === "note") sentNote = { mealId: u.mealId, text: u.body.text };
     if (u.grams) sentGrams = { mealId: u.mealId, ...u.grams };
     drop(job);

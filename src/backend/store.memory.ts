@@ -1790,6 +1790,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return true;
     },
 
+    async bindJobMeal(userId, clientId, owner, mealId) {
+      const j = jobs.get(`${userId}\n${clientId}`);
+      if (!j || j.leaseOwner !== owner || j.state !== "running") return false;
+      j.mealId = mealId; j.updatedAt = now();
+      notifyJob(userId, clientId);
+      return true;
+    },
+
     async releaseJobs(owner) {
       let n = 0;
       for (const j of jobs.values()) {

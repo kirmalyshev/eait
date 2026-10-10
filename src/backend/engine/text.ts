@@ -168,9 +168,20 @@ export async function textTurn(
     routed = await deps.llm.routeText({
       text: input.text, profile, targets,
       todayMeals: todayRows.map((m) => ({
-        items: m.items, kcal: m.kcal, protein_g: m.protein_g,
+        mealId: m.id, items: m.items, kcal: m.kcal, protein_g: m.protein_g,
+        carbs_g: m.carbs_g, fat_g: m.fat_g, satfat_g: m.satfat_g, fiber_g: m.fiber_g, sugar_g: m.sugar_g, sodium_mg: m.sodium_mg,
       })),
       week,
+      // The meal a `mealIndex` names, resolved where the rows live — the same analysis and photos
+      // a named focus would have handed over (#1347).
+      resolveMeal: async (index) => {
+        const m = todayRows[index];
+        if (!m) return null;
+        return {
+          analysis: toAnalysis(m),
+          images: (m.photos ?? 0) > 0 ? await deps.store.getPhotos(userId, m.id).then((ps) => ps.map((p) => p.bytes)) : [],
+        };
+      },
       ...(onDelta !== undefined ? { onDelta } : {}),
       ...(focusAnalysis ? { focusMeal: focusAnalysis } : {}),
       ...(loadFocusImages ? { loadFocusImages } : {}),
@@ -299,12 +310,12 @@ export async function textTurn(
       }
 
       case "correction": {
-        // Unreachable without a focus — the provider degrades the intent to `answer` when none was
-        // supplied — but guarded anyway, because that guarantee lives in another file. A refusal
-        // the screen can word, never an empty 200: the analysis is charged by now, and a turn that
-        // renders nothing leaves the user with a spent sample and no idea why. The focus may be a
-        // logged meal or the live proposal — a pending is the meal it names, one write early.
-        if (!focus && !focusPending) return { kind: "target-gone", on: "correction" };
+        // The target is the focus meal, the live proposal — or, on a send that named none, the one
+        // of today's meals the router's `mealIndex` resolved (#1347). A correction that lands on no
+        // row is a refusal the screen can word, never an empty 200: the analysis is charged by now,
+        // and a turn that renders nothing leaves the user with a spent sample and no idea why.
+        const contextTarget = focus === null && routed.mealIndex !== undefined ? todayRows[routed.mealIndex] ?? null : null;
+        if (!focus && !focusPending && !contextTarget) return { kind: "target-gone", on: "correction" };
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
         // recomputes them from the stored row like every other write. The totals still need
         // reconciling — a correction is an analysis like any other.
@@ -312,8 +323,9 @@ export async function textTurn(
         // The same gate a fresh meal takes (#248): a correction that comes back not-food or with no
         // items is a failed estimate, and writing it would zero the meal it claims to fix.
         if (!reconciled.isFood || emptyEstimate(reconciled)) return { kind: "analysis-failed" };
-        return focus !== null
-          ? applyCorrection(deps, userId, focus.id, reconciled)
+        const target = focus ?? contextTarget;
+        return target !== null
+          ? applyCorrection(deps, userId, target.id, reconciled)
           : amendPending(deps, userId, focusPending!, reconciled, profile);
       }
 

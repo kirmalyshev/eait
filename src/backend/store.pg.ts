@@ -1537,6 +1537,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   claimPush: 0,
   chargeJob: 0,
   landJobMeal: 0,
+  bindJobMeal: 0,
   // They choose whose job runs, or sweep every account's, and read no content: the lease is the
   // only thing they decide on.
   claimJob: "unscoped",
@@ -3762,6 +3763,17 @@ export async function postgresStore(
         update meals set photos = (select count(*) from meal_photos where meal_id = ${meal.id})
         where id = ${meal.id} and user_id = ${userId}`;
       return true;
+    },
+
+    // A meal the router resolved, not one this job inserted — `landJobMeal`'s fenced stamp alone
+    // (#1347). Overwriting is allowed: a re-route mid-run still means the last meal it wrote to.
+    async bindJobMeal(userId, clientId, owner, mealId) {
+      const rows = await sql`
+        update pgboss.job set data = data || jsonb_build_object('mealId', ${mealId}::text, 'updatedAt', now())
+        where data->>'userId' = ${userId} and data->>'clientId' = ${clientId} and state = 'active' and data->>'owner' = ${owner}
+        returning id`;
+      if (rows.length > 0) await sql`select pg_notify('eait_job', ${`${userId}:${clientId}`})`;
+      return rows.length > 0;
     },
 
     // Back to `retry`, not `created`: pg-boss counts the next claim as a second attempt, as the

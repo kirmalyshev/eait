@@ -487,14 +487,22 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // actually ate. The correction prompt is handed the plate and the standing question instead.
     // With no focus meal there is nothing to correct, the switch below degrades to `answer`
     // whatever comes back, and buying an analysis first is buying one to throw away.
-    if (out.intent === "correction" && (!out.analysis || emptyEstimate(out.analysis)) && input.focusMeal) {
+    // A correction's target: the meal in focus, or the one of today's meals the router's
+    // `mealIndex` names (#1347 — a chat send that names no meal). `resolveMeal` hands the resolved
+    // row's analysis and stored photos to the same correction call the focus path makes.
+    const mealIndex = typeof out.mealIndex === "number" && Number.isInteger(out.mealIndex) && out.mealIndex >= 0 && out.mealIndex < input.todayMeals.length
+      ? out.mealIndex : undefined;
+    const resolved = input.focusMeal === undefined && mealIndex !== undefined && input.resolveMeal !== undefined
+      ? await input.resolveMeal(mealIndex) : null;
+    const correctionFocus = input.focusMeal ?? resolved?.analysis;
+    if (out.intent === "correction" && (!out.analysis || emptyEstimate(out.analysis)) && correctionFocus) {
       // The stored photographs ride along as image parts, and ONLY here: the routing call above
       // runs on every text turn from a meal screen and must not pay for images. A meal with none
       // sends the plain string it always did.
-      const images = input.loadFocusImages ? await input.loadFocusImages() : [];
+      const images = input.loadFocusImages ? await input.loadFocusImages() : (resolved?.images ?? []);
       const correction = buildTextCorrectionText({
         text: input.text, profile: input.profile, targets: input.targets,
-        focusMeal: input.focusMeal,
+        focusMeal: correctionFocus,
         ...(input.question !== undefined ? { question: input.question } : {}),
         ...(images.length ? { photos: images.length } : {}),
       });
@@ -569,8 +577,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
         if (!out.analysis) break;
         return { intent: "meal", analysis: out.analysis, dayOffset: clampDayOffset(out.dayOffset) };
       case "correction":
-        if (!out.analysis || !input.focusMeal) break;
-        return { intent: "correction", analysis: out.analysis };
+        if (!out.analysis || (input.focusMeal === undefined && (mealIndex === undefined || resolved === null))) break;
+        return { intent: "correction", analysis: out.analysis, ...(input.focusMeal === undefined ? { mealIndex: mealIndex! } : {}) };
       case "redate":
         if (!input.focusMeal) break;
         return { intent: "redate", dayOffset: clampDayOffset(out.dayOffset) };

@@ -1640,7 +1640,15 @@ export type MealUpdateBody =
   | { kind: "ingredients"; edit: EditMealRequest }
   | { kind: "note"; text: string }
   | { kind: "reread" };
-export type MealUpdateRequest = { mealId: string; clientId: string; capturedAt?: string } & MealUpdateBody;
+/**
+ * A note with no `mealId` is a CHAT SEND (#1347): the job runs the same router `/v1/messages` does,
+ * and the message decides itself — a correction of the meal it means updates that meal, anything
+ * else is the proposal or the answer it would have been synchronously. The other kinds always
+ * name their meal.
+ */
+export type MealUpdateRequest =
+  | ({ mealId: string; clientId: string; capturedAt?: string } & MealUpdateBody)
+  | { kind: "note"; text: string; clientId: string; capturedAt?: string };
 /** A queued update's last line: what the same change answers when it is not queued. */
 export type MealUpdateLast = HandleTextResult | { kind: typeof OUTCOME_UNKNOWN };
 
@@ -1648,20 +1656,22 @@ export type MealUpdateLast = HandleTextResult | { kind: typeof OUTCOME_UNKNOWN }
 export function isMealUpdateRequest(body: unknown): body is MealUpdateRequest {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
   const b = body as Record<string, unknown>;
-  if (typeof b.mealId !== "string" || b.mealId === "" || b.mealId.length > MAX_CLIENT_ID) return false;
-  if (b.kind === "reread") return true;
-  if (b.kind === "note") return typeof b.text === "string" && b.text.trim() !== "" && b.text.length <= MAX_USER_LINE;
-  return b.kind === "ingredients" && isEditMealRequest(b.edit);
+  const mealOk = typeof b.mealId === "string" && b.mealId !== "" && b.mealId.length <= MAX_CLIENT_ID;
+  if (b.kind === "note") return (b.mealId === undefined || mealOk) && typeof b.text === "string" && b.text.trim() !== "" && b.text.length <= MAX_USER_LINE;
+  if (!mealOk) return false;
+  return b.kind === "reread" || (b.kind === "ingredients" && isEditMealRequest(b.edit));
 }
 
 /**
  * A queued photo or meal update (ieat-app#1318, #1347): one job shape for both. `running` carries
  * the step, its words in the account's language, and the foods found so far (name and grams only,
  * like the pending card); an update adds `update` — its kind, its meal and how many steps it has.
+ * A chat-sent note arrives with no meal: `update.mealId` is null until its router names one, and
+ * stays null when the message settles as a proposal or an answer rather than a correction.
  * `settled` the turn's own last line; `removed` a job the caller removed.
  */
 export type PhotoJob =
-  | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[]; update?: { kind: MealUpdateKind; mealId: string; steps: number } }
+  | { kind: "running"; jobId: string; step: PhotoJobStep; line: string; items: MealItem[]; update?: { kind: MealUpdateKind; mealId: string | null; steps: number } }
   | { kind: "settled"; jobId: string; result: PhotoLast | MealUpdateLast }
   | { kind: "removed"; jobId: string };
 

@@ -174,6 +174,20 @@ function jobs(name: string, make: () => Promise<Store>) {
       expect(next.jobs.map((x) => x.clientId)).not.toContain(all.jobs[0]!.clientId);
     });
 
+    it("binds a resolved meal under the lease, and only under it (#1347)", async () => {
+      const { s, userId } = await fresh();
+      const j = job();
+      const [a, b] = [`a-${crypto.randomUUID()}`, `b-${crypto.randomUUID()}`];
+      const mealId = crypto.randomUUID();
+      await s.enqueueJob(userId, j);
+      expect(await s.bindJobMeal(userId, j.clientId, a, mealId)).toBe(false);
+      await s.claimJob(a, REGISTRY, LEASE_MS);
+      expect(await s.bindJobMeal(userId, j.clientId, b, mealId)).toBe(false);
+      expect(await s.bindJobMeal(userId, j.clientId, a, mealId)).toBe(true);
+      expect((await s.getJob(userId, j.clientId))!.mealId).toBe(mealId);
+      expect(await s.settleJob(userId, j.clientId, a, { kind: "done" })).toBe(true);
+    });
+
     it("pushes once, and never for a removed or followed job", async () => {
       const { s, userId } = await fresh();
       const pushed = job(), removed = job(), followed = job();

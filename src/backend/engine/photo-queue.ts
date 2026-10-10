@@ -95,7 +95,8 @@ const HANDLERS: Record<JobKind, JobHandler> = {
   },
   "meal-update": {
     version: 1,
-    // One change at a time per meal (#1347): a second update on the same meal waits for the first.
+    // One change at a time per account (#1347): a meal-sent note's meal is only known mid-run,
+    // so the group is the account — a second update waits wherever its meal turns out to be.
     grouped: true,
     calls: (job) => (job.request as MealUpdateRequest).kind === "note" ? TEXT_MODEL_CALLS : PHOTO_MODEL_CALLS,
     // `ingredients` and `reread` overwrite the meal; a note writes chat lines that a second run would repeat.
@@ -105,7 +106,11 @@ const HANDLERS: Record<JobKind, JobHandler> = {
       // A dead attempt delivered nothing: its charge stays on the ledger, its sample is the user's again.
       if (job.attempts > 1 && job.analysisId !== null) await releaseSample(deps, userId, job.analysisId);
       const input = job.request as MealUpdateRequest;
-      const was = await deps.store.getMeal(userId, input.mealId);
+      // A CHAT-SENT note names no meal (#1347): the router's own context decides — the same read
+      // `/v1/messages` makes — and the meal it lands on is bound to the job mid-write so Home's row
+      // for it can stand in while the job runs.
+      const boundId = "mealId" in input ? input.mealId : undefined;
+      let was = boundId !== undefined ? await deps.store.getMeal(userId, boundId) : null;
       const to = (step: PhotoJobStep) => () => progress(step);
       const onCharged = async (id: string) => { if (!(await deps.store.chargeJob(userId, clientId, owner, id))) throw lost(); };
       let result: MealUpdateLast;
@@ -117,12 +122,27 @@ const HANDLERS: Record<JobKind, JobHandler> = {
         case "reread":
           result = await reanalyzeMeal(deps, userId, input.mealId, (e) => { if (e.kind === "item") to(2)(); }, to(3), onCharged);
           break;
-        case "note":
+        case "note": {
+          // For an unbound send, the turn's first `updateMeal` IS the router's answer landing —
+          // bind the job to that meal and keep the pre-write row for the push's "was → is".
+          const noteStore = boundId !== undefined ? deps.store : {
+            ...deps.store,
+            updateMeal: async (u: string, m: string, patch: Parameters<typeof deps.store.updateMeal>[2]) => {
+              if (was === null) {
+                const before = await deps.store.getMeal(u, m);
+                if (!(await deps.store.bindJobMeal(u, clientId, owner, m))) throw lost();
+                was = before;
+              }
+              return deps.store.updateMeal(u, m, patch);
+            },
+          };
           // The router's answer is step 2's start, the stored write step 3's.
           result = await textTurn({
-            ...deps, llm: after(deps.llm, "routeText", to(2)), store: after(deps.store, "updateMeal", to(3)),
-          }, userId, { text: input.text, focusMealId: input.mealId, clientId,
+            ...deps, llm: after(deps.llm, "routeText", to(2)), store: after(noteStore, "updateMeal", to(3)),
+          }, userId, { text: input.text, ...(boundId !== undefined ? { focusMealId: boundId } : {}), clientId,
             ...(input.capturedAt ? { capturedAt: input.capturedAt } : {}), job: { owner, lost } });
+          break;
+        }
       }
       return {
         result,
@@ -264,8 +284,11 @@ export async function queuePhoto(
 export async function queueMealUpdate(
   deps: EngineDeps, userId: string, input: MealUpdateRequest,
 ): Promise<PhotoQueuedResponse> {
+  // The whole ACCOUNT is the group (#1347), not the meal: a chat-sent note's meal is named by the
+  // router mid-run, so no enqueue-time meal key can hold it — and only one group an account has
+  // also stops that job from running beside a bound update on the meal it resolves to.
   const job = { clientId: input.clientId, kind: "meal-update", requestVersion: HANDLERS["meal-update"].version,
-    request: input, step: 1, photos: [], group: `${userId}:${input.mealId}` };
+    request: input, step: 1, photos: [], group: userId };
   if (await deps.store.enqueueJob(userId, job)) wake();
   return { kind: "queued", jobId: input.clientId };
 }
@@ -279,7 +302,8 @@ function snapshotOf(job: JobRecord, lang: Lang): PhotoJob {
   if (job.state === "settled") return { kind: "settled", jobId, result: (job.outcome ?? { kind: OUTCOME_UNKNOWN }) as Outcome };
   const step = job.step as PhotoJobStep;
   const r = job.request as MealUpdateRequest;
-  const update = job.kind === "meal-update" ? { kind: r.kind, mealId: r.mealId, steps: MEAL_UPDATE_STEPS[r.kind] } : null;
+  // A chat-sent note arrives unbound: the row reports the meal the router bound mid-run.
+  const update = job.kind === "meal-update" ? { kind: r.kind, mealId: ("mealId" in r ? r.mealId : null) ?? job.mealId, steps: MEAL_UPDATE_STEPS[r.kind] } : null;
   return {
     kind: "running", jobId, step, items: job.items as MealItem[],
     line: (update ? updateCopyFor(lang).steps[update.kind] : streamCopyFor(lang).queue)[step - 1]!,
