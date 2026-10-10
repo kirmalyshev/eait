@@ -139,8 +139,10 @@ export interface ChatCore {
   /**
    * A queued turn the outbox has sent (#708). A proposal is offered like a live one — the server
    * keeps no card for it — and the thread is read back for its words and anything said after them.
+   * `send` carries the words and id of a turn the core never saw — one that ran as a job (#1347):
+   * the live bubble lands first, so the page's stored line can seat this result under it.
    */
-  landed(result: HandleTextResult): Promise<void>;
+  landed(result: HandleTextResult, send?: { id: string; text: string }): Promise<void>;
   /**
    * Delete one of the user's own stored lines (#608). Resolves to the date whose meal went with
    * it — the caller refreshes that day — or null when only a line went, or nothing did.
@@ -657,7 +659,12 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
 
   const say = (text: string): void => push({ id: uid(), role: "assistant", result: { kind: "answered", text } });
 
-  const landed = async (result: HandleTextResult): Promise<void> => {
+  const landed = async (result: HandleTextResult, send?: { id: string; text: string }): Promise<void> => {
+    // A result whose SEND the core never saw — it ran as a job and only the outcome came back
+    // (#1347): the user's own words ride in with it, the bubble `send` itself would have drawn.
+    // The stored page supersedes it by clientId, and sitting right before this turn's entry is
+    // what seats the reconcile's keep of the answer and its chips.
+    if (send !== undefined) push({ id: send.id, role: "user", text: send.text });
     if ("mealId" in result) focusMealId = result.date === deps.today() ? result.mealId : null;
     if (result.kind === "proposed") {
       // The same rule as a live proposal (#360): one live estimate, and the older ones cancelled for
@@ -680,6 +687,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       deps.onAnswer?.();
       return;
     }
+    // The chips a live answer carries are not stored (#1229) — the entry is what `reconcilePage`
+    // keeps them from when the page's line for this turn lands. `send` pushes the same row.
+    if (result.kind === "answered") push({ id: uid(), role: "assistant", result });
     deps.onAnswer?.();
     await load(() => true);
   };

@@ -438,8 +438,9 @@ describe("hasLiveSuggestions", () => {
     expect(hasLiveSuggestions([])).toBe(false);
     expect(hasLiveSuggestions([spoke({ kind: "answered", text: "hi" })])).toBe(false);
     expect(hasLiveSuggestions([withChips([])])).toBe(false);
-    // A stored line never carried any, whatever its shape says.
-    expect(hasLiveSuggestions([{ id: "a1", role: "assistant", result: { kind: "answered", text: "hi", suggestions: ["x"] }, stored: true }])).toBe(false);
+    // A stored line only ever carries chips when the merge kept THIS turn's live result onto it
+    // (#1347, a send that ran as a job) — and that IS the live answer, so the chips stay.
+    expect(hasLiveSuggestions([{ id: "a1", role: "assistant", result: { kind: "answered", text: "hi", suggestions: ["x"] }, stored: true }])).toBe(true);
     // Once the user has sent again the row is gone.
     expect(hasLiveSuggestions([withChips(["x"]), { id: "u1", role: "user", text: "more" }])).toBe(false);
   });
