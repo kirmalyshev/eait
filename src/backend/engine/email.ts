@@ -86,7 +86,7 @@ export async function sendEmailCode(
     email,
     await hashToken(code),
     Date.now() + EMAIL_CODE_TTL_MS,
-    { perHour: deps.config.emailCodesPerHour, resendSec: EMAIL_RESEND_SEC },
+    { perHour: deps.config.emailCodesPerHour, perDay: deps.config.emailCodesPerDay, resendSec: EMAIL_RESEND_SEC },
   );
   if (wait !== null) return wait;
   await deps.mail.sendSignInCode(email, code, lang);

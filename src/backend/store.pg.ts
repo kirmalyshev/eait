@@ -3124,10 +3124,15 @@ export async function postgresStore(
           select count(*)::int as n, min(created_at) as first_sent, max(created_at) as last_sent
             from email_codes
            where email = ${email} and created_at > now() - interval '1 hour'
+        ), today as (
+          select count(*)::int as n, min(created_at) as first_sent
+            from email_codes
+           where email = ${email} and created_at > now() - interval '1 day'
         ), ins as (
           insert into email_codes (id, email, code_hash, expires_at)
           select ${crypto.randomUUID()}, ${email}, ${codeHash}, ${new Date(expiresAt)}
            where (${limits.perHour} <= 0 or (select n from prior) < ${limits.perHour})
+             and (${limits.perDay} <= 0 or (select n from today) < ${limits.perDay})
              and ((select last_sent from prior) is null
                   or (select last_sent from prior) <= now() - make_interval(secs => ${limits.resendSec}))
           returning email
@@ -3141,6 +3146,9 @@ export async function postgresStore(
                greatest(
                  case when ${limits.perHour} > 0 and (select n from prior) >= ${limits.perHour}
                       then ceil(extract(epoch from ((select first_sent from prior) + interval '1 hour' - now())))
+                      else 0 end,
+                 case when ${limits.perDay} > 0 and (select n from today) >= ${limits.perDay}
+                      then ceil(extract(epoch from ((select first_sent from today) + interval '1 day' - now())))
                       else 0 end,
                  ceil(extract(epoch from ((select last_sent from prior) + make_interval(secs => ${limits.resendSec}) - now())))
                )::int as wait_s`;

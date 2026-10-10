@@ -882,7 +882,7 @@ export interface Store {
     email: string,
     codeHash: string,
     expiresAt: number,
-    limits: { perHour: number; resendSec: number },
+    limits: { perHour: number; perDay: number; resendSec: number },
   ): Promise<number | null>;
 
   /**

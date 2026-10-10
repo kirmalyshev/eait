@@ -479,6 +479,12 @@ export interface Config {
    * bound cannot stop one network mailing one mailbox, and this is what can. Zero disables it.
    */
   emailCodesPerHour: number;
+  /**
+   * Sign-in code sends per recipient per day. The hourly cap alone still lets one inbox be guessed
+   * at 25 tries an hour forever (five sends, five tries each); this bounds the sustained rate. Zero
+   * disables it.
+   */
+  emailCodesPerDay: number;
 
 }
 
@@ -656,6 +662,7 @@ export function configDefaults(): Config {
     resendApiKey: "",
     mailFrom: "eait <login@eait.fit>",
     emailCodesPerHour: 5,
+    emailCodesPerDay: 10,
   };
 }
 
@@ -841,6 +848,7 @@ export function loadConfig(): Config {
     resendApiKey,
     mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
     emailCodesPerHour: int("EAIT__BACKEND__EMAIL_CODES_PER_HOUR", d.emailCodesPerHour),
+    emailCodesPerDay: int("EAIT__BACKEND__EMAIL_CODES_PER_DAY", d.emailCodesPerDay),
   };
 }
 
