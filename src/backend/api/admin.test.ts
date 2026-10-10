@@ -1073,14 +1073,26 @@ describe("the admin's test push (ieat-app#1765)", () => {
     return userId;
   }
 
-  it("sends once, then refuses the same local day with the reason and who holds it", async () => {
+  it("sends once, then refuses the same local day with the reason", async () => {
     const userId = await withDevice();
     const first = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
     expect(first.status).toBe(200);
     expect(await first.json()).toEqual({ ok: true, sent: 1 });
     const second = await admin("POST", `/admin/api/users/${userId}/push-test`, {});
     expect(second.status).toBe(409);
-    expect(await second.json()).toEqual({ ok: false, reason: "slot-taken", heldBy: "campaign" });
+    expect(await second.json()).toEqual({ ok: false, reason: "slot-taken" });
+  });
+
+  it("sets, reads back in the account list, and clears the account's own push bound", async () => {
+    const userId = await withDevice();
+    const set = await admin("PUT", `/admin/api/users/${userId}/push-cap`, { pushDailyMax: 1 });
+    expect(await set.json()).toEqual({ pushDailyMax: 1 });
+    expect(await store.getPushDailyMax(userId)).toBe(1);
+    expect((await admin("PUT", `/admin/api/users/${userId}/push-cap`, { pushDailyMax: 1.5 })).status).toBe(422);
+    expect((await admin("PUT", `/admin/api/users/${userId}/push-cap`, { pushDailyMax: -1 })).status).toBe(422);
+    expect((await admin("PUT", `/admin/api/users/${crypto.randomUUID()}/push-cap`, { pushDailyMax: 1 })).status).toBe(404);
+    expect((await (await admin("PUT", `/admin/api/users/${userId}/push-cap`, { pushDailyMax: null })).json())).toEqual({ pushDailyMax: null });
+    expect(await store.getPushDailyMax(userId)).toBeNull();
   });
 
   describe("with a target screen (ieat-app#1848)", () => {

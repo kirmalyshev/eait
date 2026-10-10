@@ -635,6 +635,14 @@ details.how p { margin-top: 8px; }
                   <button class="primary" id="cap-save">Save</button>
                 </div>
               </div>
+              <div class="sect">
+                <b>Pushes a day</b>
+                <p class="muted" id="pushmax-status">The most this account is sent in one local day, across every sender. Empty: no limit.</p>
+                <div class="row">
+                  <input type="text" id="pushmax-n" inputmode="numeric" placeholder="no limit" aria-label="Pushes a day">
+                  <button class="primary" id="pushmax-save">Save</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2486,6 +2494,7 @@ details.how p { margin-top: 8px; }
     paintStaff(s.staff);
     $("staff-error").classList.add("hidden");
     showCap(cap);
+    $("pushmax-n").value = sel.pushDailyMax === null || sel.pushDailyMax === undefined ? "" : String(sel.pushDailyMax);
   }
 
   function loadProfile() {
@@ -2563,6 +2572,14 @@ details.how p { margin-top: 8px; }
       .then(function (c) { if (sel === u) showCap(c, "saved — "); }).catch(function (e) { if (sel === u) capFailed(e); });
   });
 
+  $("pushmax-save").addEventListener("click", function () {
+    var u = sel;
+    var raw = $("pushmax-n").value.trim();
+    api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/push-cap", { pushDailyMax: raw === "" ? null : Number(raw) })
+      .then(function (r) { u.pushDailyMax = r.pushDailyMax; if (sel === u) $("pushmax-status").textContent = "saved — " + (r.pushDailyMax === null ? "no limit" : r.pushDailyMax + " a day"); })
+      .catch(function (e) { if (sel === u) $("pushmax-status").textContent = "failed: " + e.message; });
+  });
+
   // ── The push composer ──────────────────────────────────────────────────────────────────────
 
   function showPicked() {
@@ -2618,7 +2635,7 @@ details.how p { margin-top: 8px; }
       var list = $("composer-results"); list.textContent = "";
       r.results.forEach(function (x) {
         var li = document.createElement("li");
-        li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped + (x.heldBy ? " (held by " + x.heldBy + ")" : "") : "sent to " + x.sent + " device(s)");
+        li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped : "sent to " + x.sent + " device(s)");
         list.appendChild(li);
       });
     }).catch(function (e) { say("failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message)); });

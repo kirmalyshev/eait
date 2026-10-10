@@ -145,14 +145,13 @@ describe("the 20:30 line", () => {
   });
 });
 
-describe("R1's budget — one message a day", () => {
-  it("stays silent on the trial's reminder day: the device sends that one", async () => {
+describe("the trial's reminder day (ieat-app#1965)", () => {
+  it("is no longer silent on the server: the phone's reminder and the evening line both go", async () => {
     const userId = await onboard();
-    // A trial expiring on the 22nd puts the one reminder on the 21st — the day before, no second
-    // one (ieat-app#1591). The 20th is an ordinary evening again.
+    // A trial expiring on the 22nd puts the phone's one reminder on the 21st (ieat-app#1591).
     await entitle(userId, "2026-08-22T10:00:00Z", true);
     await logMeal(userId, DAY, 900, 30);
-    expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
+    expect((await dailyNotification(deps, userId, "2026-08-21", NOW))?.id).toBe("evening");
     expect((await dailyNotification(deps, userId, "2026-08-20", NOW))?.id).toBe("evening");
   });
 
@@ -161,16 +160,6 @@ describe("R1's budget — one message a day", () => {
     await entitle(userId, "2026-08-22T10:00:00Z", true);
     const out = await dailyNotification(deps, userId, "2026-08-19", NOW);
     expect(out?.id).toBe("evening");
-  });
-
-  it("moves the reminder out of the way when the trial converts", async () => {
-    const userId = await onboard();
-    await entitle(userId, "2026-08-22T10:00:00Z", true);
-    expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
-    // The webhook writes a year's expiry. Nothing is cancelled anywhere: the reminder day is
-    // recomputed from the new expiry and today stops being it.
-    await entitle(userId, "2027-08-22T10:00:00Z");
-    expect((await dailyNotification(deps, userId, "2026-08-21", NOW))?.id).toBe("evening");
   });
 
   it("falls back to the nudge once a cancelled trial has actually lapsed (#730)", async () => {
@@ -198,8 +187,8 @@ describe("a subscription is not a trial", () => {
   it("sends the evening line on the two days before a yearly renewal", async () => {
     const userId = await onboard();
     await entitle(userId, "2026-08-22T10:00:00Z", true);
-    // The trial: silent on the 21st, because the phone speaks.
-    expect(await dailyNotification(deps, userId, "2026-08-21", NOW)).toBeNull();
+    // The trial's reminder day is not silent either (ieat-app#1965).
+    expect((await dailyNotification(deps, userId, "2026-08-21", NOW))?.id).toBe("evening");
 
     const renewing = await onboard();
     // A year out, two days before the renewal DATE by the same arithmetic. It is not a trial end,

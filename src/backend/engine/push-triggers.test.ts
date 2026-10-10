@@ -7,7 +7,7 @@ import { logMail } from "../mail/log.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
-import { instantOf, pushTick, sendTestPush, TEST_PUSH_DAILY_CAP } from "./notify.ts";
+import { instantOf, pushTick, sendTestPush, TEST_PUSH_DAILY_CAP, zoneOf } from "./notify.ts";
 
 const ZONE = "Europe/Berlin";
 const CONFIG: Config = {
@@ -133,14 +133,25 @@ describe("streak-at-risk trigger", () => {
     expect(await lastLog(userId)).not.toMatchObject({ templateKey: "streak-risk" });
   });
 
-  it("a slot already taken that day means nothing is sent", async () => {
+  it("a scheduled message already claimed that day means no second one from the tick", async () => {
+    const userId = await account();
+    const tonight = 10;
+    for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(tonight - k)));
+    const zone = zoneOf(deps, await store.timezoneOf(userId));
+    expect(await store.claimPushSlot(userId, localDate(zone, new Date(evening(tonight))), "evening", "evening"))
+      .toEqual({ claimed: true });
+    await pushTick(deps, { now: evening(tonight) });
+    expect(push.sent).toHaveLength(0);
+  });
+
+  it("the admin test push is a different sender: the tick's message goes alongside it", async () => {
     const userId = await account();
     const tonight = 10;
     for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(tonight - k)));
     expect(await sendTestPush(deps, userId, evening(tonight))).toMatchObject({ ok: true });
     push.sent.length = 0;
     await pushTick(deps, { now: evening(tonight) });
-    expect(push.sent).toHaveLength(0);
+    expect(push.sent).toHaveLength(1);
   });
 
   it("two at-risk evenings within a week use different variants", async () => {
@@ -156,29 +167,28 @@ describe("streak-at-risk trigger", () => {
   });
 });
 
-describe("the trial-ends day outranks both triggers", () => {
+describe("the trial-ends day is not silent on the server", () => {
   const trialEndingAfter = (userId: string, n: number) =>
     store.putEntitlement(userId, {
       expiresAt: `${dateMinus(TODAY, -(n + 1))}T10:00:00.000Z`, productId: "com.eait.fit.ios.yearly",
       trial: true, eventAt: new Date().toISOString(),
     });
 
-  it("onboarding day 1/3/7 on the reminder day sends nothing: the slot is `trial`", async () => {
+  it("onboarding day 1/3/7 on the reminder day still sends its push", async () => {
     for (const n of [1, 3, 7]) {
       const userId = await account();
       await trialEndingAfter(userId, n);
       await pushTick(deps, { now: evening(n) });
-      expect(await store.sendLogFor(userId, 5), `day ${n}`).toHaveLength(0);
-      expect(await sendTestPush(deps, userId, evening(n))).toEqual({ ok: false, reason: "slot-taken", heldBy: "trial" });
+      expect(await store.sendLogFor(userId, 5), `day ${n}`).toHaveLength(1);
     }
   });
 
-  it("a streak at risk on the reminder day sends nothing", async () => {
+  it("a streak at risk on the reminder day sends the streak push", async () => {
     const userId = await account();
     for (const k of [1, 2, 3]) await logOn(userId, dateMinus(TODAY, -(10 - k)));
     await trialEndingAfter(userId, 10);
     await pushTick(deps, { now: evening(10) });
-    expect(push.sent).toHaveLength(0);
+    expect(push.sent).toHaveLength(1);
   });
 });
 

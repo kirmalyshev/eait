@@ -4,18 +4,18 @@
 // The runner is called by the per-minute push tick AFTER the evening sweep, and every guard it needs
 // lives in a store statement or an allowlist, never in a read it did first:
 //
-//   - THE SLOT. A campaign claims the same `push_slot` as every other sender (kind `campaign`, the
-//     lowest rank). It claims BEFORE it records the account as handed the campaign, so an account
-//     whose day was taken is not marked done: it is tried again the next local day, inside the window.
-//   - ONCE PER ACCOUNT. `campaign_send` is a primary key, claimed after the slot, before the send.
+//   - THE CLAIM. A campaign claims its own sender in `push_claim` through `claimSend`, so another
+//     sender going first never refuses it; only the account's `push_daily_max` can (`account-cap`). It
+//     claims BEFORE it records the account as handed the campaign, so a refused account is not marked
+//     done: it is tried again the next local day, inside the window.
+//   - ONCE PER ACCOUNT. `campaign_send` is a primary key, claimed after the claim, before the send.
 //   - THE KILL SWITCHES are re-read before EVERY account, not once per batch, so a flip stops a run
 //     between two sends. The global one is a row; the per-campaign one is the campaign's own status.
 //   - THE TEMPLATE is the campaign's OWN copy (`campaign:<slug>`, eight languages, reviewed, no
 //     placeholders) and is re-checked each batch: a language edited back to draft after activation
 //     stops the sends rather than putting half a translated set on lock screens.
 //   - A STREAK IS NEVER INTERRUPTED. An account with a streak of CAMPAIGN_STREAK_GUARD_DAYS or more
-//     is never reached, a hard rule and not a segment predicate. A campaign may take the day from
-//     the plain evening line or nudge (that day the campaign IS the message), never from the habit line.
+//     is never reached, a hard rule and not a segment predicate.
 //   - PROMOTIONAL campaigns reach only accounts that turned "tips and offers" on in the app
 //     (`push_offers_at`, read in `factsFor`; the sign-up box is a different consent). The in-app
 //     toggle has not shipped, so activation of a promotional campaign stays refused until it does.
@@ -31,7 +31,7 @@ import {
 } from "@eait/shared";
 import type { CampaignReport, CampaignRow } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
-import { CATCH_UP_MS, instantOf, isStaffAccount, sendLogged, zoneOf } from "./notify.ts";
+import { CATCH_UP_MS, claimSend, instantOf, isStaffAccount, sendLogged, sendRoom, zoneOf } from "./notify.ts";
 import { campaignWords } from "./push-templates.ts";
 import { pushDevices, pushOffersAllowed } from "./push-consent.ts";
 
@@ -231,14 +231,14 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
         const devices = await pushDevices(deps, userId);
         if (devices.length === 0) continue;
 
-        // THE HOLDOUT: due, in the segment, and kept out on purpose. It claims no slot, so the day's
-        // message stays free for another sender, and it is logged once (the same once-per-account
+        // THE HOLDOUT: due, in the segment, and kept out on purpose. It claims nothing, so the account's
+        // bound stays free for another sender, and it is logged once (the same once-per-account
         // claim) so the report has a control group with a send time to measure from.
         if (inHoldout(userId, c.id, c.holdoutPct)) {
-          // Only on a day a treated account COULD have been sent: its slot is read, never claimed. If
-          // another sender holds the day, skip without recording anything, so it is retried exactly
+          // Only on a day a treated account COULD have been sent: its claim is read, never taken. If
+          // the claim would lose (sender-taken or the account's cap), skip without recording anything, so it is retried exactly
           // like a treated account, and the control group never includes a day nobody would have sent.
-          if (await deps.store.pushSlotOf(userId, date)) { out.slotTaken++; continue; }
+          if (!await sendRoom(deps, userId, date, "campaign", c.id)) { out.slotTaken++; continue; }
           if (await deps.store.claimCampaignSend(userId, c.id)) {
             await deps.store.createSend(userId, {
               id: crypto.randomUUID(), kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: facts.lang,
@@ -249,7 +249,7 @@ export async function runCampaigns(deps: EngineDeps, opts: { now?: number } = {}
           continue;
         }
 
-        const slot = await deps.store.claimPushSlot(userId, date, "campaign" satisfies PushKind, c.id);
+        const slot = await claimSend(deps, userId, date, "campaign" satisfies PushKind, c.id);
         if (!slot.claimed) { out.slotTaken++; continue; }
         if (!(await deps.store.claimCampaignSend(userId, c.id))) continue;
         await deps.store.markCampaignRunning(c.id);
@@ -310,10 +310,10 @@ export async function dryRunCampaign(deps: EngineDeps, id: string, opts: { now?:
 export type CampaignTestResult =
   | { ok: true; sent: number }
   | { ok: false; reason: "no-such-campaign" | "not-staff" | "no-device" | "template-incomplete" }
-  | { ok: false; reason: "slot-taken"; heldBy: PushKind };
+  | { ok: false; reason: "slot-taken" | "account-cap" };
 
 /**
- * Send the campaign's words to ONE staff account. It goes through the slot like any sender, so the
+ * Send the campaign's words to ONE staff account. It claims as the campaign's own sender, so the
  * real send the same local day is refused by it; it records no `campaign_send`, and its rows carry
  * `variant: "test"` so the report keeps them apart.
  */
@@ -326,13 +326,13 @@ export async function testSendCampaign(
   const devices = await pushDevices(deps, userId);
   const profile = await deps.store.getProfile(userId);
   if (devices.length === 0 || !profile) return { ok: false, reason: "no-device" };
-  // Before the slot: a refused template must not spend the day's one message.
+  // Before the claim: a refused template must not spend the account's bound.
   const variant = CAMPAIGN_VARIANTS[variantOf(userId, c.id, c.variants)]!;
   const words = await campaignWords(deps, c.templateKey, profile.lang as Lang, variant, c.variants);
   if (!words) return { ok: false, reason: "template-incomplete" };
   const zone = zoneOf(deps, await deps.store.timezoneOf(userId));
-  const claim = await deps.store.claimPushSlot(userId, localDate(zone, new Date(now)), "campaign", c.id);
-  if (!claim.claimed) return { ok: false, reason: "slot-taken", heldBy: claim.heldBy };
+  const claim = await claimSend(deps, userId, localDate(zone, new Date(now)), "campaign", c.id);
+  if (!claim.claimed) return { ok: false, reason: claim.reason === "account-cap" ? "account-cap" : "slot-taken" };
   const out = await sendLogged(
     deps, userId, devices,
     { kind: "campaign", ref: c.id, templateKey: c.templateKey, lang: profile.lang, variant: "test" },
