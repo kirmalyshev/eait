@@ -23,7 +23,7 @@
  * so the policy on the response is `default-src 'none'` with a per-request nonce and NO
  * `'unsafe-inline'` — and a nonce cannot come from a constant.
  */
-import { ADMIN_PUSH_MAX_RECIPIENTS, PUSH_ROUTES } from "@eait/shared";
+import { ADMIN_PUSH_MAX_RECIPIENTS, LANG_LABEL, PUSH_ROUTES } from "@eait/shared";
 import { fontFaces } from "@eait/shared/design";
 import { lightVars } from "@eait/shared/palette";
 import { brandSvg } from "@eait/shared/ui/icons";
@@ -230,6 +230,61 @@ img.shot { max-width: min(260px, 100%); border-radius: 8px; margin: 8px 8px 0 0;
 }
 pre { overflow-x: auto; max-width: 100%; }
 
+/* ── Accounts: the list, and the pane that opens beside it (a second screen on a phone) ── */
+.split { display: flex; gap: 16px; align-items: flex-start; }
+.split > .acol { flex: 1; min-width: 0; }
+.sbar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--hair); }
+.sbar input { flex: 1; }
+.foot { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--hair); font-size: 12px; color: var(--muted); }
+.foot.flat { padding: 10px 0 0; border-top: 0; }
+.foot .grow { flex: 1; }
+.card.flush > .astate { border: 0; }
+#users input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
+#users tbody tr.on td { background: var(--accent-tint); }
+.apane {
+  flex: 0 0 420px; width: 420px; background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
+  overflow: hidden; position: sticky; top: 12px; min-width: 0;
+}
+.apane > .ph { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--hair); }
+.apane > .ph .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.apane > .ph b { font-size: 15px; }
+.apane > .pb { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.amono { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.aseg { display: inline-flex; align-self: flex-start; max-width: 100%; padding: 2px; border-radius: 9px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair); }
+.aseg button { height: 28px; padding: 0 10px; border-radius: 7px; background: transparent; box-shadow: none; font-size: 12px; color: var(--muted); }
+.aseg button:hover { box-shadow: none; color: var(--ink); }
+.aseg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(23,25,28,.08); }
+.tab { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.kvs { display: flex; flex-direction: column; gap: 6px; }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.kv > span:last-child { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.sect { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--hair); padding-top: 10px; margin-top: 10px; }
+.sect.kv { flex-direction: row; }
+.sect p { margin: 0; }
+.sect .row { margin: 0; }
+.muted.warn { color: var(--warn); margin: 0; font-size: 12px; }
+button.quiet { box-shadow: none; color: var(--muted); }
+.ahead .back { margin-left: auto; }
+.asw { width: 34px; height: 20px; padding: 0; border-radius: 10px; background: var(--line); box-shadow: none; position: relative; flex: 0 0 34px; }
+.asw:hover { box-shadow: none; }
+.asw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.asw.on { background: var(--accent); }
+.asw.on::after { left: 16px; }
+.btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+#composer .result { background: var(--accent-tint); color: var(--accent); border-radius: var(--r-ctl); padding: 10px 14px; margin: 10px 0 0; font-weight: 500; }
+#composer ul { margin: 8px 0 0; padding-left: 18px; font-size: 12px; }
+#composer p.muted { margin: 8px 0 0; font-size: 12px; }
+.ascrim { position: fixed; inset: 0; background: rgba(23,25,28,.36); z-index: 5; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.adlg { background: var(--surface); border-radius: 14px; padding: 20px; width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px -20px rgba(23,25,28,.4); }
+.adlg h2 { margin: 0; font-size: 17px; }
+.adlg p { margin: 0; }
+@media (max-width: 760px) {
+  .split { flex-direction: column; align-items: stretch; }
+  .apane { flex: 0 0 auto; width: auto; position: static; }
+  .split.open > .acol { display: none; }
+  #pane-close { display: none; }
+}
+
 /* The save bar belongs to the onboarding copy and sits at the foot of that view alone. */
 .bar {
   position: sticky; bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: flex-end;
@@ -298,7 +353,7 @@ pre { overflow-x: auto; max-width: 100%; }
   </div>
 
   <div class="amain">
-    <div class="ahead"><h1 id="view-title">Numbers</h1></div>
+    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button></div>
     <div class="abody">
 
 <!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
@@ -411,100 +466,134 @@ pre { overflow-x: auto; max-width: 100%; }
 <section class="view hidden" id="view-accounts">
   <div id="state-accounts"></div>
   <div class="vbody hidden" id="body-accounts">
-    <p class="muted">
-      <strong>These are real people.</strong> Every row is somebody's account and the address they
-      signed in with. Read it to answer a question somebody asked you, and close it afterwards.
-      Search takes a whole email address or the beginning of a user id — nothing else matches.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="users-q" placeholder="email address, or the start of a user id"
-               autocomplete="off" spellcheck="false">
-        <button id="users-search">Search</button>
+    <div class="split" id="split">
+      <div class="acol">
+        <div class="card flush">
+          <div class="sbar">
+            <input type="text" id="users-q" placeholder="email address, or the start of a user id"
+                   autocomplete="off" spellcheck="false" aria-label="Search accounts">
+            <button id="users-search">Search</button>
+          </div>
+          <div class="scrollx" id="users-wrap"><table id="users">
+            <thead>
+              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Sample</th><th class="r">Today</th><th class="r">Last seen</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table></div>
+          <div class="astate hidden" id="users-empty"><b id="users-empty-title"></b><span id="users-empty-note"></span></div>
+          <div class="foot hidden" id="users-foot">
+            <span id="users-status"></span>
+            <span class="grow"></span>
+            <button class="small hidden" id="users-more">Load more</button>
+          </div>
+        </div>
       </div>
-      <p class="muted" id="users-status"></p>
-    </div>
-    <div class="card" id="composer">
-      <strong>Send a push</strong>
-      <p class="muted" id="composer-count">Tick accounts below.</p>
-      <div class="row">
-        <select id="composer-template"></select>
-        <select id="composer-route"></select>
-        <button class="primary" id="composer-send">Send</button>
-      </div>
-      <div class="row">
-        <select id="composer-test-route"></select>
-        <button id="composer-test">Send test push to the one picked account</button>
-      </div>
-      <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
-      <p class="muted" id="composer-status"></p>
-      <ul id="composer-results"></ul>
-    </div>
-    <div class="card flush"><div class="scrollx"><table id="users">
-      <thead>
-        <tr><th>Push</th><th>Staff</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <p>
-      <button id="users-more" class="hidden">Load more</button>
-    </p>
 
-    <h2>Thread <span class="chip n" id="chat-who"></span></h2>
-    <p class="muted">
-      <strong>This is somebody's conversation, and onboarding collects medical free text.</strong>
-      Read it to answer a question about a reply that was wrong, and nothing else. It is what they
-      saw, rendered the way their app renders it. There is no way to write here, deliberately.
-    </p>
-    <div class="card">
-      <div id="chat"></div>
-      <p>
-        <button id="chat-older" class="hidden">Older</button>
-        <span class="status" id="chat-status">Choose an account above.</span>
-      </p>
-    </div>
+      <aside class="apane hidden" id="pane" aria-label="Account">
+        <div class="ph">
+          <span class="t"><b id="pane-name"></b><br><span class="amono muted" id="pane-id"></span></span>
+          <button class="small quiet" id="pane-close">Close</button>
+        </div>
+        <div class="pb">
+          <span class="aseg" id="tabs">
+            <button class="on" data-tab="profile">Profile</button>
+            <button data-tab="thread">Thread</button>
+            <button data-tab="diary">Diary</button>
+            <button data-tab="push">Send a push</button>
+          </span>
 
-    <h2>Diary <span class="chip n" id="diary-who"></span></h2>
-    <p class="muted">
-      <strong>This shows a real person's photographs and what they ate.</strong> It is here so that
-      "the analysis was wrong" can be answered, and for nothing else. Choose an account above; a meal
-      row opens the pictures behind it.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-        <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
-        <button id="diary-load">Load</button>
-      </div>
-      <p class="muted" id="diary-status">Choose an account above.</p>
-    </div>
-    <div class="card flush"><div class="scrollx"><table id="diary">
-      <thead>
-        <tr><th>When</th><th>What</th><th>kcal</th><th>Verdicts</th><th>Model</th><th>Confidence</th><th>Photos</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table></div></div>
-    <div id="photos"></div>
+          <div id="tab-profile" class="tab">
+            <div id="pane-state"></div>
+            <div class="hidden" id="pane-body">
+              <div class="kvs">
+                <div class="kv"><span class="muted">Signed up</span><span id="p-signup"></span></div>
+                <div class="kv"><span class="muted">Plan</span><span id="p-plan"></span></div>
+                <div class="kv"><span class="muted">Language</span><span id="p-lang"></span></div>
+                <div class="kv"><span class="muted">Subscription</span><span class="chip n" id="p-sub"></span></div>
+                <div class="kv"><span class="muted">Streak</span><span id="p-streak"></span></div>
+              </div>
+              <div class="kv sect">
+                <span><b>Staff</b><br><span class="muted">Can open /admin and receive test pushes</span></span>
+                <button class="asw" id="staff-switch" role="switch" aria-checked="false" aria-label="Staff"></button>
+              </div>
+              <p class="aerr hidden" id="staff-error"></p>
+              <div class="sect">
+                <b>Analyses before the paywall</b>
+                <p class="muted" id="cap-status"></p>
+                <div class="row">
+                  <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default" aria-label="Analyses before the paywall">
+                  <button class="primary" id="cap-save">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <h2>Per-account sample</h2>
-    <p class="muted">
-      How many analyses ONE account gets before the paywall, instead of the instance default. Save with
-      the box empty to put the account back on the default.
-    </p>
-    <div class="card">
-      <div class="row">
-        <input type="text" id="cap-user" placeholder="user id" autocomplete="off" spellcheck="false">
-        <button id="cap-load">Load</button>
-      </div>
-      <label for="cap-n">Analyses before the paywall</label>
-      <div class="row">
-        <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default">
-        <button class="primary" id="cap-save">Save</button>
-      </div>
-      <p class="muted" id="cap-status"></p>
+          <div id="tab-thread" class="tab hidden">
+            <p class="muted warn">Medical free text: read only what the question needs. There is no way to write here, deliberately.</p>
+            <div id="thread-state"></div>
+            <div class="hidden" id="thread-body">
+              <div id="chat"></div>
+              <div class="foot flat">
+                <span id="chat-status"></span>
+                <span class="grow"></span>
+                <button class="small hidden" id="chat-older">Older</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-diary" class="tab hidden">
+            <div id="diary-state"></div>
+            <div class="hidden" id="diary-body">
+              <div class="row">
+                <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false" aria-label="From">
+                <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false" aria-label="To">
+                <button id="diary-load">Load</button>
+              </div>
+              <div class="card flush"><div class="scrollx"><table id="diary">
+                <thead>
+                  <tr><th>When</th><th>What</th><th class="r">kcal</th><th class="r">Photos</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table></div></div>
+              <p class="muted" id="diary-status"></p>
+              <div id="photos"></div>
+            </div>
+          </div>
+
+          <div id="tab-push" class="tab hidden">
+            <div id="composer">
+              <label for="composer-template">Template</label>
+              <select id="composer-template"></select>
+              <label for="composer-route">Opens</label>
+              <select id="composer-route"></select>
+              <label for="composer-image">Image</label>
+              <input type="text" id="composer-image" placeholder="optional image URL on this server's own host" autocomplete="off" spellcheck="false">
+              <div class="btns">
+                <button id="composer-test">Send test push</button>
+                <button class="primary" id="composer-send">Send</button>
+              </div>
+              <p class="result hidden" id="composer-status"></p>
+              <ul id="composer-results"></ul>
+              <p class="muted" id="composer-count"></p>
+              <p class="muted">A test goes to this account only and needs it to be staff. Send goes to the ticked accounts and skips those with tips and offers off.</p>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   </div>
 </section>
+
+<div class="ascrim hidden" id="confirm">
+  <div class="adlg" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title"></h2>
+    <p class="muted" id="confirm-text"></p>
+    <div class="btns">
+      <button id="confirm-cancel">Cancel</button>
+      <button class="primary" id="confirm-ok"></button>
+    </div>
+  </div>
+</div>
 
 <section class="view hidden" id="view-onboarding">
   <div id="state-onboarding"></div>
@@ -1606,40 +1695,26 @@ pre { overflow-x: auto; max-width: 100%; }
     return api("GET", "/admin/api/switches").then(renderSwitches);
   }
 
-  // ── Per-account sample ─────────────────────────────────────────────────────────────────────
-
-  function capPath() {
-    return "/admin/api/users/" + encodeURIComponent($("cap-user").value.trim()) + "/cap";
-  }
-  function capFailed(e) {
-    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0])
-      || (e.status === 404 ? "No such account." : "failed: " + e.message);
-  }
-  function showCap(c, prefix) {
-    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
-    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
-      + (c.freeAnalyses === null ? " (instance default)" : "");
-  }
-  $("cap-load").addEventListener("click", function () {
-    api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
-  });
-  $("cap-save").addEventListener("click", function () {
-    var raw = $("cap-n").value.trim();
-    api("PUT", capPath(), { freeAnalyses: raw === "" ? null : Number(raw) })
-      .then(function (c) { showCap(c, "saved — "); }).catch(capFailed);
-  });
-
-  // ── Accounts (#374) ────────────────────────────────────────────────────────────────────────
+  // ── Accounts (#374, #571) ──────────────────────────────────────────────────────────────────
   //
   // A READ, and the widest one in the product: every account, with the address on it. The server
   // checks the role on every request under /admin, so nothing here is a permission — it is a table.
-  //
-  // Every value reaches the DOM through textContent, like everything else on this page. An address
-  // somebody typed at a provider is still somebody's text.
+  // A row opens the detail pane: profile (with the staff switch and the per-account sample),
+  // thread, diary, and the push composer. Every value reaches the DOM through textContent: an
+  // address somebody typed at a provider is still somebody's text.
 
   var usersCursor = null;
+  var sel = null;            // the account whose pane is open
+  var loadedTab = {};        // tab -> user id it was last loaded for
+  var tab = "profile";
+  var picked = new Map();    // ticked rows: user id -> pushOffers
+  var langLabel = ${JSON.stringify(LANG_LABEL)};
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var provNames = { apple: "Apple", google: "Google" };
 
   function shortId(id) { return id.slice(0, 8); }
+  function dmon(iso) { var d = iso.slice(0, 10).split("-"); return Number(d[2]) + " " + months[Number(d[1]) - 1]; }
+  function via(u) { return (u.providers || []).map(function (p) { return provNames[p] || p; }).join(", ") || "—"; }
 
   function ago(iso) {
     if (!iso) return "never";
@@ -1649,23 +1724,214 @@ pre { overflow-x: auto; max-width: 100%; }
     return days + "d ago";
   }
 
-  var picked = new Map();
-  function showPicked() {
-    $("composer-count").textContent = picked.size + " account(s) picked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
+  // The Paid chip and the Subscription line say the same thing, so one function says it.
+  function paidOf(u) {
+    if (u.entitled) {
+      var trial = !!(u.entitlement && u.entitlement.trial);
+      var ends = u.entitlement && u.entitlement.expiresAt && !u.entitlement.lifetimeProductId
+        ? " · ends " + dmon(u.entitlement.expiresAt) : "";
+      return { cls: trial ? "w" : "g", text: trial ? "trial" : "paid", long: (trial ? "trial" : "paid") + ends };
+    }
+    var t = u.onboardedAt ? "free" : "not onboarded";
+    return { cls: "n", text: t, long: t };
   }
-  var none = document.createElement("option"); none.value = ""; none.textContent = "no target"; $("composer-test-route").appendChild(none);
-  ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
-    ["composer-route", "composer-test-route"].forEach(function (id) {
-      var o = document.createElement("option"); o.value = r; o.textContent = "opens " + r; $(id).appendChild(o);
+
+  function hasId(tr, id) { return tr.getAttribute("data-id") === id; }
+
+  function markRows() {
+    Array.prototype.forEach.call($("users").querySelectorAll("tbody tr"), function (tr) {
+      tr.classList.toggle("on", !!sel && hasId(tr, sel.userId));
     });
+  }
+
+  // On a phone the list and the pane take turns, and the header says which one it is.
+  var phone = window.matchMedia("(max-width: 760px)");
+  function setHead() {
+    var inPane = !!sel && phone.matches && !$("view-accounts").classList.contains("hidden");
+    $("split").classList.toggle("open", !!sel);
+    if (!$("view-accounts").classList.contains("hidden")) $("view-title").textContent = inPane ? "Account" : "Accounts";
+    $("view-back").classList.toggle("hidden", !inPane);
+  }
+  phone.addEventListener("change", setHead);
+
+  function closePane() {
+    sel = null;
+    releasePhotos();
+    $("pane").classList.add("hidden");
+    markRows();
+    setHead();
+  }
+  $("pane-close").addEventListener("click", closePane);
+  $("view-back").addEventListener("click", closePane);
+
+  function selectUser(u) {
+    sel = u;
+    loadedTab = {};
+    chatUser = null;
+    diaryUser = null;
+    releasePhotos();
+    $("chat").textContent = "";
+    $("diary").querySelector("tbody").textContent = "";
+    $("diary-from").value = "";
+    $("diary-to").value = "";
+    $("composer-status").classList.add("hidden");
+    $("composer-results").textContent = "";
+    $("pane-name").textContent = u.email || shortId(u.userId);
+    $("pane-id").textContent = u.userId;
+    $("pane").classList.remove("hidden");
+    markRows();
+    showPicked();
+    setHead();
+    showTab("profile");
+  }
+
+  // ── The tabs ───────────────────────────────────────────────────────────────────────────────
+
+  var TABS = {
+    profile: function () { return loadProfile(); },
+    thread: function () { return loadChat(false); },
+    diary: function () { return loadDiary(true); },
+    push: function () {}
+  };
+
+  function showTab(t) {
+    tab = t;
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs [data-tab]"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-tab") === t);
+    });
+    Object.keys(TABS).forEach(function (k) { $("tab-" + k).classList.toggle("hidden", k !== t); });
+    if (sel && loadedTab[t] !== sel.userId) { loadedTab[t] = sel.userId; TABS[t](); }
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("#tabs [data-tab]"), function (b) {
+    b.addEventListener("click", function () { showTab(b.getAttribute("data-tab")); });
   });
+
+  // ── Profile ────────────────────────────────────────────────────────────────────────────────
+
+  function capPath(id) { return "/admin/api/users/" + encodeURIComponent(id) + "/cap"; }
+
+  function showCap(c, prefix) {
+    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
+    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
+      + (c.freeAnalyses === null ? " (instance default)" : "");
+  }
+
+  function paintStaff(on) {
+    $("staff-switch").classList.toggle("on", on);
+    $("staff-switch").setAttribute("aria-checked", on ? "true" : "false");
+  }
+
+  function fillProfile(s, cap) {
+    $("p-signup").textContent = dmon(s.createdAt) + " · " + via(s);
+    var t = s.targets;
+    $("p-plan").textContent = !t ? "not onboarded"
+      : Math.round(t.kcal) + " kcal a day · " + (t.goal === "maintain" ? "maintain"
+        : t.goal + " " + Math.abs(t.paceKgPerWeek) + " kg/week");
+    $("p-lang").textContent = (langLabel[s.lang] || s.lang) + (s.timezone ? " · " + s.timezone : "");
+    var paid = paidOf(s);
+    var chip = $("p-sub");
+    chip.className = "chip " + paid.cls;
+    chip.textContent = paid.long;
+    $("p-streak").textContent = s.streakDays + (s.streakDays === 1 ? " day" : " days");
+    paintStaff(s.staff);
+    $("staff-error").classList.add("hidden");
+    showCap(cap);
+  }
+
+  function loadProfile() {
+    var u = sel;
+    paintBox($("pane-state"), $("pane-body"), "loading");
+    var base = "/admin/api/users/" + encodeURIComponent(u.userId);
+    return Promise.all([api("GET", base), api("GET", capPath(u.userId))]).then(function (r) {
+      if (sel !== u) return;
+      u.staff = r[0].staff;
+      fillProfile(r[0], r[1]);
+      paintBox($("pane-state"), $("pane-body"), "ready");
+    }, function (e) {
+      if (sel !== u) return;
+      loadedTab.profile = null;
+      paintBox($("pane-state"), $("pane-body"), "error", e, "this account", loadProfile, true);
+    });
+  }
+
+  // A privilege change is asked about first, both ways: staff can open this page and change every
+  // setting on it, and taking it away from the wrong account locks somebody out.
+  var onConfirm = null;
+  function askConfirm(title, text, okLabel, ok) {
+    $("confirm-title").textContent = title;
+    $("confirm-text").textContent = text;
+    $("confirm-ok").textContent = okLabel;
+    onConfirm = ok;
+    $("confirm").classList.remove("hidden");
+    $("confirm-cancel").focus();
+  }
+  function closeConfirm() { onConfirm = null; $("confirm").classList.add("hidden"); }
+  $("confirm-cancel").addEventListener("click", closeConfirm);
+  $("confirm-ok").addEventListener("click", function () { var go = onConfirm; closeConfirm(); if (go) go(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("confirm").classList.contains("hidden")) closeConfirm();
+  });
+
+  $("staff-switch").addEventListener("click", function () {
+    var u = sel;
+    var next = !u.staff;
+    var who = u.email || shortId(u.userId);
+    askConfirm(
+      (next ? "Make " : "Remove staff from ") + who + (next ? " staff?" : "?"),
+      next ? "Staff can open /admin, change every setting here and receive test pushes."
+        : "They lose access to /admin and stop receiving test pushes.",
+      next ? "Make staff" : "Remove staff",
+      function () {
+        api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/staff", { staff: next }).then(function (r) {
+          u.staff = r.staff;
+          if (sel === u) { paintStaff(u.staff); $("staff-error").classList.add("hidden"); }
+        }).catch(function (err) {
+          if (sel !== u) return;
+          $("staff-error").textContent = "Staff change failed: " + err.message;
+          $("staff-error").classList.remove("hidden");
+        });
+      }
+    );
+  });
+
+  function capFailed(e) {
+    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0]) || "failed: " + e.message;
+  }
+  $("cap-save").addEventListener("click", function () {
+    var u = sel;
+    var raw = $("cap-n").value.trim();
+    api("PUT", capPath(u.userId), { freeAnalyses: raw === "" ? null : Number(raw) })
+      .then(function (c) { if (sel === u) showCap(c, "saved — "); }).catch(function (e) { if (sel === u) capFailed(e); });
+  });
+
+  // ── The push composer ──────────────────────────────────────────────────────────────────────
+
+  function showPicked() {
+    $("composer-count").textContent = picked.size + " account(s) ticked (at most ${ADMIN_PUSH_MAX_RECIPIENTS})";
+  }
+  ${JSON.stringify(PUSH_ROUTES)}.forEach(function (r) {
+    var o = document.createElement("option"); o.value = r; o.textContent = r; $("composer-route").appendChild(o);
+  });
+  function say(text) { var p = $("composer-status"); p.textContent = text; p.classList.remove("hidden"); }
+
   $("composer-test").addEventListener("click", function () {
-    if (picked.size !== 1) { $("composer-status").textContent = "Pick exactly one account for a test push."; return; }
-    var route = $("composer-test-route").value;
-    api("POST", "/admin/api/users/" + encodeURIComponent(Array.from(picked.keys())[0]) + "/push-test", route ? { route: route } : {})
-      .then(function (r) { $("composer-status").textContent = "Test push: " + r.sent + " device(s)."; })
-      .catch(function (e) { $("composer-status").textContent = "Test push refused: " + ((e.body && e.body.reason) || e.message); });
+    var u = sel;
+    var image = $("composer-image").value.trim();
+    var base = "/admin/api/users/" + encodeURIComponent(u.userId);
+    var body = { route: $("composer-route").value };
+    if (image) body.imageUrl = image;
+    say("Sending…");
+    api("POST", base + "/push-test", body).then(function (r) {
+      // The send log is where the push's state is kept; the newest row is this one.
+      return api("GET", base + "/push-log").then(function (log) {
+        var row = log.sends[0];
+        return row ? " · send_log " + shortId(row.id) + " " + row.state : "";
+      }, function () { return ""; }).then(function (tail) {
+        say("Test push: sent to " + r.sent + (r.sent === 1 ? " device" : " devices") + tail);
+      });
+    }).catch(function (e) { say("Test push refused: " + ((e.body && e.body.reason) || e.message)); });
   });
+
   // The sendable campaign copy, for the composer. Fetched with the Accounts view, once; the
   // composer is a secondary control there, so a failure leaves its list empty and nothing else.
   function loadComposerTemplates() {
@@ -1675,11 +1941,12 @@ pre { overflow-x: auto; max-width: 100%; }
       });
     }).catch(function () {});
   }
+
   $("composer-send").addEventListener("click", function () {
     var ids = Array.from(picked.keys());
     var noOffers = Array.from(picked.values()).filter(function (v) { return !v; }).length;
     var key = $("composer-template").value;
-    if (!ids.length || !key) { $("composer-status").textContent = "Pick accounts and a template."; return; }
+    if (!ids.length || !key) { say("Tick accounts in the list and pick a template."); return; }
     if (!window.confirm("Send " + key + " to " + ids.length + " account(s), opening " + $("composer-route").value
       + "?\\n" + noOffers + " of them have offers off and will be skipped (no offers consent).")) return;
     api("POST", "/admin/api/push/send", {
@@ -1688,21 +1955,26 @@ pre { overflow-x: auto; max-width: 100%; }
       imageUrl: $("composer-image").value.trim() || undefined
     }).then(function (r) {
       var sent = r.results.filter(function (x) { return x.sent !== undefined; }).length;
-      $("composer-status").textContent = sent + " sent, " + skipped.length + " skipped";
+      say(sent + " sent, " + (r.results.length - sent) + " skipped");
       var list = $("composer-results"); list.textContent = "";
       r.results.forEach(function (x) {
         var li = document.createElement("li");
         li.textContent = shortId(x.userId) + ": " + (x.skipped ? x.skipped + (x.heldBy ? " (held by " + x.heldBy + ")" : "") : "sent to " + x.sent + " device(s)");
         list.appendChild(li);
       });
-    }).catch(function (e) { $("composer-status").textContent = "failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message); });
+    }).catch(function (e) { say("failed: " + ((e.body && e.body.errors) ? e.body.errors.join("; ") : e.message)); });
   });
+
+  // ── The list ───────────────────────────────────────────────────────────────────────────────
 
   function userRow(u) {
     var tr = document.createElement("tr");
+    tr.setAttribute("data-id", u.userId);
+    if (sel && sel.userId === u.userId) tr.className = "on";
     var tick = document.createElement("td");
     var box = document.createElement("input");
     box.type = "checkbox";
+    box.setAttribute("aria-label", "Include " + (u.email || shortId(u.userId)) + " in the push");
     box.checked = picked.has(u.userId);
     box.addEventListener("click", function (e) {
       e.stopPropagation();
@@ -1711,51 +1983,29 @@ pre { overflow-x: auto; max-width: 100%; }
     });
     tick.appendChild(box);
     tr.appendChild(tick);
-    var staffTd = document.createElement("td");
-    var staffBtn = document.createElement("button");
-    var paintStaff = function () { staffBtn.textContent = u.staff ? "staff ✓" : "make staff"; };
-    paintStaff();
-    staffBtn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      api("PUT", "/admin/api/users/" + encodeURIComponent(u.userId) + "/staff", { staff: !u.staff })
-        .then(function (r) { u.staff = r.staff; paintStaff(); })
-        .catch(function (err) { $("users-status").textContent = "staff failed: " + err.message; });
-    });
-    staffTd.appendChild(staffBtn);
-    tr.appendChild(staffTd);
+    var paid = paidOf(u);
+    var chip = document.createElement("span");
+    chip.className = "chip " + paid.cls;
+    chip.textContent = paid.text;
     var cells = [
       u.email || shortId(u.userId),
-      u.createdAt.slice(0, 10),
-      (u.providers || []).join(", ") || "—",
-      u.entitled ? "yes" : (u.onboardedAt ? "no" : "not onboarded"),
-      // The number that is actually enforced, with the account's own beside it when it has one:
-      // "effective" is what checkCaps refuses with, and the panel must not compute a second answer.
-      u.spent + " / " + u.effective + (u.freeAnalyses === null ? " (default)" : ""),
+      dmon(u.createdAt),
+      via(u),
+      chip,
+      // The number that is actually enforced: "effective" is what checkCaps refuses with, and the
+      // panel must not compute a second answer.
+      u.spent + " / " + u.effective,
       String(u.analysesToday),
       ago(u.lastSeen)
     ];
-    cells.forEach(function (text, i) {
+    cells.forEach(function (c, i) {
       var td = document.createElement("td");
-      td.textContent = text;
+      if (typeof c === "string") td.textContent = c; else td.appendChild(c);
+      if (i >= 4) td.className = "r";
       if (i === 0) td.title = u.userId;
       tr.appendChild(td);
     });
-    // The id is what the sample box below takes, and typing a uuid off a screen is how a typo
-    // becomes a cap set on a stranger.
-    tr.addEventListener("click", function () {
-      $("cap-user").value = u.userId;
-      api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
-      // AND the thread, because #376's point is that you reach it from the list rather than by
-      // typing a uuid off a screen.
-      loadChat(u.userId, false);
-      $("chat-who").scrollIntoView({ block: "center" });
-      // AND the diary, because #375's whole point is that you reach it from the list rather than
-      // by typing a uuid off a screen.
-      $("diary-from").value = "";
-      $("diary-to").value = "";
-      loadDiary(u.userId);
-      // ONE scroll, to the thread above: two would fight, and the diary sits right below it.
-    });
+    tr.addEventListener("click", function () { selectUser(u); });
     return tr;
   }
 
@@ -1769,10 +2019,14 @@ pre { overflow-x: auto; max-width: 100%; }
       if (!append) body.textContent = "";
       page.users.forEach(function (u) { body.appendChild(userRow(u)); });
       usersCursor = page.nextCursor;
+      var n = body.childElementCount;
       $("users-more").classList.toggle("hidden", !page.nextCursor);
-      $("users-status").textContent = body.childElementCount === 0
-        ? (q ? "Nothing matches that. It takes a whole address, or the start of an id." : "No accounts yet.")
-        : body.childElementCount + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
+      $("users-wrap").classList.toggle("hidden", n === 0);
+      $("users-empty").classList.toggle("hidden", n !== 0);
+      $("users-foot").classList.toggle("hidden", n === 0);
+      $("users-empty-title").textContent = q ? "Nothing matches that." : "No accounts yet.";
+      $("users-empty-note").textContent = q ? "It takes a whole address, or the start of an id." : "";
+      $("users-status").textContent = n + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
     });
   }
 
@@ -1780,7 +2034,10 @@ pre { overflow-x: auto; max-width: 100%; }
   // after that fails beside the box that asked.
   function usersAgain(append) {
     if (!append) usersCursor = null;
-    loadUsers(append).catch(function (e) { $("users-status").textContent = "failed: " + e.message; });
+    loadUsers(append).catch(function (e) {
+      $("users-foot").classList.remove("hidden");
+      $("users-status").textContent = "failed: " + e.message;
+    });
   }
   $("users-search").addEventListener("click", function () { usersAgain(false); });
   $("users-q").addEventListener("keydown", function (e) {
@@ -1845,13 +2102,14 @@ pre { overflow-x: auto; max-width: 100%; }
     return row;
   }
 
-  function loadChat(userId, older) {
-    if (userId) { chatUser = userId; chatBefore = null; }
-    if (!chatUser) { $("chat-status").textContent = "Choose an account above."; return Promise.resolve(); }
+  function loadChat(older) {
+    var userId = sel && sel.userId;
+    if (!userId) return Promise.resolve();
+    if (!older) { chatUser = userId; chatBefore = null; paintBox($("thread-state"), $("thread-body"), "loading"); }
     var path = "/admin/api/users/" + chatUser + "/chat?limit=50";
     if (older && chatBefore) path += "&before=" + chatBefore;
-    $("chat-who").textContent = chatUser.slice(0, 8);
     return api("GET", path).then(function (view) {
+      if (!sel || sel.userId !== userId) return;
       var host = $("chat");
       if (!older) host.textContent = "";
       var frag = document.createDocumentFragment();
@@ -1863,10 +2121,16 @@ pre { overflow-x: auto; max-width: 100%; }
       $("chat-status").textContent = host.childElementCount === 0
         ? "Nothing said yet."
         : host.childElementCount + " lines";
-    }).catch(function (e) { $("chat-status").textContent = "failed: " + e.message; });
+      paintBox($("thread-state"), $("thread-body"), "ready");
+    }).catch(function (e) {
+      if (!sel || sel.userId !== userId) return;
+      if (older) { $("chat-status").textContent = "failed: " + e.message; return; }
+      loadedTab.thread = null;
+      paintBox($("thread-state"), $("thread-body"), "error", e, "the thread", function () { loadedTab.thread = userId; loadChat(false); }, true);
+    });
   }
 
-  $("chat-older").addEventListener("click", function () { loadChat(null, true); });
+  $("chat-older").addEventListener("click", function () { loadChat(true); });
   // ── One account's diary, and the pictures behind a meal (#375) ─────────────────────────────
   //
   // READ-ONLY, and rendered rather than recomputed: the verdicts drawn here are the ones the row
@@ -1926,27 +2190,35 @@ pre { overflow-x: auto; max-width: 100%; }
     var verdicts = Object.keys(m.verdicts || {}).map(function (k) {
       return k + ": " + m.verdicts[k];
     }).join(", ");
+    // What the model said about the meal rides under its name, so the table keeps the board's four
+    // columns and nothing that answers "the analysis was wrong" is dropped.
+    var detail = [m.model, m.confidence, verdicts].filter(Boolean).join(" · ");
     var cells = [
-      m.ts.slice(0, 16).replace("T", " "),
+      dmon(m.ts) + " " + m.ts.slice(11, 16),
       (names || (m.isFood ? "Meal" : "Not food")) + (m.corrected ? " (corrected)" : ""),
-      String(Math.round(m.kcal)),
-      verdicts || "—",
-      m.model || "—",
-      m.confidence || "—",
+      m.isFood ? String(Math.round(m.kcal)) : "—",
       String(m.photos || 0)
     ];
-    cells.forEach(function (text) {
+    cells.forEach(function (text, i) {
       var td = document.createElement("td");
       td.textContent = text;
+      if (i >= 2) td.className = "r";
+      if (i === 1 && detail) {
+        var sub = document.createElement("div");
+        sub.className = "muted";
+        sub.textContent = detail;
+        td.appendChild(sub);
+      }
       tr.appendChild(td);
     });
     tr.addEventListener("click", function () { showPhotos(m); });
     return tr;
   }
 
-  function loadDiary(userId) {
-    if (userId) diaryUser = userId;
-    if (!diaryUser) { $("diary-status").textContent = "Choose an account above."; return Promise.resolve(); }
+  function loadDiary(first) {
+    var userId = sel && sel.userId;
+    if (!userId) return Promise.resolve();
+    diaryUser = userId;
     releasePhotos();
     var path = "/admin/api/users/" + diaryUser + "/meals";
     var from = $("diary-from").value.trim();
@@ -1955,8 +2227,9 @@ pre { overflow-x: auto; max-width: 100%; }
     if (from) query.push("from=" + encodeURIComponent(from));
     if (to) query.push("to=" + encodeURIComponent(to));
     if (query.length) path += "?" + query.join("&");
-    $("diary-who").textContent = diaryUser.slice(0, 8);
+    if (first) paintBox($("diary-state"), $("diary-body"), "loading");
     return api("GET", path).then(function (view) {
+      if (!sel || sel.userId !== userId) return;
       var body = $("diary").querySelector("tbody");
       body.textContent = "";
       view.meals.forEach(function (m) { body.appendChild(mealRow(m)); });
@@ -1971,10 +2244,16 @@ pre { overflow-x: auto; max-width: 100%; }
       $("diary-status").textContent = view.meals.length === 0
         ? "Nothing logged in that window." + plan
         : view.meals.length + " meals" + plan;
-    }).catch(function (e) { $("diary-status").textContent = "failed: " + e.message; });
+      paintBox($("diary-state"), $("diary-body"), "ready");
+    }).catch(function (e) {
+      if (!sel || sel.userId !== userId) return;
+      if (!first) { $("diary-status").textContent = "failed: " + e.message; return; }
+      loadedTab.diary = null;
+      paintBox($("diary-state"), $("diary-body"), "error", e, "the diary", function () { loadedTab.diary = userId; loadDiary(true); }, true);
+    });
   }
 
-  $("diary-load").addEventListener("click", function () { loadDiary(null); });
+  $("diary-load").addEventListener("click", function () { loadDiary(false); });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
@@ -2066,7 +2345,7 @@ pre { overflow-x: auto; max-width: 100%; }
     pushes: { title: "Pushes", load: loadPushes },
     funnel: { title: "Funnel", load: loadFunnel },
     campaigns: { title: "Campaigns", load: loadCampaigns },
-    accounts: { title: "Accounts", load: function () { loadComposerTemplates(); return loadUsers(false); } },
+    accounts: { title: "Accounts", load: function () { loadComposerTemplates(); usersCursor = null; return loadUsers(false); } },
     onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
     // The shell already read the templates to count what needs review, so the first open draws
     // from that answer instead of asking twice.
@@ -2090,30 +2369,35 @@ pre { overflow-x: auto; max-width: 100%; }
     return box;
   }
 
-  function paint(id, kind, err) {
-    var box = $("state-" + id);
+  // One state box and the body it stands in for: loading, error with a way to try again, or the
+  // body itself. The views and the account pane both draw theirs through this.
+  function paintBox(box, body, kind, err, what, retry, inner) {
     box.textContent = "";
-    $("body-" + id).classList.toggle("hidden", kind !== "ready");
+    body.classList.toggle("hidden", kind !== "ready");
     if (kind === "loading") box.appendChild(skeleton());
     if (kind !== "error") return;
     var bar = document.createElement("div");
     bar.className = "aerr";
     var msg = document.createElement("span");
-    msg.textContent = "Couldn't load " + VIEWS[id].title.toLowerCase() + ". "
+    msg.textContent = "Couldn't load " + what + ". "
       + (err && err.status ? "The server answered " + err.status + "." : "The request did not get an answer.");
     var sp = document.createElement("span");
     sp.className = "sp";
     var again = document.createElement("button");
     again.textContent = "Try again";
-    again.addEventListener("click", function () { run(id); });
+    again.addEventListener("click", retry);
     bar.appendChild(msg);
     bar.appendChild(sp);
     bar.appendChild(again);
     box.appendChild(bar);
     var note = document.createElement("p");
     note.className = "muted";
-    note.textContent = "Only this view failed. The others load on their own.";
+    note.textContent = inner ? "Only this part failed. The rest of the account is unaffected." : "Only this view failed. The others load on their own.";
     box.appendChild(note);
+  }
+
+  function paint(id, kind, err) {
+    paintBox($("state-" + id), $("body-" + id), kind, err, VIEWS[id].title.toLowerCase(), function () { run(id); });
   }
 
   function run(id) {
@@ -2146,6 +2430,7 @@ pre { overflow-x: auto; max-width: 100%; }
       if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     $("switcher").value = id;
+    setHead();
     window.scrollTo(0, 0);
     if (!state[id]) run(id);
   }
