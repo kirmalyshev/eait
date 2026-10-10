@@ -113,6 +113,12 @@ export interface FoodRef {
 }
 
 /**
+ * The per-100 g nutrients a snapshot carries when its row has them. OPTIONAL by design: a row may
+ * lack any one, and a meal's total of a nutrient is the catalog's only when EVERY item has it.
+ */
+export const SNAPSHOT_MICROS = ["satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
+
+/**
  * The read-only copy of the `food_ref` row a meal item was grounded against (#562), stored WITH
  * the meal at the moment of grounding: a catalog refresh changes `food_ref` and never a stored
  * meal. Written by the server only — a client-sent `food` is discarded on every write.
@@ -122,7 +128,8 @@ export interface FoodSnapshot {
   name: string;
   /** The `ref` id's prefix, the row's `source`. */
   source: FoodSource;
-  per100: { kcal: number; protein_g: number; carbs_g: number; fat_g: number };
+  per100: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
+    & { [K in typeof SNAPSHOT_MICROS[number]]?: number };
   /** The row's own attribution texts, verbatim; `[]` for CC0. */
   attribution: string[];
 }

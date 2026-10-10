@@ -20,7 +20,7 @@ import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
-import type { FoodAttribution, FoodRef, OffProduct } from "./foods.ts";
+import { SNAPSHOT_MICROS, type FoodAttribution, type FoodRef, type OffProduct } from "./foods.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
 export const API_VERSION = "v1";
@@ -972,6 +972,7 @@ const isFoodSnapshot = (v: unknown): boolean => {
     && typeof f.source === "string" && f.source.length <= MAX_SNAPSHOT_NAME
     && typeof p === "object" && p !== null
     && PER100_KEYS.every((k) => amount((p as Record<string, unknown>)[k]))
+    && SNAPSHOT_MICROS.every((k) => (p as Record<string, unknown>)[k] === undefined || amount((p as Record<string, unknown>)[k]))
     && Array.isArray(f.attribution) && f.attribution.length <= MAX_SNAPSHOT_ATTRIBUTIONS
     && f.attribution.every((a) => typeof a === "string" && a.length <= MAX_SNAPSHOT_ATTRIBUTION);
 };

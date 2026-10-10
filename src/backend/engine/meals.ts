@@ -25,7 +25,7 @@ import {
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
-import { groundWhenOn, recomputeFromSnapshot } from "./ground.ts";
+import { catalogMicros, groundWhenOn, recomputeFromSnapshot } from "./ground.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -449,18 +449,21 @@ export async function editMeal(
     if (items.every((i) => i[field] !== undefined)) return items.reduce((s, i) => s + (i[field] ?? 0), 0);
     return items.some((i) => i[field] !== undefined) ? scale(kept) : kept;
   };
-  const scaled = (sent: number | undefined, kept: number): number =>
-    sent ?? (items !== undefined ? scale(kept) : kept);
+  // #566: satfat, fibre, sugar and sodium come from the catalog per nutrient when every reconciled
+  // item carries it; otherwise they scale as before.
+  const micros = items === undefined ? {} : catalogMicros(items);
+  const scaled = (sent: number | undefined, kept: number, catalog?: number): number =>
+    sent ?? catalog ?? (items !== undefined ? scale(kept) : kept);
   const merged = {
     items: items ?? existing.items,
     kcal: mergedKcal,
     protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
     carbs_g: derived("carbs_g", patch.carbs_g, existing.carbs_g),
     fat_g: derived("fat_g", patch.fat_g, existing.fat_g),
-    satfat_g: scaled(patch.satfat_g, existing.satfat_g),
-    fiber_g: scaled(patch.fiber_g, existing.fiber_g),
-    sugar_g: scaled(patch.sugar_g, existing.sugar_g),
-    sodium_mg: scaled(patch.sodium_mg, existing.sodium_mg),
+    satfat_g: scaled(patch.satfat_g, existing.satfat_g, micros.satfat_g),
+    fiber_g: scaled(patch.fiber_g, existing.fiber_g, micros.fiber_g),
+    sugar_g: scaled(patch.sugar_g, existing.sugar_g, micros.sugar_g),
+    sodium_mg: scaled(patch.sodium_mg, existing.sodium_mg, micros.sodium_mg),
   };
 
   const updated = await deps.store.updateMeal(userId, mealId, {

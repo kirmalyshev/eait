@@ -83,6 +83,31 @@ describe("grounding items in the catalog", () => {
   });
 });
 
+describe("meal micronutrients from the catalog (#566)", () => {
+  const micros = { satfat_g_per_100g: 2, fiber_g_per_100g: 3, sugar_g_per_100g: 4, sodium_mg_per_100g: 50 };
+  const model2 = (name: string, grams: number) => ({ ...model(name, grams), name_en: name });
+  const modelMeal = (items: AnalyzedMeal["items"]): AnalyzedMeal => ({
+    ...meal(items), satfat_g: 7, fiber_g: 7, sugar_g: 7, sodium_mg: 777,
+  });
+
+  test("every item grounded and carrying a nutrient: the meal's value is the catalog's sum", async () => {
+    const catalog = [ref("egg", 143, micros), ref("toast", 250, { ...micros, satfat_g_per_100g: 1 })];
+    const { analysis } = await groundAnalysis(depsWith(catalog), modelMeal([model2("egg", 100), model2("toast", 50)]));
+    expect(analysis).toMatchObject({ satfat_g: 2.5, fiber_g: 4.5, sugar_g: 6, sodium_mg: 75 });
+  });
+
+  test("a miss keeps the model's values for the whole meal", async () => {
+    const { analysis } = await groundAnalysis(depsWith([ref("egg", 143, micros)]), modelMeal([model2("egg", 100), model2("mystery stew", 100)]));
+    expect(analysis).toMatchObject({ satfat_g: 7, fiber_g: 7, sugar_g: 7, sodium_mg: 777 });
+  });
+
+  test("the rule is per nutrient: a row without fibre leaves only fibre to the model", async () => {
+    const catalog = [ref("egg", 143, micros), ref("toast", 250, { ...micros, fiber_g_per_100g: null })];
+    const { analysis } = await groundAnalysis(depsWith(catalog), modelMeal([model2("egg", 100), model2("toast", 100)]));
+    expect(analysis).toMatchObject({ satfat_g: 4, fiber_g: 7, sugar_g: 8, sodium_mg: 100 });
+  });
+});
+
 describe("ranking the candidates", () => {
   const item = (name_en: string, d: number) => ({ name: name_en, name_en, grams: 100, kcal_per_100g: d });
   const pick = (name_en: string, d: number, rows: FoodRef[]) => pickFood(item(name_en, d), rows)?.name_en ?? null;

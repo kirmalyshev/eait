@@ -4836,7 +4836,20 @@
           },
           "per100": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
+              "satfat_g": {
+                "type": "number"
+              },
+              "fiber_g": {
+                "type": "number"
+              },
+              "sugar_g": {
+                "type": "number"
+              },
+              "sodium_mg": {
+                "type": "number"
+              },
               "kcal": {
                 "type": "number"
               },
@@ -4851,12 +4864,11 @@
               }
             },
             "required": [
-              "kcal",
-              "protein_g",
               "carbs_g",
-              "fat_g"
-            ],
-            "additionalProperties": false
+              "fat_g",
+              "kcal",
+              "protein_g"
+            ]
           },
           "attribution": {
             "type": "array",
