@@ -3909,6 +3909,37 @@ function referrals(name: string, make: (opts: StoreOptions) => Promise<Store>) {
       expect(await s.bankedDays(referrer)).toBe(12);
     });
 
+    // Review 5: the bank runs from the LATER of the dated week and the subscription's end, so a
+    // dated week that outlasts the subscription neither eats the bank in a fold nor in a lapse.
+    it("folds the bank after a dated week that outlasts the subscription", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b, c] = [await s.createUser("en"), await s.createUser("en"), await s.createUser("en")];
+      for (const f of [a, b, c]) await s.redeemReferral(f, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 14, `t-fa-${RUN}`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(14));
+      await s.putEntitlement(referrer, { expiresAt: at(7), productId: "monthly", eventAt: at(-5), trial: true });
+      await s.grantReferralWeek(b, at(0), 7, `t-fb-${RUN}`, "");
+      expect(await s.bankedDays(referrer)).toBe(7);
+      await s.putEntitlement(referrer, { expiresAt: at(-2), productId: "monthly", eventAt: at(-1), trial: true });
+      await s.grantReferralWeek(c, at(0), 7, `t-fc-${RUN}`, "");
+      expect(await s.bonusUntil(referrer)).toBe(at(28));
+      expect(await s.bankedDays(referrer)).toBe(0);
+    });
+
+    it("spends no bank while a dated week is still running through the lapse", async () => {
+      const s = await open();
+      const referrer = await s.createUser("en");
+      const [a, b] = [await s.createUser("en"), await s.createUser("en")];
+      for (const f of [a, b]) await s.redeemReferral(f, await codeOf(s, referrer), 7);
+      await s.grantReferralWeek(a, at(0), 14, `t-la-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(-40), trial: false });
+      await s.grantReferralWeek(b, at(0), 7, `t-lb-${RUN}`, "");
+      await s.putEntitlement(referrer, { expiresAt: at(-3), productId: "monthly", eventAt: at(-2), trial: false });
+      await s.putEntitlement(referrer, { expiresAt: at(30), productId: "monthly", eventAt: at(1), trial: false });
+      expect(await s.bankedDays(referrer)).toBe(7);
+    });
+
     it("takes a reward into the dated week for a referrer who is not paying", async () => {
       const s = await open();
       const referrer = await s.createUser("en");
@@ -4024,6 +4055,24 @@ abandonedAccounts("memory", async (o) => memoryStore(o));
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   referrals("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+
+  // The bucket check is re-added only when it is missing or different: a boot that found it in
+  // place takes no lock on referral_grants, which the constraint's unchanged oid proves.
+  describe("the referral bucket constraint across boots — postgres", () => {
+    it("is not dropped and re-added by a second migrate", async () => {
+      const raw = await rawSql();
+      try {
+        const oid = async () => (await raw`select oid::text as o from pg_constraint where conname = 'referral_grants_bucket_check'`)[0]?.o;
+        await (await postgresStore(PG_URL, { maxConnections: TEST_POOL })).close();
+        const first = await oid();
+        expect(first).toBeDefined();
+        await (await postgresStore(PG_URL, { maxConnections: TEST_POOL })).close();
+        expect(await oid()).toBe(first);
+      } finally {
+        await raw.end();
+      }
+    });
+  });
 
   // POSTGRES ONLY because no store call leaves a referrer's week unset under a grant; a row edited
   // by hand can. Revoking must not invent a week there: unset stays unset, as the memory store does.

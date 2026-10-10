@@ -136,12 +136,21 @@ describe("entitlementLive", () => {
 
 describe("referralBonusEnd", () => {
   const end = "2026-10-01T00:00:00.000Z";
-  it("is the dated week alone, or the subscription's end plus the bank, whichever is later", () => {
+  // Review 5: the bank runs from the LATER of the dated week and the subscription's end — it is
+  // used when they stop, never swallowed by a dated week that outlasts the period.
+  it("is the dated week, with the bank after whichever of it and the subscription ends later", () => {
     expect(referralBonusEnd(null, 0, null)).toBeNull();
     expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 0, end)).toBe("2026-10-05T00:00:00.000Z");
     expect(referralBonusEnd(null, 7, end)).toBe("2026-10-08T00:00:00.000Z");
-    expect(referralBonusEnd("2026-10-20T00:00:00.000Z", 7, end)).toBe("2026-10-20T00:00:00.000Z");
-    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 14, end)).toBe("2026-10-15T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-20T00:00:00.000Z", 7, end)).toBe("2026-10-27T00:00:00.000Z");
+    expect(referralBonusEnd("2026-10-05T00:00:00.000Z", 14, end)).toBe("2026-10-19T00:00:00.000Z");
+  });
+
+  it("keeps the bank whole when a dated week outlasts a trial started under it", () => {
+    // Fourteen dated days left, a seven-day trial starts, a friend pays: seven banked.
+    const now = Date.parse("2026-10-10T00:00:00.000Z");
+    const day = (n: number) => new Date(now + n * 86_400_000).toISOString();
+    expect(referralBonusEnd(day(14), 7, day(7))).toBe(day(21));
   });
 
   it("banks nothing without a subscription end, and reads nothing it cannot parse", () => {

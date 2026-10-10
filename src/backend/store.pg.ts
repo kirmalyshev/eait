@@ -2747,8 +2747,9 @@ export async function postgresStore(
           -- running from the subscription's end — and the bank folded in.
           bonus_until = case when g.bucket = 'bonus'
             then greatest(${t}::timestamptz, r.bonus_until,
+                          -- the bank runs from the later of the dated week and the subscription's end
                           case when r.referral_banked_days > 0
-                               then r.entitlement_expires_at + make_interval(days => r.referral_banked_days) end)
+                               then greatest(r.bonus_until, r.entitlement_expires_at) + make_interval(days => r.referral_banked_days) end)
                  + make_interval(days => g.days)
             else r.bonus_until end,
           referral_banked_days = case when g.bucket = 'banked'
@@ -2872,10 +2873,11 @@ export async function postgresStore(
             -- only what the lapse did not use. Read from the row this statement locked, before the
             -- expiry below replaces it.
             referral_banked_days = case
-              when referral_banked_days > 0 and entitlement_expires_at < ${new Date(now())}::timestamptz
+              -- It started running at the later of the subscription's end and the dated week's end.
+              when referral_banked_days > 0 and greatest(entitlement_expires_at, bonus_until) < ${new Date(now())}::timestamptz
                    and ${new Date(patch.expiresAt)}::timestamptz > ${new Date(now())}::timestamptz
               then greatest(0, referral_banked_days
-                - floor(extract(epoch from (${new Date(now())}::timestamptz - entitlement_expires_at)) / 86400)::int)
+                - floor(extract(epoch from (${new Date(now())}::timestamptz - greatest(entitlement_expires_at, bonus_until))) / 86400)::int)
               else referral_banked_days end,
             entitlement_expires_at       = ${new Date(patch.expiresAt)},
             entitlement_expires_event_at = ${eventAt},

@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
+import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -1035,7 +1035,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // relabelled 'bonus' so a later revoke takes their days off the date they now live in.
       const banked = bankedDays.get(referrerId) ?? 0;
       const expires = entitlements.get(referrerId)?.expiresAt;
-      const running = banked > 0 && expires ? new Date(Date.parse(expires) + banked * DAY_MS).toISOString() : null;
+      // The bank runs from the later of the dated week and the subscription's end (`referralBonusEnd`).
+      const running = referralBonusEnd(bonusUntil.get(referrerId) ?? null, banked, expires);
       bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), running));
       if (banked > 0) {
         bankedDays.set(referrerId, 0);
@@ -1098,7 +1099,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         // BANKED REFERRAL DAYS ran from the lapse: a new period after one shows how many were used,
         // and only what is left waits behind it. Postgres does the same in the same statement.
         const banked = bankedDays.get(userId) ?? 0;
-        const lapsedAt = Date.parse(current?.expiresAt ?? "");
+        // The bank started running at the later of the subscription's end and the dated week's.
+        const dated = Date.parse(bonusUntil.get(userId) ?? "");
+        const lapsedAt = Math.max(Date.parse(current?.expiresAt ?? ""), Number.isFinite(dated) ? dated : -Infinity);
         if (banked > 0 && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
           bankedDays.set(userId, Math.max(0, banked - Math.floor((now() - lapsedAt) / DAY_MS)));
         }
