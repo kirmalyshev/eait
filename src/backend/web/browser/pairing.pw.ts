@@ -76,12 +76,13 @@ test("a paired browser opens the app account's own thread, and it is ONE thread"
   const code = await mint(request, token);
 
   const { context, page } = await stranger(browser);
-  await page.goto("/start/signup");
-  // Typed the way a person types it off a phone screen: lower case, with a dash they added.
-  await page.getByLabel("Your pairing code").fill(`${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase());
-  await page.getByRole("button", { name: "Pair this browser" }).click();
+  // The card on the sign-up page is gone (#569 — the email boards took its slot) but the route it
+  // posted to is not: a phone's code still redeems on a POST, and the response's session cookie
+  // lands in this context's jar where the next navigation picks it up.
+  const paired = await context.request.post("/start/pair", { form: { code }, maxRedirects: 0 });
+  expect(paired.status()).toBe(303);
 
-  await expect(page).toHaveURL(/\/start\/chat/);
+  await page.goto("/start/chat");
   await expect(page.getByRole("heading", { name: "Your chat" })).toBeVisible();
 
   // A turn, sent from the browser.
