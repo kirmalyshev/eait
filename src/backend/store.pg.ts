@@ -533,6 +533,10 @@ create table if not exists referral_grants (
   days        integer not null
 );
 create index if not exists referral_grants_referrer_idx on referral_grants (referrer_id);
+-- The store transaction that earned the reward, so only ITS refund takes it back; and when that
+-- happened. A revoked row stays: the primary key is what keeps that friend from earning it again.
+alter table referral_grants add column if not exists transaction_id text not null default '';
+alter table referral_grants add column if not exists revoked_at timestamptz;
 -- Counts, never people: a share is the label of the channel and the instant, no address, no
 -- device, nothing about whoever it was sent to.
 create table if not exists referral_events (
@@ -1545,6 +1549,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   // delivery; the stats count the friends' rows. Each still names the account it acts for.
   redeemReferral: "unscoped",
   grantReferralWeek: "unscoped",
+  // Its refund, from the same webhook: the referrer's row again.
+  revokeReferralWeek: "unscoped",
   referralOf: "unscoped",
 
   // ── Everything else names its user, and almost always first.
@@ -2632,7 +2638,7 @@ export async function postgresStore(
       return me[0]?.referred === false ? "paid" : "already";
     },
 
-    async grantReferralWeek(referredId, eventAt, days) {
+    async grantReferralWeek(referredId, eventAt, days, transactionId) {
       // RevenueCat can name an id that is not one of ours; a uuid column would throw on it.
       if (!UUID.test(referredId)) return false;
       // One statement: the insert is the once-per-friend guard, and the referrer's week moves only
@@ -2640,14 +2646,30 @@ export async function postgresStore(
       // subscription they are paying for.
       const rows = await sql`
         with g as (
-          insert into referral_grants (referred_id, referrer_id, event_at, days)
-          select id, referred_by, ${new Date(eventAt)}, ${days}::int
+          insert into referral_grants (referred_id, referrer_id, event_at, days, transaction_id)
+          select id, referred_by, ${new Date(eventAt)}, ${days}::int, ${transactionId}
             from users where id = ${referredId} and referred_by is not null
               and referred_at <= ${new Date(eventAt)}
           on conflict (referred_id) do nothing
           returning referrer_id, days)
         update users r set bonus_until =
           greatest(${new Date(now())}::timestamptz, r.bonus_until, r.entitlement_expires_at) + make_interval(days => g.days)
+        from g where r.id = g.referrer_id
+        returning r.id`;
+      return rows.length > 0;
+    },
+
+    async revokeReferralWeek(referredId, transactionId) {
+      if (!UUID.test(referredId) || transactionId === "") return false;
+      // One statement: the grant is marked only while it is not already, and only for the
+      // transaction it was granted for; the referrer's week loses its days only if it was.
+      const rows = await sql`
+        with g as (
+          update referral_grants set revoked_at = ${new Date(now())}
+          where referred_id = ${referredId} and transaction_id = ${transactionId} and revoked_at is null
+          returning referrer_id, days)
+        update users r set bonus_until =
+          greatest(${new Date(now())}::timestamptz, r.bonus_until - make_interval(days => g.days))
         from g where r.id = g.referrer_id
         returning r.id`;
       return rows.length > 0;
@@ -2662,8 +2684,8 @@ export async function postgresStore(
       const rows = await sql`
         select u.referral_code, u.referred_by is not null as applied,
                (select count(*) from users f where f.referred_by = u.id) as joined,
-               (select count(*) from referral_grants g where g.referrer_id = u.id) as subscribed,
-               (select coalesce(sum(g.days), 0) from referral_grants g where g.referrer_id = u.id) as days,
+               (select count(*) from referral_grants g where g.referrer_id = u.id and g.revoked_at is null) as subscribed,
+               (select coalesce(sum(g.days), 0) from referral_grants g where g.referrer_id = u.id and g.revoked_at is null) as days,
                (select count(*) from referral_events e where e.referrer_id = u.id and e.kind = 'share') as shares
           from users u where u.id = ${userId}`;
       const r = rows[0] as Record<string, unknown> | undefined;

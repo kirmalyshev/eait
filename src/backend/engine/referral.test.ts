@@ -44,7 +44,7 @@ let seq = 0;
 const paid = (appUserId: string, over: Partial<RevenueCatEvent> = {}): RevenueCatEvent => ({
   appUserId, type: "INITIAL_PURCHASE", entitlementIds: [CONFIG.revenueCatEntitlementId],
   expirationAtMs: Date.now() + 30 * DAY, productId: "com.eait.fit.ios.monthly", trial: false,
-  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, ...over,
+  eventTimestampMs: Date.now() + ++seq * 1000, sandbox: false, transactionId: `txn-${seq}`, refund: false, ...over,
 });
 const daysLeft = async (userId: string) => {
   const until = await store.bonusUntil(userId);
@@ -108,6 +108,32 @@ describe("a friend who had already paid", () => {
     const { referrer, friend } = await pair();
     await applyRevenueCatEvent(deps, paid(friend, { eventTimestampMs: Date.now() - 60_000 }));
     expect(await store.bonusUntil(referrer)).toBeNull();
+  });
+});
+
+// Must-fix (#597 review): a refund of the paid period that earned the reward revokes it — only
+// that one: "will not renew" is not a refund, and a refund of a later renewal is not that period.
+describe("a refunded first payment", () => {
+  const refund = (friend: string, transactionId: string, over: Partial<RevenueCatEvent> = {}) =>
+    paid(friend, { type: "CANCELLATION", transactionId, refund: true, ...over });
+
+  it("takes the referrer's reward back, and that friend never earns it again", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { transactionId: "t-first", productId: "com.eait.fit.ios.yearly" }));
+    expect(await daysLeft(referrer)).toBe(14);
+    await applyRevenueCatEvent(deps, refund(friend, "t-first"));
+    expect(await daysLeft(referrer)).toBe(0);
+    await applyRevenueCatEvent(deps, paid(friend, { type: "RENEWAL", transactionId: "t-again" }));
+    expect(await daysLeft(referrer)).toBe(0);
+  });
+
+  it("is not a cancellation that only stops the renewal, nor a refund of some other period", async () => {
+    const { referrer, friend } = await pair();
+    await applyRevenueCatEvent(deps, paid(friend, { transactionId: "t-first" }));
+    await applyRevenueCatEvent(deps, refund(friend, "t-first", { refund: false }));
+    await applyRevenueCatEvent(deps, refund(friend, "t-later"));
+    await applyRevenueCatEvent(deps, refund(friend, "t-first", { entitlementIds: ["something-else"] }));
+    expect(await daysLeft(referrer)).toBe(7);
   });
 });
 

@@ -222,6 +222,18 @@ export interface RevenueCatEvent {
   eventTimestampMs: number;
   /** From `environment`: an App Store sandbox or Test Store purchase, not a real one. */
   sandbox: boolean;
+  /**
+   * The store's `transaction_id`, or "" when the delivery has none. Read for the referral reward
+   * alone (#899): the grant records the transaction that earned it, so only that transaction's
+   * refund can take it back.
+   */
+  transactionId: string;
+  /**
+   * A CANCELLATION whose `cancel_reason` is CUSTOMER_SUPPORT — a refund. RevenueCat sends it only
+   * when the LATEST period is refunded; a refund of an earlier one is never delivered, so a reward
+   * whose period was not the latest when refunded cannot be taken back (the accepted ceiling).
+   */
+  refund: boolean;
 }
 
 export type ApplyOutcome =
@@ -278,7 +290,7 @@ export async function applyRevenueCatEvent(
   // second query asking a question nothing acts on. Both are ordinary, and both answer 200.
   const eventAt = new Date(event.eventTimestampMs).toISOString();
   const written = await deps.store.putEntitlement(event.appUserId, { ...patch, productId: event.productId, eventAt });
-  await rewardReferrer(deps, event, eventAt);
+  await referralReward(deps, event, eventAt);
   return written ? { applied: true } : { applied: false, reason: "not-applied" };
 }
 
@@ -291,13 +303,23 @@ const PAYMENTS = new Set(["INITIAL_PURCHASE", "RENEWAL"]);
  * be accepted to exercise the tier, but it earns nobody anything. The store makes it once per
  * friend, ever, so a renewal, a redelivery or a second plan grants nothing more.
  *
+ * AND TAKES IT BACK on a refund of the very transaction that earned it — the store matches the
+ * transaction id inside its own write, so a later renewal's refund, or a cancellation that only
+ * stops the renewal, revokes nothing. A revoked grant stays, so that friend never earns it again.
+ *
  * NOT GATED ON THE ENTITLEMENT WRITE. A paid period delivered after a newer event is refused there
  * as stale and is still a payment; and a delivery whose grant failed is retried by RevenueCat,
  * which only helps if the retry — refused as already applied — still reaches this.
  */
-async function rewardReferrer(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
+async function referralReward(deps: EngineDeps, event: RevenueCatEvent, eventAt: string): Promise<void> {
+  if (event.refund) {
+    await deps.store.revokeReferralWeek(event.appUserId, event.transactionId);
+    return;
+  }
   if (!PAYMENTS.has(event.type) || event.expirationAtMs === null || event.trial || event.sandbox) return;
-  await deps.store.grantReferralWeek(event.appUserId, eventAt, referralRewardDays(deps.config, event.productId));
+  await deps.store.grantReferralWeek(
+    event.appUserId, eventAt, referralRewardDays(deps.config, event.productId), event.transactionId,
+  );
 }
 
 /** This delivery changes neither grant. */

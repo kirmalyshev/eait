@@ -145,7 +145,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   };
   const bonusUntil = new Map<string, string>(); // userId -> ISO
   /** `referral_grants`, keyed on the friend as its primary key is. */
-  const referralGrants = new Map<string, { referrerId: string; eventAt: string; days: number }>();
+  const referralGrants = new Map<string, { referrerId: string; eventAt: string; days: number; transactionId: string; revoked: boolean }>();
   /** `referral_events`: a share is a label and an instant, nothing that names the person. */
   const referralShares: { referrerId: string; via: string; at: number }[] = [];
   /** A code nobody holds — Postgres's `new_referral_code()`. */
@@ -964,11 +964,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return "ok";
     },
 
-    async grantReferralWeek(referredId, eventAt, days) {
+    async grantReferralWeek(referredId, eventAt, days, transactionId) {
       const referrerId = referredBy.get(referredId);
       if (referrerId === undefined || referralGrants.has(referredId)) return false;
       if (Date.parse(eventAt) < referredAt.get(referredId)!) return false;
-      referralGrants.set(referredId, { referrerId, eventAt, days });
+      referralGrants.set(referredId, { referrerId, eventAt, days, transactionId, revoked: false });
       bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), entitlements.get(referrerId)?.expiresAt));
       return true;
     },
@@ -977,10 +977,22 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (users.has(userId)) referralShares.push({ referrerId: userId, via, at: now() });
     },
 
+    async revokeReferralWeek(referredId, transactionId) {
+      const g = referralGrants.get(referredId);
+      if (!g || g.revoked || transactionId === "" || g.transactionId !== transactionId) return false;
+      g.revoked = true;
+      const until = bonusUntil.get(g.referrerId);
+      if (until !== undefined) {
+        bonusUntil.set(g.referrerId, new Date(Math.max(now(), Date.parse(until) - g.days * 86_400_000)).toISOString());
+      }
+      return true;
+    },
+
     async referralOf(userId) {
       const code = referralCodes.get(userId);
       if (code === undefined) return null;
-      const grants = [...referralGrants.values()].filter((g) => g.referrerId === userId);
+      // A revoked grant earned nothing: it stays only so that friend can never earn it again.
+      const grants = [...referralGrants.values()].filter((g) => g.referrerId === userId && !g.revoked);
       return {
         code,
         applied: referredBy.has(userId),

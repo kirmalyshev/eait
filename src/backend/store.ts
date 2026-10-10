@@ -1067,7 +1067,14 @@ export interface Store {
    * nothing was granted: nobody referred this account, or its referrer was already paid for it.
    * `referredId` comes from a verified webhook delivery, never from a client.
    */
-  grantReferralWeek(referredId: string, eventAt: string, days: number): Promise<boolean>;
+  grantReferralWeek(referredId: string, eventAt: string, days: number, transactionId: string): Promise<boolean>;
+  /**
+   * Take back the reward `referredId`'s payment earned, on that payment's refund: only when the
+   * grant's transaction is `transactionId` (never ""), and only once. The referrer's `bonus_until`
+   * loses the grant's days, never below now; the grant row stays, marked revoked, so the friend
+   * can never earn it again. False when nothing was revoked.
+   */
+  revokeReferralWeek(referredId: string, transactionId: string): Promise<boolean>;
   /** Count one share of this account's link. `via` is a short label, already validated. */
   recordReferralShare(userId: string, via: string): Promise<void>;
   /** Null when there is no such account. Counts other accounts' rows, so it reads unscoped. */
