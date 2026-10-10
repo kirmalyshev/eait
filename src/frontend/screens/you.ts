@@ -14,7 +14,7 @@
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { subscriptionState, TRIAL_DAYS } from "../../shared/entitlement.ts";
 import { PROVIDER_NAME, signsIn } from "../../shared/contract.ts";
-import { dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, weekdayDayMonthAt, wholeNumbers } from "../../shared/lang.ts";
+import { countText, dayMonthAt, LANG_LABEL, LANGS_READY, UNIT_KCAL, kcalNumbers, listConjunction, numbers, spellUnit, weekdayDayMonthAt, wholeNumbers } from "../../shared/lang.ts";
 import {
   countryLabel, countryOptions, screenOptions, screenOptionValues,
 } from "../../shared/onboarding.ts";
@@ -389,9 +389,13 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       void navigator.clipboard?.writeText(text).then(() => { toast(R.copied); void counted("copy"); }, () => {});
     });
     card.append(btn);
-    const counts = r.weeksEarned > 0
-      ? [fill(R.earned, { n: String(r.weeksEarned) }), fill(R.joined, { n: String(r.joined), m: String(r.subscribed) })]
-      : r.joined > 0 ? [fill(R.joined, { n: String(r.joined), m: String(r.subscribed) }), R.pending] : [];
+    // The board's lines (you-referral-pending / -earned), plural in every language by `countText`.
+    const count = countText(lang);
+    const joined = count(R.friendsJoined, r.joined);
+    const earned = r.weeksEarned > 0 ? [count(R.weeksEarned, r.weeksEarned)] : [];
+    const counts = r.weeksEarned > 0 || r.subscribed > 0
+      ? [`${joined} · ${count(R.friendsSubscribed, r.subscribed)}`]
+      : r.joined > 0 ? [`${joined} · ${R.onFreeWeek}`, R.pending] : [];
     // What the weeks mean for THIS account, both the server's numbers: the bank behind a running
     // subscription (whole weeks when it is whole weeks, else days — a lapse spends whole days), or
     // the date while the bonus is the grant keeping the account in. Never both: the server sends
@@ -401,7 +405,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const own = banked > 0
       ? [banked % 7 === 0 ? fill(R.bankedWeeks, { n: String(banked / 7) }) : fill(R.bankedDays, { n: String(banked) })]
       : bonus !== null ? [fill(R.until, { date: subDate(bonus) })] : [];
-    const lines = [...own, ...counts];
+    const lines = [...earned, ...own, ...counts];
     if (lines.length > 0) {
       const st = el("div", "refst");
       for (const l of lines) st.append(el("div", "t13", l));

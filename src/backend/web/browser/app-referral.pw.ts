@@ -59,3 +59,16 @@ test("while the bonus keeps the account in, the card says until when", async ({ 
   });
   await expect(page.getByLabel("Refer a friend")).toContainText("eait is yours until 31 Oct.");
 });
+
+// The board's status lines, with real plurals (#600 review).
+test("a friend on their free week reads as the board draws it", async ({ inWebApp: page }) => {
+  await withProfile(page, (p) => { Object.assign(p.referral, { joined: 1, subscribed: 0, weeksEarned: 0 }); });
+  await expect(page.getByLabel("Refer a friend")).toContainText("1 friend joined · on their free week");
+});
+
+test("earned weeks and the counts read as the board draws them", async ({ inWebApp: page }) => {
+  await withProfile(page, (p) => { Object.assign(p.referral, { joined: 2, subscribed: 1, weeksEarned: 2 }); });
+  const card = page.getByLabel("Refer a friend");
+  await expect(card).toContainText("2 free weeks earned");
+  await expect(card).toContainText("2 friends joined · 1 subscribed");
+});
