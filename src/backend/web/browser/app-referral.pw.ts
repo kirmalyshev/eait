@@ -28,3 +28,34 @@ test("without a share sheet it copies the link instead, and says so", async ({ i
   await expect(page.getByText("Link copied")).toBeVisible();
   expect(await page.evaluate("navigator.clipboard.readText()")).toMatch(/\/r\/[A-HJ-NP-Z2-9]{6}$/);
 });
+
+// Review of #600: what the referral weeks mean for this account, drawn from the server's numbers —
+// the bank while a subscription runs, the date while the bonus is what keeps the account in.
+const withProfile = async (page: import("@playwright/test").Page, edit: (p: Record<string, any>) => void) => {
+  await page.route("**/api/v1/profile", async (route) => {
+    const res = await route.fetch();
+    const body = await res.json() as Record<string, any>;
+    edit(body);
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/#/you");
+  await page.reload();
+};
+
+test("a paying referrer is told the whole weeks banked behind the subscription", async ({ inWebApp: page }) => {
+  await withProfile(page, (p) => { p.referral.bankedDays = 14; });
+  await expect(page.getByLabel("Refer a friend")).toContainText("Free weeks banked: 2. Used if you stop.");
+});
+
+test("a bank that is not whole weeks is told in days", async ({ inWebApp: page }) => {
+  await withProfile(page, (p) => { p.referral.bankedDays = 10; });
+  await expect(page.getByLabel("Refer a friend")).toContainText("Free days banked: 10. Used if you stop.");
+});
+
+test("while the bonus keeps the account in, the card says until when", async ({ inWebApp: page }) => {
+  await withProfile(page, (p) => {
+    p.entitlement.active = true;
+    p.entitlement.bonusUntil = "2026-10-31T12:00:00.000Z";
+  });
+  await expect(page.getByLabel("Refer a friend")).toContainText("eait is yours until 31 Oct.");
+});

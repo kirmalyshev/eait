@@ -111,6 +111,15 @@ export interface YouCopy {
     pending: string;
     /** The weeks the friends' payments added. */
     earned: string;
+    /**
+     * A paying referrer's bank (`ProfileResponse.referral.bankedDays`), in whole weeks when it is
+     * whole weeks, else in days (a lapse spends whole days, so a bank can be 10): "{n}" is a bare
+     * number, and the label-colon form keeps it plural-free in every language.
+     */
+    bankedWeeks: string;
+    bankedDays: string;
+    /** While the referral bonus is the grant keeping the account in (`Entitlement.bonusUntil`): "{date}" is a day and month. */
+    until: string;
   };
 
   /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
@@ -390,6 +399,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Friends joined: {n} · subscribed: {m}",
       pending: "Your week comes with their first payment, two if they go yearly.",
       earned: "Free weeks earned: {n}",
+      bankedWeeks: "Free weeks banked: {n}. Used if you stop.",
+      bankedDays: "Free days banked: {n}. Used if you stop.",
+      until: "eait is yours until {date}.",
     },
     web: {
       units: "Units",
@@ -524,6 +536,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Amis inscrits : {n} · abonnés : {m}",
       pending: "Ta semaine arrive avec leur premier paiement, deux s'ils choisissent l'annuel.",
       earned: "Semaines gratuites gagnées : {n}",
+      bankedWeeks: "Semaines gratuites en réserve : {n}. Utilisées si tu arrêtes.",
+      bankedDays: "Jours gratuits en réserve : {n}. Utilisés si tu arrêtes.",
+      until: "eait est à toi jusqu'au {date}.",
     },
     web: {
       units: "Unités",
@@ -658,6 +673,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Beigetreten: {n} · abonniert: {m}",
       pending: "Deine Woche kommt mit ihrer ersten Zahlung, zwei, wenn sie jährlich wählen.",
       earned: "Kostenlose Wochen verdient: {n}",
+      bankedWeeks: "Kostenlose Wochen auf Vorrat: {n}. Gelten, wenn du aufhörst.",
+      bankedDays: "Kostenlose Tage auf Vorrat: {n}. Gelten, wenn du aufhörst.",
+      until: "eait gehört dir bis {date}.",
     },
     web: {
       units: "Einheiten",
@@ -792,6 +810,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Amici iscritti: {n} · abbonati: {m}",
       pending: "La tua settimana arriva con il loro primo pagamento, due se scelgono l'annuale.",
       earned: "Settimane gratis guadagnate: {n}",
+      bankedWeeks: "Settimane gratis da parte: {n}. Usate se smetti.",
+      bankedDays: "Giorni gratis da parte: {n}. Usati se smetti.",
+      until: "eait è tuo fino al {date}.",
     },
     web: {
       units: "Unità",
@@ -926,6 +947,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Amigos unidos: {n} · suscritos: {m}",
       pending: "Tu semana llega con su primer pago, dos si eligen el anual.",
       earned: "Semanas gratis ganadas: {n}",
+      bankedWeeks: "Semanas gratis guardadas: {n}. Se usan si lo dejas.",
+      bankedDays: "Días gratis guardados: {n}. Se usan si lo dejas.",
+      until: "eait es tuyo hasta el {date}.",
     },
     web: {
       units: "Unidades",
@@ -1060,6 +1084,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Bạn bè đã tham gia: {n} · đã đăng ký: {m}",
       pending: "Tuần của bạn đến cùng lần thanh toán đầu tiên của họ, hai tuần nếu họ chọn gói năm.",
       earned: "Tuần miễn phí đã nhận: {n}",
+      bankedWeeks: "Tuần miễn phí để dành: {n}. Dùng khi bạn ngừng gói.",
+      bankedDays: "Ngày miễn phí để dành: {n}. Dùng khi bạn ngừng gói.",
+      until: "eait là của bạn đến {date}.",
     },
     web: {
       units: "Đơn vị",
@@ -1194,6 +1221,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Teman bergabung: {n} · berlangganan: {m}",
       pending: "Minggu gratismu datang dengan pembayaran pertama mereka, dua minggu jika mereka memilih tahunan.",
       earned: "Minggu gratis didapat: {n}",
+      bankedWeeks: "Minggu gratis tersimpan: {n}. Dipakai jika kamu berhenti.",
+      bankedDays: "Hari gratis tersimpan: {n}. Dipakai jika kamu berhenti.",
+      until: "eait milikmu sampai {date}.",
     },
     web: {
       units: "Unit",
@@ -1328,6 +1358,9 @@ export const YOU_COPY: Localized<YouCopy> = {
       joined: "Друзей по ссылке: {n} · с подпиской: {m}",
       pending: "Твоя неделя придёт с их первым платежом, две — если они выберут годовой.",
       earned: "Бесплатных недель: {n}",
+      bankedWeeks: "Бесплатных недель в запасе: {n}. Пойдут в ход, если прервёшь подписку.",
+      bankedDays: "Бесплатных дней в запасе: {n}. Пойдут в ход, если прервёшь подписку.",
+      until: "eait твой до {date}.",
     },
     web: {
       units: "Единицы",

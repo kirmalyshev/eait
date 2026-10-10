@@ -389,9 +389,19 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       void navigator.clipboard?.writeText(text).then(() => { toast(R.copied); void counted("copy"); }, () => {});
     });
     card.append(btn);
-    const lines = r.weeksEarned > 0
+    const counts = r.weeksEarned > 0
       ? [fill(R.earned, { n: String(r.weeksEarned) }), fill(R.joined, { n: String(r.joined), m: String(r.subscribed) })]
       : r.joined > 0 ? [fill(R.joined, { n: String(r.joined), m: String(r.subscribed) }), R.pending] : [];
+    // What the weeks mean for THIS account, both the server's numbers: the bank behind a running
+    // subscription (whole weeks when it is whole weeks, else days — a lapse spends whole days), or
+    // the date while the bonus is the grant keeping the account in. Never both: the server sends
+    // `bonusUntil` only with no live subscription, and `bankedDays` only with one.
+    const banked = r.bankedDays ?? 0;
+    const bonus = me!.entitlement.bonusUntil ?? null;
+    const own = banked > 0
+      ? [banked % 7 === 0 ? fill(R.bankedWeeks, { n: String(banked / 7) }) : fill(R.bankedDays, { n: String(banked) })]
+      : bonus !== null ? [fill(R.until, { date: subDate(bonus) })] : [];
+    const lines = [...own, ...counts];
     if (lines.length > 0) {
       const st = el("div", "refst");
       for (const l of lines) st.append(el("div", "t13", l));
