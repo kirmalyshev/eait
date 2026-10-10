@@ -45,7 +45,30 @@ const llmArg = ((): "demo" | "real" => {
 })();
 const cannedLlm = llmArg === "demo";
 
+/**
+ * WHICH CREDENTIAL THIS SERVER TRUSTS, independently of which store it holds.
+ *
+ * `--demo` already implies it; `--auth demo` wires the canned verifier
+ * (`demo:<provider>:<subject>`) onto a REAL store — the one shape a suite needs when the backend
+ * must restart mid-flow and the account has to survive it (ieat-app's `e2e-outbox.sh`). The same
+ * loopback rule as every demo shape, enforced below after `loadConfig`: a canned credential on a
+ * real store is an account factory for anybody who can reach the port, so a routable address is
+ * refused rather than bound.
+ */
+const authArg = ((): "demo" | "real" => {
+  const i = process.argv.indexOf("--auth");
+  const v = i >= 0 ? process.argv[i + 1] : undefined;
+  if (v === "demo" || v === "real") return v;
+  return demo ? "demo" : "real";
+})();
+const cannedAuth = authArg === "demo";
+
 const config: Config = demo ? demoConfig() : loadConfig();
+
+if (cannedAuth && !demo && !["127.0.0.1", "::1", "localhost"].includes(config.host)) {
+  console.error(`[eait] --auth demo on a real store binds loopback only — got EAIT__BACKEND__HOST=${config.host}`);
+  process.exit(1);
+}
 
 // `--demo --llm real` is the one combination the demo config cannot answer on its own: it names no
 // key, because a demo server never needed one. Taken from the environment here, and refused rather
@@ -294,10 +317,11 @@ setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
 setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
 setInterval(() => { if (leader) void refreshFoodCatalog(); }, DAY_MS).unref?.();
 
-// In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
-// flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the
-// real verifier checks signature, issuer, audience and expiry against the provider's JWKS.
-const verifier: Verifier = demo
+// The canned verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
+// flows can be driven without Apple or Google credentials. It is wired under `--demo` and under
+// `--auth demo`; the real verifier checks signature, issuer, audience and expiry against the
+// provider's JWKS.
+const verifier: Verifier = cannedAuth
   ? {
       async verify(provider, idToken) {
         const [marker, p, subject] = idToken.split(":");
@@ -511,7 +535,10 @@ const server = Bun.serve({
 
 // The banner NAMES both halves, because they are chosen separately now: a server that says
 // "canned analyzer" while answering with a billed model is the one line nobody reads twice.
-const mode = demo ? ` (demo: in-memory store, ${cannedLlm ? "canned" : "REAL, BILLED"} model)` : "";
+// Same for the third axis: a real store that trusts `demo:*` tokens says so at boot.
+const mode = demo
+  ? ` (demo: in-memory store, ${cannedLlm ? "canned" : "REAL, BILLED"} model)`
+  : cannedAuth ? ` (canned auth, ${cannedLlm ? "canned" : "REAL, BILLED"} model)` : "";
 console.log(`[eait] listening on http://${server.hostname}:${server.port}${mode}`);
 console.log(`[eait] config ${JSON.stringify(redact(config))}`);
 
