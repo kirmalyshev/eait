@@ -410,10 +410,6 @@ test("the campaigns panel lists campaigns, creates a draft from the form, and sa
   await expect(arms).toContainText("Treated minus holdout conversion: 19.6 pts (95% CI 7.0 pts to 30.0 pts) — the interval excludes zero.");
   await expect(page.getByRole("button", { name: "Stop all campaigns" })).toBeVisible();
 
-  await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
-  await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
-  await expect(page.locator("#campaign-copy")).toContainText("complete");
-  await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
   await page.getByRole("button", { name: "New campaign" }).click();
   await page.locator("#campaign-form input[placeholder=Name]").fill("Spring");
   await page.locator("#campaign-form input[placeholder='campaign:spring-win-back']").fill("campaign:spring");
@@ -448,7 +444,12 @@ test("the campaign copy editor loads a saved language and saves a draft and a re
   await page.route("**/admin/api/push-templates", (r) => r.request().method() === "PUT"
     ? (calls.push({ method: "PUT", path: "/admin/api/push-templates", body: r.request().postDataJSON() }), r.fulfill({ status: 200, contentType: "application/json", body: "{\"row\":{}}" }))
     : r.fallback());
-  await openAdmin(page, "campaigns");
+  await openAdmin(page, "templates");
+  await expect(page.locator("#campaign-copy tbody tr")).toHaveCount(2);
+  await expect(page.locator("#campaign-copy")).toContainText("campaign:win-back");
+  await expect(page.locator("#campaign-copy")).toContainText("complete");
+  await expect(page.locator("#campaign-copy")).toContainText("en/default, fr/default");
+  await page.getByRole("button", { name: "New campaign copy" }).click();
   const form = page.locator("#campaign-copy-form");
   await form.locator("input[placeholder='campaign:spring-win-back']").fill("campaign:win-back");
   await form.locator("select").nth(0).selectOption("de");

@@ -359,6 +359,7 @@ button.quiet { box-shadow: none; color: var(--muted); }
 .bar .status { margin-right: auto; }
 .bar .status.warn { color: var(--warn); }
 .ahead select { width: auto; margin-left: auto; }
+#copy-new { margin-left: auto; }
 
 /* Onboarding copy: a sub-nav across its four sections, one section at a time. */
 .obsplit { display: flex; gap: 16px; align-items: flex-start; }
@@ -461,7 +462,7 @@ details.how p { margin-top: 8px; }
   </div>
 
   <div class="amain">
-    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button><select id="lang" class="hidden" aria-label="Language"></select></div>
+    <div class="ahead"><h1 id="view-title">Numbers</h1><button class="small quiet back hidden" id="view-back">‹ All accounts</button><select id="lang" class="hidden" aria-label="Language"></select><button class="hidden" id="copy-new">New campaign copy</button></div>
     <div class="abody">
 
 <!-- ONE VIEW AT A TIME. Each section is a state box (loading or error) and a body that is shown
@@ -536,19 +537,7 @@ details.how p { margin-top: 8px; }
         <div class="camps-l"><div class="card flush alist" id="camp-list"></div></div>
         <div class="card flush camps-r" id="camp-detail"></div>
       </div>
-      <h2>Campaign copy</h2>
-      <p class="muted">
-        A campaign sends its own words, one title and one body per language, with no placeholders: everybody
-        gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
-        scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
-        gender checks as every other push text.
-      </p>
       <datalist id="campaign-keys"></datalist>
-      <div class="card flush"><div class="scrollx"><table id="campaign-copy">
-        <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
-        <tbody></tbody>
-      </table></div></div>
-      <div class="card" id="campaign-copy-form"></div>
     </div>
     <div id="camp-new-mode" class="hidden">
       <div class="card flush cnew">
@@ -789,6 +778,17 @@ details.how p { margin-top: 8px; }
       </div>
       <div class="apane hidden" id="push-edit"></div>
     </div>
+    <h2>Campaign copy</h2>
+    <p class="muted">
+      A campaign sends its own words, one title and one body per language, with no placeholders: everybody
+      gets the same sentence. A key is campaign:, then lowercase words joined by hyphens. It can be
+      scheduled only when all eight languages are reviewed, and a save is refused by the same claims and
+      gender checks as every other push text.
+    </p>
+    <div class="card flush"><div class="scrollx"><table id="campaign-copy">
+      <thead><tr><th>Key</th><th>Missing or draft</th></tr></thead>
+      <tbody></tbody>
+    </table></div></div>
   </div>
 </section>
 
@@ -1369,46 +1369,6 @@ details.how p { margin-top: 8px; }
     host.appendChild(foot);
   }
 
-  function buildCopyForm(o) {
-    var host = $("campaign-copy-form");
-    host.textContent = "";
-    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
-    var lang = document.createElement("select");
-    o.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
-    var variant = document.createElement("select");
-    o.variants.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; variant.appendChild(opt); });
-    var title = document.createElement("input"); title.placeholder = "Title";
-    var body = document.createElement("textarea"); body.placeholder = "Body";
-    var row = document.createElement("div"); row.className = "row flexwrap";
-    [campaignField("Key", key), campaignField("Language", lang), campaignField("Variant", variant), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
-    host.appendChild(row);
-    host.appendChild(campaignField("Body", body));
-    // Picking a key and language shows what is saved there.
-    var fill = function () {
-      var hit = (copyRows || []).filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value && r.variant === variant.value; })[0];
-      title.value = hit ? hit.title : "";
-      body.value = hit ? hit.body : "";
-    };
-    key.addEventListener("change", fill);
-    lang.addEventListener("change", fill);
-    variant.addEventListener("change", fill);
-    var save = function (status) {
-      return function () {
-        campaignErrors(null);
-        api("PUT", "/admin/api/push-templates", {
-          template: { key: key.value.trim(), lang: lang.value, variant: variant.value, title: title.value, body: body.value },
-          status: status
-        }).then(function () { return loadCampaigns(); }).catch(campaignErrors);
-      };
-    };
-    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
-    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
-    host.appendChild(draft);
-    host.appendChild(rev);
-  }
-
-  var copyRows = [];
-
   function campMenusClose() {
     Array.prototype.forEach.call(document.querySelectorAll("#camp-detail .amenu"), function (m) { m.classList.add("hidden"); });
   }
@@ -1626,18 +1586,9 @@ details.how p { margin-top: 8px; }
 
   function loadCampaigns() {
     return api("GET", "/admin/api/campaigns").then(function (v) {
-      if (!campaignOptions) { campaignOptions = v.options; buildCopyForm(v.options); }
+      if (!campaignOptions) campaignOptions = v.options;
       campData = v;
-      copyRows = [];
-      var keys = $("campaign-keys"); keys.textContent = "";
-      var copyBody = $("campaign-copy").querySelector("tbody"); copyBody.textContent = "";
-      v.copy.forEach(function (c) {
-        copyRows = copyRows.concat(c.rows);
-        var opt = document.createElement("option"); opt.value = c.key; keys.appendChild(opt);
-        var tr = document.createElement("tr");
-        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
-        copyBody.appendChild(tr);
-      });
+      copyKeys(v.copy);
       renderCampaigns();
     });
   }
@@ -1728,6 +1679,7 @@ details.how p { margin-top: 8px; }
     b.setAttribute("aria-label", k.key + " / " + variant + " / " + l + ": " + status);
     b.addEventListener("click", function () {
       pushSel = { key: k.key, lang: l, variant: variant };
+      copyOpen = false;
       pushMsg = "";
       pushErrors(null);
       renderPush();
@@ -1795,6 +1747,114 @@ details.how p { margin-top: 8px; }
   $("push-f-need").addEventListener("click", function () { pushAll = false; if (push) renderPush(); });
   $("push-f-all").addEventListener("click", function () { pushAll = true; if (push) renderPush(); });
 
+  // The campaign copy: one title and one body per language, for the keys campaigns name. Read from
+  // the campaigns endpoint, which is where the server says which keys are in use and how complete.
+  var copyData = null;
+  var copyOpen = false;
+
+  function copyKeys(list) {
+    var keys = $("campaign-keys");
+    keys.textContent = "";
+    list.forEach(function (c) {
+      var opt = document.createElement("option");
+      opt.value = c.key;
+      keys.appendChild(opt);
+    });
+  }
+
+  function loadCopy() {
+    var body = $("campaign-copy").querySelector("tbody");
+    return api("GET", "/admin/api/campaigns").then(function (v) {
+      copyData = v;
+      copyKeys(v.copy);
+      body.textContent = "";
+      v.copy.forEach(function (c) {
+        var tr = document.createElement("tr");
+        [c.key, c.gaps.length ? c.gaps.join(", ") : "complete"].forEach(function (t, i) { td(tr, t, i, 99); });
+        body.appendChild(tr);
+      });
+      emptyRow(body, 2, "No campaign has written any copy yet.");
+      if (copyOpen) renderPushEdit();
+    }, function () {
+      copyData = null;
+      body.textContent = "";
+      emptyRow(body, 2, "Couldn't load the campaign copy.");
+    });
+  }
+
+  function renderCopyForm(pane) {
+    var head = document.createElement("div");
+    head.className = "ph";
+    var name = document.createElement("b");
+    name.textContent = "New campaign copy";
+    head.appendChild(name);
+    pane.appendChild(head);
+    var host = document.createElement("div");
+    host.className = "pb";
+    host.id = "campaign-copy-form";
+    pane.appendChild(host);
+    var rows = [];
+    ((copyData && copyData.copy) || []).forEach(function (c) { rows = rows.concat(c.rows); });
+    var variants = (copyData && copyData.options && copyData.options.variants) || ["default"];
+    var key = document.createElement("input"); key.placeholder = "campaign:spring-win-back"; key.setAttribute("list", "campaign-keys");
+    var lang = document.createElement("select");
+    push.langs.forEach(function (l) { var opt = document.createElement("option"); opt.value = l; opt.textContent = l; lang.appendChild(opt); });
+    var variant = document.createElement("select");
+    variants.forEach(function (v) { var opt = document.createElement("option"); opt.value = v; opt.textContent = v; variant.appendChild(opt); });
+    var title = document.createElement("input"); title.placeholder = "Title";
+    var body = document.createElement("textarea"); body.placeholder = "Body";
+    var row = document.createElement("div"); row.className = "row flexwrap";
+    [campaignField("Key", key), campaignField("Language", lang), campaignField("Variant", variant), campaignField("Title", title)].forEach(function (f) { row.appendChild(f); });
+    host.appendChild(row);
+    host.appendChild(campaignField("Body", body));
+    // Picking a key and language shows what is saved there.
+    var fill = function () {
+      var hit = rows.filter(function (r) { return r.key === key.value.trim() && r.lang === lang.value && r.variant === variant.value; })[0];
+      title.value = hit ? hit.title : "";
+      body.value = hit ? hit.body : "";
+    };
+    key.addEventListener("change", fill);
+    lang.addEventListener("change", fill);
+    variant.addEventListener("change", fill);
+    var save = function (status) {
+      return function () {
+        pushErrors(null);
+        pushSay("saving…");
+        api("PUT", "/admin/api/push-templates", {
+          template: { key: key.value.trim(), lang: lang.value, variant: variant.value, title: title.value, body: body.value },
+          status: status
+        }).then(function () {
+          pushSay(status === "reviewed" ? "saved and reviewed" : "saved as draft");
+          return loadPush().then(loadCopy);
+        }).catch(function (e) {
+          pushErrors((e.body && e.body.errors) || [e.message]);
+          pushSay("not saved");
+        });
+      };
+    };
+    var btns = document.createElement("div");
+    btns.className = "btns";
+    var draft = document.createElement("button"); draft.textContent = "Save as draft"; draft.addEventListener("click", save("draft"));
+    var rev = document.createElement("button"); rev.className = "primary"; rev.textContent = "Save as reviewed"; rev.addEventListener("click", save("reviewed"));
+    btns.appendChild(draft);
+    btns.appendChild(rev);
+    host.appendChild(btns);
+    var msg = document.createElement("span");
+    msg.className = "pane-note";
+    msg.textContent = pushMsg;
+    pushNote = msg;
+    host.appendChild(msg);
+  }
+
+  $("copy-new").addEventListener("click", function () {
+    copyOpen = true;
+    pushSel = null;
+    pushMsg = "";
+    pushErrors(null);
+    if (push) renderPush();
+    $("push-edit").scrollIntoView({ block: "nearest" });
+  });
+
   function pushSave(draft, status) {
     pushSay("saving…");
     api("PUT", "/admin/api/push-templates", { template: draft, status: status }).then(function () {
@@ -1815,8 +1875,8 @@ details.how p { margin-top: 8px; }
   function renderPushEdit() {
     var pane = $("push-edit");
     pane.textContent = "";
-    pane.classList.toggle("hidden", !pushSel);
-    if (!pushSel) return;
+    pane.classList.toggle("hidden", !pushSel && !copyOpen);
+    if (!pushSel) { if (copyOpen) renderCopyForm(pane); return; }
     var row = pushRow(pushSel.key, pushSel.lang, pushSel.variant);
     var draft = {
       key: pushSel.key, lang: pushSel.lang, variant: pushSel.variant,
@@ -2774,7 +2834,7 @@ details.how p { margin-top: 8px; }
     onboarding: { title: "Onboarding copy", load: function () { return loadOnboarding(); } },
     // The shell already read the templates to count what needs review, so the first open draws
     // from that answer instead of asking twice.
-    templates: { title: "Push templates", load: function () { return push ? Promise.resolve(renderPush()) : loadPush(); } },
+    templates: { title: "Push templates", load: function () { return (push ? Promise.resolve(renderPush()) : loadPush()).then(loadCopy); } },
     prompts: { title: "System prompts", load: loadPrompts },
     food: { title: "Food database", load: loadSwitches }
   };
@@ -2849,6 +2909,7 @@ details.how p { margin-top: 8px; }
     Object.keys(VIEWS).forEach(function (v) { $("view-" + v).classList.toggle("hidden", v !== id); });
     $("view-title").textContent = VIEWS[id].title;
     $("lang").classList.toggle("hidden", id !== "onboarding");
+    $("copy-new").classList.toggle("hidden", id !== "templates");
     document.title = "eait admin — " + VIEWS[id].title;
     Array.prototype.forEach.call(document.querySelectorAll("[data-nav]"), function (a) {
       var on = a.getAttribute("data-nav") === id;
