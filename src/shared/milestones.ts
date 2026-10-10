@@ -112,7 +112,9 @@ function longestRun(days: ReadonlySet<string>): number {
 export function evaluate(i: MilestoneInputs): string[] {
   const kcalByDate = new Map<string, number>();
   const mealsByDate = new Map<string, MilestoneMeal[]>();
-  for (const m of i.meals) {
+  // A meal dated after today is not a day yet.
+  const meals = i.meals.filter((m) => m.date <= i.today);
+  for (const m of meals) {
     kcalByDate.set(m.date, (kcalByDate.get(m.date) ?? 0) + m.kcal);
     const day = mealsByDate.get(m.date) ?? [];
     day.push(m);
@@ -120,13 +122,15 @@ export function evaluate(i: MilestoneInputs): string[] {
   }
   // A day under the floor is not a day: its meals count toward nothing.
   const days = new Set([...kcalByDate].filter(([, kcal]) => kcal >= i.floorKcal).map(([d]) => d));
-  const counted = i.meals.filter((m) => days.has(m.date));
+  const counted = meals.filter((m) => days.has(m.date));
   const earned = new Set<string>();
 
   for (const [id, n] of STREAKS) if (i.streakLongest >= n) earned.add(id);
   for (const [id, n] of MEAL_COUNTS) if (counted.length >= n) earned.add(id);
 
-  const onGoal = new Set([...days].filter((d) => (kcalByDate.get(d) ?? 0) <= i.targetKcal));
+  // Closed days only: a badge cannot be taken back, and today can still go over the target or stop matching yesterday.
+  const closed = new Set([...days].filter((d) => d < i.today));
+  const onGoal = new Set([...closed].filter((d) => (kcalByDate.get(d) ?? 0) <= i.targetKcal));
   if (onGoal.size >= 1) earned.add("10-one-hit-wonder");
   const goalRun = longestRun(onGoal);
   if (goalRun >= 7) earned.add("11-loyalty-iii");
@@ -154,15 +158,14 @@ export function evaluate(i: MilestoneInputs): string[] {
   if (counted.some((m) => m.date < m.createdDate)) earned.add("31-time-traveler");
   if (counted.some((m) => m.createdHour < 4)) earned.add("32-gremlin");
 
-  for (const d of days) {
-    if (d >= i.today) continue; // a closed day only: an open one can still move
+  for (const d of closed) {
     const s = i.dayScores.get(d);
     if (s === 10) earned.add("33-health-nut");
     if (s === 1) earned.add("34-dumpster-diver");
   }
 
   const names = (d: string) => new Set((mealsByDate.get(d) ?? []).flatMap((m) => m.nameEn.map((n) => n.toLowerCase())));
-  for (const d of days) {
+  for (const d of closed) {
     if (!days.has(dateMinus(d, 1))) continue;
     const a = names(d);
     const p = names(dateMinus(d, 1));
