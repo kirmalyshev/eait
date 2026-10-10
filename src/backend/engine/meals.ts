@@ -33,6 +33,7 @@ import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type Analyzed
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 import { isAnonymous } from "./identity.ts";
+import { evaluateMilestones } from "./milestones.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
@@ -312,6 +313,7 @@ export async function logPhotoTurn(
       .then(() => true, (e: unknown) => { console.error(`[eait] photos not stored: ${(e as Error)?.message ?? e}`); return false; });
   }
 
+  await evaluateMilestones(deps, userId);
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
   // The bubble names the meal; the bytes are fetched through the scoped route, never carried in a
   // line. Then the card, then — on the account's first meal only — Spud's verdict in the design's words.
@@ -479,6 +481,7 @@ export async function editMeal(
   // Not redundant with the read above: the row can vanish between the two (a concurrent account
   // delete). A correction that silently succeeded against nothing is worse than one that says so.
   if (!updated) return { kind: "target-gone", on: "correction" };
+  await evaluateMilestones(deps, userId);
 
   // What the edit measured. AFTER the write and never able to undo it: the correction is what the
   // user asked for, and the measurement is only what we get out of it.
@@ -532,6 +535,7 @@ export async function redateMeal(
   const date = dateMinus(localDate(deps.config.timezone, opts.at), clampDayOffset(dayOffset));
   const moved = await deps.store.updateMeal(userId, mealId, { date });
   if (!moved) return { kind: "target-gone", on: "redate" };
+  await evaluateMilestones(deps, userId);
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
   if (opts.thread === true) {
     await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
@@ -797,6 +801,7 @@ export async function rewriteMeal(
     confidence: analysis.confidence, corrected: false, model: deps.config.llmModel, question: null,
   });
   if (!updated) return { kind: "target-gone", on: "correction" };
+  await evaluateMilestones(deps, userId);
   // Stored AFTER the numbers that describe them, never for a refused turn. A store failure is a
   // log line, as `putPhotos` is in `logPhotoMeal`.
   if (addedBytes.length > 0) {
@@ -925,6 +930,7 @@ export async function confirmPendingMeal(
   // turns that raced their `putPending`s, must not leave a dead card's buttons able to log.
   await dropOtherPendings(deps, userId, pendingId);
 
+  await evaluateMilestones(deps, userId);
   const totals = sumTotals(await deps.store.mealsForDate(userId, pending.date));
   const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   await remember(deps, userId, async () => {

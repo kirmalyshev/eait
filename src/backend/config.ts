@@ -401,6 +401,11 @@ export interface Config {
    */
   pushEnabled: boolean;
   /**
+   * Milestones (ieat-app#1395): the 36-badge wall, `GET /v1/milestones` and `DaysResponse.unseenBadges`.
+   * ON unless a deployment says `0`/`false`; off, the route answers 404 and no badge is evaluated.
+   */
+  milestonesEnabled: boolean;
+  /**
    * Expo's push access token.
    *
    * A secret, and treated as one. EMPTY MEANS PUSHES ARE LOGGED, NOT SENT: Expo accepts
@@ -677,6 +682,7 @@ export function configDefaults(): Config {
     donateBmcUrl: "",
     donateGithubUrl: "",
     pushEnabled: false,
+    milestonesEnabled: true,
     expoPushAccessToken: "",
     webPushVapidPublicKey: "",
     webPushVapidPrivateKey: "",
@@ -892,6 +898,7 @@ export function loadConfig(): Config {
     donateBmcUrl: donateUrl("EAIT__BACKEND__DONATE_BMC_URL", process.env.EAIT__BACKEND__DONATE_BMC_URL),
     donateGithubUrl: donateUrl("EAIT__BACKEND__DONATE_GITHUB_URL", process.env.EAIT__BACKEND__DONATE_GITHUB_URL),
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
+    milestonesEnabled: !["0", "false"].includes(process.env.EAIT__BACKEND__MILESTONES_ENABLED ?? ""),
     expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
     webPushVapidPublicKey: process.env.EAIT__BACKEND__WEB_PUSH_VAPID_PUBLIC_KEY ?? d.webPushVapidPublicKey,
     webPushVapidPrivateKey: process.env.EAIT__BACKEND__WEB_PUSH_VAPID_PRIVATE_KEY ?? d.webPushVapidPrivateKey,
@@ -1124,6 +1131,7 @@ export function demoConfig(): Config {
     // scheduler, the sweep and the composed sentence are only reachable by hand if these are
     // readable here. Set EAIT__BACKEND__EVENING_LINE_TIME to a minute from now and watch it run.
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
+    milestonesEnabled: !["0", "false"].includes(process.env.EAIT__BACKEND__MILESTONES_ENABLED ?? ""),
     eveningLineTime: eveningLineTimeFromEnv(),
     // The same argument once more, for the paid tier. The webhook is the ONLY way an account
     // becomes paid, and RevenueCat cannot reach a laptop — so a paywall flow has to post the
