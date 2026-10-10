@@ -14,13 +14,19 @@ const INVITE_PATH = /^\/r\/([^/]{1,64})\/?$/;
 
 export const isInvitePath = (pathname: string): boolean => INVITE_PATH.test(pathname);
 
-/** `hasStart`: this host signs people up on the web, so "Start on the web" goes somewhere. */
-export async function inviteRoute(req: Request, url: URL, deps: EngineDeps, hasStart: boolean): Promise<Response> {
+/**
+ * `hasStart`: this host signs people up on the web, so "Start on the web" goes somewhere.
+ * `mayCount`: this address is inside its allowance — the page needs no login, so the row it
+ * writes is bounded per address; past the allowance the page still renders and counts nothing.
+ */
+export async function inviteRoute(
+  req: Request, url: URL, deps: EngineDeps, hasStart: boolean, mayCount: () => boolean,
+): Promise<Response> {
   if (req.method !== "GET" && req.method !== "HEAD") return new Response(null, { status: 405, headers: { allow: "GET, HEAD" } });
   const raw = INVITE_PATH.exec(url.pathname)![1]!;
   const code = normalizeReferralCode(raw);
   // A HEAD is a checker, not a person.
-  if (req.method === "GET") await openInvite(deps, raw, req.headers.get("user-agent"));
+  if (req.method === "GET" && mayCount()) await openInvite(deps, raw, req.headers.get("user-agent"));
   const link = code === null ? null : referralLink(deps.config, code);
   const store = deps.config.appStoreUrl;
   return html(invite({

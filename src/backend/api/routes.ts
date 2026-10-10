@@ -378,7 +378,9 @@ export function createRouter(
 
       // A friend's invite link (#899): no account, no cookie, before any user is resolved.
       if (isInvitePath(pathname)) {
-        return await inviteRoute(req, url, deps, Object.keys(providers).length > 0);
+        return await inviteRoute(req, url, deps, Object.keys(providers).length > 0,
+          // Unbilled, so the allowance the other unbilled writes take, in its own bucket.
+          () => limit(req, peer, "invite", deps.config.linesRateLimitPerHour, HOUR) === null);
       }
 
       // Onboarding in a browser, on ITS OWN session cookie and before any user is resolved.

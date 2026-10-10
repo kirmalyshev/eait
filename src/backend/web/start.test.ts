@@ -2946,6 +2946,15 @@ describe("refer a friend", () => {
     expect(await opens()).toBe(1);
   });
 
+  // #600 review: the page needs no login, so what it WRITES is bounded per address — past the
+  // allowance it still renders and counts nothing.
+  it("counts opens only within the per-address allowance, and still serves the page past it", async () => {
+    router({ ...CONFIG, linesRateLimitPerHour: 2 });
+    const code = await codeOf(await store.createUser("en"));
+    for (let i = 0; i < 4; i++) expect((await get(`/r/${code}`, undefined, SAFARI)).status).toBe(200);
+    expect(await opens()).toBe(2);
+  });
+
   it("draws no app button where the host names no listing, and 404s a path that holds no code", async () => {
     const page = await (await get("/r/K7M2QD", undefined, SAFARI)).text();
     expect(page).not.toContain("ct=referral");
