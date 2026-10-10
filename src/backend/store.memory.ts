@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
+import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -131,6 +131,29 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   }
   const entitlements = new Map<string, StoredWithClocks>();
   const freeAnalyses = new Map<string, number>(); // userId -> the admin's own sample size
+  /**
+   * The referral columns of `users` (#899) — maps beside the profile for the reason `roles` is
+   * one: off `Profile`, `patchProfile` here cannot write them either.
+   */
+  const referralCodes = new Map<string, string>(); // userId -> code
+  const referredBy = new Map<string, string>(); // friend -> referrer
+  const bonusUntil = new Map<string, string>(); // userId -> ISO
+  /** `referral_grants`, keyed on the friend as its primary key is. */
+  const referralGrants = new Map<string, { referrerId: string; eventAt: string; days: number }>();
+  /** `referral_events`: a share is a label and an instant, nothing that names the person. */
+  const referralShares: { referrerId: string; via: string; at: number }[] = [];
+  /** A code nobody holds — Postgres's `new_referral_code()`. */
+  const newReferralCode = (): string => {
+    const taken = new Set(referralCodes.values());
+    for (;;) {
+      const bytes = crypto.getRandomValues(new Uint8Array(REFERRAL_CODE_LENGTH));
+      const code = [...bytes].map((b) => REFERRAL_ALPHABET[b % REFERRAL_ALPHABET.length]).join("");
+      if (!taken.has(code)) return code;
+    }
+  };
+  /** `greatest(now, …dates) + days`, ignoring absent dates the way Postgres's `greatest` ignores nulls. */
+  const extend = (days: number, ...from: (string | null | undefined)[]): string =>
+    new Date(Math.max(now(), ...from.filter((d): d is string => !!d).map(Date.parse)) + days * 86_400_000).toISOString();
   /**
    * Per-user push state kept beside the profile (`users.timezone`, `push_slot`, `send_log`). Maps for the same reason
    * `roles` and `consents` are: the column lives on `users`, not on `Profile`, and this store's
@@ -289,6 +312,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * removes the last identity — the whole point of that step being one step — and reaching
    * it through `this` would break the moment a caller detached the method, which callers do.
    */
+  /** Postgres's cascades and `on delete set null` for the referral rows of a deleted account. */
+  const eraseReferrals = (userId: string): void => {
+    referralCodes.delete(userId);
+    referredBy.delete(userId);
+    bonusUntil.delete(userId);
+    for (const [friend, referrer] of referredBy) if (referrer === userId) referredBy.delete(friend);
+    for (const [friend, g] of referralGrants) if (friend === userId || g.referrerId === userId) referralGrants.delete(friend);
+    for (let i = referralShares.length - 1; i >= 0; i--) if (referralShares[i]!.referrerId === userId) referralShares.splice(i, 1);
+  };
+
   const eraseUser = (userId: string): void => {
     users.delete(userId);
     createdAt.delete(userId);
@@ -309,6 +342,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
     for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
     freeAnalyses.delete(userId);
+    eraseReferrals(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
     for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
@@ -395,6 +429,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         devices.set(deviceId, userId);
         users.set(userId, blankProfile(userId, lang));
         createdAt.set(userId, now());
+        referralCodes.set(userId, newReferralCode());
       }
       // Re-asserted on every device auth, matching Postgres: the device map is what this method
       // resolves through and the identity row is what "is anything else still linked" counts, so
@@ -475,6 +510,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const userId = crypto.randomUUID();
       users.set(userId, blankProfile(userId, lang));
       createdAt.set(userId, now());
+      referralCodes.set(userId, newReferralCode());
       return userId;
     },
 
@@ -617,6 +653,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           providers: mine.map((i) => i.provider),
           email: mine.find((i) => i.email)?.email ?? null,
           entitlement: storedEntitlement(id),
+          bonusUntil: bonusUntil.get(id) ?? null,
           freeAnalyses: freeAnalyses.get(id) ?? null,
           analysesToday: analyses.filter((a) => a.userId === id && a.date === today).length,
           spent: analyses.filter((a) => a.userId === id).length,
@@ -835,6 +872,25 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (pushOpens.delete(`${fromUserId}|${id}`)) pushOpens.add(`${intoUserId}|${id}`);
       }
 
+      // The referral moves as `store.pg.ts` moves it: the survivor's own `referred_by` stands, the
+      // anonymous one's fills a gap (never as the survivor's own code), the later week wins, and
+      // what the anonymous account earned or was granted follows the person.
+      const fromReferrer = referredBy.get(fromUserId);
+      if (!referredBy.has(intoUserId) && fromReferrer !== undefined && fromReferrer !== intoUserId) {
+        referredBy.set(intoUserId, fromReferrer);
+      }
+      const fromBonus = bonusUntil.get(fromUserId);
+      if (fromBonus !== undefined) bonusUntil.set(intoUserId, newest(bonusUntil.get(intoUserId), fromBonus));
+      const fromGrant = referralGrants.get(fromUserId);
+      if (fromGrant && !referralGrants.has(intoUserId)) referralGrants.set(intoUserId, fromGrant);
+      referralGrants.delete(fromUserId);
+      for (const [friend, referrer] of referredBy) {
+        if (referrer === fromUserId && friend !== intoUserId) referredBy.set(friend, intoUserId);
+      }
+      for (const [friend, g] of referralGrants) if (g.referrerId === fromUserId && friend !== intoUserId) g.referrerId = intoUserId;
+      for (const e of referralShares) if (e.referrerId === fromUserId) e.referrerId = intoUserId;
+      eraseReferrals(fromUserId);
+
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
       for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
@@ -881,6 +937,46 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       users.set(userId, next);
       return clone(next);
+    },
+
+    async bonusUntil(userId) {
+      return bonusUntil.get(userId) ?? null;
+    },
+
+    async redeemReferral(userId, code, days) {
+      const owner = [...referralCodes].find(([, c]) => c === code)?.[0];
+      if (owner === userId) return "own";
+      if (owner === undefined) return "unknown";
+      if (referredBy.has(userId) || !users.has(userId)) return "already";
+      referredBy.set(userId, owner);
+      bonusUntil.set(userId, extend(days, bonusUntil.get(userId)));
+      return "ok";
+    },
+
+    async grantReferralWeek(referredId, eventAt, days) {
+      const referrerId = referredBy.get(referredId);
+      if (referrerId === undefined || referralGrants.has(referredId)) return false;
+      referralGrants.set(referredId, { referrerId, eventAt, days });
+      bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), entitlements.get(referrerId)?.expiresAt));
+      return true;
+    },
+
+    async recordReferralShare(userId, via) {
+      if (users.has(userId)) referralShares.push({ referrerId: userId, via, at: now() });
+    },
+
+    async referralOf(userId) {
+      const code = referralCodes.get(userId);
+      if (code === undefined) return null;
+      const grants = [...referralGrants.values()].filter((g) => g.referrerId === userId);
+      return {
+        code,
+        applied: referredBy.has(userId),
+        joined: [...referredBy.values()].filter((r) => r === userId).length,
+        subscribed: grants.length,
+        daysEarned: grants.reduce((n, g) => n + g.days, 0),
+        shares: referralShares.filter((e) => e.referrerId === userId).length,
+      };
     },
 
     async getEntitlement(userId) {

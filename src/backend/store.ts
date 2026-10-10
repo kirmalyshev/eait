@@ -262,6 +262,28 @@ export interface EntitlementPatch {
   trial?: boolean;
 }
 
+/**
+ * One account's referral standing (#899), RAW: the engine turns `code` into a link and the days
+ * into weeks. Counts only — never who joined, which is the promise the Profile card makes.
+ */
+export interface ReferralRow {
+  /** This account's own code, made with the account and never changed. */
+  code: string;
+  /** This account joined with somebody's code. */
+  applied: boolean;
+  /** Accounts that joined with this one's code. */
+  joined: number;
+  /** Of the friends, the ones whose first paid period has granted this account its reward. */
+  subscribed: number;
+  /** The days those rewards added, summed. */
+  daysEarned: number;
+  /** Times this account shared its link, any channel. */
+  shares: number;
+}
+
+/** What applying a code did. Only `ok` wrote anything. */
+export type RedeemOutcome = "ok" | "unknown" | "own" | "already";
+
 /** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
 export type PushPlatform = "ios" | "web";
 
@@ -530,6 +552,8 @@ export interface AdminUserRow {
   email: string | null;
   /** What the account has bought, or null. Read `entitlementLive` for whether it is live. */
   entitlement: StoredEntitlement | null;
+  /** The referral week's end (`Store.bonusUntil`), the third input `entitlementLive` takes. */
+  bonusUntil: string | null;
   /** The account's own sample size, or null when it takes the instance default. */
   freeAnalyses: number | null;
   /** Analyses of BOTH scopes on the day asked for — the sample counts a typed meal too. */
@@ -1011,6 +1035,35 @@ export interface Store {
    * later write.
    */
   putEntitlement(userId: string, patch: EntitlementPatch): Promise<boolean>;
+
+  // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────
+  //
+  // `users.referral_code` (unique, made with the account), `users.referred_by` (set ONCE),
+  // `users.bonus_until` (the referral week — a third grant beside the two above, granted by this
+  // server rather than bought, which is why it is not on `StoredEntitlement`: that record's
+  // existence means "bought something"). None of the three is on `Profile`, so no PATCH reaches them.
+
+  /** The referral week's end, or null when there has never been one. Past dates are returned as they are. */
+  bonusUntil(userId: string): Promise<string | null>;
+  /**
+   * Apply somebody's code to this account, and start ITS week: `bonus_until` becomes
+   * `greatest(now, bonus_until) + days`, in the same statement that sets `referred_by` — and that
+   * statement only matches while `referred_by` is still null, so two racing redemptions apply one.
+   * The other answers are read after the guarded write found nothing to do, and wrote nothing.
+   */
+  redeemReferral(userId: string, code: string, days: number): Promise<RedeemOutcome>;
+  /**
+   * The referrer's reward for `referredId`'s first paid period: record the grant (once per friend,
+   * ever — the insert is `on conflict do nothing`) and, only if it inserted, move the REFERRER's
+   * `bonus_until` to `greatest(now, bonus_until, their subscription's expiry) + days`. False when
+   * nothing was granted: nobody referred this account, or its referrer was already paid for it.
+   * `referredId` comes from a verified webhook delivery, never from a client.
+   */
+  grantReferralWeek(referredId: string, eventAt: string, days: number): Promise<boolean>;
+  /** Count one share of this account's link. `via` is a short label, already validated. */
+  recordReferralShare(userId: string, via: string): Promise<void>;
+  /** Null when there is no such account. Counts other accounts' rows, so it reads unscoped. */
+  referralOf(userId: string): Promise<ReferralRow | null>;
 
   // ── Push tokens ────────────────────────────────────────────────────────────────────────────
   //

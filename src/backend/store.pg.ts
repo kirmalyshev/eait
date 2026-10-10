@@ -20,7 +20,7 @@ import type {
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -107,6 +107,10 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   weights: "user_id",
   milestones: "user_id",
   turns: "user_id",
+  // A grant and a share belong to the REFERRER — the account whose card counts them. Every write to
+  // either that names another account (a grant, a merge) is unscoped and says why in `SCOPE`.
+  referral_grants: "referrer_id",
+  referral_events: "referrer_id",
 };
 
 /**
@@ -466,6 +470,76 @@ begin
   end if;
 end
 $do$;
+-- REFERRALS (#899). The code is the account's own, made with the row and never changed: the
+-- DEFAULT is what makes it, so every insert path gets one without naming it. The alphabet comes
+-- from @eait/shared, the same constant normalizeReferralCode reads.
+--
+-- The loop is the collision handling: a code somebody holds is drawn again. Two inserts racing to
+-- the same unseen code are left to the unique constraint, which fails one of them -- ponytail: at
+-- a billion codes that is a sign-in retried once in a lifetime; a retry here if it ever is not.
+create or replace function new_referral_code() returns text language plpgsql volatile as $fn$
+declare
+  code text;
+begin
+  loop
+    select string_agg(substr('${REFERRAL_ALPHABET}', 1 + floor(random() * ${REFERRAL_ALPHABET.length})::int, 1), '')
+      into code from generate_series(1, ${REFERRAL_CODE_LENGTH});
+    exit when not exists (select 1 from users where referral_code = code);
+  end loop;
+  return code;
+end
+$fn$;
+-- ADDED AND BACKFILLED IN ONE BREATH, at the column's first sight only, like the lifetime unlock
+-- above. One row per statement: each update sees the codes the earlier ones took, where a single
+-- update over the table would check every row against the same snapshot and could hand two
+-- accounts one code.
+do $do$
+declare
+  r record;
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = current_schema()
+      and table_name = 'users' and column_name = 'referral_code'
+  ) then
+    alter table users add column referral_code text;
+    for r in select id from users loop
+      update users set referral_code = new_referral_code() where id = r.id;
+    end loop;
+    alter table users alter column referral_code set default new_referral_code();
+    alter table users alter column referral_code set not null;
+    alter table users add constraint users_referral_code_key unique (referral_code);
+  end if;
+end
+$do$;
+-- Who referred this account. Set ONCE, by redeemReferral's guarded update; never by a PATCH,
+-- which allowlists its columns. A referrer who deletes their account takes the link with them.
+alter table users add column if not exists referred_by uuid references users(id) on delete set null;
+create index if not exists users_referred_by_idx on users (referred_by) where referred_by is not null;
+-- The referral week: the THIRD grant beside entitlement_expires_at and the lifetime unlock,
+-- granted by this server rather than bought. Never touches entitlement_event_at, the
+-- "bought something" marker, so a friend whose week ended is not lapsed.
+alter table users add column if not exists bonus_until timestamptz;
+-- One row per friend whose first paid period earned their referrer a reward: the primary key is
+-- what makes it once per friend, ever. days is the reward as granted (a week for monthly, two
+-- for yearly), so weeks earned is a sum rather than a guess about which product it was.
+create table if not exists referral_grants (
+  referred_id uuid primary key references users(id) on delete cascade,
+  referrer_id uuid not null references users(id) on delete cascade,
+  event_at    timestamptz not null,
+  days        integer not null
+);
+create index if not exists referral_grants_referrer_idx on referral_grants (referrer_id);
+-- Counts, never people: a share is the label of the channel and the instant, no address, no
+-- device, nothing about whoever it was sent to.
+create table if not exists referral_events (
+  id          bigserial primary key,
+  kind        text not null check (kind in ('share')),
+  referrer_id uuid not null references users(id) on delete cascade,
+  via         text not null,
+  at          timestamptz not null
+);
+create index if not exists referral_events_referrer_idx on referral_events (referrer_id);
 -- When Spud spoke the first verdict. Null until then; the claim is one atomic update.
 alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
@@ -1463,8 +1537,17 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   // user's followers, and they re-read through the scoped `getJob`.
   onJobNotify: "raw",
 
+  // ── Referrals (#899): each of these reads or writes ANOTHER account's row by design.
+  // Redeeming looks the referrer up by code; the grant writes the referrer's week from a webhook
+  // delivery; the stats count the friends' rows. Each still names the account it acts for.
+  redeemReferral: "unscoped",
+  grantReferralWeek: "unscoped",
+  referralOf: "unscoped",
+
   // ── Everything else names its user, and almost always first.
   issueToken: 0,
+  bonusUntil: 0,
+  recordReferralShare: 0,
   revokeTokensFor: 0,
   addIdentity: 0,
   setIdentityEmail: 0,
@@ -2138,7 +2221,7 @@ export async function postgresStore(
       const rows = await sql`
         select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, (u.push_offers_at is not null) as push_offers,
                u.entitlement_expires_at, u.entitlement_lifetime_product_id,
-               u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial,
+               u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial, u.bonus_until,
                (select array_agg(i.provider order by i.linked_at asc)
                   from identities i where i.user_id = u.id) as providers,
                (select i.email from identities i
@@ -2179,6 +2262,7 @@ export async function postgresStore(
             eventAt: new Date(r.entitlement_event_at as string).toISOString(),
             trial: r.entitlement_trial === true,
           },
+          bonusUntil: r.bonus_until === null ? null : new Date(r.bonus_until as string).toISOString(),
           freeAnalyses: r.free_analyses === null || r.free_analyses === undefined
             ? null : num(r.free_analyses),
           analysesToday: num(r.today),
@@ -2438,6 +2522,28 @@ export async function postgresStore(
           update users into_u set timezone = coalesce(into_u.timezone, from_u.timezone)
           from users from_u where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
 
+        // THE REFERRAL MOVES TOO (#899). The survivor's own referred_by stands and the anonymous
+        // one's fills a gap — never as the survivor's own code, which would be an account referred
+        // by itself. The later week wins. A grant follows the PERSON: the friend paid for through
+        // the anonymous account is not paid for again through the real one. What the anonymous
+        // account earned as a referrer — its friends, its grants, its shares — moves to the survivor.
+        // Matches `store.memory.ts`; the contract suite says so.
+        await tx`
+          update users into_u set
+            referred_by = coalesce(into_u.referred_by,
+              case when from_u.referred_by <> into_u.id then from_u.referred_by end),
+            bonus_until = greatest(into_u.bonus_until, from_u.bonus_until)
+          from users from_u
+          where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
+        await tx`
+          update referral_grants set referred_id = ${intoUserId} where referred_id = ${fromUserId}
+            and not exists (select 1 from referral_grants t where t.referred_id = ${intoUserId})`;
+        await tx`
+          update referral_grants set referrer_id = ${intoUserId}
+          where referrer_id = ${fromUserId} and referred_id <> ${intoUserId}`;
+        await tx`update users set referred_by = ${intoUserId} where referred_by = ${fromUserId} and id <> ${intoUserId}`;
+        await tx`update referral_events set referrer_id = ${intoUserId} where referrer_id = ${fromUserId}`;
+
         // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
         // working rather than silently start addressing someone else's diary.
         await tx`delete from tokens where user_id = ${fromUserId}`;
@@ -2489,6 +2595,73 @@ export async function postgresStore(
       const rows = await sql`select * from users where id = ${userId}`;
       if (rows.length === 0) throw new Error("no such user");
       return toProfile(rows[0]);
+    },
+
+    async bonusUntil(userId) {
+      const rows = await sql`select bonus_until from users where id = ${userId}`;
+      const at = (rows[0] as { bonus_until: string | Date | null } | undefined)?.bonus_until ?? null;
+      return at === null ? null : new Date(at).toISOString();
+    },
+
+    async redeemReferral(userId, code, days) {
+      // THE GUARDED STATEMENT, and the only write: it matches only while this account's
+      // referred_by is still null and only a referrer that is not this account, and it starts the
+      // week in the same breath. Two redemptions racing apply exactly one.
+      const at = new Date(now());
+      const applied = await sql`
+        update users me set
+          referred_by = ref.id,
+          bonus_until = greatest(${at}::timestamptz, me.bonus_until) + make_interval(days => ${days}::int)
+        from users ref
+        where me.id = ${userId} and me.referred_by is null
+          and ref.referral_code = ${code} and ref.id <> ${userId}
+        returning me.id`;
+      if (applied.length > 0) return "ok";
+      // Nothing written; these reads only name the refusal.
+      const owner = await sql`select id from users where referral_code = ${code}`;
+      if (owner.length === 0) return "unknown";
+      return String(owner[0].id) === userId ? "own" : "already";
+    },
+
+    async grantReferralWeek(referredId, eventAt, days) {
+      // RevenueCat can name an id that is not one of ours; a uuid column would throw on it.
+      if (!UUID.test(referredId)) return false;
+      // One statement: the insert is the once-per-friend guard, and the referrer's week moves only
+      // when it inserted. Past where their access would have ended — a running week, or the
+      // subscription they are paying for.
+      const rows = await sql`
+        with g as (
+          insert into referral_grants (referred_id, referrer_id, event_at, days)
+          select id, referred_by, ${new Date(eventAt)}, ${days}::int
+            from users where id = ${referredId} and referred_by is not null
+          on conflict (referred_id) do nothing
+          returning referrer_id, days)
+        update users r set bonus_until =
+          greatest(${new Date(now())}::timestamptz, r.bonus_until, r.entitlement_expires_at) + make_interval(days => g.days)
+        from g where r.id = g.referrer_id
+        returning r.id`;
+      return rows.length > 0;
+    },
+
+    async recordReferralShare(userId, via) {
+      await sql`insert into referral_events (kind, referrer_id, via, at)
+                select 'share', id, ${via}, ${new Date(now())} from users where id = ${userId}`;
+    },
+
+    async referralOf(userId) {
+      const rows = await sql`
+        select u.referral_code, u.referred_by is not null as applied,
+               (select count(*) from users f where f.referred_by = u.id) as joined,
+               (select count(*) from referral_grants g where g.referrer_id = u.id) as subscribed,
+               (select coalesce(sum(g.days), 0) from referral_grants g where g.referrer_id = u.id) as days,
+               (select count(*) from referral_events e where e.referrer_id = u.id and e.kind = 'share') as shares
+          from users u where u.id = ${userId}`;
+      const r = rows[0] as Record<string, unknown> | undefined;
+      if (!r) return null;
+      return {
+        code: String(r.referral_code), applied: r.applied === true, joined: num(r.joined),
+        subscribed: num(r.subscribed), daysEarned: num(r.days), shares: num(r.shares),
+      };
     },
 
     async getEntitlement(userId) {
