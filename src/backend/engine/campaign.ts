@@ -14,8 +14,6 @@
 //   - THE TEMPLATE is the campaign's OWN copy (`campaign:<slug>`, eight languages, reviewed, no
 //     placeholders) and is re-checked each batch: a language edited back to draft after activation
 //     stops the sends rather than putting half a translated set on lock screens.
-//   - A STREAK IS NEVER INTERRUPTED. An account with a streak of CAMPAIGN_STREAK_GUARD_DAYS or more
-//     is never reached, a hard rule and not a segment predicate.
 //   - PROMOTIONAL campaigns reach only accounts that turned "tips and offers" on in the app
 //     (`push_offers_at`, read in `factsFor`; the sign-up box is a different consent). The in-app
 //     toggle has not shipped, so activation of a promotional campaign stays refused until it does.
@@ -25,7 +23,7 @@
 // set in the store instead.
 
 import {
-  CAMPAIGN_STATUSES, CAMPAIGN_STREAK_GUARD_DAYS, CAMPAIGN_VARIANTS, effectOf, entitlementLive, habitOf, inHoldout, inRollout, isCampaignTemplateKey, localDate, matchesSegment, variantOf,
+  CAMPAIGN_STATUSES, CAMPAIGN_VARIANTS, effectOf, entitlementLive, habitOf, inHoldout, inRollout, isCampaignTemplateKey, localDate, matchesSegment, variantOf,
   pushKeyGaps, validateCampaignInput,
   type CampaignInput, type CampaignStatus, type CampaignTemplateKey, type Lang, type PushKind, type PushTemplateRow, type SegmentFacts,
 } from "@eait/shared";
@@ -181,7 +179,6 @@ async function factsFor(deps: EngineDeps, userId: string, date: string, now: num
 /** True when this campaign may reach this account at all, schedule aside. */
 function reaches(c: CampaignRow, userId: string, f: SegmentFacts): boolean {
   if (!inRollout(userId, c.id, c.rolloutPct)) return false;
-  if (f.streakDays >= CAMPAIGN_STREAK_GUARD_DAYS) return false;
   if (c.promotional && !f.tipsConsent) return false;
   return matchesSegment(c.segment, f);
 }
