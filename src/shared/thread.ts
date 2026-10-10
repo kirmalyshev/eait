@@ -370,7 +370,14 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
 export function oneLiveProposal(entries: ThreadEntry[], lang: Lang): ThreadEntry[] {
   const live = entries.filter((e) => pendingIdOf(e) !== null);
   if (live.length < 2) return entries;
-  const newest = live[live.length - 1];
+  // The live offer is the NEWEST PROPOSAL, not the row the merge happened to place last. A
+  // restored card has no say to anchor under when the send that made it ran as a job (its bubble
+  // names no `pendingId` — #1347), so it lands at the list's end — after a later send's card —
+  // and the array's tail would retire the wrong one. Every proposal shares the one TTL, so
+  // `expiresAt` orders exactly as creation does.
+  const expiresAt = (e: ThreadEntry): string =>
+    e.role === "assistant" && e.result.kind === "proposed" ? e.result.expiresAt : "";
+  const newest = live.reduce((a, b) => (expiresAt(b) >= expiresAt(a) ? b : a));
   return entries.map((e) => {
     if (pendingIdOf(e) === null || e === newest) return e;
     return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", lang, {}) } };
