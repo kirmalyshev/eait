@@ -1149,7 +1149,7 @@ create table if not exists admin_switches (
 );
 alter table admin_switches drop constraint if exists admin_switches_key_check;
 alter table admin_switches add constraint admin_switches_key_check
-  check (key in ('grounding.photo', 'grounding.text'));
+  check (key in ('grounding.photo', 'grounding.text', 'prompt.photo-lean'));
 
 -- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
 -- of numbers per day, and a per-second heart rate series would be a large pile of special-category
