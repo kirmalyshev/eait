@@ -1,6 +1,7 @@
 // Refer a friend in the web APPLICATION (#899): the card above the settings list, one Share link
 // button — the browser's share sheet where there is one, else the clipboard — and the share is
 // counted only once it finished.
+import { dayMonthAt, type Lang } from "@eait/shared";
 import { expect, test } from "./fixtures.ts";
 
 test("the card shares the account's link and counts the share when the sheet finishes", async ({ inWebApp: page }) => {
@@ -31,15 +32,24 @@ test("without a share sheet it copies the link instead, and says so", async ({ i
 
 // Review of #600: what the referral weeks mean for this account, drawn from the server's numbers —
 // the bank while a subscription runs, the date while the bonus is what keeps the account in.
-const withProfile = async (page: import("@playwright/test").Page, edit: (p: Record<string, any>) => void) => {
+const withProfile = async (page: import("@playwright/test").Page, edit: (p: Record<string, any>) => void): Promise<Record<string, any>> => {
+  let body: Record<string, any> = {};
   await page.route("**/api/v1/profile", async (route) => {
     const res = await route.fetch();
-    const body = await res.json() as Record<string, any>;
+    body = await res.json() as Record<string, any>;
     edit(body);
     await route.fulfill({ response: res, json: body });
   });
+  // The response the edit went into, AWAITED before the body is handed back. The profile request
+  // is the render's second fetch — it follows the session-token POST — so `reload()`'s load event
+  // resolves while it is still in flight. A caller that instead read a variable the handler sets
+  // found its initial value: "UTC" beside the card's Europe/Berlin, a day behind every night once
+  // the bonus instant crosses 23:00 UTC (#604).
+  const answered = page.waitForResponse("**/api/v1/profile");
   await page.goto("/#/you");
   await page.reload();
+  await answered;
+  return body;
 };
 
 test("a paying referrer is told the whole weeks banked behind the subscription", async ({ inWebApp: page }) => {
@@ -52,34 +62,33 @@ test("a bank that is not whole weeks is told in days", async ({ inWebApp: page }
   await expect(page.getByLabel("Refer a friend")).toContainText("10 free days banked, used if you stop");
 });
 
-// Twenty days out, so the date is always this year's and the form is the short day-and-month.
+// Twenty days out: a `bonusUntil` instant for the card to draw. The expected string is computed
+// with the card's OWN formatter — `dayMonthAt`, the account's zone from the same response — so the
+// assertion cannot drift from what the screen does: a hand-rolled `Intl` expectation in the wrong
+// zone is the day-shift that went red after 23:00 UTC (#604), and one that omits the year is red
+// again every December when `dayMonthAt` appends it.
 const until = new Date(Date.now() + 20 * 86_400_000);
-const shortDate = (tag: string, zone: string) =>
-  new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: zone }).format(until);
+const bonusDate = (lang: Lang, zone: string): string =>
+  dayMonthAt(lang, zone, until).replace(/\.$/, "");
 
 test("while the bonus keeps the account in, the card says until when", async ({ inWebApp: page }) => {
-  let zone = "UTC";
-  await withProfile(page, (p) => {
-    zone = p.timezone;
-    p.entitlement.active = true;
-    p.entitlement.bonusUntil = until.toISOString();
+  const p = await withProfile(page, (body) => {
+    body.entitlement.active = true;
+    body.entitlement.bonusUntil = until.toISOString();
   });
-  await expect(page.getByLabel("Refer a friend")).toContainText(`eait is yours until ${shortDate("en-GB", zone)}.`);
+  await expect(page.getByLabel("Refer a friend")).toContainText(`eait is yours until ${bonusDate("en", String(p.timezone))}.`);
 });
 
 // German writes its short month with a full stop ("12. Okt."): the sentence's own full stop is
 // that one, never a second.
 test("a date that ends in a full stop ends the sentence once", async ({ inWebApp: page }) => {
-  let zone = "UTC";
-  await withProfile(page, (p) => {
-    zone = p.timezone;
-    p.profile.lang = "de";
-    p.entitlement.active = true;
-    p.entitlement.bonusUntil = until.toISOString();
+  const p = await withProfile(page, (body) => {
+    body.profile.lang = "de";
+    body.entitlement.active = true;
+    body.entitlement.bonusUntil = until.toISOString();
   });
-  const date = shortDate("de-DE", zone).replace(/\.$/, "");
   const card = page.getByLabel(/Freunde einladen|Refer a friend/);
-  await expect(card).toContainText(`eait gehört dir bis ${date}.`);
+  await expect(card).toContainText(`eait gehört dir bis ${bonusDate("de", String(p.timezone))}.`);
   await expect(card).not.toContainText("..");
 });
 
