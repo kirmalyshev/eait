@@ -134,9 +134,6 @@ describe("YOU_COPY", () => {
     expect(en.phone.signedInWith).toBe("Signed in with");
     expect(en.phone.signOutThis).toBe("Sign out of this account");
     expect(en.phone.signOutEverywhere).toBe("Sign out everywhere");
-    expect(en.phone.pairingTitle).toBe("Use eait in a browser");
-    expect(en.phone.pairingHint).toBe("{url} · expires at {time}");
-    expect(en.phone.newPairingCode).toBe("New pairing code");
     expect(en.phone.deleteEverything).toBe("Delete everything");
     expect(en.phone.deleteTitle).toBe("Delete your account?");
     expect(en.phone.deleteBody).toBe(

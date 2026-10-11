@@ -253,9 +253,7 @@ export const ROUTES = {
   /**
    * POST, under a bearer — drops EVERY token of the caller's account (#247).
    *
-   * The mitigation for the one risk pairing codes introduce: an intercepted code buys a full
-   * session until it idles out, and until this there was no way to end it. Same answer for a lost
-   * phone, and for a browser paired on a machine somebody no longer has.
+   * The answer for a lost phone, or a browser signed in on a machine somebody no longer has.
    *
    * It signs the CALLING device out too, which is correct and has to be said on the button: there
    * is no way to end every other session without ending this one, because nothing about a token
@@ -263,12 +261,11 @@ export const ROUTES = {
    */
   authSignOutEverywhere: "/v1/auth/signout/all",
   /**
-   * POST, under a bearer — mints a short-lived code that hands a BROWSER a session on the caller's
-   * own account. Answers {@link PairCodeResponse}.
+   * POST, under a bearer — mints a short-lived code that links a TELEGRAM account to the caller's
+   * own account: the bot spends it with `/start <code>`. Answers {@link PairCodeResponse}.
    *
    * The account it names is the caller's, resolved from the token like every other route here; the
-   * body is not read at all. Redemption is `POST /start/pair`, which mints the ordinary session
-   * token the OAuth callback mints, so nothing downstream learns a new auth path.
+   * body is not read at all.
    */
   authPair: "/v1/auth/pair",
   /** The identities linked to this account, so settings can show what is connected. */
@@ -456,11 +453,8 @@ export const ROUTES = {
    * The browser onboarding, and the ONE route here that is not part of the JSON API.
    *
    * It is a page, not an endpoint: server-rendered HTML with no JavaScript, and the app never
-   * fetches it. It is in this table because it is the string the phone PRINTS — "open
-   * <host>/start and type a pairing code" — and because `POST /start/pair` above is where
-   * `authPair`'s code is redeemed. One spelling of the path, imported by the module that serves
-   * it and by the one that composes {@link ProfileResponse.pairAddress}, rather than a literal in
-   * each (#408).
+   * fetches it. It is in this table so that the one spelling of the path is imported by the module
+   * that serves it rather than written as a literal in each (#408).
    */
   webStart: "/start",
 } as const;
@@ -653,10 +647,10 @@ export interface UnlinkResponse {
 }
 
 /**
- * A pairing code, and when it stops working.
+ * A Telegram link code, and when it stops working.
  *
  * `expiresAt` IS SENT rather than compiled into both sides. The TTL is a limit the server enforces
- * — a redemption after it is refused there — and a client that carried its own copy of the number
+ * — a use after it is refused there — and a client that carried its own copy of the number
  * would eventually disagree with the one doing the refusing, which the user meets as a code that
  * looks live and is not.
  */
@@ -752,23 +746,6 @@ export interface ProfileResponse {
    * one refusing requests. `limits.dailyPhotoCap` above is already computed from this.
    */
   entitlement: Entitlement;
-  /**
-   * Where to send a browser to pair with this account — host and path, no scheme (#408).
-   *
-   * SENT, NEVER COMPOSED BY THE CLIENT, for the reason {@link API_VERSION} states: shipped apps
-   * outlive the server they were built against. Every build before this field derived the address
-   * from its own compiled-in `API_URL` and printed `api.eait.fit/start`; that name becomes a 301
-   * to the browser's own host and eventually stops serving the page, and a binary already on a
-   * phone cannot be told. Reading it off the profile means the next move of this surface needs no
-   * new build — which is the whole point, and is why the path is here too and not just the host.
-   *
-   * NO SCHEME, because it is read off a phone screen and typed into an address bar by hand.
-   *
-   * EMPTY when the server has been told neither origin, which is development. The client then
-   * keeps its own answer: the host it is already talking to is the right one there, and a guess
-   * invented server-side would be wrong on every worktree at once.
-   */
-  pairAddress: string;
   /**
    * The username of this server's Telegram bot, for a Connect Telegram link, or null.
    *
