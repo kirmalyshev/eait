@@ -12,6 +12,7 @@
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
+import { LeanSchema, widen } from "./lean.ts";
 import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCall, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, emptyEstimate, imageMime } from "./port.ts";
 import {
@@ -586,7 +587,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   }
 
   const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
-    const { analysis } = await prompts();
+    const { analysis, analysis_lean } = await prompts();
     const content: Content = [
       { type: "text", text: buildUserText(input.profile, input.targets, {
         ...(input.caption !== undefined ? { caption: input.caption } : {}),
@@ -596,6 +597,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
+    // The admin's `prompt.photo-lean` switch (#607): L1 asks for less, `widen` returns the rest.
+    if (input.lean) {
+      const l = await complete(analysis_lean, content, LeanSchema, "meal_analysis", false, onDelta, undefined, input.onCost, input.signal,
+        { name: "meal_analysis", onCall: input.onCall });
+      return widen(l);
+    }
     return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost, input.signal,
       { name: "meal_analysis", onCall: input.onCall });
   };

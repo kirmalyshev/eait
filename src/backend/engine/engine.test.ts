@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type FoodRef, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
+import { LeanSchema, widen } from "../llm/lean.ts";
 import type { AnalyzedMeal, LlmCallMetric, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -2743,6 +2744,64 @@ describe("the grounding switches", () => {
     await store.putFoodRefs([oats]);
     store.switchEnabled = async () => { throw new Error("db down"); };
     expect(await photoKcal()).toBe(140);
+  });
+});
+
+// The lean photo prompt's switch (#607): default OFF — a never-set key means the full prompt —
+// read per request, and a throwing read is off here rather than on, the mirror of grounding's.
+describe("the lean photo switch", () => {
+  const ADMIN = "00000000-0000-4000-8000-000000000001";
+  const LEAN_DOC = JSON.stringify({
+    isFood: true, scale: { reference: "plate" },
+    items: [{ name: "Rice", name_en: "white rice, cooked", grams: 200, kcal_per_100g: 130 }],
+    kcal: 400, protein_g: 30, carbs_g: 60, fat_g: 10, confidence: "high", notes: "", question: null,
+  });
+  /** An analyzer answering the lean shape, which records whether it was asked for it. */
+  const leanLlm = (seen: (boolean | undefined)[]): LlmPorts => ({
+    ...demoPorts(),
+    analyzePhoto: async (input, onDelta) => {
+      seen.push(input.lean);
+      if (onDelta) for (let i = 0; i < LEAN_DOC.length; i += 20) onDelta(LEAN_DOC.slice(i, i + 20));
+      return widen(LeanSchema.parse(JSON.parse(LEAN_DOC)));
+    },
+  });
+
+  it("is off by default: the analyzer is not asked for the lean shape", async () => {
+    const seen: (boolean | undefined)[] = [];
+    const res = await logPhotoMeal(makeDeps({}, leanLlm(seen)), await onboard(), photo());
+    expect(res.kind).toBe("logged");
+    expect(seen).toEqual([false]);
+  });
+
+  it("prompt.photo-lean on asks for the lean shape, and flipping back stops asking", async () => {
+    const seen: (boolean | undefined)[] = [];
+    const d = makeDeps({}, leanLlm(seen));
+    const userId = await onboard();
+    await store.setSwitch("prompt.photo-lean", true, ADMIN);
+    expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
+    await store.setSwitch("prompt.photo-lean", false, ADMIN);
+    await logPhotoMeal(d, userId, photo());
+    expect(seen).toEqual([true, false]);
+  });
+
+  it("a lean stream still yields the item events the pending card draws", async () => {
+    const seen: (boolean | undefined)[] = [];
+    const userId = await onboard();
+    await store.setSwitch("prompt.photo-lean", true, ADMIN);
+    const events: PhotoEvent[] = [];
+    const res = await logPhotoMeal(makeDeps({}, leanLlm(seen)), userId, photo(), (e) => events.push(e));
+    expect(res.kind).toBe("logged");
+    expect(events.filter((e) => e.kind === "item")).toEqual([
+      { kind: "item", index: 0, line: expect.any(String), item: { name: "Rice", name_en: "white rice, cooked", grams: 200, kcal_per_100g: 130, kcal: 260 } },
+    ]);
+  });
+
+  it("a read that throws keeps the lean prompt OFF and still logs the meal", async () => {
+    const seen: (boolean | undefined)[] = [];
+    const d = makeDeps({}, leanLlm(seen));
+    d.store.switchEnabled = async () => { throw new Error("db down"); };
+    expect((await logPhotoMeal(d, await onboard(), photo())).kind).toBe("logged");
+    expect(seen).toEqual([false]);
   });
 });
 

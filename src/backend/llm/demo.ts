@@ -6,6 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
+import { toLean, widen } from "./lean.ts";
 import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, OnCall, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 import { storedPhotoRead, storedTextRead } from "./stored-reads.ts";
@@ -181,6 +182,20 @@ export function demoPorts(): LlmPorts {
         ? { ...plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0))),
             confidence: "low" as const, question: DEMO_GRAMS_Q }
         : plateFor(hash(caption + input.images.length + (input.images[0]?.byteLength ?? 0))));
+    // `prompt.photo-lean` (#607): the canned port honours the same flag the real one does — it
+    // streams the lean shape, so `--demo` walks the same item events, and answers it widened.
+    if (input.lean) {
+      const lean = toLean(meal);
+      if (onDelta) {
+        const text = JSON.stringify(lean);
+        const step = Math.ceil(text.length / 6);
+        for (let i = 0; i < text.length; i += step) {
+          await new Promise((r) => setTimeout(r, demoPieceDelayMs(input.caption)));
+          onDelta(text.slice(i, i + step));
+        }
+      }
+      return widen(lean);
+    }
     if (onDelta) {
       // The real analyzer writes its JSON over seconds; the pending card is visible in `--demo`
       // and under every e2e flow only if this one does too, in pieces, with a beat between them.
