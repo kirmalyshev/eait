@@ -374,7 +374,7 @@ describe("the sign-up screen", () => {
     expect(html).toContain("Continue with Google");
     expect(html.indexOf("/start/auth/apple")).toBeLessThan(html.indexOf("/start/auth/google"));
     // The boxes, and both of them bound to the form the buttons submit (`form=` keeps them below
-    // the pairing card, where the board draws them).
+    // the buttons, where the board draws them).
     expect(html).toContain('name="terms"');
     expect(html).toContain('name="marketing"');
     expect(html).toContain('form="signup"');
@@ -391,8 +391,7 @@ describe("the sign-up screen", () => {
     // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
     expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
     expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
-    // No pairing card — `email-signin` removed it (#569): the three providers fill the page's
-    // one decision, and `/start/pair` posts still redeem.
+    // No pairing card: the three providers fill the page's one decision.
     expect(html).not.toContain('action="/start/pair"');
     expect(html).toContain('action="/start/email"');
   });
@@ -691,17 +690,17 @@ describe("the questions", () => {
     // The sessionless first answer mints an account, so it takes the same per-address allowance
     // the sign-in routes take: without it, this form is a `users` row per POST for a bot.
     router({ ...CONFIG, authRateLimitPerHour: 1 });
-    // Spend the one allowance — a pairing attempt does it, whatever the code names.
-    await post("/start/pair", { code: "ZZZZZZZZ" });
+    // Spend the one allowance — a sign-in does it.
+    await signIn("first");
 
     const res = await post("/start/q", { prompt: "goal", answer: "lose" });
     expect(res.status).toBe(429);
     expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
-    // No cookie, and more to the point no ACCOUNT — the charge stood between the answer and the
-    // row it would have made.
+    // No cookie, and more to the point no NEW account — the charge stood between the answer and
+    // the row it would have made; the one row is the sign-in that spent the allowance.
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
     const { rows } = await store.adminListUsers({ limit: 10, today: localDate(CONFIG.timezone) });
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
   });
 
   it("makes the session account on the first answer, and hands back the cookie for it", async () => {
@@ -938,162 +937,6 @@ describe("coming back", () => {
     const res = await get("/start/q", again);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/plan");
-  });
-});
-
-describe("pairing a browser with an app account", () => {
-  /** The app's half, over the API this browser never touches: a device account, onboarded. */
-  async function appSession(): Promise<string> {
-    const res = await handle(new Request("https://api.eait.fit/v1/auth/device", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
-    }));
-    const { token } = await res.json() as { token: string };
-    await handle(new Request("https://api.eait.fit/v1/profile", {
-      method: "PATCH",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        goal: "lose", sex: "female", birth_year: 1990, height_cm: 170, weight_kg: 80,
-        target_weight_kg: 70, activity: "few", pace: "steady", country: "de",
-        restrictions: [], complete_onboarding: true,
-      }),
-    }));
-    return token;
-  }
-
-  /** What the app would show the user. */
-  async function mint(token: string): Promise<string> {
-    const res = await handle(new Request("https://api.eait.fit/v1/auth/pair", {
-      method: "POST", headers: { authorization: `Bearer ${token}` },
-    }));
-    expect(res.status).toBe(200);
-    return (await res.json() as { code: string }).code;
-  }
-
-  /**
-   * THE ONE THE TICKET ASKS FOR: a device-anonymous install opens its own thread in a browser and
-   * sends a turn.
-   *
-   * Every step is a real request. The browser starts with no cookie at all, and what it ends with
-   * is the ordinary session cookie the OAuth callback sets — the same token, in the same place,
-   * read by the same line.
-   */
-  it("takes a signed-in app account's thread into a browser, and a turn lands in it", async () => {
-    const app = await appSession();
-    // Under S8 an anonymous account is refused analysis — a real pairing happens after the phone
-    // has signed up, so this one has a Google identity like the flow produces.
-    await handle(new Request("https://api.eait.fit/v1/auth/google", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${app}` },
-      body: JSON.stringify({ idToken: `ok:google:pair-${crypto.randomUUID()}`, terms: true }),
-    }));
-    const userId = (await store.userIdForToken(app))!;
-    const code = await mint(app);
-
-    const paired = await post("/start/pair", { code });
-    expect(paired.status).toBe(303);
-    expect(paired.headers.get("location")).toBe("/start/chat");
-    const session = cookieFrom(paired, "eait_web");
-
-    // The SAME account, not a new one: no user was created and nothing was merged.
-    expect(await store.userIdForToken(session.split("=")[1]!)).toBe(userId);
-
-    const thread = await get("/start/chat", session);
-    expect(thread.status).toBe(200);
-
-    const before = (await chatHistory(deps, userId, { limit: 50 })).entries.length;
-    const said = await post("/start/chat/say", { text: "two eggs and toast" }, session);
-    expect(said.status).toBe(303);
-    const after = await chatHistory(deps, userId, { limit: 50 });
-    expect(after.entries.length).toBeGreaterThan(before);
-    expect(JSON.stringify(after.entries)).toContain("two eggs and toast");
-  });
-
-  /**
-   * THE INVARIANT, with a crafted body — the redemption half.
-   *
-   * The browser never names an account and cannot: the user id comes out of the store, by the hash
-   * of the code. A form field called `userId` is just a field nobody reads.
-   */
-  it("lands in the account that MINTED the code, whatever else the form says", async () => {
-    const a = await appSession();
-    const b = await appSession();
-    const attacker = (await store.userIdForToken(b))!;
-    const code = await mint(a);
-
-    const paired = await post("/start/pair", { code, userId: attacker });
-    const session = cookieFrom(paired, "eait_web");
-    expect(await store.userIdForToken(session.split("=")[1]!)).toBe(await store.userIdForToken(a));
-  });
-
-  /**
-   * LOGIN-CSRF, refused by shape.
-   *
-   * A GET that minted a session from `?code=` would be a link an attacker can send: the victim's
-   * browser follows it, is signed into the ATTACKER's account, and types their weight into it —
-   * the scenario rule 3 at the top of `start.ts` describes. So there is no GET here at all, and
-   * the redemption is the POST somebody pressed.
-   */
-  it("has no GET that mints anything", async () => {
-    const app = await appSession();
-    const code = await mint(app);
-    const res = await get(`/start/pair?code=${code}`);
-    expect(res.headers.getSetCookie()).toEqual([]);
-    // And the code is still live afterwards, so the GET did not even spend it.
-    expect(cookieFrom(await post("/start/pair", { code }), "eait_web")).toBeTruthy();
-  });
-
-  it("works once — a second browser with the same code gets nothing", async () => {
-    const app = await appSession();
-    const code = await mint(app);
-    expect(cookieFrom(await post("/start/pair", { code }), "eait_web")).toBeTruthy();
-
-    const second = await post("/start/pair", { code });
-    expect(second.status).toBe(303);
-    expect(second.headers.get("location")).toBe("/start/signup?error=code");
-    expect(second.headers.getSetCookie()).toEqual([]);
-  });
-
-  it("sends an unknown code back to the sign-up screen with words about it, and sets no cookie", async () => {
-    const res = await post("/start/pair", { code: "ABCD2345" });
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/signup?error=code");
-    expect(res.headers.getSetCookie()).toEqual([]);
-
-    // The page that redirect lands on says which thing went wrong — a code, not a sign-in.
-    const door = await (await get("/start/signup?error=code")).text();
-    expect(door).toContain(PAGE_COPY.errorPair);
-  });
-
-  it("takes the per-address sign-in allowance before it reads the body", async () => {
-    // Two: the device registration spends one, the mint spends the other, and the redemption then
-    // meets the wall. The point is that this route is bounded at all — 40 bits of code behind an
-    // unbounded POST is 40 bits of code behind nothing.
-    router({ ...CONFIG, authRateLimitPerHour: 2 });
-    const app = await appSession();
-    const code = await mint(app);
-
-    const res = await post("/start/pair", { code });
-    expect(res.status).toBe(429);
-    expect(res.headers.getSetCookie()).toEqual([]);
-    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
-  });
-
-  it("posts, though the card itself is gone (#569)", async () => {
-    // The sign-in page no longer draws the form — the email boards took its slot — but the route
-    // it posted to stays: a code minted on a phone still redeems on a POST.
-    const html = await (await get("/start/signup")).text();
-    expect(html).not.toContain('action="/start/pair"');
-    const res = await post("/start/pair", { code: "ZZZZZZZZ" });
-    expect(res.status).toBe(303);
-  });
-
-  it("gives a paired session no more than a signed-in one: the cookie still buys nothing on the API", async () => {
-    const app = await appSession();
-    const session = cookieFrom(await post("/start/pair", { code: await mint(app) }), "eait_web");
-    const res = await handle(new Request("https://api.eait.fit/v1/profile", { headers: { cookie: session } }));
-    expect(res.status).toBe(401);
   });
 });
 

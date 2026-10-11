@@ -39,7 +39,7 @@ export {
   isLinkPreview, openInvite, redeemReferral, referralAdminView, referralLink, referralRewardDays, referralView, shareReferral,
   type RedeemRefusal, type ReferralAdminView,
 } from "./referral.ts";
-export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
+export { mintPairingCode } from "./pairing.ts";
 export { recordHealthDays, healthTrend, pruneAgedHealthDays } from "./health.ts";
 export {
   completeSignIn, signInWithProvider, identitiesFor, isAnonymous, linkTelegram, revokeAppleIdentity, unlinkIdentity,

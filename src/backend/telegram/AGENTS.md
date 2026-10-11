@@ -20,7 +20,7 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
 - **The subject is `from.id` on a private chat, stored as a string, and nothing else.** Never the
   username, first name, chat id, or an id in text or callback data. `bot.test.ts` sends a username
   and checks that the store never holds it.
-- **A `telegram` identity comes from spending a pairing code, and only from that.** `/start <code>` →
+- **A `telegram` identity comes from spending a link code, and only from that.** `/start <code>` →
   `linkTelegram` (`engine/identity.ts`). An unknown Telegram user gets `TELEGRAM_COPY.stranger` and a
   sign-in link, whatever they send. Nothing is charged for that.
 - **A link already on another account MOVES to the code's account** (`store.moveIdentity`), and that
@@ -37,7 +37,7 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
   never makes an account look real to the merge rule. A merge drops the link with the rest of the
   merged-away account's identities; re-connecting is one tap.
 - **`/start <code>` is rate limited per Telegram id** on `authRateLimitPerHour`, which is the
-  allowance `/start/pair` takes per address, and a limit of **zero means no limit**, the reading
+  allowance the sign-in routes take per address, and a limit of **zero means no limit**, the reading
   `api/routes.ts` has. The pairing code's 40-bit arithmetic assumes that limit.
 - **Middleware order: private chats only → `update_id` dedupe → `sequentialize(from.id)`.** The
   filter reads no state, so it goes first. The dedupe must come before anything that does work,

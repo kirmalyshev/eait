@@ -44,7 +44,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal, redeemReferral, referralLink,
-  onboardingContent, mintPairingCode, patchProfile, profileView, redeemPairingCode,
+  onboardingContent, mintPairingCode, patchProfile, profileView,
   sendEmailCode, signInWithProvider, verifyEmailCode,
   EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
   type EngineDeps,
@@ -63,9 +63,8 @@ import {
 } from "./page.ts";
 
 /**
- * Re-exported from the contract, which is where the one spelling lives (#408): the phone is told
- * this path in `ProfileResponse.pairAddress` and prints it, so a second literal here is a second
- * literal that can drift from the address people are asked to type.
+ * Re-exported from the contract, which is where the one spelling lives (#408), so a second literal
+ * here is not a second literal that can drift from it.
  */
 export const START_PREFIX = ROUTES.webStart;
 
@@ -225,7 +224,7 @@ const notFound = (): Response =>
  * The per-address refusal, in plain text because both routes that give it are reached by a browser
  * following a form or a redirect, not by anything that parses JSON.
  *
- * ONE SHAPE FOR BOTH. The OAuth callback and the pairing form spend the SAME allowance, so a
+ * ONE SHAPE FOR BOTH. The OAuth callback and the sign-in routes spend the SAME allowance, so a
  * caller that could tell the two refusals apart would be learning which route it hit rather than
  * what to do about it — and the thing to do is the same either way.
  *
@@ -318,7 +317,7 @@ const failedCallback = (pathname: string): Response => seeOther(pathname);
  * plan, then sign-up, then the one deferred question, then the product. A cookie from any point
  * in that lands wherever its account actually is, so closing a tab mid-walk is not a lost walk.
  *
- * The pairing form and the front door both call this; it is the single place the order lives.
+ * The sign-in routes and the front door both call this; it is the single place the order lives.
  */
 async function resumeTo(ctx: StartContext, userId: string, profile: Profile): Promise<string> {
   if (profile.onboarded_at === null) return `${START_PREFIX}/q`;
@@ -681,8 +680,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
           ? [{ id: "email" as const, action: `${START_PREFIX}/email`, label: signupCopyFor(lang).continueEmail }]
           : []),
       ],
-      error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
-        : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
+      error: url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
         : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
         : null,
       termsHref: config.termsUrl === "" ? null : config.termsUrl,
@@ -961,41 +959,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         setCookie(SESSION_COOKIE, result.token, { secure }),
       ],
     );
-  }
-
-  // ── Pairing: a browser trades a code for a session ────────────────────────────────────────
-  //
-  // Unauthenticated by necessity — this is where the browser's session comes from — and therefore
-  // rate limited by address before the body is read, on the same allowance the OAuth callback and
-  // the app's three sign-in routes take.
-  //
-  // A POST AND ONLY A POST. There is no GET here, and that is the design rather than an omission:
-  // a GET that minted a session from `?code=` is a link a stranger can send, after which the
-  // victim's browser is signed into the ATTACKER's account and the victim types their weight into
-  // it — rule 3 at the top of this file, and the reason every state change on this surface is a
-  // form somebody pressed.
-  //
-  // The account comes out of the STORE, by the hash of the code. Nothing in this body names a user
-  // and nothing here would read it if it did.
-  if (req.method === "POST" && pathname === `${START_PREFIX}/pair`) {
-    const wait = ctx.limitAuth();
-    if (wait !== null) {
-      return tooManyAttempts(wait, browserLang(req));
-    }
-    const form = await req.formData().catch(() => null);
-    const code = form?.get("code");
-    const token = await redeemPairingCode(ctx.deps, typeof code === "string" ? code : "");
-    // ONE ANSWER for unknown, spent, expired and malformed. Anything else is an oracle for which
-    // codes are live, and the person holding a dead code has the same thing to do in every case.
-    // Back to the sign-up screen, which is where the pairing form lives now (S8).
-    if (token === null) return seeOther(`${START_PREFIX}/signup?error=code`);
-    return seeOther(CHAT_PATH, [
-      // The callback's cookie, verbatim: same name, same flags, no Max-Age. A paired browser holds
-      // an ordinary session and nothing downstream can tell it apart from a signed-in one — which
-      // is the point, and is why `/start/chat` needs no branch for it (an un-onboarded account is
-      // bounced to `/start/q` there, so a browser can even finish onboarding).
-      setCookie(SESSION_COOKIE, token, { secure }),
-    ]);
   }
 
   // ── Everything past here needs the session ────────────────────────────────────────────────
@@ -1606,7 +1569,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // MINTED HERE, NOT WHEN THE PLAN IS DRAWN. A code lives five minutes (`PAIR_TTL_MS`), and a plan
   // page is read for longer than that; minted at the press, the bot has it within seconds. A POST
   // like every other write on this surface, on the session-minting allowance like the app's own
-  // mint route, because the code is redeemable for a session at `/start/pair` too.
+  // mint route.
   //
   // 404 while the connector is off, like every surface here that is not configured.
   if (req.method === "POST" && pathname === `${START_PREFIX}/telegram`) {

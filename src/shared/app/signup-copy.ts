@@ -2,7 +2,7 @@
 // screen's headline, consent boxes and error. Moved out of `PAGE_COPY` (S8 put them in
 // `src/backend/web/copy.ts`, which is backend-only) because the phone's sign-up — M3,
 // ieat-app#922 — draws the same screen and would otherwise write its own eight-language copy.
-// The web-only pairing card's words stay in `PAGE_COPY`; `chatRefusalIdentity` stays too — it is
+// `chatRefusalIdentity` stays in `PAGE_COPY` — it is
 // the chat surface's `identity-required` refusal, not a word this screen owns.
 
 import { t, type Localized } from "../lang.ts";

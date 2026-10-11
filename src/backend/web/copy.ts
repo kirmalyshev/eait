@@ -77,7 +77,6 @@ export interface PageCopy {
   sameAccountHint: string;
   /** No identity to name — a state `/start/country` can only reach through a device-paired run. */
   sameAccountHintGeneric: string;
-  errorPair: string;
   continueLabel: string;
   answerRequired: string;
   /** `{kg}` — the lowest weight this height can be planned for. */
@@ -234,17 +233,6 @@ const EN: PageCopy = {
   chatCaption: "Anything I should know? (optional)",
   errorSignIn: "That sign-in didn't complete. Try again.",
   /**
-   * The pairing form, on the front door rather than on a page of its own.
-   *
-   * Somebody who already has an account is not signing up, so the two sign-in buttons are not for
-   * them — and a second page they would have to be told the address of defeats the point of a code
-   * short enough to read out loud. One field under the buttons is the whole surface.
-   *
-   * IT NOW SAYS WHERE TO GET ONE — the board's words ("Your phone makes one in You"), with the
-   * tab named by its shipped label rather than the board's older name: `{tab}` is filled with
-   * `SHELL_COPY.navProfile` ("Profile"), the screen the phone's pairing control lives on.
-   */
-  /**
    * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
    * the app offers both buttons, and the other one lands in a different account with onboarding to
    * do again and this plan — and anything bought from it — left behind on an account nothing can
@@ -256,7 +244,6 @@ const EN: PageCopy = {
   sameAccountHintGeneric:
     "Install eait for iPhone and sign in the same way you did here. It is the same account — " +
     "your answers and your plan are already on it.",
-  errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
   /** Three places want it and it was typed out in each. */
   continueLabel: "Continue",
   /** The one refusal `/start` words itself — the rest come from the engine's own tables. */
@@ -360,7 +347,6 @@ const FR: PageCopy = {
   errorSignIn: "Cette connexion n'a pas abouti. Réessaie.",
   sameAccountHint: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
   sameAccountHintGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
-  errorPair: "Ce code n'a pas marché. Un code marche une fois, et seulement cinq minutes après sa création.",
   continueLabel: "Continuer",
   answerRequired: "Cette question attend une réponse.",
   belowHealthyTarget: "Pour ta taille, l'objectif le plus bas qu'on puisse fixer est de {kg}kg.",
@@ -460,7 +446,6 @@ const DE: PageCopy = {
   errorSignIn: "Diese Anmeldung ist nicht durchgegangen. Versuch es noch einmal.",
   sameAccountHint: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   sameAccountHintGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
-  errorPair: "Dieser Code hat nicht funktioniert. Ein Code gilt einmal und nur fünf Minuten nach seiner Erzeugung.",
   continueLabel: "Weiter",
   answerRequired: "Diese Frage braucht eine Antwort.",
   belowHealthyTarget: "Das niedrigste Ziel, das wir für deine Größe planen können, sind {kg}kg.",
@@ -560,7 +545,6 @@ const IT: PageCopy = {
   errorSignIn: "Quell'accesso non è andato a buon fine. Riprova.",
   sameAccountHint: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   sameAccountHintGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
-  errorPair: "Quel codice non ha funzionato. Un codice vale una volta sola, e solo per cinque minuti da quando è stato creato.",
   continueLabel: "Continua",
   answerRequired: "Questa ha bisogno di una risposta.",
   belowHealthyTarget: "L'obiettivo più basso che possiamo pianificare per la tua altezza è {kg}kg.",
@@ -660,7 +644,6 @@ const ES: PageCopy = {
   errorSignIn: "Ese inicio de sesión no se completó. Inténtalo otra vez.",
   sameAccountHint: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   sameAccountHintGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
-  errorPair: "Ese código no funcionó. Un código vale una vez, y solo durante cinco minutos desde que se crea.",
   continueLabel: "Continuar",
   answerRequired: "Esa necesita una respuesta.",
   belowHealthyTarget: "El objetivo más bajo que podemos planificar para tu altura es {kg}kg.",
@@ -760,7 +743,6 @@ const VI: PageCopy = {
   errorSignIn: "Lần đăng nhập đó chưa hòan tất. Thử lại nhé.",
   sameAccountHint: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   sameAccountHintGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
-  errorPair: "Mã đó không dùng được. Mỗi mã chỉ dùng một lần, và chỉ trong năm phút kể từ khi tạo.",
   continueLabel: "Tiếp tục",
   answerRequired: "Bạn cần trả lời câu này.",
   belowHealthyTarget: "Mục tiêu thấp nhất chúng mình có thể lên kế hoạch cho chiều cao của bạn là {kg}kg.",
@@ -860,7 +842,6 @@ const ID: PageCopy = {
   errorSignIn: "Proses masuk itu tidak selesai. Coba lagi.",
   sameAccountHint: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   sameAccountHintGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
-  errorPair: "Kode itu tidak berhasil. Kode berlaku sekali, dan hanya lima menit setelah dibuat.",
   continueLabel: "Lanjut",
   answerRequired: "Yang ini butuh jawaban.",
   belowHealthyTarget: "Target terendah yang bisa kami rencanakan untuk tinggimu adalah {kg}kg.",
@@ -960,7 +941,6 @@ const RU: PageCopy = {
   errorSignIn: "Этот вход не завершился. Попробуй ещё раз.",
   sameAccountHint: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
   sameAccountHintGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
-  errorPair: "Этот код не сработал. Код работает один раз и только пять минут после создания.",
   continueLabel: "Дальше",
   answerRequired: "На этот нужен ответ.",
   belowHealthyTarget: "Самая низкая цель, которую мы можем спланировать для твоего роста, — {kg}кг.",

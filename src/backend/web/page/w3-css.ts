@@ -82,7 +82,7 @@ export const W3_CSS = `
   .ob .pln .pfoot { width: 100%; }
 }
 
-/* ── the sign-up (pay-signin): the app icon, the two provider buttons, the pairing card ── */
+/* ── the sign-up (pay-signin): the app icon, the provider buttons ── */
 .ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }
 .ob .sup .hero { display: flex; justify-content: center; }
 .ob .sup .hero img { width: 96px; height: 96px; border-radius: 22%; box-shadow: var(--shadow); display: block; }
@@ -92,17 +92,6 @@ export const W3_CSS = `
 /* Apple's own button is black; Google's is the surface card the board draws (.cta s). */
 .ob .sup .cta.apple { background: #000; color: #fff; }
 .ob .sup .cta.s { background: var(--surface); box-shadow: 0 0 0 1px var(--line); height: 56px; }
-.ob .sup .paircard { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow);
-  padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.ob .sup .paircard .row-between { display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; flex-wrap: wrap; }
-.ob .sup .paircard small { color: var(--muted); font-size: 12px; font-weight: 500; }
-.ob .sup .paircard form { flex-direction: row; gap: 10px; }
-.ob .sup .paircard input { flex: 1; min-width: 0; height: 48px; border-radius: var(--r-ctl);
-  border: 0; box-shadow: 0 0 0 1px var(--line); padding: 0 14px; letter-spacing: .3em;
-  font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--ink);
-  font-variant-numeric: tabular-nums; background: var(--surface); }
-.ob .sup .paircard .cta { width: auto; min-height: 48px; height: 48px; padding: 0 18px; font-size: 15px; }
 .ob .sup .consent { display: flex; flex-direction: column; gap: 10px; }
 .ob .sup .consent label { display: flex; gap: 10px; align-items: flex-start; font-size: 13px;
   line-height: 1.35; color: var(--muted); font-weight: 500; cursor: pointer; }

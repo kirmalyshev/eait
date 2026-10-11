@@ -75,27 +75,6 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
 }
 
 /**
- * Where a browser pairs with an account, as the phone should PRINT it (#408).
- *
- * Two origins, and this is the browser's one: `publicWebUrl` is where a person signs in, and
- * `publicApiUrl` is where an emailed link points (#406). A pairing address is something somebody
- * types into an address bar, so it follows the browser — and it falls back to the API's own name,
- * which is where `/start` is still served on every host that has not moved yet.
- *
- * EMPTY WHEN NEITHER IS SET, rather than derived from the request. This value is composed once per
- * response and handed to a client that already knows which host it dialled; a server that has not
- * been told its public name cannot improve on the client's own answer, and inventing one would put
- * a wrong hostname in front of a person as an instruction.
- */
-function pairAddressOf(config: { publicWebUrl: string; publicApiUrl: string }): string {
-  const origin = config.publicWebUrl || config.publicApiUrl;
-  if (!origin) return "";
-  // The scheme is dropped because this is read aloud off a screen; the trailing slash because
-  // `https://host/` + `/start` is `host//start`, which is a 404 nobody would suspect.
-  return `${origin.replace(/^https?:\/\//, "").replace(/\/+$/, "")}${ROUTES.webStart}`;
-}
-
-/**
  * The web paywall, computed per account (#77): the operator's `EAIT__BACKEND__WEB_*` block with
  * every price formatted in the account's language and configured currency, the offer's discount
  * derived by the shared `offerMath` (never a fixed percentage), and `{userId}` filled into every
@@ -166,7 +145,6 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     healthConnected: await healthConnected(deps, userId),
-    pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
     paywall: paywallOf(deps, profile.lang, userId),
     coachName: threadCopyFor(profile.lang).coach.name,
@@ -412,7 +390,6 @@ export async function patchProfile(
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
       healthConnected: await healthConnected(deps, userId),
-      pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
       coachName: threadCopyFor(profile.lang).coach.name,

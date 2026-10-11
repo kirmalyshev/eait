@@ -22,9 +22,7 @@ import { escape, shell } from "./shell.ts";
  * is the tick that makes the kickoff legal. `formaction` names the provider so the consent boxes
  * share the one form.
  *
- * No pairing card — `web/email-signin.html` removed it: three providers fill the page's one
- * decision, and a phone pairing code reaches `/start/pair` the long way round, from the same
- * form the card used to draw.
+ * No pairing card: three providers fill the page's one decision.
  */
 export interface SignUpView {
   /** `id` picks the provider's mark; `action` is the kickoff POST's formaction. */
