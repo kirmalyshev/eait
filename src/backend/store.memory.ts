@@ -92,6 +92,33 @@ function legacyLanguageMap(stored: unknown): Record<string, unknown> {
   return bare ? { en: o } : o;
 }
 
+/** A subscription end that is not there: the epoch stands in for -Infinity, the same thing `extend`'s skipped dates are. */
+const EPOCH = new Date(0).toISOString();
+
+/**
+ * Where the dated week and a folded bank run out, mirroring `greatest(bonus_until, expires_at)` in
+ * `store.pg.ts`'s fold: Postgres's `greatest` IGNORES a null subscription end and runs the bank from
+ * the dated week alone — a merged account's bank can land on a survivor with none — while
+ * `referralBonusEnd` only runs the bank against a finite one. The epoch stands in: with no dated
+ * week either it lands in 1970, which loses to `now()` in `extend` exactly the way Postgres's
+ * all-null `greatest` loses to `t`.
+ */
+export function bankedRunningEnd(bonusUntil: string | null, bankedDays: number, expiresAt: string | null | undefined): string | null {
+  return referralBonusEnd(bonusUntil, bankedDays, expiresAt ?? EPOCH);
+}
+
+/**
+ * When a lapsed bank started running, as `greatest(entitlement_expires_at, bonus_until)` in
+ * `store.pg.ts`'s spend: a null argument is ignored rather than poisoning the max, so a missing end
+ * is -Infinity — and with both absent there is no lapse at all (`greatest(null, null)` is null,
+ * which fails the `< now()` the same way `Number.isFinite` fails this).
+ */
+export function bankedLapseAt(expiresAt: string | null | undefined, bonusUntil: string | null | undefined): number {
+  const ended = Date.parse(expiresAt ?? "");
+  const dated = Date.parse(bonusUntil ?? "");
+  return Math.max(Number.isFinite(ended) ? ended : -Infinity, Number.isFinite(dated) ? dated : -Infinity);
+}
+
 export function memoryStore(opts: StoreOptions = {}): Store {
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   const now = opts.now ?? Date.now;
@@ -1061,8 +1088,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // relabelled 'bonus' so a later revoke takes their days off the date they now live in.
       const banked = bankedDays.get(referrerId) ?? 0;
       const expires = entitlements.get(referrerId)?.expiresAt;
-      // The bank runs from the later of the dated week and the subscription's end (`referralBonusEnd`).
-      const running = referralBonusEnd(bonusUntil.get(referrerId) ?? null, banked, expires);
+      // The bank runs from the later of the dated week and the subscription's end, a missing end
+      // ignored the way Postgres's `greatest` ignores the null (`bankedRunningEnd`).
+      const running = bankedRunningEnd(bonusUntil.get(referrerId) ?? null, banked, expires);
       bonusUntil.set(referrerId, extend(days, bonusUntil.get(referrerId), running));
       if (banked > 0) {
         bankedDays.set(referrerId, 0);
@@ -1173,10 +1201,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         // BANKED REFERRAL DAYS ran from the lapse: a new period after one shows how many were used,
         // and only what is left waits behind it. Postgres does the same in the same statement.
         const banked = bankedDays.get(userId) ?? 0;
-        // The bank started running at the later of the subscription's end and the dated week's.
-        const dated = Date.parse(bonusUntil.get(userId) ?? "");
-        const lapsedAt = Math.max(Date.parse(current?.expiresAt ?? ""), Number.isFinite(dated) ? dated : -Infinity);
-        if (banked > 0 && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
+        // The bank started running at the later of the subscription's end and the dated week's —
+        // a missing end ignored the way Postgres's `greatest` ignores the null (`bankedLapseAt`),
+        // so there is a lapse to spend from whenever at least one end exists.
+        const lapsedAt = bankedLapseAt(current?.expiresAt, bonusUntil.get(userId));
+        if (banked > 0 && Number.isFinite(lapsedAt) && lapsedAt < now() && Date.parse(patch.expiresAt) > now()) {
           bankedDays.set(userId, Math.max(0, banked - Math.floor((now() - lapsedAt) / DAY_MS)));
         }
         entitlements.set(userId, {
