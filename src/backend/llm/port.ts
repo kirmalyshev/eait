@@ -87,6 +87,39 @@ export function imageMime(bytes: Uint8Array): "image/jpeg" | "image/png" | "imag
  */
 export type OnCost = (usd: number | null) => void;
 
+/**
+ * ONE METRICS ROW PER PROVIDER CALL — the call's measurements, never its content (#602).
+ *
+ * Fires once per HTTP call, alongside `onCost` (which stays the billing aggregate). `call` is the
+ * transport's name for the request — `meal_analysis`, `route`, `text-meal`, `text-correction`,
+ * `coach` — which the engine maps to the `kind` an `llm_calls` row carries. `modelServed`,
+ * `provider`, `generationId` and the token counts come off the provider's response — nulls when
+ * the call ended without one. `status` is `ok`, `http_<n>`, `timeout`, `aborted` (the turn's own
+ * cutoff), `error`, `schema_retry` (a reply that failed validation and was retried), `parse_error`
+ * (the same on the last attempt) or `truncated`. `fallbackUsed` is served !== requested, read off
+ * the response rather than asked. `images`/`imageBytes` are a count and a sum — never the bytes.
+ */
+export interface LlmCallMetric {
+  call: string;
+  modelRequested: string;
+  modelServed: string | null;
+  provider: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  reasoningTokens: number | null;
+  costUsd: number | null;
+  msFirstByte: number | null;
+  msFirstItem: number | null;
+  msTotal: number;
+  status: string;
+  attempt: number;
+  fallbackUsed: boolean;
+  generationId: string | null;
+  images: number;
+  imageBytes: number;
+}
+export type OnCall = (metric: LlmCallMetric) => void;
+
 export class GatewayRefusal extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
@@ -114,6 +147,8 @@ export interface PhotoInput {
    */
   portionPriors?: readonly PortionPrior[];
   onCost?: OnCost | undefined;
+  /** One metrics row per HTTP call — the call's measurements, never its content (#602). */
+  onCall?: OnCall | undefined;
   /**
    * The turn's cutoff, set by `once` — the fetch aborts with it, so a call nobody is waiting for
    * stops holding the socket and the budget (#276). Never the caller's to write.
@@ -207,6 +242,8 @@ export interface TextInput {
    */
   onDelta?: ((text: string) => void) | undefined;
   onCost?: OnCost | undefined;
+  /** One metrics row per HTTP call the route makes — measurements, never content (#602). */
+  onCall?: OnCall | undefined;
   /** The turn's cutoff — every fetch the route makes aborts with it (#276). Set by `once`. */
   signal?: AbortSignal | undefined;
 }
@@ -247,6 +284,8 @@ export interface CoachInput {
   /** Oldest first, and never including the message itself. */
   history: CoachHistoryLine[];
   onCost?: OnCost | undefined;
+  /** One metrics row per HTTP call — every round is a provider call (#602). */
+  onCall?: OnCall | undefined;
   /** The turn's cutoff — every round's fetch aborts with it (#276). Set by `once`. */
   signal?: AbortSignal | undefined;
 }

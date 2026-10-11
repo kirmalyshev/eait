@@ -27,12 +27,31 @@ function fakeFetch(payloads: unknown[]) {
     const payload = payloads[Math.min(bodies.length - 1, payloads.length - 1)];
     const status = (payload as { __status?: number })?.__status;
     if (status) return new Response("upstream said no", { status });
-    const cut = payload as { __finish_reason?: string; __raw?: string };
-    const choice = cut?.__finish_reason
-      ? { finish_reason: cut.__finish_reason, message: { content: cut.__raw } }
-      : { finish_reason: "stop", message: { content: JSON.stringify(payload) } };
+    // `__`-prefixed keys describe the RESPONSE ENVELOPE rather than the assistant's message, so
+    // they are stripped before the payload becomes the content. `__model`/`__provider`/`__id` are
+    // what the provider says served the call — a served model different from the requested one is
+    // the fallback an `llm_calls` row has to be able to show.
+    const {
+      __finish_reason: finish, __raw: raw,
+      __model: model, __provider: provider, __id: id,
+      ...content
+    } = payload as {
+      __finish_reason?: string; __raw?: string;
+      __model?: string; __provider?: string; __id?: string;
+    } & Record<string, unknown>;
+    const choice = finish
+      ? { finish_reason: finish, message: { content: raw } }
+      : { finish_reason: "stop", message: { content: JSON.stringify(content) } };
     return new Response(
-      JSON.stringify({ choices: [choice] }),
+      JSON.stringify({
+        // OpenRouter echoes the model that SERVED the call, names the provider, and tags the
+        // generation — the same fields it reports at `GET /generation`.
+        id: id ?? `gen-fake-${bodies.length}`,
+        model: model ?? bodies[bodies.length - 1]!.model,
+        provider: provider ?? "TestProvider",
+        usage: { prompt_tokens: 1000, completion_tokens: 200, completion_tokens_details: { reasoning_tokens: 30 }, cost: 0.0011 },
+        choices: [choice],
+      }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   }) as unknown as typeof fetch;
@@ -453,7 +472,11 @@ function fakeCoachFetch(payloads: CoachPayload[]) {
       ? { content: "", tool_calls: p.tool_calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })) }
       : { content: "prose" in p ? p.prose : JSON.stringify(p.content) };
     const finish_reason = "prose" in p && p.finish_reason ? p.finish_reason : "stop";
-    return new Response(JSON.stringify({ choices: [{ finish_reason, message }] }), {
+    return new Response(JSON.stringify({
+      id: `gen-fake-coach-${bodies.length}`, model: bodies[bodies.length - 1]!.model, provider: "TestProvider",
+      usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.0002 },
+      choices: [{ finish_reason, message }],
+    }), {
       status: 200, headers: { "content-type": "application/json" },
     });
   }) as unknown as typeof fetch;
@@ -918,5 +941,125 @@ describe("the openai dialect", () => {
       await priced(impl, "openai", { input: 2, output: 10 }).analyzePhoto(PHOTO_INPUT, () => {});
       expect(bodies[0]!.stream_options).toEqual({ include_usage: true });
     });
+  });
+});
+
+// ── One metrics row per provider call (#602) ─────────────────────────────────────────────────
+//
+// `onCall` fires once per HTTP call with the call's metrics and never its content, beside the
+// `onCost` aggregate that stays the billing ledger. This is the data that answers "which model,
+// which provider, how many tokens, how long, how did it end" for a prod day.
+
+describe("call metrics", () => {
+  const collect = () => {
+    const seen: import("./port.ts").LlmCallMetric[] = [];
+    return { seen, onCall: (m: import("./port.ts").LlmCallMetric) => { seen.push(m); } };
+  };
+
+  test("an answered call reports what served it, what it cost, and how it ended", async () => {
+    const { llm } = ports([MEAL]);
+    const { seen, onCall } = collect();
+    await llm.analyzePhoto({ ...PHOTO_INPUT, onCall });
+    expect(seen.length).toBe(1);
+    const m = seen[0]!;
+    expect(m).toMatchObject({
+      call: "meal_analysis", status: "ok", attempt: 0,
+      modelRequested: "test-model", modelServed: "test-model",
+      provider: "TestProvider", generationId: "gen-fake-1",
+      promptTokens: 1000, completionTokens: 200, reasoningTokens: 30,
+      costUsd: 0.0011, fallbackUsed: false,
+      images: 1, imageBytes: 4,
+    });
+    expect(m.msTotal).toBeGreaterThanOrEqual(0);
+    expect(m.msFirstByte).toBeGreaterThanOrEqual(0);
+    expect(m.msFirstItem).toBeNull();
+    // Never content: the metric carries counts, not the prompt and not the reply.
+    expect(JSON.stringify(m)).not.toContain("Egg");
+  });
+
+  test("a fallback reads served !== requested off the response", async () => {
+    const { llm } = ports([{ ...MEAL, __model: "qwen/qwen3-vl-30b-a3b-instruct" }]);
+    const { seen, onCall } = collect();
+    await llm.analyzePhoto({ ...PHOTO_INPUT, onCall });
+    expect(seen[0]).toMatchObject({
+      modelRequested: "test-model", modelServed: "qwen/qwen3-vl-30b-a3b-instruct", fallbackUsed: true,
+    });
+  });
+
+  test("a gateway refusal is a row of its own: http_429, then the retried call", async () => {
+    const { llm } = ports([{ __status: 429 }, MEAL]);
+    const { seen, onCall } = collect();
+    await llm.analyzePhoto({ ...PHOTO_INPUT, onCall });
+    expect(seen.map((m) => [m.status, m.attempt])).toEqual([["http_429", 0], ["ok", 1]]);
+    // Nothing was generated, so nothing was priced — and the row says so rather than guessing.
+    expect(seen[0]!.costUsd).toBeNull();
+    expect(seen[0]!.modelServed).toBeNull();
+  });
+
+  test("a reply that misses the schema is schema_retry, then the retry's own row", async () => {
+    const { llm } = ports([{ nope: true }, MEAL]);
+    const { seen, onCall } = collect();
+    await llm.analyzePhoto({ ...PHOTO_INPUT, onCall });
+    expect(seen.map((m) => [m.status, m.attempt])).toEqual([["schema_retry", 0], ["ok", 1]]);
+    // The failed reply was generated and billed — its tokens and cost are the point of the row.
+    expect(seen[0]!.completionTokens).toBe(200);
+  });
+
+  test("a reply that misses the schema twice is parse_error on the last attempt", async () => {
+    const { llm } = ports([{ nope: true }, { nope: true }]);
+    const { seen, onCall } = collect();
+    await expect(llm.analyzePhoto({ ...PHOTO_INPUT, onCall })).rejects.toThrow(/did not satisfy/);
+    expect(seen.map((m) => m.status)).toEqual(["schema_retry", "parse_error"]);
+  });
+
+  test("a timed-out call is a row that says so", async () => {
+    // A fetch that never answers and honours the abort, the way a stalled provider does.
+    const hanging = (async (_url: string, init: RequestInit) => {
+      await new Promise((resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+        setTimeout(resolve, 200);
+      });
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const llm = openRouterPorts({
+      apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 40, maxTokens: 4321,
+      fetchImpl: hanging,
+    });
+    const { seen, onCall } = collect();
+    await expect(llm.analyzePhoto({ ...PHOTO_INPUT, onCall })).rejects.toThrow(/timeout/);
+    expect(seen.map((m) => m.status)).toEqual(["timeout"]);
+    expect(seen[0]!.msTotal).toBeGreaterThanOrEqual(35);
+  });
+
+  test("a streamed call reports the first content delta as first_item", async () => {
+    const { impl } = sseFetch([JSON.stringify(MEAL).slice(0, 20), JSON.stringify(MEAL).slice(20)]);
+    const { seen, onCall } = collect();
+    await streamPorts(impl).analyzePhoto({ ...PHOTO_INPUT, onCall }, () => {});
+    expect(seen.length).toBe(1);
+    expect(seen[0]!.status).toBe("ok");
+    expect(seen[0]!.msFirstItem).toBeGreaterThanOrEqual(0);
+    expect(seen[0]!.msFirstItem!).toBeLessThanOrEqual(seen[0]!.msTotal);
+    expect(seen[0]!.completionTokens).toBe(7);
+  });
+
+  test("the coach reports each round with its round index as the attempt", async () => {
+    const call = { tool_calls: [{ id: "c", name: "get_health", arguments: "{}" }] };
+    const { llm } = coachPorts([call, { content: { reply: "ok", suggestions: [] } }]);
+    const { seen, onCall } = collect();
+    await llm.coach({ ...COACH_INPUT, onCall }, { get_health: async () => [] });
+    expect(seen.map((m) => [m.call, m.status, m.attempt])).toEqual([["coach", "ok", 0], ["coach", "ok", 1]]);
+    expect(seen[0]!.modelRequested).toBe("test-chat-model");
+    expect(seen[0]!.images).toBe(0);
+  });
+
+  test("a text turn reports the routing call and the analysis behind it by name", async () => {
+    const { llm } = ports([{ intent: "meal", dayOffset: 0 }, ANALYSIS]);
+    const { seen, onCall } = collect();
+    await llm.routeText({ ...ROUTE_INPUT, onCall });
+    // The routing call and the focused `text-meal` it resolved to — two provider calls, two rows,
+    // and they run in parallel, so they are named rather than ordered here.
+    expect(seen.map((m) => m.call).sort()).toEqual(["route", "text-meal"]);
+    expect(seen.every((m) => m.status === "ok")).toBe(true);
   });
 });

@@ -96,6 +96,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   pairing_codes: "user_id",
   portion_corrections: "user_id",
   analyses: "user_id",
+  llm_calls: "user_id",
   onboarding_events: "user_id",
   chat_messages: "user_id",
   push_tokens: "user_id",
@@ -852,6 +853,43 @@ alter table analyses add column if not exists ms_total integer;
 -- delivered, not attempts. Every row already here counted, which is what the default says; a turn
 -- that delivers nothing clears it (releaseSample) and keeps the row, its cost and its budget.
 alter table analyses add column if not exists sample boolean not null default true;
+-- The food-catalog grounding step's own ms (#602), measured inside the same settle write — null on
+-- rows that predate it or turned at a path with nothing to ground.
+alter table analyses add column if not exists ms_ground integer;
+
+-- ONE ROW PER PROVIDER CALL — the call's metrics, never its content (#602). No prompt text, no
+-- image bytes, no reply: images/image_bytes are a count and a sum. analysis_id is the analysis
+-- that paid for the call, nullable for a call nobody was charged for, and it OUTLIVES the analysis
+-- on refund: undoAnalysis deletes the row it points at, and on delete set null keeps the call —
+-- it happened whether or not it stayed billed. model_served/provider/generation_id/token counts
+-- are null on a call that ended without a response; status says how it ended (ok, http_<n>,
+-- timeout, aborted, error, schema_retry, parse_error, truncated).
+create table if not exists llm_calls (
+  id             bigserial primary key,
+  user_id        uuid not null references users(id) on delete cascade,
+  analysis_id    bigint references analyses(id) on delete set null,
+  kind           text not null,
+  model_requested text not null,
+  model_served   text,
+  provider       text,
+  prompt_tokens  integer,
+  completion_tokens integer,
+  reasoning_tokens integer,
+  cost_usd       double precision,
+  ms_first_byte  integer,
+  ms_first_item  integer,
+  ms_total       integer not null,
+  status         text not null,
+  attempt        integer not null default 0,
+  fallback_used  boolean not null default false,
+  generation_id  text,
+  images         integer not null default 0,
+  image_bytes    bigint not null default 0,
+  created_at     timestamptz not null default now()
+);
+create index if not exists llm_calls_analysis_idx on llm_calls(analysis_id);
+create index if not exists llm_calls_created_idx on llm_calls(created_at);
+create index if not exists llm_calls_user_idx on llm_calls(user_id, id);
 
 -- A billed turn, claimed by the client's id for it before anything runs (#708). The primary key IS
 -- the idempotency: a phone that lost an answer re-sends the id, and the second insert does nothing.
@@ -1714,6 +1752,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getFreeAnalyses: 0,
   setFreeAnalyses: 0,
   recordAnalysis: 0,
+  recordLlmCall: 0,
+  llmCalls: 0,
   addCost: 0,
   recordTiming: 0,
   analysisCosts: 0,
@@ -2525,6 +2565,9 @@ export async function postgresStore(
           where data->>'userId' = ${fromUserId}
             and data->>'clientId' not in (select client_id from job_rows where user_id = ${intoUserId})`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // The calls the anonymous session's turns made belong to the account they became — the
+        // rows measure real provider calls either way, and the metrics keep their owner.
+        await tx`update llm_calls set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // A turn the anonymous session sent is replayed by the same phone under the real account. One
         // id claimed on both sides keeps the survivor's; the other goes with the anonymous row.
         await tx`
@@ -4126,6 +4169,53 @@ export async function postgresStore(
       return String(rows[0].id);
     },
 
+    async recordLlmCall(userId, call) {
+      const rows = await sql`
+        insert into llm_calls (
+          user_id, analysis_id, kind, model_requested, model_served, provider,
+          prompt_tokens, completion_tokens, reasoning_tokens, cost_usd,
+          ms_first_byte, ms_first_item, ms_total, status, attempt, fallback_used,
+          generation_id, images, image_bytes
+        ) values (
+          ${userId}, ${call.analysisId}, ${call.kind}, ${call.modelRequested}, ${call.modelServed}, ${call.provider},
+          ${call.promptTokens}, ${call.completionTokens}, ${call.reasoningTokens}, ${call.costUsd},
+          ${call.msFirstByte}, ${call.msFirstItem}, ${call.msTotal}, ${call.status}, ${call.attempt}, ${call.fallbackUsed},
+          ${call.generationId}, ${call.images}, ${call.imageBytes}
+        ) returning id`;
+      return rows.length > 0;
+    },
+
+    async llmCalls(userId) {
+      const rows = await sql`
+        select id, analysis_id, kind, model_requested, model_served, provider,
+               prompt_tokens, completion_tokens, reasoning_tokens, cost_usd,
+               ms_first_byte, ms_first_item, ms_total, status, attempt, fallback_used,
+               generation_id, images, image_bytes, created_at
+          from llm_calls where user_id = ${userId} order by id`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        id: String(r.id),
+        analysisId: r.analysis_id === null ? null : String(r.analysis_id),
+        kind: String(r.kind),
+        modelRequested: String(r.model_requested),
+        modelServed: r.model_served === null ? null : String(r.model_served),
+        provider: r.provider === null ? null : String(r.provider),
+        promptTokens: r.prompt_tokens === null ? null : num(r.prompt_tokens),
+        completionTokens: r.completion_tokens === null ? null : num(r.completion_tokens),
+        reasoningTokens: r.reasoning_tokens === null ? null : num(r.reasoning_tokens),
+        costUsd: r.cost_usd === null ? null : Number(r.cost_usd),
+        msFirstByte: r.ms_first_byte === null ? null : num(r.ms_first_byte),
+        msFirstItem: r.ms_first_item === null ? null : num(r.ms_first_item),
+        msTotal: num(r.ms_total),
+        status: String(r.status),
+        attempt: num(r.attempt),
+        fallbackUsed: r.fallback_used === true,
+        generationId: r.generation_id === null ? null : String(r.generation_id),
+        images: num(r.images),
+        imageBytes: num(r.image_bytes),
+        createdAt: (r.created_at as Date).getTime(),
+      }));
+    },
+
     async addCost(userId, analysisId, usd) {
       const rows = usd === null
         ? await sql`update analyses set unpriced_calls = unpriced_calls + 1
@@ -4137,7 +4227,8 @@ export async function postgresStore(
 
     async recordTiming(userId, analysisId, timing) {
       const rows = await sql`update analyses
-                set ms_queue = ${timing.queue}, ms_first_item = ${timing.firstItem}, ms_total = ${timing.total}
+                set ms_queue = ${timing.queue}, ms_first_item = ${timing.firstItem}, ms_total = ${timing.total},
+                    ms_ground = ${timing.ground ?? null}
                where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },

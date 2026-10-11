@@ -6,7 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
-import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, Coach, LlmPorts, OnCall, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 import { storedPhotoRead, storedTextRead } from "./stored-reads.ts";
 
@@ -153,10 +153,24 @@ function nothingOnThePlate(): AnalyzedMeal {
 }
 
 export function demoPorts(): LlmPorts {
+  /**
+   * The canned `onCall`, like the canned `onCost` beside it: one metrics row per port call, named
+   * for the call the real transport would have made, so `--demo` writes the same shape of record
+   * a billed turn does — poorer in every field, never different in kind (#602).
+   */
+  const called = (onCall: OnCall | undefined, call: string, images = 0, imageBytes = 0) => onCall?.({
+    call, modelRequested: "demo", modelServed: "demo", provider: "demo",
+    promptTokens: null, completionTokens: null, reasoningTokens: null, costUsd: 0,
+    msFirstByte: 0, msFirstItem: null, msTotal: 0,
+    status: "ok", attempt: 0, fallbackUsed: false, generationId: null,
+    images, imageBytes,
+  });
+
   const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
     // A canned answer costs nothing and says so, once per call like the real ports, so `--demo`
     // and every engine test walk the same record (#484).
     input.onCost?.(0);
+    called(input.onCall, "meal_analysis", input.images.length, input.images.reduce((n, b) => n + b.byteLength, 0));
     const caption = (input.caption ?? "").toLowerCase();
     const meal = storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
@@ -182,6 +196,7 @@ export function demoPorts(): LlmPorts {
 
   const routeText: RouteText = async (input) => {
     input.onCost?.(0);
+    called(input.onCall, "route");
     // The real port streams the analysis items the focused call writes; the demo's whole analysis
     // is one object, so its items go out in one delta — the item rows a streamed text turn draws
     // exist under `--demo` and every e2e flow for the same reason the photo demo streams (#70).
@@ -289,6 +304,7 @@ export function demoPorts(): LlmPorts {
    */
   const coach: Coach = async (input, tools) => {
     input.onCost?.(0);
+    called(input.onCall, "coach");
     const text = input.text.toLowerCase();
     const { targets, today, todayMeals } = input.context;
     const suggestions = ["What should I eat tonight?", "Am I getting enough protein?", "How's my week going?"];

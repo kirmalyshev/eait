@@ -7,7 +7,7 @@
 
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
-import { GatewayRefusal, type OnCost } from "../llm/port.ts";
+import { GatewayRefusal, type OnCall, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { isAnonymous } from "./identity.ts";
 
@@ -74,22 +74,49 @@ export async function checkCaps(
 }
 
 /**
+ * The `kind` an `llm_calls` row carries, off the transport's own name for the call (#602). A
+ * `meal_analysis` is not in the map: its kind is the CALLER's word — `photo`, `clip` or `reread` —
+ * which `charge` is told below.
+ */
+const LLM_CALL_KIND: Record<string, string> = {
+  route: "route",
+  "text-meal": "text_meal",
+  "text-correction": "correction",
+  coach: "coach",
+};
+
+/**
  * Charge one analysis, BEFORE the model is asked, and return its id — the line that opens the turn
  * names it (#525) — and where its calls report their cost.
  *
  * The cost arrives after the charge and is ADDED to it, because one charge pays for several calls
  * — a schema retry, the router's second call, the coach's rounds — each reporting whenever it
  * lands. A write that fails is a log line: the turn is paid for either way (#484).
+ *
+ * `onCall` is the same shape one level down (#602): ONE llm_calls ROW PER PROVIDER CALL, metrics
+ * only, fired and forgotten like the cost — a row that cannot land is a log line, never a failed
+ * turn. `photoKind` is what a `meal_analysis` call is FOR at this callsite — the photo turn,
+ * the clip's estimate, or a meal's re-read.
  */
 export async function charge(
   deps: EngineDeps, userId: string, date: string, scope: CapScope,
-): Promise<{ analysisId: string; onCost: OnCost }> {
+  photoKind: "photo" | "clip" | "reread" = scope === "clip" ? "clip" : "photo",
+): Promise<{ analysisId: string; onCost: OnCost; onCall: OnCall }> {
   const id = await deps.store.recordAnalysis(userId, date, scope);
   return { analysisId: id, onCost: (usd) => {
     void deps.store.addCost(userId, id, usd).then(
       // Refunded or merged away while a call was still out — a schema retry beside a refund, or a merge.
       (landed) => { if (!landed) console.error(`[eait] cost not recorded: analysis ${id} is gone (${usd ?? "unpriced"})`); },
       (e: unknown) => { console.error(`[eait] cost not recorded: ${(e as Error)?.message ?? e}`); },
+    );
+  }, onCall: (m) => {
+    const { call, ...metric } = m;
+    void deps.store.recordLlmCall(userId, {
+      ...metric, analysisId: id,
+      kind: call === "meal_analysis" ? photoKind : (LLM_CALL_KIND[call] ?? call),
+    }).then(
+      (landed) => { if (!landed) console.error(`[eait] call metric not recorded: analysis ${id} is gone (${call})`); },
+      (e: unknown) => { console.error(`[eait] call metric not recorded: ${(e as Error)?.message ?? e}`); },
     );
   } };
 }

@@ -93,7 +93,7 @@ export async function textTurn(
 
   const refusal = await checkCaps(deps, userId, chargeDay, "text");
   if (refusal) return refusal;
-  const { analysisId, onCost } = await charge(deps, userId, chargeDay, "text");
+  const { analysisId, onCost, onCall } = await charge(deps, userId, chargeDay, "text");
   if (input.job && !(await deps.store.chargeJob(userId, input.clientId!, input.job.owner, analysisId))) throw input.job.lost();
 
   const focus = input.focusMealId
@@ -143,10 +143,18 @@ export async function textTurn(
   // call-to-first-item, call-to-settled across every call the turn makes. Written ONCE.
   const receivedAt = Date.now();
   const clock = { calledAt: 0, firstItem: null as number | null };
+  // The catalog grounding's own ms, summed over the branch's calls — most turns ground once, a
+  // turn that grounds nothing reports null rather than zero (#602).
+  let groundMs: number | null = null;
+  const ground = async <T>(p: Promise<T>): Promise<T> => {
+    const g0 = Date.now();
+    try { return await p; } finally { groundMs = (groundMs ?? 0) + (Date.now() - g0); }
+  };
   const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
     queue: Math.max(0, clock.calledAt - receivedAt),
     firstItem: clock.firstItem,
     total: Date.now() - clock.calledAt,
+    ground: groundMs,
   }).then(
     (landed) => { if (!landed) console.error(`[eait] timing not recorded: analysis ${analysisId} is gone`); },
     (e: unknown) => { console.error(`[eait] timing not recorded: ${(e as Error)?.message ?? e}`); },
@@ -189,7 +197,7 @@ export async function textTurn(
       // beside it the router reads it as a new meal or as small talk.
       ...(answering ? { question: answering } : {}),
       recent: history.slice(-ROUTER_RECENT_LINES),
-      onCost,
+      onCost, onCall,
     });
   } catch (e) {
     // Given back when the gateway refused before generating anything — the same rule as the photo
@@ -203,10 +211,15 @@ export async function textTurn(
 
   // The model that wrote the answer, when there is one — the coach's, or the router's own sentence.
   let answeredBy: string | null = null;
-  const result = await route();
   // A failure's timing is data too — the coach's throw lands inside `route()` as the fallback or
-  // as `analysis-failed`, so settled is settled whatever the branch.
-  reportTiming();
+  // as `analysis-failed`, so settled is settled whatever the branch; and a `route()` that threw
+  // itself still wrote a charged row whose latency is the failure (#602).
+  let result: Awaited<ReturnType<typeof route>>;
+  try {
+    result = await route();
+  } finally {
+    reportTiming();
+  }
   // Every branch that fails ends here as `analysis-failed`: charged, and nothing delivered (#44).
   // `not-food` joins it for the reason `analyzePhotos` releases the same answer: an answer, no meal.
   if (result.kind === "analysis-failed" || result.kind === "not-food") {
@@ -246,7 +259,7 @@ export async function textTurn(
         // The router's own sentence is the FALLBACK, so a coach that fails degrades to the chat as
         // it was rather than to `analysis-failed` on a turn already charged.
         try {
-          const answered = await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today, onCost });
+          const answered = await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today, onCost, onCall });
           answeredBy = deps.config.llmChatModel;
           return answered;
         } catch (e) {
@@ -274,7 +287,7 @@ export async function textTurn(
         // itself recomputes anyway, since the caps can move while a proposal sits.
         // A typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — the card's low-confidence read uses this field.
-        const { analysis: reconciled } = prepareAnalysis((await groundWhenOn(deps, "grounding.text", routed.analysis)).analysis);
+        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis))).analysis);
         // The router's intent names food, but the analysis behind it may still answer otherwise —
         // or claim food while naming not one item of it (#248: the analyzer declining a vague
         // description with `items: []` at `isFood: true`). The first is the photo path's own
@@ -319,7 +332,7 @@ export async function textTurn(
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
         // recomputes them from the stored row like every other write. The totals still need
         // reconciling — a correction is an analysis like any other.
-        const { analysis: reconciled } = prepareAnalysis((await groundWhenOn(deps, "grounding.text", routed.analysis)).analysis);
+        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis))).analysis);
         // The same gate a fresh meal takes (#248): a correction that comes back not-food or with no
         // items is a failed estimate, and writing it would zero the meal it claims to fix.
         if (!reconciled.isFood || emptyEstimate(reconciled)) return { kind: "analysis-failed" };

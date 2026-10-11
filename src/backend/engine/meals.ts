@@ -123,6 +123,8 @@ export async function analyzePhotos(
   /** When the request arrived — the queue leg's zero: `eaten` is hours old on a kept turn (#220). */
   receivedAt: number = Date.now(),
   onCharged?: (analysisId: string) => Promise<void>,
+  /** The `kind` the turn's `meal_analysis` calls record — `reread` is `rewriteMeal`'s (#602). */
+  callKind?: "photo" | "reread",
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
@@ -141,7 +143,7 @@ export async function analyzePhotos(
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
-  const { analysisId, onCost } = await charge(deps, userId, date, scope);
+  const { analysisId, onCost, onCall } = await charge(deps, userId, date, scope, callKind);
   await onCharged?.(analysisId);
 
   const { targets } = explainTargets(profile);
@@ -149,11 +151,14 @@ export async function analyzePhotos(
   // The turn's own clock, for the latency the admin page reads: receipt-to-call in `queue` (the
   // upload and the caps live in it), call-to-first-item, call-to-answer. Written ONCE, when the
   // turn settles, and like `addCost` a write that finds no row is a log line, not a failure.
-  const clock = { calledAt: 0, firstItem: null as number | null };
-  const reportTiming = () => void deps.store.recordTiming(userId, analysisId, {
+  // `answeredAt` is the analyzer's own answer: `ms_total` stays call-to-answer while `ms_ground`
+  // carries the catalog step after it (#602).
+  const clock = { calledAt: 0, answeredAt: 0, firstItem: null as number | null };
+  const reportTiming = (ground: number | null = null) => void deps.store.recordTiming(userId, analysisId, {
     queue: Math.max(0, clock.calledAt - receivedAt),
     firstItem: clock.firstItem,
-    total: Date.now() - clock.calledAt,
+    total: (clock.answeredAt || Date.now()) - clock.calledAt,
+    ground,
   }).then(
     (landed) => { if (!landed) console.error(`[eait] timing not recorded: analysis ${analysisId} is gone`); },
     (e: unknown) => { console.error(`[eait] timing not recorded: ${(e as Error)?.message ?? e}`); },
@@ -170,7 +175,7 @@ export async function analyzePhotos(
   clock.calledAt = Date.now();
   try {
     analysis = await deps.llm.analyzePhoto({
-      images, profile, targets, onCost,
+      images, profile, targets, onCost, onCall,
       ...(caption !== undefined ? { caption } : {}),
       localTime: localTime(zone, eaten),
       repertoire: await buildRepertoire(deps, userId, localDate(zone, eaten)),
@@ -194,14 +199,25 @@ export async function analyzePhotos(
       ? { kind: "analysis-failed", retryable: true }
       : { kind: "analysis-failed" };
   }
-  reportTiming();
+  clock.answeredAt = Date.now();
   // `images` is returned to the caller, which stores them after the row exists.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
   // and the prompt-side fields come off. Before the `isFood` gate, so both answers get the same
   // treatment. `question` is handed back rather than dropped — it is the only one of the two that
   // has anywhere to go.
-  const prepared = prepareAnalysis((await groundWhenOn(deps, "grounding.photo", analysis)).analysis);
+  let groundMs: number | null = null;
+  let prepared: ReturnType<typeof prepareAnalysis>;
+  try {
+    const g0 = Date.now();
+    const grounded = await groundWhenOn(deps, "grounding.photo", analysis);
+    groundMs = Date.now() - g0;
+    prepared = prepareAnalysis(grounded.analysis);
+  } finally {
+    // Inside the finally: the timing lands even where grounding throws — an answer already came
+    // back, and a failure's timing is data too.
+    reportTiming(groundMs);
+  }
   analysis = prepared.analysis;
 
   if (!analysis.isFood) {
@@ -789,7 +805,7 @@ export async function rewriteMeal(
       addedBytes = await added();
       return [...(await deps.store.getPhotos(userId, existing.id)).map((p) => p.bytes), ...addedBytes];
     },
-    caption, onEvent, new Date(), "photo", Date.now(), onCharged);
+    caption, onEvent, new Date(), "photo", Date.now(), onCharged, "reread");
   if (read.kind !== "read") return read;
   onCounting?.();
   const { analysis } = read;

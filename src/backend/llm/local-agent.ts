@@ -43,7 +43,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import { cleanSuggestions } from "@eait/shared";
-import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
+import type { AnalyzePhoto, Coach, CoachTools, LlmPorts, OnCall, OnCost, RouteResult, RouteText } from "./port.ts";
 import { MAX_COACH_ROUNDS, clampDayOffset, emptyEstimate, imageMime } from "./port.ts";
 import {
   COACH_TOOL_DEFS, EMPTY_ESTIMATE_RETRY, MealAnalysisSchema, PROMPT_DEFAULTS, RouteSchema,
@@ -249,14 +249,43 @@ export function localAgentPorts(opts: Options): LlmPorts {
   const slot = gate(Math.max(1, opts.concurrency));
 
   /**
+   * The metrics row one spawn is writing (#602) — what `send` knows and fills, emitted by `send`
+   * itself on a failed spawn and by the caller once the answer has proved itself. The CLI
+   * reports no tokens and no generation id, so those stay null — poorer than OpenRouter's row,
+   * never different in kind.
+   */
+  interface AgentDraft {
+    name: string;
+    attempt: number;
+    onCall?: OnCall | undefined;
+    startedAt: number;
+    costUsd: number | null;
+  }
+
+  const emitDraft = (d: AgentDraft | undefined, call: AgentRequest, status: string) => d?.onCall?.({
+    call: d.name,
+    modelRequested: call.model ?? adapter.bin,
+    // The CLI ran the model it was asked for — a CLI cannot fall back to another.
+    modelServed: call.model ?? null, provider: opts.provider,
+    promptTokens: null, completionTokens: null, reasoningTokens: null, costUsd: d.costUsd,
+    msFirstByte: null, msFirstItem: null, msTotal: Date.now() - d.startedAt,
+    status, attempt: d.attempt, fallbackUsed: false, generationId: null,
+    images: call.images.length,
+    imageBytes: call.images.reduce((n, b) => n + b.byteLength, 0),
+  });
+
+  /**
    * One spawn: scratch dir, photos written into it, prompt on stdin, answer out of the adapter,
    * cost reported once. The scratch dir is removed in the `finally` — it holds a user's photos
    * for the length of one call and no longer.
    */
   async function send(
     call: AgentRequest, budgetMs: number, onCost?: OnCost, cutoff?: AbortSignal,
-  ): Promise<string> {
+    metric?: { name: string; attempt: number; onCall?: OnCall | undefined },
+  ): Promise<{ text: string; draft?: AgentDraft }> {
     if (cutoff?.aborted) throw cutoff.reason ?? new Error("aborted");
+    const draft: AgentDraft | undefined = metric === undefined ? undefined
+      : { ...metric, startedAt: Date.now(), costUsd: null };
     return slot(async () => {
       mkdirSync(scratchRoot, { recursive: true });
       const dir = mkdtempSync(join(scratchRoot, "eait-agent-"));
@@ -284,11 +313,17 @@ export function localAgentPorts(opts: Options): LlmPorts {
           const code = await proc.exited;
           const stdout = await stdoutP;
           const stderr = await stderrP;
-          if (timedOut) throw new Error(`llm timeout after ${budgetMs}ms (${opts.provider})`);
-          if (cutoff?.aborted) throw cutoff.reason ?? new Error("aborted");
+          if (timedOut) { emitDraft(draft, call, "timeout"); throw new Error(`llm timeout after ${budgetMs}ms (${opts.provider})`); }
+          if (cutoff?.aborted) { emitDraft(draft, call, "aborted"); throw cutoff.reason ?? new Error("aborted"); }
           const out = adapter.answer({ code, stdout, stderr, dir });
           cost = out.usd;
-          return out.text;
+          if (draft) draft.costUsd = out.usd;
+          return { text: out.text, ...(draft ? { draft } : {}) };
+        } catch (e) {
+          // timeout/aborted emitted at their throw sites; whatever else failed here is a transport
+          // error by the row's vocabulary — the spawn itself, its exit, or a malformed answer.
+          if (!timedOut && !cutoff?.aborted) emitDraft(draft, call, "error");
+          throw e;
         } finally {
           clearTimeout(timer);
           cutoff?.removeEventListener("abort", onCut);
@@ -313,6 +348,8 @@ export function localAgentPorts(opts: Options): LlmPorts {
     deadline: number,
     onCost?: OnCost,
     cutoff?: AbortSignal,
+    /** The metrics rows this call writes — its name; the attempt is the spawn index (#602). */
+    callMetric?: { name: string; onCall?: OnCall | undefined },
   ): Promise<T> {
     const system = `${call.system}\n\nAnswer with a single JSON object that satisfies this JSON schema — no prose, no markdown fences, nothing else:\n${JSON.stringify(z.toJSONSchema(schema, { io: "output" }))}`;
     let lastError = "";
@@ -321,14 +358,20 @@ export function localAgentPorts(opts: Options): LlmPorts {
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
       const user = attempt === 0 ? call.user
         : `${call.user}\n\nYour previous reply did not satisfy the required shape: ${lastError}. Reply again with valid JSON only.`;
-      const reply = await send({ ...call, system, user }, left, onCost, cutoff);
+      const { text: reply, draft } = await send({ ...call, system, user }, left, onCost, cutoff,
+        callMetric === undefined ? undefined : { name: callMetric.name, attempt, onCall: callMetric.onCall });
       const parsed = extractJson(reply);
       if (parsed === undefined) {
+        emitDraft(draft, call, attempt === 0 ? "schema_retry" : "parse_error");
         lastError = "not valid JSON";
         continue;
       }
       const result = schema.safeParse(parsed);
-      if (result.success) return result.data;
+      if (result.success) {
+        emitDraft(draft, call, "ok");
+        return result.data;
+      }
+      emitDraft(draft, call, attempt === 0 ? "schema_retry" : "parse_error");
       lastError = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300);
     }
     throw new Error(`llm did not satisfy ${schemaName}: ${lastError}`);
@@ -346,6 +389,7 @@ export function localAgentPorts(opts: Options): LlmPorts {
       { system: analysis, user, images: input.images, model: opts.model },
       MealAnalysisSchema, "meal_analysis",
       Date.now() + opts.timeoutMs, input.onCost, input.signal,
+      { name: "meal_analysis", onCall: input.onCall },
     );
   };
 
@@ -370,11 +414,13 @@ export function localAgentPorts(opts: Options): LlmPorts {
     const routing = complete(
       { system: P.route, user: text, images: [], model: opts.model },
       RouteSchema, "route", deadline, input.onCost, input.signal,
+      { name: "route", onCall: input.onCall },
     );
     const spec = input.focusMeal === undefined
       ? complete(
         { system: P.text_meal, user: buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets, todayMeals: input.todayMeals }), images: [], model: opts.model },
         MealAnalysisSchema, "text-meal", deadline, input.onCost, specCutoff,
+          { name: "text-meal", onCall: input.onCall },
       )
       : null;
     spec?.catch(() => {});
@@ -408,11 +454,13 @@ export function localAgentPorts(opts: Options): LlmPorts {
       let analysis = await complete(
         { system: P.text_correction, user: correction, images, model: opts.model },
         MealAnalysisSchema, "text-correction", deadline, input.onCost, input.signal,
+          { name: "text-correction", onCall: input.onCall },
       );
       if (emptyEstimate(analysis)) {
         analysis = await complete(
           { system: P.text_correction, user: correction + EMPTY_ESTIMATE_RETRY, images, model: opts.model },
           MealAnalysisSchema, "text-correction", deadline, input.onCost, input.signal,
+            { name: "text-correction", onCall: input.onCall },
         );
       }
       out = { ...out, analysis };
@@ -421,11 +469,13 @@ export function localAgentPorts(opts: Options): LlmPorts {
       let analysis = spec !== null ? (specUsed = true, await spec) : await complete(
         { system: P.text_meal, user: mealText, images: [], model: opts.model },
         MealAnalysisSchema, "text-meal", deadline, input.onCost, input.signal,
+          { name: "text-meal", onCall: input.onCall },
       );
       if (emptyEstimate(analysis)) {
         analysis = await complete(
           { system: P.text_meal, user: mealText + EMPTY_ESTIMATE_RETRY, images: [], model: opts.model },
           MealAnalysisSchema, "text-meal", deadline, input.onCost, input.signal,
+            { name: "text-meal", onCall: input.onCall },
         );
       }
       out = { ...out, analysis };
@@ -479,13 +529,19 @@ export function localAgentPorts(opts: Options): LlmPorts {
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
       const user = transcript.join("\n") + (last ? "\n\nAnswer now — no more data fetches." : "");
-      const raw = (await send(
+      const { text: answered, draft } = await send(
         { system, user, images: [], model: opts.chatModel }, left, input.onCost, input.signal,
-      )).trim();
-      if (raw === "") throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+        { name: "coach", attempt: round, onCall: input.onCall },
+      );
+      const raw = answered.trim();
+      if (raw === "") {
+        emitDraft(draft, { system, user, images: [], model: opts.chatModel }, "parse_error");
+        throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+      }
       let parsed: unknown = extractJson(raw);
       const calls = toolCallsOf(parsed);
       if (calls.length > 0 && !last) {
+        emitDraft(draft, { system, user, images: [], model: opts.chatModel }, "ok");
         transcript.push(`- Spud: ${coachLine(raw)}`);
         for (const call of calls) {
           const result = await runTool(tools, call.name, call.arguments);
@@ -500,13 +556,18 @@ export function localAgentPorts(opts: Options): LlmPorts {
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         const p = parsed as Record<string, unknown>;
         const reply = typeof p.reply === "string" ? p.reply.trim() : "";
-        if (reply === "") throw new Error("coach returned JSON with an empty reply");
+        if (reply === "") {
+          emitDraft(draft, { system, user, images: [], model: opts.chatModel }, "parse_error");
+          throw new Error("coach returned JSON with an empty reply");
+        }
+        emitDraft(draft, { system, user, images: [], model: opts.chatModel }, "ok");
         return {
           reply,
           suggestions: cleanSuggestions(p.suggestions),
           ...(typeof p.focus === "string" ? { focus: p.focus } : {}),
         };
       }
+      emitDraft(draft, { system, user, images: [], model: opts.chatModel }, "ok");
       return { reply: raw, suggestions: [] };
     }
   };

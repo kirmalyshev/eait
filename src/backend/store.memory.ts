@@ -20,7 +20,7 @@ import { type ChatMessage,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type MilestoneRow, type Role,
   type CampaignRow, type JobRecord, type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushStatRow, type PushToken, type SendLogRow, type SwitchFlip,
-  type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto, type ReferralRefusal, type ReferralStats,
+  type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto, type LlmCall, type ReferralRefusal, type ReferralStats,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -269,9 +269,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     /** Counts against the sample until `releaseSample` says the turn delivered nothing. */
     sample: boolean;
     /** Settled-turn timings, written by `recordTiming`; undefined until one lands. */
-    msQueue?: number; msFirstItem?: number | null; msTotal?: number;
+    msQueue?: number; msFirstItem?: number | null; msTotal?: number; msGround?: number | null;
   }[] = [];
   let analysisSeq = 0;
+  // One row per provider call — metrics, never content (#602). The Postgres table is
+  // `llm_calls`, in `RLS_TABLES`, with `analysis_id` set null when the analysis is refunded.
+  const llmCalls: (LlmCall & { id: string; userId: string; createdAt: number })[] = [];
+  let llmCallSeq = 0;
   // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
   const turns = new Map<string, { userId: string; clientId: string; outcome: object | null; claimedAt: number }>();
   const jobs = new Map<string, JobRecord & { photos: { mime: string; bytes: Uint8Array }[]; group?: string }>();
@@ -406,6 +410,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     firstVerdictSpoken.delete(userId);
     for (let i = analyses.length - 1; i >= 0; i--) {
       if (analyses[i]!.userId === userId) analyses.splice(i, 1);
+    }
+    for (let i = llmCalls.length - 1; i >= 0; i--) {
+      if (llmCalls[i]!.userId === userId) llmCalls.splice(i, 1);
     }
     for (const [k, t] of turns) if (t.userId === userId) turns.delete(k);
     for (const [k, j] of jobs) if (j.userId === userId) jobs.delete(k);
@@ -841,6 +848,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!milestones.has(target)) milestones.set(target, { ...r, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      for (const c of llmCalls) if (c.userId === fromUserId) c.userId = intoUserId;
       // A turn the anonymous session sent is replayed by the same phone under the real account.
       // One id claimed on both sides keeps the survivor's.
       for (const [k, t] of turns) {
@@ -1964,6 +1972,17 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return id;
     },
 
+    async recordLlmCall(userId, call) {
+      if (!users.has(userId)) return false;
+      llmCalls.push({ id: String(++llmCallSeq), userId, ...call, createdAt: now() });
+      return true;
+    },
+
+    async llmCalls(userId) {
+      return llmCalls.filter((c) => c.userId === userId)
+        .map(({ userId: _u, ...c }) => c);
+    },
+
     async addCost(userId, analysisId, usd) {
       const a = analyses.find((x) => x.id === analysisId && x.userId === userId);
       if (!a) return false;
@@ -1978,6 +1997,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       a.msQueue = timing.queue;
       a.msFirstItem = timing.firstItem;
       a.msTotal = timing.total;
+      a.msGround = timing.ground ?? null;
       return true;
     },
 
@@ -1991,6 +2011,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const i = analyses.findIndex((a) => a.id === analysisId && a.userId === userId);
       if (i < 0) return false;
       analyses.splice(i, 1);
+      // `on delete set null` in Postgres: the call happened whether or not it stayed billed.
+      for (const c of llmCalls) if (c.analysisId === analysisId) c.analysisId = null;
       return true;
     },
 
