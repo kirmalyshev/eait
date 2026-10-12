@@ -38,6 +38,7 @@ import {
 import { fill, kcalNumbers, numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth, previewProjection } from "./projection.ts";
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
+import { planCopyFor } from "./app/plan-copy.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
@@ -746,14 +747,11 @@ export function ontrackCaption(picked: readonly Struggle[] | null, lang: Lang): 
 }
 
 /**
- * The figures drawn INSIDE the "How it works" cards — the persona's own numbers, fixed to the
- * boards (`onboarding/02-how`): the grain-bowl photo, the salmon card and the mini estimate
- * curve are all drawn before a single answer exists, so nothing here is computed. The dish's
- * NAME is copy (`how.meal`); the numbers are this constant so no surface retypes them.
+ * The demo meal drawn INSIDE "How it works" — the persona's salmon plate, fixed to the boards,
+ * because no meal exists yet. The dish's NAME is copy (`how.meal`); the numbers are this constant
+ * so no surface retypes them. The progress row is NOT here: it is the user's own (`howProgress`).
  */
 export const HOW_DEMO = {
-  startKg: 74,
-  targetKg: 68,
   meal: { kcal: 540, proteinG: 34, carbsG: 48, fatG: 23 },
   /** The card's two verdict lines — dimensions and verdicts, the words are `verdictPillLabel`'s. */
   verdicts: [
@@ -765,12 +763,13 @@ export const HOW_DEMO = {
 /**
  * The progress row of "How it works" (16): the user's OWN weight and target where both are typed
  * and they differ (ieat-app#2050) — `how` runs after the target, so that is everyone losing or
- * gaining. The persona's 74 → 68 is left only for a maintainer, whose walk has no target.
+ * gaining. Null for a maintainer or a walk with no target, and a client then draws no progress
+ * row: never the persona's 74 → 68, which would be somebody else's numbers.
  */
-export function howProgress(p: Profile): { startKg: number; targetKg: number } {
+export function howProgress(p: Profile): { startKg: number; targetKg: number } | null {
   return p.goal !== "maintain" && p.weight_kg != null && p.target_weight_kg != null && p.weight_kg !== p.target_weight_kg
     ? { startKg: p.weight_kg, targetKg: p.target_weight_kg }
-    : { startKg: HOW_DEMO.startKg, targetKg: HOW_DEMO.targetKg };
+    : null;
 }
 
 /**
@@ -830,6 +829,24 @@ export function pacePreview(
       ? fill(copy.floorMarker, { floor: kcalNumbers(lang)(basis.floorKcal) })
       : marker === "cap" ? copy.capMarker : null,
   };
+}
+
+/**
+ * The target question's goal line (09, ieat-app#2050): "Goal: lose 6kg by January 2027" for a
+ * target the ruler sits on. Pace is asked AFTER the target, so the month is the steady pace's —
+ * the one the pace screen then opens on — unless a pace is already stored. Null where there is no
+ * honest date: no weight, the target within half a kilo of it, past the horizon, or a target the
+ * guards would turn around.
+ */
+export function targetGoalLine(p: Profile, targetKg: number, units: Units, today: Date, lang: Lang): string | null {
+  if (p.weight_kg === null || Math.abs(p.weight_kg - targetKg) < 0.5) return null;
+  const proj = previewProjection(p, targetKg, p.pace ?? "steady");
+  if (proj === null || proj.beyondHorizon) return null;
+  const c = planCopyFor(lang);
+  return fill(targetKg < p.weight_kg ? c.goalLose : c.goalGain, {
+    kg: weightDisplay(Math.abs(p.weight_kg - targetKg), units, lang),
+    month: projectionMonth(today, proj.weeks, lang),
+  });
 }
 
 /**

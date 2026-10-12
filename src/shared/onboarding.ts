@@ -715,6 +715,15 @@ export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): 
   optionLabelIsData(id, value) ? countryLabel(value as CountryCode, lang) : value;
 
 /**
+ * An activity level in words — the option's line ("No workouts"), not its count ("0"): what a
+ * summary says back, where a bare "0" next to "Activity" reads as a score (ieat-app#2050).
+ */
+export const activityWords = (content: OnboardingContent, level: string, lang: Lang): string => {
+  const o = screenOptions(content, "activity")[level];
+  return o?.hint ?? o?.label ?? optionLabel("activity", level, lang);
+};
+
+/**
  * The plan reveal's timing, as DATA — the design's strip (ob-building), verbatim: the count runs
  * 0 → 100 % in 3.5 s while the six rows tick in at these marks (calories, protein, carbs, fat,
  * diet, the declared limit), the button appears only at 100 %, and the plan opens a second later

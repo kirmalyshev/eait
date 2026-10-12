@@ -108,6 +108,8 @@ export interface ChatCopy {
     note: string; you: string; body: string; activity: string;
   };
   possible: { lose: string; gain: string };
+  /** Under the age question (05, ieat-app#2050): why it is asked. */
+  ageWhy: string;
   /**
    * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
    * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
@@ -263,6 +265,7 @@ const EN: ChatCopy = {
     activity: "Activity",
   },
   possible: { lose: "Losing {delta}? Realistic, and possible!", gain: "Gaining {delta}? Realistic, and possible!" },
+  ageWhy: "Your metabolism changes with age, so we factor that in",
   ontrack: {
     title: "Built to keep you on track",
     captions: {
@@ -398,6 +401,7 @@ const FR: ChatCopy = {
     activity: "Activité",
   },
   possible: { lose: "{delta} en moins ? Réaliste, et possible !", gain: "{delta} en plus ? Réaliste, et possible !" },
+  ageWhy: "Ton métabolisme change avec l’âge, on en tient compte",
   ontrack: {
     title: "Conçu pour t'aider à tenir le cap",
     captions: {
@@ -533,6 +537,7 @@ const DE: ChatCopy = {
     activity: "Aktivität",
   },
   possible: { lose: "{delta} weniger? Realistisch und machbar!", gain: "{delta} mehr? Realistisch und machbar!" },
+  ageWhy: "Dein Stoffwechsel verändert sich mit dem Alter, das rechnen wir ein",
   ontrack: {
     title: "Gemacht, damit du dranbleibst",
     captions: {
@@ -668,6 +673,7 @@ const IT: ChatCopy = {
     activity: "Attività",
   },
   possible: { lose: "{delta} in meno? Realistico, e possibile!", gain: "{delta} in più? Realistico, e possibile!" },
+  ageWhy: "Il tuo metabolismo cambia con l’età, e ne teniamo conto",
   ontrack: {
     title: "Fatta per tenerti in carreggiata",
     captions: {
@@ -803,6 +809,7 @@ const ES: ChatCopy = {
     activity: "Actividad",
   },
   possible: { lose: "¿{delta} menos? ¡Realista y posible!", gain: "¿{delta} más? ¡Realista y posible!" },
+  ageWhy: "Tu metabolismo cambia con la edad, y lo tenemos en cuenta",
   ontrack: {
     title: "Hecha para que no te salgas",
     captions: {
@@ -938,6 +945,7 @@ const VI: ChatCopy = {
     activity: "Mức vận động",
   },
   possible: { lose: "Bớt {delta}? Thực tế và hoàn toàn khả thi!", gain: "Tăng {delta}? Thực tế và hoàn toàn khả thi!" },
+  ageWhy: "Trao đổi chất thay đổi theo tuổi, nên chúng tôi tính cả điều đó",
   ontrack: {
     title: "Giúp bạn luôn đi đúng hướng",
     captions: {
@@ -1073,6 +1081,7 @@ const ID: ChatCopy = {
     activity: "Aktivitas",
   },
   possible: { lose: "Kurang {delta}? Realistis, dan bisa dicapai!", gain: "Tambah {delta}? Realistis, dan bisa dicapai!" },
+  ageWhy: "Metabolismemu berubah seiring usia, jadi kami memperhitungkannya",
   ontrack: {
     title: "Dibuat agar kamu tetap di jalur",
     captions: {
@@ -1210,6 +1219,7 @@ const RU: ChatCopy = {
     activity: "Активность",
   },
   possible: { lose: "На {delta} меньше? Реально и достижимо!", gain: "На {delta} больше? Реально и достижимо!" },
+  ageWhy: "С возрастом обмен веществ меняется, мы это учитываем",
   ontrack: {
     title: "Всё, чтобы не сбиться с курса",
     captions: {

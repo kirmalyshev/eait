@@ -55,6 +55,11 @@ export interface PlanCopy {
   yourGoal: string;
   loaderLose: string;
   loaderGain: string;
+  /** Under "Your info" (18b): "Based on your answers". */
+  basedOn: string;
+  /** The declared saturated-fat limit's row (18b): "Saturated fat · you asked: ≤ 13g a day"; `{g}` is formatted. */
+  satFatAsked: string;
+  satFatPerDay: string;
   /** The loader's people counter, `{n}` from `OnboardingContentResponse.peopleBuilding`; drawn only for n > 0. */
   people: CountForms;
 }
@@ -71,6 +76,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "lose {kg} by {month}", targetGain: "gain {kg} by {month}", reachTitle: "How to reach your goal", stepPhoto: "Photograph every meal",
     stepKcal: "Stay within {kcal} kcal a day", stepBalance: "Balance protein, carbs and fat", stepWeigh: "Weigh in once a week", howCalc: "How we calculate your plan",
     yourGoal: "Your goal", loaderLose: "−{kg} by {month}", loaderGain: "+{kg} by {month}",
+    basedOn: "Based on your answers", satFatAsked: "Saturated fat · you asked", satFatPerDay: "≤ {g} a day",
     people: { one: "{n} person is building their plan with eait", other: "{n} people are building their plan with eait" },
   },
   fr: {
@@ -84,6 +90,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} d’ici {month}", targetGain: "+{kg} d’ici {month}", reachTitle: "Comment atteindre ton objectif", stepPhoto: "Photographie chaque repas",
     stepKcal: "Reste sous {kcal} kcal par jour", stepBalance: "Équilibre protéines, glucides et lipides", stepWeigh: "Pèse-toi une fois par semaine", howCalc: "Comment on calcule ton plan",
     yourGoal: "Ton objectif", loaderLose: "−{kg} d’ici {month}", loaderGain: "+{kg} d’ici {month}",
+    basedOn: "D’après tes réponses", satFatAsked: "Graisses saturées · ta demande", satFatPerDay: "≤ {g} par jour",
     people: { one: "{n} personne crée son plan avec eait", other: "{n} personnes créent leur plan avec eait" },
   },
   de: {
@@ -97,6 +104,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} bis {month}", targetGain: "+{kg} bis {month}", reachTitle: "So erreichst du dein Ziel", stepPhoto: "Fotografiere jede Mahlzeit",
     stepKcal: "Bleib unter {kcal} kcal am Tag", stepBalance: "Achte auf Eiweiß, Kohlenhydrate und Fett", stepWeigh: "Wiege dich einmal pro Woche", howCalc: "So berechnen wir deinen Plan",
     yourGoal: "Dein Ziel", loaderLose: "−{kg} bis {month}", loaderGain: "+{kg} bis {month}",
+    basedOn: "Basierend auf deinen Antworten", satFatAsked: "Gesättigte Fette · dein Wunsch", satFatPerDay: "≤ {g} am Tag",
     people: { one: "{n} Person erstellt gerade ihren Plan mit eait", other: "{n} Personen erstellen gerade ihren Plan mit eait" },
   },
   it: {
@@ -110,6 +118,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} entro {month}", targetGain: "+{kg} entro {month}", reachTitle: "Come raggiungere il tuo obiettivo", stepPhoto: "Fotografa ogni pasto",
     stepKcal: "Resta entro {kcal} kcal al giorno", stepBalance: "Bilancia proteine, carboidrati e grassi", stepWeigh: "Pesati una volta a settimana", howCalc: "Come calcoliamo il tuo piano",
     yourGoal: "Il tuo obiettivo", loaderLose: "−{kg} entro {month}", loaderGain: "+{kg} entro {month}",
+    basedOn: "In base alle tue risposte", satFatAsked: "Grassi saturi · la tua richiesta", satFatPerDay: "≤ {g} al giorno",
     people: { one: "{n} persona sta creando il suo piano con eait", other: "{n} persone stanno creando il loro piano con eait" },
   },
   es: {
@@ -123,6 +132,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} para {month}", targetGain: "+{kg} para {month}", reachTitle: "Cómo llegar a tu objetivo", stepPhoto: "Fotografía cada comida",
     stepKcal: "Quédate en {kcal} kcal al día", stepBalance: "Equilibra proteínas, carbohidratos y grasas", stepWeigh: "Pésate una vez por semana", howCalc: "Cómo calculamos tu plan",
     yourGoal: "Tu objetivo", loaderLose: "−{kg} para {month}", loaderGain: "+{kg} para {month}",
+    basedOn: "Según tus respuestas", satFatAsked: "Grasas saturadas · lo que pediste", satFatPerDay: "≤ {g} al día",
     people: { one: "{n} persona está creando su plan con eait", other: "{n} personas están creando su plan con eait" },
   },
   vi: {
@@ -136,6 +146,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} trước {month}", targetGain: "+{kg} trước {month}", reachTitle: "Cách đạt mục tiêu", stepPhoto: "Chụp ảnh mọi bữa ăn",
     stepKcal: "Giữ trong {kcal} kcal mỗi ngày", stepBalance: "Cân bằng đạm, tinh bột và chất béo", stepWeigh: "Cân mỗi tuần một lần", howCalc: "Cách chúng tôi tính kế hoạch",
     yourGoal: "Mục tiêu của bạn", loaderLose: "−{kg} trước {month}", loaderGain: "+{kg} trước {month}",
+    basedOn: "Dựa trên câu trả lời của bạn", satFatAsked: "Chất béo bão hòa · bạn yêu cầu", satFatPerDay: "≤ {g} mỗi ngày",
     people: { other: "{n} người đang lập kế hoạch với eait" },
   },
   id: {
@@ -149,6 +160,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} sebelum {month}", targetGain: "+{kg} sebelum {month}", reachTitle: "Cara mencapai targetmu", stepPhoto: "Foto setiap makanan",
     stepKcal: "Tetap di bawah {kcal} kkal sehari", stepBalance: "Seimbangkan protein, karbohidrat, dan lemak", stepWeigh: "Timbang sekali seminggu", howCalc: "Cara kami menghitung rencanamu",
     yourGoal: "Tujuanmu", loaderLose: "−{kg} sebelum {month}", loaderGain: "+{kg} sebelum {month}",
+    basedOn: "Berdasarkan jawabanmu", satFatAsked: "Lemak jenuh · permintaanmu", satFatPerDay: "≤ {g} sehari",
     people: { other: "{n} orang sedang menyusun rencana dengan eait" },
   },
   ru: {
@@ -162,6 +174,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     targetLose: "−{kg} · ориентир — {month}", targetGain: "+{kg} · ориентир — {month}", reachTitle: "Как прийти к цели", stepPhoto: "Фотографировать каждый приём пищи",
     stepKcal: "Держаться в пределах {kcal} ккал в день", stepBalance: "Соблюдать баланс белков, углеводов и жиров", stepWeigh: "Взвешиваться раз в неделю", howCalc: "Как мы считаем твой план",
     yourGoal: "Твоя цель", loaderLose: "−{kg} · ориентир — {month}", loaderGain: "+{kg} · ориентир — {month}",
+    basedOn: "По твоим ответам", satFatAsked: "Насыщенные жиры · твой запрос", satFatPerDay: "≤ {g} в день",
     people: { one: "{n} человек составляет свой план с eait", few: "{n} человека составляют свой план с eait", many: "{n} человек составляют свой план с eait", other: "{n} человека составляют свой план с eait" },
   },
 };
