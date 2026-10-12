@@ -68,7 +68,7 @@ export const W3_CSS = `
 .ob .pln .brow .plan { background: var(--accent); color: #fff; border-radius: 8px; justify-content: flex-end; }
 .ob .pln .bal .tick { position: absolute; top: 20px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
 .ob .pln .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.ob .pln .pfoot { width: 360px; max-width: 100%; align-self: flex-end; }
+.ob .pln .pfoot { width: 360px; max-width: 100%; align-self: flex-end; position: sticky; bottom: 24px; z-index: 1; }
 .ob .pln .cta { max-width: none; }
 .ob .pln h2 { margin-top: 24px; }
 /* ── 18 / 18b (ieat-app#2050): the tick, the goal said as a sentence, the four cards ── */
@@ -80,6 +80,7 @@ export const W3_CSS = `
 .ob .pln h1.hd { text-align: center; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.03em; margin: 4px 0; text-wrap: balance; }
 .ob .pln .ct { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
 .ob .pln .cs { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.ob .pln .cs2 { font-size: 13px; color: var(--muted); margin: -6px 0 12px; }
 .ob .pln .card:not(.jc):not(.wc) { padding: 18px 20px; }
 .ob .pln .kcb { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--bg); }
 .ob .pln .kcb .tile { width: 48px; height: 48px; flex: none; border-radius: 50%; background: #FBEFD9; display: grid; place-items: center; }
@@ -128,6 +129,9 @@ export const W3_CSS = `
 .ob .ld .cap div { animation: k-roll var(--t) both; }
 .ob .ld .cap p { margin: 0; height: 28px; line-height: 28px; text-align: center; font-size: 19px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ob .ld .cap b { color: var(--ink); font-weight: 600; opacity: .75; }
+/* the real people counter, near the foot of the loader */
+.ob .ld .ppl { position: absolute; left: 18px; right: 18px; bottom: 110px; margin: 0; text-align: center;
+               font-size: 17px; font-weight: 600; text-wrap: balance; animation: k-rise .4s var(--ease) .6s both; }
 @media (max-width: 720px) {
   .ob .pln .pgrid { grid-template-columns: 1fr; }
   .ob .pln .pfoot { width: 100%; }

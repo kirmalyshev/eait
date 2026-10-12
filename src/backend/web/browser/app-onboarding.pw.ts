@@ -23,7 +23,7 @@ test("the whole W3 walk: plan, sign-up, country, first meal — and back", async
   await expect(page.locator(".pln .hd")).toContainText("Goal:");
   await expect(page.locator(".pgraph .draw1")).toBeVisible();
   await expect(page.locator(".pln .kcb")).toContainText("kcal a day");
-  await expect(page.locator(".pln .pib")).toContainText("sat fat");
+  await expect(page.locator(".pln .pib")).toContainText("Saturated fat");
 
   // ── The sign-up: terms required, marketing optional ─────────────────────────────────────
   await page.getByRole("link", { name: "Continue", exact: true }).click();

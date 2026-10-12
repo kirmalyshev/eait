@@ -1231,7 +1231,7 @@ describe("the v2 questions that write the new fields", () => {
 
 describe("the target-weight ruler", () => {
   /** 80kg at 170cm → the suggested target is 73.5, the healthy floor about 53.5. */
-  it("opens on the shared suggestion under the board's own ask, with the refused zone drawn", async () => {
+  it("opens on the shared suggestion under the board's own ask, stopping at the floor", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
     // The headline is the board's ask (#473) — the suggestion is the ruler's needle, not the
@@ -1242,10 +1242,11 @@ describe("the target-weight ruler", () => {
     expect(html).toContain('data-ctl="ruler"');
     expect(html).toContain('data-val="73.5"');
     expect(html).toMatch(/type="number"[^>]*name="answer"[^>]*value="73\.5"/);
-    // The refused zone and the "now" marker are drawn, with the floor's own words on them.
-    expect(html).toContain('data-floor="54"');
+    // The ruler stops at the floor rather than drawing a refused zone under it (ieat-app#2050),
+    // and the "now" marker stays.
+    expect(html).toContain('data-min="54"');
+    expect(html).not.toContain("lowest we set");
     expect(html).toContain('data-now="80"');
-    expect(html).toContain("lowest we set");
     // The live delta says how far the needle sits from now, in the copy's own words — a
     // placeholder left unfilled would print "{weight}" raw inside the live line.
     expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5kg<\//);

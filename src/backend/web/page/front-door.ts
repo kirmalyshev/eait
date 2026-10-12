@@ -1,7 +1,7 @@
 import type { Lang, OnboardingContent } from "@eait/shared";
-import { fill, kcalNumbers, spellUnit } from "@eait/shared";
+import { fill, kcalNumbers, LANG_FLAG, LANG_LABEL, LANGS_READY, spellUnit } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
-import { ctaLink, wtop } from "./board.ts";
+import { wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
 /** The kcal figure the photo's estimate lands on — the alt text's "{kcal}" reads it (#141). */
@@ -30,9 +30,12 @@ export function frontDoor(
     `<div class="wchip" style="${pos};--d:${d}s"><span class="tile ${tone}"><i class="ico i-${icon}"></i></span>` +
     `<div><span>${escape(label)}</span><b class="num">${escape(figure)}<small>${escape(unit)}</small></b></div></div>`;
   const m = content.summary.macros;
+  const [title = "", ...subs] = welcome.lines;
   return shell(PAGE_COPY.titleStart, `
 ${wtop()}
 <div class="wcenter"><div class="wdemo">
+  <div class="wherobox">
+  ${langChip(lang, PAGE_COPY.languageLabel)}
   <div class="whero" role="img" aria-label="${alt}">
     <div class="ph"></div><div class="vf"><i></i><i></i><i></i><i></i></div>
     <div class="sh"></div><div class="fl"></div><div class="sw"></div>
@@ -41,13 +44,30 @@ ${wtop()}
     ${chip("left:5%;top:42%", 2.55, "f", "fat", m.fat, String(WELCOME_CHIPS.fat), g)}
     ${chip("right:6%;top:51%", 2.75, "", "kcal", content.building.rows.calories, kcal, spellUnit(lang, "kcal"))}
   </div>
+  </div>
   <div class="whead">
-    <h1>${escape(welcome.lines.join(" "))}</h1>
+    <div><h1>${escape(title)}</h1>${subs.map((l) => `<p class="wsub">${escape(l)}</p>`).join("")}</div>
     <div class="wctas">
-      ${ctaLink(hrefs.q, welcome.cta)}
+      <a class="cta p" href="${escape(hrefs.q)}">${escape(welcome.cta)} <span aria-hidden="true">→</span></a>
       <a class="wlink" href="${escape(hrefs.signup)}">${escape(welcome.signin)}</a>
     </div>
   </div>
 </div></div>
 `, lang, "ob");
+}
+
+/**
+ * The language chip over the photo (ieat-app#2050): "🇺🇸 EN", and a tap opens the list of the
+ * languages this surface can render, each in its own name (`LANG_LABEL`, the picker's list). A
+ * `<details>`, so it opens with no script; each name is a POST to `/start/language`, which keeps
+ * the pick for the account the first answer creates.
+ */
+function langChip(lang: Lang, label: string): string {
+  const options = LANGS_READY.map((code) =>
+    `<button type="submit" name="lang" value="${escape(code)}"${code === lang ? ' aria-current="true"' : ""}>` +
+    `<span aria-hidden="true">${LANG_FLAG[code]}</span>${escape(LANG_LABEL[code])}</button>`,
+  ).join("");
+  return `<details class="wlang"><summary aria-label="${escape(`${label}: ${LANG_LABEL[lang]}`)}">` +
+    `<span aria-hidden="true">${LANG_FLAG[lang]}</span>${escape(lang.toUpperCase())}</summary>` +
+    `<form method="post" action="/start/language" class="wlangs">${options}</form></details>`;
 }

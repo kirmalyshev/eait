@@ -12,7 +12,7 @@ import { iconCss } from "@eait/shared/ui/icons";
 export const BOARD_CSS = `
 .ob {
   ${lightVars}
-  --r-card: 12px; --r-ctl: 10px; --r-cta: 14px;
+  --r-card: 12px; --r-ctl: 10px; --r-cta: 28px;
   --shadow: 0 1px 2px rgb(23 25 28 / .04), 0 8px 24px rgb(23 25 28 / .06);
   display: flex; flex-direction: column; min-height: 100svh; max-width: none; margin: 0;
   padding: 0; width: 100%; background: var(--bg);
@@ -66,12 +66,18 @@ export const BOARD_CSS = `
 @keyframes k-fill { from { width: var(--from); } }
 
 /* ── the ask ── */
-.ob .say { display: flex; gap: 12px; align-items: flex-start; }
-.ob .qecho { margin: -14px 0 0 40px; }
+.ob .say { display: block; }
+.ob .stopcard .say { display: flex; gap: 12px; align-items: flex-start; }
+.ob .qsub { margin-top: 14px; font-size: 16px; line-height: 1.4; color: var(--ink); }
+.ob .qecho { margin: -6px 0 0; }
 .ob .spud { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-tint);
             display: inline-flex; align-items: center; justify-content: center; margin-top: 2px; }
 .ob .spud svg { width: 78%; height: 78%; display: block; }
-.ob .q { font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
+/* The board's heading (CZ): 34px, left, under the bar — the question is the page's title. */
+.ob .q { font-size: 34px; font-weight: 700; letter-spacing: -.035em; line-height: 1.12; text-wrap: balance; }
+/* Continue sits at the foot of the screen, and stays there over a list that scrolls under it. */
+.ob .qform > .cta.p:last-child, .ob .igroup > .cta.p:last-child {
+  margin-top: auto; position: sticky; bottom: 24px; z-index: 1; max-width: none; align-self: stretch; }
 .ob .notice { color: var(--warn); background: var(--warn-tint); padding: 10px 14px; border-radius: var(--r-ctl);
               font-size: 14px; line-height: 1.45; }
 
@@ -93,32 +99,33 @@ export const BOARD_CSS = `
                   text-align: center; color: var(--muted); background: none; cursor: pointer; font-family: var(--sans); }
 .ob .seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 
-/* ── option rows ── */
-.ob .opts { display: grid; gap: 10px; }
-.ob .opts.c4 { grid-template-columns: repeat(4, 1fr); }
-.ob .opts.c3 { grid-template-columns: repeat(3, 1fr); }
-.ob .opts.c2 { grid-template-columns: repeat(2, 1fr); }
-.ob .opt { background: var(--surface); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--hair);
-           padding: 18px; display: flex; align-items: center; gap: 12px; cursor: pointer;
-           font-size: 17px; font-weight: 500; color: var(--ink); border: 0; text-align: left;
+/* ── option rows: the board's full-width list — 68 tall, 20 round, 16 apart, picked in the accent ── */
+.ob .opts { display: flex; flex-direction: column; gap: 16px; }
+.ob .opt { background: var(--surface); border-radius: 20px;
+           box-shadow: 0 0 0 1px var(--hair), 0 2px 6px -4px rgba(23,25,28,.12);
+           min-height: 68px; padding: 12px 22px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+           font-size: 17px; font-weight: 600; color: var(--ink); border: 0; text-align: left;
            font-family: var(--sans); width: 100%; }
 .ob .opt input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
-.ob .opt:has(input:checked) { box-shadow: 0 0 0 2px var(--ink); font-weight: 600; }
-.ob .opt .ck { margin-left: auto; flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%;
-               box-shadow: 0 0 0 1.5px var(--line); display: inline-flex; align-items: center;
-               justify-content: center; }
-.ob .opt:has(input:checked) .ck { box-shadow: none; background: var(--ink); }
-.ob .opt .ck .ico { width: 12px; height: 12px; color: #fff; opacity: 0; }
-.ob .opt:has(input:checked) .ck .ico { opacity: 1; }
-.ob .opt:focus-within { box-shadow: 0 0 0 2px var(--ink); }
-.ob .opt .tile { width: 44px; height: 44px; border-radius: 12px; background: var(--bg); flex: 0 0 44px;
-                 display: flex; align-items: center; justify-content: center; }
-.ob .opt .tile .ico { width: 24px; height: 24px; }
-.ob .opt small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
-.ob .opt:has(input:checked) small { color: var(--muted); font-weight: 400; }
+.ob .opt:has(input:checked) { background: var(--accent-tint); box-shadow: 0 0 0 2px var(--accent); color: var(--accent); }
+.ob .opt:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ob .opt .ol { flex: 1; min-width: 0; }
+.ob .opt > .ico { width: 24px; height: 24px; }
+.ob .opt small { display: block; font-size: 13px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+/* activity's count — the board's 46 badge */
+.ob .opt .n { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 13px; display: grid; place-items: center;
+              background: var(--bg); font-weight: 700; font-size: 16px; color: var(--ink); }
+.ob .opt:has(input:checked) .n { background: #fff; color: var(--accent); }
+/* the streak's kg on this plan */
+.ob .opt .end { margin-left: auto; font-weight: 500; color: var(--muted); }
+.ob .opt:has(input:checked) .end { color: var(--accent); }
+/* a multi-select's checkbox */
+.ob .opt .box { margin-left: auto; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 8px;
+                box-shadow: inset 0 0 0 2px var(--line); position: relative; }
+.ob .opt:has(input:checked) .box { background: var(--accent); box-shadow: none; }
+.ob .opt:has(input:checked) .box::after { content: ""; position: absolute; left: 9px; top: 4px; width: 7px; height: 13px;
+  border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .ob .ico { display: inline-flex; width: 22px; height: 22px; flex: 0 0 auto; }
-.ob .opts.c3 .opt, .ob .opts.c4 .opt { flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px; }
-.ob .opts.c3 .opt .ck, .ob .opts.c4 .opt .ck { margin-left: 0; align-self: flex-end; }
 
 /* ── the big number + pickers ── */
 .ob .bign { font-size: 56px; font-weight: 700; letter-spacing: -.03em; line-height: 1; display: flex;
@@ -186,35 +193,35 @@ export const BOARD_CSS = `
             border-radius: var(--r-card); padding: 14px 28px; font-size: 28px; font-weight: 700;
             letter-spacing: -.02em; color: var(--ink); }
 
-/* ── pace: the three stops, the slider, the result (10-pace) — 110px stops spread the column,
-   a hairline track inset half a stop, a white thumb, the bold computed line under it ── */
-.ob .pacevarbox { margin-bottom: 24px; }
-.ob .pacevar .bign { font-size: 72px; }
-.ob .stops { display: flex; justify-content: space-between; text-align: center;
-             font-size: 13px; font-weight: 500; color: var(--muted); width: 100%; }
-.ob .stops > div { width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.ob .stops > div.on { color: var(--accent); font-weight: 600; }
-.ob .stops .ico { width: 48px; height: 48px; }
-.ob .slider { position: relative; height: 6px; background: var(--hair); border-radius: 3px;
-              margin: 18px 55px 0; touch-action: pan-y; }
-.ob .slider i { position: absolute; left: 0; top: 0; height: 100%; background: var(--ink); border-radius: 3px; }
-.ob .slider b { position: absolute; top: 50%; width: 28px; height: 28px; border-radius: 50%;
-                background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .25); transform: translate(-50%, -50%);
+/* ── pace (10, the CZ board): "From … to …", the computed rate with the cap's pill under it, an
+   accent slider with a white pill thumb, the three names under it, and the landing as a card.
+   The stops are 96 wide and the track is inset half a stop, so the thumb sits on each name. ── */
+.ob .pacesel { margin: auto 0; }
+.ob .pecho { font-size: 16px; color: var(--muted); margin-bottom: 8px; }
+.ob .pacevarbox { margin-bottom: 30px; }
+.ob .pacevar .bign { font-size: 52px; }
+.ob .slider { position: relative; height: 8px; background: var(--accent-tint); border-radius: 4px;
+              margin: 0 48px; touch-action: pan-y; }
+.ob .slider i { position: absolute; left: 0; top: 0; height: 100%; background: var(--accent); border-radius: 4px; }
+.ob .slider b { position: absolute; top: 50%; width: 52px; height: 30px; border-radius: 15px;
+                background: #fff; box-shadow: 0 1px 6px rgba(23,25,28,.25); transform: translate(-50%, -50%);
                 cursor: ew-resize; }
+.ob .stops { display: flex; justify-content: space-between; text-align: center; margin-top: 14px;
+             font-size: 15px; color: var(--muted); width: 100%; }
+.ob .stops > div { width: 96px; cursor: pointer; }
+.ob .stops > div.on { color: var(--ink); font-weight: 600; }
 .ob .est { color: var(--muted); font-size: 12px; font-weight: 600; display: block; }
 .ob .paceres { text-align: center; }
-.ob .paceresbox { margin-top: 24px; }
-.ob .cap { text-align: center; }
+.ob .paceresbox { margin-top: 30px; }
+.ob .when { display: inline-block; padding: 14px 26px; border-radius: 18px; background: var(--surface);
+            box-shadow: 0 0 0 1px var(--hair); font-size: 16px; font-weight: 700; }
+.ob .when span { display: block; font-weight: 500; color: var(--muted); font-size: 15px; margin-bottom: 2px; }
+.ob .cap { text-align: center; margin-top: 10px; }
 .ob .cap summary { list-style: none; cursor: pointer; display: inline-block; }
 .ob .cap summary::-webkit-details-marker { display: none; }
-.ob .cap .est::after { content: ""; }
+.ob .cap .note { display: inline-block; padding: 5px 14px; border-radius: 14px; background: var(--accent-tint);
+                 color: var(--accent); font-size: 14px; font-weight: 600; }
 .ob .cap p { max-width: 420px; margin: 8px auto 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
-
-/* the goal cards: icon on top, name below, the check pinned to the corner */
-.ob .opt.big { flex-direction: column; align-items: flex-start; gap: 18px; padding: 20px 18px;
-               position: relative; }
-.ob .opt.big .ico { width: 32px; height: 32px; }
-.ob .opt.big .ck { position: absolute; top: 16px; right: 16px; margin-left: 0; }
 
 /* the pace screen's swappable halves — one variant per computed pace */
 .ob .pacevar, .ob .paceres { display: none; }
@@ -231,8 +238,7 @@ export const BOARD_CSS = `
    boards' 1080 — the three cards need it; ontrack keeps the question column's 720. */
 .ob .wmain.mom { padding-top: 16px; margin: 0 auto; width: 100%; }
 .ob .wmain.wide { max-width: 1080px; }
-.ob .igroup { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 24px;
-              min-height: 0; }
+.ob .igroup { flex: 1; display: flex; flex-direction: column; gap: 24px; min-height: 0; }
 .ob .card { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 16px; }
 .ob .cards { display: grid; gap: 16px; align-items: start; }
 .ob .cards.c3 { grid-template-columns: repeat(3, 1fr); }
@@ -338,6 +344,21 @@ export const BOARD_CSS = `
 .ob .wchip b small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 2px; }
 .ob .wlink { align-self: center; font-size: 15px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; padding: 10px; }
 .ob .whead { max-width: 440px; display: flex; flex-direction: column; gap: 26px; }
+/* the language chip (ieat-app#2050): a white pill top-right over the photo, its list a card under it */
+.ob .wherobox { position: relative; flex: none; }
+.ob .wlang { position: absolute; right: 16px; top: 16px; z-index: 3; }
+.ob .wlang summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 7px 12px;
+  border-radius: 18px; background: rgba(255,255,255,.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  font-size: 14px; font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.ob .wlang summary::-webkit-details-marker { display: none; }
+.ob .wlangs { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; padding: 6px; border-radius: 16px;
+  background: var(--surface); box-shadow: 0 0 0 1px var(--hair), 0 12px 32px -8px rgba(23,25,28,.25);
+  display: flex; flex-direction: column; animation: k-pop .25s var(--ease) both; }
+.ob .wlangs button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px;
+  background: none; font: inherit; font-size: 16px; color: var(--ink); text-align: left; cursor: pointer; }
+.ob .wlangs button:hover { background: var(--bg); }
+.ob .wlangs button[aria-current] { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+.ob .wsub { margin-top: 8px; font-size: 17px; color: var(--muted); }
 .ob .whead h1 { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; text-wrap: balance; margin: 0; }
 /* The two doors sit side by side, the secondary an outlined button — the board's .row
    of .cta p + .cta s; on a narrow screen they stack, and .wdemo keeps the side gutter
@@ -349,6 +370,7 @@ export const BOARD_CSS = `
 @media (max-width: 940px) {
   .ob .wcenter { padding: 0; align-items: flex-start; }
   .ob .wdemo { flex-direction: column; gap: 24px; padding: 0 0 32px !important; width: 100%; }
+  .ob .wherobox { width: 100%; }
   .ob .whero { width: 100%; height: 560px; border-radius: 0; box-shadow: none;
     -webkit-mask: linear-gradient(#000 78%, transparent); mask: linear-gradient(#000 78%, transparent); }
   .ob .whead { padding: 0 24px; align-items: stretch; text-align: center; max-width: none; }
@@ -364,19 +386,11 @@ export const BOARD_CSS = `
   .ob .wtop { padding: 0 20px; height: 56px; }
   .ob .wcol { padding: 4px 20px 28px; }
   .ob .wdemo { padding: 0 20px; }
-  .ob .opts.c3 { grid-template-columns: 1fr; }
-  .ob .opts.c3 .opt { flex-direction: row; align-items: center; }
-  .ob .opts.c3 .opt .ck { align-self: center; }
-  /* Long labels ("Unhealthy eating habits") can't halve — two columns overflow the viewport. */
-  .ob .opts.c2 { grid-template-columns: 1fr; }
-  /* Four tiles stay tiles on a phone — 2×2 rather than a column of rows. */
-  .ob .opts.c4 { grid-template-columns: repeat(2, 1fr); }
   .ob .cards.c3 { grid-template-columns: 1fr; }
   /* 06 keeps the number beside its ruler on a phone; 07/09 run the ruler edge to edge. */
   .ob .vpick { gap: 28px; }
   .ob .vruler { height: 300px; }
   .ob .ruler { width: auto; margin-inline: -20px; }
-  .ob .q { font-size: 20px; }
 }
 /* The three beats between the questions: twice, baseline, possible. */
 /* 09b possible: the emoji and the headline near the top, the number in the accent, Continue at the foot. */
@@ -397,10 +411,17 @@ export const BOARD_CSS = `
 .ob .twice .b .bar { height: 180px; background: var(--accent); color: #fff; font-size: 40px; font-weight: 700; }
 .ob .twice figcaption { margin-top: 14px; font-size: 17px; font-weight: 600; }
 .ob .src { margin-top: 16px; font-size: 12px; color: var(--muted); }
-.ob .bmeter { margin-top: 22px; padding: 20px; }
+.ob .bmeter { padding: 20px; }
 .ob .bm-r { display: flex; justify-content: space-between; align-items: center; font-size: 17px; font-weight: 600; }
 .ob .bm-v { padding: 4px 12px; border-radius: 12px; background: #F4C47A; color: #fff; font-weight: 700; font-feature-settings: "tnum" 1; }
 .ob .bm-sc { position: relative; height: 12px; margin-top: 18px; border-radius: 6px; background: linear-gradient(90deg, #6FA8F0 0%, #6FCB7C 14%, #6FCB7C 37%, #F2C230 43%, #F59A3E 58%, #F36464 68%, #F36464 100%); }
+.ob .bm-ax { position: relative; height: 16px; margin: 18px 0 8px; font-size: 13px; color: var(--faint); }
+.ob .bm-ax span { position: absolute; transform: translateX(-50%); }
+.ob .bm-ax span:first-child { transform: none; }
+.ob .bm-ax span:last-child { transform: translateX(-100%); }
+.ob .bm-ax + .bm-sc { margin-top: 0; }
+.ob .bm-k { animation: bmi-k 1.2s var(--ease) .5s both; }
+@keyframes bmi-k { from { left: 0; } }
 .ob .bm-k { position: absolute; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px #F4C47A, 0 2px 6px rgb(0 0 0 / .2); }
 .ob .bm-w { margin-top: 12px; text-align: center; font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--faint); }
 .ob .bverdict { margin-top: 14px; padding: 14px 18px; border-radius: 16px; background: #FDF1DE; }
@@ -410,5 +431,19 @@ export const BOARD_CSS = `
 .ob .brow .bt { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-tint); display: grid; place-items: center; font-size: 22px; }
 .ob .brow span:not(.bt) { display: block; font-size: 13px; color: var(--muted); }
 .ob .brow b { font-size: 17px; }
+/* 16 how — the board's three compact rows */
+.ob .hsteps { display: flex; flex-direction: column; gap: 16px; }
+.ob .hstep { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 20px; background: var(--surface);
+             box-shadow: 0 0 0 1px var(--hair), 0 2px 6px -4px rgba(23,25,28,.12); }
+.ob .hstep .tl { width: 68px; height: 68px; flex: 0 0 68px; border-radius: 16px; background: var(--accent-tint);
+                 display: grid; place-items: center; overflow: hidden; }
+.ob .hstep .tl img { width: 100%; height: 100%; object-fit: cover; }
+.ob .hstep > div > span { display: block; font-size: 15px; color: var(--muted); }
+.ob .hstep b { display: block; margin-top: 2px; font-size: 21px; font-weight: 700; letter-spacing: -.02em; }
+.ob .hstep .macs { display: flex; gap: 10px; margin-top: 4px; font-size: 13px; font-weight: 600; }
+.ob .hstep .macs .ico { width: 16px; height: 16px; vertical-align: -.25em; }
+/* 09 the goal line under the target's delta */
+.ob .goal { text-align: center; margin-top: 10px; min-height: 1.2em; }
+@media (prefers-reduced-motion: reduce) { .ob .bm-k { animation: none; } }
 ${iconCss()}
 `;

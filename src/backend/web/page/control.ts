@@ -72,6 +72,7 @@ export const CONTROL_SCRIPT = `(function () {
     var val = num(ctl.dataset.val, min);
     var lbls = ctl.querySelector(".lbls"), tint = ctl.querySelector(".tint");
     var lo = ctl.querySelector(".lbl.lo"), hi = ctl.querySelector(".lbl.hi"), live = ctl.querySelector(".live");
+    var goal = ctl.querySelector(".goal"), goals = goal ? JSON.parse(goal.dataset.goals || "{}") : {};
     var mg = ctl.querySelector(".lbl.mg");
 
     function snap(v) { return Math.min(max, Math.max(min, Math.round(v / step) * step)); }
@@ -154,6 +155,7 @@ export const CONTROL_SCRIPT = `(function () {
         if (tpl) live.textContent = tpl.replace("{weight}", fmtN(Math.abs(d)) + (ctl.dataset.unitword || ""));
         live.className = "live" + (d < 0 ? " dn" : d > 0 ? " up" : "");
       }
+      if (goal) goal.textContent = goals[String(Math.round(val * 10) / 10)] || "";
       bigSet(ctl, fmt, val);
       inp.value = String(Math.round(val * 10) / 10);
       el.setAttribute("aria-valuenow", String(Math.round(val * 10) / 10));

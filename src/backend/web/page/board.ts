@@ -1,5 +1,5 @@
 // The Register P onboarding frame — the markup every W2 screen shares: the wordmark bar, the
-// back arrow and the one continuous bar, the Spud avatar beside the ask, the primary button, and the option row.
+// back arrow and the one continuous bar, the ask as the page's heading, the primary button, and the option row.
 // `board-css.ts` carries the matching styles; both stay under `main.ob` so the pages W3 still owns
 // (plan, sign-up, the offer) are untouched.
 //
@@ -7,16 +7,8 @@
 // markup names are theirs (`.wtop`, `.dash`, `.say`, `.opt`…) so the two cannot quietly drift.
 
 import { dashIndex, DASH_PLACES, type Lang, type OnboardingPlace } from "@eait/shared";
-import { spudSvg, type MascotMood } from "@eait/shared/mascot";
 import { brandSvg } from "@eait/shared/ui/icons";
 import { escape } from "./shell.ts";
-
-/** The board's mood per place — `think` weighs, `care` sits beside, `happy` is the default. */
-export const PLACE_MOOD: Partial<Record<OnboardingPlace, MascotMood>> = {
-  pace: "think",
-  struggles: "care",
-  ontrack: "care",
-};
 
 /** The wordmark bar — the app icon, not Spud (DIRECTION §6). No navigation: onboarding is the
  * product here, nothing links out (§9). */
@@ -43,15 +35,15 @@ export function dash(place: OnboardingPlace, lang: Lang, back?: { href: string; 
 }
 
 /**
- * The ask — Spud's avatar beside the question. `lines` is the ask's lines: the last is the
- * question; anything before it is a muted lead-in rather than a second bubble (the board is one
- * sentence deep).
+ * The ask — the question as the page's 34px heading, left, under the bar (ieat-app#2050's CZ
+ * frame). No Spud beside it on the web (Kirill, 12 Oct). `lines` is the ask's lines: the last is
+ * the question, anything before it is a line under the heading — the board is one sentence deep.
  */
-export function say(mood: MascotMood, lines: readonly string[], lang: Lang): string {
-  const lead = lines.slice(0, -1).map((l) => `<p class="muted-sub">${escape(l)}</p>`).join("");
+export function say(lines: readonly string[], sub?: string): string {
   const q = escape(lines[lines.length - 1] ?? "");
-  return `<div class="say"><span class="spud">${spudSvg(mood, "spud-say")}</span>` +
-    `<div>${lead}<h1 class="q">${q}</h1></div></div>`;
+  const subs = [...lines.slice(0, -1), ...(sub ? [sub] : [])]
+    .map((l) => `<p class="qsub">${escape(l)}</p>`).join("");
+  return `<div class="say"><h1 class="q">${q}</h1>${subs}</div>`;
 }
 
 /** The primary Continue — a submit inside the question form, or a link on the interstitials. */
@@ -71,10 +63,14 @@ export const ctaLink = (href: string, label: string, cls = "p", attrs = ""): str
 export interface OptSpec {
   value: string;
   label: string;
-  /** A caption line under the name (activity's "Workouts now and then"). */
+  /** A caption line under the name. */
   sub?: string;
-  /** A shared icon name → the `.tile`; none means no tile. */
+  /** A shared icon name, drawn before the name; none draws none. */
   icon?: string | undefined;
+  /** A badge before the name — activity's "1–2". */
+  badge?: string | undefined;
+  /** A figure at the row's end — the streak's "−0.9kg". */
+  end?: string | null | undefined;
   multi?: boolean;
   checked?: boolean;
 }
@@ -82,10 +78,14 @@ export function optRow(o: OptSpec): string {
   const input = o.multi
     ? `<input type="checkbox" name="answer" value="${escape(o.value)}"${o.checked ? " checked" : ""}>`
     : `<input type="radio" name="answer" value="${escape(o.value)}"${o.checked ? " checked" : ""}>`;
-  const tile = o.icon ? `<span class="tile"><i class="ico i-${escape(o.icon)}"></i></span>` : "";
+  // The board's rows: a single choice is the row itself, picked in the accent; a multi-select
+  // carries a checkbox at the end.
+  const lead = o.badge ? `<span class="n num">${escape(o.badge)}</span>`
+    : o.icon ? `<i class="ico i-${escape(o.icon)}"></i>` : "";
   const sub = o.sub ? `<small>${escape(o.sub)}</small>` : "";
-  return `<label class="opt">${input}${tile}<span>${escape(o.label)}${sub}</span>` +
-    `<span class="ck"><i class="ico i-check"></i></span></label>`;
+  const end = o.end ? `<span class="end num">${escape(o.end)}</span>` : "";
+  return `<label class="opt">${input}${lead}<span class="ol">${escape(o.label)}${sub}</span>${end}` +
+    `${o.multi ? `<span class="box" aria-hidden="true"></span>` : ""}</label>`;
 }
 
 /**

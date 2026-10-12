@@ -26,7 +26,7 @@ function planView(lang: Lang, hasWebApp = false): PlanView {
   return {
     profile: { ...PERSONA, lang }, targets, basis,
     projection: projectGoal(PERSONA, basis),
-    content: onboardingContentFor(lang), next: "/start/signup", back: "/start/q", hasWebApp, lang,
+    content: onboardingContentFor(lang), next: "/start/signup", back: "/start/q", hasWebApp, peopleBuilding: null, lang,
   };
 }
 

@@ -1,5 +1,5 @@
 import {
-  answerLabel, fill, kcalNumbers, promptById, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
+  activityWords, countText, fill, kcalNumbers, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
   planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
   wholeNumbers, youCopyFor,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
@@ -28,6 +28,8 @@ export interface PlanView {
    * control would strand it.
    */
   hasWebApp: boolean;
+  /** `peopleBuilding` — accounts onboarded in the last day; the loader's line is drawn only above 0. */
+  peopleBuilding: number | null;
   lang: Lang;
 }
 
@@ -95,8 +97,9 @@ function goalWords(v: PlanView, COPY: ReturnType<typeof planCopyFor>): { kg: str
 /**
  * The loader (17): the ring fills 0 → 100 % over `LOADER_S` while the computed numbers roll under
  * it, then it lifts off the plan. Its reader is the plan itself — every figure is the engine's,
- * the same ones the cards below draw. No people counter (Kirill, ieat-app#2050). Under Reduce
- * Motion it is not drawn at all: the plan is the resting state.
+ * the same ones the cards below draw, and the goal reads "Your goal · −8kg by March 2027". Under
+ * it, the real people counter — the store's count, never a constant — when there is one to show.
+ * Under Reduce Motion it is not drawn at all: the plan is the resting state.
  */
 function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: string; month: string } | null): string {
   const s = v.content.summary;
@@ -107,7 +110,7 @@ function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: s
     [s.macros.protein, `${n(v.targets.protein_g)}${gram}`],
     [s.macros.carbs, `${n(v.targets.carbs_g)}${gram}`],
     [s.macros.fat, `${n(v.targets.fat_g)}${gram}`],
-    ...(goal ? [[COPY.target, fill(v.profile.goal === "gain" ? COPY.targetGain : COPY.targetLose, goal)]] : []),
+    ...(goal ? [[COPY.yourGoal, fill(v.profile.goal === "gain" ? COPY.loaderGain : COPY.loaderLose, goal)]] : []),
   ];
   const caps = rows.map(([k, val]) => `<p>${escape(k!)} · <b>${escape(val!)}</b></p>`).join("");
   return `<div class="ld" aria-hidden="true" style="--t:${sec(LOADER_S)};--rows:${rows.length}">
@@ -115,6 +118,7 @@ function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: s
 <div class="pct"><span class="count" style="--to:100"></span><small>%</small></div></div>
 <h2>${escape(v.content.building.lines[0] ?? COPY.building)}</h2>
 <div class="cap"><div style="animation-timing-function:steps(${rows.length - 1},end)">${caps}</div></div>
+${v.peopleBuilding !== null && v.peopleBuilding > 0 ? `<p class="ppl">${escape(countText(v.lang)(COPY.people, v.peopleBuilding))}</p>` : ""}
 </div>`;
 }
 
@@ -135,17 +139,17 @@ function everyDayCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string
 function infoCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: string; month: string } | null): string {
   const p = v.profile;
   const n = wholeNumbers(v.lang);
-  const activityPrompt = promptById("activity");
-  const activity = activityPrompt ? answerLabel(activityPrompt, p, { content: v.content, lang: v.lang }) : null;
+  // The level in words ("No workouts"), never the option's bare count ("Activity: 0").
+  const activity = p.activity ? activityWords(v.content, p.activity, v.lang) : null;
   const row = (glyph: string, label: string, value: string | null) => value === null ? "" :
     `<div class="pir"><span class="pg" aria-hidden="true">${glyph}</span><div><span>${escape(label)}:</span> ${escape(value)}</div></div>`;
   const satfat = v.targets.satfat_g;
-  return `<div class="card rise" style="--d:.7s"><p class="ct">${escape(COPY.infoTitle)}</p><div class="pib">
+  return `<div class="card rise" style="--d:.7s"><p class="ct">${escape(COPY.infoTitle)}</p><p class="cs2">${escape(COPY.basedOn)}</p><div class="pib">
 ${row("👤", COPY.startWeight, p.weight_kg != null ? weightDisplay(p.weight_kg, p.units, v.lang) : null)}
 ${row("🚩", COPY.goalWeight, p.goal !== "maintain" && p.target_weight_kg != null ? weightDisplay(p.target_weight_kg, p.units, v.lang) : null)}
 ${row("🚶", COPY.activity, activity)}
 ${row("🎯", COPY.target, goal ? fill(p.goal === "gain" ? COPY.targetGain : COPY.targetLose, goal) : null)}
-${row("🧈", COPY.satFat, satfat !== undefined && satfat !== null ? `≤ ${n(satfat)}${spellUnit(v.lang, "g")}` : null)}
+${row("🧈", COPY.satFatAsked, satfat !== undefined && satfat !== null ? fill(COPY.satFatPerDay, { g: `${n(satfat)}${spellUnit(v.lang, "g")}` }) : null)}
 </div></div>`;
 }
 

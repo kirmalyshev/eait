@@ -44,7 +44,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal, redeemReferral, referralLink,
-  onboardingContent, mintPairingCode, patchProfile, profileView,
+  onboardingContent, peopleBuilding, mintPairingCode, patchProfile, profileView,
   sendEmailCode, signInWithProvider, verifyEmailCode,
   EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
   type EngineDeps,
@@ -138,9 +138,25 @@ const chatNotice = (copy: PageCopy): Record<string, string> => ({
 const providerLabel = (p: WebProvider, lang: Lang): string =>
   signupCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
 
-/** What this browser asked for, narrowed. The only language signal there is before a session. */
-const browserLang = (req: Request): Lang =>
-  acceptLang(req.headers.get("accept-language"));
+/**
+ * The language before there is an account: the welcome's chip (`LANG_COOKIE`) when somebody picked
+ * one, else what the browser asked for, narrowed. The first answer's account — and an account a
+ * sign-in creates — is born in this, which is how the chip's choice survives into the profile.
+ */
+const browserLang = (req: Request): Lang => {
+  const picked = cookieHeader(req)[LANG_COOKIE];
+  return picked !== undefined && (LANGS_READY as readonly string[]).includes(picked)
+    ? picked as Lang
+    : acceptLang(req.headers.get("accept-language"));
+};
+
+/**
+ * The welcome's language chip (ieat-app#2050): the code picked there, before any account exists.
+ * `/start`'s path and `SameSite=Lax` like every cookie here, so it rides the Apple `form_post`
+ * bridge's GET as the OAuth state does. A month: it only speaks until an account holds the language.
+ */
+const LANG_COOKIE = "eait_lang";
+const LANG_MAX_AGE = 30 * 24 * 60 * 60;
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -551,16 +567,25 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const profile = await ctx.store.getProfile(userId);
       if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile), refCookie);
     }
-    // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
-    // account to ask. Everything past it reads `profile.lang`, which the first answer's account
-    // seeds from this same signal and the picker overrules — so this is a starting guess and
-    // never the answer.
-    const lang = acceptLang(req.headers.get("accept-language"));
+    // THE BROWSER'S LANGUAGE — the chip's pick, else its header — because the front door is the
+    // one page that runs before there is an account to ask. Everything past it reads
+    // `profile.lang`, which the first answer's account seeds from this same signal.
+    const lang = browserLang(req);
     const content = await onboardingContent(ctx.deps, lang);
     return html(frontDoor(content, {
       q: `${START_PREFIX}/q`,
       signup: `${START_PREFIX}/signup`,
     }, lang), 200, { cookies: refCookie });
+  }
+
+  // THE WELCOME'S LANGUAGE CHIP, before any account: the pick goes in `LANG_COOKIE` and the front
+  // door redraws in it. With a session the picker below writes the profile instead. A code outside
+  // `LANGS_READY` is a crafted post and changes nothing.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/language` && userId === null) {
+    const form = await req.formData().catch(() => null);
+    const asked = form?.get("lang");
+    if (typeof asked !== "string" || !(LANGS_READY as readonly string[]).includes(asked)) return seeOther(START_PREFIX);
+    return seeOther(START_PREFIX, [setCookie(LANG_COOKIE, asked, { secure, maxAge: LANG_MAX_AGE })]);
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -1074,7 +1099,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const following = walk[i + 1];
       const onward = following !== undefined && following.kind === "auto"
         ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
-      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, profile.lang, onward, backBefore(walk, i)));
+      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, content, profile.lang, onward, backBefore(walk, i)));
     }
 
     if (req.method === "GET") {
@@ -1620,6 +1645,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       next: `${START_PREFIX}/signup`,
       back: backBefore(walkFor(full.profile, content), Infinity),
       hasWebApp: ctx.hasWebApp,
+      peopleBuilding: await peopleBuilding(ctx.deps),
       lang: profile.lang,
     }));
   }
