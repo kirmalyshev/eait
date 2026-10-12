@@ -32,7 +32,8 @@ export function wtop(): string {
  * before to this one, so the last place (`summary`) stops short of full: sign-up is the 100 %.
  */
 export function dash(place: OnboardingPlace, lang: Lang, back?: { href: string; label: string }): string {
-  const at = Math.max(0, dashIndex(place));
+  // A place past the count (the sign-up) is the bar full.
+  const at = dashIndex(place) === -1 ? DASH_PLACES.length : dashIndex(place);
   const pct = (n: number) => `${+(n / (DASH_PLACES.length + 1) * 100).toFixed(2)}%`;
   const arrow = back
     ? `<a class="wback" href="${escape(back.href)}" aria-label="${escape(back.label)}"><i class="ico i-back" aria-hidden="true"></i></a>`

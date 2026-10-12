@@ -2,7 +2,8 @@ import { signupCopyFor } from "@eait/shared";
 import type { Lang } from "@eait/shared";
 import { brandSvg } from "@eait/shared/ui/icons";
 import { ico } from "@eait/shared/ui/kit";
-import { wtop } from "./board.ts";
+import { pageCopyFor } from "../copy.ts";
+import { dash, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
 /**
@@ -52,6 +53,7 @@ export function signUp(v: SignUpView): string {
   return shell(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
+${v.fromPlan ? dash("signup", v.lang, { href: "/start/plan", label: pageCopyFor(v.lang).back }) : ""}
 <h1>${escape(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading)}</h1>
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form id="signup" method="post">

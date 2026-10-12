@@ -57,9 +57,10 @@ ${dash("summary", v.lang)}
 <div class="ok rise" style="--d:.05s"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
 <h1 class="hd rise" style="--d:.15s">${escape(headline)}</h1>
 <div class="pgrid${left ? "" : " solo"}">
-${left}
+${left ? `<div class="pcol">${left}
+${everyDayCard(v, COPY)}</div>` : ""}
 <div class="pcol">
-${everyDayCard(v, COPY)}
+${left ? "" : everyDayCard(v, COPY)}
 ${infoCard(v, COPY, goal)}
 ${reachCard(v, COPY)}
 <details class="howc"><summary class="t13 m">ⓘ ${escape(COPY.howCalc)}</summary>
