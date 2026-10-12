@@ -134,9 +134,13 @@ export const W3_CSS = `
 }
 
 /* ── the sign-up (19): the heading, the provider buttons, the consent ── */
-.ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }
+/* 19 is one 400px column: heading, buttons and consent share its edges. */
+.ob .sup { max-width: 400px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }
 .ob .sup h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.12; margin: 0; }
+/* With no bar above it (the returning person's sign-in) the heading keeps the bar's room. */
+.ob .sup > h1:first-child { margin-top: 40px; }
 .ob .sup form { display: flex; flex-direction: column; gap: 8px; }
+.ob .sup .cta { max-width: none; align-self: stretch; }
 .ob .sup .cta svg { width: 20px; height: 20px; }
 /* Apple's own button is black; Google's is the surface card the board draws (.cta s). */
 .ob .sup .cta.apple { background: #000; color: #fff; }
