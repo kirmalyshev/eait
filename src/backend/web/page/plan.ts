@@ -20,6 +20,8 @@ export interface PlanView {
   content: OnboardingContent;
   /** Where Continue goes — `/start/signup`. */
   next: string;
+  /** Where the back arrow goes — the walk's last question, to change it. */
+  back: string;
   /**
    * The language picker is drawn ONLY where there is no web application to hold the account's
    * language (#423): without one this page is the only place to change it, and dropping the
@@ -53,7 +55,7 @@ export function plan(v: PlanView): string {
 ${loader(v, COPY, goal)}
 <div class="wmain one pw"><div class="wcol">
 <div class="pln rv ldg" style="--ld:${sec(LOADER_S)}">
-${dash("summary", v.lang)}
+${dash("summary", v.lang, { href: v.back, label: pageCopyFor(v.lang).back })}
 <div class="ok rise" style="--d:.05s"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
 <h1 class="hd rise" style="--d:.15s">${escape(headline)}</h1>
 <div class="pgrid${left ? "" : " solo"}">

@@ -1618,6 +1618,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       projection: projectGoal(full.profile, full.basis),
       content,
       next: `${START_PREFIX}/signup`,
+      back: backBefore(walkFor(full.profile, content), Infinity),
       hasWebApp: ctx.hasWebApp,
       lang: profile.lang,
     }));
