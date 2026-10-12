@@ -1085,7 +1085,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const following = walk[i + 1];
       const onward = following !== undefined && following.kind === "auto"
         ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
-      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, profile.lang, onward));
+      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, profile.lang, onward, backBefore(walk, i)));
     }
 
     if (req.method === "GET") {
@@ -1830,11 +1830,14 @@ function renderQuestion(
     segAction: action,
     current: current ?? [],
     draft: draft ?? null,
-    // Back is the last FIELD before this one — an interstitial between them asks nothing, so it
-    // is not a place Back can go to.
-    back: walk.slice(0, index).reverse().find((p) => p.field !== undefined) !== undefined
-      ? `${START_PREFIX}/q?edit=${encodeURIComponent(walk.slice(0, index).reverse().find((p) => p.field !== undefined)!.id)}`
-      : START_PREFIX,
+    back: backBefore(walk, index),
     today: new Date(),
   });
+}
+
+/** Back from walk position `index`: the last FIELD before it — an interstitial asks nothing, so
+ * it is not a place Back can go to — or the front door when there is none. */
+function backBefore(walk: readonly { id: string; field?: unknown }[], index: number): string {
+  const prev = walk.slice(0, index).reverse().find((p) => p.field !== undefined);
+  return prev !== undefined ? `${START_PREFIX}/q?edit=${encodeURIComponent(prev.id)}` : START_PREFIX;
 }

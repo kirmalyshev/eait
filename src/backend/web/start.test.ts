@@ -2622,10 +2622,9 @@ describe("the counter and Back (#53)", () => {
   // changed between the first question and the second, because only the first request resolved it.
   const BRITISH = { "accept-language": "en-GB,en;q=0.9" };
   async function walk(session: string, answers: Record<string, string | string[]>) {
-    // The progress a question shows is the DASH now — one lit segment per place already passed,
-    // the current one the wider segment. `lit` counts the lit ones; the same `on` class on every
-    // walk is the total not drifting.
-    const seen: { lit: number; total: number; id: string }[] = [];
+    // The progress a question shows is the one continuous bar; `lit` is how far it is filled.
+    const fill = (html: string): number => Number(html.match(/class="dash"[^>]*><i style="--from:[\d.]+%;--to:([\d.]+)%/)?.[1] ?? NaN);
+    const seen: { lit: number; id: string }[] = [];
     for (let i = 0; i < 25; i++) {
       const page = await get("/start/q", session, BRITISH);
       if (page.status === 303) return seen;
@@ -2633,8 +2632,7 @@ describe("the counter and Back (#53)", () => {
       const m = html.match(/name="prompt" value="([a-z_]+)"/);
       if (m === null) {
         // An interstitial: its Continue is a link, and its dash counts too.
-        const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-        seen.push({ lit: (segs.match(/class="on"/g) ?? []).length, total: (segs.match(/<i/g) ?? []).length, id: "(card)" });
+        seen.push({ lit: fill(html), id: "(card)" });
         const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
           ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
         if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
@@ -2642,12 +2640,7 @@ describe("the counter and Back (#53)", () => {
         continue;
       }
       const id = m[1]!;
-      const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-      seen.push({
-        lit: (segs.match(/class="on"/g) ?? []).length,
-        total: (segs.match(/<i/g) ?? []).length,
-        id,
-      });
+      seen.push({ lit: fill(html), id });
       await post("/start/q", { prompt: id, answer: answers[id]! }, session);
     }
     throw new Error("onboarding did not finish");
@@ -2659,19 +2652,17 @@ describe("the counter and Back (#53)", () => {
       const seen = await walk(session, {
         ...ANSWERS, goal, target_weight_kg: goal === "gain" ? "90" : "70",
       });
-      // One segment count for the whole walk, and the lit half never shrinks.
-      expect(new Set(seen.map((s) => s.total)).size).toBe(1);
+      // The bar never shrinks.
       const lit = seen.map((s) => s.lit);
+      expect(lit.every(Number.isFinite)).toBe(true);
       expect([...lit].sort((a, b) => a - b)).toEqual(lit);
-      expect(lit[0]).toBe(0);
       expect(lit.at(-1)!).toBeGreaterThan(lit[0]!);
     });
   }
 
-  it("keeps one segment count after the goal on the maintain path", async () => {
+  it("never shrinks the bar on the maintain path", async () => {
     const seen = await walk(
       await signIn("counter-maintain", "google", BRITISH["accept-language"]), { ...ANSWERS, goal: "maintain" });
-    expect(new Set(seen.map((s) => s.total)).size).toBe(1);
     const lit = seen.map((s) => s.lit);
     expect([...lit].sort((a, b) => a - b)).toEqual(lit);
   });

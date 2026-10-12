@@ -1,5 +1,5 @@
 // The Register P onboarding frame — the markup every W2 screen shares: the wordmark bar, the
-// fourteen-segment dash, the Spud avatar beside the ask, the primary button, and the option row.
+// back arrow and the one continuous bar, the Spud avatar beside the ask, the primary button, and the option row.
 // `board-css.ts` carries the matching styles; both stay under `main.ob` so the pages W3 still owns
 // (plan, sign-up, the offer) are untouched.
 //
@@ -26,21 +26,19 @@ export function wtop(): string {
 }
 
 /**
- * Back (#53) — the boards draw no arrow, but a question you answered wrong is a question you
- * should reach again, so the walk keeps a quiet link over the dash: the previous question for a
- * re-ask, the front door for the first.
+ * The top row: the back arrow (#53) and one continuous bar. A question you answered wrong is a
+ * question you should reach again, so a re-askable page passes `back` — the previous question, the
+ * front door for the first; the interstitials draw the bar alone. The bar fills from the place
+ * before to this one, so the last place (`summary`) stops short of full: sign-up is the 100 %.
  */
-export function backLink(href: string, label: string): string {
-  return `<a class="wback" href="${escape(href)}"><i class="ico i-back" aria-hidden="true"></i>${escape(label)}</a>`;
-}
-
-/** The fourteen segments — one lit per place passed, the current one the wider dash. */
-export function dash(place: OnboardingPlace, lang: Lang): string {
-  const at = dashIndex(place);
-  const segs = DASH_PLACES.map((_, i) =>
-    `<i class="${i < at ? "on" : i === at ? "now" : ""}"></i>`,
-  ).join("");
-  return `<div class="dash" aria-hidden="true">${segs}</div>`;
+export function dash(place: OnboardingPlace, lang: Lang, back?: { href: string; label: string }): string {
+  const at = Math.max(0, dashIndex(place));
+  const pct = (n: number) => `${+(n / (DASH_PLACES.length + 1) * 100).toFixed(2)}%`;
+  const arrow = back
+    ? `<a class="wback" href="${escape(back.href)}" aria-label="${escape(back.label)}"><i class="ico i-back" aria-hidden="true"></i></a>`
+    : "";
+  return `<div class="wbar">${arrow}<div class="dash" aria-hidden="true">` +
+    `<i style="--from:${pct(at)};--to:${pct(at + 1)}"></i></div></div>`;
 }
 
 /**

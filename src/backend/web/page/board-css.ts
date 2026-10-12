@@ -54,18 +54,16 @@ export const BOARD_CSS = `
 .ob .wcol form { display: flex; flex-direction: column; gap: 18px; flex: 1; min-height: 0; }
 .ob .wcol .cta { max-width: 360px; align-self: center; }
 
-/* Back (#53): the boards draw no arrow; the walk keeps a quiet labelled link instead */
-.ob .wback { display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 4px;
-             color: var(--muted); font-size: 13px; font-weight: 500; text-decoration: none;
-             width: fit-content; min-height: 32px; }
-.ob .wback:hover { color: var(--ink); }
-.ob .wback .ico { width: 16px; height: 16px; }
-
-/* ── the dash — one lit segment per answered place, the current one the wider dash ── */
-.ob .dash { display: flex; gap: 5px; }
-.ob .dash i { height: 4px; flex: 1; border-radius: 999px; background: var(--line); }
-.ob .dash i.on { background: var(--ink); }
-.ob .dash i.now { background: var(--accent); flex: 1.7; }
+/* ── the top row: back arrow + one continuous bar, filling from the place before to this one ── */
+.ob .wbar { display: flex; align-items: center; gap: 16px; min-height: 32px; }
+.ob .wback { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-left: -6px;
+             color: var(--ink); text-decoration: none; border-radius: 50%; flex: none; }
+.ob .wback:hover { background: var(--hair); }
+.ob .wback .ico { width: 22px; height: 22px; }
+.ob .dash { flex: 1; height: 8px; border-radius: 4px; background: var(--accent-tint); overflow: hidden; }
+.ob .dash i { display: block; height: 100%; width: var(--to); border-radius: 4px; background: var(--accent);
+              animation: k-fill .45s var(--ease) .1s both; }
+@keyframes k-fill { from { width: var(--from); } }
 
 /* ── the ask ── */
 .ob .say { display: flex; gap: 12px; align-items: flex-start; }

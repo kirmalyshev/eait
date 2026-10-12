@@ -19,7 +19,7 @@ import type {
   RulerTicks, UnitSystem,
 } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
-import { backLink, ctaLink, ctaSubmit, dash, hidden, optRow, PLACE_MOOD, say, segToggle, wtop } from "./board.ts";
+import { ctaLink, ctaSubmit, dash, hidden, optRow, PLACE_MOOD, say, segToggle, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
 export interface Action { name: string; value: string; label: string }
@@ -58,8 +58,7 @@ function page(v: QuestionView, opts: { seg?: string; control: string; foot?: str
   ).join("");
   const body = `${wtop()}
 <div class="wmain one q"><div class="wcol">
-${dash(v.prompt.place, v.lang)}
-${backLink(v.back, pageCopyFor(v.lang).back)}
+${dash(v.prompt.place, v.lang, { href: v.back, label: pageCopyFor(v.lang).back })}
 ${say(PLACE_MOOD[v.prompt.place] ?? "happy", v.lines, v.lang)}
 ${opts.echo ? `<p class="t13 m qecho">${escape(opts.echo)}</p>` : ""}
 ${error}

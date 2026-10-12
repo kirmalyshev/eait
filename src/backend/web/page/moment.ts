@@ -13,6 +13,7 @@ import {
 import type { Lang, Profile, UnitSystem } from "@eait/shared";
 import { brandSvg } from "@eait/shared/ui/icons";
 import { gramMacs, verdictList } from "@eait/shared/ui/kit";
+import { pageCopyFor } from "../copy.ts";
 import { ctaLink, dash, IMG_URL_DIR, PLACE_MOOD, say, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
@@ -146,6 +147,7 @@ export function interstitial(
   profile: Profile,
   lang: Lang,
   continueHref: string,
+  back: string,
 ): string {
   const copy = chatCopyFor(lang);
   const inner = place === "how"
@@ -168,7 +170,7 @@ export function interstitial(
     : copy.ontrack.title;
   const body = `${wtop()}
 <div class="wmain one q mom${place === "how" ? " wide" : ""}"><div class="wcol">
-${dash(place, lang)}
+${dash(place, lang, { href: back, label: pageCopyFor(lang).back })}
 <div class="igroup">
 ${say(PLACE_MOOD[place] ?? "happy", [title], lang)}
 ${inner}
