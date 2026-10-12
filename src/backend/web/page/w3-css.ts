@@ -20,11 +20,10 @@ export const W3_CSS = `
 .ob .pln .gy.dn { transform-origin: 50% 0; }
 .ob .pln .gx { transform-box: fill-box; transform-origin: 0 50%; animation: k-grow .5s var(--ease) both; animation-delay: var(--d, 0s); }
 .ob .pln .fade { animation: k-fade .4s var(--ease) both; animation-delay: var(--d, 0s); }
-.ob .pln .gone { animation: k-gone .2s var(--ease) forwards; animation-delay: var(--d, 0s); }
 /* Reduce Motion: the final state crossfades in over 150 ms, and the count never shows. */
 @media (prefers-reduced-motion: reduce) {
   .ob .pln.rv { animation: k-fade .15s linear both !important; }
-  .ob .pln .slot .gone { display: none; }
+  .ob .ld { display: none; }
 }
 .ob .wmain.pw { max-width: 1000px; }
 .ob .pln form { flex: none; }
@@ -70,13 +69,65 @@ export const W3_CSS = `
 .ob .pln .bal .tick { position: absolute; top: 20px; bottom: -4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--ink); }
 .ob .pln .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ob .pln .pfoot { width: 360px; max-width: 100%; align-self: flex-end; }
-.ob .pln .slot { position: relative; min-height: 56px; }
-.ob .pln .gone { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;
-  font-size: 15px; font-weight: 600; }
-.ob .pln .lbar { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
-.ob .pln .lbar i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: k-grow linear both; }
 .ob .pln .cta { max-width: none; }
 .ob .pln h2 { margin-top: 24px; }
+/* ── 18 / 18b (ieat-app#2050): the tick, the goal said as a sentence, the four cards ── */
+.ob .pln.ldg, .ob .pln.ldg * { animation-delay: calc(var(--d, 0s) + var(--ld)) !important; }
+/* The fold's contents start animating when it opens, long after the loader: no offset there. */
+.ob .pln.ldg .howc * { animation-delay: var(--d, 0s) !important; }
+.ob .pln .ok { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; margin: 8px auto 0; }
+.ob .pln .ok svg { width: 22px; height: 22px; stroke: #fff; stroke-width: 3; fill: none; }
+.ob .pln h1.hd { text-align: center; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.03em; margin: 4px 0; text-wrap: balance; }
+.ob .pln .ct { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+.ob .pln .cs { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.ob .pln .card:not(.jc):not(.wc) { padding: 18px 20px; }
+.ob .pln .kcb { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 16px; background: var(--bg); }
+.ob .pln .kcb .tile { width: 48px; height: 48px; flex: none; border-radius: 50%; background: #FBEFD9; display: grid; place-items: center; }
+.ob .pln .kcb .tile .ico { width: 26px; height: 26px; color: #D48A1C; }
+.ob .pln .kcb b { display: block; font-size: 40px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+.ob .pln .kcb span, .ob .pln .mt span { font-size: 13px; color: var(--muted); }
+.ob .pln .mt { display: flex; gap: 10px; margin-top: 10px; }
+.ob .pln .mt div { flex: 1; padding: 12px; border-radius: 16px; background: var(--bg); }
+.ob .pln .mt .ico { width: 22px; height: 22px; }
+.ob .pln .mt b { display: block; margin-top: 6px; font-size: 20px; font-weight: 700; }
+.ob .pln .pib { padding: 14px 16px; border-radius: 16px; background: var(--bg); display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.ob .pln .pir { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; line-height: 1.35; }
+.ob .pln .pir .pg { width: 20px; flex: 0 0 20px; text-align: center; }
+.ob .pln .pir span { color: var(--muted); }
+.ob .pln .st { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.ob .pln .st .sr { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal;
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; background: var(--bg); font-size: 16px; font-weight: 600; }
+.ob .pln .st .ti { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; background: var(--surface); display: grid; place-items: center; overflow: hidden; }
+.ob .pln .st .ti img { width: 100%; height: 100%; object-fit: cover; }
+.ob .pln .st .ti .ico { width: 22px; height: 22px; }
+.ob .pln .tri { display: flex; gap: 1px; }
+.ob .pln .tri .ico { width: 14px !important; height: 14px !important; }
+.ob .pln .howc summary { list-style: none; cursor: pointer; text-align: center; padding: 6px 0; font-size: 15px; }
+.ob .pln .howc summary::-webkit-details-marker { display: none; }
+.ob .pln .howc[open] summary { margin-bottom: 12px; }
+.ob .pln .howc .pmeth { margin-top: 12px; }
+
+/* ── 17, the loader: the ring fills while the computed numbers roll under it, then lifts ── */
+@keyframes k-ring { from { stroke-dashoffset: 408; } to { stroke-dashoffset: 0; } }
+@keyframes k-lift { to { opacity: 0; visibility: hidden; } }
+@keyframes k-roll { to { transform: translateY(calc(-28px * (var(--rows) - 1))); } }
+.ob .ld { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 0 18px; animation: k-lift .35s var(--ease) var(--t) forwards; }
+.ob .ld .ring { position: relative; width: 226px; height: 226px; }
+.ob .ld svg { width: 226px; height: 226px; transform: rotate(-90deg); }
+.ob .ld circle { fill: none; stroke-width: 12; stroke-linecap: round; }
+.ob .ld .t { stroke: var(--accent-tint); }
+.ob .ld .f { stroke: var(--accent); stroke-dasharray: 408; animation: k-ring var(--t) cubic-bezier(.4,.1,.6,.9) both; }
+.ob .ld .pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 56px; font-weight: 700; letter-spacing: -.04em; color: var(--accent); }
+.ob .ld .pct .count { animation-duration: var(--t); animation-timing-function: cubic-bezier(.4,.1,.6,.9); }
+.ob .ld .pct small { font-size: 30px; font-weight: 500; margin-left: 2px; }
+.ob .ld h2 { margin: 44px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -.035em; text-align: center; }
+.ob .ld .cap { margin-top: 22px; height: 56px; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 50%, transparent 95%); mask: linear-gradient(#000 50%, transparent 95%); }
+.ob .ld .cap div { animation: k-roll var(--t) both; }
+.ob .ld .cap p { margin: 0; height: 28px; line-height: 28px; text-align: center; font-size: 19px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ob .ld .cap b { color: var(--ink); font-weight: 600; opacity: .75; }
 @media (max-width: 720px) {
   .ob .pln .pgrid { grid-template-columns: 1fr; }
   .ob .pln .pfoot { width: 100%; }

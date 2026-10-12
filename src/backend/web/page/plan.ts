@@ -1,15 +1,15 @@
 import {
-  fill, kcalNumbers, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
+  answerLabel, fill, kcalNumbers, promptById, LANG_LABEL, maintainRange, LANGS_READY, PLAN_TIMELINE, PLAN_WATERFALL, planBalance, planCopyFor,
   planJourney, planWaterfall, projectionMonth, spellUnit, weightDisplay,
   wholeNumbers, youCopyFor,
   type FoodTargets, type GoalProjection, type Lang, type OnboardingContent, type Profile,
   type TargetBasis,
 } from "@eait/shared";
-import { dash, wtop } from "./board.ts";
+import { dash, IMG_URL_DIR, wtop } from "./board.ts";
 import { pageCopyFor } from "../copy.ts";
 import { escape, shell } from "./shell.ts";
 
-/** The plan reveal (#402): three cards and the Continue button, every figure the engine's. */
+/** The plan reveal (#402, restyled for ieat-app#2050): the loader, the goal, the cards, Continue — every figure the engine's. */
 export interface PlanView {
   profile: Profile;
   targets: FoodTargets;
@@ -41,30 +41,120 @@ export function plan(v: PlanView): string {
   const arrives = !maintain && v.projection !== null && !v.projection.beyondHorizon;
   const bars = maintain ? null : planWaterfall(v.basis, v.targets.kcal);
   const balance = maintain ? planBalance(v.basis, v.targets.kcal) : null;
-  const short = maintain || bars === null && !arrives;
   const left = arrives ? journeyCard(v, COPY) : balance ? balanceCard(v, COPY, balance) : "";
+  const goal = goalWords(v, COPY);
+  const headline = maintain
+    ? fill(COPY.goalStay, { kg: weightDisplay(v.profile.weight_kg!, v.profile.units, v.lang) })
+    : goal ? fill(v.profile.goal === "gain" ? COPY.goalGain : COPY.goalLose, goal)
+    : v.content.summary.lines[0] ?? "";
 
+  // Everything on the page plays AFTER the loader (17): one offset, added to every delay.
   return shell(PAGE_COPY.titlePlan, `${wtop()}
+${loader(v, COPY, goal)}
 <div class="wmain one pw"><div class="wcol">
-<div class="pln rv">
+<div class="pln rv ldg" style="--ld:${sec(LOADER_S)}">
 ${dash("summary", v.lang)}
-<h1 class="d d28">${escape(v.content.summary.lines[0] ?? "")}</h1>
+<div class="ok rise" style="--d:.05s"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+<h1 class="hd rise" style="--d:.15s">${escape(headline)}</h1>
 <div class="pgrid${left ? "" : " solo"}">
 ${left}
 <div class="pcol">
-${outcomeCard(v)}
+${everyDayCard(v, COPY)}
+${infoCard(v, COPY, goal)}
+${reachCard(v, COPY)}
+<details class="howc"><summary class="t13 m">ⓘ ${escape(COPY.howCalc)}</summary>
 ${bars ? waterfallCard(v, bars) : ""}
 <p class="t12 m pmeth">${escape(COPY.method)}<br>${escape(COPY.methodSource)}</p>
+</details>
 </div>
 </div>
-<div class="pfoot"><div class="slot">
-<div class="gone" style="--d:${sec(short ? T.maintain.count : T.lose.count)}" role="status"><div class="row between"><span>${escape(COPY.building)}</span><span class="num"><b class="count" style="--to:100;--d:0s;animation-duration:${sec(short ? T.maintain.count : T.lose.count)};animation-timing-function:linear"></b>%</span></div><div class="lbar"><i style="animation-duration:${sec(short ? T.maintain.count : T.lose.count)}"></i></div></div>
-<a class="cta p fade" href="${escape(v.next)}" style="--d:${sec(short ? T.maintain.continue : T.lose.continue)};animation-duration:.3s">${escape(PAGE_COPY.continueLabel)}</a>
-</div></div>
+<div class="pfoot"><a class="cta p rise" href="${escape(v.next)}" style="--d:.9s">${escape(PAGE_COPY.continueLabel)}</a></div>
 ${v.hasWebApp ? "" : languagePicker(v.lang)}
 </div>
 </div></div>
 `, v.lang, "ob");
+}
+
+/** How long the loader (17) holds the page: the ring's fill, the captions rolling under it. */
+const LOADER_S = 5.5;
+
+/** The goal's distance and month — null when the plan does not arrive (maintain, past the horizon). */
+function goalWords(v: PlanView, COPY: ReturnType<typeof planCopyFor>): { kg: string; month: string } | null {
+  const p = v.profile;
+  if (p.goal === "maintain" || v.projection === null || v.projection.beyondHorizon) return null;
+  if (p.weight_kg == null || p.target_weight_kg == null) return null;
+  return {
+    kg: weightDisplay(Math.abs(p.weight_kg - p.target_weight_kg), p.units, v.lang),
+    month: projectionMonth(new Date(), v.projection.weeks, v.lang),
+  };
+}
+
+/**
+ * The loader (17): the ring fills 0 → 100 % over `LOADER_S` while the computed numbers roll under
+ * it, then it lifts off the plan. Its reader is the plan itself — every figure is the engine's,
+ * the same ones the cards below draw. No people counter (Kirill, ieat-app#2050). Under Reduce
+ * Motion it is not drawn at all: the plan is the resting state.
+ */
+function loader(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: string; month: string } | null): string {
+  const s = v.content.summary;
+  const n = wholeNumbers(v.lang);
+  const gram = spellUnit(v.lang, "g");
+  const rows = [
+    [v.content.building.rows.calories, `${kcalNumbers(v.lang)(v.targets.kcal)}${spellUnit(v.lang, "kcal")}`],
+    [s.macros.protein, `${n(v.targets.protein_g)}${gram}`],
+    [s.macros.carbs, `${n(v.targets.carbs_g)}${gram}`],
+    [s.macros.fat, `${n(v.targets.fat_g)}${gram}`],
+    ...(goal ? [[COPY.target, fill(v.profile.goal === "gain" ? COPY.targetGain : COPY.targetLose, goal)]] : []),
+  ];
+  const caps = rows.map(([k, val]) => `<p>${escape(k!)} · <b>${escape(val!)}</b></p>`).join("");
+  return `<div class="ld" aria-hidden="true" style="--t:${sec(LOADER_S)};--rows:${rows.length}">
+<div class="ring"><svg viewBox="0 0 150 150"><circle class="t" cx="75" cy="75" r="65"/><circle class="f" cx="75" cy="75" r="65"/></svg>
+<div class="pct"><span class="count" style="--to:100"></span><small>%</small></div></div>
+<h2>${escape(v.content.building.lines[0] ?? COPY.building)}</h2>
+<div class="cap"><div style="animation-timing-function:steps(${rows.length - 1},end)">${caps}</div></div>
+</div>`;
+}
+
+/** Every day (18): the kcal box and the three macros, every figure the engine's. */
+function everyDayCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
+  const summary = v.content.summary;
+  const n = wholeNumbers(v.lang);
+  const gram = spellUnit(v.lang, "g");
+  const tile = (icon: string, figure: string, label: string) =>
+    `<div><i class="ico i-${icon}"></i><b class="num">${escape(figure)}</b><span>${escape(label)}</span></div>`;
+  return `<div class="card ed rise" style="--d:.5s"><p class="ct">${escape(COPY.everyDay)}</p><p class="cs">${escape(COPY.changeAnytime)}</p>
+<div class="kcb"><span class="tile"><i class="ico i-kcal"></i></span><div><b class="count num" style="--to:${Math.round(v.targets.kcal)};--d:.6s;animation-duration:1.2s"></b><span>${escape(summary.kcalLabel)}</span></div></div>
+<div class="mt">${tile("protein", `${n(v.targets.protein_g)}${gram}`, summary.macros.protein)}${tile("carbs", `${n(v.targets.carbs_g)}${gram}`, summary.macros.carbs)}${tile("fat", `${n(v.targets.fat_g)}${gram}`, summary.macros.fat)}</div>
+</div>`;
+}
+
+/** Your info (18b): the answers the plan was computed from, said back. */
+function infoCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>, goal: { kg: string; month: string } | null): string {
+  const p = v.profile;
+  const n = wholeNumbers(v.lang);
+  const activityPrompt = promptById("activity");
+  const activity = activityPrompt ? answerLabel(activityPrompt, p, { content: v.content, lang: v.lang }) : null;
+  const row = (glyph: string, label: string, value: string | null) => value === null ? "" :
+    `<div class="pir"><span class="pg" aria-hidden="true">${glyph}</span><div><span>${escape(label)}:</span> ${escape(value)}</div></div>`;
+  const satfat = v.targets.satfat_g;
+  return `<div class="card rise" style="--d:.7s"><p class="ct">${escape(COPY.infoTitle)}</p><div class="pib">
+${row("👤", COPY.startWeight, p.weight_kg != null ? weightDisplay(p.weight_kg, p.units, v.lang) : null)}
+${row("🚩", COPY.goalWeight, p.goal !== "maintain" && p.target_weight_kg != null ? weightDisplay(p.target_weight_kg, p.units, v.lang) : null)}
+${row("🚶", COPY.activity, activity)}
+${row("🎯", COPY.target, goal ? fill(p.goal === "gain" ? COPY.targetGain : COPY.targetLose, goal) : null)}
+${row("🧈", COPY.satFat, satfat !== undefined && satfat !== null ? `≤ ${n(satfat)}${spellUnit(v.lang, "g")}` : null)}
+</div></div>`;
+}
+
+/** How to reach your goal (18b): four habits, the kcal one carrying the day's real target. */
+function reachCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
+  const step = (tile: string, text: string) => `<div class="sr"><span class="ti">${tile}</span>${escape(text)}</div>`;
+  return `<div class="card rise" style="--d:.8s"><p class="ct">${escape(COPY.reachTitle)}</p><div class="st">
+${step(`<img src="${IMG_URL_DIR}/salmon-sq.webp" alt="">`, COPY.stepPhoto)}
+${step(`<i class="ico i-kcal"></i>`, fill(COPY.stepKcal, { kcal: kcalNumbers(v.lang)(v.targets.kcal) }))}
+${step(`<span class="tri"><i class="ico i-protein"></i><i class="ico i-carbs"></i><i class="ico i-fat"></i></span>`, COPY.stepBalance)}
+${step(`<svg viewBox="0 0 44 44" width="30" height="30" aria-hidden="true"><path d="M6 14 C18 14 24 30 38 31" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg>`, COPY.stepWeigh)}
+</div></div>`;
 }
 
 /**
@@ -93,36 +183,12 @@ function languagePicker(lang: Lang): string {
 }
 
 
-/** The kcal and the protein, then carbs / fat / the declared sat-fat limit, as the board lays them. */
-function outcomeCard(v: PlanView): string {
-  const summary = v.content.summary;
-  const COPY = planCopyFor(v.lang);
-  const n = wholeNumbers(v.lang);
-  const gram = spellUnit(v.lang, "g");
-  const col = (icon: string, figure: string, label: string) =>
-    `<div><span class="row mfig"><i class="ico i-${icon}"></i><span class="num">${escape(figure)}</span></span>${label ? `<div class="t12 m">${escape(label)}</div>` : ""}</div>`;
-  const satfat = v.targets.satfat_g;
-  return `<div class="card oc">
-<div class="row between top">
-<div><span class="row"><i class="ico i-kcal big"></i><span class="d num kfig"><b class="count num" style="--to:${Math.round(v.targets.kcal)};--d:${sec(T.kcal.delay)};animation-duration:${sec(T.kcal.duration)}"></b></span></span><div class="t13 m">${escape(summary.kcalLabel)}</div></div>
-<div class="r"><span class="row"><i class="ico i-protein pic"></i><span class="d d28 num"><b class="count num" style="--to:${Math.round(v.targets.protein_g)};--d:${sec(T.protein.delay)};animation-duration:${sec(T.protein.duration)}"></b>${escape(gram)}</span></span><div class="t13 m">${escape(summary.macros.protein)}</div></div>
-</div>
-<div class="hr"></div>
-<div class="fade mrow" style="--d:${sec(T.macros)}">
-${col("carbs", `${n(v.targets.carbs_g)}${gram}`, summary.macros.carbs)}
-${col("fat", `${n(v.targets.fat_g)}${gram}`, summary.macros.fat)}
-${satfat !== undefined && satfat !== null ? col("satfat", `≤ ${n(satfat)}${gram}`, COPY.satFat) : ""}
-</div>
-</div>`;
-}
-
 /** The title and the curve with its date axis (`planJourney`); lose falls, gain rises. */
 function journeyCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string {
   const p = v.profile;
   const projection = v.projection!;
   const from = weightDisplay(p.weight_kg!, p.units, v.lang);
   const to = weightDisplay(p.target_weight_kg!, p.units, v.lang);
-  const month = projectionMonth(new Date(), projection.weeks, v.lang);
   const j = planJourney(p.goal === "gain" ? "gain" : "lose", new Date(), projection.weeks, v.lang, to.length);
   const aria = `${from} → ${to}`;
   const ticks = j.ticks.map((t) => {
@@ -134,8 +200,8 @@ function journeyCard(v: PlanView, COPY: ReturnType<typeof planCopyFor>): string 
       : "";
     return `${line}<text class="fade ax${t.kind === "end" ? " end" : ""}" style="--d:${sec(t.delay)}" x="${x}" y="${j.axisY}"${anchor}>${escape(label)}</text>`;
   }).join("");
-  return `<div class="card jc">
-<b class="d d22 goal">${escape(fill(COPY.goalLine, { kg: to, month }))}</b>
+  return `<div class="card jc rise" style="--d:.3s">
+<p class="ct">${escape(COPY.weightTitle)}</p>
 <div class="jg"><svg class="pgraph" viewBox="${j.viewBox}" width="100%" role="img" aria-label="${escape(aria)}">
 <defs><linearGradient id="pj" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent);stop-opacity:.18"/><stop offset="1" style="stop-color:var(--accent);stop-opacity:0"/></linearGradient></defs>
 <path d="${j.areaPath}" fill="url(#pj)" class="fade" style="--d:${sec(T.fill.delay)};animation-duration:${sec(T.fill.duration)}"/>

@@ -865,14 +865,13 @@ describe("the plan", () => {
     const { targets } = explainTargets(profile);
     const n = wholeNumbers("en");
 
-    // The journey card's title: the target and the month `projectGoal` lands on.
+    // The headline: the distance and the month `projectGoal` lands on.
     const projection = projectGoal(profile, explainTargets(profile).basis);
     expect(projection).not.toBeNull();
-    expect(html).toContain(escape(fill(planCopyFor("en").goalLine, {
-      kg: weightDisplay(profile.target_weight_kg!, null, "en"),
+    expect(html).toContain(escape(fill(planCopyFor("en").goalLose, {
+      kg: weightDisplay(profile.weight_kg! - profile.target_weight_kg!, null, "en"),
       month: projectionMonth(new Date(), projection!.weeks, "en"),
     })));
-    expect(html).toContain(onboardingContentFor("en").summary.lines[0]!);
 
     // The curve, drawn: the shared journey path and the target pill.
     expect(html).toContain('class="pgraph"');
@@ -881,7 +880,7 @@ describe("the plan", () => {
 
     // The figures are `explainTargets`' — a page that drifts fails on its own numbers.
     expect(html).toContain(`--to:${targets.kcal}`);
-    expect(html).toContain(`--to:${targets.protein_g}`);
+    expect(html).toContain(`${n(targets.protein_g)}g`);
     expect(html).toContain(`${n(targets.carbs_g)}g`);
     expect(html).toContain(`${n(targets.fat_g)}g`);
     // The declared cap is a column of its own — and ONLY because it was declared.
@@ -2540,8 +2539,8 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       expect(plan.status, lang).toBe(200);
       const planHtml = await plan.text();
       expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      // The headline is the plan copy's own, in the asked language.
-      expect(planHtml, lang).toContain(escape(content.summary.lines[0]!));
+      // The cards are the plan copy's own, in the asked language.
+      expect(planHtml, lang).toContain(escape(planCopyFor(lang).everyDay));
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
