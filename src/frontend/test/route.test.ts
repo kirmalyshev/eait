@@ -2,7 +2,7 @@
 // fallthrough — the log surface's Edit and the meal detail's both hand off by it.
 
 import { describe, expect, test } from "bun:test";
-import { routeBase } from "../route.ts";
+import { pageUrl, routeBase } from "../route.ts";
 
 describe("routeBase — a query never changes the route", () => {
   test("strips the query off a hash route", () => {
@@ -14,5 +14,13 @@ describe("routeBase — a query never changes the route", () => {
     expect(routeBase("#/")).toBe("#/");
     expect(routeBase("#/chat")).toBe("#/chat");
     expect(routeBase("#")).toBe("#");
+  });
+});
+
+describe("pageUrl — what an analytics event may say about where it was", () => {
+  test("drops the hash and the query, which carry meal ids", () => {
+    expect(pageUrl("https://app.eait.fit/#/meal/0b7f?from=home")).toBe("https://app.eait.fit/");
+    expect(pageUrl("https://app.eait.fit/?focus=m1#/chat")).toBe("https://app.eait.fit/");
+    expect(pageUrl("https://app.eait.fit/")).toBe("https://app.eait.fit/");
   });
 });

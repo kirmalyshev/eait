@@ -7,3 +7,9 @@
  * a query only ever carries context, never a second route.
  */
 export const routeBase = (route: string): string => route.split("?")[0]!;
+
+/**
+ * A page URL as an analytics event may carry it: origin and path only. The hash is the route and
+ * names a meal by its id (`#/meal/<id>`), and the query carries ids too (`?focus=<id>`).
+ */
+export const pageUrl = (url: string): string => url.split(/[?#]/)[0]!;
