@@ -95,6 +95,20 @@ export interface ChatCopy {
    */
   units: { years: string };
   /**
+   * The three beats between the questions, none of which asks anything. `twice` is the one cited
+   * claim (its source line is the study, in every language); `baseline` prints the BMI computed
+   * from the typed height and weight with the band it falls in; `possible` says the target's
+   * distance back, `{delta}` a formatted weight with unit.
+   */
+  twice: { title: string; sub: string; without: string; with: string; source: string; alt: string };
+  baseline: {
+    title: string; bmi: string;
+    bands: { under: string; healthy: string; over: string; obese: string };
+    verdict: { under: string; healthy: string; above: string };
+    note: string; you: string; body: string; activity: string;
+  };
+  possible: { lose: string; gain: string };
+  /**
    * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
    * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
    */
@@ -230,6 +244,25 @@ const EN: ChatCopy = {
     steps: ["Photograph the plate", "Get honest macros", "See your progress"],
   },
   units: { years: "years" },
+  twice: {
+    title: "Lose twice as much weight",
+    sub: "People who write down what they eat lose twice as much weight",
+    without: "Without logging",
+    with: "With eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Without logging: 1×; with eait: 2×",
+  },
+  baseline: {
+    title: "Here's your baseline",
+    bmi: "Body Mass Index (BMI)",
+    bands: { under: "UNDERWEIGHT", healthy: "HEALTHY", over: "OVERWEIGHT", obese: "OBESE" },
+    verdict: { under: "Your BMI is below the healthy range", healthy: "Your BMI is in the healthy range", above: "Your BMI is above the healthy range" },
+    note: "Your plan takes it into account.",
+    you: "You",
+    body: "Height · weight",
+    activity: "Activity",
+  },
+  possible: { lose: "Losing {delta}? Realistic, and possible!", gain: "Gaining {delta}? Realistic, and possible!" },
   ontrack: {
     title: "Built to keep you on track",
     captions: {
@@ -346,6 +379,25 @@ const FR: ChatCopy = {
     steps: ["Photographie ton assiette", "Reçois des macros honnêtes", "Suis ta progression"],
   },
   units: { years: "ans" },
+  twice: {
+    title: "Perds deux fois plus de poids",
+    sub: "Ceux qui notent ce qu'ils mangent perdent deux fois plus de poids",
+    without: "Sans suivi",
+    with: "Avec eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Sans suivi : 1× ; avec eait : 2×",
+  },
+  baseline: {
+    title: "Voici ton point de départ",
+    bmi: "Indice de masse corporelle (IMC)",
+    bands: { under: "INSUFFISANCE PONDÉRALE", healthy: "NORMAL", over: "SURPOIDS", obese: "OBÉSITÉ" },
+    verdict: { under: "Ton IMC est sous la plage saine", healthy: "Ton IMC est dans la plage saine", above: "Ton IMC est au-dessus de la plage saine" },
+    note: "Ton plan en tient compte.",
+    you: "Toi",
+    body: "Taille · poids",
+    activity: "Activité",
+  },
+  possible: { lose: "{delta} en moins ? Réaliste, et possible !", gain: "{delta} en plus ? Réaliste, et possible !" },
   ontrack: {
     title: "Conçu pour t'aider à tenir le cap",
     captions: {
@@ -462,6 +514,25 @@ const DE: ChatCopy = {
     steps: ["Fotografier den Teller", "Bekomm ehrliche Makros", "Sieh deinen Fortschritt"],
   },
   units: { years: "Jahre" },
+  twice: {
+    title: "Nimm doppelt so viel ab",
+    sub: "Wer aufschreibt, was er isst, nimmt doppelt so viel ab",
+    without: "Ohne Protokoll",
+    with: "Mit eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Ohne Protokoll: 1×; mit eait: 2×",
+  },
+  baseline: {
+    title: "Das ist dein Ausgangspunkt",
+    bmi: "Body-Mass-Index (BMI)",
+    bands: { under: "UNTERGEWICHT", healthy: "NORMALGEWICHT", over: "ÜBERGEWICHT", obese: "ADIPOSITAS" },
+    verdict: { under: "Dein BMI liegt unter dem gesunden Bereich", healthy: "Dein BMI liegt im gesunden Bereich", above: "Dein BMI liegt über dem gesunden Bereich" },
+    note: "Dein Plan berücksichtigt das.",
+    you: "Du",
+    body: "Größe · Gewicht",
+    activity: "Aktivität",
+  },
+  possible: { lose: "{delta} weniger? Realistisch und machbar!", gain: "{delta} mehr? Realistisch und machbar!" },
   ontrack: {
     title: "Gemacht, damit du dranbleibst",
     captions: {
@@ -578,6 +649,25 @@ const IT: ChatCopy = {
     steps: ["Fotografa il piatto", "Ricevi macro onesti", "Guarda i tuoi progressi"],
   },
   units: { years: "anni" },
+  twice: {
+    title: "Perdi il doppio del peso",
+    sub: "Chi annota quello che mangia perde il doppio del peso",
+    without: "Senza registrare",
+    with: "Con eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Senza registrare: 1×; con eait: 2×",
+  },
+  baseline: {
+    title: "Ecco il tuo punto di partenza",
+    bmi: "Indice di massa corporea (IMC)",
+    bands: { under: "SOTTOPESO", healthy: "NORMOPESO", over: "SOVRAPPESO", obese: "OBESITÀ" },
+    verdict: { under: "Il tuo IMC è sotto l'intervallo sano", healthy: "Il tuo IMC è nell'intervallo sano", above: "Il tuo IMC è sopra l'intervallo sano" },
+    note: "Il tuo piano ne tiene conto.",
+    you: "Tu",
+    body: "Altezza · peso",
+    activity: "Attività",
+  },
+  possible: { lose: "{delta} in meno? Realistico, e possibile!", gain: "{delta} in più? Realistico, e possibile!" },
   ontrack: {
     title: "Fatta per tenerti in carreggiata",
     captions: {
@@ -694,6 +784,25 @@ const ES: ChatCopy = {
     steps: ["Fotografía el plato", "Recibe macros honestos", "Ve tu progreso"],
   },
   units: { years: "años" },
+  twice: {
+    title: "Pierde el doble de peso",
+    sub: "Quienes apuntan lo que comen pierden el doble de peso",
+    without: "Sin registrar",
+    with: "Con eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Sin registrar: 1×; con eait: 2×",
+  },
+  baseline: {
+    title: "Este es tu punto de partida",
+    bmi: "Índice de masa corporal (IMC)",
+    bands: { under: "BAJO PESO", healthy: "PESO NORMAL", over: "SOBREPESO", obese: "OBESIDAD" },
+    verdict: { under: "Tu IMC está por debajo del rango saludable", healthy: "Tu IMC está en el rango saludable", above: "Tu IMC está por encima del rango saludable" },
+    note: "Tu plan lo tiene en cuenta.",
+    you: "Tú",
+    body: "Altura · peso",
+    activity: "Actividad",
+  },
+  possible: { lose: "¿{delta} menos? ¡Realista y posible!", gain: "¿{delta} más? ¡Realista y posible!" },
   ontrack: {
     title: "Hecha para que no te salgas",
     captions: {
@@ -810,6 +919,25 @@ const VI: ChatCopy = {
     steps: ["Chụp món ăn", "Nhận macro rõ ràng", "Xem tiến độ của bạn"],
   },
   units: { years: "tuổi" },
+  twice: {
+    title: "Giảm gấp đôi số cân",
+    sub: "Người ghi lại những gì mình ăn giảm được gấp đôi số cân",
+    without: "Không ghi lại",
+    with: "Với eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Không ghi lại: 1×; với eait: 2×",
+  },
+  baseline: {
+    title: "Đây là điểm xuất phát của bạn",
+    bmi: "Chỉ số khối cơ thể (BMI)",
+    bands: { under: "THIẾU CÂN", healthy: "BÌNH THƯỜNG", over: "THỪA CÂN", obese: "BÉO PHÌ" },
+    verdict: { under: "BMI của bạn thấp hơn mức khỏe mạnh", healthy: "BMI của bạn trong mức khỏe mạnh", above: "BMI của bạn cao hơn mức khỏe mạnh" },
+    note: "Kế hoạch của bạn đã tính đến điều này.",
+    you: "Bạn",
+    body: "Chiều cao · cân nặng",
+    activity: "Mức vận động",
+  },
+  possible: { lose: "Bớt {delta}? Thực tế và hoàn toàn khả thi!", gain: "Tăng {delta}? Thực tế và hoàn toàn khả thi!" },
   ontrack: {
     title: "Giúp bạn luôn đi đúng hướng",
     captions: {
@@ -926,6 +1054,25 @@ const ID: ChatCopy = {
     steps: ["Foto piringnya", "Dapatkan makro jujur", "Lihat progresmu"],
   },
   units: { years: "tahun" },
+  twice: {
+    title: "Turun berat badan dua kali lebih banyak",
+    sub: "Orang yang mencatat apa yang mereka makan kehilangan berat badan dua kali lebih banyak",
+    without: "Tanpa mencatat",
+    with: "Dengan eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Tanpa mencatat: 1×; dengan eait: 2×",
+  },
+  baseline: {
+    title: "Ini titik awalmu",
+    bmi: "Indeks Massa Tubuh (IMT)",
+    bands: { under: "KURUS", healthy: "NORMAL", over: "BERLEBIH", obese: "OBESITAS" },
+    verdict: { under: "IMT-mu di bawah rentang sehat", healthy: "IMT-mu dalam rentang sehat", above: "IMT-mu di atas rentang sehat" },
+    note: "Rencanamu sudah memperhitungkannya.",
+    you: "Kamu",
+    body: "Tinggi · berat",
+    activity: "Aktivitas",
+  },
+  possible: { lose: "Kurang {delta}? Realistis, dan bisa dicapai!", gain: "Tambah {delta}? Realistis, dan bisa dicapai!" },
   ontrack: {
     title: "Dibuat agar kamu tetap di jalur",
     captions: {
@@ -1044,6 +1191,25 @@ const RU: ChatCopy = {
     steps: ["Сфотографируй тарелку", "Получи честные макросы", "Следи за прогрессом"],
   },
   units: { years: "лет" },
+  twice: {
+    title: "Сбрасывай вдвое больше веса",
+    sub: "Те, кто записывает, что едят, худеют вдвое больше",
+    without: "Без записи",
+    with: "С eait",
+    source: "Hollis et al., Am J Prev Med, 2008",
+    alt: "Без записи: 1×; с eait: 2×",
+  },
+  baseline: {
+    title: "Вот твоя точка отсчёта",
+    bmi: "Индекс массы тела (ИМТ)",
+    bands: { under: "ДЕФИЦИТ МАССЫ", healthy: "НОРМА", over: "ИЗБЫТОК МАССЫ", obese: "ОЖИРЕНИЕ" },
+    verdict: { under: "Твой ИМТ ниже здорового диапазона", healthy: "Твой ИМТ в здоровом диапазоне", above: "Твой ИМТ выше здорового диапазона" },
+    note: "Твой план это учитывает.",
+    you: "Ты",
+    body: "Рост · вес",
+    activity: "Активность",
+  },
+  possible: { lose: "На {delta} меньше? Реально и достижимо!", gain: "На {delta} больше? Реально и достижимо!" },
   ontrack: {
     title: "Всё, чтобы не сбиться с курса",
     captions: {

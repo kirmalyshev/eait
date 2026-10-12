@@ -57,8 +57,8 @@ import {
  * already passed it (see `resumeAt`).
  */
 export type ChatPromptId =
-  | "welcome" | "goal" | "how" | "sex" | "birth_year" | "height_cm" | "weight_kg"
-  | "activity" | "target_weight_kg" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
+  | "welcome" | "goal" | "how" | "sex" | "twice" | "birth_year" | "height_cm" | "weight_kg"
+  | "baseline" | "activity" | "target_weight_kg" | "possible" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
   | "diet" | "medical" | "summary" | "signup" | "country" | "health";
 
 /**
@@ -101,11 +101,17 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
   { id: "sex", place: "sex", field: "sex", kind: "choice", options: SEXES },
+  // Three beats between the questions: each reads the profile and writes nothing. `twice` is the
+  // cited-study card, `baseline` the BMI the typed height and weight compute, `possible` the target
+  // distance said back. Their READER is the funnel (`place`), the way `referral`'s is.
+  { id: "twice", place: "twice", kind: "auto" },
   { id: "birth_year", place: "age", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "height", field: "height_cm", kind: "number" },
   { id: "weight_kg", place: "weight", field: "weight_kg", kind: "number" },
+  { id: "baseline", place: "baseline", kind: "auto" },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ACTIVITY_LEVELS },
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
+  { id: "possible", place: "possible", kind: "auto" },
   { id: "pace", place: "pace", field: "pace", kind: "choice", options: PACES },
   { id: "struggles", place: "struggles", field: "struggles", kind: "chips", options: STRUGGLES },
   { id: "streak_goal_days", place: "streak", field: "streak_goal_days", kind: "choice", options: STREAK_GOALS.map(String) },
