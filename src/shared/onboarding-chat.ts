@@ -116,7 +116,7 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // The two value beats sit after the questions, just before the plan: what the answers are for.
   // The two-ways chart: a beat, not a question — it reads `struggles` and writes nothing.
   { id: "ontrack", place: "ontrack", kind: "auto" },
-  // The "whole app" picture: three beats, no answer. Its words are the compiled `how` copy.
+  // The "how it works" picture: three beats, no answer. Its words are the compiled `how` copy.
   { id: "how", place: "how", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
   // The account step — the sign-in surface owns it (S8); this list holds its PLACE in the order.

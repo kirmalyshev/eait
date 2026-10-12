@@ -84,7 +84,7 @@ export interface ChatCopy {
     echo: string;
   };
   /**
-   * The "whole app" beat after the goal — three beats and nothing to answer. `meal` and
+   * The "how it works" beat after the goal — three beats and nothing to answer. `meal` and
    * `photoAlt` are the words inside the step cards' drawn figures: the demo dish's name and the
    * viewfinder photo's alt text (the numbers are `HOW_DEMO`'s constants, fixed to the boards).
    */
@@ -224,7 +224,7 @@ const EN: ChatCopy = {
     echo: "From {from} to {to}.",
   },
   how: {
-    title: "Here's the whole app",
+    title: "How eait works",
     meal: "Salmon, rice, greens",
     photoAlt: "A grain bowl in the viewfinder",
     steps: ["Photograph the plate", "Get honest macros", "See your progress"],
@@ -340,7 +340,7 @@ const FR: ChatCopy = {
     echo: "De {from} à {to}.",
   },
   how: {
-    title: "Voilà toute l'app",
+    title: "Comment eait fonctionne",
     meal: "Saumon, riz et légumes verts",
     photoAlt: "Un bowl de céréales dans le viseur",
     steps: ["Photographie ton assiette", "Reçois des macros honnêtes", "Suis ta progression"],
@@ -456,7 +456,7 @@ const DE: ChatCopy = {
     echo: "Von {from} auf {to}.",
   },
   how: {
-    title: "Das ist die ganze App",
+    title: "So funktioniert eait",
     meal: "Lachs mit Reis und Gemüse",
     photoAlt: "Eine Getreidebowl im Sucher",
     steps: ["Fotografier den Teller", "Bekomm ehrliche Makros", "Sieh deinen Fortschritt"],
@@ -572,7 +572,7 @@ const IT: ChatCopy = {
     echo: "Da {from} a {to}.",
   },
   how: {
-    title: "Ecco tutta l'app",
+    title: "Come funziona eait",
     meal: "Salmone, riso e verdure",
     photoAlt: "Una bowl di cereali nel mirino",
     steps: ["Fotografa il piatto", "Ricevi macro onesti", "Guarda i tuoi progressi"],
@@ -688,7 +688,7 @@ const ES: ChatCopy = {
     echo: "De {from} a {to}.",
   },
   how: {
-    title: "Esa es toda la app",
+    title: "Cómo funciona eait",
     meal: "Salmón con arroz y verduras",
     photoAlt: "Un bowl de granos en el visor",
     steps: ["Fotografía el plato", "Recibe macros honestos", "Ve tu progreso"],
@@ -804,7 +804,7 @@ const VI: ChatCopy = {
     echo: "Từ {from} đến {to}.",
   },
   how: {
-    title: "Toàn bộ ứng dụng chỉ có vậy",
+    title: "eait hoạt động thế nào",
     meal: "Cá hồi, cơm và rau",
     photoAlt: "Một bát ngũ cốc trong khung ngắm",
     steps: ["Chụp món ăn", "Nhận macro rõ ràng", "Xem tiến độ của bạn"],
@@ -920,7 +920,7 @@ const ID: ChatCopy = {
     echo: "Dari {from} ke {to}.",
   },
   how: {
-    title: "Itulah seluruh aplikasinya",
+    title: "Cara kerja eait",
     meal: "Salmon, nasi, dan sayur",
     photoAlt: "Mangkuk biji-bijian di jendela bidik",
     steps: ["Foto piringnya", "Dapatkan makro jujur", "Lihat progresmu"],
@@ -1038,7 +1038,7 @@ const RU: ChatCopy = {
     echo: "С {from} до {to}.",
   },
   how: {
-    title: "Вот и всё приложение",
+    title: "Как работает eait",
     meal: "Лосось, рис и зелень",
     photoAlt: "Боул в видоискателе",
     steps: ["Сфотографируй тарелку", "Получи честные макросы", "Следи за прогрессом"],
