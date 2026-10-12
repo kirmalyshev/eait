@@ -9,6 +9,8 @@
 import { expect, onboard, sessionToken, test } from "./fixtures.ts";
 
 test("the whole W3 walk: plan, sign-up, country, first meal — and back", async ({ page, browser }) => {
+  // The whole walk plus the 17 loader (5.5 s before the plan draws) outgrows the default 30 s.
+  test.slow();
   await page.goto("/start");
   await page.getByRole("link", { name: "Build my plan" }).click();
 

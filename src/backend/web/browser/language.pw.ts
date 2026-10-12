@@ -7,6 +7,8 @@
 import { expect, onboard, signIn, test } from "./fixtures.ts";
 
 test("picking a language changes the page, and the page says which language it is", async ({ page }) => {
+  // The whole walk plus the 17 loader (5.5 s before the plan draws) outgrows the default 30 s.
+  test.slow();
   await signIn(page, `pw-lang-${Date.now()}`);
   await onboard(page);
   await expect(page.locator(".pln .hd")).toContainText("Goal:");
@@ -34,6 +36,8 @@ test("picking a language changes the page, and the page says which language it i
 });
 
 test("the endonyms are what the picker offers, never a translated list", async ({ page }) => {
+  // The whole walk plus the 17 loader (5.5 s before the plan draws) outgrows the default 30 s.
+  test.slow();
   await signIn(page, `pw-lang-names-${Date.now()}`);
   await onboard(page);
   // A list of languages written in the language somebody is trying to LEAVE is the one list they
