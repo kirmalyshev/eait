@@ -43,7 +43,7 @@ import { ico, tagx } from "../../shared/ui/kit.ts";
 import { outbox } from "../outbox.ts";
 import { closeAllPanels, openDialog, openPanel, toast } from "../panel.ts";
 import { openWeighIn } from "../weigh.ts";
-import { analytics } from "../analytics.ts";
+import * as analytics from "../analytics.ts";
 import {
   clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
@@ -355,7 +355,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const leave = async (): Promise<void> => {
     await outbox.clear().catch(() => {});
     await signOut();
-    analytics?.reset();
+    analytics.reset();
     closeAllPanels();
     forgetProfile();
     setHeldProposal(null);

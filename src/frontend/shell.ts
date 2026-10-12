@@ -46,7 +46,7 @@ import { blobSrc, ctaEl, gramMacsEl, kitEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { failureOf, noAnswer, outbox, sendDeadlineMs, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
-import { analytics } from "./analytics.ts";
+import * as analytics from "./analytics.ts";
 
 /**
  * THE LANGUAGE THIS TAB IS BEING READ IN, and every string on the page reads it.
@@ -131,7 +131,7 @@ export const profile = async (): Promise<ProfileResponse> => {
     // The deadline a queued send is bounded by reads this: the per-call budget THIS server runs.
     setModelCallTimeout(profileCache.limits.modelCallTimeoutMs);
     // Our id, never the email, and no person properties. A repeat with the same id is a no-op.
-    analytics?.identify(profileCache.profile.user_id);
+    analytics.identify(profileCache.profile.user_id);
   }
   return profileCache;
 };
@@ -974,7 +974,7 @@ export async function render(): Promise<void> {
   }
   if (mine !== drawing) return;
   // One `$screen` per drawn route, named by the ROUTE TABLE's key — the hash itself carries ids.
-  analytics?.capture("$screen", { $screen_name: screenKey(route) });
+  analytics.capture("$screen", { $screen_name: screenKey(route) });
   const right = el("span", "wr");
   // A `<section>` is a landmark only once a screen names it — unnamed it is just the column.
   const side = el("section", "wcol");

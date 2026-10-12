@@ -13,3 +13,14 @@ export const routeBase = (route: string): string => route.split("?")[0]!;
  * names a meal by its id (`#/meal/<id>`), and the query carries ids too (`?focus=<id>`).
  */
 export const pageUrl = (url: string): string => url.split(/[?#]/)[0]!;
+
+/**
+ * `pageUrl` applied to every string in `props` that is a URL on `origin`, in place — whatever
+ * posthog-js called it (`$current_url`, `$session_entry_url`, the next one it adds). A page entered
+ * at `#/meal/<id>` from a push would otherwise send that id as the session's entry URL.
+ */
+export const scrubPageUrls = (props: Record<string, unknown> | undefined, origin: string): void => {
+  for (const [k, v] of Object.entries(props ?? {})) {
+    if (typeof v === "string" && v.startsWith(origin)) props![k] = pageUrl(v);
+  }
+};
