@@ -23,7 +23,7 @@ export const W3_CSS = `
 /* Reduce Motion: the final state crossfades in over 150 ms, and the count never shows. */
 @media (prefers-reduced-motion: reduce) {
   .ob .pln.rv { animation: k-fade .15s linear both !important; }
-  .ob .ld { display: none; }
+  .ob .ld { display: none !important; }
 }
 .ob .wmain.pw { max-width: 1000px; }
 .ob .pln form { flex: none; }
