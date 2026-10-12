@@ -7,8 +7,8 @@
 // chart and a caption that knows the struggles just ticked.
 
 import {
-  chatCopyFor, ESTIMATE_CHART_MINI, fill, HOW_DEMO, ontrackCaption, TWO_WAYS_CHART,
-  UNIT_KCAL, kcalNumbers, verdictPillLabel, weightDisplay,
+  ageFrom, bmi, chatCopyFor, ESTIMATE_CHART_MINI, fill, heightText, HOW_DEMO, ontrackCaption, optionLabel,
+  TWO_WAYS_CHART, UNIT_KCAL, kcalNumbers, verdictPillLabel, weightDisplay,
 } from "@eait/shared";
 import type { Lang, Profile, UnitSystem } from "@eait/shared";
 import { brandSvg } from "@eait/shared/ui/icons";
@@ -81,10 +81,68 @@ function ontrackChart(lang: Lang): string {
     `</svg>`;
 }
 
-/** An interstitial — `ontrack`, then `how`, after the questions. GET, not POST:
+/** The WHO band edges `baseline` draws and names; the bar's ends are the design's 15 and 40. */
+const BMI_AXIS = { min: 15, max: 40 } as const;
+
+/** `twice` — the cited claim as two columns: 1× and 2×. The source line is the study, verbatim. */
+function twiceCards(lang: Lang): string {
+  const t = chatCopyFor(lang).twice;
+  return `<p class="muted-sub cen">${escape(t.sub)}</p>` +
+    `<div class="twice" role="img" aria-label="${escape(t.alt)}">` +
+    `<figure class="a"><span class="em" aria-hidden="true">🐢</span><div class="col"><div class="bar"></div></div>` +
+    `<figcaption>${escape(t.without)}</figcaption></figure>` +
+    `<figure class="b"><span class="em" aria-hidden="true">🚀</span><div class="col"><div class="bar">2×</div></div>` +
+    `<figcaption>${escape(t.with)}</figcaption></figure></div>` +
+    `<p class="muted-sub cen src">${escape(t.source)}</p>`;
+}
+
+/**
+ * `baseline` — the BMI the typed height and weight compute, the band it falls in, and the answers
+ * restated. Computed here from the profile and never stored; a profile missing either number draws
+ * the three rows only.
+ */
+function baselineCards(profile: Profile, lang: Lang): string {
+  const b = chatCopyFor(lang).baseline;
+  const units = profile.units ?? "metric";
+  const value = bmi(profile.weight_kg, profile.height_cm);
+  const band = value === null ? null
+    : value < 18.5 ? "under" : value < 25 ? "healthy" : value < 30 ? "over" : "obese";
+  const verdict = band === null ? null : band === "under" ? b.verdict.under
+    : band === "healthy" ? b.verdict.healthy : b.verdict.above;
+  const at = value === null ? 0
+    : Math.round((Math.min(Math.max(value, BMI_AXIS.min), BMI_AXIS.max) - BMI_AXIS.min)
+      / (BMI_AXIS.max - BMI_AXIS.min) * 1000) / 10;
+  const age = ageFrom(profile.birth_year);
+  const who = [profile.sex ? optionLabel("sex", profile.sex, lang) : null,
+    age === null ? null : `${age} ${chatCopyFor(lang).units.years}`].filter(Boolean).join(" · ");
+  const body = profile.height_cm && profile.weight_kg
+    ? `${heightText(profile.height_cm, units, lang)} · ${weightDisplay(profile.weight_kg, units, lang)}` : "";
+  const row = (icon: string, label: string, text: string) => text === "" ? "" :
+    `<div class="card brow"><span class="bt" aria-hidden="true">${icon}</span>` +
+    `<div><span>${escape(label)}</span><b>${escape(text)}</b></div></div>`;
+  const meter = value === null ? "" :
+    `<div class="card bmeter band-${band}"><div class="bm-r">${escape(b.bmi)}` +
+    `<span class="bm-v">${escape(String(value))}</span></div>` +
+    `<div class="bm-sc"><span class="bm-k" style="left:${at}%"></span></div>` +
+    `<div class="bm-w">${escape(b.bands[band!])}</div></div>` +
+    `<div class="bverdict"><b>${escape(verdict!)}</b><span>${escape(b.note)}</span></div>`;
+  return meter + row("🙂", b.you, who) + row("📏", b.body, body)
+    + row("🚶", b.activity, profile.activity ? optionLabel("activity", profile.activity, lang) : "");
+}
+
+/** The headline for a beat that is a title and nothing else — `possible` says the distance back. */
+function possibleTitle(profile: Profile, lang: Lang): string {
+  const p = chatCopyFor(lang).possible;
+  const gap = profile.weight_kg !== null && profile.target_weight_kg !== null
+    ? Math.abs(profile.weight_kg - profile.target_weight_kg) : 0;
+  const delta = weightDisplay(gap, profile.units ?? "metric", lang);
+  return fill(profile.goal === "gain" ? p.gain : p.lose, { delta });
+}
+
+/** An interstitial — the three beats between the questions, then `ontrack` and `how` after them. GET, not POST:
  *  they collect nothing, so the Continue is a link back into the walk. */
 export function interstitial(
-  place: "how" | "ontrack",
+  place: "how" | "ontrack" | "twice" | "baseline" | "possible",
   profile: Profile,
   lang: Lang,
   continueHref: string,
@@ -92,6 +150,9 @@ export function interstitial(
   const copy = chatCopyFor(lang);
   const inner = place === "how"
     ? howCards(lang, profile.units ?? "metric")
+    : place === "twice" ? twiceCards(lang)
+    : place === "baseline" ? baselineCards(profile, lang)
+    : place === "possible" ? ""
     : `<div class="card rel">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
       `<div class="chartw">${ontrackChart(lang)}` +
@@ -100,7 +161,11 @@ export function interstitial(
       (ontrackCaption(profile.struggles, lang)
         ? `<p class="muted-sub cen">${escape(ontrackCaption(profile.struggles, lang)!)}</p>`
         : "");
-  const title = place === "how" ? copy.how.title : copy.ontrack.title;
+  const title = place === "how" ? copy.how.title
+    : place === "twice" ? copy.twice.title
+    : place === "baseline" ? copy.baseline.title
+    : place === "possible" ? possibleTitle(profile, lang)
+    : copy.ontrack.title;
   const body = `${wtop()}
 <div class="wmain one q mom${place === "how" ? " wide" : ""}"><div class="wcol">
 ${dash(place, lang)}

@@ -346,5 +346,28 @@ export const BOARD_CSS = `
   .ob .vruler { height: 300px; }
   .ob .q { font-size: 20px; }
 }
+/* The three beats between the questions: twice, baseline, possible. */
+.ob .twice { display: flex; gap: 28px; justify-content: center; margin-top: 28px; }
+.ob .twice figure { width: 150px; text-align: center; }
+.ob .twice .em { display: block; font-size: 40px; line-height: 1; margin-bottom: 10px; }
+.ob .twice .col { height: 230px; border-radius: 22px; background: var(--surface); box-shadow: 0 0 0 1px var(--hair); overflow: hidden; display: flex; align-items: flex-end; }
+.ob .twice .bar { width: 100%; border-radius: 22px; display: flex; align-items: center; justify-content: center; }
+.ob .twice .a .bar { height: 70px; background: #E3E1DC; }
+.ob .twice .b .bar { height: 180px; background: var(--accent); color: #fff; font-size: 40px; font-weight: 700; }
+.ob .twice figcaption { margin-top: 14px; font-size: 17px; font-weight: 600; }
+.ob .src { margin-top: 16px; font-size: 12px; color: var(--muted); }
+.ob .bmeter { margin-top: 22px; padding: 20px; }
+.ob .bm-r { display: flex; justify-content: space-between; align-items: center; font-size: 17px; font-weight: 600; }
+.ob .bm-v { padding: 4px 12px; border-radius: 12px; background: #F4C47A; color: #fff; font-weight: 700; font-feature-settings: "tnum" 1; }
+.ob .bm-sc { position: relative; height: 12px; margin-top: 18px; border-radius: 6px; background: linear-gradient(90deg, #6FA8F0 0%, #6FCB7C 14%, #6FCB7C 37%, #F2C230 43%, #F59A3E 58%, #F36464 68%, #F36464 100%); }
+.ob .bm-k { position: absolute; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px #F4C47A, 0 2px 6px rgb(0 0 0 / .2); }
+.ob .bm-w { margin-top: 12px; text-align: center; font-size: 14px; font-weight: 600; letter-spacing: .12em; color: var(--faint); }
+.ob .bverdict { margin-top: 14px; padding: 14px 18px; border-radius: 16px; background: #FDF1DE; }
+.ob .bverdict b { display: block; font-size: 16px; }
+.ob .bverdict span { font-size: 14px; color: var(--muted); }
+.ob .brow { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-top: 14px; }
+.ob .brow .bt { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-tint); display: grid; place-items: center; font-size: 22px; }
+.ob .brow span:not(.bt) { display: block; font-size: 13px; color: var(--muted); }
+.ob .brow b { font-size: 17px; }
 ${iconCss()}
 `;

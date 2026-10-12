@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  ageFrom,
+  ageFrom, type OnboardingPlace,
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STREAK_GOALS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   countryOptions, fill,
   chatCopyFor as CHAT,
@@ -347,10 +347,13 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
  * and `country` places are out: the front door renders its own, the rest are the steps after
  * this walk ends (the plan, sign-up — W3).
  */
+/** The cards the walk draws between and after the questions; `summary` and `signup` are not. */
+const BEAT_PLACES: readonly OnboardingPlace[] = ["twice", "baseline", "possible", "ontrack", "how"];
+
 function walkFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
   const off = disabledScreens(content);
   return promptsFor(profile, [...off, "country"], { health: false })
-    .filter((p) => p.field !== undefined || p.place === "how" || p.place === "ontrack");
+    .filter((p) => p.field !== undefined || BEAT_PLACES.includes(p.place));
 }
 
 
@@ -1082,7 +1085,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const following = walk[i + 1];
       const onward = following !== undefined && following.kind === "auto"
         ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
-      return html(interstitial(auto.place as "how" | "ontrack", profile, profile.lang, onward));
+      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, profile.lang, onward));
     }
 
     if (req.method === "GET") {
