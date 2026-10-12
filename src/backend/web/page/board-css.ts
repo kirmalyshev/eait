@@ -123,7 +123,7 @@ export const BOARD_CSS = `
 /* ── the big number + pickers ── */
 .ob .bign { font-size: 56px; font-weight: 700; letter-spacing: -.03em; line-height: 1; display: flex;
             align-items: baseline; gap: 6px; justify-content: center; }
-.ob .bign small { font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.ob .bign small { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
 .ob .vpick { display: flex; gap: 56px; align-items: center; justify-content: center; }
 
 /* the age wheel: a scrollable column, snap-centred — the script drives it, the rows are real */
@@ -190,7 +190,6 @@ export const BOARD_CSS = `
    a hairline track inset half a stop, a white thumb, the bold computed line under it ── */
 .ob .pacevarbox { margin-bottom: 24px; }
 .ob .pacevar .bign { font-size: 72px; }
-.ob .pacevar .bign small { font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
 .ob .stops { display: flex; justify-content: space-between; text-align: center;
              font-size: 13px; font-weight: 500; color: var(--muted); width: 100%; }
 .ob .stops > div { width: 110px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -373,8 +372,10 @@ export const BOARD_CSS = `
   /* Four tiles stay tiles on a phone — 2×2 rather than a column of rows. */
   .ob .opts.c4 { grid-template-columns: repeat(2, 1fr); }
   .ob .cards.c3 { grid-template-columns: 1fr; }
-  .ob .vpick { flex-direction: column; gap: 12px; }
+  /* 06 keeps the number beside its ruler on a phone; 07/09 run the ruler edge to edge. */
+  .ob .vpick { gap: 28px; }
   .ob .vruler { height: 300px; }
+  .ob .ruler { width: auto; margin-inline: -20px; }
   .ob .q { font-size: 20px; }
 }
 /* The three beats between the questions: twice, baseline, possible. */
