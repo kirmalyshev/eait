@@ -1605,6 +1605,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   adminListUsers: "unscoped",
   adminMetrics: "unscoped",
   onboardingFunnel: "unscoped",
+  // The loader's people counter: one number over every account, no row of anybody's comes back.
+  countOnboardedSince: "unscoped",
   countGlobalAnalyses: "unscoped",
   countClipAnalyses: "unscoped",
   pushAudience: "unscoped",
@@ -3358,6 +3360,12 @@ export async function postgresStore(
         if (rows.length > 0) added++;
       }
       return added;
+    },
+
+    async countOnboardedSince(hours) {
+      const since = new Date(now() - hours * 60 * 60 * 1000).toISOString();
+      const [r] = await sql`select count(*)::int as n from users where onboarded_at >= ${since}`;
+      return Number(r?.n ?? 0);
     },
 
     async onboardingFunnel(days): Promise<FunnelAggregate> {

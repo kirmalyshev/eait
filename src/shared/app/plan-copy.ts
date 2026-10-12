@@ -1,6 +1,6 @@
 // The plan reveal's own words (#402); the rest is `summary.*` and `youCopyFor(lang).phone`, and `{kg}` arrives unit-formatted.
 
-import { t, type Localized } from "../lang.ts";
+import { t, type CountForms, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 
 export interface PlanCopy {
@@ -51,6 +51,12 @@ export interface PlanCopy {
   stepWeigh: string;
   /** The fold that holds the waterfall and the method note. */
   howCalc: string;
+  /** The loader's goal caption (17, ieat-app#2050): "Your goal · −6kg by January 2027". */
+  yourGoal: string;
+  loaderLose: string;
+  loaderGain: string;
+  /** The loader's people counter, `{n}` from `OnboardingContentResponse.peopleBuilding`; drawn only for n > 0. */
+  people: CountForms;
 }
 
 export const PLAN_COPY: Localized<PlanCopy> = {
@@ -64,6 +70,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Goal: lose {kg} by {month}", goalGain: "Goal: gain {kg} by {month}", startWeight: "Starting weight", goalWeight: "Goal weight", activity: "Activity", target: "Target",
     targetLose: "lose {kg} by {month}", targetGain: "gain {kg} by {month}", reachTitle: "How to reach your goal", stepPhoto: "Photograph every meal",
     stepKcal: "Stay within {kcal} kcal a day", stepBalance: "Balance protein, carbs and fat", stepWeigh: "Weigh in once a week", howCalc: "How we calculate your plan",
+    yourGoal: "Your goal", loaderLose: "−{kg} by {month}", loaderGain: "+{kg} by {month}",
+    people: { one: "{n} person is building their plan with eait", other: "{n} people are building their plan with eait" },
   },
   fr: {
     goalLine: "Objectif : {kg}, vers {month}", goalStay: "Objectif : rester autour de {kg}", goalRange: "Fourchette : {range}",
@@ -75,6 +83,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Objectif : −{kg} d’ici {month}", goalGain: "Objectif : +{kg} d’ici {month}", startWeight: "Poids de départ", goalWeight: "Poids visé", activity: "Activité", target: "Objectif",
     targetLose: "−{kg} d’ici {month}", targetGain: "+{kg} d’ici {month}", reachTitle: "Comment atteindre ton objectif", stepPhoto: "Photographie chaque repas",
     stepKcal: "Reste sous {kcal} kcal par jour", stepBalance: "Équilibre protéines, glucides et lipides", stepWeigh: "Pèse-toi une fois par semaine", howCalc: "Comment on calcule ton plan",
+    yourGoal: "Ton objectif", loaderLose: "−{kg} d’ici {month}", loaderGain: "+{kg} d’ici {month}",
+    people: { one: "{n} personne crée son plan avec eait", other: "{n} personnes créent leur plan avec eait" },
   },
   de: {
     goalLine: "Ziel: {kg}, etwa {month}", goalStay: "Ziel: bei etwa {kg} bleiben", goalRange: "Bereich: {range}",
@@ -86,6 +96,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Ziel: −{kg} bis {month}", goalGain: "Ziel: +{kg} bis {month}", startWeight: "Startgewicht", goalWeight: "Zielgewicht", activity: "Aktivität", target: "Ziel",
     targetLose: "−{kg} bis {month}", targetGain: "+{kg} bis {month}", reachTitle: "So erreichst du dein Ziel", stepPhoto: "Fotografiere jede Mahlzeit",
     stepKcal: "Bleib unter {kcal} kcal am Tag", stepBalance: "Achte auf Eiweiß, Kohlenhydrate und Fett", stepWeigh: "Wiege dich einmal pro Woche", howCalc: "So berechnen wir deinen Plan",
+    yourGoal: "Dein Ziel", loaderLose: "−{kg} bis {month}", loaderGain: "+{kg} bis {month}",
+    people: { one: "{n} Person erstellt gerade ihren Plan mit eait", other: "{n} Personen erstellen gerade ihren Plan mit eait" },
   },
   it: {
     goalLine: "Obiettivo: {kg}, intorno a {month}", goalStay: "Obiettivo: restare intorno a {kg}", goalRange: "Intervallo: {range}",
@@ -97,6 +109,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Obiettivo: −{kg} entro {month}", goalGain: "Obiettivo: +{kg} entro {month}", startWeight: "Peso di partenza", goalWeight: "Peso obiettivo", activity: "Attività", target: "Obiettivo",
     targetLose: "−{kg} entro {month}", targetGain: "+{kg} entro {month}", reachTitle: "Come raggiungere il tuo obiettivo", stepPhoto: "Fotografa ogni pasto",
     stepKcal: "Resta entro {kcal} kcal al giorno", stepBalance: "Bilancia proteine, carboidrati e grassi", stepWeigh: "Pesati una volta a settimana", howCalc: "Come calcoliamo il tuo piano",
+    yourGoal: "Il tuo obiettivo", loaderLose: "−{kg} entro {month}", loaderGain: "+{kg} entro {month}",
+    people: { one: "{n} persona sta creando il suo piano con eait", other: "{n} persone stanno creando il loro piano con eait" },
   },
   es: {
     goalLine: "Objetivo: {kg}, hacia {month}", goalStay: "Objetivo: mantenerte en torno a {kg}", goalRange: "Rango: {range}",
@@ -108,6 +122,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Objetivo: −{kg} para {month}", goalGain: "Objetivo: +{kg} para {month}", startWeight: "Peso inicial", goalWeight: "Peso objetivo", activity: "Actividad", target: "Objetivo",
     targetLose: "−{kg} para {month}", targetGain: "+{kg} para {month}", reachTitle: "Cómo llegar a tu objetivo", stepPhoto: "Fotografía cada comida",
     stepKcal: "Quédate en {kcal} kcal al día", stepBalance: "Equilibra proteínas, carbohidratos y grasas", stepWeigh: "Pésate una vez por semana", howCalc: "Cómo calculamos tu plan",
+    yourGoal: "Tu objetivo", loaderLose: "−{kg} para {month}", loaderGain: "+{kg} para {month}",
+    people: { one: "{n} persona está creando su plan con eait", other: "{n} personas están creando su plan con eait" },
   },
   vi: {
     goalLine: "Mục tiêu: {kg}, khoảng {month}", goalStay: "Mục tiêu: giữ quanh {kg}", goalRange: "Khoảng: {range}",
@@ -119,6 +135,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Mục tiêu: −{kg} trước {month}", goalGain: "Mục tiêu: +{kg} trước {month}", startWeight: "Cân nặng ban đầu", goalWeight: "Cân nặng mục tiêu", activity: "Mức vận động", target: "Mục tiêu",
     targetLose: "−{kg} trước {month}", targetGain: "+{kg} trước {month}", reachTitle: "Cách đạt mục tiêu", stepPhoto: "Chụp ảnh mọi bữa ăn",
     stepKcal: "Giữ trong {kcal} kcal mỗi ngày", stepBalance: "Cân bằng đạm, tinh bột và chất béo", stepWeigh: "Cân mỗi tuần một lần", howCalc: "Cách chúng tôi tính kế hoạch",
+    yourGoal: "Mục tiêu của bạn", loaderLose: "−{kg} trước {month}", loaderGain: "+{kg} trước {month}",
+    people: { other: "{n} người đang lập kế hoạch với eait" },
   },
   id: {
     goalLine: "Target: {kg}, sekitar {month}", goalStay: "Target: tetap di sekitar {kg}", goalRange: "Rentang: {range}",
@@ -130,6 +148,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Target: −{kg} sebelum {month}", goalGain: "Target: +{kg} sebelum {month}", startWeight: "Berat awal", goalWeight: "Berat target", activity: "Aktivitas", target: "Target",
     targetLose: "−{kg} sebelum {month}", targetGain: "+{kg} sebelum {month}", reachTitle: "Cara mencapai targetmu", stepPhoto: "Foto setiap makanan",
     stepKcal: "Tetap di bawah {kcal} kkal sehari", stepBalance: "Seimbangkan protein, karbohidrat, dan lemak", stepWeigh: "Timbang sekali seminggu", howCalc: "Cara kami menghitung rencanamu",
+    yourGoal: "Tujuanmu", loaderLose: "−{kg} sebelum {month}", loaderGain: "+{kg} sebelum {month}",
+    people: { other: "{n} orang sedang menyusun rencana dengan eait" },
   },
   ru: {
     goalLine: "Цель: {kg} · ориентир — {month}", goalStay: "Цель: держаться около {kg}", goalRange: "Диапазон: {range}",
@@ -141,6 +161,8 @@ export const PLAN_COPY: Localized<PlanCopy> = {
     goalLose: "Цель: −{kg} · ориентир — {month}", goalGain: "Цель: +{kg} · ориентир — {month}", startWeight: "Начальный вес", goalWeight: "Целевой вес", activity: "Активность", target: "Цель",
     targetLose: "−{kg} · ориентир — {month}", targetGain: "+{kg} · ориентир — {month}", reachTitle: "Как прийти к цели", stepPhoto: "Фотографировать каждый приём пищи",
     stepKcal: "Держаться в пределах {kcal} ккал в день", stepBalance: "Соблюдать баланс белков, углеводов и жиров", stepWeigh: "Взвешиваться раз в неделю", howCalc: "Как мы считаем твой план",
+    yourGoal: "Твоя цель", loaderLose: "−{kg} · ориентир — {month}", loaderGain: "+{kg} · ориентир — {month}",
+    people: { one: "{n} человек составляет свой план с eait", few: "{n} человека составляют свой план с eait", many: "{n} человек составляют свой план с eait", other: "{n} человека составляют свой план с eait" },
   },
 };
 
