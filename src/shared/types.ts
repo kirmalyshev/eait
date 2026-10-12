@@ -72,8 +72,8 @@ export type Units = (typeof UNITS)[number];
  * order is load-bearing: the first picked writes the On-track caption and every pick orders
  * Chat's starters. Replaces the shipped eight (`struggleCard` et al.), which are retired.
  */
-/** The streak lengths the onboarding question offers; Home draws progress toward the chosen one. */
-export const STREAK_GOALS = [7, 14, 30] as const;
+/** The streak lengths the onboarding question offers, longest first as the board lists them (ieat-app#2050); Home draws progress toward the chosen one. */
+export const STREAK_GOALS = [50, 30, 14, 7] as const;
 export type StreakGoal = (typeof STREAK_GOALS)[number];
 
 export const STRUGGLES = ["consistency", "habits", "support", "busy", "ideas"] as const;

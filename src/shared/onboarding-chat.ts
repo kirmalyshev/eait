@@ -171,6 +171,9 @@ export function promptsFor(
   return CHAT_PROMPTS.filter((prompt) => {
     if (prompt.id === "health") return surface.health;
     if (prompt.id === "possible") return possibleApplies(p);
+    // "Lose twice as much weight" is a claim about losing — a maintainer or a gainer is not told it.
+    // Kept while the goal is unanswered, for the reason `possibleApplies` gives.
+    if (prompt.id === "twice") return p.goal === null || p.goal === "lose";
     if (!prompt.field) return true;
     if (!stepApplies(prompt.field, p)) return false;
     return !off.has(screenForStep(prompt.field));
@@ -760,6 +763,29 @@ export const HOW_DEMO = {
 } as const;
 
 /**
+ * The progress row of "How it works" (16): the user's OWN weight and target where both are typed
+ * and they differ (ieat-app#2050) — `how` runs after the target, so that is everyone losing or
+ * gaining. The persona's 74 → 68 is left only for a maintainer, whose walk has no target.
+ */
+export function howProgress(p: Profile): { startKg: number; targetKg: number } {
+  return p.goal !== "maintain" && p.weight_kg != null && p.target_weight_kg != null && p.weight_kg !== p.target_weight_kg
+    ? { startKg: p.weight_kg, targetKg: p.target_weight_kg }
+    : { startKg: HOW_DEMO.startKg, targetKg: HOW_DEMO.targetKg };
+}
+
+/**
+ * The BMI meter on `baseline` (07b): the bar runs 15 → 40 and is labelled at the WHO band edges
+ * between, as the board draws it. `at` is a value's place on the bar, 0–100.
+ */
+export const BMI_AXIS = {
+  min: 15,
+  max: 40,
+  ticks: [15, 18.5, 25, 30, 40],
+  at: (value: number): number =>
+    Math.round((Math.min(Math.max(value, 15), 40) - 15) / (40 - 15) * 1000) / 10,
+} as const;
+
+/**
  * The pace screen's one result, per pace — what "Gentle" / "Steady" / "Brisk" would each land.
  *
  * The big number is the PROJECTION's kgPerWeek rounded to one decimal, never the pace's requested
@@ -804,6 +830,22 @@ export function pacePreview(
       ? fill(copy.floorMarker, { floor: kcalNumbers(lang)(basis.floorKcal) })
       : marker === "cap" ? copy.capMarker : null,
   };
+}
+
+/**
+ * What a streak of `days` is worth on THIS plan — the streak question's "−0.9 kg" beside "14 days"
+ * (ieat-app#2050). The rate is `previewProjection`'s, the one the pace screen showed, so it is the
+ * plan's own and never the board's sample; capped at the distance left, since a streak cannot carry
+ * anybody past their own target. Null — and the row draws no figure — wherever the projection has
+ * none: maintain, no pace yet, a target the guards turned around.
+ */
+export function streakDelta(p: Profile, days: number, lang: Lang): string | null {
+  if (p.goal === "maintain" || p.pace === null || p.target_weight_kg === null) return null;
+  const proj = previewProjection(p, p.target_weight_kg, p.pace);
+  if (proj === null) return null;
+  const kg = Math.round(Math.min(proj.kgToGo, (proj.kgPerWeek * days) / 7) * 10) / 10;
+  if (kg === 0) return null;
+  return `${p.goal === "gain" ? "+" : "−"}${weightDisplay(kg, p.units ?? "metric", lang)}`;
 }
 
 /**

@@ -325,7 +325,7 @@ export interface OnboardingScreenContent {
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export interface OnboardingWelcomeContent {
-  /** The headline. One line now — the picture does the talking (design pro, onboarding 00). */
+  /** The headline, then its subtitle (ieat-app#2050): "A plan built around you" / "Your goal, your day, your meals". */
   lines: string[];
   /** The primary button — "Build my plan". */
   cta: string;
@@ -798,10 +798,11 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
   // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
-  // so `usableContent` retires it and every language falls back to this.
-  version: 16,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
   welcome: {
-    lines: ["Snap a meal. Know if it fits."],
+    lines: ["A plan built around you", "Your goal, your day, your meals"],
     cta: "Build my plan",
     signin: "I already have an account",
   },
@@ -914,6 +915,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         "7": { label: "7 days" },
         "14": { label: "14 days" },
         "30": { label: "30 days" },
+        "50": { label: "50 days" },
       },
     },
     {
