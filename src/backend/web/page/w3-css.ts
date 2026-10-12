@@ -133,10 +133,8 @@ export const W3_CSS = `
   .ob .pln .pfoot { width: 100%; }
 }
 
-/* ── the sign-up (pay-signin): the app icon, the provider buttons ── */
+/* ── the sign-up (19): the heading, the provider buttons, the consent ── */
 .ob .sup { max-width: 560px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 18px; }
-.ob .sup .hero { display: flex; justify-content: center; }
-.ob .sup .hero img { width: 96px; height: 96px; border-radius: 22%; box-shadow: var(--shadow); display: block; }
 .ob .sup h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.12; margin: 0; }
 .ob .sup form { display: flex; flex-direction: column; gap: 8px; }
 .ob .sup .cta svg { width: 20px; height: 20px; }

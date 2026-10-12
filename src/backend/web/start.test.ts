@@ -381,10 +381,9 @@ describe("the sign-up screen", () => {
     expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
-  it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
+  it("is the board: no picture, the marks on the buttons, the boxes unticked", async () => {
     const html = await (await get("/start/signup")).text();
-    // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
-    expect(html).toContain('/start/assets/img/icon.webp');
+    expect(html).not.toContain('/start/assets/img/icon.webp');
     // Apple in black, Google secondary — the buttons carry the brands' own artwork.
     expect(html).toContain('class="cta apple"');
     expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));
@@ -1997,7 +1996,6 @@ describe("the web surface and the landing are one product", () => {
 
   it("404s a name none of the asset routes ships — the allowlist, not the filesystem, answers", async () => {
     for (const path of [
-      "/start/assets/welcome/nope.mp4",
       "/start/assets/img/nope.webp",
       "/start/assets/fonts/montserrat-italic.woff2",
     ]) {
@@ -2544,7 +2542,8 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).signUpHeading));
+      // Arriving from the plan, the heading is the one that says what the account is for.
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).saveHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
       expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));

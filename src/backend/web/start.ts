@@ -57,7 +57,7 @@ import {
   // compile error instead.
   chat, country, emailAddress, emailCode, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
   referralStep, signUp, stopped,
-  FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
+  FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal,
 } from "./page.ts";
@@ -557,7 +557,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // never the answer.
     const lang = acceptLang(req.headers.get("accept-language"));
     const content = await onboardingContent(ctx.deps, lang);
-    return html(frontDoor(content.welcome, {
+    return html(frontDoor(content, {
       q: `${START_PREFIX}/q`,
       signup: `${START_PREFIX}/signup`,
     }, lang), 200, { cookies: refCookie });
@@ -581,18 +581,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
-  // The welcome's recorded loop and still, and the photographs the how-it-works cards draw —
-  // whitelisted by name the same way the fonts are, so no path under them is a file read.
-  if (req.method === "GET" && pathname.startsWith(`${WELCOME_URL_DIR}/`)) {
-    const name = pathname.slice(WELCOME_URL_DIR.length + 1);
-    if (!(WELCOME_FILES as readonly string[]).includes(name)) return notFound();
-    return new Response(Bun.file(new URL(`../../shared/assets/welcome/${name}`, import.meta.url)), {
-      headers: {
-        "content-type": name.endsWith(".mp4") ? "video/mp4" : "image/webp",
-        "cache-control": "public, max-age=31536000, immutable",
-      },
-    });
-  }
   if (req.method === "GET" && pathname.startsWith(`${IMG_URL_DIR}/`)) {
     const name = pathname.slice(IMG_URL_DIR.length + 1);
     if (!(IMG_FILES as readonly string[]).includes(name)) return notFound();
@@ -688,6 +676,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         : null,
       termsHref: config.termsUrl === "" ? null : config.termsUrl,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
+      fromPlan: profile !== null,
       lang,
     }), 200, {
       // The consent POST answers with a 303 to the provider's own origin — and `form-action`

@@ -306,10 +306,38 @@ export const BOARD_CSS = `
 /* ── the welcome (00) ── */
 .ob .wcenter { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 80px 60px; }
 .ob .wdemo { display: flex; align-items: center; justify-content: center; gap: 88px; }
-.ob .vdemo { width: 290px; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow);
-             background: var(--surface); display: block; }
-.ob .vdemo video, .ob .vdemo img { display: block; width: 100%; height: auto; aspect-ratio: 9/19.5; object-fit: cover; }
-.ob .vdemo .still { display: none; }
+/* 01 (ieat-app#2050): the photo, the viewfinder, the shutter and scan once, then the four chips */
+.ob .whero { position: relative; width: 390px; height: 560px; flex: none; border-radius: 28px; overflow: hidden; box-shadow: var(--shadow); }
+.ob .whero .ph { position: absolute; inset: 0; background: url("/start/assets/img/hero.webp") center 48%/cover; animation: k-wzoom 1.1s cubic-bezier(.25,.8,.25,1) both; }
+@keyframes k-wzoom { from { transform: scale(1.1); } }
+.ob .whero .vf { position: absolute; left: 8%; right: 8%; top: 17%; height: 63%; animation: k-win .35s var(--ease) .15s both; }
+@keyframes k-win { from { opacity: 0; transform: scale(1.06); } }
+.ob .whero .vf i { position: absolute; width: 34px; height: 34px; border: 4px solid #fff; border-radius: 3px; }
+.ob .whero .vf i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 14px; }
+.ob .whero .vf i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 14px; }
+.ob .whero .vf i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 14px; }
+.ob .whero .vf i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
+.ob .whero .sh { position: absolute; left: 50%; top: 84%; width: 64px; height: 64px; margin-left: -32px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 5px rgba(255,255,255,.4); opacity: 0; animation: k-wsh 1.1s var(--ease) .45s both; }
+@keyframes k-wsh { 0% { opacity: 0; transform: scale(.8); } 25% { opacity: 1; transform: none; } 50% { transform: scale(.82); } 70% { transform: none; opacity: 1; } 100% { opacity: 0; } }
+.ob .whero .fl { position: absolute; inset: 0; background: #fff; opacity: 0; animation: k-wfl .45s linear 1.05s both; }
+@keyframes k-wfl { 0% { opacity: 0; } 20% { opacity: .85; } 100% { opacity: 0; } }
+.ob .whero .sw { position: absolute; left: 0; right: 0; height: 160px; top: -160px; opacity: 0;
+  background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.55) 50%, rgba(255,255,255,0)); animation: k-wsw .9s linear 1.3s both; }
+@keyframes k-wsw { 0% { opacity: 1; top: -160px; } 100% { opacity: 1; top: 100%; } }
+.ob .wchip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; border-radius: 16px;
+  background: rgba(255,255,255,.88); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px -6px rgba(23,25,28,.3); animation: k-wchip .4s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d); }
+@keyframes k-wchip { from { opacity: 0; transform: scale(.6); } }
+.ob .wchip .tile { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 10px; display: grid; place-items: center; color: #17191C; background: #EEEDE9; }
+.ob .wchip .tile .ico { width: 20px; height: 20px; }
+.ob .wchip .tile.p { color: #D9483F; background: #FBE6E4; }
+.ob .wchip .tile.c { color: #D48A1C; background: #FBEFD9; }
+.ob .wchip .tile.f { color: #3B7BD4; background: #E3EDFA; }
+.ob .wchip span { display: block; font-size: 12px; color: var(--muted); line-height: 1.2; }
+.ob .wchip b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; color: var(--ink); }
+.ob .wchip b small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+.ob .wlink { align-self: center; font-size: 15px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; padding: 10px; }
 .ob .whead { max-width: 440px; display: flex; flex-direction: column; gap: 26px; }
 .ob .whead h1 { font-size: 48px; font-weight: 700; letter-spacing: -.02em; line-height: 1.05; text-wrap: balance; margin: 0; }
 /* The two doors sit side by side, the secondary an outlined button — the board's .row
@@ -319,11 +347,16 @@ export const BOARD_CSS = `
 .ob .wctas .cta { width: auto; padding: 0 28px; }
 .ob .wctas .cta.s { padding: 0 22px; height: 56px; background: var(--surface); color: var(--ink);
                     box-shadow: 0 0 0 1px var(--line); }
-@media (max-width: 940px) { .ob .wcenter { padding: 0; } .ob .wdemo { flex-direction: column; gap: 28px; padding: 0 40px; } .ob .whead h1 { font-size: 34px; } .ob .wctas { flex-direction: column; } }
-@media (prefers-reduced-motion: reduce) {
-  .ob .vdemo video { display: none; }
-  .ob .vdemo .still { display: block; }
+@media (max-width: 940px) {
+  .ob .wcenter { padding: 0; align-items: flex-start; }
+  .ob .wdemo { flex-direction: column; gap: 24px; padding: 0 0 32px !important; width: 100%; }
+  .ob .whero { width: 100%; height: 560px; border-radius: 0; box-shadow: none;
+    -webkit-mask: linear-gradient(#000 78%, transparent); mask: linear-gradient(#000 78%, transparent); }
+  .ob .whead { padding: 0 24px; align-items: stretch; text-align: center; max-width: none; }
+  .ob .whead h1 { font-size: 30px; }
+  .ob .wctas { flex-direction: column; }
 }
+@media (prefers-reduced-motion: reduce) { .ob .whero .sh, .ob .whero .fl, .ob .whero .sw { display: none; } }
 
 /* ── the stop (under-16) ── */
 .ob .stopcard { max-width: 460px; margin: 0 auto; }

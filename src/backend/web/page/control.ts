@@ -14,8 +14,6 @@
 //   - `input[value=none]`   medical's exclusive choice clears the rest (and vice-versa) — the
 //                           server applies the same rule, this is only the row staying honest.
 //   - `form.seg`            the unit toggle carries the current draft across the POST.
-//   - `.vdemo video`        the welcome loop: paused under prefers-reduced-motion (the CSS swap
-//                           already shows its last frame; this just stops it drawing).
 //
 // Readability beats brevity here — one script, no build step, so it is plain ES5-ish and says
 // what it does. Every `data-` attribute is read as untrusted text the server wrote: all of them
@@ -27,8 +25,6 @@ export const CONTROL_SCRIPT = `(function () {
   main.classList.add("js");
 
   var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var vid = document.querySelector(".vdemo video");
-  if (vid) { if (RM) vid.pause(); else { try { vid.play().catch(function () {}); } catch (e) {} } }
 
   // The imperial-height fallback is two fields; when the ruler drives, only answer (total
   // inches) may post — a stale ft/in pair beside it would win instead of it.
