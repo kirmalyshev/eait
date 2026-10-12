@@ -6,6 +6,14 @@ import type { Lang } from "../types.ts";
 export interface PlanCopy {
   /** The journey card's title. */
   goalLine: string;
+  /** The "Your weight" card's title (#2046, Cal AI's order). */
+  weightTitle: string;
+  /** The daily-targets card's title: "Every day". */
+  everyDay: string;
+  /** Under `everyDay`: "You can change this anytime". */
+  changeAnytime: string;
+  /** The answers card's title: "Your info". */
+  infoTitle: string;
   /** The maintain card's title. */
   goalStay: string;
   /** The maintain card's band under its title (#1694); `{range}` is `maintainRange`'s "78–82kg". */
@@ -29,6 +37,7 @@ export interface PlanCopy {
 export const PLAN_COPY: Localized<PlanCopy> = {
   en: {
     goalLine: "Goal: {kg}, around {month}", goalStay: "Goal: stay around {kg}", goalRange: "Range: {range}",
+    weightTitle: "Your weight", everyDay: "Every day", changeAnytime: "You can change this anytime", infoTitle: "Your info",
     satFat: "sat fat", yourPlan: "Your plan", youBurn: "You burn",
     building: "Building your plan", today: "Today",
     method: "Your plan starts from the Mifflin–St Jeor equation, using your age, height, weight, sex and activity. Each new weigh-in recalculates it.",
@@ -36,6 +45,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   fr: {
     goalLine: "Objectif : {kg}, vers {month}", goalStay: "Objectif : rester autour de {kg}", goalRange: "Fourchette : {range}",
+    weightTitle: "Ton poids", everyDay: "Chaque jour", changeAnytime: "Tu peux changer ça quand tu veux", infoTitle: "Tes infos",
     satFat: "graisses sat.", yourPlan: "Ton plan", youBurn: "Tu brûles",
     building: "Création de ton plan", today: "Aujourd’hui",
     method: "Ton plan part de l’équation de Mifflin–St Jeor, avec ton âge, ta taille, ton poids, ton sexe et ton activité. Chaque nouvelle pesée le recalcule.",
@@ -43,6 +53,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   de: {
     goalLine: "Ziel: {kg}, etwa {month}", goalStay: "Ziel: bei etwa {kg} bleiben", goalRange: "Bereich: {range}",
+    weightTitle: "Dein Gewicht", everyDay: "Jeden Tag", changeAnytime: "Du kannst das jederzeit ändern", infoTitle: "Deine Angaben",
     satFat: "ges. Fett", yourPlan: "Dein Plan", youBurn: "Du verbrennst",
     building: "Dein Plan entsteht", today: "Heute",
     method: "Dein Plan beruht auf der Mifflin-St-Jeor-Formel, mit deinem Alter, deiner Größe, deinem Gewicht, Geschlecht und deiner Aktivität. Jedes neue Wiegen berechnet ihn neu.",
@@ -50,6 +61,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   it: {
     goalLine: "Obiettivo: {kg}, intorno a {month}", goalStay: "Obiettivo: restare intorno a {kg}", goalRange: "Intervallo: {range}",
+    weightTitle: "Il tuo peso", everyDay: "Ogni giorno", changeAnytime: "Puoi cambiarlo quando vuoi", infoTitle: "I tuoi dati",
     satFat: "grassi sat.", yourPlan: "Il tuo piano", youBurn: "Bruci",
     building: "Creo il tuo piano", today: "Oggi",
     method: "Il tuo piano parte dall’equazione di Mifflin–St Jeor, con età, altezza, peso, sesso e attività. Ogni nuova pesata lo ricalcola.",
@@ -57,6 +69,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   es: {
     goalLine: "Objetivo: {kg}, hacia {month}", goalStay: "Objetivo: mantenerte en torno a {kg}", goalRange: "Rango: {range}",
+    weightTitle: "Tu peso", everyDay: "Cada día", changeAnytime: "Puedes cambiarlo cuando quieras", infoTitle: "Tus datos",
     satFat: "grasa sat.", yourPlan: "Tu plan", youBurn: "Quemas",
     building: "Creando tu plan", today: "Hoy",
     method: "Tu plan parte de la ecuación de Mifflin–St Jeor, con tu edad, altura, peso, sexo y actividad. Cada nuevo pesaje lo recalcula.",
@@ -64,6 +77,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   vi: {
     goalLine: "Mục tiêu: {kg}, khoảng {month}", goalStay: "Mục tiêu: giữ quanh {kg}", goalRange: "Khoảng: {range}",
+    weightTitle: "Cân nặng của bạn", everyDay: "Mỗi ngày", changeAnytime: "Bạn có thể đổi bất cứ lúc nào", infoTitle: "Thông tin của bạn",
     satFat: "chất béo bão hòa", yourPlan: "Kế hoạch của bạn", youBurn: "Bạn tiêu hao",
     building: "Đang tạo kế hoạch", today: "Hôm nay",
     method: "Kế hoạch của bạn dựa trên công thức Mifflin–St Jeor, từ tuổi, chiều cao, cân nặng, giới tính và mức vận động của bạn. Mỗi lần cân mới, kế hoạch được tính lại.",
@@ -71,6 +85,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   id: {
     goalLine: "Target: {kg}, sekitar {month}", goalStay: "Target: tetap di sekitar {kg}", goalRange: "Rentang: {range}",
+    weightTitle: "Berat badanmu", everyDay: "Setiap hari", changeAnytime: "Kamu bisa mengubahnya kapan saja", infoTitle: "Data dirimu",
     satFat: "lemak jenuh", yourPlan: "Rencanamu", youBurn: "Kamu membakar",
     building: "Menyusun rencanamu", today: "Hari ini",
     method: "Rencanamu dihitung dari rumus Mifflin–St Jeor, dengan usia, tinggi, berat, jenis kelamin, dan aktivitasmu. Setiap timbangan baru menghitungnya ulang.",
@@ -78,6 +93,7 @@ export const PLAN_COPY: Localized<PlanCopy> = {
   },
   ru: {
     goalLine: "Цель: {kg} · ориентир — {month}", goalStay: "Цель: держаться около {kg}", goalRange: "Диапазон: {range}",
+    weightTitle: "Твой вес", everyDay: "Каждый день", changeAnytime: "Это можно изменить в любой момент", infoTitle: "Твои данные",
     satFat: "насыщ. жиры", yourPlan: "Твой план", youBurn: "Ты сжигаешь",
     building: "Составляю твой план", today: "Сегодня",
     method: "Твой план строится на формуле Миффлина — Сан Жеора: возраст, рост, вес, пол и активность. Каждое новое взвешивание пересчитывает его.",
