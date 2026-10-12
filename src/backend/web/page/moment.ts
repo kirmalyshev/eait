@@ -131,13 +131,19 @@ function baselineCards(profile: Profile, lang: Lang): string {
     + row("🚶", b.activity, profile.activity ? optionLabel("activity", profile.activity, lang) : "");
 }
 
-/** The headline for a beat that is a title and nothing else — `possible` says the distance back. */
+/**
+ * 09b's headline, as markup: the distance back with its number in the accent, and the answer on
+ * its own line after the question mark ("Losing <em>6</em>kg?<br>Realistic, and possible!").
+ * `promptsFor` only reaches this with both weights typed and half a kilo or more between them.
+ */
 function possibleTitle(profile: Profile, lang: Lang): string {
   const p = chatCopyFor(lang).possible;
-  const gap = profile.weight_kg !== null && profile.target_weight_kg !== null
-    ? Math.abs(profile.weight_kg - profile.target_weight_kg) : 0;
+  const gap = Math.abs((profile.weight_kg ?? 0) - (profile.target_weight_kg ?? 0));
   const delta = weightDisplay(gap, profile.units ?? "metric", lang);
-  return fill(profile.goal === "gain" ? p.gain : p.lose, { delta });
+  const [before = "", after = ""] = (profile.goal === "gain" ? p.gain : p.lose).split("{delta}");
+  const m = delta.match(/^(.*\d)(.*)$/);
+  const figure = m ? `<em>${escape(m[1]!)}</em>${escape(m[2]!)}` : escape(delta);
+  return (escape(before) + figure + escape(after)).replace(/([?？])\s+/, "$1<br>");
 }
 
 /** An interstitial — the three beats between the questions, then `ontrack` and `how` after them. GET, not POST:
@@ -150,11 +156,17 @@ export function interstitial(
   back: string,
 ): string {
   const copy = chatCopyFor(lang);
+  // 09b is the board's own: the emoji and the headline near the top, Continue at the foot.
+  if (place === "possible") return shell("eait", `${wtop()}
+<div class="wmain one q mom"><div class="wcol">
+${dash(place, lang, { href: back, label: pageCopyFor(lang).back })}
+<div class="pss"><div class="ps"><div class="e" aria-hidden="true">💪</div><h1>${possibleTitle(profile, lang)}</h1></div>
+${ctaLink(continueHref, copy.continueLabel)}</div>
+</div></div>`, lang, "ob");
   const inner = place === "how"
     ? howCards(lang, profile.units ?? "metric")
     : place === "twice" ? twiceCards(lang)
     : place === "baseline" ? baselineCards(profile, lang)
-    : place === "possible" ? ""
     : `<div class="card rel">` +
       `<div class="lab">${escape(copy.chart.weightTrend)}</div>` +
       `<div class="chartw">${ontrackChart(lang)}` +
@@ -166,7 +178,6 @@ export function interstitial(
   const title = place === "how" ? copy.how.title
     : place === "twice" ? copy.twice.title
     : place === "baseline" ? copy.baseline.title
-    : place === "possible" ? possibleTitle(profile, lang)
     : copy.ontrack.title;
   const body = `${wtop()}
 <div class="wmain one q mom${place === "how" ? " wide" : ""}"><div class="wcol">

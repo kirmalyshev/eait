@@ -170,10 +170,23 @@ export function promptsFor(
   const off = new Set(disabled);
   return CHAT_PROMPTS.filter((prompt) => {
     if (prompt.id === "health") return surface.health;
+    if (prompt.id === "possible") return possibleApplies(p);
     if (!prompt.field) return true;
     if (!stepApplies(prompt.field, p)) return false;
     return !off.has(screenForStep(prompt.field));
   });
+}
+
+/**
+ * `possible` says the distance back ("Losing 6 kg?"), so it never runs for a maintainer, and never
+ * once the typed target sits within half a kilo of the weight — a "Losing 0 kg?" is the bug it
+ * guards. Before the target is typed it stays IN: a client that builds its next step from the
+ * walk it held before the write (the web POST does) would otherwise never reach it.
+ */
+export function possibleApplies(p: Profile): boolean {
+  if (p.goal === "maintain") return false;
+  if (p.weight_kg == null || p.target_weight_kg == null) return true;
+  return Math.abs(p.weight_kg - p.target_weight_kg) >= 0.5;
 }
 
 /**

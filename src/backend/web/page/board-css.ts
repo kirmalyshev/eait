@@ -379,6 +379,15 @@ export const BOARD_CSS = `
   .ob .q { font-size: 20px; }
 }
 /* The three beats between the questions: twice, baseline, possible. */
+/* 09b possible: the emoji and the headline near the top, the number in the accent, Continue at the foot. */
+.ob .pss { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 520px; margin: 0 auto; }
+.ob .ps { padding-top: 88px; text-align: center; }
+.ob .ps .e { font-size: 84px; line-height: 1; animation: k-pop .45s var(--ease) .2s both; }
+.ob .ps h1 { margin: 28px 0 0; font-size: 34px; font-weight: 700; letter-spacing: -.035em; line-height: 1.15; text-wrap: balance; }
+.ob .ps h1 em { font-style: normal; color: var(--accent); }
+.ob .pss .cta { margin-top: auto; max-width: none; align-self: stretch; }
+@keyframes k-pop { from { opacity: 0; transform: scale(.4); } 70% { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .ob .ps .e { animation: none; } }
 .ob .twice { display: flex; gap: 28px; justify-content: center; margin-top: 28px; }
 .ob .twice figure { width: 150px; text-align: center; }
 .ob .twice .em { display: block; font-size: 40px; line-height: 1; margin-bottom: 10px; }
