@@ -107,7 +107,7 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * from.
  *
  * `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
- * caption. `how` is the three-beat "whole app" picture. Both sit after the questions, before the plan. `signup` is the
+ * caption. `how` is the three-beat "how it works" picture. Both sit after the questions, before the plan. `signup` is the
  * account step between the plan and `country` — it belongs to the sign-in surface, and this list
  * only holds its place in the order. `referral` is the optional friend's-link step after the
  * country (#899) — it stores nothing on the profile; a code is applied by its own route, and the
