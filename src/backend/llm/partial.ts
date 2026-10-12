@@ -7,6 +7,7 @@
 // parser is a dependency for one field.
 
 import type { MealItem } from "@eait/shared";
+import { LeanItemSchema, leanStreamItem } from "./lean.ts";
 import { MealItemSchema } from "./prompt.ts";
 
 export function itemScanner(onItem: (index: number, item: MealItem) => void): (delta: string) => void {
@@ -49,6 +50,13 @@ export function itemScanner(onItem: (index: number, item: MealItem) => void): (d
             try { value = JSON.parse(item); } catch { /* the model's own bytes; the full parse decides */ }
             const parsed = value === null ? null : MealItemSchema.safeParse(value);
             if (parsed?.success) onItem(index, parsed.data);
+            else {
+              // A row the full schema refuses may still carry grams and a density (#607): the
+              // pending card prices kcal itself, and an item that never emits leaves the stream
+              // silent until the whole answer lands.
+              const lean = value === null ? null : LeanItemSchema.safeParse(value);
+              if (lean?.success) onItem(index, leanStreamItem(lean.data));
+            }
             index++;
             item = null;
           }
