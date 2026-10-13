@@ -831,7 +831,7 @@ export function createRouter(
         const wait = limit(req, peer, "push-consent", deps.config.linesRateLimitPerHour, HOUR);
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const body = await req.json().catch(() => null);
-        if (!isPushConsentRequest(body)) return json({ error: "offers or notifications (boolean) required" }, 400);
+        if (!isPushConsentRequest(body)) return json({ error: "offers, notifications (boolean) or mealReminders required" }, 400);
         return json(await setPushConsent(deps, userId, body));
       }
 

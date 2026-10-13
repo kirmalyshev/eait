@@ -17,6 +17,7 @@ import type { HealthDay } from "./health.ts";
 import type { BmiRange } from "./scores.ts";
 import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
 import type { Entitlement } from "./entitlement.ts";
+import { isMealReminders, type MealReminders } from "./meal-reminders.ts";
 import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
@@ -1404,6 +1405,8 @@ export interface PushConsentRequest {
   offers?: boolean;
   /** The account-wide switch: false = no push of any kind. Default true. */
   notifications?: boolean;
+  /** Per-meal reminders (#902): whole object, all three slots. They are LOCAL notifications on the iPhone. */
+  mealReminders?: MealReminders;
 }
 
 /** `at` is when offers were turned on, or null while they are off. `notifications` is the account-wide switch. */
@@ -1411,16 +1414,19 @@ export interface PushConsentResponse {
   offers: boolean;
   at: string | null;
   notifications: boolean;
+  /** The account's per-meal reminder settings; the defaults while it never chose. */
+  mealReminders: MealReminders;
   /** The VAPID public key a browser subscribes with, or null when this server does not send Web Push. */
   webPushKey: string | null;
 }
 
 export function isPushConsentRequest(body: unknown): body is PushConsentRequest {
   if (typeof body !== "object" || body === null) return false;
-  const { offers, notifications } = body as Record<string, unknown>;
+  const { offers, notifications, mealReminders } = body as Record<string, unknown>;
   if (offers !== undefined && typeof offers !== "boolean") return false;
   if (notifications !== undefined && typeof notifications !== "boolean") return false;
-  return offers !== undefined || notifications !== undefined;
+  if (mealReminders !== undefined && !isMealReminders(mealReminders)) return false;
+  return offers !== undefined || notifications !== undefined || mealReminders !== undefined;
 }
 
 /** What a register or an unregister answers. `registered` is the state AFTER the call. */

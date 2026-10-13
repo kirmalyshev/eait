@@ -7120,6 +7120,43 @@
         ],
         "additionalProperties": false
       },
+      "MealReminder": {
+        "type": "object",
+        "properties": {
+          "on": {
+            "type": "boolean"
+          },
+          "time": {
+            "type": "string",
+            "description": "`HH:MM`, 24-hour, in the account's zone."
+          }
+        },
+        "required": [
+          "on",
+          "time"
+        ],
+        "additionalProperties": false
+      },
+      "MealReminders": {
+        "type": "object",
+        "properties": {
+          "breakfast": {
+            "$ref": "#/components/schemas/MealReminder"
+          },
+          "lunch": {
+            "$ref": "#/components/schemas/MealReminder"
+          },
+          "dinner": {
+            "$ref": "#/components/schemas/MealReminder"
+          }
+        },
+        "required": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ],
+        "additionalProperties": false
+      },
       "MealUpdateKind": {
         "type": "string",
         "enum": [
@@ -8892,6 +8929,10 @@
           "notifications": {
             "type": "boolean",
             "description": "The account-wide switch: false = no push of any kind. Default true."
+          },
+          "mealReminders": {
+            "$ref": "#/components/schemas/MealReminders",
+            "description": "Per-meal reminders (#902): whole object, all three slots. They are LOCAL notifications on the iPhone."
           }
         },
         "additionalProperties": false
@@ -8911,6 +8952,10 @@
           "notifications": {
             "type": "boolean"
           },
+          "mealReminders": {
+            "$ref": "#/components/schemas/MealReminders",
+            "description": "The account's per-meal reminder settings; the defaults while it never chose."
+          },
           "webPushKey": {
             "type": [
               "string",
@@ -8923,6 +8968,7 @@
           "offers",
           "at",
           "notifications",
+          "mealReminders",
           "webPushKey"
         ],
         "additionalProperties": false,

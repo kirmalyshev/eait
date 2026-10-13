@@ -14,13 +14,13 @@
 import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
-import type { PushKind, SavedMeal, SendKind, SendLogState } from "@eait/shared";
+import type { MealReminders, PushKind, SavedMeal, SendKind, SendLogState } from "@eait/shared";
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealFocus, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, isMealReminders, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -1243,6 +1243,8 @@ alter table users add column if not exists marketing_consent_at timestamptz;
 alter table users add column if not exists push_offers_at timestamptz;
 -- The account-wide notifications opt-out, set from the in-app switch only. Null = pushes allowed.
 alter table users add column if not exists push_off_at timestamptz;
+-- Per-meal reminder switches and times (#902): {breakfast:{on,time},lunch,dinner}. Null = never chosen.
+alter table users add column if not exists meal_reminders jsonb;
 
 -- ── The food catalog ─────────────────────────────────────────────────────────────────────────
 --
@@ -1742,6 +1744,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   setPushOffers: 0,
   pushOffOf: 0,
   setPushOff: 0,
+  mealRemindersOf: 0,
+  setMealReminders: 0,
   consentOf: 0,
   getProfile: 0,
   patchProfile: 0,
@@ -2204,6 +2208,16 @@ export async function postgresStore(
       await sql`update users set push_off_at = case
           when ${off} then coalesce(push_off_at, now()) else null end
         where id = ${userId}`;
+    },
+
+    async mealRemindersOf(userId) {
+      const rows = await sql`select meal_reminders from users where id = ${userId}`;
+      const v = (rows[0] as { meal_reminders: unknown } | undefined)?.meal_reminders ?? null;
+      return isMealReminders(v) ? v : null;
+    },
+
+    async setMealReminders(userId, settings) {
+      await sql`update users set meal_reminders = ${JSON.stringify(settings)}::jsonb where id = ${userId}`;
     },
 
     async consentOf(userId) {

@@ -4,6 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
+import type { MealReminders } from "@eait/shared";
 import { FOOD_SOURCE_IDS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
@@ -136,6 +137,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // not answer it would be a store the panel had to guess against.
   const createdAt = new Map<string, number>();
   const pushOffers = new Map<string, string>();
+  const mealReminders = new Map<string, MealReminders>();
   const pushOff = new Map<string, string>();
   /**
    * Roles, in their own map rather than on the profile (#391a).
@@ -427,6 +429,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // that consented and was deleted keeps neither the record nor the timestamp.
     consents.delete(userId);
     pushOffers.delete(userId);
+    mealReminders.delete(userId);
     pushOff.delete(userId);
     // The evening line's claim goes with the account, like the consent stamp beside it.
     timezones.delete(userId);
@@ -597,6 +600,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!users.has(userId)) return;
       if (!off) pushOff.delete(userId);
       else if (!pushOff.has(userId)) pushOff.set(userId, new Date().toISOString());
+    },
+
+    async mealRemindersOf(userId) {
+      return mealReminders.get(userId) ?? null;
+    },
+
+    async setMealReminders(userId, settings) {
+      if (users.has(userId)) mealReminders.set(userId, settings);
     },
 
     async consentOf(userId) {
