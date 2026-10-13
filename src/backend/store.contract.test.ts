@@ -4757,7 +4757,7 @@ if (PG_URL) {
         .sort();
       expect(unscoped).toEqual([
         "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
-        "countClipAnalyses", "countGlobalAnalyses", "createCampaign", "createUser", "expireJobs", "foodCandidates",
+        "countClipAnalyses", "countGlobalAnalyses", "countOnboardedSince", "createCampaign", "createUser", "expireJobs",
         "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
         "getPrompts",
         // #899: the referrer is found by code, rewarded from a webhook, and its friends counted —
@@ -4771,7 +4771,10 @@ if (PG_URL) {
         // and scoping to a user that may not exist yet is not a concept the table has (#569).
         "putEmailCode",
         "putFoodRefs", "putNotificationCopy",
-        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "recordReferralOpen", "recordReferralRefusal", "redeemReferral", "referralOf", "referralStats", "releaseJobs", "revokeReferralWeek",
+        "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "recordReferralOpen", "recordReferralRefusal", "redeemReferral", "referralOf", "referralStats",
+        // #615: rebuilds the food index over `food_ref`, a table belonging to nobody.
+        "refreshFoodIndex",
+        "releaseJobs", "revokeReferralWeek",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
         "setSwitch", "spendEmailCode", "switchEnabled", "switchHistory", "updateCampaign",
         "upsertDeviceUser", "userIdForIdentity", "userIdForToken",

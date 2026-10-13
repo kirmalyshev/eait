@@ -33,23 +33,24 @@ test("without a share sheet it copies the link instead, and says so", async ({ i
 // Review of #600: what the referral weeks mean for this account, drawn from the server's numbers —
 // the bank while a subscription runs, the date while the bonus is what keeps the account in.
 const withProfile = async (page: import("@playwright/test").Page, edit: (p: Record<string, any>) => void): Promise<Record<string, any>> => {
-  let body: Record<string, any> = {};
+  let edited!: (body: Record<string, any>) => void;
+  const handled = new Promise<Record<string, any>>((resolve) => { edited = resolve; });
   await page.route("**/api/v1/profile", async (route) => {
     const res = await route.fetch();
-    body = await res.json() as Record<string, any>;
+    const body = await res.json() as Record<string, any>;
     edit(body);
+    edited(body);
     await route.fulfill({ response: res, json: body });
   });
-  // The response the edit went into, AWAITED before the body is handed back. The profile request
-  // is the render's second fetch — it follows the session-token POST — so `reload()`'s load event
-  // resolves while it is still in flight. A caller that instead read a variable the handler sets
-  // found its initial value: "UTC" beside the card's Europe/Berlin, a day behind every night once
-  // the bonus instant crosses 23:00 UTC (#604).
-  const answered = page.waitForResponse("**/api/v1/profile");
+  // The body the handler edited, AWAITED from the handler itself. The profile request is the
+  // render's second fetch — it follows the session-token POST — so `reload()`'s load event resolves
+  // while it is still in flight, and a caller that read a variable the handler sets found its
+  // initial value: "UTC" beside the card's Europe/Berlin, a day behind every night once the bonus
+  // instant crosses 23:00 UTC (#604), and `{}` — so `timezone` undefined — when a
+  // `waitForResponse` settled before the handler had run (#619).
   await page.goto("/#/you");
   await page.reload();
-  await answered;
-  return body;
+  return handled;
 };
 
 test("a paying referrer is told the whole weeks banked behind the subscription", async ({ inWebApp: page }) => {

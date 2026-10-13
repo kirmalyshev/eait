@@ -1,27 +1,14 @@
-// Pairing a browser with an account that already exists. Issue #209.
+// The short-lived code that links a Telegram account. Issue #209.
 //
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// WHAT THIS IS, AND THE THREE THINGS IT IS NOT
+// An authenticated app session mints a code (`POST /v1/auth/pair`, or `POST /start/telegram`); the
+// Telegram bot spends it with `/start <code>` and `linkTelegram` (`engine/identity.ts`) attaches the
+// `telegram` identity to the minting account. It was also redeemable for a browser session until the
+// email sign-in (#569) gave the browser its own way in.
 //
-// An install that never signed in has one credential: a device id in the phone's Keychain. There is
-// nothing to type into a sign-in page, so a browser cannot reach that account at all. This is the
-// bridge — an authenticated app session mints a short-lived code, and a browser trades it for the
-// ordinary session token `/start`'s OAuth callback mints.
-//
-// It is NOT a sign-in: `createUser` is never called here, and the account on the far side of a
-// redemption is one that already existed.
-// It is NOT an identity: `addIdentity` and `signInWithProvider` are never called either, so a
-// paired account is exactly as anonymous afterwards as it was before, and `engine/identity.ts`'s
-// merge rules are untouched by construction — this file does not import it. The one consumer that
-// does attach an identity with a code, `linkTelegram`, lives there and spends it through `claimCode`.
-// It is NOT a grant: no entitlement, no cap, no allowance. A paired browser is the same account
-// through a second window.
-//
-// THE INVARIANT IT KEEPS. `userId` reaches the engine as an argument resolved from a credential the
-// server verified. Minting takes the caller's own account from `resolveUserId`; redeeming takes the
-// account out of the STORE, by the hash of the code. Neither side ever reads a user id a client
-// sent, and the routes have a test each that says so with a crafted body.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// It is NOT a sign-in and NOT a grant: `createUser` is never called here, and no entitlement, cap
+// or allowance moves with it. Minting takes the caller's own account from `resolveUserId`; spending
+// takes the account out of the STORE, by the hash of the code. Neither side reads a user id a
+// client sent.
 
 import { hashToken } from "../auth/tokens.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -101,12 +88,4 @@ export async function claimCode(deps: EngineDeps, raw: string): Promise<string |
   const code = raw.toUpperCase().replace(/[\s-]/g, "");
   if (!CODE.test(code)) return null;
   return deps.store.claimPairingCode(await hashToken(code));
-}
-
-/** Spend a code and hand back an ordinary session token, or null (see `claimCode`). */
-export async function redeemPairingCode(deps: EngineDeps, raw: string): Promise<string | null> {
-  const userId = await claimCode(deps, raw);
-  // `issueToken` and nothing else. The browser gets the same token the app holds and the same one
-  // the OAuth callback mints, so no route downstream learns that a session can come from here.
-  return userId === null ? null : deps.store.issueToken(userId);
 }

@@ -13,7 +13,7 @@ import type { EngineDeps } from "../engine/index.ts";
 import type { LlmPorts } from "../llm/port.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
-import { redeemPairingCode } from "../engine/pairing.ts";
+import { claimCode } from "../engine/pairing.ts";
 import { fakePush } from "../push/fake.ts";
 import { logMail } from "../mail/log.ts";
 
@@ -1541,50 +1541,6 @@ describe("POST /v1/auth/pair", () => {
     expect(res.status).toBe(401);
   });
 
-  /**
-   * #408. THE ADDRESS COMES FROM THE SERVER, because the app that prints it outlives the server
-   * that serves it.
-   *
-   * Every build already on a phone derived this string from its own compiled-in `API_URL` and
-   * printed `api.eait.fit/start`. That name stops serving the page the day #395 finishes, and a
-   * shipped binary cannot be told otherwise — which is why `api/routes.ts` answers those with a
-   * permanent 301 and why this field exists: the NEXT move needs no new build.
-   */
-  it("sends the pairing address on the browser's origin, not the API's", async () => {
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "https://app.eait.fit" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
-    const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
-    }));
-    const { token } = await res.json() as { token: string };
-    const view = await (await h(new Request("https://api.eait.fit" + ROUTES.profile, {
-      headers: { authorization: `Bearer ${token}` },
-    }))).json() as ProfileResponse;
-
-    // The host a person types into an address bar, and the path that answers there. No scheme:
-    // this is read aloud off a phone screen.
-    expect(view.pairAddress).toBe("app.eait.fit/start");
-  });
-
-  it("falls back to the API's own origin, which is every host that has not moved yet", async () => {
-    const s = memoryStore();
-    const config: Config = { ...CONFIG, publicApiUrl: "https://api.eait.fit", publicWebUrl: "" };
-    const h = createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
-    const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
-    }));
-    const { token } = await res.json() as { token: string };
-    const view = await (await h(new Request("https://api.eait.fit" + ROUTES.profile, {
-      headers: { authorization: `Bearer ${token}` },
-    }))).json() as ProfileResponse;
-    expect(view.pairAddress).toBe("api.eait.fit/start");
-  });
-
   it("names the Telegram bot only while the connector has reached Telegram, read per request", async () => {
     // The SAME config object the connector writes the username onto after getMe, and empties again
     // on a dead token. A copy taken at router construction would keep a link to a bot that is gone.
@@ -1608,22 +1564,13 @@ describe("POST /v1/auth/pair", () => {
     expect(await read()).toBeNull();
   });
 
-  it("says nothing rather than guessing when this server knows neither origin", async () => {
-    // Development, where nobody sets either variable. An empty string is what lets the app keep
-    // using the host it is already talking to — a guess made here would be wrong on every
-    // worktree at once, and wrong in a string a person is asked to type.
-    const token = await session();
-    const view = await (await get(ROUTES.profile, token)).json() as ProfileResponse;
-    expect(view.pairAddress).toBe("");
-  });
-
   /**
    * THE INVARIANT, with a crafted body.
    *
    * `userId` is resolved from the credential and passed as an argument; a request that names
    * somebody else names nothing. This is the assertion that would fail the day a handler starts
    * reading the body, and it is worth more here than anywhere else on the server, because what this
-   * route hands out is a way into an account.
+   * route hands out is a link to an account.
    */
   it("mints for the BEARER's account even when the body names another user", async () => {
     const mine = await session();
@@ -1632,11 +1579,10 @@ describe("POST /v1/auth/pair", () => {
       .profile.user_id;
 
     const { code } = await (await post(ROUTES.authPair, { userId: victim }, mine)).json() as PairCodeResponse;
-    const paired = await redeemPairingCode(
+    const landedOn = await claimCode(
       { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() },
       code,
     );
-    const landedOn = await store.userIdForToken(paired!);
     expect(landedOn).not.toBe(victim);
     expect(landedOn).toBe(await store.userIdForToken(mine));
   });

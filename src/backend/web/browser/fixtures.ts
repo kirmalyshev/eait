@@ -74,7 +74,7 @@ export async function signIn(page: Page, subject: string, provider: "apple" | "g
  * an array ticks those checkboxes, which is how a chips answer like restrictions is given. */
 export async function onboard(page: Page, extra: Record<string, string | string[]> = {}) {
   const answers: Record<string, string | string[]> = { ...ANSWERS, ...extra };
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 40; i++) {
     if (/\/start\/plan/.test(page.url())) return;
     const promptEl = page.locator('input[name="prompt"]').first();
     const prompt = (await promptEl.count()) ? await promptEl.getAttribute("value") : null;

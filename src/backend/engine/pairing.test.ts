@@ -7,7 +7,7 @@ import { fakePush } from "../push/fake.ts";
 import { logMail } from "../mail/log.ts";
 import type { EngineDeps } from "./deps.ts";
 import { identitiesFor, isAnonymous, linkTelegram } from "./identity.ts";
-import { PAIR_TTL_MS, mintPairingCode, redeemPairingCode } from "./pairing.ts";
+import { PAIR_TTL_MS, claimCode, mintPairingCode } from "./pairing.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -55,27 +55,24 @@ describe("minting", () => {
     const userId = await anonymous();
     const first = await mintPairingCode(deps, userId);
     const second = await mintPairingCode(deps, userId);
-    expect(await redeemPairingCode(deps, first.code)).toBeNull();
-    expect(await redeemPairingCode(deps, second.code)).not.toBeNull();
+    expect(await claimCode(deps, first.code)).toBeNull();
+    expect(await claimCode(deps, second.code)).not.toBeNull();
   });
 });
 
-describe("redeeming", () => {
-  it("mints an ordinary session token on the account that minted the code", async () => {
+describe("claiming", () => {
+  it("names the account that minted the code", async () => {
     const userId = await anonymous();
     const { code } = await mintPairingCode(deps, userId);
 
-    const token = await redeemPairingCode(deps, code);
-    expect(token).not.toBeNull();
-    // The SAME thing `userIdForToken` resolves — no second auth path was invented.
-    expect(await store.userIdForToken(token!)).toBe(userId);
+    expect(await claimCode(deps, code)).toBe(userId);
   });
 
   it("works once", async () => {
     const userId = await anonymous();
     const { code } = await mintPairingCode(deps, userId);
-    expect(await redeemPairingCode(deps, code)).not.toBeNull();
-    expect(await redeemPairingCode(deps, code)).toBeNull();
+    expect(await claimCode(deps, code)).toBe(userId);
+    expect(await claimCode(deps, code)).toBeNull();
   });
 
   it("refuses a code past its TTL", async () => {
@@ -88,14 +85,14 @@ describe("redeeming", () => {
     const { code } = await mintPairingCode(d, userId);
 
     ahead = PAIR_TTL_MS + 1_000;
-    expect(await redeemPairingCode(d, code)).toBeNull();
+    expect(await claimCode(d, code)).toBeNull();
   });
 
   it("takes a code the way a person types one — lower case, spaces, dashes", async () => {
     const userId = await anonymous();
     const { code } = await mintPairingCode(deps, userId);
     const typed = ` ${code.slice(0, 4).toLowerCase()}-${code.slice(4).toLowerCase()} `;
-    expect(await store.userIdForToken((await redeemPairingCode(deps, typed))!)).toBe(userId);
+    expect(await claimCode(deps, typed)).toBe(userId);
   });
 
   it("refuses a malformed code WITHOUT touching the store", async () => {
@@ -109,23 +106,22 @@ describe("redeeming", () => {
     };
     const d: EngineDeps = { ...deps, store: watched };
     for (const bad of ["", "SHORT", "TOOLONGCODE", "ABCD234!", "ABCDILOU", "ABCD 2345 6"]) {
-      expect(await redeemPairingCode(d, bad)).toBeNull();
+      expect(await claimCode(d, bad)).toBeNull();
     }
     expect(asked).toBe(0);
   });
 
   it("refuses a well-formed code nobody minted", async () => {
-    expect(await redeemPairingCode(deps, "ABCD2345")).toBeNull();
+    expect(await claimCode(deps, "ABCD2345")).toBeNull();
   });
 });
 
-describe("what pairing must never do", () => {
+describe("what a code must never do", () => {
   /**
    * The ticket's third acceptance line, as an assertion.
    *
-   * Redemption hands a browser a session on an account that already exists. It is not a sign-in, so
-   * it creates no user; it is not an identity, so it links no provider and merges nothing. A
-   * paired account is still anonymous, and `engine/identity.ts` is not in this diff at all.
+   * Claiming a code names an account that already exists. It is not a sign-in, so it creates no
+   * user; it is not an identity, so it links no provider and merges nothing. The account is still anonymous, and `engine/identity.ts` is not in this diff at all.
    */
   it("creates no user, links no identity, and leaves the account anonymous", async () => {
     const userId = await anonymous();
@@ -133,9 +129,7 @@ describe("what pairing must never do", () => {
     expect(await isAnonymous(deps, userId)).toBe(true);
 
     const { code } = await mintPairingCode(deps, userId);
-    const token = await redeemPairingCode(deps, code);
-
-    expect(await store.userIdForToken(token!)).toBe(userId);
+    expect(await claimCode(deps, code)).toBe(userId);
     // Same identities, still only the device one, still anonymous. A merge or a link would show up
     // in every one of these.
     expect(await identitiesFor(deps, userId)).toEqual(before);
@@ -143,11 +137,11 @@ describe("what pairing must never do", () => {
     expect(await isAnonymous(deps, userId)).toBe(true);
   });
 
-  it("grants nothing: the paired session carries the account's own entitlement and sample", async () => {
+  it("grants nothing: claiming carries the account's own entitlement and sample", async () => {
     const userId = await anonymous();
     const { code } = await mintPairingCode(deps, userId);
-    await redeemPairingCode(deps, code);
-    // Nothing about pairing writes an entitlement — only the RevenueCat webhook can.
+    await claimCode(deps, code);
+    // Nothing about a code writes an entitlement — only the RevenueCat webhook can.
     expect(await store.getEntitlement(userId)).toBeNull();
     expect(await store.countUserAnalyses(userId)).toBe(0);
   });
@@ -166,7 +160,7 @@ describe("linking Telegram with a code", () => {
     expect(await linkTelegram(deps, code, TG)).toBe("invalid");
   });
 
-  it("takes the code the way the pairing form does, and refuses one nobody minted", async () => {
+  it("takes the code the way a person types one, and refuses one nobody minted", async () => {
     const userId = await anonymous();
     const { code } = await mintPairingCode(deps, userId);
     expect(await linkTelegram(deps, "ABCD2345", TG)).toBe("invalid");

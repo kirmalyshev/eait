@@ -38,6 +38,7 @@ import {
 import { fill, kcalNumbers, numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth, previewProjection } from "./projection.ts";
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
+import { planCopyFor } from "./app/plan-copy.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { ACTIVITY_LEVELS, PACES, SEXES, STREAK_GOALS, STRUGGLES } from "./types.ts";
@@ -57,8 +58,8 @@ import {
  * already passed it (see `resumeAt`).
  */
 export type ChatPromptId =
-  | "welcome" | "goal" | "how" | "sex" | "birth_year" | "height_cm" | "weight_kg"
-  | "activity" | "target_weight_kg" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
+  | "welcome" | "goal" | "how" | "sex" | "twice" | "birth_year" | "height_cm" | "weight_kg"
+  | "baseline" | "activity" | "target_weight_kg" | "possible" | "pace" | "struggles" | "streak_goal_days" | "ontrack"
   | "diet" | "medical" | "summary" | "signup" | "country" | "health";
 
 /**
@@ -101,11 +102,17 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
   { id: "sex", place: "sex", field: "sex", kind: "choice", options: SEXES },
+  // Three beats between the questions: each reads the profile and writes nothing. `twice` is the
+  // cited-study card, `baseline` the BMI the typed height and weight compute, `possible` the target
+  // distance said back. Their READER is the funnel (`place`), the way `referral`'s is.
+  { id: "twice", place: "twice", kind: "auto" },
   { id: "birth_year", place: "age", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "height", field: "height_cm", kind: "number" },
   { id: "weight_kg", place: "weight", field: "weight_kg", kind: "number" },
+  { id: "baseline", place: "baseline", kind: "auto" },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ACTIVITY_LEVELS },
   { id: "target_weight_kg", place: "target", field: "target_weight_kg", kind: "number" },
+  { id: "possible", place: "possible", kind: "auto" },
   { id: "pace", place: "pace", field: "pace", kind: "choice", options: PACES },
   { id: "struggles", place: "struggles", field: "struggles", kind: "chips", options: STRUGGLES },
   { id: "streak_goal_days", place: "streak", field: "streak_goal_days", kind: "choice", options: STREAK_GOALS.map(String) },
@@ -116,7 +123,7 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   // The two value beats sit after the questions, just before the plan: what the answers are for.
   // The two-ways chart: a beat, not a question — it reads `struggles` and writes nothing.
   { id: "ontrack", place: "ontrack", kind: "auto" },
-  // The "whole app" picture: three beats, no answer. Its words are the compiled `how` copy.
+  // The "how it works" picture: three beats, no answer. Its words are the compiled `how` copy.
   { id: "how", place: "how", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
   // The account step — the sign-in surface owns it (S8); this list holds its PLACE in the order.
@@ -164,10 +171,26 @@ export function promptsFor(
   const off = new Set(disabled);
   return CHAT_PROMPTS.filter((prompt) => {
     if (prompt.id === "health") return surface.health;
+    if (prompt.id === "possible") return possibleApplies(p);
+    // "Lose twice as much weight" is a claim about losing — a maintainer or a gainer is not told it.
+    // Kept while the goal is unanswered, for the reason `possibleApplies` gives.
+    if (prompt.id === "twice") return p.goal === null || p.goal === "lose";
     if (!prompt.field) return true;
     if (!stepApplies(prompt.field, p)) return false;
     return !off.has(screenForStep(prompt.field));
   });
+}
+
+/**
+ * `possible` says the distance back ("Losing 6 kg?"), so it never runs for a maintainer, and never
+ * once the typed target sits within half a kilo of the weight — a "Losing 0 kg?" is the bug it
+ * guards. Before the target is typed it stays IN: a client that builds its next step from the
+ * walk it held before the write (the web POST does) would otherwise never reach it.
+ */
+export function possibleApplies(p: Profile): boolean {
+  if (p.goal === "maintain") return false;
+  if (p.weight_kg == null || p.target_weight_kg == null) return true;
+  return Math.abs(p.weight_kg - p.target_weight_kg) >= 0.5;
 }
 
 /**
@@ -724,20 +747,41 @@ export function ontrackCaption(picked: readonly Struggle[] | null, lang: Lang): 
 }
 
 /**
- * The figures drawn INSIDE the "How it works" cards — the persona's own numbers, fixed to the
- * boards (`onboarding/02-how`): the grain-bowl photo, the salmon card and the mini estimate
- * curve are all drawn before a single answer exists, so nothing here is computed. The dish's
- * NAME is copy (`how.meal`); the numbers are this constant so no surface retypes them.
+ * The demo meal drawn INSIDE "How it works" — the persona's salmon plate, fixed to the boards,
+ * because no meal exists yet. The dish's NAME is copy (`how.meal`); the numbers are this constant
+ * so no surface retypes them. The progress row is NOT here: it is the user's own (`howProgress`).
  */
 export const HOW_DEMO = {
-  startKg: 74,
-  targetKg: 68,
   meal: { kcal: 540, proteinG: 34, carbsG: 48, fatG: 23 },
   /** The card's two verdict lines — dimensions and verdicts, the words are `verdictPillLabel`'s. */
   verdicts: [
     { dimension: "weight", verdict: "warn" },
     { dimension: "ldl", verdict: "warn" },
   ] as const satisfies readonly { dimension: VerdictDimension; verdict: Verdict }[],
+} as const;
+
+/**
+ * The progress row of "How it works" (16): the user's OWN weight and target where both are typed
+ * and they differ (ieat-app#2050) — `how` runs after the target, so that is everyone losing or
+ * gaining. Null for a maintainer or a walk with no target, and a client then draws no progress
+ * row: never the persona's 74 → 68, which would be somebody else's numbers.
+ */
+export function howProgress(p: Profile): { startKg: number; targetKg: number } | null {
+  return p.goal !== "maintain" && p.weight_kg != null && p.target_weight_kg != null && p.weight_kg !== p.target_weight_kg
+    ? { startKg: p.weight_kg, targetKg: p.target_weight_kg }
+    : null;
+}
+
+/**
+ * The BMI meter on `baseline` (07b): the bar runs 15 → 40 and is labelled at the WHO band edges
+ * between, as the board draws it. `at` is a value's place on the bar, 0–100.
+ */
+export const BMI_AXIS = {
+  min: 15,
+  max: 40,
+  ticks: [15, 18.5, 25, 30, 40],
+  at: (value: number): number =>
+    Math.round((Math.min(Math.max(value, 15), 40) - 15) / (40 - 15) * 1000) / 10,
 } as const;
 
 /**
@@ -785,6 +829,40 @@ export function pacePreview(
       ? fill(copy.floorMarker, { floor: kcalNumbers(lang)(basis.floorKcal) })
       : marker === "cap" ? copy.capMarker : null,
   };
+}
+
+/**
+ * The target question's goal line (09, ieat-app#2050): "Goal: lose 6kg by January 2027" for a
+ * target the ruler sits on. Pace is asked AFTER the target, so the month is the steady pace's —
+ * the one the pace screen then opens on — unless a pace is already stored. Null where there is no
+ * honest date: no weight, the target within half a kilo of it, past the horizon, or a target the
+ * guards would turn around.
+ */
+export function targetGoalLine(p: Profile, targetKg: number, units: Units, today: Date, lang: Lang): string | null {
+  if (p.weight_kg === null || Math.abs(p.weight_kg - targetKg) < 0.5) return null;
+  const proj = previewProjection(p, targetKg, p.pace ?? "steady");
+  if (proj === null || proj.beyondHorizon) return null;
+  const c = planCopyFor(lang);
+  return fill(targetKg < p.weight_kg ? c.goalLose : c.goalGain, {
+    kg: weightDisplay(Math.abs(p.weight_kg - targetKg), units, lang),
+    month: projectionMonth(today, proj.weeks, lang),
+  });
+}
+
+/**
+ * What a streak of `days` is worth on THIS plan — the streak question's "−0.9 kg" beside "14 days"
+ * (ieat-app#2050). The rate is `previewProjection`'s, the one the pace screen showed, so it is the
+ * plan's own and never the board's sample; capped at the distance left, since a streak cannot carry
+ * anybody past their own target. Null — and the row draws no figure — wherever the projection has
+ * none: maintain, no pace yet, a target the guards turned around.
+ */
+export function streakDelta(p: Profile, days: number, lang: Lang): string | null {
+  if (p.goal === "maintain" || p.pace === null || p.target_weight_kg === null) return null;
+  const proj = previewProjection(p, p.target_weight_kg, p.pace);
+  if (proj === null) return null;
+  const kg = Math.round(Math.min(proj.kgToGo, (proj.kgPerWeek * days) / 7) * 10) / 10;
+  if (kg === 0) return null;
+  return `${p.goal === "gain" ? "+" : "−"}${weightDisplay(kg, p.units ?? "metric", lang)}`;
 }
 
 /**

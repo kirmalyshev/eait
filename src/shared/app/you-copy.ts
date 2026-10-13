@@ -166,8 +166,7 @@ export interface YouCopy {
      */
     signOutBrowser: string;
     /**
-     * The Account panel's one row for an anonymous account — a browser paired onto a phone that
-     * never signed in, or a `/start` flow nobody finished: no provider names it and signing out
+     * The Account panel's one row for an anonymous account — a `/start` flow nobody finished: no provider names it and signing out
      * would orphan it, so the row offers the way in instead (the phone's `signInOffer` lives in
      * the app's own table, unreachable here). A link to `/start`.
      */
@@ -308,11 +307,6 @@ export interface YouCopy {
     signedInWith: string;
     signOutThis: string;
     signOutEverywhere: string;
-    /** The pairing card's label: "Use eait in a browser". */
-    pairingTitle: string;
-    /** Under the code: "{url} · expires at {time}" — `{url}` is the /start host, `{time}` `Intl`. */
-    pairingHint: string;
-    newPairingCode: string;
     /** The destructive CTA: "Delete everything". */
     deleteEverything: string;
     /** The sheet's question: "Delete your account?" */
@@ -479,9 +473,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Signed in with",
       signOutThis: "Sign out of this account",
       signOutEverywhere: "Sign out everywhere",
-      pairingTitle: "Use eait in a browser",
-      pairingHint: "{url} · expires at {time}",
-      newPairingCode: "New pairing code",
       deleteEverything: "Delete everything",
       deleteTitle: "Delete your account?",
       deleteBody:
@@ -618,9 +609,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Connecté avec",
       signOutThis: "Se déconnecter de ce compte",
       signOutEverywhere: "Se déconnecter partout",
-      pairingTitle: "Utiliser eait dans un navigateur",
-      pairingHint: "{url} · expire à {time}",
-      newPairingCode: "Nouveau code d'association",
       deleteEverything: "Tout supprimer",
       deleteTitle: "Supprimer ton compte ?",
       deleteBody:
@@ -757,9 +745,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Angemeldet mit",
       signOutThis: "Von diesem Konto abmelden",
       signOutEverywhere: "Überall abmelden",
-      pairingTitle: "eait im Browser nutzen",
-      pairingHint: "{url} · läuft um {time} ab",
-      newPairingCode: "Neuer Kopplungscode",
       deleteEverything: "Alles löschen",
       deleteTitle: "Dein Konto löschen?",
       deleteBody:
@@ -896,9 +881,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Accesso con",
       signOutThis: "Esci da questo account",
       signOutEverywhere: "Esci ovunque",
-      pairingTitle: "Usa eait in un browser",
-      pairingHint: "{url} · scade alle {time}",
-      newPairingCode: "Nuovo codice di abbinamento",
       deleteEverything: "Elimina tutto",
       deleteTitle: "Eliminare il tuo account?",
       deleteBody:
@@ -1035,9 +1017,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Sesión iniciada con",
       signOutThis: "Cerrar sesión en esta cuenta",
       signOutEverywhere: "Cerrar sesión en todas partes",
-      pairingTitle: "Usar eait en un navegador",
-      pairingHint: "{url} · caduca a las {time}",
-      newPairingCode: "Nuevo código de vinculación",
       deleteEverything: "Borrar todo",
       deleteTitle: "¿Eliminar tu cuenta?",
       deleteBody:
@@ -1174,9 +1153,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Đăng nhập bằng",
       signOutThis: "Đăng xuất khỏi tài khoản này",
       signOutEverywhere: "Đăng xuất mọi nơi",
-      pairingTitle: "Dùng eait trên trình duyệt",
-      pairingHint: "{url} · hết hạn lúc {time}",
-      newPairingCode: "Mã ghép mới",
       deleteEverything: "Xóa tất cả",
       deleteTitle: "Xóa tài khoản của bạn?",
       deleteBody:
@@ -1313,9 +1289,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Masuk dengan",
       signOutThis: "Keluar dari akun ini",
       signOutEverywhere: "Keluar di semua perangkat",
-      pairingTitle: "Pakai eait di browser",
-      pairingHint: "{url} · kedaluwarsa pukul {time}",
-      newPairingCode: "Kode penautan baru",
       deleteEverything: "Hapus semuanya",
       deleteTitle: "Hapus akunmu?",
       deleteBody:
@@ -1452,9 +1425,6 @@ export const YOU_COPY: Localized<YouCopy> = {
       signedInWith: "Вход через",
       signOutThis: "Выйти из этого аккаунта",
       signOutEverywhere: "Выйти везде",
-      pairingTitle: "eait в браузере",
-      pairingHint: "{url} · истекает в {time}",
-      newPairingCode: "Новый код привязки",
       deleteEverything: "Удалить всё",
       deleteTitle: "Удалить аккаунт?",
       deleteBody:

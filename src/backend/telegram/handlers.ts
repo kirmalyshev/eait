@@ -95,8 +95,8 @@ const HOUR = 60 * 60 * 1000;
 
 export function telegramHandlers(deps: EngineDeps) {
   const { config, store } = deps;
-  // `/start <code>` is a guess at a pairing code as much as the pairing form is, and gets the same
-  // allowance per Telegram id that the form gets per address. In memory, like the API's own.
+  // `/start <code>` is a guess at a link code, and gets the same allowance per Telegram id that
+  // the sign-in routes get per address. In memory, like the API's own.
   const limiter = rateLimiter();
 
   const account = (from: number) => store.userIdForIdentity("telegram", String(from));

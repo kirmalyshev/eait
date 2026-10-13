@@ -374,25 +374,23 @@ describe("the sign-up screen", () => {
     expect(html).toContain("Continue with Google");
     expect(html.indexOf("/start/auth/apple")).toBeLessThan(html.indexOf("/start/auth/google"));
     // The boxes, and both of them bound to the form the buttons submit (`form=` keeps them below
-    // the pairing card, where the board draws them).
+    // the buttons, where the board draws them).
     expect(html).toContain('name="terms"');
     expect(html).toContain('name="marketing"');
     expect(html).toContain('form="signup"');
     expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
-  it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
+  it("is the board: no picture, the marks on the buttons, the boxes unticked", async () => {
     const html = await (await get("/start/signup")).text();
-    // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
-    expect(html).toContain('/start/assets/img/icon.webp');
+    expect(html).not.toContain('/start/assets/img/icon.webp');
     // Apple in black, Google secondary — the buttons carry the brands' own artwork.
     expect(html).toContain('class="cta apple"');
     expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));
     // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
     expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
     expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
-    // No pairing card — `email-signin` removed it (#569): the three providers fill the page's
-    // one decision, and `/start/pair` posts still redeem.
+    // No pairing card: the three providers fill the page's one decision.
     expect(html).not.toContain('action="/start/pair"');
     expect(html).toContain('action="/start/email"');
   });
@@ -691,17 +689,17 @@ describe("the questions", () => {
     // The sessionless first answer mints an account, so it takes the same per-address allowance
     // the sign-in routes take: without it, this form is a `users` row per POST for a bot.
     router({ ...CONFIG, authRateLimitPerHour: 1 });
-    // Spend the one allowance — a pairing attempt does it, whatever the code names.
-    await post("/start/pair", { code: "ZZZZZZZZ" });
+    // Spend the one allowance — a sign-in does it.
+    await signIn("first");
 
     const res = await post("/start/q", { prompt: "goal", answer: "lose" });
     expect(res.status).toBe(429);
     expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
-    // No cookie, and more to the point no ACCOUNT — the charge stood between the answer and the
-    // row it would have made.
+    // No cookie, and more to the point no NEW account — the charge stood between the answer and
+    // the row it would have made; the one row is the sign-in that spent the allowance.
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
     const { rows } = await store.adminListUsers({ limit: 10, today: localDate(CONFIG.timezone) });
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
   });
 
   it("makes the session account on the first answer, and hands back the cookie for it", async () => {
@@ -866,14 +864,13 @@ describe("the plan", () => {
     const { targets } = explainTargets(profile);
     const n = wholeNumbers("en");
 
-    // The journey card's title: the target and the month `projectGoal` lands on.
+    // The headline: the distance and the month `projectGoal` lands on.
     const projection = projectGoal(profile, explainTargets(profile).basis);
     expect(projection).not.toBeNull();
-    expect(html).toContain(escape(fill(planCopyFor("en").goalLine, {
-      kg: weightDisplay(profile.target_weight_kg!, null, "en"),
+    expect(html).toContain(escape(fill(planCopyFor("en").goalLose, {
+      kg: weightDisplay(profile.weight_kg! - profile.target_weight_kg!, null, "en"),
       month: projectionMonth(new Date(), projection!.weeks, "en"),
     })));
-    expect(html).toContain(onboardingContentFor("en").summary.lines[0]!);
 
     // The curve, drawn: the shared journey path and the target pill.
     expect(html).toContain('class="pgraph"');
@@ -882,7 +879,7 @@ describe("the plan", () => {
 
     // The figures are `explainTargets`' — a page that drifts fails on its own numbers.
     expect(html).toContain(`--to:${targets.kcal}`);
-    expect(html).toContain(`--to:${targets.protein_g}`);
+    expect(html).toContain(`${n(targets.protein_g)}g`);
     expect(html).toContain(`${n(targets.carbs_g)}g`);
     expect(html).toContain(`${n(targets.fat_g)}g`);
     // The declared cap is a column of its own — and ONLY because it was declared.
@@ -938,162 +935,6 @@ describe("coming back", () => {
     const res = await get("/start/q", again);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/plan");
-  });
-});
-
-describe("pairing a browser with an app account", () => {
-  /** The app's half, over the API this browser never touches: a device account, onboarded. */
-  async function appSession(): Promise<string> {
-    const res = await handle(new Request("https://api.eait.fit/v1/auth/device", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
-    }));
-    const { token } = await res.json() as { token: string };
-    await handle(new Request("https://api.eait.fit/v1/profile", {
-      method: "PATCH",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        goal: "lose", sex: "female", birth_year: 1990, height_cm: 170, weight_kg: 80,
-        target_weight_kg: 70, activity: "few", pace: "steady", country: "de",
-        restrictions: [], complete_onboarding: true,
-      }),
-    }));
-    return token;
-  }
-
-  /** What the app would show the user. */
-  async function mint(token: string): Promise<string> {
-    const res = await handle(new Request("https://api.eait.fit/v1/auth/pair", {
-      method: "POST", headers: { authorization: `Bearer ${token}` },
-    }));
-    expect(res.status).toBe(200);
-    return (await res.json() as { code: string }).code;
-  }
-
-  /**
-   * THE ONE THE TICKET ASKS FOR: a device-anonymous install opens its own thread in a browser and
-   * sends a turn.
-   *
-   * Every step is a real request. The browser starts with no cookie at all, and what it ends with
-   * is the ordinary session cookie the OAuth callback sets — the same token, in the same place,
-   * read by the same line.
-   */
-  it("takes a signed-in app account's thread into a browser, and a turn lands in it", async () => {
-    const app = await appSession();
-    // Under S8 an anonymous account is refused analysis — a real pairing happens after the phone
-    // has signed up, so this one has a Google identity like the flow produces.
-    await handle(new Request("https://api.eait.fit/v1/auth/google", {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${app}` },
-      body: JSON.stringify({ idToken: `ok:google:pair-${crypto.randomUUID()}`, terms: true }),
-    }));
-    const userId = (await store.userIdForToken(app))!;
-    const code = await mint(app);
-
-    const paired = await post("/start/pair", { code });
-    expect(paired.status).toBe(303);
-    expect(paired.headers.get("location")).toBe("/start/chat");
-    const session = cookieFrom(paired, "eait_web");
-
-    // The SAME account, not a new one: no user was created and nothing was merged.
-    expect(await store.userIdForToken(session.split("=")[1]!)).toBe(userId);
-
-    const thread = await get("/start/chat", session);
-    expect(thread.status).toBe(200);
-
-    const before = (await chatHistory(deps, userId, { limit: 50 })).entries.length;
-    const said = await post("/start/chat/say", { text: "two eggs and toast" }, session);
-    expect(said.status).toBe(303);
-    const after = await chatHistory(deps, userId, { limit: 50 });
-    expect(after.entries.length).toBeGreaterThan(before);
-    expect(JSON.stringify(after.entries)).toContain("two eggs and toast");
-  });
-
-  /**
-   * THE INVARIANT, with a crafted body — the redemption half.
-   *
-   * The browser never names an account and cannot: the user id comes out of the store, by the hash
-   * of the code. A form field called `userId` is just a field nobody reads.
-   */
-  it("lands in the account that MINTED the code, whatever else the form says", async () => {
-    const a = await appSession();
-    const b = await appSession();
-    const attacker = (await store.userIdForToken(b))!;
-    const code = await mint(a);
-
-    const paired = await post("/start/pair", { code, userId: attacker });
-    const session = cookieFrom(paired, "eait_web");
-    expect(await store.userIdForToken(session.split("=")[1]!)).toBe(await store.userIdForToken(a));
-  });
-
-  /**
-   * LOGIN-CSRF, refused by shape.
-   *
-   * A GET that minted a session from `?code=` would be a link an attacker can send: the victim's
-   * browser follows it, is signed into the ATTACKER's account, and types their weight into it —
-   * the scenario rule 3 at the top of `start.ts` describes. So there is no GET here at all, and
-   * the redemption is the POST somebody pressed.
-   */
-  it("has no GET that mints anything", async () => {
-    const app = await appSession();
-    const code = await mint(app);
-    const res = await get(`/start/pair?code=${code}`);
-    expect(res.headers.getSetCookie()).toEqual([]);
-    // And the code is still live afterwards, so the GET did not even spend it.
-    expect(cookieFrom(await post("/start/pair", { code }), "eait_web")).toBeTruthy();
-  });
-
-  it("works once — a second browser with the same code gets nothing", async () => {
-    const app = await appSession();
-    const code = await mint(app);
-    expect(cookieFrom(await post("/start/pair", { code }), "eait_web")).toBeTruthy();
-
-    const second = await post("/start/pair", { code });
-    expect(second.status).toBe(303);
-    expect(second.headers.get("location")).toBe("/start/signup?error=code");
-    expect(second.headers.getSetCookie()).toEqual([]);
-  });
-
-  it("sends an unknown code back to the sign-up screen with words about it, and sets no cookie", async () => {
-    const res = await post("/start/pair", { code: "ABCD2345" });
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/start/signup?error=code");
-    expect(res.headers.getSetCookie()).toEqual([]);
-
-    // The page that redirect lands on says which thing went wrong — a code, not a sign-in.
-    const door = await (await get("/start/signup?error=code")).text();
-    expect(door).toContain(PAGE_COPY.errorPair);
-  });
-
-  it("takes the per-address sign-in allowance before it reads the body", async () => {
-    // Two: the device registration spends one, the mint spends the other, and the redemption then
-    // meets the wall. The point is that this route is bounded at all — 40 bits of code behind an
-    // unbounded POST is 40 bits of code behind nothing.
-    router({ ...CONFIG, authRateLimitPerHour: 2 });
-    const app = await appSession();
-    const code = await mint(app);
-
-    const res = await post("/start/pair", { code });
-    expect(res.status).toBe(429);
-    expect(res.headers.getSetCookie()).toEqual([]);
-    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
-  });
-
-  it("posts, though the card itself is gone (#569)", async () => {
-    // The sign-in page no longer draws the form — the email boards took its slot — but the route
-    // it posted to stays: a code minted on a phone still redeems on a POST.
-    const html = await (await get("/start/signup")).text();
-    expect(html).not.toContain('action="/start/pair"');
-    const res = await post("/start/pair", { code: "ZZZZZZZZ" });
-    expect(res.status).toBe(303);
-  });
-
-  it("gives a paired session no more than a signed-in one: the cookie still buys nothing on the API", async () => {
-    const app = await appSession();
-    const session = cookieFrom(await post("/start/pair", { code: await mint(app) }), "eait_web");
-    const res = await handle(new Request("https://api.eait.fit/v1/profile", { headers: { cookie: session } }));
-    expect(res.status).toBe(401);
   });
 });
 
@@ -1390,7 +1231,7 @@ describe("the v2 questions that write the new fields", () => {
 
 describe("the target-weight ruler", () => {
   /** 80kg at 170cm → the suggested target is 73.5, the healthy floor about 53.5. */
-  it("opens on the shared suggestion under the board's own ask, with the refused zone drawn", async () => {
+  it("opens on the shared suggestion under the board's own ask, stopping at the floor", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
     // The headline is the board's ask (#473) — the suggestion is the ruler's needle, not the
@@ -1401,10 +1242,11 @@ describe("the target-weight ruler", () => {
     expect(html).toContain('data-ctl="ruler"');
     expect(html).toContain('data-val="73.5"');
     expect(html).toMatch(/type="number"[^>]*name="answer"[^>]*value="73\.5"/);
-    // The refused zone and the "now" marker are drawn, with the floor's own words on them.
-    expect(html).toContain('data-floor="54"');
+    // The ruler stops at the floor rather than drawing a refused zone under it (ieat-app#2050),
+    // and the "now" marker stays.
+    expect(html).toContain('data-min="54"');
+    expect(html).not.toContain("lowest we set");
     expect(html).toContain('data-now="80"');
-    expect(html).toContain("lowest we set");
     // The live delta says how far the needle sits from now, in the copy's own words — a
     // placeholder left unfilled would print "{weight}" raw inside the live line.
     expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5kg<\//);
@@ -2155,7 +1997,6 @@ describe("the web surface and the landing are one product", () => {
 
   it("404s a name none of the asset routes ships — the allowlist, not the filesystem, answers", async () => {
     for (const path of [
-      "/start/assets/welcome/nope.mp4",
       "/start/assets/img/nope.webp",
       "/start/assets/fonts/montserrat-italic.woff2",
     ]) {
@@ -2697,12 +2538,13 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       expect(plan.status, lang).toBe(200);
       const planHtml = await plan.text();
       expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      // The headline is the plan copy's own, in the asked language.
-      expect(planHtml, lang).toContain(escape(content.summary.lines[0]!));
+      // The cards are the plan copy's own, in the asked language.
+      expect(planHtml, lang).toContain(escape(planCopyFor(lang).everyDay));
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).signUpHeading));
+      // Arriving from the plan, the heading is the one that says what the account is for.
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).saveHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
       expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));
@@ -2779,10 +2621,9 @@ describe("the counter and Back (#53)", () => {
   // changed between the first question and the second, because only the first request resolved it.
   const BRITISH = { "accept-language": "en-GB,en;q=0.9" };
   async function walk(session: string, answers: Record<string, string | string[]>) {
-    // The progress a question shows is the DASH now — one lit segment per place already passed,
-    // the current one the wider segment. `lit` counts the lit ones; the same `on` class on every
-    // walk is the total not drifting.
-    const seen: { lit: number; total: number; id: string }[] = [];
+    // The progress a question shows is the one continuous bar; `lit` is how far it is filled.
+    const fill = (html: string): number => Number(html.match(/class="dash"[^>]*><i style="--from:[\d.]+%;--to:([\d.]+)%/)?.[1] ?? NaN);
+    const seen: { lit: number; id: string }[] = [];
     for (let i = 0; i < 25; i++) {
       const page = await get("/start/q", session, BRITISH);
       if (page.status === 303) return seen;
@@ -2790,8 +2631,7 @@ describe("the counter and Back (#53)", () => {
       const m = html.match(/name="prompt" value="([a-z_]+)"/);
       if (m === null) {
         // An interstitial: its Continue is a link, and its dash counts too.
-        const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-        seen.push({ lit: (segs.match(/class="on"/g) ?? []).length, total: (segs.match(/<i/g) ?? []).length, id: "(card)" });
+        seen.push({ lit: fill(html), id: "(card)" });
         const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
           ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
         if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
@@ -2799,12 +2639,7 @@ describe("the counter and Back (#53)", () => {
         continue;
       }
       const id = m[1]!;
-      const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-      seen.push({
-        lit: (segs.match(/class="on"/g) ?? []).length,
-        total: (segs.match(/<i/g) ?? []).length,
-        id,
-      });
+      seen.push({ lit: fill(html), id });
       await post("/start/q", { prompt: id, answer: answers[id]! }, session);
     }
     throw new Error("onboarding did not finish");
@@ -2816,19 +2651,17 @@ describe("the counter and Back (#53)", () => {
       const seen = await walk(session, {
         ...ANSWERS, goal, target_weight_kg: goal === "gain" ? "90" : "70",
       });
-      // One segment count for the whole walk, and the lit half never shrinks.
-      expect(new Set(seen.map((s) => s.total)).size).toBe(1);
+      // The bar never shrinks.
       const lit = seen.map((s) => s.lit);
+      expect(lit.every(Number.isFinite)).toBe(true);
       expect([...lit].sort((a, b) => a - b)).toEqual(lit);
-      expect(lit[0]).toBe(0);
       expect(lit.at(-1)!).toBeGreaterThan(lit[0]!);
     });
   }
 
-  it("keeps one segment count after the goal on the maintain path", async () => {
+  it("never shrinks the bar on the maintain path", async () => {
     const seen = await walk(
       await signIn("counter-maintain", "google", BRITISH["accept-language"]), { ...ANSWERS, goal: "maintain" });
-    expect(new Set(seen.map((s) => s.total)).size).toBe(1);
     const lit = seen.map((s) => s.lit);
     expect([...lit].sort((a, b) => a - b)).toEqual(lit);
   });

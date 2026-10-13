@@ -36,7 +36,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
-  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
+  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
@@ -401,8 +401,7 @@ export function createRouter(
           // the web container is. One value rather than two that must agree.
           hasWebApp: deps.config.publicWebUrl !== "",
           // The SAME per-address allowance the sign-in routes below take, handed in rather than
-          // taken here: that module spends it on the OAuth callback, on pairing-code redemption,
-          // and — under S8 — on the sessionless first answer that mints the session account.
+          // taken here: that module spends it on the OAuth callback and — under S8 — on the sessionless first answer that mints the session account.
           limitAuth: () => limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR),
           // And the BILLED allowance, for the chat turns that surface takes. The same bucket the
           // message and photo routes below take, so a browser and a phone on one address share it.
@@ -578,9 +577,8 @@ export function createRouter(
 
       // Sign out EVERYWHERE (#247) — every token of this account, this device's included.
       //
-      // The mitigation for the one risk #209's pairing codes introduce: an intercepted code buys a
-      // full session until it idles out, and there was no way to notice or to end it. Same answer
-      // for a lost phone and for a browser paired on a machine somebody no longer has.
+      // The answer for a lost phone, and for a browser signed in on a machine somebody no longer
+      // has: there was no way to end a session until this.
       //
       // NOT ACCOUNT DELETION. The data is untouched; signing in again gets all of it back. It is
       // also NOT a session list — `tokens` holds `created_at` and `last_used_at` and nothing that
@@ -662,7 +660,9 @@ export function createRouter(
         const lang = asked !== null
           ? toLang(asked)
           : (await deps.store.getProfile(userId))?.lang ?? "en";
-        return json({ content: await onboardingContent(deps, lang), lang } satisfies OnboardingContentResponse);
+        return json({
+          content: await onboardingContent(deps, lang), lang, peopleBuilding: await peopleBuilding(deps),
+        } satisfies OnboardingContentResponse);
       }
 
       // Funnel events. Authenticated, because they are stored against the caller's account and

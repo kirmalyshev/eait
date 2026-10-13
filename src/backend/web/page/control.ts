@@ -14,8 +14,6 @@
 //   - `input[value=none]`   medical's exclusive choice clears the rest (and vice-versa) — the
 //                           server applies the same rule, this is only the row staying honest.
 //   - `form.seg`            the unit toggle carries the current draft across the POST.
-//   - `.vdemo video`        the welcome loop: paused under prefers-reduced-motion (the CSS swap
-//                           already shows its last frame; this just stops it drawing).
 //
 // Readability beats brevity here — one script, no build step, so it is plain ES5-ish and says
 // what it does. Every `data-` attribute is read as untrusted text the server wrote: all of them
@@ -27,8 +25,6 @@ export const CONTROL_SCRIPT = `(function () {
   main.classList.add("js");
 
   var RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var vid = document.querySelector(".vdemo video");
-  if (vid) { if (RM) vid.pause(); else { try { vid.play().catch(function () {}); } catch (e) {} } }
 
   // The imperial-height fallback is two fields; when the ruler drives, only answer (total
   // inches) may post — a stale ft/in pair beside it would win instead of it.
@@ -76,6 +72,7 @@ export const CONTROL_SCRIPT = `(function () {
     var val = num(ctl.dataset.val, min);
     var lbls = ctl.querySelector(".lbls"), tint = ctl.querySelector(".tint");
     var lo = ctl.querySelector(".lbl.lo"), hi = ctl.querySelector(".lbl.hi"), live = ctl.querySelector(".live");
+    var goal = ctl.querySelector(".goal"), goals = goal ? JSON.parse(goal.dataset.goals || "{}") : {};
     var mg = ctl.querySelector(".lbl.mg");
 
     function snap(v) { return Math.min(max, Math.max(min, Math.round(v / step) * step)); }
@@ -158,6 +155,7 @@ export const CONTROL_SCRIPT = `(function () {
         if (tpl) live.textContent = tpl.replace("{weight}", fmtN(Math.abs(d)) + (ctl.dataset.unitword || ""));
         live.className = "live" + (d < 0 ? " dn" : d > 0 ? " up" : "");
       }
+      if (goal) goal.textContent = goals[String(Math.round(val * 10) / 10)] || "";
       bigSet(ctl, fmt, val);
       inp.value = String(Math.round(val * 10) / 10);
       el.setAttribute("aria-valuenow", String(Math.round(val * 10) / 10));
