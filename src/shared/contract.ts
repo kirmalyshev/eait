@@ -443,6 +443,12 @@ export const ROUTES = {
    */
   foods: "/v1/foods",
   /**
+   * POST JSON {@link FoodLogRequest} — log one catalog row as a meal (one tap in the app's food
+   * search). Nothing is estimated and no model runs: the numbers are `grams × per-100 g` of the
+   * row, read server-side. Answers a {@link MealLogged}; `not-onboarded` is a refusal, and a catalog id that is not there (or a row too incomplete to log) is 404 `{ error: "unknown-food" }`.
+   */
+  foodLog: "/v1/foods/log",
+  /**
    * GET — the barcoded product the catalog knows (`off_product`), or `product: null` on a miss.
    * A miss is an ordinary answer, not an error: the scan flow's next step is reading the label.
    * Answers {@link ProductResponse}.
@@ -1833,6 +1839,23 @@ export interface ProductResponse {
 }
 /** Longest `q` the search accepts — a UUID-length term cannot match a name anyway. */
 export const MAX_FOOD_QUERY = 200;
+
+/** Grams of one catalog log: the app sends the named portion's weight, else {@link FOOD_LOG_DEFAULT_GRAMS}. */
+export const FOOD_LOG_DEFAULT_GRAMS = 100;
+export const FOOD_LOG_MAX_GRAMS = 5000;
+
+/**
+ * `POST /v1/foods/log`. `ref` is a `food_ref` id from {@link FoodSearchResponse}; the kcal and
+ * macros are NOT in the request — the server reads them off the row, so a client cannot log a
+ * number the catalog does not carry. `grams` defaults to {@link FOOD_LOG_DEFAULT_GRAMS}.
+ * `clientId` is the replay key, as for every logging turn; `capturedAt` dates the meal.
+ */
+export interface FoodLogRequest {
+  ref: string;
+  grams?: number;
+  clientId?: string;
+  capturedAt?: string;
+}
 /** Page size when `limit` is absent. */
 export const FOOD_SEARCH_LIMIT = 25;
 /** The server never answers with more than this many rows, whatever the client asks for. */

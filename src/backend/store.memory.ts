@@ -1576,6 +1576,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map(clone);
     },
 
+    async foodById(id) {
+      const f = foodRefs.get(id);
+      return f ? clone(f) : null;
+    },
+
     async offProductByBarcode(barcode) {
       const row = offProducts.get(barcode);
       return row ? clone(row) : null;

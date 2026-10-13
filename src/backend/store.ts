@@ -1444,6 +1444,8 @@ export interface Store {
    * alphabetical, so both stores order identically. At most `limit`, which the engine clamps.
    */
   searchFoods(query: string, limit: number): Promise<FoodRef[]>;
+  /** One catalog row by its `<source>:<code>` id, or null. Global reference data, like the search. */
+  foodById(id: string): Promise<FoodRef | null>;
   /**
    * The rows an analyzer's item could be grounded in: an English name carrying EVERY word, as a
    * whole word or its plural, and all four macros present. Shortest name first, so the generic

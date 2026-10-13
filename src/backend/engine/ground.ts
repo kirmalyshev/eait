@@ -316,3 +316,22 @@ export async function groundWhenOn(
 ): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
   return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis) : { analysis, grounded: 0 };
 }
+
+/**
+ * One catalog row logged as a meal, with no model in between (food search, one tap): a single item
+ * at `grams`, nutrition `grams × per100` from the row's own snapshot, and the micros the row
+ * carries. `null` when the row lacks a macro — a catalog log never invents the missing one.
+ */
+export function mealFromFood(food: FoodRef, grams: number, name: string): AnalyzedMeal | null {
+  if (!complete(food)) return null;
+  const item = groundItem({ name, name_en: food.name_en ?? food.name, grams }, food);
+  const micros = catalogMicros([item]);
+  return {
+    isFood: true,
+    items: [item],
+    kcal: item.kcal!, protein_g: item.protein_g!, carbs_g: item.carbs_g!, fat_g: item.fat_g!,
+    satfat_g: micros.satfat_g ?? 0, fiber_g: micros.fiber_g ?? 0, sugar_g: micros.sugar_g ?? 0, sodium_mg: micros.sodium_mg ?? 0,
+    confidence: "high",
+    notes: "",
+  };
+}
