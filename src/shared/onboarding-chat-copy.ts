@@ -279,7 +279,7 @@ const EN: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait analysis",
+    byEait: "with eait",
     weightTrend: "Weight trend",
     without: "Without",
     now: "Now",
@@ -415,7 +415,7 @@ const FR: ChatCopy = {
     },
   },
   chart: {
-    byEait: "analyse eait",
+    byEait: "avec eait",
     weightTrend: "Tendance du poids",
     without: "Sans",
     now: "Maintenant",
@@ -551,7 +551,7 @@ const DE: ChatCopy = {
     },
   },
   chart: {
-    byEait: "eait-Analyse",
+    byEait: "mit eait",
     weightTrend: "Gewichtstrend",
     without: "Ohne",
     now: "Jetzt",
@@ -687,7 +687,7 @@ const IT: ChatCopy = {
     },
   },
   chart: {
-    byEait: "analisi di eait",
+    byEait: "con eait",
     weightTrend: "Andamento del peso",
     without: "Senza",
     now: "Ora",
@@ -823,7 +823,7 @@ const ES: ChatCopy = {
     },
   },
   chart: {
-    byEait: "Análisis de eait",
+    byEait: "con eait",
     weightTrend: "Tendencia del peso",
     without: "Sin",
     now: "Ahora",
@@ -959,7 +959,7 @@ const VI: ChatCopy = {
     },
   },
   chart: {
-    byEait: "Phân tích của eait",
+    byEait: "với eait",
     weightTrend: "Xu hướng cân nặng",
     without: "Không có kế hoạch",
     now: "Hiện tại",
@@ -1095,7 +1095,7 @@ const ID: ChatCopy = {
     },
   },
   chart: {
-    byEait: "analisis eait",
+    byEait: "dengan eait",
     weightTrend: "Tren berat badan",
     without: "Tanpa",
     now: "Sekarang",
@@ -1233,7 +1233,7 @@ const RU: ChatCopy = {
     },
   },
   chart: {
-    byEait: "Анализ eait",
+    byEait: "с eait",
     weightTrend: "Динамика веса",
     without: "Без",
     now: "Сейчас",

@@ -377,7 +377,7 @@ export const BOARD_CSS = `
   .ob .wcenter { padding: 0; align-items: flex-start; }
   .ob .wdemo { flex-direction: column; gap: 24px; padding: 0 0 32px !important; width: 100%; }
   .ob .wherobox { width: 100%; }
-  .ob .whero { width: 100%; height: 560px; border-radius: 0; box-shadow: none;
+  .ob .whero { width: 100%; height: min(560px, 60svh); border-radius: 0; box-shadow: none;
     -webkit-mask: linear-gradient(#000 78%, transparent); mask: linear-gradient(#000 78%, transparent); }
   .ob .whead { padding: 0 24px; align-items: stretch; text-align: center; max-width: none; }
   .ob .whead h1 { font-size: 30px; }
