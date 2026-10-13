@@ -3,6 +3,24 @@
 The backend of [eait.fit](https://eait.fit) — a photo-first nutrition coach — the contract its
 clients implement, and the web application at [app.eait.fit](https://app.eait.fit).
 
+## Run it yourself
+
+One line, on any machine with `git`, `curl` and Docker (Compose v2) running:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/kirmalyshev/eait/main/src/scripts/self-host.sh | sh
+```
+
+It clones this repo to `~/eait`, asks for a model key ([OpenRouter](https://openrouter.ai/keys), typed
+with echo off, or exported as `EAIT__BACKEND__LLM_API_KEY`) and an optional Telegram bot token,
+generates the database passwords, and starts the stack in `docker-compose.prod.yml` — Postgres,
+backend, web app, Caddy. When it ends the app answers on <http://localhost:8080>, reachable from that
+machine only. Run the same line again to upgrade: it pulls, rebuilds and keeps your `.env.prod`.
+
+For a public server, add `EAIT_DOMAIN=eait.example.com EAIT_ACME_EMAIL=you@example.com` in front of
+`sh` — the domain's DNS must already point at the machine; ports 80 and 443 are used and Caddy gets
+the certificate. [Host it yourself](#host-it-yourself) below says what that does not do for you.
+
 https://github.com/user-attachments/assets/3969bf68-972d-4076-98ff-e36211031c9a
 
 ![A meal logged from a photo in the web app: the items with their grams and kcal, the macros and the day score](docs/readme/meal-from-a-photo.jpg)
@@ -68,7 +86,7 @@ routing.
 
 **It ships the application, not the machine.** Bring your own server with Docker on it, a domain
 whose A record already points at that server, and a key from a model provider — or your own
-OpenAI-compatible model server (`.env.prod.example`, `EAIT__BACKEND__LLM_PROVIDER`). Then, on the server:
+OpenAI-compatible model server (`.env.prod.example`, `EAIT__BACKEND__LLM_PROVIDER`). The one-liner above does the steps below for you; by hand, on the server:
 
 ```sh
 cp .env.prod.example .env.prod && chmod 600 .env.prod   # then fill it in

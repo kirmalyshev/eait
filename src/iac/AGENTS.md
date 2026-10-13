@@ -15,6 +15,7 @@ docker-compose.prod.yml      the stack: caddy, backend, frontend, db            
 src/iac/Dockerfile.backend   the backend's production image
 src/iac/Dockerfile.frontend  the web application's production image
 src/iac/Caddyfile            the edge, parameterised
+src/scripts/self-host.sh     the one-line installer: clone, write .env.prod once, compose up
 ```
 
 **IT SHIPS THE APPLICATION, NOT THE MACHINE.** There is no provisioning here — nothing installs a
@@ -31,6 +32,13 @@ the operator is therefore still holding.
 
 `src/iac/` keeps its name: a Dockerfile and a reverse-proxy config committed beside the code is
 infrastructure as code. It is not machine provisioning, and it is not going to become it.
+
+`self-host.sh` is a wrapper over that compose file and nothing else — no second stack. It writes
+`.env.prod` only when absent (generated passwords are never regenerated: the app role's password is
+only read by initdb), takes the model key from the environment or a no-echo prompt, and never puts a
+secret in argv. Local mode sets `EAIT__DEPLOY__BIND_ADDR=127.0.0.1`, `HTTP_PORT=8080` and a
+`http://localhost` site address; `BIND_ADDR`, `HTTP_PORT` and `HTTPS_PORT` only move the PUBLISHED
+side of Caddy's ports.
 
 ## The one rule everything here serves
 
@@ -107,10 +115,11 @@ does not need open.
   everything else to the backend, so a new BACKEND path needs nothing; a new path the web
   application answers needs a branch in `src/frontend/server/index.ts` AND an entry in the `@app`
   matcher, in the same commit.
-- A new runtime dependency in the backend → nothing here, as long as it is that workspace's:
-  `bun install --filter=@eait/backend` picks it up. One in `src/shared`, though, means
-  `Dockerfile.backend` has to start copying `src/shared/node_modules` — and it will fail at the COPY
-  rather than at startup, which is why the Dockerfile says so.
+- A new runtime dependency in the backend or in `src/shared` → nothing here: the build installs with
+  `--filter=@eait/backend` and the runtime copies both `src/backend/node_modules` and
+  `src/shared/node_modules`. One in `src/frontend` is bundled by `bun build` in the frontend image's
+  build stage. The proof that an image still boots is the Verify section — all four containers
+  `healthy` — not that it built.
 
 ## Deliberately not done
 
