@@ -75,6 +75,14 @@ export interface Config {
    */
   llmProviderOrder: string;
   /**
+   * How OpenRouter orders the providers that may serve the nutrition calls, sent as
+   * `provider.sort`: `""` is OpenRouter's own price-weighted routing, `price`, `throughput` and
+   * `latency` the overrides. `throughput` ships because the measured spread between providers was
+   * tens of seconds a photo (eait#621). With `llmProviderOrder` set, both ride in the one
+   * `provider` object; the coach is never pinned nor sorted.
+   */
+  llmProviderSort: string;
+  /**
    * Comma-separated fallback models for the nutrition calls. OpenRouter tries them, in order, when
    * `llmModel` is rate-limited or down (it sends `models: [llmModel, ...these]`) — STILL under
    * `llmProviderOrder` with `allow_fallbacks: false`, so each must be served by the pinned
@@ -664,6 +672,9 @@ export function configDefaults(): Config {
     // provider.order takes the endpoint's SLUG (`deepinfra`, the part before the `/fp8` tag),
     // not the display name — "DeepInfra" matches no provider and would fail every call.
     llmProviderOrder: "deepinfra",
+    // Fastest answer wins (eait#621): OpenRouter's default routing weights price, and the
+    // measured spread between providers was tens of seconds a photo.
+    llmProviderSort: "throughput",
     // Verified 9 Oct on OpenRouter: served by deepinfra/fp8, image input, response_format.
     llmFallbackModels: "qwen/qwen3-vl-30b-a3b-instruct",
     llmApiKey: "",
@@ -863,6 +874,11 @@ export function loadConfig(): Config {
     throw new Error(`[eait] EAIT__BACKEND__LLM_REASONING_EFFORT must be low, medium, high or off (or empty), not "${llmReasoningEffort}"`);
   }
 
+  const llmProviderSort = process.env.EAIT__BACKEND__LLM_PROVIDER_SORT ?? d.llmProviderSort;
+  if (!["", "price", "throughput", "latency"].includes(llmProviderSort)) {
+    throw new Error(`[eait] EAIT__BACKEND__LLM_PROVIDER_SORT must be price, throughput or latency (or empty), not "${llmProviderSort}"`);
+  }
+
   const eveningLineTime = eveningLineTimeFromEnv();
 
   return {
@@ -882,6 +898,7 @@ export function loadConfig(): Config {
       : (process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel),
     llmReasoningEffort,
     llmProviderOrder: process.env.EAIT__BACKEND__LLM_PROVIDER_ORDER ?? d.llmProviderOrder,
+    llmProviderSort,
     llmFallbackModels: process.env.EAIT__BACKEND__LLM_FALLBACK_MODELS ?? d.llmFallbackModels,
     // The key is OpenRouter's: a `*-cli` provider authenticates on the host instead, and an
     // `openai-compatible` server may want none (Ollama) — requiring it there would refuse a boot
