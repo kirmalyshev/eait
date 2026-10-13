@@ -2428,8 +2428,31 @@ details.how p { margin-top: 8px; }
   var SWITCH_LABELS = { "grounding.photo": "Photo", "grounding.text": "Text", "prompt.photo-lean": "Lean photo prompt" };
   var SWITCH_WHAT = { "grounding.photo": "ground photo analyses in the food catalog", "grounding.text": "ground typed meals in the food catalog", "prompt.photo-lean": "answer photos with the lean prompt and schema (default off)" };
 
-  function switchWhen(by, at) {
-    return at ? "changed by " + by + " at " + atLabel(at) : "default";
+  // The actor behind a flip: the address when the account holds one, the id when it does not —
+  // and a link either way, opened the way an Accounts row click opens the account.
+  function openActor(id) {
+    location.hash = "accounts";
+    api("GET", "/admin/api/users?limit=1&q=" + encodeURIComponent(id)).then(function (page) {
+      var u = page.users && page.users[0];
+      if (u) selectUser(u);
+      else { $("users-status").textContent = "That account is gone."; }
+    }, function (e) { $("users-status").textContent = "failed: " + e.message; });
+  }
+
+  function actorEl(by, email) {
+    var a = el("a", null, email || by);
+    a.setAttribute("href", "#accounts");
+    if (email) a.setAttribute("title", by);
+    a.addEventListener("click", function (e) { e.preventDefault(); openActor(by); });
+    return a;
+  }
+
+  function switchWhen(by, email, at) {
+    if (!at) return el("span", null, "default");
+    var s = el("span", null, "changed by ");
+    s.appendChild(actorEl(by, email));
+    s.appendChild(document.createTextNode(" at " + atLabel(at)));
+    return s;
   }
 
   function renderSwitches(res) {
@@ -2440,7 +2463,9 @@ details.how p { margin-top: 8px; }
       row.setAttribute("data-switch", sw.key);
       var t = el("span", "t");
       t.appendChild(el("b", null, SWITCH_LABELS[sw.key] || sw.key));
-      t.appendChild(el("span", null, (SWITCH_WHAT[sw.key] || sw.key) + " · " + switchWhen(sw.setBy, sw.setAt)));
+      var tail = el("span", null, (SWITCH_WHAT[sw.key] || sw.key) + " · ");
+      tail.appendChild(switchWhen(sw.setBy, sw.setByEmail, sw.setAt));
+      t.appendChild(tail);
       var toggle = el("button", sw.enabled ? "asw on" : "asw");
       toggle.setAttribute("role", "switch");
       toggle.setAttribute("aria-checked", sw.enabled ? "true" : "false");
@@ -2461,7 +2486,10 @@ details.how p { margin-top: 8px; }
     var recent = $("switch-recent");
     recent.textContent = "";
     res.recent.forEach(function (f) {
-      recent.appendChild(el("span", null, (SWITCH_LABELS[f.key] || f.key) + " " + (f.enabled ? "on" : "off") + " — " + f.set_by + " at " + atLabel(f.set_at)));
+      var line = el("span", null, (SWITCH_LABELS[f.key] || f.key) + " " + (f.enabled ? "on" : "off") + " — ");
+      line.appendChild(actorEl(f.setBy, f.setByEmail));
+      line.appendChild(document.createTextNode(" at " + atLabel(f.setAt)));
+      recent.appendChild(line);
     });
     if (!res.recent.length) recent.appendChild(el("span", "muted", "No flips yet."));
     $("switch-status").textContent = "";
