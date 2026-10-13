@@ -274,7 +274,14 @@ const refreshFoodCatalog = async () => {
     const r = await refreshCatalog({ store }, { key: config.fooddbReadKey, base: config.fooddbUrl, lastDay: catalogDay });
     if (r.kind === "loaded") {
       catalogDay = r.day;
-      console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written`);
+      // `putFoodRefs` already upserted the index; the rebuild is the clean catch-all. Its own
+      // try/catch: every caller `void`s this function, so a throw here is an unhandled rejection.
+      try {
+        const idx = await store.refreshFoodIndex();
+        console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written; matcher index ${idx.rows} rows in ${idx.ms}ms`);
+      } catch (e) {
+        console.error(`[eait] food index rebuild after snapshot ${r.day} failed: ${(e as Error)?.message ?? e}`);
+      }
     } else if (r.kind === "unchanged") {
       catalogDay = r.day;
     } else if (r.kind === "failed") {
@@ -342,6 +349,13 @@ await elect();
 setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
 setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
 setInterval(() => { if (leader) void refreshFoodCatalog(); }, DAY_MS).unref?.();
+// The matcher index is per-PROCESS, but the snapshot load is leader-only: every replica rebuilds
+// its own once a day, so a non-leader's index is never older than a day plus a boot.
+setInterval(() => {
+  void store.refreshFoodIndex().catch((e: unknown) => {
+    console.error(`[eait] food index rebuild failed: ${(e as Error)?.message ?? e}`);
+  });
+}, DAY_MS).unref?.();
 
 // The canned verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired under `--demo` and under

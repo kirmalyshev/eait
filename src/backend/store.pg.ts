@@ -26,6 +26,7 @@ import {
 } from "./auth/tokens.ts";
 import { timingSafeEqual } from "./auth/timingsafe.ts";
 import { syncShippedPrompts } from "./llm/prompt.ts";
+import { buildFoodIndex } from "./food-index.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, storeDeadline, type AdminUserRow, type FunnelAggregate,
@@ -1646,7 +1647,10 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
-  foodCandidates: "unscoped",
+  // `foodCandidates` reads only the in-memory index (#615) — no table, so no transaction.
+  foodCandidates: "raw",
+  // `food_ref` is nobody's rows, so the rebuild over the whole table is unscoped too.
+  refreshFoodIndex: "unscoped",
   offProductByBarcode: "unscoped",
   putFoodRefs: "unscoped",
   putOffProducts: "unscoped",
@@ -2053,6 +2057,12 @@ export async function postgresStore(
   const electorSql = (): SQL => (elector ??= new SQL(databaseUrl, { max: 1 }));
   // `pool.listen` opens its own dedicated connection; ended here by `close` before the pool.
   const listening = new Set<SQL.ListenSubscription>();
+
+  // THE FOOD INDEX (#615): the table's matcher rows in memory, so `foodCandidates` costs a Map
+  // lookup instead of a `~* all(...)` round-trip per item. Built at boot (the call right before
+  // the store returns) and rebuilt by `refreshFoodIndex`; `putFoodRefs` upserts into it so a
+  // snapshot load is live the moment it lands.
+  let foodIndex = buildFoodIndex([]);
 
   // Declared before the store object so the prompt sync below can be the LAST thing this
   // function does — and wrapped before that, so the sync goes through a scoped store like
@@ -3252,18 +3262,13 @@ export async function postgresStore(
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
     async foodCandidates(words, limit) {
-      // Words arrive as letters and digits only (`engine/ground.ts`), so they are safe in a pattern.
-      const patterns = words.map((w) => `\\y${w.replace(/[^\p{L}\p{N}]/gu, "")}(s|es)?\\y`);
-      if (patterns.length === 0) return [];
-      const rows = await sql`
-        select * from food_ref
-        where name_en is not null
-          and kcal_per_100g is not null and protein_g_per_100g is not null
-          and carbs_g_per_100g is not null and fat_g_per_100g is not null
-          and name_en ~* all(${toPgTextArray(patterns)}::text[])
-        order by length(name_en), name_en
-        limit ${limit}`;
-      return rows.map(toFoodRef);
+      return foodIndex.candidates(words, limit);
+    },
+    async refreshFoodIndex() {
+      const t0 = Date.now();
+      const rows = await sql`select * from food_ref`;
+      foodIndex = buildFoodIndex(rows.map(toFoodRef));
+      return { rows: foodIndex.size, ms: Date.now() - t0 };
     },
     async searchFoods(query, limit) {
       // `%` and `_` in the needle are literals, not pattern chars — the query is a name fragment,
@@ -3311,6 +3316,9 @@ export async function postgresStore(
           returning id`;
         written += back.length;
       }
+      // AFTER the writes, not between them: a mid-loop upsert would leave rows in the index the
+      // transaction could still roll back (#615 review).
+      foodIndex.upsert(foodRows);
       return written;
     },
 
@@ -4764,6 +4772,10 @@ export async function postgresStore(
   // instance, or a missing column on an older host all leave a server that still answers, from the
   // constants, exactly as it did before there was a table.
   await syncShippedPrompts(store);
+
+  // The food index is a boot-time build (#615): `putFoodRefs` keeps it current from here on, and
+  // `refreshFoodIndex` rebuilds it on a snapshot load and on the daily per-replica pass.
+  await store.refreshFoodIndex();
 
   return store;
 }

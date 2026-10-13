@@ -8,6 +8,12 @@
 //
 // Local catalog only (`food_ref`, loaded from the nightly fooddb snapshot): fooddb's README says
 // eait never calls the service live, and a lookup here must not be able to fail a meal.
+//
+// #615: THE ROW IS CHOSEN BY NAME ONLY. The model's `kcal_per_100g` is an answer, not evidence —
+// it is used only when the catalog has no match (the item keeps it, as above), never to filter or
+// rank catalog rows. The catalog's own wording decides: generic reference entries over branded or
+// restaurant ones, the served form of a staple over its dry form, a preparation the name asks for,
+// and a row made FROM the food is not the food.
 
 import {
   MAX_MEAL_AMOUNT, MAX_SNAPSHOT_ATTRIBUTION, MAX_SNAPSHOT_ATTRIBUTIONS, MAX_SNAPSHOT_NAME, SNAPSHOT_MICROS,
@@ -17,46 +23,47 @@ import type { AnalyzedMeal } from "../llm/port.ts";
 import type { SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { switchOn } from "./switches.ts";
+import { analyzeFoodRow, norm, singular, words, STATES, SUBSTITUTE, FILLER, PRODUCT, COMPOSITE, PORTION } from "../food-index.ts";
 
 const POOL = 300;
 /** A best candidate scoring below this is a miss: the model's own estimate beats a poor match. */
 const FLOOR = -6;
-/**
- * How far the catalog's density may sit from the model's own. Raw rice (365 kcal/100 g) against a
- * plate of cooked rice (130) is a 2.8x gap and a wrong answer by 180%.
- */
-const DENSITY_BAND = 2;
-
-const words = (s: string): string[] => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1);
-/** For COMPARING words only ("apple" = "apples", "tomatoes" = "tomato"): the lookup keeps words whole. */
-const stem = (w: string) => w.replace(/ies$/, "y").replace(/es$/, "").replace(/s$/, "").replace(/e$/, "");
-const singular = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 
 /** Words in a recognised name that carry no food: dropped from the lookup, not required of the row. */
-const STOP = new Set(["with", "and", "in", "of", "the", "plain", "pieces", "piece", "slice", "slices", "whole"]);
+const STOP = new Set(["with", "and", "in", "of", "the", "plain", "pieces", "piece", "slice", "slices", "whole", "cooking"]);
 /** What the model says about preparation -> the catalog's word for it. */
 const COOKED_AS: Record<string, string[]> = {
-  roast: ["roasted"], fried: ["fried"], fry: ["fried"], grilled: ["grilled", "broiled"], boiled: ["boiled"],
-  baked: ["baked"], toasted: ["toasted"], steamed: ["steamed"], cooked: ["cooked"],
+  roast: ["roasted"], roasted: ["roasted"], fried: ["fried"], fry: ["fried"],
+  grilled: ["grilled", "broiled"], boiled: ["boiled"], baked: ["baked"], toasted: ["toasted"],
+  steamed: ["steamed"], cooked: ["cooked"], smoked: ["smoked"], braised: ["braised"], mashed: ["mashed"],
 };
-const STATES = new Set(["raw", "cooked", "roasted", "fried", "grilled", "broiled", "boiled", "baked", "toasted", "steamed", "stewed"]);
-/** USDA's descriptive filler ("Chicken, broilers or fryers, ... meat only"): length without meaning. */
-const FILLER = new Set([
-  "broilers", "or", "fryers", "meat", "only", "skin", "boneless", "skinless", "with", "without", "separable", "lean",
-  "fat", "trimmed", "all", "grades", "choice", "select", "retail", "cuts", "fresh", "unprepared", "cooked", "oven",
-  "pan", "whole", "commercial", "bone", "small", "large", "medium", "regular", "generic", "type", "from", "not",
-  "enriched", "unenriched", "includes", "eaten",
+/** The dry or agricultural form, as opposed to what is on the plate. */
+const RAW_STATE = new Set(["raw", "uncooked", "dry"]);
+/** A plain way of serving a cooked food — every USDA prepared row also says "cooked", so it is these that tell a boiled chicken from a fried one. */
+const LIGHT_PREP = new Set(["boiled", "steamed", "baked", "roasted", "braised", "stewed", "mashed"]);
+/** A specific preparation nobody asked for is a worse answer than the plain food. */
+const HARD_PREP = new Set(["fried", "grilled", "broiled", "toasted", "smoked"]);
+/**
+ * Foods only ever eaten cooked: when the name names no preparation, the served row is the honest
+ * default — "rice" on a plate is cooked rice, and its dry row (3x the density) is the wrong answer.
+ * Everything else defaults to the fresh form ("apple" is raw).
+ */
+const SERVES_COOKED = new Set([
+  // grains and cereals
+  "rice", "pasta", "noodle", "noodles", "spaghetti", "macaroni", "couscous", "quinoa", "millet",
+  "bulgur", "barley", "farro", "polenta", "grits", "oatmeal", "oats", "buckwheat", "amaranth",
+  "teff", "sorghum", "semolina", "tapioca", "orzo", "wheat",
+  // legumes
+  "beans", "chickpea", "chickpeas", "lentil", "lentils", "peas", "edamame",
+  // tubers and usually-cooked vegetables
+  "potato", "potatoes", "yam", "cassava", "taro", "plantain", "eggplant", "aubergine", "artichoke",
+  "asparagus", "corn", "okra", "sprouts",
+  // proteins
+  "chicken", "beef", "pork", "lamb", "veal", "turkey", "duck", "goose", "fish", "salmon", "tuna",
+  "cod", "haddock", "tilapia", "trout", "sardines", "shrimp", "prawns", "mussels", "squid",
+  "octopus", "bacon", "ham", "sausage", "meat", "meatball", "meatballs", "steak", "liver",
+  "egg", "eggs", "hamburger", "cheeseburger",
 ]);
-/** A word that makes a row a product made FROM the food, or a stand-in for it, unless the query said it. */
-const COMPOSITE = new Set([
-  "tart", "jelly", "pudding", "sandwich", "pie", "soup", "nectar", "juice", "dried", "canned", "babyfood", "formula",
-  "restaurant", "frozen", "sauce", "cake", "cookie", "cereal", "drink", "beverage", "candy", "snack", "spread",
-  "salad", "dessert", "pastry", "pastries", "bar", "flavor", "mix", "fast", "brand", "kit", "spray", "prepacked",
-  "nuggets", "stick", "sticks", "yogurt", "french", "school", "lunch", "burger",
-]);
-/** Never a match for a food that did not name it. */
-const SUBSTITUTE = /\b(meatless|vegetarian|vegan|imitation|analog|substitute)\b/i;
-
 type Complete = FoodRef & {
   kcal_per_100g: number; protein_g_per_100g: number; carbs_g_per_100g: number; fat_g_per_100g: number;
 };
@@ -67,6 +74,14 @@ const complete = (f: FoodRef): f is Complete =>
 const REWRITES: [RegExp, string][] = [
   [/\bmeatloaf\b/gi, "meat loaf"], [/\bomelets?\b/gi, "omelette"],
   [/\bbreadsticks?\b/gi, "bread stick"], [/\bpork knuckle\b/gi, "ham knuckle"],
+  // #615: the generic rows are spelled "hamburger" and "toasted bread"; the words a model says
+  // ("burger", "toast") otherwise reach only the branded rows. "burger" survives in "burger king"
+  // — there the brand IS the query.
+  [/\bcheese\s+burgers?\b/gi, "cheeseburger"], [/\bburgers?\b(?!\s+king)/gi, "hamburger"],
+  [/\btoasts?\b/gi, "toasted bread"],
+  // The plate calls it "french fries"; the catalog calls it "potatoes, french fried". The rewrite
+  // keeps "fried" as the wanted preparation and lets "potato" name the food (#615 review).
+  [/\bfrench fries\b/gi, "french fried potatoes"], [/\bfries\b/gi, "french fried potatoes"],
 ];
 const rewrite = (name: string) => REWRITES.reduce((s, [re, to]) => s.replace(re, to), name);
 
@@ -80,59 +95,113 @@ const sushiName = (name: string) => {
   return ["sushi", "maki", ...filling].join(" ");
 };
 
-/** Size and preparation words that may lead a name; dropped only when the whole name missed. */
+/** Size and quality words that may lead a name; they must never change the row, so they are not required. */
 const MODIFIERS = new Set([
   "small", "large", "big", "medium", "mini", "half", "fresh", "homemade", "sliced", "diced", "chopped",
-  ...STATES, ...Object.keys(COOKED_AS),
 ]);
+
 /** The name without its leading modifiers, or null when there are none. Never drops a noun. */
 const dropModifiers = (name: string): string | null => {
   const w = name.trim().split(/\s+/);
+  const all = new Set([...MODIFIERS, ...STATES, ...Object.keys(COOKED_AS)]);
   let i = 0;
-  while (i < w.length - 1 && MODIFIERS.has(w[i]!.toLowerCase())) i++;
+  while (i < w.length - 1 && all.has(w[i]!.toLowerCase())) i++;
   return i > 0 ? w.slice(i).join(" ") : null;
 };
 
-/** The words a row must carry: the query without stop words and without preparation words. */
+/** The preparation the name asks for, in the catalog's spelling, or [] when it asks none. */
+const wantedStates = (q: string[]): string[] => q.flatMap((t) => COOKED_AS[t] ?? (STATES.has(t) ? [t] : []));
+
+/** The words a row must carry: the query without stop words, preparation words and leading modifiers. */
 export const lookupWords = (nameEn: string): string[] => {
   const n = rewrite(nameEn);
-  return isSushi(n) ? ["sushi"] : words(n).filter((w) => !STOP.has(w) && !COOKED_AS[w]).map(singular);
+  if (isSushi(n)) return ["sushi"];
+  const q = words(n);
+  const stripped = q.filter((w) => !STOP.has(w) && !COOKED_AS[w] && !STATES.has(w));
+  let i = 0;
+  while (i < stripped.length - 1 && MODIFIERS.has(stripped[i]!)) i++;
+  return stripped.slice(i).map(singular);
 };
 
 /**
- * How well a row answers a recognised name; higher is better. The head noun first (USDA writes
- * "Chicken, breast, ..." and "Apples, raw" — the food is the first word, the rest qualify it),
- * the preparation the model named, raw as the default, generic over composite, and the model's own
- * density as the tie-breaker between otherwise equal rows.
+ * How well a row answers a recognised name; higher is better. Name only (#615): the head noun
+ * first (USDA writes "Chicken, breast, ..." — the food is the first word, the rest qualify it),
+ * the preparation the name asked for, the served form of a staple or the fresh form of anything
+ * else, generic reference entries over branded and composite ones — and a row made FROM the food,
+ * or a portion OF it, is not the food.
  */
-export function scoreFood(nameEn: string, density: number | undefined, f: Complete): number {
-  const q = words(nameEn), qStems = q.map(stem);
-  const rowWords = words(f.name_en ?? f.name);
-  const wantState = q.flatMap((t) => COOKED_AS[t] ?? []);
-  const rowStates = rowWords.filter((t) => STATES.has(t));
-  const extras = rowWords.filter((t) => !qStems.includes(stem(t)) && !STATES.has(t));
-  let s = -Math.min(4, extras.filter((t) => !FILLER.has(t)).length + extras.filter((t) => FILLER.has(t)).length * 0.15);
-  if (!qStems.includes(stem(rowWords[0] ?? ""))) s -= 3;
-  s -= rowWords.filter((t) => COMPOSITE.has(t) && !q.includes(t)).length * 4;
-  if (wantState.length > 0) s += rowStates.some((t) => wantState.includes(t)) ? 3 : rowStates.includes("raw") ? -2 : 0;
-  else if (rowStates.includes("raw")) s += 1.5;
+/**
+ * The facts about the QUERY that every candidate reuses: the query's canonical stems, the
+ * preparation it asked for, whether it names a served-cooked staple. Computed once in `pickFood`
+ * so a 300-row pool pays it once, not 300 times.
+ */
+interface QueryContext {
+  qSet: Set<string>; wantState: string[]; servesCooked: boolean;
+}
+const queryContext = (nameEn: string): QueryContext => {
+  const q = words(nameEn);
+  return {
+    qSet: new Set(q.map(norm)),
+    wantState: wantedStates(q),
+    servesCooked: q.map(singular).some((t) => SERVES_COOKED.has(t)),
+  };
+};
+
+function scoreFoodIn(ctx: QueryContext, f: Complete): number {
+  const { qSet, wantState, servesCooked } = ctx;
+  const a = analyzeFoodRow(f);
+  // A product made from the food, or another dish, is simply out.
+  for (const t of a.products) if (!qSet.has(t)) return -Infinity;
+  let extraHard = 0, extraSoft = 0;
+  for (const t of a.others) if (!qSet.has(t)) extraHard++;
+  for (const t of a.fillers) if (!qSet.has(t)) extraSoft++;
+  let s = -Math.min(4, extraHard + extraSoft * 0.15);
+
+  // The head is the first WORD, hyphens kept: "Sugar-apples" is a sweetsop, not sugar — a
+  // hyphenated head whose far half the name never said is a head the name never said.
+  if (a.headParts ? a.headParts.some((p) => !qSet.has(norm(p))) : !qSet.has(a.headStem!)) s -= 3;
+
+  for (const t of a.composites) if (!qSet.has(t)) s -= 4;
+  for (const t of a.portions) if (!qSet.has(t)) s -= 4;
+  // A row whose name carries a brand (the catalog spells brands in caps) is a worse generic
+  // answer, unless the name said the brand.
+  for (const c of a.caps) if (!qSet.has(c)) s -= 4;
+
+  const rowStates = a.states;
+  if (wantState.length > 0) {
+    s += rowStates.some((t) => wantState.includes(t)) ? 3 : rowStates.some((t) => RAW_STATE.has(t)) ? -2 : 0;
+  } else if (servesCooked) {
+    // A staple on a plate is served: the plainly cooked form first, a named preparation next, the
+    // dry form last. "cooked" itself is ignored here — every prepared row carries it.
+    const prep = rowStates.filter((t) => t !== "cooked");
+    s += prep.some((t) => LIGHT_PREP.has(t)) ? 1.5 : prep.some((t) => HARD_PREP.has(t)) ? 1
+      : rowStates.includes("cooked") ? 1 : prep.some((t) => RAW_STATE.has(t)) ? -2.5 : 0;
+  } else {
+    // Anything else is the fresh form by default, a plain row over a prepared one.
+    const prep = rowStates.filter((t) => t !== "cooked");
+    s += prep.some((t) => RAW_STATE.has(t)) ? 1 : prep.some((t) => HARD_PREP.has(t)) ? -2.5
+      : rowStates.length > 0 ? -0.5 : 0;
+  }
   if (f.source === "usda-sr") s += 1;
-  if (density !== undefined && density > 0) s -= Math.abs(Math.log(f.kcal_per_100g / density)) * 3;
   return s;
 }
 
+export function scoreFood(nameEn: string, f: Complete): number {
+  return scoreFoodIn(queryContext(nameEn), f);
+}
+
 /** The catalog row to believe for this item among `candidates`, or null. */
-export function pickFood(item: MealItem, candidates: FoodRef[]): Complete | null {
-  const raw = rewrite(item.name_en?.trim() ?? "");
+export function pickFood(nameEn: string, candidates: FoodRef[]): Complete | null {
+  const raw = rewrite(nameEn.trim());
   if (!raw) return null;
   const name = isSushi(raw) ? sushiName(raw) : raw;
-  const d = item.kcal_per_100g;
-  const usable = candidates.filter(complete).filter((f) =>
-    (d === undefined || d <= 0 || (f.kcal_per_100g <= d * DENSITY_BAND && f.kcal_per_100g >= d / DENSITY_BAND))
-    && (!SUBSTITUTE.test(f.name_en ?? f.name) || SUBSTITUTE.test(name)));
+  const ctx = queryContext(name);
+  const nameIsSubstitute = SUBSTITUTE.test(name);
   let best: Complete | null = null, bestScore = -Infinity;
-  for (const f of usable) {
-    const sc = scoreFood(name, d, f);
+  for (const f of candidates) {
+    if (!complete(f)) continue;
+    if (analyzeFoodRow(f).substitute && !nameIsSubstitute) continue;
+    const sc = scoreFoodIn(ctx, f);
     if (sc > bestScore) { best = f; bestScore = sc; }
   }
   return best && bestScore >= FLOOR ? best : null;
@@ -140,14 +209,14 @@ export function pickFood(item: MealItem, candidates: FoodRef[]): Complete | null
 
 /** Full name first; on a miss, once more without its leading modifiers (A3b). */
 async function findFood(deps: EngineDeps, item: MealItem): Promise<Complete | null> {
-  const attempt = async (it: MealItem) => {
-    const w = lookupWords(it.name_en!);
-    return w.length === 0 ? null : pickFood(it, await deps.store.foodCandidates(w, POOL));
+  const attempt = async (name: string) => {
+    const w = lookupWords(name);
+    return w.length === 0 ? null : pickFood(name, await deps.store.foodCandidates(w, POOL));
   };
-  const hit = await attempt(item);
+  const hit = await attempt(item.name_en!);
   if (hit) return hit;
-  const bare = dropModifiers(item.name_en!);
-  return bare ? attempt({ ...item, name_en: bare }) : null;
+  const bare = dropModifiers(rewrite(item.name_en!));
+  return bare ? attempt(bare) : null;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

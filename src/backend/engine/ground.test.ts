@@ -57,13 +57,17 @@ describe("grounding items in the catalog", () => {
     expect(grounded).toBe(0);
   });
 
-  test("raw rice does not stand in for a plate of cooked rice", async () => {
-    const original = meal([model("rice", 150, 130)]);
-    const { grounded } = await groundAnalysis(depsWith([ref("rice", 365)]), original);
-    expect(grounded).toBe(0);
+  test("the model's density never steers the row: far or near, the name decides (#615)", async () => {
+    // The catalog's word on "rice" is the served form, however far that sits from the model's guess.
+    const { grounded, analysis } = await groundAnalysis(
+      depsWith([ref("Rice, white, cooked", 130), ref("Rice, white, raw", 365)]),
+      meal([model("rice", 150, 30)]),
+    );
+    expect(grounded).toBe(1);
+    expect(analysis.items[0]?.ref).toBe("usda-sr:Rice, white, cooked");
   });
 
-  test("a longer catalog name that contains every word matches; one whose density disagrees does not", async () => {
+  test("a row made FROM the food is not the food: rice pudding is no answer to rice", async () => {
     const long = ref("chicken breast meat only cooked roasted", 165);
     expect((await groundAnalysis(depsWith([long]), meal([model("chicken breast", 100, 150)]))).grounded).toBe(1);
     expect((await groundAnalysis(depsWith([ref("rice pudding", 400)]), meal([model("rice", 100, 130)]))).grounded).toBe(0);
@@ -91,7 +95,7 @@ describe("meal micronutrients from the catalog (#566)", () => {
   });
 
   test("every item grounded and carrying a nutrient: the meal's value is the catalog's sum", async () => {
-    const catalog = [ref("egg", 143, micros), ref("toast", 250, { ...micros, satfat_g_per_100g: 1 })];
+    const catalog = [ref("egg", 143, micros), ref("toasted bread", 250, { ...micros, satfat_g_per_100g: 1 })];
     const { analysis } = await groundAnalysis(depsWith(catalog), modelMeal([model2("egg", 100), model2("toast", 50)]));
     expect(analysis).toMatchObject({ satfat_g: 2.5, fiber_g: 4.5, sugar_g: 6, sodium_mg: 75 });
   });
@@ -102,35 +106,78 @@ describe("meal micronutrients from the catalog (#566)", () => {
   });
 
   test("the rule is per nutrient: a row without fibre leaves only fibre to the model", async () => {
-    const catalog = [ref("egg", 143, micros), ref("toast", 250, { ...micros, fiber_g_per_100g: null })];
+    const catalog = [ref("egg", 143, micros), ref("toasted bread", 250, { ...micros, fiber_g_per_100g: null })];
     const { analysis } = await groundAnalysis(depsWith(catalog), modelMeal([model2("egg", 100), model2("toast", 100)]));
     expect(analysis).toMatchObject({ satfat_g: 4, fiber_g: 7, sugar_g: 8, sodium_mg: 100 });
   });
 });
 
 describe("ranking the candidates", () => {
-  const item = (name_en: string, d: number) => ({ name: name_en, name_en, grams: 100, kcal_per_100g: d });
-  const pick = (name_en: string, d: number, rows: FoodRef[]) => pickFood(item(name_en, d), rows)?.name_en ?? null;
+  const pick = (name_en: string, rows: FoodRef[]) => pickFood(name_en, rows)?.name_en ?? null;
 
   test("the food leads the name: the generic entry beats a tart, a pineapple and a branded product", () => {
     const rows = [ref("Apple tart", 227), ref("Pineapple, raw", 50), ref("Lean Pockets, Apple", 250), ref("Apples, raw, all varieties", 52)];
-    expect(pick("apple", 53, rows)).toBe("Apples, raw, all varieties");
+    expect(pick("apple", rows)).toBe("Apples, raw, all varieties");
   });
-  test("a named preparation picks the row prepared that way, and plain defaults to raw", () => {
+  test("a named preparation picks the row prepared that way, and a staple defaults to served", () => {
     const rows = [ref("Chicken, breast, raw", 120), ref("Chicken, breast, cooked, fried", 220), ref("Chicken, breast, cooked, roasted", 165)];
-    expect(pick("fried chicken breast", 200, rows)).toBe("Chicken, breast, cooked, fried");
-    expect(pick("chicken breast", 130, rows)).toBe("Chicken, breast, raw");
+    expect(pick("fried chicken breast", rows)).toBe("Chicken, breast, cooked, fried");
+    expect(pick("chicken breast", rows)).toBe("Chicken, breast, cooked, roasted");
   });
   test("meatless is never a match for meat, unless the model said so", () => {
     const rows = [ref("Meatballs, meatless", 197)];
-    expect(pick("meatballs", 180, rows)).toBeNull();
-    expect(pick("meatless meatballs", 180, rows)).toBe("Meatballs, meatless");
+    expect(pick("meatballs", rows)).toBeNull();
+    expect(pick("meatless meatballs", rows)).toBe("Meatballs, meatless");
   });
   test("a poor best candidate is a miss", () => {
-    expect(pick("mini quiche", 233, [ref("Egg tart, quiche style lorraine pie pastry", 233)])).toBeNull();
+    expect(pick("mini quiche", [ref("Egg tart, quiche style lorraine pie pastry", 233)])).toBeNull();
   });
   test("the lookup drops preparation and filler words and stems plurals", () => {
     expect(lookupWords("Fried chicken drumsticks with the skin")).toEqual(["chicken", "drumstick", "skin"]);
+  });
+
+  // ── #615: robust to wording ──
+
+  test("case, plurals and word order do not change the row", () => {
+    const rows = [ref("Chicken, breast, cooked, roasted", 165), ref("Chicken, breast, raw", 120)];
+    const base = pick("chicken breast", rows);
+    expect(pick("Chicken Breast", rows)).toBe(base);
+    expect(pick("chicken breasts", rows)).toBe(base);
+    expect(pick("breast chicken", rows)).toBe(base);
+  });
+  test("a leading size or quality modifier does not change the row", () => {
+    const rows = [ref("Salmon, atlantic, cooked, grilled", 206)];
+    expect(pick("large grilled salmon", rows)).toBe(pick("grilled salmon", rows));
+    expect(pick("fresh salmon", rows)).toBe(pick("salmon", rows));
+  });
+  test("a generic row beats a branded one, unless the name says the brand", () => {
+    const rows = [
+      ref("BURGER KING, Hamburger", 261),
+      ref("McDONALD'S, Hamburger", 264),
+      ref("Fast foods, hamburger, single, regular patty, plain", 297),
+    ];
+    expect(pick("hamburger", rows)).toBe("Fast foods, hamburger, single, regular patty, plain");
+    expect(pick("burger king hamburger", rows)).toBe("BURGER KING, Hamburger");
+  });
+  test("a row made from the food loses to the food: olive oil, chips, greens, relish", () => {
+    expect(pick("olives", [ref("Olive oil", 900), ref("Olives, green, stuffed", 130)])).toBe("Olives, green, stuffed");
+    expect(pick("tortilla", [ref("Tortilla chips", 475), ref("Tortillas, corn", 218)])).toBe("Tortillas, corn");
+    expect(pick("mustard", [ref("Mustard greens, raw", 27), ref("Mustard, prepared, yellow", 66)])).toBe("Mustard, prepared, yellow");
+    expect(pick("pickles", [ref("Pickle relish, sweet", 130), ref("Pickles, cucumber, dill", 17)])).toBe("Pickles, cucumber, dill");
+  });
+  test("the fat and skin portions are not the food", () => {
+    const rows = [ref("Beef, retail cuts, separable fat, raw", 674), ref("Beef, chuck, ground, cooked", 250)];
+    expect(pick("beef", rows)).toBe("Beef, chuck, ground, cooked");
+  });
+  test("a hyphenated first word names the compound, not the food", () => {
+    const rows = [ref("Sugar-apples, (sweetsop), raw", 94), ref("Sugar, granulated", 387)];
+    expect(pick("sugar", rows)).toBe("Sugar, granulated");
+  });
+  test("a staple is the served form; a fruit is the fresh one; a plain row beats a preparation", () => {
+    expect(pick("rice", [ref("Rice, white, raw", 365), ref("Rice, white, cooked", 130)])).toBe("Rice, white, cooked");
+    expect(pick("apple", [ref("Apples, raw", 52), ref("Apples, cooked, boiled", 53)])).toBe("Apples, raw");
+    expect(pick("tofu", [ref("Tofu, fried", 270), ref("Tofu, raw, regular", 76)])).toBe("Tofu, raw, regular");
+    expect(pick("steak", [ref("Horse, steak, raw", 129), ref("Beef, sirloin, cooked, grilled", 200)])).toBe("Beef, sirloin, cooked, grilled");
   });
 });
 
@@ -156,6 +203,11 @@ describe("matcher A3b: rewrites, sushi, modifier-drop (#567)", () => {
   });
   test("a bread roll is not sushi", () => {
     expect(lookupWords("cinnamon roll")).toEqual(["cinnamon", "roll"]);
+  });
+  test("toast is looked up as toasted bread; a burger as a hamburger", () => {
+    expect(lookupWords("toast")).toEqual(["bread"]);
+    expect(lookupWords("french toast")).toEqual(["french", "bread"]);
+    expect(lookupWords("burger")).toEqual(["hamburger"]);
   });
   test("a miss retries without leading modifiers, and never falls back to the head noun alone", async () => {
     const hit = await groundAnalysis(depsWith([ref("salmon", 200)]), meal([model("large grilled salmon", 100, 190)]));

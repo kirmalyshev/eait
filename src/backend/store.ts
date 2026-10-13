@@ -1446,9 +1446,16 @@ export interface Store {
    * The rows an analyzer's item could be grounded in: an English name carrying EVERY word, as a
    * whole word or its plural, and all four macros present. Shortest name first, so the generic
    * entry ("Apples, raw") comes before the composites that contain it. The ranking is the engine's
-   * (`engine/ground.ts`); this only bounds the pool.
+   * (`engine/ground.ts`); this only bounds the pool. Answered from an in-memory index built at
+   * boot, not a table scan (#615).
    */
   foodCandidates(words: string[], limit: number): Promise<FoodRef[]>;
+  /**
+   * Rebuild the in-memory index `foodCandidates` answers from, from the table (#615). Called at
+   * boot and after a snapshot load; rows written through `putFoodRefs` reach the index without
+   * waiting for it. Returns the indexed row count and the build time.
+   */
+  refreshFoodIndex(): Promise<{ rows: number; ms: number }>;
   /** One barcoded product, or null — a miss is the common case and the label-read path's cue. */
   offProductByBarcode(barcode: string): Promise<OffProduct | null>;
   /**
