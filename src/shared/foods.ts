@@ -36,7 +36,7 @@ export interface FoodPortion {
  * research leaves room for, one row per published item.
  */
 export const FOOD_SOURCE_IDS = [
-  "bls", "ciqual", "frida", "fcdb", "matvaretabellen",
+  "bls", "ciqual", "cofid", "fineli", "frida", "fcdb", "matvaretabellen",
   "usda-foundation", "usda-sr", "usda-fndds",
   "curated",
 ] as const;
@@ -45,7 +45,7 @@ export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
 /**
  * The sources a meal item's `ref` can point at today, each named once with its licence (#562).
  *
- * These are the five sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
+ * These are the seven sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
  * else), a subset of `FOOD_SOURCE_IDS` — the schema's other ids are placeholders and fallbacks no
  * snapshot has ever written. A surface that names a source reads this; a `ref` prefix absent from
  * it is a source nothing here has met, to be shown unnamed rather than invented.
@@ -53,6 +53,8 @@ export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
 export const FOOD_SOURCES: Partial<Record<FoodSource, { name: string; licence: string }>> = {
   "usda-sr": { name: "USDA FoodData Central", licence: "CC0-1.0" },
   bls: { name: "BLS", licence: "CC-BY-4.0" },
+  cofid: { name: "CoFID", licence: "OGL-UK-3.0" },
+  fineli: { name: "Fineli", licence: "CC-BY-4.0" },
   ciqual: { name: "CIQUAL", licence: "etalab-2.0" },
   matvaretabellen: { name: "Matvaretabellen", licence: "NLOD-2.0" },
   frida: { name: "Frida", licence: "CC-BY-4.0" },
@@ -185,16 +187,26 @@ export interface FoodAttribution {
 /**
  * The citation a surface must show beside a source's data.
  *
- * CC BY (BLS, Frida) and Etalab (CIQUAL) ask for the publisher's name; ODbL (Open Food Facts) asks
- * for the sentence and the link; the USDA sets are CC0 and take none, so they are absent — as is
- * `label-ocr`, which is our own read of somebody's label. `undefined` therefore means "no citation
- * owed", not "forgot to write one".
+ * CC BY (BLS, Fineli, Frida) and Etalab (CIQUAL) ask for the publisher's name; OGL (CoFID) and
+ * ODbL (Open Food Facts) ask for the sentence and the link; the USDA sets are CC0 and take none,
+ * so they are absent — as is `label-ocr`, which is our own read of somebody's label. `undefined`
+ * therefore means "no citation owed", not "forgot to write one".
  */
 export const FOOD_ATTRIBUTION: Partial<Record<FoodSource | ProductSource, FoodAttribution>> = {
   bls: {
     source: "bls",
     citation: "Max Rubner-Institut (2025): Bundeslebensmittelschlüssel (BLS), Version 4.0 — Deutsche Nährstoffdatenbank, Karlsruhe",
     url: "https://blsdb.de",
+  },
+  cofid: {
+    source: "cofid",
+    citation: "McCance and Widdowson's The Composition of Foods Integrated Dataset 2021, Public Health England (https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid). Contains public sector information licensed under the Open Government Licence v3.0.",
+    url: "https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid",
+  },
+  fineli: {
+    source: "fineli",
+    citation: "Finnish Institute for Health and Welfare (THL), Fineli (https://fineli.fi). CC BY 4.0.",
+    url: "https://fineli.fi",
   },
   ciqual: {
     source: "ciqual",

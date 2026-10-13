@@ -17,7 +17,10 @@ describe("a snapshot line as a food_ref row", () => {
     });
   });
   test("a source eait's schema does not name is skipped", () => {
+    // mext and tfda are the real cases: both publish a non-English primary name only (ja, zh-TW),
+    // so a stored row could never answer an English query — they stay out rather than load dead weight.
     expect(foodRefFromSnapshotLine(line({ name: { value: "x", source: "mext", record: "mext:1" } }))).toBeNull();
+    expect(foodRefFromSnapshotLine(line({ name: { value: "x", source: "tfda", record: "tfda:1" } }))).toBeNull();
   });
   test("a barcoded product is not a generic food", () => {
     expect(foodRefFromSnapshotLine(line({ gtin14: [{}] }))).toBeNull();
@@ -40,6 +43,17 @@ describe("a snapshot line as a food_ref row", () => {
       kcal_per_100g: 372, protein_g_per_100g: 13.5, carbs_g_per_100g: 58.7, fat_g_per_100g: 7, fiber_g_per_100g: 10,
       attribution: [credit],
     });
+  });
+  test.each([
+    ["cofid", "13-519", "Bread, white, farmhouse", "OGL-UK-3.0"],
+    ["fineli", "11028", "Milk, whole, 3.9 % fat", "CC-BY-4.0"],
+  ])("a %s line lands with its code, English name and licence credit", (source, code, name, _licence) => {
+    const credit = `${source} attribution`;
+    const r = foodRefFromSnapshotLine(line({
+      name: { value: name, source, record: `${source}:${code}` },
+      attribution: [{ text: credit }],
+    }))!;
+    expect(r).toMatchObject({ id: `${source}:${code}`, source, name_en: name, attribution: [credit] });
   });
   test("a non-English name is kept under its language, not as the English key", () => {
     const r = foodRefFromSnapshotLine(line({ name: { value: "Pomme", source: "ciqual", record: "ciqual:13014" }, lang: { value: "fr" } }))!;

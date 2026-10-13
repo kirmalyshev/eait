@@ -9,7 +9,10 @@ import type { FoodRef, FoodSource } from "@eait/shared";
 
 /** fooddb's source name -> the `food_ref.source` it is stored under. `fdc` is SR Legacy and Foundation. */
 const SOURCES: Record<string, FoodSource> = {
-  fdc: "usda-sr", bls: "bls", ciqual: "ciqual", frida: "frida", matvaretabellen: "matvaretabellen",
+  fdc: "usda-sr",
+  bls: "bls", ciqual: "ciqual", cofid: "cofid", fineli: "fineli", frida: "frida", matvaretabellen: "matvaretabellen",
+  // fooddb also publishes mext (ja names) and tfda (zh-TW names): neither carries an English name
+  // the matcher could ever reach, so a stored row would be dead weight — they stay out on purpose.
 };
 
 type Tagged<T> = { value: T; record?: string | null } | null | undefined;

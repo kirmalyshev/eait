@@ -3017,6 +3017,14 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(hits.map((f) => f.id)).toEqual([`${RUN}:f1`]);
       });
 
+      it("accepts a row from every source the snapshot can write", async () => {
+        const s = await open();
+        await s.putFoodRefs((["cofid", "fineli"] as const).map((source) =>
+          ref({ id: `${RUN}:${source}1`, source, name: `${RUN} ${source} food` })));
+        expect((await s.searchFoods(`${RUN} cofid`, 10)).map((f) => f.id)).toEqual([`${RUN}:cofid1`]);
+        expect((await s.searchFoods(`${RUN} fineli`, 10)).map((f) => f.id)).toEqual([`${RUN}:fineli1`]);
+      });
+
       it("foodCandidates: whole words or plurals, every word, complete macros, shortest name first", async () => {
         // A word of THIS run's own: the pool is bounded by `limit`, so a shared fixture word lets the rows
         // of earlier runs on the same database (nothing deletes them) fill the limit and push these out.
