@@ -83,6 +83,27 @@ async function campaign(over: Record<string, unknown> = {}, status: "draft" | "s
   return (await store.getCampaign(made.row.id))!;
 }
 
+/**
+ * Mint accounts until `c` holds out EXACTLY `holdouts` of them, beside at least `treated` treated
+ * ones, and return them in mint order. `inHoldout` hashes the user id with the campaign id — both
+ * random — so the held-out count of a fixed-size draw is binomial and a bound on it is a
+ * statistical claim (a 10% draw of 80 lands under 3 about one run in forty). Minting to a count is
+ * exact; a held draw past the target is deleted before anything can send to it.
+ */
+async function usersWithHoldout(c: CampaignRow, holdouts: number, treated: number): Promise<{ users: string[]; held: string[] }> {
+  const users: string[] = [];
+  const held: string[] = [];
+  while (held.length < holdouts || users.length - held.length < treated) {
+    const u = await account();
+    if (inHoldout(u, c.id, c.holdoutPct)) {
+      if (held.length === holdouts) { await store.deleteUser(u); continue; }
+      held.push(u);
+    }
+    users.push(u);
+  }
+  return { users, held };
+}
+
 describe("creating and activating", () => {
   it("refuses a segment predicate that is not on the allowlist", async () => {
     const r = await createCampaign(deps, {
@@ -577,13 +598,10 @@ describe("A/B variants", () => {
 
 describe("holdout", () => {
   it("keeps its share out with a would_have_sent row, no push, and no slot; the rest are sent, none of both", async () => {
-    const users: string[] = [];
-    for (let i = 0; i < 120; i++) users.push(await account());
     const c = await campaign({ variants: 2, holdoutPct: 10 });
+    const { users, held } = await usersWithHoldout(c, 8, 72);
     await runCampaigns(deps, { now: BERLIN_1830 });
-    const held = users.filter((u) => inHoldout(u, c.id, 10));
-    expect(held.length).toBeGreaterThan(3);
-    expect(held.length).toBeLessThan(30);
+    expect(held).toHaveLength(8);
     const sentTo = new Set(push.sent.map((m) => m.to));
     expect(push.sent).toHaveLength(users.length - held.length);
     for (const u of users) {
@@ -603,11 +621,9 @@ describe("holdout", () => {
   });
 
   it("logs a held-out account only on a day the claim would win, exactly like a treated one is retried", async () => {
-    const users: string[] = [];
-    for (let i = 0; i < 80; i++) users.push(await account());
     const c = await campaign({ holdoutPct: 10 });
-    const held = users.filter((u) => inHoldout(u, c.id, 10));
-    expect(held.length).toBeGreaterThan(2);
+    const { users, held } = await usersWithHoldout(c, 4, 40);
+    expect(held).toHaveLength(4);
     // Every account is at its own bound today: the streak line went and the bound is one.
     for (const u of users) { await store.setPushDailyMax(u, 1); await store.claimPushSlot(u, "2026-08-20", "streak", null); }
     await runCampaigns(deps, { now: BERLIN_1830 });
@@ -629,12 +645,11 @@ describe("holdout", () => {
   });
 
   it("logs a held-out account once, however many ticks run", async () => {
-    const users: string[] = [];
-    for (let i = 0; i < 60; i++) users.push(await account());
     const c = await campaign({ holdoutPct: 10 });
+    const { held } = await usersWithHoldout(c, 3, 30);
     for (const k of [0, 1, 2]) await runCampaigns(deps, { now: BERLIN_1830 + k * MIN });
     await runCampaigns(deps, { now: BERLIN_1830 + DAY });
-    for (const u of users.filter((x) => inHoldout(x, c.id, 10))) expect(await store.sendLogFor(u, 5)).toHaveLength(1);
+    for (const u of held) expect(await store.sendLogFor(u, 5)).toHaveLength(1);
   });
 
   it("holds out nobody at 0%", async () => {
@@ -658,11 +673,10 @@ describe("holdout", () => {
   });
 
   it("is reported as its own group, and the effect is treated minus holdout over accounts", async () => {
-    const users: string[] = [];
-    for (let i = 0; i < 80; i++) users.push(await account());
     const c = await campaign({ variants: 2, holdoutPct: 10 });
+    const { users, held } = await usersWithHoldout(c, 6, 60);
     await runCampaigns(deps, { now: BERLIN_1830 });
-    const held = new Set(users.filter((u) => inHoldout(u, c.id, 10)));
+    const heldSet = new Set(held);
     const meal = (userId: string) => ({
       id: crypto.randomUUID(), user_id: userId, ts: new Date(Date.now() + 60_000).toISOString(), date: "2026-08-20",
       isFood: true, items: [{ name: "x", grams: 1 }], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
@@ -670,25 +684,29 @@ describe("holdout", () => {
       notes: "", corrected: false, model: "t",
     });
     // The store stamps a send with the wall clock, so the meals land just after it.
-    const loggers = users.slice(0, 30);
+    const treated = users.filter((u) => !heldSet.has(u));
+    const loggers = treated.slice(0, 30);
     for (const u of loggers) await store.insertMeal(meal(u));
+    for (const u of held) await store.insertMeal(meal(u));
     const mine = (await campaignOverview(deps)).campaigns.find((x) => x.id === c.id)!;
     const groups = Object.fromEntries(mine.report.groups.map((g) => [g.group, g]));
-    expect(groups.holdout).toMatchObject({ users: held.size, opened: 0, converted: loggers.filter((u) => held.has(u)).length });
-    expect(groups.default!.users + groups.b!.users).toBe(users.length - held.size);
-    const treatedConverted = loggers.filter((u) => !held.has(u)).length;
-    expect(groups.default!.converted + groups.b!.converted).toBe(treatedConverted);
+    expect(groups.holdout).toMatchObject({ users: heldSet.size, opened: 0, converted: heldSet.size });
+    // Variant groups appear only when a row carries the name; sum whatever arms ran rather than
+    // naming "default" and "b" — a draw putting every treated account in one variant is legal.
+    const arms = mine.report.groups.filter((g) => g.group !== "holdout");
+    expect(arms.reduce((s, g) => s + g.users, 0)).toBe(treated.length);
+    expect(arms.reduce((s, g) => s + g.converted, 0)).toBe(loggers.length);
     expect(mine.effect).toMatchObject({
-      treated: { n: users.length - held.size, x: treatedConverted }, holdout: { n: held.size, x: loggers.filter((u) => held.has(u)).length },
+      treated: { n: treated.length, x: loggers.length }, holdout: { n: heldSet.size, x: heldSet.size },
     });
   });
 
   it("a dry run does not count the held-out as reached, and says how many it would hold out", async () => {
-    for (let i = 0; i < 80; i++) await account();
     const c = await campaign({ holdoutPct: 10 }, "draft");
+    const { users, held } = await usersWithHoldout(c, 4, 40);
     const out = await dryRunCampaign(deps, c.id, { now: BERLIN_1830 });
-    expect(out.ok && out.wouldSend + out.heldOut).toBe(80);
-    expect(out.ok && out.heldOut).toBeGreaterThan(0);
+    expect(out.ok && out.wouldSend + out.heldOut).toBe(users.length);
+    expect(out.ok && out.heldOut).toBe(held.length);
     expect(push.sent).toHaveLength(0);
   });
 });
