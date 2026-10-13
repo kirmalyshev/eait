@@ -20,7 +20,7 @@ import type {
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -1266,9 +1266,11 @@ alter table food_ref add constraint food_ref_source_check
 
 -- off_product is the BARCODED table: packaged products, keyed on the barcode itself (GTIN digits)
 -- because the scan, the dump ingest and the label-OCR write-back all address the same row that
--- way. source distinguishes 'off' (the Open Food Facts nightly dump, ODbL -- the UI owes it the
--- "Contains data from Open Food Facts" attribution in FOOD_ATTRIBUTION) from 'label-ocr' (a
--- phone's read of the actual label, written back so the next scan of the same barcode is a hit).
+-- way. source distinguishes 'off' (Open Food Facts -- dump or read-through, ODbL, the UI owes it
+-- the "Contains data from Open Food Facts" attribution in FOOD_ATTRIBUTION) from 'label-ocr' (a
+-- phone's read of the actual label, written back so the next scan of the same barcode is a hit)
+-- and from fooddb's CORE sources a barcode can still resolve to ('usda-branded' and the national
+-- tables in PRODUCT_SOURCES) — the row names the source the licence belongs to.
 -- Everything but the barcode is nullable by design: a real OFF row is often a name and seven
 -- label fields.
 create table if not exists off_product (
@@ -1295,7 +1297,7 @@ create table if not exists off_product (
 );
 alter table off_product drop constraint if exists off_product_source_check;
 alter table off_product add constraint off_product_source_check
-  check (source in ('off', 'label-ocr'));
+  check (source in (${PRODUCT_SOURCES.map((s) => `'${s}'`).join(", ")}));
 ${RLS_DDL}
 `;
 
@@ -3327,8 +3329,9 @@ export async function postgresStore(
       for (let i = 0; i < products.length; i += 500) {
         const batch = products.slice(i, i + 500);
         // THE PRECEDENCE RULE, IN THE STATEMENT: a `label-ocr` row is a phone's read of the real
-        // package, so an `off` row may replace it only when the dump row carries a calorie figure —
-        // an empty OFF record never erases a contributed one. `label-ocr` rows always land.
+        // package, so a FETCHED row (`off` or a national table's, via the dump or the read-through)
+        // may replace it only when the fetched row carries a calorie figure — an empty record
+        // never erases a contributed one. `label-ocr` rows always land.
         const back = await sql`
           insert into off_product ${sql(batch as never)}
           on conflict (barcode) do update set
@@ -3341,8 +3344,8 @@ export async function postgresStore(
             nutriscore = excluded.nutriscore, nova_group = excluded.nova_group,
             ingredients = excluded.ingredients, image_url = excluded.image_url,
             data = excluded.data, updated_at = now()
-          where excluded.source <> 'off'
-             or off_product.source = 'off'
+          where excluded.source = 'label-ocr'
+             or off_product.source <> 'label-ocr'
              or excluded.kcal_per_100g is not null
           returning barcode`;
         written += back.length;

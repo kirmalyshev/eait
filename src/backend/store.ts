@@ -1469,9 +1469,9 @@ export interface Store {
    * Upsert products by `barcode`. Returns the number of rows written.
    *
    * One rule of precedence, stated HERE rather than by the callers: a `label-ocr` row is a phone's
-   * read of the actual package, so a dump row (`source: 'off'`) may overwrite it only when the
-   * dump row carries a calorie figure — an empty OFF row never displaces a contributed one. A
-   * `label-ocr` row always lands.
+   * read of the actual package, so a fetched row — a dump row or a fooddb read-through — may
+   * overwrite it only when the fetched row carries a calorie figure: an empty record never
+   * displaces a contributed one. A `label-ocr` row always lands.
    */
   putOffProducts(rows: OffProduct[]): Promise<number>;
 

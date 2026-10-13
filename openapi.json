@@ -7964,7 +7964,14 @@
         "type": "string",
         "enum": [
           "off",
-          "label-ocr"
+          "label-ocr",
+          "usda-branded",
+          "bls",
+          "ciqual",
+          "cofid",
+          "fineli",
+          "frida",
+          "matvaretabellen"
         ]
       },
       "Profile": {
