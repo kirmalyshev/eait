@@ -94,8 +94,9 @@ export function attachMic(o: {
       o.onChange();
     };
     r.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { denied = true; say(t().composerMicDenied); }
+      if (e.error === "not-allowed") { denied = true; say(t().composerMicDenied); }
       else if (e.error === "no-speech") say(t().composerMicNothing);
+      else if (e.error !== "aborted") say(t().composerMicUnavailable); // network, audio-capture, service-not-allowed
     };
     r.onend = () => {
       rec = null;
