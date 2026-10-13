@@ -1,8 +1,8 @@
-// The composer's mic (#570): the browser's own speech recognition, Safari only.
+// The composer's mic (#570): the browser's own speech recognition.
 //
-// Chrome sends the audio to Google and Safari to Apple, and the ask is Apple's ecosystem, so the
-// button exists only where `SpeechRecognition || webkitSpeechRecognition` exists AND the engine is
-// WebKit. Everywhere else the composer is the plain one, with no button and no hint.
+// The button exists wherever `SpeechRecognition || webkitSpeechRecognition` exists (Kirill, 13 Oct:
+// Chrome too). The audio goes to the browser vendor — Google in Chrome, Apple in Safari — which the
+// privacy page says. Where the API is absent the composer is the plain one, no button, no hint.
 //
 // The words land in the composer's own field and go out only when she presses Send; the mic never
 // sends. A stopped or interrupted transcript stays in the field. Two switches below keep Kirill's
@@ -13,8 +13,8 @@ import { el, lang } from "./shell.ts";
 
 /** Where the mic sits: in the send round's slot while the field is empty, or beside Send always. */
 export const MIC_SLOT: "replaces-send" | "beside-send" = "replaces-send";
-/** WebKit only. `false` offers the button to any browser that has the API (Chrome: audio to Google). */
-export const MIC_SAFARI_ONLY = true;
+/** `true` withholds the button from Chromium-engine browsers (their audio goes to Google). Off by Kirill's call. */
+export const MIC_SAFARI_ONLY = false;
 
 interface Recognition {
   lang: string; interimResults: boolean; continuous: boolean;
@@ -28,7 +28,7 @@ function recognizer(): (new () => Recognition) | null {
   const w = window as unknown as Record<string, (new () => Recognition) | undefined>;
   const ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
   if (ctor === null) return null;
-  // Chrome, Edge, Opera, Firefox and Android all carry "Chrome", "Edg", "OPR", "Android" or "FxiOS"; Safari's UA has none.
+  // MIC_SAFARI_ONLY: every Chromium-engine UA carries "Chrome", "Edg", "OPR", "Android" or "FxiOS"; Safari's has none.
   if (MIC_SAFARI_ONLY && /chrome|chromium|crios|fxios|edg|opr|android/i.test(navigator.userAgent)) return null;
   return ctor;
 }
@@ -42,7 +42,7 @@ function recognizer(): (new () => Recognition) | null {
 export function attachMic(o: {
   form: HTMLElement; field: HTMLElement; words: HTMLInputElement | HTMLTextAreaElement; send: HTMLButtonElement;
   armed: () => boolean; onChange: () => void;
-}): { sync: () => void } | null {
+}): { sync: () => void; start: () => void } | null {
   const Ctor = recognizer();
   if (Ctor === null) return null;
   const { form, field, words, send } = o;
@@ -113,5 +113,5 @@ export function attachMic(o: {
   words.addEventListener("input", () => { say(null); stop(); });
   words.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Escape") stop(); });
   sync();
-  return { sync };
+  return { sync, start: () => { if (rec === null) start(); } };
 }

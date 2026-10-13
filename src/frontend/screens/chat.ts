@@ -580,7 +580,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     send.setAttribute("aria-label", attached.length > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
     voice?.sync();
   };
-  // The mic (#570, Safari only): takes Send's slot while there is nothing to send. `null` elsewhere.
+  // The mic (#570): takes Send's slot while there is nothing to send. `null` elsewhere.
   const voice = attachMic({
     form: comp.form, field: cfield, words, send,
     armed: () => attached.length > 0 || words.value.trim() !== "",
@@ -703,6 +703,8 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     menu.setAttribute("aria-label", shellCopyFor(lang).logMeal);
     const row = el("div", "cp-wrow");
     row.append(tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()), tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()));
+    // Voice (#570): only where the browser can listen, and only to START — a tap while listening is the mic round's own.
+    if (voice !== null) row.append(tile("mic", shellCopyFor(lang).plusVoice, () => { words.focus(); voice.start(); }));
     menu.append(row, el("p", "cp-hint", COPY.plusHint));
     veil.append(menu);
     veil.addEventListener("click", (e) => { if (e.target === veil || e.target === menu) closeLog(); });

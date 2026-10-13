@@ -259,6 +259,7 @@ test("a kept turn of an account that is no longer signed in here is not kept for
   const { signIn, onboardFast } = await import("./fixtures.ts");
   await signIn(page, `pw-a-${testInfo.testId}-${Date.now()}`);
   await onboardFast(page);
+  await page.addInitScript("delete window.SpeechRecognition; delete window.webkitSpeechRecognition;");
   await page.goto("/#/chat");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
