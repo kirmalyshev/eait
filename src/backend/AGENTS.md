@@ -155,9 +155,10 @@ flag in that file, or this provider breaks on the next request.
 - **It names its own server and its own models, or it does not boot.** `LLM_BASE_URL`, `LLM_MODEL` and
   `LLM_CHAT_MODEL` are required for it, because every default is OpenRouter's: an unset base URL
   would send the photos to a gateway the operator chose not to use, and an unset model names one no
-  self-hosted server has. `LLM_REASONING_EFFORT`, `LLM_PROVIDER_ORDER` and `LLM_FALLBACK_MODELS` are
-  ignored. In the prod container `docker-compose.prod.yml` fills those three with OpenRouter's values
-  when they are missing, so there the env file, not the boot check, is what sets them.
+  self-hosted server has. `LLM_REASONING_EFFORT`, `LLM_PROVIDER_ORDER`, `LLM_PROVIDER_SORT` and
+  `LLM_FALLBACK_MODELS` are ignored. In the prod container `docker-compose.prod.yml` fills those
+  with OpenRouter's values when they are missing, so there the env file, not the boot check, is
+  what sets them.
 - **What the server must do**: `LLM_MODEL` reads images, and `response_format` `json_schema` is
   honoured — otherwise every photo fails the schema twice and is `analysis-failed`.
 - **Cost is computed, not reported.** Such a server returns token counts and no `usage.cost`, so its

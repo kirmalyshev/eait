@@ -50,6 +50,13 @@ interface Options {
    */
   providerOrder?: string[] | undefined;
   /**
+   * `provider.sort` — how OpenRouter orders the providers it may pick for the nutrition calls:
+   * `price`, `throughput` or `latency`. Shipped as `throughput` because the measured spread
+   * between providers was tens of seconds a photo (eait#621). With `providerOrder` set, both ride
+   * in the one `provider` object. Never the coach. From `EAIT__BACKEND__LLM_PROVIDER_SORT`.
+   */
+  providerSort?: string | undefined;
+  /**
    * Models OpenRouter may try after `model` on a rate limit or downtime (`models: [model, ...]`),
    * on the same nutrition calls and under the same provider pin. Never the coach. From
    * `EAIT__BACKEND__LLM_FALLBACK_MODELS`.
@@ -508,10 +515,15 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ...(!openRouter ? {} : opts.reasoningEffort === "off"
           ? { reasoning: { enabled: false } }
           : opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
-        // Pinned, when configured: the privacy page names OpenRouter + the serving provider and
-        // nobody else, so the request may not fall back to a provider it does not name.
-        ...(openRouter && opts.providerOrder && opts.providerOrder.length > 0
-          ? { provider: { order: opts.providerOrder, allow_fallbacks: false } } : {}),
+        // `provider.order` pins the serving providers when configured — the privacy page names
+        // OpenRouter + the serving provider and nobody else. `provider.sort` only orders the ones
+        // routing may pick; both ride in the one `provider` object.
+        ...(openRouter && (opts.providerOrder?.length || opts.providerSort)
+          ? { provider: {
+              ...(opts.providerOrder && opts.providerOrder.length > 0 ? { order: opts.providerOrder, allow_fallbacks: false } : {}),
+              ...(opts.providerSort ? { sort: opts.providerSort } : {}),
+            } }
+          : {}),
         messages: attempt === 0 ? messages : [
           ...messages,
           {

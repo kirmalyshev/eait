@@ -46,6 +46,7 @@ import { blobSrc, ctaEl, gramMacsEl, kitEl, verdictListEl } from "./kit.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { failureOf, noAnswer, outbox, sendDeadlineMs, sendTurn, setModelCallTimeout, type WebQueued } from "./outbox.ts";
 import { routeBase } from "./route.ts";
+import * as analytics from "./analytics.ts";
 
 /**
  * THE LANGUAGE THIS TAB IS BEING READ IN, and every string on the page reads it.
@@ -129,6 +130,8 @@ export const profile = async (): Promise<ProfileResponse> => {
     document.documentElement.lang = lang;
     // The deadline a queued send is bounded by reads this: the per-call budget THIS server runs.
     setModelCallTimeout(profileCache.limits.modelCallTimeoutMs);
+    // Our id, never the email, and no person properties. A repeat with the same id is a no-op.
+    analytics.identify(profileCache.profile.user_id);
   }
   return profileCache;
 };
@@ -921,11 +924,16 @@ export function screen(hash: string, fn: ScreenFn): void {
 /** Whether a hash names a screen that exists — a tab never points at a route nobody serves. */
 export const hasScreen = (hash: string): boolean => exactScreens.has(hash);
 
-const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
+/** The registered route a hash resolves to — `#/meal/` for any meal, never the meal's id. */
+const screenKey = (route: string): string => {
   const key = routeBase(route);
-  const fn = exactScreens.get(key)
-    ?? prefixScreens.find(([prefix]) => key.startsWith(prefix))?.[1]
-    ?? exactScreens.get("#/");
+  if (exactScreens.has(key)) return key;
+  return prefixScreens.find(([prefix]) => key.startsWith(prefix))?.[0] ?? "#/";
+};
+
+const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
+  const key = screenKey(route);
+  const fn = exactScreens.get(key) ?? prefixScreens.find(([prefix]) => prefix === key)?.[1];
   if (fn === undefined) throw new Error("no #/ screen registered");
   return fn(frame);
 };
@@ -965,6 +973,8 @@ export async function render(): Promise<void> {
     if (err instanceof Unauthenticated) { app.append(chrome(null), wrap); body.append(signInScreen()); return; }
   }
   if (mine !== drawing) return;
+  // One `$screen` per drawn route, named by the ROUTE TABLE's key — the hash itself carries ids.
+  analytics.capture("$screen", { $screen_name: screenKey(route) });
   const right = el("span", "wr");
   // A `<section>` is a landmark only once a screen names it — unnamed it is just the column.
   const side = el("section", "wcol");

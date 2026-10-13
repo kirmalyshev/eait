@@ -66,7 +66,10 @@ const notFound = () => new Response(JSON.stringify({ error: "not found" }), {
  * a separate request carrying the same nonce. The one inline `<style>` carries it too, so the
  * policy never needs `'unsafe-inline'` for either.
  */
-function shell(nonce: string): string {
+/** The bundle's PostHog key, or nothing. Outside `shell` because that document holds no backtick. */
+const posthogMeta = (key: string): string => key === "" ? "" : '<meta name="eait-posthog" content="' + key + '">\n';
+
+function shell(nonce: string, posthogKey: string): string {
   return `<!doctype html>
 <!-- The shell ships as "en" and the client rewrites it the moment the profile lands
      (document.documentElement.lang). It cannot be right here: this file is static and is served
@@ -84,7 +87,7 @@ function shell(nonce: string): string {
      error in it is a console nobody reads. Found by driving a browser; no unit test saw it.
      (No backticks in this file's HTML: the document is one template literal.) -->
 <link rel="icon" href="data:,">
-<style nonce="${nonce}">
+${posthogMeta(posthogKey)}<style nonce="${nonce}">
 /* THE TOKENS COME FROM shared/palette.ts, not from this file. The app, the landing page and the
    /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
    keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
@@ -130,6 +133,12 @@ export interface WebAppOptions {
   /** The bundle this process serves. A test points at one it wrote. */
   bundlePath?: URL;
   /**
+   * PostHog's public project key (`EAIT__FRONTEND__POSTHOG_KEY`), handed to the bundle in a meta
+   * tag. Unset is no analytics. Events go to `/ingest` on THIS origin and the edge forwards them to
+   * PostHog's EU host, so `connect-src 'self'` holds.
+   */
+  posthogKey?: string;
+  /**
    * DEVELOPMENT ONLY, and unset in production.
    *
    * On a laptop there is no Caddy, so this origin is two ports rather than one: the page comes from
@@ -157,6 +166,9 @@ export interface WebAppOptions {
 export function createWebApp(options: WebAppOptions = {}) {
   const bundlePath = options.bundlePath ?? DEFAULT_BUNDLE_PATH;
   const backendOrigin = (options.backendOrigin ?? "").replace(/\/$/, "");
+  // Only a PUBLIC project key reaches the page: a personal `phx_` key is a secret, and the shape
+  // check is also what makes interpolating it into an attribute safe.
+  const posthogKey = /^phc_[A-Za-z0-9]+$/.test(options.posthogKey ?? "") ? options.posthogKey! : "";
   interface Bundle { text: string; gzip: Uint8Array; etag: string }
   let loaded: Promise<Bundle | null> | undefined;
 
@@ -263,7 +275,7 @@ export function createWebApp(options: WebAppOptions = {}) {
 
       if (req.method === "GET" && pathname === SHELL_PATH) {
         const nonce = crypto.randomUUID();
-        return new Response(shell(nonce), {
+        return new Response(shell(nonce, posthogKey), {
           headers: {
             "content-type": "text/html; charset=utf-8",
             // `default-src 'none'` and then only what this page actually uses. NO `'unsafe-inline'`:
@@ -306,7 +318,10 @@ if (import.meta.main) {
   // other containers on this network", not "reachable by the internet" — compose publishes no port
   // for this service and Caddy is the only route in.
   const hostname = process.env.EAIT__FRONTEND__HOST ?? "127.0.0.1";
-  const app = createWebApp({ backendOrigin: process.env.EAIT__FRONTEND__BACKEND_ORIGIN ?? "" });
+  const app = createWebApp({
+    backendOrigin: process.env.EAIT__FRONTEND__BACKEND_ORIGIN ?? "",
+    posthogKey: process.env.EAIT__FRONTEND__POSTHOG_KEY ?? "",
+  });
   const server = Bun.serve({ port, hostname, fetch: app.fetch });
   console.log(`[eait-web] ${server.url}`);
 }

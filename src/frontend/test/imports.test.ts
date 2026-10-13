@@ -88,12 +88,20 @@ const asFile = (base: string, spec: string): string | null => {
   return p.endsWith(".ts") ? p : null;
 };
 
+/**
+ * The ONE package the bundle may import, and from ONE file (ieat-app#2054): PostHog's slim build
+ * with no script loader, so it fetches no code of its own under the nonce policy. Anything else —
+ * its full build included — is still a package nobody decided to ship.
+ */
+const PACKAGE_EXEMPTION = { file: "analytics.ts", spec: "posthog-js/dist/module.slim.no-external" };
+
 describe("the browser bundle's imports", () => {
   const files = walk(FRONTEND);
   test("only the listed shared modules, and never a package", () => {
     const bad: string[] = [];
     for (const f of files) {
       for (const { spec, line } of importsOf(f)) {
+        if (f === resolve(FRONTEND, PACKAGE_EXEMPTION.file) && spec === PACKAGE_EXEMPTION.spec) continue;
         if (!spec.startsWith(".")) { bad.push(`${f}:${line} imports a package: "${spec}"`); continue; }
         const target = asFile(f, spec);
         if (target === null || !target.startsWith(SHARED)) continue;

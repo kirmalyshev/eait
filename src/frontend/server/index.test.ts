@@ -79,6 +79,18 @@ describe("the shell", () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it("names the PostHog project key in a meta tag only when one is configured and well-formed", async () => {
+    // A meta tag, not an inline script: the nonce policy refuses inline script, and the bundle
+    // reads the key off the document. No key, no analytics — and nothing that is not a public
+    // `phc_` key reaches the page, which is also what keeps the attribute unescaped-safe.
+    const page = async (posthogKey = "") =>
+      (await get(createWebApp({ bundlePath: new URL(`file://${bundlePath}`), posthogKey }), SHELL_PATH)).text();
+    expect(await page("phc_abc123")).toContain('<meta name="eait-posthog" content="phc_abc123">');
+    expect(await page()).not.toContain("eait-posthog");
+    expect(await page('phc_x"><script>')).not.toContain("eait-posthog");
+    expect(await page("phx_personal")).not.toContain("eait-posthog");
+  });
+
   it("still carries ONE style block — composed, not split into many", async () => {
     // The nonce covers the one <style> the shell carries; a second one is a second thing to keep
     // under the policy. The surfaces' CSS is per-module strings (#87) composed into it.

@@ -483,7 +483,7 @@ function fakeCoachFetch(payloads: CoachPayload[]) {
   return { impl, bodies };
 }
 
-function coachPorts(payloads: CoachPayload[], timeoutMs = 5000, over: { providerOrder?: string[] } = {}) {
+function coachPorts(payloads: CoachPayload[], timeoutMs = 5000, over: { providerOrder?: string[]; providerSort?: string } = {}) {
   const { impl, bodies } = fakeCoachFetch(payloads);
   const llm = openRouterPorts({
     apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
@@ -690,7 +690,7 @@ function sseFetch(chunks: string[], finish = "stop") {
   return { impl, bodies };
 }
 
-const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; providerOrder?: string[]; fallbackModels?: string[] } = {}) => openRouterPorts({
+const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; providerOrder?: string[]; providerSort?: string; fallbackModels?: string[] } = {}) => openRouterPorts({
   apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
   baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
   fetchImpl: impl, ...over,
@@ -775,14 +775,22 @@ describe("the provider pin", () => {
 
   test("rides on every nutrition call — analyzer, router and correction — never the coach", async () => {
     const { impl, bodies } = fakeFetch([MEAL, { intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
-    const llm = streamPorts(impl, { providerOrder: ["deepinfra"] });
+    const llm = streamPorts(impl, { providerOrder: ["deepinfra"], providerSort: "throughput" });
     await llm.analyzePhoto(PHOTO_INPUT);
     await llm.routeText(ROUTE_INPUT);
-    for (const b of bodies) expect(b.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false });
+    for (const b of bodies) expect(b.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false, sort: "throughput" });
 
-    const { llm: withCoach, bodies: coachBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }], 5000, { providerOrder: ["deepinfra"] });
+    const { llm: withCoach, bodies: coachBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }], 5000, { providerOrder: ["deepinfra"], providerSort: "throughput" });
     await withCoach.coach(COACH_INPUT, {});
     expect(coachBodies[0]!.provider).toBeUndefined();
+  });
+
+  test("provider.sort orders the providers it does not pin, in the same provider object", async () => {
+    const { impl, bodies } = fakeFetch([MEAL, MEAL]);
+    await streamPorts(impl, { providerSort: "throughput" }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.provider).toEqual({ sort: "throughput" });
+    await streamPorts(impl, { providerOrder: ["deepinfra"], providerSort: "latency" }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[1]!.provider).toEqual({ order: ["deepinfra"], allow_fallbacks: false, sort: "latency" });
   });
 });
 
@@ -870,7 +878,7 @@ describe("the openai dialect", () => {
     apiKey, model: "test-model", chatModel: "test-chat-model", dialect: "openai",
     baseUrl: "http://localhost:11434/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
     // Every OpenRouter-only knob turned on, so the test proves the dialect drops them.
-    reasoningEffort: "off", providerOrder: ["deepinfra"], fallbackModels: ["fallback-model"],
+    reasoningEffort: "off", providerOrder: ["deepinfra"], providerSort: "throughput", fallbackModels: ["fallback-model"],
     fetchImpl: impl,
   });
 
