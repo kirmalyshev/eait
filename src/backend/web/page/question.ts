@@ -8,7 +8,7 @@
 // field (the walk's `?draft=` and the toggle's POST are how a typed value crosses a unit change).
 
 import {
-  BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
+  BANDS, capNote, chatCopyFor, cmToFtIn, countText, fill, heightDisplayValue,
   minHealthyWeightKg, numbers, ONBOARDING_NEUTRAL, paceEcho, pacePreview, PACES, rulerLabels, RULER_TICKS,
   lbToKg, optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, streakDelta, suggestedTargetKg, targetGoalLine,
   targetRange,
@@ -237,21 +237,31 @@ function ageControl(v: QuestionView): { control: string } {
   // The wheel's range runs INTO the refusal ages on purpose: 10–15 selects the under-16 stop,
   // which is the same door the typed fallback takes.
   const min = 10, max = 100;
+  const years = countText(v.lang);
+  // The board's rows read "NN years" — `yearsCount`, the counted template, because Russian
+  // declines the word per number where the other seven do not. `on`/`o1`/`o2` are the centred
+  // row and its neighbours fading by distance; the script re-marks them on every scroll.
+  const rowClass = (a: number) => {
+    const d = Math.abs(a - val);
+    return `wr${d === 0 ? " on" : d === 1 ? " o1" : d === 2 ? " o2" : ""}`;
+  };
   const rows: string[] = [];
-  for (let a = min; a <= max; a++) rows.push(`<div class="wr">${a}</div>`);
+  for (let a = min; a <= max; a++)
+    rows.push(`<div class="${rowClass(a)}">${escape(years(copy.units.yearsCount, a))}</div>`);
   const wheel = `<div class="ctl" data-ctl="wheel" data-min="${min}" data-val="${val}">` +
-    `<div class="vpick"><div class="bign num"><span class="bv">${escape(numfmt(v.lang, val))}</span>` +
-    `<small>${escape(copy.units.years)}</small></div>` +
-    `<div class="wheelbox"><div class="wheel" tabindex="0" aria-label="${escape(v.lines[v.lines.length - 1] ?? "")}">${rows.join("")}</div></div></div></div>`;
+    `<div class="wheelbox"><div class="wheel" tabindex="0" aria-label="${escape(v.lines[v.lines.length - 1] ?? "")}">${rows.join("")}</div></div></div>`;
     // The wheel draws ages; the typed fallback also takes a four-digit year — `checkNumber`
   // reads one — so the field's own bounds must not refuse what the server would accept.
   return { control: wheel + numAlt(v, numInput(v, val, 5, 2100, 1), copy.units.years) };
 }
 
 function unitsSeg(v: QuestionView, which: "height" | "weight"): string {
+  // The labels go through `spellUnit` like the values they switch to (iOS does the same): "cm"
+  // and "kg" are Cyrillic in Russian, while the imperial side stays Latin everywhere — ft/in/lb
+  // are what the ruler and the big numeral draw in every language.
   const labels = which === "height"
-    ? [{ value: "metric", label: "cm" }, { value: "imperial", label: "ft, in" }]
-    : [{ value: "metric", label: "kg" }, { value: "imperial", label: "lb" }];
+    ? [{ value: "metric", label: spellUnit(v.lang, "cm") }, { value: "imperial", label: spellUnit(v.lang, "ft, in") }]
+    : [{ value: "metric", label: spellUnit(v.lang, "kg") }, { value: "imperial", label: spellUnit(v.lang, "lb") }];
   return segToggle(labels, v.units, v.segAction,
     hidden("from", v.prompt.id) + hidden("draft", v.draft !== null ? String(v.draft) : ""));
 }

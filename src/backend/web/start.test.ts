@@ -390,9 +390,10 @@ describe("the sign-up screen", () => {
     // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
     expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
     expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
-    // No pairing card: the three providers fill the page's one decision.
+    // No pairing card and no email button: the board's two providers fill the page's one
+    // decision (the email code flow still answers at /start/email for whoever reaches it).
     expect(html).not.toContain('action="/start/pair"');
-    expect(html).toContain('action="/start/email"');
+    expect(html).not.toContain('action="/start/email"');
   });
 
   it("offers only what is configured", async () => {
@@ -400,8 +401,7 @@ describe("the sign-up screen", () => {
     const html = await (await get("/start/signup")).text();
     expect(html).toContain("Continue with Apple");
     expect(html).not.toContain("Continue with Google");
-    // Email is not a configurable provider — it is offered wherever the surface exists.
-    expect(html).toContain("Continue with email");
+    expect(html).not.toContain("Continue with email");
   });
 });
 

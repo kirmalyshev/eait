@@ -686,16 +686,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const lang = profile?.lang ?? browserLang(req);
     const PAGE_COPY = pageCopyFor(lang);
     return html(signUp({
-      providers: [
-        ...offered.map((p) => ({
-          id: p as "apple" | "google", action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
-        })),
-        // Email only where this instance has a mailer: no Resend key, no button (Kirill, 10 Oct),
-        // on the same predicate its routes 404 on.
-        ...(emailSignInEnabled(config)
-          ? [{ id: "email" as const, action: `${START_PREFIX}/email`, label: signupCopyFor(lang).continueEmail }]
-          : []),
-      ],
+      // The board's two providers and no third button: both flows are plain redirects every
+      // browser completes, and the page only renders when at least one of them can, so email
+      // was never the only route here. The `/start/email` flow stays for whoever reaches it.
+      providers: offered.map((p) => ({
+        id: p as "apple" | "google", action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+      })),
       error: url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
         : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
         : null,
