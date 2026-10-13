@@ -35,6 +35,7 @@ import type {
   ProfileRejected, ProfileResponse, WeightsResponse,
 } from "@eait/shared/contract";
 import { pushRows } from "./you-push.ts";
+import { mealReminderRows } from "./you-reminders.ts";
 import { milestonesCopyFor } from "../../shared/app/milestones-copy.ts";
 import { api, apiSend, ApiError, signOut, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
@@ -278,7 +279,9 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const accountRow = optRow(you.account, listConjunction(lang, providers), () => openAccount(ids, providers));
     card.append(accountRow);
     void pushRows(accountRow, you.web);
-    card.append(optRow(milestonesCopyFor(lang).title, "", () => { location.hash = "#/you/milestones"; }));
+    const milestonesRow = optRow(milestonesCopyFor(lang).title, "", () => { location.hash = "#/you/milestones"; });
+    card.append(milestonesRow);
+    void mealReminderRows(milestonesRow, you.reminders, lang);
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     card.append(optRow(
