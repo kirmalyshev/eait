@@ -15,6 +15,16 @@ describe("loading a snapshot's text into food_ref", () => {
     expect(await loadSnapshotText(store, text)).toEqual({ read: 3, written: 2 });
     expect((await store.foodCandidates(["apple"], 5)).map((f) => f.id)).toEqual(["usda-sr:1"]);
   });
+  test("keeps a line from each accepted source", async () => {
+    const store = memoryStore();
+    const text = [
+      line("C131000", "Oat flakes", "bls"),
+      line("13-519", "Bread, white, farmhouse", "cofid"),
+      line("11028", "Milk, whole", "fineli"),
+    ].join("\n");
+    expect(await loadSnapshotText(store, text)).toEqual({ read: 3, written: 3 });
+    expect((await store.foodCandidates(["oat"], 5)).map((f) => f.id)).toEqual(["bls:C131000"]);
+  });
   test("is idempotent: the same text twice leaves the same rows", async () => {
     const store = memoryStore();
     const text = line("1", "Apples, raw");

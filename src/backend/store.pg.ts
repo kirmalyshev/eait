@@ -1260,7 +1260,7 @@ create table if not exists food_ref (
 alter table food_ref add column if not exists attribution jsonb not null default '[]';
 alter table food_ref drop constraint if exists food_ref_source_check;
 alter table food_ref add constraint food_ref_source_check
-  check (source in ('bls', 'ciqual', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
+  check (source in ('bls', 'ciqual', 'cofid', 'fineli', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
 -- The search is a substring match over the three name columns, no index can serve it, and the
 -- table is single-digit thousands of rows: a scan is the right plan here.
 
