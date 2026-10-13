@@ -18,7 +18,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100, globalDailyAnalysisCap: 10,
+  freeAnalyses: 100,
 };
 const ZONE = CONFIG.timezone;
 

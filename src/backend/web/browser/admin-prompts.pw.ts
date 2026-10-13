@@ -157,7 +157,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     return r.fulfill(json({ row: campaignRows[0] }));
   });
   await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({
-    days: [], dailyAnalysisCap: 0, headroom: 0,
+    days: [],
     d1: { returned: 0, eligible: 0 }, d7: { returned: 0, eligible: 0 },
     latency: { n: 0, queue: { p50: null, p95: null }, firstItem: { p50: null, p95: null }, total: { p50: null, p95: null } },
   })));

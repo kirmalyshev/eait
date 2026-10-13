@@ -50,7 +50,7 @@ export {
 } from "./email.ts";
 export {
   onboardingContent, peopleBuilding, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
-  adminMetrics, type AdminMetricsView,
+  adminMetrics,
   onboardingFunnel,
 } from "./onboarding.ts";
 export { adminSwitches, saveSwitch, type FlipView, type SwitchView } from "./switches.ts";

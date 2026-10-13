@@ -1983,10 +1983,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return analyses.filter((a) => a.userId === userId && a.date === date && a.scope === "photo").length;
     },
 
-    async countGlobalAnalyses(date) {
-      return analyses.filter((a) => a.date === date).length;
-    },
-
     async countClipAnalyses(date) {
       return analyses.filter((a) => a.date === date && a.scope === "clip").length;
     },

@@ -3,14 +3,13 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // WHAT THIS IS FOR, AND WHAT IT IS NOT FOR
 //
-// `engine/caps.ts` bounds SPEND: a per-user photo allowance and a per-instance daily budget. Both
-// are counted in the database and both are correct. Neither is a limit on requests, and the gap
-// between those two things was exploitable in one line of curl:
+// `engine/caps.ts` bounds SPEND per account: a photo allowance and the sample. It is counted in
+// the database and it is correct. It is not a limit on requests, and the gap between those two
+// things was exploitable in one line of curl:
 //
 //   `POST /v1/auth/device` mints an account and a token for anybody with a 32-character string, so
-//   the per-user allowance costs an attacker one HTTP call to reset. The only real bound was the
-//   GLOBAL budget — and exhausting THAT is the attack, not the defence: it spends the instance's
-//   money and then refuses every legitimate user for the rest of the day.
+//   the per-user allowance costs an attacker one HTTP call to reset — and minting accounts until
+//   the model bill runs out IS the attack the instance needs a bound against, not the defence.
 //
 // So the cap that closes it is per ADDRESS, applied to the routes that cost money and to the route
 // that mints the accounts. An attacker behind one address can no longer buy more allowance by

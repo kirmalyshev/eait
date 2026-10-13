@@ -1330,11 +1330,7 @@ details.how p { margin-top: 8px; }
     var week = days.slice(0, N), before = days.slice(N, 2 * N);
     var kp = $("numbers-kpi");
     kp.textContent = "";
-    if (m.dailyAnalysisCap) {
-      kpi(kp, "Analyses today", String(today.analyses), "of " + m.dailyAnalysisCap, m.headroom + " left", today.analyses >= m.dailyAnalysisCap ? "dn" : "");
-    } else {
-      kpi(kp, "Analyses today", String(today.analyses), "", "no instance cap");
-    }
+    kpi(kp, "Analyses today", String(today.analyses), "", "");
     var signups = sum(week, function (d) { return d.signups; });
     var prior = sum(before, function (d) { return d.signups; });
     if (before.length === N && prior > 0) {
@@ -1363,9 +1359,7 @@ details.how p { margin-top: 8px; }
     shown.forEach(function (d) {
       var tr = document.createElement("tr");
       [dayLabel(d.date), String(d.signups), String(d.activations), String(d.analyses), spend(d)].forEach(function (t, i) {
-        var c = td(tr, t, i, 1);
-        // The one number that can hit a wall, marked when it is at it.
-        if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) c.classList.add("drop");
+        td(tr, t, i, 1);
       });
       body.appendChild(tr);
     });

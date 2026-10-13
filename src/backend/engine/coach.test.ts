@@ -18,7 +18,7 @@ import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile,
 const CONFIG: Config = {
   ...configDefaults(), port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100, globalDailyAnalysisCap: 100,
+  freeAnalyses: 100,
 };
 
 let store: Store;

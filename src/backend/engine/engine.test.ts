@@ -24,7 +24,7 @@ const CONFIG: Config = {
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   // Most tests chain several analyses on one account; the sample rule has its own describe.
-  freeAnalyses: 100, globalDailyAnalysisCap: 10,
+  freeAnalyses: 100,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -358,8 +358,8 @@ describe("photo logging", () => {
     expect(await store.countUserPhotos(userId, localDate("Europe/Berlin"))).toBe(1);
     // The SAMPLE is not a cap on attempts (#44, the principal's decision): it counts value
     // delivered, so a failed first call leaves the free meal to be had. What bounds a retry loop is
-    // what bounded it before the sample existed — the charge above on the instance budget, and the
-    // per-address limit on the billed routes (`api/ratelimit.ts`).
+    // what bounded it before the sample existed — the per-address limit on the billed routes
+    // (`api/ratelimit.ts`).
     expect((await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo())).kind).toBe("logged");
   });
 
@@ -395,18 +395,10 @@ describe("photo logging", () => {
     expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
-  it("refuses an entitled account only at the global cap", async () => {
-    const userId = await onboard();
-    await entitle(userId);
-    const d = makeDeps({ paidDailyPhotoCap: 100, globalDailyAnalysisCap: 1 });
-    await logPhotoMeal(d, userId, photo());
-    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "global" });
-  });
-
   it("gives an entitled account the paid daily cap, photos only", async () => {
     const userId = await onboard();
     await entitle(userId);
-    const d = makeDeps({ paidDailyPhotoCap: 2, globalDailyAnalysisCap: 100 });
+    const d = makeDeps({ paidDailyPhotoCap: 2 });
     await logPhotoMeal(d, userId, photo());
     await logPhotoMeal(d, userId, photo());
     expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
@@ -645,7 +637,7 @@ describe("the sample", () => {
   });
 
   // Principal's decision (2026-09-25, #44): the sample counts VALUE DELIVERED, not attempts. A
-  // timeout may have been billed, so the COST stays on the row and the global budget still counts
+  // timeout may have been billed, so the COST stays on the row and the day's count still sees
   // it — but the person got no verdict, so their one meal is still theirs.
   it("timed-out analysis leaves the sample unspent", async () => {
     const slow = makeDeps({ freeAnalyses: 1 }, {
@@ -657,8 +649,9 @@ describe("the sample", () => {
     expect((await logPhotoMeal(slow, userId, photo())).kind).toBe("analysis-failed");
     expect((await handleText(slow, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
     expect((await profileView(one, userId))!.limits).toMatchObject({ sampleUsed: false, sampleRemaining: 1 });
-    // Charged all the same: both billed attempts stay on today's instance budget.
-    expect(await store.countGlobalAnalyses(localDate(one.config.timezone))).toBeGreaterThanOrEqual(2);
+    // Charged all the same: both billed attempts stay in the day's count.
+    const m = await store.adminMetrics({ days: 1, today: localDate(one.config.timezone), timezone: one.config.timezone });
+    expect(m.days[0]?.analyses).toBeGreaterThanOrEqual(2);
     expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
@@ -690,12 +683,13 @@ describe("the sample", () => {
     };
     const userId = await onboard();
     const today = localDate(one.config.timezone);
-    const before = await store.countGlobalAnalyses(today);
+    const spentOn = async () => (await store.adminMetrics({ days: 1, today, timezone: one.config.timezone })).days[0]?.analyses ?? 0;
+    const before = await spentOn();
     expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
     // Nothing was given back, so the CHARGE stands — the safe direction when the store is the thing
     // that is broken. The SAMPLE is another matter since #44: nothing reached the person, so their
     // one meal is still theirs, whether or not the refund landed.
-    expect(await store.countGlobalAnalyses(today)).toBe(before + 1);
+    expect(await spentOn()).toBe(before + 1);
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
   });
 
@@ -1485,10 +1479,10 @@ describe("chat", () => {
     expect(t.entries.filter((e) => e.kind === "meal" && e.event === "redated")).toHaveLength(1);
   });
 
-  it("charges chat against the global budget but not the per-user photo allowance", async () => {
+  it("does not charge chat against the per-user photo allowance", async () => {
     const userId = await onboard();
     await entitle(userId);
-    const d = makeDeps({ paidDailyPhotoCap: 1, globalDailyAnalysisCap: 100 });
+    const d = makeDeps({ paidDailyPhotoCap: 1 });
     await handleText(d, userId, { text: "how am I doing?" });
     await handleText(d, userId, { text: "and yesterday?" });
     // Chat did not eat the photo the user could still log.

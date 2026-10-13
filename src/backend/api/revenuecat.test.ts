@@ -31,7 +31,6 @@ const base: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  globalDailyAnalysisCap: 0,
 };
 
 let store: Store;

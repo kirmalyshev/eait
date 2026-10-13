@@ -954,12 +954,10 @@ describe("the numbers past the funnel", () => {
     days: { date: string; signups: number; activations: number; analyses: number }[];
     d1: { eligible: number; returned: number };
     d7: { eligible: number; returned: number };
-    dailyAnalysisCap: number;
-    headroom: number | null;
     latency: { n: number; queue: { p50: number | null; p95: number | null }; firstItem: { p50: number | null; p95: number | null }; total: { p50: number | null; p95: number | null } };
   };
 
-  it("answers a row per day, the two return cohorts, and the instance's budget", async () => {
+  it("answers a row per day and the two return cohorts", async () => {
     const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
     await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
     await store.recordAnalysis(userId, localDate(base.timezone), "photo");
@@ -971,32 +969,9 @@ describe("the numbers past the funnel", () => {
     expect(today.activations).toBeGreaterThanOrEqual(1);
     expect(today.analyses).toBeGreaterThanOrEqual(1);
     expect(body.d1.eligible).toBe(0);
-    expect(body.dailyAnalysisCap).toBe(base.globalDailyAnalysisCap);
     // The turn's clock is written when it settles, not charged — a bare recordAnalysis has none.
     expect(body.latency.n).toBe(0);
     expect(body.latency.total.p50).toBeNull();
-  });
-
-  it("says there is no budget rather than saying there is none LEFT", async () => {
-    // Zero means the instance has no daily cap at all. Reporting that as `headroom: 0` reads as
-    // "full", which is the opposite of what it means and the number somebody would act on.
-    mount({ ...base, globalDailyAnalysisCap: 0 });
-    const token = await session();
-    await store.setRole((await store.userIdForToken(token))!, "admin");
-    const res = await handle(new Request(url("/admin/api/metrics"), {
-      headers: { authorization: `Bearer ${token}` },
-    }));
-    expect((await res.json() as View).headroom).toBeNull();
-  });
-
-  it("counts today's spend against the cap", async () => {
-    await mountWithAdmin({ ...base, globalDailyAnalysisCap: 10 });
-    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
-    for (let i = 0; i < 3; i++) {
-      await store.recordAnalysis(userId, localDate(base.timezone), "photo");
-    }
-    const body = await (await metrics()).json() as View;
-    expect(body.headroom).toBe(7);
   });
 
   it("clamps the window instead of refusing it", async () => {
