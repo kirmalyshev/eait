@@ -34,7 +34,7 @@ describe("capScope", () => {
 
   it("never guesses `user` — an unnamed cap is unknown, not yours", () => {
     // "YOUR daily allowance resets at midnight" is a lie told to somebody behind a carrier NAT, and
-    // the global budget is per-day too, so the wrong sentence is also plausible.
+    // the clip's own per-day ceiling exists too, so the wrong sentence is also plausible.
     expect(capScope(undefined)).toBe("unknown");
     expect(capScope(null)).toBe("unknown");
     expect(capScope("")).toBe("unknown");

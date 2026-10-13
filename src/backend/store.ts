@@ -684,7 +684,7 @@ export interface AdminDay {
   signups: number;
   /** Accounts that FINISHED onboarding that day. A signup is not a user of anything yet. */
   activations: number;
-  /** Analyses spent that day, both scopes — what the bill and `globalDailyAnalysisCap` count. */
+  /** Analyses spent that day, both scopes — what the bill counts. */
   analyses: number;
   /**
    * What the provider said that day's analyses cost, in US dollars, or null when it priced none.
@@ -1637,11 +1637,9 @@ export interface Store {
    *
    * The per-user cap is a photo allowance. If chat counted against it, asking "how much protein
    * have I had" would cost the user a meal they could have logged, which quietly teaches people
-   * not to use the chat. The global budget counts both, because both cost money.
+   * not to use the chat.
    */
   countUserPhotos(userId: string, date: string): Promise<number>;
-  /** Every analysis the instance has spent on `date`, whatever its scope — see `recordAnalysis`. */
-  countGlobalAnalyses(date: string): Promise<number>;
   /** App Clip estimates the instance has charged on `date` (UTC), for `clipDailyMax`. */
   countClipAnalyses(date: string): Promise<number>;
   /**
@@ -1654,7 +1652,7 @@ export interface Store {
    * the moment it is charged — so two requests racing for one free meal cannot both pass the check —
    * until `releaseSample` says the turn delivered nothing: a timeout, a provider error, a photo
    * that was not food. Only a turn that reached the person keeps counting. The ROW stays either
-   * way: it carries the cost, and the global budget and the paid daily cap count every row.
+   * way: it carries the cost, and the paid daily cap counts every row.
    */
   countUserAnalyses(userId: string): Promise<number>;
   /**
@@ -1708,7 +1706,7 @@ export interface Store {
   undoAnalysis(userId: string, analysisId: string): Promise<boolean>;
   /**
    * Take this analysis out of the SAMPLE count and leave everything else about it: the row, its
-   * cost, and its place in the global budget. For a turn that delivered no verdict but may have
+   * cost, and its place in the day's count. For a turn that delivered no verdict but may have
    * been billed — the opposite of `undoAnalysis`, which is for a call billed nothing. Scoped
    * `id = ? AND user_id = ?`; false when there is no such row of theirs.
    */

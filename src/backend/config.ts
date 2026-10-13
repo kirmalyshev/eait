@@ -148,12 +148,10 @@ export interface Config {
   freeAnalyses: number;
   /**
    * Photos per day for an account with a live entitlement; 0 means no daily cap. What a
-   * subscription buys is this allowance — never an exemption from `globalDailyAnalysisCap`,
-   * which bounds the instance above it: a paid user is a bigger share of a budget.
+   * subscription buys is this allowance — the per-address limits in `api/ratelimit.ts` are what
+   * bound the instance's spend above it.
    */
   paidDailyPhotoCap: number;
-  /** Photos the whole instance may analyze per day. Bounds spend when the app is public. */
-  globalDailyAnalysisCap: number;
   /** IANA zone used for every date boundary. Dates are NOT computed in UTC. */
   timezone: string;
 
@@ -258,7 +256,7 @@ export interface Config {
    * and this bounds one address regardless of how many accounts it creates. Set well above one
    * person's own allowance on purpose — a mobile carrier can put thousands of subscribers behind
    * one address, and refusing a stranger who has logged one meal is a worse failure than the spend
-   * this is guarding. Zero disables it; `globalDailyAnalysisCap` is then the only backstop.
+   * this is guarding. Zero disables it.
    */
   analysisRateLimitPerDay: number;
   /**
@@ -685,7 +683,6 @@ export function configDefaults(): Config {
     llmAgentConcurrency: 2,
     freeAnalyses: FREE_ANALYSES,
     paidDailyPhotoCap: 200,
-    globalDailyAnalysisCap: 500,
     timezone: "Europe/Berlin",
     pendingTtlMs: 30 * 60 * 1000,
     maxUploadBytes: 20 * 1024 * 1024,
@@ -917,7 +914,6 @@ export function loadConfig(): Config {
     llmAgentConcurrency,
     freeAnalyses,
     paidDailyPhotoCap,
-    globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
     pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
     // Expressed in megabytes because that is how anyone setting it thinks about it.
@@ -1127,8 +1123,8 @@ export function demoConfig(): Config {
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
     llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
-    // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account — and
-    // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
+    // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account: it is a
+    // local demo, not a public instance. The sheet itself is exercised
     // against RevenueCat's Test Store, not here.
     //
     // OVERRIDABLE, for the one runner that needs a sample it can spend. `scripts/e2e-paywall.sh`
@@ -1137,8 +1133,7 @@ export function demoConfig(): Config {
     // unlimited. It cannot be the default: the suite's other flows log two or three analyses per
     // account and would all end on a paywall instead of on what they test.
     freeAnalyses: Number(process.env.EAIT__BACKEND__FREE_ANALYSES ?? 100_000),
-    globalDailyAnalysisCap: 0,
-    // AND UNMETERED PER ADDRESS, for a reason the global cap does not cover. `api/ratelimit.ts`
+    // AND UNMETERED PER ADDRESS — `api/ratelimit.ts`
     // keys on the client address, and a demo has exactly one: every request the simulator makes
     // comes off 127.0.0.1 and lands in the same bucket. `bun run e2e` clears state and mints a
     // fresh account per flow, three flows run 01-onboarding as a subflow, and a failed flow is

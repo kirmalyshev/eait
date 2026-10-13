@@ -1858,7 +1858,7 @@ describe("chat on the web: what a notice may say", () => {
     }
   });
 
-  it("says which allowance ran out, because the server distinguishes three", async () => {
+  it("says which allowance ran out, because the server distinguishes them", async () => {
     router({ ...CONFIG, analysisRateLimitPerDay: 1 });
     const first = await onboarded();
     await post("/start/chat/say", { text: "how much protein?" }, first.session);
@@ -1868,16 +1868,6 @@ describe("chat on the web: what a notice may say", () => {
     expect(address.headers.get("location")).toBe("/start/chat?notice=cap-address");
     expect(await (await get("/start/chat?notice=cap-address", first.session)).text())
       .toContain(PAGE_COPY.chatRefusalNetwork);
-
-    // The INSTANCE budget, which is not about this account at all.
-    router({ ...CONFIG, globalDailyAnalysisCap: 1 });
-    const second = await onboarded();
-    await post("/start/chat/say", { text: "how much protein?" }, second.session);
-    const global = await post("/start/chat/say", { text: "and yesterday?" }, second.session);
-    expect(global.headers.get("location")).toBe("/start/chat?notice=cap-global");
-    // The apostrophe is escaped in the page, so the assertion is on the half that is not.
-    expect(await (await get("/start/chat?notice=cap-global", second.session)).text())
-      .toContain("Tomorrow is a fresh number.");
   });
 
   it("refuses a photo on the address allowance before it buffers the upload", async () => {

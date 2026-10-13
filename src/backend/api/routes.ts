@@ -140,12 +140,11 @@ export function createRouter(
   //
   // One limiter per router, so a test gets a clean one and the process gets exactly one.
   //
-  // These are NOT the spend caps. `engine/caps.ts` bounds what one ACCOUNT and what the INSTANCE
-  // may spend, and both were correct while being trivially bypassable: `POST /v1/auth/device`
-  // mints an account for anybody, so resetting a per-user allowance cost one HTTP call, and the
-  // only real bound left was the instance budget — which an attacker exhausts on purpose, spending
-  // the money and refusing every real user for the rest of the day. A per-address limit on the
-  // billed routes is what makes the per-account one mean something.
+  // These are NOT the spend caps. `engine/caps.ts` bounds what one ACCOUNT may spend, and it was
+  // correct while being trivially bypassable: `POST /v1/auth/device` mints an account for
+  // anybody, so resetting a per-user allowance costs one HTTP call and the minting IS the attack —
+  // it spends the instance's money one fresh account at a time. A per-address limit on the billed
+  // routes is what makes the per-account one mean something, and what bounds the instance's spend.
   const limiter = rateLimiter();
 
   /** Zero means the limit is off — an escape hatch that has to be explicit rather than implied. */

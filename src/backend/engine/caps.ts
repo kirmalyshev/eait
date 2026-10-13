@@ -1,9 +1,9 @@
 // Spend caps. The only thing standing between a public app and an unbounded model bill.
 //
-// Two scopes, and they are not the same guard. The per-user cap is a fairness/abuse limit. The
-// global cap is a budget limit on the whole instance, and it is what makes it safe to run without
-// an allowlist — which matters, because the funnel this app sits at the end of requires strangers
-// to be able to use it without gatekeeping.
+// The per-user caps are fairness/abuse limits. What bounds the whole instance's spend is the
+// per-address limiting in `api/ratelimit.ts` — which is what makes it safe to run without an
+// allowlist, because the funnel this app sits at the end of requires strangers to be able to
+// use it without gatekeeping.
 
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -19,8 +19,8 @@ export type CapScope = "photo" | "text" | "clip";
  *
  * Without an entitlement the account has the SAMPLE and nothing else: `freeAnalysesFor`
  * analyses over its lifetime, photo or text alike — a sentence must not be the free way
- * around the ask. With one, photos meet the paid daily cap and text turns meet only the global
- * budget: charging a question against the photo allowance would mean asking "how much protein
+ * around the ask. With one, photos meet the paid daily cap and text turns meet no per-user cap
+ * at all: charging a question against the photo allowance would mean asking "how much protein
  * have I had" costs the user a meal they could have logged, which quietly teaches people not to
  * use the chat.
  */
@@ -38,11 +38,6 @@ export async function checkCaps(
   // `recordAnalysis` below this, so a refusal returned now has spent nothing.
   if (scope !== "clip" && await isAnonymous(deps, userId)) return { kind: "identity-required" };
 
-  if (config.globalDailyAnalysisCap > 0) {
-    const global = await store.countGlobalAnalyses(date);
-    if (global >= config.globalDailyAnalysisCap) return { kind: "cap-exceeded", scope: "global" };
-  }
-
   // The clip's circuit breaker: anonymous accounts are free to mint and addresses rotate, so the
   // clip's total is bounded here, per UTC day, before any charge. Zero is the clip switched off.
   if (scope === "clip" && (config.clipDailyMax <= 0 || await store.countClipAnalyses(date) >= config.clipDailyMax)) {
@@ -58,8 +53,7 @@ export async function checkCaps(
     return spent >= (await freeAnalysesFor(deps, userId)) ? { kind: "subscription-required" } : null;
   }
 
-  // The paid tier is a BIGGER per-user cap, never an exemption from the global one above — a
-  // subscription buys a larger share of the instance budget, not the right to exhaust it.
+  // The paid tier is a BIGGER per-user cap — a subscription buys a larger daily photo allowance.
   if (scope === "photo") {
     const cap = dailyPhotoCap(config);
     if (cap > 0) {
@@ -126,7 +120,7 @@ export async function charge(
  *
  * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS — the principal's decision (#44). A timeout, a
  * provider error, an answer that failed validation or a photo that was not food may all have been
- * billed, so the analysis row stays: its cost, the global budget and the paid daily cap still see
+ * billed, so the analysis row stays: its cost and the paid daily cap still see
  * it. What changes is only whether it spent the person's free meal, and a turn that put no verdict
  * in front of them did not. The pre-call charge still counts while the turn runs, so two requests
  * racing for one free meal cannot both pass `checkCaps`.

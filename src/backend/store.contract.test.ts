@@ -420,9 +420,8 @@ function contract(name: string, make: () => Promise<Store>) {
       await s2.recordAnalysis(userId, RUN_DATE, "photo");
       await s2.recordAnalysis(userId, RUN_DATE, "text");
 
-      // BOTH SCOPES. A typed meal costs money and spends the sample exactly as a photograph does,
-      // and `globalDailyAnalysisCap` counts both — so a per-day number that dropped the text turns
-      // would be a bill missing a line.
+      // BOTH SCOPES. A typed meal costs money and spends the sample exactly as a photograph does —
+      // so a per-day number that dropped the text turns would be a bill missing a line.
       expect(on(await runDay()) - before).toBe(2);
       const m = await s2.adminMetrics({ days: 400, today, timezone: "UTC" });
       const now = m.days.find((d) => d.date === today)!;
@@ -2105,12 +2104,14 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.dropPending(u, dead.id)).toBe(false);
     });
 
-    it("counts photo analyses per user but every analysis globally", async () => {
+    it("counts photo analyses per user and every analysis in the day's metrics", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
       const b = (await s.upsertDeviceUser(device(), "en")).userId;
       // A delta, not an absolute: the Postgres suite runs against a database other runs have used.
-      const before = await s.countGlobalAnalyses(RUN_DATE);
+      const dayCount = async () =>
+        (await s.adminMetrics({ days: 1, today: RUN_DATE, timezone: "UTC" })).days[0]?.analyses ?? 0;
+      const before = await dayCount();
       await s.recordAnalysis(a, RUN_DATE, "photo");
       await s.recordAnalysis(a, RUN_DATE, "text");
       await s.recordAnalysis(b, RUN_DATE, "photo");
@@ -2120,7 +2121,7 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.recordAnalysis(a, "2020-01-01", "photo");
       expect(await s.countUserAnalyses(a)).toBe(3);
       expect(await s.countUserAnalyses(b)).toBe(1);
-      expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 3);
+      expect(await dayCount()).toBe(before + 3);
     });
 
     it("gives back the analysis it is named, once, and never another account's", async () => {
@@ -2141,12 +2142,14 @@ function contract(name: string, make: () => Promise<Store>) {
     });
 
     // #44: the sample counts value delivered, not attempts. A release takes the row out of the
-    // SAMPLE and leaves it everywhere else — its cost, the global budget, the paid daily cap.
+    // SAMPLE and leaves it everywhere else — its cost, the day's count, the paid daily cap.
     it("releases an analysis from the sample and keeps its charge, and never another account's", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
       const b = (await s.upsertDeviceUser(device(), "en")).userId;
-      const before = await s.countGlobalAnalyses(RUN_DATE);
+      const dayCount = async () =>
+        (await s.adminMetrics({ days: 1, today: RUN_DATE, timezone: "UTC" })).days[0]?.analyses ?? 0;
+      const before = await dayCount();
       const failed = await s.recordAnalysis(a, RUN_DATE, "photo");
       const theirs = await s.recordAnalysis(b, RUN_DATE, "photo");
       await s.addCost(a, failed, 0.25);
@@ -2156,7 +2159,7 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countUserAnalyses(a)).toBe(0);
       expect(await s.countUserAnalyses(b)).toBe(1);
       expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1);
-      expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 2);
+      expect(await dayCount()).toBe(before + 2);
       expect(await s.analysisCosts(a, [failed])).toEqual([{ id: failed, costUsd: 0.25, unpricedCalls: 0 }]);
     });
 
@@ -4757,7 +4760,7 @@ if (PG_URL) {
         .sort();
       expect(unscoped).toEqual([
         "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
-        "countClipAnalyses", "countGlobalAnalyses", "countOnboardedSince", "createCampaign", "createUser", "expireJobs",
+        "countClipAnalyses", "countOnboardedSince", "createCampaign", "createUser", "expireJobs",
         "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
         "getPrompts",
         // #899: the referrer is found by code, rewarded from a webhook, and its friends counted —

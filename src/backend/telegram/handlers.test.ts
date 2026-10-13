@@ -97,7 +97,8 @@ describe("somebody Telegram has not been connected for", () => {
       expect(said.text).toBe(TELEGRAM_COPY.stranger);
       expect(said.buttons).toEqual([{ text: TELEGRAM_COPY.signIn, url: SIGN_IN }]);
     }
-    expect(await store.countGlobalAnalyses(localDate(CONFIG.timezone))).toBe(0);
+    const m = await store.adminMetrics({ days: 1, today: localDate(CONFIG.timezone), timezone: CONFIG.timezone });
+    expect(m.days[0]?.analyses ?? 0).toBe(0);
   });
 
   it("gets the address in the text instead where there is no https origin to put on a button", async () => {
