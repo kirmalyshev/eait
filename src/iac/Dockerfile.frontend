@@ -11,8 +11,10 @@
 # `src/iac/Caddyfile` and `src/frontend/AGENTS.md`.
 #
 # TWO STAGES. `bun build` produces one browser bundle; the runtime carries that bundle and the
-# server that serves it, and no TypeScript the browser was meant to get. There is no `bun install`
-# in either: this workspace has no dependencies. What it takes from `@eait/shared` is TYPES, erased
+# server that serves it, and no TypeScript the browser was meant to get. Only the build stage runs
+# `bun install`: `bun build` bundles the workspace's browser dependency (`posthog-js`) into the
+# bundle, and the runtime serves a file, so it carries no node_modules. What it takes from
+# `@eait/shared` is TYPES, erased
 # before anything is resolved, PLUS two modules imported by RELATIVE path (`../shared/stream.ts`,
 # `../shared/budget.ts`) — which is why the `COPY src/shared` below is load-bearing rather than
 # belt-and-braces for the types.
@@ -20,7 +22,14 @@
 FROM oven/bun:1.4.2-alpine AS build
 WORKDIR /app
 
+# Every workspace manifest, because bun checks the root's `workspaces` list against the disk before
+# it applies `--filter`; a listed directory that does not exist fails the install, not the filter.
 COPY package.json bun.lock ./
+COPY src/shared/package.json src/shared/
+COPY src/backend/package.json src/backend/
+COPY src/frontend/package.json src/frontend/
+RUN bun install --frozen-lockfile --production --filter=@eait/frontend
+
 COPY src/shared ./src/shared
 COPY src/frontend ./src/frontend
 
@@ -38,11 +47,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# The bundle and the server that serves it. NOT `src/frontend` wholesale: `main.ts` and `api.ts` are
-# the browser's source, they are already inside the bundle above, and an image that also carries
-# them is an image shipping the same code twice.
+# The bundle and the server that serves it — and the whole workspace under it, because the server
+# imports the per-screen stylesheets (`../shell.css.ts`, `../screens/*.css.ts`) by relative path and
+# a narrower copy exits at import with `Cannot find module`. The bundle goes last so it is the one
+# `dist` that wins.
+COPY src/frontend ./src/frontend
 COPY --from=build /app/src/frontend/dist ./src/frontend/dist
-COPY src/frontend/server ./src/frontend/server
+# The server imports its palette, design tokens and icon/kit builders from `../../shared` by relative
+# path, so those files must exist at runtime too; without them it exits at import.
+COPY src/shared ./src/shared
 
 # `bun` is a non-root user the base image already provides.
 USER bun
