@@ -4773,6 +4773,8 @@ if (PG_URL) {
         "putFoodRefs", "putNotificationCopy",
         "putOffProducts", "putOnboardingContent", "putPrompt", "putPushTemplate", "putPushToken", "recordReferralOpen", "recordReferralRefusal", "redeemReferral", "referralOf", "referralStats", "releaseJobs", "revokeReferralWeek",
         "revokeToken", "searchFoods", "seedPushTemplates", "sendsAwaitingReceipt", "setCampaignsKilled",
+        // #615: rebuilds the food_candidates index over `food_ref`, a table belonging to nobody.
+        "refreshFoodIndex",
         "setSwitch", "spendEmailCode", "switchEnabled", "switchHistory", "updateCampaign",
         "upsertDeviceUser", "userIdForIdentity", "userIdForToken",
       ]);

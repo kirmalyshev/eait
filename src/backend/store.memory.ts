@@ -14,6 +14,7 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { timingSafeEqual } from "./auth/timingsafe.ts";
+import { buildFoodIndex } from "./food-index.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, SWITCH_KEYS, ADMIN_USER_PAGE_MAX,
@@ -326,6 +327,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `<source>:<code>`, off_product on the barcode itself.
   const foodRefs = new Map<string, FoodRef>();
   const offProducts = new Map<string, OffProduct>();
+  // The food index Postgres builds from its table (#615); here it shadows `foodRefs` instead,
+  // kept in step by `putFoodRefs` so both stores answer `foodCandidates` identically.
+  let foodIndex = buildFoodIndex([]);
   // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
   // rather than validated, because the whole point of those shapes is that no current type fits.
   let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
@@ -1547,14 +1551,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
     async foodCandidates(words, limit) {
-      const res = words.map((w) => new RegExp(`\\b${w.replace(/[^\p{L}\p{N}]/gu, "")}(s|es)?\\b`, "iu"));
-      if (res.length === 0) return [];
-      return [...foodRefs.values()]
-        .filter((f) => f.name_en !== null && f.kcal_per_100g !== null && f.protein_g_per_100g !== null
-          && f.carbs_g_per_100g !== null && f.fat_g_per_100g !== null && res.every((r) => r.test(f.name_en!)))
-        .sort((a, b) => a.name_en!.length - b.name_en!.length || (a.name_en! < b.name_en! ? -1 : 1))
-        .slice(0, limit)
-        .map(clone);
+      // The same index the Postgres side answers from (#615), kept live by `putFoodRefs`.
+      return foodIndex.candidates(words, limit).map(clone);
+    },
+    async refreshFoodIndex() {
+      const t0 = Date.now();
+      foodIndex = buildFoodIndex([...foodRefs.values()]);
+      return { rows: foodIndex.size, ms: Date.now() - t0 };
     },
     async searchFoods(query, limit) {
       // Same match and same order as Postgres: case-insensitive substring in any of the three
@@ -1579,6 +1582,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async putFoodRefs(foodRows) {
       for (const row of foodRows) foodRefs.set(row.id, clone(row));
+      foodIndex.upsert(foodRows);
       return foodRows.length;
     },
 
