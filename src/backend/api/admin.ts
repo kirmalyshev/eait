@@ -333,7 +333,7 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
   if (req.method === "GET" && pathname === "/admin/api/switches") {
     return json(await adminSwitches(deps));
   }
-  const sw = /^\/admin\/api\/switches\/([a-z._]+)$/.exec(pathname);
+  const sw = /^\/admin\/api\/switches\/([a-z._-]+)$/.exec(pathname);
   if (req.method === "PUT" && sw) {
     const body = await req.json().catch(() => null) as { enabled?: unknown } | null;
     const result = await saveSwitch(deps, sw[1], body?.enabled, adminId);

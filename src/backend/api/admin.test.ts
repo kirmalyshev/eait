@@ -18,7 +18,7 @@ import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, LANGS, NOTIFICAT
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
-import type { Store } from "../store.ts";
+import { SWITCH_KEYS, type Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
@@ -1364,6 +1364,13 @@ describe("the grounding switches", () => {
     expect(row).toMatchObject({ key: "grounding.photo", enabled: false, set_by: adminId });
     const body = await res.json() as { switches: { key: string; enabled: boolean; setBy: string }[] };
     expect(body.switches.find((s) => s.key === "grounding.photo")).toMatchObject({ enabled: false, setBy: adminId });
+  });
+
+  it("PUT reaches every switch key, whatever characters it is spelled with", async () => {
+    for (const key of SWITCH_KEYS) {
+      expect((await admin("PUT", `/admin/api/switches/${key}`, { enabled: true })).status).toBe(200);
+      expect(await store.switchEnabled(key)).toBe(true);
+    }
   });
 
   it("PUT 422s an unknown key and a non-boolean, and writes nothing", async () => {
