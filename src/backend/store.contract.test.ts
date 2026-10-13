@@ -3026,8 +3026,8 @@ function contract(name: string, make: () => Promise<Store>) {
       });
 
       it("foodCandidates: whole words or plurals, every word, complete macros, shortest name first", async () => {
-        // A word of THIS run's own: the pool is bounded by `limit`, so a shared fixture word lets the rows
-        // of earlier runs on the same database (nothing deletes them) fill the limit and push these out.
+        // A word of THIS run's own: the pool is the whole intersection, so a shared fixture word
+        // would let the rows of earlier runs on the same database (nothing deletes them) in too.
         const W = `zorb${RUN}`;
         const s = await open();
         const macros = { kcal_per_100g: 50, protein_g_per_100g: 1, carbs_g_per_100g: 10, fat_g_per_100g: 0.5 };
@@ -3038,9 +3038,9 @@ function contract(name: string, make: () => Promise<Store>) {
           ref({ id: `${RUN}:c4`, name: "x", name_en: `${W}, no protein figure`, ...macros, protein_g_per_100g: null }),
           ref({ id: `${RUN}:c5`, name: "x", name_en: `${W} raw tart`, ...macros }),
         ]);
-        const got = (await s.foodCandidates([W], 20)).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
+        const got = (await s.foodCandidates([W])).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
         expect(got).toEqual([`${RUN}:c2`, `${RUN}:c5`, `${RUN}:c1`]);
-        const both = (await s.foodCandidates([W, "raw"], 20)).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
+        const both = (await s.foodCandidates([W, "raw"])).filter((f) => f.id.startsWith(RUN)).map((f) => f.id);
         expect(both).toEqual([`${RUN}:c5`, `${RUN}:c1`]);
       });
 

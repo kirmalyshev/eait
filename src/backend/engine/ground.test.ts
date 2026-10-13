@@ -181,6 +181,63 @@ describe("ranking the candidates", () => {
   });
 });
 
+// #637: the bigger table exposed two matcher weaknesses — a correct row left the 300-candidate
+// pool on a frequent token, and a short foreign-head name ("Sugar pea", "Salsa verde",
+// "Pork steak", "Beef consomme") outscored or out-tied the row that names the food.
+describe("matcher #637: pool eviction and foreign-head wins", () => {
+  const pick = (name_en: string, rows: FoodRef[]) => pickFood(name_en, rows)?.name_en ?? null;
+  const pickId = (name_en: string, rows: FoodRef[]) => pickFood(name_en, rows)?.id ?? null;
+  const src = (source: string, name_en: string, kcal: number) =>
+    ref(name_en, kcal, { id: `${source}:${name_en}`, source: source as FoodRef["source"] });
+
+  test("the head noun of a comma-less name is its last content word: sugar is not a pea", () => {
+    const rows = [src("bls", "Sugar pea raw", 38), ref("Sugars, brown", 380), ref("Sugars, granulated", 385)];
+    expect(pickId("sugar", rows)).toBe("usda-sr:Sugars, brown");
+  });
+  test("salsa is the tomato dip, not salsa verde", () => {
+    const rows = [src("bls", "Salsa verde", 480), src("matvaretabellen", "Tomato salsa", 25)];
+    expect(pickId("salsa", rows)).toBe("matvaretabellen:Tomato salsa");
+  });
+  test("an unqualified steak is beef: a named species is a different head food", () => {
+    const rows = [
+      src("bls", "Pork steak fried", 175), src("bls", "Beef steak grilled", 180),
+      src("bls", "Salmon steaks fried", 224), src("ciqual", "Beef, sirloin steak, roasted/baked", 194),
+    ];
+    expect(pickId("steak", rows)).toBe("bls:Beef steak grilled");
+    expect(pickId("pork steak", rows)).toBe("bls:Pork steak fried");
+  });
+  test("fried chicken is chicken, not chicken liver", () => {
+    const rows = [
+      src("bls", "Chicken liver fried", 149),
+      ref("Chicken, broilers or fryers, meat only, cooked, fried", 219),
+    ];
+    expect(pickId("fried chicken", rows)).toBe("usda-sr:Chicken, broilers or fryers, meat only, cooked, fried");
+  });
+  test("a consomme whose strips are crepe is not grilled beef strips", () => {
+    const rows = [
+      src("bls", "Beef consomme with strips of crepe", 54),
+      ref("Beef, grass-fed, strip steaks, lean only, raw", 117),
+    ];
+    expect(pickId("grilled beef strips", rows)).toBe("usda-sr:Beef, grass-fed, strip steaks, lean only, raw");
+  });
+  test("a score tie breaks toward the reference table first — never the shorter name alone", () => {
+    // Three rows name the same food with the same score; the preferred table's answers the tie.
+    const rows = [
+      src("bls", "Cucumber raw", 16),
+      src("frida", "Cucumber, raw", 12),
+      ref("Cucumber, peeled, raw", 10),
+    ];
+    expect(pickId("cucumber", rows)).toBe("usda-sr:Cucumber, peeled, raw");
+  });
+  test("a tie inside one table goes to coverage, then the shorter name", () => {
+    const rows = [
+      src("frida", "Beans, navy, raw", 100),
+      src("frida", "Beans, red, raw", 100),
+    ];
+    expect(pickId("beans", rows)).toBe("frida:Beans, red, raw");
+  });
+});
+
 describe("matcher A3b: rewrites, sushi, modifier-drop (#567)", () => {
   test("meatloaf is looked up as two words", () => {
     expect(lookupWords("meatloaf")).toEqual(["meat", "loaf"]);

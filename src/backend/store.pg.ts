@@ -3260,8 +3260,8 @@ export async function postgresStore(
 
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
-    async foodCandidates(words, limit) {
-      return foodIndex.candidates(words, limit);
+    async foodCandidates(words) {
+      return foodIndex.candidates(words);
     },
     async refreshFoodIndex() {
       const t0 = Date.now();

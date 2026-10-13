@@ -13,7 +13,7 @@ describe("loading a snapshot's text into food_ref", () => {
     const store = memoryStore();
     const text = [line("1", "Apples, raw"), line("2", "Seaweed", "mext"), "", line("3", "Pears, raw")].join("\n");
     expect(await loadSnapshotText(store, text)).toEqual({ read: 3, written: 2 });
-    expect((await store.foodCandidates(["apple"], 5)).map((f) => f.id)).toEqual(["usda-sr:1"]);
+    expect((await store.foodCandidates(["apple"])).map((f) => f.id)).toEqual(["usda-sr:1"]);
   });
   test("keeps a line from each accepted source", async () => {
     const store = memoryStore();
@@ -23,14 +23,14 @@ describe("loading a snapshot's text into food_ref", () => {
       line("11028", "Milk, whole", "fineli"),
     ].join("\n");
     expect(await loadSnapshotText(store, text)).toEqual({ read: 3, written: 3 });
-    expect((await store.foodCandidates(["oat"], 5)).map((f) => f.id)).toEqual(["bls:C131000"]);
+    expect((await store.foodCandidates(["oat"])).map((f) => f.id)).toEqual(["bls:C131000"]);
   });
   test("is idempotent: the same text twice leaves the same rows", async () => {
     const store = memoryStore();
     const text = line("1", "Apples, raw");
     await loadSnapshotText(store, text);
     await loadSnapshotText(store, text);
-    expect((await store.foodCandidates(["apple"], 5)).length).toBe(1);
+    expect((await store.foodCandidates(["apple"])).length).toBe(1);
   });
   test("batches: more rows than one batch all land", async () => {
     const store = memoryStore();
