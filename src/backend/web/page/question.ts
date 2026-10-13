@@ -256,9 +256,12 @@ function ageControl(v: QuestionView): { control: string } {
 }
 
 function unitsSeg(v: QuestionView, which: "height" | "weight"): string {
+  // The labels go through `spellUnit` like the values they switch to (iOS does the same): "cm"
+  // and "kg" are Cyrillic in Russian, while the imperial side stays Latin everywhere — ft/in/lb
+  // are what the ruler and the big numeral draw in every language.
   const labels = which === "height"
-    ? [{ value: "metric", label: "cm" }, { value: "imperial", label: "ft, in" }]
-    : [{ value: "metric", label: "kg" }, { value: "imperial", label: "lb" }];
+    ? [{ value: "metric", label: spellUnit(v.lang, "cm") }, { value: "imperial", label: spellUnit(v.lang, "ft, in") }]
+    : [{ value: "metric", label: spellUnit(v.lang, "kg") }, { value: "imperial", label: spellUnit(v.lang, "lb") }];
   return segToggle(labels, v.units, v.segAction,
     hidden("from", v.prompt.id) + hidden("draft", v.draft !== null ? String(v.draft) : ""));
 }
