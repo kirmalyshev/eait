@@ -177,11 +177,11 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   })));
   // The grounding switches (#563): a stub with memory, so a PUT is followed by a re-read that shows it.
   const switchCalls = (over.switchCalls ?? []) as { path: string; body: unknown }[];
-  const flips: { key: string; enabled: boolean; set_by: string; set_at: string }[] = [];
+  const flips: { key: string; enabled: boolean; setBy: string; setAt: string; setByEmail: string | null }[] = [];
   const switchView = () => ({
     switches: ["grounding.photo", "grounding.text"].map((key) => {
       const last = flips.find((f) => f.key === key);
-      return { key, enabled: last?.enabled ?? true, setBy: last?.set_by ?? null, setAt: last?.set_at ?? null };
+      return { key, enabled: last?.enabled ?? true, setBy: last?.setBy ?? null, setAt: last?.setAt ?? null, setByEmail: last?.setByEmail ?? null };
     }),
     recent: flips.slice(0, 20),
   });
@@ -191,7 +191,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
       const path = new URL(req.url()).pathname;
       const body = req.postDataJSON() as { enabled: boolean };
       switchCalls.push({ path, body });
-      flips.unshift({ key: path.split("/").pop()!, enabled: body.enabled, set_by: "admin-1", set_at: "2026-10-10T11:00:00.000Z" });
+      flips.unshift({ key: path.split("/").pop()!, enabled: body.enabled, setBy: "admin-1", setAt: "2026-10-10T11:00:00.000Z", setByEmail: null });
     }
     return r.fulfill(json(switchView()));
   });
