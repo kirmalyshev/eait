@@ -25,7 +25,7 @@
 // constant and not eight prose strings.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { t, type Localized } from "./lang.ts";
+import { t, type CountForms, type Localized } from "./lang.ts";
 import { FIRST_MEAL_COPY, type FirstMealCopy } from "./first-meal-copy.ts";
 import type { Lang, Struggle } from "./types.ts";
 
@@ -92,8 +92,10 @@ export interface ChatCopy {
   /**
    * The unit word beside a wheel's or ruler's big numeral — "32 years". The symbol units (cm,
    * kg, lb, ft, in) are `spellUnit`'s and stay symbols; only the words with no symbol live here.
+   * `yearsCount` is the same word as a whole counted template — the age wheel's rows, where
+   * Russian declines it per number ("32 года" beside "35 лет") and one flat word is wrong.
    */
-  units: { years: string };
+  units: { years: string; yearsCount: CountForms };
   /**
    * The three beats between the questions, none of which asks anything. `twice` is the one cited
    * claim (its source line is the study, in every language); `baseline` prints the BMI computed
@@ -245,7 +247,7 @@ const EN: ChatCopy = {
     photoAlt: "A grain bowl in the viewfinder",
     steps: ["Photograph the plate", "Get honest macros", "See your progress"],
   },
-  units: { years: "years" },
+  units: { years: "years", yearsCount: { one: "{n} year", other: "{n} years" } },
   twice: {
     title: "Lose twice as much weight",
     sub: "People who write down what they eat lose twice as much weight",
@@ -381,7 +383,7 @@ const FR: ChatCopy = {
     photoAlt: "Un bowl de céréales dans le viseur",
     steps: ["Photographie ton assiette", "Reçois des macros honnêtes", "Suis ta progression"],
   },
-  units: { years: "ans" },
+  units: { years: "ans", yearsCount: { one: "{n} an", other: "{n} ans" } },
   twice: {
     title: "Perds deux fois plus de poids",
     sub: "Ceux qui notent ce qu'ils mangent perdent deux fois plus de poids",
@@ -517,7 +519,7 @@ const DE: ChatCopy = {
     photoAlt: "Eine Getreidebowl im Sucher",
     steps: ["Fotografier den Teller", "Bekomm ehrliche Makros", "Sieh deinen Fortschritt"],
   },
-  units: { years: "Jahre" },
+  units: { years: "Jahre", yearsCount: { one: "{n} Jahr", other: "{n} Jahre" } },
   twice: {
     title: "Nimm doppelt so viel ab",
     sub: "Wer aufschreibt, was er isst, nimmt doppelt so viel ab",
@@ -653,7 +655,7 @@ const IT: ChatCopy = {
     photoAlt: "Una bowl di cereali nel mirino",
     steps: ["Fotografa il piatto", "Ricevi macro onesti", "Guarda i tuoi progressi"],
   },
-  units: { years: "anni" },
+  units: { years: "anni", yearsCount: { one: "{n} anno", other: "{n} anni" } },
   twice: {
     title: "Perdi il doppio del peso",
     sub: "Chi annota quello che mangia perde il doppio del peso",
@@ -789,7 +791,7 @@ const ES: ChatCopy = {
     photoAlt: "Un bowl de granos en el visor",
     steps: ["Fotografía el plato", "Recibe macros honestos", "Ve tu progreso"],
   },
-  units: { years: "años" },
+  units: { years: "años", yearsCount: { one: "{n} año", other: "{n} años" } },
   twice: {
     title: "Pierde el doble de peso",
     sub: "Quienes apuntan lo que comen pierden el doble de peso",
@@ -925,7 +927,7 @@ const VI: ChatCopy = {
     photoAlt: "Một bát ngũ cốc trong khung ngắm",
     steps: ["Chụp món ăn", "Nhận macro rõ ràng", "Xem tiến độ của bạn"],
   },
-  units: { years: "tuổi" },
+  units: { years: "tuổi", yearsCount: { other: "{n} tuổi" } },
   twice: {
     title: "Giảm gấp đôi số cân",
     sub: "Người ghi lại những gì mình ăn giảm được gấp đôi số cân",
@@ -1061,7 +1063,7 @@ const ID: ChatCopy = {
     photoAlt: "Mangkuk biji-bijian di jendela bidik",
     steps: ["Foto piringnya", "Dapatkan makro jujur", "Lihat progresmu"],
   },
-  units: { years: "tahun" },
+  units: { years: "tahun", yearsCount: { other: "{n} tahun" } },
   twice: {
     title: "Turun berat badan dua kali lebih banyak",
     sub: "Orang yang mencatat apa yang mereka makan kehilangan berat badan dua kali lebih banyak",
@@ -1199,7 +1201,7 @@ const RU: ChatCopy = {
     photoAlt: "Боул в видоискателе",
     steps: ["Сфотографируй тарелку", "Получи честные макросы", "Следи за прогрессом"],
   },
-  units: { years: "лет" },
+  units: { years: "лет", yearsCount: { one: "{n} год", few: "{n} года", many: "{n} лет", other: "{n} года" } },
   twice: {
     title: "Сбрасывай вдвое больше веса",
     sub: "Те, кто записывает, что едят, худеют вдвое больше",

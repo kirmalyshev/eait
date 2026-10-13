@@ -133,12 +133,15 @@ export const BOARD_CSS = `
 .ob .bign small { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
 .ob .vpick { display: flex; gap: 56px; align-items: center; justify-content: center; }
 
-/* the age wheel: a scrollable column, snap-centred — the script drives it, the rows are real */
-.ob .wheelbox { position: relative; }
-.ob .wheelbox::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px;
-  transform: translateY(-50%); border-top: 1px solid var(--hair);
-  border-bottom: 1px solid var(--hair); pointer-events: none; }
-.ob .wheel { height: 308px; width: 140px; overflow-y: auto; scroll-snap-type: y mandatory;
+/* the age wheel (05): a scrollable column, snap-centred — the script drives it, the rows are
+   real. The board's band is a filled, rounded strip running edge to edge (the negative margin
+   buys the column's own padding back), and the rows shrink and fade by distance — .on is the
+   centred value, .o1/.o2 the steps beside it, everything past that the base. */
+.ob .wheelbox { position: relative; margin: 0 -40px; }
+.ob .wheelbox::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 36px;
+  transform: translateY(-50%); border-radius: 18px; background: rgb(23 25 28 / .055);
+  pointer-events: none; }
+.ob .wheel { height: 308px; width: 220px; margin: 0 auto; overflow-y: auto; scroll-snap-type: y mandatory;
   padding: 132px 0; box-sizing: border-box;
   -webkit-mask: linear-gradient(transparent, #000 22%, #000 78%, transparent);
   mask: linear-gradient(transparent, #000 22%, #000 78%, transparent);
@@ -146,8 +149,11 @@ export const BOARD_CSS = `
              mask-image: linear-gradient(180deg, transparent, #000 38px, #000 calc(100% - 38px), transparent); }
 .ob .wheel::-webkit-scrollbar { display: none; }
 .ob .wheel .wr { height: 44px; display: flex; align-items: center; justify-content: center;
-                 scroll-snap-align: center; font-size: 17px; color: var(--muted); }
-.ob .wheel .wr.on { font-size: 28px; font-weight: 700; color: var(--ink); }
+                 scroll-snap-align: center; font-size: 12px; color: var(--faint); opacity: .3;
+                 font-variant-numeric: tabular-nums; }
+.ob .wheel .wr.o1 { font-size: 19px; opacity: .75; }
+.ob .wheel .wr.o2 { font-size: 16px; opacity: .55; }
+.ob .wheel .wr.on { font-size: 22px; color: var(--ink); opacity: 1; }
 
 /* the vertical ruler (height) */
 .ob .vruler { width: 88px; height: 380px; position: relative;
@@ -385,6 +391,7 @@ export const BOARD_CSS = `
 @media (max-width: 720px) {
   .ob .wtop { padding: 0 20px; height: 56px; }
   .ob .wcol { padding: 4px 20px 28px; }
+  .ob .wheelbox { margin: 0 -20px; }
   .ob .wdemo { padding: 0 20px; }
   .ob .cards.c3 { grid-template-columns: 1fr; }
   /* 06 keeps the number beside its ruler on a phone; 07/09 run the ruler edge to edge. */

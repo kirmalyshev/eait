@@ -196,15 +196,23 @@ export const CONTROL_SCRIPT = `(function () {
     var min = num(ctl.dataset.min, 10), val = num(ctl.dataset.val, min);
     var rows = el.children, H = 44;
     function idx() { return Math.round(el.scrollTop / H); }
+    // The centred row is "on", the ones beside it fade by distance — the same marks the server
+    // drew for the value the page opened on.
+    function paint(i) {
+      for (var k = 0; k < rows.length; k++) {
+        var d = Math.abs(k - i);
+        rows[k].className = "wr" + (d === 0 ? " on" : d === 1 ? " o1" : d === 2 ? " o2" : "");
+      }
+    }
     function sync(i) {
-      for (var k = 0; k < rows.length; k++) rows[k].className = "wr" + (k === i ? " on" : "");
+      paint(i);
       val = min + i; inp.value = String(val);
-      var bv = ctl.querySelector(".bv"); if (bv) bv.textContent = fmtN(val);
     }
     function toVal(v) { el.scrollTop = (v - min) * H; }
     toVal(val);
     var t;
     el.addEventListener("scroll", function () {
+      paint(Math.max(0, Math.min(rows.length - 1, idx())));
       clearTimeout(t);
       t = setTimeout(function () {
         var i = Math.max(0, Math.min(rows.length - 1, idx()));
