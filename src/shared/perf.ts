@@ -69,6 +69,7 @@ export const PERF_SCREENS = [
   "you-account",
   "you-subscription",
   "you-milestones",
+  "you-focus",
   "milestones",
   "camera",
   "meal",
@@ -207,6 +208,8 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "you-subscription": { paintMs: 100, readyMs: 100 },
   // Profile › Milestones: two switches read off the profile already in the session.
   "you-milestones": { paintMs: 100, readyMs: 100 },
+  // Profile › Phone break (ieat-app#2129): the same two switches' worth of work, off the profile already in the session.
+  "you-focus": { paintMs: 100, readyMs: 100 },
 
   // The badge wall (ieat-app#1956): one read of `GET /v1/milestones`, a flat list of 36 medals that
   // are bundled images, so the allowance is the request and nothing else — the same cold case `meal` has.

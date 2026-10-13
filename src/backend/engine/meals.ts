@@ -12,7 +12,7 @@
 
 import {
   type ClipEstimateResponse, type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
+  type Lang, type MealFocus, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
   type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
   explainTargets, verdictsFromTargets, visibleVerdicts,
@@ -563,6 +563,22 @@ export async function redateMeal(
     await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
   }
   return { kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date };
+}
+
+/**
+ * `POST /v1/meals/:id/focus` — record the phone break (ieat-app#2129). Replaces any earlier record.
+ * Null when the meal is not the caller's (the store scopes `id AND user_id`). Free for every user:
+ * nothing here reads the entitlement.
+ */
+export async function focusMeal(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+  focus: MealFocus,
+): Promise<MealRecord | null> {
+  const meal = await deps.store.updateMeal(userId, mealId, { focus });
+  if (meal) await evaluateMilestones(deps, userId);
+  return meal;
 }
 
 /**
