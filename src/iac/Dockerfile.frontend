@@ -52,6 +52,9 @@ ENV NODE_ENV=production
 # them is an image shipping the same code twice.
 COPY --from=build /app/src/frontend/dist ./src/frontend/dist
 COPY src/frontend/server ./src/frontend/server
+# The server imports its palette, design tokens and icon/kit builders from `../../shared` by relative
+# path, so those files must exist at runtime too; without them it exits at import.
+COPY src/shared ./src/shared
 
 # `bun` is a non-root user the base image already provides.
 USER bun

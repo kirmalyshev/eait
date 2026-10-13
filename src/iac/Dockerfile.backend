@@ -55,11 +55,12 @@ COPY src/backend ./src/backend
 #
 # These come AFTER the source copies, because a `COPY src/backend` afterwards would shadow them.
 #
-# `src/shared` gets no such directory and none is copied: it declares no runtime dependencies, only
-# the workspace link the backend resolves through. If it ever gains one, this build fails loudly at
-# the COPY rather than quietly at startup.
+# `src/shared` has the same shape and needs the same copy: it declares `@lingui/core`, so its own
+# `node_modules` holds the links that resolve it. Without them the server dies at import with
+# `Cannot find module '@lingui/core' from src/shared/i18n.ts` — a crash loop, not a build error.
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/src/backend/node_modules ./src/backend/node_modules
+COPY --from=deps /app/src/shared/node_modules ./src/shared/node_modules
 
 # `bun` is a non-root user the base image already provides. A container that runs as root is one
 # container escape away from being root on the box, and nothing here needs the privilege.

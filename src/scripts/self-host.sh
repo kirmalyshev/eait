@@ -121,19 +121,21 @@ main() {
   domain=$(get "$ENVF" EAIT__DEPLOY__DOMAIN)
   port=$(get "$ENVF" EAIT__DEPLOY__HTTP_PORT)
   case "$domain" in
-    http://*) url="http://127.0.0.1:${port:-80}"; curl_opts="" ; shown=$(get "$ENVF" EAIT__BACKEND__PUBLIC_WEB_URL) ;;
-    *)        port=$(get "$ENVF" EAIT__DEPLOY__HTTPS_PORT)
-              url="https://$domain:${port:-443}"; curl_opts="--resolve $domain:${port:-443}:127.0.0.1"
+    http://*) host=localhost; scheme=http;  port=${port:-80};  shown=$(get "$ENVF" EAIT__BACKEND__PUBLIC_WEB_URL) ;;
+    *)        host=$domain;   scheme=https; port=$(get "$ENVF" EAIT__DEPLOY__HTTPS_PORT); port=${port:-443}
               shown="https://$domain" ;;
   esac
+  # Caddy answers an empty 200 to a Host it has no site for, so the request names the site and the
+  # reply must be the backend's own `{"ok":true,...}` — not just any 200.
+  url="$scheme://$host:$port/health"
 
-  say "waiting for $url/health"
+  say "waiting for $url"
   i=0
-  until curl -fsS $curl_opts -o /dev/null --max-time 5 "$url/health" </dev/null 2>/dev/null; do
+  until curl -fsS --resolve "$host:$port:127.0.0.1" -m 5 "$url" </dev/null 2>/dev/null | grep -q '"ok":true'; do
     i=$((i + 1))
     if [ "$i" -ge 60 ]; then
       case "$domain" in
-        http://*) die "no answer on $url/health after 3 minutes — docker compose -f $EAIT_DIR/docker-compose.prod.yml logs" ;;
+        http://*) die "no answer on $url after 3 minutes — docker compose -f $EAIT_DIR/docker-compose.prod.yml logs" ;;
         *)        echo "self-host: $domain does not answer yet — its DNS must point here for the certificate to issue" >&2; break ;;
       esac
     fi
