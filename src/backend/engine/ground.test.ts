@@ -225,9 +225,12 @@ describe("matcher #637: pool eviction and foreign-head wins", () => {
     const rows = [
       src("bls", "Cucumber raw", 16),
       src("frida", "Cucumber, raw", 12),
-      ref("Cucumber, peeled, raw", 10),
+      ref("Cucumber, raw", 10),
     ];
-    expect(pickId("cucumber", rows)).toBe("usda-sr:Cucumber, peeled, raw");
+    expect(pickId("cucumber", rows)).toBe("usda-sr:Cucumber, raw");
+    // …and a source bonus never lifts a row carrying an unsaid qualifier into the group.
+    expect(pickId("cucumber", [rows[0]!, rows[1]!, ref("Cucumber, peeled, raw", 10)]))
+      .toBe("frida:Cucumber, raw");
   });
   test("a tie inside one table goes to coverage, then the shorter name", () => {
     const rows = [
@@ -241,7 +244,7 @@ describe("matcher #637: pool eviction and foreign-head wins", () => {
 // #637 step 2: the user's country names the table a same-food tie prefers — and only the tie.
 describe("matcher #637: the country table wins same-food ties", () => {
   const rows: FoodRef[] = [
-    { ...ref("Cucumber, peeled, raw", 10), id: "usda-sr:1" },
+    { ...ref("Cucumber, raw", 10), id: "usda-sr:1" },
     { ...ref("x", 16), id: "bls:2", source: "bls", name_en: "Cucumber raw" },
     { ...ref("x", 12), id: "frida:3", source: "frida", name_en: "Cucumber, raw" },
   ];

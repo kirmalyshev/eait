@@ -216,11 +216,11 @@ function scoreFoodIn(ctx: QueryContext, f: Complete, a: RowAnalysis, out: Scored
     // Anything else is the fresh form by default, a plain row over a prepared one.
     s += a.stRaw ? 1 : a.stHard ? -2.5 : a.states.length > 0 ? -0.5 : 0;
   }
-  if (f.source === "usda-sr") s += 1;
-  // sHard is s before the soft-extras discount: two rows naming the same food stay level on it
-  // however their filler words differ ("Hamburger" vs "Hamburger, fast food"), while a real
-  // difference — an unsaid food noun, the head, the preparation — still separates them.
-  out.s = s;
+  // s carries the historical usda-sr point, so a winning usda row keeps its floor headroom; sHard
+  // drops it together with the soft-extras discount: the same-food group is a question of name
+  // alone — a preferred source never decides who ties, only which tie it answers (#637 step 2).
+  const usda = f.source === "usda-sr" ? 1 : 0;
+  out.s = s + usda;
   out.sHard = s + extrasTerm - Math.min(4, extraHard);
   out.extras = extraHard + extraSoft;
   out.headOk = headOk;
