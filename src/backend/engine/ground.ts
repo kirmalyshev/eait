@@ -235,12 +235,28 @@ export function scoreFood(nameEn: string, f: Complete): number {
 /**
  * The tables a same-food tie prefers, earliest first: the reference table that held the +1 bonus
  * before #637, then the older national tables, the newest additions last — a new table earns
- * wins by score, never by being shorter. The country-aware ordering lands next (#637 step 2).
+ * wins by score, never by being shorter.
  */
 const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls"];
 
+/**
+ * The user's own table first (#637 step 2): `users.country` picks the national table the tie
+ * prefers — de/at → bls, fr → ciqual, no → matvaretabellen, dk → frida, gb/ie → cofid — and every
+ * other value, null included, keeps usda-sr first. It can only ever order candidates that already
+ * name the same food; it never outweighs a name mismatch.
+ */
+const COUNTRY_SOURCE: Record<string, string> = {
+  de: "bls", at: "bls", fr: "ciqual", no: "matvaretabellen", dk: "frida", gb: "cofid", ie: "cofid",
+};
+export const preferredSources = (country: string | null | undefined): string[] => {
+  const table = COUNTRY_SOURCE[country?.toLowerCase() ?? ""];
+  return table ? [table, ...SOURCE_ORDER.filter((s) => s !== table)] : SOURCE_ORDER;
+};
+
 /** The catalog row to believe for this item among `candidates`, or null. */
-export function pickFood(nameEn: string, candidates: FoodRef[]): Complete | null {
+export function pickFood(
+  nameEn: string, candidates: FoodRef[], sources: readonly string[] = SOURCE_ORDER,
+): Complete | null {
   const raw = rewrite(nameEn.trim());
   if (!raw) return null;
   const name = isSushi(raw) ? sushiName(raw) : raw;
@@ -272,7 +288,7 @@ export function pickFood(nameEn: string, candidates: FoodRef[]): Complete | null
   let best: Complete | null = null, bScore = -Infinity, bExtras = Infinity, bPref = Infinity, bId = "";
   for (const c of group) {
     if (headInGroup && !c.headOk) continue;
-    const pref = SOURCE_ORDER.indexOf(c.f.source);
+    const pref = sources.indexOf(c.f.source);
     const better = best === null || pref < bPref
       || (pref === bPref && (c.extras < bExtras
         || (c.extras === bExtras && (c.f.name_en!.length < best.name_en!.length
@@ -283,10 +299,12 @@ export function pickFood(nameEn: string, candidates: FoodRef[]): Complete | null
 }
 
 /** Full name first; on a miss, once more without its leading modifiers (A3b). */
-async function findFood(deps: EngineDeps, item: MealItem): Promise<Complete | null> {
+async function findFood(
+  deps: EngineDeps, item: MealItem, sources: readonly string[],
+): Promise<Complete | null> {
   const attempt = async (name: string) => {
     const w = lookupWords(name);
-    return w.length === 0 ? null : pickFood(name, await deps.store.foodCandidates(w));
+    return w.length === 0 ? null : pickFood(name, await deps.store.foodCandidates(w), sources);
   };
   const hit = await attempt(item.name_en!);
   if (hit) return hit;
@@ -362,14 +380,15 @@ function groundItem(item: MealItem, f: Complete): MealItem {
  * an answer the model already gave, so its failure costs accuracy and never the meal.
  */
 export async function groundAnalysis(
-  deps: EngineDeps, analysis: AnalyzedMeal,
+  deps: EngineDeps, analysis: AnalyzedMeal, country: string | null = null,
 ): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
   if (!analysis.isFood || analysis.items.length === 0) return { analysis, grounded: 0 };
+  const sources = preferredSources(country);
   let grounded = 0;
   const items = await Promise.all(analysis.items.map(async (item) => {
     if (!item.name_en?.trim() || !(item.grams > 0)) return item;
     try {
-      const hit = await findFood(deps, item);
+      const hit = await findFood(deps, item, sources);
       if (!hit) return item;
       grounded++;
       return groundItem(item, hit);
@@ -387,7 +406,7 @@ export async function groundAnalysis(
  * back exactly as the model returned it.
  */
 export async function groundWhenOn(
-  deps: EngineDeps, key: SwitchKey, analysis: AnalyzedMeal,
+  deps: EngineDeps, key: SwitchKey, analysis: AnalyzedMeal, country: string | null = null,
 ): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
-  return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis) : { analysis, grounded: 0 };
+  return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis, country) : { analysis, grounded: 0 };
 }

@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import type { FoodRef } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
-import { groundAnalysis, lookupWords, pickFood } from "./ground.ts";
+import { groundAnalysis, lookupWords, pickFood, preferredSources } from "./ground.ts";
 import { prepareAnalysis } from "./analysis.ts";
 
 const ref = (name_en: string, kcal: number | null, over: Partial<FoodRef> = {}): FoodRef => ({
@@ -235,6 +235,37 @@ describe("matcher #637: pool eviction and foreign-head wins", () => {
       src("frida", "Beans, red, raw", 100),
     ];
     expect(pickId("beans", rows)).toBe("frida:Beans, red, raw");
+  });
+});
+
+// #637 step 2: the user's country names the table a same-food tie prefers — and only the tie.
+describe("matcher #637: the country table wins same-food ties", () => {
+  const rows: FoodRef[] = [
+    { ...ref("Cucumber, peeled, raw", 10), id: "usda-sr:1" },
+    { ...ref("x", 16), id: "bls:2", source: "bls", name_en: "Cucumber raw" },
+    { ...ref("x", 12), id: "frida:3", source: "frida", name_en: "Cucumber, raw" },
+  ];
+  const pick = (country: string | null) =>
+    pickFood("cucumber", rows, preferredSources(country))?.id ?? null;
+  test("de/at pick bls, us and unknown keep usda-sr", () => {
+    expect(pick("de")).toBe("bls:2");
+    expect(pick("at")).toBe("bls:2");
+    expect(pick("us")).toBe("usda-sr:1");
+    expect(pick(null)).toBe("usda-sr:1");
+  });
+  test("each country picks its own table where it ties, usda-sr otherwise", () => {
+    expect(pick("dk")).toBe("frida:3");
+    // fr prefers ciqual and no prefers matvaretabellen — absent here, so usda-sr answers.
+    expect(pick("fr")).toBe("usda-sr:1");
+    expect(pick("no")).toBe("usda-sr:1");
+    expect(pick("gb")).toBe("usda-sr:1");
+  });
+  test("the preference never outweighs a name mismatch", () => {
+    const mismatch: FoodRef[] = [
+      { ...ref("x", 38), id: "bls:4", source: "bls", name_en: "Sugar pea raw" },
+      ref("Sugars, brown", 380),
+    ];
+    expect(pickFood("sugar", mismatch, preferredSources("de"))?.name_en).toBe("Sugars, brown");
   });
 });
 
