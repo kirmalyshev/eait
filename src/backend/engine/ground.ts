@@ -235,9 +235,12 @@ export function scoreFood(nameEn: string, f: Complete): number {
 /**
  * The tables a same-food tie prefers, earliest first: the reference table that held the +1 bonus
  * before #637, then the older national tables, the newest additions last — a new table earns
- * wins by score, never by being shorter.
+ * wins by score, never by being shorter. `recipe` is not a table at all but dishes computed FROM
+ * the tables' rows, so it ranks below every one of them — fooddb's resolver holds the same rule.
+ * A source absent from this list sorts FIRST, not last (`indexOf` answers -1): any source the
+ * snapshot can write must be named here, or it would win every tie it enters.
  */
-const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls"];
+const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls", "fineli", "recipe"];
 
 /**
  * The user's own table first (#637 step 2): `users.country` picks the national table the tie
