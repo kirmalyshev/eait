@@ -48,7 +48,9 @@ const paid = (appUserId: string, over: Partial<RevenueCatEvent> = {}): RevenueCa
 });
 const daysLeft = async (userId: string) => {
   const until = await store.bonusUntil(userId);
-  return until === null ? null : Math.round((Date.parse(until) - Date.now()) / DAY);
+  // A revoke clamps `bonus_until` to now, which is a few ms in the past by the time this reads it:
+  // `Math.round` of that is -0, and `toBe(0)` tells -0 from 0. `+ 0` maps -0 to 0; NaN stays NaN.
+  return until === null ? null : Math.round((Date.parse(until) - Date.now()) / DAY) + 0;
 };
 
 describe("redeeming a friend's link", () => {

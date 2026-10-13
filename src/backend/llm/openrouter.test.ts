@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { openRouterPorts } from "./openrouter.ts";
-import { SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL } from "./prompt.ts";
+import { SYSTEM, SYSTEM_ANALYSIS_LEAN, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL } from "./prompt.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, type CoachInput } from "./port.ts";
 
 /** A payload the provider stopped at the completion bound. `partial` is what it had written. */
@@ -1069,5 +1069,40 @@ describe("call metrics", () => {
     // and they run in parallel, so they are named rather than ordered here.
     expect(seen.map((m) => m.call).sort()).toEqual(["route", "text-meal"]);
     expect(seen.every((m) => m.status === "ok")).toBe(true);
+  });
+});
+
+// `prompt.photo-lean` (#607): the flag the engine sets when the admin's switch is on. The lean
+// prompt and schema go out, the lean answer comes back widened — never returned as-is.
+describe("the lean photo prompt", () => {
+  const LEAN = {
+    isFood: true, scale: { reference: "dinner plate", plate_diameter_cm: 26 },
+    items: [{ name: "Rice", name_en: "white rice, cooked", grams: 200, kcal_per_100g: 130 }],
+    kcal: 400, protein_g: 30, carbs_g: 60, fat_g: 10, confidence: "high", notes: "", question: null,
+  };
+
+  test("input.lean sends the lean prompt and schema, and the answer is widened", async () => {
+    const { bodies, llm } = ports([LEAN]);
+    const out = await llm.analyzePhoto({ ...PHOTO_INPUT, lean: true });
+    expect((bodies[0]!.messages as Record<string, unknown>[])[0]).toMatchObject({ role: "system", content: SYSTEM_ANALYSIS_LEAN });
+    const itemProps = ((bodies[0]!.response_format as {
+      json_schema: { schema: { properties: { items: { items: { properties: Record<string, unknown> } } } } };
+    }).json_schema.schema.properties.items.items.properties);
+    expect(itemProps).toHaveProperty("kcal_per_100g");
+    expect(itemProps).not.toHaveProperty("kcal");
+    expect(itemProps).not.toHaveProperty("protein_g");
+    // Widened, never verbatim: the item carries kcal and the meal's macros split onto it.
+    expect(out.items[0]).toMatchObject({ name: "Rice", grams: 200, kcal: 260, protein_g: 30, carbs_g: 60, fat_g: 10 });
+    expect(out.satfat_g).toBe(0);
+  });
+
+  test("without the flag the full prompt and schema go out as before", async () => {
+    const { bodies, llm } = ports([MEAL]);
+    await llm.analyzePhoto(PHOTO_INPUT);
+    expect((bodies[0]!.messages as Record<string, unknown>[])[0]).toMatchObject({ role: "system", content: SYSTEM });
+    const itemProps = ((bodies[0]!.response_format as {
+      json_schema: { schema: { properties: { items: { items: { properties: Record<string, unknown> } } } } };
+    }).json_schema.schema.properties.items.items.properties);
+    expect(itemProps).toHaveProperty("kcal");
   });
 });

@@ -26,6 +26,7 @@ import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { catalogMicros, groundWhenOn, recomputeFromSnapshot } from "./ground.ts";
+import { switchOn } from "./switches.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -171,11 +172,16 @@ export async function analyzePhotos(
     onEvent({ kind: "item", index, item, line: weighing });
   }) : undefined;
 
+  // The admin's `prompt.photo-lean` switch (#607), read per request like the grounding one beside
+  // it: the analyzer is told which shape to answer, and the stream's items are scanned by
+  // `itemScanner`, which accepts the lean shape it produces.
+  const lean = await switchOn(deps, "prompt.photo-lean");
+
   let analysis: AnalyzedMeal;
   clock.calledAt = Date.now();
   try {
     analysis = await deps.llm.analyzePhoto({
-      images, profile, targets, onCost, onCall,
+      images, profile, targets, onCost, onCall, lean,
       ...(caption !== undefined ? { caption } : {}),
       localTime: localTime(zone, eaten),
       repertoire: await buildRepertoire(deps, userId, localDate(zone, eaten)),

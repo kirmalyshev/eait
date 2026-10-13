@@ -434,9 +434,11 @@ export interface PortionCorrection {
  */
 /**
  * The admin's on/off switches. Written out in the `admin_switches` check constraint BY HAND, so
- * `switches.schema.test.ts` can catch the two drifting. A key with no stored row is ON.
+ * `switches.schema.test.ts` can catch the two drifting. What a key with no stored row MEANS is
+ * per key — `SWITCH_DEFAULT` in `engine/switches.ts` — because `prompt.photo-lean` ships off
+ * where the grounding switches shipped on.
  */
-export const SWITCH_KEYS = ["grounding.photo", "grounding.text"] as const;
+export const SWITCH_KEYS = ["grounding.photo", "grounding.text", "prompt.photo-lean"] as const;
 export type SwitchKey = (typeof SWITCH_KEYS)[number];
 
 /** One flip of one switch: the append-only row, `set_at` an ISO string on both stores. */

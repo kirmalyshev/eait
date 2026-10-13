@@ -3,8 +3,9 @@
 
 import { expect, test } from "bun:test";
 import { explainTargets } from "@eait/shared";
-import type { Profile } from "@eait/shared";
+import type { MealItem, Profile } from "@eait/shared";
 import { DEMO_HOLD, DEMO_NOT_FOOD, demoPieceDelayMs, demoPorts } from "./demo.ts";
+import { itemScanner } from "./partial.ts";
 import type { CoachContext } from "./port.ts";
 
 // The canned analyzer reads only the caption and the bytes, but `PhotoInput` is the real port's
@@ -194,4 +195,30 @@ test("the canned ports report what each call cost — nothing — so --demo walk
     context: { targets, today: "2026-09-10", todayMeals: [] } as unknown as CoachContext,
   }, {});
   expect(seen).toEqual([0, 0, 0]);
+});
+
+// The switch the real analyzer honours must change the canned one's answer the same way (#607):
+// the stream carries the lean shape and the return is the widened meal — never the full JSON
+// pretending to have streamed lean.
+test("input.lean streams the lean shape and answers the widened meal", async () => {
+  const input = {
+    images: [new Uint8Array([1, 2, 3])], profile: PROFILE, targets: explainTargets(PROFILE).targets,
+    caption: "lean plate", lean: true,
+  };
+  const chunks: string[] = [];
+  const meal = await demoPorts().analyzePhoto(input, (d) => chunks.push(d));
+  const streamed = JSON.parse(chunks.join(""));
+  expect(streamed.items.length).toBeGreaterThan(0);
+  for (const item of streamed.items as Record<string, unknown>[]) {
+    expect(item).not.toHaveProperty("kcal");
+    expect(item).toHaveProperty("kcal_per_100g");
+  }
+  // The item events a lean stream owes still fire — the pending card is not the switch's price.
+  const items: MealItem[] = [];
+  const feed = itemScanner((_i, it) => items.push(it));
+  for (const d of chunks) feed(d);
+  expect(items.map((i) => i.name)).toEqual(meal.items.map((i) => i.name));
+  expect(items.every((i) => typeof i.kcal === "number")).toBe(true);
+  // The returned meal is the full shape — every item priced, meal macros present.
+  expect(meal.items.every((i) => typeof i.kcal === "number" && typeof i.protein_g === "number")).toBe(true);
 });

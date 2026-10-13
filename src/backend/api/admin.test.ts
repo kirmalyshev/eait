@@ -396,7 +396,7 @@ describe("editing the system prompts", () => {
     expect(res.status).toBe(200);
     const { prompts } = await res.json() as { prompts: { key: string; version: number; source: string; text: string }[] };
     expect(prompts.map((p) => p.key).sort()).toEqual(
-      ["analysis", "coach", "route", "text_correction", "text_meal"],
+      ["analysis", "analysis_lean", "coach", "route", "text_correction", "text_meal"],
     );
     // Rows, not a fallback: the store holds the shipped text from the moment it exists, so this
     // screen shows the same thing the transport reads.
@@ -1349,6 +1349,7 @@ describe("the grounding switches", () => {
     expect(body.switches).toEqual([
       { key: "grounding.photo", enabled: true, setBy: null, setAt: null },
       { key: "grounding.text", enabled: true, setBy: null, setAt: null },
+      { key: "prompt.photo-lean", enabled: false, setBy: null, setAt: null },
     ]);
     expect(body.recent).toEqual([]);
   });
