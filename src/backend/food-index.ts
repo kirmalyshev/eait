@@ -58,7 +58,8 @@ export const FILLER = new Set([
   "broilers", "or", "fryers", "meat", "only", "skin", "boneless", "skinless", "with", "without", "separable", "lean",
   "fat", "trimmed", "all", "grades", "choice", "select", "retail", "cuts", "fresh", "unprepared", "cooked", "oven",
   "pan", "whole", "commercial", "bone", "small", "large", "medium", "regular", "generic", "type", "from", "not",
-  "enriched", "unenriched", "includes", "eaten", "prepared", "recipe", "using", "home",
+  "enriched", "unenriched", "includes", "eaten", "prepared", "recipe", "using", "home", "sweet",
+  "drained", "salt", "added",
 ]);
 /** A word describing a PORTION of the food — the fat or the skin — not the food, unless asked. */
 export const PORTION = new Set(["fat", "skin"]);
