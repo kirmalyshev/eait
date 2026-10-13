@@ -383,6 +383,17 @@ export interface Config {
   /** Where that catalog lives. */
   fooddbUrl: string;
   /**
+   * How long one fooddb product read may take before the scan is answered without it (#639).
+   * Short on purpose — a barcode lookup is somebody standing in a shop; the snapshot refresh is a
+   * background job and does not read this.
+   */
+  fooddbTimeoutMs: number;
+  /**
+   * How long a barcode fooddb could not answer stays a local miss, so a scan loop cannot hammer
+   * fooddb for the same code. Covers a dead host as well as a 404 — briefly either way.
+   */
+  fooddbMissTtlMs: number;
+  /**
    * The connector's bot username, as Telegram's `getMe` answered it. NOT an environment variable:
    * written by the connector once it has reached Telegram (`index.ts`), and emptied again if the
    * token turns out dead. Every Connect Telegram link — the `/start` plan page, and the web app via
@@ -724,6 +735,8 @@ export function configDefaults(): Config {
     telegramBotToken: "",
     fooddbReadKey: "",
     fooddbUrl: "https://food-api.eait.fit",
+    fooddbTimeoutMs: 4_000,
+    fooddbMissTtlMs: 60_000,
     telegramBotUsername: "",
     adminBootstrapUserId: "",
     campaignStaffIds: [],
@@ -948,6 +961,8 @@ export function loadConfig(): Config {
     telegramBotToken: telegramBotTokenFromEnv(),
     fooddbReadKey: (process.env.EAIT__BACKEND__FOODDB_READ_KEY ?? "").trim(),
     fooddbUrl: (process.env.EAIT__BACKEND__FOODDB_URL ?? "").trim() || d.fooddbUrl,
+    fooddbTimeoutMs: int("EAIT__BACKEND__FOODDB_TIMEOUT_MS", d.fooddbTimeoutMs),
+    fooddbMissTtlMs: int("EAIT__BACKEND__FOODDB_MISS_TTL_MS", d.fooddbMissTtlMs),
     adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
     pushDailyMax: int("EAIT__BACKEND__PUSH_DAILY_MAX", -1) < 0 ? null : int("EAIT__BACKEND__PUSH_DAILY_MAX", -1),
     campaignStaffIds: process.env.EAIT__BACKEND__CAMPAIGN_STAFF_IDS === undefined ? d.campaignStaffIds : list("EAIT__BACKEND__CAMPAIGN_STAFF_IDS"),
