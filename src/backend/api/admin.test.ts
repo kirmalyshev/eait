@@ -1345,13 +1345,40 @@ describe("the grounding switches", () => {
   it("GET answers the default (on, never set) for both keys and no history", async () => {
     const res = await admin("GET", "/admin/api/switches");
     expect(res.status).toBe(200);
-    const body = await res.json() as { switches: { key: string; enabled: boolean; setBy: string | null; setAt: string | null }[]; recent: unknown[] };
+    const body = await res.json() as { switches: { key: string; enabled: boolean; setBy: string | null; setAt: string | null; setByEmail: string | null }[]; recent: unknown[] };
     expect(body.switches).toEqual([
-      { key: "grounding.photo", enabled: true, setBy: null, setAt: null },
-      { key: "grounding.text", enabled: true, setBy: null, setAt: null },
-      { key: "prompt.photo-lean", enabled: false, setBy: null, setAt: null },
+      { key: "grounding.photo", enabled: true, setBy: null, setAt: null, setByEmail: null },
+      { key: "grounding.text", enabled: true, setBy: null, setAt: null, setByEmail: null },
+      { key: "prompt.photo-lean", enabled: false, setBy: null, setAt: null, setByEmail: null },
     ]);
     expect(body.recent).toEqual([]);
+  });
+
+  it("GET names the actor by email when the account holds one, null when it has none or is gone", async () => {
+    const adminId = (await store.userIdForToken(adminBearer))!;
+    // The admin's account is a device session until an address is linked — the id is all a flip
+    // can name then, exactly the fallback a deleted account leaves behind.
+    expect((await admin("PUT", "/admin/api/switches/grounding.photo", { enabled: false })).status).toBe(200);
+    await store.addIdentity(adminId, "apple", "sub-admin-1");
+    await store.setIdentityEmail(adminId, "apple", "sub-admin-1", "admin@eait.fit");
+    expect((await admin("PUT", "/admin/api/switches/grounding.text", { enabled: false })).status).toBe(200);
+    expect((await admin("PUT", "/admin/api/switches/grounding.photo", { enabled: true })).status).toBe(200);
+    // A flip under an id no account holds (the row outlives the account).
+    const gone = "00000000-0000-4000-8000-000000000099";
+    await store.setSwitch("prompt.photo-lean", true, gone);
+
+    const body = await (await admin("GET", "/admin/api/switches")).json() as {
+      switches: { key: string; setBy: string | null; setByEmail: string | null }[];
+      recent: { key: string; setBy: string; setByEmail: string | null }[];
+    };
+    expect(body.switches.find((s) => s.key === "grounding.photo")).toMatchObject({ setBy: adminId, setByEmail: "admin@eait.fit" });
+    expect(body.switches.find((s) => s.key === "grounding.text")).toMatchObject({ setBy: adminId, setByEmail: "admin@eait.fit" });
+    expect(body.switches.find((s) => s.key === "prompt.photo-lean")).toMatchObject({ setBy: gone, setByEmail: null });
+    expect(body.recent.find((f) => f.key === "prompt.photo-lean")).toMatchObject({ setBy: gone, setByEmail: null });
+    expect(body.recent.find((f) => f.key === "grounding.text")).toMatchObject({ setBy: adminId, setByEmail: "admin@eait.fit" });
+    // The address is resolved at READ time: the flip written before the link still names it.
+    const photoFlips = body.recent.filter((f) => f.key === "grounding.photo");
+    expect(photoFlips.every((f) => f.setByEmail === "admin@eait.fit")).toBe(true);
   });
 
   it("PUT appends a row under the resolved admin and the store reads it back", async () => {
