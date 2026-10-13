@@ -45,13 +45,14 @@ export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
 /**
  * The sources a meal item's `ref` can point at today, each named once with its licence (#562).
  *
- * These are the four sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
+ * These are the five sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
  * else), a subset of `FOOD_SOURCE_IDS` — the schema's other ids are placeholders and fallbacks no
  * snapshot has ever written. A surface that names a source reads this; a `ref` prefix absent from
  * it is a source nothing here has met, to be shown unnamed rather than invented.
  */
 export const FOOD_SOURCES: Partial<Record<FoodSource, { name: string; licence: string }>> = {
   "usda-sr": { name: "USDA FoodData Central", licence: "CC0-1.0" },
+  bls: { name: "BLS", licence: "CC-BY-4.0" },
   ciqual: { name: "CIQUAL", licence: "etalab-2.0" },
   matvaretabellen: { name: "Matvaretabellen", licence: "NLOD-2.0" },
   frida: { name: "Frida", licence: "CC-BY-4.0" },

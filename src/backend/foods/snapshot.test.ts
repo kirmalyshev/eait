@@ -28,6 +28,19 @@ describe("a snapshot line as a food_ref row", () => {
     expect(r.kcal_per_100g).toBeNull();
     expect(r.protein_g_per_100g).toBeNull();
   });
+  test("a BLS line lands as bls: code as id, English name, available carbohydrate, licence credit verbatim", () => {
+    const credit = "Max Rubner-Institut (2025): Bundeslebensmittelschlüssel (BLS), Version 4.0 — Deutsche Nährstoffdatenbank.";
+    const r = foodRefFromSnapshotLine(line({
+      name: { value: "Oat flakes", source: "bls", record: "bls:C131000" },
+      per_100: { ENERC_KCAL: n(372, "kcal"), PROCNT: n(13.5), CHOAVL: n(58.7), FAT: n(7), FIBTG: n(10) },
+      attribution: [{ text: credit }],
+    }))!;
+    expect(r).toMatchObject({
+      id: "bls:C131000", source: "bls", name_en: "Oat flakes", names: {},
+      kcal_per_100g: 372, protein_g_per_100g: 13.5, carbs_g_per_100g: 58.7, fat_g_per_100g: 7, fiber_g_per_100g: 10,
+      attribution: [credit],
+    });
+  });
   test("a non-English name is kept under its language, not as the English key", () => {
     const r = foodRefFromSnapshotLine(line({ name: { value: "Pomme", source: "ciqual", record: "ciqual:13014" }, lang: { value: "fr" } }))!;
     expect(r).toMatchObject({ id: "ciqual:13014", name_en: null, names: { fr: "Pomme" } });
