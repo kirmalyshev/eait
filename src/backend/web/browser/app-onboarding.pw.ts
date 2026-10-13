@@ -9,6 +9,8 @@
 import { expect, onboard, sessionToken, test } from "./fixtures.ts";
 
 test("the whole W3 walk: plan, sign-up, country, first meal — and back", async ({ page, browser }) => {
+  // The whole walk plus the 17 loader (5.5 s before the plan draws) outgrows the default 30 s.
+  test.slow();
   await page.goto("/start");
   await page.getByRole("link", { name: "Build my plan" }).click();
 
@@ -18,15 +20,15 @@ test("the whole W3 walk: plan, sign-up, country, first meal — and back", async
 
   // ── The plan ────────────────────────────────────────────────────────────────────────────
   await expect(page).toHaveURL(/\/start\/plan/);
-  await expect(page.locator(".pln .goal")).toContainText("Goal:");
+  await expect(page.locator(".pln .hd")).toContainText("Goal:");
   await expect(page.locator(".pgraph .draw1")).toBeVisible();
-  await expect(page.locator(".pln .oc")).toContainText("kcal a day");
-  await expect(page.locator(".pln .mrow")).toContainText("sat fat");
+  await expect(page.locator(".pln .kcb")).toContainText("kcal a day");
+  await expect(page.locator(".pln .pib")).toContainText("Saturated fat");
 
   // ── The sign-up: terms required, marketing optional ─────────────────────────────────────
   await page.getByRole("link", { name: "Continue", exact: true }).click();
   await expect(page).toHaveURL(/\/start\/signup/);
-  await expect(page.locator(".hero img")).toHaveAttribute("src", "/start/assets/img/icon.webp");
+  await expect(page.getByRole("heading", { name: "Save your progress" })).toBeVisible();
   await expect(page.locator('input[name="terms"]')).not.toBeChecked();
   await expect(page.locator('input[name="marketing"]')).not.toBeChecked();
   // Unticked goes nowhere.

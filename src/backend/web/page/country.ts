@@ -69,7 +69,7 @@ export function country(v: CountryView): string {
   return shell(PAGE_COPY.titleStart, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="cty">
-${say("happy", [v.ask], v.lang)}
+${say([v.ask])}
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form method="post" action="${escape(v.action)}">
   <div class="srch"><button class="srchgo" type="submit" formmethod="get" aria-label="${escape(v.placeholder)}"><i class="ico i-search" aria-hidden="true"></i></button><input type="search" name="q" value="${escape(v.query)}" placeholder="${escape(v.placeholder)}" aria-label="${escape(v.placeholder)}"></div>

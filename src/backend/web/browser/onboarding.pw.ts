@@ -1,46 +1,20 @@
 // The W2 walk (`#89`), driven in a real browser.
 //
-// What is here is only what a browser can prove: the recorded welcome loop plays and stops at its
-// still under reduced motion, the seg toggle really re-renders the ruler in the other system, a
-// pick on a card checks the radio inside it, and a browser with no script at all still reaches
-// the plan. Markup and arithmetic are unit-tested in `start.test.ts`.
+// What is here is only what a browser can prove: the welcome draws its photo and chips, the seg
+// toggle really re-renders the ruler in the other system, a pick on a card checks the radio inside
+// it, and a browser with no script at all still reaches the plan. Markup and arithmetic are unit-tested in `start.test.ts`.
 
 import { expect, onboard, sessionToken, signIn, test } from "./fixtures.ts";
 
 test.describe("the welcome", () => {
-  test("plays the recorded loop, muted, inline, from this origin", async ({ page }) => {
-    await page.goto("/start");
-    const vid = page.locator(".vdemo video");
-    await expect(vid).toBeVisible();
-    await expect(vid).toHaveAttribute("src", "/start/assets/welcome/demo.mp4");
-    await expect(vid).toHaveAttribute("poster", "/start/assets/welcome/still.webp");
-    await expect(vid).toHaveAttribute("muted", "");
-    await expect(vid).toHaveAttribute("loop", "");
-    await expect(vid).toHaveAttribute("playsinline", "");
-    // Autoplay is a state, not an attribute to trust — the paused flag is what a browser knows.
-    await expect(async () => {
-      expect(await vid.evaluate((v: { paused: boolean; ended: boolean }) => !v.paused && !v.ended)).toBe(true);
-    }).toPass();
-    // And both halves of the pair are actually served.
-    for (const asset of ["demo.mp4", "still.webp"]) {
-      const res = await page.request.get(`/start/assets/welcome/${asset}`);
-      expect(res.status(), asset).toBe(200);
-    }
-  });
-
-  // THE ONE animation test the surface is allowed: under prefers-reduced-motion the video is
-  // hidden and the loop's LAST FRAME stands in its place — the end state, not the animation.
-  test("under reduced motion the loop is the still, not a playing video", async ({ browser }) => {
+  // Under Reduce Motion the welcome is its last frame: the photo with its four estimate chips.
+  test("is the photo with its four estimate chips, served from this origin", async ({ browser }) => {
     const ctx = await browser.newContext({ reducedMotion: "reduce" });
     const page = await ctx.newPage();
     await page.goto("/start");
-    const vid = page.locator(".vdemo video");
-    await expect(vid).toBeHidden();
-    await expect(page.locator(".vdemo img")).toBeVisible();
-    await expect(page.locator(".vdemo img")).toHaveAttribute(
-      "src", "/start/assets/welcome/still.webp",
-    );
-    expect(await vid.evaluate((v: { paused: boolean }) => v.paused)).toBe(true);
+    await expect(page.locator(".whero")).toBeVisible();
+    await expect(page.locator(".whero .wchip")).toHaveCount(4);
+    expect((await page.request.get("/start/assets/img/hero.webp")).status()).toBe(200);
     await ctx.close();
   });
 });

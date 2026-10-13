@@ -2,8 +2,8 @@ import { signupCopyFor } from "@eait/shared";
 import type { Lang } from "@eait/shared";
 import { brandSvg } from "@eait/shared/ui/icons";
 import { ico } from "@eait/shared/ui/kit";
-import { IMG_URL_DIR } from "./board.ts";
-import { wtop } from "./board.ts";
+import { pageCopyFor } from "../copy.ts";
+import { dash, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
 /**
@@ -12,8 +12,8 @@ import { escape, shell } from "./shell.ts";
  * or present one that already has an account, which is the same mechanism in the other
  * direction.
  *
- * The board's pieces: the app icon on top (`IMG_URL_DIR/icon.webp`, centred at a modest size —
- * served by the route, whitelisted like the fonts so `img-src 'self'` holds), the heading's promise, the three provider
+ * The pieces (19, ieat-app#2050): the heading — "Save your progress" when the person comes from
+ * their plan, the product's promise when they come to sign in — no picture, the provider
  * buttons — Apple in black with its own mark, Google on the surface with the four-colour G,
  * email on the surface with the mail glyph — and the two consent boxes, tickable but never
  * pre-ticked.
@@ -32,6 +32,8 @@ export interface SignUpView {
   termsHref: string | null;
   /** The published privacy policy, or null where no landing is configured to publish one. */
   privacyHref: string | null;
+  /** True when the person arrives from their own plan: the heading is "Save your progress" (19). */
+  fromPlan: boolean;
   lang: Lang;
 }
 
@@ -48,11 +50,11 @@ export function signUp(v: SignUpView): string {
     .replace("{privacy}", docLink(v.privacyHref, SIGNUP_COPY.privacyLink));
   const mark = (id: "apple" | "google" | "email") =>
     id === "email" ? ico("mail") : brandSvg(id === "apple" ? "apple" : "google-signin");
-  return shell(SIGNUP_COPY.signUpHeading, `${wtop()}
+  return shell(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading, `${wtop()}
 <div class="wmain one"><div class="wcol">
 <div class="sup">
-<div class="hero"><img src="${IMG_URL_DIR}/icon.webp" alt="" loading="lazy"></div>
-<h1>${escape(SIGNUP_COPY.signUpHeading)}</h1>
+${v.fromPlan ? dash("signup", v.lang, { href: "/start/plan", label: pageCopyFor(v.lang).back }) : ""}
+<h1>${escape(v.fromPlan ? SIGNUP_COPY.saveHeading : SIGNUP_COPY.signUpHeading)}</h1>
 ${v.error ? `<p class="notice" role="alert">${escape(v.error)}</p>` : ""}
 <form id="signup" method="post">
 ${v.providers.map((p) =>

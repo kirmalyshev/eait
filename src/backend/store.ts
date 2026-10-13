@@ -1406,6 +1406,12 @@ export interface Store {
   /** The funnel over the last `days`, aggregated. Reads every user — this is the admin's view. */
   onboardingFunnel(days: number): Promise<FunnelAggregate>;
   /**
+   * How many accounts finished onboarding in the last `hours` — the loader's "43 people are building
+   * their plan with eait" (ieat-app#2050). A count over every user and nothing else: no id, no
+   * answer, nothing a client could tell one person by.
+   */
+  countOnboardedSince(hours: number): Promise<number>;
+  /**
    * The numbers past the funnel (#377), over a window. Reads every user, like `onboardingFunnel`.
    *
    * THE SECOND UNSCOPED READ IN THIS PORT, and named like the first (`adminListUsers`) for the same

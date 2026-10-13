@@ -34,7 +34,7 @@ export function invite(v: InviteView): string {
     ? `<p class="note">${escape(fill(c.inviteCopied, { link: v.shown }))}</p>` : "";
   return shell(c.inviteTitle, `${wtop()}
 <div class="wmain one"><div class="wcol mid"><div class="ref">
-${say("happy", [c.inviteHeading], v.lang)}
+${say([c.inviteHeading])}
 <p class="muted-sub">${escape(c.inviteLead)}</p>
 <div class="wctas">${app}${web}</div>
 ${note}
@@ -67,7 +67,7 @@ export function referralStep(v: ReferralStepView): string {
 </form>`;
   return shell(c.titleStart, `${wtop()}
 <div class="wmain one"><div class="wcol mid"><div class="ref">
-${say("happy", [c.referralAsk], v.lang)}
+${say([c.referralAsk])}
 <p class="muted-sub">${escape(c.referralLead)}</p>
 ${v.done ? notice : ""}
 ${form}

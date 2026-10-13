@@ -38,7 +38,7 @@ import { DEFAULT_ONBOARDING_CONTENT, usableContent, type OnboardingContent } fro
 const FR: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Prends ton repas en photo. Vois s'il rentre dans ta journée."],
+    lines: ["Un plan pensé pour toi", "Ton objectif, ta journée, tes repas"],
     cta: "Créer mon plan",
     signin: "J'ai déjà un compte",
   },
@@ -110,6 +110,7 @@ const FR: OnboardingContent = {
         "7": { label: "7 jours" },
         "14": { label: "14 jours" },
         "30": { label: "30 jours" },
+        "50": { label: "50 jours" },
       },
     },
     {
@@ -172,7 +173,7 @@ const FR: OnboardingContent = {
 const DE: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Essen knipsen. Sehen, ob's passt."],
+    lines: ["Ein Plan, der zu dir passt", "Dein Ziel, dein Tag, deine Mahlzeiten"],
     cta: "Meinen Plan erstellen",
     signin: "Ich habe schon ein Konto",
   },
@@ -244,6 +245,7 @@ const DE: OnboardingContent = {
         "7": { label: "7 Tage" },
         "14": { label: "14 Tage" },
         "30": { label: "30 Tage" },
+        "50": { label: "50 Tage" },
       },
     },
     {
@@ -306,7 +308,7 @@ const DE: OnboardingContent = {
 const IT: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Fotografa un pasto. Scopri se ci sta."],
+    lines: ["Un piano costruito su di te", "Il tuo obiettivo, la tua giornata, i tuoi pasti"],
     cta: "Crea il mio piano",
     signin: "Ho già un account",
   },
@@ -378,6 +380,7 @@ const IT: OnboardingContent = {
         "7": { label: "7 giorni" },
         "14": { label: "14 giorni" },
         "30": { label: "30 giorni" },
+        "50": { label: "50 giorni" },
       },
     },
     {
@@ -440,7 +443,7 @@ const IT: OnboardingContent = {
 const ES: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Haz una foto a tu comida. Descubre si encaja."],
+    lines: ["Un plan hecho a tu medida", "Tu objetivo, tu día, tus comidas"],
     cta: "Crear mi plan",
     signin: "Ya tengo una cuenta",
   },
@@ -512,6 +515,7 @@ const ES: OnboardingContent = {
         "7": { label: "7 días" },
         "14": { label: "14 días" },
         "30": { label: "30 días" },
+        "50": { label: "50 días" },
       },
     },
     {
@@ -574,7 +578,7 @@ const ES: OnboardingContent = {
 const VI: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Chụp bữa ăn. Biết ngay có hợp không."],
+    lines: ["Kế hoạch dành riêng cho bạn", "Mục tiêu của bạn, ngày của bạn, bữa ăn của bạn"],
     cta: "Lập kế hoạch cho mình",
     signin: "Mình đã có tài khoản",
   },
@@ -646,6 +650,7 @@ const VI: OnboardingContent = {
         "7": { label: "7 ngày" },
         "14": { label: "14 ngày" },
         "30": { label: "30 ngày" },
+        "50": { label: "50 ngày" },
       },
     },
     {
@@ -708,7 +713,7 @@ const VI: OnboardingContent = {
 const ID: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Foto makananmu. Langsung tahu cocok atau tidak."],
+    lines: ["Rencana yang dibuat untukmu", "Tujuanmu, harimu, makananmu"],
     cta: "Buat rencana aku",
     signin: "Aku sudah punya akun",
   },
@@ -780,6 +785,7 @@ const ID: OnboardingContent = {
         "7": { label: "7 hari" },
         "14": { label: "14 hari" },
         "30": { label: "30 hari" },
+        "50": { label: "50 hari" },
       },
     },
     {
@@ -842,7 +848,7 @@ const ID: OnboardingContent = {
 const RU: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
-    lines: ["Сфотографируй еду — узнай, впишется ли она в твой день."],
+    lines: ["План, созданный под тебя", "Твоя цель, твой день, твоя еда"],
     cta: "Создать мой план",
     signin: "У меня уже есть аккаунт",
   },
@@ -914,6 +920,7 @@ const RU: OnboardingContent = {
         "7": { label: "7 дн." },
         "14": { label: "14 дн." },
         "30": { label: "30 дн." },
+        "50": { label: "50 дн." },
       },
     },
     {

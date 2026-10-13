@@ -23,7 +23,7 @@ test("answers before an account, the plan before the sign-up, and the first meal
 
   // The whole walk with NO sign-in — the account exists because the first answer made it.
   await onboard(page);
-  await expect(page.getByRole("heading", { name: "Here is your plan" })).toBeVisible();
+  await expect(page.locator(".pln .hd")).toContainText("Goal:");
 
   // The plan's way on is the sign-up screen, which asks for the two boxes AND the provider.
   await page.getByRole("link", { name: "Continue", exact: true }).click();
