@@ -1645,7 +1645,8 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
-  foodCandidates: "unscoped",
+  // `foodCandidates` reads only the in-memory index (#615) — no table, so no transaction.
+  foodCandidates: "raw",
   // `food_ref` is nobody's rows, so the rebuild over the whole table is unscoped too.
   refreshFoodIndex: "unscoped",
   offProductByBarcode: "unscoped",

@@ -1552,7 +1552,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async foodCandidates(words, limit) {
       // The same index the Postgres side answers from (#615), kept live by `putFoodRefs`.
-      return foodIndex.candidates(words, limit).map(clone);
+      // Rows are frozen in the index, so callers share them instead of receiving clones.
+      return foodIndex.candidates(words, limit);
     },
     async refreshFoodIndex() {
       const t0 = Date.now();
