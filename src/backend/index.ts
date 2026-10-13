@@ -186,6 +186,7 @@ const deps: EngineDeps = {
           reasoningEffort: config.llmReasoningEffort,
           // Comma-separated provider names; empty disables the pin and lets OpenRouter route.
           providerOrder: config.llmProviderOrder.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
+          providerSort: config.llmProviderSort,
           fallbackModels: config.llmFallbackModels.split(",").map((s) => s.trim()).filter((s) => s.length > 0),
           baseUrl: config.llmBaseUrl,
           dialect: config.llmProvider === "openai-compatible" ? "openai" : "openrouter",
