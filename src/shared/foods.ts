@@ -63,12 +63,21 @@ export const FOOD_SOURCES: Partial<Record<FoodSource, { name: string; licence: s
 /**
  * Where an `off_product` row came from.
  *
- * `off` is the Open Food Facts nightly dump. `label-ocr` is the write-back path: a phone reads a
- * label the catalog does not have (or has empty), the parsed result lands here, and the next scan
- * of the same barcode is a hit instead of another OCR — the reason the table is keyed on barcode
- * and the row carries a provenance flag rather than assuming the dump wrote it.
+ * `off` is Open Food Facts — the nightly dump, or the read-through into fooddb's OFF layer
+ * (#639). `label-ocr` is the write-back path: a phone reads a label the catalog does not have
+ * (or has empty), the parsed result lands here, and the next scan of the same barcode is a hit
+ * instead of another OCR — the reason the table is keyed on barcode and the row carries a
+ * provenance flag rather than assuming the dump wrote it.
+ *
+ * The rest are fooddb's CORE sources a barcode can still resolve to — an fdc Branded record
+ * carries a GTIN like an OFF one — spelled the way the snapshot spells them, with `usda-branded`
+ * for fdc's branded set. The row keeps the true source rather than a blanket `off`, because the
+ * licences differ: ODbL wants the OFF credit, CC0 wants none, and a national table wants its own.
  */
-export const PRODUCT_SOURCES = ["off", "label-ocr"] as const;
+export const PRODUCT_SOURCES = [
+  "off", "label-ocr",
+  "usda-branded", "bls", "ciqual", "cofid", "fineli", "frida", "matvaretabellen",
+] as const;
 export type ProductSource = (typeof PRODUCT_SOURCES)[number];
 
 /**

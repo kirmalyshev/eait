@@ -1024,9 +1024,10 @@ export function createRouter(
 
       // ── The food catalog ──────────────────────────────────────────────────────────────────
       //
-      // Global reference data — the rows belong to nobody, so `userId` goes nowhere near the
-      // engine calls below; the bearer is only the door every route here stands behind. Unbilled,
-      // so per-address bounded like the other unbilled surfaces.
+      // Global reference data — the rows belong to nobody; the bearer is only the door every
+      // route here stands behind. The one `userId` below buys a `country` preference hint for
+      // the fooddb read-through, nothing scoped. Unbilled, so per-address bounded like the
+      // other unbilled surfaces.
       if (req.method === "GET" && pathname === ROUTES.foods) {
         const wait = limit(req, peer, "food-search", deps.config.linesRateLimitPerHour, HOUR);
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
@@ -1044,7 +1045,9 @@ export function createRouter(
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const barcode = normalizeBarcode(decodeURIComponent(productMatch[1]!));
         if (barcode === null) return json({ error: "bad-barcode" }, 400);
-        return json(await productByBarcode(deps, barcode) satisfies ProductResponse);
+        // userId goes in for the profile's `country` — the preference hint fooddb ranks records
+        // by — not to scope anything: the catalog stays global.
+        return json(await productByBarcode(deps, userId, barcode) satisfies ProductResponse);
       }
 
       // ── Diary ─────────────────────────────────────────────────────────────────────────────

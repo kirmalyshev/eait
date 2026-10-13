@@ -28,9 +28,12 @@ export interface SnapshotLine {
 }
 
 /** The per-100 g figure for a tagname, or null: a 100 ml basis is not grams and a missing one is not zero. */
-const per100 = (line: SnapshotLine, ...tags: string[]): number | null => {
+export const per100 = (
+  per_100: Record<string, { value?: number; unit?: string; basis?: string }> | undefined,
+  ...tags: string[]
+): number | null => {
   for (const t of tags) {
-    const n = line.per_100?.[t];
+    const n = per_100?.[t];
     if (n && n.basis === "100g" && typeof n.value === "number" && Number.isFinite(n.value)) return n.value;
   }
   return null;
@@ -50,14 +53,14 @@ export function foodRefFromSnapshotLine(line: SnapshotLine): FoodRef | null {
     name_en: english ? name : null,
     names: english ? {} : { [line.lang?.value ?? "und"]: name },
     category: line.category?.value ?? null,
-    kcal_per_100g: per100(line, "ENERC_KCAL"),
-    protein_g_per_100g: per100(line, "PROCNT"),
-    carbs_g_per_100g: per100(line, "CHOCDF", "CHOAVL"),
-    fat_g_per_100g: per100(line, "FAT"),
-    satfat_g_per_100g: per100(line, "FASAT"),
-    fiber_g_per_100g: per100(line, "FIBTG"),
-    sugar_g_per_100g: per100(line, "SUGAR"),
-    sodium_mg_per_100g: per100(line, "NA"),
+    kcal_per_100g: per100(line.per_100, "ENERC_KCAL"),
+    protein_g_per_100g: per100(line.per_100, "PROCNT"),
+    carbs_g_per_100g: per100(line.per_100, "CHOCDF", "CHOAVL"),
+    fat_g_per_100g: per100(line.per_100, "FAT"),
+    satfat_g_per_100g: per100(line.per_100, "FASAT"),
+    fiber_g_per_100g: per100(line.per_100, "FIBTG"),
+    sugar_g_per_100g: per100(line.per_100, "SUGAR"),
+    sodium_mg_per_100g: per100(line.per_100, "NA"),
     nutrients: {},
     portions: [],
     source_url: null,

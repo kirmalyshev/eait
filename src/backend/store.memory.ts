@@ -1591,9 +1591,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       let written = 0;
       for (const row of products) {
         const existing = offProducts.get(row.barcode);
-        // The Postgres `where` clause, stated the same way: an `off` row may replace a
-        // `label-ocr` row only when the dump row carries a calorie figure.
-        if (existing && row.source === "off" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
+        // The Postgres `where` clause, stated the same way: a fetched row may replace a
+        // `label-ocr` row only when it carries a calorie figure.
+        if (existing && row.source !== "label-ocr" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
         offProducts.set(row.barcode, clone(row));
         written++;
       }
