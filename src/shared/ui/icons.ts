@@ -251,6 +251,10 @@ export const ICONS = {
     '<circle cx="6" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="18" cy="12" r="1.2" fill="currentColor"/>',
   ),
   send: line('<path d="M12 19V5M5 12l7-7 7 7"/>'),
+  // The web chat's mic (#570): the capsule, the cradle, the stem; `mic-off` adds the slash, `stop` is the filled square.
+  mic: line('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>'),
+  "mic-off": line('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M4 4l16 16"/>'),
+  stop: solid('<rect x="7.5" y="7.5" width="9" height="9" rx="2" fill="currentColor"/>'),
   back: line('<path d="M19 12H5M11 5l-7 7 7 7"/>'),
   plus: line('<path d="M12 5v14M5 12h14"/>'),
   search: line('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
