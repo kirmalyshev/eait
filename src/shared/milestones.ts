@@ -52,6 +52,10 @@ export const BADGES: readonly Badge[] = [
   b("34-dumpster-diver", "Dumpster Diver", "Get a 1 health score in a day"),
   b("35-doppelganger", "Doppelgänger", "Log an identical day of food from the day prior"),
   b("36-the-omega-log", "The Omega Log", "Log every possible feature (meals, workouts, water, weight) in one day"),
+  // The phone break (ieat-app#2129): our own group after Cal AI's 36.
+  b("39-present", "Present", "Finish 1 phone break"),
+  b("40-unplugged", "Unplugged", "Finish 10 phone breaks"),
+  b("41-slow-food", "Slow Food", "Finish 50 phone breaks"),
 ];
 
 export const BADGE_IDS: ReadonlySet<string> = new Set(BADGES.map((x) => x.id));
@@ -79,6 +83,8 @@ export interface MilestoneInputs {
   workouts: readonly { date: string; count: number }[];
   /** `dayHealthScore` per date, computed by the caller from the day's scored meals. */
   dayScores: ReadonlyMap<string, number | null>;
+  /** Meals whose phone break was held to the end (`focus.completed`). */
+  focusCompleted: number;
 }
 
 // ponytail: substring heuristic over name_en; a real food taxonomy replaces these when the catalog grows categories.
@@ -91,6 +97,7 @@ const STREAKS: readonly [string, number][] = [
   ["04-triple-threat", 100], ["05-no-days-off", 365], ["06-immortal", 1000],
 ];
 const MEAL_COUNTS: readonly [string, number][] = [["07-forking-around", 5], ["08-mission-nutrition", 50], ["09-the-logfather", 500]];
+const FOCUS_COUNTS: readonly [string, number][] = [["39-present", 1], ["40-unplugged", 10], ["41-slow-food", 50]];
 const LOSSES: readonly [string, number][] = [
   ["25-first-drop", 1], ["26-bye-bye-burrito", 5], ["27-scale-tipper", 10],
   ["28-heavy-exit", 25], ["29-who-dis", 50], ["30-final-form", 100],
@@ -127,6 +134,7 @@ export function evaluate(i: MilestoneInputs): string[] {
 
   for (const [id, n] of STREAKS) if (i.streakLongest >= n) earned.add(id);
   for (const [id, n] of MEAL_COUNTS) if (counted.length >= n) earned.add(id);
+  for (const [id, n] of FOCUS_COUNTS) if (i.focusCompleted >= n) earned.add(id);
 
   // Closed days only: a badge cannot be taken back, and today can still go over the target or stop matching yesterday.
   const closed = new Set([...days].filter((d) => d < i.today));
