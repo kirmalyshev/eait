@@ -47,11 +47,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# The bundle and the server that serves it. NOT `src/frontend` wholesale: `main.ts` and `api.ts` are
-# the browser's source, they are already inside the bundle above, and an image that also carries
-# them is an image shipping the same code twice.
+# The bundle and the server that serves it — and the whole workspace under it, because the server
+# imports the per-screen stylesheets (`../shell.css.ts`, `../screens/*.css.ts`) by relative path and
+# a narrower copy exits at import with `Cannot find module`. The bundle goes last so it is the one
+# `dist` that wins.
+COPY src/frontend ./src/frontend
 COPY --from=build /app/src/frontend/dist ./src/frontend/dist
-COPY src/frontend/server ./src/frontend/server
 # The server imports its palette, design tokens and icon/kit builders from `../../shared` by relative
 # path, so those files must exist at runtime too; without them it exits at import.
 COPY src/shared ./src/shared
