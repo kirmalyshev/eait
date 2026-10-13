@@ -16,7 +16,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
 import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
-  DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
+  DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealFocus, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
@@ -750,6 +750,8 @@ create index if not exists meals_user_date_idx on meals(user_id, date);
 -- The question still open on a meal. Nullable and unread by every query but the row's own read:
 -- a host that predates it has meals nobody was asked about, which is exactly what null means.
 alter table meals add column if not exists question jsonb;
+-- The phone break taken after the meal (ieat-app#2129): {minutes, completed}, null until one is recorded.
+alter table meals add column if not exists focus jsonb;
 
 -- The photo lives with the meal. user_id is on the row as well as reachable through the meal, so
 -- a read is meal_id AND user_id with no join, and the cascade from users erases it even if a
@@ -1443,6 +1445,7 @@ function toMeal(r: MealRow, restrictions: readonly string[]): MealRecord {
     model: (r.model ?? null) as string | null,
     question: json<MealQuestion | null>(r.question, null),
     photos: num(r.photos),
+    focus: json<MealFocus | null>(r.focus, null),
   };
   return { ...meal, healthScore: healthScore(meal, restrictions) };
 }
@@ -1489,7 +1492,7 @@ const MEAL_COLUMNS: Record<string, string> = {
   items: "items", kcal: "kcal", protein_g: "protein_g", carbs_g: "carbs_g", fat_g: "fat_g",
   satfat_g: "satfat_g", fiber_g: "fiber_g", sugar_g: "sugar_g", sodium_mg: "sodium_mg",
   verdicts: "verdicts", notes: "notes", corrected: "corrected", date: "date",
-  question: "question", model: "model", confidence: "confidence",
+  question: "question", model: "model", confidence: "confidence", focus: "focus",
 };
 
 /**

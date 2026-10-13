@@ -55,6 +55,7 @@ async function gather(deps: EngineDeps, userId: string) {
       weights: weights.map((w) => ({ date: w.date, kg: w.kg })),
       workouts: health.flatMap((h) => (h.workouts ? [{ date: h.date, count: h.workouts }] : [])),
       dayScores,
+      focusCompleted: food.filter((r) => r.meal.focus?.completed === true).length,
     },
   };
 }
