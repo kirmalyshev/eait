@@ -274,9 +274,14 @@ const refreshFoodCatalog = async () => {
     const r = await refreshCatalog({ store }, { key: config.fooddbReadKey, base: config.fooddbUrl, lastDay: catalogDay });
     if (r.kind === "loaded") {
       catalogDay = r.day;
-      // `putFoodRefs` already upserted the index; the rebuild is the clean catch-all.
-      const idx = await store.refreshFoodIndex();
-      console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written; matcher index ${idx.rows} rows in ${idx.ms}ms`);
+      // `putFoodRefs` already upserted the index; the rebuild is the clean catch-all. Its own
+      // try/catch: every caller `void`s this function, so a throw here is an unhandled rejection.
+      try {
+        const idx = await store.refreshFoodIndex();
+        console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written; matcher index ${idx.rows} rows in ${idx.ms}ms`);
+      } catch (e) {
+        console.error(`[eait] food index rebuild after snapshot ${r.day} failed: ${(e as Error)?.message ?? e}`);
+      }
     } else if (r.kind === "unchanged") {
       catalogDay = r.day;
     } else if (r.kind === "failed") {

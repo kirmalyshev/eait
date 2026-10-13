@@ -27,13 +27,15 @@ export const singular = (w: string) => (w.length > 3 && w.endsWith("s") && !w.en
 export const norm = (w: string) => stem(w.endsWith("ies") && w.length > 3 ? `${w.slice(0, -3)}y` : singular(w));
 
 /**
- * The spellings a token is indexed under: itself plus its singular guesses, so "noodles" answers
- * "noodle" and "tomatoes" answers "tomato". Both forms on the "es" words ("tomatoes" -> "tomato",
- * "noodles" -> "noodle") because either can be the dictionary spelling.
+ * The spellings a token is indexed under: itself plus every form the query side can emit.
+ * `lookupWords` singularises with `singular()` — "strawberries" arrives as "strawberrie",
+ * "cookies" as "cookie", "fries" as "frie" — so every "-ies" word also indexes its "-ie"
+ * and "-y" spellings, and either "-es" word both "-e" and its stripped tail ("tomatoes" ->
+ * "tomatoe", "tomato"; "noodles" -> "noodle"), because any can be the dictionary spelling.
  */
 const variants = (t: string): string[] => {
   if (t.length <= 3) return [t];
-  if (t.endsWith("ies")) return [t, `${t.slice(0, -3)}y`];
+  if (t.endsWith("ies")) return [t, t.slice(0, -1), `${t.slice(0, -3)}y`];
   if (t.endsWith("es")) return [t, t.slice(0, -2), t.slice(0, -1)];
   if (t.endsWith("s") && !t.endsWith("ss")) return [t, t.slice(0, -1)];
   return [t];
@@ -59,7 +61,7 @@ export const FILLER = new Set([
   "fat", "trimmed", "all", "grades", "choice", "select", "retail", "cuts", "fresh", "unprepared", "cooked", "oven",
   "pan", "whole", "commercial", "bone", "small", "large", "medium", "regular", "generic", "type", "from", "not",
   "enriched", "unenriched", "includes", "eaten", "prepared", "recipe", "using", "home", "sweet",
-  "drained", "salt", "added",
+  "drained", "salt", "added", "fast", "food", "foods", "deepfried", "deep",
 ]);
 /** A word describing a PORTION of the food — the fat or the skin — not the food, unless asked. */
 export const PORTION = new Set(["fat", "skin"]);

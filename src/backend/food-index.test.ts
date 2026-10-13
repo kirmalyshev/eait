@@ -5,6 +5,7 @@
 import { describe, expect, test } from "bun:test";
 import type { FoodRef } from "@eait/shared";
 import { buildFoodIndex } from "./food-index.ts";
+import { lookupWords } from "./engine/ground.ts";
 
 const ref = (name_en: string | null, over: Partial<FoodRef> = {}): FoodRef => ({
   id: `usda-sr:${name_en}`, source: "usda-sr", name: name_en ?? "x", name_de: null, name_en,
@@ -74,5 +75,31 @@ describe("the food index answers the foodCandidates contract", () => {
     expect(names(idx, ["apple"])).toEqual(["Apples, dried"]);
     expect(names(idx, ["banana"])).toEqual(["Bananas, raw"]);
     expect(idx.size).toBe(2);
+  });
+});
+
+// #615 review: the query path is `lookupWords` (which singularises), not a raw word — the test
+// that indexed "cherries" and queried "cherries" could not see that lookupWords sends
+// "cherrie". Go through BOTH sides the way `findFood` does.
+describe("the index answers the words lookupWords actually sends", () => {
+  const candidates = (idx: ReturnType<typeof buildFoodIndex>, name: string) =>
+    names(idx, lookupWords(name));
+
+  test("berries, fries, cookies and pies: the singular guesses cover what singular() emits", () => {
+    const idx = buildFoodIndex([
+      ref("Strawberries, raw"),
+      ref("Blueberries, raw"),
+      ref("Potatoes, french fried, all types, salt added, frozen, home-prepared, oven heated"),
+      ref("Cookies, chocolate chip, commercially prepared, regular, higher fat, unenriched"),
+      ref("Pie, apple, commercially prepared, enriched flour"),
+    ]);
+    expect(candidates(idx, "strawberries")).toEqual(["Strawberries, raw"]);
+    expect(candidates(idx, "strawberry")).toEqual(["Strawberries, raw"]);
+    expect(candidates(idx, "blueberries")).toEqual(["Blueberries, raw"]);
+    expect(candidates(idx, "french fries").length).toBeGreaterThan(0);
+    expect(candidates(idx, "chocolate chip cookie")).toEqual([
+      "Cookies, chocolate chip, commercially prepared, regular, higher fat, unenriched",
+    ]);
+    expect(candidates(idx, "apple pie")).toEqual(["Pie, apple, commercially prepared, enriched flour"]);
   });
 });

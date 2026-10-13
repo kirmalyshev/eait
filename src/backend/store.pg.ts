@@ -3313,8 +3313,10 @@ export async function postgresStore(
             updated_at = now()
           returning id`;
         written += back.length;
-        foodIndex.upsert(batch);
       }
+      // AFTER the writes, not between them: a mid-loop upsert would leave rows in the index the
+      // transaction could still roll back (#615 review).
+      foodIndex.upsert(foodRows);
       return written;
     },
 

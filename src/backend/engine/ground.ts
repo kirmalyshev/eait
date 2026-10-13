@@ -79,6 +79,9 @@ const REWRITES: [RegExp, string][] = [
   // — there the brand IS the query.
   [/\bcheese\s+burgers?\b/gi, "cheeseburger"], [/\bburgers?\b(?!\s+king)/gi, "hamburger"],
   [/\btoasts?\b/gi, "toasted bread"],
+  // The plate calls it "french fries"; the catalog calls it "potatoes, french fried". The rewrite
+  // keeps "fried" as the wanted preparation and lets "potato" name the food (#615 review).
+  [/\bfrench fries\b/gi, "french fried potatoes"], [/\bfries\b/gi, "french fried potatoes"],
 ];
 const rewrite = (name: string) => REWRITES.reduce((s, [re, to]) => s.replace(re, to), name);
 
