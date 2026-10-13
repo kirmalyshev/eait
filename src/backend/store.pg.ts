@@ -1228,7 +1228,9 @@ alter table users add column if not exists push_off_at timestamptz;
 -- code). source is written out as a check constraint, drop-and-add like llm_prompts_key_check,
 -- for the same reason: the enum is where a reviewer sees which licences are in the database, and
 -- 'fcdb' is in it before its first row because Switzerland's table wants written permission for
--- commercial use. 'curated' is the placeholder for a hand-maintained (restaurant) list.
+-- commercial use. 'curated' is the placeholder for a hand-maintained (restaurant) list; 'recipe'
+-- is fooddb's computed-dish layer — a row's licence is its ingredients' most restrictive, carried
+-- per row in attribution, so no single licence id names the source.
 --
 -- The eight macro columns are the app's own nutrient list — a catalog row can become a meal item
 -- without a unit conversion — and all nullable: sources differ wildly in completeness and a
@@ -1262,7 +1264,7 @@ create table if not exists food_ref (
 alter table food_ref add column if not exists attribution jsonb not null default '[]';
 alter table food_ref drop constraint if exists food_ref_source_check;
 alter table food_ref add constraint food_ref_source_check
-  check (source in ('bls', 'ciqual', 'cofid', 'fineli', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
+  check (source in ('bls', 'ciqual', 'cofid', 'fineli', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'recipe', 'curated'));
 -- The search is a substring match over the three name columns, no index can serve it, and the
 -- table is single-digit thousands of rows: a scan is the right plan here.
 

@@ -2,7 +2,8 @@
 //
 // Two tables, two shapes of food. `food_ref` is the GENERIC catalog — whole foods and staples from
 // the national nutrient tables (BLS for Germany first, CIQUAL/Frida/FCDB as fallbacks, USDA for
-// what the European tables do not cover). `off_product` is the BARCODED layer — packaged products
+// what the European tables do not cover), plus fooddb's computed regional dishes (`recipe`).
+// `off_product` is the BARCODED layer — packaged products
 // from the Open Food Facts dump, plus rows our own label-read pipeline will write back.
 //
 // NEITHER TABLE IS A USER'S DATA. They carry no `user_id`, sit outside the row-level policies like
@@ -38,6 +39,7 @@ export interface FoodPortion {
 export const FOOD_SOURCE_IDS = [
   "bls", "ciqual", "cofid", "fineli", "frida", "fcdb", "matvaretabellen",
   "usda-foundation", "usda-sr", "usda-fndds",
+  "recipe",
   "curated",
 ] as const;
 export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
@@ -45,7 +47,7 @@ export type FoodSource = (typeof FOOD_SOURCE_IDS)[number];
 /**
  * The sources a meal item's `ref` can point at today, each named once with its licence (#562).
  *
- * These are the seven sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
+ * These are the eight sources fooddb's snapshot publishes (snapshot.ts's `SOURCES` admits nothing
  * else), a subset of `FOOD_SOURCE_IDS` — the schema's other ids are placeholders and fallbacks no
  * snapshot has ever written. A surface that names a source reads this; a `ref` prefix absent from
  * it is a source nothing here has met, to be shown unnamed rather than invented.
@@ -58,6 +60,9 @@ export const FOOD_SOURCES: Partial<Record<FoodSource, { name: string; licence: s
   ciqual: { name: "CIQUAL", licence: "etalab-2.0" },
   matvaretabellen: { name: "Matvaretabellen", licence: "NLOD-2.0" },
   frida: { name: "Frida", licence: "CC-BY-4.0" },
+  // A recipe's licence is per-dish — the most restrictive of its ingredients' — so no one licence
+  // id names the source; the texts a dish owes ride verbatim in its row's own `attribution`.
+  recipe: { name: "fooddb recipes", licence: "varies" },
 };
 
 /**
@@ -198,8 +203,10 @@ export interface FoodAttribution {
  *
  * CC BY (BLS, Fineli, Frida) and Etalab (CIQUAL) ask for the publisher's name; OGL (CoFID) and
  * ODbL (Open Food Facts) ask for the sentence and the link; the USDA sets are CC0 and take none,
- * so they are absent — as is `label-ocr`, which is our own read of somebody's label. `undefined`
- * therefore means "no citation owed", not "forgot to write one".
+ * so they are absent — as is `label-ocr`, which is our own read of somebody's label. `recipe` is
+ * absent differently: a dish owes the union of its ingredient tables' texts, which varies row by
+ * row and is carried verbatim in the row's own `attribution`, not in one source-level line.
+ * `undefined` otherwise means "no citation owed", not "forgot to write one".
  */
 export const FOOD_ATTRIBUTION: Partial<Record<FoodSource | ProductSource, FoodAttribution>> = {
   bls: {

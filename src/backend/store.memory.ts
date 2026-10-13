@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { FOOD_SOURCE_IDS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -1582,6 +1582,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async putFoodRefs(foodRows) {
+      // Postgres's food_ref_source_check, said again — and checked before any row lands, so a
+      // rejected batch is all-or-nothing here as it is in Postgres.
+      for (const row of foodRows)
+        if (!(FOOD_SOURCE_IDS as readonly string[]).includes(row.source))
+          throw new Error(`unknown food source: ${row.source}`);
       for (const row of foodRows) foodRefs.set(row.id, clone(row));
       foodIndex.upsert(foodRows);
       return foodRows.length;

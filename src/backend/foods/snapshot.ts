@@ -11,6 +11,7 @@ import type { FoodRef, FoodSource } from "@eait/shared";
 const SOURCES: Record<string, FoodSource> = {
   fdc: "usda-sr",
   bls: "bls", ciqual: "ciqual", cofid: "cofid", fineli: "fineli", frida: "frida", matvaretabellen: "matvaretabellen",
+  recipe: "recipe",
   // fooddb also publishes mext (ja names) and tfda (zh-TW names): neither carries an English name
   // the matcher could ever reach, so a stored row would be dead weight — they stay out on purpose.
 };
@@ -45,6 +46,11 @@ export function foodRefFromSnapshotLine(line: SnapshotLine): FoodRef | null {
   const record = line.name?.record;
   if (!source || !name || !record || (line.gtin14?.length ?? 0) > 0) return null;
   const english = line.lang?.value === "en";
+  // A recipe dish ships one record per language — `recipe:plov` in English, `recipe:plov.ru` in
+  // Russian. The twin is not a second row: the matcher only ever reaches `name_en`, and folding
+  // its name into the English record's `name` would take a cross-line merge this per-line map
+  // cannot express — under a plain upsert, whichever line the export ordered last would win.
+  if (source === "recipe" && !english) return null;
   return {
     id: `${source}:${record.slice(record.indexOf(":") + 1)}`,
     source,

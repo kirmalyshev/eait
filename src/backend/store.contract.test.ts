@@ -3019,10 +3019,18 @@ function contract(name: string, make: () => Promise<Store>) {
 
       it("accepts a row from every source the snapshot can write", async () => {
         const s = await open();
-        await s.putFoodRefs((["cofid", "fineli"] as const).map((source) =>
+        await s.putFoodRefs((["cofid", "fineli", "recipe"] as const).map((source) =>
           ref({ id: `${RUN}:${source}1`, source, name: `${RUN} ${source} food` })));
         expect((await s.searchFoods(`${RUN} cofid`, 10)).map((f) => f.id)).toEqual([`${RUN}:cofid1`]);
         expect((await s.searchFoods(`${RUN} fineli`, 10)).map((f) => f.id)).toEqual([`${RUN}:fineli1`]);
+        expect((await s.searchFoods(`${RUN} recipe`, 10)).map((f) => f.id)).toEqual([`${RUN}:recipe1`]);
+      });
+
+      it("refuses a source the schema does not name — the check constraint, in both stores", async () => {
+        const s = await open();
+        await expect(s.putFoodRefs([
+          ref({ id: `${RUN}:bad`, source: "mext" as FoodRef["source"], name: `${RUN} bad` }),
+        ])).rejects.toThrow();
       });
 
       it("foodCandidates: whole words or plurals, every word, complete macros, shortest name first", async () => {

@@ -235,9 +235,10 @@ export function scoreFood(nameEn: string, f: Complete): number {
 /**
  * The tables a same-food tie prefers, earliest first: the reference table that held the +1 bonus
  * before #637, then the older national tables, the newest additions last — a new table earns
- * wins by score, never by being shorter.
+ * wins by score, never by being shorter. `recipe` is not a table at all but dishes computed FROM
+ * the tables' rows, so it ranks below every one of them — fooddb's resolver holds the same rule.
  */
-const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls"];
+const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls", "fineli", "recipe"];
 
 /**
  * The user's own table first (#637 step 2): `users.country` picks the national table the tie
@@ -288,7 +289,10 @@ export function pickFood(
   let best: Complete | null = null, bScore = -Infinity, bExtras = Infinity, bPref = Infinity, bId = "";
   for (const c of group) {
     if (headInGroup && !c.headOk) continue;
-    const pref = sources.indexOf(c.f.source);
+    // A source the order has not met sorts last, never first — an unanswered `indexOf` (-1)
+    // must not win a tie.
+    const i = sources.indexOf(c.f.source);
+    const pref = i < 0 ? Infinity : i;
     const better = best === null || pref < bPref
       || (pref === bPref && (c.extras < bExtras
         || (c.extras === bExtras && (c.f.name_en!.length < best.name_en!.length

@@ -59,4 +59,24 @@ describe("a snapshot line as a food_ref row", () => {
     const r = foodRefFromSnapshotLine(line({ name: { value: "Pomme", source: "ciqual", record: "ciqual:13014" }, lang: { value: "fr" } }))!;
     expect(r).toMatchObject({ id: "ciqual:13014", name_en: null, names: { fr: "Pomme" } });
   });
+  test("a recipe line lands as recipe: its slug, the English name, the ingredients' credits verbatim", () => {
+    const bls = "Max Rubner-Institut (2025): Bundeslebensmittelschlüssel (BLS).";
+    const ciqual = "ANSES — Table de composition nutritionnelle Ciqual 2025";
+    const r = foodRefFromSnapshotLine(line({
+      name: { value: "Plov", source: "recipe", record: "recipe:plov" },
+      attribution: [{ text: bls }, { text: ciqual }],
+    }))!;
+    expect(r).toMatchObject({
+      id: "recipe:plov", source: "recipe", name: "Plov", name_en: "Plov", names: {},
+      attribution: [bls, ciqual],
+    });
+  });
+  test("a recipe's translated twin is not a second food", () => {
+    // `recipe:plov.ru` is the same dish's Russian rendering. As its own row it could never answer
+    // the matcher (`name_en` stays null), and folding the name into the English row would take a
+    // cross-line merge a per-line conversion cannot express — so one dish stays one row.
+    expect(foodRefFromSnapshotLine(line({
+      name: { value: "Плов", source: "recipe", record: "recipe:plov.ru" }, lang: { value: "ru" },
+    }))).toBeNull();
+  });
 });

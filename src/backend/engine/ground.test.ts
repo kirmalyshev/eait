@@ -239,6 +239,18 @@ describe("matcher #637: pool eviction and foreign-head wins", () => {
     ];
     expect(pickId("beans", rows)).toBe("frida:Beans, red, raw");
   });
+  test("a computed dish loses a same-food tie to a table row (#646)", () => {
+    // A recipe row is computed FROM the tables' rows — a real table entry for the same food
+    // always answers the tie, even the last one in the order.
+    const rows = [src("recipe", "Plov", 150), src("bls", "Plov", 150)];
+    expect(pickId("plov", rows)).toBe("bls:Plov");
+  });
+  test("a source the order does not name sorts last, not first", () => {
+    // `curated` is a real schema id the order has not met — it must lose even to `recipe`,
+    // the last entry. An unanswered `indexOf` (-1) used to sort it first instead.
+    const rows = [src("curated", "Plov", 150), src("recipe", "Plov", 150)];
+    expect(pickId("plov", rows)).toBe("recipe:Plov");
+  });
 });
 
 // #637 step 2: the user's country names the table a same-food tie prefers — and only the tie.
