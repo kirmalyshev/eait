@@ -31,7 +31,7 @@ describe("refreshing the catalog from fooddb", () => {
     const d = deps();
     const r = await refreshCatalog(d, { key: KEY, fetchFn: api([{ day: "2026-10-08", final: false }, { day: "2026-10-07", final: true }]) });
     expect(r).toEqual({ kind: "loaded", day: "2026-10-07", read: 1, written: 1 });
-    expect((await d.store.foodCandidates(["apple"], 5)).length).toBe(1);
+    expect((await d.store.foodCandidates(["apple"])).length).toBe(1);
   });
 
   test("a day it already loaded is not exported again; a newer one is", async () => {

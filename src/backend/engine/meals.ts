@@ -216,7 +216,7 @@ export async function analyzePhotos(
   let prepared: ReturnType<typeof prepareAnalysis>;
   try {
     const g0 = Date.now();
-    const grounded = await groundWhenOn(deps, "grounding.photo", analysis);
+    const grounded = await groundWhenOn(deps, "grounding.photo", analysis, profile.country);
     groundMs = Date.now() - g0;
     prepared = prepareAnalysis(grounded.analysis);
   } finally {

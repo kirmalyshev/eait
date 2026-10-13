@@ -287,7 +287,7 @@ export async function textTurn(
         // itself recomputes anyway, since the caps can move while a proposal sits.
         // A typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — the card's low-confidence read uses this field.
-        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis))).analysis);
+        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis, profile.country))).analysis);
         // The router's intent names food, but the analysis behind it may still answer otherwise —
         // or claim food while naming not one item of it (#248: the analyzer declining a vague
         // description with `items: []` at `isFood: true`). The first is the photo path's own
@@ -332,7 +332,7 @@ export async function textTurn(
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
         // recomputes them from the stored row like every other write. The totals still need
         // reconciling — a correction is an analysis like any other.
-        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis))).analysis);
+        const { analysis: reconciled } = prepareAnalysis((await ground(groundWhenOn(deps, "grounding.text", routed.analysis, profile.country))).analysis);
         // The same gate a fresh meal takes (#248): a correction that comes back not-food or with no
         // items is a failed estimate, and writing it would zero the meal it claims to fix.
         if (!reconciled.isFood || emptyEstimate(reconciled)) return { kind: "analysis-failed" };

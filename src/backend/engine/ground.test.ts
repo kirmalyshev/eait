@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import type { FoodRef } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
-import { groundAnalysis, lookupWords, pickFood } from "./ground.ts";
+import { groundAnalysis, lookupWords, pickFood, preferredSources } from "./ground.ts";
 import { prepareAnalysis } from "./analysis.ts";
 
 const ref = (name_en: string, kcal: number | null, over: Partial<FoodRef> = {}): FoodRef => ({
@@ -178,6 +178,97 @@ describe("ranking the candidates", () => {
     expect(pick("apple", [ref("Apples, raw", 52), ref("Apples, cooked, boiled", 53)])).toBe("Apples, raw");
     expect(pick("tofu", [ref("Tofu, fried", 270), ref("Tofu, raw, regular", 76)])).toBe("Tofu, raw, regular");
     expect(pick("steak", [ref("Horse, steak, raw", 129), ref("Beef, sirloin, cooked, grilled", 200)])).toBe("Beef, sirloin, cooked, grilled");
+  });
+});
+
+// #637: the bigger table exposed two matcher weaknesses — a correct row left the 300-candidate
+// pool on a frequent token, and a short foreign-head name ("Sugar pea", "Salsa verde",
+// "Pork steak", "Beef consomme") outscored or out-tied the row that names the food.
+describe("matcher #637: pool eviction and foreign-head wins", () => {
+  const pick = (name_en: string, rows: FoodRef[]) => pickFood(name_en, rows)?.name_en ?? null;
+  const pickId = (name_en: string, rows: FoodRef[]) => pickFood(name_en, rows)?.id ?? null;
+  const src = (source: string, name_en: string, kcal: number) =>
+    ref(name_en, kcal, { id: `${source}:${name_en}`, source: source as FoodRef["source"] });
+
+  test("the head noun of a comma-less name is its last content word: sugar is not a pea", () => {
+    const rows = [src("bls", "Sugar pea raw", 38), ref("Sugars, brown", 380), ref("Sugars, granulated", 385)];
+    expect(pickId("sugar", rows)).toBe("usda-sr:Sugars, brown");
+  });
+  test("salsa is the tomato dip, not salsa verde", () => {
+    const rows = [src("bls", "Salsa verde", 480), src("matvaretabellen", "Tomato salsa", 25)];
+    expect(pickId("salsa", rows)).toBe("matvaretabellen:Tomato salsa");
+  });
+  test("an unqualified steak is beef: a named species is a different head food", () => {
+    const rows = [
+      src("bls", "Pork steak fried", 175), src("bls", "Beef steak grilled", 180),
+      src("bls", "Salmon steaks fried", 224), src("ciqual", "Beef, sirloin steak, roasted/baked", 194),
+    ];
+    expect(pickId("steak", rows)).toBe("bls:Beef steak grilled");
+    expect(pickId("pork steak", rows)).toBe("bls:Pork steak fried");
+  });
+  test("fried chicken is chicken, not chicken liver", () => {
+    const rows = [
+      src("bls", "Chicken liver fried", 149),
+      ref("Chicken, broilers or fryers, meat only, cooked, fried", 219),
+    ];
+    expect(pickId("fried chicken", rows)).toBe("usda-sr:Chicken, broilers or fryers, meat only, cooked, fried");
+  });
+  test("a consomme whose strips are crepe is not grilled beef strips", () => {
+    const rows = [
+      src("bls", "Beef consomme with strips of crepe", 54),
+      ref("Beef, grass-fed, strip steaks, lean only, raw", 117),
+    ];
+    expect(pickId("grilled beef strips", rows)).toBe("usda-sr:Beef, grass-fed, strip steaks, lean only, raw");
+  });
+  test("a score tie breaks toward the reference table first — never the shorter name alone", () => {
+    // Three rows name the same food with the same score; the preferred table's answers the tie.
+    const rows = [
+      src("bls", "Cucumber raw", 16),
+      src("frida", "Cucumber, raw", 12),
+      ref("Cucumber, raw", 10),
+    ];
+    expect(pickId("cucumber", rows)).toBe("usda-sr:Cucumber, raw");
+    // …and a source bonus never lifts a row carrying an unsaid qualifier into the group.
+    expect(pickId("cucumber", [rows[0]!, rows[1]!, ref("Cucumber, peeled, raw", 10)]))
+      .toBe("frida:Cucumber, raw");
+  });
+  test("a tie inside one table goes to coverage, then the shorter name", () => {
+    const rows = [
+      src("frida", "Beans, navy, raw", 100),
+      src("frida", "Beans, red, raw", 100),
+    ];
+    expect(pickId("beans", rows)).toBe("frida:Beans, red, raw");
+  });
+});
+
+// #637 step 2: the user's country names the table a same-food tie prefers — and only the tie.
+describe("matcher #637: the country table wins same-food ties", () => {
+  const rows: FoodRef[] = [
+    { ...ref("Cucumber, raw", 10), id: "usda-sr:1" },
+    { ...ref("x", 16), id: "bls:2", source: "bls", name_en: "Cucumber raw" },
+    { ...ref("x", 12), id: "frida:3", source: "frida", name_en: "Cucumber, raw" },
+  ];
+  const pick = (country: string | null) =>
+    pickFood("cucumber", rows, preferredSources(country))?.id ?? null;
+  test("de/at pick bls, us and unknown keep usda-sr", () => {
+    expect(pick("de")).toBe("bls:2");
+    expect(pick("at")).toBe("bls:2");
+    expect(pick("us")).toBe("usda-sr:1");
+    expect(pick(null)).toBe("usda-sr:1");
+  });
+  test("each country picks its own table where it ties, usda-sr otherwise", () => {
+    expect(pick("dk")).toBe("frida:3");
+    // fr prefers ciqual and no prefers matvaretabellen — absent here, so usda-sr answers.
+    expect(pick("fr")).toBe("usda-sr:1");
+    expect(pick("no")).toBe("usda-sr:1");
+    expect(pick("gb")).toBe("usda-sr:1");
+  });
+  test("the preference never outweighs a name mismatch", () => {
+    const mismatch: FoodRef[] = [
+      { ...ref("x", 38), id: "bls:4", source: "bls", name_en: "Sugar pea raw" },
+      ref("Sugars, brown", 380),
+    ];
+    expect(pickFood("sugar", mismatch, preferredSources("de"))?.name_en).toBe("Sugars, brown");
   });
 });
 

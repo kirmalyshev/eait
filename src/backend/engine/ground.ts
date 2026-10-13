@@ -23,9 +23,12 @@ import type { AnalyzedMeal } from "../llm/port.ts";
 import type { SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { switchOn } from "./switches.ts";
-import { analyzeFoodRow, norm, singular, words, STATES, SUBSTITUTE, FILLER, PRODUCT, COMPOSITE, PORTION } from "../food-index.ts";
+import {
+  analyzeFoodRow, norm, singular, words, STATES, SUBSTITUTE,
+  CLS_OTHER, CLS_FILLER, CLS_PRODUCT, CLS_COMPOSITE, CLS_PORTION, CLS_CAP,
+  type RowAnalysis,
+} from "../food-index.ts";
 
-const POOL = 300;
 /** A best candidate scoring below this is a miss: the model's own estimate beats a poor match. */
 const FLOOR = -6;
 
@@ -37,12 +40,6 @@ const COOKED_AS: Record<string, string[]> = {
   grilled: ["grilled", "broiled"], boiled: ["boiled"], baked: ["baked"], toasted: ["toasted"],
   steamed: ["steamed"], cooked: ["cooked"], smoked: ["smoked"], braised: ["braised"], mashed: ["mashed"],
 };
-/** The dry or agricultural form, as opposed to what is on the plate. */
-const RAW_STATE = new Set(["raw", "uncooked", "dry"]);
-/** A plain way of serving a cooked food — every USDA prepared row also says "cooked", so it is these that tell a boiled chicken from a fried one. */
-const LIGHT_PREP = new Set(["boiled", "steamed", "baked", "roasted", "braised", "stewed", "mashed"]);
-/** A specific preparation nobody asked for is a worse answer than the plain food. */
-const HARD_PREP = new Set(["fried", "grilled", "broiled", "toasted", "smoked"]);
 /**
  * Foods only ever eaten cooked: when the name names no preparation, the served row is the honest
  * default — "rice" on a plate is cooked rice, and its dry row (3x the density) is the wrong answer.
@@ -135,83 +132,179 @@ export const lookupWords = (nameEn: string): string[] => {
  * preparation it asked for, whether it names a served-cooked staple. Computed once in `pickFood`
  * so a 300-row pool pays it once, not 300 times.
  */
+/**
+ * A species word in the query. When the query names one ("pork steak"), an implied default is
+ * never added — the asker already said whose.
+ */
+const SPECIES = new Set([
+  "beef", "veal", "pork", "bacon", "ham", "lamb", "mutton", "sheep", "goat", "horse", "venison",
+  "chicken", "turkey", "duck", "goose", "fish", "salmon", "tuna", "cod", "haddock", "tilapia",
+  "trout", "sardine", "herring", "mackerel", "shrimp", "prawn", "crab", "lobster", "squid", "octopus",
+]);
+/**
+ * The species a bare food word means: "a steak" is a beef steak until the name says otherwise —
+ * a "Pork steak" row is a DIFFERENT head food for it, not a shorter-named win (#637). Joins the
+ * query's match set, so a row naming the implied species neither gains an extra nor loses its
+ * head. Keys and values are normed stems.
+ */
+const IMPLIED_SPECIES: Record<string, string> = { steak: "beef" };
+
 interface QueryContext {
-  qSet: Set<string>; wantState: string[]; servesCooked: boolean;
+  /** Every query word, normed, plus the implied species — the match set for extra/head/brand. */
+  qAll: Set<string>;
+  /** qAll as an array: iterated once per candidate's flags. */
+  qArr: string[];
+  wantState: Set<string>; servesCooked: boolean;
 }
 const queryContext = (nameEn: string): QueryContext => {
   const q = words(nameEn);
+  const qSet = new Set(q.map(norm));
+  const qAll = new Set(qSet);
+  if (![...qSet].some((t) => SPECIES.has(t)))
+    for (const t of qSet) { const s = IMPLIED_SPECIES[t]; if (s) qAll.add(s); }
   return {
-    qSet: new Set(q.map(norm)),
-    wantState: wantedStates(q),
+    qAll, qArr: [...qAll],
+    wantState: new Set(wantedStates(q)),
     servesCooked: q.map(singular).some((t) => SERVES_COOKED.has(t)),
   };
 };
 
-function scoreFoodIn(ctx: QueryContext, f: Complete): number {
-  const { qSet, wantState, servesCooked } = ctx;
-  const a = analyzeFoodRow(f);
+interface Scored { s: number; sHard: number; extras: number; headOk: boolean }
+function scoreFoodIn(ctx: QueryContext, f: Complete, a: RowAnalysis, out: Scored): void {
+  const { qAll, qArr, wantState, servesCooked } = ctx;
+  // Matched stems per class, from ONE lookup per query stem (the row's tokens never re-enter the
+  // loop — scoring the whole intersection stays under a millisecond, #637).
+  let mOther = 0, mFiller = 0, mProduct = 0, mComposite = 0, mPortion = 0, mCap = 0;
+  for (const t of qArr) {
+    const b = a.flags.get(t);
+    if (b === undefined) continue;
+    if (b & CLS_OTHER) mOther++;
+    if (b & CLS_FILLER) mFiller++;
+    if (b & CLS_PRODUCT) mProduct++;
+    if (b & CLS_COMPOSITE) mComposite++;
+    if (b & CLS_PORTION) mPortion++;
+    if (b & CLS_CAP) mCap++;
+  }
   // A product made from the food, or another dish, is simply out.
-  for (const t of a.products) if (!qSet.has(t)) return -Infinity;
-  let extraHard = 0, extraSoft = 0;
-  for (const t of a.others) if (!qSet.has(t)) extraHard++;
-  for (const t of a.fillers) if (!qSet.has(t)) extraSoft++;
-  let s = -Math.min(4, extraHard + extraSoft * 0.15);
+  if (a.nProducts > mProduct) { out.s = out.sHard = -Infinity; out.extras = 0; out.headOk = false; return; }
+  const extraHard = a.nOthers - mOther, extraSoft = a.nFillers - mFiller;
+  const extrasTerm = Math.min(4, extraHard + extraSoft * 0.15);
+  let s = -extrasTerm;
 
-  // The head is the first WORD, hyphens kept: "Sugar-apples" is a sweetsop, not sugar — a
-  // hyphenated head whose far half the name never said is a head the name never said.
-  if (a.headParts ? a.headParts.some((p) => !qSet.has(norm(p))) : !qSet.has(a.headStem!)) s -= 3;
+  // The head says what the row IS — first word of a comma-inverted name, last content word of a
+  // natural-order one (`food-index.ts`). "Sugar-apples" is a sweetsop, not sugar — a hyphenated
+  // head whose far half the name never said is a head the name never said.
+  const headOk = a.headParts ? a.headParts.every((p) => qAll.has(norm(p))) : qAll.has(a.headStem!);
+  if (!headOk) s -= 3;
 
-  for (const t of a.composites) if (!qSet.has(t)) s -= 4;
-  for (const t of a.portions) if (!qSet.has(t)) s -= 4;
+  s -= 4 * (a.nComposites - mComposite);
+  s -= 4 * (a.nPortions - mPortion);
   // A row whose name carries a brand (the catalog spells brands in caps) is a worse generic
   // answer, unless the name said the brand.
-  for (const c of a.caps) if (!qSet.has(c)) s -= 4;
+  s -= 4 * (a.nCaps - mCap);
 
-  const rowStates = a.states;
-  if (wantState.length > 0) {
-    s += rowStates.some((t) => wantState.includes(t)) ? 3 : rowStates.some((t) => RAW_STATE.has(t)) ? -2 : 0;
-  } else if (servesCooked) {
+  // The row's preparation states, precomputed into stRaw/stLight/stHard/stCooked: "cooked" is
+  // its own case (every prepared row carries it, so it never tells two forms apart).
+  let wanted = false;
+  if (wantState.size > 0) for (const t of a.states) if (wantState.has(t)) { wanted = true; break; }
+  if (wantState.size > 0) s += wanted ? 3 : a.stRaw ? -2 : 0;
+  else if (servesCooked) {
     // A staple on a plate is served: the plainly cooked form first, a named preparation next, the
-    // dry form last. "cooked" itself is ignored here — every prepared row carries it.
-    const prep = rowStates.filter((t) => t !== "cooked");
-    s += prep.some((t) => LIGHT_PREP.has(t)) ? 1.5 : prep.some((t) => HARD_PREP.has(t)) ? 1
-      : rowStates.includes("cooked") ? 1 : prep.some((t) => RAW_STATE.has(t)) ? -2.5 : 0;
+    // dry form last.
+    s += a.stLight ? 1.5 : a.stHard ? 1 : a.stCooked ? 1 : a.stRaw ? -2.5 : 0;
   } else {
     // Anything else is the fresh form by default, a plain row over a prepared one.
-    const prep = rowStates.filter((t) => t !== "cooked");
-    s += prep.some((t) => RAW_STATE.has(t)) ? 1 : prep.some((t) => HARD_PREP.has(t)) ? -2.5
-      : rowStates.length > 0 ? -0.5 : 0;
+    s += a.stRaw ? 1 : a.stHard ? -2.5 : a.states.length > 0 ? -0.5 : 0;
   }
-  if (f.source === "usda-sr") s += 1;
-  return s;
+  // s carries the historical usda-sr point, so a winning usda row keeps its floor headroom; sHard
+  // drops it together with the soft-extras discount: the same-food group is a question of name
+  // alone — a preferred source never decides who ties, only which tie it answers (#637 step 2).
+  const usda = f.source === "usda-sr" ? 1 : 0;
+  out.s = s + usda;
+  out.sHard = s + extrasTerm - Math.min(4, extraHard);
+  out.extras = extraHard + extraSoft;
+  out.headOk = headOk;
 }
 
 export function scoreFood(nameEn: string, f: Complete): number {
-  return scoreFoodIn(queryContext(nameEn), f);
+  const out = { s: 0, sHard: 0, extras: 0, headOk: false };
+  scoreFoodIn(queryContext(nameEn), f, analyzeFoodRow(f), out);
+  return out.s;
 }
 
+/**
+ * The tables a same-food tie prefers, earliest first: the reference table that held the +1 bonus
+ * before #637, then the older national tables, the newest additions last — a new table earns
+ * wins by score, never by being shorter.
+ */
+const SOURCE_ORDER: string[] = ["usda-sr", "ciqual", "frida", "matvaretabellen", "cofid", "bls"];
+
+/**
+ * The user's own table first (#637 step 2): `users.country` picks the national table the tie
+ * prefers — de/at → bls, fr → ciqual, no → matvaretabellen, dk → frida, gb/ie → cofid — and every
+ * other value, null included, keeps usda-sr first. It can only ever order candidates that already
+ * name the same food; it never outweighs a name mismatch.
+ */
+const COUNTRY_SOURCE: Record<string, string> = {
+  de: "bls", at: "bls", fr: "ciqual", no: "matvaretabellen", dk: "frida", gb: "cofid", ie: "cofid",
+};
+export const preferredSources = (country: string | null | undefined): string[] => {
+  const table = COUNTRY_SOURCE[country?.toLowerCase() ?? ""];
+  return table ? [table, ...SOURCE_ORDER.filter((s) => s !== table)] : SOURCE_ORDER;
+};
+
 /** The catalog row to believe for this item among `candidates`, or null. */
-export function pickFood(nameEn: string, candidates: FoodRef[]): Complete | null {
+export function pickFood(
+  nameEn: string, candidates: FoodRef[], sources: readonly string[] = SOURCE_ORDER,
+): Complete | null {
   const raw = rewrite(nameEn.trim());
   if (!raw) return null;
   const name = isSushi(raw) ? sushiName(raw) : raw;
   const ctx = queryContext(name);
   const nameIsSubstitute = SUBSTITUTE.test(name);
-  let best: Complete | null = null, bestScore = -Infinity;
+  // One scoring pass; `group` keeps only rows still in reach of the best hard score, so the
+  // largest pools stay well under the per-item millisecond budget (#637).
+  const out: Scored = { s: 0, sHard: 0, extras: 0, headOk: false };
+  let bestHard = -Infinity;
+  const group: { f: Complete; s: number; sHard: number; extras: number; headOk: boolean }[] = [];
   for (const f of candidates) {
     if (!complete(f)) continue;
-    if (analyzeFoodRow(f).substitute && !nameIsSubstitute) continue;
-    const sc = scoreFoodIn(ctx, f);
-    if (sc > bestScore) { best = f; bestScore = sc; }
+    const a = analyzeFoodRow(f);
+    if (a.substitute && !nameIsSubstitute) continue;
+    scoreFoodIn(ctx, f, a, out);
+    if (out.sHard > bestHard) {
+      bestHard = out.sHard;
+      for (let i = group.length - 1; i >= 0; i--)
+        if (group[i]!.sHard < bestHard - 0.01) group.splice(i, 1);
+    }
+    if (out.sHard >= bestHard - 0.01)
+      group.push({ f, s: out.s, sHard: out.sHard, extras: out.extras, headOk: out.headOk });
   }
-  return best && bestScore >= FLOOR ? best : null;
+  // #637: a tie must not break toward the shorter name alone. The tie group is the same food —
+  // level on the hard score (soft extras aside) and agreeing whether the head is the asked food —
+  // and inside it the preferred table answers, then the row the query covers best, then the
+  // shorter name and the id, deterministic.
+  const headInGroup = group.some((c) => c.headOk);
+  let best: Complete | null = null, bScore = -Infinity, bExtras = Infinity, bPref = Infinity, bId = "";
+  for (const c of group) {
+    if (headInGroup && !c.headOk) continue;
+    const pref = sources.indexOf(c.f.source);
+    const better = best === null || pref < bPref
+      || (pref === bPref && (c.extras < bExtras
+        || (c.extras === bExtras && (c.f.name_en!.length < best.name_en!.length
+          || (c.f.name_en!.length === best.name_en!.length && c.f.id < bId)))));
+    if (better) { best = c.f; bScore = c.s; bExtras = c.extras; bPref = pref; bId = c.f.id; }
+  }
+  return best && bScore >= FLOOR ? best : null;
 }
 
 /** Full name first; on a miss, once more without its leading modifiers (A3b). */
-async function findFood(deps: EngineDeps, item: MealItem): Promise<Complete | null> {
+async function findFood(
+  deps: EngineDeps, item: MealItem, sources: readonly string[],
+): Promise<Complete | null> {
   const attempt = async (name: string) => {
     const w = lookupWords(name);
-    return w.length === 0 ? null : pickFood(name, await deps.store.foodCandidates(w, POOL));
+    return w.length === 0 ? null : pickFood(name, await deps.store.foodCandidates(w), sources);
   };
   const hit = await attempt(item.name_en!);
   if (hit) return hit;
@@ -287,14 +380,15 @@ function groundItem(item: MealItem, f: Complete): MealItem {
  * an answer the model already gave, so its failure costs accuracy and never the meal.
  */
 export async function groundAnalysis(
-  deps: EngineDeps, analysis: AnalyzedMeal,
+  deps: EngineDeps, analysis: AnalyzedMeal, country: string | null = null,
 ): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
   if (!analysis.isFood || analysis.items.length === 0) return { analysis, grounded: 0 };
+  const sources = preferredSources(country);
   let grounded = 0;
   const items = await Promise.all(analysis.items.map(async (item) => {
     if (!item.name_en?.trim() || !(item.grams > 0)) return item;
     try {
-      const hit = await findFood(deps, item);
+      const hit = await findFood(deps, item, sources);
       if (!hit) return item;
       grounded++;
       return groundItem(item, hit);
@@ -312,7 +406,7 @@ export async function groundAnalysis(
  * back exactly as the model returned it.
  */
 export async function groundWhenOn(
-  deps: EngineDeps, key: SwitchKey, analysis: AnalyzedMeal,
+  deps: EngineDeps, key: SwitchKey, analysis: AnalyzedMeal, country: string | null = null,
 ): Promise<{ analysis: AnalyzedMeal; grounded: number }> {
-  return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis) : { analysis, grounded: 0 };
+  return (await switchOn(deps, key)) ? groundAnalysis(deps, analysis, country) : { analysis, grounded: 0 };
 }

@@ -7,15 +7,22 @@
 // from each name token (and its plural spellings) to the rows carrying it. The store is consulted
 // only to build or refresh the index.
 //
-// THE CONTRACT IS THE OLD QUERY'S, kept word for word: an English name carrying EVERY word, as a
-// whole word or a plural, all four macros present, shortest name first then alphabetical. The
-// ranking between candidates is the engine's (`engine/ground.ts`); this bounds the pool. Both
-// store implementations answer through THIS code, so memory and Postgres cannot drift apart.
+// THE CONTRACT IS THE OLD QUERY'S, minus its cap: an English name carrying EVERY word, as a
+// whole word or a plural, all four macros present, shortest name first then alphabetical — every
+// such row (#637). The ranking between candidates is the engine's (`engine/ground.ts`); this
+// finds the pool. Both store implementations answer through THIS code, so memory and Postgres
+// cannot drift apart.
 //
 // `analyzeFoodRow` precomputes the facts about a row name that never change while the name does
 // not (tokens, canonical forms, prep states, head, brand caps). It runs EAGERLY for every indexed
 // row — a fresh index pays it once at build — so a lookup that touches a row for the first time
 // is still a Map read, keeping the per-item cost under a millisecond even on cold rows.
+//
+// #637: the pool is the WHOLE intersection of the query's tokens. It used to stop at the first
+// 300 by name length, which is how a frequent token ("chicken", 300+ shorter-named rows) evicted
+// the right row before the scorer ever saw it. Scoring the whole intersection is what the
+// stem->class `flags` on each analysis are for: they turn the per-row "how many of this row's
+// tokens did the query not say" into one lookup per QUERY word, not per ROW word.
 
 import type { FoodRef } from "@eait/shared";
 
@@ -46,6 +53,12 @@ export const STATES = new Set([
   "raw", "cooked", "roasted", "fried", "grilled", "broiled", "boiled", "baked", "toasted", "steamed",
   "stewed", "smoked", "braised", "mashed", "uncooked", "dry",
 ]);
+/** The dry or agricultural form, as opposed to what is on the plate. */
+export const RAW_STATE = new Set(["raw", "uncooked", "dry"]);
+/** A plain way of serving a cooked food — every USDA prepared row also says "cooked", so it is these that tell a boiled chicken from a fried one. */
+export const LIGHT_PREP = new Set(["boiled", "steamed", "baked", "roasted", "braised", "stewed", "mashed"]);
+/** A specific preparation nobody asked for is a worse answer than the plain food. */
+export const HARD_PREP = new Set(["fried", "grilled", "broiled", "toasted", "smoked"]);
 /** Acronyms the catalog writes in caps that are not a brand. */
 const NOT_BRAND = new Set(["usda", "nlea", "dha", "ara", "uht", "usa", "bbq"]);
 
@@ -90,13 +103,28 @@ export const COMPOSITE = new Set([
 /** Never a match for a food that did not name it. */
 export const SUBSTITUTE = /\b(meatless|vegetarian|vegan|imitation|analog|substitute)\b/i;
 
+/** A stem's word class, as a bit in `RowAnalysis.flags`. A stem may carry several classes. */
+export const CLS_OTHER = 1, CLS_FILLER = 2, CLS_PRODUCT = 4, CLS_COMPOSITE = 8,
+  CLS_PORTION = 16, CLS_CAP = 32;
+
 export interface RowAnalysis {
   words: string[]; stems: string[]; states: string[];
+  /** The states classified, once: the scorer reads four booleans instead of re-testing the sets. */
+  stCooked: boolean; stRaw: boolean; stLight: boolean; stHard: boolean;
   headParts: string[] | null; headStem: string | null;
   caps: string[];
   /** Canonical stems of the row's non-state words, pre-classified for the scorer. */
   fillers: string[]; others: string[]; products: string[]; composites: string[]; portions: string[];
   substitute: boolean;
+  /**
+   * Each non-state stem -> its CLS_* bits, and the DISTINCT stem count per class. The scorer
+   * needs "how many of this class's stems did the query not say"; counting matches per query
+   * stem is one `flags.get` instead of a loop over the row's tokens, which is what makes
+   * scoring the whole intersection affordable (#637).
+   */
+  flags: Map<string, number>;
+  nOthers: number; nFillers: number; nProducts: number; nComposites: number; nPortions: number;
+  nCaps: number;
 }
 
 /**
@@ -104,18 +132,39 @@ export interface RowAnalysis {
  * the cache is shared across every index instance — a rebuilt index, a cloned row and the memory
  * store all hit the same entries.
  */
-const analysisByKey = new Map<string, RowAnalysis>();
+/**
+ * The name's head noun — the word that says what the row IS. A comma-inverted name declares it
+ * first ("Chicken, broilers or fryers, meat only, cooked, fried" — the food is the first word and
+ * the rest qualify it); a natural-order name declares it LAST ("Sugar pea raw" is a pea,
+ * "Beef consomme with strips of crepe" is a crepe dish, "Salsa verde" is verde). #637: treating
+ * every name as comma-inverted let a row whose own head the query never named win on brevity.
+ * In the comma-less case the head is the last content word — states and fillers are never heads.
+ */
+const headTokenOf = (name: string, rowWords: string[]): string => {
+  // A parenthesised span explains the name, it is not part of it: "(with cheese)" in
+  // "Pizza quattro formaggi (with cheese)" is a gloss, and "cheese" is not this row's head.
+  const bare = name.replace(/\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}/g, " ");
+  if (/[,;]/.test(bare)) return bare.trim().split(/[\s,;:()]+/)[0] ?? "";
+  for (const w of words(bare).reverse())
+    if (w.length > 2 && !STATES.has(w) && !FILLER.has(w)) return w;
+  return rowWords[0] ?? "";
+};
+
+const analysisByKey = new WeakMap<FoodRef, RowAnalysis>();
 export function analyzeFoodRow(f: FoodRef): RowAnalysis {
   const name = f.name_en ?? f.name;
-  const key = `${f.id}\n${name}`;
-  const hit = analysisByKey.get(key);
+  const hit = analysisByKey.get(f);
   if (hit) return hit;
   const rowWords = words(name);
-  const headToken = name.trim().split(/[\s,;:()]+/)[0] ?? "";
+  const headToken = headTokenOf(name, rowWords);
   const a: RowAnalysis = {
     words: rowWords,
     stems: rowWords.map(norm),
     states: rowWords.filter((t) => STATES.has(t)),
+    stCooked: rowWords.includes("cooked"),
+    stRaw: rowWords.some((t) => RAW_STATE.has(t)),
+    stLight: rowWords.some((t) => LIGHT_PREP.has(t)),
+    stHard: rowWords.some((t) => HARD_PREP.has(t)),
     headParts: headToken.includes("-")
       ? headToken.toLowerCase().split("-").filter((p) => p.length > 1) : null,
     headStem: headToken.includes("-") ? null : norm(headToken.toLowerCase()),
@@ -124,17 +173,28 @@ export function analyzeFoodRow(f: FoodRef): RowAnalysis {
       .map((t) => norm(t.toLowerCase())),
     fillers: [], others: [], products: [], composites: [], portions: [],
     substitute: SUBSTITUTE.test(name),
+    flags: new Map(), nOthers: 0, nFillers: 0, nProducts: 0, nComposites: 0, nPortions: 0, nCaps: 0,
   };
+  const flag = (t: string, cls: number) => a.flags.set(t, (a.flags.get(t) ?? 0) | cls);
   for (let i = 0; i < rowWords.length; i++) {
     const w = rowWords[i]!;
     if (STATES.has(w)) continue;
     const t = a.stems[i]!;
-    if (PRODUCT.has(w)) a.products.push(t);
-    if (COMPOSITE.has(w)) a.composites.push(t);
-    if (PORTION.has(w)) a.portions.push(t);
-    if (FILLER.has(w)) a.fillers.push(t); else a.others.push(t);
+    if (PRODUCT.has(w)) { a.products.push(t); flag(t, CLS_PRODUCT); }
+    if (COMPOSITE.has(w)) { a.composites.push(t); flag(t, CLS_COMPOSITE); }
+    if (PORTION.has(w)) { a.portions.push(t); flag(t, CLS_PORTION); }
+    if (FILLER.has(w)) { a.fillers.push(t); flag(t, CLS_FILLER); } else { a.others.push(t); flag(t, CLS_OTHER); }
   }
-  analysisByKey.set(key, a);
+  for (const c of a.caps) flag(c, CLS_CAP);
+  for (const b of a.flags.values()) {
+    if (b & CLS_OTHER) a.nOthers++;
+    if (b & CLS_FILLER) a.nFillers++;
+    if (b & CLS_PRODUCT) a.nProducts++;
+    if (b & CLS_COMPOSITE) a.nComposites++;
+    if (b & CLS_PORTION) a.nPortions++;
+    if (b & CLS_CAP) a.nCaps++;
+  }
+  analysisByKey.set(f, a);
   return a;
 }
 
@@ -143,8 +203,8 @@ const complete = (f: FoodRef): boolean =>
   && f.carbs_g_per_100g !== null && f.fat_g_per_100g !== null;
 
 export interface FoodIndex {
-  /** The rows whose English name carries every `words` entry, shortest name first. */
-  candidates(words: string[], limit: number): FoodRef[];
+  /** The rows whose English name carries every `words` entry, shortest name first — ALL of them. */
+  candidates(words: string[]): FoodRef[];
   /** Add or replace rows by `id`. What `putFoodRefs` feeds the index. */
   upsert(rows: FoodRef[]): void;
   /** The rows the index holds (only complete, English-named ones count). */
@@ -221,8 +281,8 @@ export function buildFoodIndex(rows: FoodRef[]): FoodIndex {
         index(f);
       }
     },
-    candidates(queryWords, limit) {
-      if (queryWords.length === 0 || limit <= 0) return [];
+    candidates(queryWords) {
+      if (queryWords.length === 0) return [];
       if (dirty) rebuild();
       const merged = queryWords.map((w) => postingUnion(w.toLowerCase()));
       if (merged.some((m) => !m || m.length === 0)) return [];
@@ -230,12 +290,9 @@ export function buildFoodIndex(rows: FoodRef[]): FoodIndex {
       const [smallest, ...rest] = merged as [number[], ...number[][]];
       const others = rest.map((m) => new Set(m));
       const out: FoodRef[] = [];
-      for (const r of smallest) {
-        if (others.every((s) => s.has(r))) {
-          out.push(ordered[r]!);
-          if (out.length >= limit) break;
-        }
-      }
+      // No cap: every intersecting row reaches the scorer (#637 — the first 300 by name length
+      // used to be the whole pool, which is how a frequent token evicted the right row).
+      for (const r of smallest) if (others.every((s) => s.has(r))) out.push(ordered[r]!);
       return out;
     },
   };
