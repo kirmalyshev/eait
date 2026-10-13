@@ -1612,6 +1612,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return added;
     },
 
+    async countOnboardedSince(hours) {
+      const since = now() - hours * 60 * 60 * 1000;
+      return [...users.values()].filter((u) => u.onboarded_at && Date.parse(u.onboarded_at) >= since).length;
+    },
+
     async onboardingFunnel(days) {
       const since = now() - days * 24 * 60 * 60 * 1000;
       return aggregateFunnel([...onboardingEvents.values()].filter((e) => e.receivedAt >= since));

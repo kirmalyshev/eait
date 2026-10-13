@@ -18,7 +18,7 @@ test("a person signs in, answers the questions, and reaches their plan", async (
   const { targets, basis } = explainTargets(profile);
   const projection = projectGoal(profile, basis)!;
   // The journey card's title names the month `projectionMonth` lands on, never a literal.
-  await expect(page.locator(".pln .goal")).toContainText(projectionMonth(new Date(), projection.weeks, "en"));
+  await expect(page.locator(".pln .hd")).toContainText(projectionMonth(new Date(), projection.weeks, "en"));
   await expect(page.locator(".pln")).toContainText(`≤ ${wholeNumbers("en")(targets.satfat_g!)}g`);
 
   // The plan's one way on is the sign-up (S8): the consent screen, not a meal and not a chat —

@@ -15,6 +15,8 @@ export interface SignupCopy {
   haveAccountCta: string;
   /** The sign-up screen's headline — the product's promise, said once. */
   signUpHeading: string;
+  /** The heading when the person arrives from their plan (19, ieat-app#2050): "Save your progress". */
+  saveHeading: string;
   /**
    * A provider button's label: "Continue with Apple", "Continue with Google". `{provider}`
    * holds the brand, because a language puts it where its grammar needs it — moved out of
@@ -49,6 +51,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Continue with {provider}",
     continueEmail: "Continue with email",
     signUpHeading: "Photograph what you eat, get an honest answer",
+    saveHeading: "Save your progress",
     termsLabel: "I agree to eait's {terms} and {privacy}",
     termsLink: "Terms",
     privacyLink: "Privacy Policy",
@@ -61,6 +64,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Continuer avec {provider}",
     continueEmail: "Continuer par e-mail",
     signUpHeading: "Photographie ce que tu manges, reçois une réponse honnête",
+    saveHeading: "Sauvegarde ta progression",
     termsLabel: "J'accepte les {terms} et la {privacy} d'eait",
     termsLink: "Conditions",
     privacyLink: "Politique de confidentialité",
@@ -73,6 +77,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Weiter mit {provider}",
     continueEmail: "Weiter per E-Mail",
     signUpHeading: "Fotografier, was du isst, und bekomm eine ehrliche Antwort",
+    saveHeading: "Speichere deinen Fortschritt",
     termsLabel: "Ich stimme den {terms} und der {privacy} von eait zu",
     termsLink: "Nutzungsbedingungen",
     privacyLink: "Datenschutzerklärung",
@@ -85,6 +90,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Continua con {provider}",
     continueEmail: "Continua con l'email",
     signUpHeading: "Fotografa quello che mangi, ricevi una risposta onesta",
+    saveHeading: "Salva i tuoi progressi",
     termsLabel: "Accetto i {terms} e l’{privacy} di eait",
     termsLink: "Termini",
     privacyLink: "Informativa sulla privacy",
@@ -97,6 +103,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Continuar con {provider}",
     continueEmail: "Continuar con el correo",
     signUpHeading: "Fotografía lo que comes, recibe una respuesta honesta",
+    saveHeading: "Guarda tu progreso",
     termsLabel: "Acepto los {terms} y la {privacy} de eait",
     termsLink: "Términos",
     privacyLink: "Política de privacidad",
@@ -109,6 +116,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Tiếp tục với {provider}",
     continueEmail: "Tiếp tục bằng email",
     signUpHeading: "Chụp món bạn ăn, nhận câu trả lời thẳng thắn",
+    saveHeading: "Lưu tiến trình của bạn",
     termsLabel: "Mình đồng ý với {terms} và {privacy} của eait",
     termsLink: "Điều khoản",
     privacyLink: "Chính sách quyền riêng tư",
@@ -121,6 +129,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Lanjutkan dengan {provider}",
     continueEmail: "Lanjutkan dengan email",
     signUpHeading: "Foto makananmu, dapatkan jawaban jujur",
+    saveHeading: "Simpan progresmu",
     termsLabel: "Aku menyetujui {terms} dan {privacy} eait",
     termsLink: "Ketentuan",
     privacyLink: "Kebijakan Privasi",
@@ -133,6 +142,7 @@ export const SIGNUP_COPY: Localized<SignupCopy> = {
     continueWith: "Продолжить через {provider}",
     continueEmail: "Продолжить через e-mail",
     signUpHeading: "Сфотографируй еду — получи честный ответ",
+    saveHeading: "Сохрани свой прогресс",
     termsLabel: "Я принимаю {terms} и {privacy} eait",
     termsLink: "Условия",
     privacyLink: "Политику конфиденциальности",

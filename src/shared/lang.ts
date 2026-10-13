@@ -75,6 +75,22 @@ export const LANG_LABEL: Record<Lang, string> = {
 };
 
 /**
+ * Each language's flag, for the welcome's language chip ("🇺🇸 EN", ieat-app#2050) — the chip's
+ * code is the `Lang` itself, upper-cased. A flag marks the chip, never names the language: the
+ * picker it opens lists `LANG_LABEL`. English is the US flag because the design draws it so.
+ */
+export const LANG_FLAG: Record<Lang, string> = {
+  en: "🇺🇸",
+  fr: "🇫🇷",
+  de: "🇩🇪",
+  it: "🇮🇹",
+  es: "🇪🇸",
+  vi: "🇻🇳",
+  id: "🇮🇩",
+  ru: "🇷🇺",
+};
+
+/**
  * The BCP-47 tag each language formats numbers and dates with.
  *
  * A `Lang` IS NOT A LOCALE, which is why this table exists rather than passing the code straight to

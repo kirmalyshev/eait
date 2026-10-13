@@ -106,7 +106,11 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * before they existed. Adding a place a user can BE does not add a place a calorie target can come
  * from.
  *
- * `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
+ * `twice` (the logging claim, one cited study), `baseline` (the BMI the user's own height and weight
+ * compute, and the verdict band that number falls in) and `possible` (the target's distance, said
+ * back) sit between the questions that feed them. They read the profile and write nothing; their
+ * words are code in `onboarding-chat-copy.ts`, never admin copy, because two of them carry a health
+ * claim. `ontrack` is the with-plan-vs-without chart beat and reads the first `struggles` pick for its
  * caption. `how` is the three-beat "how it works" picture. Both sit after the questions, before the plan. `signup` is the
  * account step between the plan and `country` — it belongs to the sign-in surface, and this list
  * only holds its place in the order. `referral` is the optional friend's-link step after the
@@ -123,7 +127,7 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "how", "ontrack", "summary", "signup", "referral", "health",
+  "welcome", "twice", "baseline", "possible", "how", "ontrack", "summary", "signup", "referral", "health",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -135,8 +139,8 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "sex", "age", "height", "weight", "activity", "target", "pace",
-  "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "referral", "health",
+  "welcome", "goal", "sex", "twice", "age", "height", "weight", "baseline", "activity", "target", "possible",
+  "pace", "struggles", "streak", "diet", "medical", "ontrack", "how", "summary", "signup", "country", "referral", "health",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -321,7 +325,7 @@ export interface OnboardingScreenContent {
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export interface OnboardingWelcomeContent {
-  /** The headline. One line now — the picture does the talking (design pro, onboarding 00). */
+  /** The headline, then its subtitle (ieat-app#2050): "A plan built around you" / "Your goal, your day, your meals". */
   lines: string[];
   /** The primary button — "Build my plan". */
   cta: string;
@@ -711,6 +715,15 @@ export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): 
   optionLabelIsData(id, value) ? countryLabel(value as CountryCode, lang) : value;
 
 /**
+ * An activity level in words — the option's line ("No workouts"), not its count ("0"): what a
+ * summary says back, where a bare "0" next to "Activity" reads as a score (ieat-app#2050).
+ */
+export const activityWords = (content: OnboardingContent, level: string, lang: Lang): string => {
+  const o = screenOptions(content, "activity")[level];
+  return o?.hint ?? o?.label ?? optionLabel("activity", level, lang);
+};
+
+/**
  * The plan reveal's timing, as DATA — the design's strip (ob-building), verbatim: the count runs
  * 0 → 100 % in 3.5 s while the six rows tick in at these marks (calories, protein, carbs, fat,
  * diet, the declared limit), the button appears only at 100 %, and the plan opens a second later
@@ -794,10 +807,11 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
   // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
   // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
-  // so `usableContent` retires it and every language falls back to this.
-  version: 16,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
   welcome: {
-    lines: ["Snap a meal. Know if it fits."],
+    lines: ["A plan built around you", "Your goal, your day, your meals"],
     cta: "Build my plan",
     signin: "I already have an account",
   },
@@ -910,6 +924,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         "7": { label: "7 days" },
         "14": { label: "14 days" },
         "30": { label: "30 days" },
+        "50": { label: "50 days" },
       },
     },
     {

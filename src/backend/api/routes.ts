@@ -36,7 +36,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
-  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
+  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
@@ -660,7 +660,9 @@ export function createRouter(
         const lang = asked !== null
           ? toLang(asked)
           : (await deps.store.getProfile(userId))?.lang ?? "en";
-        return json({ content: await onboardingContent(deps, lang), lang } satisfies OnboardingContentResponse);
+        return json({
+          content: await onboardingContent(deps, lang), lang, peopleBuilding: await peopleBuilding(deps),
+        } satisfies OnboardingContentResponse);
       }
 
       // Funnel events. Authenticated, because they are stored against the caller's account and
