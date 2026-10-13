@@ -8,13 +8,13 @@
 
 import { expect, test } from "bun:test";
 import {
-  PROMPT_DEFAULTS, PROMPT_KEYS, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
+  PROMPT_DEFAULTS, PROMPT_KEYS, SYSTEM, SYSTEM_ANALYSIS_LEAN, SYSTEM_COACH, SYSTEM_ROUTE,
   SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, loadPrompts, promptsFrom, validateStoredPrompt,
 } from "./prompt.ts";
 
 test("every key the code expects has a compiled-in default, and it is the constant", () => {
   expect([...PROMPT_KEYS].sort()).toEqual(
-    ["analysis", "coach", "route", "text_correction", "text_meal"],
+    ["analysis", "analysis_lean", "coach", "route", "text_correction", "text_meal"],
   );
   expect(PROMPT_DEFAULTS).toEqual({
     analysis: SYSTEM,
@@ -22,6 +22,7 @@ test("every key the code expects has a compiled-in default, and it is the consta
     text_meal: SYSTEM_TEXT_MEAL,
     text_correction: SYSTEM_TEXT_CORRECTION,
     coach: SYSTEM_COACH,
+    analysis_lean: SYSTEM_ANALYSIS_LEAN,
   });
   // Every key resolves to something a model can be sent. A default that is absent or empty is a
   // key that half-landed: the fallback for it would be `undefined` reaching the provider.

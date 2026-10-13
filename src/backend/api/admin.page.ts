@@ -2425,8 +2425,8 @@ details.how p { margin-top: 8px; }
 
   // ── Food database switches (#563) ──────────────────────────────────────────────────────────
 
-  var SWITCH_LABELS = { "grounding.photo": "Photo", "grounding.text": "Text" };
-  var SWITCH_WHAT = { "grounding.photo": "ground photo analyses in the food catalog", "grounding.text": "ground typed meals in the food catalog" };
+  var SWITCH_LABELS = { "grounding.photo": "Photo", "grounding.text": "Text", "prompt.photo-lean": "Lean photo prompt" };
+  var SWITCH_WHAT = { "grounding.photo": "ground photo analyses in the food catalog", "grounding.text": "ground typed meals in the food catalog", "prompt.photo-lean": "answer photos with the lean prompt and schema (default off)" };
 
   function switchWhen(by, at) {
     return at ? "changed by " + by + " at " + atLabel(at) : "default";

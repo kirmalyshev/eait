@@ -1135,7 +1135,7 @@ alter table llm_prompts drop constraint if exists llm_prompts_key_check;
 -- The glance's rows go WITH the retirement: leaving them would fail the re-added check.
 delete from llm_prompts where key = 'glance';
 alter table llm_prompts add constraint llm_prompts_key_check
-  check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'coach'));
+  check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'coach', 'analysis_lean'));
 
 -- THE ADMIN SWITCHES (#563). Append-only: the current value is the newest row per key and every
 -- earlier row is the audit trail of who flipped what and when. GLOBAL, for llm_prompts's reasons
@@ -1150,7 +1150,7 @@ create table if not exists admin_switches (
 );
 alter table admin_switches drop constraint if exists admin_switches_key_check;
 alter table admin_switches add constraint admin_switches_key_check
-  check (key in ('grounding.photo', 'grounding.text'));
+  check (key in ('grounding.photo', 'grounding.text', 'prompt.photo-lean'));
 
 -- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
 -- of numbers per day, and a per-second heart rate series would be a large pile of special-category

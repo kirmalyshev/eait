@@ -146,6 +146,12 @@ export interface PhotoInput {
    * a second shape for three fields is a second thing to keep in step.
    */
   portionPriors?: readonly PortionPrior[];
+  /**
+   * The admin's `prompt.photo-lean` switch (#607), read per request by the engine. ON asks for the
+   * lean prompt and schema (`llm/lean.ts`) and the answer comes back widened to the same
+   * `AnalyzedMeal` — the port's promise does not change with the prompt's price.
+   */
+  lean?: boolean | undefined;
   onCost?: OnCost | undefined;
   /** One metrics row per HTTP call — the call's measurements, never its content (#602). */
   onCall?: OnCall | undefined;

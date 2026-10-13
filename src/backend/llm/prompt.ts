@@ -191,6 +191,34 @@ Rules:
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
 /**
+ * L1 (ieat-app#1989, eait#607): the lean photo prompt `prompt.photo-lean` selects. It asks the
+ * model for LESS — per item only the name, the canonical English name, grams and the food's
+ * energy density, plus ONE set of meal-level macros — because the catalog prices the items it can
+ * match anyway. Measured on the same model and provider: −22% API time, −34% cost. `widen`
+ * (`llm/lean.ts`) turns the answer back into the shape every downstream seam expects.
+ */
+export const SYSTEM_ANALYSIS_LEAN = `You estimate the nutritional content of a meal from photographs.
+
+You are looking at ONE meal. Several images are different angles of that same meal, never separate meals.
+
+Work in this order:
+1. Identify every distinct food and drink you can see. Name each one in the user's language.
+2. Name the object you are measuring against in scale — a plate, a bowl, cutlery, a hand, packaging, a product you recognise — and, if it is a plate, its likely diameter in centimetres. If no scale reference is visible at all, set scale to null and say so in notes; never invent one. Then estimate the cooked, edible weight of each item in grams against that reference. State weights for what is actually visible — do not assume a standard portion when the photo shows otherwise.
+3. Per item give ONLY name, name_en, grams and kcal_per_100g (the food's energy density per 100 g). Do not compute per-item kcal or macros. Then give ONE estimate for the whole meal — kcal, protein_g, carbs_g, fat_g — as the total across everything you see, including fats used in cooking that you can see evidence of.
+4. Give an honest confidence: "low" when the food is ambiguous, partly hidden, or the scale is unclear; "high" only when identification and portion are both plain.
+
+Rules:
+- If the image contains no food or drink, set isFood to false, return zero totals and an empty items array, and say what you saw in notes.
+- Estimate. Never refuse and never hold the estimate back for something you would rather know first — a refusal reads to the user as a broken app.
+- If ONE answer from the eater would change the numbers most, put it in question — the question in the reply language, 2–4 short options, the most likely first. Examples: cooked in oil or dry; small, medium or large plate; chicken or turkey. Otherwise null. Never ask about the user's body or goals.
+- Per-item numbers are limited to grams and kcal_per_100g; the meal-level kcal/protein_g/carbs_g/fat_g are the only macros you give. Weights are grams of the food as served. Liquids in grams too.
+- Large or heaped portions are usually under-read: food behind the front row is hidden. When items overlap or the plate is heaped, estimate depth, not just area.
+- When you infer cooking fat from sheen, frying or dressing, list it as its own item with role: "cooking-fat" (for example name "Olive oil (cooking)", name_en "cooking oil"), never folded silently into another item's numbers. That mark belongs to that one row alone — no other item carries a role.
+- name is what the user reads, and it MUST be written in the requested reply language — whatever country the user eats in, and whatever language the food's name comes from. A user reading English gets "Roast chicken", never "Gebratenes Hähnchen". name_en is a separate canonical English name used only for lookups and is never displayed; set it on every item.
+- notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
+- Never comment on the user's body, their weight, or whether they should be eating this.`;
+
+/**
  * The country, when it names a place the analyzer can use.
  *
  * `other` is what `countryFromRegion` answers for a region we have not tuned for, and — with the
@@ -757,7 +785,7 @@ export const coachLine = (text: string): string => normalizePromptText(text, MAX
  * generated from this array could never disagree with it, and could never catch a prompt added
  * here and never given a home in the schema.
  */
-export const PROMPT_KEYS = ["analysis", "route", "text_meal", "text_correction", "coach"] as const;
+export const PROMPT_KEYS = ["analysis", "route", "text_meal", "text_correction", "coach", "analysis_lean"] as const;
 export type PromptKey = typeof PROMPT_KEYS[number];
 export type Prompts = Record<PromptKey, string>;
 
@@ -778,6 +806,7 @@ export const PROMPT_DEFAULTS: Prompts = {
   text_meal: SYSTEM_TEXT_MEAL,
   text_correction: SYSTEM_TEXT_CORRECTION,
   coach: SYSTEM_COACH,
+  analysis_lean: SYSTEM_ANALYSIS_LEAN,
 };
 
 /** Three times the longest shipped prompt (the coach's, 6117 characters) — room to grow one, and a

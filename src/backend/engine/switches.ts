@@ -4,14 +4,24 @@
 import { SWITCH_KEYS, type SwitchFlip, type SwitchKey } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
-/** A switch nobody has set is ON: a fresh database behaves exactly as before the switch existed. */
+/**
+ * What a never-set switch means. The grounding switches default ON — a fresh database behaves
+ * exactly as before they existed. `prompt.photo-lean` (#607) defaults OFF: it is an experiment,
+ * and a database that says nothing has said nothing.
+ */
+export const SWITCH_DEFAULT: Record<SwitchKey, boolean> = {
+  "grounding.photo": true,
+  "grounding.text": true,
+  "prompt.photo-lean": false,
+};
+
 export async function switchOn(deps: EngineDeps, key: SwitchKey): Promise<boolean> {
   try {
-    return (await deps.store.switchEnabled(key)) ?? true;
+    return (await deps.store.switchEnabled(key)) ?? SWITCH_DEFAULT[key];
   } catch {
     // Logged without detail, and the default taken: a switch must never fail a meal.
     console.error(`[eait] switch read failed: ${key}`);
-    return true;
+    return SWITCH_DEFAULT[key];
   }
 }
 
@@ -30,7 +40,7 @@ export async function adminSwitches(deps: EngineDeps): Promise<{ switches: Switc
   const history = await deps.store.switchHistory(Math.max(RECENT, 200));
   const switches = await Promise.all(SWITCH_KEYS.map(async (key): Promise<SwitchView> => {
     const last = history.find((f) => f.key === key);
-    return { key, enabled: (await deps.store.switchEnabled(key)) ?? true, setBy: last?.set_by ?? null, setAt: last?.set_at ?? null };
+    return { key, enabled: (await deps.store.switchEnabled(key)) ?? SWITCH_DEFAULT[key], setBy: last?.set_by ?? null, setAt: last?.set_at ?? null };
   }));
   return { switches, recent: history.slice(0, RECENT) };
 }
