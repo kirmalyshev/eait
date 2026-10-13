@@ -33,6 +33,7 @@ import {
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, smallCta, takeCarried, takeTurn, timeFmt, names, type Frame,
 } from "../shell.ts";
+import { attachMic } from "../voice.ts";
 
 const copy = () => chatScreenCopyFor(lang);
 
@@ -577,7 +578,14 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     // Send's NAME says what this press does — words, or the photos that are attached — because
     // the arrow does not.
     send.setAttribute("aria-label", attached.length > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
+    voice?.sync();
   };
+  // The mic (#570): takes Send's slot while there is nothing to send. `null` elsewhere.
+  const voice = attachMic({
+    form: comp.form, field: cfield, words, send,
+    armed: () => attached.length > 0 || words.value.trim() !== "",
+    onChange: () => arm(),
+  });
   const attach = (files: File[]): void => {
     attached = [...attached, ...files];
     arm();
@@ -695,6 +703,8 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     menu.setAttribute("aria-label", shellCopyFor(lang).logMeal);
     const row = el("div", "cp-wrow");
     row.append(tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()), tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()));
+    // Voice (#570): only where the browser can listen, and only to START — a tap while listening is the mic round's own.
+    if (voice !== null) row.append(tile("mic", shellCopyFor(lang).plusVoice, () => { words.focus(); voice.start(); }));
     menu.append(row, el("p", "cp-hint", COPY.plusHint));
     veil.append(menu);
     veil.addEventListener("click", (e) => { if (e.target === veil || e.target === menu) closeLog(); });

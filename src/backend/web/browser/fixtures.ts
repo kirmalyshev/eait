@@ -172,6 +172,9 @@ export const test = base.extend<{ signedIn: Page; inWebApp: Page }>({
   inWebApp: async ({ page }, use, testInfo) => {
     await signIn(page, `pw-${testInfo.testId}-${Date.now()}`);
     await onboardFast(page);
+    // Chromium ships the speech API, so the composer would draw the mic (#570) in place of an empty
+    // field's Send, which every spec here waits for. `app-voice.pw.ts` puts a stub back.
+    await page.addInitScript("delete window.SpeechRecognition; delete window.webkitSpeechRecognition;");
     await page.goto("/#/chat");
     await use(page);
   },

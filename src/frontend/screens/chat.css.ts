@@ -106,6 +106,18 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .chat .cfield.on .ib.p { --disc: var(--accent); }
 .chat .cfield.on .ib.p .ico { background: var(--accent-ink); }
 .chat .cfield textarea.box:focus-visible { outline-offset: -2px; }
+/* The mic (#570): Send's slot, an outline round while idle, the accent with a white square while listening. */
+.chat .cfield .ib.vmic { box-shadow: none; position: absolute; right: 0; top: 0; width: 44px; height: 44px; flex: none; border-radius: 50%;
+  background: radial-gradient(circle, transparent 16px, var(--hair) 16.5px, var(--hair) 17.5px, transparent 18px); }
+.chat .cfield .ib.vmic .ico { width: 18px; height: 18px; background: var(--ink); }
+.chat .cfield .ib.vmic.p { background: radial-gradient(circle, var(--accent) 17px, transparent 17.5px); }
+.chat .cfield .ib.vmic.p .ico { width: 20px; height: 20px; background: var(--accent-ink); }
+.chat .cfield .vmic-dot { position: absolute; left: 14px; top: 18px; width: 8px; height: 8px; border-radius: 50%; background: #E5483F; }
+.chat .cfield.listening textarea.box { padding-left: 30px; color: var(--ink); }
+.chat .cfield.beside textarea.box { padding-right: 96px; }
+.chat .cfield.beside .ib.vmic { right: 44px; }
+.chat .cfield .ib[hidden], .chat .cfield .vmic-dot[hidden], .vmic-note[hidden] { display: none; }
+.vmic-note { font-size: 13px; color: var(--muted); padding: 6px 52px 0; }
 .chat .compose textarea.box::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chips { display: flex; gap: 8px; padding: 0 0 8px; overflow: hidden; }
 .chips[hidden] { display: none; }
@@ -143,7 +155,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
   .cp-log:not(.cp-close) { width: 44px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
   .cp-log:not(.cp-close) .ico { width: 22px; height: 22px; }
 }
-@media (max-width: 760px) { .cp-tile { width: 158px; height: 96px; } .cp-wrow { gap: 14px; } }
+@media (max-width: 760px) { .cp-tile { width: 158px; height: 96px; } .cp-wrow { gap: 14px; } .cp-wrow:has(.cp-tile:nth-child(3)) .cp-tile { width: 104px; } }
 
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
