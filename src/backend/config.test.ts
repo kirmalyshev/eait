@@ -20,7 +20,7 @@ import { PKCS8_BEGIN, PKCS8_END, applePrivateKeyFromEnv, configDefaults, demoCon
  * make a test read the ambient environment again.
  */
 const VARS = [
-  "EAIT__BACKEND__LLM_REASONING_EFFORT",
+  "EAIT__BACKEND__LLM_REASONING_EFFORT", "EAIT__BACKEND__LLM_PROVIDER_SORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
@@ -95,6 +95,16 @@ describe("loadConfig", () => {
     expect(loadConfig().llmProviderOrder).toBe("alibaba,novita");
     withRequired({ EAIT__BACKEND__LLM_PROVIDER_ORDER: "" });
     expect(loadConfig().llmProviderOrder).toBe("");
+  });
+
+  it("sorts unpinned provider routing by throughput by default, and refuses a value OpenRouter does not take", () => {
+    expect(configDefaults().llmProviderSort).toBe("throughput");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_SORT: "latency" });
+    expect(loadConfig().llmProviderSort).toBe("latency");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_SORT: "" });
+    expect(loadConfig().llmProviderSort).toBe("");
+    withRequired({ EAIT__BACKEND__LLM_PROVIDER_SORT: "cheapest" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_PROVIDER_SORT/);
   });
 
   it("accepts openai-compatible with no key, but never without its own models and base URL", () => {
