@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p server && tsc --noEmit -p test"
   },
   "dependencies": {
-    "@eait/shared": "workspace:*"
+    "@eait/shared": "workspace:*",
+    "posthog-js": "^1.438.8"
   }
 }

@@ -40,7 +40,12 @@ the exclude is written so a new file in this directory is browser code by defaul
 
 ## Hard rules
 
-- **No framework, and no dependency that is not `@eait/shared`.** This repo already ships a working
+- **No framework, and no dependency that is not `@eait/shared` — with ONE exception, PostHog.**
+  `analytics.ts` alone imports `posthog-js/dist/module.slim.no-external`: the slim build with no
+  script loader, sending to `/ingest` on this origin, which the edge forwards to PostHog's EU host,
+  so `connect-src 'self'` is unchanged. Off without `EAIT__FRONTEND__POSTHOG_KEY`; no autocapture,
+  no page views, no recordings, nothing persisted. `test/imports.test.ts` names the file and the
+  path, and anything else is still refused. This repo already ships a working
   client-side application written this way — `src/backend/api/admin.page.ts` — so the idiom exists
   and costs nothing. Five screens that each re-render a container do not need reconciling. If you
   reach for React, you are adding a build toolchain and two packages to avoid writing
