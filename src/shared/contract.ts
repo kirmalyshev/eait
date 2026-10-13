@@ -919,6 +919,12 @@ export interface OnboardingContentResponse {
    * sent was one this server does not carry.
    */
   lang: Lang;
+  /**
+   * How many accounts finished onboarding in the last 24 hours — the loader's "43 people are
+   * building their plan with eait" (ieat-app#2050). Null when the server could not count; a client
+   * draws the line only for a positive number.
+   */
+  peopleBuilding: number | null;
 }
 
 /**

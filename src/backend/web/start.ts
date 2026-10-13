@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  ageFrom,
+  ageFrom, type OnboardingPlace,
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STREAK_GOALS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   countryOptions, fill,
   chatCopyFor as CHAT,
@@ -44,7 +44,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, isAnonymous, logPhotoMeal, redeemReferral, referralLink,
-  onboardingContent, mintPairingCode, patchProfile, profileView,
+  onboardingContent, peopleBuilding, mintPairingCode, patchProfile, profileView,
   sendEmailCode, signInWithProvider, verifyEmailCode,
   EMAIL_ADDRESS, EMAIL_RESEND_SEC, normalizeEmail,
   type EngineDeps,
@@ -57,7 +57,7 @@ import {
   // compile error instead.
   chat, country, emailAddress, emailCode, frontDoor, html, interstitial, offer, pageCopyFor, plan, question,
   referralStep, signUp, stopped,
-  FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR, WELCOME_FILES, WELCOME_URL_DIR,
+  FONT_FILES, FONT_URL_DIR, IMG_FILES, IMG_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal,
 } from "./page.ts";
@@ -138,9 +138,25 @@ const chatNotice = (copy: PageCopy): Record<string, string> => ({
 const providerLabel = (p: WebProvider, lang: Lang): string =>
   signupCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
 
-/** What this browser asked for, narrowed. The only language signal there is before a session. */
-const browserLang = (req: Request): Lang =>
-  acceptLang(req.headers.get("accept-language"));
+/**
+ * The language before there is an account: the welcome's chip (`LANG_COOKIE`) when somebody picked
+ * one, else what the browser asked for, narrowed. The first answer's account — and an account a
+ * sign-in creates — is born in this, which is how the chip's choice survives into the profile.
+ */
+const browserLang = (req: Request): Lang => {
+  const picked = cookieHeader(req)[LANG_COOKIE];
+  return picked !== undefined && (LANGS_READY as readonly string[]).includes(picked)
+    ? picked as Lang
+    : acceptLang(req.headers.get("accept-language"));
+};
+
+/**
+ * The welcome's language chip (ieat-app#2050): the code picked there, before any account exists.
+ * `/start`'s path and `SameSite=Lax` like every cookie here, so it rides the Apple `form_post`
+ * bridge's GET as the OAuth state does. A month: it only speaks until an account holds the language.
+ */
+const LANG_COOKIE = "eait_lang";
+const LANG_MAX_AGE = 30 * 24 * 60 * 60;
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -347,10 +363,13 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
  * and `country` places are out: the front door renders its own, the rest are the steps after
  * this walk ends (the plan, sign-up — W3).
  */
+/** The cards the walk draws between and after the questions; `summary` and `signup` are not. */
+const BEAT_PLACES: readonly OnboardingPlace[] = ["twice", "baseline", "possible", "ontrack", "how"];
+
 function walkFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
   const off = disabledScreens(content);
   return promptsFor(profile, [...off, "country"], { health: false })
-    .filter((p) => p.field !== undefined || p.place === "how" || p.place === "ontrack");
+    .filter((p) => p.field !== undefined || BEAT_PLACES.includes(p.place));
 }
 
 
@@ -548,16 +567,25 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const profile = await ctx.store.getProfile(userId);
       if (profile !== null) return seeOther(await resumeTo(ctx, userId, profile), refCookie);
     }
-    // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
-    // account to ask. Everything past it reads `profile.lang`, which the first answer's account
-    // seeds from this same signal and the picker overrules — so this is a starting guess and
-    // never the answer.
-    const lang = acceptLang(req.headers.get("accept-language"));
+    // THE BROWSER'S LANGUAGE — the chip's pick, else its header — because the front door is the
+    // one page that runs before there is an account to ask. Everything past it reads
+    // `profile.lang`, which the first answer's account seeds from this same signal.
+    const lang = browserLang(req);
     const content = await onboardingContent(ctx.deps, lang);
-    return html(frontDoor(content.welcome, {
+    return html(frontDoor(content, {
       q: `${START_PREFIX}/q`,
       signup: `${START_PREFIX}/signup`,
     }, lang), 200, { cookies: refCookie });
+  }
+
+  // THE WELCOME'S LANGUAGE CHIP, before any account: the pick goes in `LANG_COOKIE` and the front
+  // door redraws in it. With a session the picker below writes the profile instead. A code outside
+  // `LANGS_READY` is a crafted post and changes nothing.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/language` && userId === null) {
+    const form = await req.formData().catch(() => null);
+    const asked = form?.get("lang");
+    if (typeof asked !== "string" || !(LANGS_READY as readonly string[]).includes(asked)) return seeOther(START_PREFIX);
+    return seeOther(START_PREFIX, [setCookie(LANG_COOKIE, asked, { secure, maxAge: LANG_MAX_AGE })]);
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -578,18 +606,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
-  // The welcome's recorded loop and still, and the photographs the how-it-works cards draw —
-  // whitelisted by name the same way the fonts are, so no path under them is a file read.
-  if (req.method === "GET" && pathname.startsWith(`${WELCOME_URL_DIR}/`)) {
-    const name = pathname.slice(WELCOME_URL_DIR.length + 1);
-    if (!(WELCOME_FILES as readonly string[]).includes(name)) return notFound();
-    return new Response(Bun.file(new URL(`../../shared/assets/welcome/${name}`, import.meta.url)), {
-      headers: {
-        "content-type": name.endsWith(".mp4") ? "video/mp4" : "image/webp",
-        "cache-control": "public, max-age=31536000, immutable",
-      },
-    });
-  }
   if (req.method === "GET" && pathname.startsWith(`${IMG_URL_DIR}/`)) {
     const name = pathname.slice(IMG_URL_DIR.length + 1);
     if (!(IMG_FILES as readonly string[]).includes(name)) return notFound();
@@ -685,6 +701,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         : null,
       termsHref: config.termsUrl === "" ? null : config.termsUrl,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
+      fromPlan: profile !== null,
       lang,
     }), 200, {
       // The consent POST answers with a 303 to the provider's own origin — and `form-action`
@@ -1082,7 +1099,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const following = walk[i + 1];
       const onward = following !== undefined && following.kind === "auto"
         ? `${askPath}${askPath.includes("?") ? "&" : "?"}show=${following.id}` : askPath;
-      return html(interstitial(auto.place as "how" | "ontrack", profile, profile.lang, onward));
+      return html(interstitial(auto.place as Parameters<typeof interstitial>[0], profile, content, profile.lang, onward, backBefore(walk, i)));
     }
 
     if (req.method === "GET") {
@@ -1626,7 +1643,9 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       projection: projectGoal(full.profile, full.basis),
       content,
       next: `${START_PREFIX}/signup`,
+      back: backBefore(walkFor(full.profile, content), Infinity),
       hasWebApp: ctx.hasWebApp,
+      peopleBuilding: await peopleBuilding(ctx.deps),
       lang: profile.lang,
     }));
   }
@@ -1827,11 +1846,14 @@ function renderQuestion(
     segAction: action,
     current: current ?? [],
     draft: draft ?? null,
-    // Back is the last FIELD before this one — an interstitial between them asks nothing, so it
-    // is not a place Back can go to.
-    back: walk.slice(0, index).reverse().find((p) => p.field !== undefined) !== undefined
-      ? `${START_PREFIX}/q?edit=${encodeURIComponent(walk.slice(0, index).reverse().find((p) => p.field !== undefined)!.id)}`
-      : START_PREFIX,
+    back: backBefore(walk, index),
     today: new Date(),
   });
+}
+
+/** Back from walk position `index`: the last FIELD before it — an interstitial asks nothing, so
+ * it is not a place Back can go to — or the front door when there is none. */
+function backBefore(walk: readonly { id: string; field?: unknown }[], index: number): string {
+  const prev = walk.slice(0, index).reverse().find((p) => p.field !== undefined);
+  return prev !== undefined ? `${START_PREFIX}/q?edit=${encodeURIComponent(prev.id)}` : START_PREFIX;
 }

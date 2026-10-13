@@ -1,5 +1,5 @@
 // The onboarding question screens — `onboarding/web/01-goal.html … 14b-medical.html`. One file,
-// one shape: `say` (Spud beside the ask) + the screen's control + the Continue button, inside the
+// one shape: `say` (the ask as the heading) + the screen's control + the Continue button, inside the
 // shared frame (`board.ts`) and stylesheet (`board-css.ts`).
 //
 // EVERYTHING HERE POSTS `answer`. The boards' pickers — the wheel, the rulers, the slider — are
@@ -10,7 +10,7 @@
 import {
   BANDS, capNote, chatCopyFor, cmToFtIn, fill, heightDisplayValue,
   minHealthyWeightKg, numbers, ONBOARDING_NEUTRAL, paceEcho, pacePreview, PACES, rulerLabels, RULER_TICKS,
-  optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, suggestedTargetKg,
+  lbToKg, optionLabel, rulerTickPhase, screenOptions, screenOptionValues, spellUnit, streakDelta, suggestedTargetKg, targetGoalLine,
   targetRange,
   weightDisplay, weightDisplayValue,
 } from "@eait/shared";
@@ -19,7 +19,7 @@ import type {
   RulerTicks, UnitSystem,
 } from "@eait/shared";
 import { pageCopyFor } from "../copy.ts";
-import { backLink, ctaLink, ctaSubmit, dash, hidden, optRow, PLACE_MOOD, say, segToggle, wtop } from "./board.ts";
+import { ctaLink, ctaSubmit, dash, hidden, optRow, say, segToggle, wtop } from "./board.ts";
 import { escape, shell } from "./shell.ts";
 
 export interface Action { name: string; value: string; label: string }
@@ -49,7 +49,7 @@ export interface QuestionView {
 }
 
 /** The page scaffold every question shares: dash → say → (error) → [seg] → form. */
-function page(v: QuestionView, opts: { seg?: string; control: string; foot?: string; echo?: string | null }): string {
+function page(v: QuestionView, opts: { seg?: string; control: string; foot?: string; echo?: string | null; sub?: string }): string {
   const copy = chatCopyFor(v.lang);
   const error = v.error
     ? `<p class="notice" id="answer-error" role="alert">${escape(v.error)}</p>` : "";
@@ -58,9 +58,8 @@ function page(v: QuestionView, opts: { seg?: string; control: string; foot?: str
   ).join("");
   const body = `${wtop()}
 <div class="wmain one q"><div class="wcol">
-${dash(v.prompt.place, v.lang)}
-${backLink(v.back, pageCopyFor(v.lang).back)}
-${say(PLACE_MOOD[v.prompt.place] ?? "happy", v.lines, v.lang)}
+${dash(v.prompt.place, v.lang, { href: v.back, label: pageCopyFor(v.lang).back })}
+${say(v.lines, opts.sub)}
 ${opts.echo ? `<p class="t13 m qecho">${escape(opts.echo)}</p>` : ""}
 ${error}
 ${opts.seg ?? ""}
@@ -77,16 +76,18 @@ ${opts.foot ?? ctaSubmit(copy.continueLabel)}
 // ── The option screens (01 goal · 04 sex · 08 activity · 11 struggles · 14 diet · 14b medical) ──
 
 const TILE_ICON: Record<string, Record<string, string>> = {
-  sex: { male: "male", female: "female", other: "other" },
-  activity: { few: "few", some: "some", many: "many" },
   struggles: { consistency: "consistency", habits: "habits", support: "support", busy: "busy", ideas: "ideas" },
   diet: {
     balanced: "balanced", wholefood: "wholefood", mediterranean: "mediterranean",
     flexitarian: "flexitarian", pescatarian: "pescatarian", vegetarian: "vegetarian", vegan: "vegan",
   },
 };
-const GOAL_ICON: Record<string, string> = { lose: "lose", maintain: "keep", gain: "gain" };
 
+/**
+ * Every option screen is the board's list (ieat-app#2050): one full-width row per answer, the
+ * picked one in the accent. Goal and sex carry the words alone, struggles and diet an icon, the
+ * multi-selects a checkbox, activity its count as a badge, the streak its kg on this plan.
+ */
 function optionControl(v: QuestionView): string {
   const place = v.prompt.place;
   const opts = screenOptions(v.content, place as OnboardingScreenId);
@@ -95,34 +96,21 @@ function optionControl(v: QuestionView): string {
   const values = [...(v.prompt.options ?? screenOptionValues(place as OnboardingScreenId, v.lang))];
   const chosen = new Set(v.current);
   const multi = v.prompt.kind === "chips";
-  if (place === "goal") {
-    // Nothing is preselected — the first question's answer is the whole plan's direction, and a
-    // quiet default is an answer nobody gave.
-    return `<div class="opts c3">` + values.map((o) =>
-      `<label class="opt big">` +
-      `<input type="radio" name="answer" value="${escape(o)}"${chosen.has(o) ? " checked" : ""}>` +
-      `<i class="ico i-${GOAL_ICON[o] ?? "keep"}"></i>` +
-      `<span>${escape(opts[o]?.label ?? optionLabel(place as OnboardingScreenId, o, v.lang))}</span>` +
-      `<span class="ck"><i class="ico i-check"></i></span></label>`,
-    ).join("") + `</div>`;
-  }
-  // Four workout bands (0 / 1–2 / 3–4 / 5+) lay out as four tiles up — a c3 grid wraps them 3+1.
-  const cols = place === "activity" ? 4 : place === "sex" ? 3 : 2;
-  return `<div class="opts c${cols}">` + values.map((o) => {
+  // Nothing is preselected on the goal — the first answer is the whole plan's direction, and a
+  // quiet default is an answer nobody gave.
+  return `<div class="opts">` + values.map((o) => {
     const c = opts[o];
+    const label = c?.label ?? optionLabel(place as OnboardingScreenId, o, v.lang);
     if (place === "activity") {
-      // The board's three parts: the count reads big, the name is the row's words (`hint`).
-      return `<label class="opt"><input type="radio" name="answer" value="${escape(o)}"${chosen.has(o) ? " checked" : ""}>` +
-        `<span class="tile"><i class="ico i-${escape(o)}"></i></span>` +
-        `<span><b class="d d17 num">${escape(c?.label ?? optionLabel(place as OnboardingScreenId, o, v.lang))}</b>` +
-        `${c?.hint ? `<small>${escape(c.hint)}</small>` : ""}</span>` +
-        `<span class="ck"><i class="ico i-check"></i></span></label>`;
+      // The four bands: the count is the badge, the row's words are its hint ("No workouts").
+      return optRow({ value: o, label: c?.hint ?? label, badge: label, checked: chosen.has(o) });
     }
     return optRow({
       value: o,
-      label: c?.label ?? optionLabel(place as OnboardingScreenId, o, v.lang),
+      label,
       multi,
       icon: TILE_ICON[place]?.[o],
+      end: place === "streak" ? streakDelta(v.profile, Number(o), v.lang) : null,
       // A diet answers "no restriction" as `balanced` — the board draws it selected, and storing
       // it and storing nothing mean the same thing to the analyzer.
       checked: chosen.has(o) || (place === "diet" && chosen.size === 0 && o === "balanced"),
@@ -150,6 +138,9 @@ interface RulerCfg {
       tick (ieat-app#1201) — `target.nowLowest`, drawn at the floor's mark. */
   merged?: string | undefined;
   delta?: { dn: string; up: string } | undefined;
+  /** The target's goal line per ruler value (display units, one decimal) — the script swaps it as
+      the needle moves; a value with no honest date has no entry and draws nothing. */
+  goals?: Record<string, string> | undefined;
   settle?: boolean | undefined;
   /** `marks` draws the marker labels INSTEAD of the numbered scale — the target board, where the
       "lowest" and "now" words would overprint the numbers. */
@@ -222,6 +213,8 @@ function rulerControl(v: QuestionView, cfg: RulerCfg): string {
     (cfg.delta ? ` data-dn="${escape(cfg.delta.dn)}" data-up="${escape(cfg.delta.up)}"` : "") +
     `>` +
     (cfg.vertical ? `<div class="vpick">${bign}${ruler}</div>` : `${bign}${ruler}${live}`) +
+    (cfg.goals ? `<p class="goal d d17 num" data-goals="${escape(JSON.stringify(cfg.goals))}">` +
+      `${escape(cfg.goals[String(Math.round(cfg.val * 10) / 10)] ?? "")}</p>` : "") +
     `</div>`;
 }
 
@@ -308,6 +301,17 @@ function weightControl(v: QuestionView): { seg: string; control: string } {
   return { seg: unitsSeg(v, "weight"), control: ctl + numAlt(v, numInput(v, val, min, max, 0.5), spellUnit(v.lang, word)) };
 }
 
+/** The goal line for every half-step the target ruler can stop on (ieat-app#2050's 09). */
+function targetGoals(v: QuestionView, min: number, max: number): Record<string, string> {
+  const goals: Record<string, string> = {};
+  for (let d = min; d <= max + 1e-9; d += 0.5) {
+    const key = Math.round(d * 10) / 10;
+    const line = targetGoalLine(v.profile, v.units === "imperial" ? lbToKg(key) : key, v.units, v.today, v.lang);
+    if (line !== null) goals[String(key)] = line;
+  }
+  return goals;
+}
+
 function targetControl(v: QuestionView): { seg: string; control: string } {
   const copy = chatCopyFor(v.lang);
   const kg = v.draft
@@ -321,44 +325,46 @@ function targetControl(v: QuestionView): { seg: string; control: string } {
   const minHealthy = v.profile.height_cm ? minHealthyWeightKg(v.profile.height_cm) : null;
   const range = targetRange(v.profile);
   const disp = (k: number) => weightDisplayValue(k, v.units);
-  // The refused zone has to be VISIBLE to be refused honestly: the ruler's lower margin shows the
-  // ~10kg under the healthy floor, tinted — the line the app will not cross is drawn on the
-  // ruler itself, not only enforced in the POST.
-  const min = Math.round(Math.max(disp(minHealthy ?? 30) - (v.units === "imperial" ? 22 : 10), disp(30)));
+  // The ruler STOPS at the healthy minimum (ieat-app#2050, Kirill 12 Oct): no refused zone drawn
+  // under it and no "lowest we set" mark — the board has neither — but nothing below the floor can
+  // be picked, and the POST still refuses one typed by hand (#1610's guard is the server's).
+  const min = minHealthy !== null
+    ? Math.ceil(disp(minHealthy) * 2) / 2
+    : Math.round(disp(30));
   const max = Math.round(disp(Math.max(range?.max ?? 0, (nowKg ?? 0) + 20, val + 10)));
   const now = nowKg !== null ? disp(nowKg) : undefined;
-  const floorAt = minHealthy !== null ? disp(minHealthy) : undefined;
-  const lowest = floorAt !== undefined
-    ? fill(copy.target.lowest, { weight: weightDisplay(minHealthy!, v.units, v.lang) })
-    : null;
   const ctl = rulerControl(v, {
-    ticks: t, val, min, max, step: 0.5,
+    ticks: t, val: Math.max(val, min), min, max, step: 0.5,
     fmt: "int", vertical: false, smalls: spellUnit(v.lang, word), unitWord: spellUnit(v.lang, word), settle: true,
     marks: true,
-    floor: floorAt !== undefined && lowest !== null ? { at: floorAt, label: lowest } : undefined,
     now: now !== undefined
       ? { at: now, label: fill(copy.target.now, { weight: weightDisplay(nowKg!, v.units, v.lang) }) }
       : undefined,
-    // The floor's weight is the number the merged label owes — the words sit at
-    // the floor's mark and the bound is the claim that must never be off.
-    merged: floorAt !== undefined && now !== undefined && lowest !== null
-      ? fill(copy.target.nowLowest, { weight: weightDisplay(minHealthy!, v.units, v.lang) })
-      : undefined,
     delta: { dn: copy.target.deltaDown, up: copy.target.deltaUp },
+    goals: targetGoals(v, min, max),
   });
-  const alt = numAlt(v, numInput(v, val, min, max, 0.5), spellUnit(v.lang, word)) +
-    // The no-JS field cannot draw the refused zone — the marker's words carry it instead.
-    (lowest !== null ? `<p class="altline">${escape(lowest)}</p>` : "");
+  const alt = numAlt(v, numInput(v, Math.max(val, min), min, max, 0.5), spellUnit(v.lang, word));
   return { seg: unitsSeg(v, "weight"), control: ctl + alt };
 }
 
 // ── The pace screen (10) — three computed candidates ──────────────────────────────────────────
 
-const PACE_ICON: Record<string, string> = { easy: "slow", steady: "steady", push: "fast" };
+/** A pace result line ("72kg around March 2027 · 1490kcal a day") as the board's card: the
+ *  arrival on top, the day's kcal under it in bold. A line with no " · " is the card alone. */
+function whenCard(line: string): string {
+  const at = line.lastIndexOf(" · ");
+  return at === -1 ? `<div class="when num">${escape(line)}</div>`
+    : `<div class="when num"><span>${escape(line.slice(0, at))}</span>${escape(line.slice(at + 3))}</div>`;
+}
 
-function paceControl(v: QuestionView): string {
-  const copy = chatCopyFor(v.lang);
+/**
+ * The board's pace screen (ieat-app#2050): "From 80kg to 72kg." over the computed rate, the cap's
+ * pill under the number, the slider with its three names under it, and where that pace lands as a
+ * card. Every figure is `pacePreview`'s — the projection's, never the pace's asked rate.
+ */
+function paceControl(v: QuestionView, echo: string | null): string {
   const opts = screenOptions(v.content, "pace");
+  const copy = chatCopyFor(v.lang);
   const previews = PACES.map((p) => pacePreview(v.profile, p, v.today, v.lang));
   const selIdx = Math.max(0, PACES.indexOf((v.current[0] ?? v.profile.pace ?? "steady") as never));
   // The big number is the COMPUTED rate, not the nominal pace — split for the bign's two sizes.
@@ -373,43 +379,44 @@ function paceControl(v: QuestionView): string {
       disp,
     };
   };
+  // The marker is one tap deep: the pill is a <details>, its explanation legible with no script.
+  const marker = (i: number) => {
+    const pr = previews[i];
+    return pr?.marker != null && pr.markerText !== null
+      ? `<details class="cap"><summary><span class="note">${escape(pr.markerText)}</span></summary>` +
+        `<p>${escape(capNote(v.content.summary.capNote, v.profile.goal, pr.ratePerWeek, v.lang))}</p></details>`
+      : "";
+  };
   const variants = PACES.map((p, i) => {
     const r = rateOf(i);
     return `<div class="pacevar${i === selIdx ? " on" : ""}" data-i="${i}">` +
-      `<div class="bign num rise"><span class="bv">${escape(r.num)}</span><small>${escape(r.rest)}</small></div></div>`;
+      `<div class="bign num rise"><span class="bv">${escape(r.num)}</span><small>${escape(r.rest)}</small></div>${marker(i)}</div>`;
   }).join("");
   const stops = PACES.map((p, i) =>
-    `<div class="${i === selIdx ? "on" : ""}" data-i="${i}"><i class="ico i-${PACE_ICON[p] ?? "steady"}"></i>` +
-    `${escape(opts[p]?.label ?? p)}</div>`,
+    `<div class="${i === selIdx ? "on" : ""}" data-i="${i}">${escape(opts[p]?.label ?? p)}</div>`,
   ).join("");
   const results = PACES.map((p, i) => {
     const pr = previews[i];
-    // The marker is one tap deep: the detail sits in a <details>, legible with no script.
-    const mark = pr?.marker !== undefined && pr.marker !== null && pr.markerText !== null
-      ? `<details class="cap"><summary><span class="est">${escape(pr.markerText)}</span></summary>` +
-        `<p>${escape(capNote(v.content.summary.capNote, v.profile.goal, pr.ratePerWeek, v.lang))}</p></details>`
-      : "";
-    return `<div class="paceres${i === selIdx ? " on" : ""}" data-i="${i}">` +
-      `${pr?.line ? `<p class="res d d17 num rise">${escape(pr.line)}</p>` : ""}${mark}</div>`;
+    return `<div class="paceres${i === selIdx ? " on" : ""}" data-i="${i}">${pr?.line ? whenCard(pr.line) : ""}</div>`;
   }).join("");
   // Without the script the three rows ARE the computed previews — "three computed pace rows, each
   // previewProjection". The radios in them are the form's truth: the slider only marks one on.
   const rows = PACES.map((p, i) => {
     const pr = previews[i];
-    const r = rateOf(i);
-    return `<label class="opt"><input type="radio" name="answer" value="${p}"${i === selIdx ? " checked" : ""}>` +
-      `<span class="tile"><i class="ico i-${PACE_ICON[p]}"></i></span>` +
-      `<span>${escape(opts[p]?.label ?? p)}` +
-      `<small>${escape(`${r.disp ?? ""}${pr?.line ? ` · ${pr.line}` : ""}`)}</small>` +
-      `${pr?.markerText ? `<small class="est">${escape(pr.markerText)}</small>` : ""}</span>` +
-      `<span class="ck"><i class="ico i-check"></i></span></label>`;
+    return optRow({
+      value: p,
+      label: opts[p]?.label ?? p,
+      sub: [rateOf(i).disp, pr?.line, pr?.markerText].filter(Boolean).join(" · "),
+      checked: i === selIdx,
+    });
   }).join("");
   return `<div class="pacesel ctl" data-ctl="slider" data-val="${selIdx}">` +
+    (echo ? `<p class="pecho">${escape(echo)}</p>` : "") +
     `<div class="pacevarbox">${variants}</div>` +
-    `<div class="stops">${stops}</div>` +
     `<div class="slider"><i></i><b class="settle"></b></div>` +
+    `<div class="stops">${stops}</div>` +
     `<div class="paceresbox">${results}</div></div>` +
-    `<div class="pacerows">${rows}</div>`;
+    `<div class="pacerows opts">${rows}</div>`;
 }
 
 // ── The dispatcher ────────────────────────────────────────────────────────────────────────────
@@ -426,7 +433,7 @@ export function question(v: QuestionView): string {
     case "medical":
       return page(v, { control: optionControl(v) });
     case "age":
-      return page(v, ageControl(v));
+      return page(v, { ...ageControl(v), sub: chatCopyFor(v.lang).ageWhy });
     case "height": {
       const { seg, control } = heightControl(v);
       return page(v, { seg, control });
@@ -440,7 +447,7 @@ export function question(v: QuestionView): string {
       return page(v, { seg, control });
     }
     case "pace":
-      return page(v, { control: paceControl(v), echo: paceEcho(v.profile, v.units, v.lang) });
+      return page(v, { control: paceControl(v, paceEcho(v.profile, v.units, v.lang)) });
     default:
       // A field prompt this file does not draw is a bug, not a page — fail loud in dev.
       return page(v, {

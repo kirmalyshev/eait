@@ -49,7 +49,7 @@ export {
   newEmailCode, normalizeEmail, sendEmailCode, verifyEmailCode,
 } from "./email.ts";
 export {
-  onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
+  onboardingContent, peopleBuilding, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
   adminMetrics, type AdminMetricsView,
   onboardingFunnel,
 } from "./onboarding.ts";

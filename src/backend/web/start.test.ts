@@ -381,10 +381,9 @@ describe("the sign-up screen", () => {
     expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
-  it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
+  it("is the board: no picture, the marks on the buttons, the boxes unticked", async () => {
     const html = await (await get("/start/signup")).text();
-    // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
-    expect(html).toContain('/start/assets/img/icon.webp');
+    expect(html).not.toContain('/start/assets/img/icon.webp');
     // Apple in black, Google secondary — the buttons carry the brands' own artwork.
     expect(html).toContain('class="cta apple"');
     expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));
@@ -865,14 +864,13 @@ describe("the plan", () => {
     const { targets } = explainTargets(profile);
     const n = wholeNumbers("en");
 
-    // The journey card's title: the target and the month `projectGoal` lands on.
+    // The headline: the distance and the month `projectGoal` lands on.
     const projection = projectGoal(profile, explainTargets(profile).basis);
     expect(projection).not.toBeNull();
-    expect(html).toContain(escape(fill(planCopyFor("en").goalLine, {
-      kg: weightDisplay(profile.target_weight_kg!, null, "en"),
+    expect(html).toContain(escape(fill(planCopyFor("en").goalLose, {
+      kg: weightDisplay(profile.weight_kg! - profile.target_weight_kg!, null, "en"),
       month: projectionMonth(new Date(), projection!.weeks, "en"),
     })));
-    expect(html).toContain(onboardingContentFor("en").summary.lines[0]!);
 
     // The curve, drawn: the shared journey path and the target pill.
     expect(html).toContain('class="pgraph"');
@@ -881,7 +879,7 @@ describe("the plan", () => {
 
     // The figures are `explainTargets`' — a page that drifts fails on its own numbers.
     expect(html).toContain(`--to:${targets.kcal}`);
-    expect(html).toContain(`--to:${targets.protein_g}`);
+    expect(html).toContain(`${n(targets.protein_g)}g`);
     expect(html).toContain(`${n(targets.carbs_g)}g`);
     expect(html).toContain(`${n(targets.fat_g)}g`);
     // The declared cap is a column of its own — and ONLY because it was declared.
@@ -1233,7 +1231,7 @@ describe("the v2 questions that write the new fields", () => {
 
 describe("the target-weight ruler", () => {
   /** 80kg at 170cm → the suggested target is 73.5, the healthy floor about 53.5. */
-  it("opens on the shared suggestion under the board's own ask, with the refused zone drawn", async () => {
+  it("opens on the shared suggestion under the board's own ask, stopping at the floor", async () => {
     const session = await signIn();
     const html = await walkTo(session, "target_weight_kg");
     // The headline is the board's ask (#473) — the suggestion is the ruler's needle, not the
@@ -1244,10 +1242,11 @@ describe("the target-weight ruler", () => {
     expect(html).toContain('data-ctl="ruler"');
     expect(html).toContain('data-val="73.5"');
     expect(html).toMatch(/type="number"[^>]*name="answer"[^>]*value="73\.5"/);
-    // The refused zone and the "now" marker are drawn, with the floor's own words on them.
-    expect(html).toContain('data-floor="54"');
+    // The ruler stops at the floor rather than drawing a refused zone under it (ieat-app#2050),
+    // and the "now" marker stays.
+    expect(html).toContain('data-min="54"');
+    expect(html).not.toContain("lowest we set");
     expect(html).toContain('data-now="80"');
-    expect(html).toContain("lowest we set");
     // The live delta says how far the needle sits from now, in the copy's own words — a
     // placeholder left unfilled would print "{weight}" raw inside the live line.
     expect(html).toMatch(/<div class="live[^>]*>[^<]*6\.5kg<\//);
@@ -1998,7 +1997,6 @@ describe("the web surface and the landing are one product", () => {
 
   it("404s a name none of the asset routes ships — the allowlist, not the filesystem, answers", async () => {
     for (const path of [
-      "/start/assets/welcome/nope.mp4",
       "/start/assets/img/nope.webp",
       "/start/assets/fonts/montserrat-italic.woff2",
     ]) {
@@ -2540,12 +2538,13 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       expect(plan.status, lang).toBe(200);
       const planHtml = await plan.text();
       expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      // The headline is the plan copy's own, in the asked language.
-      expect(planHtml, lang).toContain(escape(content.summary.lines[0]!));
+      // The cards are the plan copy's own, in the asked language.
+      expect(planHtml, lang).toContain(escape(planCopyFor(lang).everyDay));
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).signUpHeading));
+      // Arriving from the plan, the heading is the one that says what the account is for.
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).saveHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
       expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));
@@ -2622,10 +2621,9 @@ describe("the counter and Back (#53)", () => {
   // changed between the first question and the second, because only the first request resolved it.
   const BRITISH = { "accept-language": "en-GB,en;q=0.9" };
   async function walk(session: string, answers: Record<string, string | string[]>) {
-    // The progress a question shows is the DASH now — one lit segment per place already passed,
-    // the current one the wider segment. `lit` counts the lit ones; the same `on` class on every
-    // walk is the total not drifting.
-    const seen: { lit: number; total: number; id: string }[] = [];
+    // The progress a question shows is the one continuous bar; `lit` is how far it is filled.
+    const fill = (html: string): number => Number(html.match(/class="dash"[^>]*><i style="--from:[\d.]+%;--to:([\d.]+)%/)?.[1] ?? NaN);
+    const seen: { lit: number; id: string }[] = [];
     for (let i = 0; i < 25; i++) {
       const page = await get("/start/q", session, BRITISH);
       if (page.status === 303) return seen;
@@ -2633,8 +2631,7 @@ describe("the counter and Back (#53)", () => {
       const m = html.match(/name="prompt" value="([a-z_]+)"/);
       if (m === null) {
         // An interstitial: its Continue is a link, and its dash counts too.
-        const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-        seen.push({ lit: (segs.match(/class="on"/g) ?? []).length, total: (segs.match(/<i/g) ?? []).length, id: "(card)" });
+        seen.push({ lit: fill(html), id: "(card)" });
         const href = html.match(/<a[^>]*class="cta[^"]*"[^>]*href="([^"]+)"/)?.[1]
           ?? html.match(/<a[^>]*href="([^"]+)"[^>]*class="cta[^"]*"/)?.[1];
         if (href === undefined) throw new Error("a page with neither a prompt nor a continue");
@@ -2642,12 +2639,7 @@ describe("the counter and Back (#53)", () => {
         continue;
       }
       const id = m[1]!;
-      const segs = html.match(/class="dash"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
-      seen.push({
-        lit: (segs.match(/class="on"/g) ?? []).length,
-        total: (segs.match(/<i/g) ?? []).length,
-        id,
-      });
+      seen.push({ lit: fill(html), id });
       await post("/start/q", { prompt: id, answer: answers[id]! }, session);
     }
     throw new Error("onboarding did not finish");
@@ -2659,19 +2651,17 @@ describe("the counter and Back (#53)", () => {
       const seen = await walk(session, {
         ...ANSWERS, goal, target_weight_kg: goal === "gain" ? "90" : "70",
       });
-      // One segment count for the whole walk, and the lit half never shrinks.
-      expect(new Set(seen.map((s) => s.total)).size).toBe(1);
+      // The bar never shrinks.
       const lit = seen.map((s) => s.lit);
+      expect(lit.every(Number.isFinite)).toBe(true);
       expect([...lit].sort((a, b) => a - b)).toEqual(lit);
-      expect(lit[0]).toBe(0);
       expect(lit.at(-1)!).toBeGreaterThan(lit[0]!);
     });
   }
 
-  it("keeps one segment count after the goal on the maintain path", async () => {
+  it("never shrinks the bar on the maintain path", async () => {
     const seen = await walk(
       await signIn("counter-maintain", "google", BRITISH["accept-language"]), { ...ANSWERS, goal: "maintain" });
-    expect(new Set(seen.map((s) => s.total)).size).toBe(1);
     const lit = seen.map((s) => s.lit);
     expect([...lit].sort((a, b) => a - b)).toEqual(lit);
   });

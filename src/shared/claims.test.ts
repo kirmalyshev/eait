@@ -188,7 +188,9 @@ describe("every sentence this product ships", () => {
     for (const lang of LANGS) {
       const copy = PLAN_COPY[lang];
       if (!copy) continue;
-      expect(lintCopy({ ...copy }).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
+      const { people, ...words } = copy;
+      const forms = Object.fromEntries(Object.entries(people).map(([k, v]) => [`people.${k}`, v!]));
+      expect(lintCopy({ ...words, ...forms }).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
     }
   });
 
