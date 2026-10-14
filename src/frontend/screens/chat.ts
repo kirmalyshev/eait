@@ -13,6 +13,8 @@ import { updateCopyFor } from "../../shared/app/update-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { localDate } from "../../shared/dates.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
+import { foodSearchCopyFor } from "../../shared/app/food-search-copy.ts";
+import { foodSearchSheet } from "./food-search.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
@@ -695,6 +697,20 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     t.addEventListener("click", () => { closeLog(); go(); });
     return t;
   };
+  // The food search (#909): a sheet over the chat. A log lands in today's diary, so the thread is
+  // re-read when the sheet closes; "Tell {coach}" hands her words to the composer and sends them.
+  const openSearch = async (): Promise<void> => {
+    const day = await api<DayResponse>("/diary/day").catch(() => null);
+    let landed = false;
+    const sheet = foodSearchSheet({
+      lang, coachName: coachName(),
+      left: day === null ? null : day.targets.kcal - day.totals.kcal,
+      onTell: (q) => { words.value = q; comp.form.requestSubmit(); },
+      onLogged: () => { landed = true; },
+      onClose: () => { sheet.remove(); if (landed) void draw(); },
+    });
+    wrap.append(sheet);
+  };
   logBtn.addEventListener("click", () => {
     if (veil !== null) { closeLog(); return; }
     veil = el("div", "cp-veil");
@@ -702,7 +718,11 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", shellCopyFor(lang).logMeal);
     const row = el("div", "cp-wrow");
-    row.append(tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()), tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()));
+    row.append(
+      tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()),
+      tile("search", foodSearchCopyFor(lang).plusSearch, () => { void openSearch(); }),
+      tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()),
+    );
     // Voice (#570): only where the browser can listen, and only to START — a tap while listening is the mic round's own.
     if (voice !== null) row.append(tile("mic", shellCopyFor(lang).plusVoice, () => { words.focus(); voice.start(); }));
     menu.append(row, el("p", "cp-hint", COPY.plusHint));

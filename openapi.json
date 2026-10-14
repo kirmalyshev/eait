@@ -5413,7 +5413,7 @@
           "ref"
         ],
         "additionalProperties": false,
-        "description": "`POST /v1/foods/log`. `ref` is a `food_ref` id from  {@link  FoodSearchResponse } ; the kcal and macros are NOT in the request — the server reads them off the row, so a client cannot log a number the catalog does not carry. `grams` defaults to  {@link  FOOD_LOG_DEFAULT_GRAMS } . `clientId` is the replay key, as for every logging turn; `capturedAt` dates the meal."
+        "description": "`POST /v1/foods/log`. `ref` is a `food_ref` id from  {@link  FoodSearchResponse } ; the kcal and macros are NOT in the request — the server reads them off the row, so a client cannot log a number the catalog does not carry. `grams` defaults to `FOOD_LOG_DEFAULT_GRAMS` (`foods.ts`). `clientId` is the replay key, as for every logging turn; `capturedAt` dates the meal."
       },
       "FoodNutrient": {
         "type": "object",
