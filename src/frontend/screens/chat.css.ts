@@ -227,6 +227,32 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .jump .n { position: absolute; top: -6px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
   background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; }
 
+/* The food search sheet (#909): over the chat, the field and Cancel on top, rows below. */
+/* The column is 640 wide; the shadow is the page-wide backdrop, so no composer control shows beside it. */
+.fs { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column;
+  max-width: 640px; margin: 0 auto; padding: 16px 16px 0; overflow: hidden; box-shadow: 0 0 0 100vmax var(--bg); }
+.fs-head { display: flex; align-items: center; gap: 12px; }
+.fs-field { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-size: 16px; }
+.fs-close { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 16px; cursor: pointer; }
+.fs-line { margin: 10px 2px 0; font-size: 13px; color: var(--muted); }
+.fs-body { flex: 1; overflow-y: auto; margin-top: 10px; }
+.fs-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border: 0; border-top: 1px solid var(--hair);
+  background: none; width: 100%; text-align: left; color: var(--ink); font: inherit; }
+.fs-tell { cursor: pointer; }
+.fs-txt { flex: 1; min-width: 0; }
+.fs-txt b { font-weight: 600; font-size: 15px; }
+.fs-sub { font-size: 13px; color: var(--muted); }
+.fs-fail { font-size: 12px; color: var(--bad); margin-top: 3px; }
+.fs-add { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: none; cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.fs-add.fs-done { background: var(--accent); color: var(--surface); }
+.fs-add .ico { width: 18px; height: 18px; }
+.fs-none, .fs-failed { margin: 14px 2px 10px; font-size: 13px; color: var(--muted); }
+.fs-failed { color: var(--bad); }
+.fs-retry { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-weight: 600; }
+.fs-source { margin: 0; padding: 8px 2px 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
 /* The busy row ("web-chat-busy", #70): three dots that pulse in turn while the answer is out. */
 .thread .dots { display: flex; gap: 6px; padding: 6px 2px; }
 .thread .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint);

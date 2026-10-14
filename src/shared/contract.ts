@@ -1916,14 +1916,10 @@ export interface ProductResponse {
 /** Longest `q` the search accepts — a UUID-length term cannot match a name anyway. */
 export const MAX_FOOD_QUERY = 200;
 
-/** Grams of one catalog log: the app sends the named portion's weight, else {@link FOOD_LOG_DEFAULT_GRAMS}. */
-export const FOOD_LOG_DEFAULT_GRAMS = 100;
-export const FOOD_LOG_MAX_GRAMS = 5000;
-
 /**
  * `POST /v1/foods/log`. `ref` is a `food_ref` id from {@link FoodSearchResponse}; the kcal and
  * macros are NOT in the request — the server reads them off the row, so a client cannot log a
- * number the catalog does not carry. `grams` defaults to {@link FOOD_LOG_DEFAULT_GRAMS}.
+ * number the catalog does not carry. `grams` defaults to `FOOD_LOG_DEFAULT_GRAMS` (`foods.ts`).
  * `clientId` is the replay key, as for every logging turn; `capturedAt` dates the meal.
  */
 export interface FoodLogRequest {

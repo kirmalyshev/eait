@@ -267,3 +267,11 @@ export function normalizeBarcode(value: unknown): string | null {
   const digits = value.replace(/[\s-]/g, "");
   return /^[0-9]{6,14}$/.test(digits) ? digits : null;
 }
+
+/**
+ * Grams of one catalog log (`POST /v1/foods/log`): the app sends the named portion's weight, else
+ * the default. Here and not in `contract.ts` because `contract.ts` carries `ROUTES`, a value, and a
+ * browser bundle that imports this for a number must not pull the route table with it.
+ */
+export const FOOD_LOG_DEFAULT_GRAMS = 100;
+export const FOOD_LOG_MAX_GRAMS = 5000;
