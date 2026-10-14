@@ -16,11 +16,11 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
 import type { PushKind, SendKind, SendLogState } from "@eait/shared";
 import type {
-  DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealItem, MealQuestion,
+  DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealFocus, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
   OnboardingContentSet, Profile, Provider, PushTemplateRow, Struggle, StreakGoal,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PRODUCT_SOURCES, PROVIDERS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, STREAK_GOALS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -750,6 +750,8 @@ create index if not exists meals_user_date_idx on meals(user_id, date);
 -- The question still open on a meal. Nullable and unread by every query but the row's own read:
 -- a host that predates it has meals nobody was asked about, which is exactly what null means.
 alter table meals add column if not exists question jsonb;
+-- The phone break taken after the meal (ieat-app#2129): {minutes, completed}, null until one is recorded.
+alter table meals add column if not exists focus jsonb;
 
 -- The photo lives with the meal. user_id is on the row as well as reachable through the meal, so
 -- a read is meal_id AND user_id with no join, and the cascade from users erases it even if a
@@ -1226,7 +1228,9 @@ alter table users add column if not exists push_off_at timestamptz;
 -- code). source is written out as a check constraint, drop-and-add like llm_prompts_key_check,
 -- for the same reason: the enum is where a reviewer sees which licences are in the database, and
 -- 'fcdb' is in it before its first row because Switzerland's table wants written permission for
--- commercial use. 'curated' is the placeholder for a hand-maintained (restaurant) list.
+-- commercial use. 'curated' is the placeholder for a hand-maintained (restaurant) list; 'recipe'
+-- is fooddb's computed-dish layer — a row's licence is its ingredients' most restrictive, carried
+-- per row in attribution, so no single licence id names the source.
 --
 -- The eight macro columns are the app's own nutrient list — a catalog row can become a meal item
 -- without a unit conversion — and all nullable: sources differ wildly in completeness and a
@@ -1260,15 +1264,17 @@ create table if not exists food_ref (
 alter table food_ref add column if not exists attribution jsonb not null default '[]';
 alter table food_ref drop constraint if exists food_ref_source_check;
 alter table food_ref add constraint food_ref_source_check
-  check (source in ('bls', 'ciqual', 'cofid', 'fineli', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'curated'));
+  check (source in ('bls', 'ciqual', 'cofid', 'fineli', 'frida', 'fcdb', 'matvaretabellen', 'usda-foundation', 'usda-sr', 'usda-fndds', 'recipe', 'curated'));
 -- The search is a substring match over the three name columns, no index can serve it, and the
 -- table is single-digit thousands of rows: a scan is the right plan here.
 
 -- off_product is the BARCODED table: packaged products, keyed on the barcode itself (GTIN digits)
 -- because the scan, the dump ingest and the label-OCR write-back all address the same row that
--- way. source distinguishes 'off' (the Open Food Facts nightly dump, ODbL -- the UI owes it the
--- "Contains data from Open Food Facts" attribution in FOOD_ATTRIBUTION) from 'label-ocr' (a
--- phone's read of the actual label, written back so the next scan of the same barcode is a hit).
+-- way. source distinguishes 'off' (Open Food Facts -- dump or read-through, ODbL, the UI owes it
+-- the "Contains data from Open Food Facts" attribution in FOOD_ATTRIBUTION) from 'label-ocr' (a
+-- phone's read of the actual label, written back so the next scan of the same barcode is a hit)
+-- and from fooddb's CORE sources a barcode can still resolve to ('usda-branded' and the national
+-- tables in PRODUCT_SOURCES) — the row names the source the licence belongs to.
 -- Everything but the barcode is nullable by design: a real OFF row is often a name and seven
 -- label fields.
 create table if not exists off_product (
@@ -1295,7 +1301,7 @@ create table if not exists off_product (
 );
 alter table off_product drop constraint if exists off_product_source_check;
 alter table off_product add constraint off_product_source_check
-  check (source in ('off', 'label-ocr'));
+  check (source in (${PRODUCT_SOURCES.map((s) => `'${s}'`).join(", ")}));
 ${RLS_DDL}
 `;
 
@@ -1443,6 +1449,7 @@ function toMeal(r: MealRow, restrictions: readonly string[]): MealRecord {
     model: (r.model ?? null) as string | null,
     question: json<MealQuestion | null>(r.question, null),
     photos: num(r.photos),
+    focus: json<MealFocus | null>(r.focus, null),
   };
   return { ...meal, healthScore: healthScore(meal, restrictions) };
 }
@@ -1489,7 +1496,7 @@ const MEAL_COLUMNS: Record<string, string> = {
   items: "items", kcal: "kcal", protein_g: "protein_g", carbs_g: "carbs_g", fat_g: "fat_g",
   satfat_g: "satfat_g", fiber_g: "fiber_g", sugar_g: "sugar_g", sodium_mg: "sodium_mg",
   verdicts: "verdicts", notes: "notes", corrected: "corrected", date: "date",
-  question: "question", model: "model", confidence: "confidence",
+  question: "question", model: "model", confidence: "confidence", focus: "focus",
 };
 
 /**
@@ -3261,8 +3268,8 @@ export async function postgresStore(
 
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
-    async foodCandidates(words, limit) {
-      return foodIndex.candidates(words, limit);
+    async foodCandidates(words) {
+      return foodIndex.candidates(words);
     },
     async refreshFoodIndex() {
       const t0 = Date.now();
@@ -3333,8 +3340,9 @@ export async function postgresStore(
       for (let i = 0; i < products.length; i += 500) {
         const batch = products.slice(i, i + 500);
         // THE PRECEDENCE RULE, IN THE STATEMENT: a `label-ocr` row is a phone's read of the real
-        // package, so an `off` row may replace it only when the dump row carries a calorie figure —
-        // an empty OFF record never erases a contributed one. `label-ocr` rows always land.
+        // package, so a FETCHED row (`off` or a national table's, via the dump or the read-through)
+        // may replace it only when the fetched row carries a calorie figure — an empty record
+        // never erases a contributed one. `label-ocr` rows always land.
         const back = await sql`
           insert into off_product ${sql(batch as never)}
           on conflict (barcode) do update set
@@ -3347,8 +3355,8 @@ export async function postgresStore(
             nutriscore = excluded.nutriscore, nova_group = excluded.nova_group,
             ingredients = excluded.ingredients, image_url = excluded.image_url,
             data = excluded.data, updated_at = now()
-          where excluded.source <> 'off'
-             or off_product.source = 'off'
+          where excluded.source = 'label-ocr'
+             or off_product.source <> 'label-ocr'
              or excluded.kcal_per_100g is not null
           returning barcode`;
         written += back.length;

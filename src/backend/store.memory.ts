@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
+import { FOOD_SOURCE_IDS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, referralBonusEnd, healthScore, localDate, migrateActivityLevel, pushSenderOf, signsIn } from "@eait/shared";
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
@@ -1550,10 +1550,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     // ── The food catalog ────────────────────────────────────────────────────────────────────
 
-    async foodCandidates(words, limit) {
+    async foodCandidates(words) {
       // The same index the Postgres side answers from (#615), kept live by `putFoodRefs`.
       // Rows are frozen in the index, so callers share them instead of receiving clones.
-      return foodIndex.candidates(words, limit);
+      return foodIndex.candidates(words);
     },
     async refreshFoodIndex() {
       const t0 = Date.now();
@@ -1587,6 +1587,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async putFoodRefs(foodRows) {
+      // Postgres's food_ref_source_check, said again — and checked before any row lands, so a
+      // rejected batch is all-or-nothing here as it is in Postgres.
+      for (const row of foodRows)
+        if (!(FOOD_SOURCE_IDS as readonly string[]).includes(row.source))
+          throw new Error(`unknown food source: ${row.source}`);
       for (const row of foodRows) foodRefs.set(row.id, clone(row));
       foodIndex.upsert(foodRows);
       return foodRows.length;
@@ -1596,9 +1601,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       let written = 0;
       for (const row of products) {
         const existing = offProducts.get(row.barcode);
-        // The Postgres `where` clause, stated the same way: an `off` row may replace a
-        // `label-ocr` row only when the dump row carries a calorie figure.
-        if (existing && row.source === "off" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
+        // The Postgres `where` clause, stated the same way: a fetched row may replace a
+        // `label-ocr` row only when it carries a calorie figure.
+        if (existing && row.source !== "label-ocr" && existing.source === "label-ocr" && row.kcal_per_100g === null) continue;
         offProducts.set(row.barcode, clone(row));
         written++;
       }

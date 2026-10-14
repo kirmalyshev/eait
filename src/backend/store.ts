@@ -368,7 +368,7 @@ export interface ChatMessage {
 export type MealPatch = Partial<
   Pick<MealRecord,
     "items" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "satfat_g" | "fiber_g" | "sugar_g" |
-    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date" | "question" | "model" | "confidence">
+    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date" | "question" | "model" | "confidence" | "focus">
 >;
 
 /** One stored photo of a meal. `position` is its order on the plate, 0-based, as uploaded. */
@@ -1450,10 +1450,10 @@ export interface Store {
    * The rows an analyzer's item could be grounded in: an English name carrying EVERY word, as a
    * whole word or its plural, and all four macros present. Shortest name first, so the generic
    * entry ("Apples, raw") comes before the composites that contain it. The ranking is the engine's
-   * (`engine/ground.ts`); this only bounds the pool. Answered from an in-memory index built at
-   * boot, not a table scan (#615).
+   * (`engine/ground.ts`); this returns the WHOLE pool — the scorer decides, nothing is evicted by
+   * name length (#637). Answered from an in-memory index built at boot, not a table scan (#615).
    */
-  foodCandidates(words: string[], limit: number): Promise<FoodRef[]>;
+  foodCandidates(words: string[]): Promise<FoodRef[]>;
   /**
    * Rebuild the in-memory index `foodCandidates` answers from, from the table (#615). Called at
    * boot and after a snapshot load; rows written through `putFoodRefs` reach the index without
@@ -1471,9 +1471,9 @@ export interface Store {
    * Upsert products by `barcode`. Returns the number of rows written.
    *
    * One rule of precedence, stated HERE rather than by the callers: a `label-ocr` row is a phone's
-   * read of the actual package, so a dump row (`source: 'off'`) may overwrite it only when the
-   * dump row carries a calorie figure — an empty OFF row never displaces a contributed one. A
-   * `label-ocr` row always lands.
+   * read of the actual package, so a fetched row — a dump row or a fooddb read-through — may
+   * overwrite it only when the fetched row carries a calorie figure: an empty record never
+   * displaces a contributed one. A `label-ocr` row always lands.
    */
   putOffProducts(rows: OffProduct[]): Promise<number>;
 

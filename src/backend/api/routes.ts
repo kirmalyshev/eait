@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isMealUpdateRequest, isRedateMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
   type UnlinkResponse,
@@ -41,7 +41,7 @@ import {
   EMAIL_ADDRESS, normalizeEmail,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
-  reanalyzeMeal, redateMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
+  reanalyzeMeal, redateMeal, focusMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
   foodSearch, productByBarcode, redeemReferral, shareReferral,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
@@ -114,6 +114,7 @@ export const STREAM_KEEPALIVE_MS = 5_000;
 
 const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
 const REDATE_PATH = /^\/v1\/meals\/([^/]+)\/redate$/;
+const FOCUS_PATH = /^\/v1\/meals\/([^/]+)\/focus$/;
 /** `POST /v1/meals/:id/photos` — one segment shorter than the GET that reads one by position. */
 const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 /** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
@@ -938,6 +939,16 @@ export function createRouter(
           : json(result satisfies RedateMealResponse);
       }
 
+      const focusMatch = FOCUS_PATH.exec(pathname);
+      if (req.method === "POST" && focusMatch) {
+        const wait = limit(req, peer, "meal-focus", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body: unknown = await req.json();
+        if (!isFocusMealRequest(body)) return json({ error: "bad-focus" }, 400);
+        const meal = await focusMeal(deps, userId, decodeURIComponent(focusMatch[1]!), { minutes: body.minutes, completed: body.completed });
+        return meal ? json(meal) : json({ error: "not found" }, 404);
+      }
+
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);
       if (req.method === "DELETE" && mealMatch) {
         // The meal screen's delete (#61): the line's semantics under the meal's id. Unbilled,
@@ -1013,9 +1024,10 @@ export function createRouter(
 
       // ── The food catalog ──────────────────────────────────────────────────────────────────
       //
-      // Global reference data — the rows belong to nobody, so `userId` goes nowhere near the
-      // engine calls below; the bearer is only the door every route here stands behind. Unbilled,
-      // so per-address bounded like the other unbilled surfaces.
+      // Global reference data — the rows belong to nobody; the bearer is only the door every
+      // route here stands behind. The one `userId` below buys a `country` preference hint for
+      // the fooddb read-through, nothing scoped. Unbilled, so per-address bounded like the
+      // other unbilled surfaces.
       if (req.method === "GET" && pathname === ROUTES.foods) {
         const wait = limit(req, peer, "food-search", deps.config.linesRateLimitPerHour, HOUR);
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
@@ -1049,7 +1061,9 @@ export function createRouter(
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const barcode = normalizeBarcode(decodeURIComponent(productMatch[1]!));
         if (barcode === null) return json({ error: "bad-barcode" }, 400);
-        return json(await productByBarcode(deps, barcode) satisfies ProductResponse);
+        // userId goes in for the profile's `country` — the preference hint fooddb ranks records
+        // by — not to scope anything: the catalog stays global.
+        return json(await productByBarcode(deps, userId, barcode) satisfies ProductResponse);
       }
 
       // ── Diary ─────────────────────────────────────────────────────────────────────────────

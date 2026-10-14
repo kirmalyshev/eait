@@ -8,6 +8,7 @@ import type {
   ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,
   Struggle, StreakGoal, Units,
 } from "./types.ts";
+import { FOCUS_MINUTES } from "./types.ts";
 import type { Diet, MedicalTag } from "./targets.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
@@ -386,6 +387,11 @@ export const ROUTES = {
    * bounded by the chat re-date's own `MAX_DAY_OFFSET` — and the same answer: `MealRedated | TargetGone`.
    */
   mealRedate: (id: string) => `/v1/meals/${encodeURIComponent(id)}/redate`,
+  /**
+   * POST — record the phone break taken after this meal ({@link FocusMealRequest}; ieat-app#2129).
+   * Answers the meal, or 404 when it is not the caller's. Free for every user: no entitlement, no cap.
+   */
+  mealFocus: (id: string) => `/v1/meals/${encodeURIComponent(id)}/focus`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
@@ -1162,6 +1168,18 @@ export function isRedateMealRequest(body: unknown): body is RedateMealRequest {
 }
 
 export type RedateMealResponse = MealRedated | TargetGone;
+
+/** `POST /v1/meals/:id/focus` — a second write replaces the first. */
+export interface FocusMealRequest {
+  minutes: (typeof FOCUS_MINUTES)[number];
+  completed: boolean;
+}
+
+export function isFocusMealRequest(body: unknown): body is FocusMealRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  return FOCUS_MINUTES.some((m) => m === b.minutes) && typeof b.completed === "boolean";
+}
 
 // ── Push ────────────────────────────────────────────────────────────────────────────────────
 

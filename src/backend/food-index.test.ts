@@ -16,8 +16,8 @@ const ref = (name_en: string | null, over: Partial<FoodRef> = {}): FoodRef => ({
   ...over,
 } as FoodRef);
 
-const names = (idx: ReturnType<typeof buildFoodIndex>, words: string[], limit = 300) =>
-  idx.candidates(words, limit).map((f) => f.name_en);
+const names = (idx: ReturnType<typeof buildFoodIndex>, words: string[]) =>
+  idx.candidates(words).map((f) => f.name_en);
 
 describe("the food index answers the foodCandidates contract", () => {
   test("every word must appear, as a whole word or a plural", () => {
@@ -45,13 +45,27 @@ describe("the food index answers the foodCandidates contract", () => {
     expect(names(idx, ["noodles"])).toEqual(["Rice noodles, cooked"]);
   });
 
-  test("shortest name first, then alphabetical, bounded by limit", () => {
+  test("shortest name first, then alphabetical", () => {
     const idx = buildFoodIndex([
       ref("Rice, white, long-grain, regular, enriched, cooked"),
       ref("Rice, white, cooked"),
       ref("Rice, cooked"),
     ]);
-    expect(names(idx, ["rice", "cooked"], 2)).toEqual(["Rice, cooked", "Rice, white, cooked"]);
+    expect(names(idx, ["rice", "cooked"])).toEqual([
+      "Rice, cooked", "Rice, white, cooked", "Rice, white, long-grain, regular, enriched, cooked",
+    ]);
+  });
+
+  // #637: a frequent token (300+ rows carrying it) must not evict the long-named right row from
+  // the pool before the scorer sees it — "fried chicken" found 300 shorter "chicken" rows first.
+  test("the pool is the whole intersection, not the first N by name length", () => {
+    const idx = buildFoodIndex([
+      ref("Chicken, broilers or fryers, meat only, cooked, fried", { id: "usda-sr:right" }),
+      ...Array.from({ length: 400 }, (_, i) => ref(`Chicken c${i}`, { id: `bls:c${i}` })),
+    ]);
+    const pool = idx.candidates(["chicken"]);
+    expect(pool.length).toBe(401);
+    expect(pool.some((f) => f.id === "usda-sr:right")).toBe(true);
   });
 
   test("a row without every macro is not a candidate; a row with no English name is not either", () => {

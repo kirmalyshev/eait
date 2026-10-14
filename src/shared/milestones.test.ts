@@ -6,7 +6,7 @@ const meal = (date: string, kcal: number, nameEn: string[] = []): MilestoneMeal 
   ({ date, createdDate: date, createdHour: 12, kcal, nameEn, healthScore: null });
 const inputs = (over: Partial<MilestoneInputs> = {}): MilestoneInputs => ({
   today: TODAY, floorKcal: 1200, targetKcal: 1800, streakLongest: 0, meals: [], weights: [], workouts: [],
-  dayScores: new Map(), ...over,
+  dayScores: new Map(), focusCompleted: 0, ...over,
 });
 
 describe("evaluate", () => {
@@ -43,5 +43,14 @@ describe("evaluate", () => {
 
   it("ignores meals dated after today", () => {
     expect(evaluate(inputs({ meals: [meal("2026-10-12", 1500)] }))).toEqual([]);
+  });
+});
+
+describe("phone-break badges (ieat-app#2129)", () => {
+  it("1, 10 and 50 completed focus meals earn 39, 40 and 41", () => {
+    expect(evaluate(inputs({ focusCompleted: 0 }))).toEqual([]);
+    expect(evaluate(inputs({ focusCompleted: 1 }))).toEqual(["39-present"]);
+    expect(evaluate(inputs({ focusCompleted: 10 }))).toEqual(["39-present", "40-unplugged"]);
+    expect(evaluate(inputs({ focusCompleted: 50 }))).toEqual(["39-present", "40-unplugged", "41-slow-food"]);
   });
 });
