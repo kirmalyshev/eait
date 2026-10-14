@@ -347,8 +347,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
           const r = await api<FoodSearchResponse>(`/foods?q=${encodeURIComponent(q)}&limit=10`);
           if (mine !== seq) return;
           list.replaceChildren(...(r.foods.length === 0 ? [el("p", "t13 m", mc.phoneSwapNone)] : r.foods.map((f) => {
-            const row = el("button", "row between ingswaprow", f.name) as HTMLButtonElement;
+            const row = el("button", "row between ingswaprow") as HTMLButtonElement;
             row.type = "button";
+            row.append(el("span", "", f.name));
+            if (f.kcal_per_100g !== null) {
+              row.append(el("span", "t13 m num",
+                `${kn(Math.round(f.kcal_per_100g))}${UNIT_KCAL[lang]} / ${fill(mc.phoneGrams, { n: n(100) })}`));
+            }
             row.addEventListener("click", () => {
               enqueueUpdate(meal, { kind: "ingredients", edit: { swap: { index, ref: f.id } } });
               closeOverlay();
