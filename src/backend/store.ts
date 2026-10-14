@@ -17,7 +17,7 @@ import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker, PushTemplateRow } from "@eait/shared";
-import type { FoodRef, OffProduct } from "@eait/shared";
+import type { FoodRef, OffProduct, SavedMeal } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
 /**
@@ -1561,6 +1561,19 @@ export interface Store {
    * a failure and carries on, because a lost measurement is worth less than the correction itself.
    */
   recordPortionCorrections(userId: string, rows: PortionCorrection[]): Promise<void>;
+
+  /**
+   * Saved meals (#907), scoped by `userId` like every other row. `saveMeal` is idempotent per
+   * `source_meal_id`: a second save of the same meal answers the row already there. It does NOT
+   * reference `meals` — deleting the source meal never touches a saved one, and deleting a saved
+   * one never touches a meal logged from it.
+   */
+  saveMeal(userId: string, row: Omit<SavedMeal, "created_at">): Promise<SavedMeal>;
+  /** Newest first. */
+  listSavedMeals(userId: string): Promise<SavedMeal[]>;
+  getSavedMeal(userId: string, id: string): Promise<SavedMeal | null>;
+  /** True when a row of this account's went. Another account's id answers false. */
+  deleteSavedMeal(userId: string, id: string): Promise<boolean>;
   /**
    * What this user's own corrections say about their portions, most corrected first.
    *

@@ -14,7 +14,7 @@
 import { SQL, type TransactionSQL } from "bun";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PgBoss, fromBunSql } from "pg-boss";
-import type { PushKind, SendKind, SendLogState } from "@eait/shared";
+import type { PushKind, SavedMeal, SendKind, SendLogState } from "@eait/shared";
 import type {
   DayTotals, FoodNutrient, FoodPortion, FoodRef, HealthDay, Lang, MealFocus, MealItem, MealQuestion,
   MealRecord, MealVerdicts, NotificationCopySet, OffProduct,
@@ -96,6 +96,7 @@ export const RLS_TABLES: Readonly<Record<string, string>> = {
   pendings: "user_id",
   pairing_codes: "user_id",
   portion_corrections: "user_id",
+  saved_meals: "user_id",
   analyses: "user_id",
   llm_calls: "user_id",
   onboarding_events: "user_id",
@@ -833,6 +834,30 @@ create table if not exists portion_corrections (
 );
 create index if not exists portion_corrections_user_name_idx on portion_corrections(user_id, name_en);
 
+-- Saved meals (#907): a named composition the account bookmarked to log again. source_meal_id is
+-- text with NO foreign key to meals on purpose: deleting the meal it came from must not touch it,
+-- and it only exists so saving the same meal twice answers the row already there. The nutrient
+-- columns are the server's snapshot at save time; verdicts are not stored — they are computed at
+-- every re-log.
+create table if not exists saved_meals (
+  id             uuid primary key,
+  user_id        uuid not null references users(id) on delete cascade,
+  source_meal_id text not null,
+  name           text not null,
+  items          jsonb not null default '[]',
+  kcal           double precision not null default 0,
+  protein_g      double precision not null default 0,
+  carbs_g        double precision not null default 0,
+  fat_g          double precision not null default 0,
+  satfat_g       double precision not null default 0,
+  fiber_g        double precision not null default 0,
+  sugar_g        double precision not null default 0,
+  sodium_mg      double precision not null default 0,
+  created_at     timestamptz not null default now(),
+  unique (user_id, source_meal_id)
+);
+create index if not exists saved_meals_user_idx on saved_meals(user_id, created_at desc);
+
 create table if not exists analyses (
   id      bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
@@ -1377,6 +1402,15 @@ const toOffProduct = (r: Record<string, unknown>): OffProduct => ({
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 const nullableNum = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 
+function savedMealFrom(r: Record<string, unknown>): SavedMeal {
+  return {
+    id: String(r.id), source_meal_id: String(r.source_meal_id), name: String(r.name), items: json<MealItem[]>(r.items, []),
+    kcal: num(r.kcal), protein_g: num(r.protein_g), carbs_g: num(r.carbs_g), fat_g: num(r.fat_g),
+    satfat_g: num(r.satfat_g), fiber_g: num(r.fiber_g), sugar_g: num(r.sugar_g), sodium_mg: num(r.sodium_mg),
+    created_at: new Date(String(r.created_at)).toISOString(),
+  };
+}
+
 function toHealthDay(r: Record<string, unknown>): HealthDay {
   const day = emptyHealthDay(String(r.date));
   for (const f of HEALTH_FIELDS) {
@@ -1743,6 +1777,10 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   getPhoto: 0,
   totalsSince: 0,
   recordPortionCorrections: 0,
+  saveMeal: 0,
+  listSavedMeals: 0,
+  getSavedMeal: 0,
+  deleteSavedMeal: 0,
   portionPriors: 0,
   appendChat: 0,
   chatBefore: 0,
@@ -2594,6 +2632,10 @@ export async function postgresStore(
             and client_id not in (select client_id from turns where user_id = ${intoUserId})`;
         // What the app has learned about this person's portions is learned before they sign in.
         await tx`update portion_corrections set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // A source meal the real account already saved keeps ITS row; the other goes with the account.
+        await tx`
+          update saved_meals set user_id = ${intoUserId} where user_id = ${fromUserId}
+            and source_meal_id not in (select source_meal_id from saved_meals where user_id = ${intoUserId})`;
         await tx`update chat_messages set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
         await tx`
@@ -3610,6 +3652,35 @@ export async function postgresStore(
         where user_id = ${userId} and date >= ${since}
         order by date desc`;
       return rows.map((r: Record<string, unknown>) => ({ date: String(r.date), kg: num(r.kg) }));
+    },
+
+    async saveMeal(userId, row) {
+      // `items` bound as the object — see `insertMeal` for why `JSON.stringify` stored text.
+      const rows = await sql`
+        insert into saved_meals (id, user_id, source_meal_id, name, items, kcal, protein_g, carbs_g, fat_g,
+                                 satfat_g, fiber_g, sugar_g, sodium_mg)
+        values (${row.id}, ${userId}, ${row.source_meal_id}, ${row.name}, ${row.items}, ${row.kcal},
+                ${row.protein_g}, ${row.carbs_g}, ${row.fat_g}, ${row.satfat_g}, ${row.fiber_g},
+                ${row.sugar_g}, ${row.sodium_mg})
+        on conflict (user_id, source_meal_id) do update set user_id = saved_meals.user_id
+        returning *`;
+      return savedMealFrom(rows[0] as Record<string, unknown>);
+    },
+
+    async listSavedMeals(userId) {
+      const rows = await sql`
+        select * from saved_meals where user_id = ${userId} order by created_at desc, id`;
+      return rows.map((r: Record<string, unknown>) => savedMealFrom(r));
+    },
+
+    async getSavedMeal(userId, id) {
+      const rows = await sql`select * from saved_meals where id = ${id} and user_id = ${userId}`;
+      return rows[0] ? savedMealFrom(rows[0] as Record<string, unknown>) : null;
+    },
+
+    async deleteSavedMeal(userId, id) {
+      const rows = await sql`delete from saved_meals where id = ${id} and user_id = ${userId} returning id`;
+      return rows.length > 0;
     },
 
     async recordPortionCorrections(userId, rows) {

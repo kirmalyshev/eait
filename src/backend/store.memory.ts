@@ -8,7 +8,7 @@ import { FOOD_SOURCE_IDS, REFERRAL_ALPHABET, REFERRAL_CODE_LENGTH, dateMinus, re
 import type {
   DayTotals, FoodRef, HealthDay, Lang, MealRecord, NotificationCopySet, OffProduct,
   OnboardingContentSet, OnboardingEvent,
-  Profile, Provider, PushKind, PushTemplateRow,
+  Profile, Provider, PushKind, PushTemplateRow, SavedMeal,
 } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
@@ -28,6 +28,12 @@ import { type ChatMessage,
 type StoredEvent = OnboardingEvent & { userId: string; receivedAt: number };
 
 /** The middle value, or the mean of the two middles. Null for an empty sample. */
+/** A saved row as the port returns it: without the account key the store keeps. */
+function strip(s: SavedMeal & { userId: string }): SavedMeal {
+  const { userId: _u, ...meal } = s;
+  return { ...meal, items: meal.items.map((i) => ({ ...i })) };
+}
+
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
   const s = [...values].sort((a, b) => a - b);
@@ -309,6 +315,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const jobs = new Map<string, JobRecord & { photos: { mime: string; bytes: Uint8Array }[]; group?: string }>();
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
+  const savedMeals: (SavedMeal & { userId: string })[] = [];
   const identities: {
     userId: string; provider: Provider; subject: string; linkedAt: string; email: string | null;
   }[] = [];
@@ -460,6 +467,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const [token, row] of pushTokens) if (row.userId === userId) pushTokens.delete(token);
     for (let i = portionCorrections.length - 1; i >= 0; i--) {
       if (portionCorrections[i]!.userId === userId) portionCorrections.splice(i, 1);
+    }
+    for (let i = savedMeals.length - 1; i >= 0; i--) {
+      if (savedMeals[i]!.userId === userId) savedMeals.splice(i, 1);
     }
     // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
     // left them would make the settings screen's promise false in the one place it matters most.
@@ -896,6 +906,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       // What the app has learned about this person's portions is learned before they sign in.
       for (const c of portionCorrections) if (c.userId === fromUserId) c.userId = intoUserId;
+      // A source meal the real account already saved keeps ITS row; the other goes with the account.
+      for (const s of savedMeals) {
+        if (s.userId === fromUserId && !savedMeals.some((o) => o.userId === intoUserId && o.source_meal_id === s.source_meal_id)) {
+          s.userId = intoUserId;
+        }
+      }
       for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
       // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
       if (firstVerdictSpoken.delete(fromUserId)) firstVerdictSpoken.add(intoUserId);
@@ -1777,6 +1793,30 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .filter((w) => w.userId === userId && w.date >= since)
         .map(({ date, kg }) => ({ date, kg }))
         .sort((a, b) => b.date.localeCompare(a.date));
+    },
+
+    async saveMeal(userId, row) {
+      const had = savedMeals.find((s) => s.userId === userId && s.source_meal_id === row.source_meal_id);
+      if (had) return strip(had);
+      const stored = { ...row, items: row.items.map((i) => ({ ...i })), created_at: new Date().toISOString(), userId };
+      savedMeals.push(stored);
+      return strip(stored);
+    },
+
+    async listSavedMeals(userId) {
+      return savedMeals.filter((s) => s.userId === userId).map(strip).reverse();
+    },
+
+    async getSavedMeal(userId, id) {
+      const s = savedMeals.find((m) => m.userId === userId && m.id === id);
+      return s ? strip(s) : null;
+    },
+
+    async deleteSavedMeal(userId, id) {
+      const i = savedMeals.findIndex((m) => m.userId === userId && m.id === id);
+      if (i < 0) return false;
+      savedMeals.splice(i, 1);
+      return true;
     },
 
     async recordPortionCorrections(userId, rows) {
