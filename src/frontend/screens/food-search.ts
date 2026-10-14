@@ -12,6 +12,8 @@ import { wholeNumbers } from "../../shared/lang.ts";
 import type { Lang } from "../../shared/types.ts";
 import { ApiError, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { ico } from "../../shared/ui/kit.ts";
+import { kitEl } from "../kit.ts";
 import { COPY, el } from "../shell.ts";
 
 export interface FoodSearchOpts {
@@ -59,9 +61,11 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
   const tellRow = (q: string): HTMLElement => {
     const row = el("button", "fs-row fs-tell") as HTMLButtonElement;
     row.type = "button";
+    const disc = el("span", "fs-disc");
+    disc.append(kitEl(ico("chat")));
     const txt = el("div", "fs-txt");
     txt.append(el("b", "", fill(c.tell, { q })));
-    row.append(txt, el("i", "ico i-chevron-right"));
+    row.append(disc, txt, el("i", "ico i-chevron-right"));
     row.addEventListener("click", () => { o.onClose(); o.onTell(q); });
     return row;
   };
