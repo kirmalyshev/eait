@@ -25,7 +25,7 @@ import {
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushConsentRequest, isPushDeliveredRequest, isPushOpenRequest, isPushTokenRequest, pushTokenFrom, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
-  MAX_FOOD_QUERY, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
+  MAX_FOOD_QUERY, FOOD_LOG_MAX_GRAMS, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
   type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
 import { narrowLang } from "@eait/shared";
@@ -34,7 +34,7 @@ import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
@@ -1038,6 +1038,22 @@ export function createRouter(
         if (q.length > MAX_FOOD_QUERY) return json({ error: "q too long" }, 400);
         const askLimit = Number(url.searchParams.get("limit"));
         return json(await foodSearch(deps, q, Number.isInteger(askLimit) && askLimit > 0 ? askLimit : undefined) satisfies FoodSearchResponse);
+      }
+      if (req.method === "POST" && pathname === ROUTES.foodLog) {
+        // A write, so it is per-ADDRESS bounded like the unbilled meal edit; it calls no model.
+        const wait = limit(req, peer, "meal-edit", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+        const ref = body?.ref;
+        const grams = body?.grams;
+        if (typeof ref !== "string" || ref === "" || ref.length > MAX_FOOD_QUERY) return json({ error: "bad-food" }, 400);
+        if (grams !== undefined && (typeof grams !== "number" || !Number.isFinite(grams) || grams <= 0 || grams > FOOD_LOG_MAX_GRAMS)) {
+          return json({ error: "bad-food" }, 400);
+        }
+        const fields = turnFields(turnKey(req) ?? body?.clientId, body?.capturedAt);
+        const res = await logFoodMeal(deps, userId, { ref, grams, ...fields });
+        if (res.kind === "unknown-food") return json({ error: "unknown-food" }, 404);
+        return res.kind === "logged" ? json(res) : refusal(res);
       }
       const productMatch = /^\/v1\/products\/([^/]+)$/.exec(pathname);
       if (req.method === "GET" && productMatch) {

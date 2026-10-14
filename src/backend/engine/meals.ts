@@ -18,16 +18,16 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
+  FOOD_LOG_DEFAULT_GRAMS, FOOD_LOG_MAX_GRAMS, LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
   mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
   kcalNumbers, verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
-import { catalogMicros, groundWhenOn, recomputeFromSnapshot } from "./ground.ts";
+import { catalogMicros, groundWhenOn, mealFromFood, recomputeFromSnapshot } from "./ground.ts";
 import { switchOn } from "./switches.ts";
-import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
+import { charge, checkCaps, checkFreeLog, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
@@ -1069,4 +1069,66 @@ async function buildRepertoire(deps: EngineDeps, userId: string, today: string):
     }
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([name]) => name);
+}
+
+/**
+ * One catalog row logged as a meal — the app's food search, one tap. NO model call and NO sample spent, but behind the paywall like a photo (`checkFreeLog`):
+ * the numbers are the row's per-100 g scaled to `grams` (`mealFromFood`), read here and never from
+ * the request, and the verdicts go through `gatedVerdicts` like every other write. Run through
+ * `once` with no model calls, so a re-sent tap replays instead of logging twice.
+ */
+export async function logFoodMeal(
+  deps: EngineDeps,
+  userId: string,
+  input: { ref: string; grams?: number | undefined; clientId?: string | undefined; capturedAt?: string | undefined },
+): Promise<MealLogged | Refusal | { kind: "unknown-food" }> {
+  return once(deps, userId, input.clientId, 0, async (d) => {
+    const profile = await d.store.getProfile(userId);
+    if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" } as const;
+    const refused = await checkFreeLog(d, userId);
+    if (refused) return refused;
+    const food = await d.store.foodById(input.ref);
+    const grams = Math.round(input.grams ?? FOOD_LOG_DEFAULT_GRAMS);
+    if (!food || !(grams > 0) || grams > FOOD_LOG_MAX_GRAMS) return { kind: "unknown-food" } as const;
+    const lang = profile.lang;
+    const name = (lang === "de" ? food.name_de : lang === "en" ? food.name_en : food.names[lang]) ?? food.name;
+    const analysis = mealFromFood(food, grams, name);
+    if (!analysis) return { kind: "unknown-food" } as const;
+
+    const eaten = eatenAt(input.capturedAt);
+    const date = localDate(d.config.timezone, eaten);
+    const verdicts = await gatedVerdicts(d, userId, analysis);
+    const record: MealRecord = {
+      ...analysis,
+      id: crypto.randomUUID(),
+      user_id: userId,
+      ts: eaten.toISOString(),
+      date,
+      verdicts,
+      healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
+      corrected: false,
+      model: null,
+      question: null,
+    };
+    await d.store.insertMeal(record);
+    await evaluateMilestones(d, userId);
+    const totals = sumTotals(await d.store.mealsForDate(userId, date));
+    await remember(d, userId, async () => {
+      const greeting = await firstVerdict(d, userId, profile, record, totals, "text");
+      return {
+        lines: [
+          { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" },
+          ...greeting.lines,
+          ...(greeting.lines.length === 0 ? await afterLog(d, userId, record, totals) : []),
+        ],
+        ...(greeting.undo ? { undo: greeting.undo } : {}),
+      };
+    });
+    return {
+      kind: "logged", mealId: record.id,
+      analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
+      totals, date, hint: hintFor(analysis),
+      ...verdictWordsFor(record.verdicts, lang),
+    } satisfies MealLogged;
+  });
 }

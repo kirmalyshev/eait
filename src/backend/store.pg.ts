@@ -1653,6 +1653,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── The food catalog: global reference data, like the copy tables above.
   searchFoods: "unscoped",
+  foodById: "unscoped",
   // `foodCandidates` reads only the in-memory index (#615) — no table, so no transaction.
   foodCandidates: "raw",
   // `food_ref` is nobody's rows, so the rebuild over the whole table is unscoped too.
@@ -3293,6 +3294,11 @@ export async function postgresStore(
           ), length(name), name
         limit ${limit}`;
       return rows.map(toFoodRef);
+    },
+
+    async foodById(id) {
+      const rows = await sql`select * from food_ref where id = ${id}`;
+      return rows[0] ? toFoodRef(rows[0]) : null;
     },
 
     async offProductByBarcode(barcode) {

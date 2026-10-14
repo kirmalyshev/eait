@@ -4007,6 +4007,99 @@
         ]
       }
     },
+    "/v1/foods/log": {
+      "post": {
+        "operationId": "post_foodLog",
+        "summary": "Log one catalog row as a meal — nothing is estimated and no model runs. The numbers are the row's per-100 g scaled to `grams` (default 100), read server-side.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodLogRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealLogged"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/products/{barcode}": {
       "get": {
         "operationId": "get_product",
@@ -5299,6 +5392,28 @@
         ],
         "additionalProperties": false,
         "description": "The citation a surface must show beside a source's data — `source` to name the database, `citation` the words its licence asks for, `url` the link-back."
+      },
+      "FoodLogRequest": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "grams": {
+            "type": "number"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "capturedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/foods/log`. `ref` is a `food_ref` id from  {@link  FoodSearchResponse } ; the kcal and macros are NOT in the request — the server reads them off the row, so a client cannot log a number the catalog does not carry. `grams` defaults to  {@link  FOOD_LOG_DEFAULT_GRAMS } . `clientId` is the replay key, as for every logging turn; `capturedAt` dates the meal."
       },
       "FoodNutrient": {
         "type": "object",
