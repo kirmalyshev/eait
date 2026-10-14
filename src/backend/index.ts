@@ -193,6 +193,8 @@ const deps: EngineDeps = {
           pricePerMTok: config.llmPricePerMTok,
           timeoutMs: config.llmTimeoutMs,
           maxTokens: config.llmMaxTokens,
+          routeMaxTokens: config.llmRouteMaxTokens,
+          routeStallMs: config.llmRouteStallMs,
           // The one place the transport is joined to the store. It is a function rather than a value
           // because an edit must be live without a restart, and it is `loadPrompts` rather than a
           // bare `store.getPrompts` because that function is the one that cannot throw: an empty
