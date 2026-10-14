@@ -1,10 +1,11 @@
 // One barcoded product from fooddb, fetched live — the read-through half of the OFF layer (#639).
 //
-// `snapshot-api.ts` pulls the whole catalog once a day; this answers a single barcode that
-// `off_product` missed, on the scan path — so it is held to a SHORT timeout and a 404 is an
-// ordinary answer, not an error. `include=off` asks for the core+off layers, the only way a
-// barcode the core tables also know (an fdc branded row) is found. `country` is a preference
-// hint only: a fooddb without the parameter ignores the query, so the call works either way.
+// `snapshot-api.ts` pulls the whole catalog on a new `built_at` (checked hourly); this answers a
+// single barcode that `off_product` missed, on the scan path — so it is held to a SHORT timeout
+// and a 404 is an ordinary answer, not an error. `include=off` asks for the core+off layers, the
+// only way a barcode the core tables also know (an fdc branded row) is found. `country` is a
+// preference hint only: a fooddb without the parameter ignores the query, so the call works
+// either way.
 // The key travels in the Authorization header and nowhere else; no message here includes it,
 // a header or the URL's query.
 

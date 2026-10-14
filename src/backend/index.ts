@@ -215,6 +215,7 @@ const deps: EngineDeps = {
 // DST drift is visible to the people receiving it, and the only thing that can see this one
 // drift is a row that leaves a day later than it might have.
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 // How long an account nobody can reach again is kept (#106): `/start` mints one at the first
 // onboarding answer and its cookie dies with the browser, so an abandoned walk leaves a row
 // holding body facts forever unless something sweeps it. A constant, not a setting — the
@@ -264,8 +265,9 @@ const sweepHealthRetention = async () => {
 //
 // `food_ref` follows fooddb's single current snapshot (ieat-app#1778, eait#649), keyed on its
 // `built_at` — a rebuild of the same day is new data. A no-op without
-// EAIT__BACKEND__FOODDB_READ_KEY, which is also how it stays off under --demo. Same triggers as the
-// sweep above: the leader at takeover and once a day while held. `refreshCatalog` never throws and
+// EAIT__BACKEND__FOODDB_READ_KEY, which is also how it stays off under --demo. The leader runs it
+// at takeover and hourly while held: each pass is a cheap `built_at` list call, and the ~45 MB
+// export downloads only on a new build. `refreshCatalog` never throws and
 // never puts the key in a message; the guard only stops a slow load overlapping the next trigger.
 let catalogBuiltAt: string | undefined;
 let catalogBusy = false;
@@ -350,7 +352,7 @@ const elect = async (): Promise<void> => {
 await elect();
 setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
 setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
-setInterval(() => { if (leader) void refreshFoodCatalog(); }, DAY_MS).unref?.();
+setInterval(() => { if (leader) void refreshFoodCatalog(); }, HOUR_MS).unref?.();
 // The matcher index is per-PROCESS, but the snapshot load is leader-only: every replica rebuilds
 // its own once a day, so a non-leader's index is never older than a day plus a boot.
 setInterval(() => {

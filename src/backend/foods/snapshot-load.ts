@@ -1,4 +1,4 @@
-// A snapshot's NDJSON text into `food_ref`: the one loop the script and the daily refresh share.
+// A snapshot's NDJSON text into `food_ref`: the one loop the script and the catalog refresh share.
 
 import type { FoodRef } from "../../shared/index.ts";
 import type { Store } from "../store.ts";
