@@ -74,6 +74,9 @@ export const youCss = `
 .you .urows [hidden] { display: none; }
 .you .urows .opt.sw { align-items: center; padding: 13px 0; font-size: 15px; }
 .you .urows .opt .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.you .urows > .sub { font-size: 12px; color: var(--muted); padding: 0 0 8px; }
+.you .urows .opt .tm { display: block; margin-top: 6px; font: inherit; font-size: 14px; color: var(--ink);
+  background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; min-height: 32px; }
 .you .urows .swt { margin-left: auto; width: 51px; height: 31px; border-radius: 16px; flex: 0 0 51px;
   position: relative; background: var(--line); border: 0; padding: 0; margin: 0 0 0 auto; min-height: 31px; cursor: pointer; }
 .you .urows .swt[aria-checked="true"] { background: var(--accent); }

@@ -17,7 +17,7 @@ import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
   OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker, PushTemplateRow } from "@eait/shared";
-import type { FoodRef, OffProduct, SavedMeal } from "@eait/shared";
+import type { FoodRef, MealReminders, OffProduct, SavedMeal } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
 /**
@@ -1064,6 +1064,9 @@ export interface Store {
   setPushOff(userId: string, off: boolean): Promise<void>;
   /** Scoped. On stamps now unless already set (the first moment stands); off clears it. */
   setPushOffers(userId: string, on: boolean): Promise<void>;
+  /** Scoped. The per-meal reminder settings the account chose, or null while it never chose (the defaults apply). */
+  mealRemindersOf(userId: string): Promise<MealReminders | null>;
+  setMealReminders(userId: string, settings: MealReminders): Promise<void>;
   /** What is stored for the account, or null when there is no such account. For the audit surface and tests. */
   consentOf(userId: string): Promise<{ termsAcceptedAt: string | null; marketingConsentAt: string | null } | null>;
 

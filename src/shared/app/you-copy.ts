@@ -25,6 +25,8 @@ import { SHELL_COPY, shellCopyFor } from "./shell-copy.ts";
 import { SIGNUP_COPY, signupCopyFor } from "./signup-copy.ts";
 
 export interface YouCopy {
+  /** Per-meal reminders (#902): the Profile row, the page's section, its rule, and the web's one-line note. */
+  reminders: { row: string; beforeMeals: string; note: string; webNote: string; evening: string; eveningSub: string };
   // ── The screen both clients draw (web/you.html, phone/you.html) ──────────────────────────
   /**
    * The header's fact line under the name: "32 · 172cm · high cholesterol declared".
@@ -363,6 +365,7 @@ export interface YouCopy {
 
 export const YOU_COPY: Localized<YouCopy> = {
   en: {
+    reminders: { row: "Reminders", beforeMeals: "Before meals", note: "A reminder comes only if that meal isn't logged by then.", webNote: "Reminders arrive on your iPhone.", evening: "Evening line, 20:30", eveningSub: "Today against the plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -499,6 +502,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   fr: {
+    reminders: { row: "Rappels", beforeMeals: "Avant les repas", note: "Un rappel n'arrive que si ce repas n'est pas encore enregistré.", webNote: "Les rappels arrivent sur ton iPhone.", evening: "Message du soir, 20 h 30", eveningSub: "Ta journée face au plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -635,6 +639,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   de: {
+    reminders: { row: "Erinnerungen", beforeMeals: "Vor den Mahlzeiten", note: "Du wirst nur erinnert, wenn die Mahlzeit bis dahin nicht eingetragen ist.", webNote: "Erinnerungen bekommst du auf dem iPhone.", evening: "Tageszusammenfassung, 20:30", eveningSub: "Dein Tag im Vergleich zum Plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -771,6 +776,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   it: {
+    reminders: { row: "Promemoria", beforeMeals: "Prima dei pasti", note: "Il promemoria arriva solo se quel pasto non è ancora registrato.", webNote: "I promemoria arrivano sul tuo iPhone.", evening: "Messaggio serale, 20:30", eveningSub: "La giornata rispetto al piano." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -907,6 +913,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   es: {
+    reminders: { row: "Recordatorios", beforeMeals: "Antes de las comidas", note: "Solo te avisamos si esa comida aún no está registrada a esa hora.", webNote: "Los recordatorios llegan a tu iPhone.", evening: "Resumen de la noche, 20:30", eveningSub: "Tu día frente al plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1043,6 +1050,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   vi: {
+    reminders: { row: "Nhắc nhở", beforeMeals: "Trước bữa ăn", note: "Chỉ nhắc khi bạn chưa ghi bữa đó.", webNote: "Nhắc nhở sẽ đến trên iPhone của bạn.", evening: "Tóm tắt buổi tối, 20:30", eveningSub: "So với kế hoạch hôm nay." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1179,6 +1187,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   id: {
+    reminders: { row: "Pengingat", beforeMeals: "Sebelum makan", note: "Pengingat hanya muncul kalau makanan itu belum kamu catat.", webNote: "Pengingat masuk ke iPhone-mu.", evening: "Pesan malam, 20:30", eveningSub: "Hari ini dibanding rencanamu." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1315,6 +1324,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   ru: {
+    reminders: { row: "Напоминания", beforeMeals: "Перед едой", note: "Напомним, только если этот приём пищи ещё не записан.", webNote: "Напоминания приходят на твой iPhone.", evening: "Вечернее сообщение, 20:30", eveningSub: "День в сравнении с планом." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",

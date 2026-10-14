@@ -29,6 +29,7 @@ const WEB_MODULES = new Set([
   "mascot.ts",
   "types.ts",
   "dates.ts",
+  "meal-reminders.ts",
   "budget.ts",
   "meal-edit.ts",      // the grams→kcal rescale and the PATCH body (#188) — pure, contract+types
   "meal-names.ts",     // what a meal is called on one line — pure

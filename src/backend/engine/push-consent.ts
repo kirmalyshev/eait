@@ -7,7 +7,7 @@
 // allowed, the default). Off, the account is sent NO push of any kind: every sender reads its
 // devices through `pushDevices`, so an opted-out account is skipped before any slot is claimed.
 
-import type { PushConsentRequest, PushConsentResponse } from "@eait/shared";
+import { DEFAULT_MEAL_REMINDERS, type PushConsentRequest, type PushConsentResponse } from "@eait/shared";
 import type { PushToken } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
@@ -15,13 +15,15 @@ export async function pushConsent(deps: EngineDeps, userId: string): Promise<Pus
   const at = await deps.store.pushOffersOf(userId);
   const { pushEnabled, webPushVapidPublicKey: key, webPushVapidPrivateKey, webPushSubject } = deps.config;
   const webPushKey = pushEnabled && key !== "" && webPushVapidPrivateKey !== "" && webPushSubject !== "" ? key : null;
-  return { offers: at !== null, at, notifications: (await deps.store.pushOffOf(userId)) === null, webPushKey };
+  return { offers: at !== null, at, notifications: (await deps.store.pushOffOf(userId)) === null,
+    mealReminders: (await deps.store.mealRemindersOf(userId)) ?? DEFAULT_MEAL_REMINDERS, webPushKey };
 }
 
 /** Applies whichever fields are present; an old build sends `offers` alone. */
 export async function setPushConsent(deps: EngineDeps, userId: string, change: PushConsentRequest): Promise<PushConsentResponse> {
   if (change.offers !== undefined) await deps.store.setPushOffers(userId, change.offers);
   if (change.notifications !== undefined) await deps.store.setPushOff(userId, !change.notifications);
+  if (change.mealReminders !== undefined) await deps.store.setMealReminders(userId, change.mealReminders);
   return pushConsent(deps, userId);
 }
 
