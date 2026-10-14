@@ -33,6 +33,23 @@ export async function mealReminderRows(after: HTMLElement, words: YouCopy["remin
   };
 
   const paints: Array<() => void> = [];
+  // The evening line (a push) has its own switch beside the slots; absent = on.
+  {
+    const row = el("div", "opt sw");
+    const lab = el("span", "ot", words.evening);
+    lab.id = "sw-meal-evening";
+    const sw = el("button", "swt") as HTMLButtonElement;
+    sw.type = "button";
+    sw.setAttribute("role", "switch");
+    sw.setAttribute("aria-labelledby", lab.id);
+    sw.append(el("i", ""));
+    sw.addEventListener("click", () => void save({ ...settings, evening: settings.evening === false }));
+    const text = el("div", "ot");
+    text.append(lab, el("div", "sub", words.eveningSub));
+    row.append(text, sw);
+    rows.splice(1, 0, row);
+    paints.push(() => sw.setAttribute("aria-checked", String(settings.evening !== false)));
+  }
   for (const slot of MEAL_SLOTS) {
     const row = el("div", "opt sw");
     const labelId = `sw-meal-${slot}`;
