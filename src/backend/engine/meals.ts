@@ -659,7 +659,11 @@ function reconcileRefs(sent: MealItem[], stored: readonly MealItem[]): MealItem[
   for (const s of stored) {
     if (s.ref !== undefined && s.food !== undefined) provenance.set(`${s.ref} ${s.name}`, s);
   }
-  return sent.map((i) => {
+  // `typed` (#2088) is the server's claim, so it survives only where a stored item of that name has it.
+  const typed = new Set(stored.filter((s) => s.typed).map((s) => s.name));
+  return sent.map((raw) => {
+    const { typed: _typed, ...rest } = raw;
+    const i: MealItem = typed.has(raw.name) && raw.typed ? { ...rest, typed: true } : rest;
     const s = i.ref === undefined ? undefined : provenance.get(`${i.ref} ${i.name}`);
     if (s?.food === undefined) {
       const { ref: _ref, food: _food, ...estimate } = i;
@@ -1193,7 +1197,7 @@ export async function logNumbersMeal(
       items: [{
         name: input.name, name_en: input.name, grams, kcal: input.kcal,
         protein_g: input.protein_g, carbs_g: input.carbs_g, fat_g: input.fat_g,
-        kcal_per_100g: input.kcal * 100 / grams,
+        kcal_per_100g: input.kcal * 100 / grams, typed: true,
       }],
       kcal: input.kcal, protein_g: input.protein_g, carbs_g: input.carbs_g, fat_g: input.fat_g,
       satfat_g: input.satfat_g ?? 0, fiber_g: input.fiber_g ?? 0, sugar_g: input.sugar_g ?? 0, sodium_mg: input.sodium_mg ?? 0,
