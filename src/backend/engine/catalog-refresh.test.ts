@@ -10,11 +10,11 @@ const NDJSON = JSON.stringify({
     CHOCDF: { value: 14, unit: "g", basis: "100g" }, FAT: { value: 0.2, unit: "g", basis: "100g" } },
 }) + "\n";
 
-const api = (days: { day: string; final: boolean }[], calls: string[] = []) => async (url: string) => {
+const api = (snapshots: { day: string; built_at: string }[], calls: string[] = [], exportStatus = 200) => async (url: string) => {
   const path = new URL(url).pathname;
   calls.push(path);
-  if (path === "/v1/snapshots") return Response.json({ items: days });
-  if (path.endsWith("/export")) return new Response(NDJSON);
+  if (path === "/v1/snapshots") return Response.json({ items: snapshots });
+  if (path.endsWith("/export")) return new Response(exportStatus === 200 ? NDJSON : "{}", { status: exportStatus });
   return new Response("{}", { status: 404 });
 };
 const deps = () => ({ store: memoryStore() }) as unknown as EngineDeps;
@@ -27,24 +27,31 @@ describe("refreshing the catalog from fooddb", () => {
     expect(calls).toEqual([]);
   });
 
-  test("loads the newest final day into food_ref", async () => {
+  test("loads the current snapshot into food_ref", async () => {
     const d = deps();
-    const r = await refreshCatalog(d, { key: KEY, fetchFn: api([{ day: "2026-10-08", final: false }, { day: "2026-10-07", final: true }]) });
-    expect(r).toEqual({ kind: "loaded", day: "2026-10-07", read: 1, written: 1 });
+    const r = await refreshCatalog(d, { key: KEY, fetchFn: api([{ day: "2026-10-08", built_at: "2026-10-08T03:12:00Z" }]) });
+    expect(r).toEqual({ kind: "loaded", day: "2026-10-08", built_at: "2026-10-08T03:12:00Z", read: 1, written: 1 });
     expect((await d.store.foodCandidates(["apple"])).length).toBe(1);
   });
 
-  test("a day it already loaded is not exported again; a newer one is", async () => {
+  test("a built_at it already loaded is not exported again; a rebuilt one is", async () => {
     const calls: string[] = [];
-    const days = [{ day: "2026-10-07", final: true }];
-    const f = api(days, calls);
+    const snap = { day: "2026-10-08", built_at: "2026-10-08T03:12:00Z" };
+    const f = api([snap], calls);
     const d = deps();
     const first = await refreshCatalog(d, { key: KEY, fetchFn: f });
-    const again = await refreshCatalog(d, { key: KEY, fetchFn: f, lastDay: first.kind === "loaded" ? first.day : undefined });
-    expect(again).toEqual({ kind: "unchanged", day: "2026-10-07" });
+    const again = await refreshCatalog(d, { key: KEY, fetchFn: f, lastBuiltAt: first.kind === "loaded" ? first.built_at : undefined });
+    expect(again).toEqual({ kind: "unchanged", day: "2026-10-08", built_at: "2026-10-08T03:12:00Z" });
     expect(calls.filter((p) => p.endsWith("/export")).length).toBe(1);
-    const next = await refreshCatalog(d, { key: KEY, fetchFn: api([{ day: "2026-10-08", final: true }, ...days]), lastDay: "2026-10-07" });
-    expect(next).toMatchObject({ kind: "loaded", day: "2026-10-08" });
+    // The same day REBUILT is new data: built_at, not day, is the discriminator.
+    const next = await refreshCatalog(d, { key: KEY, fetchFn: api([{ day: "2026-10-08", built_at: "2026-10-08T19:40:00Z" }]), lastBuiltAt: "2026-10-08T03:12:00Z" });
+    expect(next).toMatchObject({ kind: "loaded", day: "2026-10-08", built_at: "2026-10-08T19:40:00Z" });
+  });
+
+  test("a snapshot whose export is already gone is a clean failure", async () => {
+    const r = await refreshCatalog(deps(), { key: KEY, fetchFn: api([{ day: "2026-10-07", built_at: "2026-10-07T03:00:00Z" }], [], 404) });
+    expect(r.kind).toBe("failed");
+    expect(r.kind === "failed" && r.message).toMatch(/no such snapshot day/);
   });
 
   test("a failing fooddb is a result, not a throw, and the message never holds the key", async () => {
