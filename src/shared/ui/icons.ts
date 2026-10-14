@@ -259,6 +259,8 @@ export const ICONS = {
   plus: line('<path d="M12 5v14M5 12h14"/>'),
   search: line('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
   check: line('<path d="M5 12l5 5 9-10"/>'),
+  /** Saved meals (ieat-app#907): the meal menu's "Save meal" and the saved list. */
+  bookmark: line('<path d="M7 4h10v16l-5-3.5L7 20z"/>'),
   /** pay-paywall's "checked against your plan" benefit — the circle, with the tick inside it. */
   "check-circle": line('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16.5 9.5"/>'),
   retry: line('<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>'),
