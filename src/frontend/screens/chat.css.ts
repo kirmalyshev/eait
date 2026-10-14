@@ -231,6 +231,13 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 /* The column is 640 wide; the shadow is the page-wide backdrop, so no composer control shows beside it. */
 .fs { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column;
   max-width: 640px; margin: 0 auto; padding: 16px 16px 0; overflow: hidden; box-shadow: 0 0 0 100vmax var(--bg); }
+/* The board's web dialog (parity_w1 web-pw1-search): from 761 px the sheet is a 560 px dialog over a
+   dimmed page — the shadow is the veil — with the keyboard's row highlighted by ↑/↓. */
+@media (min-width: 761px) {
+  .fs { inset: auto; top: 8vh; left: 50%; transform: translateX(-50%); width: 560px; max-width: 560px; max-height: 640px;
+    margin: 0; padding: 18px 16px 0; border-radius: 16px; box-shadow: 0 0 0 100vmax rgba(23, 25, 28, .38), 0 24px 60px rgba(23, 25, 28, .24); }
+}
+.fs-row.fs-hot { background: var(--hair); border-radius: 8px; }
 .fs-head { display: flex; align-items: center; gap: 12px; }
 .fs-field { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--surface);
   box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-size: 16px; }

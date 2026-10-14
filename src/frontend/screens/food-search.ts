@@ -142,10 +142,27 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
   let timer: ReturnType<typeof setTimeout> | undefined;
   field.addEventListener("input", () => {
     clearTimeout(timer);
+    hot = -1;
     timer = setTimeout(() => { void run(field.value.trim()); }, DEBOUNCE_MS);
   });
+  // ↑/↓ move a highlight over the rows (the food rows, then "Tell"); Return picks it. With nothing
+  // highlighted Return is the board's "Tell" — her words go to Chat as they are.
+  let hot = -1;
+  const rowsNow = (): HTMLElement[] => [...body.querySelectorAll<HTMLElement>(".fs-row")];
+  const paintHot = (): void => {
+    rowsNow().forEach((r, i) => r.classList.toggle("fs-hot", i === hot));
+    rowsNow()[hot]?.scrollIntoView({ block: "nearest" });
+  };
   field.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && field.value.trim() !== "") { e.preventDefault(); o.onClose(); o.onTell(field.value.trim()); }
+    const rows = rowsNow();
+    if (e.key === "ArrowDown" && rows.length > 0) { e.preventDefault(); hot = Math.min(hot + 1, rows.length - 1); paintHot(); }
+    else if (e.key === "ArrowUp" && rows.length > 0) { e.preventDefault(); hot = Math.max(hot - 1, -1); paintHot(); }
+    else if (e.key === "Enter" && field.value.trim() !== "") {
+      e.preventDefault();
+      const pick = rows[hot];
+      if (pick !== undefined) pick.querySelector<HTMLElement>(".fs-add")?.click() ?? pick.click();
+      else { o.onClose(); o.onTell(field.value.trim()); }
+    }
     if (e.key === "Escape") o.onClose();
   });
   queueMicrotask(() => field.focus());
