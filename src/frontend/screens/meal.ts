@@ -19,6 +19,7 @@
 // id resolves to the gone state — the server scopes the read, so "another user's meal" and "no
 // meal" are the same answer and the same panel.
 
+import type { FoodSearchResponse } from "@eait/shared/contract";
 import { dateMinus, isCalendarDate, localDate, localTime, weekStart } from "../../shared/dates.ts";
 import { LANG_TAG, UNIT_KCAL, kcalNumbers, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealEditParams, mealEditRequest, previewKcal, scaledItem } from "../../shared/meal-edit.ts";
@@ -317,8 +318,52 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     close.addEventListener("click", closeOverlay);
     const bin = iconButton("trash", mc.phoneRemoveIngredient);
     head.append(close, el("span", "d d17", mc.phoneIngredientTitle), bin);
-    dlg.append(head, el("b", "d d28", item.name),
+    // The name is the way to change what the item IS (ieat-app#2192): a catalog search in place, a
+    // pick is one PATCH `{ swap }` at the item's own grams — no model.
+    const nameBtn = el("button", "d d28 ingname", item.name) as HTMLButtonElement;
+    nameBtn.type = "button";
+    nameBtn.setAttribute("aria-label", `${mc.phoneSwapAction}: ${item.name}`);
+    const swapBox = el("div", "ingswap");
+    swapBox.hidden = true;
+    dlg.append(head, nameBtn, swapBox,
       el("span", "t13 m", fill(mc.phoneSheetMeal, { meal: names(meal.items), time: mealTime(meal) })));
+    nameBtn.addEventListener("click", () => {
+      if (!swapBox.hidden) { swapBox.hidden = true; return; }
+      swapBox.hidden = false;
+      const field = el("input", "fs-input") as HTMLInputElement;
+      field.type = "search";
+      field.placeholder = mc.phoneSwapSearch;
+      field.setAttribute("aria-label", mc.phoneSwapSearch);
+      const list = el("div", "ingswaplist");
+      const hint = el("span", "t12 m", fill(mc.phoneSwapKeeps, { grams: fill(mc.phoneGrams, { n: n(item.grams) }) }));
+      swapBox.replaceChildren(field, list, hint);
+      field.focus();
+      let seq = 0;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const run = async (q: string): Promise<void> => {
+        const mine = ++seq;
+        if (q === "") { list.replaceChildren(); return; }
+        try {
+          const r = await api<FoodSearchResponse>(`/foods?q=${encodeURIComponent(q)}&limit=10`);
+          if (mine !== seq) return;
+          list.replaceChildren(...(r.foods.length === 0 ? [el("p", "t13 m", mc.phoneSwapNone)] : r.foods.map((f) => {
+            const row = el("button", "row between ingswaprow", f.name) as HTMLButtonElement;
+            row.type = "button";
+            row.addEventListener("click", () => {
+              enqueueUpdate(meal, { kind: "ingredients", edit: { swap: { index, ref: f.id } } });
+              closeOverlay();
+            });
+            return row;
+          })));
+        } catch {
+          if (mine === seq) list.replaceChildren(el("p", "t13 m", mc.phoneSwapFailed));
+        }
+      };
+      field.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => { void run(field.value.trim()); }, 250);
+      });
+    });
 
     // The amount is the pill itself: the figure editable in place, the pen the affordance. The
     // input holds RAW digits — a grouped display string ("1,500") would not parse back.
