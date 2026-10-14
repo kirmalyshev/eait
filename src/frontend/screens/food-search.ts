@@ -105,7 +105,7 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
       } catch (e) {
         // A 402 is the paywall: a browser has no sheet, so the refusal says where subscribing happens.
         const code = e instanceof ApiError ? e.body?.error : undefined;
-        fail.textContent = code !== undefined && Object.hasOwn(COPY.refusals, code) ? COPY.refusals[code]! : c.logFailed;
+        fail.textContent = code !== undefined && Object.hasOwn(COPY.refusals, code) ? COPY.refusals[code]! : c.logFailedWeb;
         fail.hidden = false;
       } finally { busy = false; }
     });
