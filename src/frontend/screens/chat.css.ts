@@ -240,6 +240,8 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .fs-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border: 0; border-top: 1px solid var(--hair);
   background: none; width: 100%; text-align: left; color: var(--ink); font: inherit; }
 .fs-tell { cursor: pointer; }
+.fs-disc { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--accent-tint); display: flex; align-items: center; justify-content: center; }
+.fs-disc .ico { width: 22px; height: 22px; background: var(--accent); }
 .fs-txt { flex: 1; min-width: 0; }
 .fs-txt b { font-weight: 600; font-size: 15px; }
 .fs-sub { font-size: 13px; color: var(--muted); }

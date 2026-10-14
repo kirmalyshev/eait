@@ -1,8 +1,7 @@
 // The food search's words (#909): the + chooser's Search tile and the search screen both clients
 // draw — the field, Cancel/Done, the "Logging to" line, a row's names, the failure lines and the
-// "Tell {coach}" row. A table in shared for the same reason `shell-copy.ts` is one: the phone and
-// the browser ask the same thing by the same words. `{coach}` is the coach's own name from
-// `threadCopyFor(lang).coach.name`, never typed here, and a sentence is one template per language.
+// "Ask in Chat" row. A table in shared for the same reason `shell-copy.ts` is one: the phone and
+// the browser ask the same thing by the same words. No string here names the coach (Kirill, 14 Oct 09:00); a sentence is one template per language.
 
 import { t, type Localized } from "../lang.ts";
 import type { FoodRef } from "../foods.ts";
@@ -38,10 +37,8 @@ export interface FoodSearchCopy {
   retry: string;
   /** `{q}` — the muted line when the catalog has nothing. */
   noMatch: string;
-  /** `{coach}` and `{q}` — the last row, always there. */
+  /** `{q}` — the last row, always there: her words go to Chat as the typed meal they are. One line. */
   tell: string;
-  /** `{coach}` — the row's second line. */
-  tellSub: string;
 }
 
 export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
@@ -62,8 +59,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Couldn't search. Your words are still here —",
     retry: "Try again",
     noMatch: "Nothing in the food list for “{q}”.",
-    tell: "Tell {coach}: “{q}”",
-    tellSub: "{coach} works out what's in it, in Chat.",
+    tell: "Ask in Chat: “{q}”",
   },
   de: {
     plusSearch: "Suchen",
@@ -82,8 +78,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Die Suche hat nicht geklappt. Deine Eingabe ist noch da —",
     retry: "Nochmal versuchen",
     noMatch: "Keine Treffer in der Lebensmittelliste für „{q}“.",
-    tell: "Sag {coach}: „{q}“",
-    tellSub: "{coach} findet heraus, was drin ist – im Chat.",
+    tell: "Frag im Chat: „{q}“",
   },
   fr: {
     plusSearch: "Rechercher",
@@ -102,8 +97,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Recherche impossible. Tes mots sont toujours là —",
     retry: "Réessayer",
     noMatch: "Rien dans la liste d’aliments pour « {q} ».",
-    tell: "Dis à {coach} : « {q} »",
-    tellSub: "{coach} trouve ce que ça contient, dans le Chat.",
+    tell: "Demander au Chat : « {q} »",
   },
   it: {
     plusSearch: "Cerca",
@@ -122,8 +116,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Ricerca non riuscita. Le tue parole sono ancora qui —",
     retry: "Riprova",
     noMatch: "Niente nell’elenco degli alimenti per “{q}”.",
-    tell: "Dillo a {coach}: “{q}”",
-    tellSub: "{coach} scopre cosa c’è dentro, in Chat.",
+    tell: "Chiedi in Chat: “{q}”",
   },
   es: {
     plusSearch: "Buscar",
@@ -142,8 +135,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "No se pudo buscar. Tus palabras siguen aquí —",
     retry: "Reintentar",
     noMatch: "No hay nada en la lista de alimentos para «{q}».",
-    tell: "Cuéntaselo a {coach}: «{q}»",
-    tellSub: "{coach} averigua qué lleva, en el Chat.",
+    tell: "Preguntar en el Chat: «{q}»",
   },
   vi: {
     plusSearch: "Tìm",
@@ -162,8 +154,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Không tìm được. Những gì bạn gõ vẫn còn đây —",
     retry: "Thử lại",
     noMatch: "Không có “{q}” trong danh sách thực phẩm.",
-    tell: "Nói với {coach}: “{q}”",
-    tellSub: "{coach} sẽ tìm hiểu món này có gì, ngay trong Chat.",
+    tell: "Hỏi Chat: “{q}”",
   },
   id: {
     plusSearch: "Cari",
@@ -182,8 +173,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Pencarian gagal. Kata-katamu masih di sini —",
     retry: "Coba lagi",
     noMatch: "“{q}” tidak ada di daftar makanan.",
-    tell: "Beri tahu {coach}: “{q}”",
-    tellSub: "{coach} mencari tahu isinya, di Chat.",
+    tell: "Tanya ke Chat: “{q}”",
   },
   ru: {
     plusSearch: "Поиск",
@@ -202,8 +192,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Поиск не удался. Твои слова на месте —",
     retry: "Ещё раз",
     noMatch: "В списке продуктов нет «{q}».",
-    tell: "Скажи {coach}: «{q}»",
-    tellSub: "{coach} разберётся, что там, в Чате.",
+    tell: "Разобрать в чате: «{q}»",
   },
 };
 

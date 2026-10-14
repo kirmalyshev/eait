@@ -1,6 +1,6 @@
 // The web "+ Log" chooser's Search (#909): a full-width sheet over the chat — the field, Cancel
 // (Done once something was logged), "Logging to today · N kcal left", the catalog's rows with a
-// round +, and the "Tell {coach}" row that hands her words to the composer. One tap logs the
+// round +, and the "Ask in Chat" row that hands her words to the composer. One tap logs the
 // source's named serving, else 100 g (`foodLogChoice`); the sheet stays open. Nothing is
 // estimated here: the row's kcal is the same arithmetic the server writes, and the server reads
 // the numbers off the catalog row — this sends an id and a weight.
@@ -12,11 +12,12 @@ import { wholeNumbers } from "../../shared/lang.ts";
 import type { Lang } from "../../shared/types.ts";
 import { ApiError, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { ico } from "../../shared/ui/kit.ts";
+import { kitEl } from "../kit.ts";
 import { COPY, el } from "../shell.ts";
 
 export interface FoodSearchOpts {
   lang: Lang;
-  coachName: string | null;
   /** kcal left today, or null when the day could not be read — the line is then left out. */
   left: number | null;
   /** Her words go to the composer, as a typed meal does today. */
@@ -31,7 +32,6 @@ const DEBOUNCE_MS = 250;
 export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
   const c = foodSearchCopyFor(o.lang);
   const num = wholeNumbers(o.lang);
-  const coach = o.coachName ?? "";
   let left = o.left;
   let seq = 0;
 
@@ -61,9 +61,11 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
   const tellRow = (q: string): HTMLElement => {
     const row = el("button", "fs-row fs-tell") as HTMLButtonElement;
     row.type = "button";
+    const disc = el("span", "fs-disc");
+    disc.append(kitEl(ico("chat")));
     const txt = el("div", "fs-txt");
-    txt.append(el("b", "", fill(c.tell, { coach, q })), el("div", "fs-sub", fill(c.tellSub, { coach })));
-    row.append(txt, el("i", "ico i-chevron-right"));
+    txt.append(el("b", "", fill(c.tell, { q })));
+    row.append(disc, txt, el("i", "ico i-chevron-right"));
     row.addEventListener("click", () => { o.onClose(); o.onTell(q); });
     return row;
   };
