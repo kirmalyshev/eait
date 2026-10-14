@@ -15,9 +15,9 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest, isSaveMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest, type ClipEstimateResponse,
-  type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse,
+  type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse, type SaveMealResponse, type SavedMealsResponse,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type AttachPhotosResponse, type DeleteLineResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
@@ -41,7 +41,7 @@ import {
   EMAIL_ADDRESS, normalizeEmail,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
-  reanalyzeMeal, redateMeal, focusMeal, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
+  reanalyzeMeal, redateMeal, focusMeal, logSavedMeal, saveMealFromLog, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
   foodSearch, productByBarcode, redeemReferral, shareReferral,
 } from "../engine/index.ts";
 import { adminRoutes } from "./admin.ts";
@@ -115,6 +115,8 @@ export const STREAM_KEEPALIVE_MS = 5_000;
 const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
 const REDATE_PATH = /^\/v1\/meals\/([^/]+)\/redate$/;
 const FOCUS_PATH = /^\/v1\/meals\/([^/]+)\/focus$/;
+const SAVED_LOG_PATH = /^\/v1\/saved-meals\/([^/]+)\/log$/;
+const SAVED_PATH = /^\/v1\/saved-meals\/([^/]+)$/;
 /** `POST /v1/meals/:id/photos` — one segment shorter than the GET that reads one by position. */
 const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 /** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
@@ -947,6 +949,35 @@ export function createRouter(
         if (!isFocusMealRequest(body)) return json({ error: "bad-focus" }, 400);
         const meal = await focusMeal(deps, userId, decodeURIComponent(focusMatch[1]!), { minutes: body.minutes, completed: body.completed });
         return meal ? json(meal) : json({ error: "not found" }, 404);
+      }
+      if (pathname === "/v1/saved-meals" && req.method === "GET") {
+        return json({ meals: await deps.store.listSavedMeals(userId) } satisfies SavedMealsResponse);
+      }
+      if (pathname === "/v1/saved-meals" && req.method === "POST") {
+        // Unbilled, reads one of the caller's own meals: its own counter, like the editor's.
+        const wait = limit(req, peer, "saved-meal", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body: unknown = await req.json();
+        if (!isSaveMealRequest(body)) return json({ error: "bad-request" }, 400);
+        const result = await saveMealFromLog(deps, userId, body.mealId);
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        if (result.kind === "full") return json({ error: "saved-meals-full", limit: result.limit }, 409);
+        return json({ meal: result.meal } satisfies SaveMealResponse);
+      }
+      const savedLogMatch = SAVED_LOG_PATH.exec(pathname);
+      if (req.method === "POST" && savedLogMatch) {
+        const wait = limit(req, peer, "saved-meal-log", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body: unknown = await req.json();
+        if (!isRedateMealRequest(body)) return json({ error: "bad-request" }, 400);
+        const result = await logSavedMeal(deps, userId, decodeURIComponent(savedLogMatch[1]!), body.dayOffset);
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        return isRefusal(result) ? refusal(result) : json(result);
+      }
+      const savedMatch = SAVED_PATH.exec(pathname);
+      if (req.method === "DELETE" && savedMatch) {
+        const gone = await deps.store.deleteSavedMeal(userId, decodeURIComponent(savedMatch[1]!));
+        return gone ? json({ ok: true }) : json({ error: "target-gone", on: "saved-meal" }, 409);
       }
 
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);

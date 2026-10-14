@@ -189,7 +189,7 @@ export interface MealUpdated {
  */
 export interface TargetGone {
   kind: "target-gone";
-  on: "correction" | "redate";
+  on: "correction" | "redate" | "saved-meal";
 }
 
 export interface MealRedated {

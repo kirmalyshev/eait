@@ -1,7 +1,7 @@
 // Load a fooddb snapshot export (NDJSON, plain or .gz) into this database's `food_ref`.
 //
 //   bun src/scripts/foods-load.ts <export.ndjson[.gz]>
-//   bun src/scripts/foods-load.ts --from-api [--day YYYY-MM-DD]     the newest final day, from fooddb
+//   bun src/scripts/foods-load.ts --from-api [--day YYYY-MM-DD]     the current snapshot, from fooddb
 //
 // `--from-api` reads the key from EAIT__BACKEND__FOODDB_READ_KEY (and the host from
 // EAIT__BACKEND__FOODDB_URL, default https://food-api.eait.fit). One export is one read: one credit.

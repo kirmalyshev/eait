@@ -392,6 +392,19 @@ export const ROUTES = {
    * Answers the meal, or 404 when it is not the caller's. Free for every user: no entitlement, no cap.
    */
   mealFocus: (id: string) => `/v1/meals/${encodeURIComponent(id)}/focus`,
+  /**
+   * GET — the caller's saved meals, newest first. POST `{ mealId }` ({@link SaveMealRequest}) —
+   * bookmark a meal already logged by this account as a named composition, idempotent per source
+   * meal. Both unbilled.
+   */
+  savedMeals: "/v1/saved-meals",
+  /** DELETE — remove one saved meal. Meals already logged from it are untouched. */
+  savedMeal: (id: string) => `/v1/saved-meals/${encodeURIComponent(id)}`,
+  /**
+   * POST `{ dayOffset }` ({@link RedateMealRequest}) — log the saved composition as a NEW meal on
+   * today minus `dayOffset` (the day open on Home), unbilled. Answers `MealLogged | TargetGone`.
+   */
+  savedMealLog: (id: string) => `/v1/saved-meals/${encodeURIComponent(id)}/log`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
@@ -1180,6 +1193,51 @@ export function isFocusMealRequest(body: unknown): body is FocusMealRequest {
   const b = body as Record<string, unknown>;
   return FOCUS_MINUTES.some((m) => m === b.minutes) && typeof b.completed === "boolean";
 }
+
+/**
+ * A meal the account bookmarked to log again: a name and the composition in grams. The nutrient
+ * totals are the SERVER's snapshot of the source meal at save time — never a client's claim — and
+ * `verdicts` are deliberately absent: they are computed against the targets at the moment of every
+ * re-log, never copied from the original.
+ */
+export interface SavedMeal {
+  id: string;
+  /** The meal it was bookmarked from — how a meal's menu knows it is already saved. May no longer exist. */
+  source_meal_id: string;
+  name: string;
+  items: MealItem[];
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  satfat_g: number;
+  fiber_g: number;
+  sugar_g: number;
+  sodium_mg: number;
+  created_at: string;
+}
+
+/** `POST /v1/saved-meals` — the meal to bookmark, by id; the server reads it scoped to the caller. */
+export interface SaveMealRequest {
+  mealId: string;
+}
+
+export function isSaveMealRequest(body: unknown): body is SaveMealRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  return typeof b.mealId === "string" && b.mealId.length > 0 && b.mealId.length <= 64;
+}
+
+export interface SavedMealsResponse {
+  meals: SavedMeal[];
+}
+
+export interface SaveMealResponse {
+  meal: SavedMeal;
+}
+
+/** The most saved meals one account may hold; the 101st save answers `saved-meals-full` (409). */
+export const MAX_SAVED_MEALS = 100;
 
 // ── Push ────────────────────────────────────────────────────────────────────────────────────
 

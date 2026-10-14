@@ -2117,6 +2117,324 @@
         ]
       }
     },
+    "/v1/saved-meals": {
+      "get": {
+        "operationId": "get_savedMeals",
+        "summary": "The caller's saved meals, newest first.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedMealsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_savedMeals",
+        "summary": "Bookmark one of the caller's logged meals as a named composition. Idempotent per source meal; unbilled.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveMealResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/saved-meals/{id}": {
+      "delete": {
+        "operationId": "delete_savedMeal",
+        "summary": "Remove a saved meal. Meals already logged from it are untouched.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/saved-meals/{id}/log": {
+      "post": {
+        "operationId": "post_savedMealLog",
+        "summary": "Log a saved meal as a NEW meal `dayOffset` days back (0 = today). Verdicts are computed now, never copied. Unbilled; does not spend the free sample, but refused (402 subscription-required) once it is gone and there is no entitlement.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedateMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealLogged"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/meals/pending": {
       "get": {
         "operationId": "get_pending",
@@ -8897,6 +9215,111 @@
         ],
         "description": "Why a request produced no meal. Each maps to one user-facing message, but the mapping lives in the surface — `not-onboarded` is a Telegram prompt in the bot and a navigation push here."
       },
+      "SaveMealRequest": {
+        "type": "object",
+        "properties": {
+          "mealId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mealId"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/saved-meals` — the meal to bookmark, by id; the server reads it scoped to the caller."
+      },
+      "SaveMealResponse": {
+        "type": "object",
+        "properties": {
+          "meal": {
+            "$ref": "#/components/schemas/SavedMeal"
+          }
+        },
+        "required": [
+          "meal"
+        ],
+        "additionalProperties": false
+      },
+      "SavedMeal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source_meal_id": {
+            "type": "string",
+            "description": "The meal it was bookmarked from — how a meal's menu knows it is already saved. May no longer exist."
+          },
+          "name": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealItem"
+            }
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_meal_id",
+          "name",
+          "items",
+          "kcal",
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "satfat_g",
+          "fiber_g",
+          "sugar_g",
+          "sodium_mg",
+          "created_at"
+        ],
+        "additionalProperties": false,
+        "description": "A meal the account bookmarked to log again: a name and the composition in grams. The nutrient totals are the SERVER's snapshot of the source meal at save time — never a client's claim — and `verdicts` are deliberately absent: they are computed against the targets at the moment of every re-log, never copied from the original."
+      },
+      "SavedMealsResponse": {
+        "type": "object",
+        "properties": {
+          "meals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavedMeal"
+            }
+          }
+        },
+        "required": [
+          "meals"
+        ],
+        "additionalProperties": false
+      },
       "ScoreFactor": {
         "type": "string",
         "enum": [
@@ -9072,7 +9495,8 @@
             "type": "string",
             "enum": [
               "correction",
-              "redate"
+              "redate",
+              "saved-meal"
             ]
           }
         },
