@@ -250,7 +250,7 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .fs-add .ico { width: 18px; height: 18px; }
 .fs-none, .fs-failed { margin: 14px 2px 10px; font-size: 13px; color: var(--muted); }
 .fs-failed { color: var(--bad); }
-.fs-retry { border: 0; background: none; color: var(--accent); font-weight: 600; cursor: pointer; font: inherit; }
+.fs-retry { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; font-weight: 600; }
 .fs-source { margin: 0; padding: 8px 2px 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
 
 /* The busy row ("web-chat-busy", #70): three dots that pulse in turn while the answer is out. */
