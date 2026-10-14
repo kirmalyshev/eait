@@ -88,6 +88,14 @@ export type RefusalKind = keyof typeof REFUSAL_STATUS;
  * `analysis-failed` stays what the engine returns and nothing else.
  */
 export const OUTCOME_UNKNOWN = "outcome-unknown";
+/**
+ * Why a QUEUED job ended unknown (ieat-app#2187). Additive: a build that reads only `kind` is unchanged.
+ * `timeout` outran its budget, `error` threw, `worker-lost` died with a note that is never re-run,
+ * `expired` was never claimed. The wording is the client's.
+ */
+export type FailWhy = "timeout" | "error" | "worker-lost" | "expired";
+/** `text` is a failed NOTE's own words, handed back so the client can restore the composer. */
+export type OutcomeUnknown = { kind: typeof OUTCOME_UNKNOWN; why?: FailWhy; text?: string };
 
 /**
  * The server's effective limits, as told to the client.
@@ -1797,7 +1805,7 @@ export type PhotoProgress =
  */
 export type PhotoEvent = PhotoProgress | PhotoLast;
 /** The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`). */
-export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
+export type PhotoLast = LogPhotoResult | OutcomeUnknown;
 /**
  * One line of the `POST /v1/messages` stream: the same progress shapes as the photo stream
  * (`reading` is never sent — a text turn has no plate to read), then the turn's result last.
@@ -1831,7 +1839,7 @@ export type MealUpdateRequest =
   | ({ mealId: string; clientId: string; capturedAt?: string } & MealUpdateBody)
   | { kind: "note"; text: string; clientId: string; capturedAt?: string };
 /** A queued update's last line: what the same change answers when it is not queued. */
-export type MealUpdateLast = HandleTextResult | { kind: typeof OUTCOME_UNKNOWN };
+export type MealUpdateLast = HandleTextResult | OutcomeUnknown;
 
 /** The body is a cast, not a validation: it ends in a stored sentence and a verdict. */
 export function isMealUpdateRequest(body: unknown): body is MealUpdateRequest {

@@ -5,8 +5,8 @@ import { hostname } from "node:os";
 import {
   MEAL_UPDATE_STEPS, OUTCOME_UNKNOWN, PHOTO_MODEL_CALLS, TEXT_MODEL_CALLS, UNIT_KCAL, explainTargets, kcalNumbers, queuedPushCopy,
   streamCopyFor, updateCopyFor, fill,
-  type JobEntry, type JobKind, type JobsFilter, type JobsResponse, type Lang, type MealItem, type MealLogged, type MealUpdateLast,
-  type MealUpdateRequest, type MealUpdated, type PhotoJob, type PhotoJobStep, type PhotoLast, type PhotoQueuedResponse,
+  type FailWhy, type JobEntry, type JobKind, type JobsFilter, type JobsResponse, type Lang, type MealItem, type MealLogged, type MealUpdateLast,
+  type MealUpdateRequest, type MealUpdated, type OutcomeUnknown, type PhotoJob, type PhotoJobStep, type PhotoLast, type PhotoQueuedResponse,
 } from "@eait/shared";
 import { imageMime } from "../llm/port.ts";
 import type { JobRecord } from "../store.ts";
@@ -15,7 +15,7 @@ import type { EngineDeps } from "./deps.ts";
 import { deleteMealById } from "./lines.ts";
 import { editMeal, logPhotoTurn, reanalyzeMeal, type LogPhotoInput } from "./meals.ts";
 import { textTurn } from "./text.ts";
-import { bounded } from "./turns.ts";
+import { bounded, TurnOverran } from "./turns.ts";
 import { sendLogged } from "./notify.ts";
 import { pushDevices } from "./push-consent.ts";
 
@@ -171,6 +171,11 @@ const failed = (what: string) => (e: unknown) => console.error(`[eait] ${what}: 
 async function runJob(deps: EngineDeps, job: JobRecord): Promise<void> {
   const h = HANDLERS[job.kind as JobKind];
   const { userId, clientId } = job;
+  // A failed note hands its words back; the others have the meal or photo itself to show.
+  const unknown = (why: FailWhy): OutcomeUnknown => {
+    const r = job.request as { kind?: string; text?: string };
+    return r.kind === "note" && typeof r.text === "string" ? { kind: OUTCOME_UNKNOWN, why, text: r.text } : { kind: OUTCOME_UNKNOWN, why };
+  };
   const settle = (outcome: object) => deps.store.settleJob(userId, clientId, owner, outcome).catch((e: unknown) => {
     failed("job not settled")(e);
     return false;
@@ -178,7 +183,7 @@ async function runJob(deps: EngineDeps, job: JobRecord): Promise<void> {
   if (job.attempts > 1 && !h.retryable(job)) {
     // The dead attempt's charge stays on the ledger; the sample it never delivered is given back.
     if (job.analysisId !== null) await releaseSample(deps, userId, job.analysisId).catch(failed("sample not released"));
-    await settle({ kind: OUTCOME_UNKNOWN });
+    await settle(unknown("worker-lost"));
     return;
   }
   const { result } = bounded(deps, h.calls(job), (d, lost) => {
@@ -196,7 +201,7 @@ async function runJob(deps: EngineDeps, job: JobRecord): Promise<void> {
     out = await result;
   } catch (e) {
     failed("queued job failed")(e);
-    await settle({ kind: OUTCOME_UNKNOWN });
+    await settle(unknown(e instanceof TurnOverran ? "timeout" : "error"));
     return;
   }
   if (await settle(out.result)) await out.land(deps).catch(failed("queued job not wrapped up"));
@@ -213,7 +218,7 @@ export function startJobs(deps: EngineDeps): void {
     try {
       do {
         again = false;
-        const expired = await deps.store.expireJobs(Date.now() - deps.config.jobMaxQueuedMs, { kind: OUTCOME_UNKNOWN })
+        const expired = await deps.store.expireJobs(Date.now() - deps.config.jobMaxQueuedMs, { kind: OUTCOME_UNKNOWN, why: "expired" })
           .catch((e: unknown) => { failed("job expiry failed")(e); return []; });
         if (expired.length > 0) console.log(`[eait] job-unclaimed: ${expired.length} job(s) settled ${OUTCOME_UNKNOWN}`);
         while (!stopping && held.size < deps.config.jobConcurrency) {

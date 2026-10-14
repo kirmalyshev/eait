@@ -39,7 +39,7 @@ const OLDEST_CAPTURE_MS = 365 * 24 * 60 * 60 * 1000;
 export class TurnUnsettled extends Error {}
 
 /** A turn that outran every budget it was given — wedged in the model, the store, or between. */
-class TurnOverran extends Error {}
+export class TurnOverran extends Error {}
 
 /**
  * The clock inside a turn, armed by `once` (#276).
