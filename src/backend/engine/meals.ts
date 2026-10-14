@@ -84,14 +84,20 @@ function hintFor(analysis: AnalyzedMeal): MealHint {
  * `verdicts` field at all — could reach a client, and did.
  */
 export async function gatedVerdicts(deps: EngineDeps, userId: string, a: {
-  kcal: number; satfat_g: number; sodium_mg: number;
+  kcal: number; satfat_g: number; sodium_mg: number; items?: readonly MealItem[];
 }) {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return {};
   const { targets } = explainTargets(profile);
   // Belt and braces, both cheap, both on a medical claim: derive only declared dimensions, then
   // filter for declared dimensions again.
-  return visibleVerdicts(verdictsFromTargets(a, targets), profile.restrictions);
+  const verdicts = visibleVerdicts(verdictsFromTargets(a, targets), profile.restrictions);
+  // A model 0 on a nutrient the catalog did not supply is "unknown", not "none": judging it
+  // paints "on plan" over a figure nobody has.
+  const known = catalogMicros(a.items ?? []);
+  if (!(a.satfat_g > 0) && known.satfat_g === undefined) delete verdicts.ldl;
+  if (!(a.sodium_mg > 0) && known.sodium_mg === undefined) delete verdicts.kidneys;
+  return verdicts;
 }
 
 export interface PhotoRead {
