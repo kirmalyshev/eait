@@ -698,12 +698,12 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     return t;
   };
   // The food search (#909): a sheet over the chat. A log lands in today's diary, so the thread is
-  // re-read when the sheet closes; "Tell {coach}" hands her words to the composer and sends them.
+  // re-read when the sheet closes; "Ask in Chat" hands her words to the composer and sends them.
   const openSearch = async (): Promise<void> => {
     const day = await api<DayResponse>("/diary/day").catch(() => null);
     let landed = false;
     const sheet = foodSearchSheet({
-      lang, coachName: coachName(),
+      lang,
       left: day === null ? null : day.targets.kcal - day.totals.kcal,
       onTell: (q) => { words.value = q; comp.form.requestSubmit(); },
       onLogged: () => { landed = true; },
