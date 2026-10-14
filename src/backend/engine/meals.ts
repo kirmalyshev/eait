@@ -27,6 +27,7 @@ import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts"
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { catalogMicros, groundWhenOn, mealFromFood, recomputeFromSnapshot } from "./ground.ts";
 import { switchOn } from "./switches.ts";
+import { RAW_STATE, words } from "../food-index.ts";
 import { charge, checkCaps, checkFreeLog, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
@@ -588,6 +589,17 @@ export async function focusMeal(
 }
 
 /**
+ * A catalog row in its dry or raw state grounding an item the eater did not call raw or dry: the
+ * density is the suspect number, so a smaller portion is the user offsetting it (couscous 180 → 80 g
+ * against a 360 kcal/100 g dry row), not a portion preference — and must not train the prior (#2189).
+ */
+function offersDensityError(it: MealItem): boolean {
+  if (!it.food) return false;
+  const raw = (s: string) => words(s).some((w) => RAW_STATE.has(w));
+  return raw(it.food.name) && !raw(it.name_en ?? it.name);
+}
+
+/**
  * What an edit changed about the portions, item by item.
  *
  * Matched on `name_en ?? name` — the same key `buildRepertoire` groups by, so both priors talk
@@ -599,9 +611,11 @@ export async function focusMeal(
  */
 function portionCorrections(before: readonly MealItem[], after: readonly MealItem[]) {
   const was = new Map<string, number>();
+  const suspect = new Set<string>();
   for (const it of before) {
     const key = it.name_en ?? it.name;
     if (!was.has(key)) was.set(key, it.grams);
+    if (offersDensityError(it)) suspect.add(key);
   }
   const out: { name_en: string; grams_before: number; grams_after: number }[] = [];
   for (const it of after) {
@@ -609,7 +623,7 @@ function portionCorrections(before: readonly MealItem[], after: readonly MealIte
     const grams_before = was.get(key);
     if (grams_before === undefined) continue;
     was.delete(key);
-    if (grams_before <= 0 || grams_before === it.grams) continue;
+    if (grams_before <= 0 || grams_before === it.grams || suspect.has(key)) continue;
     out.push({ name_en: key, grams_before, grams_after: it.grams });
   }
   return out;
