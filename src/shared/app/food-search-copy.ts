@@ -202,7 +202,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Поиск не удался. Твои слова на месте —",
     retry: "Ещё раз",
     noMatch: "В списке продуктов нет «{q}».",
-    tell: "Пусть {coach} посмотрит: «{q}»",
+    tell: "Скажи {coach}: «{q}»",
     tellSub: "{coach} разберётся, что там, в Чате.",
   },
 };
