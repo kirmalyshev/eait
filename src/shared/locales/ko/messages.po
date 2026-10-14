@@ -30,7 +30,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.satfat"
-#~ msgstr "이번 식사는 포화지방이 많은 편이에요. 직접 요청했기 때문에 평가한 거예요."
+#~ msgstr "이번 식사는 포화 지방이 많은 편이에요. 직접 요청했기 때문에 평가한 거예요."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -60,12 +60,12 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "오늘 {plan}보다 {over} 초과했고, 단백질은 {proteinTarget}g 중 {protein}이에요. 증량 계획에서는 넘는 게 목적이에요. 내일은 새로 시작해요."
+#~ msgstr "오늘 {plan}보다 {over} 초과했고, 단백질은 {proteinTarget}g 중 {protein}이에요. 증량 플랜에서는 넘는 게 목적이에요. 내일은 새로 시작해요."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "오늘 {plan}보다 {over} 초과했고, 단백질은 {proteinTarget}g 중 {protein}이에요. 증량 계획에서는 넘는 게 목적이에요. 내일은 새로 시작해요."
+#~ msgstr "오늘 {plan}보다 {over} 초과했고, 단백질은 {proteinTarget}g 중 {protein}이에요. 증량 플랜에서는 넘는 게 목적이에요. 내일은 새로 시작해요."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -130,7 +130,7 @@ msgstr "{noun} 높음"
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.good"
-msgstr "{noun} 계획대로"
+msgstr "{noun} 플랜대로"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -165,7 +165,7 @@ msgstr "단백질을 충분히 먹고 있나요?"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
-msgstr "먼저 웹에서 계획 질문에 답해 주세요."
+msgstr "먼저 웹에서 플랜 질문에 답해 주세요."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -180,7 +180,7 @@ msgstr "칼로리"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.caloriesOnPlan"
-msgstr "칼로리는 계획대로예요."
+msgstr "칼로리는 플랜대로예요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -190,7 +190,7 @@ msgstr "탄수화물"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
-msgstr "계획과 비교하는 중"
+msgstr "플랜과 비교하는 중"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -325,7 +325,7 @@ msgstr "카메라가 없어도 괜찮아요. 사진 보관함에서 사진을 �
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-closed"
-msgstr "서두를 필요 없어요. 계획은 일지에 있어요. 다음 식사 때 사진을 찍으세요. 습관은 그게 전부예요. 내일까지 기록이 없으면 한 번만 알려 드릴게요."
+msgstr "서두를 필요 없어요. 플랜은 다이어리에 있어요. 다음 식사 때 사진을 찍으세요. 습관은 그게 전부예요. 내일까지 기록이 없으면 한 번만 알려 드릴게요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -345,7 +345,7 @@ msgstr "오늘은 아직 기록이 없어요."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.headline.onPlan"
-msgstr "계획대로예요."
+msgstr "플랜대로예요."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -355,7 +355,7 @@ msgstr "iOS가 곧 하나 더 물어볼 거예요. 알림이에요. 하루 한 �
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-primer"
-msgstr "먼저 하나만요. iOS가 카메라 권한을 물어볼 거예요. 카메라는 접시를 찍는 데만 써요. 사진은 일지에서 볼 수 있도록 식사와 함께 보관되고, 계정을 삭제하면 함께 지워져요."
+msgstr "먼저 하나만요. iOS가 카메라 권한을 물어볼 거예요. 카메라는 접시를 찍는 데만 써요. 사진은 다이어리에서 볼 수 있도록 식사와 함께 보관되고, 계정을 삭제하면 함께 지워져요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -380,12 +380,12 @@ msgstr "복원했어요. 이제 들어왔어요. 사진이든 한 문장이든 �
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.inline.ldl"
-msgstr "포화지방"
+msgstr "포화 지방"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
-msgstr "포화지방"
+msgstr "포화 지방"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -450,12 +450,12 @@ msgstr "읽을 수 없는 파일 형식이에요. JPEG, PNG, WebP를 사용하�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-unknown"
-msgstr "일치하는 초대 링크가 없어요. 확인하거나 건너뛰세요."
+msgstr "일치하는 사용자가 없는 초대 링크예요. 확인하거나 건너뛰세요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.codeInvalid"
-msgstr "링크가 만료됐어요. 웹에서 계획을 열고 Telegram 연결을 다시 누르세요."
+msgstr "링크가 만료됐어요. 웹에서 플랜을 열고 Telegram 연결을 다시 누르세요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -465,7 +465,7 @@ msgstr "메시지가 너무 길어서 보낼 수 없어요."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.expired"
-msgstr "더 이상 보관되지 않는 항목이에요. 다시 말해 주세요."
+msgstr "대기 시간이 지났어요. 다시 말해 주세요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -525,12 +525,12 @@ msgstr "이 계정은 아직 로그인되지 않았어요. 웹에서 Apple 또�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "이 계정의 무료 체험 기록을 다 썼어요. 계속하려면 웹에서 무료 체험을 시작하세요."
+msgstr "이 계정의 무료 분석을 모두 사용했어요. 계속하려면 웹에서 무료 체험을 시작하세요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.stranger"
-msgstr "새로워진 eait이에요. 식사와 사진은 eait 계정에 보관돼요. 웹에서 로그인한 뒤 계획 화면에서 Telegram 연결을 누르세요."
+msgstr "새로워진 eait이에요. 식사와 사진은 eait 계정에 보관돼요. 웹에서 로그인한 뒤 플랜 화면에서 Telegram 연결을 누르세요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -545,7 +545,7 @@ msgstr "이 Telegram에서 시도 횟수가 너무 많아요. 잠시 기다린 �
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-started"
-msgstr "무료 체험이 시작됐어요. 해지하지 않으면 종료 후 {price} 요금이 청구돼요. 종료 전날에 알려 드릴게요. 종료 다음 날이 아니라요."
+msgstr "무료 체험이 시작됐어요. 취소하지 않으면 종료 후 {price} 요금이 청구돼요. 종료 전날에 알려 드릴게요. 종료 다음 날이 아니라요."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -590,7 +590,7 @@ msgstr "저녁을 더 가볍게 바꾸려면 뭐가 좋을까요?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
-msgstr "첫날이 시작됐어요. 20:30에 한 줄을 받게 돼요. 오늘을 계획과 비교한 내용과 내일을 위한 구체적인 한 가지예요. 그 전에는 아무것도 보내지 않아요."
+msgstr "첫날이 시작됐어요. 20:30에 한 줄을 받게 돼요. 오늘을 플랜과 비교한 내용과 내일을 위한 구체적인 한 가지예요. 그 전에는 아무것도 보내지 않아요."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

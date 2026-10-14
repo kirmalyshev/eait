@@ -344,8 +344,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   },
   evening: {
     title: "Vandaag vergeleken met het plan",
-    body: "{eaten} van je {plan}kcal vandaag. {tomorrow}",
-    emptyBody: "Vandaag niets gelogd — je {plan}kcal zijn nog steeds het plan. {tomorrow}",
+    body: "{eaten} van je {plan} kcal vandaag. {tomorrow}",
+    emptyBody: "Vandaag niets gelogd — je {plan} kcal zijn nog steeds het plan. {tomorrow}",
   },
   // The free account's line (#730): no figures, because the figures read the day against the plan
   // and that reading is what a subscription buys.
@@ -392,7 +392,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   "onboarding-photo": {
     title: "Twój pierwszy posiłek",
     body: "Zrób zdjęcie następnego posiłku — tyle wystarczy, by zacząć.",
-    alternates: { v2: "Jedno zdjęcie wystarczy, by ruszyć.", v3: "Plan gotowy. Dodaj pierwszy posiłek, kiedy zechcesz.", v4: "Przy następnym posiłku spróbuj zdjęcia — resztą zajmiemy się my." },
+    alternates: { v2: "Jedno zdjęcie wystarczy, by ruszyć.", v3: "Plan gotowy. Zapisz pierwszy posiłek, kiedy zechcesz.", v4: "Przy następnym posiłku spróbuj zdjęcia — resztą zajmiemy się my." },
   },
   "streak-risk": {
     title: "Nie odpuszczaj",
@@ -414,15 +414,15 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   },
   evening: {
     title: "Bugün, plana göre",
-    body: "Bugün {plan}kcal'nin {eaten} kadarı. {tomorrow}",
-    emptyBody: "Bugün hiçbir şey kaydedilmedi — planın hâlâ {plan}kcal. {tomorrow}",
+    body: "Bugün {plan} kcal'nin {eaten} kadarı. {tomorrow}",
+    emptyBody: "Bugün hiçbir şey kaydedilmedi — planın hâlâ {plan} kcal. {tomorrow}",
   },
   // The free account's line (#730): no figures, because the figures read the day against the plan
   // and that reading is what a subscription buys.
   "onboarding-start": {
     title: "Planın neredeyse hazır",
     body: "Birkaç dokunuş ve planın hazır.",
-    alternates: { v2: "Kaldığın yerden devam et — bir dakika sürer.", v3: "Planın birkaç cevap bekliyor.", v4: "Son soruları bitir, plan senin." },
+    alternates: { v2: "Kaldığın yerden devam et — bir dakika sürer.", v3: "Planın birkaç yanıt bekliyor.", v4: "Son soruları bitir, plan senin." },
   },
   "onboarding-photo": {
     title: "İlk öğünün",
@@ -445,7 +445,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
     // where it was, so somebody who has already stopped it still gets this message, and telling
     // them a subscription is about to start would be false rather than merely redundant.
-    body: "你的免費試用明天結束。要繼續使用就不用做任何事；不想繼續的話，請到 設定 › 訂閱項目。",
+    body: "你的免費試用明天結束。要繼續使用就不用做任何事；不想繼續的話，請到「設定 › 訂閱項目」。",
   },
   evening: {
     title: "今天與計畫的對照",
@@ -518,21 +518,21 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     body: "내일 무료 체험이 끝나요. 계속 쓸 거라면 아무것도 안 해도 돼요. 아니라면 설정 › 구독으로 가세요.",
   },
   evening: {
-    title: "오늘을 계획과 비교해요",
+    title: "오늘을 플랜과 비교해요",
     body: "오늘 {plan}kcal 중 {eaten} 섭취했어요. {tomorrow}",
-    emptyBody: "오늘 기록이 없어요. 계획은 여전히 {plan}kcal예요. {tomorrow}",
+    emptyBody: "오늘 기록이 없어요. 플랜은 여전히 {plan}kcal예요. {tomorrow}",
   },
   // The free account's line (#730): no figures, because the figures read the day against the plan
   // and that reading is what a subscription buys.
   "onboarding-start": {
-    title: "계획이 거의 준비됐어요",
-    body: "몇 번만 탭하면 계획이 완성돼요.",
-    alternates: { v2: "멈춘 곳부터 이어서 하세요. 1분이면 돼요.", v3: "몇 가지 답변만 더 있으면 계획이 완성돼요.", v4: "마지막 질문에 답하면 나만의 계획이 완성돼요." },
+    title: "플랜이 거의 준비됐어요",
+    body: "몇 번만 탭하면 플랜이 완성돼요.",
+    alternates: { v2: "멈춘 곳부터 이어서 하세요. 1분이면 돼요.", v3: "몇 가지 답변만 더 있으면 플랜이 완성돼요.", v4: "마지막 질문에 답하면 나만의 플랜이 완성돼요." },
   },
   "onboarding-photo": {
     title: "첫 식사",
     body: "다음 식사를 사진으로 찍어 보세요. 시작은 그걸로 충분해요.",
-    alternates: { v2: "사진 한 장이면 시작할 수 있어요.", v3: "계획이 준비됐어요. 준비되면 첫 식사를 기록하세요.", v4: "다음에 먹을 때 사진을 찍어 보세요. 나머지는 저희가 할게요." },
+    alternates: { v2: "사진 한 장이면 시작할 수 있어요.", v3: "플랜이 준비됐어요. 준비되면 첫 식사를 기록하세요.", v4: "다음에 먹을 때 사진을 찍어 보세요. 나머지는 저희가 할게요." },
   },
   "streak-risk": {
     title: "계속 이어 가요",
@@ -676,7 +676,7 @@ export const LOG_REPLY_COPY: Localized<LogReplyCopy> = {
   id: { button: "Catat makanan", submit: "Catat", placeholder: "Kamu makan apa?" },
   ru: { button: "Записать еду", submit: "Записать", placeholder: "Что было на тарелке?" },
   nl: { button: "Maaltijd loggen", submit: "Loggen", placeholder: "Wat heb je gegeten?" },
-  pl: { button: "Dodaj posiłek", submit: "Dodaj", placeholder: "Co było na talerzu?" },
+  pl: { button: "Zapisz posiłek", submit: "Zapisz", placeholder: "Co było na talerzu?" },
   tr: { button: "Öğün kaydet", submit: "Kaydet", placeholder: "Ne yedin?" },
   "zh-Hant": { button: "記錄一餐", submit: "記錄", placeholder: "你吃了什麼？" },
   "zh-Hans": { button: "记录一餐", submit: "记录", placeholder: "你吃了什么？" },
@@ -944,8 +944,8 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   nl: {
     noMeals: "Eén foto morgen en de dag telt weer mee.",
     over: "Vandaag {over} erover — morgen begint weer bij {plan}.",
-    protein: "Eiwit kwam {gap}g tekort — eieren of skyr bij het ontbijt vullen dat aan.",
-    gainUnder: "{under}kcal onder het plan — een handje noten morgen vult dat aan.",
+    protein: "Eiwit kwam {gap} g tekort — eieren of skyr bij het ontbijt vullen dat aan.",
+    gainUnder: "{under} kcal onder het plan — een handje noten morgen vult dat aan.",
     under: "{under} onder het plan — morgen het volledige aantal eten is het plan, geen misstap.",
     onPlan: "Volgens plan. Morgen hetzelfde.",
   },
@@ -960,8 +960,8 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   tr: {
     noMeals: "Yarın bir fotoğraf, günü yeniden tabloya koyar.",
     over: "Bugün {over} fazla — yarın yine {plan} ile başlıyor.",
-    protein: "Protein {gap}g eksik kaldı — kahvaltıda yumurta ya da skyr bunu kapatır.",
-    gainUnder: "Plana {under}kcal eksik — yarın bir avuç kuruyemiş bunu karşılar.",
+    protein: "Protein {gap} g eksik kaldı — kahvaltıda yumurta ya da skyr bunu kapatır.",
+    gainUnder: "Plana {under} kcal eksik — yarın bir avuç kuruyemiş bunu karşılar.",
     under: "Planın {under} altında — yarın sayının tamamını yemek plan, kaçamak değil.",
     onPlan: "Plana uygun. Yarın da aynısı.",
   },
@@ -974,7 +974,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "符合計畫。明天照樣。",
   },
   "zh-Hans": {
-    noMeals: "明天拍一张照片，这一天就能重新记录起来。",
+    noMeals: "明天拍一张照片，就能重新开始记录。",
     over: "今天超出{over}——明天重新从{plan}开始。",
     protein: "蛋白质少了{gap}克——早餐吃鸡蛋或冰岛酸奶就能补上。",
     gainUnder: "比计划少了{under}千卡——明天一把坚果就能补上。",
@@ -985,14 +985,14 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     noMeals: "내일 사진 한 장이면 다시 기록이 이어져요.",
     over: "오늘 {over} 초과 — 내일은 다시 {plan}부터 시작해요.",
     protein: "단백질이 {gap}g 부족했어요 — 아침에 달걀이나 스키르를 먹으면 채워져요.",
-    gainUnder: "계획보다 {under}kcal 적어요 — 내일 견과류 한 줌이면 채울 수 있어요.",
-    under: "계획보다 {under} 적어요 — 내일 목표만큼 다 먹는 건 실수가 아니라 계획이에요.",
-    onPlan: "계획대로예요. 내일도 똑같이 가요.",
+    gainUnder: "플랜보다 {under}kcal 적어요 — 내일 견과류 한 줌이면 채울 수 있어요.",
+    under: "플랜보다 {under} 적어요 — 내일 목표만큼 다 먹는 건 실수가 아니라 플랜대로예요.",
+    onPlan: "플랜대로예요. 내일도 똑같이 가요.",
   },
   ja: {
     noMeals: "明日写真を1枚撮れば、また記録に戻れます。",
     over: "今日は{over}オーバー。明日はまた{plan}から始まります。",
-    protein: "たんぱく質が{gap}g不足。朝食に卵やスキールを足せば埋まります。",
+    protein: "タンパク質が{gap}g不足。朝食に卵やスキールを足せば埋まります。",
     gainUnder: "プランまで{under}kcal不足。明日ナッツをひとつかみ足せば補えます。",
     under: "プランより{under}少なめ。明日しっかり全部食べるのはプランどおりで、失敗ではありません。",
     onPlan: "プランどおりです。明日も同じ調子で。",

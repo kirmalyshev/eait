@@ -320,7 +320,7 @@ msgstr "Identificando o que tem no prato"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "Sem câmera, sem problema. Escolha uma foto da sua galeria ou só me conte o que você comeu — os dois dão macros."
+msgstr "Sem câmera, sem problema. Escolha uma foto da sua fototeca ou só me conte o que você comeu — os dois dão macros."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -435,7 +435,7 @@ msgstr "Esse código não está certo. Confira o e-mail mais recente do eait."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Não houve resposta. Tente de novo."
+msgstr "Não veio resposta. Tente de novo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -490,7 +490,7 @@ msgstr "Essa foto é grande demais para enviar."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-user"
-msgstr "Essa foi a última de hoje — sua cota diária reinicia à meia-noite."
+msgstr "Essa foi a última de hoje — sua cota diária renova à meia-noite."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

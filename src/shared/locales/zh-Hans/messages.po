@@ -220,7 +220,7 @@ msgstr "已丢弃。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "今天的总额度已被大家用完了。明天重新计数。"
+msgstr "今天的总额度已经用完了。明天会重新计数。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -275,7 +275,7 @@ msgstr "如有不对，直接说——“米饭减半”“没有牛油果”—
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-paid"
-msgstr "邀请链接仅供新成员使用，此账户已购买过 eait。"
+msgstr "邀请链接仅限新成员使用，而这个账户已经购买过 eait。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -290,12 +290,12 @@ msgstr "已记录。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
-msgstr "要记录这一餐——看着对吗？"
+msgstr "准备记录这个——对吗？"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.proposalLeadDated"
-msgstr "要将这一餐记录到{date}——看着对吗？"
+msgstr "准备把这个记录到{date}——对吗？"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -320,7 +320,7 @@ msgstr "正在识别食物名称"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "没有相机也没关系。从相册选一张照片，或直接告诉我你吃了什么——两种都能得到营养数据。"
+msgstr "没有相机也没关系。从相册选一张照片，或直接告诉我你吃了什么——两种都能得到宏量营养素。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -425,17 +425,17 @@ msgstr "告诉我哪里不对——“米饭减半”“没有牛油果”“其
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.code-dead"
-msgstr "该验证码已过期。请在网页或应用中重新获取。"
+msgstr "该验证码已过期。请在网页或 App 中重新获取。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.code-wrong"
-msgstr "验证码不正确。请查看 eait 发来的最新邮件。"
+msgstr "验证码不对。查看 eait 发来的最新邮件。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "没有返回结果。请再试一次。"
+msgstr "没有收到结果。再试一次。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -445,7 +445,7 @@ msgstr "这看起来不像食物。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.unsupported-image"
-msgstr "无法读取此文件。请使用 JPEG、PNG 或 WebP 格式的照片。"
+msgstr "这个文件不是能读取的照片。请用 JPEG、PNG 或 WebP。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -460,12 +460,12 @@ msgstr "该链接已过期。请在网页上打开你的计划，再次点击“
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.tooLong"
-msgstr "消息太长，无法发送。"
+msgstr "这条消息太长，发不出去。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.expired"
-msgstr "这条已不再保留。请再说一遍。"
+msgstr "这条已经不再保留了。再说一遍吧。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -485,7 +485,7 @@ msgstr "照片没有发送成功。请重新发送。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.tooLarge"
-msgstr "照片太大，无法发送。"
+msgstr "这张照片太大，发不出去。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -505,7 +505,7 @@ msgstr "这是你自己的邀请链接。这里需要填写好友的链接。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
-msgstr "应用"
+msgstr "App"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -515,7 +515,7 @@ msgstr "这里没有可修改的餐食。说出你吃了什么，再记录一次
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-already"
-msgstr "此账户已通过好友链接加入过。"
+msgstr "这个账户已经通过好友链接加入过了。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -10,7 +10,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.coachStarters.2"
-#~ msgstr "たんぱく質は足りていますか？"
+#~ msgstr "タンパク質は足りていますか？"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -30,7 +30,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.satfat"
-#~ msgstr "この食事は飽和脂肪が多めです。リクエストがあったので採点しています。"
+#~ msgstr "この食事は飽和脂肪酸が多めです。リクエストがあったので採点しています。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -40,32 +40,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "今日は{plan}のうち残り{left}、たんぱく質は{proteinTarget}g中{protein}です。"
+#~ msgstr "今日は{plan}のうち残り{left}、タンパク質は{proteinTarget}g中{protein}です。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "今日は{plan}まであと{left}、たんぱく質は{proteinTarget}g中{protein}です。その調子で。"
+#~ msgstr "今日は{plan}まであと{left}、タンパク質は{proteinTarget}g中{protein}です。その調子で。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "今日は{plan}まであと{left}、たんぱく質は{proteinTarget}g中{protein}です。その調子で。"
+#~ msgstr "今日は{plan}まであと{left}、タンパク質は{proteinTarget}g中{protein}です。その調子で。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "今日は{plan}を{over}オーバー、たんぱく質は{proteinTarget}g中{protein}です。"
+#~ msgstr "今日は{plan}を{over}オーバー、タンパク質は{proteinTarget}g中{protein}です。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "今日は{plan}を{over}オーバー、たんぱく質は{proteinTarget}g中{protein}です。増量プランでは超えるのが目的です。明日はまた新しい数字から。"
+#~ msgstr "今日は{plan}を{over}オーバー、タンパク質は{proteinTarget}g中{protein}です。増量プランでは超えるのが目的です。明日はまた新しい数字から。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "今日は{plan}を{over}オーバー、たんぱく質は{proteinTarget}g中{protein}です。増量プランでは超えるのが目的です。明日はまた新しい数字から。"
+#~ msgstr "今日は{plan}を{over}オーバー、タンパク質は{proteinTarget}g中{protein}です。増量プランでは超えるのが目的です。明日はまた新しい数字から。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -90,22 +90,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "これで今日の残りは{plan}のうち{left}、たんぱく質は{proteinTarget}g中{protein}です。"
+#~ msgstr "これで今日の残りは{plan}のうち{left}、タンパク質は{proteinTarget}g中{protein}です。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "これで今日の残りは{plan}のうち{left}、たんぱく質は{proteinTarget}g中{protein}です。"
+#~ msgstr "これで今日の残りは{plan}のうち{left}、タンパク質は{proteinTarget}g中{protein}です。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "これで今日は{plan}を{over}オーバー、たんぱく質は{proteinTarget}g中{protein}です。明日はまた新しい数字から。"
+#~ msgstr "これで今日は{plan}を{over}オーバー、タンパク質は{proteinTarget}g中{protein}です。明日はまた新しい数字から。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "これで今日は{plan}を{over}オーバー、たんぱく質は{proteinTarget}g中{protein}です。明日はまた新しい数字から。"
+#~ msgstr "これで今日は{plan}を{over}オーバー、タンパク質は{proteinTarget}g中{protein}です。明日はまた新しい数字から。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -160,7 +160,7 @@ msgstr "1食で1日の大きな割合をとっています。"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.coachStarters.support"
-msgstr "たんぱく質は足りていますか？"
+msgstr "タンパク質は足りていますか？"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -215,7 +215,7 @@ msgstr "栄養素を計算中 · 4/4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
-msgstr "削除しました。"
+msgstr "取り消しました。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -270,7 +270,7 @@ msgstr "食べたものを伝えるだけにします"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
-msgstr "違うところがあれば教えてください。「ご飯は半分」「アボカドなし」など。カードをタップしてグラム数を変えることもできます。"
+msgstr "違うところがあれば教えてください。「ごはんは半分」「アボカドなし」など。カードをタップしてグラム数を変えることもできます。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -320,17 +320,17 @@ msgstr "料理を特定しています"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-denied"
-msgstr "カメラなしでも大丈夫です。ライブラリから写真を選ぶか、食べたものを教えてください。どちらでもPFCが出ます。"
+msgstr "カメラなしでも大丈夫です。ライブラリから写真を選ぶか、食べたものを教えてください。どちらでもマクロ栄養素が出ます。"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-closed"
-msgstr "急がなくて大丈夫です。プランは記録画面にあります。次の食事のときに写真を撮ってください。習慣はそれだけです。撮っていなければ、明日一度だけお知らせします。"
+msgstr "急がなくて大丈夫です。プランは日記にあります。次の食事のときに写真を撮ってください。習慣はそれだけです。撮っていなければ、明日一度だけお知らせします。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.notThis"
-msgstr "これじゃない"
+msgstr "違います"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -355,12 +355,12 @@ msgstr "もうひとつ、iOSがこれから通知について確認します。
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.camera-primer"
-msgstr "まずひとつ：iOSがカメラへのアクセスを確認します。カメラはお皿を撮るためだけに使います。写真は記録で見返せるよう食事と一緒に保存され、アカウントを削除すると消去されます。"
+msgstr "まずひとつ：iOSがカメラへのアクセスを確認します。カメラはお皿を撮るためだけに使います。写真は日記で見返せるよう食事と一緒に保存され、アカウントを削除すると消去されます。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
-msgstr "たんぱく質"
+msgstr "タンパク質"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -380,12 +380,12 @@ msgstr "復元しました。おかえりなさい。写真でも文章でも食
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.inline.ldl"
-msgstr "飽和脂肪"
+msgstr "飽和脂肪酸"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
-msgstr "飽和脂肪"
+msgstr "飽和脂肪酸"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -420,7 +420,7 @@ msgstr "Spud"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.fix-prompt"
-msgstr "どこが違うか教えてください。「ご飯は半分」「アボカドなし」「500だった」などで大丈夫です。カードを開いて自分でグラム数を編集することもできます。"
+msgstr "どこが違うか教えてください。「ごはんは半分」「アボカドなし」「500だった」などで大丈夫です。カードを開いて自分でグラム数を編集することもできます。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -490,7 +490,7 @@ msgstr "写真が大きすぎて送信できません。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-user"
-msgstr "今日の分はこれで最後です。1日の利用枠は深夜0時にリセットされます。"
+msgstr "今日の分はこれで最後です。1日の利用枠は午前0時にリセットされます。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -535,7 +535,7 @@ msgstr "新しいeaitです。食事と写真はeaitアカウントに保存さ�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "今日：{plan}kcal中{eaten}、たんぱく質{proteinTarget}g中{protein}"
+msgstr "今日：{plan}kcal中{eaten}、タンパク質{proteinTarget}g中{protein}"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

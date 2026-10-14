@@ -1177,7 +1177,7 @@ const NL: OnboardingContent = {
     {
       id: "country",
       asks: {
-        country: { lines: ["Waar woon je?"], placeholder: "Zoeken" },
+        country: { lines: ["Waar woon je?"], placeholder: "Zoek" },
       },
       // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
       // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
@@ -1202,9 +1202,9 @@ const NL: OnboardingContent = {
     lines: ["Je persoonlijke plan wordt gemaakt"],
     title: "Je dagplan",
     rows: { calories: "Calorieën", protein: "Eiwit", carbs: "Koolhydraten", fat: "Vet", diet: "Dieet" },
-    limitCap: { ldl: "verzadigd vet ≤ {n}g", kidneys: "natrium ≤ {n}mg" },
+    limitCap: { ldl: "verzadigd vet ≤ {n} g", kidneys: "natrium ≤ {n} mg" },
     cta: "Laat het plan zien",
-    floorTitle: "We zijn gestopt bij {floor}kcal",
+    floorTitle: "We zijn gestopt bij {floor} kcal",
     floorBody: "De berekening wilde lager uitkomen. Zonder medische begeleiding stellen we geen doel onder deze grens in, dus hier ligt het jouwe. Dat staat ook in je dagboek.",
   },
   summary: {
@@ -1449,9 +1449,9 @@ const PL: OnboardingContent = {
     lines: ["Tworzę twój osobisty plan"],
     title: "Twój plan dnia",
     rows: { calories: "Kalorie", protein: "Białko", carbs: "Węglowodany", fat: "Tłuszcz", diet: "Dieta" },
-    limitCap: { ldl: "tłuszcze nasycone ≤ {n}g", kidneys: "sód ≤ {n}mg" },
+    limitCap: { ldl: "tłuszcze nasycone ≤ {n} g", kidneys: "sód ≤ {n} mg" },
     cta: "Pokaż mi plan",
-    floorTitle: "Zatrzymaliśmy się na {floor}kcal",
+    floorTitle: "Zatrzymaliśmy się na {floor} kcal",
     floorBody: "Z rachunku wychodziło mniej. Bez nadzoru lekarza nie ustalamy celów poniżej tej wartości, więc twój jest właśnie tutaj. Zobaczysz to też w swoim dzienniku.",
   },
   summary: {
@@ -1696,9 +1696,9 @@ const TR: OnboardingContent = {
     lines: ["Kişisel planın hazırlanıyor"],
     title: "Günlük planın",
     rows: { calories: "Kalori", protein: "Protein", carbs: "Karbonhidrat", fat: "Yağ", diet: "Diyet" },
-    limitCap: { ldl: "doymuş yağ ≤ {n}g", kidneys: "sodyum ≤ {n}mg" },
+    limitCap: { ldl: "doymuş yağ ≤ {n} g", kidneys: "sodyum ≤ {n} mg" },
     cta: "Planı göster",
-    floorTitle: "{floor}kcal'de durduk",
+    floorTitle: "{floor} kcal'de durduk",
     floorBody: "Hesap daha aşağı inmek istedi. Tıbbi gözetim olmadan bunun altında hedef koymuyoruz, o yüzden seninki burada. Bu, günlüğünde de yazacak.",
   },
   summary: {
@@ -1942,7 +1942,7 @@ const ZH_HANT: OnboardingContent = {
   building: {
     lines: ["正在建立你的個人計畫"],
     title: "你的每日計畫",
-    rows: { calories: "熱量", protein: "蛋白質", carbs: "碳水化合物", fat: "脂肪", diet: "飲食" },
+    rows: { calories: "熱量", protein: "蛋白質", carbs: "碳水", fat: "脂肪", diet: "飲食" },
     limitCap: { ldl: "飽和脂肪 ≤ {n} 公克", kidneys: "鈉 ≤ {n} 毫克" },
     cta: "讓我看看計畫",
     floorTitle: "我們停在 {floor} 大卡",
@@ -1950,11 +1950,11 @@ const ZH_HANT: OnboardingContent = {
   },
   summary: {
     lines: ["這是你的計畫"],
-    kcalLabel: "每日 大卡",
+    kcalLabel: "大卡／天",
     floorMarker: "基於安全設限 · 絕不低於 {floor}",
     macros: {
       protein: "蛋白質",
-      carbs: "碳水化合物",
+      carbs: "碳水",
       fat: "脂肪",
       satfat: "飽和脂肪 · 依你的要求",
     },
@@ -2021,7 +2021,7 @@ const ZH_HANS: OnboardingContent = {
   welcome: {
     lines: ["为你量身定制的计划", "你的目标、你的一天、你的饮食"],
     cta: "制定我的计划",
-    signin: "我已有账号",
+    signin: "我已有账户",
   },
   screens: [
     {
@@ -2126,7 +2126,7 @@ const ZH_HANS: OnboardingContent = {
     {
       id: "streak",
       asks: {
-        streak_goal_days: { lines: ["选一个连续打卡目标"] },
+        streak_goal_days: { lines: ["选一个连续记录目标"] },
       },
       options: {
         "7": { label: "7 天" },
@@ -2189,10 +2189,10 @@ const ZH_HANS: OnboardingContent = {
   building: {
     lines: ["正在制定你的个人计划"],
     title: "你的每日计划",
-    rows: { calories: "热量", protein: "蛋白质", carbs: "碳水化合物", fat: "脂肪", diet: "饮食" },
-    limitCap: { ldl: "饱和脂肪 ≤ {n} 克", kidneys: "钠 ≤ {n} 毫克" },
+    rows: { calories: "热量", protein: "蛋白质", carbs: "碳水", fat: "脂肪", diet: "饮食" },
+    limitCap: { ldl: "饱和脂肪 ≤ {n}克", kidneys: "钠 ≤ {n}毫克" },
     cta: "查看我的计划",
-    floorTitle: "我们停在了 {floor} 千卡",
+    floorTitle: "我们停在了{floor}千卡",
     floorBody: "按计算本可以更低。没有医生监督，我们不会把目标设得比这更低，所以你的目标就定在这里。你的日记里也会注明这一点。",
   },
   summary: {
@@ -2201,7 +2201,7 @@ const ZH_HANS: OnboardingContent = {
     floorMarker: "出于安全已设限 · 绝不低于 {floor}",
     macros: {
       protein: "蛋白质",
-      carbs: "碳水化合物",
+      carbs: "碳水",
       fat: "脂肪",
       satfat: "饱和脂肪 · 按你的要求",
     },
@@ -2279,7 +2279,7 @@ const KO: OnboardingContent = {
       options: {
         lose: { label: "체중 감량" },
         maintain: { label: "체중 유지" },
-        gain: { label: "체중 증가" },
+        gain: { label: "체중 증량" },
       },
     },
     {
@@ -2437,7 +2437,7 @@ const KO: OnboardingContent = {
     lines: ["나만의 플랜을 만들고 있어요"],
     title: "하루 플랜",
     rows: { calories: "칼로리", protein: "단백질", carbs: "탄수화물", fat: "지방", diet: "식단" },
-    limitCap: { ldl: "포화지방 ≤ {n}g", kidneys: "나트륨 ≤ {n}mg" },
+    limitCap: { ldl: "포화 지방 ≤ {n}g", kidneys: "나트륨 ≤ {n}mg" },
     cta: "플랜 보기",
     floorTitle: "{floor}kcal에서 멈췄어요",
     floorBody: "계산상으로는 더 내려갈 수 있었어요. 의료진의 관리 없이는 이보다 낮은 목표를 정하지 않아서, 여기로 맞췄어요. 다이어리에도 이렇게 표시돼요.",
@@ -2450,7 +2450,7 @@ const KO: OnboardingContent = {
       protein: "단백질",
       carbs: "탄수화물",
       fat: "지방",
-      satfat: "포화지방 · 요청하신 항목",
+      satfat: "포화 지방 · 요청하신 항목",
     },
     capNote: "그 속도는 안전하게 유지하기 어려울 만큼 하루 변화가 커야 해서, 안전한 버전으로 맞췄어요. 몸이 하루에 소모하는 에너지의 {share}%예요.",
     // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
@@ -2514,7 +2514,7 @@ const JA: OnboardingContent = {
   version: 17,
   welcome: {
     lines: ["あなたに合わせたプラン", "あなたの目標、1日、食事に合わせて"],
-    cta: "プランを作成",
+    cta: "プランを作る",
     signin: "アカウントをお持ちの方",
   },
   screens: [
@@ -2687,11 +2687,11 @@ const JA: OnboardingContent = {
     limitCap: { ldl: "飽和脂肪酸 ≤ {n}g", kidneys: "ナトリウム ≤ {n}mg" },
     cta: "プランを見る",
     floorTitle: "{floor}kcalで止めました",
-    floorBody: "計算上はもっと低くなりましたが、医師の管理なしにこれより低い目標は設定しません。なので、あなたの目標はここになります。ダイアリーにもそう表示されます。",
+    floorBody: "計算上はもっと低くなりましたが、医師の管理なしにこれより低い目標は設定しません。なので、あなたの目標はここになります。日記にもそう表示されます。",
   },
   summary: {
     lines: ["あなたのプランです"],
-    kcalLabel: "kcal／日",
+    kcalLabel: "kcal/日",
     floorMarker: "安全のため上限あり · {floor}未満にはなりません",
     macros: {
       protein: "タンパク質",
@@ -2761,7 +2761,7 @@ const PT_BR: OnboardingContent = {
   version: 17,
   welcome: {
     lines: ["Um plano feito para você", "Sua meta, seu dia, suas refeições"],
-    cta: "Criar meu plano",
+    cta: "Montar meu plano",
     signin: "Já tenho uma conta",
   },
   screens: [
@@ -2931,9 +2931,9 @@ const PT_BR: OnboardingContent = {
     lines: ["Criando seu plano pessoal"],
     title: "Seu plano diário",
     rows: { calories: "Calorias", protein: "Proteína", carbs: "Carboidratos", fat: "Gordura", diet: "Dieta" },
-    limitCap: { ldl: "gordura saturada ≤ {n}g", kidneys: "sódio ≤ {n}mg" },
+    limitCap: { ldl: "gordura saturada ≤ {n} g", kidneys: "sódio ≤ {n} mg" },
     cta: "Me mostra o plano",
-    floorTitle: "Paramos em {floor}kcal",
+    floorTitle: "Paramos em {floor} kcal",
     floorBody: "A conta queria ir mais baixo. Não definimos metas abaixo disso sem acompanhamento médico, então a sua fica aqui. Isso também vai aparecer no seu diário.",
   },
   summary: {
@@ -2944,7 +2944,7 @@ const PT_BR: OnboardingContent = {
       protein: "Proteína",
       carbs: "Carboidratos",
       fat: "Gordura",
-      satfat: "Gordura saturada · a seu pedido",
+      satfat: "Gordura saturada · você pediu",
     },
     capNote: "Esse ritmo exige uma mudança diária maior do que é seguro manter, então o seu é a versão segura: {share}% do que seu corpo gasta em um dia.",
     // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing

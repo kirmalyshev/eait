@@ -25,7 +25,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Bijgewerkt — {kcal}kcal. {day}"
+#~ msgstr "Bijgewerkt — {kcal} kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -40,32 +40,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Nog {left} van je {plan} over vandaag, {protein} van de {proteinTarget}g eiwit."
+#~ msgstr "Nog {left} van je {plan} over vandaag, {protein} van de {proteinTarget} g eiwit."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "nog {left} van je {plan} te vullen vandaag, en {protein} van de {proteinTarget}g eiwit. Ga zo door."
+#~ msgstr "nog {left} van je {plan} te vullen vandaag, en {protein} van de {proteinTarget} g eiwit. Ga zo door."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Nog {left} van je {plan} te vullen vandaag, en {protein} van de {proteinTarget}g eiwit. Ga zo door."
+#~ msgstr "Nog {left} van je {plan} te vullen vandaag, en {protein} van de {proteinTarget} g eiwit. Ga zo door."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "{over} boven je {plan} vandaag, {protein} van de {proteinTarget}g eiwit."
+#~ msgstr "{over} boven je {plan} vandaag, {protein} van de {proteinTarget} g eiwit."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "{over} boven je {plan} vandaag, en {protein} van de {proteinTarget}g eiwit. Erover gaan is juist de bedoeling bij een aankomplan; morgen is een nieuw getal."
+#~ msgstr "{over} boven je {plan} vandaag, en {protein} van de {proteinTarget} g eiwit. Erover gaan is juist de bedoeling bij een aankomplan; morgen is een nieuw getal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "{over} boven je {plan} vandaag, en {protein} van de {proteinTarget}g eiwit. Erover gaan is juist de bedoeling bij een aankomplan; morgen is een nieuw getal."
+#~ msgstr "{over} boven je {plan} vandaag, en {protein} van de {proteinTarget} g eiwit. Erover gaan is juist de bedoeling bij een aankomplan; morgen is een nieuw getal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -90,22 +90,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "dan blijft er {left} van je {plan} over voor de rest van vandaag, en {protein} van de {proteinTarget}g eiwit."
+#~ msgstr "dan blijft er {left} van je {plan} over voor de rest van vandaag, en {protein} van de {proteinTarget} g eiwit."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Dan blijft er {left} van je {plan} over voor de rest van vandaag, en {protein} van de {proteinTarget}g eiwit."
+#~ msgstr "Dan blijft er {left} van je {plan} over voor de rest van vandaag, en {protein} van de {proteinTarget} g eiwit."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "dan zit je vandaag {over} boven je {plan}, en {protein} van de {proteinTarget}g eiwit. Morgen is een nieuw getal."
+#~ msgstr "dan zit je vandaag {over} boven je {plan}, en {protein} van de {proteinTarget} g eiwit. Morgen is een nieuw getal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Dan zit je vandaag {over} boven je {plan}, en {protein} van de {proteinTarget}g eiwit. Morgen is een nieuw getal."
+#~ msgstr "Dan zit je vandaag {over} boven je {plan}, en {protein} van de {proteinTarget} g eiwit. Morgen is een nieuw getal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -115,7 +115,7 @@ msgstr "“{note}” — genoteerd, het zit in de cijfers."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal}kcal"
+msgstr "{names} · {kcal} kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -145,12 +145,12 @@ msgstr "{noun} erg hoog"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.high"
-msgstr "{nutrient} is hoog voor één maaltijd: {eaten} van je {target}{unit}."
+msgstr "{nutrient} is hoog voor één maaltijd: {eaten} van je {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.capLine.veryHigh"
-msgstr "{nutrient} is erg hoog voor één maaltijd: {eaten} van je {target}{unit}."
+msgstr "{nutrient} is erg hoog voor één maaltijd: {eaten} van je {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -195,17 +195,17 @@ msgstr "Vergelijken met je plan"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedLead"
-msgstr "Verbonden met het eait-account dat is ingelogd met"
+msgstr "Gekoppeld aan het eait-account dat is ingelogd met"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Geteld. Nog {left}kcal over vandaag."
+msgstr "Geteld. Nog {left} kcal over vandaag."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Geteld. Vandaag {over}kcal erover."
+msgstr "Geteld. Vandaag {over} kcal erover."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -220,7 +220,7 @@ msgstr "Weggegooid."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "Iedereen heeft het tegoed van vandaag gebruikt. Morgen is een nieuw getal."
+msgstr "Iedereen heeft het tegoed van vandaag gebruikt. Morgen begint de teller opnieuw."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -235,7 +235,7 @@ msgstr "Het eten herkennen · 2 van 4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "De eerste staat erin. {kcal}kcal."
+msgstr "De eerste staat erin. {kcal} kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -270,7 +270,7 @@ msgstr "Ik vertel je gewoon wat ik heb gegeten"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
-msgstr "Klopt er iets niet, zeg het — ‘halve rijst’, ‘geen avocado’ — of tik op de kaart en pas de grammen aan."
+msgstr "Klopt er iets niet, zeg het — “halve rijst”, “geen avocado” — of tik op de kaart en pas de grammen aan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -280,7 +280,7 @@ msgstr "Uitnodigingslinks zijn voor nieuwe leden, en dit account heeft eait al g
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
-msgstr "Loggen"
+msgstr "Log het"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -420,7 +420,7 @@ msgstr "Spud"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.fix-prompt"
-msgstr "Vertel me wat er niet klopt — ‘halve rijst’, ‘geen avocado’, ‘het was 500’ werkt allemaal. Of open de kaart en pas de grammen zelf aan."
+msgstr "Vertel me wat er niet klopt — “halve rijst”, “geen avocado”, “het was 500” werkt allemaal. Of open de kaart en pas de grammen zelf aan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -430,7 +430,7 @@ msgstr "Die code is verlopen. Vraag een nieuwe aan op het web of in de app."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.code-wrong"
-msgstr "Die code klopt niet. Kijk in de nieuwste e-mail van eait."
+msgstr "Die code klopt niet. Check de nieuwste e-mail van eait."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -440,7 +440,7 @@ msgstr "Daar kwam niets op terug. Probeer het opnieuw."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-food"
-msgstr "Dat leek niet op eten."
+msgstr "Dat leek geen eten."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -450,7 +450,7 @@ msgstr "Dat bestand is geen foto die dit kan lezen. JPEG, PNG of WebP."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-unknown"
-msgstr "Die uitnodigingslink hoort bij niemand. Controleer hem, of sla over."
+msgstr "Die uitnodigingslink hoort bij niemand. Check hem, of sla over."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -490,7 +490,7 @@ msgstr "Die foto is te groot om te versturen."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-user"
-msgstr "Dat was je laatste voor vandaag — je dagtegoed wordt om middernacht gereset."
+msgstr "Dat was je laatste van vandaag — je dagtegoed wordt om middernacht gereset."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -515,7 +515,7 @@ msgstr "Er staat hier geen maaltijd open om te wijzigen. Zeg wat je hebt gegeten
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-already"
-msgstr "Dit account is al via de link van een vriend aangemeld."
+msgstr "Dit account is al aangemeld met de link van een vriend."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -525,7 +525,7 @@ msgstr "Dit account is nog niet ingelogd — log op het web in met Apple of Goog
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "De gratis proefmaaltijd van dit account is op. Start je gratis proefperiode op het web om door te gaan."
+msgstr "De gratis proef van dit account is op. Start je gratis proefperiode op het web om door te gaan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -535,7 +535,7 @@ msgstr "Dit is de nieuwe eait. Je maaltijden en foto's staan in je eait-account:
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Vandaag: {eaten} van {plan}kcal, {protein} van {proteinTarget}g eiwit"
+msgstr "Vandaag: {eaten} van {plan} kcal, {protein} van {proteinTarget} g eiwit"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -585,7 +585,7 @@ msgstr "Wat zal ik vanavond eten?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.coachStarters.habits"
-msgstr "Wat is een lichtere ruil voor het avondeten?"
+msgstr "Wat is een lichter alternatief voor het avondeten?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

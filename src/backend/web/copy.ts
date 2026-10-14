@@ -1006,7 +1006,7 @@ const NL: PageCopy = {
   frontDoorLead:
     "Stel hier je account in en open daarna de app, al ingelogd. Het duurt zo'n drie minuten.",
   welcomeDemoAlt:
-    "eait in gebruik: een foto van een graanbowl, drie ingrediënten herkend met hun kcal, en de macro's: {kcal}kcal, calorieën binnen plan",
+    "eait in gebruik: een foto van een graanbowl, drie ingrediënten herkend met hun kcal, en de macro's: {kcal} kcal, calorieën binnen plan",
   chatHeading: "Je chat",
   chatEmpty: "Hier staat nog niets. Wat je in de app zegt, verschijnt hier, en andersom.",
   chatMealGone: "Die maaltijd staat niet meer in het dagboek.",
@@ -1015,7 +1015,7 @@ const NL: PageCopy = {
   progress: "Vraag {step} van {total}",
   back: "Terug",
   spudAlt: "Spud, de mascotte van eait",
-  cardMacros: "{kcal}{unit} · {protein}g eiwit",
+  cardMacros: "{kcal} {unit} · {protein} g eiwit",
   chatProposalLead: "Ik log dit — klopt het?",
   chatAMeal: "Een maaltijd",
   chatConfirm: "Log het",
@@ -1057,7 +1057,7 @@ const NL: PageCopy = {
   continueLabel: "Verder",
   /** The one refusal `/start` words itself — the rest come from the engine's own tables. */
   answerRequired: "Deze heeft een antwoord nodig.",
-  belowHealthyTarget: "Het laagste doel dat we voor jouw lengte kunnen plannen is {kg}kg.",
+  belowHealthyTarget: "Het laagste doel dat we voor jouw lengte kunnen plannen is {kg} kg.",
   ageBelowMinimum: "We kunnen alleen voor volwassenen plannen — check het jaar.",
   outOfRange: "Die waarde valt buiten wat we kunnen plannen. Probeer het opnieuw.",
   /** `<title>` per page. A browser tab in the wrong language is the first thing anybody sees. */
@@ -1122,7 +1122,7 @@ const PL: PageCopy = {
   frontDoorLead:
     "Załóż konto tutaj, a potem otwórz aplikację już zalogowaną. Zajmie to około trzech minut.",
   welcomeDemoAlt:
-    "eait w użyciu: zdjęcie miski z kaszą, trzy rozpoznane składniki z kcal i makroskładniki: {kcal}kcal, kalorie zgodne z planem",
+    "eait w użyciu: zdjęcie miski z kaszą, trzy rozpoznane składniki z kcal i makroskładniki: {kcal} kcal, kalorie zgodne z planem",
   chatHeading: "Twój czat",
   chatEmpty: "Jeszcze nic tu nie ma. To, co piszesz w aplikacji, pojawia się tutaj, i na odwrót.",
   chatMealGone: "Tego posiłku nie ma już w dzienniku.",
@@ -1131,12 +1131,12 @@ const PL: PageCopy = {
   progress: "Pytanie {step} z {total}",
   back: "Wstecz",
   spudAlt: "Spud, maskotka eait",
-  cardMacros: "{kcal}{unit} · {protein}g białka",
+  cardMacros: "{kcal}{unit} · {protein} g białka",
   chatProposalLead: "Zapisuję to — zgadza się?",
   chatAMeal: "Posiłek",
   chatConfirm: "Zapisz",
   chatCancel: "Nie to",
-  chatExpired: "To już nie jest wstrzymane. Napisz jeszcze raz.",
+  chatExpired: "To już wygasło. Napisz to jeszcze raz.",
   chatTooLong: "Ta wiadomość jest za długa, by ją wysłać.",
   chatRefusalNetwork: "Za dużo z tej sieci — to nie przez ciebie, tylko przez to połączenie. Spróbuj później.",
   chatRefusalGlobal: "Dzisiejszy wspólny limit się wyczerpał. Jutro licznik startuje od nowa.",
@@ -1146,7 +1146,7 @@ const PL: PageCopy = {
   chatNoFocusRedate:
     "Nie ma tu otwartego posiłku do przeniesienia na inny dzień. Otwórz go w aplikacji, aby zmienić dzień.",
   chatNotOnboarded: "Najpierw odpowiedz na pytania do planu.",
-  chatRefusalSubscription: "Darmowa próbka tego konta została wykorzystana. Rozpocznij bezpłatny okres próbny, aby kontynuować.",
+  chatRefusalSubscription: "Darmowa próbka tego konta została wykorzystana. Rozpocznij darmowy okres próbny, aby kontynuować.",
   chatRefusalFailed: "Odpowiedź nie dotarła. Spróbuj ponownie.",
   chatRefusalNotFood: "To nie wyglądało na jedzenie.",
   chatRefusalImage: "Tego pliku nie da się odczytać jako zdjęcia. JPEG, PNG lub WebP.",
@@ -1173,7 +1173,7 @@ const PL: PageCopy = {
   continueLabel: "Dalej",
   /** The one refusal `/start` words itself — the rest come from the engine's own tables. */
   answerRequired: "To pytanie wymaga odpowiedzi.",
-  belowHealthyTarget: "Najniższy cel, jaki możemy zaplanować dla twojego wzrostu, to {kg}kg.",
+  belowHealthyTarget: "Najniższy cel, jaki możemy zaplanować dla twojego wzrostu, to {kg} kg.",
   ageBelowMinimum: "Planujemy tylko dla dorosłych — sprawdź rok.",
   outOfRange: "Ta wartość jest poza zakresem, dla którego możemy planować. Spróbuj ponownie.",
   /** `<title>` per page. A browser tab in the wrong language is the first thing anybody sees. */
@@ -1193,7 +1193,7 @@ const PL: PageCopy = {
   offerWhenAfter: "Dzień {n}",
   offerBilled: "Start płatności · anulujesz w każdej chwili",
     offerClose: "Zamknij",
-  titleOffer: "Rozpocznij bezpłatny okres próbny",
+  titleOffer: "Rozpocznij darmowy okres próbny",
   /** The picker. Its OPTIONS are `LANG_LABEL` — endonyms, never translated. */
   languageLabel: "Język",
   languageSave: "Zapisz",
@@ -1238,7 +1238,7 @@ const TR: PageCopy = {
   frontDoorLead:
     "Hesabını burada kur, sonra uygulamayı giriş yapmış olarak aç. Yaklaşık üç dakika sürer.",
   welcomeDemoAlt:
-    "eait kullanımda: bir tahıl kâsesinin fotoğrafı, kcal değerleriyle okunan üç malzeme ve makrolar: {kcal}kcal, kaloriler planda",
+    "eait kullanımda: bir tahıl kâsesinin fotoğrafı, kcal değerleriyle okunan üç malzeme ve makrolar: {kcal} kcal, kaloriler planda",
   chatHeading: "Sohbetin",
   chatEmpty: "Burada henüz bir şey yok. Uygulamada söylediklerin burada görünür, buradakiler de orada.",
   chatMealGone: "Bu öğün artık günlükte yok.",
@@ -1255,14 +1255,14 @@ const TR: PageCopy = {
   chatExpired: "Bu artık beklemede değil. Tekrar söyle.",
   chatTooLong: "Bu mesaj göndermek için çok uzun.",
   chatRefusalNetwork: "Bu ağdan çok fazla istek var — sen değil, bu bağlantı. Daha sonra tekrar dene.",
-  chatRefusalGlobal: "Bugünün kotası herkes için doldu. Yarın sayaç sıfırlanır.",
-  chatRefusalDay: "Bu bugünkü son hakkındı — günlük kotan gece yarısı sıfırlanır.",
+  chatRefusalGlobal: "Bugünkü genel hak herkes tarafından kullanıldı. Yarın yeni bir sayı.",
+  chatRefusalDay: "Bu bugünkü son hakkındı — günlük hakkın gece yarısı sıfırlanır.",
   chatNoFocusCorrection:
     "Burada düzeltilecek açık bir öğün yok. Uygulamada aç ya da ne yediğini söyleyip yeniden kaydet.",
   chatNoFocusRedate:
     "Burada başka bir güne taşınacak açık bir öğün yok. Gününü değiştirmek için uygulamada aç.",
   chatNotOnboarded: "Önce plan sorularını yanıtla.",
-  chatRefusalSubscription: "Bu hesabın ücretsiz denemesi bitti. Devam etmek için ücretsiz denemeni başlat.",
+  chatRefusalSubscription: "Bu hesabın ücretsiz kullanım hakkı bitti. Devam etmek için ücretsiz denemeni başlat.",
   chatRefusalFailed: "Yanıt gelmedi. Tekrar dene.",
   chatRefusalNotFood: "Bu yiyeceğe benzemiyordu.",
   chatRefusalImage: "Bu dosya burada okunabilen bir fotoğraf değil. JPEG, PNG veya WebP kullan.",
@@ -1289,7 +1289,7 @@ const TR: PageCopy = {
   continueLabel: "Devam",
   /** The one refusal `/start` words itself — the rest come from the engine's own tables. */
   answerRequired: "Bu sorunun yanıtlanması gerekiyor.",
-  belowHealthyTarget: "Boyuna göre planlayabileceğimiz en düşük hedef {kg}kg.",
+  belowHealthyTarget: "Boyuna göre planlayabileceğimiz en düşük hedef {kg} kg.",
   ageBelowMinimum: "Yalnızca yetişkinler için plan yapabiliyoruz — yılı kontrol et.",
   outOfRange: "Bu değer planlayabileceğimiz aralığın dışında. Tekrar dene.",
   /** `<title>` per page. A browser tab in the wrong language is the first thing anybody sees. */
@@ -1610,7 +1610,7 @@ const KO: PageCopy = {
   chatNoFocusRedate:
     "여기에는 다른 날로 옮길 식사가 열려 있지 않아요. 날짜를 바꾸려면 앱에서 열어 주세요.",
   chatNotOnboarded: "먼저 플랜 질문에 답해 주세요.",
-  chatRefusalSubscription: "이 계정의 무료 체험분을 모두 사용했어요. 계속하려면 무료 체험을 시작해 주세요.",
+  chatRefusalSubscription: "이 계정의 무료 분석을 모두 사용했어요. 계속하려면 무료 체험을 시작해 주세요.",
   chatRefusalFailed: "응답이 오지 않았어요. 다시 시도해 주세요.",
   chatRefusalNotFood: "음식처럼 보이지 않아요.",
   chatRefusalImage: "읽을 수 있는 사진 파일이 아니에요. JPEG, PNG, WebP를 사용해 주세요.",
@@ -1818,7 +1818,7 @@ const PT_BR: PageCopy = {
   frontDoorLead:
     "Crie sua conta aqui e depois abra o app já com login feito. Leva uns três minutos.",
   welcomeDemoAlt:
-    "eait em uso: foto de um bowl de grãos, três ingredientes lidos com suas kcal e os macros: {kcal}kcal, calorias dentro do plano",
+    "eait em uso: foto de um bowl de grãos, três ingredientes lidos com suas kcal e os macros: {kcal} kcal, calorias dentro do plano",
   chatHeading: "Seu chat",
   chatEmpty: "Nada aqui ainda. O que você diz no app aparece aqui, e vice-versa.",
   chatMealGone: "Essa refeição não está mais no diário.",
@@ -1827,7 +1827,7 @@ const PT_BR: PageCopy = {
   progress: "Pergunta {step} de {total}",
   back: "Voltar",
   spudAlt: "Spud, o mascote do eait",
-  cardMacros: "{kcal}{unit} · {protein}g de proteína",
+  cardMacros: "{kcal}{unit} · {protein} g de proteína",
   chatProposalLead: "Vou registrar isto — está certo?",
   chatAMeal: "Uma refeição",
   chatConfirm: "Registrar",
@@ -1835,7 +1835,7 @@ const PT_BR: PageCopy = {
   chatExpired: "Essa já não está mais guardada. Diga de novo.",
   chatTooLong: "Essa mensagem é longa demais para enviar.",
   chatRefusalNetwork: "Pedidos demais desta rede — não é você, é esta conexão. Tente de novo mais tarde.",
-  chatRefusalGlobal: "Todo mundo já usou a cota de hoje. Amanhã o número recomeça.",
+  chatRefusalGlobal: "Todo mundo já usou a cota de hoje. Amanhã é um novo número.",
   chatRefusalDay: "Essa foi a última de hoje — sua cota diária renova à meia-noite.",
   chatNoFocusCorrection:
     "Não há nenhuma refeição aberta aqui para corrigir. Abra-a no app, ou diga o que comeu e registre de novo.",
@@ -1869,7 +1869,7 @@ const PT_BR: PageCopy = {
   continueLabel: "Continuar",
   /** The one refusal `/start` words itself — the rest come from the engine's own tables. */
   answerRequired: "Essa precisa de uma resposta.",
-  belowHealthyTarget: "A meta mais baixa que podemos planejar para a sua altura é {kg}kg.",
+  belowHealthyTarget: "A meta mais baixa que podemos planejar para a sua altura é {kg} kg.",
   ageBelowMinimum: "Só podemos montar planos para adultos — confira o ano.",
   outOfRange: "Esse valor está fora do que podemos planejar. Tente de novo.",
   /** `<title>` per page. A browser tab in the wrong language is the first thing anybody sees. */
@@ -1906,7 +1906,7 @@ const PT_BR: PageCopy = {
   emailCodeHeading: "Confira sua caixa de entrada",
   emailCodeLead: "Digite o código de 6 dígitos que enviamos para {email}. Ele vale por 10 minutos.",
   emailCodeLabel: "O código de 6 dígitos",
-  emailCodeWrong: "Esse código não está certo. Veja o e-mail mais recente do eait.",
+  emailCodeWrong: "Esse código não está certo. Confira o e-mail mais recente do eait.",
   emailCodeDead: "Este código expirou. Peça um novo para continuar.",
   emailCodeNew: "Enviar um novo código",
   emailResendWait: "Reenviar código em {time}",

@@ -210,7 +210,7 @@ msgstr "Policzone. Dziś {over} kcal ponad plan."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.3"
-msgstr "Liczenie składników · 4 z 4"
+msgstr "Liczenie wartości odżywczych · 4 z 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -250,7 +250,7 @@ msgstr "Dobrze — wprowadzenie za nami, pierwszy dzień ruszył. Jeszcze jedno,
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.already-in"
-msgstr "Dobrze. Jestem w czacie, kiedy tylko zechcesz — zdjęcie albo jedno zdanie wystarczy, by dodać posiłek."
+msgstr "Dobrze. Jestem w czacie, kiedy tylko zechcesz — zdjęcie albo jedno zdanie wystarczy, by zapisać posiłek."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -280,22 +280,22 @@ msgstr "Linki z zaproszeniem są dla nowych osób, a to konto już kupiło eait.
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
-msgstr "Dodaj"
+msgstr "Zapisz"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logged"
-msgstr "Dodano."
+msgstr "Zapisano."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
-msgstr "Dodaję to — zgadza się?"
+msgstr "Zapisuję to — zgadza się?"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.proposalLeadDated"
-msgstr "Dodaję to na {date} — zgadza się?"
+msgstr "Zapisuję to na {date} — zgadza się?"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -375,7 +375,7 @@ msgstr "Odczytywanie talerza…"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.restored"
-msgstr "Przywrócono — wszystko gotowe. Zdjęcie albo jedno zdanie wystarczy, by dodać posiłek."
+msgstr "Przywrócono — wszystko gotowe. Zdjęcie albo jedno zdanie wystarczy, by zapisać posiłek."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -510,7 +510,7 @@ msgstr "aplikację"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
-msgstr "Nie ma tu otwartego posiłku do zmiany. Opisz posiłek i dodaj go ponownie."
+msgstr "Nie ma tu otwartego posiłku do zmiany. Opisz posiłek i zapisz go ponownie."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -560,7 +560,7 @@ msgstr "Zaktualizowano."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.0"
-msgstr "Wysyłanie zdjęcia · 1 z 4"
+msgstr "Przesyłanie zdjęcia · 1 z 4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

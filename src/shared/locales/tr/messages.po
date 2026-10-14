@@ -25,7 +25,7 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.correction"
-#~ msgstr "Güncellendi — {kcal}kcal. {day}"
+#~ msgstr "Güncellendi — {kcal} kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -40,32 +40,32 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.left"
-#~ msgstr "Bugün {plan} hakkından {left} kaldı, protein {protein} / {proteinTarget}g."
+#~ msgstr "Bugün {plan} hakkından {left} kaldı, protein {protein} / {proteinTarget} g."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainLeft"
-#~ msgstr "bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget}g. Devam et."
+#~ msgstr "bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget} g. Devam et."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-#~ msgstr "Bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget}g. Devam et."
+#~ msgstr "Bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget} g. Devam et."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.running.over"
-#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g."
+#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget} g."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.gainOver"
-#~ msgstr "bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
+#~ msgstr "bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget} g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
+#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget} g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -90,22 +90,22 @@ msgstr ""
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherLeft"
-#~ msgstr "bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget}g."
+#~ msgstr "bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget} g."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-#~ msgstr "Bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget}g."
+#~ msgstr "Bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget} g."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmetic.otherOver"
-#~ msgstr "bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget}g. Yarın yeni bir sayı."
+#~ msgstr "bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget} g. Yarın yeni bir sayı."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 #~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-#~ msgstr "Bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget}g. Yarın yeni bir sayı."
+#~ msgstr "Bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget} g. Yarın yeni bir sayı."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -115,7 +115,7 @@ msgstr "“{note}” — not ettim, sayılara işlendi."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.title"
-msgstr "{names} · {kcal}kcal"
+msgstr "{names} · {kcal} kcal"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -165,7 +165,7 @@ msgstr "Yeterince protein alıyor muyum?"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
-msgstr "Önce web'de plan sorularını cevapla."
+msgstr "Önce web'de plan sorularını yanıtla."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -200,12 +200,12 @@ msgstr "eait hesabına bağlandı, giriş yöntemi:"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
-msgstr "Sayıldı. Bugün {left}kcal kaldı."
+msgstr "Sayıldı. Bugün {left} kcal kaldı."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.over"
-msgstr "Sayıldı. Bugün {over}kcal fazla."
+msgstr "Sayıldı. Bugün {over} kcal fazla."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -235,7 +235,7 @@ msgstr "Yiyecekler bulunuyor · 2/4"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.firstIn"
-msgstr "İlki kaydedildi. {kcal}kcal."
+msgstr "İlki kaydedildi. {kcal} kcal."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -255,7 +255,7 @@ msgstr "Güzel. Sohbet'te her zaman buradayım — bir fotoğraf da bir cümle d
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Dürüst cevap: bu tabağı iyi okuyamadım. {kcal} değerini kaba bir tahmin olarak al ve toplama güvenmeden önce gramları kontrol et. Bir dahaki sefere ikinci bir açı yardımcı olur."
+msgstr "Dürüst yanıt: bu tabağı iyi okuyamadım. {kcal} değerini kaba bir tahmin olarak al ve toplama güvenmeden önce gramları kontrol et. Bir dahaki sefere ikinci bir açı yardımcı olur."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -350,7 +350,7 @@ msgstr "Plana uygun."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "iOS'un sormak üzere olduğu bir şey daha: bildirimler. Günde bir tane, asla fazla değil — 20:30 mesajı ve deneme sürümündeysen bitmeden önceki gün bir hatırlatma. Başka hiçbir şey, asla."
+msgstr "iOS'un sormak üzere olduğu bir şey daha: bildirimler. Günde bir tane, asla fazla değil — 20:30 mesajı ve ücretsiz denemedeysen bitmeden önceki gün bir hatırlatma. Başka hiçbir şey, asla."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -435,7 +435,7 @@ msgstr "Bu kod doğru değil. eait'ten gelen en yeni e-postaya bak."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Cevap gelmedi. Tekrar dene."
+msgstr "Yanıt gelmedi. Tekrar dene."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -525,7 +525,7 @@ msgstr "Bu hesaba henüz giriş yapılmadı — web'de Apple veya Google ile gir
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "Bu hesabın ücretsiz denemelik hakkı bitti. Devam etmek için web'de ücretsiz denemeni başlat."
+msgstr "Bu hesabın ücretsiz kullanım hakkı bitti. Devam etmek için web'de ücretsiz denemeni başlat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -535,7 +535,7 @@ msgstr "Bu yeni eait. Öğünlerin ve fotoğrafların eait hesabında saklanıyo
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Bugün: {eaten} / {plan}kcal, protein {protein} / {proteinTarget}g"
+msgstr "Bugün: {eaten} / {plan} kcal, protein {protein} / {proteinTarget} g"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

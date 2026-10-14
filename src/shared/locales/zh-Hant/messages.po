@@ -210,7 +210,7 @@ msgstr "已計入。今天超過 {over} 大卡。"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.3"
-msgstr "正在計算營養素 · 4/4"
+msgstr "正在計算營養素 · 4／4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -220,7 +220,7 @@ msgstr "已捨棄。"
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "今天的額度大家都用完了。明天重新開始。"
+msgstr "今天的額度大家都用完了。明天會重新計算。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -230,7 +230,7 @@ msgstr "脂肪"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.1"
-msgstr "正在辨識食物 · 2/4"
+msgstr "正在辨識食物 · 2／4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -275,7 +275,7 @@ msgstr "如果有不對的地方，直接說，例如「飯減半」、「不要
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.referral-paid"
-msgstr "邀請連結是給新成員用的，而這個帳號已經購買過 eait 了。"
+msgstr "邀請連結僅限新會員使用，而這個帳號已經購買過 eait。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -560,7 +560,7 @@ msgstr "已更新。"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.0"
-msgstr "正在上傳照片 · 1/4"
+msgstr "正在上傳照片 · 1／4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -570,7 +570,7 @@ msgstr "正在估算份量"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.queue.2"
-msgstr "正在估算份量 · 3/4"
+msgstr "正在估算份量 · 3／4"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

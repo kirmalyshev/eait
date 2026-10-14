@@ -136,12 +136,12 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   pl: {
     steps: {
-      ingredients: ["Zapisywanie zmiany · 1 z 2", "Przeliczanie składników · 2 z 2"],
-      note: ["Czytanie notatki · 1 z 3", "Dopasowywanie posiłku · 2 z 3", "Przeliczanie składników · 3 z 3"],
-      reread: ["Ponowne czytanie zdjęcia · 1 z 3", "Szacowanie porcji · 2 z 3", "Liczenie składników · 3 z 3"],
+      ingredients: ["Zapisywanie zmiany · 1 z 2", "Przeliczanie wartości odżywczych · 2 z 2"],
+      note: ["Czytanie notatki · 1 z 3", "Dopasowywanie posiłku · 2 z 3", "Przeliczanie wartości odżywczych · 3 z 3"],
+      reread: ["Ponowne czytanie zdjęcia · 1 z 3", "Szacowanie porcji · 2 z 3", "Liczenie wartości odżywczych · 3 z 3"],
     },
     failedTitle: "Nie udało się wprowadzić zmiany", failedBody: "Posiłek pozostał bez zmian.", failedNote: "Twoja notatka jest tutaj: popraw ją albo wyślij ponownie.", refusedTitle: "Nie da się wprowadzić tej zmiany",
-    refusedOtherMeal: "Notatka dotyczyła innego posiłku. Popraw ten albo dodaj tamten osobno.",
+    refusedOtherMeal: "Notatka dotyczyła innego posiłku. Popraw ten albo zapisz tamten osobno.",
     mealUpdating: "Ten posiłek się aktualizuje", deleteStops: "Usunięcie przerwie aktualizację i skasuje posiłek.",
     waiting: "Czekam na połączenie. Wyśle się samo.",
     discard: "Odrzuć", ok: "OK", push: "{names}: zaktualizowano · {kcal} (było {was})",
@@ -160,9 +160,9 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   "zh-Hant": {
     steps: {
-      ingredients: ["正在儲存變更 · 1/2", "正在重算營養素 · 2/2"],
-      note: ["正在讀取你的備註 · 1/3", "正在調整餐點 · 2/3", "正在重算營養素 · 3/3"],
-      reread: ["正在重新讀取照片 · 1/3", "正在估算份量 · 2/3", "正在計算營養素 · 3/3"],
+      ingredients: ["正在儲存變更 · 1／2", "正在重算營養素 · 2／2"],
+      note: ["正在讀取你的備註 · 1／3", "正在調整餐點 · 2／3", "正在重算營養素 · 3／3"],
+      reread: ["正在重新讀取照片 · 1／3", "正在估算份量 · 2／3", "正在計算營養素 · 3／3"],
     },
     failedTitle: "無法套用你的變更", failedBody: "你的餐點維持原樣。", failedNote: "你的備註還在：編輯它，或再傳送一次。", refusedTitle: "無法進行這項變更",
     refusedOtherMeal: "這則備註要求記錄另一餐。請修正這一餐，或另外記錄那一餐。",
@@ -180,7 +180,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     refusedOtherMeal: "这条备注要求记录另一餐。请修正这一餐，或单独记录另一餐。",
     mealUpdating: "这一餐正在更新", deleteStops: "删除将停止更新并删除这一餐。",
     waiting: "正在等待网络连接，连接后会自动发送。",
-    discard: "放弃", ok: "OK", push: "{names}已更新 · {kcal}（原为{was}）",
+    discard: "丢弃", ok: "OK", push: "{names}已更新 · {kcal}（原为{was}）",
   },
   ko: {
     steps: {
@@ -214,7 +214,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     },
     failedTitle: "Não foi possível aplicar sua alteração", failedBody: "Sua refeição continua como estava.", failedNote: "Sua nota está aqui: edite ou envie de novo.", refusedTitle: "Não foi possível fazer essa alteração",
     refusedOtherMeal: "A nota pedia para registrar outra refeição. Corrija esta ou registre a outra separadamente.",
-    mealUpdating: "Esta refeição está sendo atualizada", deleteStops: "Excluir interrompe a atualização e exclui a refeição.",
+    mealUpdating: "Esta refeição está sendo atualizada", deleteStops: "Apagar interrompe a atualização e apaga a refeição.",
     waiting: "Aguardando conexão. O envio é automático.",
     discard: "Descartar", ok: "OK", push: "Atualização: {names} · {kcal} (antes: {was})",
   },
