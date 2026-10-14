@@ -76,6 +76,8 @@ export const PERF_SCREENS = [
   "meal-fix",
   "meal-ingredient",
   "health",
+  // The + menu's Search (ieat-app#909): the field and the saved list, drawn before any result.
+  "food-search",
 ] as const;
 
 export type PerfScreen = (typeof PERF_SCREENS)[number];
@@ -176,6 +178,8 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // resolve in a microtask — but "should" is not "measured", and it is stated here rather than
   // quietly assumed.
   health: { paintMs: 100, readyMs: 250 },
+  // Complete on the first frame: results are the user's own query and are never waited for here.
+  "food-search": { paintMs: 100, readyMs: 100 },
 
   // The diary. Seeded from the day cache, which boot warms, so the common case is instant. The
   // allowance above `paintMs` is for the cold case — cache empty, one database read — and nothing
