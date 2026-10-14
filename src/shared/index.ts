@@ -67,6 +67,7 @@ export * from "./app/progress-copy.ts";
 export * from "./app/milestones-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/food-search-copy.ts";
+export * from "./app/numbers-copy.ts";
 export * from "./app/error-copy.ts";
 export * from "./app/signup-copy.ts";
 export * from "./app/chat-copy.ts";
