@@ -78,7 +78,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Die Suche hat nicht geklappt. Deine Eingabe ist noch da —",
     retry: "Nochmal versuchen",
     noMatch: "Keine Treffer in der Lebensmittelliste für „{q}“.",
-    tell: "Im Chat fragen: „{q}“",
+    tell: "Frag im Chat: „{q}“",
   },
   fr: {
     plusSearch: "Rechercher",
@@ -97,7 +97,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Recherche impossible. Tes mots sont toujours là —",
     retry: "Réessayer",
     noMatch: "Rien dans la liste d’aliments pour « {q} ».",
-    tell: "Demander dans le Chat : « {q} »",
+    tell: "Demander au Chat : « {q} »",
   },
   it: {
     plusSearch: "Cerca",
@@ -154,7 +154,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Không tìm được. Những gì bạn gõ vẫn còn đây —",
     retry: "Thử lại",
     noMatch: "Không có “{q}” trong danh sách thực phẩm.",
-    tell: "Hỏi trong Chat: “{q}”",
+    tell: "Hỏi Chat: “{q}”",
   },
   id: {
     plusSearch: "Cari",
@@ -173,7 +173,7 @@ export const FOOD_SEARCH_COPY: Localized<FoodSearchCopy> = {
     searchFailed: "Pencarian gagal. Kata-katamu masih di sini —",
     retry: "Coba lagi",
     noMatch: "“{q}” tidak ada di daftar makanan.",
-    tell: "Tanya di Chat: “{q}”",
+    tell: "Tanya ke Chat: “{q}”",
   },
   ru: {
     plusSearch: "Поиск",
