@@ -18,7 +18,7 @@ const LEAN = {
 } as const;
 
 describe("widen", () => {
-  const out = widen(LeanSchema.parse(LEAN));
+  const out = widen(LeanSchema.parse({ ...LEAN, protein_g: 40, carbs_g: 70, fat_g: 17 }));
 
   test("an item's kcal is grams × kcal_per_100g, never asked of the model", () => {
     expect(out.items.map((i) => i.kcal)).toEqual([260, 248, 88]);
@@ -27,11 +27,11 @@ describe("widen", () => {
   test("an ungrounded item's macros are the meal's, split by its share of the kcal", () => {
     // 260 + 247.5 + 88.4 = 595.9 kcal of item mass — the shares divide over the UNROUNDED
     // densities — and each share is then rounded to a tenth, as a model-written number would be.
-    expect(out.items[0]!.protein_g).toBe(26.2);
-    expect(out.items[1]!.carbs_g).toBe(33.2);
-    expect(out.items[2]!.fat_g).toBe(4.5);
+    expect(out.items[0]!.protein_g).toBe(17.5);
+    expect(out.items[1]!.carbs_g).toBe(29.1);
+    expect(out.items[2]!.fat_g).toBe(2.5);
     // And the shares hand the whole pool out: nothing is estimated twice or lost.
-    expect(out.items.reduce((s, i) => s + i.protein_g, 0)).toBeCloseTo(60, 0);
+    expect(out.items.reduce((s, i) => s + i.protein_g, 0)).toBeCloseTo(40, 0);
   });
 
   test("the micros the lean schema does not ask for come back as zero, not absent", () => {

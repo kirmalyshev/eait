@@ -29,7 +29,7 @@ const meal = (items: AnalyzedMeal["items"]): AnalyzedMeal => ({
   satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, confidence: "high", notes: "",
 });
 const model = (name_en: string, grams: number, kcal_per_100g = 150) => ({
-  name: name_en, name_en, grams, kcal: grams * kcal_per_100g / 100, protein_g: 3, carbs_g: 4, fat_g: 2, kcal_per_100g,
+  name: name_en, name_en, grams, kcal: grams * kcal_per_100g / 100, protein_g: grams * kcal_per_100g / 1600, carbs_g: grams * kcal_per_100g / 800, fat_g: grams * kcal_per_100g / 3600, kcal_per_100g,
 });
 
 describe("grounding items in the catalog", () => {
