@@ -1007,7 +1007,7 @@ describe("the correction-learned portion prior", () => {
 
   it("does not train the prior on a cut that offsets a dry catalog row's density (#2189)", async () => {
     const userId = await onboard();
-    const dry = { ...rice, name: "Couscous", name_en: "couscous", grams: 180, ref: "usda:1", food: { name: "Couscous, dry", source: "usda" as const, per100: { kcal: 376, protein_g: 12, carbs_g: 77, fat_g: 0.6 }, attribution: [] } };
+    const dry = { ...rice, name: "Couscous", name_en: "couscous", grams: 180, ref: "usda-sr:1", food: { name: "Couscous, dry", source: "usda-sr" as const, per100: { kcal: 376, protein_g: 12, carbs_g: 77, fat_g: 0.6 }, attribution: [] } };
     const res = await logPhotoMeal(
       makeDeps({}, { ...demoPorts(), analyzePhoto: async () => ({ ...PLATE, items: [dry, oil] }) }), userId, photo(9));
     if (res.kind !== "logged") throw new Error("expected logged");
