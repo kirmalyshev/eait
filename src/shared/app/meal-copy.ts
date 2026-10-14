@@ -126,6 +126,12 @@ export interface MealCopy {
   phoneGrams: string;
   /** A failed ingredient save: `{grams}` is what was typed, still in the editor. */
   phoneIngredientKept: string;
+  /** Change what an ingredient IS to a catalog row (ieat-app#2192): the row's action, the search field, the hint that the amount stays, the empty result and a failed save. */
+  phoneSwapAction: string;
+  phoneSwapSearch: string;
+  phoneSwapKeeps: string;
+  phoneSwapNone: string;
+  phoneSwapFailed: string;
   /**
    * The source card on Edit ingredient (ieat-app #1954, board `meal-source-item`): "From the food
    * table" over the row's own name, or "Estimate" for an item no row grounded; `{amount}` is a
@@ -216,6 +222,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "was {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "That didn't go through. Your {grams} is still here. Done saves it again.",
+    phoneSwapAction: "Change food",
+    phoneSwapSearch: "Search a food",
+    phoneSwapKeeps: "Keeps your {grams}",
+    phoneSwapNone: "Nothing matches. Try another word.",
+    phoneSwapFailed: "That didn't go through. Nothing changed.",
     phoneSourceFromTable: "From the food table",
     phoneSourceEstimate: "Estimate",
     phoneSourcePer: "Per {amount}",
@@ -276,6 +287,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "avant : {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Ça n'est pas passé. Ton {grams} est toujours là. Terminé l'enregistre à nouveau.",
+    phoneSwapAction: "Changer d'aliment",
+    phoneSwapSearch: "Cherche un aliment",
+    phoneSwapKeeps: "Tes {grams} restent",
+    phoneSwapNone: "Rien ne correspond. Essaie un autre mot.",
+    phoneSwapFailed: "Ça n'a pas abouti. Rien n'a changé.",
     phoneSourceFromTable: "Depuis la table des aliments",
     phoneSourceEstimate: "Estimation",
     phoneSourcePer: "Pour {amount}",
@@ -336,6 +352,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "vorher {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Das ist nicht durchgegangen. Deine {grams} sind noch da. Mit Fertig wird es erneut gespeichert.",
+    phoneSwapAction: "Lebensmittel ändern",
+    phoneSwapSearch: "Lebensmittel suchen",
+    phoneSwapKeeps: "Deine {grams} bleiben",
+    phoneSwapNone: "Nichts passt. Probier ein anderes Wort.",
+    phoneSwapFailed: "Das hat nicht geklappt. Nichts hat sich geändert.",
     phoneSourceFromTable: "Aus der Nährwerttabelle",
     phoneSourceEstimate: "Schätzung",
     phoneSourcePer: "Pro {amount}",
@@ -396,6 +417,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "era {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Non è andata a buon fine. I tuoi {grams} sono ancora qui. Con Fatto si salva di nuovo.",
+    phoneSwapAction: "Cambia alimento",
+    phoneSwapSearch: "Cerca un alimento",
+    phoneSwapKeeps: "Mantiene i tuoi {grams}",
+    phoneSwapNone: "Nessun risultato. Prova un'altra parola.",
+    phoneSwapFailed: "Non è andata a buon fine. Non è cambiato nulla.",
     phoneSourceFromTable: "Dalla tabella alimentare",
     phoneSourceEstimate: "Stima",
     phoneSourcePer: "Per {amount}",
@@ -456,6 +482,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "antes {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Eso no se completó. Tus {grams} siguen aquí. Con Listo se guarda de nuevo.",
+    phoneSwapAction: "Cambiar alimento",
+    phoneSwapSearch: "Busca un alimento",
+    phoneSwapKeeps: "Mantiene tus {grams}",
+    phoneSwapNone: "No hay coincidencias. Prueba otra palabra.",
+    phoneSwapFailed: "No se pudo completar. No ha cambiado nada.",
     phoneSourceFromTable: "De la tabla de alimentos",
     phoneSourceEstimate: "Estimación",
     phoneSourcePer: "Por {amount}",
@@ -516,6 +547,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "trước: {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Chưa được. {grams} của bạn vẫn còn đây. Bấm Xong để lưu lại.",
+    phoneSwapAction: "Đổi món ăn",
+    phoneSwapSearch: "Tìm món ăn",
+    phoneSwapKeeps: "Giữ nguyên {grams}",
+    phoneSwapNone: "Không có kết quả phù hợp. Thử từ khác nhé.",
+    phoneSwapFailed: "Chưa thực hiện được. Mọi thứ vẫn như cũ.",
     phoneSourceFromTable: "Từ bảng thành phần thực phẩm",
     phoneSourceEstimate: "Ước tính",
     phoneSourcePer: "Mỗi {amount}",
@@ -576,6 +612,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "tadinya {amount}",
     phoneGrams: "{n}g",
     phoneIngredientKept: "Itu belum berhasil. {grams} milikmu masih di sini. Ketuk Selesai untuk menyimpan lagi.",
+    phoneSwapAction: "Ganti makanan",
+    phoneSwapSearch: "Cari makanan",
+    phoneSwapKeeps: "Takaranmu tetap {grams}",
+    phoneSwapNone: "Tidak ada yang cocok. Coba kata lain.",
+    phoneSwapFailed: "Tidak berhasil. Tidak ada yang berubah.",
     phoneSourceFromTable: "Dari tabel pangan",
     phoneSourceEstimate: "Perkiraan",
     phoneSourcePer: "Per {amount}",
@@ -636,6 +677,11 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "было {amount}",
     phoneGrams: "{n}г",
     phoneIngredientKept: "Не получилось. Твои {grams} всё ещё здесь. «Готово» сохранит их снова.",
+    phoneSwapAction: "Заменить продукт",
+    phoneSwapSearch: "Найди продукт",
+    phoneSwapKeeps: "Останется {grams}",
+    phoneSwapNone: "Ничего не нашлось. Попробуй другое слово.",
+    phoneSwapFailed: "Не получилось. Ничего не изменилось.",
     phoneSourceFromTable: "Из таблицы продуктов",
     phoneSourceEstimate: "Оценка",
     phoneSourcePer: "На {amount}",

@@ -1094,6 +1094,13 @@ export interface MessageRequest {
  */
 export interface EditMealRequest {
   items?: MealItem[];
+  /**
+   * Change what item `index` IS to the catalog row `ref` (a `food_ref` id from `GET /v1/foods`), at
+   * the item's own grams, with no model in between (ieat-app#2192). The server reads the row's
+   * nutrition itself; a client cannot send a number the catalog does not carry. Applied after
+   * `items`, to the index in the resulting list.
+   */
+  swap?: { index: number; ref: string };
   kcal?: number;
   protein_g?: number;
   carbs_g?: number;
@@ -1143,6 +1150,13 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
   for (const k of EDIT_NUMBERS) {
     const v = b[k];
     if (v !== undefined && !amount(v)) return false;
+  }
+  if (b.swap !== undefined) {
+    const w = b.swap as Record<string, unknown> | null;
+    if (typeof w !== "object" || w === null || Array.isArray(w)) return false;
+    if (Object.keys(w).some((k) => k !== "index" && k !== "ref")) return false;
+    if (!Number.isInteger(w.index) || (w.index as number) < 0 || (w.index as number) >= MAX_MEAL_ITEMS) return false;
+    if (typeof w.ref !== "string" || w.ref.length === 0 || w.ref.length > MAX_ITEM_NAME) return false;
   }
   if (b.items !== undefined) {
     if (!Array.isArray(b.items) || b.items.length > MAX_MEAL_ITEMS) return false;

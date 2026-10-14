@@ -453,8 +453,23 @@ export async function editMeal(
   // other `ref` — unknown, renamed, invented — is dropped with its `food`, and the item is the
   // client's estimate, as every edited item is. The totals below derive from the RECONCILED
   // items, so a recomputed row moves the header with it.
-  const items = patch.items === undefined ? undefined
+  const reconciled = patch.items === undefined ? undefined
     : opts.serverItems === true ? patch.items : reconcileRefs(patch.items, existing.items);
+
+  // A swap (ieat-app#2192): the item becomes a catalog row at ITS OWN grams — `grams × per100`
+  // from the row, provenance ours, no model. The row is read here, never taken from the client.
+  let items = reconciled;
+  if (request.swap !== undefined) {
+    const base = reconciled ?? existing.items;
+    const target = base[request.swap.index];
+    const food = target === undefined ? null : await deps.store.foodById(request.swap.ref);
+    const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+    const name = food === null ? "" : (lang === "de" ? food.name_de : lang === "en" ? food.name_en : food.names[lang]) ?? food.name;
+    const grounded = target === undefined || food === null || !(target.grams > 0) ? null : mealFromFood(food, target.grams, name)?.items[0];
+    if (!grounded || target === undefined) return { kind: "target-gone", on: "correction" };
+    const swapped: MealItem = { ...grounded, ...(target.role !== undefined ? { role: target.role } : {}) };
+    items = base.map((it, i) => (i === request.swap!.index ? swapped : it));
+  }
 
   // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
   // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
