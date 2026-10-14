@@ -125,12 +125,12 @@ export interface MealReminderCopy {
 export const MEAL_REMINDER_COPY: Localized<MealReminderCopy> = {
   en: { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", body: "A photo is enough to log it." },
   de: { breakfast: "Frühstück", lunch: "Mittagessen", dinner: "Abendessen", body: "Ein Foto genügt zum Eintragen." },
-  fr: { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner", body: "Une photo suffit pour le noter." },
+  fr: { breakfast: "Petit-déjeuner", lunch: "Déjeuner", dinner: "Dîner", body: "Une photo suffit pour l'enregistrer." },
   it: { breakfast: "Colazione", lunch: "Pranzo", dinner: "Cena", body: "Basta una foto per registrarlo." },
   es: { breakfast: "Desayuno", lunch: "Almuerzo", dinner: "Cena", body: "Una foto basta para registrarlo." },
   ru: { breakfast: "Завтрак", lunch: "Обед", dinner: "Ужин", body: "Чтобы записать, хватит одного фото." },
-  id: { breakfast: "Sarapan", lunch: "Makan siang", dinner: "Makan malam", body: "Cukup satu foto untuk mencatatnya." },
-  vi: { breakfast: "Bữa sáng", lunch: "Bữa trưa", dinner: "Bữa tối", body: "Chỉ cần một tấm ảnh là ghi được." },
+  id: { breakfast: "Sarapan", lunch: "Makan siang", dinner: "Makan malam", body: "Cukup foto saja untuk mencatatnya." },
+  vi: { breakfast: "Bữa sáng", lunch: "Bữa trưa", dinner: "Bữa tối", body: "Chỉ cần chụp một tấm ảnh là xong." },
 };
 
 export const mealReminderCopyFor = (lang: Lang): MealReminderCopy => t(lang)(MEAL_REMINDER_COPY);

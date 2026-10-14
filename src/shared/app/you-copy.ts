@@ -502,7 +502,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   fr: {
-    reminders: { row: "Rappels", beforeMeals: "Avant les repas", note: "Un rappel n'arrive que si ce repas n'est pas encore noté.", webNote: "Les rappels arrivent sur ton iPhone.", evening: "Message du soir, 20:30", eveningSub: "Ta journée face au plan." },
+    reminders: { row: "Rappels", beforeMeals: "Avant les repas", note: "Un rappel n'arrive que si ce repas n'est pas encore enregistré.", webNote: "Les rappels arrivent sur ton iPhone.", evening: "Message du soir, 20:30", eveningSub: "Ta journée face au plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -639,7 +639,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   de: {
-    reminders: { row: "Erinnerungen", beforeMeals: "Vor den Mahlzeiten", note: "Eine Erinnerung kommt nur, wenn die Mahlzeit bis dahin nicht eingetragen ist.", webNote: "Erinnerungen kommen auf deinem iPhone an.", evening: "Abendnachricht, 20:30", eveningSub: "Der Tag im Vergleich zum Plan." },
+    reminders: { row: "Erinnerungen", beforeMeals: "Vor den Mahlzeiten", note: "Du wirst nur erinnert, wenn die Mahlzeit bis dahin noch nicht eingetragen ist.", webNote: "Erinnerungen bekommst du auf dem iPhone.", evening: "Abendzusammenfassung, 20:30", eveningSub: "Dein Tag im Vergleich zum Plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -913,7 +913,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   es: {
-    reminders: { row: "Recordatorios", beforeMeals: "Antes de las comidas", note: "El recordatorio llega solo si esa comida aún no está registrada.", webNote: "Los recordatorios llegan a tu iPhone.", evening: "Mensaje de la noche, 20:30", eveningSub: "Tu día frente al plan." },
+    reminders: { row: "Recordatorios", beforeMeals: "Antes de las comidas", note: "Solo te avisamos si esa comida todavía no está registrada.", webNote: "Los recordatorios llegan a tu iPhone.", evening: "Aviso de la noche, 20:30", eveningSub: "Tu día frente al plan." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1050,7 +1050,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   vi: {
-    reminders: { row: "Nhắc nhở", beforeMeals: "Trước bữa ăn", note: "Nhắc nhở chỉ đến nếu bữa đó chưa được ghi.", webNote: "Nhắc nhở sẽ đến trên iPhone của bạn.", evening: "Tin nhắn buổi tối, 20:30", eveningSub: "Hôm nay so với kế hoạch." },
+    reminders: { row: "Nhắc nhở", beforeMeals: "Trước bữa ăn", note: "Chỉ nhắc khi bạn chưa ghi bữa đó.", webNote: "Nhắc nhở sẽ đến trên iPhone của bạn.", evening: "Lời nhắc buổi tối, 20:30", eveningSub: "So với kế hoạch hôm nay." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1187,7 +1187,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   id: {
-    reminders: { row: "Pengingat", beforeMeals: "Sebelum makan", note: "Pengingat hanya muncul jika makanan itu belum dicatat.", webNote: "Pengingat masuk ke iPhone-mu.", evening: "Pesan malam, 20:30", eveningSub: "Hari ini dibanding rencana." },
+    reminders: { row: "Pengingat", beforeMeals: "Sebelum makan", note: "Pengingat hanya muncul kalau makanan itu belum kamu catat.", webNote: "Pengingat masuk ke iPhone-mu.", evening: "Pesan malam, 20:30", eveningSub: "Hari ini dibanding rencanamu." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
@@ -1324,7 +1324,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     },
   },
   ru: {
-    reminders: { row: "Напоминания", beforeMeals: "Перед едой", note: "Напоминание придёт, только если этот приём пищи ещё не записан.", webNote: "Напоминания приходят на твой iPhone.", evening: "Вечернее сообщение, 20:30", eveningSub: "День в сравнении с планом." },
+    reminders: { row: "Напоминания", beforeMeals: "Перед едой", note: "Напоминание придёт, только если к этому времени приём пищи не записан.", webNote: "Напоминания приходят на твой iPhone.", evening: "Вечернее сообщение, 20:30", eveningSub: "День в сравнении с планом." },
     headerFacts: "{age} · {height} · {flags}",
     headerFactsNoFlags: "{age} · {height}",
     headerFactsAgeFlags: "{age} · {flags}",
