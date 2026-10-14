@@ -13,7 +13,7 @@ import { prepareAnalysis } from "./analysis.ts";
 const item = (kcal: number, over: Partial<AnalyzedMeal["items"][number]> = {}) => ({
   name: "Something", grams: 100, kcal,
   protein_g: kcal / 10, carbs_g: kcal / 5, fat_g: kcal / 20,
-  kcal_per_100g: kcal, ...over,
+  kcal_per_100g: kcal, ref: "fixture", ...over,
 });
 
 /** A plate whose items sum to 400kcal, 40g protein, 80g carbs, 20g fat. */

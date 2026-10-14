@@ -45,6 +45,21 @@ export function isCookingFat(item: { role?: string | undefined; kcal?: number | 
 const TOLERANCE_SHARE = 0.15;
 const TOLERANCE_FLOOR_KCAL = 30;
 
+/**
+ * An ungrounded item whose kcal sits this far from its own macros (4/4/9) is rescaled to them.
+ * Alcohol and fibre make the two legitimately differ a little, hence the share and the floor.
+ */
+const MACRO_KCAL_SHARE = 0.25;
+const MACRO_KCAL_FLOOR = 20;
+
+function reconcileKcal<T extends { ref?: string | undefined; kcal?: number | undefined; protein_g?: number | undefined; carbs_g?: number | undefined; fat_g?: number | undefined }>(it: T): T {
+  const { kcal, protein_g: p, carbs_g: c, fat_g: f } = it;
+  if (it.ref || typeof kcal !== "number" || typeof p !== "number" || typeof c !== "number" || typeof f !== "number") return it;
+  const fromMacros = Math.round(4 * p + 4 * c + 9 * f);
+  if (fromMacros <= 0) return it;
+  return Math.abs(kcal - fromMacros) > Math.max(MACRO_KCAL_SHARE * Math.max(kcal, fromMacros), MACRO_KCAL_FLOOR) ? { ...it, kcal: fromMacros } : it;
+}
+
 /** One step down, and no further. `low` is already the loudest thing the card can say. */
 const DOWNGRADE: Record<string, string> = { high: "medium", medium: "low", low: "low" };
 
@@ -69,7 +84,8 @@ export function prepareAnalysis(analysis: AnalyzedMeal): {
   // A mark the item's own numbers cannot support is not stored either — `isCookingFat` argues why.
   const meal = {
     ...rest,
-    items: rest.items.map((it) => {
+    items: rest.items.map((raw) => {
+      const it = reconcileKcal(raw);
       if (it.role !== "cooking-fat" || isCookingFat(it)) return it;
       const { role: _role, ...stripped } = it;
       return stripped;
