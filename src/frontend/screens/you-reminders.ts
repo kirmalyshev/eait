@@ -47,7 +47,7 @@ export async function mealReminderRows(after: HTMLElement, words: YouCopy["remin
     const text = el("div", "ot");
     text.append(lab, el("div", "sub", words.eveningSub));
     row.append(text, sw);
-    rows.splice(1, 0, row);
+    rows.unshift(row);
     paints.push(() => sw.setAttribute("aria-checked", String(settings.evening !== false)));
   }
   for (const slot of MEAL_SLOTS) {
