@@ -165,7 +165,8 @@ const queryContext = (nameEn: string): QueryContext => {
   return {
     qAll, qArr: [...qAll],
     wantState: new Set(wantedStates(q)),
-    servesCooked: q.map(singular).some((t) => SERVES_COOKED.has(t)),
+    // The set holds plurals and words `singular` mangles ("couscous" -> "couscou"): test both forms.
+    servesCooked: q.some((t) => SERVES_COOKED.has(t) || SERVES_COOKED.has(singular(t))),
   };
 };
 
