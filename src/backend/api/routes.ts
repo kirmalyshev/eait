@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest, isSaveMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest, isSaveMealRequest, parseNumbersLogRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest, type ClipEstimateResponse,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse, type SaveMealResponse, type SavedMealsResponse,
   type UnlinkResponse,
@@ -34,7 +34,7 @@ import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, logNumbersMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
@@ -1085,6 +1085,16 @@ export function createRouter(
         const fields = turnFields(turnKey(req) ?? body?.clientId, body?.capturedAt);
         const res = await logFoodMeal(deps, userId, { ref, grams, ...fields });
         if (res.kind === "unknown-food") return json({ error: "unknown-food" }, 404);
+        return res.kind === "logged" ? json(res) : refusal(res);
+      }
+      if (req.method === "POST" && pathname === ROUTES.numbersLog) {
+        // Unbilled and model-free, like the catalog log: the editor's per-address counter.
+        const wait = limit(req, peer, "meal-edit", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+        const parsed = parseNumbersLogRequest(body === null ? null : { ...body, clientId: turnKey(req) ?? body.clientId });
+        if (parsed === null) return json({ error: "bad-numbers" }, 400);
+        const res = await logNumbersMeal(deps, userId, parsed);
         return res.kind === "logged" ? json(res) : refusal(res);
       }
       const productMatch = /^\/v1\/products\/([^/]+)$/.exec(pathname);

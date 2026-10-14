@@ -18,7 +18,7 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  FOOD_LOG_DEFAULT_GRAMS, FOOD_LOG_MAX_GRAMS, LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
+  FOOD_LOG_DEFAULT_GRAMS, FOOD_LOG_MAX_GRAMS, LANG_TAG, type NumbersLogRequest, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
   mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
   kcalNumbers, verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
@@ -1164,6 +1164,58 @@ export async function logFoodMeal(
       analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
       totals, date, hint: hintFor(analysis),
       ...verdictWordsFor(record.verdicts, lang),
+    } satisfies MealLogged;
+  });
+}
+
+/**
+ * A meal typed by hand (#2088): one item, the user's own numbers. NO model call and NO sample
+ * spent, behind the paywall like every model-free log (`checkFreeLog`). The numbers come from the
+ * request, the verdicts and the score are computed here against the account's targets — nothing
+ * the client sent about them is read. Lands on today minus `dayOffset` (the day open on Home), run
+ * through `once` so a re-sent tap replays instead of logging twice.
+ */
+export async function logNumbersMeal(
+  deps: EngineDeps,
+  userId: string,
+  input: NumbersLogRequest,
+): Promise<MealLogged | Refusal> {
+  return once(deps, userId, input.clientId, 0, async (d) => {
+    const profile = await d.store.getProfile(userId);
+    if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" } as const;
+    const refused = await checkFreeLog(d, userId);
+    if (refused) return refused;
+    const date = dateMinus(localDate(d.config.timezone), clampDayOffset(input.dayOffset));
+    // One portion: `grams` is the catalog's default so a later gram edit scales the typed numbers.
+    const grams = FOOD_LOG_DEFAULT_GRAMS;
+    const analysis: AnalyzedMeal = {
+      isFood: true,
+      items: [{
+        name: input.name, name_en: input.name, grams, kcal: input.kcal,
+        protein_g: input.protein_g, carbs_g: input.carbs_g, fat_g: input.fat_g,
+        kcal_per_100g: input.kcal * 100 / grams,
+      }],
+      kcal: input.kcal, protein_g: input.protein_g, carbs_g: input.carbs_g, fat_g: input.fat_g,
+      satfat_g: input.satfat_g ?? 0, fiber_g: input.fiber_g ?? 0, sugar_g: input.sugar_g ?? 0, sodium_mg: input.sodium_mg ?? 0,
+      // The user stood behind these numbers; they are not an estimate to second-guess.
+      confidence: "high", notes: "",
+    };
+    const verdicts = await gatedVerdicts(d, userId, analysis);
+    const record: MealRecord = {
+      ...analysis,
+      id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date, verdicts,
+      healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
+      corrected: false, model: null, question: null,
+    };
+    await d.store.insertMeal(record);
+    await evaluateMilestones(d, userId);
+    const totals = sumTotals(await d.store.mealsForDate(userId, date));
+    await remember(d, userId, [{ role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" }]);
+    return {
+      kind: "logged", mealId: record.id,
+      analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
+      totals, date, hint: "correction",
+      ...verdictWordsFor(record.verdicts, profile.lang),
     } satisfies MealLogged;
   });
 }

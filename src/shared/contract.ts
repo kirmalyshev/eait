@@ -477,6 +477,15 @@ export const ROUTES = {
    */
   foodLog: "/v1/foods/log",
   /**
+   * POST JSON {@link NumbersLogRequest} — log a meal from typed numbers (the app's "Numbers" tile
+   * and the search screen's "Enter numbers" row, #2088). No model runs and the free sample is not
+   * spent, but the paywall holds exactly as for {@link foodLog} (`checkFreeLog`). The numbers are
+   * the user's own; the verdicts are computed server-side and never accepted. Lands on today minus
+   * `dayOffset` (the day open on Home). Answers a {@link MealLogged}; a field out of bounds is 400
+   * `{ error: "bad-numbers" }`.
+   */
+  numbersLog: "/v1/meals/numbers",
+  /**
    * GET — the barcoded product the catalog knows (`off_product`), or `product: null` on a miss.
    * A miss is an ordinary answer, not an error: the scan flow's next step is reading the label.
    * Answers {@link ProductResponse}.
@@ -1955,6 +1964,59 @@ export interface FoodLogRequest {
   grams?: number;
   clientId?: string;
   capturedAt?: string;
+}
+/** Bounds on typed numbers (#2088). A bound the server enforces, so a form that checks them is a courtesy. */
+export const NUMBERS_NAME_MAX = 80;
+export const NUMBERS_MAX_KCAL = 5000;
+export const NUMBERS_MAX_GRAMS = 500;
+export const NUMBERS_MAX_SODIUM_MG = 20000;
+
+/**
+ * `POST /v1/meals/numbers`. A meal typed by hand: the name and the four required numbers, then the
+ * four optional ones. There is no `verdicts` and no `grams` — verdicts are computed, and a typed
+ * meal is one portion. `dayOffset` is days before today in the server's zone, as for a saved-meal
+ * re-log; `clientId` is the replay key.
+ */
+export interface NumbersLogRequest {
+  name: string;
+  kcal: number;
+  protein_g: number;
+  fat_g: number;
+  carbs_g: number;
+  satfat_g?: number;
+  fiber_g?: number;
+  sugar_g?: number;
+  sodium_mg?: number;
+  dayOffset?: number;
+  clientId?: string;
+}
+
+/** The request narrowed, or null when any field is missing, not finite, negative or over its bound. */
+export function parseNumbersLogRequest(body: unknown): NumbersLogRequest | null {
+  if (typeof body !== "object" || body === null) return null;
+  const b = body as Record<string, unknown>;
+  const name = typeof b.name === "string" ? b.name.trim() : "";
+  if (name === "" || name.length > NUMBERS_NAME_MAX) return null;
+  const num = (v: unknown, max: number): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max ? v : null;
+  const kcal = num(b.kcal, NUMBERS_MAX_KCAL);
+  const protein_g = num(b.protein_g, NUMBERS_MAX_GRAMS);
+  const fat_g = num(b.fat_g, NUMBERS_MAX_GRAMS);
+  const carbs_g = num(b.carbs_g, NUMBERS_MAX_GRAMS);
+  if (kcal === null || protein_g === null || fat_g === null || carbs_g === null) return null;
+  const out: NumbersLogRequest = { name, kcal, protein_g, fat_g, carbs_g };
+  for (const [k, max] of [["satfat_g", NUMBERS_MAX_GRAMS], ["fiber_g", NUMBERS_MAX_GRAMS], ["sugar_g", NUMBERS_MAX_GRAMS], ["sodium_mg", NUMBERS_MAX_SODIUM_MG]] as const) {
+    if (b[k] === undefined || b[k] === null) continue;
+    const v = num(b[k], max);
+    if (v === null) return null;
+    out[k] = v;
+  }
+  if (b.dayOffset !== undefined) {
+    if (typeof b.dayOffset !== "number" || !Number.isInteger(b.dayOffset)) return null;
+    out.dayOffset = b.dayOffset;
+  }
+  if (typeof b.clientId === "string" && b.clientId !== "") out.clientId = b.clientId;
+  return out;
 }
 /** Page size when `limit` is absent. */
 export const FOOD_SEARCH_LIMIT = 25;
