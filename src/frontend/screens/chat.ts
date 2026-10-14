@@ -15,6 +15,8 @@ import { localDate } from "../../shared/dates.ts";
 import { logCopyFor } from "../../shared/app/log-copy.ts";
 import { foodSearchCopyFor } from "../../shared/app/food-search-copy.ts";
 import { foodSearchSheet } from "./food-search.ts";
+import { numbersSheet } from "./numbers.ts";
+import { numbersCopyFor } from "../../shared/app/numbers-copy.ts";
 import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
 import { countText, spellUnit, wholeNumbers, kcalNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
@@ -291,7 +293,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
         // is CLDR's own conjunction for the language, not a literal.
         const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
           [...focusMeal.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
-            .map((i) => fill(mealCopyFor(lang).itemAmount, {
+            .map((i) => i.typed ? i.name : fill(mealCopyFor(lang).itemAmount, {
               amount: `${wholeNumbers(lang)(i.grams)}${spellUnit(lang, "g")}`, item: i.name,
             })));
         col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
@@ -706,8 +708,21 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
       lang,
       left: day === null ? null : day.targets.kcal - day.totals.kcal,
       onTell: (q) => { words.value = q; comp.form.requestSubmit(); },
+      onNumbers: (q) => { void openNumbers(q, () => { landed = true; }); },
       onLogged: () => { landed = true; },
       onClose: () => { sheet.remove(); if (landed) void draw(); },
+    });
+    wrap.append(sheet);
+  };
+  // Typed numbers (#2088): the Numbers tile, and the search sheet's "Enter numbers" row.
+  const openNumbers = async (name: string | undefined, onLanded?: () => void): Promise<void> => {
+    const day = await api<DayResponse>("/diary/day").catch(() => null);
+    const sheet = numbersSheet({
+      lang,
+      left: day === null ? null : day.targets.kcal - day.totals.kcal,
+      ...(name !== undefined && name !== "" ? { name } : {}),
+      onLogged: () => { onLanded?.(); void draw(); },
+      onClose: () => sheet.remove(),
     });
     wrap.append(sheet);
   };
@@ -722,6 +737,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
       tile("camera", shellCopyFor(lang).plusPhoto, () => picker.click()),
       tile("search", foodSearchCopyFor(lang).plusSearch, () => { void openSearch(); }),
       tile("keyboard", shellCopyFor(lang).plusText, () => words.focus()),
+      tile("numbers", numbersCopyFor(lang).plusNumbers, () => { void openNumbers(undefined); }),
     );
     // Voice (#570): only where the browser can listen, and only to START — a tap while listening is the mic round's own.
     if (voice !== null) row.append(tile("mic", shellCopyFor(lang).plusVoice, () => { words.focus(); voice.start(); }));

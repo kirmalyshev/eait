@@ -217,8 +217,8 @@ export const scorePart = (o: { name: string; measure?: string; limit?: string; p
 };
 
 /** One ingredient row on the meal sheet — the name, its amount, its own kcal (`web/meal.html`). */
-export const ingredient = (o: { name: string; amount: string; kcal?: string }): string =>
-  `<div class="ing">${esc(o.name)}<span>${esc(o.amount)}</span>` +
+export const ingredient = (o: { name: string; amount?: string; kcal?: string }): string =>
+  `<div class="ing">${esc(o.name)}${o.amount !== undefined ? `<span>${esc(o.amount)}</span>` : ""}` +
   `${o.kcal !== undefined ? `<b class="num">${esc(o.kcal)}</b>` : ""}</div>`;
 
 // ── The meal row ─────────────────────────────────────────────────────────────────────────────

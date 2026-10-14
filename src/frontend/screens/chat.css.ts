@@ -252,6 +252,21 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
 .fs-txt { flex: 1; min-width: 0; }
 .fs-txt b { font-weight: 600; font-size: 15px; }
 .fs-sub { font-size: 13px; color: var(--muted); }
+.fs-disc-n { background: var(--hair); }
+.fs-disc-n .ico { background: var(--ink); }
+.nf { z-index: 6; }
+.nf-title { flex: 1; font-size: 17px; font-weight: 600; }
+.nf-card { margin-top: 10px; border-radius: 12px; background: var(--surface); }
+.nf-name { display: block; width: 100%; box-sizing: border-box; height: 48px; margin-top: 10px; padding: 0 16px; border: 0; border-radius: 12px;
+  background: var(--surface); color: var(--ink); font: 600 16px/1 inherit; }
+.nf-row { display: flex; align-items: center; min-height: 48px; padding: 0 16px; font-size: 16px; }
+.nf-row + .nf-row { border-top: 1px solid var(--hair); }
+.nf-label { flex: 1; }
+.nf-num { width: 90px; border: 0; background: none; text-align: right; color: var(--ink); font-size: 16px; }
+.nf-unit { width: 44px; text-align: right; font-size: 14px; color: var(--muted); }
+.nf-opt { margin: 16px 4px 6px; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+.nf-note { margin: 10px 4px 0; font-size: 13px; color: var(--bad); }
+.nf-cta { height: 52px; margin-top: 8px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink, #fff); font-size: 16px; font-weight: 600; cursor: pointer; }
 .fs-fail { font-size: 12px; color: var(--bad); margin-top: 3px; }
 .fs-add { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: none; cursor: pointer;
   box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); display: flex; align-items: center; justify-content: center; }

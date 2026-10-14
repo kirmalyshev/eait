@@ -80,6 +80,8 @@ export const PERF_SCREENS = [
   "health",
   // The + menu's Search (ieat-app#909): the field and the saved list, drawn before any result.
   "food-search",
+  // The typed-numbers form (ieat-app#2088): fields drawn at once; the kcal-left line fills in behind.
+  "numbers",
 ] as const;
 
 export type PerfScreen = (typeof PERF_SCREENS)[number];
@@ -182,6 +184,8 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   health: { paintMs: 100, readyMs: 250 },
   // Complete on the first frame: results are the user's own query and are never waited for here.
   "food-search": { paintMs: 100, readyMs: 100 },
+  // Complete on the first frame: a form of empty fields; the "kcal left" line arrives behind it.
+  numbers: { paintMs: 100, readyMs: 100 },
 
   // The diary. Seeded from the day cache, which boot warms, so the common case is instant. The
   // allowance above `paintMs` is for the cold case — cache empty, one database read — and nothing
