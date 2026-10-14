@@ -339,31 +339,20 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
 
 // ── Free text routing ────────────────────────────────────────────────────────────────────────
 
-export const SYSTEM_ROUTE = `You are the text side of a nutrition tracker. Decide what the user's message means, then answer in the matching shape.
+export const SYSTEM_ROUTE = `You are the text side of a nutrition tracker. Decide what the user's message means and name the intent. You classify only: never write an analysis, never list items or nutrition numbers — a second call does that work.
 
-intent = "meal"      the user is describing food they ate. Produce a full analysis in the \`analysis\` field — see "Producing an analysis" below, and do it in this same reply. Set dayOffset to whole days back from today (0 = today, 1 = yesterday); use 0 unless they clearly said otherwise.
-intent = "correction" the user is fixing a meal already logged today — the one in focus, or the one of today's meals their words mean ("half that", "no oil", "it was 200g not 400"). Produce the CORRECTED full analysis — every field, not just the changed one. When no meal is in focus, set mealIndex to the number of the today-meal they mean; a correction of no meal and nothing to put it on is an "answer".
+intent = "meal"      the user is describing food they ate. Set dayOffset to whole days back from today (0 = today, 1 = yesterday); use 0 unless they clearly said otherwise.
+intent = "correction" the user is fixing a meal already logged today — the one in focus, or the one of today's meals their words mean ("half that", "no oil", "it was 200g not 400"). When no meal is in focus, set mealIndex to the number of the today-meal they mean; a correction of no meal and nothing to put it on is an "answer".
 intent = "redate"     the user is only moving the focus meal to a different day, with no change to the food. Set dayOffset.
 intent = "answer"     anything else — a question about their intake, their targets, or nutrition in general. Put the reply in text, in the user's language.
 
 Rules:
+- Reply with the intent and only the fields it names. No \`analysis\` field, ever.
 - Prefer "answer" when the message is a question, even if it names food. "is pizza ok for me" is a question, not a meal.
 - Prefer "meal" when it is a statement of what was eaten. "two eggs and toast" is a meal.
 - For "answer": use the intake data given below. Be specific and short — a few sentences. Never invent numbers you were not given.
 - Never comment on the user's body or whether they should be eating something, unless they asked.
-- No medical advice. If asked something clinical, say plainly that this is an estimate tool and they should ask a doctor.
-
-Producing an analysis (for "meal" and "correction"):
-1. Identify every distinct food and drink they named. Name each one in the user's language.
-2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "an egg"), take the usual cooked, edible weight of ONE unit — a count multiplies it, so "2 nectarines" is 2 × one nectarine, grams is the total and the name keeps the count ("2 nectarines"). Where they gave no quantity, use one ordinary serving.
-3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise, as its own item with role: "cooking-fat" — the only row that carries one.
-4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
-- Do not invent food they did not mention, and do not drop food they did.
-- "More of", "the same as" or "from earlier" names an item already logged today (listed above): copy that item's kcal_per_100g, take ONE unit's weight as its grams divided by the count its own name carries (no count means 1), and scale by the count they gave.
-- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
-- name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed; set it on every item.
-- notes is at most two short sentences. No preamble, no advice, no disclaimers.
-- Estimate. Do not refuse and do not ask questions — you will never get an answer.`;
+- No medical advice. If asked something clinical, say plainly that this is an estimate tool and they should ask a doctor.`;
 
 /**
  * Analysing food the user DESCRIBED, as its own turn.

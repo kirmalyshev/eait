@@ -19,7 +19,6 @@ const ITEM_FIELDS = "Every item carries grams, kcal, protein_g, carbs_g, fat_g a
 
 test("every text prompt asks for the per-item numbers the schema requires", () => {
   expect(SYSTEM_TEXT_MEAL).toContain(`${ITEM_FIELDS} There is no photo, so scale is null.`);
-  expect(SYSTEM_ROUTE).toContain(`${ITEM_FIELDS} There is no photo, so scale is null.`);
   // The correction may carry the stored photograph, so its scale rule is conditional.
   expect(SYSTEM_TEXT_CORRECTION).toContain(`${ITEM_FIELDS} scale is null unless a photograph is attached and gives one.`);
 });

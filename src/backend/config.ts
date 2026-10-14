@@ -695,7 +695,7 @@ export function configDefaults(): Config {
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
     llmMaxTokens: 16_000,
-    llmRouteMaxTokens: 4_000,
+    llmRouteMaxTokens: 400,
     llmRouteStallMs: 15_000,
     llmAgentConcurrency: 2,
     freeAnalyses: FREE_ANALYSES,
