@@ -67,6 +67,16 @@ describe("grounding items in the catalog", () => {
     expect(analysis.items[0]?.ref).toBe("usda-sr:Rice, white, cooked");
   });
 
+  test("couscous and other -s staples are served cooked: the dry row is not the plate (#2188)", () => {
+    const pairs: [string, string, string][] = [
+      ["couscous", "Couscous, cooked", "Couscous, dry"],
+      ["oats", "Oats, cooked", "Oats, raw"],
+      ["black beans", "Beans, black, cooked", "Beans, black, raw"],
+      ["asparagus", "Asparagus, cooked", "Asparagus, raw"],
+    ];
+    for (const [q, cooked, dry] of pairs) expect(pickFood(q, [ref(dry, 376), ref(cooked, 112)])?.name_en).toBe(cooked);
+  });
+
   test("a row made FROM the food is not the food: rice pudding is no answer to rice", async () => {
     const long = ref("chicken breast meat only cooked roasted", 165);
     expect((await groundAnalysis(depsWith([long]), meal([model("chicken breast", 100, 150)]))).grounded).toBe(1);
