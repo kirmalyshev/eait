@@ -1,0 +1,598 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-14 22:11+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: zh-Hans\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "我的蛋白质摄入够吗？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "我这周进展如何？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "我今晚该吃什么？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "已更新——{kcal}千卡。{day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "这一餐的饱和脂肪偏高。只因你要求，我才对此评分。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "这一餐的钠偏高。只因你要求，我才对此评分。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "今天你的{plan}还剩{left}，蛋白质已摄入{protein} / {proteinTarget}克。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "今天你的{plan}还差{left}要吃，蛋白质已摄入{protein} / {proteinTarget}克。继续加油。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "今天你的{plan}还差{left}要吃，蛋白质已摄入{protein} / {proteinTarget}克。继续加油。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "今天比你的{plan}多了{over}，蛋白质已摄入{protein} / {proteinTarget}克。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "今天比你的{plan}多了{over}，蛋白质已摄入{protein} / {proteinTarget}克。增重计划本来就要超过它；明天重新计数。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "今天比你的{plan}多了{over}，蛋白质已摄入{protein} / {proteinTarget}克。增重计划本来就要超过它；明天重新计数。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "即使是粗略估算也算数：今天你的{plan}还剩约{left}。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "即使是粗略估算也算数：今天你的{plan}还差约{left}要吃。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "即使是粗略估算也算数：今天比你的{plan}多了约{over}。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "即使是粗略估算也算数：今天比你的{plan}多了约{over}。明天重新计数。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "这样今天剩下的时间里，你的{plan}还剩{left}，蛋白质已摄入{protein} / {proteinTarget}克。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "这样今天剩下的时间里，你的{plan}还剩{left}，蛋白质已摄入{protein} / {proteinTarget}克。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "这样你今天比{plan}多了{over}，蛋白质已摄入{protein} / {proteinTarget}克。明天重新计数。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "这样你今天比{plan}多了{over}，蛋白质已摄入{protein} / {proteinTarget}克。明天重新计数。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}”——记下了，已计入数据。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal}千卡"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun}偏高"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun}偏高"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun}符合计划"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun}很高"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun}很高"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient}对一餐来说偏高：{eaten} / 你的{target}{unit}。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient}对一餐来说很高：{eaten} / 你的{target}{unit}。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "一餐就占了你一天的一大部分。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "我的蛋白质摄入够吗？"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "请先在网页上回答计划问题。"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "热量"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "热量"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "热量符合计划。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "碳水"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "正在对照你的计划"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "已连接到通过以下方式登录的 eait 账户"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "已计入。今天还剩{left}千卡。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "已计入。今天超出{over}千卡。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "正在计算营养 · 4/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "已丢弃。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "今天的总额度已经用完了。明天会重新计数。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "脂肪"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "正在识别食物 · 2/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "第一餐已记录。{kcal}千卡。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "今天接下来悠着点。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "好——引导完成了，第一天也开始了。走之前还有一件事，这也是我唯一一次问你。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "好。我随时在聊天里——拍照或一句话都能记录一餐。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "说实话：这盘我没看太清楚。把{kcal}当作粗略估计，在相信总数前先核对一下克数。下次换个角度多拍一张会有帮助。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "我这周进展如何？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "我直接告诉你我吃了什么"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "如有不对，直接说——“米饭减半”“没有牛油果”——或者轻点卡片修改克数。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "邀请链接仅限新成员使用，而这个账户已经购买过 eait。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "记录"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "已记录。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "准备记录这个——对吗？"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "准备把这个记录到{date}——对吗？"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "餐食"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "一餐就超过了你一天的一半。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "已移动。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "正在识别食物名称"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "没有相机也没关系。从相册选一张照片，或直接告诉我你吃了什么——两种都能得到宏量营养素。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "不着急。计划已在你的日记里——下一餐吃的时候拍张照就行。这就是全部习惯；如果明天还没拍，我会提醒一次。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "不是这个"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "不是你的账户？请在网页上登录你自己的账户，并在那里点击“连接 Telegram”——这个 Telegram 会转到该账户。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "今天还没有记录。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "符合计划。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "iOS 马上还会问一件事：通知。每天一条，绝不多发——20:30 的那条小结，如果你在试用期，还会在试用结束前一天提醒你。除此之外，什么都不会发。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "先说一件事：iOS 会请求相机权限。我只用它拍餐盘，别无他用——照片会和这一餐一起保存，方便你在日记中查看，并会随账户一起删除。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "蛋白质"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "正在识别餐盘"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "正在识别餐盘…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "已恢复——你已登录。拍照或一句话都能记录一餐。"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "饱和脂肪"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "饱和脂肪"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "发送一张餐食照片、告诉我你吃了什么，或向{coach}提问。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "登录"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "钠"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "钠"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "出了点问题，但可能已经成功了。重新发送前请先查看 /today。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "告诉我哪里不对——“米饭减半”“没有牛油果”“其实是500”都可以。或者打开卡片，自己修改克数。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "该验证码已过期。请在网页或 App 中重新获取。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "验证码不对。查看 eait 发来的最新邮件。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "没有收到结果。再试一次。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "这看起来不像食物。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "这个文件不是能读取的照片。请用 JPEG、PNG 或 WebP。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "该邀请链接无效。请检查一下，或跳过。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "该链接已过期。请在网页上打开你的计划，再次点击“连接 Telegram”。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "这条消息太长，发不出去。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "这条已经不再保留了。再说一遍吧。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "这一餐已经记录过了。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "未能从 Telegram 收到这张照片。请重新发送。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "照片没有发送成功。请重新发送。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "这张照片太大，发不出去。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "这是你今天的最后一次——每日额度会在午夜重置。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "暂时已达上限。请稍后再试。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "这是你自己的邀请链接。这里需要填写好友的链接。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "App"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "这里没有可修改的餐食。说出你吃了什么，再记录一次。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "这个账户已经通过好友链接加入过了。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "此账户尚未登录——请先在网页上通过 Apple 或 Google 登录，然后重新发送。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "此账户的免费体验次数已用完。请在网页上开始免费试用以继续使用。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "这是全新的 eait。你的餐食和照片保存在你的 eait 账户中：请在网页上登录，并在你的计划页面点击“连接 Telegram”。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "今天：{eaten} / {plan}千卡，蛋白质{protein} / {proteinTarget}克"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "此 Telegram 尝试次数过多。请稍等一会儿，再点击链接。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "试用已开始——结束后收费{price}，除非你取消。我会在试用结束前一天提醒你，绝不会等到结束后。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "这是打字输入的，不是拍照——所以份量是我猜的。{kcal}只是粗略估计；如果你知道克数，告诉我，我来修正。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "已更新。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "正在上传照片 · 1/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "正在估算份量"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "正在估算份量 · 3/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "正在估算份量…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "我今晚该吃什么？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "晚餐有什么更清淡的替代？"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "你的第一天已经开始。20:30 你会收到一条消息——今天与计划的对比，以及明天一件具体可做的事。在那之前不会打扰你。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "你的个人资料和设置在网页上。"

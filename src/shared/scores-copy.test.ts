@@ -22,6 +22,14 @@ const BANNED: Record<string, RegExp> = {
   id: /obesitas|kelebihan\s+berat|kekurangan\s+berat|\bnormal\b|\bsehat\b|tidak\s+sehat/i,
   // Cyrillic needs no \b — JavaScript's is ASCII-only. Substrings on the BMI labels only.
   ru: /ожир|избыточн|недовес|норма|здоров|лишн/i,
+  "pt-BR": /obes|sobrepeso|excesso\s+de\s+peso|abaixo\s+do\s+peso|baixo\s+peso|\bnormal(?:es)?\b|saud[áa]ve|insalubre/i,
+  ja: /肥満|過体重|低体重|普通体重|標準体重|正常|健康|やせ型|痩せ型/,
+  ko: /비만|과체중|저체중|정상|건강/,
+  "zh-Hans": /肥胖|超重|过重|偏瘦|过轻|体重不足|正常|健康/,
+  "zh-Hant": /肥胖|超重|過重|偏瘦|過輕|體重不足|正常|健康/,
+  tr: /obez|fazla\s+kilo|a[şs][ıi]r[ıi]\s+kilo|zay[ıi]f|\bnormal\b|sa[ğg]l[ıi]kl[ıi]|sa[ğg]l[ıi]ks[ıi]z/i,
+  pl: /otył|nadwag|niedowag|prawidłow|\bnormaln|zdrow/i,
+  nl: /obesitas|obees|zwaarlijvig|overgewicht|ondergewicht|\bnormaal\b|gezond/i,
 };
 
 describe("BMI labels (#118)", () => {

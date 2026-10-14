@@ -83,6 +83,62 @@ export const BMI_COPY: Localized<BmiCopy> = {
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} и выше",
   },
+  nl: {
+    bmi: "BMI",
+    bmiExplainer: "Gewicht in kg gedeeld door lengte in meters, in het kwadraat.",
+    bmiBelow: "onder {n}",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} en hoger",
+  },
+  pl: {
+    bmi: "BMI",
+    bmiExplainer: "Waga w kg podzielona przez kwadrat wzrostu w metrach.",
+    bmiBelow: "poniżej {n}",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} i więcej",
+  },
+  tr: {
+    bmi: "VKİ",
+    bmiExplainer: "Kilogram cinsinden kilonun, metre cinsinden boyunun karesine bölümü.",
+    bmiBelow: "{n} altı",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} ve üzeri",
+  },
+  "zh-Hant": {
+    bmi: "BMI",
+    bmiExplainer: "體重（公斤）除以身高（公尺）的平方。",
+    bmiBelow: "低於 {n}",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} 以上",
+  },
+  "zh-Hans": {
+    bmi: "BMI",
+    bmiExplainer: "体重（公斤）除以身高（米）的平方。",
+    bmiBelow: "低于 {n}",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} 及以上",
+  },
+  ko: {
+    bmi: "BMI",
+    bmiExplainer: "체중(kg)을 키(m)의 제곱으로 나눈 값이에요.",
+    bmiBelow: "{n} 미만",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} 이상",
+  },
+  ja: {
+    bmi: "BMI",
+    bmiExplainer: "体重（kg）を身長（m）の2乗で割った値です。",
+    bmiBelow: "{n}未満",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n}以上",
+  },
+  "pt-BR": {
+    bmi: "IMC",
+    bmiExplainer: "Peso em kg dividido pela altura em metros ao quadrado.",
+    bmiBelow: "abaixo de {n}",
+    bmiBetween: "{low}–{high}",
+    bmiAbove: "{n} ou mais",
+  },
 };
 
 export const bmiCopy = (lang: Lang): BmiCopy => t(lang)(BMI_COPY);

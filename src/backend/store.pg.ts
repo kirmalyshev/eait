@@ -1115,6 +1115,21 @@ create table if not exists push_templates (
   primary key (key, lang, variant)
 );
 
+-- The language check was written for the first eight; widen it once for the languages added since
+-- (ieat-app#2206). Guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock. A new
+-- language adds its code here AND in LANGS; the contract suite writes a row in every one.
+do $do$
+begin
+  if not exists (select 1 from pg_constraint where conrelid = 'push_templates'::regclass and conname = 'push_templates_lang_check')
+     or exists (select 1 from pg_constraint where conrelid = 'push_templates'::regclass and conname = 'push_templates_lang_check'
+                and pg_get_constraintdef(oid) not like '%nl%') then
+    alter table push_templates drop constraint if exists push_templates_lang_check;
+    alter table push_templates add constraint push_templates_lang_check
+      check (lang in ('en','fr','de','it','es','vi','id','ru','pt-BR','ja','ko','zh-Hans','zh-Hant','tr','pl','nl'));
+  end if;
+end
+$do$;
+
 -- The system prompts, when an admin has overridden one. APPEND-ONLY.
 --
 -- (key, version) rather than one row per key, and that is the difference from the two tables

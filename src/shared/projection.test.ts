@@ -255,7 +255,7 @@ describe("the month a projection lands in, in eight languages", () => {
       expect(said, lang).toContain("2026");
       // Never a bare number where a month name belongs — the failure the old table existed to
       // avoid, now guarded by a test instead of by twelve hard-coded strings.
-      expect(said.replace(/\d/g, "").trim().length, lang).toBeGreaterThan(2);
+      expect(said.replace(/\d/g, "").trim().length, lang).toBeGreaterThan(1);
     }
   });
 

@@ -6616,7 +6616,15 @@
           "es",
           "vi",
           "id",
-          "ru"
+          "ru",
+          "pt-BR",
+          "ja",
+          "ko",
+          "zh-Hans",
+          "zh-Hant",
+          "tr",
+          "pl",
+          "nl"
         ]
       },
       "Limits": {

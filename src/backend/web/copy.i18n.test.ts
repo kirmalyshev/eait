@@ -118,7 +118,7 @@ describe("the language picker on the plan page", () => {
       expect(html).toContain(LANG_LABEL[code]);
     }
     // Never a language the app cannot render end to end: choosing one looks like a bug.
-    const offered = [...html.matchAll(/<option value="(\w+)"/g)].map((m) => m[1]);
+    const offered = [...html.matchAll(/<option value="([\w-]+)"/g)].map((m) => m[1]);
     expect(offered.sort()).toEqual([...LANGS_READY].sort());
   });
 

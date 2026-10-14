@@ -72,6 +72,14 @@ export const LANG_LABEL: Record<Lang, string> = {
   vi: "Tiếng Việt",
   id: "Bahasa Indonesia",
   ru: "Русский",
+  "pt-BR": "Português (Brasil)",
+  ja: "日本語",
+  ko: "한국어",
+  "zh-Hans": "简体中文",
+  "zh-Hant": "繁體中文",
+  tr: "Türkçe",
+  pl: "Polski",
+  nl: "Nederlands",
 };
 
 /**
@@ -88,6 +96,14 @@ export const LANG_FLAG: Record<Lang, string> = {
   vi: "🇻🇳",
   id: "🇮🇩",
   ru: "🇷🇺",
+  "pt-BR": "🇧🇷",
+  ja: "🇯🇵",
+  ko: "🇰🇷",
+  "zh-Hans": "🇨🇳",
+  "zh-Hant": "🇹🇼",
+  tr: "🇹🇷",
+  pl: "🇵🇱",
+  nl: "🇳🇱",
 };
 
 /**
@@ -110,6 +126,14 @@ export const LANG_TAG: Record<Lang, string> = {
   vi: "vi-VN",
   id: "id-ID",
   ru: "ru-RU",
+  "pt-BR": "pt-BR",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  "zh-Hans": "zh-Hans-CN",
+  "zh-Hant": "zh-Hant-TW",
+  tr: "tr-TR",
+  pl: "pl-PL",
+  nl: "nl-NL",
 };
 
 /**
@@ -216,6 +240,7 @@ export const toGuessStep = (x: number): number => Math.round(x / GUESS_STEP) * G
  */
 export const UNIT_KCAL: Record<Lang, string> = {
   en: "kcal", fr: "kcal", de: "kcal", it: "kcal", es: "kcal", vi: "kcal", id: "kcal", ru: "ккал",
+  "pt-BR": "kcal", ja: "kcal", ko: "kcal", "zh-Hans": "千卡", "zh-Hant": "大卡", tr: "kcal", pl: "kcal", nl: "kcal",
 };
 
 /**
@@ -326,6 +351,14 @@ export const DAY_WORDS: Localized<{ today: string; yesterday: string }> = {
   vi: { today: "hôm nay", yesterday: "hôm qua" },
   id: { today: "hari ini", yesterday: "kemarin" },
   ru: { today: "сегодня", yesterday: "вчера" },
+  "pt-BR": { today: "hoje", yesterday: "ontem" },
+  ja: { today: "今日", yesterday: "昨日" },
+  ko: { today: "오늘", yesterday: "어제" },
+  "zh-Hans": { today: "今天", yesterday: "昨天" },
+  "zh-Hant": { today: "今天", yesterday: "昨天" },
+  tr: { today: "bugün", yesterday: "dün" },
+  pl: { today: "dzisiaj", yesterday: "wczoraj" },
+  nl: { today: "vandaag", yesterday: "gisteren" },
 };
 
 /**
@@ -422,6 +455,23 @@ const PLURAL_CATEGORY: Record<Lang, (n: number) => Intl.LDMLPluralRule> = {
     if (i10 === 0 || (i10 >= 5 && i10 <= 9) || (i100 >= 11 && i100 <= 14)) return "many";
     return "other";
   },
+  // CLDR: Portuguese files 0 and 1 together; the CJK languages have no cardinal categories.
+  "pt-BR": (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  ja: () => "other",
+  ko: () => "other",
+  "zh-Hans": () => "other",
+  "zh-Hant": () => "other",
+  tr: oneIfOne,
+  // Polish: 1 takes `one`; 2–4 (not 12–14) take `few`; everything else whole is `many`.
+  pl: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    const i10 = i % 10;
+    const i100 = i % 100;
+    if (i === 1) return "one";
+    if (i10 >= 2 && i10 <= 4 && (i100 < 12 || i100 > 14)) return "few";
+    return "many";
+  },
+  nl: oneIfOne,
 };
 
 /**
@@ -497,7 +547,15 @@ export function acceptLanguageTags(header: string | null | undefined): string[] 
  * language, so it cannot belong to the caller.
  */
 export function narrowLang(locale: string | null | undefined): Lang {
-  const head = (locale ?? "").split(";")[0]!.trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  const parts = (locale ?? "").split(";")[0]!.trim().toLowerCase().split(/[-_]/);
+  const head = parts[0] ?? "";
+  // Two languages are keyed by more than their primary subtag: Chinese by script, Portuguese by the
+  // variant the app has words for. A region (`zh-TW`, `zh-HK`) or a bare `zh` resolves to a script.
+  if (head === "zh") {
+    const hant = parts.includes("hant") || ["tw", "hk", "mo"].includes(parts[parts.length - 1]!);
+    return hant ? "zh-Hant" : "zh-Hans";
+  }
+  if (head === "pt") return "pt-BR";
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
 }
 

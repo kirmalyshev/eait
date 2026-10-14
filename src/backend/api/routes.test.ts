@@ -194,7 +194,7 @@ describe("auth", () => {
   });
 
   it("narrows an unsupported locale to en rather than 400-ing the first request the app makes", async () => {
-    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "ja-JP" });
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "sv-SE" });
     const { token } = await res.json() as { token: string };
     const view = await (await get(ROUTES.profile, token)).json() as { profile: { lang: string } };
     expect(view.profile.lang).toBe("en");

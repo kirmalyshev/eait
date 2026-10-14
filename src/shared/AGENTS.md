@@ -62,7 +62,9 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 
 ## Localization (#358)
 
-**The product speaks eight languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru`.** `LANGS`
+**The product speaks sixteen languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru` and, from
+wave 1 of #2206, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `tr`, `pl`, `nl` (the target is every
+base language the App Store listing carries).** `LANGS`
 (`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
 smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
 They are equal today and are two names because they mean different things: `PATCH /v1/profile`
@@ -95,8 +97,8 @@ gets its meal names in that language.
     and a catalog has no equivalent, so the extractor is the check. Extract first and the
     `git diff --exit-code` already there turns an unextracted string into a red build.
 - **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
-  module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
-  extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.
+  module's one `Localized` table, in every language of `LANGS`. Not in a `.json` bundle, not behind an
+  extraction step: `lang.ts`'s header says why, and compiled-in languages need neither.
 - **`localizedGaps` is what keeps `LANGS_READY` honest.** One test per workspace
   (`copy.i18n.test.ts`) hands it `import * as everything` and fails by name — "CHAT_COPY has no vi
   (Tiếng Việt)" — when a table is missing a language the list claims. A table nothing EXPORTS is a
@@ -172,13 +174,13 @@ gets its meal names in that language.
   asserts the non-English labels DIFFER, with the genuine coincidences pinned as `lang.key` pairs);
   and the four `Record<…>` copy maps are keyed by their id union rather than by `string`, so the
   compiler names the language that forgets one instead of a `!` throwing inside a chat bubble.
-- **The claims gate (`claims.ts`) reads all eight for four families, and English only for the
+- **The claims gate (`claims.ts`) reads every language for four families, and English only for the
   rest.** It used to be English patterns alone, which was survivable while there was one language
   of public copy and it was the one the gate read. `?lang=` ended that: `onboarding_content` and
   `notification_copy` are typed by an admin, stored per host, and outlive the binary — and one of
   them is a push notification, which arrives unasked on a lock screen with no review and no
   recall. `validateNotificationCopy` accepted *Garantierter Gewichtsverlust*.
-  - COVERED IN ALL EIGHT: `guarantee`, `weight-promise`, `lowers-marker`, `detox`.
+  - COVERED IN EVERY LANGUAGE: `guarantee`, `weight-promise`, `lowers-marker`, `detox`.
   - STILL ENGLISH-ONLY: `disease-verb`, `treats-disease`, `disease-term`, `burns-fat`,
     `exclusivity`, `superiority`, `retired-no-email`. Two of those are German-shaped risks with no
     German pattern — `disease-verb` is the sharpest HWG exposure there is, and `exclusivity` is

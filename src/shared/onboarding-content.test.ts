@@ -104,6 +104,14 @@ describe("every language's onboarding content", () => {
       vi: "Bắt đầu thì không cần tài khoản",
       id: "Mulai tanpa perlu akun",
       ru: "Чтобы начать, аккаунт не нужен",
+      "pt-BR": "Não precisa de conta para começar",
+      ja: "始めるのにアカウントは不要です",
+      ko: "시작하는 데 계정이 필요 없어요",
+      "zh-Hans": "无需账号即可开始",
+      "zh-Hant": "不需要帳號即可開始",
+      tr: "Başlamak için hesap gerekmez",
+      pl: "Aby zacząć, nie potrzebujesz konta",
+      nl: "Geen account nodig om te beginnen",
     };
     const freeText = /free text|texte libre|Freitext|testo libero|texto libre|Viết tự do|Teks bebas|Свободный текст/i;
     for (const lang of LANGS) {

@@ -16,14 +16,14 @@ import { expect, test } from "./fixtures.ts";
 // never been rendered in a browser at all.
 test("the web app's own picker writes the account and comes back translated", async ({ inWebApp: page }) => {
   // Since #52 the picker's home is Profile — Home · Chat · Profile is the whole of the top row.
-  // #474 made the row a scrim panel listing the eight endonyms; the pick is the same PATCH, and
+  // #474 made the row a scrim panel listing the sixteen endonyms; the pick is the same PATCH, and
   // the reload after it is still the mechanism.
   await page.goto("/#/you");
   const row = page.getByRole("button", { name: /^Language: English$/ });
   await expect(row).toBeVisible();
 
   await row.click();
-  await expect(page.locator(".panel .pickrow")).toHaveCount(8);
+  await expect(page.locator(".panel .pickrow")).toHaveCount(16);
   await page.locator(".panel .pickrow", { hasText: "Русский" }).click();
   // The reload is the mechanism, so wait for the page to actually come back rather than for a
   // repaint that a re-render would also produce.

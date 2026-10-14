@@ -78,7 +78,7 @@ const RULES: readonly Rule[] = [
   // address" are the true sentences that replaced it and must keep passing.
   { name: "retired-no-email", re: /\bno\s+e-?mail\b|\bnever\s+asks?\s+for\s+(?:your\s+|an\s+)?e-?mail\b/gi },
 
-  // ── THE SAME FOUR FAMILIES, IN THE OTHER SEVEN LANGUAGES (#358) ─────────────────────────────
+  // ── THE SAME FOUR FAMILIES, IN EVERY OTHER LANGUAGE (#358, #2206) ──────────────────────────
   //
   // WHY ONLY FOUR. These are the ones the root AGENTS.md names, and they are the ones a
   // translator or an admin actually reaches for. The rest stay English-only ON PURPOSE and it is
@@ -113,6 +113,16 @@ const RULES: readonly Rule[] = [
   { name: "guarantee", re: /(?:cam kết|đảm bảo|bảo đảm)\s+(?:giảm cân|kết quả|thành công|hiệu quả)/giu },
   { name: "guarantee", re: /\b(?:men|di|ter)?jamin\w*(?:\s+\S+){0,2}\s+(?:hasil\w*|berat\s+badan|sukses)|(?:hasil\w*|berat\s+badan|sukses)(?:\s+\S+){0,2}\s+(?:di|ter)?jamin\w*|\bgaransi\s+hasil\b/gi },
   { name: "guarantee", re: /(?<![а-яё])(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)(?:\s+\S+){0,2}\s+гаранти[а-яё]*|(?<![а-яё])гаранти[а-яё]*(?:\s+\S+){0,2}\s+(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)/giu },
+  { name: "guarantee", re: /(?:resultados?|perda\s+de\s+peso|sucesso|kg)(?:\s+\S+){0,2}\s+garant\p{L}*|(?<!\p{L})garant\p{L}*(?:\s+\S+){0,2}\s+(?:resultados?|perda\s+de\s+peso|sucesso|kg)/giu },
+  { name: "guarantee", re: /(?:resulta(?:at|ten)|gewichtsverlies|succes|afvallen|kg)(?:\s+\S+){0,2}\s+(?:ge)?garan[dt]\p{L}*|(?<!\p{L})(?:ge)?garan[dt]\p{L}*(?:\s+\S+){0,2}\s+(?:resulta(?:at|ten)|gewichtsverlies|succes|afvallen|kg)|(?<!\p{L})(?:succes|resultaat)garantie/giu },
+  { name: "guarantee", re: /(?:rezultat\p{L}*|efekt\p{L}*|sukces\p{L}*|utrat\p{L}*\s+wagi|kg)(?:\s+\S+){0,2}\s+gwaran\p{L}*|(?<!\p{L})gwaran\p{L}*(?:\s+\S+){0,2}\s+(?:rezultat\p{L}*|efekt\p{L}*|sukces\p{L}*|utrat\p{L}*\s+wagi|schud\p{L}*|kg)/giu },
+  { name: "guarantee", re: /(?:sonu[çc]\p{L}*|kilo\s+kayb\p{L}*|ba[şs]ar[ıi]\p{L}*|kg)(?:\s+\S+){0,2}\s+garanti\p{L}*|(?<!\p{L})garanti\p{L}*(?:\s+\S+){0,2}\s+(?:sonu[çc]\p{L}*|kilo\s+kayb\p{L}*|ba[şs]ar[ıi]\p{L}*|kg)/giu },
+  // ja / zh / ko have no spaces to count words by, so the outcome sits directly beside the stem —
+  // and the honest denial ("結果を保証するものではありません", "不保证效果", "보장하지 않습니다")
+  // is excluded by name, because it is the sentence this product's own voice writes.
+  { name: "guarantee", re: /(?:結果|成果|効果|減量|痩せる|やせる|\d+\s*(?:kg|キロ))(?:を|が|は|も)?(?:必ず|確実に)?保証(?!(?:する|される|できる)?(?:もの|わけ)?(?:で|じゃ)?は(?:ありません|ない)|しません|しない|いたしません|できません|できない|されません|されない)|保証(?:付き|つき)の?(?:結果|成果|効果|減量)/gu },
+  { name: "guarantee", re: /(?<![不无無能法])(?:保[证證]|[担擔]保)(?:你|您)?(?:的)?(?:效果|[结結]果|成功|[减減]重|[减減]肥|瘦|[减減]掉)|(?:效果|[结結]果|[减減]重)保[证證]|包瘦/gu },
+  { name: "guarantee", re: /(?:결과|효과|감량|성공|\d+\s*(?:kg|킬로))(?:를|을|가|이|는|은)?\s*보장(?!하지|할\s*수\s*없|되지|은\s*없|이\s*없|하는\s*것은\s*아니)|보장된\s*(?:결과|효과|감량|성공)/gu },
 
   // weight-promise — the stems, and DELIBERATELY NOT the progressive.
   //
@@ -127,6 +137,19 @@ const RULES: readonly Rule[] = [
   { name: "weight-promise", re: /giảm\s+cân|giảm\s+\d+\s*(?:kg|ký)/giu },
   { name: "weight-promise", re: /\b(?:me)?nurunkan\s+berat\s+badan\b|\b(?:di)?turunkan?\s+berat\s+badan\b|\bpenurunan\s+berat\s+badan\b|\bturun\s+\d+\s*kg\b/gi },
   { name: "weight-promise", re: /(?<![а-яё])(?:похуде[а-яё]*|снижение\s+веса|с(?:брос|кинут)[а-яё]*\s+(?:вес|\d+\s*кг)|потеря\s+веса|минус\s+\d+\s*кг)/giu },
+  // `emagrecendo`, `aan het afvallen`, `chudniesz`, `kilo veriyorsun`, `痩せています`: the
+  // progressive again, and again left alone.
+  // The bare imperative (`kilo ver`, `schudnij`) is left alone as English's `lose twice as much
+  // weight` is: the shipped, cited `twice.title` says exactly that in every language.
+  // `{kg} afvallen` is a TEMPLATE whose number is the user's own goal, and passes for the reason
+  // English `lose {kg}` does: `\d+` cannot read a placeholder. Filled, `6 kg afvallen` is refused.
+  { name: "weight-promise", re: /(?<!\p{L})(?:perder|perca|percam|perder[áa]s?)\s+(?:peso|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})perda\s+de\s+peso(?!\p{L})|(?<!\p{L})emagre(?:cer|ça|çam|cerá|cimento)(?!\p{L})/giu },
+  { name: "weight-promise", re: /(?<!\bhet\s+|\}\s*)(?<!\p{L})afvallen(?!\p{L})|(?<!\p{L})gewichtsverlies(?!\p{L})|(?<!\p{L})val\s+\d+\s*(?:kg|kilo)\s+af(?!\p{L})|(?<!\p{L})afslank\p{L}*|(?<!\p{L})vermager\p{L}*/giu },
+  { name: "weight-promise", re: /(?<!\p{L})schud(?:nąć|niesz|niecie|nie)(?!\p{L})|(?<!\p{L})utrat\p{L}*\s+wagi(?!\p{L})|(?<!\p{L})zrzu(?:ć|cić|cisz|cicie)\s+(?:\d+\s*(?:kg|kilo\p{L}*)|wag\p{L}*)/giu },
+  { name: "weight-promise", re: /(?<!\p{L})\d+\s*(?:kg|kilo)\s+ver(?:mek|in|iniz|eceksin(?:iz)?|ebilirsin(?:iz)?)?(?!\p{L})|(?<!\p{L})kilo\s+ver(?:mek|in|iniz|eceksin(?:iz)?|ebilirsin(?:iz)?)(?!\p{L})|(?<!\p{L})kilo\s+kayb\p{L}*|(?<!\p{L})zay[ıi]fla(?:mak|y[ıi]n|yacaks[ıi]n(?:[ıi]z)?)?(?!\p{L})/giu },
+  { name: "weight-promise", re: /(?:体重|\d+\s*(?:kg|キロ))\s*を?\s*(?:減らす|減らせ|減らそう|減らしましょう|落とす|落とそう|落としましょう)|\d+\s*(?:kg|キロ)\s*(?:痩せ|やせ|減量)|(?:痩|や)せ(?:る|られる|られます|ます|ましょう|よう)/gu },
+  { name: "weight-promise", re: /[减減](?:掉|去)\s*\d+\s*(?:公斤|斤|kg|千克)|[减減]掉(?:体重|體重)|[减減]肥|瘦\s*\d+\s*(?:公斤|斤|kg)/gu },
+  { name: "weight-promise", re: /\d+\s*(?:kg|킬로)\s*(?:감량|빼)|체중\s*감량|살(?:을)?\s*빼(?:기|세요|자|요|는|고)?/gu },
 
   // lowers-marker — the MARKER decides, never the verb.
   //
@@ -140,6 +163,14 @@ const RULES: readonly Rule[] = [
   { name: "lowers-marker", re: /(?:giảm|hạ)\s+(?:cholesterol|đường\s+huyết|huyết\s+áp|mỡ\s+máu)/giu },
   { name: "lowers-marker", re: /\bmenurunkan\s+(?:kolesterol|gula\s+darah|tekanan\s+darah)\b/gi },
   { name: "lowers-marker", re: /(?<![а-яё])сни[жз][а-яё]*\s+(?:холестерин[а-яё]*|давлени[а-яё]*|сахар[а-яё]*\s+в\s+крови)|(?<![а-яё])(?:холестерин|давление)\s+сни[жз][а-яё]*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:faz\s+)?(?:baixar?|reduz(?:ir)?|diminuir?|abaixar?)\s+(?:o\s+|a\s+|seu\s+|sua\s+)?(?:colesterol|glicemia|a[çc][úu]car\s+no\s+sangue|press[ãa]o\s+arterial)(?!\p{L})/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})verla(?:agt|ag|gen)\s+(?:je\s+|uw\s+|het\s+|de\s+)?(?:cholesterol\p{L}*|bloedsuiker\p{L}*|bloeddruk)|(?:cholesterol\p{L}*|bloedsuiker\p{L}*|bloeddruk)(?:\s+\S+){0,3}\s+(?:te\s+)?verlagen(?!\p{L})/giu },
+  // `cukier` and `ciśnienie` alone are the food and ordinary pressure, as `сахар` is.
+  { name: "lowers-marker", re: /(?<!\p{L})obni[żz]\p{L}*\s+(?:(?:twój|twoje|twoją|poziom)\s+)?(?:cholesterol\p{L}*|cuk(?:ier|r\p{L}*)\s+we\s+krwi|ciśnieni\p{L}*\s+(?:krwi|tętnicze))/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:kolesterol\p{L}*|kan\s+şeker\p{L}*|tansiyon\p{L}*|kan\s+bas[ıi]nc\p{L}*)(?:\s+\S+){0,2}\s+düşür\p{L}*/giu },
+  { name: "lowers-marker", re: /(?:コレステロール|血糖値?|血圧)(?:値)?\s*(?:を|が)?\s*(?:下げ|低下させ|減らす|減らし)/gu },
+  { name: "lowers-marker", re: /(?:降低|[减減]少|[减減]低|降)(?:你的|您的)?(?:胆固醇|膽固醇|血糖|血压|血壓|血脂)/gu },
+  { name: "lowers-marker", re: /(?:콜레스테롤|혈당|혈압)(?:\s*수치)?\s*(?:을|를|이|가)?\s*(?:낮추|낮춰|낮춥|떨어뜨|감소시)/gu },
 
   // detox — the Latin word is the one a Romance marketer does not need.
   { name: "detox", re: /\bd[ée]tox\w*/gi },
@@ -152,6 +183,12 @@ const RULES: readonly Rule[] = [
   { name: "detox", re: /thải\s+độc|giải\s+độc/giu },
   { name: "detox", re: /\bdetoks\w*/gi },
   { name: "detox", re: /(?<![а-яё])детокс[а-яё]*/giu },
+  // `detox`, `detoks` and `desintoxic` already read pt-BR, pl, tr and nl's loanword.
+  { name: "detox", re: /(?<!\p{L})elimin\p{L}*\s+(?:as\s+)?toxinas|(?<!\p{L})limpeza\s+do\s+organismo/giu },
+  { name: "detox", re: /(?<!\p{L})ontgift\p{L}*|(?<!\p{L})ontslak\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})oczyszcz\p{L}*\s+organizm\p{L}*|(?<!\p{L})usuw\p{L}*\s+toksyn\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})toksin\p{L}*\s+(?:at|arın)\p{L}*|(?<!\p{L})vücud\p{L}*\s+arındır\p{L}*/giu },
+  { name: "detox", re: /デトックス|디톡스|해독|排毒|解毒/gu },
 
   // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
   //

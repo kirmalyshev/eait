@@ -43,6 +43,14 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     vi: ["Cam kết giảm cân.", "Đảm bảo kết quả trong một tuần.", "Bảo đảm giảm cân."],
     id: ["Dijamin turun berat badan.", "Hasil terjamin.", "Kami menjamin hasilnya."],
     ru: ["Гарантированное похудение.", "Результат гарантирован."],
+    "pt-BR": ["Resultados garantidos.", "Garantimos a perda de peso."],
+    nl: ["Gegarandeerd resultaat.", "Succes gegarandeerd."],
+    pl: ["Gwarantowane efekty.", "Gwarantujemy efekty w miesiąc."],
+    tr: ["Garantili sonuçlar.", "Kilo kaybı garantisi."],
+    ja: ["結果を保証します。", "効果保証付き。"],
+    "zh-Hans": ["保证效果。", "包瘦。"],
+    "zh-Hant": ["保證減重。"],
+    ko: ["결과를 보장합니다.", "보장된 감량."],
   },
   "weight-promise": {
     en: ["Lose weight fast.", "Lose 5kg this month."],
@@ -63,6 +71,14 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ru: ["Похудей быстро.", "Сбросить 5кг за месяц.",
       // The standard Russian marketing noun. `потеря веса` is the calque nobody writes.
       "Снижение веса за месяц.", "Скинуть вес быстро.", "Минус 10кг за месяц."],
+    "pt-BR": ["Perca peso rápido.", "Emagrecer sem esforço.", "Perder 5 kg em um mês."],
+    nl: ["Afvallen zonder honger.", "Val 5 kg af in een maand."],
+    pl: ["Schudniesz szybko.", "Schudnąć 5 kg w miesiąc.", "Zrzuć 5 kg."],
+    tr: ["Hızlı kilo verin.", "Bir ayda 5kg vermek.", "Zayıflamak hiç bu kadar kolay olmadı."],
+    ja: ["1か月で5kg痩せる。", "体重を減らす近道。"],
+    "zh-Hans": ["一个月减掉5公斤。", "轻松减肥。"],
+    "zh-Hant": ["一個月減掉 5 公斤。"],
+    ko: ["한 달에 5kg 감량.", "쉽게 살 빼기."],
   },
   "lowers-marker": {
     en: ["Lowers cholesterol."],
@@ -79,6 +95,14 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ru: ["Снижает холестерин.", "Снижает давление.",
       // The PERFECTIVE is how a promise is phrased, and `сниж[а-яё]*` matched only the ж stem.
       "Снизит холестерин.", "Снизить давление за месяц."],
+    "pt-BR": ["Reduz o colesterol.", "Baixa a pressão arterial."],
+    nl: ["Verlaagt je cholesterol.", "Helpt de bloeddruk te verlagen."],
+    pl: ["Obniża cholesterol.", "Obniża poziom cukru we krwi."],
+    tr: ["Kolesterolü düşürür.", "Kan şekerini düşürür."],
+    ja: ["コレステロールを下げる。", "血糖値を下げます。"],
+    "zh-Hans": ["降低胆固醇。", "降血压。"],
+    "zh-Hant": ["降低膽固醇。"],
+    ko: ["콜레스테롤을 낮춥니다.", "혈당을 낮춰요."],
   },
   detox: {
     en: ["A detox week."],
@@ -89,6 +113,14 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     vi: ["Một tuần thải độc.", "Một tuần giải độc."],
     id: ["Seminggu detoksifikasi."],
     ru: ["Неделя детокса."],
+    "pt-BR": ["Uma semana de desintoxicação.", "Elimina as toxinas."],
+    nl: ["Een week ontgiften."],
+    pl: ["Tydzień detoksu.", "Oczyszcza organizm."],
+    tr: ["Bir hafta detoks.", "Vücudu arındırır."],
+    ja: ["1週間のデトックス。"],
+    "zh-Hans": ["一周排毒。"],
+    "zh-Hant": ["一週排毒。"],
+    ko: ["일주일 디톡스."],
   },
 };
 
@@ -136,6 +168,16 @@ const FINE = [
   // both, which is why the stems stop short of it.
   "Estás adelgazando a 0,5kg por semana.",
   "Stai dimagrendo di 0,5kg a settimana.",
+  "Você está emagrecendo 0,5 kg por semana.",
+  "Je bent aan het afvallen, 0,5 kg per week.",
+  "Haftada 0,5 kg veriyorsun.",
+  // The honest denial, where the outcome sits right beside the stem because nothing separates them.
+  "結果を保証するものではありません。",
+  "我们不保证效果，这些都是估算。",
+  "결과를 보장하지 않습니다.",
+  // The app lowers a TARGET; `cukier` alone is the food.
+  "Verlaag je doel niet onder deze grens.",
+  "Obniż cukier w śniadaniu.",
 ];
 
 describe("the claims gate reads all eight languages", () => {
