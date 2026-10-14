@@ -40,7 +40,7 @@ describe("t", () => {
 
 describe("what the product claims to speak", () => {
   it("is the eight Kirill named, in the order the picker shows them", () => {
-    expect(LANGS).toEqual(["en", "fr", "de", "it", "es", "vi", "id", "ru"]);
+    expect(LANGS).toEqual(["en", "fr", "de", "it", "es", "vi", "id", "ru", "pt-BR", "ja", "ko", "zh-Hans", "zh-Hant", "tr", "pl", "nl"]);
   });
 
   it("names only languages whose tables are populated", () => {
@@ -320,9 +320,9 @@ describe("acceptLanguageTags", () => {
 describe("acceptLang", () => {
   it("takes the first SUPPORTED language, not the first tag", () => {
     // `pt-BR,fr;q=0.9` served a French speaker English: `pt` narrows to `en` before `fr` is read.
-    expect(acceptLang("pt-BR,fr;q=0.9")).toBe("fr");
+    expect(acceptLang("sv,fr;q=0.9")).toBe("fr");
     expect(acceptLang("fr-CA,en;q=0.5")).toBe("fr");
-    expect(acceptLang("pt-BR,ja")).toBe("en");
+    expect(acceptLang("sv,da")).toBe("en");
     expect(acceptLang(null)).toBe("en");
   });
 });

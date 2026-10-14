@@ -20,6 +20,8 @@ describe("plural categories", () => {
     en: ["one", "other"], de: ["one", "other"],
     fr: ["one", "many", "other"], it: ["one", "many", "other"], es: ["one", "many", "other"],
     ru: ["one", "few", "many", "other"], id: ["other"], vi: ["other"],
+    "pt-BR": ["one", "many", "other"], ja: ["other"], ko: ["other"], "zh-Hans": ["other"], "zh-Hant": ["other"],
+    tr: ["one", "other"], pl: ["one", "few", "many", "other"], nl: ["one", "other"],
   };
   for (const lang of LANGS) {
     test(`${lang} requires exactly ${want[lang].join("/")}`, () => {
@@ -190,10 +192,10 @@ describe("campaign template keys", () => {
       ...row("campaign:win-back", lang, { variant }), status: "reviewed", reviewed_by: "a", reviewed_at: "x", updated_at: "x",
     }))) as never;
     expect(pushKeyGaps(mk(["default"]), "campaign:win-back")).toEqual([]);
-    expect(pushKeyGaps(mk(["default"]), "campaign:win-back", 2)).toHaveLength(8); // b missing in all eight
+    expect(pushKeyGaps(mk(["default"]), "campaign:win-back", 2)).toHaveLength(LANGS.length); // b missing in every language
     expect(pushKeyGaps(mk(["default"]), "campaign:win-back", 2)[0]).toBe("en/b");
     expect(pushKeyGaps(mk(["default", "b"]), "campaign:win-back", 2)).toEqual([]);
-    expect(pushKeyGaps(mk(["default", "b"]), "campaign:win-back", 3)).toHaveLength(8);
+    expect(pushKeyGaps(mk(["default", "b"]), "campaign:win-back", 3)).toHaveLength(LANGS.length);
   });
   test("complete only when all eight languages are reviewed", () => {
     const reviewed = LANGS.map((lang) => ({ ...row("campaign:win-back", lang), status: "reviewed", reviewed_by: "a", reviewed_at: "x", updated_at: "x" }));

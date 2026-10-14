@@ -1,0 +1,598 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-14 22:11+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: tr\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Yeterince protein alıyor muyum?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Haftam nasıl gidiyor?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Bu akşam ne yesem?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Güncellendi — {kcal}kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Bunda doymuş yağ yüksek. Sadece sen istediğin için puanlandı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Bunda sodyum yüksek. Sadece sen istediğin için puanlandı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "Bugün {plan} hakkından {left} kaldı, protein {protein} / {proteinTarget}g."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget}g. Devam et."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "Bugün {plan} hakkından {left} daha doldurulacak, protein {protein} / {proteinTarget}g. Devam et."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "Bugün {plan} hakkının {over} üstündesin, protein {protein} / {proteinTarget}g. Kilo alma planında aşmak zaten amaç; yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "Kaba da olsa sayılır: bugün {plan} hakkından yaklaşık {left} kaldı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "Kaba da olsa sayılır: bugün {plan} hakkından yaklaşık {left} daha doldurulacak."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "Kaba da olsa sayılır: bugün {plan} hakkının yaklaşık {over} üstündesin."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "Kaba da olsa sayılır: bugün {plan} hakkının yaklaşık {over} üstündesin. Yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget}g."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "Bu da günün geri kalanı için {plan} hakkından {left} bırakıyor, protein {protein} / {proteinTarget}g."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget}g. Yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "Bu da seni bugün {plan} hakkının {over} üstüne çıkarıyor, protein {protein} / {proteinTarget}g. Yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}” — not ettim, sayılara işlendi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal}kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun} yüksek"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} yüksek"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun} plana uygun"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun} çok yüksek"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun} çok yüksek"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} tek öğün için yüksek: {target}{unit} hakkının {eaten} kadarı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} tek öğün için çok yüksek: {target}{unit} hakkının {eaten} kadarı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Günlük hakkının büyük bir kısmı tek öğünde."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "Yeterince protein alıyor muyum?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Önce web'de plan sorularını cevapla."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "Kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Kalori plana uygun."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Karbonhidrat"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "Planınla karşılaştırılıyor"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "eait hesabına bağlandı, giriş yöntemi:"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "Sayıldı. Bugün {left}kcal kaldı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "Sayıldı. Bugün {over}kcal fazla."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "Besin değerleri hesaplanıyor · 4/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "Kaldırdım."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Bugünkü genel hak herkes tarafından kullanıldı. Yarın yeni bir sayı."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Yağ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "Yiyecekler bulunuyor · 2/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "İlki kaydedildi. {kcal}kcal."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Günün geri kalanında bunu biraz azalt."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "Güzel — tanışma bitti ve ilk gün başladı. Gitmeden bir şey daha var ve bunu yalnızca bir kez soracağım."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "Güzel. Sohbet'te her zaman buradayım — bir fotoğraf da bir cümle de öğün kaydeder."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "Dürüst cevap: bu tabağı iyi okuyamadım. {kcal} değerini kaba bir tahmin olarak al ve toplama güvenmeden önce gramları kontrol et. Bir dahaki sefere ikinci bir açı yardımcı olur."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "Haftam nasıl gidiyor?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Ne yediğimi anlatayım"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "Bir şey yanlışsa söyle — “pilavın yarısı”, “avokado yok” — ya da karta dokunup gramları değiştir."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Davet bağlantıları yeni üyeler içindir ve bu hesap eait'i zaten satın aldı."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Kaydet"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Kaydedildi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Bunu kaydediyorum — doğru mu?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Bunu {date} için kaydediyorum — doğru mu?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Öğün"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Günlük hakkının yarısından fazlası tek öğünde."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Taşındı."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "İçindekiler adlandırılıyor"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "Kamera yoksa sorun yok. Arşivden bir fotoğraf seç ya da ne yediğini anlat — ikisinde de makrolar gelir."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "Acele yok. Plan günlüğünde — bir sonraki öğünün fotoğrafını o an çek. Alışkanlığın tamamı bu; olmazsa yarın bir kez söylerim."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Bu değil"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Senin hesabın değil mi? Web'de kendi hesabına giriş yap ve orada Telegram'ı Bağla'ya bas — bu Telegram oraya taşınır."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Bugün henüz kayıt yok."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Plana uygun."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "iOS'un sormak üzere olduğu bir şey daha: bildirimler. Günde bir tane, asla fazla değil — 20:30 mesajı ve deneme sürümündeysen bitmeden önceki gün bir hatırlatma. Başka hiçbir şey, asla."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "Önce bir şey: iOS kamera izni isteyecek. Onu yalnızca tabak için kullanırım — fotoğraf günlüğünde görebilmen için öğünle birlikte saklanır ve hesabınla birlikte silinir."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Protein"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "Tabak okunuyor"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "Tabak okunuyor…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "Geri yüklendi — içeridesin. Bir fotoğraf da bir cümle de öğün kaydeder."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "doymuş yağ"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "Doymuş yağ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Bir öğün fotoğrafı gönder, ne yediğini anlat ya da {coach} için bir soru sor."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Giriş yap"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodyum"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "Sodyum"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Bir şeyler ters gitti ama işlem yine de gerçekleşmiş olabilir. Tekrar göndermeden önce /today komutuna bak."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "Neyin yanlış olduğunu söyle — “pilavın yarısı”, “avokado yok”, “500'dü” hepsi olur. Ya da kartı açıp gramları kendin düzenle."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Bu kodun süresi doldu. Web'de ya da uygulamada yenisini iste."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Bu kod doğru değil. eait'ten gelen en yeni e-postaya bak."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Cevap gelmedi. Tekrar dene."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Bu yiyecek gibi görünmedi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Bu dosya okunabilen bir fotoğraf değil. JPEG, PNG ya da WebP gönder."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Bu davet bağlantısı kimseyle eşleşmiyor. Kontrol et ya da atla."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Bu bağlantının süresi doldu. Planını web'de aç ve Telegram'ı Bağla'ya tekrar bas."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Bu mesaj gönderilemeyecek kadar uzun."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Bu artık beklemede değil. Tekrar yaz."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Bu zaten kaydedilmişti."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Bu fotoğraf Telegram'dan gelmedi. Tekrar gönder."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Bu fotoğraf gelmedi. Tekrar gönder."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Bu fotoğraf gönderilemeyecek kadar büyük."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Bugünkü son hakkın buydu — günlük hakkın gece yarısı sıfırlanır."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Şimdilik sınır bu. Daha sonra tekrar dene."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Bu senin kendi davet bağlantın. Buraya bir arkadaşının bağlantısı girilir."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "uygulama"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Burada değiştirilecek açık bir öğün yok. Ne yediğini söyle ve tekrar kaydet."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Bu hesap zaten bir arkadaş bağlantısıyla katıldı."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Bu hesaba henüz giriş yapılmadı — web'de Apple veya Google ile giriş yap, sonra tekrar gönder."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Bu hesabın ücretsiz denemelik hakkı bitti. Devam etmek için web'de ücretsiz denemeni başlat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Bu yeni eait. Öğünlerin ve fotoğrafların eait hesabında saklanıyor: web'de giriş yap ve planında Telegram'ı Bağla'ya bas."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Bugün: {eaten} / {plan}kcal, protein {protein} / {proteinTarget}g"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Bu Telegram'dan çok fazla deneme yapıldı. Biraz bekle, sonra bağlantıya tekrar bas."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Deneme başladı — durdurmazsan bitince {price}. Bitmeden önceki gün hatırlatırım, asla bittikten sonraki gün değil."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "Fotoğraf değil yazı — yani porsiyonlar benim tahminim. {kcal} değerini kaba al; gramları biliyorsan söyle, düzelteyim."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Güncellendi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "Fotoğraf yükleniyor · 1/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "Porsiyonlar ölçülüyor"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "Porsiyonlar ölçülüyor · 3/4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "Porsiyonlar ölçülüyor…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "Bu akşam ne yesem?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Akşam yemeği için daha hafif bir alternatif ne?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "İlk günün başladı. 20:30'da tek bir mesaj gelir — bugün plana göre nasıl geçti ve yarın için somut bir şey. Ondan önce hiçbir şey."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Profilin ve ayarların web'de."

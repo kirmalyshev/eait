@@ -30,8 +30,19 @@ import { messages as es } from "./locales/es/messages.ts";
 import { messages as vi } from "./locales/vi/messages.ts";
 import { messages as id } from "./locales/id/messages.ts";
 import { messages as ru } from "./locales/ru/messages.ts";
+import { messages as ptBR } from "./locales/pt-BR/messages.ts";
+import { messages as ja } from "./locales/ja/messages.ts";
+import { messages as ko } from "./locales/ko/messages.ts";
+import { messages as zhHans } from "./locales/zh-Hans/messages.ts";
+import { messages as zhHant } from "./locales/zh-Hant/messages.ts";
+import { messages as tr } from "./locales/tr/messages.ts";
+import { messages as pl } from "./locales/pl/messages.ts";
+import { messages as nl } from "./locales/nl/messages.ts";
 
-const CATALOGS: Record<Lang, Messages> = { en, fr, de, it, es, vi, id, ru };
+const CATALOGS: Record<Lang, Messages> = {
+  en, fr, de, it, es, vi, id, ru,
+  "pt-BR": ptBR, ja, ko, "zh-Hans": zhHans, "zh-Hant": zhHant, tr, pl, nl,
+};
 
 const INSTANCES: Record<Lang, I18n> = Object.fromEntries(
   LANGS.map((lang) => [lang, setupI18n({ locale: lang, messages: { [lang]: CATALOGS[lang] } })]),

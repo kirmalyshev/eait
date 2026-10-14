@@ -334,6 +334,286 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Запиши сегодняшнюю еду — хватит одного фото.",
     },
   },
+  nl: {
+  "trial-end": {
+    title: "De proefperiode eindigt morgen",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Morgen eindigt je gratis proefperiode. Blijf je, dan hoef je niets te doen; zo niet: Instellingen › Abonnementen.",
+  },
+  evening: {
+    title: "Vandaag vergeleken met het plan",
+    body: "{eaten} van je {plan}kcal vandaag. {tomorrow}",
+    emptyBody: "Vandaag niets gelogd — je {plan}kcal zijn nog steeds het plan. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Je plan is bijna klaar",
+    body: "Een paar tikken en je plan is klaar.",
+    alternates: { v2: "Ga verder waar je gebleven was — het duurt maar een minuut.", v3: "Je plan wacht nog op een paar antwoorden.", v4: "Beantwoord de laatste vragen en je plan is van jou." },
+  },
+  "onboarding-photo": {
+    title: "Je eerste maaltijd",
+    body: "Maak een foto van je volgende maaltijd — meer is er niet nodig om te beginnen.",
+    alternates: { v2: "Eén foto is genoeg om te beginnen.", v3: "Je plan staat klaar. Log je eerste maaltijd wanneer je wilt.", v4: "Probeer bij je volgende maaltijd een foto — wij doen de rest." },
+  },
+  "streak-risk": {
+    title: "Hou het vol",
+    body: "Je logt al een paar dagen op rij. Een foto vandaag houdt de reeks gaande.",
+    alternates: { v2: "Eén snelle foto en vandaag telt ook mee.", v3: "Vandaag nog niets gelogd? Eén maaltijd en de reeks gaat door.", v4: "Je reeks loopt nog — voeg vandaag toe met een foto." },
+  },
+  nudge: {
+    title: "Maaltijden van vandaag",
+    body: "Log wat je vandaag hebt gegeten — een foto is genoeg.",
+  },
+},
+  pl: {
+  "trial-end": {
+    title: "Okres próbny kończy się jutro",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Jutro kończy się twój darmowy okres próbny. Jeśli zostajesz, nic nie musisz robić; jeśli nie — Ustawienia › Subskrypcje.",
+  },
+  evening: {
+    title: "Dzisiejszy dzień na tle planu",
+    body: "{eaten} z twoich {plan} kcal dzisiaj. {tomorrow}",
+    emptyBody: "Dziś nic nie zapisano — plan to nadal {plan} kcal. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Twój plan jest prawie gotowy",
+    body: "Kilka stuknięć i plan gotowy.",
+    alternates: { v2: "Kontynuuj od miejsca przerwania — to zajmie tylko minutę.", v3: "Twój plan czeka na kilka odpowiedzi.", v4: "Odpowiedz na ostatnie pytania, a plan będzie twój." },
+  },
+  "onboarding-photo": {
+    title: "Twój pierwszy posiłek",
+    body: "Zrób zdjęcie następnego posiłku — tyle wystarczy, by zacząć.",
+    alternates: { v2: "Jedno zdjęcie wystarczy, by ruszyć.", v3: "Plan gotowy. Dodaj pierwszy posiłek, kiedy zechcesz.", v4: "Przy następnym posiłku spróbuj zdjęcia — resztą zajmiemy się my." },
+  },
+  "streak-risk": {
+    title: "Nie odpuszczaj",
+    body: "Masz już kilka dni z rzędu. Zdjęcie dziś utrzyma serię.",
+    alternates: { v2: "Jedno szybkie zdjęcie i dziś też się liczy.", v3: "Dziś jeszcze nic? Jeden posiłek i seria trwa dalej.", v4: "Twoja seria wciąż trwa — dodaj dzisiejszy dzień zdjęciem." },
+  },
+  nudge: {
+    title: "Dzisiejsze posiłki",
+    body: "Zapisz dzisiejsze posiłki — wystarczy zdjęcie.",
+  },
+},
+  tr: {
+  "trial-end": {
+    title: "Deneme yarın bitiyor",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Ücretsiz denemen yarın bitiyor. Devam ediyorsan bir şey yapmana gerek yok; etmiyorsan Ayarlar › Abonelikler.",
+  },
+  evening: {
+    title: "Bugün, plana göre",
+    body: "Bugün {plan}kcal'nin {eaten} kadarı. {tomorrow}",
+    emptyBody: "Bugün hiçbir şey kaydedilmedi — planın hâlâ {plan}kcal. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Planın neredeyse hazır",
+    body: "Birkaç dokunuş ve planın hazır.",
+    alternates: { v2: "Kaldığın yerden devam et — bir dakika sürer.", v3: "Planın birkaç cevap bekliyor.", v4: "Son soruları bitir, plan senin." },
+  },
+  "onboarding-photo": {
+    title: "İlk öğünün",
+    body: "Bir sonraki öğününün fotoğrafını çek — başlamak için bu kadarı yeter.",
+    alternates: { v2: "Başlamak için bir fotoğraf yeter.", v3: "Planın hazır. Hazır olduğunda ilk öğününü kaydet.", v4: "Bir dahaki yemeğinde fotoğraf dene — gerisini biz hallederiz." },
+  },
+  "streak-risk": {
+    title: "Devam et",
+    body: "Birkaç gündür üst üste kaydediyorsun. Bugün bir fotoğraf serini sürdürür.",
+    alternates: { v2: "Hızlı bir fotoğraf, bugün de sayılsın.", v3: "Bugün henüz kayıt yok mu? Bir öğün ve seri devam eder.", v4: "Serin hâlâ sürüyor — bugünü bir fotoğrafla ekle." },
+  },
+  nudge: {
+    title: "Bugünün öğünleri",
+    body: "Bugün yediklerini kaydet — bir fotoğraf yeter.",
+  },
+},
+  "zh-Hant": {
+  "trial-end": {
+    title: "試用期明天結束",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "你的免費試用明天結束。要繼續使用就不用做任何事；不想繼續的話，請到 設定 › 訂閱項目。",
+  },
+  evening: {
+    title: "今天與計畫的對照",
+    body: "你今天吃了 {eaten}，計畫是 {plan} 大卡。{tomorrow}",
+    emptyBody: "今天還沒有記錄，{plan} 大卡仍是你的計畫。{tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "你的計畫快完成了",
+    body: "點幾下，你的計畫就完成了。",
+    alternates: { v2: "從上次停下的地方繼續，只要一分鐘。", v3: "你的計畫只差幾個答案。", v4: "回答最後幾個問題，計畫就是你的了。" },
+  },
+  "onboarding-photo": {
+    title: "你的第一餐",
+    body: "拍下你的下一餐，開始就這麼簡單。",
+    alternates: { v2: "一張照片就能開始。", v3: "你的計畫已設定好。準備好時就記錄第一餐吧。", v4: "下次吃東西時拍張照，其餘交給我們。" },
+  },
+  "streak-risk": {
+    title: "繼續保持",
+    body: "你已經連續記錄好幾天了。今天拍張照，就能延續下去。",
+    alternates: { v2: "快速拍張照，今天也算數。", v3: "今天還沒記錄？記一餐就能延續下去。", v4: "你的連續紀錄還在，用一張照片補上今天吧。" },
+  },
+  nudge: {
+    title: "今天的餐點",
+    body: "記錄你今天吃了什麼，拍張照就夠了。",
+  },
+},
+  "zh-Hans": {
+  "trial-end": {
+    title: "试用明天结束",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "你的免费试用明天结束。如果继续使用，无需任何操作；如果不想继续，请前往“设置” › “订阅”。",
+  },
+  evening: {
+    title: "今天与计划的对比",
+    body: "今天摄入{eaten}，计划{plan}千卡。{tomorrow}",
+    emptyBody: "今天还没有记录——你的计划仍是{plan}千卡。{tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "你的计划快准备好了",
+    body: "只需轻点几下，你的计划就准备好了。",
+    alternates: { v2: "从上次停下的地方继续——只要一分钟。", v3: "你的计划只差几个回答了。", v4: "回答最后几个问题，计划就是你的了。" },
+  },
+  "onboarding-photo": {
+    title: "你的第一餐",
+    body: "给下一餐拍张照片——这样就开始了。",
+    alternates: { v2: "一张照片就足以开始。", v3: "你的计划已设定好。准备好后，记录你的第一餐吧。", v4: "下次吃饭时试试拍张照片——剩下的交给我们。" },
+  },
+  "streak-risk": {
+    title: "继续保持",
+    body: "你已经连续记录了几天。今天拍一张照片，就能继续保持。",
+    alternates: { v2: "快速拍一张，今天也算上。", v3: "今天还没记录？记一餐，连续记录就能继续。", v4: "你的连续记录还在——拍张照片把今天加上。" },
+  },
+  nudge: {
+    title: "今天的餐食",
+    body: "记录你今天吃了什么——拍张照片就够了。",
+  },
+},
+  ko: {
+  "trial-end": {
+    title: "무료 체험이 내일 끝나요",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "내일 무료 체험이 끝나요. 계속 쓸 거라면 아무것도 안 해도 돼요. 아니라면 설정 › 구독으로 가세요.",
+  },
+  evening: {
+    title: "오늘을 계획과 비교해요",
+    body: "오늘 {plan}kcal 중 {eaten} 섭취했어요. {tomorrow}",
+    emptyBody: "오늘 기록이 없어요. 계획은 여전히 {plan}kcal예요. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "계획이 거의 준비됐어요",
+    body: "몇 번만 탭하면 계획이 완성돼요.",
+    alternates: { v2: "멈춘 곳부터 이어서 하세요. 1분이면 돼요.", v3: "몇 가지 답변만 더 있으면 계획이 완성돼요.", v4: "마지막 질문에 답하면 나만의 계획이 완성돼요." },
+  },
+  "onboarding-photo": {
+    title: "첫 식사",
+    body: "다음 식사를 사진으로 찍어 보세요. 시작은 그걸로 충분해요.",
+    alternates: { v2: "사진 한 장이면 시작할 수 있어요.", v3: "계획이 준비됐어요. 준비되면 첫 식사를 기록하세요.", v4: "다음에 먹을 때 사진을 찍어 보세요. 나머지는 저희가 할게요." },
+  },
+  "streak-risk": {
+    title: "계속 이어 가요",
+    body: "며칠 연속으로 기록했어요. 오늘 사진 한 장이면 연속 기록이 이어져요.",
+    alternates: { v2: "사진 한 장만 빠르게 찍으면 오늘도 기록돼요.", v3: "오늘 아직 기록이 없나요? 한 끼만 기록하면 연속 기록이 이어져요.", v4: "연속 기록이 아직 살아 있어요. 사진으로 오늘을 더해 보세요." },
+  },
+  nudge: {
+    title: "오늘의 식사",
+    body: "오늘 먹은 걸 기록하세요. 사진 한 장이면 충분해요.",
+  },
+},
+  ja: {
+  "trial-end": {
+    title: "トライアルは明日で終了します",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "無料トライアルは明日で終わります。続ける場合は何もしなくて大丈夫です。やめる場合は 設定 › サブスクリプション へ。",
+  },
+  evening: {
+    title: "今日の結果とプラン",
+    body: "今日は{plan}kcal中{eaten}。{tomorrow}",
+    emptyBody: "今日はまだ記録がありません。プランは引き続き{plan}kcalです。{tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "プランはもうすぐ完成です",
+    body: "あと数タップでプランが完成します。",
+    alternates: { v2: "続きから再開しましょう。1分で終わります。", v3: "いくつかの回答でプランが完成します。", v4: "残りの質問に答えれば、プランが完成します。" },
+  },
+  "onboarding-photo": {
+    title: "最初の食事",
+    body: "次の食事を写真に撮りましょう。始めるのはそれだけです。",
+    alternates: { v2: "写真1枚で始められます。", v3: "プランの準備ができました。好きなときに最初の食事を記録しましょう。", v4: "次に食べるときは写真を撮ってみてください。あとはおまかせを。" },
+  },
+  "streak-risk": {
+    title: "この調子で続けましょう",
+    body: "数日続けて記録できています。今日も写真1枚で連続記録が続きます。",
+    alternates: { v2: "写真をさっと1枚撮れば、今日もカウントされます。", v3: "今日はまだ記録なし？1食記録すれば連続記録が続きます。", v4: "連続記録はまだ続いています。写真で今日の分を追加しましょう。" },
+  },
+  nudge: {
+    title: "今日の食事",
+    body: "今日食べたものを記録しましょう。写真1枚で十分です。",
+  },
+},
+  "pt-BR": {
+  "trial-end": {
+    title: "O teste termina amanhã",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Amanhã seu teste grátis termina. Se você vai continuar, não precisa fazer nada; se não, Ajustes › Assinaturas.",
+  },
+  evening: {
+    title: "Hoje em relação ao plano",
+    body: "{eaten} das suas {plan} kcal hoje. {tomorrow}",
+    emptyBody: "Nada registrado hoje — suas {plan} kcal continuam sendo o plano. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Seu plano está quase pronto",
+    body: "Alguns toques e seu plano fica pronto.",
+    alternates: { v2: "Continue de onde parou — leva só um minuto.", v3: "Seu plano só espera algumas respostas.", v4: "Responda às últimas perguntas e o plano é seu." },
+  },
+  "onboarding-photo": {
+    title: "Sua primeira refeição",
+    body: "Tire uma foto da sua próxima refeição — é só isso para começar.",
+    alternates: { v2: "Uma foto basta para começar.", v3: "Seu plano está pronto. Registre sua primeira refeição quando quiser.", v4: "Na próxima vez que comer, experimente uma foto — a gente cuida do resto." },
+  },
+  "streak-risk": {
+    title: "Mantenha o ritmo",
+    body: "Você registrou vários dias seguidos. Uma foto hoje mantém a sequência.",
+    alternates: { v2: "Uma foto rápida e hoje conta também.", v3: "Nada registrado hoje ainda? Uma refeição e a sequência continua.", v4: "Sua sequência continua viva — adicione hoje com uma foto." },
+  },
+  nudge: {
+    title: "Refeições de hoje",
+    body: "Registre o que você comeu hoje — uma foto basta.",
+  },
+},
 };
 
 /** The compiled-in copy for one language. English for one nobody has written yet. */
@@ -395,6 +675,14 @@ export const LOG_REPLY_COPY: Localized<LogReplyCopy> = {
   vi: { button: "Ghi một bữa ăn", submit: "Ghi", placeholder: "Bạn đã ăn gì?" },
   id: { button: "Catat makanan", submit: "Catat", placeholder: "Kamu makan apa?" },
   ru: { button: "Записать еду", submit: "Записать", placeholder: "Что было на тарелке?" },
+  nl: { button: "Maaltijd loggen", submit: "Loggen", placeholder: "Wat heb je gegeten?" },
+  pl: { button: "Dodaj posiłek", submit: "Dodaj", placeholder: "Co było na talerzu?" },
+  tr: { button: "Öğün kaydet", submit: "Kaydet", placeholder: "Ne yedin?" },
+  "zh-Hant": { button: "記錄一餐", submit: "記錄", placeholder: "你吃了什麼？" },
+  "zh-Hans": { button: "记录一餐", submit: "记录", placeholder: "你吃了什么？" },
+  ko: { button: "식사 기록", submit: "기록", placeholder: "무엇을 먹었나요?" },
+  ja: { button: "食事を記録", submit: "記録", placeholder: "何を食べましたか？" },
+  "pt-BR": { button: "Registrar refeição", submit: "Registrar", placeholder: "O que você comeu?" },
 };
 
 export const logReplyCopyFor = (lang: Lang): LogReplyCopy => t(lang)(LOG_REPLY_COPY);
@@ -652,6 +940,70 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     gainUnder: "{under}ккал не хватило до плана — горсть орехов завтра это покроет.",
     under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
     onPlan: "По плану. Завтра — так же.",
+  },
+  nl: {
+    noMeals: "Eén foto morgen en de dag telt weer mee.",
+    over: "Vandaag {over} erover — morgen begint weer bij {plan}.",
+    protein: "Eiwit kwam {gap}g tekort — eieren of skyr bij het ontbijt vullen dat aan.",
+    gainUnder: "{under}kcal onder het plan — een handje noten morgen vult dat aan.",
+    under: "{under} onder het plan — morgen het volledige aantal eten is het plan, geen misstap.",
+    onPlan: "Volgens plan. Morgen hetzelfde.",
+  },
+  pl: {
+    noMeals: "Jedno zdjęcie jutro i dzień znów się liczy.",
+    over: "Dziś {over} ponad plan — jutro znów zaczynasz od {plan}.",
+    protein: "Białka zabrakło {gap} g — jajka lub skyr na śniadanie uzupełnią lukę.",
+    gainUnder: "{under} kcal poniżej planu — jutro garść orzechów to pokryje.",
+    under: "{under} poniżej planu — zjedzenie jutro pełnej liczby to plan, a nie wpadka.",
+    onPlan: "Zgodnie z planem. Jutro tak samo.",
+  },
+  tr: {
+    noMeals: "Yarın bir fotoğraf, günü yeniden tabloya koyar.",
+    over: "Bugün {over} fazla — yarın yine {plan} ile başlıyor.",
+    protein: "Protein {gap}g eksik kaldı — kahvaltıda yumurta ya da skyr bunu kapatır.",
+    gainUnder: "Plana {under}kcal eksik — yarın bir avuç kuruyemiş bunu karşılar.",
+    under: "Planın {under} altında — yarın sayının tamamını yemek plan, kaçamak değil.",
+    onPlan: "Plana uygun. Yarın da aynısı.",
+  },
+  "zh-Hant": {
+    noMeals: "明天拍一張照片，這一天就重新算進去了。",
+    over: "今天超過 {over}，明天又從 {plan} 重新開始。",
+    protein: "蛋白質少了 {gap} 公克，早餐吃蛋或優格就能補上。",
+    gainUnder: "比計畫少 {under} 大卡，明天吃一把堅果就補上了。",
+    under: "比計畫少 {under}。明天吃足計畫的量是照計畫走，不是失誤。",
+    onPlan: "符合計畫。明天照樣。",
+  },
+  "zh-Hans": {
+    noMeals: "明天拍一张照片，这一天就能重新记录起来。",
+    over: "今天超出{over}——明天重新从{plan}开始。",
+    protein: "蛋白质少了{gap}克——早餐吃鸡蛋或冰岛酸奶就能补上。",
+    gainUnder: "比计划少了{under}千卡——明天一把坚果就能补上。",
+    under: "比计划少了{under}——明天吃满这个数字就是计划本身，不算失误。",
+    onPlan: "符合计划。明天照旧。",
+  },
+  ko: {
+    noMeals: "내일 사진 한 장이면 다시 기록이 이어져요.",
+    over: "오늘 {over} 초과 — 내일은 다시 {plan}부터 시작해요.",
+    protein: "단백질이 {gap}g 부족했어요 — 아침에 달걀이나 스키르를 먹으면 채워져요.",
+    gainUnder: "계획보다 {under}kcal 적어요 — 내일 견과류 한 줌이면 채울 수 있어요.",
+    under: "계획보다 {under} 적어요 — 내일 목표만큼 다 먹는 건 실수가 아니라 계획이에요.",
+    onPlan: "계획대로예요. 내일도 똑같이 가요.",
+  },
+  ja: {
+    noMeals: "明日写真を1枚撮れば、また記録に戻れます。",
+    over: "今日は{over}オーバー。明日はまた{plan}から始まります。",
+    protein: "たんぱく質が{gap}g不足。朝食に卵やスキールを足せば埋まります。",
+    gainUnder: "プランまで{under}kcal不足。明日ナッツをひとつかみ足せば補えます。",
+    under: "プランより{under}少なめ。明日しっかり全部食べるのはプランどおりで、失敗ではありません。",
+    onPlan: "プランどおりです。明日も同じ調子で。",
+  },
+  "pt-BR": {
+    noMeals: "Amanhã, uma foto já coloca o dia de volta no registro.",
+    over: "{over} acima hoje — amanhã começa de novo em {plan}.",
+    protein: "Faltaram {gap} g de proteína — ovos ou skyr no café da manhã resolvem.",
+    gainUnder: "{under} kcal abaixo do plano — um punhado de castanhas amanhã resolve.",
+    under: "{under} abaixo do plano — comer o número inteiro amanhã é o plano, não um deslize.",
+    onPlan: "Dentro do plano. Repita amanhã.",
   },
 };
 

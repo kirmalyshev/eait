@@ -1201,7 +1201,7 @@ describe("campaigns (ieat-app#1761)", () => {
     await create();
     const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { copy: { key: string; gaps: string[] }[] };
     expect(listed.copy[0]).toMatchObject({ key: "campaign:win-back" });
-    expect(listed.copy[0]!.gaps).toHaveLength(8);
+    expect(listed.copy[0]!.gaps).toHaveLength(LANGS.length);
     const ph = await admin("PUT", "/admin/api/push-templates", {
       template: { key: "campaign:win-back", lang: "en", variant: "default", title: "Hi", body: "You ate {eaten}." }, status: "draft",
     });
@@ -1244,7 +1244,7 @@ describe("campaigns (ieat-app#1761)", () => {
     const made = await create({ promotional: false });
     const listed = await (await admin("GET", "/admin/api/campaigns")).json() as { copy: { key: string; gaps: string[]; rows: unknown[] }[] };
     expect(listed.copy).toEqual([expect.objectContaining({ key: "campaign:win-back", gaps: [] })]);
-    expect(listed.copy[0]!.rows).toHaveLength(8);
+    expect(listed.copy[0]!.rows).toHaveLength(LANGS.length);
     const ok = await admin("POST", `/admin/api/campaigns/${made.row.id}/status`, { status: "scheduled" });
     expect(ok.status).toBe(200);
     expect((await ok.json() as { row: { status: string } }).row.status).toBe("scheduled");

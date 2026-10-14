@@ -53,6 +53,38 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     ...scoresAppCopy("ru"),
     ...bmiCopy("ru"),
   },
+  "pt-BR": {
+    ...scoresAppCopy("pt-BR"),
+    ...bmiCopy("pt-BR"),
+  },
+  ja: {
+    ...scoresAppCopy("ja"),
+    ...bmiCopy("ja"),
+  },
+  ko: {
+    ...scoresAppCopy("ko"),
+    ...bmiCopy("ko"),
+  },
+  "zh-Hans": {
+    ...scoresAppCopy("zh-Hans"),
+    ...bmiCopy("zh-Hans"),
+  },
+  "zh-Hant": {
+    ...scoresAppCopy("zh-Hant"),
+    ...bmiCopy("zh-Hant"),
+  },
+  tr: {
+    ...scoresAppCopy("tr"),
+    ...bmiCopy("tr"),
+  },
+  pl: {
+    ...scoresAppCopy("pl"),
+    ...bmiCopy("pl"),
+  },
+  nl: {
+    ...scoresAppCopy("nl"),
+    ...bmiCopy("nl"),
+  },
 };
 
 export const scoresCopy = (lang: Lang): ScoresCopy => t(lang)(SCORES_COPY);

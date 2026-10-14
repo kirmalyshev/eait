@@ -978,6 +978,1982 @@ const RU: OnboardingContent = {
   },
 };
 
+const NL: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["Een plan dat om jou draait", "Jouw doel, jouw dag, jouw maaltijden"],
+    cta: "Maak mijn plan",
+    signin: "Ik heb al een account",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["Wat wil je bereiken?"] },
+      },
+      options: {
+        lose: { label: "Afvallen" },
+        maintain: { label: "Mijn gewicht houden" },
+        gain: { label: "Aankomen" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["Wat is je geslacht?"] },
+      },
+      options: {
+        male: { label: "Man" },
+        female: { label: "Vrouw" },
+        other: { label: "Anders" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["Hoe oud ben je?"],
+          placeholder: "Je leeftijd",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["Hoe lang ben je?"],
+          placeholder: "Lengte in cm",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["Wat weeg je vandaag?"],
+          placeholder: "Gewicht in kg",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["Hoe actief zijn je dagen?"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "Geen trainingen" },
+        few: { label: "1–2", hint: "Af en toe een training" },
+        some: { label: "3–4", hint: "Een paar trainingen per week" },
+        many: { label: "5+", hint: "Fanatieke sporter" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["Naar welk gewicht wil je toe?"],
+          placeholder: "Streefgewicht in kg",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["Hoe snel?"] },
+      },
+      options: {
+        easy: { label: "Rustig" },
+        steady: { label: "Gestaag" },
+        push: { label: "Stevig" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["Wat was er lastig?"] },
+      },
+      options: {
+        consistency: { label: "Gebrek aan regelmaat" },
+        habits: { label: "Ongezonde eetgewoontes" },
+        support: { label: "Gebrek aan steun" },
+        busy: { label: "Druk schema" },
+        ideas: { label: "Gebrek aan maaltijdideeën" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Kies een reeks als doel"] },
+      },
+      options: {
+        "7": { label: "7 dagen" },
+        "14": { label: "14 dagen" },
+        "30": { label: "30 dagen" },
+        "50": { label: "50 dagen" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["Volg je een dieet?"] },
+      },
+      options: {
+        balanced: { label: "Gebalanceerd" },
+        wholefood: { label: "Onbewerkt" },
+        mediterranean: { label: "Mediterraan" },
+        flexitarian: { label: "Flexitarisch" },
+        pescatarian: { label: "Pescotarisch" },
+        vegetarian: { label: "Vegetarisch" },
+        vegan: { label: "Veganistisch" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["Medische beperkingen?"] },
+      },
+      options: {
+        kidneys: { label: "Nieraandoening" },
+        ldl: { label: "Hoog cholesterol" },
+        lowsugar: { label: "Risico op diabetes" },
+        none: { label: "Geen van deze" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["Waar woon je?"], placeholder: "Zoeken" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "Ergens anders" },
+      },
+    },
+  ],
+  building: {
+    lines: ["Je persoonlijke plan wordt gemaakt"],
+    title: "Je dagplan",
+    rows: { calories: "Calorieën", protein: "Eiwit", carbs: "Koolhydraten", fat: "Vet", diet: "Dieet" },
+    limitCap: { ldl: "verzadigd vet ≤ {n}g", kidneys: "natrium ≤ {n}mg" },
+    cta: "Laat het plan zien",
+    floorTitle: "We zijn gestopt bij {floor}kcal",
+    floorBody: "De berekening wilde lager uitkomen. Zonder medische begeleiding stellen we geen doel onder deze grens in, dus hier ligt het jouwe. Dat staat ook in je dagboek.",
+  },
+  summary: {
+    lines: ["Hier is je plan"],
+    kcalLabel: "kcal per dag",
+    floorMarker: "veiligheidshalve begrensd · nooit onder {floor}",
+    macros: {
+      protein: "Eiwit",
+      carbs: "Koolhydraten",
+      fat: "Vet",
+      satfat: "Verzadigd vet · op jouw verzoek",
+    },
+    capNote: "Dat tempo vraagt om een groter dagelijks verschil dan veilig vol te houden is, dus je krijgt de veilige versie: {share}% van wat je lichaam per dag verbrandt.",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "Fotografeer je eerste maaltijd",
+  },
+};
+
+const PL: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["Plan stworzony dla ciebie", "Twój cel, twój dzień, twoje posiłki"],
+    cta: "Stwórz mój plan",
+    signin: "Mam już konto",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["Jaki jest twój cel?"] },
+      },
+      options: {
+        lose: { label: "Schudnąć" },
+        maintain: { label: "Utrzymać wagę" },
+        gain: { label: "Przytyć" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["Jaka jest twoja płeć?"] },
+      },
+      options: {
+        male: { label: "Mężczyzna" },
+        female: { label: "Kobieta" },
+        other: { label: "Inna" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["Ile masz lat?"],
+          placeholder: "Twój wiek",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["Ile masz wzrostu?"],
+          placeholder: "Wzrost w cm",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["Ile dziś ważysz?"],
+          placeholder: "Waga w kg",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["Jak aktywne są twoje dni?"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "Bez treningów" },
+        few: { label: "1–2", hint: "Treningi od czasu do czasu" },
+        some: { label: "3–4", hint: "Kilka treningów w tygodniu" },
+        many: { label: "5+", hint: "Trening prawie codziennie" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["Do jakiej wagi dążysz?"],
+          placeholder: "Docelowa waga w kg",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["Jak szybko?"] },
+      },
+      options: {
+        easy: { label: "Łagodnie" },
+        steady: { label: "Równo" },
+        push: { label: "Szybko" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["Co było najtrudniejsze?"] },
+      },
+      options: {
+        consistency: { label: "Brak regularności" },
+        habits: { label: "Niezdrowe nawyki żywieniowe" },
+        support: { label: "Brak wsparcia" },
+        busy: { label: "Napięty grafik" },
+        ideas: { label: "Brak pomysłów na posiłki" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Jaką serię chcesz osiągnąć?"] },
+      },
+      options: {
+        "7": { label: "7 dni" },
+        "14": { label: "14 dni" },
+        "30": { label: "30 dni" },
+        "50": { label: "50 dni" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["Stosujesz jakąś dietę?"] },
+      },
+      options: {
+        balanced: { label: "Zbilansowana" },
+        wholefood: { label: "Nieprzetworzona żywność" },
+        mediterranean: { label: "Śródziemnomorska" },
+        flexitarian: { label: "Fleksitariańska" },
+        pescatarian: { label: "Peskatariańska" },
+        vegetarian: { label: "Wegetariańska" },
+        vegan: { label: "Wegańska" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["Masz ograniczenia zdrowotne?"] },
+      },
+      options: {
+        kidneys: { label: "Choroba nerek" },
+        ldl: { label: "Wysoki cholesterol" },
+        lowsugar: { label: "Ryzyko cukrzycy" },
+        none: { label: "Żadne z tych" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["Gdzie mieszkasz?"], placeholder: "Szukaj" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "Gdzie indziej" },
+      },
+    },
+  ],
+  building: {
+    lines: ["Tworzę twój osobisty plan"],
+    title: "Twój plan dnia",
+    rows: { calories: "Kalorie", protein: "Białko", carbs: "Węglowodany", fat: "Tłuszcz", diet: "Dieta" },
+    limitCap: { ldl: "tłuszcze nasycone ≤ {n}g", kidneys: "sód ≤ {n}mg" },
+    cta: "Pokaż mi plan",
+    floorTitle: "Zatrzymaliśmy się na {floor}kcal",
+    floorBody: "Z rachunku wychodziło mniej. Bez nadzoru lekarza nie ustalamy celów poniżej tej wartości, więc twój jest właśnie tutaj. Zobaczysz to też w swoim dzienniku.",
+  },
+  summary: {
+    lines: ["Oto twój plan"],
+    kcalLabel: "kcal dziennie",
+    floorMarker: "ograniczone dla bezpieczeństwa · nigdy poniżej {floor}",
+    macros: {
+      protein: "Białko",
+      carbs: "Węglowodany",
+      fat: "Tłuszcz",
+      satfat: "Tłuszcze nasycone · na twoją prośbę",
+    },
+    capNote: "To tempo wymaga większej dziennej zmiany, niż można bezpiecznie utrzymać, więc dostajesz bezpieczną wersję: {share}% tego, co twój organizm spala w ciągu dnia.",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "Sfotografuj swój pierwszy posiłek",
+  },
+};
+
+const TR: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["Sana göre kurulmuş bir plan", "Hedefin, günün, öğünlerin"],
+    cta: "Planımı oluştur",
+    signin: "Zaten bir hesabım var",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["Hedefin ne?"] },
+      },
+      options: {
+        lose: { label: "Kilo vermek" },
+        maintain: { label: "Kilomu korumak" },
+        gain: { label: "Kilo almak" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["Cinsiyetin ne?"] },
+      },
+      options: {
+        male: { label: "Erkek" },
+        female: { label: "Kadın" },
+        other: { label: "Diğer" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["Kaç yaşındasın?"],
+          placeholder: "Yaşın",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["Boyun kaç?"],
+          placeholder: "Boy (cm)",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["Bugün kaç kilosun?"],
+          placeholder: "Kilo (kg)",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["Günlerin ne kadar hareketli?"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "Antrenman yok" },
+        few: { label: "1–2", hint: "Arada bir antrenman" },
+        some: { label: "3–4", hint: "Haftada birkaç antrenman" },
+        many: { label: "5+", hint: "Neredeyse her gün antrenman" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["Hangi kiloyu hedefliyorsun?"],
+          placeholder: "Hedef kilo (kg)",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["Ne hızda?"] },
+      },
+      options: {
+        easy: { label: "Hafif" },
+        steady: { label: "Düzenli" },
+        push: { label: "Hızlı" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["Şimdiye kadar en çok ne zorladı?"] },
+      },
+      options: {
+        consistency: { label: "Süreklilik eksikliği" },
+        habits: { label: "Sağlıksız beslenme alışkanlıkları" },
+        support: { label: "Destek eksikliği" },
+        busy: { label: "Yoğun program" },
+        ideas: { label: "Yemek fikri eksikliği" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Hedefleyeceğin bir seri seç"] },
+      },
+      options: {
+        "7": { label: "7 gün" },
+        "14": { label: "14 gün" },
+        "30": { label: "30 gün" },
+        "50": { label: "50 gün" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["Belirli bir diyet uyguluyor musun?"] },
+      },
+      options: {
+        balanced: { label: "Dengeli" },
+        wholefood: { label: "İşlenmemiş gıdalar" },
+        mediterranean: { label: "Akdeniz" },
+        flexitarian: { label: "Fleksitaryen" },
+        pescatarian: { label: "Pesketaryen" },
+        vegetarian: { label: "Vejetaryen" },
+        vegan: { label: "Vegan" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["Tıbbi bir kısıtlaman var mı?"] },
+      },
+      options: {
+        kidneys: { label: "Böbrek rahatsızlığı" },
+        ldl: { label: "Yüksek kolesterol" },
+        lowsugar: { label: "Diyabet riski" },
+        none: { label: "Hiçbiri" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["Nerede yaşıyorsun?"], placeholder: "Ara" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "Başka bir yer" },
+      },
+    },
+  ],
+  building: {
+    lines: ["Kişisel planın hazırlanıyor"],
+    title: "Günlük planın",
+    rows: { calories: "Kalori", protein: "Protein", carbs: "Karbonhidrat", fat: "Yağ", diet: "Diyet" },
+    limitCap: { ldl: "doymuş yağ ≤ {n}g", kidneys: "sodyum ≤ {n}mg" },
+    cta: "Planı göster",
+    floorTitle: "{floor}kcal'de durduk",
+    floorBody: "Hesap daha aşağı inmek istedi. Tıbbi gözetim olmadan bunun altında hedef koymuyoruz, o yüzden seninki burada. Bu, günlüğünde de yazacak.",
+  },
+  summary: {
+    lines: ["İşte planın"],
+    kcalLabel: "kcal / gün",
+    floorMarker: "güvenlik için sınırlı · asla {floor} altına inmez",
+    macros: {
+      protein: "Protein",
+      carbs: "Karbonhidrat",
+      fat: "Yağ",
+      satfat: "Doymuş yağ · sen istedin",
+    },
+    capNote: "Bu tempo, güvenle sürdürülebilecekten daha büyük bir günlük değişim gerektiriyor; bu yüzden seninki güvenli sürüm: vücudunun bir günde yaktığı enerjinin %{share} kadarı.",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "İlk öğününün fotoğrafını çek",
+  },
+};
+
+const ZH_HANT: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["為你量身打造的計畫", "你的目標、你的日常、你的餐點"],
+    cta: "建立我的計畫",
+    signin: "我已經有帳號了",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["你的目標是什麼？"] },
+      },
+      options: {
+        lose: { label: "減重" },
+        maintain: { label: "維持體重" },
+        gain: { label: "增重" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["你的生理性別是？"] },
+      },
+      options: {
+        male: { label: "男性" },
+        female: { label: "女性" },
+        other: { label: "其他" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["你幾歲？"],
+          placeholder: "你的年齡",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["你的身高是？"],
+          placeholder: "身高（公分）",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["你今天的體重是？"],
+          placeholder: "體重（公斤）",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["你平常的活動量如何？"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "不運動" },
+        few: { label: "1–2", hint: "偶爾運動" },
+        some: { label: "3–4", hint: "每週運動幾次" },
+        many: { label: "5+", hint: "幾乎天天訓練" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["你的目標體重是多少？"],
+          placeholder: "目標體重（公斤）",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["想用什麼節奏？"] },
+      },
+      options: {
+        easy: { label: "溫和" },
+        steady: { label: "穩定" },
+        push: { label: "較快" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["過去最難的是什麼？"] },
+      },
+      options: {
+        consistency: { label: "難以持之以恆" },
+        habits: { label: "不健康的飲食習慣" },
+        support: { label: "缺乏支持" },
+        busy: { label: "行程太忙" },
+        ideas: { label: "缺少餐點靈感" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["選一個想達成的連續天數"] },
+      },
+      options: {
+        "7": { label: "7 天" },
+        "14": { label: "14 天" },
+        "30": { label: "30 天" },
+        "50": { label: "50 天" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["你有遵循特定的飲食方式嗎？"] },
+      },
+      options: {
+        balanced: { label: "均衡飲食" },
+        wholefood: { label: "原型食物" },
+        mediterranean: { label: "地中海飲食" },
+        flexitarian: { label: "彈性素" },
+        pescatarian: { label: "海鮮素" },
+        vegetarian: { label: "蛋奶素" },
+        vegan: { label: "純素" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["有任何醫療上的限制嗎？"] },
+      },
+      options: {
+        kidneys: { label: "腎臟疾病" },
+        ldl: { label: "膽固醇偏高" },
+        lowsugar: { label: "糖尿病風險" },
+        none: { label: "以上皆無" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["你住在哪裡？"], placeholder: "搜尋" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "其他地區" },
+      },
+    },
+  ],
+  building: {
+    lines: ["正在建立你的個人計畫"],
+    title: "你的每日計畫",
+    rows: { calories: "熱量", protein: "蛋白質", carbs: "碳水化合物", fat: "脂肪", diet: "飲食" },
+    limitCap: { ldl: "飽和脂肪 ≤ {n} 公克", kidneys: "鈉 ≤ {n} 毫克" },
+    cta: "讓我看看計畫",
+    floorTitle: "我們停在 {floor} 大卡",
+    floorBody: "計算結果原本還想再往下。沒有醫療監督的情況下，我們不會設定低於這個數字的目標，所以你的目標就定在這裡。你的日記上也會註明這一點。",
+  },
+  summary: {
+    lines: ["這是你的計畫"],
+    kcalLabel: "每日 大卡",
+    floorMarker: "基於安全設限 · 絕不低於 {floor}",
+    macros: {
+      protein: "蛋白質",
+      carbs: "碳水化合物",
+      fat: "脂肪",
+      satfat: "飽和脂肪 · 依你的要求",
+    },
+    capNote: "這個節奏需要的每日落差，超過能安全維持的程度，所以你拿到的是安全版本：身體一天消耗量的 {share}%。",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "拍下你的第一餐",
+  },
+};
+
+const ZH_HANS: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["为你量身定制的计划", "你的目标、你的一天、你的饮食"],
+    cta: "制定我的计划",
+    signin: "我已有账号",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["你想达成什么目标？"] },
+      },
+      options: {
+        lose: { label: "减重" },
+        maintain: { label: "保持体重" },
+        gain: { label: "增重" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["你的性别是？"] },
+      },
+      options: {
+        male: { label: "男性" },
+        female: { label: "女性" },
+        other: { label: "其他" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["你多大了？"],
+          placeholder: "你的年龄",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["你的身高是多少？"],
+          placeholder: "身高（厘米）",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["你现在的体重是多少？"],
+          placeholder: "体重（公斤）",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["你平时的活动量如何？"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "不锻炼" },
+        few: { label: "1–2", hint: "偶尔锻炼" },
+        some: { label: "3–4", hint: "每周锻炼几次" },
+        many: { label: "5+", hint: "几乎每天训练" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["你的目标体重是多少？"],
+          placeholder: "目标体重（公斤）",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["想按什么节奏？"] },
+      },
+      options: {
+        easy: { label: "温和" },
+        steady: { label: "稳定" },
+        push: { label: "较快" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["之前最难的是什么？"] },
+      },
+      options: {
+        consistency: { label: "难以坚持" },
+        habits: { label: "不健康的饮食习惯" },
+        support: { label: "缺少支持" },
+        busy: { label: "日程太忙" },
+        ideas: { label: "缺少饮食灵感" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["选一个连续打卡目标"] },
+      },
+      options: {
+        "7": { label: "7 天" },
+        "14": { label: "14 天" },
+        "30": { label: "30 天" },
+        "50": { label: "50 天" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["你有遵循某种饮食方式吗？"] },
+      },
+      options: {
+        balanced: { label: "均衡饮食" },
+        wholefood: { label: "天然全食物" },
+        mediterranean: { label: "地中海饮食" },
+        flexitarian: { label: "弹性素食" },
+        pescatarian: { label: "鱼素" },
+        vegetarian: { label: "素食" },
+        vegan: { label: "纯素" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["有医疗方面的限制吗？"] },
+      },
+      options: {
+        kidneys: { label: "肾脏疾病" },
+        ldl: { label: "胆固醇偏高" },
+        lowsugar: { label: "糖尿病风险" },
+        none: { label: "以上都没有" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["你住在哪里？"], placeholder: "搜索" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "其他地方" },
+      },
+    },
+  ],
+  building: {
+    lines: ["正在制定你的个人计划"],
+    title: "你的每日计划",
+    rows: { calories: "热量", protein: "蛋白质", carbs: "碳水化合物", fat: "脂肪", diet: "饮食" },
+    limitCap: { ldl: "饱和脂肪 ≤ {n} 克", kidneys: "钠 ≤ {n} 毫克" },
+    cta: "查看我的计划",
+    floorTitle: "我们停在了 {floor} 千卡",
+    floorBody: "按计算本可以更低。没有医生监督，我们不会把目标设得比这更低，所以你的目标就定在这里。你的日记里也会注明这一点。",
+  },
+  summary: {
+    lines: ["这是你的计划"],
+    kcalLabel: "千卡/天",
+    floorMarker: "出于安全已设限 · 绝不低于 {floor}",
+    macros: {
+      protein: "蛋白质",
+      carbs: "碳水化合物",
+      fat: "脂肪",
+      satfat: "饱和脂肪 · 按你的要求",
+    },
+    capNote: "这个节奏需要的每日热量差超出了能安全坚持的范围，所以你拿到的是安全版本：身体一天消耗量的 {share}%。",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "拍下你的第一餐",
+  },
+};
+
+const KO: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["나에게 맞춘 플랜", "내 목표, 내 하루, 내 식사"],
+    cta: "내 플랜 만들기",
+    signin: "이미 계정이 있어요",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["어떤 목표가 있으세요?"] },
+      },
+      options: {
+        lose: { label: "체중 감량" },
+        maintain: { label: "체중 유지" },
+        gain: { label: "체중 증가" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["성별이 어떻게 되세요?"] },
+      },
+      options: {
+        male: { label: "남성" },
+        female: { label: "여성" },
+        other: { label: "기타" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["나이가 어떻게 되세요?"],
+          placeholder: "나이",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["키가 어떻게 되세요?"],
+          placeholder: "키(cm)",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["오늘 체중이 얼마예요?"],
+          placeholder: "체중(kg)",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["평소 얼마나 활동적이세요?"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "운동 안 해요" },
+        few: { label: "1–2", hint: "가끔 운동해요" },
+        some: { label: "3–4", hint: "일주일에 몇 번 운동해요" },
+        many: { label: "5+", hint: "거의 매일 운동해요" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["목표 체중은 얼마예요?"],
+          placeholder: "목표 체중(kg)",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["어떤 속도로 할까요?"] },
+      },
+      options: {
+        easy: { label: "천천히" },
+        steady: { label: "꾸준히" },
+        push: { label: "빠르게" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["어떤 점이 어려웠어요?"] },
+      },
+      options: {
+        consistency: { label: "꾸준함 부족" },
+        habits: { label: "건강하지 않은 식습관" },
+        support: { label: "주변의 지지 부족" },
+        busy: { label: "바쁜 일정" },
+        ideas: { label: "식사 아이디어 부족" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["목표 연속 기록을 골라 보세요"] },
+      },
+      options: {
+        "7": { label: "7일" },
+        "14": { label: "14일" },
+        "30": { label: "30일" },
+        "50": { label: "50일" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["따로 하는 식단이 있나요?"] },
+      },
+      options: {
+        balanced: { label: "균형 잡힌 식단" },
+        wholefood: { label: "자연식품 위주" },
+        mediterranean: { label: "지중해식" },
+        flexitarian: { label: "플렉시테리언" },
+        pescatarian: { label: "페스코 베지테리언" },
+        vegetarian: { label: "베지테리언" },
+        vegan: { label: "비건" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["의학적 제한이 있나요?"] },
+      },
+      options: {
+        kidneys: { label: "신장 질환" },
+        ldl: { label: "높은 콜레스테롤" },
+        lowsugar: { label: "당뇨병 위험" },
+        none: { label: "해당 없음" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["어디에 사세요?"], placeholder: "검색" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "다른 곳" },
+      },
+    },
+  ],
+  building: {
+    lines: ["나만의 플랜을 만들고 있어요"],
+    title: "하루 플랜",
+    rows: { calories: "칼로리", protein: "단백질", carbs: "탄수화물", fat: "지방", diet: "식단" },
+    limitCap: { ldl: "포화지방 ≤ {n}g", kidneys: "나트륨 ≤ {n}mg" },
+    cta: "플랜 보기",
+    floorTitle: "{floor}kcal에서 멈췄어요",
+    floorBody: "계산상으로는 더 내려갈 수 있었어요. 의료진의 관리 없이는 이보다 낮은 목표를 정하지 않아서, 여기로 맞췄어요. 다이어리에도 이렇게 표시돼요.",
+  },
+  summary: {
+    lines: ["플랜이 준비됐어요"],
+    kcalLabel: "kcal/일",
+    floorMarker: "안전을 위해 제한 · {floor} 미만으로는 안 내려가요",
+    macros: {
+      protein: "단백질",
+      carbs: "탄수화물",
+      fat: "지방",
+      satfat: "포화지방 · 요청하신 항목",
+    },
+    capNote: "그 속도는 안전하게 유지하기 어려울 만큼 하루 변화가 커야 해서, 안전한 버전으로 맞췄어요. 몸이 하루에 소모하는 에너지의 {share}%예요.",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "첫 식사를 찍어 보세요",
+  },
+};
+
+const JA: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["あなたに合わせたプラン", "あなたの目標、1日、食事に合わせて"],
+    cta: "プランを作成",
+    signin: "アカウントをお持ちの方",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["目標は何ですか？"] },
+      },
+      options: {
+        lose: { label: "体重を減らす" },
+        maintain: { label: "体重を維持する" },
+        gain: { label: "体重を増やす" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["性別を教えてください"] },
+      },
+      options: {
+        male: { label: "男性" },
+        female: { label: "女性" },
+        other: { label: "その他" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["年齢を教えてください"],
+          placeholder: "年齢",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["身長を教えてください"],
+          placeholder: "身長（cm）",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["今日の体重は？"],
+          placeholder: "体重（kg）",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["普段どのくらい体を動かしますか？"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "運動なし" },
+        few: { label: "1–2", hint: "ときどき運動する" },
+        some: { label: "3–4", hint: "週に数回運動する" },
+        many: { label: "5+", hint: "ほぼ毎日トレーニング" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["目標体重はどのくらいですか？"],
+          placeholder: "目標体重（kg）",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["どのくらいのペースで？"] },
+      },
+      options: {
+        easy: { label: "ゆるやか" },
+        steady: { label: "着実" },
+        push: { label: "速め" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["これまで何が大変でしたか？"] },
+      },
+      options: {
+        consistency: { label: "続かない" },
+        habits: { label: "不健康な食習慣" },
+        support: { label: "サポートがない" },
+        busy: { label: "忙しい毎日" },
+        ideas: { label: "食事のアイデアが浮かばない" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["連続記録の目標を選びましょう"] },
+      },
+      options: {
+        "7": { label: "7日" },
+        "14": { label: "14日" },
+        "30": { label: "30日" },
+        "50": { label: "50日" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["決まった食事スタイルはありますか？"] },
+      },
+      options: {
+        balanced: { label: "バランス重視" },
+        wholefood: { label: "ホールフード" },
+        mediterranean: { label: "地中海式" },
+        flexitarian: { label: "フレキシタリアン" },
+        pescatarian: { label: "ペスカタリアン" },
+        vegetarian: { label: "ベジタリアン" },
+        vegan: { label: "ヴィーガン" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["医療上の制限はありますか？"] },
+      },
+      options: {
+        kidneys: { label: "腎臓の疾患" },
+        ldl: { label: "高コレステロール" },
+        lowsugar: { label: "糖尿病のリスク" },
+        none: { label: "どれも当てはまらない" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["お住まいはどこですか？"], placeholder: "検索" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "その他の地域" },
+      },
+    },
+  ],
+  building: {
+    lines: ["あなた専用のプランを作成中"],
+    title: "1日のプラン",
+    rows: { calories: "カロリー", protein: "タンパク質", carbs: "炭水化物", fat: "脂質", diet: "食事スタイル" },
+    limitCap: { ldl: "飽和脂肪酸 ≤ {n}g", kidneys: "ナトリウム ≤ {n}mg" },
+    cta: "プランを見る",
+    floorTitle: "{floor}kcalで止めました",
+    floorBody: "計算上はもっと低くなりましたが、医師の管理なしにこれより低い目標は設定しません。なので、あなたの目標はここになります。ダイアリーにもそう表示されます。",
+  },
+  summary: {
+    lines: ["あなたのプランです"],
+    kcalLabel: "kcal／日",
+    floorMarker: "安全のため上限あり · {floor}未満にはなりません",
+    macros: {
+      protein: "タンパク質",
+      carbs: "炭水化物",
+      fat: "脂質",
+      satfat: "飽和脂肪酸 · ご希望により",
+    },
+    capNote: "そのペースだと、安全に続けられる範囲を超えて毎日の摂取量を変える必要があります。そのため、安全なバージョンにしました：1日に体が消費する量の{share}%です。",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "最初の食事を撮影する",
+  },
+};
+
+const PT_BR: OnboardingContent = {
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  // v14 is targets v2 (#81): the activity question's five levels became three — few/some/many —
+  // and the sex question gained "other". A stored v13 revision carries neither, so the validator
+  // retires it and every language falls back to this.
+  //
+  // v15 IS ONBOARDING V2 (#82): the conversation becomes Cal AI-shaped plain screens, one question
+  // each — twelve screens where seven used to be, the struggles eight became five stored picks,
+  // the restrictions screen split into `diet` (seven single-choice) and `medical` (multi-select,
+  // "None of these" a drawn row), and the sign-up beat lands between the plan and the country.
+  // A stored v14 revision names screens and asks this shape cannot satisfy, so it falls back whole.
+  // v16 (#1078): the activity question's three bands became four — 0 / 1–2 / 3–4 / 5+ — and `few`
+  // moved from "0–2" to "1–2". A stored v15 labels the new `few` "0–2" and has no `none` at all,
+  // so `usableContent` retires it and every language falls back to this. v17 (ieat-app#2050)
+  // rewrites the welcome as a title and a subtitle — "A plan built around you" — over the photo.
+  version: 17,
+  welcome: {
+    lines: ["Um plano feito para você", "Sua meta, seu dia, suas refeições"],
+    cta: "Criar meu plano",
+    signin: "Já tenho uma conta",
+  },
+  screens: [
+    {
+      id: "goal",
+      asks: {
+        goal: { lines: ["O que você quer alcançar?"] },
+      },
+      options: {
+        lose: { label: "Perder peso" },
+        maintain: { label: "Manter meu peso" },
+        gain: { label: "Ganhar peso" },
+      },
+    },
+    {
+      id: "sex",
+      asks: {
+        sex: { lines: ["Qual é o seu sexo?"] },
+      },
+      options: {
+        male: { label: "Masculino" },
+        female: { label: "Feminino" },
+        other: { label: "Outro" },
+      },
+    },
+    {
+      id: "age",
+      asks: {
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
+        birth_year: {
+          lines: ["Qual é a sua idade?"],
+          placeholder: "Sua idade",
+        },
+      },
+    },
+    {
+      id: "height",
+      asks: {
+        height_cm: {
+          lines: ["Qual é a sua altura?"],
+          placeholder: "Altura em cm",
+        },
+      },
+    },
+    {
+      id: "weight",
+      asks: {
+        weight_kg: {
+          lines: ["Quanto você pesa hoje?"],
+          placeholder: "Peso em kg",
+        },
+      },
+    },
+    {
+      id: "activity",
+      asks: {
+        activity: {
+          lines: ["Quão ativos são seus dias?"],
+        },
+      },
+      options: {
+        // Targets v2/#1078: four levels id'd by their icons — the range is the label, the line
+        // beneath is the hint.
+        none: { label: "0", hint: "Sem treinos" },
+        few: { label: "1–2", hint: "Treino de vez em quando" },
+        some: { label: "3–4", hint: "Alguns treinos por semana" },
+        many: { label: "5+", hint: "Treino quase todo dia" },
+      },
+    },
+    {
+      id: "target",
+      asks: {
+        target_weight_kg: {
+          lines: ["Qual peso você quer alcançar?"],
+          placeholder: "Peso-meta em kg",
+        },
+      },
+    },
+    {
+      id: "pace",
+      asks: {
+        pace: { lines: ["Em que ritmo?"] },
+      },
+      options: {
+        easy: { label: "Leve" },
+        steady: { label: "Constante" },
+        push: { label: "Rápido" },
+      },
+    },
+    {
+      id: "struggles",
+      asks: {
+        struggles: { lines: ["O que tem sido difícil?"] },
+      },
+      options: {
+        consistency: { label: "Falta de constância" },
+        habits: { label: "Hábitos alimentares pouco saudáveis" },
+        support: { label: "Falta de apoio" },
+        busy: { label: "Agenda cheia" },
+        ideas: { label: "Falta de ideias de refeição" },
+      },
+    },
+    {
+      id: "streak",
+      asks: {
+        streak_goal_days: { lines: ["Escolha uma meta de sequência"] },
+      },
+      options: {
+        "7": { label: "7 dias" },
+        "14": { label: "14 dias" },
+        "30": { label: "30 dias" },
+        "50": { label: "50 dias" },
+      },
+    },
+    {
+      id: "diet",
+      asks: {
+        diet: { lines: ["Você segue alguma dieta?"] },
+      },
+      options: {
+        balanced: { label: "Equilibrada" },
+        wholefood: { label: "Alimentos integrais" },
+        mediterranean: { label: "Mediterrânea" },
+        flexitarian: { label: "Flexitariana" },
+        pescatarian: { label: "Pescetariana" },
+        vegetarian: { label: "Vegetariana" },
+        vegan: { label: "Vegana" },
+      },
+    },
+    {
+      id: "medical",
+      asks: {
+        medical: { lines: ["Alguma restrição médica?"] },
+      },
+      options: {
+        kidneys: { label: "Doença renal" },
+        ldl: { label: "Colesterol alto" },
+        lowsugar: { label: "Risco de diabetes" },
+        none: { label: "Nenhuma dessas" },
+      },
+    },
+    {
+      id: "country",
+      asks: {
+        country: { lines: ["Onde você mora?"], placeholder: "Buscar" },
+      },
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
+      //
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the three and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
+      options: {
+        other: { label: "Outro lugar" },
+      },
+    },
+  ],
+  building: {
+    lines: ["Criando seu plano pessoal"],
+    title: "Seu plano diário",
+    rows: { calories: "Calorias", protein: "Proteína", carbs: "Carboidratos", fat: "Gordura", diet: "Dieta" },
+    limitCap: { ldl: "gordura saturada ≤ {n}g", kidneys: "sódio ≤ {n}mg" },
+    cta: "Me mostra o plano",
+    floorTitle: "Paramos em {floor}kcal",
+    floorBody: "A conta queria ir mais baixo. Não definimos metas abaixo disso sem acompanhamento médico, então a sua fica aqui. Isso também vai aparecer no seu diário.",
+  },
+  summary: {
+    lines: ["Aqui está seu plano"],
+    kcalLabel: "kcal por dia",
+    floorMarker: "limitado por segurança · nunca abaixo de {floor}",
+    macros: {
+      protein: "Proteína",
+      carbs: "Carboidratos",
+      fat: "Gordura",
+      satfat: "Gordura saturada · a seu pedido",
+    },
+    capNote: "Esse ritmo exige uma mudança diária maior do que é seguro manter, então o seu é a versão segura: {share}% do que seu corpo gasta em um dia.",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "Fotografe sua primeira refeição",
+  },
+};
+
 export const ONBOARDING_CONTENT: Localized<OnboardingContent> = {
   en: DEFAULT_ONBOARDING_CONTENT,
   fr: FR,
@@ -986,7 +2962,7 @@ export const ONBOARDING_CONTENT: Localized<OnboardingContent> = {
   es: ES,
   vi: VI,
   id: ID,
-  ru: RU,
+  ru: RU, nl: NL, pl: PL, tr: TR, "zh-Hant": ZH_HANT, "zh-Hans": ZH_HANS, ko: KO, ja: JA, "pt-BR": PT_BR,
 };
 
 /**

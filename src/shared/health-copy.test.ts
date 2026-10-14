@@ -48,6 +48,7 @@ describe("what the health screen calls things", () => {
     "fr.vo2max", "it.vo2max", "vi.vo2max",   // an internationalism in all three
     "de.hrv_ms", "it.hrv_ms", "vi.hrv_ms", "id.hrv_ms",
     "fr.distance_km",
+    "ja.vo2max", "ko.vo2max", "pl.vo2max", "nl.vo2max",   // the same internationalism again
   ]);
 
   it("does not let a new metric ship English in all eight and call it translated", () => {
