@@ -228,8 +228,9 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
   background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; line-height: 20px; text-align: center; }
 
 /* The food search sheet (#909): over the chat, the field and Cancel on top, rows below. */
-.fs { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; flex-direction: column;
-  max-width: 640px; margin: 0 auto; padding: 16px 16px 0; overflow: hidden; }
+/* The column is 640 wide; the shadow is the page-wide backdrop, so no composer control shows beside it. */
+.fs { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column;
+  max-width: 640px; margin: 0 auto; padding: 16px 16px 0; overflow: hidden; box-shadow: 0 0 0 100vmax var(--bg); }
 .fs-head { display: flex; align-items: center; gap: 12px; }
 .fs-field { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 0; background: var(--surface);
   box-shadow: 0 0 0 1px var(--line); color: var(--ink); font-size: 16px; }
