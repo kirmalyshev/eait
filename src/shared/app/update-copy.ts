@@ -11,7 +11,7 @@ export interface UpdateCopy {
   /** A failed note job: the note is back in the field (`failedBody` stays for the other kinds). */
   failedNote: string;
   /** Why a queued job ended unknown (`OutcomeUnknown.why`, ieat-app#2187): the row's reason line, on photo rows too. */
-  reasons: { timeout: string; error: string; workerLost: string; expired: string };
+  reasons: { timeout: string; error: string; "worker-lost": string; expired: string };
   /** A failed note's actions: its words back in the composer, and the ingredient-by-ingredient editor. */
   restore: string;
   editStructured: string;
@@ -37,7 +37,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Reading your note · 1 of 3", "Adjusting the meal · 2 of 3", "Recounting nutrients · 3 of 3"],
       reread: ["Re-reading the photo · 1 of 3", "Weighing portions · 2 of 3", "Counting nutrients · 3 of 3"],
     },
-    failedTitle: "Couldn't apply your change", failedBody: "Your meal is as it was.", failedNote: "Your note is here: edit it, or send it again.", reasons: { timeout: "That took too long, so I stopped. Nothing was logged.", error: "Something went wrong on my side. Nothing was logged.", workerLost: "I lost track of this one while working on it. Nothing was logged.", expired: "I never got to this one. Nothing was logged." },
+    failedTitle: "Couldn't apply your change", failedBody: "Your meal is as it was.", failedNote: "Your note is here: edit it, or send it again.", reasons: { timeout: "That took too long, so I stopped. Nothing was logged.", error: "Something went wrong on my side. Nothing was logged.", "worker-lost": "I lost track of this one while working on it. Nothing was logged.", expired: "I never got to this one. Nothing was logged." },
     restore: "Restore text", editStructured: "Edit by ingredients",
     refusedTitle: "Couldn't make that change",
     refusedOtherMeal: "The note asked to log a different meal. Correct this one, or log the other on its own.",
@@ -51,7 +51,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Lecture de ta note · 1 sur 3", "Ajustement du repas · 2 sur 3", "Recalcul des nutriments · 3 sur 3"],
       reread: ["Nouvelle lecture de la photo · 1 sur 3", "Estimation des portions · 2 sur 3", "Calcul des nutriments · 3 sur 3"],
     },
-    failedTitle: "Modification impossible à appliquer", failedBody: "Ton repas n'a pas changé.", failedNote: "Ta note est là : modifie-la, ou renvoie-la.", reasons: { timeout: "Cela a pris trop de temps : j'ai interrompu. Rien n'a été enregistré.", error: "Un problème est survenu de mon côté. Rien n'a été enregistré.", workerLost: "J'ai perdu le fil de celui-ci en cours de traitement. Rien n'a été enregistré.", expired: "Je n'ai jamais pu m'en occuper. Rien n'a été enregistré." },
+    failedTitle: "Modification impossible à appliquer", failedBody: "Ton repas n'a pas changé.", failedNote: "Ta note est là : modifie-la, ou renvoie-la.", reasons: { timeout: "Cela a pris trop de temps : j'ai interrompu. Rien n'a été enregistré.", error: "Un problème est survenu de mon côté. Rien n'a été enregistré.", "worker-lost": "J'ai perdu le fil de celui-ci en cours de traitement. Rien n'a été enregistré.", expired: "Je n'ai jamais pu m'en occuper. Rien n'a été enregistré." },
     restore: "Remettre mon texte", editStructured: "Modifier par ingrédients",
     refusedTitle: "Cette modification n'a pas pu être faite",
     refusedOtherMeal: "Ta note demande à enregistrer un autre repas. Corrige celui-ci, ou enregistre l'autre à part.",
@@ -65,7 +65,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Notiz wird gelesen · 1 von 3", "Mahlzeit wird angepasst · 2 von 3", "Nährwerte werden neu berechnet · 3 von 3"],
       reread: ["Foto wird neu gelesen · 1 von 3", "Portionen werden geschätzt · 2 von 3", "Nährwerte werden gezählt · 3 von 3"],
     },
-    failedTitle: "Änderung nicht übernommen", failedBody: "Deine Mahlzeit ist wie vorher.", failedNote: "Deine Notiz ist hier: Bearbeite sie oder schick sie noch einmal.", reasons: { timeout: "Das hat zu lange gedauert, deshalb habe ich abgebrochen. Es wurde nichts gespeichert.", error: "Bei mir ist etwas schiefgelaufen. Es wurde nichts gespeichert.", workerLost: "Ich habe den Faden bei diesem Eintrag verloren. Es wurde nichts gespeichert.", expired: "Dieser Eintrag ist bei mir nicht mehr drangekommen. Es wurde nichts gespeichert." },
+    failedTitle: "Änderung nicht übernommen", failedBody: "Deine Mahlzeit ist wie vorher.", failedNote: "Deine Notiz ist hier: Bearbeite sie oder schick sie noch einmal.", reasons: { timeout: "Das hat zu lange gedauert, deshalb habe ich abgebrochen. Es wurde nichts gespeichert.", error: "Bei mir ist etwas schiefgelaufen. Es wurde nichts gespeichert.", "worker-lost": "Ich habe den Faden bei diesem Eintrag verloren. Es wurde nichts gespeichert.", expired: "Dieser Eintrag ist bei mir nicht mehr drangekommen. Es wurde nichts gespeichert." },
     restore: "Meinen Text zurückholen", editStructured: "Nach Zutaten bearbeiten",
     refusedTitle: "Diese Änderung war nicht möglich",
     refusedOtherMeal: "Die Notiz möchte eine andere Mahlzeit eintragen. Korrigiere diese, oder trage die andere separat ein.",
@@ -79,7 +79,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Lettura della nota · 1 di 3", "Modifica del pasto · 2 di 3", "Ricalcolo dei nutrienti · 3 di 3"],
       reread: ["Nuova lettura della foto · 1 di 3", "Stima delle porzioni · 2 di 3", "Conteggio dei nutrienti · 3 di 3"],
     },
-    failedTitle: "Impossibile applicare la modifica", failedBody: "Il pasto è rimasto com'era.", failedNote: "La tua nota è qui: modificala, o inviala di nuovo.", reasons: { timeout: "Ci ho messo troppo: ho interrotto tutto. Non è stato registrato nulla.", error: "Qualcosa è andato storto da parte mia. Non è stato registrato nulla.", workerLost: "Ho perso il filo di questa richiesta mentre ci lavoravo. Non è stato registrato nulla.", expired: "Questa richiesta non è mai arrivata al mio turno. Non è stato registrato nulla." },
+    failedTitle: "Impossibile applicare la modifica", failedBody: "Il pasto è rimasto com'era.", failedNote: "La tua nota è qui: modificala, o inviala di nuovo.", reasons: { timeout: "Ci ho messo troppo: ho interrotto tutto. Non è stato registrato nulla.", error: "Qualcosa è andato storto da parte mia. Non è stato registrato nulla.", "worker-lost": "Ho perso il filo di questa richiesta mentre ci lavoravo. Non è stato registrato nulla.", expired: "Questa richiesta non è mai arrivata al mio turno. Non è stato registrato nulla." },
     restore: "Rimetti il mio testo", editStructured: "Modifica per ingredienti",
     refusedTitle: "Non è stato possibile fare questa modifica",
     refusedOtherMeal: "La nota chiede di registrare un altro pasto. Correggi questo, oppure registra l'altro da solo.",
@@ -93,7 +93,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Leyendo tu nota · 1 de 3", "Ajustando la comida · 2 de 3", "Recalculando nutrientes · 3 de 3"],
       reread: ["Releyendo la foto · 1 de 3", "Pesando las raciones · 2 de 3", "Contando nutrientes · 3 de 3"],
     },
-    failedTitle: "No se pudo aplicar el cambio", failedBody: "Tu comida sigue como estaba.", failedNote: "Tu nota está aquí: edítala o envíala otra vez.", reasons: { timeout: "Tardó demasiado, así que lo detuve. No se registró nada.", error: "Algo salió mal por mi parte. No se registró nada.", workerLost: "Perdí el hilo de esta mientras trabajaba en ella. No se registró nada.", expired: "No llegué a ocuparme de esta. No se registró nada." },
+    failedTitle: "No se pudo aplicar el cambio", failedBody: "Tu comida sigue como estaba.", failedNote: "Tu nota está aquí: edítala o envíala otra vez.", reasons: { timeout: "Tardó demasiado, así que lo detuve. No se registró nada.", error: "Algo salió mal por mi parte. No se registró nada.", "worker-lost": "Perdí el hilo de esta mientras trabajaba en ella. No se registró nada.", expired: "No llegué a ocuparme de esta. No se registró nada." },
     restore: "Recuperar mi texto", editStructured: "Editar por ingredientes",
     refusedTitle: "No se pudo hacer ese cambio",
     refusedOtherMeal: "La nota pide registrar otra comida. Corrige esta, o registra la otra por separado.",
@@ -107,7 +107,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Đang đọc ghi chú · 1/3", "Đang chỉnh bữa ăn · 2/3", "Đang tính lại dinh dưỡng · 3/3"],
       reread: ["Đang đọc lại ảnh · 1/3", "Đang ước lượng khẩu phần · 2/3", "Đang tính dinh dưỡng · 3/3"],
     },
-    failedTitle: "Không áp dụng được thay đổi", failedBody: "Bữa ăn vẫn như cũ.", failedNote: "Ghi chú của bạn ở đây: chỉnh lại, hoặc gửi lại.", reasons: { timeout: "Việc này mất quá nhiều thời gian nên mình đã dừng lại. Chưa có gì được ghi lại.", error: "Có lỗi xảy ra từ phía mình. Chưa có gì được ghi lại.", workerLost: "Mình bị mất dấu mục này khi đang xử lý. Chưa có gì được ghi lại.", expired: "Mình chưa kịp xử lý mục này. Chưa có gì được ghi lại." },
+    failedTitle: "Không áp dụng được thay đổi", failedBody: "Bữa ăn vẫn như cũ.", failedNote: "Ghi chú của bạn ở đây: chỉnh lại, hoặc gửi lại.", reasons: { timeout: "Việc này mất quá nhiều thời gian nên mình đã dừng lại. Chưa có gì được ghi lại.", error: "Có lỗi xảy ra từ phía mình. Chưa có gì được ghi lại.", "worker-lost": "Mình bị mất dấu mục này khi đang xử lý. Chưa có gì được ghi lại.", expired: "Mình chưa kịp xử lý mục này. Chưa có gì được ghi lại." },
     restore: "Khôi phục nội dung đã nhập", editStructured: "Sửa theo nguyên liệu",
     refusedTitle: "Không thể thực hiện thay đổi này",
     refusedOtherMeal: "Ghi chú muốn ghi một bữa ăn khác. Sửa bữa này, hoặc ghi bữa kia riêng.",
@@ -121,7 +121,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Membaca catatanmu · 1 dari 3", "Menyesuaikan makanan · 2 dari 3", "Menghitung ulang nutrisi · 3 dari 3"],
       reread: ["Membaca ulang foto · 1 dari 3", "Menimbang porsi · 2 dari 3", "Menghitung nutrisi · 3 dari 3"],
     },
-    failedTitle: "Perubahan tidak bisa diterapkan", failedBody: "Makananmu tetap seperti semula.", failedNote: "Catatanmu ada di sini: ubah, atau kirim lagi.", reasons: { timeout: "Terlalu lama, jadi aku berhenti. Tidak ada yang dicatat.", error: "Ada masalah di sisiku. Tidak ada yang dicatat.", workerLost: "Aku kehilangan jejak catatan ini saat memprosesnya. Tidak ada yang dicatat.", expired: "Aku belum sempat memproses catatan ini. Tidak ada yang dicatat." },
+    failedTitle: "Perubahan tidak bisa diterapkan", failedBody: "Makananmu tetap seperti semula.", failedNote: "Catatanmu ada di sini: ubah, atau kirim lagi.", reasons: { timeout: "Terlalu lama, jadi aku berhenti. Tidak ada yang dicatat.", error: "Ada masalah di sisiku. Tidak ada yang dicatat.", "worker-lost": "Aku kehilangan jejak catatan ini saat memprosesnya. Tidak ada yang dicatat.", expired: "Aku belum sempat memproses catatan ini. Tidak ada yang dicatat." },
     restore: "Kembalikan tulisanku", editStructured: "Edit per bahan",
     refusedTitle: "Perubahan itu tidak bisa dibuat",
     refusedOtherMeal: "Catatanmu meminta mencatat makanan lain. Perbaiki yang ini, atau catat yang lain secara terpisah.",
@@ -135,7 +135,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
       note: ["Читаем заметку · 1 из 3", "Корректируем приём пищи · 2 из 3", "Пересчитываем КБЖУ · 3 из 3"],
       reread: ["Перечитываем фото · 1 из 3", "Оцениваем порции · 2 из 3", "Считаем КБЖУ · 3 из 3"],
     },
-    failedTitle: "Не удалось применить изменение", failedBody: "Приём пищи остался как был.", failedNote: "Твоя заметка здесь: измени её или отправь ещё раз.", reasons: { timeout: "Это заняло слишком много времени, обработка остановлена. Ничего не записано.", error: "С моей стороны что-то пошло не так. Ничего не записано.", workerLost: "Эта запись прервалась во время обработки. Ничего не записано.", expired: "До этой записи очередь так и не дошла. Ничего не записано." },
+    failedTitle: "Не удалось применить изменение", failedBody: "Приём пищи остался как был.", failedNote: "Твоя заметка здесь: измени её или отправь ещё раз.", reasons: { timeout: "Это заняло слишком много времени, обработка остановлена. Ничего не записано.", error: "С моей стороны что-то пошло не так. Ничего не записано.", "worker-lost": "Эта запись прервалась во время обработки. Ничего не записано.", expired: "До этой записи очередь так и не дошла. Ничего не записано." },
     restore: "Вернуть мой текст", editStructured: "Править по ингредиентам",
     refusedTitle: "Не удалось внести это изменение",
     refusedOtherMeal: "Заметка предлагает записать другой приём пищи. Исправь этот, или запиши тот отдельно.",
