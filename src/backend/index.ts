@@ -354,12 +354,12 @@ setInterval(() => { void elect(); }, ELECTION_MS).unref?.();
 setInterval(() => { if (leader) void sweepHealthRetention(); }, DAY_MS).unref?.();
 setInterval(() => { if (leader) void refreshFoodCatalog(); }, HOUR_MS).unref?.();
 // The matcher index is per-PROCESS, but the snapshot load is leader-only: every replica rebuilds
-// its own once a day, so a non-leader's index is never older than a day plus a boot.
+// its own hourly, so a non-leader's index is never older than an hour plus a boot.
 setInterval(() => {
   void store.refreshFoodIndex().catch((e: unknown) => {
     console.error(`[eait] food index rebuild failed: ${(e as Error)?.message ?? e}`);
   });
-}, DAY_MS).unref?.();
+}, HOUR_MS).unref?.();
 
 // The canned verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired under `--demo` and under
