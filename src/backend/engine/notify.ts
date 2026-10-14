@@ -282,6 +282,9 @@ export async function pushTick(deps: EngineDeps, opts: { now?: number } = {}): P
         continue;
       }
 
+      // The evening line has its own switch beside the meal slots (#902); the triggers above are not it.
+      if ((await deps.store.mealRemindersOf(userId))?.evening === false) { result.skipped++; continue; }
+
       const message = await dailyNotification(deps, userId, date, now);
       if (message === null) { result.skipped++; continue; }
       // The subscriber's line reads the day against the plan (`streak`); everyone else's plain

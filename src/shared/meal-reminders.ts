@@ -23,7 +23,10 @@ export interface MealReminder {
   /** `HH:MM`, 24-hour, in the account's zone. */
   time: string;
 }
-export type MealReminders = Record<MealSlot, MealReminder>;
+export type MealReminders = Record<MealSlot, MealReminder> & {
+  /** The 20:30 evening line (a push). Absent = on, which is every account that never chose; `false` = off. */
+  evening?: boolean;
+};
 
 /** What an account that never chose has: breakfast and lunch on, dinner off. */
 export const DEFAULT_MEAL_REMINDERS: MealReminders = {
@@ -37,6 +40,7 @@ const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 export function isMealReminders(v: unknown): v is MealReminders {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
+  if (o.evening !== undefined && typeof o.evening !== "boolean") return false;
   return MEAL_SLOTS.every((s) => {
     const r = o[s] as Record<string, unknown> | undefined;
     return typeof r === "object" && r !== null && typeof r.on === "boolean"

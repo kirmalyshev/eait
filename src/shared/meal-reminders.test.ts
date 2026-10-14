@@ -17,6 +17,10 @@ test("a passed time is dropped for today", () => {
   const p = mealReminderPlan(D, [], tz, at("13:00"));
   expect(p.map((r) => r.id)).toEqual(["meal-breakfast-1", "meal-lunch-1"]);
 });
+test("evening is optional and boolean", () => {
+  expect(isMealReminders({ ...D, evening: false })).toBe(true);
+  expect(isMealReminders({ ...D, evening: "no" })).toBe(false);
+});
 test("shape check", () => {
   expect(isMealReminders(D)).toBe(true);
   expect(isMealReminders({ ...D, lunch: { on: true, time: "25:00" } })).toBe(false);

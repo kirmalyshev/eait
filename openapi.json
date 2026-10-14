@@ -7139,7 +7139,12 @@
       },
       "MealReminders": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
+          "evening": {
+            "type": "boolean",
+            "description": "The 20:30 evening line (a push). Absent = on, which is every account that never chose; `false` = off."
+          },
           "breakfast": {
             "$ref": "#/components/schemas/MealReminder"
           },
@@ -7152,10 +7157,9 @@
         },
         "required": [
           "breakfast",
-          "lunch",
-          "dinner"
-        ],
-        "additionalProperties": false
+          "dinner",
+          "lunch"
+        ]
       },
       "MealUpdateKind": {
         "type": "string",
