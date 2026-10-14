@@ -116,6 +116,10 @@ button.ingbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .amtpill:focus-within{box-shadow:0 0 0 2px var(--accent)}
 .ingwas{align-self:flex-end;margin-top:-6px}
 .ingkcal{padding:16px 18px}
+.ingname{background:none;border:0;padding:0;text-align:left;color:inherit;cursor:pointer}
+.ingswap{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.ingswaplist{display:flex;flex-direction:column;border-radius:12px;background:var(--card,#fff);padding:0 12px}
+.ingswaprow{background:none;border:0;padding:12px 0;text-align:left;font-weight:600;color:inherit;cursor:pointer}
 .ingkrow{gap:8px;margin-top:2px}
 .ingkrow .ico{width:26px;height:26px}
 .ingmeal{padding:14px 16px}

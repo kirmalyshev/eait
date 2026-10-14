@@ -997,6 +997,7 @@ export function createRouter(
         if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const body: unknown = await req.json();
         if (!isEditMealRequest(body)) return json({ error: "bad-edit" }, 400);
+        if (body.swap !== undefined && (await deps.store.foodById(body.swap.ref)) === null) return json({ error: "unknown-food" }, 404);
         const result = await editMeal(deps, userId, decodeURIComponent(mealMatch[1]!), body);
         return result.kind === "target-gone"
           ? json({ error: "target-gone", on: result.on }, 409)

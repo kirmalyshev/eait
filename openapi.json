@@ -5533,6 +5533,23 @@
               "$ref": "#/components/schemas/MealItem"
             }
           },
+          "swap": {
+            "type": "object",
+            "properties": {
+              "index": {
+                "type": "number"
+              },
+              "ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "index",
+              "ref"
+            ],
+            "additionalProperties": false,
+            "description": "Change what item `index` IS to the catalog row `ref` (a `food_ref` id from `GET /v1/foods`), at the item's own grams, with no model in between (ieat-app#2192). The server reads the row's nutrition itself; a client cannot send a number the catalog does not carry. Applied after `items`, to the index in the resulting list."
+          },
           "kcal": {
             "type": "number"
           },
