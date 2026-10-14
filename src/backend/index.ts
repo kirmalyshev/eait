@@ -262,29 +262,30 @@ const sweepHealthRetention = async () => {
 
 // ── Catalog refresh ──────────────────────────────────────────────────────────────────────────
 //
-// `food_ref` follows fooddb's newest final snapshot (ieat-app#1778). A no-op without
+// `food_ref` follows fooddb's single current snapshot (ieat-app#1778, eait#649), keyed on its
+// `built_at` — a rebuild of the same day is new data. A no-op without
 // EAIT__BACKEND__FOODDB_READ_KEY, which is also how it stays off under --demo. Same triggers as the
 // sweep above: the leader at takeover and once a day while held. `refreshCatalog` never throws and
 // never puts the key in a message; the guard only stops a slow load overlapping the next trigger.
-let catalogDay: string | undefined;
+let catalogBuiltAt: string | undefined;
 let catalogBusy = false;
 const refreshFoodCatalog = async () => {
   if (catalogBusy || config.fooddbReadKey === "") return;
   catalogBusy = true;
   try {
-    const r = await refreshCatalog({ store }, { key: config.fooddbReadKey, base: config.fooddbUrl, lastDay: catalogDay });
+    const r = await refreshCatalog({ store }, { key: config.fooddbReadKey, base: config.fooddbUrl, lastBuiltAt: catalogBuiltAt });
     if (r.kind === "loaded") {
-      catalogDay = r.day;
+      catalogBuiltAt = r.built_at;
       // `putFoodRefs` already upserted the index; the rebuild is the clean catch-all. Its own
       // try/catch: every caller `void`s this function, so a throw here is an unhandled rejection.
       try {
         const idx = await store.refreshFoodIndex();
-        console.log(`[eait] food catalog: snapshot ${r.day} loaded, ${r.written} of ${r.read} lines written; matcher index ${idx.rows} rows in ${idx.ms}ms`);
+        console.log(`[eait] food catalog: snapshot ${r.day} built ${r.built_at} loaded, ${r.written} of ${r.read} lines written; matcher index ${idx.rows} rows in ${idx.ms}ms`);
       } catch (e) {
         console.error(`[eait] food index rebuild after snapshot ${r.day} failed: ${(e as Error)?.message ?? e}`);
       }
     } else if (r.kind === "unchanged") {
-      catalogDay = r.day;
+      catalogBuiltAt = r.built_at;
     } else if (r.kind === "failed") {
       console.error(`[eait] food catalog refresh failed: ${r.message}`);
     }
