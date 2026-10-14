@@ -355,7 +355,22 @@ button.quiet { box-shadow: none; color: var(--muted); }
 .akpi i + i { width: 40%; margin-top: 10px; }
 tr.tot td { font-weight: 600; background: var(--bg); }
 .abar.wide { width: 160px; flex-basis: 160px; }
-#funnel.slim .x { display: none; }
+.fp { padding: 6px 14px 10px; }
+.fp .fp-st { display: grid; grid-template-columns: 28px minmax(120px, 1.1fr) minmax(120px, 1.4fr) 64px 64px 64px; gap: 10px; align-items: center; padding: 9px 0; }
+.fp .fp-st.fp-hd { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--hair); padding: 10px 0 6px; }
+.fp .fp-n { width: 22px; height: 22px; border-radius: 50%; background: var(--hair); font-size: 12px; display: grid; place-items: center; }
+.fp .fp-nm { font-weight: 600; }
+.fp .fp-nm small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.fp .fp-r { text-align: right; font-variant-numeric: tabular-nums; }
+.fp .fp-cnt { font-weight: 600; }
+.fp .fp-bar { height: 12px; background: var(--hair); border-radius: 6px; overflow: hidden; }
+.fp .fp-bar i { display: block; height: 100%; background: var(--accent); }
+.fp .fp-gap { margin-left: 38px; height: 22px; display: flex; align-items: center; padding-left: 12px; border-left: 2px solid var(--bad); font-size: 12px; color: var(--bad); }
+.fp .fp-gap.fp-big { background: var(--bad-tint); font-weight: 600; border-radius: 0 6px 6px 0; }
+.fp .fp-gap em { font-style: normal; color: var(--muted); margin-left: 6px; }
+.fp .fp-st.fp-fin .fp-nm { color: var(--accent); }
+.fp .fp-st.fp-fin .fp-n { background: var(--accent); color: #fff; }
+.fp .fp-pc { display: none; }
 .srow { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--hair); }
 .srow:last-child { border-bottom: 0; }
 .srow .t { flex: 1; min-width: 0; }
@@ -363,8 +378,15 @@ tr.tot td { font-weight: 600; background: var(--bg); }
 .srow .t > span { font-size: 12px; color: var(--muted); }
 .nv.food { max-width: 720px; }
 .pb.flips { gap: 6px; }
-@media (max-width: 760px) { #head-window { display: none; } .abar.wide { width: 72px; flex-basis: 72px; } #view-numbers .ph b, #view-pushes .ph b, #view-funnel .ph b { white-space: nowrap; } #funnel-hint, #pushes-zone { display: none; } }
-@media (max-width: 760px) { #metrics th, #metrics td, #pushes th, #pushes td, #funnel th, #funnel td { padding: 8px 10px; } }
+@media (max-width: 760px) { #head-window { display: none; } .abar.wide { width: 72px; flex-basis: 72px; } #view-numbers .ph b, #view-pushes .ph b, #view-funnel .ph b { white-space: nowrap; } #pushes-zone { display: none; } }
+@media (max-width: 600px) {
+  .fp .fp-st.fp-hd { display: none; }
+  .fp .fp-st { grid-template-columns: 28px 1fr auto; grid-template-areas: "n nm cnt" ". bar bar" ". pc pc"; row-gap: 6px; }
+  .fp .fp-st .fp-n { grid-area: n; } .fp .fp-st .fp-nm { grid-area: nm; } .fp .fp-st .fp-cnt { grid-area: cnt; font-size: 16px; font-weight: 700; }
+  .fp .fp-st .fp-bar { grid-area: bar; } .fp .fp-st .fp-pc { grid-area: pc; display: block; font-size: 12px; color: var(--muted); }
+  .fp .fp-st .fp-c1, .fp .fp-st .fp-c2 { display: none; }
+}
+@media (max-width: 760px) { #metrics th, #metrics td, #pushes th, #pushes td { padding: 8px 10px; } }
 @media (max-width: 760px) { .akpi:not(.k3) { grid-template-columns: 1fr 1fr; gap: 8px; } .akpi { gap: 8px; } }
 .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 #composer .result { background: var(--accent-tint); color: var(--accent); border-radius: var(--r-ctl); padding: 10px 14px; margin: 10px 0 0; font-weight: 500; }
@@ -538,15 +560,9 @@ details.how p { margin-top: 8px; }
   <div id="state-funnel"></div>
   <div class="vbody hidden" id="body-funnel"><div class="nv">
       <div class="akpi k3" id="funnel-kpi"></div>
-    <div class="card flush">
-      <div class="ph"><b>Where people leave</b><span class="grow"></span><span class="hint" id="funnel-hint">Back and Refused in the full table</span><button class="small quiet" id="funnel-more">Show all columns</button></div>
-      <div class="scrollx"><table id="funnel" class="slim">
-        <thead>
-          <tr><th>Screen</th><th></th><th class="r">Views</th><th class="r">Answers</th><th class="r">Drop</th><th class="r x">Back</th><th class="r x">Refused</th><th class="r">Median</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table></div>
-    </div>
+    <p class="muted" id="funnel-scope"></p>
+    <div class="card" id="funnel-path"></div>
+    <p class="muted">Between steps: people who reached the step above and never reached the next. Red marks the three biggest drops.</p>
   </div></div>
 </section>
 
@@ -1805,43 +1821,66 @@ details.how p { margin-top: 8px; }
   }
 
 
+  var STEP_NAMES = {
+    welcome: "Saw the welcome screen", goal: "Chose a goal", sex: "Said their sex", twice: "Confirmed their sex",
+    age: "Gave their age", height: "Gave their height", weight: "Gave their weight", baseline: "Gave their usual weight",
+    activity: "Described their activity", target: "Set a target weight", possible: "Read \u201cthis is possible\u201d",
+    pace: "Picked a pace", struggles: "Named their struggles", streak: "Chose a streak", diet: "Gave their diet",
+    medical: "Answered the medical question", ontrack: "Saw the on-track note", how: "Saw how it works",
+    summary: "Saw their plan", signup: "Saw the sign-up screen", country: "Chose a country",
+    referral: "Gave a referral code", health: "Saw the health connect screen"
+  };
+
   function loadFunnel() {
     return api("GET", "/admin/api/funnel?days=" + windows.funnel).then(function (f) {
       var kp = $("funnel-kpi");
       kp.textContent = "";
-      kpi(kp, "Runs started", String(f.sessions), "", "");
+      kpi(kp, "Started", String(f.sessions), "", "");
       kpi(kp, "Finished", String(f.completed), "", "");
-      kpi(kp, "Completion", pct1(f.completed, f.sessions), "", "content v" + f.contentVersion);
-      var body = $("funnel").querySelector("tbody");
-      body.textContent = "";
-      f.rows.forEach(function (r) {
-        var tr = document.createElement("tr");
-        var drop = r.views - r.answers;
-        td(tr, r.place, 0, 99);
-        // How far the run got: the people who answered this screen, of everyone who started.
-        var cell = document.createElement("td");
-        var bar = el("div", "abar wide");
+      kpi(kp, "Completion", pct1(f.completed, f.sessions), "", "");
+      $("funnel-scope").textContent = "Last " + f.days + " days \u00b7 every account that started onboarding \u00b7 app content v" +
+        f.contentVersion + " \u00b7 counted by people who reached each step";
+      var host = $("funnel-path");
+      host.textContent = "";
+      host.className = "card fp";
+      if (!f.rows.length) { host.appendChild(el("p", "muted", "No onboarding runs in this window.")); return; }
+      var steps = f.rows.map(function (r) { return { name: STEP_NAMES[r.place] || r.place, id: r.place, n: r.views }; });
+      steps.push({ name: "Finished onboarding", id: "complete", n: f.completed, fin: true });
+      var first = steps[0].n;
+      var drops = steps.slice(1).map(function (s, i) { return steps[i].n - s.n; }).filter(function (d) { return d > 0; });
+      var worst = drops.slice().sort(function (a, b) { return b - a; }).slice(0, 3);
+      var hd = el("div", "fp-st fp-hd");
+      ["", "Step", "", "People", "% of first", "% of prev"].forEach(function (t, i) { hd.appendChild(el("span", i > 2 ? "fp-r" : "", t)); });
+      host.appendChild(hd);
+      steps.forEach(function (s, i) {
+        var prev = i ? steps[i - 1].n : null;
+        var pf = first ? Math.round((s.n / first) * 100) + "%" : "\u2014";
+        var pp = prev ? Math.round((s.n / prev) * 100) + "%" : "\u2014";
+        var row = el("div", "fp-st" + (s.fin ? " fp-fin" : ""));
+        row.appendChild(el("span", "fp-n", String(i + 1)));
+        var nm = el("span", "fp-nm", s.name);
+        nm.appendChild(el("small", "", s.id));
+        row.appendChild(nm);
+        var bar = el("span", "fp-bar");
         var fill = document.createElement("i");
-        fill.style.width = (f.sessions ? Math.min(100, (r.answers / f.sessions) * 100) : 0).toFixed(1) + "%";
+        fill.style.width = (first ? Math.min(100, (s.n / first) * 100) : 0).toFixed(1) + "%";
         bar.appendChild(fill);
-        cell.appendChild(bar);
-        tr.appendChild(cell);
-        [String(r.views), String(r.answers), drop > 0 && r.views ? drop + " (" + pct1(drop, r.views) + ")" : r.views ? "0" : "—", String(r.backs), String(r.rejects), secs(r.medianMs)].forEach(function (text, i) {
-          var c = td(tr, text, i, 0);
-          if (i === 2 && drop > 0) c.classList.add("drop");
-          if (i === 3 || i === 4) c.classList.add("x");
-        });
-        body.appendChild(tr);
+        row.appendChild(bar);
+        row.appendChild(el("span", "fp-cnt fp-r", String(s.n)));
+        row.appendChild(el("span", "fp-c1 fp-r", pf));
+        row.appendChild(el("span", "fp-c2 fp-r", pp));
+        row.appendChild(el("span", "fp-pc", pf + " of first" + (prev ? " \u00b7 " + pp + " of previous" : "")));
+        host.appendChild(row);
+        var next = steps[i + 1];
+        if (next) {
+          var d = s.n - next.n;
+          var g = el("div", "fp-gap" + (worst.indexOf(d) !== -1 && d > 0 ? " fp-big" : ""), "\u25bc " + d + " left");
+          g.appendChild(el("em", "", "(" + pct1(d, s.n) + " of " + s.n + ")"));
+          host.appendChild(g);
+        }
       });
-      emptyRow(body, 8, "No onboarding runs in this window.");
     });
   }
-
-  $("funnel-more").addEventListener("click", function () {
-    var slim = $("funnel").classList.toggle("slim");
-    $("funnel-more").textContent = slim ? "Show all columns" : "Show fewer columns";
-    $("funnel-hint").classList.toggle("hidden", !slim);
-  });
 
   // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────
   //
