@@ -14,7 +14,7 @@ import {
   type ClipEstimateResponse, type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type Lang, type MealFocus, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
   type MealRedated, type MealUpdated, type PhotoEvent,
-  type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
+  type Profile, type SavedMeal, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension, MAX_SAVED_MEALS, mealNames,
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
@@ -1131,4 +1131,74 @@ export async function logFoodMeal(
       ...verdictWordsFor(record.verdicts, lang),
     } satisfies MealLogged;
   });
+}
+
+// ── Saved meals (#907) ───────────────────────────────────────────────────────────────────────
+
+/**
+ * Bookmark a meal this account already logged. The composition and the nutrient snapshot are read
+ * from the STORED row under `userId` — the client sends an id and nothing else — and the name is
+ * the meal's own (`mealNames`). Idempotent per source meal.
+ */
+export async function saveMealFromLog(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+): Promise<{ kind: "saved"; meal: SavedMeal } | { kind: "full"; limit: number } | TargetGone> {
+  const m = await deps.store.getMeal(userId, mealId);
+  if (!m || !m.isFood || m.items.length === 0) return { kind: "target-gone", on: "saved-meal" };
+  if ((await deps.store.listSavedMeals(userId)).length >= MAX_SAVED_MEALS) return { kind: "full", limit: MAX_SAVED_MEALS };
+  const meal = await deps.store.saveMeal(userId, {
+    id: crypto.randomUUID(), source_meal_id: m.id, name: mealNames(m.items) || "—", items: m.items,
+    kcal: m.kcal, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g,
+    satfat_g: m.satfat_g, fiber_g: m.fiber_g, sugar_g: m.sugar_g, sodium_mg: m.sodium_mg,
+  });
+  return { kind: "saved", meal };
+}
+
+/**
+ * Log a saved meal as a NEW meal on today minus `dayOffset` — the day open on Home, resolved on the
+ * server like `redateMeal`'s offset, never a client date. The numbers come from the saved row; the
+ * verdicts and the score are computed here against the account's targets NOW, never copied from
+ * the meal it was saved from or from an earlier re-log. No model call, so nothing is charged and
+ * the free sample is not spent — but the paywall holds (`checkFreeLog`).
+ */
+export async function logSavedMeal(
+  deps: EngineDeps,
+  userId: string,
+  savedId: string,
+  dayOffset: unknown,
+): Promise<MealLogged | Refusal | TargetGone> {
+  const saved = await deps.store.getSavedMeal(userId, savedId);
+  if (!saved) return { kind: "target-gone", on: "saved-meal" };
+  // The paywall, the ONE rule (`checkFreeLog`): the sample is not spent, but once it is gone and
+  // there is no entitlement a re-log is refused like a photo. No second check lives here.
+  const refused = await checkFreeLog(deps, userId);
+  if (refused) return refused;
+  const date = dateMinus(localDate(deps.config.timezone), clampDayOffset(dayOffset));
+  const profile = await deps.store.getProfile(userId);
+  const analysis = {
+    isFood: true, items: saved.items.map((i) => ({ ...i })),
+    kcal: saved.kcal, protein_g: saved.protein_g, carbs_g: saved.carbs_g, fat_g: saved.fat_g,
+    satfat_g: saved.satfat_g, fiber_g: saved.fiber_g, sugar_g: saved.sugar_g, sodium_mg: saved.sodium_mg,
+    // A re-log repeats numbers somebody already stood behind; it is not an estimate to second-guess.
+    confidence: "high", notes: "",
+  };
+  const verdicts = await gatedVerdicts(deps, userId, analysis);
+  const record: MealRecord = {
+    ...analysis,
+    id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date, verdicts,
+    healthScore: healthScore({ ...analysis, verdicts }, profile?.restrictions ?? []),
+    corrected: false, model: null,
+  };
+  await deps.store.insertMeal(record);
+  await evaluateMilestones(deps, userId);
+  const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+  await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" }]);
+  return {
+    kind: "logged", mealId: record.id,
+    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
+    totals, date, hint: "correction",
+    ...verdictWordsFor(record.verdicts, profile?.lang ?? "en"),
+  };
 }
