@@ -21,6 +21,9 @@ import {
   buildTextMealText, buildUserText, coachLine, type Prompts,
 } from "./prompt.ts";
 
+/** A call that streamed nothing for `routeStallMs`: the one failure `complete()` retries on the fallback model. */
+class LlmStall extends Error {}
+
 interface Options {
   apiKey: string;
   /** The analyzer and the router. Needs vision. */
@@ -33,6 +36,10 @@ interface Options {
   timeoutMs: number;
   /** The completion bound for one call. From `EAIT__BACKEND__LLM_MAX_TOKENS`. */
   maxTokens: number;
+  /** The routing call's own completion bound; unset, it takes `maxTokens`. */
+  routeMaxTokens?: number | undefined;
+  /** A routing call silent this long is abandoned and retried once on the fallback model. Unset: no stall guard. */
+  routeStallMs?: number | undefined;
   /**
    * Sent as `reasoning: { effort }` on every schema call when set — and as
    * `reasoning: { enabled: false }` when set to `off`, the only shape a model that can reason
@@ -358,7 +365,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
      *  when the request the call serves is already settled unknown (#276). */
     cutoff?: AbortSignal,
     /** The metrics row this call is writing — its name and retry index (#602). */
-    call?: { name: string; attempt: number; onCall?: OnCall | undefined },
+    call?: { name: string; attempt: number; onCall?: OnCall | undefined; stallMs?: number | undefined },
   ): Promise<{ choices?: Choice[]; draft?: CallDraft }> {
     // A call whose turn already settled against it never reaches the wire again: #70's parallel
     // analysis aborts the moment the router names an intent that does not want it, and the next
@@ -369,6 +376,16 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // Vision inference is slow, so the budget is generous — but it is finite.
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), budgetMs);
+    // NO PROGRESS: re-armed on every chunk, so a provider that opens the call and goes quiet is
+    // abandoned after `stallMs` rather than after the whole turn's budget.
+    let stall: ReturnType<typeof setTimeout> | undefined;
+    let stalled = false;
+    const arm = () => {
+      if (!call?.stallMs) return;
+      clearTimeout(stall);
+      stall = setTimeout(() => { stalled = true; abort.abort(); }, call.stallMs);
+    };
+    arm();
     const signal = cutoff === undefined ? abort.signal : AbortSignal.any([abort.signal, cutoff]);
     const draft: CallDraft | undefined = call === undefined ? undefined : {
       call: call.name, attempt: call.attempt, onCall: call.onCall,
@@ -422,6 +439,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
+        arm();
         const split = splitLines(carry, value);
         carry = split.carry;
         for (const line of split.lines) {
@@ -451,12 +469,14 @@ export function openRouterPorts(opts: Options): LlmPorts {
       emitCall(draft, wire ?? (abort.signal.aborted ? "timeout" : cutoff?.aborted ? "aborted" : "error"));
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
+      if (stalled) throw new LlmStall(`llm stalled: no chunk in ${call?.stallMs}ms`);
       if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
       // The turn's cutoff, not this call's budget: the reason names the stage the turn died in.
       if (cutoff?.aborted) throw cutoff.reason ?? e;
       throw e;
     } finally {
       clearTimeout(timer);
+      clearTimeout(stall);
       onCost?.(cost);
     }
   }
@@ -491,24 +511,28 @@ export function openRouterPorts(opts: Options): LlmPorts {
     cutoff?: AbortSignal,
     /** The metrics rows this call writes — its name; the send index is the attempt (#602). */
     call?: { name: string; onCall?: OnCall | undefined },
+    /** The routing call's guard: its own `max_tokens`, and one retry on the fallback after a stall. */
+    guard?: { maxTokens: number; stallMs: number | undefined },
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
     let retried429 = false;
+    let retriedStall = false;
+    let model = opts.model;
     // The send index inside this `complete()` is a row's `attempt` — a 429 retry and the schema
     // retry each move it, so one row reads as one provider call.
     let sends = 0;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
-        model: opts.model,
-        ...(openRouter && opts.fallbackModels && opts.fallbackModels.length > 0 ? { models: [opts.model, ...opts.fallbackModels] } : {}),
+        model,
+        ...(openRouter && model === opts.model && opts.fallbackModels && opts.fallbackModels.length > 0 ? { models: [opts.model, ...opts.fallbackModels] } : {}),
         // Named on every call, because omitting it does not mean "no limit". The provider fills in
         // the model's own ceiling — 65536, forty times a measured analysis — and reserves credit
         // for the whole of it before routing, so an unbounded request is refused (402) on a balance
         // that would have paid for the real call eighteen times over. That is what happened to the
         // first real user's first photo.
-        max_tokens: opts.maxTokens,
+        max_tokens: guard?.maxTokens ?? opts.maxTokens,
         // Named on every call, so the provider's own default cannot drift under us: every call
         // this app makes wants the same answer twice.
         temperature: 0.2,
@@ -541,11 +565,20 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
-      const metric = () => call === undefined ? undefined : { name: call.name, attempt: sends++, onCall: call.onCall };
+      const metric = () => call === undefined ? undefined : { name: call.name, attempt: sends++, onCall: call.onCall, stallMs: guard?.stallMs };
       let payload: Awaited<ReturnType<typeof send>>;
       try {
         payload = await send(body, billed || attempt > 0, left, onDelta, onCost, cutoff, metric());
       } catch (e) {
+        // A silent provider is abandoned early and tried once more, on the fallback model when
+        // there is one, inside the same deadline — the next `send` is handed what is left.
+        if (e instanceof LlmStall && !retriedStall) {
+          retriedStall = true;
+          model = opts.fallbackModels?.[0] ?? opts.model;
+          console.error(`[eait] llm stalled on ${schemaName}; retrying once on ${model}`);
+          attempt--;
+          continue;
+        }
         // An unrouted 429 generated nothing: one jittered retry inside this same deadline (#1144).
         if (!(e instanceof GatewayRefusal && e.status === 429) || retried429) throw e;
         retried429 = true;
@@ -657,8 +690,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
     let specConfirmed = false;
     const specDelta = input.onDelta === undefined ? undefined
       : (d: string) => { if (specConfirmed) input.onDelta!(d); else specBuffered.push(d); };
-    const routing = complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost, input.signal,
-      { name: "route", onCall: input.onCall });
+    // Streamed (when a stall guard is set) with a discarded delta so progress is observable, and bounded on its own: the
+    // router answers in ~27 tokens, and it used to inherit `max_tokens` 16000 (#2185).
+    const routing = complete(P.route, text, RouteSchema, "route", false, opts.routeStallMs ? () => {} : undefined, deadline, input.onCost, input.signal,
+      { name: "route", onCall: input.onCall },
+      { maxTokens: opts.routeMaxTokens ?? opts.maxTokens, stallMs: opts.routeStallMs });
     const spec = input.focusMeal === undefined
       ? complete(
         P.text_meal,

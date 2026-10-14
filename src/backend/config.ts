@@ -131,6 +131,10 @@ export interface Config {
    * env line falls back to it rather than to no bound at all.
    */
   llmMaxTokens: number;
+  /** The completion bound for the routing call alone: it answers in ~27 tokens, so a runaway ends here, not at `llmMaxTokens`. From `EAIT__BACKEND__LLM_ROUTE_MAX_TOKENS`. */
+  llmRouteMaxTokens: number;
+  /** A routing call that streams no chunk for this long is abandoned and retried once on the fallback model. From `EAIT__BACKEND__LLM_ROUTE_STALL_MS`. */
+  llmRouteStallMs: number;
   /**
    * At most this many coding-agent CLI processes at once, and only read when `llmProvider` is a
    * `*-cli` one (`llm/local-agent.ts`). A spawned agent is a whole runtime per call — the bound
@@ -691,6 +695,8 @@ export function configDefaults(): Config {
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
     llmMaxTokens: 16_000,
+    llmRouteMaxTokens: 4_000,
+    llmRouteStallMs: 15_000,
     llmAgentConcurrency: 2,
     freeAnalyses: FREE_ANALYSES,
     paidDailyPhotoCap: 200,
@@ -924,6 +930,8 @@ export function loadConfig(): Config {
       : (process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl),
     llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),
     llmMaxTokens,
+    llmRouteMaxTokens: int("EAIT__BACKEND__LLM_ROUTE_MAX_TOKENS", d.llmRouteMaxTokens),
+    llmRouteStallMs: int("EAIT__BACKEND__LLM_ROUTE_STALL_MS", d.llmRouteStallMs),
     llmAgentConcurrency,
     freeAnalyses,
     paidDailyPhotoCap,
