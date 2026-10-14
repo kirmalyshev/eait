@@ -1005,6 +1005,16 @@ describe("the correction-learned portion prior", () => {
     expect(await store.portionPriors(userId, 1)).toEqual([{ name: "basmati rice", ratio: 1.5, n: 1 }]);
   });
 
+  it("does not train the prior on a cut that offsets a dry catalog row's density (#2189)", async () => {
+    const userId = await onboard();
+    const dry = { ...rice, name: "Couscous", name_en: "couscous", grams: 180, ref: "usda-sr:1", food: { name: "Couscous, dry", source: "usda-sr" as const, per100: { kcal: 376, protein_g: 12, carbs_g: 77, fat_g: 0.6 }, attribution: [] } };
+    const res = await logPhotoMeal(
+      makeDeps({}, { ...demoPorts(), analyzePhoto: async () => ({ ...PLATE, items: [dry, oil] }) }), userId, photo(9));
+    if (res.kind !== "logged") throw new Error("expected logged");
+    await editMeal(deps, userId, res.mealId, { items: [{ ...dry, grams: 80 }, oil] });
+    expect(await store.portionPriors(userId, 1)).toEqual([]);
+  });
+
   it("records the cooking fat the user took off, which is the rate worth watching", async () => {
     // Fat inferred from a sheen is the item most often wrong and the one a user is most likely to
     // zero. A prior that never learned that would keep adding it to plates that have none.
