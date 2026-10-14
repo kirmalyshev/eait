@@ -1034,7 +1034,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
   ko: {
     phoneSwapAction: "음식 바꾸기",
     phoneSwapSearch: "음식 검색",
-    phoneSwapKeeps: "입력한 {grams} 유지",
+    phoneSwapKeeps: "{grams} 그대로 유지",
     phoneSwapNone: "일치하는 항목이 없어요. 다른 단어로 시도해 보세요.",
     phoneSwapFailed: "저장되지 않았어요. 아무것도 바뀌지 않았어요.",
     metaPhoto: "{day} · {time} · 사진으로 기록",
