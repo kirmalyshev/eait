@@ -15,6 +15,27 @@ import { isAnonymous } from "./identity.ts";
 export type CapScope = "photo" | "text" | "clip";
 
 /**
+ * THE paywall rule, once: an account with no live entitlement has the sample and nothing else.
+ * `"entitled"` means the paid tier's own limits apply; null is a free account with sample left;
+ * a refusal is a free account whose sample is spent. Read per request, never cached.
+ */
+async function paywall(deps: EngineDeps, userId: string): Promise<Refusal | null | "entitled"> {
+  if ((await entitlementFor(deps, userId)).active) return "entitled";
+  const spent = await deps.store.countUserAnalyses(userId);
+  return spent >= (await freeAnalysesFor(deps, userId)) ? { kind: "subscription-required" } : null;
+}
+
+/**
+ * The gate for a log that costs no model call (a catalog food): behind the paywall like a photo,
+ * but it never spends the sample. Same identity rule and the same refusal as `checkCaps`.
+ */
+export async function checkFreeLog(deps: EngineDeps, userId: string): Promise<Refusal | null> {
+  if (await isAnonymous(deps, userId)) return { kind: "identity-required" };
+  const gate = await paywall(deps, userId);
+  return gate === "entitled" ? null : gate;
+}
+
+/**
  * Null when the request may proceed, a refusal when it may not.
  *
  * Without an entitlement the account has the SAMPLE and nothing else: `freeAnalysesFor`
@@ -47,11 +68,8 @@ export async function checkCaps(
   // Read from the store on every request rather than carried in the session, and that is the
   // point: a subscription that lapsed an hour ago must stop working an hour ago. An entitlement
   // cached for the life of a bearer token would be cached for up to 180 days.
-  const entitled = (await entitlementFor(deps, userId)).active;
-  if (!entitled) {
-    const spent = await store.countUserAnalyses(userId);
-    return spent >= (await freeAnalysesFor(deps, userId)) ? { kind: "subscription-required" } : null;
-  }
+  const gate = await paywall(deps, userId);
+  if (gate !== "entitled") return gate;
 
   // The paid tier is a BIGGER per-user cap — a subscription buys a larger daily photo allowance.
   if (scope === "photo") {

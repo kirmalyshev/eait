@@ -445,7 +445,7 @@ export const ROUTES = {
   /**
    * POST JSON {@link FoodLogRequest} — log one catalog row as a meal (one tap in the app's food
    * search). Nothing is estimated and no model runs: the numbers are `grams × per-100 g` of the
-   * row, read server-side. Answers a {@link MealLogged}; `not-onboarded` is a refusal, and a catalog id that is not there (or a row too incomplete to log) is 404 `{ error: "unknown-food" }`.
+   * row, read server-side. Never spends the free sample, but once it is spent and nothing is entitled it refuses `subscription-required` (402) like a photo. Answers a {@link MealLogged}; `not-onboarded` is a refusal, and a catalog id that is not there (or a row too incomplete to log) is 404 `{ error: "unknown-food" }`.
    */
   foodLog: "/v1/foods/log",
   /**

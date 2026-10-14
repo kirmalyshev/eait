@@ -27,7 +27,7 @@ import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts"
 import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { catalogMicros, groundWhenOn, mealFromFood, recomputeFromSnapshot } from "./ground.ts";
 import { switchOn } from "./switches.ts";
-import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
+import { charge, checkCaps, checkFreeLog, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
@@ -1056,7 +1056,7 @@ async function buildRepertoire(deps: EngineDeps, userId: string, today: string):
 }
 
 /**
- * One catalog row logged as a meal — the app's food search, one tap. NO model call and NO charge:
+ * One catalog row logged as a meal — the app's food search, one tap. NO model call and NO sample spent, but behind the paywall like a photo (`checkFreeLog`):
  * the numbers are the row's per-100 g scaled to `grams` (`mealFromFood`), read here and never from
  * the request, and the verdicts go through `gatedVerdicts` like every other write. Run through
  * `once` with no model calls, so a re-sent tap replays instead of logging twice.
@@ -1065,10 +1065,12 @@ export async function logFoodMeal(
   deps: EngineDeps,
   userId: string,
   input: { ref: string; grams?: number | undefined; clientId?: string | undefined; capturedAt?: string | undefined },
-): Promise<MealLogged | { kind: "not-onboarded" } | { kind: "unknown-food" }> {
+): Promise<MealLogged | Refusal | { kind: "unknown-food" }> {
   return once(deps, userId, input.clientId, 0, async (d) => {
     const profile = await d.store.getProfile(userId);
     if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" } as const;
+    const refused = await checkFreeLog(d, userId);
+    if (refused) return refused;
     const food = await d.store.foodById(input.ref);
     const grams = Math.round(input.grams ?? FOOD_LOG_DEFAULT_GRAMS);
     if (!food || !(grams > 0) || grams > FOOD_LOG_MAX_GRAMS) return { kind: "unknown-food" } as const;
