@@ -5,7 +5,7 @@
 // subscribing happens). No macro-vs-kcal hint, by decision. Saving for re-use is the meal's own
 // ⋯ → Save meal, not this form.
 
-import { NUMBERS_MAX_GRAMS, NUMBERS_MAX_KCAL, NUMBERS_MAX_SODIUM_MG, NUMBERS_NAME_MAX } from "@eait/shared/contract";
+import { NUMBERS_MAX_GRAMS, NUMBERS_MAX_KCAL, NUMBERS_MAX_SODIUM_MG, NUMBERS_NAME_MAX } from "../../shared/contract.ts";
 import { foodSearchCopyFor } from "../../shared/app/food-search-copy.ts";
 import { numbersCopyFor } from "../../shared/app/numbers-copy.ts";
 import { UNIT_KCAL, spellUnit, wholeNumbers } from "../../shared/lang.ts";

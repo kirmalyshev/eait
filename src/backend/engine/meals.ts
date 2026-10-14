@@ -659,11 +659,12 @@ function reconcileRefs(sent: MealItem[], stored: readonly MealItem[]): MealItem[
   for (const s of stored) {
     if (s.ref !== undefined && s.food !== undefined) provenance.set(`${s.ref} ${s.name}`, s);
   }
-  // `typed` (#2088) is the server's claim, so it survives only where a stored item of that name has it.
-  const typed = new Set(stored.filter((s) => s.typed).map((s) => s.name));
-  return sent.map((raw) => {
+  // `typed` (#2088) is the server's claim about grams, not about the name: it survives at an index
+  // whose stored item has it and whose grams were not edited. A rename keeps it; a gram edit drops it.
+  return sent.map((raw, ix) => {
     const { typed: _typed, ...rest } = raw;
-    const i: MealItem = typed.has(raw.name) && raw.typed ? { ...rest, typed: true } : rest;
+    const was = stored[ix];
+    const i: MealItem = was?.typed && raw.grams === was.grams ? { ...rest, typed: true } : rest;
     const s = i.ref === undefined ? undefined : provenance.get(`${i.ref} ${i.name}`);
     if (s?.food === undefined) {
       const { ref: _ref, food: _food, ...estimate } = i;
