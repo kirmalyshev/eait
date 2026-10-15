@@ -220,7 +220,7 @@ export const NUMBERS_COPY: Localized<NumbersCopy> = {
     optional: "任意",
     satfat: "飽和脂肪酸",
     fibre: "食物繊維",
-    sugar: "糖質",
+    sugar: "糖類",
     sodium: "ナトリウム",
     cta: "記録する",
     needed: "記録するにはカロリー、たんぱく質、炭水化物、脂質が必要です。",
