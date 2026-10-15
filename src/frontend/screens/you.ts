@@ -50,10 +50,10 @@ import {
   setLastThread, type Frame,
 } from "../shell.ts";
 
-export async function youScreen(frame: Frame): Promise<HTMLElement> {
+export async function youScreen(frame: Frame, mode: "profile" | "settings" = "profile"): Promise<HTMLElement> {
   const wrap = el("section", "you");
   // One h1 per page, clipped for the landmark — the boards draw no centred title on web.
-  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navProfile));
+  if (mode === "profile") wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navProfile));
   let me = frame.me;
   if (me === null) {
     wrap.append(el("p", "notice", COPY.somethingWrong));
@@ -250,10 +250,7 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     }
   };
 
-  const rowsCard = (ids: IdentitiesResponse | null, noticeBox: { tell: (w: string | null) => void }): HTMLElement => {
-    const card = el("div", "card flat urows");
-    // Read-only — the boards' "on your iPhone": there is no web page for Health (ieat-app STATES).
-    card.append(optRow(you.appleHealth, you.web.healthOnPhone));
+  const subscriptionRow = (): HTMLElement => {
     // The Subscription row names its state — the board's trial is one of five; `subscriptionState`
     // is the one rule and the date is "24 Oct" in the language's locale, the year only off this
     // year. A live one opens its status panel; an account with nothing to show goes to #/pay,
@@ -266,10 +263,22 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
       : sub.kind === "ended"
         ? (sub.date === null ? you.subscriptionEndedNoDate : fill(you.subscriptionEnded, { date: subDate(sub.date) }))
       : you.subscriptionFree;
-    card.append(me!.entitlement.active
+    return me!.entitlement.active
       ? optRow(you.subscription, subValue, () => openSubscription())
-      : optRow(you.subscription, subValue, () => { location.hash = "#/pay"; }));
+      : optRow(you.subscription, subValue, () => { location.hash = "#/pay"; });
+  };
 
+  const rowsCard = (ids: IdentitiesResponse | null, noticeBox: { tell: (w: string | null) => void }): HTMLElement => {
+    const card = el("div", "card flat urows");
+    // Profile's one card — Milestones, Subscription, then the door to Settings.
+    if (mode === "profile") {
+      card.append(optRow(milestonesCopyFor(lang).title, "", () => { location.hash = "#/you/milestones"; }));
+      card.append(subscriptionRow());
+      card.append(optRow(you.web.settings, "", () => { location.hash = "#/you/settings"; }));
+      return card;
+    }
+    // Read-only — the boards' "on your iPhone": there is no web page for Health (ieat-app STATES).
+    card.append(optRow(you.appleHealth, you.web.healthOnPhone));
     // The sign-in providers, minus the device credential — "Apple" the way the board writes it.
     // More than one lists the language's own way — `listConjunction`, not a hand-joined " · ".
     const providers = (ids?.identities ?? [])
@@ -279,9 +288,11 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     const accountRow = optRow(you.account, listConjunction(lang, providers), () => openAccount(ids, providers));
     card.append(accountRow);
     void pushRows(accountRow, you.web);
-    const milestonesRow = optRow(milestonesCopyFor(lang).title, "", () => { location.hash = "#/you/milestones"; });
-    card.append(milestonesRow);
-    void mealReminderRows(milestonesRow, you.reminders, lang);
+    // Reminders follow the push rows, which insert themselves straight after Account.
+    const remindersAt = el("div", "");
+    remindersAt.hidden = true;
+    card.append(remindersAt);
+    void mealReminderRows(remindersAt, you.reminders, lang);
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     card.append(optRow(
@@ -880,7 +891,19 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
   const leftCol = el("div", "wcol");
   const rightCol = el("div", "wcol");
   cols.append(leftCol, rightCol);
-  wrap.append(strip, cols);
+  if (mode === "settings") {
+    // The sub-screen shape (milestones.ts): back arrow, centred title, no bar pair.
+    frame.bar.classList.remove("youwr");
+    cal.remove();
+    wrap.classList.add("yset");
+    const top = el("div", "ytop");
+    const back = el("a", "ib") as HTMLAnchorElement;
+    back.href = "#/you";
+    back.setAttribute("aria-label", shellCopyFor(lang).navProfile);
+    back.append(kitEl(ico("chevron-left")));
+    top.append(back, el("h1", "d d22", you.web.settings), el("span", "ib ghost"));
+    wrap.append(top, cols);
+  } else wrap.append(strip, cols);
 
   async function draw(): Promise<void> {
     const mine = ++drawing;
@@ -895,14 +918,18 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     if (mine !== drawing) return;
 
     const rn = noticeFor();
-    clear(leftCol).append(identityCard(), planCard());
     // Signing OUT an account no provider names — anonymous — would orphan it, so the card is
     // not drawn for one (the same guard the account panel runs). An unanswered read is not
     // anonymity: `ids` null keeps the card up.
     const anonymous = ids !== null
       && !(ids.identities ?? []).some((i) => signsIn(i.provider) && i.provider !== "device");
+    if (mode === "settings") {
+      clear(leftCol).append(rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
+      return;
+    }
+    clear(leftCol).append(identityCard(), planCard());
     const refer = anonymous ? null : referralCard();
-    clear(rightCol).append(...(refer ? [refer] : []), rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
+    clear(rightCol).append(...(refer ? [refer] : []), rowsCard(ids, rn), rn.notice);
   }
 
   await draw();

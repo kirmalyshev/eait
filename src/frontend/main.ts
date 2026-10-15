@@ -23,6 +23,7 @@ screen("#/pay", (frame) => payScreen(frame));
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));
 screen("#/you", (frame) => youScreen(frame));
+screen("#/you/settings", (frame) => youScreen(frame, "settings"));
 screen("#/you/milestones", (frame) => milestoneSettingsScreen(frame));
 screen("#/milestones", (frame) => milestonesScreen(frame));
 screen("#/", (frame) => homeScreen(frame));
