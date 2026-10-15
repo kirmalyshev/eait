@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "Összekapcsolva ezzel az eait-fiókkal, bejelentkezés módja:"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Ezt a címkét nem tudtuk beolvasni."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Beszámítva. Ma még {left} kcal maradt."

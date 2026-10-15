@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "Підключено до акаунта eait, вхід через"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Не вдалося прочитати цю етикетку."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Враховано. На сьогодні залишилося {left} ккал."
