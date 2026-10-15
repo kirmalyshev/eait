@@ -155,7 +155,9 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${i * MOTION.st
   .cp-log:not(.cp-close) { width: 44px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
   .cp-log:not(.cp-close) .ico { width: 22px; height: 22px; }
 }
-@media (max-width: 760px) { .cp-tile { width: 158px; height: 96px; } .cp-wrow { gap: 14px; } .cp-wrow:has(.cp-tile:nth-child(3)) .cp-tile { width: 104px; } }
+@media (max-width: 760px) { .cp-tile { width: 158px; height: 96px; } .cp-wrow { gap: 14px; } .cp-wrow:has(.cp-tile:nth-child(3)) .cp-tile { width: 104px; }
+  /* Five tiles are 576px: wrap three and two, centred, so none is clipped at 390. */
+  .cp-wrow { flex-wrap: wrap; justify-content: center; max-width: 340px; } }
 
 /* The proposal ("chat-proposal"): aligned with the say column, the question over the card. */
 .prop .pl-lead { font-weight: 600; margin: 0 0 6px 2px; }
