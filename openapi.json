@@ -770,6 +770,9 @@
                   },
                   "caption": {
                     "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
                   }
                 }
               }
@@ -949,6 +952,9 @@
                     }
                   },
                   "caption": {
+                    "type": "string"
+                  },
+                  "label": {
                     "type": "string"
                   },
                   "clientId": {
@@ -5656,6 +5662,10 @@
           },
           "sodium_mg": {
             "type": "number"
+          },
+          "servings": {
+            "type": "number",
+            "description": "How many servings of a label-scanned meal were eaten (ieat-app#2087), by halves up to  {@link  MAX_LABEL_SERVINGS } . The server scales every item and total by `servings / stored` and recomputes the verdicts; per-serving figures are `total / servings`, never sent. Refused on a meal with no `label`, and sent ALONE — an edit that also carries items or totals is malformed."
           }
         },
         "additionalProperties": false,
@@ -6860,6 +6870,17 @@
           },
           "notes": {
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MealLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the numbers were read off a nutrition label (ieat-app#2087): `servings` is how many of the printed serving this meal is. Absent on every other meal. Per-serving figures are `total / servings`, derived by the client and never stored beside the totals."
           }
         },
         "required": [
@@ -6961,6 +6982,19 @@
         ],
         "additionalProperties": false,
         "description": "One food on the plate.\n\nThe optional fields are written `?: T | undefined` rather than `?: T` on purpose, despite `exactOptionalPropertyTypes`. An item crosses two JSON boundaries — the analyzer's response and this API's — and \"absent\" and \"present but undefined\" are the same value on the far side of both. Claiming the stricter type is what forces a cast at the parser, and a cast at the parser is how a missing field reached a phone once already. Every consumer here already tests `!== undefined`."
+      },
+      "MealLabel": {
+        "type": "object",
+        "properties": {
+          "servings": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "servings"
+        ],
+        "additionalProperties": false,
+        "description": "A meal read off a nutrition label (ieat-app#2087). `servings` multiplies what the panel printed: the meal's totals are ALWAYS `per serving × servings`, so the per-serving figures are derived (`total / servings`), never stored beside the totals where they could disagree. Default 1, by halves."
       },
       "MealLogged": {
         "type": "object",
@@ -7137,6 +7171,17 @@
           },
           "notes": {
             "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MealLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the meal was read off a nutrition label (ieat-app#2087); null on every other meal."
           },
           "id": {
             "type": "string"
@@ -9420,6 +9465,19 @@
               "kind": {
                 "type": "string",
                 "const": "unsupported-image"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "unreadable-label"
               }
             },
             "required": [

@@ -41,6 +41,8 @@ import { evaluateMilestones } from "./milestones.ts";
 export interface LogPhotoInput {
   images: (() => Promise<Uint8Array>)[];
   caption?: string;
+  /** The capture is a nutrition-facts label (ieat-app#2087): read the printed numbers, do not estimate a plate. `false` is a plate, whatever the analyzer might think. */
+  label?: boolean;
   /** The phone's id for this turn: a second request carrying it is answered from the first (#708). */
   clientId?: string;
   /** When the photo was taken. The meal is dated by it; the analysis is charged today. */
@@ -104,6 +106,8 @@ export async function gatedVerdicts(deps: EngineDeps, userId: string, a: {
 export interface PhotoRead {
   kind: "read";
   analysis: AnalyzedMeal;
+  /** The numbers came off a printed nutrition label: stored as `MealRecord.label`. */
+  fromLabel: boolean;
   question: ReturnType<typeof prepareAnalysis>["question"];
   images: Uint8Array[];
   analysisId: string;
@@ -133,6 +137,8 @@ export async function analyzePhotos(
   onCharged?: (analysisId: string) => Promise<void>,
   /** The `kind` the turn's `meal_analysis` calls record — `reread` is `rewriteMeal`'s (#602). */
   callKind?: "photo" | "reread",
+  /** The capture is a nutrition-facts label (ieat-app#2087). */
+  label?: boolean,
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   // The stream's first word — "Reading the plate…", already in the account's language. A client
@@ -188,8 +194,11 @@ export async function analyzePhotos(
   clock.calledAt = Date.now();
   try {
     analysis = await deps.llm.analyzePhoto({
-      images, profile, targets, onCost, onCall, lean,
+      images, profile, targets, onCost, onCall,
+      // A label is read for its sodium, sugar and fibre; the lean schema has no field for them.
+      lean: lean && !label,
       ...(caption !== undefined ? { caption } : {}),
+      ...(label !== undefined ? { label } : {}),
       localTime: localTime(zone, eaten),
       repertoire: await buildRepertoire(deps, userId, localDate(zone, eaten)),
       // What this person's own corrections say about their portions. Unlike the repertoire, this
@@ -213,6 +222,7 @@ export async function analyzePhotos(
       : { kind: "analysis-failed" };
   }
   clock.answeredAt = Date.now();
+  const labelMark = analysis.labelRead;
   // `images` is returned to the caller, which stores them after the row exists.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
@@ -233,6 +243,15 @@ export async function analyzePhotos(
   }
   analysis = prepared.analysis;
 
+  // A label that is a label and says nothing legible is not a meal and not a charge: the row is
+  // DELETED (`undoAnalysis`), not just released — `releaseSample` keeps it, and the paid daily cap
+  // counts rows (ieat-app#2087).
+  if (label !== false && (labelMark === "unreadable" || (label && !analysis.isFood))) {
+    await deps.store.undoAnalysis(userId, analysisId).catch((x: unknown) => {
+      console.error(`[eait] label refund failed: ${(x as Error)?.message ?? x}`);
+    });
+    return { kind: "unreadable-label" };
+  }
   if (!analysis.isFood) {
     // An answer, but no verdict: not the meal on us (#44).
     await releaseSample(deps, userId, analysisId);
@@ -244,7 +263,7 @@ export async function analyzePhotos(
     await releaseSample(deps, userId, analysisId);
     return { kind: "analysis-failed" };
   }
-  return { kind: "read", analysis, question: prepared.question, images, analysisId };
+  return { kind: "read", analysis, question: prepared.question, images, analysisId, fromLabel: label === true || (label !== false && labelMark === "read") };
 }
 
 /**
@@ -305,7 +324,7 @@ export async function logPhotoTurn(
     () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten,
     "photo", input.receivedAt, job && (async (id) => {
       if (!(await deps.store.chargeJob(userId, input.clientId!, job.owner, id))) throw job.lost();
-    }));
+    }), undefined, input.label);
   if (read.kind !== "read") return read;
   onCounting?.();
   const { analysis, images, analysisId } = read;
@@ -323,6 +342,7 @@ export async function logPhotoTurn(
     // a later edit can never leave the score describing numbers that changed.
     healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
     corrected: false,
+    ...(read.fromLabel ? { label: { servings: 1 } } : {}),
     model: deps.config.llmModel,
     // Stored, because the answer arrives as its own turn and has to find the question again — and
     // named explicitly rather than left to the spread, which would carry the analyzer's raw one
@@ -367,7 +387,7 @@ export async function logPhotoTurn(
   });
   return {
     kind: "logged", mealId: record.id,
-    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
+    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore, ...(record.label ? { label: record.label } : {}) },
     totals, date, hint: hintFor(analysis),
     ...verdictWordsFor(record.verdicts, profile.lang),
     ...(question ? { question } : {}),
@@ -417,6 +437,30 @@ async function mayAsk(
  * write, one verdict recomputation, and one `corrected` flag. There is deliberately no way to edit
  * a meal without recomputing verdicts.
  */
+/**
+ * A label meal at a new serving count (ieat-app#2087): every item's grams and numbers and every
+ * total scaled by `servings / stored`. `null` when the meal was not read from a label. The totals
+ * stay `per serving x servings` — per-serving is derived at read, so nothing can disagree.
+ */
+function atServings(meal: MealRecord, servings: number) {
+  if (!meal.label) return null;
+  const f = servings / meal.label.servings;
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  return {
+    items: meal.items.map((it) => ({
+      ...it,
+      grams: r1(it.grams * f),
+      ...(it.kcal !== undefined ? { kcal: r1(it.kcal * f) } : {}),
+      ...(it.protein_g !== undefined ? { protein_g: r1(it.protein_g * f) } : {}),
+      ...(it.carbs_g !== undefined ? { carbs_g: r1(it.carbs_g * f) } : {}),
+      ...(it.fat_g !== undefined ? { fat_g: r1(it.fat_g * f) } : {}),
+    })),
+    kcal: Math.round(meal.kcal * f), protein_g: r1(meal.protein_g * f), carbs_g: r1(meal.carbs_g * f), fat_g: r1(meal.fat_g * f),
+    satfat_g: r1(meal.satfat_g * f), fiber_g: r1(meal.fiber_g * f), sugar_g: r1(meal.sugar_g * f), sodium_mg: Math.round(meal.sodium_mg * f),
+    label: { servings },
+  };
+}
+
 export async function editMeal(
   deps: EngineDeps,
   userId: string,
@@ -442,6 +486,9 @@ export async function editMeal(
   if (!existing) return { kind: "target-gone", on: "correction" };
   // Every item at 0g is no meal, whichever path sent it (ieat-app#1224): those items are ignored
   // rather than stored as a 0kcal meal that still counts. One item zeroed is a real edit.
+  const atN = request.servings === undefined ? null : atServings(existing, request.servings);
+  // A serving count on a meal that was not read from a label has nothing to scale from.
+  if (request.servings !== undefined && !atN) return { kind: "target-gone", on: "correction" };
   const { items: sentItems, ...sentTotals } = request;
   const patch: EditMealRequest = sentItems !== undefined && sentItems.length > 0 && sentItems.every((i) => i.grams === 0)
     ? sentTotals : request;
@@ -500,7 +547,7 @@ export async function editMeal(
   const micros = items === undefined ? {} : catalogMicros(items);
   const scaled = (sent: number | undefined, kept: number, catalog?: number): number =>
     sent ?? catalog ?? (items !== undefined ? scale(kept) : kept);
-  const merged = {
+  const merged = atN ? (({ label: _l, ...rest }) => rest)(atN) : {
     items: items ?? existing.items,
     kcal: mergedKcal,
     protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
@@ -515,6 +562,7 @@ export async function editMeal(
   const updated = await deps.store.updateMeal(userId, mealId, {
     ...merged,
     verdicts: await gatedVerdicts(deps, userId, merged),
+    ...(atN ? { label: atN.label } : {}),
     corrected: true,
     // One question per meal, asked once. Cleared by the write that answers it — and by a manual
     // edit too, which is the same write: once the user has changed the numbers themselves, the
@@ -904,6 +952,7 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
     carbs_g: m.carbs_g, fat_g: m.fat_g, satfat_g: m.satfat_g, fiber_g: m.fiber_g,
     sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, healthScore: m.healthScore,
     confidence: m.confidence, notes: m.notes,
+    ...(m.label ? { label: m.label } : {}),
   };
 }
 

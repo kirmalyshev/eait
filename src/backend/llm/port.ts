@@ -35,6 +35,12 @@ export type AnalyzedMeal = Omit<MealAnalysis, "verdicts" | "healthScore"> & {
   scale?: { reference: string; plate_diameter_cm?: number | undefined } | null | undefined;
   /** The one thing the model would ask to make the estimate better, if it may ask at all. */
   question?: { text: string; options: string[] } | null | undefined;
+  /**
+   * Whether the frame was a nutrition-facts label (ieat-app#2087): `read` when its printed numbers
+   * were taken, `unreadable` when it is one and nothing legible came off it. Absent for a plate.
+   * Prompt-side like the two above — the engine turns it into `MealRecord.label` or a refusal.
+   */
+  labelRead?: "read" | "unreadable" | null | undefined;
 };
 // Both live in an intersection rather than on the shared `MealAnalysis`, and that is the point of
 // them being here: they are PROMPT-SIDE. They explain or continue an estimate rather than describing
@@ -133,6 +139,8 @@ export interface PhotoInput {
   profile: Profile;
   targets: FoodTargets;
   caption?: string;
+  /** The capture is a nutrition-facts label: read the printed per-serving numbers (ieat-app#2087). */
+  label?: boolean | undefined; // false: a plate, say nothing about labels
   /** HH:MM local — lets the model infer breakfast/lunch/dinner, which measurably helps portioning. */
   localTime?: string;
   /** Foods this user has logged before, most-eaten first. A prior for IDENTIFICATION only; it must

@@ -82,6 +82,11 @@ export type Refusal =
   | { kind: "analysis-failed"; retryable?: true }
   /** The upload is not a JPEG, PNG or WebP. Refused before anything is charged. */
   | { kind: "unsupported-image" }
+  /**
+   * A food-label scan whose label could not be read (ieat-app#2087). Not charged: the analysis row
+   * is deleted, so the turn is neither on the free sample nor on the paid daily cap.
+   */
+  | { kind: "unreadable-label" }
   /** A re-analysis of a meal that has no stored photo. */
   | { kind: "no-photo" };
 

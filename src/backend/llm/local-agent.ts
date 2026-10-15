@@ -381,6 +381,7 @@ export function localAgentPorts(opts: Options): LlmPorts {
     const { analysis } = await prompts();
     const user = buildUserText(input.profile, input.targets, {
       ...(input.caption !== undefined ? { caption: input.caption } : {}),
+      ...(input.label !== undefined ? { label: input.label } : {}),
       ...(input.localTime !== undefined ? { localTime: input.localTime } : {}),
       ...(input.repertoire !== undefined ? { repertoire: input.repertoire } : {}),
       ...(input.portionPriors !== undefined ? { portionPriors: input.portionPriors } : {}),

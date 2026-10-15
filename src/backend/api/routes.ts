@@ -214,6 +214,10 @@ export function createRouter(
     ...(typeof capturedAt === "string" ? { capturedAt } : {}),
   });
 
+  /** `label=1|true` on the photo form: the capture is a nutrition-facts label; `0|false`: read it as a plate, never as a label (ieat-app#2087). */
+  const labelFields = (v: unknown): { label?: boolean } =>
+    v === "1" || v === "true" ? { label: true } : v === "0" || v === "false" ? { label: false } : {};
+
   const wantsStream = (req: Request): boolean => (req.headers.get("accept") ?? "").includes(NDJSON);
 
   /**
@@ -694,6 +698,7 @@ export function createRouter(
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
           receivedAt,
           ...(typeof caption === "string" && caption ? { caption } : {}),
+          ...labelFields(form.get("label")),
           ...turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt")),
         };
         // THE STREAM. One JSON object per line — each item as the analyzer closes it
@@ -719,6 +724,7 @@ export function createRouter(
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
           receivedAt,
           ...(typeof caption === "string" && caption ? { caption } : {}),
+          ...labelFields(form.get("label")),
           ...fields, clientId: fields.clientId,
         }), 202);
       }

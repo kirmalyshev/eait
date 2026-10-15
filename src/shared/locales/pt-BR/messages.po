@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "Este Telegram está conectado à conta eait com login de"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Não foi possível ler esse rótulo."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Contabilizado. Restam {left} kcal hoje."

@@ -80,7 +80,7 @@ export function prepareAnalysis(analysis: AnalyzedMeal): {
   analysis: AnalyzedMeal;
   question: { text: string; options: string[] } | null;
 } {
-  const { scale: _scale, question, ...rest } = analysis;
+  const { scale: _scale, labelRead: _labelRead, question, ...rest } = analysis;
   // A mark the item's own numbers cannot support is not stored either — `isCookingFat` argues why.
   const meal = {
     ...rest,

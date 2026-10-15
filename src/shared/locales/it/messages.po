@@ -204,6 +204,11 @@ msgid "tg.connectedLead"
 msgstr "Questo Telegram è collegato all'account eait con cui hai fatto accesso tramite"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Etichetta non leggibile."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Contato. Oggi restano {left}kcal."

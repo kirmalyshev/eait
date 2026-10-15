@@ -102,11 +102,11 @@ export const API: readonly Endpoint[] = [
   // ── Meals ──
   { route: "photo", method: "POST", path: "/v1/meals/photo", auth: "bearer",
     summary: "Log a meal from one to four photos. Charged. Streams progress with `accept: application/x-ndjson`.",
-    request: { multipart: { photo: "file[]", caption: "string" } },
+    request: { multipart: { photo: "file[]", caption: "string", label: "string" } },
     responses: { 200: "PhotoResponse", 400: ERROR, 411: ERROR, 413: ERROR }, refuses: true, stream: "PhotoProgress" },
   { route: "photoQueue", method: "POST", path: "/v1/meals/photo/queue", auth: "bearer",
     summary: "Queue a photo meal: 202 once the upload is in; the analysis runs on server-side. `clientId` is required and is the job id.",
-    request: { multipart: { photo: "file[]", caption: "string", clientId: "string", capturedAt: "string" } },
+    request: { multipart: { photo: "file[]", caption: "string", label: "string", clientId: "string", capturedAt: "string" } },
     responses: { 202: "PhotoQueuedResponse", 400: ERROR, 411: ERROR, 413: ERROR } },
   { route: "mealUpdateQueue", method: "POST", path: "/v1/meals/update/queue", auth: "bearer",
     summary: "Queue a change to a logged meal: an ingredient edit, a chat correction or a re-read of the photo. 202 once queued; follow it on the photo job route. `clientId` is required and is the job id.",
