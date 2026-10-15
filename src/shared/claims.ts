@@ -141,7 +141,7 @@ const RULES: readonly Rule[] = [
   // `ํา` in every Thai rule: NFKC splits it, so a literal `น้ำ` never matches.
   { name: "guarantee", re: /(?<!ไม่\s?|ไม่ได้\s?|ไม่มีการ\s?|ไม่สามารถ\s?)(?:รับประกัน|การันตี)(?:ว่า)?\s*(?:จะ)?\s*(?:ผล(?![ิไ])|ลดน้ําหนัก|น้ําหนัก|ลด\s*\d|ผอม|ความสําเร็จ)|(?:ผลลัพธ์|ลดน้ําหนัก|\d+\s*(?:กก|กิโล|kg))\s*(?:ที่)?(?:ได้รับการ)?(?:รับประกัน|การันตี)/gu },
   // Hindi is verb-final: "नतीजों की गारंटी" is the claim, "गारंटी नहीं" the denial.
-  { name: "guarantee", re: /(?:नतीज\S*|परिणाम\S*|रिज़?ल्ट\S*|वज़?न|\d+\s*(?:kg|किलो))(?:\s+\S+){0,2}\s+गार(?:ं|ण्)टी(?!\S*\s+नहीं)|गार(?:ं|ण्)टी\S*(?:\s+\S+){0,2}\s+(?:नतीज|परिणाम|रिज़?ल्ट|वज़?न|\d+\s*(?:kg|किलो))/gu },
+  { name: "guarantee", re: /(?:नतीज\S*|परिणाम\S*|रिज़?ल्ट\S*|वज़?न|\d+\s*(?:kg|किलो))(?:\s+\S+){0,2}\s+गार(?:ं|ण्)टी(?!\S*\s+(?:नहीं|\S+\s+नाही))|गार(?:ं|ण्)टी\S*(?:\s+\S+){0,2}\s+(?:नतीज|परिणाम|रिज़?ल्ट|वज़?न|\d+\s*(?:kg|किलो))/gu },
   // Wave 3. da/no ride the Swedish rule, sk the Czech one, and ms the Indonesian `jamin`;
   // `resultats garantits` is French's rule already. What is left is the stems those cannot read.
   // Finnish negates with an auxiliary before the verb (`ei`, `emme`, `eivät ole`).
@@ -153,6 +153,23 @@ const RULES: readonly Rule[] = [
   { name: "guarantee", re: /(?<!\p{L})(?:resultats?|pèrdua\s+de\s+pes|èxit|kg)(?:\s+\S+){0,2}\s+(?<!no\s(?:estan\s|està\s|és\s|són\s)?)garant\p{L}*|(?<!\p{L}|no\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:l['’])?(?:resultats?|pèrdua\s+de\s+pes|èxit|kg)(?!\p{L})/giu },
   // Malay `keputusan` is also "decision", so it counts only beside `jamin`.
   { name: "guarantee", re: /(?<!\p{L})(?:keputusan|kejayaan|penurunan\s+berat\s+badan)(?:\s+\S+){0,2}\s+(?<!tidak\s)(?:di|ter)?jamin\p{L}*|(?<!\p{L}|tidak\s)(?:men|di|ter)?jamin\p{L}*(?:\s+\S+){0,2}\s+(?:keputusan|kejayaan)|(?<!\p{L})jaminan\s+keputusan/giu },
+  // Wave 4, the nine Indic languages. Each is verb-final like Hindi, so the claim is "<outcome>
+  // <guarantee>" and the denial is a negation AFTER the stem, within two words, either as its own
+  // word (bn `না`, gu `નથી`, mr `नाही`, pa `ਨਹੀਂ`) or fused onto the verb (kn `-ಇಲ್ಲ`, ml
+  // `-ില്ല`, or `-ନାହିଁ`, ta `-இல்லை`, te `-లేము`); both branches refuse it. `ফল` is also fruit,
+  // so Bengali reads `ফলাফল` only. Marathi's `गारंटी` is also Hindi's rule, whose denial is `नहीं`
+  // and not `नाही`, so the Hindi lookahead reads both. A nukta letter (য়) is written decomposed,
+  // because NFKC splits it; a Malayalam chillu (ൻ) is not split, and is read both ways because
+  // the older encoding (ന്‍) loses its ZWJ to `normalizeForMatch` and becomes `ന്`.
+  { name: "guarantee", re: /(?:ফলাফল\S*|সাফল্য\S*|ওজন\S*|\p{Nd}+\s*(?:kg|কেজি|কিলো))(?:\s+\S+){0,2}\s+(?:গ্যার[াে]ন্ট[িে]|নিশ্চয়তা)(?!\S*(?:\s+\S+){0,2}\s+(?:না|নেই|নয়)(?![\p{L}\p{M}]))|(?:গ্যার[াে]ন্ট[িে]|নিশ্চয়তা)(?!\S*(?:\s+\S+){0,2}\s+(?:না|নেই|নয়)(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:ফলাফল|সাফল্য|ওজন|\p{Nd}+\s*(?:kg|কেজি|কিলো))/gu },
+  { name: "guarantee", re: /(?:પરિણામ\S*|સફળતા\S*|વજન\S*|\p{Nd}+\s*(?:kg|કિલો))(?:\s+\S+){0,2}\s+(?:ગ[ેૅ]ર\S{0,3}ટ[ીે]|ખાતરી(?!\s+કર))(?!\S*(?:\s+\S+){0,2}\s+(?:નથી|નહીં|ના)(?![\p{L}\p{M}]))|ગ[ેૅ]ર\S{0,3}ટ[ીે](?!\S*(?:\s+\S+){0,2}\s+(?:નથી|નહીં|ના)(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:પરિણામ|સફળતા|વજન|\p{Nd}+\s*(?:kg|કિલો))/gu },
+  { name: "guarantee", re: /(?:ಫಲಿತಾಂಶ\S*|ಯಶಸ್ಸ\S*|ತೂಕ\S*|\p{Nd}+\s*(?:kg|ಕೆಜಿ|ಕಿಲೋ))(?:\s+\S+){0,2}\s+(?:ಗ್ಯಾರಂಟ[ಿೀ]|ಖಾತರಿ)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ಇ|ಿ|ಅ)ಲ್ಲ(?![\p{L}\p{M}]))|(?:ಗ್ಯಾರಂಟ[ಿೀ]|ಖಾತರಿ)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ಇ|ಿ|ಅ)ಲ್ಲ(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:ಫಲಿತಾಂಶ|ಯಶಸ್ಸ|ತೂಕ|\p{Nd}+\s*(?:kg|ಕೆಜಿ|ಕಿಲೋ))/gu },
+  { name: "guarantee", re: /(?:ഫല(?:ം|ങ്ങ|ത്ത)\S*|വിജയ\S*|ഭാരം|ഭാരത്ത\S*|\p{Nd}+\s*(?:kg|കിലോ))(?:\s+\S+){0,2}\s+(?:ഗ്യാര(?:ന്|ൻ്?)റ[ിീ]|ഗ്യാരണ്ടി|ഉറപ്പ്(?![\p{L}\p{M}]))(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ഇ|ി|അ)ല്ല(?![\p{L}\p{M}]))|(?:ഗ്യാര(?:ന്|ൻ്?)റ[ിീ]|ഗ്യാരണ്ടി)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ഇ|ി|അ)ല്ല(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:ഫല|വിജയ|ഭാരം|ഭാരത്ത|\p{Nd}+\s*(?:kg|കിലോ))/gu },
+  { name: "guarantee", re: /(?:निकाल\S*|परिणाम\S*|यश\S*|वजन\S*|\p{Nd}+\s*(?:kg|किलो))(?:\s+\S+){0,2}\s+(?:ग[ॅा]र(?:ं|ें)टी|हमी)(?!\S*(?:\s+\S+){0,2}\s+(?:नाही|नसते|नसतो)(?![\p{L}\p{M}]))|(?:ग[ॅा]र(?:ं|ें)टी|हमी)(?!\S*(?:\s+\S+){0,2}\s+(?:नाही|नसते|नसतो)(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:निकाल|परिणाम|यश|वजन|\p{Nd}+\s*(?:kg|किलो))/gu },
+  { name: "guarantee", re: /(?:ଫଳାଫଳ\S*|ସଫଳତା\S*|ଓଜନ\S*|\p{Nd}+\s*(?:kg|କିଲୋ))(?:\s+\S+){0,2}\s+ଗ୍ୟାର[ାେ]ଣ୍ଟି(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ନାହ|ନୁହ))|ଗ୍ୟାର[ାେ]ଣ୍ଟି(?!\S*(?:\s+\S+){0,2}\s*\S*(?:ନାହ|ନୁହ))\S*(?:\s+\S+){0,2}\s+(?:ଫଳାଫଳ|ସଫଳତା|ଓଜନ|\p{Nd}+\s*(?:kg|କିଲୋ))/gu },
+  { name: "guarantee", re: /(?:ਨਤੀਜ\S*|ਸਫਲਤਾ\S*|ਭਾਰ(?!ਤ)\S*|ਵਜ਼?ਨ\S*|\p{Nd}+\s*(?:kg|ਕਿਲੋ))(?:\s+\S+){0,2}\s+ਗਾ?ਰੰਟੀ(?!\S*(?:\s+\S+){0,2}\s+ਨਹੀਂ)|ਗਾ?ਰੰਟੀ(?!\S*(?:\s+\S+){0,2}\s+ਨਹੀਂ)\S*(?:\s+\S+){0,2}\s+(?:ਨਤੀਜ|ਸਫਲਤਾ|ਭਾਰ(?!ਤ)|ਵਜ਼?ਨ|\p{Nd}+\s*(?:kg|ਕਿਲੋ))/gu },
+  { name: "guarantee", re: /(?:முடிவு\S*|பலன\S*|வெற்றி\S*|எடை\S*|\p{Nd}+\s*(?:kg|கிலோ))(?:\s+\S+){0,2}\s+(?:உத்தரவாத|(?:கே|கியா)ரண்டி)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:(?:இ|ி)ல்லை|மாட்ட))|(?:உத்தரவாத|(?:கே|கியா)ரண்டி)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:(?:இ|ி)ல்லை|மாட்ட))\S*(?:\s+\S+){0,2}\s+(?:முடிவு|பலன|வெற்றி|எடை|\p{Nd}+\s*(?:kg|கிலோ))/gu },
+  { name: "guarantee", re: /(?:ఫలిత\S*|విజయ\S*|బరువు\S*|\p{Nd}+\s*(?:kg|కిలో|కేజీ))(?:\s+\S+){0,2}\s+(?:హామీ|గ్యార(?:ె)?ంటీ)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:లేదు|లేము|లేను|కాదు|ఇవ్వము|ఇవ్వం)(?![\p{L}\p{M}]))|(?:హామీ|గ్యార(?:ె)?ంటీ)(?!\S*(?:\s+\S+){0,2}\s*\S*(?:లేదు|లేము|లేను|కాదు|ఇవ్వము|ఇవ్వం)(?![\p{L}\p{M}]))\S*(?:\s+\S+){0,2}\s+(?:ఫలిత|విజయ|బరువు|\p{Nd}+\s*(?:kg|కిలో|కేజీ))/gu },
 
   // weight-promise — the stems, and DELIBERATELY NOT the progressive.
   //
@@ -199,8 +216,9 @@ const RULES: readonly Rule[] = [
   { name: "weight-promise", re: /(?<!\p{L})χ[αά]σ\p{L}*\s+(?:\d+\s*(?:kg|κιλ\p{L}*)|β[αά]ρος|κιλ\p{L}*)|(?<!\p{L})απ[ωώ]λει\p{L}*\s+β[αά]ρους|(?<!\p{L})αδυν[αά]τ[ιί]σ\p{L}*/giu },
   // `−6 kg` is Russian's `минус 6кг` with the word replaced by the sign, and it is how seven of the
   // wave-2 plan headlines say the goal. Whole numbers only — `−0,5 kg` is a pace, not a promise —
-  // and nothing alphanumeric before the sign, so a range (`5-10 kg`) is not a minus.
-  { name: "weight-promise", re: /(?<![\p{L}\p{N}])[−-]\s?\d+\s*(?:kg|кг|κιλ\p{L}*|kil[óo]\p{L}*|กก|กิโล|किलो)(?![\p{L}\d])/giu },
+  // and nothing alphanumeric before the sign, so a range (`5-10 kg`) is not a minus. `\p{Nd}`,
+  // not `\d`: a Bengali or Marathi number is written in its own digits (`−৬ কেজি`).
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}])[−-]\s?\p{Nd}+\s*(?:kg|кг|κιλ\p{L}*|kil[óo]\p{L}*|กก|กิโล|किलो|কেজি|কিলো|કિલો|ಕೆಜಿ|ಕಿಲೋ|കിലോ|କିଲୋ|ਕਿਲੋ|கிலோ|కిలో|కేజీ)(?![\p{L}\d])/giu },
   // `elfogyott` (ran out) is everywhere in the Hungarian copy, so `fogy` is never bare.
   { name: "weight-promise", re: /(?<![\p{L}\d.,])\d+\s*(?:kg|kil[óo])\p{L}*\s+fogy\p{L}*|(?<!\p{L})(?:fogy|ad)\p{L}*\s+le\s+\d+\s*(?:kg|kil[óo])|(?<!\p{L})lefogy\p{L}*|(?<!\p{L})mínusz\s+\d+\s*(?:kg|kil[óo])/giu },
   // Wave 3, on the same lines. Every `twice.title` is a bare imperative with `twice as much`
@@ -229,6 +247,26 @@ const RULES: readonly Rule[] = [
   { name: "weight-promise", re: /(?<!\p{L})(?:meng)?kurangkan\s+berat\s+badan(?!\p{L})|(?<!\p{L})(?:meng)?kuruskan\s+badan(?!\p{L})|(?<!\p{L})pengurangan\s+berat\s+badan(?!\p{L})|(?<!\p{L})(?:(?:meng)?hilangkan|buang|membuang)\s+\d+\s*(?:kg|kilo)(?!\p{L})/giu },
   // pt-PT on top of the shared Portuguese rule: the `tu` forms and `descer`.
   { name: "weight-promise", re: /(?<!\p{L})(?:perde|perdes|perdemos)\s+(?:peso|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})desce[rs]?\s+\d+\s*(?:kg|quilos?)(?!\p{L})|(?<!\p{L})emagrecer(?:ás|ão|emos|ei)(?!\p{L})/giu },
+  // Wave 4, on Hindi's lines. A number beside any form of the verb promises — that is how all
+  // nine plan headlines say the goal (`6 kg কমানো`, `6 kg குறைப்பது`), and `\p{Nd}` reads a
+  // Bengali or Marathi digit too, which `\d` does not. Without a number only the infinitive, the
+  // verbal noun, the future and the noun `weight loss` promise. Two shipped lines put the weight
+  // ADJACENT to the verb: every `twice.title` is the bare imperative (`ওজন কমান`, `ತೂಕ ಇಳಿಸಿ`,
+  // `ഭാരം കുറയ്ക്കൂ`, `वजन कमी करा`, `ਭਾਰ ਘਟਾਓ`, `எடையைக் குறையுங்கள்`, `బరువు తగ్గండి`), and
+  // three `twice.sub` lines are the habitual present (`ತೂಕ ಇಳಿಸುತ್ತಾರೆ`, `ഭാരം കുറയുന്നു`,
+  // `బరువు తగ్గుతారు`) — Telugu's habitual is also its future, so it is left alone as the
+  // progressive is. Neither is a stem. `possible.lose` writes `{delta}` beside the word for
+  // LESS (`কম`, `ઓછું`, `ಕಡಿಮೆ`, `കുറവ്`, `कमी`, `କମ୍`, `ਘੱਟ`, `குறைவா`, `తక్కువా`), so the verb
+  // is spelled out and that adjective never counts alone.
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|কেজি|কিলো\S*)\s+(?:ওজন\s+)?(?:কমা|কমি|ঝরা|হ্রাস)\S*|(?<![\p{L}\p{M}])ওজন\s+(?:কমানো|কমাবেন|কমাবে|কমাতে|ঝরানো|ঝরাতে|হ্রাস)(?![\p{L}\p{M}])|ওয়েট\s*লস/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|કિલો\S*)\s+(?:વજન\s+)?(?:ઘટ|ઓછું\s+કર|ઉતાર)\S*|(?<![\p{L}\p{M}])વજન\s+(?:ઘટાડવું|ઘટાડવા|ઘટાડશો|ઘટશે|ઓછું\s+કરવું|ઓછું\s+કરવા|ઉતારવું|ઉતારવા)(?![\p{L}\p{M}])|(?<![\p{L}\p{M}])વજનમાં\s+ઘટાડો|વે(?:ઇ)?ટ\s*લોસ/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|ಕೆಜಿ|ಕಿಲೋ\S*)\s+(?:ತೂಕ\S*\s+)?(?:ಇಳಿಸ|ಇಳಿಕೆ|ಕಡಿಮೆ\s+ಮಾಡ|ಕರಗಿಸ)\S*|(?<![\p{L}\p{M}])ತೂಕ(?:ವನ್ನು)?\s+(?:ಇಳಿಸುವುದು|ಇಳಿಸಲು|ಇಳಿಸುವಿರಿ|ಇಳಿಕೆ|ನಷ್ಟ|ಕಡಿಮೆ\s+ಮಾಡುವುದು|ಕಡಿಮೆ\s+ಮಾಡಲು|ಕರಗಿಸುವುದು|ಕರಗಿಸಲು)(?![\p{L}\p{M}])|ವೇಟ್\s*ಲಾಸ್/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|കിലോ\S*)\s+(?:ഭാരം\s+)?(?:കുറയ്ക്ക|കുറയും)\S*|(?<![\p{L}\p{M}])(?:ഭാരം|തടി)\s+(?:കുറയ്ക്കുക|കുറയ്ക്കാ(?:ൻ|ന്)|കുറയ്ക്ക(?:ൽ|ല്)|കുറയ്ക്കും|കുറയും)(?![\p{L}\p{M}])|വെയ്റ്റ്\s*ലോസ്/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|किलो\S*)\s+(?:वजन\s+)?(?:कमी\s+(?:कर|हो)|घटव)\S*|(?<![\p{L}\p{M}])वजन\s+(?:कमी\s+(?:करणे|करण्यासाठी|कराल|होईल)|घटवणे|घटेल)(?![\p{L}\p{M}])|(?<![\p{L}\p{M}])वजन(?:ातील)?\s*घट(?![\p{L}\p{M}])/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|କିଲୋ\S*)\s+(?:ଓଜନ\s+)?(?:କମା|ହ୍ରାସ)\S*|(?<![\p{L}\p{M}])ଓଜନ\s+(?:କମାଇବା|କମାଇବାକୁ|କମାଇବେ|କମିବ|ହ୍ରାସ)(?![\p{L}\p{M}])|ୱେଟ୍?\s*ଲସ/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|ਕਿਲੋ\S*)\s+(?:(?:ਭਾਰ|ਵਜ਼?ਨ)\s+)?(?:ਘਟਾ|ਘੱਟ\s+ਕਰ)\S*|(?<![\p{L}\p{M}])(?:ਭਾਰ|ਵਜ਼?ਨ)\s+(?:ਘਟਾਉਣਾ|ਘਟਾਉਣ|ਘਟਾਓਗੇ|ਘਟੇਗਾ|ਘੱਟ\s+ਕਰਨਾ|ਘੱਟ\s+ਕਰਨ)(?![\p{L}\p{M}])|ਵੇਟ\s*ਲ[ੌਾ]ਸ/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|கிலோ\S*)\s+(?:எடை\S*\s+)?(?:குறைக்|குறைப்|குறையு|இழக்|இழப்|கரைக்)\S*|(?<![\p{L}\p{M}])எடை(?:யை)?(?:க்)?\s*(?:குறைப்பது|குறைக்க|குறைப்பீர்கள்|குறைப்பு|குறையும்|இழப்பு|இழக்க)(?![\p{L}\p{M}])|வெயிட்\s*லாஸ்/gu },
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}.,])\p{Nd}+\s*(?:kg|కిలో\S*|కేజీ\S*)\s+(?:బరువు\s+)?(?:తగ్గ|కోల్పో)\S*|(?<![\p{L}\p{M}])బరువు\s+(?:తగ్గడం|తగ్గటం|తగ్గించడం|తగ్గించుకోవడం|తగ్గడానికి|తగ్గించడానికి|తగ్గింపు|కోల్పోవడం)(?![\p{L}\p{M}])|వెయిట్\s*లాస్/gu },
 
   // lowers-marker — the MARKER decides, never the verb.
   //
@@ -272,6 +310,19 @@ const RULES: readonly Rule[] = [
   { name: "lowers-marker", re: /(?<!\p{L})(?:menurunkan|merendahkan|mengurangkan|turunkan|rendahkan|kurangkan)\s+(?:paras\s+)?(?:kolesterol|gula\s+(?:dalam\s+)?darah|tekanan\s+darah)(?!\p{L})/giu },
   // pt-PT says `tensão arterial` and `o teu`, neither of which the shared Portuguese rule reads.
   { name: "lowers-marker", re: /(?<!\p{L})(?:faz\s+)?(?:baixar?|reduz(?:ir)?|diminuir?|abaixar?)\s+(?:o\s+|a\s+)?(?:teu\s+|tua\s+|vosso\s+|vossa\s+)?(?:colesterol|glicemia|a[çc][úu]car\s+no\s+sangue|press[ãa]o\s+arterial|tens[ãa]o\s+arterial)(?!\p{L})/giu },
+  // Wave 4, verb-final as Hindi is: the marker, up to two words, then the TRANSITIVE verb. Sugar
+  // is always `in the blood` (`রক্তে শর্করা`, `ರಕ್ತದ ಸಕ್ಕರೆ`, `இரத்த சர்க்கரை`) or the English
+  // `blood sugar`; `চিনি`, `ખાંડ`, `ಸಕ್ಕರೆ`, `പഞ്ചസാര`, `साखर`, `சர்க்கரை`, `చక్కెర` alone are the
+  // food, as `сахар` is.
+  { name: "lowers-marker", re: /(?:কোলেস্টে?র(?:ো)?ল|রক্তচাপ|ব্লাড\s+(?:প্রেশার|সুগার)|রক্ত(?:ে|ের)?\s*(?:শর্করা|চিনি))\S*(?:\s+\S+){0,2}\s+(?:কমা|হ্রাস\s+কর)\S*/gu },
+  { name: "lowers-marker", re: /(?:કોલેસ્ટ(?:્ર|ેર)ોલ|બ્લડ\s+(?:સુગર|શુગર|પ્રેશર)|લોહીમાં\s+(?:ખાંડ|શર્કરા|સુગર)|રક્ત\s*(?:શર્કરા|ચાપ|દબાણ)|લોહીનું\s+દબાણ)\S*(?:\s+\S+){0,2}\s+(?:ઘટાડ|ઓછ[ુો]ં?\s+કર)\S*/gu },
+  { name: "lowers-marker", re: /(?:ಕೊಲೆಸ್ಟ್ರಾಲ|ರಕ್ತದೊತ್ತಡ|ಬ್ಲಡ್\s+(?:ಶುಗರ್|ಪ್ರೆಶರ್)|ರಕ್ತದ(?:ಲ್ಲಿನ)?\s+ಸಕ್ಕರೆ)\S*(?:\s+\S+){0,2}\s+(?:ಇಳಿಸ|ಕಡಿಮೆ\s+ಮಾಡ|ತಗ್ಗಿಸ)\S*/gu },
+  { name: "lowers-marker", re: /(?:കൊളസ്ട്രോ|രക്തസമ്മ|ബ്ലഡ്\s+(?:ഷുഗ|പ്രഷ)|രക്തത്തിലെ\s+(?:പഞ്ചസാര|ഷുഗ|ഗ്ലൂക്കോസ))\S*(?:\s+\S+){0,2}\s+കുറയ്ക്ക\S*/gu },
+  { name: "lowers-marker", re: /(?:कोलेस्टे?रॉल|कोलेस्ट्रॉल|रक्तदाब|रक्तातील\s+साखर|रक्तशर्करा|ब्लड\s+(?:शुगर|प्रेशर))\S*(?:\s+\S+){0,2}\s+(?:कमी\s+कर|घटव)\S*/gu },
+  { name: "lowers-marker", re: /(?:କୋଲେଷ୍ଟ(?:େ)?ରଲ|ରକ୍ତଚାପ|ରକ୍ତ(?:ରେ)?\s*ଶର୍କରା|ବ୍ଲଡ୍?\s+(?:ସୁଗାର|ପ୍ରେସର))\S*(?:\s+\S+){0,2}\s+(?:କମା|ହ୍ରାସ\s+କର)\S*/gu },
+  { name: "lowers-marker", re: /(?:ਕੋਲ[ੈੇ]ਸਟ੍?ਰੋਲ|ਬਲੱਡ\s+(?:ਸ਼[ੂੁ]ਗਰ|ਪ੍ਰੈਸ਼ਰ)|ਖ਼?ੂਨ\s+(?:ਵਿੱਚ\s+)?(?:ਸ਼[ੂੁ]ਗਰ|ਸ਼ੱਕਰ)|ਖ਼?ੂਨ\s+ਦਾ\s+ਦਬਾਅ)\S*(?:\s+\S+){0,2}\s+(?:ਘਟਾ|ਘੱਟ\s+ਕਰ)\S*/gu },
+  { name: "lowers-marker", re: /(?:கொலஸ்ட்ர[ாோ]|இ?ரத்த\s*(?:சர்க்கரை|அழுத்த|குளுக்கோஸ்)|ப்ளட்\s+சுகர்)\S*(?:\s+\S+){0,2}\s+(?:குறைக்|குறைப்)\S*/gu },
+  { name: "lowers-marker", re: /(?:కొలెస్ట్రా|రక్తపోటు|బ్లడ్\s+(?:షుగర్|ప్రెషర్)|రక్త(?:ంలో|ంలోని|పు)\s+చక్కెర)\S*(?:\s+\S+){0,2}\s+తగ్గి(?:ంచ|స)\S*/gu },
 
   // detox — the Latin word is the one a Romance marketer does not need.
   { name: "detox", re: /\bd[ée]tox\w*/gi },
@@ -308,6 +359,18 @@ const RULES: readonly Rule[] = [
   { name: "detox", re: /(?<!\p{L})elimin\p{L}*\s+(?:les\s+)?toxines|(?<!\p{L})(?:depur|purific|netej)\p{L}*\s+(?:el\s+teu\s+|l['’])?organisme(?!\p{L})/giu },
   { name: "detox", re: /(?<!\p{L})nyahtoks\p{L}*|(?<!\p{L})(?:buang|membuang|singkirkan|menyingkirkan|keluarkan|mengeluarkan)\s+toksin/giu },
   { name: "detox", re: /(?<!\p{L})(?:depur|purific|limp)\p{L}*\s+o\s+(?:teu\s+|seu\s+)?organismo(?!\p{L})/giu },
+  // Wave 4. The loanword in each script, and the toxins-out phrase Hindi's rule reads.
+  // `বিষমুক্ত`, `विषमुक्त` and their kin are NOT here: "poison-free" is how a vegetable grown
+  // without pesticide is sold, which is food this product logs, not a body being cleansed.
+  { name: "detox", re: /ড[িী]টক্স|(?:টক্সিন|বিষাক্ত\s+পদার্থ)\S*(?:\s+\S+){0,2}\s+বের\s+কর/gu },
+  { name: "detox", re: /ડ[િી]ટો?ક્સ|(?:ઝેરી\s+(?:તત્વો|પદાર્થો)|ટોક્સિન)\S*(?:\s+\S+){0,2}\s+બહાર\s+કાઢ/gu },
+  { name: "detox", re: /ಡ[ಿೀ]ಟಾ?ಕ್ಸ|ನಿರ್ವಿಷೀಕರಣ|(?:ವಿಷಕಾರಿ\s+\S+|ಟಾಕ್ಸಿನ)\S*(?:\s+\S+)?\s+ಹೊರಹಾಕ/gu },
+  { name: "detox", re: /ഡ[ിീ](?:റ്റ|ട)ോക്സ|(?:വിഷാംശ|ടോക്സിന|വിഷവസ്തു)\S*(?:\s+\S+)?\s+പുറന്തള്ള/gu },
+  { name: "detox", re: /(?:विषारी\s+(?:द्रव्य|पदार्थ)|टॉक्सिन)\S*(?:\s+\S+){0,2}\s+(?:बाहेर\s+)?काढ/gu },
+  { name: "detox", re: /ଡ[ିୀ]ଟ[ୋ]?କ୍ସ|(?:ବିଷାକ୍ତ\s+ପଦାର୍ଥ|ଟକ୍ସିନ)\S*(?:\s+\S+)?\s+ବାହାର\s+କର/gu },
+  { name: "detox", re: /ਡ[ਿੀ]ਟ[ੌੋ]ਕਸ|(?:ਜ਼ਹਿਰੀਲੇ\s+ਪਦਾਰਥ|ਟੌਕਸਿਨ)\S*(?:\s+\S+)?\s+ਬਾਹਰ\s+ਕੱਢ/gu },
+  { name: "detox", re: /ட[ிீ]டா?க்ஸ|நச்சு(?:க்க?ள(?:ை)?)?\s*நீக்க|நச்சு\S*\s+வெளியேற்ற/gu },
+  { name: "detox", re: /డ[ిీ]టా?క్స|నిర్విషీకరణ|(?:విష\s*పదార్థా|టాక్సిన)\S*(?:\s+\S+)?\s+(?:బయటకు\s+)?(?:పంప|తొలగి)/gu },
 
   // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
   //

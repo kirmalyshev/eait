@@ -55,11 +55,21 @@ import { messages as sl } from "./locales/sl/messages.ts";
 import { messages as ca } from "./locales/ca/messages.ts";
 import { messages as ms } from "./locales/ms/messages.ts";
 import { messages as ptPT } from "./locales/pt-PT/messages.ts";
+import { messages as bn } from "./locales/bn/messages.ts";
+import { messages as gu } from "./locales/gu/messages.ts";
+import { messages as kn } from "./locales/kn/messages.ts";
+import { messages as ml } from "./locales/ml/messages.ts";
+import { messages as mr } from "./locales/mr/messages.ts";
+import { messages as or } from "./locales/or/messages.ts";
+import { messages as pa } from "./locales/pa/messages.ts";
+import { messages as ta } from "./locales/ta/messages.ts";
+import { messages as te } from "./locales/te/messages.ts";
 
 const CATALOGS: Record<Lang, Messages> = {
   en, fr, de, it, es, vi, id, ru,
   "pt-BR": ptBR, ja, ko, "zh-Hans": zhHans, "zh-Hant": zhHant, tr, pl, nl, uk, sv, th, hi, cs, ro, el, hu,
   da, fi, no, sk, hr, sl, ca, ms, "pt-PT": ptPT,
+  bn, gu, kn, ml, mr, or, pa, ta, te,
 };
 
 const INSTANCES: Record<Lang, I18n> = Object.fromEntries(

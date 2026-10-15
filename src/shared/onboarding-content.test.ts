@@ -129,6 +129,15 @@ describe("every language's onboarding content", () => {
       ca: "No cal cap compte per començar",
       ms: "Tidak perlu akaun untuk bermula",
       "pt-PT": "Não precisas de conta para começar",
+      bn: "শুরু করতে অ্যাকাউন্ট লাগে না",
+      gu: "શરૂ કરવા માટે ખાતાની જરૂર નથી",
+      kn: "ಪ್ರಾರಂಭಿಸಲು ಖಾತೆ ಬೇಕಿಲ್ಲ",
+      ml: "തുടങ്ങാൻ അക്കൗണ്ട് വേണ്ട",
+      mr: "सुरू करण्यासाठी खाते लागत नाही",
+      or: "ଆରମ୍ଭ କରିବାକୁ ଖାତା ଦରକାର ନାହିଁ",
+      pa: "ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਖਾਤੇ ਦੀ ਲੋੜ ਨਹੀਂ",
+      ta: "தொடங்க கணக்கு தேவையில்லை",
+      te: "ప్రారంభించడానికి ఖాతా అవసరం లేదు",
     };
     const freeText = /free text|texte libre|Freitext|testo libero|texto libre|Viết tự do|Teks bebas|Свободный текст/i;
     for (const lang of LANGS) {

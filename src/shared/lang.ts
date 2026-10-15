@@ -97,6 +97,15 @@ export const LANG_LABEL: Record<Lang, string> = {
   ca: "Català",
   ms: "Bahasa Melayu",
   "pt-PT": "Português (Portugal)",
+  bn: "বাংলা",
+  gu: "ગુજરાતી",
+  kn: "ಕನ್ನಡ",
+  ml: "മലയാളം",
+  mr: "मराठी",
+  or: "ଓଡ଼ିଆ",
+  pa: "ਪੰਜਾਬੀ",
+  ta: "தமிழ்",
+  te: "తెలుగు",
 };
 
 /**
@@ -138,6 +147,15 @@ export const LANG_FLAG: Record<Lang, string> = {
   ca: "🇪🇸",
   ms: "🇲🇾",
   "pt-PT": "🇵🇹",
+  bn: "🇧🇩",
+  gu: "🇮🇳",
+  kn: "🇮🇳",
+  ml: "🇮🇳",
+  mr: "🇮🇳",
+  or: "🇮🇳",
+  pa: "🇮🇳",
+  ta: "🇮🇳",
+  te: "🇮🇳",
 };
 
 /**
@@ -185,6 +203,15 @@ export const LANG_TAG: Record<Lang, string> = {
   ca: "ca-ES",
   ms: "ms-MY",
   "pt-PT": "pt-PT",
+  bn: "bn-BD-u-nu-latn",
+  gu: "gu-IN-u-nu-latn",
+  kn: "kn-IN-u-nu-latn",
+  ml: "ml-IN-u-nu-latn",
+  mr: "mr-IN-u-nu-latn",
+  or: "or-IN-u-nu-latn",
+  pa: "pa-IN-u-nu-latn",
+  ta: "ta-IN-u-nu-latn",
+  te: "te-IN-u-nu-latn",
 };
 
 /**
@@ -294,6 +321,7 @@ export const UNIT_KCAL: Record<Lang, string> = {
   "pt-BR": "kcal", ja: "kcal", ko: "kcal", "zh-Hans": "千卡", "zh-Hant": "大卡", tr: "kcal", pl: "kcal", nl: "kcal",
   uk: "ккал", sv: "kcal", th: "kcal", hi: "kcal", cs: "kcal", ro: "kcal", el: "kcal", hu: "kcal",
   da: "kcal", fi: "kcal", no: "kcal", sk: "kcal", hr: "kcal", sl: "kcal", ca: "kcal", ms: "kcal", "pt-PT": "kcal",
+  bn: "kcal", gu: "kcal", kn: "kcal", ml: "kcal", mr: "kcal", or: "kcal", pa: "kcal", ta: "kcal", te: "kcal",
 };
 
 /**
@@ -431,6 +459,15 @@ export const DAY_WORDS: Localized<{ today: string; yesterday: string }> = {
   ca: { today: "avui", yesterday: "ahir" },
   ms: { today: "hari ini", yesterday: "semalam" },
   "pt-PT": { today: "hoje", yesterday: "ontem" },
+  bn: { today: "আজ", yesterday: "গতকাল" },
+  gu: { today: "આજે", yesterday: "ગઈકાલે" },
+  kn: { today: "ಇಂದು", yesterday: "ನಿನ್ನೆ" },
+  ml: { today: "ഇന്ന്", yesterday: "ഇന്നലെ" },
+  mr: { today: "आज", yesterday: "काल" },
+  or: { today: "ଆଜି", yesterday: "ଗତକାଲି" },
+  pa: { today: "ਅੱਜ", yesterday: "ਕੱਲ੍ਹ" },
+  ta: { today: "இன்று", yesterday: "நேற்று" },
+  te: { today: "ఈరోజు", yesterday: "నిన్న" },
 };
 
 /**
@@ -600,6 +637,16 @@ const PLURAL_CATEGORY: Record<Lang, (n: number) => Intl.LDMLPluralRule> = {
   ca: oneIfOne,
   ms: () => "other",
   "pt-PT": oneIfOne,
+  // CLDR: the Indic scripts file 0 with 1 (bn gu kn pa, as hi does); the rest are one / other.
+  bn: (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  gu: (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  kn: (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  pa: (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  ml: oneIfOne,
+  mr: oneIfOne,
+  or: oneIfOne,
+  ta: oneIfOne,
+  te: oneIfOne,
 };
 
 /**

@@ -49,6 +49,18 @@ const BANNED: Record<string, RegExp> = {
   ca: /ob[eè]s|sobrep[eè]s|infrap[eè]s|pes\s+insuficient|baix\s+pes|(?<!\p{L})normal|(?<!\p{L})san[ae]?s?(?!\p{L})|saludable|insalubre/iu,
   ms: /obes|berlebihan|lebih\s+berat|kurang\s+berat|(?<!\p{L})normal|sihat/iu,
   "pt-PT": /obes|sobrepeso|excesso\s+de\s+peso|peso\s+a\s+mais|abaixo\s+do\s+peso|baixo\s+peso|(?<!\p{L})normal(?:es)?(?!\p{L})|saud[áa]ve|insalubre/iu,
+  // The ranges say "below" and "and above" with the word for LESS / MORE (`কম`, `ಕಡಿಮೆ`, `कमी`,
+  // `ଅଧିକ`, `తక్కువ`), so those count only beside the word for weight. Gurmukhi's nukta letter is
+  // matched both ways, as Hindi's is.
+  bn: /স্থূল|মোটা|(?:কম|অতিরিক্ত|বেশি)\s+ওজন|রোগা|স্বাভাবিক|সুস্থ|স্বাস্থ্যকর/,
+  gu: /મેદસ્વ|સ્થૂળ|જાડાપણ|(?:ઓછું|વધુ|વધારે)\s+વજન|દૂબળ|સામાન્ય|સ્વસ્થ|તંદુરસ્ત/,
+  kn: /ಸ್ಥೂಲ|ಬೊಜ್ಜು|(?:ಕಡಿಮೆ|ಅಧಿಕ|ಹೆಚ್ಚು)\s+ತೂಕ|ಸಾಮಾನ್ಯ|ಆರೋಗ್ಯ/,
+  ml: /പൊണ്ണത്തടി|അമിത\s*ഭാര|ഭാരക്കുറവ|ഭാരം\s+കുറവ|സാധാരണ|ആരോഗ്യ/,
+  mr: /लठ्ठ|स्थूल|(?:कमी|जास्त|अधिक)\s+वजन|कृश|सामान्य|निरोगी|आरोग्य/,
+  or: /ମେଦବହୁଳ|ମୋଟା|(?:କମ୍|ଅଧିକ|ବେଶି)\s+ଓଜନ|ସାଧାରଣ|ସ୍[ୱଵ]ାଭାବିକ|ସୁସ୍ଥ|ସ୍[ୱଵ]ାସ୍ଥ୍ୟକର/,
+  pa: /ਮੋਟਾਪ|(?:ਘੱਟ|ਵੱਧ|[\u0A1C\u0A5B]\u0A3C?ਿਆਦਾ)\s+ਭਾਰ|ਪਤਲ|ਸਧਾਰਨ|(?<![\p{L}\p{M}])ਆਮ(?![\p{L}\p{M}])|ਸਿਹਤਮੰਦ|ਤੰਦਰੁਸਤ/u,
+  ta: /பருமன்|(?:குறைந்த|அதிக|கூடுதல்)\s+எடை|எடைக்\s*குறைவ|ஒல்லி|இயல்பான|சாதாரண|ஆரோக்கிய/,
+  te: /ఊబకాయ|స్థూలకాయ|(?:తక్కువ|అధిక|ఎక్కువ)\s+బరువు|సన్నగా|సాధారణ|ఆరోగ్య/,
 };
 
 describe("BMI labels (#118)", () => {

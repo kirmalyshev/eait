@@ -27,6 +27,8 @@ describe("plural categories", () => {
     da: ["one", "other"], fi: ["one", "other"], no: ["one", "other"], sk: ["one", "few", "many", "other"],
     hr: ["one", "few", "other"], sl: ["one", "two", "few", "other"], ca: ["one", "many", "other"], ms: ["other"],
     "pt-PT": ["one", "many", "other"],
+    bn: ["one", "other"], gu: ["one", "other"], kn: ["one", "other"], ml: ["one", "other"], mr: ["one", "other"],
+    or: ["one", "other"], pa: ["one", "other"], ta: ["one", "other"], te: ["one", "other"],
   };
   for (const lang of LANGS) {
     test(`${lang} requires exactly ${want[lang].join("/")}`, () => {

@@ -1,0 +1,603 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-15 17:45+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: mr\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "मला पुरेसे प्रोटीन मिळत आहे का?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "माझा आठवडा कसा चालला आहे?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "आज रात्री मी काय खाऊ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "अपडेट झाले — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "यात सॅच्युरेटेड फॅट जास्त आहे. तुम्ही सांगितले म्हणूनच हे मोजले."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "यात सोडियम जास्त आहे. तुम्ही सांगितले म्हणूनच हे मोजले."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "आज तुमच्या {plan} पैकी {left} बाकी, {proteinTarget} g प्रोटीनपैकी {protein}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "आज तुमच्या {plan} पैकी {left} अजून भरायचे आहे, आणि {proteinTarget} g प्रोटीनपैकी {protein}. असेच सुरू ठेवा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "आज तुमच्या {plan} पैकी {left} अजून भरायचे आहे, आणि {proteinTarget} g प्रोटीनपैकी {protein}. असेच सुरू ठेवा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "आज तुमच्या {plan} पेक्षा {over} जास्त, {proteinTarget} g प्रोटीनपैकी {protein}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "आज तुमच्या {plan} पेक्षा {over} जास्त, आणि {proteinTarget} g प्रोटीनपैकी {protein}. वजन वाढवण्याच्या प्लॅनमध्ये त्यापुढे जाणे हाच उद्देश आहे; उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "आज तुमच्या {plan} पेक्षा {over} जास्त, आणि {proteinTarget} g प्रोटीनपैकी {protein}. वजन वाढवण्याच्या प्लॅनमध्ये त्यापुढे जाणे हाच उद्देश आहे; उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "अंदाज ढोबळ असला तरी तो मोजला जातो: आज तुमच्या {plan} पैकी सुमारे {left} बाकी."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "अंदाज ढोबळ असला तरी तो मोजला जातो: आज तुमच्या {plan} पैकी सुमारे {left} अजून भरायचे आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "अंदाज ढोबळ असला तरी तो मोजला जातो: आज तुमच्या {plan} पेक्षा सुमारे {over} जास्त."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "अंदाज ढोबळ असला तरी तो मोजला जातो: आज तुमच्या {plan} पेक्षा सुमारे {over} जास्त. उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "त्यामुळे आजच्या उरलेल्या दिवसासाठी तुमच्या {plan} पैकी {left} उरते, आणि {proteinTarget} g प्रोटीनपैकी {protein}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "त्यामुळे आजच्या उरलेल्या दिवसासाठी तुमच्या {plan} पैकी {left} उरते, आणि {proteinTarget} g प्रोटीनपैकी {protein}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "त्यामुळे आज तुम्ही तुमच्या {plan} पेक्षा {over} जास्त आहात, आणि {proteinTarget} g प्रोटीनपैकी {protein}. उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "त्यामुळे आज तुम्ही तुमच्या {plan} पेक्षा {over} जास्त आहात, आणि {proteinTarget} g प्रोटीनपैकी {protein}. उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}” — नोंद घेतली, हे आकड्यांमध्ये आहे."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun} जास्त"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} जास्त"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun} प्लॅननुसार"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun} खूप जास्त"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun} खूप जास्त"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "एका जेवणासाठी {nutrient} जास्त आहे: तुमच्या {target}{unit} पैकी {eaten}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "एका जेवणासाठी {nutrient} खूप जास्त आहे: तुमच्या {target}{unit} पैकी {eaten}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "एकाच जेवणात दिवसाचा मोठा वाटा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "मला पुरेसे प्रोटीन मिळत आहे का?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "आधी वेबवर प्लॅनच्या प्रश्नांची उत्तरे द्या."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "कॅलरी"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "कॅलरी"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "कॅलरी प्लॅननुसार."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "कार्ब्स"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "तुमच्या प्लॅनशी तुलना केली जात आहे"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "ज्याने साइन इन केले आहे त्या eait अकाउंटशी कनेक्टेड:"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "ते लेबल वाचता आले नाही."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "मोजले. आज {left} kcal बाकी."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "मोजले. आज {over} kcal जास्त."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "पोषक घटक मोजले जात आहेत · 4 पैकी 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "टाकून दिले."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "आजची सर्वांची मर्यादा संपली आहे. उद्या नवीन आकडा आहे."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "फॅट"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "अन्न ओळखले जात आहे · 4 पैकी 2"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "पहिली नोंद झाली. {kcal} kcal."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "आजच्या उरलेल्या दिवसात हे कमीच ठेवा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "छान — ऑनबोर्डिंग पूर्ण झाले, आणि पहिला दिवस सुरू झाला. जाण्यापूर्वी आणखी एक गोष्ट, आणि हे मी फक्त एकदाच विचारेन."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "छान. मी चॅटमध्ये कधीही इथे आहे — फोटो असो किंवा एक वाक्य, दोन्हीने जेवण नोंदवले जाते."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "खरे सांगायचे तर: मला ती प्लेट नीट वाचता आली नाही. {kcal} हा ढोबळ अंदाज समजा आणि एकूण आकड्यावर विश्वास ठेवण्यापूर्वी ग्रॅम तपासा. पुढच्या वेळी दुसऱ्या कोनातून फोटो घेतल्यास मदत होते."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "माझा आठवडा कसा चालला आहे?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "मी काय खाल्ले ते फक्त सांगायचे आहे"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "काही चुकले असल्यास सांगा — \"अर्धा भात\", \"ॲव्होकॅडो नको\" — किंवा कार्डवर टॅप करून ग्रॅम बदला."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "आमंत्रण लिंक नवीन सदस्यांसाठी आहेत, आणि या अकाउंटने आधीच eait खरेदी केले आहे."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "नोंदवा"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "नोंदवले."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "हे नोंदवले जाईल — बरोबर वाटते का?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "हे {date} साठी नोंदवले जाईल — बरोबर वाटते का?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "जेवण"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "एकाच जेवणात दिवसाच्या अर्ध्याहून अधिक."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "हलवले."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "प्लेटमध्ये काय आहे ते ओळखले जात आहे"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "कॅमेरा नाही, हरकत नाही. तुमच्या लायब्ररीतून फोटो निवडा, किंवा फक्त तुम्ही काय खाल्ले ते सांगा — दोन्हीने मॅक्रो मिळतात."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "घाई नाही. प्लॅन तुमच्या डायरीत आहे — पुढचे जेवण होईल तेव्हा त्याचा फोटो काढा. एवढीच सवय आहे, आणि तसे न झाल्यास उद्या मी एकदा आठवण करून देईन."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "हे नाही"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "तुमचे अकाउंट नाही? वेबवर तुमच्या स्वतःच्या अकाउंटमध्ये साइन इन करा आणि तिथे Telegram जोडा दाबा — हे Telegram त्या अकाउंटवर जाईल."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "आज अजून काहीही नोंदवले नाही."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "प्लॅननुसार."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "iOS आता ज्याबद्दल विचारणार आहे ती आणखी एक गोष्ट: सूचना. दिवसातून एक, त्यापेक्षा जास्त कधीही नाही — 20:30 चा संदेश, आणि तुमचे ट्रायल सुरू असल्यास ते संपण्याच्या आदल्या दिवशी एक रिमाइंडर. याशिवाय काहीही नाही, कधीच."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "आधी एक गोष्ट: iOS कॅमेऱ्याची परवानगी मागेल. कॅमेरा फक्त प्लेटसाठी वापरला जातो, इतर कशासाठीही नाही — फोटो जेवणासोबत ठेवला जातो जेणेकरून तुम्ही तो तुमच्या डायरीत पाहू शकता, आणि तुमच्या अकाउंटसोबत पुसला जातो."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "प्रोटीन"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "प्लेट वाचली जात आहे"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "प्लेट वाचली जात आहे…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "रिस्टोअर झाले — तुम्ही आत आहात. फोटो असो किंवा एक वाक्य, दोन्हीने जेवण नोंदवले जाते."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "सॅच्युरेटेड फॅट"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "सॅच्युरेटेड फॅट"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "जेवणाचा फोटो पाठवा, तुम्ही काय खाल्ले ते सांगा, किंवा प्रश्न विचारा — {coach} उत्तर देईल."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "साइन इन करा"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "सोडियम"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "सोडियम"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "काहीतरी चुकले, आणि तरीही ते पोहोचले असू शकते. पुन्हा पाठवण्यापूर्वी /today तपासा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "काय चुकले ते सांगा — \"अर्धा भात\", \"ॲव्होकॅडो नको\", \"ते 500 होते\" सगळे चालेल. किंवा कार्ड उघडून स्वतः ग्रॅम एडिट करा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "तो कोड कालबाह्य झाला आहे. वेबवर किंवा ॲपमध्ये नवीन कोड मागा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "तो कोड बरोबर नाही. eait कडून आलेला सर्वात नवीन ईमेल तपासा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "त्याचे उत्तर आले नाही. पुन्हा प्रयत्न करा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "हे अन्नासारखे दिसले नाही."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "ही फाइल वाचता येईल असा फोटो नाही. JPEG, PNG किंवा WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "ही आमंत्रण लिंक कोणाशीही जुळत नाही. ती तपासा, किंवा वगळा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "ती लिंक कालबाह्य झाली आहे. वेबवर तुमचा प्लॅन उघडा आणि पुन्हा Telegram जोडा दाबा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "हा मेसेज पाठवण्यासाठी खूप मोठा आहे."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "ते आता राखून ठेवलेले नाही. पुन्हा सांगा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "ते आधीच नोंदवले होते."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "तो फोटो Telegram कडून आला नाही. तो पुन्हा पाठवा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "तो फोटो पोहोचला नाही. तो पुन्हा पाठवा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "हा फोटो पाठवण्यासाठी खूप मोठा आहे."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "आजसाठी हा तुमचा शेवटचा होता — तुमची दैनिक मर्यादा मध्यरात्री रीसेट होते."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "सध्या एवढीच मर्यादा आहे. नंतर पुन्हा प्रयत्न करा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "ही तुमची स्वतःची आमंत्रण लिंक आहे. इथे मित्राची लिंक टाका."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "ॲप"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "इथे बदलण्यासाठी कोणतेही जेवण उघडलेले नाही. तुम्ही काय खाल्ले ते सांगा आणि ते पुन्हा नोंदवा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "हे अकाउंट आधीच मित्राच्या लिंकने सामील झाले आहे."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "या अकाउंटमध्ये अजून साइन इन केलेले नाही — वेबवर Apple किंवा Google सह साइन इन करा, मग ते पुन्हा पाठवा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "या अकाउंटचे मोफत सॅम्पल संपले आहे. पुढे चालू ठेवण्यासाठी वेबवर तुमचे मोफत ट्रायल सुरू करा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "हे नवीन eait आहे. तुमची जेवणे आणि फोटो तुमच्या eait अकाउंटमध्ये ठेवलेले आहेत: वेबवर साइन इन करा आणि तुमच्या प्लॅनवर Telegram जोडा दाबा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "आज: {plan} kcal पैकी {eaten}, {proteinTarget} g प्रोटीनपैकी {protein}"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "या Telegram वरून खूप प्रयत्न झाले. थोडा वेळ थांबा, मग लिंक पुन्हा दाबा."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "ट्रायल सुरू — ते संपल्यावर {price}, जोपर्यंत तुम्ही ते थांबवत नाही. संपण्याच्या आदल्या दिवशी मी आठवण करून देईन, नंतर कधीच नाही."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "फोटो नाही, टाइप केलेले — म्हणून प्रमाण माझा अंदाज आहे. {kcal} ढोबळ समजा; ग्रॅम माहीत असल्यास सांगा, मी ते दुरुस्त करीन."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "अपडेट झाले."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "फोटो अपलोड होत आहे · 4 पैकी 1"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "प्रमाणाचा अंदाज घेतला जात आहे"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "प्रमाणाचा अंदाज घेतला जात आहे · 4 पैकी 3"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "प्रमाणाचा अंदाज घेतला जात आहे…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "आज रात्री मी काय खाऊ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "रात्रीच्या जेवणासाठी हलका पर्याय कोणता?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "तुमचा पहिला दिवस सुरू झाला आहे. 20:30 वाजता तुम्हाला एक संदेश मिळेल — आजचा दिवस, प्लॅनच्या तुलनेत, आणि उद्यासाठी एक ठोस गोष्ट. त्याआधी काहीही नाही."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "तुमची प्रोफाइल आणि सेटिंग्ज वेबवर आहेत."
