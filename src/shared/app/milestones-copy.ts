@@ -510,6 +510,446 @@ const RU: MilestonesCopy = {
   },
 };
 
+const HU: MilestonesCopy = {
+  title: "Mérföldkövek",
+  back: "Vissza",
+  dayStreak: "Napos sorozat",
+  badgesEarned: "Megszerzett jelvények",
+  longestDays: { one: "{n} nap", other: "{n} nap" },
+  longestLabel: "leghosszabb sorozat",
+  badgesOf: "{n}/{total} jelvény",
+  earned: "megszerezve",
+  locked: "zárolva",
+  streak: {
+    dayStreak: { other: "napos sorozat" },
+    dayStreakHeld: { other: "napos sorozat, megtartva" },
+    days: { one: "nap", other: "nap" },
+    longest: "Leghosszabb",
+    floor: "alsó határ",
+    logToday: "Rögzíts ma valamit, és {n} napos lesz.",
+    logToStart: "Rögzíts ma valamit, és elindul a sorozatod.",
+    bentMissed: {
+      lead: "{day} kimaradt; {next} megtartotta.",
+      rest: "Egy kihagyott nap meghajlítja a sorozatot, két egymást követő véget vet neki. A meghajlott nap nem ad hozzá semmit, így a sorozat {n} marad.",
+    },
+    bentFloor: {
+      lead: "{day} az alsó határod ({floor}) alatt maradt.",
+      rest: "Az alsó határ alatti nap nem számít bele sem a sorozatba, sem jelvénybe, ezért kihagyott napként meghajlította a sorozatot. {next} megtartotta.",
+    },
+    bentYesterday: {
+      lead: "A tegnap kimaradt; rögzíts ma valamit, hogy megtartsd.",
+      rest: "Egy kihagyott nap meghajlítja a sorozatot, két egymást követő véget vet neki.",
+    },
+    bentFloorYesterday: { lead: "A tegnap az alsó határod ({floor} kcal) alatt maradt; rögzíts ma valamit, hogy megtartsd." },
+    bentYesterdayHeld: { lead: "A tegnap kimaradt; a mai nap megtartotta." },
+    bentFloorYesterdayHeld: { lead: "A tegnap az alsó határod ({floor} kcal) alatt maradt; a mai nap megtartotta." },
+    ended: {
+      lead: "A sorozat {n} napnál véget ért,",
+      rest: "két egymást követő, rögzítés nélküli nap után. Az eddigi {n} napod továbbra is beleszámít a jelvényeidbe. Rögzíts ma valamit, és kezdd újra.",
+    },
+  },
+  unlock: {
+    heading: "Jelvény feloldva",
+    share: "Jelvény megosztása",
+    viewAll: "Összes jelvény",
+    notEnjoying: "Nem tetszik a jelvényünneplés?",
+    close: "Bezárás",
+  },
+  settings: {
+    celebrations: "Jelvényünneplés",
+    celebrationsSub: "Egy képernyő, amikor feloldasz egy jelvényt.",
+    streakOnHome: "Sorozat a Kezdőlapon",
+    streakOnHomeSub: "A láng és a szám a logó mellett.",
+    note: "Alapból mindkettő be van kapcsolva. Kikapcsolt ünnepléssel a jelvények a Mérföldkövekben továbbra is számítanak; semmi sem ugrik fel. A „Nem tetszik a jelvényünneplés?” ezt az oldalt nyitja meg.",
+    saveFailed: "Nem sikerült menteni. Próbáld újra.",
+  },
+};
+
+const EL: MilestonesCopy = {
+  title: "Ορόσημα",
+  back: "Πίσω",
+  dayStreak: "Σερί ημερών",
+  badgesEarned: "Σήματα που κέρδισες",
+  longestDays: { one: "{n} ημέρα", other: "{n} ημέρες" },
+  longestLabel: "μεγαλύτερο σερί",
+  badgesOf: "{n}/{total} σήματα",
+  earned: "κερδισμένο",
+  locked: "κλειδωμένο",
+  streak: {
+    dayStreak: { other: "ημ. σερί" },
+    dayStreakHeld: { other: "ημ. σερί, διατηρήθηκε" },
+    days: { one: "ημέρα", other: "ημέρες" },
+    longest: "Μεγαλύτερο",
+    floor: "κατώτατο όριο",
+    logToday: "Κατάγραψε κάτι σήμερα για να γίνει {n}.",
+    logToStart: "Κατάγραψε κάτι σήμερα για να ξεκινήσεις το σερί σου.",
+    bentMissed: {
+      lead: "{day}: χωρίς καταγραφή· {next}: το σερί κρατήθηκε.",
+      rest: "Μία χαμένη μέρα λυγίζει το σερί, δύο στη σειρά το τερματίζουν. Μια λυγισμένη μέρα δεν προσθέτει τίποτα, οπότε το σερί μένει στο {n}.",
+    },
+    bentFloor: {
+      lead: "{day}: κάτω από {floor}, το κατώτατο όριό σου.",
+      rest: "Μια μέρα κάτω από αυτό δεν μετράει για το σερί ή για σήμα, οπότε λύγισε το σερί όπως μια χαμένη μέρα. {next}: το σερί κρατήθηκε.",
+    },
+    bentYesterday: {
+      lead: "Χθες χωρίς καταγραφή· κατάγραψε κάτι σήμερα για να κρατήσεις το σερί.",
+      rest: "Μία χαμένη μέρα λυγίζει το σερί, δύο στη σειρά το τερματίζουν.",
+    },
+    bentFloorYesterday: { lead: "Χθες: κάτω από {floor} kcal, το κατώτατο όριό σου· κατάγραψε κάτι σήμερα για να κρατήσεις το σερί." },
+    bentYesterdayHeld: { lead: "Χθες χωρίς καταγραφή· σήμερα το σερί κρατήθηκε." },
+    bentFloorYesterdayHeld: { lead: "Χθες: κάτω από {floor} kcal, το κατώτατο όριό σου· σήμερα το σερί κρατήθηκε." },
+    ended: {
+      lead: "Το σερί τελείωσε στο {n},",
+      rest: "μετά από δύο συνεχόμενες μέρες χωρίς καταγραφή. Οι {n} ημέρες σου μετράνε ακόμη για τα σήματά σου. Κατάγραψε κάτι σήμερα για να ξεκινήσεις ξανά.",
+    },
+  },
+  unlock: {
+    heading: "Νέο σήμα ξεκλειδώθηκε",
+    share: "Κοινοποίησε το σήμα σου",
+    viewAll: "Δες όλα τα σήματα",
+    notEnjoying: "Δεν σου αρέσουν οι γιορτές για τα σήματα;",
+    close: "Κλείσιμο",
+  },
+  settings: {
+    celebrations: "Γιορτές για τα σήματα",
+    celebrationsSub: "Μια οθόνη όταν ξεκλειδώνεις ένα σήμα.",
+    streakOnHome: "Σερί στην Αρχική",
+    streakOnHomeSub: "Η φλόγα και ο αριθμός δίπλα στο λογότυπο.",
+    note: "Και τα δύο είναι ενεργά από προεπιλογή. Με τις γιορτές ανενεργές, τα σήματα μετράνε κανονικά στα Ορόσημα· δεν εμφανίζεται τίποτα. Το «Δεν σου αρέσουν οι γιορτές για τα σήματα;» ανοίγει αυτή τη σελίδα.",
+    saveFailed: "Η αποθήκευση απέτυχε. Δοκίμασε ξανά.",
+  },
+};
+
+const RO: MilestonesCopy = {
+  title: "Repere",
+  back: "Înapoi",
+  dayStreak: "Serie de zile",
+  badgesEarned: "Insigne câștigate",
+  longestDays: { one: "{n} zi", other: "Zile: {n}" },
+  longestLabel: "cea mai lungă serie",
+  badgesOf: "{n}/{total} insigne",
+  earned: "câștigată",
+  locked: "blocată",
+  streak: {
+    dayStreak: { other: "zile la rând" },
+    dayStreakHeld: { other: "zile la rând, serie menținută" },
+    days: { one: "zi", other: "zile" },
+    longest: "Record",
+    floor: "prag",
+    logToday: "Înregistrează azi ca seria să ajungă la {n}.",
+    logToStart: "Înregistrează azi ca să-ți începi seria.",
+    bentMissed: {
+      lead: "{day} a scăpat; {next} a ținut-o.",
+      rest: "O zi ratată îndoaie seria, două la rând o încheie. O zi îndoită nu adaugă nimic, așa că rămâne la {n}.",
+    },
+    bentFloor: {
+      lead: "{day} a rămas sub {floor}, pragul tău.",
+      rest: "O zi sub prag nu contează pentru serie sau pentru o insignă, așa că a îndoit seria ca o zi ratată. {next} a ținut-o.",
+    },
+    bentYesterday: {
+      lead: "Ieri a scăpat; înregistrează azi ca s-o menții.",
+      rest: "O zi ratată îndoaie seria, două la rând o încheie.",
+    },
+    bentFloorYesterday: { lead: "Ieri a rămas sub {floor} kcal, pragul tău; înregistrează azi ca s-o menții." },
+    bentYesterdayHeld: { lead: "Ieri a scăpat; azi a ținut-o." },
+    bentFloorYesterdayHeld: { lead: "Ieri a rămas sub {floor} kcal, pragul tău; azi a ținut-o." },
+    ended: {
+      lead: "Seria s-a încheiat la {n},",
+      rest: "după două zile la rând fără înregistrări. Zilele tale ({n}) contează în continuare pentru insigne. Înregistrează azi ca s-o iei de la capăt.",
+    },
+  },
+  unlock: {
+    heading: "Insignă deblocată",
+    share: "Distribuie insigna",
+    viewAll: "Vezi toate insignele",
+    notEnjoying: "Nu-ți plac celebrările insignelor?",
+    close: "Închide",
+  },
+  settings: {
+    celebrations: "Celebrări pentru insigne",
+    celebrationsSub: "Un ecran când deblochezi o insignă.",
+    streakOnHome: "Seria pe Acasă",
+    streakOnHomeSub: "Flacăra și numărul de lângă logo.",
+    note: "Ambele sunt activate implicit. Cu celebrările dezactivate, insignele se numără în continuare în Repere; nu apare nimic. „Nu-ți plac celebrările insignelor?” deschide această pagină.",
+    saveFailed: "Nu am putut salva. Încearcă din nou.",
+  },
+};
+
+const CS: MilestonesCopy = {
+  title: "Milníky",
+  back: "Zpět",
+  dayStreak: "Série dní",
+  badgesEarned: "Získané odznaky",
+  longestDays: { one: "{n} den", other: "{n} d" },
+  longestLabel: "nejdelší série",
+  badgesOf: "Odznaky: {n}/{total}",
+  earned: "získáno",
+  locked: "zamčeno",
+  streak: {
+    dayStreak: { other: "d v řadě" },
+    dayStreakHeld: { other: "d v řadě, udrženo" },
+    days: { one: "den", other: "d" },
+    longest: "Nejdelší",
+    floor: "minimum",
+    logToday: "Zapiš dnes a bude jich {n}.",
+    logToStart: "Zapiš dnes a začni svou sérii.",
+    bentMissed: {
+      lead: "{day}: vynecháno; {next}: série udržena.",
+      rest: "Jeden vynechaný den sérii ohne, dva v řadě ji ukončí. Ohnutý den nic nepřidá, takže zůstává na {n}.",
+    },
+    bentFloor: {
+      lead: "{day}: pod {floor}, tvým minimem.",
+      rest: "Den pod minimem se nepočítá do série ani do odznaku, takže sérii ohnul jako vynechaný den. {next}: série udržena.",
+    },
+    bentYesterday: {
+      lead: "Včera vynecháno; zapiš dnes a sérii udržíš.",
+      rest: "Jeden vynechaný den sérii ohne, dva v řadě ji ukončí.",
+    },
+    bentFloorYesterday: { lead: "Včera pod {floor} kcal, tvým minimem; zapiš dnes a sérii udržíš." },
+    bentYesterdayHeld: { lead: "Včera vynecháno; dnešek sérii udržel." },
+    bentFloorYesterdayHeld: { lead: "Včera pod {floor} kcal, tvým minimem; dnešek sérii udržel." },
+    ended: {
+      lead: "Série skončila na {n},",
+      rest: "po dvou dnech v řadě bez zápisu. Dny série ({n}) se pořád počítají do odznaků. Zapiš dnes a začni znovu.",
+    },
+  },
+  unlock: {
+    heading: "Odznak odemčen",
+    share: "Sdílej svůj odznak",
+    viewAll: "Zobrazit všechny odznaky",
+    notEnjoying: "Oslavy odznaků tě nebaví?",
+    close: "Zavřít",
+  },
+  settings: {
+    celebrations: "Oslavy odznaků",
+    celebrationsSub: "Obrazovka, když odemkneš odznak.",
+    streakOnHome: "Série na Domů",
+    streakOnHomeSub: "Plamínek a počet vedle loga.",
+    note: "Obojí je ve výchozím stavu zapnuté. S vypnutými oslavami se odznaky v Milnících pořád počítají; jen nic nevyskakuje. „Oslavy odznaků tě nebaví?“ otevře tuto stránku.",
+    saveFailed: "Nepodařilo se uložit. Zkus to znovu.",
+  },
+};
+
+const HI: MilestonesCopy = {
+  title: "पड़ाव",
+  back: "वापस",
+  dayStreak: "दिन की स्ट्रीक",
+  badgesEarned: "मिले बैज",
+  longestDays: { one: "{n} दिन", other: "{n} दिन" },
+  longestLabel: "सबसे लंबी स्ट्रीक",
+  badgesOf: "{n}/{total} बैज",
+  earned: "मिला",
+  locked: "लॉक",
+  streak: {
+    dayStreak: { other: "दिन की स्ट्रीक" },
+    dayStreakHeld: { other: "दिन की स्ट्रीक, बनी हुई" },
+    days: { one: "दिन", other: "दिन" },
+    longest: "सबसे लंबी",
+    floor: "न्यूनतम सीमा",
+    logToday: "इसे {n} बनाने के लिए आज दर्ज करें।",
+    logToStart: "अपनी स्ट्रीक शुरू करने के लिए आज दर्ज करें।",
+    bentMissed: {
+      lead: "{day} छूट गया; {next} ने उसे थाम लिया।",
+      rest: "एक छूटा दिन स्ट्रीक को झुका देता है, लगातार दो दिन उसे खत्म कर देते हैं। झुका हुआ दिन कुछ नहीं जोड़ता, इसलिए यह {n} पर ही रहती है।",
+    },
+    bentFloor: {
+      lead: "{day} {floor} से नीचे रहा, जो आपकी न्यूनतम सीमा है।",
+      rest: "उससे नीचे का दिन न स्ट्रीक में गिना जाता है, न किसी बैज में, इसलिए उसने छूटे दिन की तरह स्ट्रीक को झुका दिया। {next} ने उसे थाम लिया।",
+    },
+    bentYesterday: {
+      lead: "कल छूट गया; इसे बनाए रखने के लिए आज दर्ज करें।",
+      rest: "एक छूटा दिन स्ट्रीक को झुका देता है, लगातार दो दिन उसे खत्म कर देते हैं।",
+    },
+    bentFloorYesterday: { lead: "कल {floor} kcal से नीचे रहा, जो आपकी न्यूनतम सीमा है; इसे बनाए रखने के लिए आज दर्ज करें।" },
+    bentYesterdayHeld: { lead: "कल छूट गया; आज ने इसे थाम लिया।" },
+    bentFloorYesterdayHeld: { lead: "कल {floor} kcal से नीचे रहा, जो आपकी न्यूनतम सीमा है; आज ने इसे थाम लिया।" },
+    ended: {
+      lead: "स्ट्रीक {n} पर खत्म हुई,",
+      rest: "लगातार दो दिन बिना कुछ दर्ज किए। आपके {n} दिन अब भी आपके बैज में गिने जाते हैं। फिर से शुरू करने के लिए आज दर्ज करें।",
+    },
+  },
+  unlock: {
+    heading: "बैज अनलॉक हुआ",
+    share: "अपना बैज शेयर करें",
+    viewAll: "सभी बैज देखें",
+    notEnjoying: "बैज के जश्न पसंद नहीं आ रहे?",
+    close: "बंद करें",
+  },
+  settings: {
+    celebrations: "बैज के जश्न",
+    celebrationsSub: "बैज अनलॉक होने पर एक स्क्रीन।",
+    streakOnHome: "होम पर स्ट्रीक",
+    streakOnHomeSub: "ब्रैंड के पास लौ और गिनती।",
+    note: "दोनों डिफ़ॉल्ट रूप से चालू हैं। जश्न बंद होने पर भी बैज पड़ाव में गिने जाते हैं; बस कुछ पॉप अप नहीं होता। \"बैज के जश्न पसंद नहीं आ रहे?\" यही पेज खोलता है।",
+    saveFailed: "सेव नहीं हो पाया। फिर से कोशिश करें।",
+  },
+};
+
+const TH: MilestonesCopy = {
+  title: "หมุดหมาย",
+  back: "กลับ",
+  dayStreak: "วันในสตรีค",
+  badgesEarned: "เหรียญที่ได้รับ",
+  longestDays: { one: "{n} วัน", other: "{n} วัน" },
+  longestLabel: "สตรีคที่ยาวที่สุด",
+  badgesOf: "{n}/{total} เหรียญ",
+  earned: "ได้รับแล้ว",
+  locked: "ล็อกอยู่",
+  streak: {
+    dayStreak: { other: "วันในสตรีค" },
+    dayStreakHeld: { other: "วันในสตรีค รักษาไว้ได้" },
+    days: { one: "วัน", other: "วัน" },
+    longest: "ยาวที่สุด",
+    floor: "ขั้นต่ำ",
+    logToday: "จดวันนี้เพื่อให้เป็น {n}",
+    logToStart: "จดวันนี้เพื่อเริ่มสตรีคของคุณ",
+    bentMissed: {
+      lead: "{day} พลาดไป แต่ {next} รักษาสตรีคไว้ได้",
+      rest: "พลาด 1 วัน สตรีคจะสะดุด พลาด 2 วันติดกัน สตรีคจะจบ วันที่สะดุดไม่นับเพิ่ม สตรีคจึงคงอยู่ที่ {n}",
+    },
+    bentFloor: {
+      lead: "{day} ต่ำกว่า {floor} ซึ่งเป็นขั้นต่ำของคุณ",
+      rest: "วันที่ต่ำกว่าขั้นต่ำไม่นับรวมในสตรีคหรือเหรียญ สตรีคจึงสะดุดเหมือนวันที่พลาด {next} รักษาไว้ได้",
+    },
+    bentYesterday: {
+      lead: "เมื่อวานพลาดไป จดวันนี้เพื่อรักษาสตรีคไว้",
+      rest: "พลาด 1 วัน สตรีคจะสะดุด พลาด 2 วันติดกัน สตรีคจะจบ",
+    },
+    bentFloorYesterday: { lead: "เมื่อวานต่ำกว่า {floor} kcal ซึ่งเป็นขั้นต่ำของคุณ จดวันนี้เพื่อรักษาสตรีคไว้" },
+    bentYesterdayHeld: { lead: "เมื่อวานพลาดไป แต่วันนี้รักษาสตรีคไว้ได้" },
+    bentFloorYesterdayHeld: { lead: "เมื่อวานต่ำกว่า {floor} kcal ซึ่งเป็นขั้นต่ำของคุณ แต่วันนี้รักษาสตรีคไว้ได้" },
+    ended: {
+      lead: "สตรีคจบที่ {n}",
+      rest: "หลังจากไม่ได้จด 2 วันติดกัน {n} วันของคุณยังนับรวมในเหรียญ จดวันนี้เพื่อเริ่มใหม่",
+    },
+  },
+  unlock: {
+    heading: "ปลดล็อกเหรียญแล้ว",
+    share: "แชร์เหรียญของคุณ",
+    viewAll: "ดูเหรียญทั้งหมด",
+    notEnjoying: "ไม่ชอบการฉลองเหรียญใช่ไหม?",
+    close: "ปิด",
+  },
+  settings: {
+    celebrations: "ฉลองเหรียญ",
+    celebrationsSub: "แสดงหน้าจอเมื่อคุณปลดล็อกเหรียญ",
+    streakOnHome: "สตรีคในหน้าหลัก",
+    streakOnHomeSub: "เปลวไฟและตัวเลขข้างโลโก้",
+    note: "ทั้งสองอย่างเปิดไว้เป็นค่าเริ่มต้น ถ้าปิดการฉลอง เหรียญยังนับในหมุดหมาย แค่ไม่มีอะไรเด้งขึ้นมา “ไม่ชอบการฉลองเหรียญใช่ไหม?” จะเปิดหน้านี้",
+    saveFailed: "บันทึกไม่สำเร็จ ลองอีกครั้ง",
+  },
+};
+
+const SV: MilestonesCopy = {
+  title: "Milstolpar",
+  back: "Tillbaka",
+  dayStreak: "Dagar i rad",
+  badgesEarned: "Intjänade märken",
+  longestDays: { one: "{n} dag", other: "{n} dagar" },
+  longestLabel: "längsta svit",
+  badgesOf: "{n}/{total} märken",
+  earned: "intjänat",
+  locked: "låst",
+  streak: {
+    dayStreak: { other: "dagar i rad" },
+    dayStreakHeld: { other: "dagar i rad, håller" },
+    days: { one: "dag", other: "dagar" },
+    longest: "Längsta",
+    floor: "lägsta gräns",
+    logToday: "Logga i dag så blir det {n}.",
+    logToStart: "Logga i dag för att starta din svit.",
+    bentMissed: {
+      lead: "{day} föll bort; {next} höll den.",
+      rest: "En missad dag böjer sviten, två i rad avslutar den. En böjd dag lägger inte till något, så den stannar på {n}.",
+    },
+    bentFloor: {
+      lead: "{day} låg under {floor}, din lägsta gräns.",
+      rest: "En dag under den räknas inte till sviten eller ett märke, så den böjde sviten som en missad dag. {next} höll den.",
+    },
+    bentYesterday: {
+      lead: "Gårdagen föll bort; logga i dag för att hålla den.",
+      rest: "En missad dag böjer sviten, två i rad avslutar den.",
+    },
+    bentFloorYesterday: { lead: "Gårdagen låg under {floor} kcal, din lägsta gräns; logga i dag för att hålla den." },
+    bentYesterdayHeld: { lead: "Gårdagen föll bort; i dag höll den." },
+    bentFloorYesterdayHeld: { lead: "Gårdagen låg under {floor} kcal, din lägsta gräns; i dag höll den." },
+    ended: {
+      lead: "Sviten slutade på {n},",
+      rest: "efter två dagar i rad utan loggning. Dina {n} dagar räknas fortfarande till dina märken. Logga i dag för att börja om.",
+    },
+  },
+  unlock: {
+    heading: "Märke upplåst",
+    share: "Dela ditt märke",
+    viewAll: "Visa alla märken",
+    notEnjoying: "Gillar du inte märkesfirandet?",
+    close: "Stäng",
+  },
+  settings: {
+    celebrations: "Märkesfirande",
+    celebrationsSub: "En skärm när du låser upp ett märke.",
+    streakOnHome: "Svit på Hem",
+    streakOnHomeSub: "Lågan och antalet vid logotypen.",
+    note: "Båda är på som standard. Med firandet av räknas märken fortfarande under Milstolpar; inget dyker upp. ”Gillar du inte märkesfirandet?” öppnar den här sidan.",
+    saveFailed: "Det gick inte att spara. Försök igen.",
+  },
+};
+
+const UK: MilestonesCopy = {
+  title: "Віхи",
+  back: "Назад",
+  dayStreak: "Днів поспіль",
+  badgesEarned: "Отримано значків",
+  longestDays: { one: "{n} день", other: "{n} дн." },
+  longestLabel: "найдовша серія",
+  badgesOf: "Значки: {n}/{total}",
+  earned: "отримано",
+  locked: "закрито",
+  streak: {
+    dayStreak: { other: "дн. поспіль" },
+    dayStreakHeld: { other: "дн. поспіль, серія тримається" },
+    days: { one: "день", other: "дн." },
+    longest: "Рекорд",
+    floor: "нижня межа",
+    logToday: "Запиши щось сьогодні, щоб стало {n}.",
+    logToStart: "Запиши щось сьогодні, щоб почати серію.",
+    bentMissed: {
+      lead: "{day}: пропуск; {next}: серію втримано.",
+      rest: "Один пропущений день згинає серію, два поспіль — обривають її. Зігнутий день нічого не додає, тому серія лишається на {n}.",
+    },
+    bentFloor: {
+      lead: "{day}: нижче {floor} — твоєї нижньої межі.",
+      rest: "День нижче нижньої межі не зараховується ні до серії, ні до значка, тож він зігнув серію, як пропущений день. {next}: серію втримано.",
+    },
+    bentYesterday: {
+      lead: "Учора — пропуск; запиши щось сьогодні, щоб утримати серію.",
+      rest: "Один пропущений день згинає серію, два поспіль — обривають її.",
+    },
+    bentFloorYesterday: { lead: "Учора було нижче {floor} ккал — твоєї нижньої межі; запиши щось сьогодні, щоб утримати серію." },
+    bentYesterdayHeld: { lead: "Учора — пропуск; сьогодні серію втримано." },
+    bentFloorYesterdayHeld: { lead: "Учора було нижче {floor} ккал — твоєї нижньої межі; сьогодні серію втримано." },
+    ended: {
+      lead: "Серія завершилася на {n},",
+      rest: "після двох днів поспіль без записів. Твої {n} дн. і далі зараховуються до значків. Запиши щось сьогодні, щоб почати знову.",
+    },
+  },
+  unlock: {
+    heading: "Значок відкрито",
+    share: "Поділитися значком",
+    viewAll: "Усі значки",
+    notEnjoying: "Не подобаються святкування значків?",
+    close: "Закрити",
+  },
+  settings: {
+    celebrations: "Святкування значків",
+    celebrationsSub: "Екран, коли ти відкриваєш значок.",
+    streakOnHome: "Серія на головній",
+    streakOnHomeSub: "Вогник і число біля логотипа.",
+    note: "Обидва ввімкнено за замовчуванням. Якщо святкування вимкнено, значки й далі зараховуються у Віхах; нічого не спливає. «Не подобаються святкування значків?» відкриває цю сторінку.",
+    saveFailed: "Не вдалося зберегти. Спробуй ще раз.",
+  },
+};
+
 const NL: MilestonesCopy = {
   title: "Mijlpalen",
   back: "Terug",
@@ -951,7 +1391,7 @@ const PT_BR: MilestonesCopy = {
 };
 
 export const MILESTONES_COPY: Localized<MilestonesCopy> = {
-  en: EN, fr: FR, de: DE, it: IT, es: ES, vi: VI, id: ID, ru: RU, nl: NL, pl: PL, tr: TR, "zh-Hant": ZH_HANT, "zh-Hans": ZH_HANS, ko: KO, ja: JA, "pt-BR": PT_BR,
+  en: EN, fr: FR, de: DE, it: IT, es: ES, vi: VI, id: ID, ru: RU, hu: HU, el: EL, ro: RO, cs: CS, hi: HI, th: TH, sv: SV, uk: UK, nl: NL, pl: PL, tr: TR, "zh-Hant": ZH_HANT, "zh-Hans": ZH_HANS, ko: KO, ja: JA, "pt-BR": PT_BR,
 };
 
 export const milestonesCopyFor = (lang: Lang): MilestonesCopy => t(lang)(MILESTONES_COPY);

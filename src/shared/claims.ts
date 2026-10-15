@@ -123,6 +123,20 @@ const RULES: readonly Rule[] = [
   { name: "guarantee", re: /(?:結果|成果|効果|減量|痩せる|やせる|\d+\s*(?:kg|キロ))(?:を|が|は|も)?(?:必ず|確実に)?保証(?!(?:する|される|できる)?(?:もの|わけ)?(?:で|じゃ)?は(?:ありません|ない)|しません|しない|いたしません|できません|できない|されません|されない)|保証(?:付き|つき)の?(?:結果|成果|効果|減量)/gu },
   { name: "guarantee", re: /(?<![不无無能法])(?:保[证證]|[担擔]保)(?:你|您)?(?:的)?(?:效果|[结結]果|成功|[减減]重|[减減]肥|瘦|[减減]掉)|(?:效果|[结結]果|[减減]重)保[证證]|包瘦/gu },
   { name: "guarantee", re: /(?:결과|효과|감량|성공|\d+\s*(?:kg|킬로))(?:를|을|가|이|는|은)?\s*보장(?!하지|할\s*수\s*없|되지|은\s*없|이\s*없|하는\s*것은\s*아니)|보장된\s*(?:결과|효과|감량|성공)/gu },
+  // Wave 2. The negation right before the stem ("не гарантуємо", "není zaručen", "nem
+  // garantált") is excluded by lookbehind: it is the honest denial, not a claim.
+  { name: "guarantee", re: /(?<!\p{L})(?:результат\p{L}*|схудн\p{L}*|ваг[аиу]|кг)(?:\s+\S+){0,2}\s+(?<!не\s)гарант\p{L}*|(?<!\p{L}|не\s)гарант\p{L}*(?:\s+\S+){0,2}\s+(?:результат\p{L}*|схудн\p{L}*|ваг[аиу]|кг)/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:resultat\p{L}*|viktnedgång\p{L}*|viktminskning\p{L}*|framgång|kg)(?:\s+\S+){0,2}\s+(?<!inte\s)garant\p{L}*|(?<!\p{L}|inte\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:resultat\p{L}*|viktnedgång|viktminskning|framgång|kg)|(?<!\p{L})resultatgaranti/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:výsled\p{L}*|úspěch\p{L}*|úbyt\p{L}*\s+(?:váhy|hmotnosti)|kg)(?:\s+\S+){0,2}\s+(?<!není\s|nejsou\s)(?:garant|zaruč|záruk)\p{L}*|(?<!\p{L}|není\s|nejsou\s)(?:garant|zaruč|záruk)\p{L}*(?:\s+\S+){0,2}\s+(?:výsled\p{L}*|úspěch\p{L}*|úbyt\p{L}*|zhubn\p{L}*|kg)/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!nu\s(?:sunt\s|este\s|e\s)?)garant\p{L}*|(?<!\p{L}|nu\s(?:sunt\s|este\s|e\s)?)garant\p{L}*(?:\s+\S+){0,2}\s+(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:αποτελ[εέ]σμ\p{L}*|απ[ωώ]λει\p{L}*\s+β[αά]ρους|επιτυχ\p{L}*|κιλ\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!δεν\s(?:είναι\s)?)εγγυ\p{L}*|(?<!\p{L}|δεν\s(?:είναι\s)?)εγγυ\p{L}*(?:\s+\S+){0,2}\s+(?:αποτελ[εέ]σμ\p{L}*|απ[ωώ]λει\p{L}*\s+β[αά]ρους|επιτυχ\p{L}*|κιλ\p{L}*|kg)/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:eredmény\p{L}*|fogyás\p{L}*|siker\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!nem\s)garant\p{L}*|(?<!\p{L}|nem\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:eredmény\p{L}*|fogyás\p{L}*|siker\p{L}*|kg)|(?<!\p{L})(?:eredmény|siker|fogyás)garanci\p{L}*/giu },
+  // Thai has no spaces and `ผล` also opens ผลิตภัณฑ์ (product — the warranty a store page writes)
+  // and ผลไม้ (fruit), so the outcome is spelled out rather than prefixed. SARA AM (ำ) is written
+  // `ํา` in every Thai rule: NFKC splits it, so a literal `น้ำ` never matches.
+  { name: "guarantee", re: /(?<!ไม่\s?|ไม่ได้\s?|ไม่มีการ\s?|ไม่สามารถ\s?)(?:รับประกัน|การันตี)(?:ว่า)?\s*(?:จะ)?\s*(?:ผล(?![ิไ])|ลดน้ําหนัก|น้ําหนัก|ลด\s*\d|ผอม|ความสําเร็จ)|(?:ผลลัพธ์|ลดน้ําหนัก|\d+\s*(?:กก|กิโล|kg))\s*(?:ที่)?(?:ได้รับการ)?(?:รับประกัน|การันตี)/gu },
+  // Hindi is verb-final: "नतीजों की गारंटी" is the claim, "गारंटी नहीं" the denial.
+  { name: "guarantee", re: /(?:नतीज\S*|परिणाम\S*|रिज़?ल्ट\S*|वज़?न|\d+\s*(?:kg|किलो))(?:\s+\S+){0,2}\s+गार(?:ं|ण्)टी(?!\S*\s+नहीं)|गार(?:ं|ण्)टी\S*(?:\s+\S+){0,2}\s+(?:नतीज|परिणाम|रिज़?ल्ट|वज़?न|\d+\s*(?:kg|किलो))/gu },
 
   // weight-promise — the stems, and DELIBERATELY NOT the progressive.
   //
@@ -150,6 +164,28 @@ const RULES: readonly Rule[] = [
   { name: "weight-promise", re: /(?:体重|\d+\s*(?:kg|キロ))\s*を?\s*(?:減らす|減らせ|減らそう|減らしましょう|落とす|落とそう|落としましょう)|\d+\s*(?:kg|キロ)\s*(?:痩せ|やせ|減量)|(?:痩|や)せ(?:る|られる|られます|ます|ましょう|よう)/gu },
   { name: "weight-promise", re: /[减減](?:掉|去)\s*\d+\s*(?:公斤|斤|kg|千克)|[减減]掉(?:体重|體重)|[减減]肥|瘦\s*\d+\s*(?:公斤|斤|kg)/gu },
   { name: "weight-promise", re: /\d+\s*(?:kg|킬로)\s*(?:감량|빼)|체중\s*감량|살(?:을)?\s*빼(?:기|세요|자|요|는|고)?/gu },
+  // Wave 2, on the same lines: the stem and the perfective (`схуднеш`, `zhubneš`, `να χάσω`)
+  // promise, the imperfective present (`худнеш`, `hubneš`, `χάνεις`, `fogysz`) describes, and the
+  // bare imperative `twice.title` ships (`Скидай`, `Zhubni`, `Slăbește`, `Χάσε`, `Fogyj`, `वज़न
+  // घटाएँ`) is left alone. Swedish `gå ner i vikt` is English's `lose weight` — adjacent only, so
+  // `Gå ner dubbelt så mycket i vikt` passes as `Lose twice as much weight` does.
+  { name: "weight-promise", re: /(?<!\p{L})(?:схудн(?:ути|еш|ете|е|ення)|с(?:кинути|кинеш|кинете)\s+(?:\d+\s*кг|ваг\p{L}*|зайв\p{L}*\s+ваг\p{L}*)|втрат\p{L}*\s+ваги|зниженн\p{L}*\s+ваги|мінус\s+\d+\s*кг)(?!\p{L})/giu },
+  { name: "weight-promise", re: /(?<!\p{L})(?:gå|går)\s+ner\s+(?:i\s+vikt|\d+\s*(?:kg|kilo))(?!\p{L})|(?<!\p{L})tappa\s+(?:vikt|\d+\s*(?:kg|kilo))(?!\p{L})|(?<!\p{L})vikt(?:nedgång|minskning)\p{L}*|(?<!\p{L})banta(?!\p{L})/giu },
+  // Thai `ลดน้ำหนัก` is the only word the language has and `twice.title` ships it, as Vietnamese
+  // `giảm cân` would be if its title used it: the number is what makes it a promise here.
+  { name: "weight-promise", re: /ลด(?:น้ําหนัก)?\s*(?:ได้)?\s*\d+\s*(?:กก|กิโล|kg)|ลดความอ้วน/gu },
+  // Devanagari's vowel signs are \p{M}, not \p{L}, so the boundary reads both. The nukta (ज़) is
+  // split off by NFKC, so it is optional here.
+  { name: "weight-promise", re: /\d+\s*(?:kg|किलो\S*)\s+(?:वज़?न\s+)?(?:घटा|कम\s+कर)\S*|(?<![\p{L}\p{M}])वज़?न\s+(?:घटाना|कम\s+करना|घटेगा|कम\s+होगा)(?![\p{L}\p{M}])|वेट\s*लॉस/gu },
+  { name: "weight-promise", re: /(?<!\p{L})zhubn(?:out|eš|ete|e)(?!\p{L})|(?<!\p{L})shod(?:it|íš|íte)\s+(?:\d+\s*(?:kg|kil\p{L}*)|váh\p{L}*|kil\p{L}*)|(?<!\p{L})mínus\s+\d+\s*kg/giu },
+  { name: "weight-promise", re: /(?<!\p{L})slăb\p{L}*\s+\d+\s*(?:kg|kilo\p{L}*)|(?<!\p{L})(?:vei|veți|a)\s+slăbi(?!\p{L})|(?<!\p{L})pierd\p{L}*\s+(?:în\s+greutate|\d+\s*(?:kg|kilo\p{L}*))|(?<!\p{L})slăbire\p{L}*/giu },
+  { name: "weight-promise", re: /(?<!\p{L})χ[αά]σ\p{L}*\s+(?:\d+\s*(?:kg|κιλ\p{L}*)|β[αά]ρος|κιλ\p{L}*)|(?<!\p{L})απ[ωώ]λει\p{L}*\s+β[αά]ρους|(?<!\p{L})αδυν[αά]τ[ιί]σ\p{L}*/giu },
+  // `−6 kg` is Russian's `минус 6кг` with the word replaced by the sign, and it is how seven of the
+  // wave-2 plan headlines say the goal. Whole numbers only — `−0,5 kg` is a pace, not a promise —
+  // and nothing alphanumeric before the sign, so a range (`5-10 kg`) is not a minus.
+  { name: "weight-promise", re: /(?<![\p{L}\p{N}])[−-]\s?\d+\s*(?:kg|кг|κιλ\p{L}*|kil[óo]\p{L}*|กก|กิโล|किलो)(?![\p{L}\d])/giu },
+  // `elfogyott` (ran out) is everywhere in the Hungarian copy, so `fogy` is never bare.
+  { name: "weight-promise", re: /(?<![\p{L}\d.,])\d+\s*(?:kg|kil[óo])\p{L}*\s+fogy\p{L}*|(?<!\p{L})(?:fogy|ad)\p{L}*\s+le\s+\d+\s*(?:kg|kil[óo])|(?<!\p{L})lefogy\p{L}*|(?<!\p{L})mínusz\s+\d+\s*(?:kg|kil[óo])/giu },
 
   // lowers-marker — the MARKER decides, never the verb.
   //
@@ -171,6 +207,16 @@ const RULES: readonly Rule[] = [
   { name: "lowers-marker", re: /(?:コレステロール|血糖値?|血圧)(?:値)?\s*(?:を|が)?\s*(?:下げ|低下させ|減らす|減らし)/gu },
   { name: "lowers-marker", re: /(?:降低|[减減]少|[减減]低|降)(?:你的|您的)?(?:胆固醇|膽固醇|血糖|血压|血壓|血脂)/gu },
   { name: "lowers-marker", re: /(?:콜레스테롤|혈당|혈압)(?:\s*수치)?\s*(?:을|를|이|가)?\s*(?:낮추|낮춰|낮춥|떨어뜨|감소시)/gu },
+  // Wave 2. Sugar is `в крові` / `v krvi` / `din sânge` / `blod-`, and pressure is arterial,
+  // wherever the bare noun is also the food or the everyday word.
+  { name: "lowers-marker", re: /(?<!\p{L})зни[жз]\p{L}*\s+(?:(?:рівень|ваш|твій)\s+)?(?:холестерин\p{L}*|тиск\p{L}*|цук(?:ор|ру)\s+в\s+крові)|(?<!\p{L})(?:холестерин|тиск)\p{L}*\s+зни[жз]\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})sänk(?:er|a|s|t)?\s+(?:ditt\s+|din\s+|ert\s+|er\s+)?(?:kolesterol\p{L}*|blodsocker\p{L}*|blodtryck\p{L}*)|(?<!\p{L})(?:kolesterol|blodsocker|blodtryck)\p{L}*(?:\s+\S+){0,2}\s+sänk\p{L}*/giu },
+  { name: "lowers-marker", re: /ลด(?:ระดับ)?\s*(?:(?:คอ|โค)เลสเตอรอล|ไขมันในเลือด|น้ําตาลในเลือด|ความดัน)/gu },
+  { name: "lowers-marker", re: /(?:कोलेस्ट्र\S*|ब्लड\s+शुगर|ब्लड\s+प्रेशर|रक्त\s*(?:चाप|शर्करा))(?:\s+\S+){0,2}\s+(?:कम\s+कर|घटा)\S*/gu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:sniž|sníž)\p{L}*\s+(?:(?:hladinu|váš|tvůj|vaši|tvoji)\s+)?(?:cholesterol\p{L}*|glykémi\p{L}*|krevní\s+tlak|cukr\p{L}*\s+v\s+krvi|hladin\p{L}*\s+cukru\s+v\s+krvi)|(?<!\p{L})(?:cholesterol\p{L}*|krevní\s+tlak)(?:\s+\S+){0,2}\s+(?:sniž|sníž)\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:scad|scăd|reduc|diminu)\p{L}*\s+(?:nivelul\s+(?:de\s+)?)?(?:colesterol\p{L}*|glicemi\p{L}*|zahăr\p{L}*\s+din\s+sânge|tensiun\p{L}*\s+arterial\p{L}*)/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:μει[ωώ]ν|ρ[ιί]χν|κατεβ[αά]ζ)\p{L}*\s+(?:(?:τη[νς]?|το|τα)\s+)?(?:χοληστερ\p{L}*|σ[αά]κχαρ\p{L}*|αρτηριακ\p{L}*\s+π[ιί]εση)/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:koleszterin\p{L}*|vércukor\p{L}*|vérnyomás\p{L}*)(?:\s+\S+){0,2}\s+(?:le)?(?:csökkent|szorít)\p{L}+|(?<!\p{L})(?:le)?csökkent\p{L}+\s+(?:a\s+)?(?:koleszterin\p{L}*|vércukor\p{L}*|vérnyomás\p{L}*)/giu },
 
   // detox — the Latin word is the one a Romance marketer does not need.
   { name: "detox", re: /\bd[ée]tox\w*/gi },
@@ -189,6 +235,15 @@ const RULES: readonly Rule[] = [
   { name: "detox", re: /(?<!\p{L})oczyszcz\p{L}*\s+organizm\p{L}*|(?<!\p{L})usuw\p{L}*\s+toksyn\p{L}*/giu },
   { name: "detox", re: /(?<!\p{L})toksin\p{L}*\s+(?:at|arın)\p{L}*|(?<!\p{L})vücud\p{L}*\s+arındır\p{L}*/giu },
   { name: "detox", re: /デトックス|디톡스|해독|排毒|解毒/gu },
+  // Wave 2. `detox` reads cs/ro/sv/hu's loanword already; `avgift` alone is Swedish for a FEE.
+  { name: "detox", re: /(?<!\p{L})(?:детокс\p{L}*|очищ\p{L}*\s+організм\p{L}*|вив(?:од|ед|ест)\p{L}*\s+токсин\p{L}*)/giu },
+  { name: "detox", re: /(?<!\p{L})avgift(?:a|ar|as|ad|ning\p{L}*)(?!\p{L})|(?<!\p{L})rensa\p{L}*\s+kroppen/giu },
+  { name: "detox", re: /ดีท[็๊]?อ[กค]ซ์|ล้างพิษ|ขับ(?:สาร)?พิษ/gu },
+  { name: "detox", re: /ड[िी]टॉक्स|विषहरण|(?:विषाक्त\s+पदार्थ|टॉक्सिन\S*)(?:\s+\S+){0,2}\s+(?:बाहर\s+)?निकाल/gu },
+  { name: "detox", re: /(?<!\p{L})(?:očist|pročist)\p{L}*\s+(?:tělo|těla|organism\p{L}*)|(?<!\p{L})(?:vyplav|odstra[nň])\p{L}*\s+toxin\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})(?:elimin|îndepărt)\p{L}*\s+toxin\p{L}*|(?<!\p{L})(?:curăț|curăţ|purific)\p{L}*\s+organism\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})(?:ντετ[οό]ξ|αποτοξ[ιί]ν)\p{L}*|(?<!\p{L})(?:αποβ[αά]λ|αποβολ|απομακρ[υύ]ν)\p{L}*\s+(?:τις\s+|των\s+)?τοξιν\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})méregtelenít\p{L}*|(?<!\p{L})salaktalanít\p{L}*|(?<!\p{L})toxin\p{L}*\s+(?:ki)?(?:ürít|tisztít)\p{L}*/giu },
 
   // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
   //

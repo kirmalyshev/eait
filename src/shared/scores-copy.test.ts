@@ -30,6 +30,15 @@ const BANNED: Record<string, RegExp> = {
   tr: /obez|fazla\s+kilo|a[şs][ıi]r[ıi]\s+kilo|zay[ıi]f|\bnormal\b|sa[ğg]l[ıi]kl[ıi]|sa[ğg]l[ıi]ks[ıi]z/i,
   pl: /otył|nadwag|niedowag|prawidłow|\bnormaln|zdrow/i,
   nl: /obesitas|obees|zwaarlijvig|overgewicht|ondergewicht|\bnormaal\b|gezond/i,
+  uk: /ожир|надмірн|надлишков|зайв\p{L}*\s+ваг|недостатн\p{L}*\s+ваг|дефіцит\s+ваг|норм|здоров/iu,
+  sv: /fetma|överviktig|övervikt|undervikt|normalvikt|\bnormal\b|\bfrisk|hälsosam/i,
+  th: /อ้วน|ท้วม|น้ำหนักเกิน|น้ำหนักน้อย|ผอม|สมส่วน|ปกติ|สุขภาพดี|ไม่ดีต่อสุขภาพ/,
+  // The nukta letter (ज़) is one code point or two, depending on who typed it.
+  hi: /मोटाप|मोटा|(?:अधिक|[जज़]़?्यादा|कम)\s+वज|दुबला|सामान्य|स्वस्थ|अस्वस्थ/,
+  cs: /obez|obézn|nadváh|podváh|normáln|zdrav/i,
+  ro: /obez|supraponder|subponder|\bnormal|sănăt/i,
+  el: /παχυσαρκ|παχύσαρκ|υπ[εέ]ρβαρ|λιποβαρ|φυσιολογικ|κανονικ|υγι[εήέ]/iu,
+  hu: /elhízott|elhízás|túlsúly|alulsúly|soványság|normál|egészséges|egészségtelen/i,
 };
 
 describe("BMI labels (#118)", () => {
