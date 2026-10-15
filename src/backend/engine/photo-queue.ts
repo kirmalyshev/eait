@@ -280,7 +280,7 @@ export async function queuePhoto(
     ...(input.caption !== undefined ? { caption: input.caption } : {}),
     ...(input.capturedAt !== undefined ? { capturedAt: input.capturedAt } : {}),
     ...(input.receivedAt !== undefined ? { receivedAt: input.receivedAt } : {}),
-    ...(input.label ? { label: true } : {}),
+    ...(input.label !== undefined ? { label: input.label } : {}),
   };
   if (await deps.store.enqueueJob(userId, { clientId: input.clientId, kind: "photo", requestVersion: HANDLERS.photo.version, request, step: 2, photos })) wake();
   return { kind: "queued", jobId: input.clientId };

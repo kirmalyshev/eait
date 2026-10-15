@@ -266,7 +266,7 @@ const LABEL_AUTO = "If, and only if, the photo is a printed nutrition-facts labe
 
 export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   caption?: string;
-  /** The capture is a nutrition-facts label (ieat-app#2087). */
+  /** The capture is a nutrition-facts label (ieat-app#2087); `false` leaves the label rule out. */
   label?: boolean;
   localTime?: string;
   repertoire?: readonly string[];
@@ -280,7 +280,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   if (opts.caption) lines.push(`The user says about this meal: "${normalizePromptText(opts.caption)}"`);
   // ONE serving as printed, never an estimate of a plate: the engine multiplies by the servings
   // the person eats and recomputes every verdict itself.
-  lines.push(opts.label ? LABEL_FORCED : LABEL_AUTO);
+  if (opts.label !== false) lines.push(opts.label ? LABEL_FORCED : LABEL_AUTO);
 
   // Each free-text field on its OWN labelled line. They are independent axes — a medical condition
   // is not an allergy is not a dislike — and merging them loses the distinction the user drew.

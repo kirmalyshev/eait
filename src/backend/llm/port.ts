@@ -140,7 +140,7 @@ export interface PhotoInput {
   targets: FoodTargets;
   caption?: string;
   /** The capture is a nutrition-facts label: read the printed per-serving numbers (ieat-app#2087). */
-  label?: boolean | undefined;
+  label?: boolean | undefined; // false: a plate, say nothing about labels
   /** HH:MM local — lets the model infer breakfast/lunch/dinner, which measurably helps portioning. */
   localTime?: string;
   /** Foods this user has logged before, most-eaten first. A prior for IDENTIFICATION only; it must

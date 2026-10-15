@@ -41,7 +41,7 @@ import { evaluateMilestones } from "./milestones.ts";
 export interface LogPhotoInput {
   images: (() => Promise<Uint8Array>)[];
   caption?: string;
-  /** The capture is a nutrition-facts label (ieat-app#2087): read the printed numbers, do not estimate a plate. */
+  /** The capture is a nutrition-facts label (ieat-app#2087): read the printed numbers, do not estimate a plate. `false` is a plate, whatever the analyzer might think. */
   label?: boolean;
   /** The phone's id for this turn: a second request carrying it is answered from the first (#708). */
   clientId?: string;
@@ -198,7 +198,7 @@ export async function analyzePhotos(
       // A label is read for its sodium, sugar and fibre; the lean schema has no field for them.
       lean: lean && !label,
       ...(caption !== undefined ? { caption } : {}),
-      ...(label ? { label: true } : {}),
+      ...(label !== undefined ? { label } : {}),
       localTime: localTime(zone, eaten),
       repertoire: await buildRepertoire(deps, userId, localDate(zone, eaten)),
       // What this person's own corrections say about their portions. Unlike the repertoire, this
@@ -246,7 +246,7 @@ export async function analyzePhotos(
   // A label that is a label and says nothing legible is not a meal and not a charge: the row is
   // DELETED (`undoAnalysis`), not just released — `releaseSample` keeps it, and the paid daily cap
   // counts rows (ieat-app#2087).
-  if (labelMark === "unreadable" || (label && !analysis.isFood)) {
+  if (label !== false && (labelMark === "unreadable" || (label && !analysis.isFood))) {
     await deps.store.undoAnalysis(userId, analysisId).catch((x: unknown) => {
       console.error(`[eait] label refund failed: ${(x as Error)?.message ?? x}`);
     });
@@ -263,7 +263,7 @@ export async function analyzePhotos(
     await releaseSample(deps, userId, analysisId);
     return { kind: "analysis-failed" };
   }
-  return { kind: "read", analysis, question: prepared.question, images, analysisId, fromLabel: label === true || labelMark === "read" };
+  return { kind: "read", analysis, question: prepared.question, images, analysisId, fromLabel: label === true || (label !== false && labelMark === "read") };
 }
 
 /**

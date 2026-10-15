@@ -431,7 +431,7 @@ export function logScreen(frame: Frame): HTMLElement {
 
   // ── The send ─────────────────────────────────────────────────────────────────────────────────
 
-  const send = async (): Promise<void> => {
+  const send = async (plate = false): Promise<void> => {
     if (busy || picked.length === 0) return;
     busy = true;
     captured = new Date();
@@ -445,6 +445,8 @@ export function logScreen(frame: Frame): HTMLElement {
       id: crypto.randomUUID(), userId: me.profile.user_id, kind: "photo",
       text: note.value.trim() === "" ? null : note.value.trim(),
       photos: [...picked], capturedAt: captured.toISOString(),
+      // "Analyse it as a meal photo" after an unreadable label: same file, label reading off.
+      ...(plate ? { plate: true } : {}),
     };
     drawReading();
     try {
@@ -480,6 +482,13 @@ export function logScreen(frame: Frame): HTMLElement {
       }
       drawUpload();
       tell(refusalWords(err));
+      // An unreadable label has somewhere to go besides a new upload (ieat-app#2087): the same photo
+      // as a plate. The refused label was not charged, so this is still the account's own sample.
+      if (kind === "unreadable-label") {
+        const asMeal = ctaEl({ text: COPY.analyseAsMeal, kind: "g" }) as HTMLButtonElement;
+        asMeal.addEventListener("click", () => { void send(true); });
+        wrap.append(asMeal);
+      }
     } finally {
       busy = false;
     }

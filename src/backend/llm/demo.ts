@@ -193,7 +193,7 @@ export function demoPorts(): LlmPorts {
     input.onCost?.(0);
     called(input.onCall, "meal_analysis", input.images.length, input.images.reduce((n, b) => n + b.byteLength, 0));
     const caption = (input.caption ?? "").toLowerCase();
-    const meal = input.label || caption.includes(DEMO_LABEL) ? labelRead(caption) : storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
+    const meal = input.label === true || (input.label !== false && caption.includes(DEMO_LABEL)) ? labelRead(caption) : storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
       : caption.includes(DEMO_GRAMS_QUESTION)
         // The grams question, canned like the seeded oil one — the analyzer's only other shape the
