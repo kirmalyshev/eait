@@ -68,6 +68,15 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ca: ["Pèrdua de pes garantida.", "Garantim l'èxit."],
     ms: ["Keputusan dijamin.", "Kami menjamin kejayaan anda."],
     "pt-PT": ["Resultados garantidos.", "Garantimos a perda de peso."],
+    bn: ["ফলাফলের গ্যারান্টি।", "আমরা ওজন কমানোর গ্যারান্টি দিচ্ছি।"],
+    gu: ["પરિણામની ગેરંટી.", "અમે વજન ઘટાડવાની ગેરંટી આપીએ છીએ."],
+    kn: ["ಫಲಿತಾಂಶದ ಗ್ಯಾರಂಟಿ.", "ತೂಕ ಇಳಿಕೆಗೆ ಖಾತರಿ ನೀಡುತ್ತೇವೆ."],
+    ml: ["ഫലം ഉറപ്പ്!", "ഭാരം കുറയ്ക്കുന്നതിന് ഗ്യാരന്റി."],
+    mr: ["निकालाची हमी.", "वजन कमी होण्याची गॅरंटी."],
+    or: ["ଫଳାଫଳର ଗ୍ୟାରେଣ୍ଟି।", "ଓଜନ କମିବାର ଗ୍ୟାରେଣ୍ଟି।"],
+    pa: ["ਨਤੀਜਿਆਂ ਦੀ ਗਾਰੰਟੀ।", "ਭਾਰ ਘਟਾਉਣ ਦੀ ਗਾਰੰਟੀ।"],
+    ta: ["முடிவுகளுக்கு உத்தரவாதம்.", "எடை குறைப்புக்கு உத்தரவாதம் தருகிறோம்."],
+    te: ["ఫలితాలకు హామీ.", "బరువు తగ్గడానికి గ్యారంటీ."],
   },
   "weight-promise": {
     en: ["Lose weight fast.", "Lose 5kg this month."],
@@ -113,6 +122,17 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ca: ["Perdre pes sense esforç.", "Perdràs 5 kg en un mes.", "Aprimar-se sense passar gana.", "Pèrdua de pes ràpida."],
     ms: ["Kurangkan berat badan dengan cepat.", "Hilangkan 5 kg dalam sebulan.", "Menurunkan berat badan dengan cepat."],
     "pt-PT": ["Perde peso rapidamente.", "Vais emagrecer sem esforço.", "Emagrecerás 5 kg num mês.", "Desce 5 kg num mês."],
+    // A number in the script's own digits (`৫`, `५`), a nukta letter typed precomposed (`ਜ਼`), and
+    // Malayalam's older chillu (`ന്‍`, whose ZWJ `normalizeForMatch` strips) are each refused.
+    bn: ["এক মাসে 5 কেজি ওজন কমান।", "ওজন কমানো এখন সহজ।", "দ্রুত ওয়েট লস।", "এক মাসে ৫ কেজি ওজন কমান।"],
+    gu: ["એક મહિનામાં 5 કિલો વજન ઘટાડો.", "વજન ઘટાડવું હવે સરળ.", "ઝડપી વેઇટ લોસ."],
+    kn: ["ಒಂದು ತಿಂಗಳಲ್ಲಿ 5 ಕೆಜಿ ತೂಕ ಇಳಿಸಿ.", "ತೂಕ ಇಳಿಸುವುದು ಈಗ ಸುಲಭ."],
+    ml: ["ഒരു മാസത്തിൽ 5 കിലോ ഭാരം കുറയ്ക്കൂ.", "ഭാരം കുറയ്ക്കാൻ എളുപ്പവഴി.", "ഭാരം കുറയ്ക്കാന\u0D4D\u200D എളുപ്പവഴി."],
+    mr: ["एका महिन्यात 5 किलो वजन कमी करा.", "वजन कमी करणे आता सोपे.", "−५ किलो एका महिन्यात!"],
+    or: ["ଗୋଟିଏ ମାସରେ 5 କିଲୋ ଓଜନ କମାନ୍ତୁ।", "ଓଜନ କମାଇବା ଏବେ ସହଜ।"],
+    pa: ["ਇੱਕ ਮਹੀਨੇ ਵਿੱਚ 5 ਕਿਲੋ ਭਾਰ ਘਟਾਓ।", "ਭਾਰ ਘਟਾਉਣਾ ਹੁਣ ਆਸਾਨ।", "ਵ\u0A5Bਨ ਘਟਾਉਣਾ ਹੁਣ ਆਸਾਨ।"],
+    ta: ["ஒரு மாதத்தில் 5 கிலோ எடையைக் குறையுங்கள்.", "எடை குறைப்பது இப்போது எளிது.", "−5 கிலோ ஒரு மாதத்தில்!"],
+    te: ["ఒక నెలలో 5 కిలోల బరువు తగ్గండి.", "బరువు తగ్గడం ఇప్పుడు సులభం."],
   },
   "lowers-marker": {
     en: ["Lowers cholesterol."],
@@ -154,6 +174,15 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ca: ["Redueix el colesterol.", "Fa baixar la pressió arterial."],
     ms: ["Merendahkan kolesterol.", "Mengurangkan paras gula dalam darah."],
     "pt-PT": ["Baixa a tensão arterial.", "Reduz o teu colesterol."],
+    bn: ["কোলেস্টেরল কমায়।", "রক্তে শর্করা কমাতে সাহায্য করে।"],
+    gu: ["કોલેસ્ટ્રોલ ઘટાડે છે.", "બ્લડ પ્રેશર ઓછું કરે છે."],
+    kn: ["ಕೊಲೆಸ್ಟ್ರಾಲ್ ಅನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತದೆ.", "ರಕ್ತದೊತ್ತಡವನ್ನು ಇಳಿಸುತ್ತದೆ."],
+    ml: ["കൊളസ്ട്രോൾ കുറയ്ക്കുന്നു.", "രക്തസമ്മർദ്ദം കുറയ്ക്കും."],
+    mr: ["कोलेस्टेरॉल कमी करते.", "रक्तदाब कमी करतो."],
+    or: ["କୋଲେଷ୍ଟେରଲ କମାଏ।", "ରକ୍ତଚାପ ହ୍ରାସ କରେ।"],
+    pa: ["ਕੋਲੈਸਟ੍ਰੋਲ ਘਟਾਉਂਦਾ ਹੈ।", "ਬਲੱਡ \u0A36ੂਗਰ ਘੱਟ ਕਰਦਾ ਹੈ।"],
+    ta: ["கொலஸ்ட்ராலைக் குறைக்கிறது.", "இரத்த அழுத்தத்தைக் குறைக்கும்."],
+    te: ["కొలెస్ట్రాల్‌ను తగ్గిస్తుంది.", "రక్తపోటును తగ్గిస్తుంది."],
   },
   detox: {
     en: ["A detox week."],
@@ -189,6 +218,15 @@ const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> 
     ca: ["Una setmana de desintoxicació.", "Elimina les toxines.", "Depura l'organisme."],
     ms: ["Seminggu detoks.", "Nyahtoksik badan anda.", "Buang toksin."],
     "pt-PT": ["Uma semana de desintoxicação.", "Depura o organismo."],
+    bn: ["এক সপ্তাহের ডিটক্স।"],
+    gu: ["એક અઠવાડિયાનું ડિટોક્સ."],
+    kn: ["ಒಂದು ವಾರದ ಡಿಟಾಕ್ಸ್.", "ವಿಷಕಾರಿ ಅಂಶಗಳನ್ನು ಹೊರಹಾಕುತ್ತದೆ."],
+    ml: ["ഒരാഴ്ചത്തെ ഡിറ്റോക്സ്."],
+    mr: ["एका आठवड्याचा डिटॉक्स.", "विषारी पदार्थ बाहेर काढते."],
+    or: ["ଏକ ସପ୍ତାହର ଡିଟକ୍ସ।"],
+    pa: ["ਇੱਕ ਹਫ਼ਤੇ ਦਾ ਡੀਟੌਕਸ।"],
+    ta: ["ஒரு வாரம் டிடாக்ஸ்.", "ஒரு வாரத்தில் நச்சு நீக்கம்."],
+    te: ["ఒక వారం డిటాక్స్.", "విష పదార్థాలను బయటకు పంపుతుంది."],
   },
 };
 
@@ -329,6 +367,34 @@ const FINE = [
   "Tab dobbelt så meget i vægt", "Gå ned dobbelt så mye i vekt", "Laihdu kaksi kertaa enemmän",
   "Schudni dvakrát viac", "Smršavi dvostruko više", "Izgubi dvakrat več teže",
   "Perd el doble de pes", "Turun berat dua kali lebih banyak", "Perde o dobro do peso",
+  // Wave 4: the honest denial (the negation after the stem, separate or fused), the warranty
+  // noun, a pace that is a decimal, a marker verb on the food rather than the blood, the verb
+  // `ensure` beside a guarantee-shaped noun, and "poison-free" vegetables.
+  "আমরা ফলাফলের গ্যারান্টি দিই না — এগুলো অনুমান।", "কোনো গ্যারান্টি নেই, ফলাফল অনুমান মাত্র।",
+  "আইনি গ্যারান্টি: দুই বছর।", "আপনি সপ্তাহে 0.5 kg কমাচ্ছেন।", "চিনি ধীরে ধীরে কমান।", "বিষমুক্ত সবজি খান।",
+  "અમે પરિણામની ગેરંટી આપતા નથી — આ અંદાજ છે.", "તમે અઠવાડિયે 0.5 kg ઘટાડી રહ્યા છો.",
+  "ખાંડ ધીમે ધીમે ઓછી કરો.", "તમારું વજન ખાતરી કરો.",
+  "ನಾವು ಫಲಿತಾಂಶಗಳಿಗೆ ಖಾತರಿ ನೀಡುವುದಿಲ್ಲ — ಇವು ಅಂದಾಜುಗಳು.", "ನೀವು ವಾರಕ್ಕೆ 0.5 kg ಇಳಿಸುತ್ತಿದ್ದೀರಿ.",
+  "ಸಕ್ಕರೆಯನ್ನು ಕ್ರಮೇಣ ಕಡಿಮೆ ಮಾಡಿ.",
+  "ഫലങ്ങൾക്ക് ഞങ്ങൾ ഗ്യാരന്റി നൽകുന്നില്ല — ഇവ കണക്കുകൂട്ടലുകളാണ്.", "ഫലം ഉറപ്പില്ല — ഇത് ഒരു കണക്ക് മാത്രം.",
+  "ദിവസവും ആവശ്യത്തിന് പ്രോട്ടീൻ ഉറപ്പാക്കുക.", "ആഴ്ചയിൽ 0.5 kg കുറയ്ക്കുന്നു.", "പഞ്ചസാര പതുക്കെ കുറയ്ക്കൂ.",
+  // Marathi's denial is `नाही`, and its `गारंटी` is also what the HINDI rule reads.
+  "आम्ही परिणामांची हमी देत नाही — हे अंदाज आहेत.", "आम्ही परिणामांची गारंटी देत नाही.",
+  "तुम्ही आठवड्याला 0.5 kg कमी करत आहात.", "साखर हळूहळू कमी करा.", "विषमुक्त भाजीपाला.",
+  "ଆମେ ଫଳାଫଳର ଗ୍ୟାରେଣ୍ଟି ଦେଉନାହୁଁ।", "ଆପଣ ସପ୍ତାହରେ 0.5 kg କମାଉଛନ୍ତି।", "ଚିନି ଧୀରେ ଧୀରେ କମାନ୍ତୁ।",
+  "ਅਸੀਂ ਨਤੀਜਿਆਂ ਦੀ ਗਾਰੰਟੀ ਨਹੀਂ ਦਿੰਦੇ — ਇਹ ਅੰਦਾਜ਼ੇ ਹਨ।", "ਤੁਸੀਂ ਹਫ਼ਤੇ ਵਿੱਚ 0.5 kg ਘਟਾ ਰਹੇ ਹੋ।",
+  "ਖੰਡ ਹੌਲੀ-ਹੌਲੀ ਘਟਾਓ।",
+  "முடிவுகளுக்கு நாங்கள் உத்தரவாதம் அளிக்கவில்லை — இவை மதிப்பீடுகள்.", "வாரத்திற்கு 0.5 kg குறைக்கிறீர்கள்.",
+  "சர்க்கரையைப் படிப்படியாகக் குறைக்கவும்.",
+  "ఫలితాలకు మేము హామీ ఇవ్వలేము — ఇవి అంచనాలు.", "మీరు వారానికి 0.5 kg తగ్గుతున్నారు.", "చక్కెరను క్రమంగా తగ్గించండి.",
+  // Each twice.title is the bare imperative with the weight ADJACENT, and three twice.sub lines
+  // are the habitual present; and `possible.lose` puts the number beside the word for LESS.
+  "দ্বিগুণ ওজন কমান", "બમણું વજન ઘટાડો", "ಎರಡು ಪಟ್ಟು ತೂಕ ಇಳಿಸಿ", "ഇരട്ടി ഭാരം കുറയ്ക്കൂ", "दुप्पट वजन कमी करा",
+  "ଦୁଇଗୁଣ ଓଜନ କମାନ୍ତୁ", "ਦੁੱਗਣਾ ਭਾਰ ਘਟਾਓ", "இரு மடங்கு எடையைக் குறையுங்கள்", "రెట్టింపు బరువు తగ్గండి",
+  "ತಾವು ತಿನ್ನುವುದನ್ನು ಬರೆದಿಡುವ ಜನರು ಎರಡು ಪಟ್ಟು ತೂಕ ಇಳಿಸುತ್ತಾರೆ",
+  "കഴിക്കുന്നത് എഴുതിവയ്ക്കുന്നവർക്ക് ഇരട്ടി ഭാരം കുറയുന്നു",
+  "తాము తినేదాన్ని రాసుకునేవారు రెట్టింపు బరువు తగ్గుతారు",
+  "6kg কম?", "6kg ઓછું?", "6kg ಕಡಿಮೆ?", "6kg കുറവ്?", "6kg कमी?", "6kg କମ୍?", "6kg ਘੱਟ?", "6kg குறைவா?", "6kg తక్కువా?",
 ];
 
 describe("the claims gate reads all eight languages", () => {

@@ -62,10 +62,11 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 
 ## Localization (#358)
 
-**The product speaks thirty-three languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru` and, from
-waves 1-3 of #2206, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `tr`, `pl`, `nl`, `uk`, `sv`, `th`,
-`hi`, `cs`, `ro`, `el`, `hu`, `da`, `fi`, `no`, `sk`, `hr`, `sl`, `ca`, `ms`, `pt-PT` (the target is
-every base language the App Store listing carries; Arabic, Hebrew and Urdu wait for the RTL ruling).** `LANGS`
+**The product speaks forty-two languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru` and, from
+waves 1-4a of #2206, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `tr`, `pl`, `nl`, `uk`, `sv`, `th`,
+`hi`, `cs`, `ro`, `el`, `hu`, `da`, `fi`, `no`, `sk`, `hr`, `sl`, `ca`, `ms`, `pt-PT`, `bn`, `gu`,
+`kn`, `ml`, `mr`, `or`, `pa`, `ta`, `te` (the target is every base language the App Store listing
+carries; Arabic, Hebrew and Urdu wait for the RTL ruling).** `LANGS`
 (`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
 smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
 They are equal today and are two names because they mean different things: `PATCH /v1/profile`

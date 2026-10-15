@@ -88,7 +88,7 @@ export type Struggle = (typeof STRUGGLES)[number];
  *
  * What the app can actually RENDER in is `LANGS_READY` (`lang.ts`), which is the smaller claim.
  */
-export const LANGS = ["en", "fr", "de", "it", "es", "vi", "id", "ru", "pt-BR", "ja", "ko", "zh-Hans", "zh-Hant", "tr", "pl", "nl", "uk", "sv", "th", "hi", "cs", "ro", "el", "hu", "da", "fi", "no", "sk", "hr", "sl", "ca", "ms", "pt-PT"] as const;
+export const LANGS = ["en", "fr", "de", "it", "es", "vi", "id", "ru", "pt-BR", "ja", "ko", "zh-Hans", "zh-Hant", "tr", "pl", "nl", "uk", "sv", "th", "hi", "cs", "ro", "el", "hu", "da", "fi", "no", "sk", "hr", "sl", "ca", "ms", "pt-PT", "bn", "gu", "kn", "ml", "mr", "or", "pa", "ta", "te"] as const;
 export type Lang = (typeof LANGS)[number];
 
 /**

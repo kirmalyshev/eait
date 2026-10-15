@@ -341,9 +341,9 @@ test("the push grid lists every key x language, edits a cell, and shows the gate
 
   const grid = page.locator("#push-grid");
   await page.locator("#push-f-all").click();
-  // trial-end, evening x2, nudge, and three triggers x four variants: sixteen rows of thirty-three reviewed cells (one per app language), every key sendable.
+  // trial-end, evening x2, nudge, and three triggers x four variants: sixteen rows of forty-two reviewed cells (one per app language), every key sendable.
   await expect(grid.locator("tr")).toHaveCount(17);
-  await expect(grid.locator("button.cell.reviewed")).toHaveCount(528);
+  await expect(grid.locator("button.cell.reviewed")).toHaveCount(672);
   await expect(grid.getByText("sendable")).toHaveCount(6);
 
   await grid.locator("tr").filter({ hasText: "nudge" }).locator("button.cell").nth(0).click();
