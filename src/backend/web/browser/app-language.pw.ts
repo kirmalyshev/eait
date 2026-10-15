@@ -18,7 +18,7 @@ test("the web app's own picker writes the account and comes back translated", as
   // Since #52 the picker's home is Profile — Home · Chat · Profile is the whole of the top row.
   // #474 made the row a scrim panel listing the sixteen endonyms; the pick is the same PATCH, and
   // the reload after it is still the mechanism.
-  await page.goto("/#/you");
+  await page.goto("/#/you/settings");
   const row = page.getByRole("button", { name: /^Language: English$/ });
   await expect(row).toBeVisible();
 

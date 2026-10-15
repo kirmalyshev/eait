@@ -66,6 +66,8 @@ test("Home · Progress · Chat · Profile hold ONE row at 390px, and the account
   // boards draw no centred title), so it is asserted PRESENT, not painted.
   await page.goto("/#/you");
   await expect(page.getByRole("heading", { name: "Profile" })).toHaveCount(1);
+  await page.goto("/#/you/settings");
+  await expect(page.getByRole("heading", { name: "Settings" })).toHaveCount(1);
   // The language picker is a scrim panel now (#474): the row names the held language, opening it
   // lists all eight, and the pick is the same PATCH /v1/profile the select always wrote.
   const langRow = page.getByRole("button", { name: /^Language: English$/ });
