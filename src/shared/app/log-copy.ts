@@ -129,6 +129,14 @@ export interface LogCopy {
     cameraTitle: string;
     /** `log-camera`: the line over the thumbnails. */
     cameraHint: string;
+    /** `log-camera`: the Photo segment of the mode switch (the board uppercases it by style). */
+    modePhoto: string;
+    /** `log-camera`: the Label segment — the nutrition-facts scan (ieat-app#2087). */
+    modeLabel: string;
+    /** `log-camera`: the mode switch's accessible group name. */
+    modeGroup: string;
+    /** `log-camera`: the frame hint in Label mode. */
+    labelFrameHint: string;
     /** `log-camera`: the captured-shot counter — "{n} of {total}", "1 of 3". */
     shotCount: string;
     /** `log-camera`: the board's American spelling — `web.analyzeCta` is British. */
@@ -255,6 +263,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "One meal, any angle",
       cameraHint: "A second shot from the side helps with portions",
+      modePhoto: "Photo",
+      modeLabel: "Label",
+      modeGroup: "Camera mode",
+      labelFrameHint: "Fit the nutrition panel in the frame",
       shotCount: "{n} of {total}",
       analyzeCta: "Analyze",
       pickTitle: "Pick a photo",
@@ -341,6 +353,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Un repas, n’importe quel angle",
       cameraHint: "Une deuxième prise de côté aide pour les portions",
+      modePhoto: "Photo",
+      modeLabel: "Étiquette",
+      modeGroup: "Mode caméra",
+      labelFrameHint: "Cadre le tableau nutritionnel dans le cadre",
       shotCount: "{n} sur {total}",
       analyzeCta: "Analyser",
       pickTitle: "Choisir une photo",
@@ -427,6 +443,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Eine Mahlzeit, aus jedem Winkel",
       cameraHint: "Ein zweites Bild von der Seite hilft bei den Portionen",
+      modePhoto: "Foto",
+      modeLabel: "Etikett",
+      modeGroup: "Kameramodus",
+      labelFrameHint: "Die Nährwerttabelle in den Rahmen legen",
       shotCount: "{n} von {total}",
       analyzeCta: "Analysieren",
       pickTitle: "Foto wählen",
@@ -513,6 +533,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Un pasto, da qualsiasi angolazione",
       cameraHint: "Un secondo scatto di lato aiuta con le porzioni",
+      modePhoto: "Foto",
+      modeLabel: "Etichetta",
+      modeGroup: "Modalità fotocamera",
+      labelFrameHint: "Inquadra la tabella nutrizionale nel riquadro",
       shotCount: "{n} di {total}",
       analyzeCta: "Analizza",
       pickTitle: "Scegli una foto",
@@ -599,6 +623,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Una comida, desde cualquier ángulo",
       cameraHint: "Una segunda foto de lado ayuda a calcular las raciones",
+      modePhoto: "Foto",
+      modeLabel: "Etiqueta",
+      modeGroup: "Modo de cámara",
+      labelFrameHint: "Encaja la tabla nutricional en el marco",
       shotCount: "{n} de {total}",
       analyzeCta: "Analizar",
       pickTitle: "Elige una foto",
@@ -685,6 +713,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Một bữa ăn, góc nào cũng được",
       cameraHint: "Chụp thêm một tấm từ bên cạnh để ước lượng khẩu phần tốt hơn",
+      modePhoto: "Ảnh",
+      modeLabel: "Nhãn",
+      modeGroup: "Chế độ camera",
+      labelFrameHint: "Đặt bảng dinh dưỡng vào khung hình",
       shotCount: "{n} trên {total}",
       analyzeCta: "Phân tích",
       pickTitle: "Chọn ảnh",
@@ -771,6 +803,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Satu kali makan, sudut mana pun",
       cameraHint: "Jepretan kedua dari samping membantu memperkirakan porsi",
+      modePhoto: "Foto",
+      modeLabel: "Label",
+      modeGroup: "Mode kamera",
+      labelFrameHint: "Posisikan tabel gizi di dalam bingkai",
       shotCount: "{n} dari {total}",
       analyzeCta: "Analisis",
       pickTitle: "Pilih foto",
@@ -857,6 +893,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Одно блюдо, любой ракурс",
       cameraHint: "Второй кадр сбоку помогает с порциями",
+      modePhoto: "Фото",
+      modeLabel: "Этикетка",
+      modeGroup: "Режим камеры",
+      labelFrameHint: "Помести таблицу пищевой ценности в рамку",
       shotCount: "{n} из {total}",
       analyzeCta: "Анализировать",
       pickTitle: "Выбрать фото",
@@ -943,6 +983,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ఒక భోజనం, ఏ కోణమైనా",
       cameraHint: "పక్క నుండి తీసిన రెండో ఫోటో పోర్షన్‌లను అంచనా వేయడానికి సహాయపడుతుంది",
+      modePhoto: "ఫోటో",
+      modeLabel: "లేబుల్",
+      modeGroup: "కెమెరా మోడ్",
+      labelFrameHint: "పోషకాహార పట్టికను ఫ్రేమ్‌లో ఉంచండి",
       shotCount: "{n}/{total}",
       analyzeCta: "విశ్లేషించండి",
       pickTitle: "ఫోటోను ఎంచుకోండి",
@@ -1029,6 +1073,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ஓர் உணவு, எந்தக் கோணமும்",
       cameraHint: "பக்கவாட்டிலிருந்து இரண்டாவது படம் அளவைக் கணிக்க உதவும்",
+      modePhoto: "புகைப்படம்",
+      modeLabel: "லேபிள்",
+      modeGroup: "கேமரா முறை",
+      labelFrameHint: "ஊட்டச்சத்து அட்டவணையை சட்டகத்துக்குள் வையுங்கள்",
       shotCount: "{n} / {total}",
       analyzeCta: "பகுப்பாய்வு செய்",
       pickTitle: "புகைப்படத்தைத் தேர்ந்தெடு",
@@ -1115,6 +1163,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ਇੱਕ ਖਾਣਾ, ਕੋਈ ਵੀ ਐਂਗਲ",
       cameraHint: "ਪਾਸੇ ਤੋਂ ਦੂਜੀ ਫ਼ੋਟੋ ਪੋਰਸ਼ਨ ਸਮਝਣ ਵਿੱਚ ਮਦਦ ਕਰਦੀ ਹੈ",
+      modePhoto: "ਫ਼ੋਟੋ",
+      modeLabel: "ਲੇਬਲ",
+      modeGroup: "ਕੈਮਰਾ ਮੋਡ",
+      labelFrameHint: "ਪੋਸ਼ਣ ਸਾਰਣੀ ਨੂੰ ਫ਼ਰੇਮ ਵਿੱਚ ਰੱਖੋ",
       shotCount: "{total} ਵਿੱਚੋਂ {n}",
       analyzeCta: "ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ",
       pickTitle: "ਫ਼ੋਟੋ ਚੁਣੋ",
@@ -1201,6 +1253,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ଗୋଟିଏ ଭୋଜନ, ଯେକୌଣସି ଆଙ୍ଗଲ୍",
       cameraHint: "ପାର୍ଶ୍ୱରୁ ଦ୍ୱିତୀୟ ଫଟୋ ପରିମାଣ ବୁଝିବାରେ ସାହାଯ୍ୟ କରେ",
+      modePhoto: "ଫଟୋ",
+      modeLabel: "ଲେବଲ୍",
+      modeGroup: "କ୍ୟାମେରା ମୋଡ୍",
+      labelFrameHint: "ପୋଷଣ ତାଲିକାକୁ ଫ୍ରେମ୍‌ରେ ରଖନ୍ତୁ",
       shotCount: "{total} ରୁ {n}",
       analyzeCta: "ବିଶ୍ଳେଷଣ କରନ୍ତୁ",
       pickTitle: "ଏକ ଫଟୋ ବାଛନ୍ତୁ",
@@ -1287,6 +1343,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "एक जेवण, कोणताही अँगल",
       cameraHint: "बाजूने काढलेला दुसरा फोटो प्रमाण ओळखायला मदत करतो",
+      modePhoto: "फोटो",
+      modeLabel: "लेबल",
+      modeGroup: "कॅमेरा मोड",
+      labelFrameHint: "पोषण तक्ता फ्रेममध्ये बसवा",
       shotCount: "{total} पैकी {n}",
       analyzeCta: "विश्लेषण करा",
       pickTitle: "फोटो निवडा",
@@ -1373,6 +1433,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ഒരു ഭക്ഷണം, ഏത് ആംഗിളിലും",
       cameraHint: "വശത്ത് നിന്നുള്ള രണ്ടാമത്തെ ഫോട്ടോ പോർഷൻ കണക്കാക്കാൻ സഹായിക്കും",
+      modePhoto: "ഫോട്ടോ",
+      modeLabel: "ലേബൽ",
+      modeGroup: "ക്യാമറ മോഡ്",
+      labelFrameHint: "പോഷക പട്ടിക ഫ്രെയിമിൽ വയ്ക്കുക",
       shotCount: "{n} / {total}",
       analyzeCta: "വിശകലനം ചെയ്യുക",
       pickTitle: "ഒരു ഫോട്ടോ തിരഞ്ഞെടുക്കുക",
@@ -1459,6 +1523,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "ಒಂದು ಊಟ, ಯಾವುದೇ ಕೋನ",
       cameraHint: "ಬದಿಯಿಂದ ತೆಗೆದ ಎರಡನೇ ಶಾಟ್ ಪ್ರಮಾಣ ಅಳೆಯಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ",
+      modePhoto: "ಫೋಟೋ",
+      modeLabel: "ಲೇಬಲ್",
+      modeGroup: "ಕ್ಯಾಮೆರಾ ಮೋಡ್",
+      labelFrameHint: "ಪೋಷಕಾಂಶ ಕೋಷ್ಟಕವನ್ನು ಚೌಕಟ್ಟಿನಲ್ಲಿ ಇರಿಸಿ",
       shotCount: "{n} / {total}",
       analyzeCta: "ವಿಶ್ಲೇಷಿಸಿ",
       pickTitle: "ಫೋಟೋ ಆರಿಸಿ",
@@ -1545,6 +1613,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "એક ભોજન, કોઈ પણ ઍંગલ",
       cameraHint: "બાજુથી લીધેલો બીજો ફોટો પોર્શન સમજવામાં મદદ કરે છે",
+      modePhoto: "ફોટો",
+      modeLabel: "લેબલ",
+      modeGroup: "કૅમેરા મોડ",
+      labelFrameHint: "પોષણ કોષ્ટકને ફ્રેમમાં ગોઠવો",
       shotCount: "{total} માંથી {n}",
       analyzeCta: "વિશ્લેષણ કરો",
       pickTitle: "ફોટો પસંદ કરો",
@@ -1631,6 +1703,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "একটি খাবার, যেকোনো অ্যাঙ্গেল",
       cameraHint: "পাশ থেকে আরেকটি ছবি পোর্শন বুঝতে সাহায্য করে",
+      modePhoto: "ছবি",
+      modeLabel: "লেবেল",
+      modeGroup: "ক্যামেরা মোড",
+      labelFrameHint: "পুষ্টি তালিকাটি ফ্রেমের মধ্যে রাখুন",
       shotCount: "{n}/{total}",
       analyzeCta: "বিশ্লেষণ করুন",
       pickTitle: "একটি ছবি বাছাই করুন",
@@ -1717,6 +1793,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Uma refeição, qualquer ângulo",
       cameraHint: "Uma segunda foto de lado ajuda nas porções",
+      modePhoto: "Foto",
+      modeLabel: "Rótulo",
+      modeGroup: "Modo da câmara",
+      labelFrameHint: "Enquadra a tabela nutricional na moldura",
       shotCount: "{n} de {total}",
       analyzeCta: "Analisar",
       pickTitle: "Escolhe uma foto",
@@ -1803,6 +1883,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Satu hidangan, apa-apa sudut",
       cameraHint: "Gambar kedua dari sisi membantu menganggar porsi",
+      modePhoto: "Foto",
+      modeLabel: "Label",
+      modeGroup: "Mod kamera",
+      labelFrameHint: "Letakkan jadual pemakanan dalam bingkai",
       shotCount: "{n} daripada {total}",
       analyzeCta: "Analisis",
       pickTitle: "Pilih foto",
@@ -1889,6 +1973,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Un àpat, qualsevol angle",
       cameraHint: "Una segona foto de costat ajuda amb les racions",
+      modePhoto: "Foto",
+      modeLabel: "Etiqueta",
+      modeGroup: "Mode de càmera",
+      labelFrameHint: "Encaixa la taula nutricional al marc",
       shotCount: "{n} de {total}",
       analyzeCta: "Analitza",
       pickTitle: "Tria una foto",
@@ -1975,6 +2063,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "En obrok, kateri koli kot",
       cameraHint: "Drugi posnetek s strani pomaga pri porcijah",
+      modePhoto: "Fotografija",
+      modeLabel: "Etiketa",
+      modeGroup: "Način kamere",
+      labelFrameHint: "Hranilno tabelo postavi v okvir",
       shotCount: "{n} od {total}",
       analyzeCta: "Analiziraj",
       pickTitle: "Izberi fotografijo",
@@ -2061,6 +2153,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Jedan obrok, bilo koji kut",
       cameraHint: "Druga snimka sa strane pomaže kod porcija",
+      modePhoto: "Fotografija",
+      modeLabel: "Etiketa",
+      modeGroup: "Način kamere",
+      labelFrameHint: "Smjesti tablicu hranjivih vrijednosti u okvir",
       shotCount: "{n} od {total}",
       analyzeCta: "Analiziraj",
       pickTitle: "Odaberi fotografiju",
@@ -2147,6 +2243,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Jedno jedlo, ľubovoľný uhol",
       cameraHint: "Druhý záber zboku pomáha pri porciách",
+      modePhoto: "Fotka",
+      modeLabel: "Etiketa",
+      modeGroup: "Režim fotoaparátu",
+      labelFrameHint: "Tabuľku výživových hodnôt umiestni do rámčeka",
       shotCount: "{n} z {total}",
       analyzeCta: "Analyzovať",
       pickTitle: "Vyber fotku",
@@ -2233,6 +2333,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Ett måltid, alle vinkler",
       cameraHint: "Et bilde til fra siden hjelper med porsjonene",
+      modePhoto: "Bilde",
+      modeLabel: "Etikett",
+      modeGroup: "Kameramodus",
+      labelFrameHint: "Plasser næringsinnholdstabellen i rammen",
       shotCount: "{n} av {total}",
       analyzeCta: "Analyser",
       pickTitle: "Velg et bilde",
@@ -2319,6 +2423,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Yksi ateria, mistä kulmasta tahansa",
       cameraHint: "Toinen kuva sivulta auttaa annoskoossa",
+      modePhoto: "Kuva",
+      modeLabel: "Etiketti",
+      modeGroup: "Kameratila",
+      labelFrameHint: "Aseta ravintoarvotaulukko kehykseen",
       shotCount: "{n}/{total}",
       analyzeCta: "Analysoi",
       pickTitle: "Valitse kuva",
@@ -2405,6 +2513,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Ét måltid, enhver vinkel",
       cameraHint: "Et ekstra billede fra siden hjælper med portionerne",
+      modePhoto: "Foto",
+      modeLabel: "Etiket",
+      modeGroup: "Kameratilstand",
+      labelFrameHint: "Placér næringsdeklarationen i rammen",
       shotCount: "{n} af {total}",
       analyzeCta: "Analysér",
       pickTitle: "Vælg et foto",
@@ -2491,6 +2603,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Egy étkezés, bármilyen szögből",
       cameraHint: "Egy második, oldalról készült kép segít az adagoknál",
+      modePhoto: "Fotó",
+      modeLabel: "Címke",
+      modeGroup: "Kamera mód",
+      labelFrameHint: "Illeszd a tápértéktáblázatot a keretbe",
       shotCount: "{n} / {total}",
       analyzeCta: "Elemzés",
       pickTitle: "Válassz fotót",
@@ -2577,6 +2693,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Ένα γεύμα, από όποια γωνία θες",
       cameraHint: "Μια δεύτερη λήψη από το πλάι βοηθά με τις μερίδες",
+      modePhoto: "Φωτογραφία",
+      modeLabel: "Ετικέτα",
+      modeGroup: "Λειτουργία κάμερας",
+      labelFrameHint: "Βάλε τον πίνακα διατροφικής αξίας στο πλαίσιο",
       shotCount: "{n} από {total}",
       analyzeCta: "Ανάλυση",
       pickTitle: "Διάλεξε φωτογραφία",
@@ -2663,6 +2783,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "O masă, orice unghi",
       cameraHint: "O a doua fotografie din lateral ajută la porții",
+      modePhoto: "Fotografie",
+      modeLabel: "Etichetă",
+      modeGroup: "Mod cameră",
+      labelFrameHint: "Încadrează tabelul nutrițional în chenar",
       shotCount: "{n} din {total}",
       analyzeCta: "Analizează",
       pickTitle: "Alege o fotografie",
@@ -2749,6 +2873,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Jedno jídlo, libovolný úhel",
       cameraHint: "Druhý snímek z boku pomůže s porcemi",
+      modePhoto: "Foto",
+      modeLabel: "Etiketa",
+      modeGroup: "Režim fotoaparátu",
+      labelFrameHint: "Umísti tabulku výživových hodnot do rámečku",
       shotCount: "{n} z {total}",
       analyzeCta: "Analyzovat",
       pickTitle: "Vyber fotku",
@@ -2835,6 +2963,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "एक भोजन, कोई भी ऐंगल",
       cameraHint: "साइड से दूसरी फ़ोटो पोर्शन समझने में मदद करती है",
+      modePhoto: "फ़ोटो",
+      modeLabel: "लेबल",
+      modeGroup: "कैमरा मोड",
+      labelFrameHint: "पोषण तालिका को फ़्रेम में रखें",
       shotCount: "{total} में से {n}",
       analyzeCta: "विश्लेषण करें",
       pickTitle: "फ़ोटो चुनें",
@@ -2921,6 +3053,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "มื้อเดียว มุมไหนก็ได้",
       cameraHint: "ถ่ายด้านข้างอีกรูปช่วยกะปริมาณได้ดีขึ้น",
+      modePhoto: "รูปถ่าย",
+      modeLabel: "ฉลาก",
+      modeGroup: "โหมดกล้อง",
+      labelFrameHint: "วางตารางโภชนาการให้อยู่ในกรอบ",
       shotCount: "{n} จาก {total}",
       analyzeCta: "วิเคราะห์",
       pickTitle: "เลือกรูป",
@@ -3007,6 +3143,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "En måltid, valfri vinkel",
       cameraHint: "En andra bild från sidan hjälper med portionerna",
+      modePhoto: "Foto",
+      modeLabel: "Etikett",
+      modeGroup: "Kameraläge",
+      labelFrameHint: "Placera näringsvärdestabellen i ramen",
       shotCount: "{n} av {total}",
       analyzeCta: "Analysera",
       pickTitle: "Välj ett foto",
@@ -3093,6 +3233,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Одна страва, будь-який ракурс",
       cameraHint: "Другий кадр збоку допомагає з порціями",
+      modePhoto: "Фото",
+      modeLabel: "Етикетка",
+      modeGroup: "Режим камери",
+      labelFrameHint: "Помісти таблицю харчової цінності в рамку",
       shotCount: "{n} з {total}",
       analyzeCta: "Проаналізувати",
       pickTitle: "Вибрати фото",
@@ -3179,6 +3323,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Eén maaltijd, elke hoek",
       cameraHint: "Een tweede foto van opzij helpt bij de porties",
+      modePhoto: "Foto",
+      modeLabel: "Etiket",
+      modeGroup: "Cameramodus",
+      labelFrameHint: "Plaats de voedingswaardetabel in het kader",
       shotCount: "{n} van {total}",
       analyzeCta: "Analyseer",
       pickTitle: "Kies een foto",
@@ -3265,6 +3413,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Jeden posiłek, dowolne ujęcie",
       cameraHint: "Drugie ujęcie z boku pomaga ocenić porcje",
+      modePhoto: "Zdjęcie",
+      modeLabel: "Etykieta",
+      modeGroup: "Tryb aparatu",
+      labelFrameHint: "Umieść tabelę wartości odżywczych w ramce",
       shotCount: "{n} z {total}",
       analyzeCta: "Analizuj",
       pickTitle: "Wybierz zdjęcie",
@@ -3351,6 +3503,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Tek öğün, istediğin açıdan",
       cameraHint: "Yandan ikinci bir çekim porsiyonları anlamaya yardımcı olur",
+      modePhoto: "Fotoğraf",
+      modeLabel: "Etiket",
+      modeGroup: "Kamera modu",
+      labelFrameHint: "Besin değerleri tablosunu çerçeveye yerleştir",
       shotCount: "{n} / {total}",
       analyzeCta: "Analiz et",
       pickTitle: "Bir fotoğraf seç",
@@ -3437,6 +3593,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "同一份餐點，任何角度",
       cameraHint: "從側面再拍一張，有助於判斷份量",
+      modePhoto: "照片",
+      modeLabel: "標籤",
+      modeGroup: "相機模式",
+      labelFrameHint: "將營養標示放進框內",
       shotCount: "{n}／{total}",
       analyzeCta: "分析",
       pickTitle: "選擇照片",
@@ -3523,6 +3683,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "同一餐，任意角度",
       cameraHint: "从侧面再拍一张，有助于判断份量",
+      modePhoto: "照片",
+      modeLabel: "标签",
+      modeGroup: "相机模式",
+      labelFrameHint: "将营养成分表放入框内",
       shotCount: "{n} / {total}",
       analyzeCta: "分析",
       pickTitle: "选择照片",
@@ -3609,6 +3773,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "한 끼 식사, 어느 각도든",
       cameraHint: "옆에서 한 장 더 찍으면 양을 가늠하는 데 도움이 돼요",
+      modePhoto: "사진",
+      modeLabel: "라벨",
+      modeGroup: "카메라 모드",
+      labelFrameHint: "영양성분표를 프레임 안에 맞춰 주세요",
       shotCount: "{n}/{total}",
       analyzeCta: "분석하기",
       pickTitle: "사진 선택",
@@ -3695,6 +3863,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "1つの食事を、いろいろな角度から",
       cameraHint: "横からもう1枚撮ると、量を把握しやすくなります",
+      modePhoto: "写真",
+      modeLabel: "ラベル",
+      modeGroup: "カメラモード",
+      labelFrameHint: "栄養成分表示を枠内に収めてください",
       shotCount: "{n}/{total}",
       analyzeCta: "分析",
       pickTitle: "写真を選ぶ",
@@ -3781,6 +3953,10 @@ export const LOG_COPY: Localized<LogCopy> = {
     phone: {
       cameraTitle: "Uma refeição, qualquer ângulo",
       cameraHint: "Uma segunda foto de lado ajuda com as porções",
+      modePhoto: "Foto",
+      modeLabel: "Rótulo",
+      modeGroup: "Modo da câmera",
+      labelFrameHint: "Enquadre a tabela nutricional na moldura",
       shotCount: "{n} de {total}",
       analyzeCta: "Analisar",
       pickTitle: "Escolha uma foto",
