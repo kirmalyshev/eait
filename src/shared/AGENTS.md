@@ -62,9 +62,9 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 
 ## Localization (#358)
 
-**The product speaks sixteen languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru` and, from
-wave 1 of #2206, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `tr`, `pl`, `nl` (the target is every
-base language the App Store listing carries).** `LANGS`
+**The product speaks twenty-four languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru` and, from
+waves 1 and 2 of #2206, `pt-BR`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `tr`, `pl`, `nl`, `uk`, `sv`,
+`th`, `hi`, `cs`, `ro`, `el`, `hu` (the target is every base language the App Store listing carries).** `LANGS`
 (`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
 smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
 They are equal today and are two names because they mean different things: `PATCH /v1/profile`

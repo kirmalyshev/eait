@@ -80,6 +80,14 @@ export const LANG_LABEL: Record<Lang, string> = {
   tr: "Türkçe",
   pl: "Polski",
   nl: "Nederlands",
+  uk: "Українська",
+  sv: "Svenska",
+  th: "ไทย",
+  hi: "हिन्दी",
+  cs: "Čeština",
+  ro: "Română",
+  el: "Ελληνικά",
+  hu: "Magyar",
 };
 
 /**
@@ -104,6 +112,14 @@ export const LANG_FLAG: Record<Lang, string> = {
   tr: "🇹🇷",
   pl: "🇵🇱",
   nl: "🇳🇱",
+  uk: "🇺🇦",
+  sv: "🇸🇪",
+  th: "🇹🇭",
+  hi: "🇮🇳",
+  cs: "🇨🇿",
+  ro: "🇷🇴",
+  el: "🇬🇷",
+  hu: "🇭🇺",
 };
 
 /**
@@ -134,6 +150,14 @@ export const LANG_TAG: Record<Lang, string> = {
   tr: "tr-TR",
   pl: "pl-PL",
   nl: "nl-NL",
+  uk: "uk-UA",
+  sv: "sv-SE",
+  th: "th-TH-u-ca-gregory",
+  hi: "hi-IN",
+  cs: "cs-CZ",
+  ro: "ro-RO",
+  el: "el-GR",
+  hu: "hu-HU",
 };
 
 /**
@@ -241,6 +265,7 @@ export const toGuessStep = (x: number): number => Math.round(x / GUESS_STEP) * G
 export const UNIT_KCAL: Record<Lang, string> = {
   en: "kcal", fr: "kcal", de: "kcal", it: "kcal", es: "kcal", vi: "kcal", id: "kcal", ru: "ккал",
   "pt-BR": "kcal", ja: "kcal", ko: "kcal", "zh-Hans": "千卡", "zh-Hant": "大卡", tr: "kcal", pl: "kcal", nl: "kcal",
+  uk: "ккал", sv: "kcal", th: "kcal", hi: "kcal", cs: "kcal", ro: "kcal", el: "kcal", hu: "kcal",
 };
 
 /**
@@ -258,6 +283,8 @@ export const UNIT_KCAL: Record<Lang, string> = {
 const UNIT_SPELLING: Partial<Record<Lang, Record<string, string>>> = {
   ru: { kg: "кг", cm: "см", km: "км", g: "г", mg: "мг", min: "мин", ms: "мс", bpm: "уд/мин",
         kcal: "ккал", "ml/kg/min": "мл/кг/мин" },
+  uk: { kg: "кг", cm: "см", km: "км", g: "г", mg: "мг", min: "хв", ms: "мс", bpm: "уд/хв",
+        kcal: "ккал", "ml/kg/min": "мл/кг/хв" },
   // Only the two that are WORDS rather than symbols. `kg`, `cm`, `km`, `ms`, `%` and
   // `ml/kg/min` are the same in both, and de/fr/it/es need nothing at all.
   // `bpm` is the one unit here that is not an SI symbol but an abbreviated PHRASE, so it is
@@ -359,6 +386,14 @@ export const DAY_WORDS: Localized<{ today: string; yesterday: string }> = {
   tr: { today: "bugün", yesterday: "dün" },
   pl: { today: "dzisiaj", yesterday: "wczoraj" },
   nl: { today: "vandaag", yesterday: "gisteren" },
+  uk: { today: "сьогодні", yesterday: "учора" },
+  sv: { today: "idag", yesterday: "igår" },
+  th: { today: "วันนี้", yesterday: "เมื่อวาน" },
+  hi: { today: "आज", yesterday: "कल" },
+  cs: { today: "dnes", yesterday: "včera" },
+  ro: { today: "astăzi", yesterday: "ieri" },
+  el: { today: "σήμερα", yesterday: "χθες" },
+  hu: { today: "ma", yesterday: "tegnap" },
 };
 
 /**
@@ -472,6 +507,33 @@ const PLURAL_CATEGORY: Record<Lang, (n: number) => Intl.LDMLPluralRule> = {
     return "many";
   },
   nl: oneIfOne,
+  // CLDR. Ukrainian splits like Russian (one / few / many); Czech adds `many` for fractions, which
+  // whole numbers never reach; Romanian's `few` is 0 and 2–19 (and the 12–19 teens of every hundred).
+  uk: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    const i10 = i % 10;
+    const i100 = i % 100;
+    if (i10 === 1 && i100 !== 11) return "one";
+    if (i10 >= 2 && i10 <= 4 && (i100 < 12 || i100 > 14)) return "few";
+    return "many";
+  },
+  sv: oneIfOne,
+  th: () => "other",
+  hi: (n) => (Math.trunc(Math.abs(n)) <= 1 ? "one" : "other"),
+  cs: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    if (i === 1) return "one";
+    if (i >= 2 && i <= 4) return "few";
+    return "other";
+  },
+  ro: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    if (i === 1) return "one";
+    if (i === 0 || (i % 100 >= 2 && i % 100 <= 19)) return "few";
+    return "other";
+  },
+  el: oneIfOne,
+  hu: oneIfOne,
 };
 
 /**

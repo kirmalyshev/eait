@@ -1,0 +1,598 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-15 15:01+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: el\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Παίρνω αρκετή πρωτεΐνη;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Πώς πάει η εβδομάδα μου;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Τι να φάω απόψε;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Ενημερώθηκε — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Τα κορεσμένα λιπαρά είναι αυξημένα σε αυτό. Αξιολογήθηκαν μόνο επειδή μου το ζήτησες."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Το νάτριο είναι αυξημένο σε αυτό. Αξιολογήθηκε μόνο επειδή μου το ζήτησες."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "Απομένουν {left} από τις {plan} σου σήμερα, {protein} από τα {proteinTarget} g πρωτεΐνης."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "σου μένουν ακόμα {left} από τις {plan} σου να συμπληρώσεις σήμερα, και {protein} από τα {proteinTarget} g πρωτεΐνης. Συνέχισε έτσι."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "Σου μένουν ακόμα {left} από τις {plan} σου να συμπληρώσεις σήμερα, και {protein} από τα {proteinTarget} g πρωτεΐνης. Συνέχισε έτσι."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "{over} πάνω από τις {plan} σου σήμερα, {protein} από τα {proteinTarget} g πρωτεΐνης."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "σήμερα είσαι {over} πάνω από τις {plan} σου, και {protein} από τα {proteinTarget} g πρωτεΐνης. Σε πλάνο αύξησης, το να τις ξεπεράσεις είναι ο σκοπός· αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "Σήμερα είσαι {over} πάνω από τις {plan} σου, και {protein} από τα {proteinTarget} g πρωτεΐνης. Σε πλάνο αύξησης, το να τις ξεπεράσεις είναι ο σκοπός· αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "Ακόμα και κατά προσέγγιση, μετράει: απομένουν περίπου {left} από τις {plan} σου σήμερα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "Ακόμα και κατά προσέγγιση, μετράει: μένουν περίπου {left} από τις {plan} σου να συμπληρώσεις σήμερα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "Ακόμα και κατά προσέγγιση, μετράει: περίπου {over} πάνω από τις {plan} σου σήμερα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "Ακόμα και κατά προσέγγιση, μετράει: περίπου {over} πάνω από τις {plan} σου σήμερα. Αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "έτσι σου μένουν {left} από τις {plan} σου για το υπόλοιπο της μέρας, και {protein} από τα {proteinTarget} g πρωτεΐνης."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "Έτσι σου μένουν {left} από τις {plan} σου για το υπόλοιπο της μέρας, και {protein} από τα {proteinTarget} g πρωτεΐνης."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "έτσι είσαι {over} πάνω από τις {plan} σου για σήμερα, και {protein} από τα {proteinTarget} g πρωτεΐνης. Αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "Έτσι είσαι {over} πάνω από τις {plan} σου για σήμερα, και {protein} από τα {proteinTarget} g πρωτεΐνης. Αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "«{note}» — σημειώθηκε, είναι μέσα στους αριθμούς."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun}: υψηλή τιμή"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun}: υψηλή τιμή"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun}: εντός πλάνου"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun}: πολύ υψηλή τιμή"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun}: πολύ υψηλή τιμή"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient}: πολύ για ένα γεύμα — {eaten} από τα {target}{unit} σου."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient}: πάρα πολύ για ένα γεύμα — {eaten} από τα {target}{unit} σου."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Μεγάλο μέρος της μέρας σου σε ένα γεύμα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "Παίρνω αρκετή πρωτεΐνη;"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Απάντησε πρώτα στις ερωτήσεις του πλάνου στο web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "θερμίδες"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "Θερμίδες"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Θερμίδες εντός πλάνου."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Υδατάνθρακες"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "Έλεγχος με το πλάνο σου"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Συνδέθηκε με τον λογαριασμό eait με είσοδο μέσω"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "Μετρήθηκε. Απομένουν {left} kcal σήμερα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "Μετρήθηκε. {over} kcal πάνω σήμερα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "Υπολογισμός θρεπτικών στοιχείων · 4 από 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "Απορρίφθηκε."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Το σημερινό όριο εξαντλήθηκε για όλους. Αύριο είναι ένα καινούργιο νούμερο."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Λιπαρά"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "Αναγνώριση φαγητού · 2 από 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "Το πρώτο μπήκε. {kcal} kcal."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Πρόσεχέ το για το υπόλοιπο της μέρας."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "Ωραία — τελειώσαμε με τα αρχικά βήματα και η πρώτη μέρα ξεκίνησε. Ένα ακόμα πράγμα πριν φύγεις, και είναι η μόνη φορά που θα το ρωτήσω."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "Ωραία. Είμαι εδώ στη Συνομιλία όποτε θες — και μια φωτογραφία και μια πρόταση καταγράφουν γεύμα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "Ειλικρινά: δεν μπόρεσα να διαβάσω καλά αυτό το πιάτο. Πάρε τις {kcal} ως χοντρική εκτίμηση και έλεγξε τα γραμμάρια πριν εμπιστευτείς το σύνολο. Μια δεύτερη γωνία την επόμενη φορά βοηθάει."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "Πώς πάει η εβδομάδα μου;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Θα σου πω απλώς τι έφαγα"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "Αν κάτι δεν ταιριάζει, πες το — «μισό ρύζι», «χωρίς αβοκάντο» — ή πάτησε την κάρτα και άλλαξε τα γραμμάρια."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Οι σύνδεσμοι πρόσκλησης είναι για νέα μέλη, και αυτός ο λογαριασμός έχει ήδη αγοράσει το eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Καταγραφή"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Καταγράφηκε."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Το καταγράφω — σωστό;"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Το καταγράφω για {date} — σωστό;"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Γεύμα"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Πάνω από τη μισή σου μέρα σε ένα γεύμα."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Μετακινήθηκε."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "Αναγνώριση τροφών"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "Χωρίς κάμερα, κανένα πρόβλημα. Διάλεξε μια φωτογραφία από τη βιβλιοθήκη σου ή απλώς πες μου τι έφαγες — και τα δύο δίνουν μακροθρεπτικά."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "Κανένα άγχος. Το πλάνο είναι στο ημερολόγιό σου — φωτογράφισε το επόμενο γεύμα όταν έρθει. Αυτή είναι όλη η συνήθεια, και θα σου το θυμίσω μία φορά αύριο αν δεν γίνει."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Όχι αυτό"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Δεν είναι δικός σου ο λογαριασμός; Συνδέσου στον δικό σου στο web και πάτα εκεί Σύνδεση Telegram — αυτό το Telegram θα μεταφερθεί σε εκείνον."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Δεν έχεις καταγράψει τίποτα σήμερα ακόμα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Εντός πλάνου."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "Ένα ακόμα πράγμα για το οποίο θα ρωτήσει σε λίγο το iOS: ειδοποιήσεις. Μία την ημέρα και ποτέ περισσότερες — η σύνοψη των 20:30, συν μια υπενθύμιση την παραμονή της λήξης της δωρεάν δοκιμής σου, αν έχεις. Τίποτα άλλο, ποτέ."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "Πρώτα ένα πράγμα: το iOS θα ζητήσει πρόσβαση στην κάμερα. Τη χρησιμοποιώ για το πιάτο και για τίποτα άλλο — η φωτογραφία κρατιέται μαζί με το γεύμα για να τη βλέπεις στο ημερολόγιό σου, και διαγράφεται μαζί με τον λογαριασμό σου."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Πρωτεΐνη"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "Ανάγνωση του πιάτου"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "Ανάγνωση του πιάτου…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "Έγινε επαναφορά — είσαι μέσα. Και μια φωτογραφία και μια πρόταση καταγράφουν γεύμα."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "κορεσμένα λιπαρά"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "Κορεσμένα λιπαρά"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Στείλε φωτογραφία γεύματος, πες μου τι έφαγες ή κάνε μια ερώτηση προς {coach}."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Σύνδεση"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "νάτριο"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "Νάτριο"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Κάτι πήγε στραβά, και μπορεί να έχει περάσει κανονικά. Έλεγξε το /today πριν το στείλεις ξανά."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "Πες μου τι δεν ταιριάζει — «μισό ρύζι», «χωρίς αβοκάντο», «ήταν 500», όλα πιάνουν. Ή άνοιξε την κάρτα και άλλαξε εσύ τα γραμμάρια."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Αυτός ο κωδικός έληξε. Ζήτα νέο στο web ή στην εφαρμογή."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Αυτός ο κωδικός δεν είναι σωστός. Έλεγξε το πιο πρόσφατο email από το eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Δεν ήρθε απάντηση. Δοκίμασε ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Αυτό δεν έμοιαζε με φαγητό."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Αυτό το αρχείο δεν είναι φωτογραφία που διαβάζεται εδώ. JPEG, PNG ή WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Αυτός ο σύνδεσμος πρόσκλησης δεν αντιστοιχεί σε κανέναν. Έλεγξέ τον ή κάνε παράλειψη."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Αυτός ο σύνδεσμος έληξε. Άνοιξε το πλάνο σου στο web και πάτα ξανά Σύνδεση Telegram."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Το μήνυμα είναι πολύ μεγάλο για να σταλεί."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Αυτό δεν κρατιέται πια. Πες το ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Αυτό έχει ήδη καταγραφεί."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Η φωτογραφία δεν ήρθε από το Telegram. Στείλε την ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Η φωτογραφία δεν ήρθε. Στείλε την ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Η φωτογραφία είναι πολύ μεγάλη για να σταλεί."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Αυτή ήταν η τελευταία σου για σήμερα — το ημερήσιο όριο ανανεώνεται τα μεσάνυχτα."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Αυτό είναι το όριο για τώρα. Δοκίμασε ξανά αργότερα."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Αυτός είναι ο δικός σου σύνδεσμος πρόσκλησης. Εδώ μπαίνει ο σύνδεσμος ενός φίλου."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "την εφαρμογή"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Δεν υπάρχει ανοιχτό γεύμα εδώ για αλλαγή. Πες τι έφαγες και κατάγραψέ το ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Αυτός ο λογαριασμός έχει ήδη γραφτεί με σύνδεσμο φίλου."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Αυτός ο λογαριασμός δεν έχει συνδεθεί ακόμα — συνδέσου μέσω Apple ή Google στο web και μετά στείλε το ξανά."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Το δωρεάν δείγμα αυτού του λογαριασμού εξαντλήθηκε. Ξεκίνα τη δωρεάν δοκιμή σου στο web για να συνεχίσεις."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Αυτό είναι το νέο eait. Τα γεύματα και οι φωτογραφίες σου φυλάσσονται στον λογαριασμό σου eait: συνδέσου στο web και πάτα Σύνδεση Telegram στο πλάνο σου."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Σήμερα: {eaten} από {plan} kcal, {protein} από {proteinTarget} g πρωτεΐνης"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Πάρα πολλές προσπάθειες από αυτό το Telegram. Περίμενε λίγο και πάτα ξανά τον σύνδεσμο."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Η δωρεάν δοκιμή ξεκίνησε — {price} όταν λήξει, εκτός αν τη σταματήσεις. Θα σου το θυμίσω την παραμονή της λήξης, ποτέ την επόμενη μέρα."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "Γραμμένο, όχι φωτογραφημένο — οπότε οι μερίδες είναι δική μου εκτίμηση. Πάρε τις {kcal} κατά προσέγγιση· αν ξέρεις τα γραμμάρια, πες τα και θα το διορθώσω."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Ενημερώθηκε."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "Ανέβασμα φωτογραφίας · 1 από 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "Εκτίμηση μερίδων"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "Εκτίμηση μερίδων · 3 από 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "Εκτίμηση μερίδων…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "Τι να φάω απόψε;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Τι πιο ελαφρύ να φάω για βραδινό;"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "Η πρώτη σου μέρα ξεκίνησε. Στις 20:30 θα πάρεις μία γραμμή — η σημερινή μέρα σε σχέση με το πλάνο, και κάτι συγκεκριμένο για αύριο. Τίποτα πριν από αυτό."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Το προφίλ και οι ρυθμίσεις σου είναι στο web."

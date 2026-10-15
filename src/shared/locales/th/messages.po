@@ -1,0 +1,598 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-15 15:01+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: th\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "ฉันได้โปรตีนพอไหม?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "สัปดาห์นี้ของฉันเป็นยังไงบ้าง?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "คืนนี้ควรกินอะไรดี?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "อัปเดตแล้ว — {kcal} kcal {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "มื้อนี้ไขมันอิ่มตัวค่อนข้างสูง ที่ประเมินให้เพราะคุณขอไว้เท่านั้น"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "มื้อนี้โซเดียมค่อนข้างสูง ที่ประเมินให้เพราะคุณขอไว้เท่านั้น"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "วันนี้เหลือ {left} จาก {plan} ของคุณ โปรตีน {protein} จาก {proteinTarget} ก."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "วันนี้ยังต้องเติมอีก {left} จาก {plan} ของคุณ และโปรตีน {protein} จาก {proteinTarget} ก. ทำต่อไปนะ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "วันนี้ยังต้องเติมอีก {left} จาก {plan} ของคุณ และโปรตีน {protein} จาก {proteinTarget} ก. ทำต่อไปนะ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "วันนี้เกิน {plan} ของคุณไป {over} โปรตีน {protein} จาก {proteinTarget} ก."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "วันนี้เกิน {plan} ของคุณไป {over} และโปรตีน {protein} จาก {proteinTarget} ก. แผนเพิ่มน้ำหนักตั้งใจให้เกินอยู่แล้ว พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "วันนี้เกิน {plan} ของคุณไป {over} และโปรตีน {protein} จาก {proteinTarget} ก. แผนเพิ่มน้ำหนักตั้งใจให้เกินอยู่แล้ว พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "แม้จะคร่าวๆ ก็นับนะ: วันนี้เหลือประมาณ {left} จาก {plan} ของคุณ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "แม้จะคร่าวๆ ก็นับนะ: วันนี้ยังต้องเติมอีกประมาณ {left} จาก {plan} ของคุณ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "แม้จะคร่าวๆ ก็นับนะ: วันนี้เกิน {plan} ของคุณไปประมาณ {over}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "แม้จะคร่าวๆ ก็นับนะ: วันนี้เกิน {plan} ของคุณไปประมาณ {over} พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "จึงเหลือ {left} จาก {plan} ของคุณสำหรับวันนี้ และโปรตีน {protein} จาก {proteinTarget} ก."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "จึงเหลือ {left} จาก {plan} ของคุณสำหรับวันนี้ และโปรตีน {protein} จาก {proteinTarget} ก."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "ทำให้วันนี้เกิน {plan} ของคุณไป {over} และโปรตีน {protein} จาก {proteinTarget} ก. พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "ทำให้วันนี้เกิน {plan} ของคุณไป {over} และโปรตีน {protein} จาก {proteinTarget} ก. พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}” — รับทราบ รวมไว้ในตัวเลขแล้ว"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun}สูง"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun}สูง"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun}ตามแผน"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun}สูงมาก"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun}สูงมาก"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient}สูงสำหรับมื้อเดียว: {eaten} จาก {target}{unit} ของคุณ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient}สูงมากสำหรับมื้อเดียว: {eaten} จาก {target}{unit} ของคุณ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "มื้อเดียวกินส่วนใหญ่ของทั้งวันไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "ฉันได้โปรตีนพอไหม?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "ตอบคำถามสำหรับแผนบนเว็บก่อน"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "แคลอรี"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "แคลอรี"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "แคลอรีตามแผน"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "คาร์บ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "กำลังเทียบกับแผนของคุณ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "เชื่อมต่อกับบัญชี eait ที่ลงชื่อเข้าใช้ด้วย"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "นับแล้ว วันนี้เหลือ {left} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "นับแล้ว วันนี้เกิน {over} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "กำลังคำนวณสารอาหาร · 4 จาก 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "ทิ้งไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "ทุกคนใช้โควตาของวันนี้หมดแล้ว พรุ่งนี้เริ่มตัวเลขใหม่"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "ไขมัน"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "กำลังหาว่าเป็นอาหารอะไร · 2 จาก 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "มื้อแรกเข้ามาแล้ว {kcal} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "ช่วงที่เหลือของวันนี้ลดตัวนี้ลงหน่อยนะ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "ดีเลย — ขั้นตอนเริ่มต้นเสร็จแล้ว และวันแรกเริ่มแล้ว อีกเรื่องเดียวก่อนไป และเราจะถามแค่ครั้งนี้ครั้งเดียว"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "ดีเลย เราอยู่ในแชทเสมอ — จะส่งรูปหรือพิมพ์ประโยคเดียวก็จดมื้อได้"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "บอกตรงๆ: เราอ่านจานนี้ได้ไม่ชัด ให้ถือว่า {kcal} เป็นค่าประมาณคร่าวๆ และเช็กกรัมก่อนจะเชื่อยอดรวม ครั้งหน้าถ่ายอีกมุมจะช่วยได้"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "สัปดาห์นี้ของฉันเป็นยังไงบ้าง?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "ขอเล่าเลยว่ากินอะไรไป"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "ถ้ามีอะไรไม่ตรง บอกได้เลย — \"ข้าวครึ่งเดียว\", \"ไม่มีอะโวคาโด\" — หรือแตะการ์ดแล้วแก้กรัม"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "ลิงก์คำเชิญมีไว้สำหรับสมาชิกใหม่ และบัญชีนี้ซื้อ eait ไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "จดเลย"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "จดแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "จะจดแบบนี้ — ถูกไหม?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "จะจดแบบนี้สำหรับ {date} — ถูกไหม?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "มื้ออาหาร"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "มื้อเดียวกินเกินครึ่งของทั้งวันไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "ย้ายแล้ว"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "กำลังระบุว่ามีอะไรบ้าง"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "ไม่มีกล้องก็ไม่เป็นไร เลือกรูปจากคลังรูปภาพ หรือบอกเราว่ากินอะไรไป — ทั้งสองแบบได้มาโครเหมือนกัน"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "ไม่ต้องรีบ แผนอยู่ในไดอารี่ของคุณแล้ว — ถ่ายรูปมื้อต่อไปตอนที่กิน นั่นคือนิสัยทั้งหมด และถ้าพรุ่งนี้ยังไม่มี เราจะบอกครั้งเดียว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "ไม่ใช่อันนี้"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "ไม่ใช่บัญชีของคุณ? ลงชื่อเข้าใช้บัญชีของคุณเองบนเว็บแล้วกด เชื่อมต่อ Telegram ที่นั่น — Telegram นี้จะย้ายไปที่บัญชีนั้น"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "วันนี้ยังไม่ได้จดอะไร"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "ตามแผน"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "อีกเรื่องที่ iOS กำลังจะถาม: การแจ้งเตือน วันละครั้งและไม่มากกว่านั้น — สรุปตอน 20:30 และเตือนหนึ่งวันก่อนช่วงทดลองใช้ฟรีสิ้นสุด ถ้าคุณกำลังใช้อยู่ ไม่มีอย่างอื่นอีกเลย"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "ขอบอกก่อน: iOS จะขอใช้กล้อง เราใช้ถ่ายจานอาหารเท่านั้น — รูปจะเก็บไว้กับมื้อนั้นเพื่อให้คุณดูได้ในไดอารี่ และจะถูกลบพร้อมบัญชีของคุณ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "โปรตีน"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "กำลังอ่านจาน"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "กำลังอ่านจาน…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "กู้คืนการซื้อแล้ว — เข้ามาได้แล้ว จะส่งรูปหรือพิมพ์ประโยคเดียวก็จดมื้อได้"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "ไขมันอิ่มตัว"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "ไขมันอิ่มตัว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "ส่งรูปมื้ออาหาร บอกว่ากินอะไรไป หรือถามคำถาม {coach}"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "ลงชื่อเข้าใช้"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "โซเดียม"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "โซเดียม"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "มีบางอย่างผิดพลาด และอาจส่งไปแล้วก็ได้ เช็ก /today ก่อนส่งอีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "บอกเราว่าอะไรไม่ตรง — \"ข้าวครึ่งเดียว\", \"ไม่มีอะโวคาโด\", \"จริงๆ 500\" ได้หมด หรือเปิดการ์ดแล้วแก้กรัมเอง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "รหัสนั้นหมดอายุแล้ว ขอรหัสใหม่บนเว็บหรือในแอป"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "รหัสไม่ถูกต้อง เช็กอีเมลล่าสุดจาก eait"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "ไม่ได้รับผลกลับมา ลองอีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "ดูไม่เหมือนอาหาร"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "ไฟล์นี้ไม่ใช่รูปที่อ่านได้ ใช้ JPEG, PNG หรือ WebP"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "ลิงก์คำเชิญนี้ไม่ตรงกับใครเลย ตรวจสอบอีกครั้ง หรือข้ามไป"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "ลิงก์นั้นหมดอายุแล้ว เปิดแผนของคุณบนเว็บแล้วกด เชื่อมต่อ Telegram อีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "ข้อความยาวเกินกว่าจะส่งได้"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "รายการนั้นไม่ได้เก็บไว้แล้ว บอกอีกครั้งนะ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "รายการนั้นจดไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "รูปนั้นส่งมาจาก Telegram ไม่สำเร็จ ส่งอีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "รูปนั้นส่งมาไม่สำเร็จ ส่งอีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "รูปใหญ่เกินกว่าจะส่งได้"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "นั่นคือครั้งสุดท้ายของวันนี้ — โควตารายวันจะรีเซ็ตตอนเที่ยงคืน"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "ถึงขีดจำกัดแล้วตอนนี้ ลองใหม่ภายหลัง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "นี่คือลิงก์คำเชิญของคุณเอง ใส่ลิงก์ของเพื่อนที่นี่"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "แอป"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "ตรงนี้ไม่มีมื้อที่เปิดให้แก้ไข บอกว่ากินอะไรไปแล้วจดใหม่"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "บัญชีนี้เข้าร่วมผ่านลิงก์ของเพื่อนไปแล้ว"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "บัญชีนี้ยังไม่ได้ลงชื่อเข้าใช้ — ลงชื่อเข้าใช้ด้วย Apple หรือ Google บนเว็บ แล้วส่งอีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "บัญชีนี้ใช้ตัวอย่างฟรีหมดแล้ว เริ่มทดลองใช้ฟรีบนเว็บเพื่อใช้งานต่อ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "นี่คือ eait ใหม่ มื้ออาหารและรูปของคุณเก็บไว้ในบัญชี eait: ลงชื่อเข้าใช้บนเว็บแล้วกด เชื่อมต่อ Telegram ในแผนของคุณ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "วันนี้: {eaten} จาก {plan} kcal โปรตีน {protein} จาก {proteinTarget} ก."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "ลองจาก Telegram นี้หลายครั้งเกินไป รอสักพักแล้วกดลิงก์อีกครั้ง"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "ช่วงทดลองใช้ฟรีเริ่มแล้ว — เมื่อสิ้นสุดจะคิด {price} เว้นแต่คุณยกเลิก เราจะเตือนหนึ่งวันก่อนสิ้นสุด ไม่ใช่วันหลัง"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "พิมพ์มา ไม่ได้ถ่ายรูป — ปริมาณจึงเป็นการคาดเดาของเรา ให้ถือว่า {kcal} เป็นค่าคร่าวๆ ถ้ารู้กรัม บอกมาแล้วเราจะแก้ให้"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "อัปเดตแล้ว"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "กำลังอัปโหลดรูป · 1 จาก 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "กำลังประเมินปริมาณ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "กำลังประเมินปริมาณ · 3 จาก 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "กำลังประเมินปริมาณ…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "คืนนี้ควรกินอะไรดี?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "มื้อเย็นมีอะไรเบาๆ ให้เปลี่ยนไหม?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "วันแรกของคุณเริ่มแล้ว ตอน 20:30 คุณจะได้สรุปหนึ่งบรรทัด — วันนี้เทียบกับแผน และสิ่งที่ทำได้จริงหนึ่งอย่างสำหรับพรุ่งนี้ ก่อนหน้านั้นไม่มีอะไร"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "โปรไฟล์และการตั้งค่าของคุณอยู่บนเว็บ"

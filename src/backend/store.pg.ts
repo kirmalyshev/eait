@@ -1122,10 +1122,10 @@ do $do$
 begin
   if not exists (select 1 from pg_constraint where conrelid = 'push_templates'::regclass and conname = 'push_templates_lang_check')
      or exists (select 1 from pg_constraint where conrelid = 'push_templates'::regclass and conname = 'push_templates_lang_check'
-                and pg_get_constraintdef(oid) not like '%nl%') then
+                and pg_get_constraintdef(oid) not like '%hu%') then
     alter table push_templates drop constraint if exists push_templates_lang_check;
     alter table push_templates add constraint push_templates_lang_check
-      check (lang in ('en','fr','de','it','es','vi','id','ru','pt-BR','ja','ko','zh-Hans','zh-Hant','tr','pl','nl'));
+      check (lang in ('en','fr','de','it','es','vi','id','ru','pt-BR','ja','ko','zh-Hans','zh-Hant','tr','pl','nl','uk','sv','th','hi','cs','ro','el','hu'));
   end if;
 end
 $do$;

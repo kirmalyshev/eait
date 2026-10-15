@@ -38,10 +38,18 @@ import { messages as zhHant } from "./locales/zh-Hant/messages.ts";
 import { messages as tr } from "./locales/tr/messages.ts";
 import { messages as pl } from "./locales/pl/messages.ts";
 import { messages as nl } from "./locales/nl/messages.ts";
+import { messages as uk } from "./locales/uk/messages.ts";
+import { messages as sv } from "./locales/sv/messages.ts";
+import { messages as th } from "./locales/th/messages.ts";
+import { messages as hi } from "./locales/hi/messages.ts";
+import { messages as cs } from "./locales/cs/messages.ts";
+import { messages as ro } from "./locales/ro/messages.ts";
+import { messages as el } from "./locales/el/messages.ts";
+import { messages as hu } from "./locales/hu/messages.ts";
 
 const CATALOGS: Record<Lang, Messages> = {
   en, fr, de, it, es, vi, id, ru,
-  "pt-BR": ptBR, ja, ko, "zh-Hans": zhHans, "zh-Hant": zhHant, tr, pl, nl,
+  "pt-BR": ptBR, ja, ko, "zh-Hans": zhHans, "zh-Hant": zhHant, tr, pl, nl, uk, sv, th, hi, cs, ro, el, hu,
 };
 
 const INSTANCES: Record<Lang, I18n> = Object.fromEntries(
