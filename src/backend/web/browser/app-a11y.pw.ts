@@ -70,11 +70,12 @@ test("the chat: one h1, and Send at 44px", async ({ inWebApp: page }) => {
 });
 
 test("You: one h1, the language row at 44px, and the weigh-in's field at 16px", async ({ inWebApp: page }) => {
-  await page.goto("/#/you");
+  await page.goto("/#/you/settings");
   await landmark(page);
   // The language control is a value+chevron row since #474 — a button, so iOS zoom does not
   // apply; the hit-area pin stands exactly as it did on the select.
   await tapTarget(page.getByRole("button", { name: /^Language: / }));
+  await page.goto("/#/you");
   // The 16px-on-form-controls guard now lands on the one form control the redesigned Profile
   // owns: the weigh-in's figure field, reached through the plan editor's Weight door.
   await page.getByRole("button", { name: "edit" }).click();

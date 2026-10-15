@@ -119,7 +119,7 @@ test("the diary is grouped and worded in the account's language, not the browser
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   // The picker lives on You since #52, showing the language being read — and in it. Since #474
   // it is a row naming the language in the language's own words, opening the endonym panel.
-  await page.goto("/#/you");
+  await page.goto("/#/you/settings");
   await expect(page.getByRole("button", { name: /^Sprache: Deutsch$/ })).toBeVisible();
 });
 

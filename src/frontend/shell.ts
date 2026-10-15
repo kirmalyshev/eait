@@ -167,7 +167,7 @@ export const firstMealDue = (me: ProfileResponse | null | undefined): me is Prof
 const activeTab = (route: string): string => {
   const base = routeBase(route);
   if (base === "#/milestones") return "#/progress";
-  if (base === "#/you/milestones") return "#/you";
+  if (base === "#/you/milestones" || base === "#/you/settings") return "#/you";
   return ["#/chat", "#/you", "#/progress"].includes(base) ? base : base === "#/pay" ? "" : "#/";
 };
 

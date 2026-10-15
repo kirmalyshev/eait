@@ -85,6 +85,11 @@ export const youCss = `
 .you .urows .swt[aria-checked="true"] i { left: 22px; }
 .you .urows .swt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Settings — the sub-screen: back arrow, centred title, one column (the milestones shape). */
+.you.yset .ygrid { grid-template-columns: minmax(0, 560px); justify-content: center; }
+.you .ytop { display: flex; align-items: center; justify-content: space-between; max-width: 560px; margin: 0 auto 16px; }
+.you .ytop h1 { margin: 0; text-align: center; }
+.you .ytop .ghost { width: 36px; height: 36px; visibility: hidden; }
 /* The stagger the board draws — rise delays as classes, because the nonce policy has no style=. */
 .you .rc-1 { --d: .06s; }
 .you .rc-2 { --d: .12s; }
