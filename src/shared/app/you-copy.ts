@@ -343,6 +343,8 @@ export interface YouCopy {
     language: string;
     /** The Appearance row's label — "Appearance" (the phone follows its own theme setting). */
     appearance: string;
+    /** The Profile › Settings screen's title and its row (ieat-app#2183); the web's `copy.settings`, same words. */
+    settings: string;
     /** The theme picker's three answers — "Light" / "Dark" / "System". */
     themeLight: string;
     themeDark: string;
@@ -485,6 +487,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Delete",
       language: "Language",
       appearance: "Appearance",
+      settings: "Settings",
       themeLight: "Light",
       themeDark: "Dark",
       themeSystem: "System",
@@ -622,6 +625,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Supprimer",
       language: "Langue",
       appearance: "Apparence",
+      settings: "Réglages",
       themeLight: "Clair",
       themeDark: "Sombre",
       themeSystem: "Système",
@@ -759,6 +763,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Löschen",
       language: "Sprache",
       appearance: "Erscheinungsbild",
+      settings: "Einstellungen",
       themeLight: "Hell",
       themeDark: "Dunkel",
       themeSystem: "System",
@@ -896,6 +901,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Elimina",
       language: "Lingua",
       appearance: "Aspetto",
+      settings: "Impostazioni",
       themeLight: "Chiaro",
       themeDark: "Scuro",
       themeSystem: "Sistema",
@@ -1033,6 +1039,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Eliminar",
       language: "Idioma",
       appearance: "Apariencia",
+      settings: "Ajustes",
       themeLight: "Claro",
       themeDark: "Oscuro",
       themeSystem: "Sistema",
@@ -1170,6 +1177,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Xóa",
       language: "Ngôn ngữ",
       appearance: "Giao diện",
+      settings: "Cài đặt",
       themeLight: "Sáng",
       themeDark: "Tối",
       themeSystem: "Hệ thống",
@@ -1307,6 +1315,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Hapus",
       language: "Bahasa",
       appearance: "Tampilan",
+      settings: "Pengaturan",
       themeLight: "Terang",
       themeDark: "Gelap",
       themeSystem: "Sistem",
@@ -1444,6 +1453,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       deleteConfirm: "Удалить",
       language: "Язык",
       appearance: "Внешний вид",
+      settings: "Настройки",
       themeLight: "Светлая",
       themeDark: "Тёмная",
       themeSystem: "Как в системе",

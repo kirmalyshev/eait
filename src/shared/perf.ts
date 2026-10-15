@@ -70,6 +70,7 @@ export const PERF_SCREENS = [
   "you-subscription",
   "you-milestones",
   "you-focus",
+  "you-settings",
   "you-reminders",
   "milestones",
   "camera",
@@ -215,6 +216,8 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "you-milestones": { paintMs: 100, readyMs: 100 },
   // Profile › Phone break (ieat-app#2129): the same two switches' worth of work, off the profile already in the session.
   "you-focus": { paintMs: 100, readyMs: 100 },
+  // Profile › Settings (ieat-app#2183): the rows Profile gave up, read off the profile already in the session.
+  "you-settings": { paintMs: 100, readyMs: 100 },
   "you-reminders": { paintMs: 100, readyMs: 100 },
 
   // The badge wall (ieat-app#1956): one read of `GET /v1/milestones`, a flat list of 36 medals that
