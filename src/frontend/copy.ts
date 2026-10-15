@@ -1077,7 +1077,7 @@ const EL: WebCopy = {
   photoWithCaption: "Φωτογραφία: {text}",
   statProtein: "Πρωτεΐνη", statCarbs: "Υδατάνθρακες", statFat: "Λιπαρά",
   refusals: {
-    "unreadable-label": "Αυτή η ετικέτα δεν μπόρεσε να διαβαστεί.",
+    "unreadable-label": "Δεν ήταν δυνατή η ανάγνωση αυτής της ετικέτας.",
     "subscription-required": "Το δωρεάν δείγμα αυτού του λογαριασμού εξαντλήθηκε. Ξεκίνα τη δωρεάν δοκιμή σου για να συνεχίσεις.",
     "unsupported-image": "Αυτό το αρχείο δεν είναι φωτογραφία που μπορεί να διαβαστεί εδώ. JPEG, PNG ή WebP.",
     "not-food": "Δεν υπάρχει φαγητό σε αυτή τη φωτογραφία.",
@@ -1490,7 +1490,7 @@ const TH: WebCopy = {
 };
 
 const SV: WebCopy = {
-  labelRead: "Avläst från näringsetiketten på ditt foto.",
+  labelRead: "Avläst från näringsdeklarationen på ditt foto.",
   analyseAsMeal: "Analysera som måltidsfoto",
   navAdmin: "Admin",
   signOut: "Logga ut",

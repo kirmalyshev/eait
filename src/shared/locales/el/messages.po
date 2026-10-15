@@ -200,7 +200,7 @@ msgstr "Συνδέθηκε με τον λογαριασμό eait με είσοδ
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.unreadable-label"
-msgstr "Αυτή η ετικέτα δεν μπόρεσε να διαβαστεί."
+msgstr "Δεν ήταν δυνατή η ανάγνωση αυτής της ετικέτας."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
