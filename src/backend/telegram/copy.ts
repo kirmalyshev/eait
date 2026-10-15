@@ -107,6 +107,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
     "cap-address": i18n._("tg.refusal.cap-address", undefined, { message: "That's the limit for now. Try again later." }),
     "subscription-required": i18n._("tg.refusal.subscription-required", undefined, { message: "This account's free sample is used up. Start your free trial on the web to carry on." }),
     "analysis-failed": i18n._("tg.refusal.analysis-failed", undefined, { message: "That did not come back. Try it again." }),
+    "unreadable-label": i18n._("tg.refusal.unreadable-label", undefined, { message: "Couldn't read that label." }),
     "unsupported-image": i18n._("tg.refusal.unsupported-image", undefined, { message: "That file is not a photo this can read. JPEG, PNG or WebP." }),
     "no-photo": i18n._("tg.refusal.no-photo", undefined, { message: "That photo did not come through. Send it again." }),
     // The email sign-in's two refusals (#569). The bot never reaches them — a `Refusal` it would

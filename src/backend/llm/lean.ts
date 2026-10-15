@@ -31,6 +31,7 @@ export const LeanSchema = z.object({
   confidence: z.enum(["low", "medium", "high"]),
   notes: z.string(),
   question: MealAnalysisSchema.shape.question,
+  labelRead: MealAnalysisSchema.shape.labelRead,
 });
 
 /** Lean answer -> the full shape: per-item kcal from density, meal macros shared by kcal as the no-match fallback. */

@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "eait hesabına bağlandı, giriş yöntemi:"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Bu etiket okunamadı."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Sayıldı. Bugün {left} kcal kaldı."

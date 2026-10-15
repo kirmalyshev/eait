@@ -141,6 +141,26 @@ export function demoPieceDelayMs(caption: string | undefined): number {
   return (caption ?? "").toLowerCase().includes(DEMO_HOLD) ? 8_000 : 150;
 }
 
+/**
+ * The label scan, canned (ieat-app#2087): one serving, one item. The caption is the only channel
+ * into a fake that cannot see the picture, so "unreadable" in it is a frame with no legible label.
+ */
+export const DEMO_UNREADABLE_LABEL = "unreadable";
+/** A caption naming a nutrition label is read as one without the flag: the web's auto-detect path. */
+export const DEMO_LABEL = "nutrition label";
+function labelRead(caption: string): AnalyzedMeal {
+  if (caption.includes(DEMO_UNREADABLE_LABEL)) return { ...nothingOnThePlate(), labelRead: "unreadable" };
+  return {
+    isFood: true,
+    items: [{ name: "Granola bar", name_en: "Granola bar", grams: 40, kcal_per_100g: 475, kcal: 190, protein_g: 4, carbs_g: 26, fat_g: 8 }],
+    kcal: 190, protein_g: 4, carbs_g: 26, fat_g: 8,
+    satfat_g: 1.5, fiber_g: 2, sugar_g: 9, sodium_mg: 85,
+    confidence: "high",
+    notes: "Demo analyzer — read from a nutrition label.",
+    labelRead: "read",
+  };
+}
+
 /** Zero everything. What the real analyzer is told to return for an image with no food in it. */
 function nothingOnThePlate(): AnalyzedMeal {
   return {
@@ -173,7 +193,7 @@ export function demoPorts(): LlmPorts {
     input.onCost?.(0);
     called(input.onCall, "meal_analysis", input.images.length, input.images.reduce((n, b) => n + b.byteLength, 0));
     const caption = (input.caption ?? "").toLowerCase();
-    const meal = storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
+    const meal = input.label === true || (input.label !== false && caption.includes(DEMO_LABEL)) ? labelRead(caption) : storedPhotoRead(input.images, input.profile.lang) ?? (caption.includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
       : caption.includes(DEMO_GRAMS_QUESTION)
         // The grams question, canned like the seeded oil one — the analyzer's only other shape the

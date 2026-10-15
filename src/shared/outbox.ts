@@ -28,6 +28,8 @@ export interface Queued<Photo> {
   capturedAt: string;
   /** The meal a queued correction was about, as it was when typed. */
   focusMealId?: string;
+  /** A photo to read as a plate and never as a label (`label=0`): "Analyse it as a meal photo" (ieat-app#2087). */
+  plate?: boolean;
   /**
    * The server answered, and not with a result: a refusal, a failed analysis, a turn it could not
    * finish. Worded against this entry the way a live refusal is, kept until the person sends it

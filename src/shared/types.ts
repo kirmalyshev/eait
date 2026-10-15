@@ -301,6 +301,12 @@ export interface MealAnalysis {
   /** `low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown. */
   confidence: string;
   notes: string;
+  /**
+   * Set when the numbers were read off a nutrition label (ieat-app#2087): `servings` is how many of
+   * the printed serving this meal is. Absent on every other meal. Per-serving figures are
+   * `total / servings`, derived by the client and never stored beside the totals.
+   */
+  label?: MealLabel | null;
 }
 
 /**
@@ -312,6 +318,15 @@ export interface MealAnalysis {
 export interface MealQuestion {
   text: string;
   options: string[];
+}
+
+/**
+ * A meal read off a nutrition label (ieat-app#2087). `servings` multiplies what the panel printed:
+ * the meal's totals are ALWAYS `per serving × servings`, so the per-serving figures are derived
+ * (`total / servings`), never stored beside the totals where they could disagree. Default 1, by halves.
+ */
+export interface MealLabel {
+  servings: number;
 }
 
 /** A persisted meal row. */
@@ -344,6 +359,8 @@ export interface MealRecord extends MealAnalysis {
   photos?: number;
   /** The phone break taken after this meal (ieat-app#2129): how long, and whether it was held to the end. Null until one is recorded; absent on bare rows. */
   focus?: MealFocus | null;
+  /** Set when the meal was read off a nutrition label (ieat-app#2087); null on every other meal. */
+  label?: MealLabel | null;
   /**
    * The row's own verdict line — "calories high · saturated fat high", `verdictInlineText` in the
    * account's language, joined server-side and empty when every verdict is on plan. Optional: the

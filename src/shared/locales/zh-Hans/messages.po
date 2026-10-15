@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "已连接到通过以下方式登录的 eait 账户"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "没能读取这张营养成分表。"
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "已计入。今天还剩{left}千卡。"
