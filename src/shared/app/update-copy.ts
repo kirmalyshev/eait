@@ -145,7 +145,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   nl: {
     reasons: { timeout: "Dat duurde te lang, dus ik ben gestopt. Er is niets gelogd.", error: "Er ging aan mijn kant iets mis. Er is niets gelogd.", "worker-lost": "Ik ben deze kwijtgeraakt terwijl ik eraan werkte. Er is niets gelogd.", expired: "Hier ben ik nooit aan toegekomen. Er is niets gelogd." },
-    restore: "Tekst terugzetten", editStructured: "Wijzig per ingrediënt",
+    restore: "Herstel tekst", editStructured: "Wijzig per ingrediënt",
     steps: {
       ingredients: ["Je wijziging opslaan · 1 van 2", "Voedingsstoffen opnieuw tellen · 2 van 2"],
       note: ["Je notitie lezen · 1 van 3", "De maaltijd aanpassen · 2 van 3", "Voedingsstoffen opnieuw tellen · 3 van 3"],
@@ -158,8 +158,8 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     discard: "Weggooien", ok: "OK", push: "{names} bijgewerkt · {kcal} (was {was})",
   },
   pl: {
-    reasons: { timeout: "Trwało to za długo, więc zostało przerwane. Nic nie zostało zapisane.", error: "Coś poszło nie tak po mojej stronie. Nic nie zostało zapisane.", "worker-lost": "Ten wpis przepadł w trakcie przetwarzania. Nic nie zostało zapisane.", expired: "Do tego wpisu nie doszła kolejka. Nic nie zostało zapisane." },
-    restore: "Przywróć tekst", editStructured: "Edytuj według składników",
+    reasons: { timeout: "Trwało to za długo, więc zostało przerwane. Nic nie zostało zapisane.", error: "Coś poszło nie tak po mojej stronie. Nic nie zostało zapisane.", "worker-lost": "Ten wpis przepadł w trakcie przetwarzania. Nic nie zostało zapisane.", expired: "Ten wpis nie doczekał się przetworzenia. Nic nie zostało zapisane." },
+    restore: "Przywróć tekst", editStructured: "Edytuj składniki",
     steps: {
       ingredients: ["Zapisywanie zmiany · 1 z 2", "Przeliczanie wartości odżywczych · 2 z 2"],
       note: ["Czytanie notatki · 1 z 3", "Dopasowywanie posiłku · 2 z 3", "Przeliczanie wartości odżywczych · 3 z 3"],
@@ -173,7 +173,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   tr: {
     reasons: { timeout: "Çok uzun sürdü, o yüzden durdurdum. Hiçbir şey kaydedilmedi.", error: "Benim tarafımda bir şeyler ters gitti. Hiçbir şey kaydedilmedi.", "worker-lost": "Bunu işlerken izini kaybettim. Hiçbir şey kaydedilmedi.", expired: "Buna hiç sıra gelmedi. Hiçbir şey kaydedilmedi." },
-    restore: "Metni geri getir", editStructured: "Malzemelere göre düzenle",
+    restore: "Metni geri getir", editStructured: "Malzemeler üzerinden düzenle",
     steps: {
       ingredients: ["Değişikliğin kaydediliyor · 1/2", "Besin değerleri yeniden hesaplanıyor · 2/2"],
       note: ["Notun okunuyor · 1/3", "Öğün düzenleniyor · 2/3", "Besin değerleri yeniden hesaplanıyor · 3/3"],
@@ -215,7 +215,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   ko: {
     reasons: { timeout: "시간이 너무 오래 걸려서 중단했어요. 아무것도 기록되지 않았어요.", error: "제 쪽에서 문제가 생겼어요. 아무것도 기록되지 않았어요.", "worker-lost": "처리하는 도중에 이 항목을 놓쳤어요. 아무것도 기록되지 않았어요.", expired: "이 항목은 끝내 처리하지 못했어요. 아무것도 기록되지 않았어요." },
-    restore: "텍스트 되돌리기", editStructured: "재료별로 편집",
+    restore: "텍스트 복원", editStructured: "재료별로 편집",
     steps: {
       ingredients: ["변경 사항 저장 중 · 1/2", "영양소 다시 계산 중 · 2/2"],
       note: ["메모 읽는 중 · 1/3", "식사 조정 중 · 2/3", "영양소 다시 계산 중 · 3/3"],
@@ -229,7 +229,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
   },
   ja: {
     reasons: { timeout: "時間がかかりすぎたため中止しました。何も記録されていません。", error: "こちら側で問題が発生しました。何も記録されていません。", "worker-lost": "処理の途中でこの件を見失いました。何も記録されていません。", expired: "この件には手が回りませんでした。何も記録されていません。" },
-    restore: "テキストを戻す", editStructured: "食材ごとに編集",
+    restore: "テキストを元に戻す", editStructured: "食材ごとに編集",
     steps: {
       ingredients: ["変更を保存中 · 1/2", "栄養素を再計算中 · 2/2"],
       note: ["メモを読んでいます · 1/3", "食事を調整中 · 2/3", "栄養素を再計算中 · 3/3"],
@@ -242,7 +242,7 @@ export const UPDATE_COPY: Localized<UpdateCopy> = {
     discard: "破棄", ok: "OK", push: "{names}を更新 · {kcal}（以前は{was}）",
   },
   "pt-BR": {
-    reasons: { timeout: "Demorou demais, então parei. Nada foi registrado.", error: "Algo deu errado do meu lado. Nada foi registrado.", "worker-lost": "Perdi o fio desta enquanto processava. Nada foi registrado.", expired: "Nunca cheguei a esta. Nada foi registrado." },
+    reasons: { timeout: "Demorou demais, então parei. Nada foi registrado.", error: "Algo deu errado do meu lado. Nada foi registrado.", "worker-lost": "Perdi esta no meio do caminho. Nada foi registrado.", expired: "Nunca cheguei a esta. Nada foi registrado." },
     restore: "Restaurar texto", editStructured: "Editar por ingredientes",
     steps: {
       ingredients: ["Salvando sua alteração · 1 de 2", "Recalculando nutrientes · 2 de 2"],
