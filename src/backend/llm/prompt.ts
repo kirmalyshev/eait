@@ -141,6 +141,9 @@ export const MealAnalysisSchema = z.object({
     text: z.string().min(1).max(MAX_QUESTION),
     options: z.array(z.string().min(1).max(MAX_OPTION)).min(2).max(4),
   }).nullable().optional(),
+  // Whether the frame is a nutrition-facts label (ieat-app#2087). Prompt-side like `scale` and
+  // `question`: `analyzePhotos` reads it and `prepareAnalysis` takes it off.
+  labelRead: z.enum(["read", "unreadable"]).nullable().optional(),
 });
 
 export const RouteSchema = z.object({
@@ -252,8 +255,19 @@ const foodCountry = (profile: Profile): string | null => {
 };
 
 /** The user-side text for a photo turn. The image parts are attached by the provider. */
+const LABEL_READ_RULES = "a nutrition-facts label read: return exactly ONE item named for the product (its brand and name as printed, " +
+  "else the food it is), with grams the printed serving size in grams (millilitres count as grams), kcal_per_100g = serving kcal / grams * 100, " +
+  "and kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g and sodium_mg (milligrams) the PRINTED PER-SERVING figures, not per 100 g and not the whole package; " +
+  "a figure the label does not print is 0. Set confidence high, labelRead \"read\", and do not estimate or guess any number.";
+const LABEL_FORCED = "This photo is a nutrition-facts label the user scanned on purpose. Do " + LABEL_READ_RULES +
+  " If no label is legible in the frame, return isFood false, items [] and labelRead \"unreadable\".";
+const LABEL_AUTO = "If, and only if, the photo is a printed nutrition-facts label rather than food, do " + LABEL_READ_RULES +
+  " Otherwise leave labelRead out.";
+
 export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   caption?: string;
+  /** The capture is a nutrition-facts label (ieat-app#2087). */
+  label?: boolean;
   localTime?: string;
   repertoire?: readonly string[];
   portionPriors?: readonly PortionPrior[];
@@ -264,6 +278,9 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   ];
   if (opts.localTime) lines.push(`Local time when the photo was taken: ${opts.localTime}.`);
   if (opts.caption) lines.push(`The user says about this meal: "${normalizePromptText(opts.caption)}"`);
+  // ONE serving as printed, never an estimate of a plate: the engine multiplies by the servings
+  // the person eats and recomputes every verdict itself.
+  lines.push(opts.label ? LABEL_FORCED : LABEL_AUTO);
 
   // Each free-text field on its OWN labelled line. They are independent axes — a medical condition
   // is not an allergy is not a dislike — and merging them loses the distinction the user drew.

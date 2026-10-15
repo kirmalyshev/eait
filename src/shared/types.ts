@@ -301,6 +301,12 @@ export interface MealAnalysis {
   /** `low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown. */
   confidence: string;
   notes: string;
+  /**
+   * Set when the numbers were read off a nutrition label (ieat-app#2087): `servings` is how many of
+   * the printed serving this meal is. Absent on every other meal. Per-serving figures are
+   * `total / servings`, derived by the client and never stored beside the totals.
+   */
+  label?: MealLabel | null;
 }
 
 /**

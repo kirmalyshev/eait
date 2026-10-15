@@ -47,6 +47,8 @@ export const REFUSAL_STATUS = {
   "subscription-required": 402,
   "analysis-failed": 502,
   "unsupported-image": 415,
+  /** A label scan that read no label (ieat-app#2087): refused unbilled, the same 422 as `not-food`. */
+  "unreadable-label": 422,
   "no-photo": 404,
   /**
    * Email sign-in (#569): the code typed did not match the live one, and it may be tried again —
@@ -300,6 +302,9 @@ export const ROUTES = {
   /**
    * POST, multipart: `photo` (one to `maxPhotosPerMeal` angles of one meal), `caption`, and the two
    * fields every billed turn carries — `clientId` and `capturedAt`, as {@link MessageRequest} says.
+   * `label=1` says the photo is a nutrition-facts label (ieat-app#2087): its printed numbers are
+   * read, not a plate estimated. Absent, the analyzer decides, and a meal read from a label says so
+   * in {@link MealRecord.label} either way.
    */
   photo: "/v1/meals/photo",
   /**
@@ -1118,7 +1123,17 @@ export interface EditMealRequest {
   fiber_g?: number;
   sugar_g?: number;
   sodium_mg?: number;
+  /**
+   * How many servings of a label-scanned meal were eaten (ieat-app#2087), by halves up to
+   * {@link MAX_LABEL_SERVINGS}. The server scales every item and total by `servings / stored` and
+   * recomputes the verdicts; per-serving figures are `total / servings`, never sent. Refused on a
+   * meal with no `label`, and sent ALONE — an edit that also carries items or totals is malformed.
+   */
+  servings?: number;
 }
+
+/** The most servings a label meal may be logged as; a step is one half. */
+export const MAX_LABEL_SERVINGS = 20;
 
 const EDIT_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
 const ITEM_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const;
@@ -1159,6 +1174,11 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
   for (const k of EDIT_NUMBERS) {
     const v = b[k];
     if (v !== undefined && !amount(v)) return false;
+  }
+  if (b.servings !== undefined) {
+    const n = b.servings;
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0.5 || n > MAX_LABEL_SERVINGS || (n * 2) % 1 !== 0) return false;
+    if (Object.keys(b).some((k) => k !== "servings")) return false;
   }
   if (b.swap !== undefined) {
     const w = b.swap as Record<string, unknown> | null;
