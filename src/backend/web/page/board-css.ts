@@ -360,7 +360,7 @@ export const BOARD_CSS = `
 .ob .wlangs { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; padding: 6px; border-radius: 16px;
   background: var(--surface); box-shadow: 0 0 0 1px var(--hair), 0 12px 32px -8px rgba(23,25,28,.25);
   display: flex; flex-direction: column; animation: k-pop .25s var(--ease) both;
-  max-height: calc(100vh - 80px); max-height: calc(100dvh - 80px); overflow-y: auto; overscroll-behavior: contain; }
+  max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); overflow-y: auto; overscroll-behavior: contain; }
 .ob .wlangs button { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0; border-radius: 10px;
   background: none; font: inherit; font-size: 16px; color: var(--ink); text-align: left; cursor: pointer; }
 .ob .wlangs button:hover { background: var(--bg); }
