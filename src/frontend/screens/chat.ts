@@ -708,20 +708,20 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
       lang,
       left: day === null ? null : day.targets.kcal - day.totals.kcal,
       onTell: (q) => { words.value = q; comp.form.requestSubmit(); },
-      onNumbers: (q) => { void openNumbers(q, () => { landed = true; }); },
+      onNumbers: (q) => { sheet.remove(); if (landed) void draw(); void openNumbers(q); },
       onLogged: () => { landed = true; },
       onClose: () => { sheet.remove(); if (landed) void draw(); },
     });
     wrap.append(sheet);
   };
   // Typed numbers (#2088): the Numbers tile, and the search sheet's "Enter numbers" row.
-  const openNumbers = async (name: string | undefined, onLanded?: () => void): Promise<void> => {
+  const openNumbers = async (name: string | undefined): Promise<void> => {
     const day = await api<DayResponse>("/diary/day").catch(() => null);
     const sheet = numbersSheet({
       lang,
       left: day === null ? null : day.targets.kcal - day.totals.kcal,
       ...(name !== undefined && name !== "" ? { name } : {}),
-      onLogged: () => { onLanded?.(); void draw(); },
+      onLogged: () => { void draw(); },
       onClose: () => sheet.remove(),
     });
     wrap.append(sheet);
