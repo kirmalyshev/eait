@@ -131,6 +131,8 @@ export interface YouCopy {
   /** What only the web board draws. The day column's own words are HOME_COPY's — the column is
       the same component on both surfaces, so its captions come from one table. */
   web: {
+    /** The Settings screen's title and the Profile row that opens it — "Settings". */
+    settings: string;
     /** The Units row's label and its two options — the symbols are `spellUnit`'s, spelled the
         way the language writes them (`kg · cm` / `lb · ft`, Russian "кг · см"). */
     units: string;
@@ -409,6 +411,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait is yours until {date}.",
     },
     web: {
+      settings: "Settings",
       units: "Units",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -547,6 +550,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait est à toi jusqu'au {date}.",
     },
     web: {
+      settings: "Réglages",
       units: "Unités",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -685,6 +689,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait gehört dir bis {date}.",
     },
     web: {
+      settings: "Einstellungen",
       units: "Einheiten",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -823,6 +828,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait è tuo fino al {date}.",
     },
     web: {
+      settings: "Impostazioni",
       units: "Unità",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -961,6 +967,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait es tuyo hasta el {date}.",
     },
     web: {
+      settings: "Ajustes",
       units: "Unidades",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1099,6 +1106,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait là của bạn đến {date}.",
     },
     web: {
+      settings: "Cài đặt",
       units: "Đơn vị",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1237,6 +1245,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait milikmu sampai {date}.",
     },
     web: {
+      settings: "Pengaturan",
       units: "Unit",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1375,6 +1384,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait твой до {date}.",
     },
     web: {
+      settings: "Настройки",
       units: "Единицы",
       unitsMetric: "кг · см",
       unitsImperial: "lb · ft",
@@ -1513,6 +1523,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait is van jou tot {date}.",
     },
     web: {
+      settings: "Instellingen",
       units: "Eenheden",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1651,6 +1662,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait jest twój do {date}.",
     },
     web: {
+      settings: "Ustawienia",
       units: "Jednostki",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1789,6 +1801,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait {date} tarihine kadar senin.",
     },
     web: {
+      settings: "Ayarlar",
       units: "Birimler",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -1927,6 +1940,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait 可使用至 {date}。",
     },
     web: {
+      settings: "設定",
       units: "單位",
       unitsMetric: "公斤 · 公分",
       unitsImperial: "lb · ft",
@@ -2065,6 +2079,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "eait 可使用至{date}。",
     },
     web: {
+      settings: "设置",
       units: "单位",
       unitsMetric: "公斤 · 厘米",
       unitsImperial: "lb · ft",
@@ -2203,6 +2218,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "{date}까지 eait을 쓸 수 있어요.",
     },
     web: {
+      settings: "설정",
       units: "단위",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -2341,6 +2357,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "{date}までeaitを使えます。",
     },
     web: {
+      settings: "設定",
       units: "単位",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
@@ -2479,6 +2496,7 @@ export const YOU_COPY: Localized<YouCopy> = {
       until: "O eait é seu até {date}.",
     },
     web: {
+      settings: "Ajustes",
       units: "Unidades",
       unitsMetric: "kg · cm",
       unitsImperial: "lb · ft",
