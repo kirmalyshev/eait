@@ -600,6 +600,7 @@ describe("the countries this app curates", () => {
     en: "gb", fr: "fr", de: "de", it: "it", es: "es", vi: "vn", id: "id", ru: "ru",
     "pt-BR": "other", ja: "other", ko: "other", "zh-Hans": "other", "zh-Hant": "other", tr: "other", pl: "other", nl: "other",
     uk: "other", sv: "other", th: "other", hi: "other", cs: "other", ro: "other", el: "other", hu: "other",
+    da: "other", fi: "other", no: "other", sk: "other", hr: "other", sl: "other", ca: "other", ms: "other", "pt-PT": "other",
   };
 
   it("offers a country to every language the app speaks", () => {

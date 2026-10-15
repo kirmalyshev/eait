@@ -178,7 +178,7 @@ export const LANG_TAG: Record<Lang, string> = {
   hu: "hu-HU",
   da: "da-DK",
   fi: "fi-FI",
-  no: "nb-NO",
+  no: "no-NO",
   sk: "sk-SK",
   hr: "hr-HR",
   sl: "sl-SI",

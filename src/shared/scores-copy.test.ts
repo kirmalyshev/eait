@@ -39,6 +39,16 @@ const BANNED: Record<string, RegExp> = {
   ro: /obez|supraponder|subponder|\bnormal|sănăt/i,
   el: /παχυσαρκ|παχύσαρκ|υπ[εέ]ρβαρ|λιποβαρ|φυσιολογικ|κανονικ|υγι[εήέ]/iu,
   hu: /elhízott|elhízás|túlsúly|alulsúly|soványság|normál|egészséges|egészségtelen/i,
+  da: /fedme|overvægt|undervægt|normalvægt|(?<!\p{L})normal|(?<!\p{L})u?sund/iu,
+  // Norwegian writes BMI as KMI; the category words are the ones Danish shares.
+  no: /fedme|overvekt|undervekt|normalvekt|(?<!\p{L})normal|(?<!\p{L})u?sunn/iu,
+  fi: /lihav|ylipain|alipain|normaal|(?<!\p{L})terve|epäterve/iu,
+  sk: /obez|obézn|nadváh|podváh|normáln|zdrav/iu,
+  hr: /pretil|debel|debljin|prekomjern|pothranjen|nedovoljn\p{L}*\s+tež|normaln|zdrav/iu,
+  sl: /debel|čezmern|prekomern|podhranjen|premajhn\p{L}*\s+tež|normaln|zdrav/iu,
+  ca: /ob[eè]s|sobrep[eè]s|infrap[eè]s|pes\s+insuficient|baix\s+pes|(?<!\p{L})normal|(?<!\p{L})san[ae]?s?(?!\p{L})|saludable|insalubre/iu,
+  ms: /obes|berlebihan|lebih\s+berat|kurang\s+berat|(?<!\p{L})normal|sihat/iu,
+  "pt-PT": /obes|sobrepeso|excesso\s+de\s+peso|peso\s+a\s+mais|abaixo\s+do\s+peso|baixo\s+peso|(?<!\p{L})normal(?:es)?(?!\p{L})|saud[áa]ve|insalubre/iu,
 };
 
 describe("BMI labels (#118)", () => {

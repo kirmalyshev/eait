@@ -1,0 +1,603 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-10-15 16:02+0200\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: ms\n"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Adakah saya mendapat protein yang cukup?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Bagaimana minggu saya setakat ini?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Apa patut saya makan malam ini?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Dikemas kini — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Lemak tepu agak tinggi dalam hidangan ini. Dinilai hanya kerana anda meminta saya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Natrium agak tinggi dalam hidangan ini. Dinilai hanya kerana anda meminta saya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.left"
+#~ msgstr "Baki {left} daripada {plan} anda hari ini, {protein} daripada {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainLeft"
+#~ msgstr "masih ada {left} daripada {plan} anda untuk dipenuhi hari ini, dan {protein} daripada {proteinTarget} g protein. Teruskan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+#~ msgstr "Masih ada {left} daripada {plan} anda untuk dipenuhi hari ini, dan {protein} daripada {proteinTarget} g protein. Teruskan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.running.over"
+#~ msgstr "{over} melebihi {plan} anda hari ini, {protein} daripada {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.gainOver"
+#~ msgstr "{over} melebihi {plan} anda hari ini, dan {protein} daripada {proteinTarget} g protein. Melebihinya memang tujuan pelan menaikkan berat; esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+#~ msgstr "{over} melebihi {plan} anda hari ini, dan {protein} daripada {proteinTarget} g protein. Melebihinya memang tujuan pelan menaikkan berat; esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftOther"
+#~ msgstr "Walaupun kasar, ia tetap dikira: kira-kira {left} daripada {plan} anda berbaki hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowLeftGain"
+#~ msgstr "Walaupun kasar, ia tetap dikira: kira-kira {left} daripada {plan} anda masih perlu dipenuhi hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverGain"
+#~ msgstr "Walaupun kasar, ia tetap dikira: kira-kira {over} melebihi {plan} anda hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.lowOverOther"
+#~ msgstr "Walaupun kasar, ia tetap dikira: kira-kira {over} melebihi {plan} anda hari ini. Esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherLeft"
+#~ msgstr "itu meninggalkan {left} daripada {plan} anda untuk baki hari ini, dan {protein} daripada {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+#~ msgstr "Itu meninggalkan {left} daripada {plan} anda untuk baki hari ini, dan {protein} daripada {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmetic.otherOver"
+#~ msgstr "dengan itu anda {over} melebihi {plan} anda hari ini, dan {protein} daripada {proteinTarget} g protein. Esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+#~ msgstr "Dengan itu anda {over} melebihi {plan} anda hari ini, dan {protein} daripada {proteinTarget} g protein. Esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}” — diambil kira, ia sudah ada dalam angka."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.title"
+msgstr "{names} · {kcal} kcal"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.warn"
+msgstr "{noun} tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.good"
+msgstr "{noun} ikut pelan"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.bad"
+msgstr "{noun} sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
+msgstr "{noun} sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} tinggi untuk satu hidangan: {eaten} daripada {target}{unit} anda."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} sangat tinggi untuk satu hidangan: {eaten} daripada {target}{unit} anda."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Sebahagian besar hari anda dalam satu hidangan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.support"
+msgstr "Adakah saya mendapat protein yang cukup?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Jawab soalan pelan di web dahulu."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.weight"
+msgstr "Kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Kalori ikut pelan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Karbohidrat"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "Menyemak berbanding pelan anda"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Disambungkan ke akaun eait yang didaftar masuk dengan"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Tidak dapat membaca label itu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.left"
+msgstr "Dikira. Baki {left} kcal hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.push.over"
+msgstr "Dikira. {over} kcal terlebih hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.3"
+msgstr "Mengira nutrien · 4 daripada 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "Sudah dibuang."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Semua orang sudah menggunakan kuota hari ini. Esok bermula dengan angka baharu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Lemak"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.1"
+msgstr "Mengenal pasti makanan · 2 daripada 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "Yang pertama sudah masuk. {kcal} kcal."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Kurangkan untuk baki hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "Bagus — orientasi sudah selesai, dan hari pertama sudah bermula. Satu perkara lagi sebelum anda pergi, dan ini satu-satunya kali saya akan bertanya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "Bagus. Saya ada di Sembang bila-bila masa — foto atau satu ayat, kedua-duanya mencatat hidangan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "Jawapan jujur: saya tidak dapat membaca pinggan itu dengan baik. Anggap {kcal} sebagai tekaan kasar dan semak gramnya sebelum mempercayai jumlahnya. Sudut kedua lain kali akan membantu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.consistency"
+msgstr "Bagaimana minggu saya setakat ini?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Saya beritahu saja apa yang saya makan"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "Jika ada yang tidak kena, beritahu — \"separuh nasi\", \"tanpa avokado\" — atau ketik kad dan ubah gramnya."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-paid"
+msgstr "Pautan jemputan untuk ahli baharu, dan akaun ini sudah membeli eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Catat"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Dicatat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Mencatat ini — betul?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Mencatat ini untuk {date} — betul?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Hidangan"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Lebih separuh hari anda dalam satu hidangan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Dipindahkan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "Mengenal pasti isinya"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "Tiada kamera, tiada masalah. Pilih foto daripada pustaka anda, atau beritahu saja apa yang anda makan — kedua-duanya memberi makro."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "Tak perlu tergesa-gesa. Pelan ada dalam diari anda — ambil foto hidangan seterusnya apabila tiba masanya. Itulah keseluruhan tabiatnya, dan saya akan ingatkan sekali esok jika belum."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Bukan ini"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Bukan akaun anda? Daftar masuk ke akaun anda sendiri di web dan tekan Sambungkan Telegram di sana — Telegram ini akan berpindah ke akaun itu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Belum ada yang dicatat hari ini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Ikut pelan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "Satu lagi perkara yang akan ditanya oleh iOS: pemberitahuan. Satu sehari dan tidak lebih — ringkasan 20:30, serta peringatan sehari sebelum percubaan anda tamat jika anda sedang menggunakannya. Tiada yang lain, sampai bila-bila."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "Satu perkara dahulu: iOS akan meminta akses kamera. Saya menggunakannya untuk pinggan dan tiada yang lain — foto itu kekal bersama hidangan supaya anda boleh melihatnya dalam diari, dan dipadam bersama akaun anda."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Protein"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "Membaca pinggan"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "Membaca pinggan…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "Dipulihkan — anda sudah masuk. Foto atau satu ayat, kedua-duanya mencatat hidangan."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "lemak tepu"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.ldl"
+msgstr "Lemak tepu"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Hantar foto hidangan, beritahu saya apa yang anda makan, atau tanya {coach} soalan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Daftar masuk"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "natrium"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.kidneys"
+msgstr "Natrium"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Ada masalah, dan ia mungkin masih berjaya dihantar. Semak /today sebelum menghantarnya semula."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Spud"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "Beritahu saya apa yang tidak kena — \"separuh nasi\", \"tanpa avokado\", \"ia 500\" semuanya boleh. Atau buka kad dan edit gramnya sendiri."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-dead"
+msgstr "Kod itu sudah tamat tempoh. Minta kod baharu di web atau dalam aplikasi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.code-wrong"
+msgstr "Kod itu tidak betul. Semak e-mel terbaharu daripada eait."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Tiada jawapan diterima. Cuba sekali lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Itu tidak kelihatan seperti makanan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Fail itu bukan foto yang boleh dibaca. JPEG, PNG atau WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-unknown"
+msgstr "Pautan jemputan itu tidak sepadan dengan sesiapa. Semak semula, atau langkau."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Pautan itu sudah tamat tempoh. Buka pelan anda di web dan tekan Sambungkan Telegram sekali lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Mesej itu terlalu panjang untuk dihantar."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Yang itu sudah tidak ditahan lagi. Sebut sekali lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Yang itu sudah dicatat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Foto itu tidak diterima daripada Telegram. Hantar semula."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Foto itu tidak diterima. Hantar semula."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Foto itu terlalu besar untuk dihantar."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Itu yang terakhir untuk hari ini — kuota harian anda ditetapkan semula pada tengah malam."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Had sudah dicapai buat masa ini. Cuba lagi nanti."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-own"
+msgstr "Itu pautan jemputan anda sendiri. Pautan rakan dimasukkan di sini."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "aplikasi"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Tiada hidangan terbuka di sini untuk diubah. Beritahu apa yang anda makan dan catat semula."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.referral-already"
+msgstr "Akaun ini sudah menyertai melalui pautan rakan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Akaun ini belum didaftar masuk — daftar masuk dengan Apple atau Google di web, kemudian hantar semula."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Sampel percuma akaun ini sudah habis. Mulakan percubaan percuma anda di web untuk meneruskan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Ini eait yang baharu. Hidangan dan foto anda tersimpan dalam akaun eait anda: daftar masuk di web dan tekan Sambungkan Telegram pada pelan anda."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Hari ini: {eaten} daripada {plan} kcal, {protein} daripada {proteinTarget} g protein"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Terlalu banyak cubaan dari Telegram ini. Tunggu sebentar, kemudian tekan pautan itu semula."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Percubaan sudah bermula — {price} apabila ia tamat, melainkan anda menghentikannya. Saya akan ingatkan anda sehari sebelum ia tamat, tidak sekali-kali sehari selepasnya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "Ditaip, bukan difoto — jadi porsinya tekaan saya. Anggap {kcal} sebagai kasar; jika anda tahu gramnya, beritahu dan saya akan betulkan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Dikemas kini."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.0"
+msgstr "Memuat naik foto · 1 daripada 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "Menimbang porsi"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.queue.2"
+msgstr "Menimbang porsi · 3 daripada 4"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "Menimbang porsi…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.ideas"
+msgstr "Apa patut saya makan malam ini?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Apa pilihan lebih ringan untuk makan malam?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "Hari pertama anda sudah bermula. Pada 20:30 anda akan menerima satu ringkasan — hari ini berbanding pelan, dan satu perkara konkrit untuk esok. Tiada apa-apa sebelum itu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Profil dan seting anda ada di web."
