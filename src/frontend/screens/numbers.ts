@@ -88,8 +88,9 @@ export function numbersSheet(o: NumbersOpts): HTMLElement {
   const log = el("button", "nf-cta", c.cta) as HTMLButtonElement;
   log.type = "button";
   const scroll = el("div", "fs-body");
-  scroll.append(name, main, el("p", "nf-opt", c.optional), opt, note);
-  sheet.append(head, scroll, line, log);
+  scroll.append(name, main, el("p", "nf-opt", c.optional), opt);
+  // The note sits OUTSIDE the scroller: inside it, a refusal on a short window is below the fold.
+  sheet.append(head, scroll, note, line, log);
 
   // One id per form: a second click replays the first save instead of logging twice.
   const clientId = crypto.randomUUID();
