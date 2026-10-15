@@ -274,7 +274,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     if (mode === "profile") {
       card.append(optRow(milestonesCopyFor(lang).title, "", () => { location.hash = "#/you/milestones"; }));
       card.append(subscriptionRow());
-      card.append(optRow(you.web.settings, "", () => { location.hash = "#/you/settings"; }));
+      card.append(optRow(COPY.settings, "", () => { location.hash = "#/you/settings"; }));
       return card;
     }
     // Read-only — the boards' "on your iPhone": there is no web page for Health (ieat-app STATES).
@@ -901,7 +901,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     back.href = "#/you";
     back.setAttribute("aria-label", shellCopyFor(lang).navProfile);
     back.append(kitEl(ico("chevron-left")));
-    top.append(back, el("h1", "d d22", you.web.settings), el("span", "ib ghost"));
+    top.append(back, el("h1", "d d22", COPY.settings), el("span", "ib ghost"));
     wrap.append(top, cols);
   } else wrap.append(strip, cols);
 
