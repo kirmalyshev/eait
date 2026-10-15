@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "उस eait अकाउंट से कनेक्टेड, जिसमें साइन इन हुआ है:"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "वह लेबल पढ़ा नहीं जा सका।"
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "गिन लिया। आज {left} kcal बाकी।"

@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "Conectat la contul eait autentificat cu"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Eticheta asta nu a putut fi citită."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Numărat. Îți mai rămân azi {left} kcal."

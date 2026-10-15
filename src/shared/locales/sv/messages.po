@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "Ansluten till eait-kontot som är inloggat med"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Det gick inte att läsa etiketten."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Räknat. {left} kcal kvar i dag."
