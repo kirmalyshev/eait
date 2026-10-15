@@ -40,7 +40,7 @@ describe("t", () => {
 
 describe("what the product claims to speak", () => {
   it("is the eight Kirill named, in the order the picker shows them", () => {
-    expect(LANGS).toEqual(["en", "fr", "de", "it", "es", "vi", "id", "ru", "pt-BR", "ja", "ko", "zh-Hans", "zh-Hant", "tr", "pl", "nl", "uk", "sv", "th", "hi", "cs", "ro", "el", "hu"]);
+    expect(LANGS).toEqual(["en", "fr", "de", "it", "es", "vi", "id", "ru", "pt-BR", "ja", "ko", "zh-Hans", "zh-Hant", "tr", "pl", "nl", "uk", "sv", "th", "hi", "cs", "ro", "el", "hu", "da", "fi", "no", "sk", "hr", "sl", "ca", "ms", "pt-PT"]);
   });
 
   it("names only languages whose tables are populated", () => {

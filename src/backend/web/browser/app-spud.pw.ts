@@ -73,7 +73,7 @@ test("Home · Progress · Chat · Profile hold ONE row at 390px, and the account
   const langRow = page.getByRole("button", { name: /^Language: English$/ });
   await expect(langRow).toBeVisible();
   await langRow.click();
-  await expect(page.locator(".panel .pickrow")).toHaveCount(24);
+  await expect(page.locator(".panel .pickrow")).toHaveCount(33);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 });

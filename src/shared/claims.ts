@@ -126,9 +126,14 @@ const RULES: readonly Rule[] = [
   // Wave 2. The negation right before the stem ("не гарантуємо", "není zaručen", "nem
   // garantált") is excluded by lookbehind: it is the honest denial, not a claim.
   { name: "guarantee", re: /(?<!\p{L})(?:результат\p{L}*|схудн\p{L}*|ваг[аиу]|кг)(?:\s+\S+){0,2}\s+(?<!не\s)гарант\p{L}*|(?<!\p{L}|не\s)гарант\p{L}*(?:\s+\S+){0,2}\s+(?:результат\p{L}*|схудн\p{L}*|ваг[аиу]|кг)/giu },
-  { name: "guarantee", re: /(?<!\p{L})(?:resultat\p{L}*|viktnedgång\p{L}*|viktminskning\p{L}*|framgång|kg)(?:\s+\S+){0,2}\s+(?<!inte\s)garant\p{L}*|(?<!\p{L}|inte\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:resultat\p{L}*|viktnedgång|viktminskning|framgång|kg)|(?<!\p{L})resultatgaranti/giu },
-  { name: "guarantee", re: /(?<!\p{L})(?:výsled\p{L}*|úspěch\p{L}*|úbyt\p{L}*\s+(?:váhy|hmotnosti)|kg)(?:\s+\S+){0,2}\s+(?<!není\s|nejsou\s)(?:garant|zaruč|záruk)\p{L}*|(?<!\p{L}|není\s|nejsou\s)(?:garant|zaruč|záruk)\p{L}*(?:\s+\S+){0,2}\s+(?:výsled\p{L}*|úspěch\p{L}*|úbyt\p{L}*|zhubn\p{L}*|kg)/giu },
-  { name: "guarantee", re: /(?<!\p{L})(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!nu\s(?:sunt\s|este\s|e\s)?)garant\p{L}*|(?<!\p{L}|nu\s(?:sunt\s|este\s|e\s)?)garant\p{L}*(?:\s+\S+){0,2}\s+(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)/giu },
+  // Wave 3 reads Danish and Norwegian here too, and the Scandinavian main clause puts the
+  // negation AFTER the verb (`Vi garanterer ikke resultater`), so it is excluded on both sides.
+  { name: "guarantee", re: /(?<!\p{L})(?:resultat\p{L}*|viktnedgång\p{L}*|viktminskning\p{L}*|vægttab\p{L}*|vekttap\p{L}*|framgång|succes|suksess|kg)(?:\s+\S+){0,2}\s+(?<!(?:inte|ikke)\s)garant\p{L}*|(?<!\p{L}|(?:inte|ikke)\s)garant\p{L}*(?!\p{L}|\s+(?:inte|ikke)(?!\p{L}))(?:\s+\S+){0,2}\s+(?:resultat\p{L}*|viktnedgång|viktminskning|vægttab|vekttap|framgång|succes|suksess|kg)|(?<!\p{L})resultatgaranti/giu },
+  // Czech and, from wave 3, Slovak: `úspech`, `schudnúť`, and `nie je`/`nie sú` as the denial.
+  { name: "guarantee", re: /(?<!\p{L})(?:výsled\p{L}*|úsp[eě]ch\p{L}*|úbyt\p{L}*\s+(?:váhy|hmotnosti)|kg)(?:\s+\S+){0,2}\s+(?<!není\s|nejsou\s|nie\s(?:je|sú)\s)(?:garant|zaruč|záruk)\p{L}*|(?<!\p{L}|není\s|nejsou\s|nie\s(?:je|sú)\s)(?:garant|zaruč|záruk)\p{L}*(?:\s+\S+){0,2}\s+(?:výsled\p{L}*|úsp[eě]ch\p{L}*|úbyt\p{L}*|zhubn\p{L}*|schudn\p{L}*|kg)/giu },
+  // `nije`/`nisu`/`niso` too: Croatian and Slovenian write `garantirani` as well, and their
+  // denial must not trip a Romanian rule.
+  { name: "guarantee", re: /(?<!\p{L})(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!nu\s(?:sunt\s|este\s|e\s)?|ni(?:je|su|so)?\s)garant\p{L}*|(?<!\p{L}|nu\s(?:sunt\s|este\s|e\s)?|ni(?:je|su|so)?\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:rezultat\p{L}*|slăbire\p{L}*|pierder\p{L}*\s+în\s+greutate|succes\p{L}*|kg)/giu },
   { name: "guarantee", re: /(?<!\p{L})(?:αποτελ[εέ]σμ\p{L}*|απ[ωώ]λει\p{L}*\s+β[αά]ρους|επιτυχ\p{L}*|κιλ\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!δεν\s(?:είναι\s)?)εγγυ\p{L}*|(?<!\p{L}|δεν\s(?:είναι\s)?)εγγυ\p{L}*(?:\s+\S+){0,2}\s+(?:αποτελ[εέ]σμ\p{L}*|απ[ωώ]λει\p{L}*\s+β[αά]ρους|επιτυχ\p{L}*|κιλ\p{L}*|kg)/giu },
   { name: "guarantee", re: /(?<!\p{L})(?:eredmény\p{L}*|fogyás\p{L}*|siker\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!nem\s)garant\p{L}*|(?<!\p{L}|nem\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:eredmény\p{L}*|fogyás\p{L}*|siker\p{L}*|kg)|(?<!\p{L})(?:eredmény|siker|fogyás)garanci\p{L}*/giu },
   // Thai has no spaces and `ผล` also opens ผลิตภัณฑ์ (product — the warranty a store page writes)
@@ -137,6 +142,17 @@ const RULES: readonly Rule[] = [
   { name: "guarantee", re: /(?<!ไม่\s?|ไม่ได้\s?|ไม่มีการ\s?|ไม่สามารถ\s?)(?:รับประกัน|การันตี)(?:ว่า)?\s*(?:จะ)?\s*(?:ผล(?![ิไ])|ลดน้ําหนัก|น้ําหนัก|ลด\s*\d|ผอม|ความสําเร็จ)|(?:ผลลัพธ์|ลดน้ําหนัก|\d+\s*(?:กก|กิโล|kg))\s*(?:ที่)?(?:ได้รับการ)?(?:รับประกัน|การันตี)/gu },
   // Hindi is verb-final: "नतीजों की गारंटी" is the claim, "गारंटी नहीं" the denial.
   { name: "guarantee", re: /(?:नतीज\S*|परिणाम\S*|रिज़?ल्ट\S*|वज़?न|\d+\s*(?:kg|किलो))(?:\s+\S+){0,2}\s+गार(?:ं|ण्)टी(?!\S*\s+नहीं)|गार(?:ं|ण्)टी\S*(?:\s+\S+){0,2}\s+(?:नतीज|परिणाम|रिज़?ल्ट|वज़?न|\d+\s*(?:kg|किलो))/gu },
+  // Wave 3. da/no ride the Swedish rule, sk the Czech one, and ms the Indonesian `jamin`;
+  // `resultats garantits` is French's rule already. What is left is the stems those cannot read.
+  // Finnish negates with an auxiliary before the verb (`ei`, `emme`, `eivät ole`).
+  { name: "guarantee", re: /(?<!\p{L})(?:tulo(?:s|ks|kse)\p{L}*|painonpudotu\p{L}*|laihtumi\p{L}*|kg)(?:\s+\S+){0,2}\s+(?<!(?:ei|eivät|emme|en|et|ette)\s(?:ole\s)?)(?:taat|takaa|takuu)\p{L}*|(?<!\p{L}|(?:ei|eivät|emme|en|et|ette)\s)(?:taat|takaa)\p{L}*(?:\s+\S+){0,2}\s+(?:tulo(?:s|ks|kse)\p{L}*|painonpudotu\p{L}*|laihtumi\p{L}*|kg)|(?<!\p{L})tulostakuu\p{L}*/giu },
+  // Croatian and Slovenian. `zagotoviti` is also "make sure" and `zagotovo` is "certainly", so
+  // only the guarantee's participle and imperfective stems count, and only beside an outcome.
+  // Their `garantirani` is the Romanian rule's, which reads `rezultat` already.
+  { name: "guarantee", re: /(?<!\p{L})(?:rezultat\p{L}*|uspj?eh\p{L}*|mršavljenj\p{L}*|hujšanj\p{L}*|gubit\p{L}*\s+težin\p{L}*|izgub\p{L}*\s+teže|kg)(?:\s+\S+){0,2}\s+(?<!(?:ne|ni|nije|nisu|niso)\s)(?:(?:za)?jamč|jamstv|zagotovlj|zagotavlj)\p{L}*|(?<!\p{L}|(?:ne|ni|nije|nisu|niso)\s)(?:(?:za)?jamč|zagotovlj|zagotavlj)\p{L}*(?:\s+\S+){0,2}\s+(?:rezultat\p{L}*|uspj?eh\p{L}*|mršavljenj\p{L}*|hujšanj\p{L}*|gubit\p{L}*\s+težin\p{L}*|izgub\p{L}*\s+teže|kg)/giu },
+  { name: "guarantee", re: /(?<!\p{L})(?:resultats?|pèrdua\s+de\s+pes|èxit|kg)(?:\s+\S+){0,2}\s+(?<!no\s(?:estan\s|està\s|és\s|són\s)?)garant\p{L}*|(?<!\p{L}|no\s)garant\p{L}*(?:\s+\S+){0,2}\s+(?:l['’])?(?:resultats?|pèrdua\s+de\s+pes|èxit|kg)(?!\p{L})/giu },
+  // Malay `keputusan` is also "decision", so it counts only beside `jamin`.
+  { name: "guarantee", re: /(?<!\p{L})(?:keputusan|kejayaan|penurunan\s+berat\s+badan)(?:\s+\S+){0,2}\s+(?<!tidak\s)(?:di|ter)?jamin\p{L}*|(?<!\p{L}|tidak\s)(?:men|di|ter)?jamin\p{L}*(?:\s+\S+){0,2}\s+(?:keputusan|kejayaan)|(?<!\p{L})jaminan\s+keputusan/giu },
 
   // weight-promise — the stems, and DELIBERATELY NOT the progressive.
   //
@@ -157,7 +173,8 @@ const RULES: readonly Rule[] = [
   // weight` is: the shipped, cited `twice.title` says exactly that in every language.
   // `{kg} afvallen` is a TEMPLATE whose number is the user's own goal, and passes for the reason
   // English `lose {kg}` does: `\d+` cannot read a placeholder. Filled, `6 kg afvallen` is refused.
-  { name: "weight-promise", re: /(?<!\p{L})(?:perder|perca|percam|perder[áa]s?)\s+(?:peso|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})perda\s+de\s+peso(?!\p{L})|(?<!\p{L})emagre(?:cer|ça|çam|cerá|cimento)(?!\p{L})/giu },
+  // pt-PT's progressive is `estás a emagrecer`, built on the very infinitive that promises.
+  { name: "weight-promise", re: /(?<!(?:estou|estás|está|estamos|estão|ando|andas|anda|andamos|andam)\s+a\s)(?:(?<!\p{L})(?:perder|perca|percam|perder[áa]s?)\s+(?:peso|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})emagre(?:cer|ça|çam|cerá|cimento)(?!\p{L}))|(?<!\p{L})perda\s+de\s+peso(?!\p{L})/giu },
   { name: "weight-promise", re: /(?<!\bhet\s+|\}\s*)(?<!\p{L})afvallen(?!\p{L})|(?<!\p{L})gewichtsverlies(?!\p{L})|(?<!\p{L})val\s+\d+\s*(?:kg|kilo)\s+af(?!\p{L})|(?<!\p{L})afslank\p{L}*|(?<!\p{L})vermager\p{L}*/giu },
   { name: "weight-promise", re: /(?<!\p{L})schud(?:nąć|niesz|niecie|nie)(?!\p{L})|(?<!\p{L})utrat\p{L}*\s+wagi(?!\p{L})|(?<!\p{L})zrzu(?:ć|cić|cisz|cicie)\s+(?:\d+\s*(?:kg|kilo\p{L}*)|wag\p{L}*)/giu },
   { name: "weight-promise", re: /(?<!\p{L})\d+\s*(?:kg|kilo)\s+ver(?:mek|in|iniz|eceksin(?:iz)?|ebilirsin(?:iz)?)?(?!\p{L})|(?<!\p{L})kilo\s+ver(?:mek|in|iniz|eceksin(?:iz)?|ebilirsin(?:iz)?)(?!\p{L})|(?<!\p{L})kilo\s+kayb\p{L}*|(?<!\p{L})zay[ıi]fla(?:mak|y[ıi]n|yacaks[ıi]n(?:[ıi]z)?)?(?!\p{L})/giu },
@@ -186,6 +203,32 @@ const RULES: readonly Rule[] = [
   { name: "weight-promise", re: /(?<![\p{L}\p{N}])[−-]\s?\d+\s*(?:kg|кг|κιλ\p{L}*|kil[óo]\p{L}*|กก|กิโล|किलो)(?![\p{L}\d])/giu },
   // `elfogyott` (ran out) is everywhere in the Hungarian copy, so `fogy` is never bare.
   { name: "weight-promise", re: /(?<![\p{L}\d.,])\d+\s*(?:kg|kil[óo])\p{L}*\s+fogy\p{L}*|(?<!\p{L})(?:fogy|ad)\p{L}*\s+le\s+\d+\s*(?:kg|kil[óo])|(?<!\p{L})lefogy\p{L}*|(?<!\p{L})mínusz\s+\d+\s*(?:kg|kil[óo])/giu },
+  // Wave 3, on the same lines. Every `twice.title` is a bare imperative with `twice as much`
+  // between the verb and the weight (`Tab dobbelt så meget i vægt`, `Laihdu kaksi kertaa
+  // enemmän`, `Schudni`, `Smršavi`, `Izgubi dvakrat več teže`, `Perd el doble de pes`, `Turun
+  // berat dua kali`, `Perde o dobro do peso`), so the verb counts only ADJACENT to the weight or
+  // the number, and the imperative alone is never a stem.
+  // Danish and Norwegian: `gå ned i vægt/vekt` is Swedish's `gå ner i vikt`; `tabe sig` is
+  // Danish's other `lose weight`.
+  { name: "weight-promise", re: /(?<!\p{L})(?:gå|går)\s+ned\s+(?:i\s+v(?:æg|ek)t|\d+\s*(?:kg|kilo))(?!\p{L})|(?<!\p{L})tab(?:e|er)?\s+(?:sig\s+)?(?:i\s+vægt|\d+\s*(?:kg|kilo))(?!\p{L})|(?<!\p{L})tabe\s+sig(?!\p{L})|(?<!\p{L})mist(?:e|er)\s+(?:vekt|\d+\s*(?:kg|kilo))(?!\p{L})|(?<!\p{L})v(?:ægttab|ekttap)\p{L}*/giu },
+  // Finnish has no aspect to split on, so the infinitive and the nouns promise, a number beside
+  // any form of the verb promises, and the present (`laihdut`, `laihtuvat`) describes.
+  { name: "weight-promise", re: /(?<!\p{L})laihtua(?!\p{L})|(?<!\p{L})(?:laih(?:du|tu)|pudot)\p{L}*\s+\d+\s*(?:kg|kilo\p{L}*)|(?<!\p{L})painonpudotu\p{L}*|(?<!\p{L})laihdutu\p{L}*/giu },
+  // Slovak is Czech's split: `schudnúť`, `schudneš` promise, `chudneš` describes. `schudnú` (the
+  // third plural `twice.sub` writes) and the imperative `Schudni` are not stems.
+  { name: "weight-promise", re: /(?<!\p{L})schudn(?:úť|eš|ete|e)(?!\p{L})|(?<!\p{L})zhod(?:iť|íš|íte)\s+(?:\d+\s*(?:kg|kil\p{L}*)|váh\p{L}*|kil\p{L}*)/giu },
+  // Croatian: `smršavjeti` and the perfective present promise, `mršaviš` describes, and
+  // `smršavite` is left alone because it is also the plural imperative.
+  { name: "weight-promise", re: /(?<!\p{L})smršav(?:jeti|iti|iš|(?:je|i)t\s+(?:ćeš|ćete|ćemo))(?!\p{L})|(?<!\p{L})(?:izgub|skin)\p{L}*\s+\d+\s*(?:kg|kil\p{L}*)|(?<!\p{L})gubit(?:ak|ka|ku)\s+težin\p{L}*/giu },
+  // Slovenian: `shujšati`, `shujšaš` promise, `hujšaš` describes.
+  { name: "weight-promise", re: /(?<!\p{L})shujša(?:ti|š|te)(?!\p{L})|(?<!\p{L})izgub\p{L}*\s+(?:težo|teže)(?!\p{L})/giu },
+  // Catalan: `perdre pes`, `aprimar-se`; `estàs perdent pes` and `t'estàs aprimant` describe.
+  { name: "weight-promise", re: /(?<!\p{L})(?:perdre|perd|perds|perdràs|perdrà|perdreu|perdeu)\s+(?:pes|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})pèrdua\s+de\s+pes(?!\p{L})|(?<!\p{L})aprima(?:r|ràs|ment)(?:-(?:se|te|vos))?(?!\p{L})/giu },
+  // Malay keeps Indonesian's `menurunkan berat badan` (read above) and adds its own verbs. Bare
+  // `turun berat badan` stays out: it is Indonesian's shipped `twice.title`.
+  { name: "weight-promise", re: /(?<!\p{L})(?:meng)?kurangkan\s+berat\s+badan(?!\p{L})|(?<!\p{L})(?:meng)?kuruskan\s+badan(?!\p{L})|(?<!\p{L})pengurangan\s+berat\s+badan(?!\p{L})|(?<!\p{L})(?:(?:meng)?hilangkan|buang|membuang)\s+\d+\s*(?:kg|kilo)(?!\p{L})/giu },
+  // pt-PT on top of the shared Portuguese rule: the `tu` forms and `descer`.
+  { name: "weight-promise", re: /(?<!\p{L})(?:perde|perdes|perdemos)\s+(?:peso|\d+\s*(?:kg|quilos?))(?!\p{L})|(?<!\p{L})desce[rs]?\s+\d+\s*(?:kg|quilos?)(?!\p{L})|(?<!\p{L})emagrecer(?:ás|ão|emos|ei)(?!\p{L})/giu },
 
   // lowers-marker — the MARKER decides, never the verb.
   //
@@ -217,6 +260,18 @@ const RULES: readonly Rule[] = [
   { name: "lowers-marker", re: /(?<!\p{L})(?:scad|scăd|reduc|diminu)\p{L}*\s+(?:nivelul\s+(?:de\s+)?)?(?:colesterol\p{L}*|glicemi\p{L}*|zahăr\p{L}*\s+din\s+sânge|tensiun\p{L}*\s+arterial\p{L}*)/giu },
   { name: "lowers-marker", re: /(?<!\p{L})(?:μει[ωώ]ν|ρ[ιί]χν|κατεβ[αά]ζ)\p{L}*\s+(?:(?:τη[νς]?|το|τα)\s+)?(?:χοληστερ\p{L}*|σ[αά]κχαρ\p{L}*|αρτηριακ\p{L}*\s+π[ιί]εση)/giu },
   { name: "lowers-marker", re: /(?<!\p{L})(?:koleszterin\p{L}*|vércukor\p{L}*|vérnyomás\p{L}*)(?:\s+\S+){0,2}\s+(?:le)?(?:csökkent|szorít)\p{L}+|(?<!\p{L})(?:le)?csökkent\p{L}+\s+(?:a\s+)?(?:koleszterin\p{L}*|vércukor\p{L}*|vérnyomás\p{L}*)/giu },
+  // Wave 3. Every language here has a compound or a `blood` qualifier for sugar and pressure,
+  // and the bare noun (`sukker`, `sokeri`, `cukor`, `šećer`, `sladkor`, `sucre`, `gula`, `tlak`)
+  // stays the food or the everyday word.
+  { name: "lowers-marker", re: /(?<!\p{L})(?:s[æe]nk|reduc[ae]r|reduser)\p{L}*\s+(?:(?:dit|ditt|din|jeres|deres)\s+)?(?:kolesterol\p{L}*|blodsukker\p{L}*|blodtryk\p{L}*)|(?<!\p{L})(?:kolesterol|blodsukker|blodtryk)\p{L}*(?:\s+\S+){0,2}\s+s[æe]nk\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:alen|lask|madal)\p{L}*\s+(?:veren\s+)?(?:kolesterol\p{L}*|verensokeri\p{L}*|verenpaine\p{L}*)|(?<!\p{L})(?:kolesterol|verensokeri|verenpaine)\p{L}*(?:\s+\S+)?\s+(?:alen|lask|madal)\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:zniž|zníž)\p{L}*\s+(?:(?:hladinu|váš|tvoj|vašu|tvoju)\s+)?(?:cholesterol\p{L}*|glykémi\p{L}*|krvn\p{L}*\s+tlak\p{L}*|cuk(?:or|ru)\s+v\s+krvi|hladin\p{L}*\s+cukru\s+v\s+krvi)|(?<!\p{L})(?:cholesterol\p{L}*|krvn\p{L}*\s+tlak)(?:\s+\S+){0,2}\s+(?:zniž|zníž)\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:sniž|sniz|smanj)\p{L}*\s+(?:(?:razinu|vaš|tvoj|vašu|tvoju)\s+)?(?:kolesterol\p{L}*|krvn\p{L}*\s+tlak\p{L}*|(?:šećer\p{L}*|glukoz\p{L}*)\s+u\s+krvi|razin\p{L}*\s+šećera\s+u\s+krvi)|(?<!\p{L})(?:kolesterol\p{L}*|krvn\p{L}*\s+tlak\p{L}*)(?:\s+\S+){0,2}\s+(?:sniž|sniz|smanj)\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:zniž|zmanjš)\p{L}*\s+(?:(?:raven|vaš|tvoj|vašo|tvojo)\s+)?(?:holesterol\p{L}*|krvn\p{L}*\s+(?:tlak|sladkor)\p{L}*|(?:sladkor\p{L}*|glukoz\p{L}*)\s+v\s+krvi)|(?<!\p{L})(?:holesterol\p{L}*|krvn\p{L}*\s+tlak\p{L}*)(?:\s+\S+){0,2}\s+(?:zniž|zmanjš)\p{L}*/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:fa\s+)?(?:baixar?|redueix(?:en)?|reduir|disminueix(?:en)?|disminuir)\s+(?:el\s+|la\s+)?(?:teu\s+|teva\s+|vostre\s+|vostra\s+)?(?:colesterol|glucèmia|glucosa(?:\s+en\s+sang)?|sucre\s+en\s+sang|pressió\s+arterial)(?!\p{L})/giu },
+  { name: "lowers-marker", re: /(?<!\p{L})(?:menurunkan|merendahkan|mengurangkan|turunkan|rendahkan|kurangkan)\s+(?:paras\s+)?(?:kolesterol|gula\s+(?:dalam\s+)?darah|tekanan\s+darah)(?!\p{L})/giu },
+  // pt-PT says `tensão arterial` and `o teu`, neither of which the shared Portuguese rule reads.
+  { name: "lowers-marker", re: /(?<!\p{L})(?:faz\s+)?(?:baixar?|reduz(?:ir)?|diminuir?|abaixar?)\s+(?:o\s+|a\s+)?(?:teu\s+|tua\s+|vosso\s+|vossa\s+)?(?:colesterol|glicemia|a[çc][úu]car\s+no\s+sangue|press[ãa]o\s+arterial|tens[ãa]o\s+arterial)(?!\p{L})/giu },
 
   // detox — the Latin word is the one a Romance marketer does not need.
   { name: "detox", re: /\bd[ée]tox\w*/gi },
@@ -244,6 +299,15 @@ const RULES: readonly Rule[] = [
   { name: "detox", re: /(?<!\p{L})(?:elimin|îndepărt)\p{L}*\s+toxin\p{L}*|(?<!\p{L})(?:curăț|curăţ|purific)\p{L}*\s+organism\p{L}*/giu },
   { name: "detox", re: /(?<!\p{L})(?:ντετ[οό]ξ|αποτοξ[ιί]ν)\p{L}*|(?<!\p{L})(?:αποβ[αά]λ|αποβολ|απομακρ[υύ]ν)\p{L}*\s+(?:τις\s+|των\s+)?τοξιν\p{L}*/giu },
   { name: "detox", re: /(?<!\p{L})méregtelenít\p{L}*|(?<!\p{L})salaktalanít\p{L}*|(?<!\p{L})toxin\p{L}*\s+(?:ki)?(?:ürít|tisztít)\p{L}*/giu },
+  // Wave 3. `detox`/`detoks` and `desintoxic` already read every one of the nine's loanword, and
+  // Norwegian `avgiftning` is the Swedish rule's. Danish `afgift` alone is a FEE, as `avgift` is.
+  { name: "detox", re: /(?<!\p{L})afgiftning\p{L}*|(?<!\p{L})(?:udrens|rens)\p{L}*\s+(?:af\s+)?kroppen/giu },
+  { name: "detox", re: /(?<!\p{L})puhdist\p{L}*\s+(?:elimistö\p{L}*|keho\p{L}*)|(?<!\p{L})(?:poist|pois)\p{L}*\s+(?:\p{L}+\s+)?(?:kuona-ain|myrk|toksiin)\p{L}*|(?<!\p{L})(?:kuona-ain|myrk|toksiin)\p{L}*\s+(?:pois|poist)\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})(?:očist|prečist)\p{L}*\s+(?:telo|tela|organizm\p{L}*)|(?<!\p{L})(?:vyplav|odstr[aá]n)\p{L}*\s+toxín\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})(?:očist|pročist|čišćenj|čiščenj)\p{L}*\s+(?:organiz(?:am|m)\p{L}*|tijel\p{L}*|telo|telesa)|(?<!\p{L})(?:izbac|uklanj|uklon|odstran|izloč)\p{L}*\s+(?:\p{L}+\s+)?toksin\p{L}*|(?<!\p{L})razstruplj\p{L}*/giu },
+  { name: "detox", re: /(?<!\p{L})elimin\p{L}*\s+(?:les\s+)?toxines|(?<!\p{L})(?:depur|purific|netej)\p{L}*\s+(?:el\s+teu\s+|l['’])?organisme(?!\p{L})/giu },
+  { name: "detox", re: /(?<!\p{L})nyahtoks\p{L}*|(?<!\p{L})(?:buang|membuang|singkirkan|menyingkirkan|keluarkan|mengeluarkan)\s+toksin/giu },
+  { name: "detox", re: /(?<!\p{L})(?:depur|purific|limp)\p{L}*\s+o\s+(?:teu\s+|seu\s+)?organismo(?!\p{L})/giu },
 
   // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
   //

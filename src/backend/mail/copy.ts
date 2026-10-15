@@ -60,6 +60,51 @@ export const MAIL_COPY: Localized<MailCopy> = {
     text: "Твой код для входа в eait: {code}.\n\nОн действует 10 минут.\n\nЕсли письмо пришло по ошибке, просто удали его.",
     html: "<p>Твой код для входа в eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Он действует 10 минут.</p><p>Если письмо пришло по ошибке, просто удали его.</p>",
   },
+  "pt-PT": {
+    subject: "{code} é o teu código de início de sessão do eait",
+    text: "O teu código de início de sessão do eait é {code}.\n\nÉ válido durante 10 minutos.\n\nSe não pediste este e-mail, ignora-o.",
+    html: "<p>O teu código de início de sessão do eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>É válido durante 10 minutos.</p><p>Se não pediste este e-mail, ignora-o.</p>",
+  },
+  ms: {
+    subject: "{code} ialah kod daftar masuk eait anda",
+    text: "Kod daftar masuk eait anda ialah {code}.\n\nIa sah selama 10 minit.\n\nJika anda tidak meminta e-mel ini, abaikannya.",
+    html: "<p>Kod daftar masuk eait anda:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Ia sah selama 10 minit.</p><p>Jika anda tidak meminta e-mel ini, abaikannya.</p>",
+  },
+  ca: {
+    subject: "{code} és el teu codi d'inici de sessió d'eait",
+    text: "El teu codi d'inici de sessió d'eait és {code}.\n\nFunciona durant 10 minuts.\n\nSi no has demanat aquest correu, ignora'l.",
+    html: "<p>El teu codi d'inici de sessió d'eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Funciona durant 10 minuts.</p><p>Si no has demanat aquest correu, ignora'l.</p>",
+  },
+  sl: {
+    subject: "{code} je tvoja koda za prijavo v eait",
+    text: "Tvoja koda za prijavo v eait je {code}.\n\nVelja 10 minut.\n\nČe to e-sporočilo ni namenjeno tebi, ga prezri.",
+    html: "<p>Tvoja koda za prijavo v eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Velja 10 minut.</p><p>Če to e-sporočilo ni namenjeno tebi, ga prezri.</p>",
+  },
+  hr: {
+    subject: "{code} je tvoj kod za prijavu u eait",
+    text: "Tvoj kod za prijavu u eait je {code}.\n\nVrijedi 10 minuta.\n\nAko ova poruka nije zatražena, zanemari je.",
+    html: "<p>Tvoj kod za prijavu u eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Vrijedi 10 minuta.</p><p>Ako ova poruka nije zatražena, zanemari je.</p>",
+  },
+  sk: {
+    subject: "{code} je tvoj prihlasovací kód do eait",
+    text: "Tvoj prihlasovací kód do eait je {code}.\n\nPlatí 10 minút.\n\nAk tento e-mail nečakáš, ignoruj ho.",
+    html: "<p>Tvoj prihlasovací kód do eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Platí 10 minút.</p><p>Ak tento e-mail nečakáš, ignoruj ho.</p>",
+  },
+  no: {
+    subject: "{code} er påloggingskoden din for eait",
+    text: "Påloggingskoden din for eait er {code}.\n\nDen virker i 10 minutter.\n\nHvis du ikke ba om denne e-posten, kan du se bort fra den.",
+    html: "<p>Påloggingskoden din for eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Den virker i 10 minutter.</p><p>Hvis du ikke ba om denne e-posten, kan du se bort fra den.</p>",
+  },
+  fi: {
+    subject: "{code} on eait-kirjautumiskoodisi",
+    text: "eait-kirjautumiskoodisi on {code}.\n\nSe on voimassa 10 minuuttia.\n\nJos et pyytänyt tätä sähköpostia, voit jättää sen huomiotta.",
+    html: "<p>eait-kirjautumiskoodisi:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Se on voimassa 10 minuuttia.</p><p>Jos et pyytänyt tätä sähköpostia, voit jättää sen huomiotta.</p>",
+  },
+  da: {
+    subject: "{code} er din loginkode til eait",
+    text: "Din loginkode til eait er {code}.\n\nDen virker i 10 minutter.\n\nHvis du ikke har bedt om denne e-mail, kan du ignorere den.",
+    html: "<p>Din loginkode til eait:</p><p style=\"font-size:32px;font-weight:700;letter-spacing:6px\">{code}</p><p>Den virker i 10 minutter.</p><p>Hvis du ikke har bedt om denne e-mail, kan du ignorere den.</p>",
+  },
   hu: {
     subject: "{code} – az eait bejelentkezési kódod",
     text: "Az eait bejelentkezési kódod: {code}.\n\n10 percig érvényes.\n\nHa nem te kérted ezt az e-mailt, hagyd figyelmen kívül.",

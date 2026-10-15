@@ -334,6 +334,321 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Запиши сегодняшнюю еду — хватит одного фото.",
     },
   },
+  "pt-PT": {
+  "trial-end": {
+    title: "A avaliação gratuita termina amanhã",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "A tua avaliação gratuita termina amanhã. Se fores continuar, não precisas de fazer nada; se não, Definições › Subscrições.",
+  },
+  evening: {
+    title: "Hoje face ao plano",
+    body: "{eaten} das tuas {plan} kcal hoje. {tomorrow}",
+    emptyBody: "Nada registado hoje — as tuas {plan} kcal continuam a ser o plano. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "O teu plano está quase pronto",
+    body: "Mais uns toques e o teu plano fica pronto.",
+    alternates: { v2: "Continua onde paraste — só demora um minuto.", v3: "O teu plano só espera por algumas respostas.", v4: "Responde às últimas perguntas e o plano é teu." },
+  },
+  "onboarding-photo": {
+    title: "A tua primeira refeição",
+    body: "Tira uma foto da tua próxima refeição — é só isso para começar.",
+    alternates: { v2: "Uma foto basta para começar.", v3: "O teu plano está pronto. Regista a tua primeira refeição quando quiseres.", v4: "Da próxima vez que comeres, experimenta uma foto — nós tratamos do resto." },
+  },
+  "streak-risk": {
+    title: "Mantém o ritmo",
+    body: "Registaste vários dias seguidos. Uma foto hoje mantém a sequência.",
+    alternates: { v2: "Uma foto rápida e hoje também conta.", v3: "Ainda nada registado hoje? Uma refeição e a sequência continua.", v4: "A tua sequência continua viva — junta o dia de hoje com uma foto." },
+  },
+  nudge: {
+    title: "Refeições de hoje",
+    body: "Regista o que comeste hoje — uma foto basta.",
+  },
+},
+  ms: {
+  "trial-end": {
+    title: "Percubaan tamat esok",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Esok percubaan percuma anda tamat. Jika anda kekal, tiada apa perlu dibuat; jika tidak, Seting › Langganan.",
+  },
+  evening: {
+    title: "Hari ini berbanding pelan",
+    body: "{eaten} daripada {plan} kcal anda hari ini. {tomorrow}",
+    emptyBody: "Tiada apa-apa dicatat hari ini — {plan} kcal anda masih pelannya. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Pelan anda hampir siap",
+    body: "Beberapa ketikan lagi dan pelan anda siap.",
+    alternates: { v2: "Sambung dari tempat anda berhenti — hanya seminit.", v3: "Pelan anda menunggu beberapa jawapan.", v4: "Jawab soalan terakhir dan pelan anda milik anda." },
+  },
+  "onboarding-photo": {
+    title: "Hidangan pertama anda",
+    body: "Ambil foto hidangan anda yang seterusnya — itu sahaja untuk bermula.",
+    alternates: { v2: "Sekeping foto sudah cukup untuk bermula.", v3: "Pelan anda sudah ditetapkan. Catat hidangan pertama anda apabila anda bersedia.", v4: "Kali seterusnya anda makan, cuba ambil foto — kami uruskan selebihnya." },
+  },
+  "streak-risk": {
+    title: "Teruskan momentum",
+    body: "Anda telah mencatat beberapa hari berturut-turut. Sekeping foto hari ini meneruskan rentetan itu.",
+    alternates: { v2: "Satu foto pantas dan hari ini juga dikira.", v3: "Belum mencatat apa-apa hari ini? Satu hidangan dan rentetan diteruskan.", v4: "Rentetan anda masih hidup — tambah hari ini dengan foto." },
+  },
+  nudge: {
+    title: "Hidangan hari ini",
+    body: "Catat apa yang anda makan hari ini — sekeping foto sudah cukup.",
+  },
+},
+  ca: {
+  "trial-end": {
+    title: "La prova acaba demà",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Demà acaba la teva prova gratuïta. Si et quedes, no cal fer res; si no, Configuració › Subscripcions.",
+  },
+  evening: {
+    title: "Avui davant el pla",
+    body: "{eaten} de les teves {plan} kcal avui. {tomorrow}",
+    emptyBody: "Res registrat avui — les teves {plan} kcal continuen sent el pla. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "El teu pla és gairebé a punt",
+    body: "Uns quants tocs i el teu pla és a punt.",
+    alternates: { v2: "Continua on ho vas deixar — només és un minut.", v3: "Al teu pla només li falten unes quantes respostes.", v4: "Acaba les últimes preguntes i el pla és teu." },
+  },
+  "onboarding-photo": {
+    title: "El teu primer àpat",
+    body: "Fes una foto del teu proper àpat — no cal res més per començar.",
+    alternates: { v2: "Amb una foto n'hi ha prou per arrencar.", v3: "El teu pla és a punt. Registra el primer àpat quan vulguis.", v4: "El proper cop que mengis, prova amb una foto — nosaltres fem la resta." },
+  },
+  "streak-risk": {
+    title: "Continua així",
+    body: "Portes uns quants dies seguits registrant. Una foto avui manté la ratxa.",
+    alternates: { v2: "Una foto ràpida i avui també compta.", v3: "Encara no has registrat res avui? Un àpat i la ratxa continua.", v4: "La teva ratxa continua viva — afegeix avui amb una foto." },
+  },
+  nudge: {
+    title: "Els àpats d'avui",
+    body: "Registra el que has menjat avui — amb una foto n'hi ha prou.",
+  },
+},
+  sl: {
+  "trial-end": {
+    title: "Preizkusno obdobje se konča jutri",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Jutri se tvoje brezplačno preizkusno obdobje konča. Če ostaneš, ti ni treba storiti ničesar; če ne, Nastavitve › Naročnine.",
+  },
+  evening: {
+    title: "Današnji dan v primerjavi z načrtom",
+    body: "{eaten} od tvojih {plan} kcal danes. {tomorrow}",
+    emptyBody: "Danes ni nič zabeleženo — tvoj načrt je še vedno {plan} kcal. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Tvoj načrt je skoraj pripravljen",
+    body: "Nekaj dotikov in tvoj načrt je pripravljen.",
+    alternates: { v2: "Vrni se k vprašanjem — vzame le minuto.", v3: "Tvoj načrt čaka le še na nekaj odgovorov.", v4: "Odgovori na zadnja vprašanja in načrt je tvoj." },
+  },
+  "onboarding-photo": {
+    title: "Tvoj prvi obrok",
+    body: "Fotografiraj naslednji obrok — to je vse, kar potrebuješ za začetek.",
+    alternates: { v2: "Ena fotografija je dovolj za začetek.", v3: "Tvoj načrt je nastavljen. Prvi obrok zabeleži, kadar želiš.", v4: "Pri naslednjem obroku poskusi s fotografijo — za ostalo poskrbimo mi." },
+  },
+  "streak-risk": {
+    title: "Kar tako naprej",
+    body: "Nekaj dni zapored že beležiš. Fotografija danes ohrani niz.",
+    alternates: { v2: "Ena hitra fotografija in tudi danes šteje.", v3: "Danes še nič zabeleženega? En obrok in niz se nadaljuje.", v4: "Tvoj niz še živi — dodaj današnji dan s fotografijo." },
+  },
+  nudge: {
+    title: "Današnji obroki",
+    body: "Zabeleži današnje obroke — fotografija je dovolj.",
+  },
+},
+  hr: {
+  "trial-end": {
+    title: "Probno razdoblje završava sutra",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Sutra ti završava besplatno probno razdoblje. Ako ostaješ, ne trebaš ništa učiniti; ako ne, Postavke › Pretplate.",
+  },
+  evening: {
+    title: "Današnji dan u odnosu na plan",
+    body: "{eaten} od tvojih {plan} kcal danas. {tomorrow}",
+    emptyBody: "Danas ništa nije zabilježeno — tvojih {plan} kcal i dalje je plan. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Tvoj plan je gotovo spreman",
+    body: "Još nekoliko dodira i plan je spreman.",
+    alternates: { v2: "Nastavi ondje gdje je stalo — traje samo minutu.", v3: "Tvoj plan čeka još nekoliko odgovora.", v4: "Odgovori na zadnja pitanja i plan je tvoj." },
+  },
+  "onboarding-photo": {
+    title: "Tvoj prvi obrok",
+    body: "Fotografiraj sljedeći obrok — to je sve što treba za početak.",
+    alternates: { v2: "Jedna fotografija dovoljna je za početak.", v3: "Plan je postavljen. Zabilježi prvi obrok kad ti odgovara.", v4: "Kad sljedeći put jedeš, probaj s fotografijom — ostalo prepusti nama." },
+  },
+  "streak-risk": {
+    title: "Nastavi niz",
+    body: "Već nekoliko dana zaredom bilježiš obroke. Fotografija danas održava niz.",
+    alternates: { v2: "Jedna brza fotografija i danas se računa.", v3: "Danas još ništa zabilježeno? Jedan obrok i niz se nastavlja.", v4: "Niz je još živ — dodaj današnji dan fotografijom." },
+  },
+  nudge: {
+    title: "Današnji obroci",
+    body: "Zabilježi današnje obroke — dovoljna je fotografija.",
+  },
+},
+  sk: {
+  "trial-end": {
+    title: "Skúšobné obdobie zajtra končí",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Zajtra ti končí skúšobné obdobie zadarmo. Ak zostávaš, netreba nič robiť; ak nie, Nastavenia › Predplatné.",
+  },
+  evening: {
+    title: "Dnešok v porovnaní s plánom",
+    body: "Dnes {eaten} z tvojich {plan} kcal. {tomorrow}",
+    emptyBody: "Dnes nič nezapísané — tvojich {plan} kcal zostáva plánom. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Tvoj plán je takmer hotový",
+    body: "Pár ťuknutí a tvoj plán je hotový.",
+    alternates: { v2: "Pokračuj v otázkach — zaberie to len minútu.", v3: "Tvoj plán čaká na pár odpovedí.", v4: "Dokonči posledné otázky a plán je tvoj." },
+  },
+  "onboarding-photo": {
+    title: "Tvoje prvé jedlo",
+    body: "Odfoť svoje ďalšie jedlo — na začiatok nič viac netreba.",
+    alternates: { v2: "Na začiatok stačí jedna fotka.", v3: "Tvoj plán je hotový. Zapíš prvé jedlo, keď budeš chcieť.", v4: "Keď budeš nabudúce jesť, skús fotku — zvyšok vybavíme my." },
+  },
+  "streak-risk": {
+    title: "Drž sériu",
+    body: "Pár dní za sebou máš zapísané. Dnešná fotka sériu predĺži.",
+    alternates: { v2: "Jedna rýchla fotka a aj dnešok sa počíta.", v3: "Dnes ešte nič nezapísané? Jedno jedlo a séria pokračuje.", v4: "Tvoja séria stále žije — pridaj dnešok fotkou." },
+  },
+  nudge: {
+    title: "Dnešné jedlá",
+    body: "Zapíš dnešné jedlá — stačí fotka.",
+  },
+},
+  no: {
+  "trial-end": {
+    title: "Prøveperioden slutter i morgen",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "I morgen slutter den gratis prøveperioden din. Hvis du blir, trenger du ikke gjøre noe; hvis ikke, Innstillinger › Abonnementer.",
+  },
+  evening: {
+    title: "I dag mot planen",
+    body: "{eaten} av dine {plan} kcal i dag. {tomorrow}",
+    emptyBody: "Ingenting logget i dag — dine {plan} kcal er fortsatt planen. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Planen din er nesten klar",
+    body: "Noen få trykk, så er planen din klar.",
+    alternates: { v2: "Fortsett der du slapp — det tar bare et minutt.", v3: "Planen din venter på noen få svar.", v4: "Svar på de siste spørsmålene, så er planen din." },
+  },
+  "onboarding-photo": {
+    title: "Ditt første måltid",
+    body: "Ta et bilde av neste måltid — det er alt som skal til for å starte.",
+    alternates: { v2: "Ett bilde er nok til å komme i gang.", v3: "Planen din står. Logg det første måltidet når det passer deg.", v4: "Neste gang du spiser, prøv et bilde — vi tar oss av resten." },
+  },
+  "streak-risk": {
+    title: "Hold det gående",
+    body: "Du har logget noen dager på rad. Et bilde i dag holder rekken i gang.",
+    alternates: { v2: "Ett raskt bilde, så teller i dag også.", v3: "Ingenting logget i dag ennå? Ett måltid, så fortsetter rekken.", v4: "Rekken din lever fortsatt — legg til i dag med et bilde." },
+  },
+  nudge: {
+    title: "Dagens måltider",
+    body: "Logg det du spiste i dag — et bilde er nok.",
+  },
+},
+  fi: {
+  "trial-end": {
+    title: "Kokeilujakso päättyy huomenna",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "Ilmainen kokeilujaksosi päättyy huomenna. Jos jatkat, mitään ei tarvitse tehdä; jos et, Asetukset › Tilaukset.",
+  },
+  evening: {
+    title: "Päivä suhteessa suunnitelmaan",
+    body: "Tänään {eaten}/{plan} kcal. {tomorrow}",
+    emptyBody: "Tänään ei kirjauksia – suunnitelmasi on yhä {plan} kcal. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Suunnitelmasi on melkein valmis",
+    body: "Muutama napautus, niin suunnitelmasi on valmis.",
+    alternates: { v2: "Jatka siitä, mihin jäit – se vie vain minuutin.", v3: "Suunnitelmasi odottaa enää muutamaa vastausta.", v4: "Vastaa viimeisiin kysymyksiin, niin suunnitelma on sinun." },
+  },
+  "onboarding-photo": {
+    title: "Ensimmäinen ateriasi",
+    body: "Ota kuva seuraavasta ateriastasi – muuta aloittamiseen ei tarvita.",
+    alternates: { v2: "Yksi kuva riittää alkuun.", v3: "Suunnitelmasi on valmis. Kirjaa ensimmäinen ateriasi, kun sopii.", v4: "Kokeile kuvaa, kun seuraavan kerran syöt – me hoidamme loput." },
+  },
+  "streak-risk": {
+    title: "Pidä putki käynnissä",
+    body: "Olet kirjannut muutaman päivän putkeen. Kuva tänään pitää putken käynnissä.",
+    alternates: { v2: "Yksi nopea kuva, niin tämäkin päivä lasketaan.", v3: "Ei vielä kirjauksia tänään? Yksi ateria, niin putki jatkuu.", v4: "Putkesi on yhä käynnissä – lisää tämä päivä kuvalla." },
+  },
+  nudge: {
+    title: "Päivän ateriat",
+    body: "Kirjaa, mitä söit tänään – kuva riittää.",
+  },
+},
+  da: {
+  "trial-end": {
+    title: "Prøveperioden slutter i morgen",
+    // "if you're staying" rather than "the subscription starts": a CANCELLATION leaves the expiry
+    // where it was, so somebody who has already stopped it still gets this message, and telling
+    // them a subscription is about to start would be false rather than merely redundant.
+    body: "I morgen slutter din gratis prøveperiode. Hvis du bliver, skal du ikke gøre noget; hvis ikke: Indstillinger › Abonnementer.",
+  },
+  evening: {
+    title: "I dag i forhold til planen",
+    body: "{eaten} af dine {plan} kcal i dag. {tomorrow}",
+    emptyBody: "Intet registreret i dag — dine {plan} kcal er stadig planen. {tomorrow}",
+  },
+  // The free account's line (#730): no figures, because the figures read the day against the plan
+  // and that reading is what a subscription buys.
+  "onboarding-start": {
+    title: "Din plan er næsten klar",
+    body: "Et par tryk, så er din plan klar.",
+    alternates: { v2: "Fortsæt, hvor du slap — det tager kun et minut.", v3: "Din plan venter på et par svar.", v4: "Besvar de sidste spørgsmål, så er planen din." },
+  },
+  "onboarding-photo": {
+    title: "Dit første måltid",
+    body: "Tag et foto af dit næste måltid — det er alt, der skal til for at komme i gang.",
+    alternates: { v2: "Ét foto er nok til at komme i gang.", v3: "Din plan står klar. Registrér dit første måltid, når det passer dig.", v4: "Næste gang du spiser, så prøv et foto — vi klarer resten." },
+  },
+  "streak-risk": {
+    title: "Hold den kørende",
+    body: "Du har registreret et par dage i træk. Et foto i dag holder stimen i gang.",
+    alternates: { v2: "Ét hurtigt foto, så tæller i dag også.", v3: "Intet registreret i dag endnu? Ét måltid, så fortsætter stimen.", v4: "Din stime lever stadig — føj i dag til med et foto." },
+  },
+  nudge: {
+    title: "Dagens måltider",
+    body: "Registrér, hvad du har spist i dag — et foto er nok.",
+  },
+},
   hu: {
   "trial-end": {
     title: "Holnap lejár a próbaidőszak",
@@ -955,6 +1270,15 @@ export const LOG_REPLY_COPY: Localized<LogReplyCopy> = {
   vi: { button: "Ghi một bữa ăn", submit: "Ghi", placeholder: "Bạn đã ăn gì?" },
   id: { button: "Catat makanan", submit: "Catat", placeholder: "Kamu makan apa?" },
   ru: { button: "Записать еду", submit: "Записать", placeholder: "Что было на тарелке?" },
+  "pt-PT": { button: "Registar refeição", submit: "Registar", placeholder: "O que comeste?" },
+  ms: { button: "Catat hidangan", submit: "Catat", placeholder: "Apa yang anda makan?" },
+  ca: { button: "Registra un àpat", submit: "Registra", placeholder: "Què has menjat?" },
+  sl: { button: "Zabeleži obrok", submit: "Zabeleži", placeholder: "Kaj je bilo na krožniku?" },
+  hr: { button: "Zabilježi obrok", submit: "Zabilježi", placeholder: "Što je bilo za jelo?" },
+  sk: { button: "Zapísať jedlo", submit: "Zapísať", placeholder: "Čo bolo na tanieri?" },
+  no: { button: "Logg et måltid", submit: "Logg", placeholder: "Hva spiste du?" },
+  fi: { button: "Kirjaa ateria", submit: "Kirjaa", placeholder: "Mitä söit?" },
+  da: { button: "Registrér et måltid", submit: "Registrér", placeholder: "Hvad spiste du?" },
   hu: { button: "Étkezés rögzítése", submit: "Rögzítés", placeholder: "Mit ettél?" },
   el: { button: "Καταγραφή γεύματος", submit: "Καταγραφή", placeholder: "Τι έφαγες;" },
   ro: { button: "Înregistrează o masă", submit: "Înregistrează", placeholder: "Ce ai mâncat?" },
@@ -1228,6 +1552,78 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     gainUnder: "{under}ккал не хватило до плана — горсть орехов завтра это покроет.",
     under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
     onPlan: "По плану. Завтра — так же.",
+  },
+  "pt-PT": {
+    noMeals: "Amanhã, uma foto volta a pôr o dia no registo.",
+    over: "{over} acima hoje — amanhã começa de novo em {plan}.",
+    protein: "Faltaram {gap} g de proteína — ovos ou skyr ao pequeno-almoço resolvem.",
+    gainUnder: "{under} kcal abaixo do plano — um punhado de frutos secos amanhã resolve.",
+    under: "{under} abaixo do plano — comer o número inteiro amanhã é o plano, não um deslize.",
+    onPlan: "Dentro do plano. Repete amanhã.",
+  },
+  ms: {
+    noMeals: "Satu foto esok dan hari itu dikira semula.",
+    over: "{over} terlebih hari ini — esok bermula semula pada {plan}.",
+    protein: "Protein kurang {gap} g — telur atau skyr ketika sarapan boleh mencukupkannya.",
+    gainUnder: "{under} kcal kurang daripada pelan — segenggam kacang esok menampungnya.",
+    under: "{under} di bawah pelan — makan jumlah penuh esok ialah pelannya, bukan kesilapan.",
+    onPlan: "Ikut pelan. Sama lagi esok.",
+  },
+  ca: {
+    noMeals: "Demà, amb una sola foto el dia torna a comptar.",
+    over: "{over} de més avui — demà tornes a començar amb {plan}.",
+    protein: "Han faltat {gap} g de proteïna — uns ous o skyr a l'esmorzar ho compensen.",
+    gainUnder: "Han faltat {under} kcal per al pla — un grapat de fruits secs demà ho cobreix.",
+    under: "{under} per sota del pla — demà, menjar tot el que toca és el pla, no un error.",
+    onPlan: "Dins del pla. Demà, igual.",
+  },
+  sl: {
+    noMeals: "Ena fotografija jutri in dan spet šteje.",
+    over: "Danes {over} nad načrtom — jutri spet začneš pri {plan}.",
+    protein: "Beljakovin je zmanjkalo za {gap} g — jajca ali skyr za zajtrk to zapolnijo.",
+    gainUnder: "Do načrta je manjkalo {under} kcal — pest oreščkov jutri to pokrije.",
+    under: "{under} pod načrtom — če jutri poješ celotno številko, je to načrt, ne spodrsljaj.",
+    onPlan: "Po načrtu. Jutri enako.",
+  },
+  hr: {
+    noMeals: "Jedna fotografija sutra i dan se opet računa.",
+    over: "Danas {over} preko — sutra opet kreće od {plan}.",
+    protein: "Nedostajalo je {gap} g proteina — jaja ili skyr za doručak pokrivaju razliku.",
+    gainUnder: "{under} kcal manje od plana — šaka orašastih plodova sutra to pokriva.",
+    under: "{under} ispod plana — sutra pojedi cijeli iznos: to je plan, a ne posrtaj.",
+    onPlan: "U planu. Sutra isto.",
+  },
+  sk: {
+    noMeals: "Jedna fotka zajtra a deň je znova v hre.",
+    over: "Dnes {over} nad plánom — zajtra sa znova začína na {plan}.",
+    protein: "Bielkovín chýbalo {gap} g — vajcia alebo skyr na raňajky to doplnia.",
+    gainUnder: "Do plánu chýbalo {under} kcal — hrsť orieškov zajtra to pokryje.",
+    under: "Dnes {under} pod plánom — zjesť zajtra celé číslo je plán, nie zakopnutie.",
+    onPlan: "Podľa plánu. Zajtra znova tak.",
+  },
+  no: {
+    noMeals: "Ett bilde i morgen, så teller dagen igjen.",
+    over: "{over} over i dag — i morgen begynner du på {plan} igjen.",
+    protein: "Proteinet var {gap} g for lite — egg eller skyr til frokost tetter gapet.",
+    gainUnder: "{under} kcal under planen — en neve nøtter i morgen dekker det.",
+    under: "{under} under planen — å spise hele tallet i morgen er planen, ikke en glipp.",
+    onPlan: "Innenfor planen. Likedan i morgen.",
+  },
+  fi: {
+    noMeals: "Yksi kuva huomenna, niin päivä lasketaan taas.",
+    over: "Tänään {over} yli – huomenna lähtökohta on taas {plan}.",
+    protein: "Proteiinia jäi {gap} g vajaaksi – kananmunat tai rahka aamiaisella paikkaavat sen.",
+    gainUnder: "{under} kcal suunnitelmasta jäi syömättä – kourallinen pähkinöitä huomenna paikkaa sen.",
+    under: "{under} alle suunnitelman – koko määrän syöminen huomenna on suunnitelma, ei lipsahdus.",
+    onPlan: "Suunnitelman mukaan. Samoin huomenna.",
+  },
+  da: {
+    noMeals: "Ét foto i morgen, så tæller dagen igen.",
+    over: "{over} over i dag — i morgen starter vi på {plan} igen.",
+    protein: "Protein manglede {gap} g — æg eller skyr til morgenmad lukker hullet.",
+    gainUnder: "{under} kcal under planen — en håndfuld nødder i morgen dækker det.",
+    under: "{under} under planen — at spise hele tallet i morgen er planen, ikke et fejltrin.",
+    onPlan: "Inden for planen. Det samme igen i morgen.",
   },
   hu: {
     noMeals: "Egy fotó holnap, és a nap újra számít.",

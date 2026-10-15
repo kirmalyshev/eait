@@ -6725,7 +6725,16 @@
           "cs",
           "ro",
           "el",
-          "hu"
+          "hu",
+          "da",
+          "fi",
+          "no",
+          "sk",
+          "hr",
+          "sl",
+          "ca",
+          "ms",
+          "pt-PT"
         ]
       },
       "Limits": {

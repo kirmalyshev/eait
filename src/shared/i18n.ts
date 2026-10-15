@@ -46,10 +46,20 @@ import { messages as cs } from "./locales/cs/messages.ts";
 import { messages as ro } from "./locales/ro/messages.ts";
 import { messages as el } from "./locales/el/messages.ts";
 import { messages as hu } from "./locales/hu/messages.ts";
+import { messages as da } from "./locales/da/messages.ts";
+import { messages as fi } from "./locales/fi/messages.ts";
+import { messages as no } from "./locales/no/messages.ts";
+import { messages as sk } from "./locales/sk/messages.ts";
+import { messages as hr } from "./locales/hr/messages.ts";
+import { messages as sl } from "./locales/sl/messages.ts";
+import { messages as ca } from "./locales/ca/messages.ts";
+import { messages as ms } from "./locales/ms/messages.ts";
+import { messages as ptPT } from "./locales/pt-PT/messages.ts";
 
 const CATALOGS: Record<Lang, Messages> = {
   en, fr, de, it, es, vi, id, ru,
   "pt-BR": ptBR, ja, ko, "zh-Hans": zhHans, "zh-Hant": zhHant, tr, pl, nl, uk, sv, th, hi, cs, ro, el, hu,
+  da, fi, no, sk, hr, sl, ca, ms, "pt-PT": ptPT,
 };
 
 const INSTANCES: Record<Lang, I18n> = Object.fromEntries(

@@ -88,6 +88,15 @@ export const LANG_LABEL: Record<Lang, string> = {
   ro: "Română",
   el: "Ελληνικά",
   hu: "Magyar",
+  da: "Dansk",
+  fi: "Suomi",
+  no: "Norsk",
+  sk: "Slovenčina",
+  hr: "Hrvatski",
+  sl: "Slovenščina",
+  ca: "Català",
+  ms: "Bahasa Melayu",
+  "pt-PT": "Português (Portugal)",
 };
 
 /**
@@ -120,6 +129,15 @@ export const LANG_FLAG: Record<Lang, string> = {
   ro: "🇷🇴",
   el: "🇬🇷",
   hu: "🇭🇺",
+  da: "🇩🇰",
+  fi: "🇫🇮",
+  no: "🇳🇴",
+  sk: "🇸🇰",
+  hr: "🇭🇷",
+  sl: "🇸🇮",
+  ca: "🇪🇸",
+  ms: "🇲🇾",
+  "pt-PT": "🇵🇹",
 };
 
 /**
@@ -158,6 +176,15 @@ export const LANG_TAG: Record<Lang, string> = {
   ro: "ro-RO",
   el: "el-GR",
   hu: "hu-HU",
+  da: "da-DK",
+  fi: "fi-FI",
+  no: "no-NO",
+  sk: "sk-SK",
+  hr: "hr-HR",
+  sl: "sl-SI",
+  ca: "ca-ES",
+  ms: "ms-MY",
+  "pt-PT": "pt-PT",
 };
 
 /**
@@ -266,6 +293,7 @@ export const UNIT_KCAL: Record<Lang, string> = {
   en: "kcal", fr: "kcal", de: "kcal", it: "kcal", es: "kcal", vi: "kcal", id: "kcal", ru: "ккал",
   "pt-BR": "kcal", ja: "kcal", ko: "kcal", "zh-Hans": "千卡", "zh-Hant": "大卡", tr: "kcal", pl: "kcal", nl: "kcal",
   uk: "ккал", sv: "kcal", th: "kcal", hi: "kcal", cs: "kcal", ro: "kcal", el: "kcal", hu: "kcal",
+  da: "kcal", fi: "kcal", no: "kcal", sk: "kcal", hr: "kcal", sl: "kcal", ca: "kcal", ms: "kcal", "pt-PT": "kcal",
 };
 
 /**
@@ -394,6 +422,15 @@ export const DAY_WORDS: Localized<{ today: string; yesterday: string }> = {
   ro: { today: "astăzi", yesterday: "ieri" },
   el: { today: "σήμερα", yesterday: "χθες" },
   hu: { today: "ma", yesterday: "tegnap" },
+  da: { today: "i dag", yesterday: "i går" },
+  fi: { today: "tänään", yesterday: "eilen" },
+  no: { today: "i dag", yesterday: "i går" },
+  sk: { today: "dnes", yesterday: "včera" },
+  hr: { today: "danas", yesterday: "jučer" },
+  sl: { today: "danes", yesterday: "včeraj" },
+  ca: { today: "avui", yesterday: "ahir" },
+  ms: { today: "hari ini", yesterday: "semalam" },
+  "pt-PT": { today: "hoje", yesterday: "ontem" },
 };
 
 /**
@@ -534,6 +571,35 @@ const PLURAL_CATEGORY: Record<Lang, (n: number) => Intl.LDMLPluralRule> = {
   },
   el: oneIfOne,
   hu: oneIfOne,
+  // CLDR (whole numbers). Croatian splits like Russian but has no `many`; Slovenian has a dual;
+  // Slovak matches Czech; Portuguese (Portugal) is one / other for the numbers a count shows.
+  da: oneIfOne,
+  fi: oneIfOne,
+  no: oneIfOne,
+  sk: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    if (i === 1) return "one";
+    if (i >= 2 && i <= 4) return "few";
+    return "other";
+  },
+  hr: (n) => {
+    const i = Math.trunc(Math.abs(n));
+    const i10 = i % 10;
+    const i100 = i % 100;
+    if (i10 === 1 && i100 !== 11) return "one";
+    if (i10 >= 2 && i10 <= 4 && (i100 < 12 || i100 > 14)) return "few";
+    return "other";
+  },
+  sl: (n) => {
+    const i100 = Math.trunc(Math.abs(n)) % 100;
+    if (i100 === 1) return "one";
+    if (i100 === 2) return "two";
+    if (i100 === 3 || i100 === 4) return "few";
+    return "other";
+  },
+  ca: oneIfOne,
+  ms: () => "other",
+  "pt-PT": oneIfOne,
 };
 
 /**
@@ -617,7 +683,8 @@ export function narrowLang(locale: string | null | undefined): Lang {
     const hant = parts.includes("hant") || ["tw", "hk", "mo"].includes(parts[parts.length - 1]!);
     return hant ? "zh-Hant" : "zh-Hans";
   }
-  if (head === "pt") return "pt-BR";
+  if (head === "pt") return parts[1] === "pt" ? "pt-PT" : "pt-BR";
+  if (head === "nb" || head === "nn") return "no";
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
 }
 
