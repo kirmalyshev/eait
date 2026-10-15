@@ -169,6 +169,7 @@ export interface HomeCopy {
     uploading: string; waiting: string; notMeal: string; unread: string; nothingCounted: string;
     retake: string; remove: string; question: string; answer: string; dropTitle: string; dropSub: string;
     addedTitle: string; addedSub: string; beingRead: string; found: string;
+    labelRead: string; unreadableLabel: string; asMealPhoto: string;
   };
 }
 
@@ -235,7 +236,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "No",
     webPage: "Page {n} of {total}",
     webDone: "Done",
-    queue: { uploading: "Uploading photo · 1 of 4", waiting: "Waiting to send", notMeal: "That doesn't look like a meal", unread: "Couldn't read this photo", nothingCounted: "Nothing was counted.", retake: "Retake", remove: "Remove", question: "Counted as ≈{kcal}. One detail would sharpen it.", answer: "Answer 1 question", dropTitle: "Drop a photo anywhere to log it", dropSub: "or paste one into the composer", addedTitle: "Added to your day", addedSub: "We'll count it. You can close the app.", beingRead: "{time} · being read, you can close the app", found: "Foods found: {n}" },
+    queue: { uploading: "Uploading photo · 1 of 4", waiting: "Waiting to send", notMeal: "That doesn't look like a meal", unread: "Couldn't read this photo", nothingCounted: "Nothing was counted.", retake: "Retake", remove: "Remove", question: "Counted as ≈{kcal}. One detail would sharpen it.", answer: "Answer 1 question", dropTitle: "Drop a photo anywhere to log it", dropSub: "or paste one into the composer", addedTitle: "Added to your day", addedSub: "We'll count it. You can close the app.", beingRead: "{time} · being read, you can close the app", found: "Foods found: {n}", labelRead: "Read from the nutrition label in your photo.", unreadableLabel: "Couldn't read that label.", asMealPhoto: "Analyse it as a meal photo" },
   },
   fr: {
     phoneToday: "Aujourd'hui",
@@ -299,7 +300,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Non",
     webPage: "Page {n} sur {total}",
     webDone: "Terminé",
-    queue: { uploading: "Envoi de la photo · 1 sur 4", waiting: "En attente d'envoi", notMeal: "Ça ne ressemble pas à un repas", unread: "Impossible de lire cette photo", nothingCounted: "Rien n'a été compté.", retake: "Reprendre", remove: "Retirer", question: "Compté à ≈{kcal}. Un détail rendrait l'estimation plus juste.", answer: "Répondre à 1 question", dropTitle: "Dépose une photo n'importe où pour l'ajouter", dropSub: "ou colle-la dans le champ de saisie", addedTitle: "Ajouté à ta journée", addedSub: "On s'occupe du calcul. Tu peux fermer l'app.", beingRead: "{time} · en cours d'analyse, tu peux fermer l'app", found: "Aliments trouvés : {n}" },
+    queue: { uploading: "Envoi de la photo · 1 sur 4", waiting: "En attente d'envoi", notMeal: "Ça ne ressemble pas à un repas", unread: "Impossible de lire cette photo", nothingCounted: "Rien n'a été compté.", retake: "Reprendre", remove: "Retirer", question: "Compté à ≈{kcal}. Un détail rendrait l'estimation plus juste.", answer: "Répondre à 1 question", dropTitle: "Dépose une photo n'importe où pour l'ajouter", dropSub: "ou colle-la dans le champ de saisie", addedTitle: "Ajouté à ta journée", addedSub: "On s'occupe du calcul. Tu peux fermer l'app.", beingRead: "{time} · en cours d'analyse, tu peux fermer l'app", found: "Aliments trouvés : {n}", labelRead: "Lu sur l'étiquette nutritionnelle de ta photo.", unreadableLabel: "Impossible de lire cette étiquette.", asMealPhoto: "Analyser comme photo de repas" },
   },
   de: {
     phoneToday: "Heute",
@@ -363,7 +364,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nein",
     webPage: "Seite {n} von {total}",
     webDone: "Fertig",
-    queue: { uploading: "Foto wird hochgeladen · 1 von 4", waiting: "Wartet auf den Versand", notMeal: "Das sieht nicht nach einer Mahlzeit aus", unread: "Dieses Foto ließ sich nicht lesen", nothingCounted: "Nichts wurde gezählt.", retake: "Neu aufnehmen", remove: "Entfernen", question: "Mit ≈{kcal} gezählt. Ein Detail würde es genauer machen.", answer: "1 Frage beantworten", dropTitle: "Foto irgendwo ablegen, um es einzutragen", dropSub: "oder ins Eingabefeld einfügen", addedTitle: "Zu deinem Tag hinzugefügt", addedSub: "Wir zählen es. Du kannst die App schließen.", beingRead: "{time} · wird gelesen, du kannst die App schließen", found: "Gefundene Lebensmittel: {n}" },
+    queue: { uploading: "Foto wird hochgeladen · 1 von 4", waiting: "Wartet auf den Versand", notMeal: "Das sieht nicht nach einer Mahlzeit aus", unread: "Dieses Foto ließ sich nicht lesen", nothingCounted: "Nichts wurde gezählt.", retake: "Neu aufnehmen", remove: "Entfernen", question: "Mit ≈{kcal} gezählt. Ein Detail würde es genauer machen.", answer: "1 Frage beantworten", dropTitle: "Foto irgendwo ablegen, um es einzutragen", dropSub: "oder ins Eingabefeld einfügen", addedTitle: "Zu deinem Tag hinzugefügt", addedSub: "Wir zählen es. Du kannst die App schließen.", beingRead: "{time} · wird gelesen, du kannst die App schließen", found: "Gefundene Lebensmittel: {n}", labelRead: "Aus der Nährwerttabelle auf deinem Foto abgelesen.", unreadableLabel: "Die Nährwerttabelle ließ sich nicht lesen.", asMealPhoto: "Als Mahlzeitfoto analysieren" },
   },
   it: {
     phoneToday: "Oggi",
@@ -427,7 +428,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "No",
     webPage: "Pagina {n} di {total}",
     webDone: "Fatto",
-    queue: { uploading: "Caricamento foto · 1 di 4", waiting: "In attesa di invio", notMeal: "Non sembra un pasto", unread: "Impossibile leggere questa foto", nothingCounted: "Non è stato contato nulla.", retake: "Scatta di nuovo", remove: "Rimuovi", question: "Contato come ≈{kcal}. Un dettaglio lo renderebbe più preciso.", answer: "Rispondi a 1 domanda", dropTitle: "Trascina una foto ovunque per registrarla", dropSub: "o incollala nel campo di testo", addedTitle: "Aggiunto alla tua giornata", addedSub: "Lo contiamo noi. Puoi chiudere l'app.", beingRead: "{time} · in lettura, puoi chiudere l'app", found: "Cibi trovati: {n}" },
+    queue: { uploading: "Caricamento foto · 1 di 4", waiting: "In attesa di invio", notMeal: "Non sembra un pasto", unread: "Impossibile leggere questa foto", nothingCounted: "Non è stato contato nulla.", retake: "Scatta di nuovo", remove: "Rimuovi", question: "Contato come ≈{kcal}. Un dettaglio lo renderebbe più preciso.", answer: "Rispondi a 1 domanda", dropTitle: "Trascina una foto ovunque per registrarla", dropSub: "o incollala nel campo di testo", addedTitle: "Aggiunto alla tua giornata", addedSub: "Lo contiamo noi. Puoi chiudere l'app.", beingRead: "{time} · in lettura, puoi chiudere l'app", found: "Cibi trovati: {n}", labelRead: "Letto dall'etichetta nutrizionale nella tua foto.", unreadableLabel: "Etichetta non leggibile.", asMealPhoto: "Analizzala come foto di un pasto" },
   },
   es: {
     phoneToday: "Hoy",
@@ -491,7 +492,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "No",
     webPage: "Página {n} de {total}",
     webDone: "Listo",
-    queue: { uploading: "Subiendo la foto · 1 de 4", waiting: "Esperando para enviar", notMeal: "Eso no parece una comida", unread: "No se pudo leer esta foto", nothingCounted: "No se contó nada.", retake: "Repetir", remove: "Quitar", question: "Contado como ≈{kcal}. Un detalle lo afinaría.", answer: "Responder 1 pregunta", dropTitle: "Suelta una foto en cualquier sitio para registrarla", dropSub: "o pégala en el cuadro de texto", addedTitle: "Añadido a tu día", addedSub: "Lo contamos nosotros. Puedes cerrar la app.", beingRead: "{time} · leyéndose, puedes cerrar la app", found: "Alimentos encontrados: {n}" },
+    queue: { uploading: "Subiendo la foto · 1 de 4", waiting: "Esperando para enviar", notMeal: "Eso no parece una comida", unread: "No se pudo leer esta foto", nothingCounted: "No se contó nada.", retake: "Repetir", remove: "Quitar", question: "Contado como ≈{kcal}. Un detalle lo afinaría.", answer: "Responder 1 pregunta", dropTitle: "Suelta una foto en cualquier sitio para registrarla", dropSub: "o pégala en el cuadro de texto", addedTitle: "Añadido a tu día", addedSub: "Lo contamos nosotros. Puedes cerrar la app.", beingRead: "{time} · leyéndose, puedes cerrar la app", found: "Alimentos encontrados: {n}", labelRead: "Leído de la etiqueta nutricional de tu foto.", unreadableLabel: "No se pudo leer esa etiqueta.", asMealPhoto: "Analizar como foto de comida" },
   },
   vi: {
     phoneToday: "Hôm nay",
@@ -555,7 +556,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Không",
     webPage: "Trang {n} trên {total}",
     webDone: "Xong",
-    queue: { uploading: "Đang tải ảnh lên · 1/4", waiting: "Đang chờ gửi", notMeal: "Cái này trông không giống một bữa ăn", unread: "Không đọc được ảnh này", nothingCounted: "Chưa tính gì cả.", retake: "Chụp lại", remove: "Xóa", question: "Đã tính khoảng ≈{kcal}. Thêm một chi tiết sẽ chính xác hơn.", answer: "Trả lời 1 câu hỏi", dropTitle: "Thả ảnh vào bất kỳ đâu để ghi lại", dropSub: "hoặc dán vào ô soạn tin", addedTitle: "Đã thêm vào ngày của bạn", addedSub: "Mình sẽ tính. Bạn có thể đóng ứng dụng.", beingRead: "{time} · đang đọc, bạn có thể đóng ứng dụng", found: "Món tìm thấy: {n}" },
+    queue: { uploading: "Đang tải ảnh lên · 1/4", waiting: "Đang chờ gửi", notMeal: "Cái này trông không giống một bữa ăn", unread: "Không đọc được ảnh này", nothingCounted: "Chưa tính gì cả.", retake: "Chụp lại", remove: "Xóa", question: "Đã tính khoảng ≈{kcal}. Thêm một chi tiết sẽ chính xác hơn.", answer: "Trả lời 1 câu hỏi", dropTitle: "Thả ảnh vào bất kỳ đâu để ghi lại", dropSub: "hoặc dán vào ô soạn tin", addedTitle: "Đã thêm vào ngày của bạn", addedSub: "Mình sẽ tính. Bạn có thể đóng ứng dụng.", beingRead: "{time} · đang đọc, bạn có thể đóng ứng dụng", found: "Món tìm thấy: {n}", labelRead: "Đọc từ nhãn dinh dưỡng trong ảnh của bạn.", unreadableLabel: "Không đọc được nhãn đó.", asMealPhoto: "Phân tích như ảnh bữa ăn" },
   },
   id: {
     phoneToday: "Hari ini",
@@ -619,7 +620,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Tidak",
     webPage: "Halaman {n} dari {total}",
     webDone: "Selesai",
-    queue: { uploading: "Mengunggah foto · 1 dari 4", waiting: "Menunggu untuk dikirim", notMeal: "Itu tidak terlihat seperti makanan", unread: "Foto ini tidak bisa dibaca", nothingCounted: "Tidak ada yang dihitung.", retake: "Foto ulang", remove: "Hapus", question: "Dihitung ≈{kcal}. Satu detail akan membuatnya lebih tepat.", answer: "Jawab 1 pertanyaan", dropTitle: "Letakkan foto di mana saja untuk mencatatnya", dropSub: "atau tempel di kolom pesan", addedTitle: "Ditambahkan ke harimu", addedSub: "Kami yang hitung. Kamu boleh menutup aplikasi.", beingRead: "{time} · sedang dibaca, kamu boleh menutup aplikasi", found: "Makanan ditemukan: {n}" },
+    queue: { uploading: "Mengunggah foto · 1 dari 4", waiting: "Menunggu untuk dikirim", notMeal: "Itu tidak terlihat seperti makanan", unread: "Foto ini tidak bisa dibaca", nothingCounted: "Tidak ada yang dihitung.", retake: "Foto ulang", remove: "Hapus", question: "Dihitung ≈{kcal}. Satu detail akan membuatnya lebih tepat.", answer: "Jawab 1 pertanyaan", dropTitle: "Letakkan foto di mana saja untuk mencatatnya", dropSub: "atau tempel di kolom pesan", addedTitle: "Ditambahkan ke harimu", addedSub: "Kami yang hitung. Kamu boleh menutup aplikasi.", beingRead: "{time} · sedang dibaca, kamu boleh menutup aplikasi", found: "Makanan ditemukan: {n}", labelRead: "Dibaca dari label gizi di fotomu.", unreadableLabel: "Label itu tidak bisa dibaca.", asMealPhoto: "Analisis sebagai foto makanan" },
   },
   ru: {
     phoneToday: "Сегодня",
@@ -683,7 +684,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Нет",
     webPage: "Страница {n} из {total}",
     webDone: "Готово",
-    queue: { uploading: "Загрузка фото · 1 из 4", waiting: "Ждёт отправки", notMeal: "Не похоже на еду", unread: "Не удалось прочитать фото", nothingCounted: "Ничего не учтено.", retake: "Переснять", remove: "Удалить", question: "Учтено как ≈{kcal}. Одна деталь сделает оценку точнее.", answer: "Ответить на 1 вопрос", dropTitle: "Перетащи фото куда угодно, чтобы записать", dropSub: "или вставь его в поле ввода", addedTitle: "Добавлено в твой день", addedSub: "Мы посчитаем. Приложение можно закрыть.", beingRead: "{time} · читаем, приложение можно закрыть", found: "Найдено продуктов: {n}" },
+    queue: { uploading: "Загрузка фото · 1 из 4", waiting: "Ждёт отправки", notMeal: "Не похоже на еду", unread: "Не удалось прочитать фото", nothingCounted: "Ничего не учтено.", retake: "Переснять", remove: "Удалить", question: "Учтено как ≈{kcal}. Одна деталь сделает оценку точнее.", answer: "Ответить на 1 вопрос", dropTitle: "Перетащи фото куда угодно, чтобы записать", dropSub: "или вставь его в поле ввода", addedTitle: "Добавлено в твой день", addedSub: "Мы посчитаем. Приложение можно закрыть.", beingRead: "{time} · читаем, приложение можно закрыть", found: "Найдено продуктов: {n}", labelRead: "Цифры — с этикетки на фото.", unreadableLabel: "Не удалось прочитать эту этикетку.", asMealPhoto: "Разобрать как фото еды" },
   },
   te: {
     phoneToday: "ఈరోజు",
@@ -747,7 +748,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "వద్దు",
     webPage: "పేజీ {n}/{total}",
     webDone: "పూర్తయింది",
-    queue: { uploading: "ఫోటో అప్‌లోడ్ అవుతోంది · 4లో 1", waiting: "పంపడానికి వేచి ఉంది", notMeal: "ఇది భోజనంలా కనిపించడం లేదు", unread: "ఈ ఫోటోను చదవడం కుదరలేదు", nothingCounted: "ఏమీ లెక్కించబడలేదు.", retake: "మళ్ళీ తీయండి", remove: "తీసివేయండి", question: "లెక్కించినది: ≈{kcal}. ఒక వివరం దీన్ని మరింత ఖచ్చితం చేస్తుంది.", answer: "1 ప్రశ్నకు సమాధానం ఇవ్వండి", dropTitle: "నమోదు చేయడానికి ఫోటోను ఎక్కడైనా వేయండి", dropSub: "లేదా దాన్ని మెసేజ్ బాక్స్‌లో పేస్ట్ చేయండి", addedTitle: "మీ రోజుకు జోడించబడింది", addedSub: "మేము దాన్ని లెక్కిస్తాం. యాప్‌ను మూసివేయవచ్చు.", beingRead: "{time} · చదువుతోంది, యాప్‌ను మూసివేయవచ్చు", found: "కనుగొన్న ఆహారాలు: {n}" },
+    queue: { uploading: "ఫోటో అప్‌లోడ్ అవుతోంది · 4లో 1", waiting: "పంపడానికి వేచి ఉంది", notMeal: "ఇది భోజనంలా కనిపించడం లేదు", unread: "ఈ ఫోటోను చదవడం కుదరలేదు", nothingCounted: "ఏమీ లెక్కించబడలేదు.", retake: "మళ్ళీ తీయండి", remove: "తీసివేయండి", question: "లెక్కించినది: ≈{kcal}. ఒక వివరం దీన్ని మరింత ఖచ్చితం చేస్తుంది.", answer: "1 ప్రశ్నకు సమాధానం ఇవ్వండి", dropTitle: "నమోదు చేయడానికి ఫోటోను ఎక్కడైనా వేయండి", dropSub: "లేదా దాన్ని మెసేజ్ బాక్స్‌లో పేస్ట్ చేయండి", addedTitle: "మీ రోజుకు జోడించబడింది", addedSub: "మేము దాన్ని లెక్కిస్తాం. యాప్‌ను మూసివేయవచ్చు.", beingRead: "{time} · చదువుతోంది, యాప్‌ను మూసివేయవచ్చు", found: "కనుగొన్న ఆహారాలు: {n}", labelRead: "మీ ఫోటోలోని పోషక విలువల లేబుల్ నుండి చదివినది.", unreadableLabel: "ఆ లేబుల్‌ను చదవడం కుదరలేదు.", asMealPhoto: "భోజనం ఫోటోగా విశ్లేషించండి" },
   },
   ta: {
     phoneToday: "இன்று",
@@ -811,7 +812,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "இல்லை",
     webPage: "பக்கம் {n}/{total}",
     webDone: "முடிந்தது",
-    queue: { uploading: "புகைப்படம் பதிவேற்றப்படுகிறது · 1 / 4", waiting: "அனுப்பக் காத்திருக்கிறது", notMeal: "இது உணவு போலத் தெரியவில்லை", unread: "இந்தப் புகைப்படத்தைப் படிக்க முடியவில்லை", nothingCounted: "எதுவும் கணக்கிடப்படவில்லை.", retake: "மீண்டும் எடு", remove: "அகற்று", question: "≈{kcal} எனக் கணக்கிடப்பட்டது. ஒரு விவரம் இதைத் துல்லியமாக்கும்.", answer: "1 கேள்விக்குப் பதிலளி", dropTitle: "பதிவுசெய்ய எங்கு வேண்டுமானாலும் புகைப்படத்தை இடவும்", dropSub: "அல்லது செய்திப் பெட்டியில் ஒட்டவும்", addedTitle: "உங்கள் நாளில் சேர்க்கப்பட்டது", addedSub: "நாங்கள் கணக்கிடுவோம். நீங்கள் ஆப்பை மூடலாம்.", beingRead: "{time} · படிக்கப்படுகிறது, ஆப்பை மூடலாம்", found: "கண்டறிந்த உணவுகள்: {n}" },
+    queue: { uploading: "புகைப்படம் பதிவேற்றப்படுகிறது · 1 / 4", waiting: "அனுப்பக் காத்திருக்கிறது", notMeal: "இது உணவு போலத் தெரியவில்லை", unread: "இந்தப் புகைப்படத்தைப் படிக்க முடியவில்லை", nothingCounted: "எதுவும் கணக்கிடப்படவில்லை.", retake: "மீண்டும் எடு", remove: "அகற்று", question: "≈{kcal} எனக் கணக்கிடப்பட்டது. ஒரு விவரம் இதைத் துல்லியமாக்கும்.", answer: "1 கேள்விக்குப் பதிலளி", dropTitle: "பதிவுசெய்ய எங்கு வேண்டுமானாலும் புகைப்படத்தை இடவும்", dropSub: "அல்லது செய்திப் பெட்டியில் ஒட்டவும்", addedTitle: "உங்கள் நாளில் சேர்க்கப்பட்டது", addedSub: "நாங்கள் கணக்கிடுவோம். நீங்கள் ஆப்பை மூடலாம்.", beingRead: "{time} · படிக்கப்படுகிறது, ஆப்பை மூடலாம்", found: "கண்டறிந்த உணவுகள்: {n}", labelRead: "உங்கள் புகைப்படத்தில் உள்ள ஊட்டச்சத்து லேபிளிலிருந்து படிக்கப்பட்டது.", unreadableLabel: "அந்த லேபிளைப் படிக்க முடியவில்லை.", asMealPhoto: "உணவுப் புகைப்படமாகப் பகுப்பாய்வு செய்" },
   },
   pa: {
     phoneToday: "ਅੱਜ",
@@ -875,7 +876,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "ਨਹੀਂ",
     webPage: "ਪੇਜ {n}/{total}",
     webDone: "ਹੋ ਗਿਆ",
-    queue: { uploading: "ਫ਼ੋਟੋ ਅੱਪਲੋਡ ਹੋ ਰਹੀ ਹੈ · 4 ਵਿੱਚੋਂ 1", waiting: "ਭੇਜਣ ਦੀ ਉਡੀਕ", notMeal: "ਇਹ ਖਾਣਾ ਨਹੀਂ ਲੱਗਦਾ", unread: "ਇਹ ਫ਼ੋਟੋ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ", nothingCounted: "ਕੁਝ ਵੀ ਗਿਣਿਆ ਨਹੀਂ ਗਿਆ।", retake: "ਦੁਬਾਰਾ ਲਓ", remove: "ਹਟਾਓ", question: "≈{kcal} ਵਜੋਂ ਗਿਣਿਆ। ਇੱਕ ਜਾਣਕਾਰੀ ਨਾਲ ਇਹ ਹੋਰ ਸਟੀਕ ਹੋਵੇਗਾ।", answer: "1 ਸਵਾਲ ਦਾ ਜਵਾਬ ਦਿਓ", dropTitle: "ਦਰਜ ਕਰਨ ਲਈ ਕਿਤੇ ਵੀ ਫ਼ੋਟੋ ਪਾਓ", dropSub: "ਜਾਂ ਉਸ ਨੂੰ ਮੈਸੇਜ ਬਾਕਸ ਵਿੱਚ ਪੇਸਟ ਕਰੋ", addedTitle: "ਤੁਹਾਡੇ ਦਿਨ ਵਿੱਚ ਜੋੜਿਆ", addedSub: "ਅਸੀਂ ਇਸ ਨੂੰ ਗਿਣ ਲਵਾਂਗੇ। ਹੁਣ ਐਪ ਬੰਦ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ।", beingRead: "{time} · ਪੜ੍ਹੀ ਜਾ ਰਹੀ ਹੈ, ਐਪ ਬੰਦ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ", found: "ਮਿਲੇ ਖਾਧ ਪਦਾਰਥ: {n}" },
+    queue: { uploading: "ਫ਼ੋਟੋ ਅੱਪਲੋਡ ਹੋ ਰਹੀ ਹੈ · 4 ਵਿੱਚੋਂ 1", waiting: "ਭੇਜਣ ਦੀ ਉਡੀਕ", notMeal: "ਇਹ ਖਾਣਾ ਨਹੀਂ ਲੱਗਦਾ", unread: "ਇਹ ਫ਼ੋਟੋ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ", nothingCounted: "ਕੁਝ ਵੀ ਗਿਣਿਆ ਨਹੀਂ ਗਿਆ।", retake: "ਦੁਬਾਰਾ ਲਓ", remove: "ਹਟਾਓ", question: "≈{kcal} ਵਜੋਂ ਗਿਣਿਆ। ਇੱਕ ਜਾਣਕਾਰੀ ਨਾਲ ਇਹ ਹੋਰ ਸਟੀਕ ਹੋਵੇਗਾ।", answer: "1 ਸਵਾਲ ਦਾ ਜਵਾਬ ਦਿਓ", dropTitle: "ਦਰਜ ਕਰਨ ਲਈ ਕਿਤੇ ਵੀ ਫ਼ੋਟੋ ਪਾਓ", dropSub: "ਜਾਂ ਉਸ ਨੂੰ ਮੈਸੇਜ ਬਾਕਸ ਵਿੱਚ ਪੇਸਟ ਕਰੋ", addedTitle: "ਤੁਹਾਡੇ ਦਿਨ ਵਿੱਚ ਜੋੜਿਆ", addedSub: "ਅਸੀਂ ਇਸ ਨੂੰ ਗਿਣ ਲਵਾਂਗੇ। ਹੁਣ ਐਪ ਬੰਦ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ।", beingRead: "{time} · ਪੜ੍ਹੀ ਜਾ ਰਹੀ ਹੈ, ਐਪ ਬੰਦ ਕੀਤੀ ਜਾ ਸਕਦੀ ਹੈ", found: "ਮਿਲੇ ਖਾਧ ਪਦਾਰਥ: {n}", labelRead: "ਤੁਹਾਡੀ ਫ਼ੋਟੋ ਵਿਚਲੇ ਪੋਸ਼ਣ ਲੇਬਲ ਤੋਂ ਪੜ੍ਹਿਆ।", unreadableLabel: "ਉਹ ਲੇਬਲ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।", asMealPhoto: "ਖਾਣੇ ਦੀ ਫ਼ੋਟੋ ਵਜੋਂ ਵਿਸ਼ਲੇਸ਼ਣ ਕਰੋ" },
   },
   or: {
     phoneToday: "ଆଜି",
@@ -939,7 +940,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "ନା",
     webPage: "ପେଜ୍ {n}/{total}",
     webDone: "ହୋଇଗଲା",
-    queue: { uploading: "ଫଟୋ ଅପଲୋଡ୍ ହେଉଛି · 4 ରୁ 1", waiting: "ପଠାଇବାକୁ ଅପେକ୍ଷା କରୁଛି", notMeal: "ଏହା ଭୋଜନ ପରି ଲାଗୁନାହିଁ", unread: "ଏହି ଫଟୋ ପଢ଼ିହେଲା ନାହିଁ", nothingCounted: "କିଛି ଗଣାଯାଇନାହିଁ।", retake: "ପୁଣି ନିଅନ୍ତୁ", remove: "ହଟାନ୍ତୁ", question: "≈{kcal} ଭାବେ ଗଣାଗଲା। ଗୋଟିଏ ବିବରଣୀ ଏହାକୁ ଅଧିକ ସଠିକ୍ କରିବ।", answer: "1 ପ୍ରଶ୍ନର ଉତ୍ତର ଦିଅନ୍ତୁ", dropTitle: "ଲଗ୍ କରିବାକୁ ଯେକୌଣସି ସ୍ଥାନରେ ଫଟୋ ଦିଅନ୍ତୁ", dropSub: "କିମ୍ବା ମେସେଜ୍ ବକ୍ସରେ ପେଷ୍ଟ କରନ୍ତୁ", addedTitle: "ଆପଣଙ୍କ ଦିନରେ ଯୋଡ଼ାଗଲା", addedSub: "ଆମେ ଏହାକୁ ଗଣିବୁ। ଆପ୍ ବନ୍ଦ କରିପାରିବେ।", beingRead: "{time} · ପଢ଼ାଯାଉଛି, ଆପ୍ ବନ୍ଦ କରିପାରିବେ", found: "ମିଳିଥିବା ଖାଦ୍ୟ: {n}" },
+    queue: { uploading: "ଫଟୋ ଅପଲୋଡ୍ ହେଉଛି · 4 ରୁ 1", waiting: "ପଠାଇବାକୁ ଅପେକ୍ଷା କରୁଛି", notMeal: "ଏହା ଭୋଜନ ପରି ଲାଗୁନାହିଁ", unread: "ଏହି ଫଟୋ ପଢ଼ିହେଲା ନାହିଁ", nothingCounted: "କିଛି ଗଣାଯାଇନାହିଁ।", retake: "ପୁଣି ନିଅନ୍ତୁ", remove: "ହଟାନ୍ତୁ", question: "≈{kcal} ଭାବେ ଗଣାଗଲା। ଗୋଟିଏ ବିବରଣୀ ଏହାକୁ ଅଧିକ ସଠିକ୍ କରିବ।", answer: "1 ପ୍ରଶ୍ନର ଉତ୍ତର ଦିଅନ୍ତୁ", dropTitle: "ଲଗ୍ କରିବାକୁ ଯେକୌଣସି ସ୍ଥାନରେ ଫଟୋ ଦିଅନ୍ତୁ", dropSub: "କିମ୍ବା ମେସେଜ୍ ବକ୍ସରେ ପେଷ୍ଟ କରନ୍ତୁ", addedTitle: "ଆପଣଙ୍କ ଦିନରେ ଯୋଡ଼ାଗଲା", addedSub: "ଆମେ ଏହାକୁ ଗଣିବୁ। ଆପ୍ ବନ୍ଦ କରିପାରିବେ।", beingRead: "{time} · ପଢ଼ାଯାଉଛି, ଆପ୍ ବନ୍ଦ କରିପାରିବେ", found: "ମିଳିଥିବା ଖାଦ୍ୟ: {n}", labelRead: "ଆପଣଙ୍କ ଫଟୋରେ ଥିବା ପୋଷଣ ଲେବଲ୍‌ରୁ ପଢ଼ାଯାଇଛି।", unreadableLabel: "ସେହି ଲେବଲ୍ ପଢ଼ିହେଲା ନାହିଁ।", asMealPhoto: "ଏହାକୁ ଭୋଜନ ଫଟୋ ଭାବେ ବିଶ୍ଳେଷଣ କରନ୍ତୁ" },
   },
   mr: {
     phoneToday: "आज",
@@ -1003,7 +1004,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "नाही",
     webPage: "पेज {n} / {total}",
     webDone: "पूर्ण",
-    queue: { uploading: "फोटो अपलोड होत आहे · 4 पैकी 1", waiting: "पाठवण्याच्या प्रतीक्षेत", notMeal: "हे जेवणासारखे दिसत नाही", unread: "हा फोटो वाचता आला नाही", nothingCounted: "काहीही मोजले गेले नाही.", retake: "पुन्हा फोटो काढा", remove: "काढून टाका", question: "≈{kcal} म्हणून मोजले. एका तपशीलाने ते अधिक अचूक होईल.", answer: "1 प्रश्नाचे उत्तर द्या", dropTitle: "नोंदवण्यासाठी कुठेही फोटो टाका", dropSub: "किंवा कंपोझरमध्ये पेस्ट करा", addedTitle: "तुमच्या दिवसात जोडले", addedSub: "आम्ही ते मोजू. तुम्ही ॲप बंद करू शकता.", beingRead: "{time} · वाचले जात आहे, तुम्ही ॲप बंद करू शकता", found: "सापडलेले पदार्थ: {n}" },
+    queue: { uploading: "फोटो अपलोड होत आहे · 4 पैकी 1", waiting: "पाठवण्याच्या प्रतीक्षेत", notMeal: "हे जेवणासारखे दिसत नाही", unread: "हा फोटो वाचता आला नाही", nothingCounted: "काहीही मोजले गेले नाही.", retake: "पुन्हा फोटो काढा", remove: "काढून टाका", question: "≈{kcal} म्हणून मोजले. एका तपशीलाने ते अधिक अचूक होईल.", answer: "1 प्रश्नाचे उत्तर द्या", dropTitle: "नोंदवण्यासाठी कुठेही फोटो टाका", dropSub: "किंवा कंपोझरमध्ये पेस्ट करा", addedTitle: "तुमच्या दिवसात जोडले", addedSub: "आम्ही ते मोजू. तुम्ही ॲप बंद करू शकता.", beingRead: "{time} · वाचले जात आहे, तुम्ही ॲप बंद करू शकता", found: "सापडलेले पदार्थ: {n}", labelRead: "तुमच्या फोटोतील पोषण लेबलवरून वाचले.", unreadableLabel: "ते लेबल वाचता आले नाही.", asMealPhoto: "जेवणाचा फोटो म्हणून विश्लेषण करा" },
   },
   ml: {
     phoneToday: "ഇന്ന്",
@@ -1067,7 +1068,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "വേണ്ട",
     webPage: "പേജ് {n} / {total}",
     webDone: "പൂർത്തിയായി",
-    queue: { uploading: "ഫോട്ടോ അപ്ലോഡ് ചെയ്യുന്നു · 1 / 4", waiting: "അയയ്ക്കാൻ കാത്തിരിക്കുന്നു", notMeal: "അത് ഒരു ഭക്ഷണമായി തോന്നുന്നില്ല", unread: "ഈ ഫോട്ടോ വായിക്കാനായില്ല", nothingCounted: "ഒന്നും എണ്ണിയില്ല.", retake: "വീണ്ടും എടുക്കുക", remove: "നീക്കം ചെയ്യുക", question: "≈{kcal} ആയി എണ്ണി. ഒരു വിവരം കൂടി കിട്ടിയാൽ കൂടുതൽ കൃത്യമാകും.", answer: "1 ചോദ്യത്തിന് ഉത്തരം നൽകുക", dropTitle: "രേഖപ്പെടുത്താൻ എവിടെയും ഒരു ഫോട്ടോ ഇടൂ", dropSub: "അല്ലെങ്കിൽ സന്ദേശ ബോക്സിൽ പേസ്റ്റ് ചെയ്യൂ", addedTitle: "നിങ്ങളുടെ ദിവസത്തിലേക്ക് ചേർത്തു", addedSub: "ഞങ്ങൾ അത് എണ്ണും. ആപ്പ് അടയ്ക്കാം.", beingRead: "{time} · വായിക്കുന്നു, ആപ്പ് അടയ്ക്കാം", found: "കണ്ടെത്തിയ ആഹാരങ്ങൾ: {n}" },
+    queue: { uploading: "ഫോട്ടോ അപ്ലോഡ് ചെയ്യുന്നു · 1 / 4", waiting: "അയയ്ക്കാൻ കാത്തിരിക്കുന്നു", notMeal: "അത് ഒരു ഭക്ഷണമായി തോന്നുന്നില്ല", unread: "ഈ ഫോട്ടോ വായിക്കാനായില്ല", nothingCounted: "ഒന്നും എണ്ണിയില്ല.", retake: "വീണ്ടും എടുക്കുക", remove: "നീക്കം ചെയ്യുക", question: "≈{kcal} ആയി എണ്ണി. ഒരു വിവരം കൂടി കിട്ടിയാൽ കൂടുതൽ കൃത്യമാകും.", answer: "1 ചോദ്യത്തിന് ഉത്തരം നൽകുക", dropTitle: "രേഖപ്പെടുത്താൻ എവിടെയും ഒരു ഫോട്ടോ ഇടൂ", dropSub: "അല്ലെങ്കിൽ സന്ദേശ ബോക്സിൽ പേസ്റ്റ് ചെയ്യൂ", addedTitle: "നിങ്ങളുടെ ദിവസത്തിലേക്ക് ചേർത്തു", addedSub: "ഞങ്ങൾ അത് എണ്ണും. ആപ്പ് അടയ്ക്കാം.", beingRead: "{time} · വായിക്കുന്നു, ആപ്പ് അടയ്ക്കാം", found: "കണ്ടെത്തിയ ആഹാരങ്ങൾ: {n}", labelRead: "നിങ്ങളുടെ ഫോട്ടോയിലെ പോഷക ലേബലിൽ നിന്ന് വായിച്ചത്.", unreadableLabel: "ആ ലേബൽ വായിക്കാനായില്ല.", asMealPhoto: "ഭക്ഷണ ഫോട്ടോയായി വിശകലനം ചെയ്യുക" },
   },
   kn: {
     phoneToday: "ಇಂದು",
@@ -1131,7 +1132,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "ಬೇಡ",
     webPage: "ಪುಟ {n} / {total}",
     webDone: "ಮುಗಿದಿದೆ",
-    queue: { uploading: "ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ · 1 / 4", waiting: "ಕಳುಹಿಸಲು ಕಾಯುತ್ತಿದೆ", notMeal: "ಅದು ಊಟದಂತೆ ಕಾಣುತ್ತಿಲ್ಲ", unread: "ಈ ಫೋಟೋ ಓದಲಾಗಲಿಲ್ಲ", nothingCounted: "ಏನೂ ಎಣಿಕೆಯಾಗಲಿಲ್ಲ.", retake: "ಮತ್ತೆ ತೆಗೆಯಿರಿ", remove: "ತೆಗೆದುಹಾಕಿ", question: "≈{kcal} ಎಂದು ಎಣಿಸಲಾಗಿದೆ. ಒಂದು ವಿವರ ಇದನ್ನು ಹೆಚ್ಚು ನಿಖರಗೊಳಿಸುತ್ತದೆ.", answer: "1 ಪ್ರಶ್ನೆಗೆ ಉತ್ತರಿಸಿ", dropTitle: "ದಾಖಲಿಸಲು ಫೋಟೋವನ್ನು ಎಲ್ಲಿಯಾದರೂ ಹಾಕಿ", dropSub: "ಅಥವಾ ಕಂಪೋಸರ್‌ಗೆ ಪೇಸ್ಟ್ ಮಾಡಿ", addedTitle: "ನಿಮ್ಮ ದಿನಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ", addedSub: "ನಾವು ಅದನ್ನು ಎಣಿಸುತ್ತೇವೆ. ನೀವು ಆ್ಯಪ್ ಮುಚ್ಚಬಹುದು.", beingRead: "{time} · ಓದಲಾಗುತ್ತಿದೆ, ನೀವು ಆ್ಯಪ್ ಮುಚ್ಚಬಹುದು", found: "ಸಿಕ್ಕ ಆಹಾರಗಳು: {n}" },
+    queue: { uploading: "ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ · 1 / 4", waiting: "ಕಳುಹಿಸಲು ಕಾಯುತ್ತಿದೆ", notMeal: "ಅದು ಊಟದಂತೆ ಕಾಣುತ್ತಿಲ್ಲ", unread: "ಈ ಫೋಟೋ ಓದಲಾಗಲಿಲ್ಲ", nothingCounted: "ಏನೂ ಎಣಿಕೆಯಾಗಲಿಲ್ಲ.", retake: "ಮತ್ತೆ ತೆಗೆಯಿರಿ", remove: "ತೆಗೆದುಹಾಕಿ", question: "≈{kcal} ಎಂದು ಎಣಿಸಲಾಗಿದೆ. ಒಂದು ವಿವರ ಇದನ್ನು ಹೆಚ್ಚು ನಿಖರಗೊಳಿಸುತ್ತದೆ.", answer: "1 ಪ್ರಶ್ನೆಗೆ ಉತ್ತರಿಸಿ", dropTitle: "ದಾಖಲಿಸಲು ಫೋಟೋವನ್ನು ಎಲ್ಲಿಯಾದರೂ ಹಾಕಿ", dropSub: "ಅಥವಾ ಕಂಪೋಸರ್‌ಗೆ ಪೇಸ್ಟ್ ಮಾಡಿ", addedTitle: "ನಿಮ್ಮ ದಿನಕ್ಕೆ ಸೇರಿಸಲಾಗಿದೆ", addedSub: "ನಾವು ಅದನ್ನು ಎಣಿಸುತ್ತೇವೆ. ನೀವು ಆ್ಯಪ್ ಮುಚ್ಚಬಹುದು.", beingRead: "{time} · ಓದಲಾಗುತ್ತಿದೆ, ನೀವು ಆ್ಯಪ್ ಮುಚ್ಚಬಹುದು", found: "ಸಿಕ್ಕ ಆಹಾರಗಳು: {n}", labelRead: "ನಿಮ್ಮ ಫೋಟೋದಲ್ಲಿರುವ ಪೋಷಕಾಂಶ ಲೇಬಲ್‌ನಿಂದ ಓದಲಾಗಿದೆ.", unreadableLabel: "ಆ ಲೇಬಲ್ ಓದಲಾಗಲಿಲ್ಲ.", asMealPhoto: "ಊಟದ ಫೋಟೋವಾಗಿ ವಿಶ್ಲೇಷಿಸಿ" },
   },
   gu: {
     phoneToday: "આજે",
@@ -1195,7 +1196,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "ના",
     webPage: "પેજ {n}/{total}",
     webDone: "થઈ ગયું",
-    queue: { uploading: "ફોટો અપલોડ થઈ રહ્યો છે · 4 માંથી 1", waiting: "મોકલવાની રાહ જુએ છે", notMeal: "આ ભોજન જેવું લાગતું નથી", unread: "આ ફોટો વાંચી શકાયો નહીં", nothingCounted: "કંઈ ગણાયું નથી.", retake: "ફરી લો", remove: "દૂર કરો", question: "≈{kcal} તરીકે ગણ્યું. એક વિગતથી તે વધુ ચોક્કસ થશે.", answer: "1 પ્રશ્નનો જવાબ આપો", dropTitle: "નોંધવા માટે ગમે ત્યાં ફોટો નાખો", dropSub: "અથવા તેને મેસેજ બૉક્સમાં પેસ્ટ કરો", addedTitle: "તમારા દિવસમાં ઉમેર્યું", addedSub: "અમે તેને ગણી લઈશું. હવે ઍપ બંધ કરી શકાય છે.", beingRead: "{time} · વંચાઈ રહ્યું છે, ઍપ બંધ કરી શકાય છે", found: "મળેલા ખાદ્ય પદાર્થો: {n}" },
+    queue: { uploading: "ફોટો અપલોડ થઈ રહ્યો છે · 4 માંથી 1", waiting: "મોકલવાની રાહ જુએ છે", notMeal: "આ ભોજન જેવું લાગતું નથી", unread: "આ ફોટો વાંચી શકાયો નહીં", nothingCounted: "કંઈ ગણાયું નથી.", retake: "ફરી લો", remove: "દૂર કરો", question: "≈{kcal} તરીકે ગણ્યું. એક વિગતથી તે વધુ ચોક્કસ થશે.", answer: "1 પ્રશ્નનો જવાબ આપો", dropTitle: "નોંધવા માટે ગમે ત્યાં ફોટો નાખો", dropSub: "અથવા તેને મેસેજ બૉક્સમાં પેસ્ટ કરો", addedTitle: "તમારા દિવસમાં ઉમેર્યું", addedSub: "અમે તેને ગણી લઈશું. હવે ઍપ બંધ કરી શકાય છે.", beingRead: "{time} · વંચાઈ રહ્યું છે, ઍપ બંધ કરી શકાય છે", found: "મળેલા ખાદ્ય પદાર્થો: {n}", labelRead: "તમારા ફોટામાંના પોષણ લેબલ પરથી વાંચ્યું.", unreadableLabel: "તે લેબલ વાંચી શકાયું નહીં.", asMealPhoto: "ભોજનના ફોટા તરીકે વિશ્લેષણ કરો" },
   },
   bn: {
     phoneToday: "আজ",
@@ -1259,7 +1260,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "না",
     webPage: "পেজ {n}/{total}",
     webDone: "সম্পন্ন",
-    queue: { uploading: "ছবি আপলোড হচ্ছে · 1/4", waiting: "পাঠানোর অপেক্ষায়", notMeal: "এটি খাবার বলে মনে হচ্ছে না", unread: "এই ছবিটি পড়া যায়নি", nothingCounted: "কিছুই গণনা করা হয়নি।", retake: "আবার তুলুন", remove: "সরান", question: "≈{kcal} হিসেবে গণনা করা হয়েছে। একটি তথ্য পেলে আরও নির্ভুল হবে।", answer: "1টি প্রশ্নের উত্তর দিন", dropTitle: "লগ করতে যেকোনো জায়গায় ছবি দিন", dropSub: "অথবা মেসেজ বক্সে পেস্ট করুন", addedTitle: "আপনার দিনে যোগ হয়েছে", addedSub: "আমরা এটি গণনা করে নেব। আপনি অ্যাপ বন্ধ করতে পারেন।", beingRead: "{time} · পড়া হচ্ছে, অ্যাপ বন্ধ করতে পারেন", found: "পাওয়া খাবার: {n}" },
+    queue: { uploading: "ছবি আপলোড হচ্ছে · 1/4", waiting: "পাঠানোর অপেক্ষায়", notMeal: "এটি খাবার বলে মনে হচ্ছে না", unread: "এই ছবিটি পড়া যায়নি", nothingCounted: "কিছুই গণনা করা হয়নি।", retake: "আবার তুলুন", remove: "সরান", question: "≈{kcal} হিসেবে গণনা করা হয়েছে। একটি তথ্য পেলে আরও নির্ভুল হবে।", answer: "1টি প্রশ্নের উত্তর দিন", dropTitle: "লগ করতে যেকোনো জায়গায় ছবি দিন", dropSub: "অথবা মেসেজ বক্সে পেস্ট করুন", addedTitle: "আপনার দিনে যোগ হয়েছে", addedSub: "আমরা এটি গণনা করে নেব। আপনি অ্যাপ বন্ধ করতে পারেন।", beingRead: "{time} · পড়া হচ্ছে, অ্যাপ বন্ধ করতে পারেন", found: "পাওয়া খাবার: {n}", labelRead: "আপনার ছবির পুষ্টি লেবেল থেকে পড়া হয়েছে।", unreadableLabel: "লেবেলটি পড়া যায়নি।", asMealPhoto: "খাবারের ছবি হিসেবে বিশ্লেষণ করুন" },
   },
   "pt-PT": {
     phoneToday: "Hoje",
@@ -1323,7 +1324,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Não",
     webPage: "Página {n} de {total}",
     webDone: "OK",
-    queue: { uploading: "A carregar foto · 1 de 4", waiting: "À espera de envio", notMeal: "Isto não parece uma refeição", unread: "Não foi possível ler esta foto", nothingCounted: "Nada foi contado.", retake: "Tirar outra", remove: "Remover", question: "Contado como ≈{kcal}. Um detalhe tornaria o valor mais preciso.", answer: "Responder a 1 pergunta", dropTitle: "Arrasta uma foto para qualquer lado para a registar", dropSub: "ou cola uma na caixa de texto", addedTitle: "Adicionado ao teu dia", addedSub: "Nós fazemos as contas. Podes fechar a app.", beingRead: "{time} · em análise, podes fechar a app", found: "Alimentos encontrados: {n}" },
+    queue: { uploading: "A carregar foto · 1 de 4", waiting: "À espera de envio", notMeal: "Isto não parece uma refeição", unread: "Não foi possível ler esta foto", nothingCounted: "Nada foi contado.", retake: "Tirar outra", remove: "Remover", question: "Contado como ≈{kcal}. Um detalhe tornaria o valor mais preciso.", answer: "Responder a 1 pergunta", dropTitle: "Arrasta uma foto para qualquer lado para a registar", dropSub: "ou cola uma na caixa de texto", addedTitle: "Adicionado ao teu dia", addedSub: "Nós fazemos as contas. Podes fechar a app.", beingRead: "{time} · em análise, podes fechar a app", found: "Alimentos encontrados: {n}", labelRead: "Lido no rótulo nutricional da tua foto.", unreadableLabel: "Não foi possível ler este rótulo.", asMealPhoto: "Analisar como foto de refeição" },
   },
   ms: {
     phoneToday: "Hari ini",
@@ -1387,7 +1388,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Tidak",
     webPage: "Halaman {n} daripada {total}",
     webDone: "Selesai",
-    queue: { uploading: "Memuat naik foto · 1 daripada 4", waiting: "Menunggu untuk dihantar", notMeal: "Itu tidak kelihatan seperti hidangan", unread: "Tidak dapat membaca foto ini", nothingCounted: "Tiada apa yang dikira.", retake: "Ambil semula", remove: "Alih keluar", question: "Dikira sebagai ≈{kcal}. Satu butiran akan menjadikannya lebih tepat.", answer: "Jawab 1 soalan", dropTitle: "Letakkan foto di mana-mana untuk mencatatnya", dropSub: "atau tampalkannya ke dalam kotak mesej", addedTitle: "Ditambah pada hari anda", addedSub: "Kami akan mengiranya. Anda boleh menutup aplikasi.", beingRead: "{time} · sedang dibaca, anda boleh menutup aplikasi", found: "Makanan ditemui: {n}" },
+    queue: { uploading: "Memuat naik foto · 1 daripada 4", waiting: "Menunggu untuk dihantar", notMeal: "Itu tidak kelihatan seperti hidangan", unread: "Tidak dapat membaca foto ini", nothingCounted: "Tiada apa yang dikira.", retake: "Ambil semula", remove: "Alih keluar", question: "Dikira sebagai ≈{kcal}. Satu butiran akan menjadikannya lebih tepat.", answer: "Jawab 1 soalan", dropTitle: "Letakkan foto di mana-mana untuk mencatatnya", dropSub: "atau tampalkannya ke dalam kotak mesej", addedTitle: "Ditambah pada hari anda", addedSub: "Kami akan mengiranya. Anda boleh menutup aplikasi.", beingRead: "{time} · sedang dibaca, anda boleh menutup aplikasi", found: "Makanan ditemui: {n}", labelRead: "Dibaca daripada label pemakanan dalam foto anda.", unreadableLabel: "Tidak dapat membaca label itu.", asMealPhoto: "Analisis sebagai foto hidangan" },
   },
   ca: {
     phoneToday: "Avui",
@@ -1451,7 +1452,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "No",
     webPage: "Pàgina {n} de {total}",
     webDone: "Fet",
-    queue: { uploading: "Pujant la foto · 1 de 4", waiting: "Pendent d'enviar", notMeal: "Això no sembla un àpat", unread: "No s'ha pogut llegir aquesta foto", nothingCounted: "No s'ha comptat res.", retake: "Repeteix", remove: "Treu", question: "Comptat com a ≈{kcal}. Un detall ho afinaria.", answer: "Respon 1 pregunta", dropTitle: "Deixa una foto a qualsevol lloc per registrar-la", dropSub: "o enganxa-la al quadre de text", addedTitle: "Afegit al teu dia", addedSub: "Ho comptarem. Ja pots tancar l'app.", beingRead: "{time} · s'està llegint, ja pots tancar l'app", found: "Aliments trobats: {n}" },
+    queue: { uploading: "Pujant la foto · 1 de 4", waiting: "Pendent d'enviar", notMeal: "Això no sembla un àpat", unread: "No s'ha pogut llegir aquesta foto", nothingCounted: "No s'ha comptat res.", retake: "Repeteix", remove: "Treu", question: "Comptat com a ≈{kcal}. Un detall ho afinaria.", answer: "Respon 1 pregunta", dropTitle: "Deixa una foto a qualsevol lloc per registrar-la", dropSub: "o enganxa-la al quadre de text", addedTitle: "Afegit al teu dia", addedSub: "Ho comptarem. Ja pots tancar l'app.", beingRead: "{time} · s'està llegint, ja pots tancar l'app", found: "Aliments trobats: {n}", labelRead: "Llegit de l'etiqueta nutricional de la teva foto.", unreadableLabel: "No s'ha pogut llegir aquesta etiqueta.", asMealPhoto: "Analitza-la com a foto d'un àpat" },
   },
   sl: {
     phoneToday: "Danes",
@@ -1515,7 +1516,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Ne",
     webPage: "Stran {n} od {total}",
     webDone: "Končano",
-    queue: { uploading: "Nalaganje fotografije · 1 od 4", waiting: "Čaka na pošiljanje", notMeal: "To ni videti kot obrok", unread: "Te fotografije ni bilo mogoče prebrati", nothingCounted: "Nič ni bilo šteto.", retake: "Posnemi znova", remove: "Odstrani", question: "Šteto kot ≈{kcal}. Ena podrobnost bi oceno izostrila.", answer: "Odgovori na 1 vprašanje", dropTitle: "Spusti fotografijo kamor koli, da jo zabeležiš", dropSub: "ali jo prilepi v polje za vnos", addedTitle: "Dodano v tvoj dan", addedSub: "Izračunali bomo. Aplikacijo lahko zapreš.", beingRead: "{time} · v branju, aplikacijo lahko zapreš", found: "Najdena živila: {n}" },
+    queue: { uploading: "Nalaganje fotografije · 1 od 4", waiting: "Čaka na pošiljanje", notMeal: "To ni videti kot obrok", unread: "Te fotografije ni bilo mogoče prebrati", nothingCounted: "Nič ni bilo šteto.", retake: "Posnemi znova", remove: "Odstrani", question: "Šteto kot ≈{kcal}. Ena podrobnost bi oceno izostrila.", answer: "Odgovori na 1 vprašanje", dropTitle: "Spusti fotografijo kamor koli, da jo zabeležiš", dropSub: "ali jo prilepi v polje za vnos", addedTitle: "Dodano v tvoj dan", addedSub: "Izračunali bomo. Aplikacijo lahko zapreš.", beingRead: "{time} · v branju, aplikacijo lahko zapreš", found: "Najdena živila: {n}", labelRead: "Prebrano s tabele hranilnih vrednosti na tvoji fotografiji.", unreadableLabel: "Tabele hranilnih vrednosti ni bilo mogoče prebrati.", asMealPhoto: "Analiziraj kot fotografijo obroka" },
   },
   hr: {
     phoneToday: "Danas",
@@ -1579,7 +1580,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Ne",
     webPage: "Stranica {n} od {total}",
     webDone: "Gotovo",
-    queue: { uploading: "Prijenos fotografije · 1 od 4", waiting: "Čeka na slanje", notMeal: "To ne izgleda kao obrok", unread: "Ova se fotografija nije mogla pročitati", nothingCounted: "Ništa nije uračunato.", retake: "Snimi ponovno", remove: "Ukloni", question: "Uračunato kao ≈{kcal}. Jedan detalj bi to izoštrio.", answer: "Odgovori na 1 pitanje", dropTitle: "Ispusti fotografiju bilo gdje za bilježenje", dropSub: "ili je zalijepi u polje za unos", addedTitle: "Dodano tvom danu", addedSub: "Uračunat ćemo ga. Možeš zatvoriti aplikaciju.", beingRead: "{time} · čita se, možeš zatvoriti aplikaciju", found: "Pronađene namirnice: {n}" },
+    queue: { uploading: "Prijenos fotografije · 1 od 4", waiting: "Čeka na slanje", notMeal: "To ne izgleda kao obrok", unread: "Ova se fotografija nije mogla pročitati", nothingCounted: "Ništa nije uračunato.", retake: "Snimi ponovno", remove: "Ukloni", question: "Uračunato kao ≈{kcal}. Jedan detalj bi to izoštrio.", answer: "Odgovori na 1 pitanje", dropTitle: "Ispusti fotografiju bilo gdje za bilježenje", dropSub: "ili je zalijepi u polje za unos", addedTitle: "Dodano tvom danu", addedSub: "Uračunat ćemo ga. Možeš zatvoriti aplikaciju.", beingRead: "{time} · čita se, možeš zatvoriti aplikaciju", found: "Pronađene namirnice: {n}", labelRead: "Pročitano s nutritivne deklaracije na tvojoj fotografiji.", unreadableLabel: "Ova se nutritivna deklaracija nije mogla pročitati.", asMealPhoto: "Analiziraj kao fotografiju obroka" },
   },
   sk: {
     phoneToday: "Dnes",
@@ -1643,7 +1644,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nie",
     webPage: "Strana {n} z {total}",
     webDone: "Hotovo",
-    queue: { uploading: "Nahráva sa fotka · 1 zo 4", waiting: "Čaká na odoslanie", notMeal: "Toto nevyzerá ako jedlo", unread: "Túto fotku sa nepodarilo prečítať", nothingCounted: "Nič sa nezapočítalo.", retake: "Odfotiť znova", remove: "Odstrániť", question: "Započítané ako ≈{kcal}. Jeden detail by to spresnil.", answer: "Odpovedať na 1 otázku", dropTitle: "Pretiahni fotku kamkoľvek a zapíš ju", dropSub: "alebo ju vlož do poľa na písanie", addedTitle: "Pridané k tvojmu dňu", addedSub: "Započítame to. Aplikáciu môžeš zavrieť.", beingRead: "{time} · číta sa, aplikáciu môžeš zavrieť", found: "Nájdené potraviny: {n}" },
+    queue: { uploading: "Nahráva sa fotka · 1 zo 4", waiting: "Čaká na odoslanie", notMeal: "Toto nevyzerá ako jedlo", unread: "Túto fotku sa nepodarilo prečítať", nothingCounted: "Nič sa nezapočítalo.", retake: "Odfotiť znova", remove: "Odstrániť", question: "Započítané ako ≈{kcal}. Jeden detail by to spresnil.", answer: "Odpovedať na 1 otázku", dropTitle: "Pretiahni fotku kamkoľvek a zapíš ju", dropSub: "alebo ju vlož do poľa na písanie", addedTitle: "Pridané k tvojmu dňu", addedSub: "Započítame to. Aplikáciu môžeš zavrieť.", beingRead: "{time} · číta sa, aplikáciu môžeš zavrieť", found: "Nájdené potraviny: {n}", labelRead: "Prečítané z nutričnej tabuľky na tvojej fotke.", unreadableLabel: "Túto nutričnú tabuľku sa nepodarilo prečítať.", asMealPhoto: "Analyzovať ako fotku jedla" },
   },
   no: {
     phoneToday: "I dag",
@@ -1707,7 +1708,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nei",
     webPage: "Side {n} av {total}",
     webDone: "Ferdig",
-    queue: { uploading: "Laster opp bilde · 1 av 4", waiting: "Venter på å sendes", notMeal: "Det ser ikke ut som et måltid", unread: "Kunne ikke lese dette bildet", nothingCounted: "Ingenting ble telt.", retake: "Ta nytt", remove: "Fjern", question: "Telt som ≈{kcal}. Én detalj ville gjort det mer presist.", answer: "Svar på 1 spørsmål", dropTitle: "Slipp et bilde hvor som helst for å logge det", dropSub: "eller lim det inn i skrivefeltet", addedTitle: "Lagt til dagen din", addedSub: "Vi teller det. Du kan lukke appen.", beingRead: "{time} · leses nå, du kan lukke appen", found: "Matvarer funnet: {n}" },
+    queue: { uploading: "Laster opp bilde · 1 av 4", waiting: "Venter på å sendes", notMeal: "Det ser ikke ut som et måltid", unread: "Kunne ikke lese dette bildet", nothingCounted: "Ingenting ble telt.", retake: "Ta nytt", remove: "Fjern", question: "Telt som ≈{kcal}. Én detalj ville gjort det mer presist.", answer: "Svar på 1 spørsmål", dropTitle: "Slipp et bilde hvor som helst for å logge det", dropSub: "eller lim det inn i skrivefeltet", addedTitle: "Lagt til dagen din", addedSub: "Vi teller det. Du kan lukke appen.", beingRead: "{time} · leses nå, du kan lukke appen", found: "Matvarer funnet: {n}", labelRead: "Lest fra næringsdeklarasjonen på bildet ditt.", unreadableLabel: "Kunne ikke lese denne næringsdeklarasjonen.", asMealPhoto: "Analyser som måltidsbilde" },
   },
   fi: {
     phoneToday: "Tänään",
@@ -1771,7 +1772,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Ei",
     webPage: "Sivu {n}/{total}",
     webDone: "Valmis",
-    queue: { uploading: "Ladataan kuvaa · 1/4", waiting: "Odottaa lähetystä", notMeal: "Tämä ei näytä ateriaalta", unread: "Kuvan lukeminen ei onnistunut", nothingCounted: "Mitään ei laskettu.", retake: "Ota uusi", remove: "Ota pois", question: "Laskettu: ≈{kcal}. Yksi tieto tarkentaisi arviota.", answer: "Vastaa 1 kysymykseen", dropTitle: "Pudota kuva mihin tahansa kirjataksesi sen", dropSub: "tai liitä se kirjoituskenttään", addedTitle: "Lisätty päivääsi", addedSub: "Laskemme sen. Voit sulkea sovelluksen.", beingRead: "{time} · luetaan, voit sulkea sovelluksen", found: "Löydetyt ruoat: {n}" },
+    queue: { uploading: "Ladataan kuvaa · 1/4", waiting: "Odottaa lähetystä", notMeal: "Tämä ei näytä ateriaalta", unread: "Kuvan lukeminen ei onnistunut", nothingCounted: "Mitään ei laskettu.", retake: "Ota uusi", remove: "Ota pois", question: "Laskettu: ≈{kcal}. Yksi tieto tarkentaisi arviota.", answer: "Vastaa 1 kysymykseen", dropTitle: "Pudota kuva mihin tahansa kirjataksesi sen", dropSub: "tai liitä se kirjoituskenttään", addedTitle: "Lisätty päivääsi", addedSub: "Laskemme sen. Voit sulkea sovelluksen.", beingRead: "{time} · luetaan, voit sulkea sovelluksen", found: "Löydetyt ruoat: {n}", labelRead: "Luettu kuvasi ravintoarvomerkinnöistä.", unreadableLabel: "Ravintoarvomerkintöjen lukeminen ei onnistunut.", asMealPhoto: "Analysoi ateriakuvana" },
   },
   da: {
     phoneToday: "I dag",
@@ -1835,7 +1836,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nej",
     webPage: "Side {n} af {total}",
     webDone: "Færdig",
-    queue: { uploading: "Uploader foto · 1 af 4", waiting: "Venter på at blive sendt", notMeal: "Det ligner ikke et måltid", unread: "Fotoet kunne ikke læses", nothingCounted: "Intet blev talt med.", retake: "Tag igen", remove: "Fjern", question: "Talt som ≈{kcal}. Én detalje ville gøre det mere præcist.", answer: "Besvar 1 spørgsmål", dropTitle: "Slip et foto hvor som helst for at registrere det", dropSub: "eller indsæt et i tekstfeltet", addedTitle: "Tilføjet til din dag", addedSub: "Vi regner det ud. Du kan lukke appen.", beingRead: "{time} · bliver læst, du kan lukke appen", found: "Fødevarer fundet: {n}" },
+    queue: { uploading: "Uploader foto · 1 af 4", waiting: "Venter på at blive sendt", notMeal: "Det ligner ikke et måltid", unread: "Fotoet kunne ikke læses", nothingCounted: "Intet blev talt med.", retake: "Tag igen", remove: "Fjern", question: "Talt som ≈{kcal}. Én detalje ville gøre det mere præcist.", answer: "Besvar 1 spørgsmål", dropTitle: "Slip et foto hvor som helst for at registrere det", dropSub: "eller indsæt et i tekstfeltet", addedTitle: "Tilføjet til din dag", addedSub: "Vi regner det ud. Du kan lukke appen.", beingRead: "{time} · bliver læst, du kan lukke appen", found: "Fødevarer fundet: {n}", labelRead: "Aflæst fra næringsdeklarationen på dit foto.", unreadableLabel: "Næringsdeklarationen kunne ikke læses.", asMealPhoto: "Analysér som måltidsfoto" },
   },
   hu: {
     phoneToday: "Ma",
@@ -1899,7 +1900,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nem",
     webPage: "{n}. oldal / {total}",
     webDone: "Kész",
-    queue: { uploading: "Fotó feltöltése · 1 / 4", waiting: "Küldésre vár", notMeal: "Ez nem tűnik étkezésnek", unread: "Nem sikerült beolvasni ezt a fotót", nothingCounted: "Semmi sem lett beszámítva.", retake: "Újrafotózás", remove: "Eltávolítás", question: "Beszámítva: ≈{kcal}. Egy részlet pontosítaná.", answer: "Válaszolj 1 kérdésre", dropTitle: "Húzz bárhová egy fotót a rögzítéshez", dropSub: "vagy illeszd be a szövegmezőbe", addedTitle: "Hozzáadva a napodhoz", addedSub: "Beszámítjuk. Bezárhatod az appot.", beingRead: "{time} · beolvasás alatt, bezárhatod az appot", found: "Talált ételek: {n}" },
+    queue: { uploading: "Fotó feltöltése · 1 / 4", waiting: "Küldésre vár", notMeal: "Ez nem tűnik étkezésnek", unread: "Nem sikerült beolvasni ezt a fotót", nothingCounted: "Semmi sem lett beszámítva.", retake: "Újrafotózás", remove: "Eltávolítás", question: "Beszámítva: ≈{kcal}. Egy részlet pontosítaná.", answer: "Válaszolj 1 kérdésre", dropTitle: "Húzz bárhová egy fotót a rögzítéshez", dropSub: "vagy illeszd be a szövegmezőbe", addedTitle: "Hozzáadva a napodhoz", addedSub: "Beszámítjuk. Bezárhatod az appot.", beingRead: "{time} · beolvasás alatt, bezárhatod az appot", found: "Talált ételek: {n}", labelRead: "A fotódon lévő tápértékcímkéről beolvasva.", unreadableLabel: "Ezt a címkét nem tudtuk beolvasni.", asMealPhoto: "Elemzés ételfotóként" },
   },
   el: {
     phoneToday: "Σήμερα",
@@ -1963,7 +1964,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Όχι",
     webPage: "Σελίδα {n} από {total}",
     webDone: "Τέλος",
-    queue: { uploading: "Ανέβασμα φωτογραφίας · 1 από 4", waiting: "Αναμονή για αποστολή", notMeal: "Αυτό δεν μοιάζει με γεύμα", unread: "Η φωτογραφία δεν διαβάστηκε", nothingCounted: "Δεν μετρήθηκε τίποτα.", retake: "Νέα λήψη", remove: "Αφαίρεση", question: "Μετρήθηκε ως ≈{kcal}. Μία λεπτομέρεια θα το έκανε πιο ακριβές.", answer: "Απάντησε σε 1 ερώτηση", dropTitle: "Άφησε μια φωτογραφία οπουδήποτε για καταγραφή", dropSub: "ή κάνε επικόλληση στο πεδίο γραφής", addedTitle: "Προστέθηκε στη μέρα σου", addedSub: "Θα το μετρήσουμε. Μπορείς να κλείσεις την εφαρμογή.", beingRead: "{time} · διαβάζεται, μπορείς να κλείσεις την εφαρμογή", found: "Τρόφιμα που βρέθηκαν: {n}" },
+    queue: { uploading: "Ανέβασμα φωτογραφίας · 1 από 4", waiting: "Αναμονή για αποστολή", notMeal: "Αυτό δεν μοιάζει με γεύμα", unread: "Η φωτογραφία δεν διαβάστηκε", nothingCounted: "Δεν μετρήθηκε τίποτα.", retake: "Νέα λήψη", remove: "Αφαίρεση", question: "Μετρήθηκε ως ≈{kcal}. Μία λεπτομέρεια θα το έκανε πιο ακριβές.", answer: "Απάντησε σε 1 ερώτηση", dropTitle: "Άφησε μια φωτογραφία οπουδήποτε για καταγραφή", dropSub: "ή κάνε επικόλληση στο πεδίο γραφής", addedTitle: "Προστέθηκε στη μέρα σου", addedSub: "Θα το μετρήσουμε. Μπορείς να κλείσεις την εφαρμογή.", beingRead: "{time} · διαβάζεται, μπορείς να κλείσεις την εφαρμογή", found: "Τρόφιμα που βρέθηκαν: {n}", labelRead: "Διαβάστηκε από την ετικέτα διατροφικής αξίας στη φωτογραφία σου.", unreadableLabel: "Αυτή η ετικέτα δεν διαβάστηκε.", asMealPhoto: "Ανάλυση ως φωτογραφία γεύματος" },
   },
   ro: {
     phoneToday: "Azi",
@@ -2027,7 +2028,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nu",
     webPage: "Pagina {n} din {total}",
     webDone: "Gata",
-    queue: { uploading: "Se încarcă fotografia · 1 din 4", waiting: "Așteaptă trimiterea", notMeal: "Nu pare a fi o masă", unread: "Nu am putut citi fotografia", nothingCounted: "Nu s-a numărat nimic.", retake: "Refă", remove: "Elimină", question: "Numărat ca ≈{kcal}. Un detaliu l-ar face mai precis.", answer: "Răspunde la 1 întrebare", dropTitle: "Trage o fotografie oriunde ca s-o înregistrezi", dropSub: "sau lipește una în caseta de mesaj", addedTitle: "Adăugat la ziua ta", addedSub: "O numărăm noi. Poți închide aplicația.", beingRead: "{time} · se citește, poți închide aplicația", found: "Alimente găsite: {n}" },
+    queue: { uploading: "Se încarcă fotografia · 1 din 4", waiting: "Așteaptă trimiterea", notMeal: "Nu pare a fi o masă", unread: "Nu am putut citi fotografia", nothingCounted: "Nu s-a numărat nimic.", retake: "Refă", remove: "Elimină", question: "Numărat ca ≈{kcal}. Un detaliu l-ar face mai precis.", answer: "Răspunde la 1 întrebare", dropTitle: "Trage o fotografie oriunde ca s-o înregistrezi", dropSub: "sau lipește una în caseta de mesaj", addedTitle: "Adăugat la ziua ta", addedSub: "O numărăm noi. Poți închide aplicația.", beingRead: "{time} · se citește, poți închide aplicația", found: "Alimente găsite: {n}", labelRead: "Valori citite de pe eticheta nutrițională din fotografia ta.", unreadableLabel: "Eticheta asta nu a putut fi citită.", asMealPhoto: "Analizează ca fotografie de mâncare" },
   },
   cs: {
     phoneToday: "Dnes",
@@ -2091,7 +2092,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Ne",
     webPage: "Strana {n} z {total}",
     webDone: "Hotovo",
-    queue: { uploading: "Nahrávání fotky · 1 ze 4", waiting: "Čeká na odeslání", notMeal: "Tohle nevypadá jako jídlo", unread: "Tuhle fotku se nepodařilo přečíst", nothingCounted: "Nic se nezapočítalo.", retake: "Vyfotit znovu", remove: "Odebrat", question: "Započítáno jako ≈{kcal}. Jeden detail to zpřesní.", answer: "Odpovědět na 1 otázku", dropTitle: "Přetáhni fotku kamkoli a zapiš ji", dropSub: "nebo ji vlož do pole pro psaní", addedTitle: "Přidáno do tvého dne", addedSub: "Spočítáme to. Aplikaci můžeš zavřít.", beingRead: "{time} · čte se, aplikaci můžeš zavřít", found: "Nalezené potraviny: {n}" },
+    queue: { uploading: "Nahrávání fotky · 1 ze 4", waiting: "Čeká na odeslání", notMeal: "Tohle nevypadá jako jídlo", unread: "Tuhle fotku se nepodařilo přečíst", nothingCounted: "Nic se nezapočítalo.", retake: "Vyfotit znovu", remove: "Odebrat", question: "Započítáno jako ≈{kcal}. Jeden detail to zpřesní.", answer: "Odpovědět na 1 otázku", dropTitle: "Přetáhni fotku kamkoli a zapiš ji", dropSub: "nebo ji vlož do pole pro psaní", addedTitle: "Přidáno do tvého dne", addedSub: "Spočítáme to. Aplikaci můžeš zavřít.", beingRead: "{time} · čte se, aplikaci můžeš zavřít", found: "Nalezené potraviny: {n}", labelRead: "Přečteno z nutriční etikety na tvé fotce.", unreadableLabel: "Tuhle etiketu se nepodařilo přečíst.", asMealPhoto: "Analyzovat jako fotku jídla" },
   },
   hi: {
     phoneToday: "आज",
@@ -2155,7 +2156,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "नहीं",
     webPage: "पेज {n}/{total}",
     webDone: "हो गया",
-    queue: { uploading: "फ़ोटो अपलोड हो रही है · 4 में से 1", waiting: "भेजे जाने का इंतज़ार", notMeal: "यह भोजन नहीं लगता", unread: "यह फ़ोटो पढ़ी नहीं जा सकी", nothingCounted: "कुछ भी गिना नहीं गया।", retake: "फिर से लें", remove: "हटाएँ", question: "≈{kcal} के रूप में गिना गया। एक जानकारी से यह और सटीक होगा।", answer: "1 सवाल का जवाब दें", dropTitle: "दर्ज करने के लिए कहीं भी फ़ोटो डालें", dropSub: "या उसे मैसेज बॉक्स में पेस्ट करें", addedTitle: "आपके दिन में जोड़ा गया", addedSub: "हम इसे गिन लेंगे। अब ऐप बंद किया जा सकता है।", beingRead: "{time} · पढ़ी जा रही है, ऐप बंद किया जा सकता है", found: "मिले खाद्य पदार्थ: {n}" },
+    queue: { uploading: "फ़ोटो अपलोड हो रही है · 4 में से 1", waiting: "भेजे जाने का इंतज़ार", notMeal: "यह भोजन नहीं लगता", unread: "यह फ़ोटो पढ़ी नहीं जा सकी", nothingCounted: "कुछ भी गिना नहीं गया।", retake: "फिर से लें", remove: "हटाएँ", question: "≈{kcal} के रूप में गिना गया। एक जानकारी से यह और सटीक होगा।", answer: "1 सवाल का जवाब दें", dropTitle: "दर्ज करने के लिए कहीं भी फ़ोटो डालें", dropSub: "या उसे मैसेज बॉक्स में पेस्ट करें", addedTitle: "आपके दिन में जोड़ा गया", addedSub: "हम इसे गिन लेंगे। अब ऐप बंद किया जा सकता है।", beingRead: "{time} · पढ़ी जा रही है, ऐप बंद किया जा सकता है", found: "मिले खाद्य पदार्थ: {n}", labelRead: "आपकी फ़ोटो के पोषण लेबल से पढ़ा गया।", unreadableLabel: "वह लेबल पढ़ा नहीं जा सका।", asMealPhoto: "भोजन की फ़ोटो के रूप में विश्लेषण करें" },
   },
   th: {
     phoneToday: "วันนี้",
@@ -2219,7 +2220,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "ไม่",
     webPage: "หน้า {n} จาก {total}",
     webDone: "เสร็จสิ้น",
-    queue: { uploading: "กำลังอัปโหลดรูป · 1 จาก 4", waiting: "รอส่ง", notMeal: "ดูไม่เหมือนมื้ออาหาร", unread: "อ่านรูปนี้ไม่ได้", nothingCounted: "ไม่ได้นับอะไร", retake: "ถ่ายใหม่", remove: "นำออก", question: "นับเป็น ≈{kcal} ขอรายละเอียดอีกนิดจะแม่นขึ้น", answer: "ตอบ 1 คำถาม", dropTitle: "วางรูปตรงไหนก็ได้เพื่อจด", dropSub: "หรือวางรูปลงในช่องพิมพ์", addedTitle: "เพิ่มลงในวันของคุณแล้ว", addedSub: "เราจะนับให้ ปิดแอปได้เลย", beingRead: "{time} · กำลังอ่าน ปิดแอปได้เลย", found: "อาหารที่พบ: {n}" },
+    queue: { uploading: "กำลังอัปโหลดรูป · 1 จาก 4", waiting: "รอส่ง", notMeal: "ดูไม่เหมือนมื้ออาหาร", unread: "อ่านรูปนี้ไม่ได้", nothingCounted: "ไม่ได้นับอะไร", retake: "ถ่ายใหม่", remove: "นำออก", question: "นับเป็น ≈{kcal} ขอรายละเอียดอีกนิดจะแม่นขึ้น", answer: "ตอบ 1 คำถาม", dropTitle: "วางรูปตรงไหนก็ได้เพื่อจด", dropSub: "หรือวางรูปลงในช่องพิมพ์", addedTitle: "เพิ่มลงในวันของคุณแล้ว", addedSub: "เราจะนับให้ ปิดแอปได้เลย", beingRead: "{time} · กำลังอ่าน ปิดแอปได้เลย", found: "อาหารที่พบ: {n}", labelRead: "อ่านจากฉลากโภชนาการในรูปของคุณ", unreadableLabel: "อ่านฉลากนั้นไม่ได้", asMealPhoto: "วิเคราะห์เป็นรูปมื้ออาหาร" },
   },
   sv: {
     phoneToday: "I dag",
@@ -2283,7 +2284,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nej",
     webPage: "Sida {n} av {total}",
     webDone: "Klar",
-    queue: { uploading: "Laddar upp foto · 1 av 4", waiting: "Väntar på att skickas", notMeal: "Det där ser inte ut som en måltid", unread: "Det gick inte att läsa fotot", nothingCounted: "Inget räknades.", retake: "Ta om", remove: "Ta bort", question: "Räknat som ≈{kcal}. En detalj skulle göra det exaktare.", answer: "Svara på 1 fråga", dropTitle: "Släpp ett foto var som helst för att logga det", dropSub: "eller klistra in ett i inmatningsrutan", addedTitle: "Tillagd i din dag", addedSub: "Vi räknar på den. Du kan stänga appen.", beingRead: "{time} · läses, du kan stänga appen", found: "Livsmedel hittade: {n}" },
+    queue: { uploading: "Laddar upp foto · 1 av 4", waiting: "Väntar på att skickas", notMeal: "Det där ser inte ut som en måltid", unread: "Det gick inte att läsa fotot", nothingCounted: "Inget räknades.", retake: "Ta om", remove: "Ta bort", question: "Räknat som ≈{kcal}. En detalj skulle göra det exaktare.", answer: "Svara på 1 fråga", dropTitle: "Släpp ett foto var som helst för att logga det", dropSub: "eller klistra in ett i inmatningsrutan", addedTitle: "Tillagd i din dag", addedSub: "Vi räknar på den. Du kan stänga appen.", beingRead: "{time} · läses, du kan stänga appen", found: "Livsmedel hittade: {n}", labelRead: "Avläst från näringsdeklarationen på ditt foto.", unreadableLabel: "Det gick inte att läsa etiketten.", asMealPhoto: "Analysera som måltidsfoto" },
   },
   uk: {
     phoneToday: "Сьогодні",
@@ -2347,7 +2348,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Ні",
     webPage: "Сторінка {n} з {total}",
     webDone: "Готово",
-    queue: { uploading: "Завантаження фото · 1 з 4", waiting: "Чекає на надсилання", notMeal: "Це не схоже на прийом їжі", unread: "Не вдалося прочитати це фото", nothingCounted: "Нічого не зараховано.", retake: "Перезняти", remove: "Прибрати", question: "Пораховано як ≈{kcal}. Одна деталь зробить оцінку точнішою.", answer: "Відповісти на 1 запитання", dropTitle: "Перетягни фото будь-куди, щоб записати", dropSub: "або встав його в поле вводу", addedTitle: "Додано до твого дня", addedSub: "Ми все порахуємо. Програму можна закрити.", beingRead: "{time} · читаємо, програму можна закрити", found: "Знайдено продуктів: {n}" },
+    queue: { uploading: "Завантаження фото · 1 з 4", waiting: "Чекає на надсилання", notMeal: "Це не схоже на прийом їжі", unread: "Не вдалося прочитати це фото", nothingCounted: "Нічого не зараховано.", retake: "Перезняти", remove: "Прибрати", question: "Пораховано як ≈{kcal}. Одна деталь зробить оцінку точнішою.", answer: "Відповісти на 1 запитання", dropTitle: "Перетягни фото будь-куди, щоб записати", dropSub: "або встав його в поле вводу", addedTitle: "Додано до твого дня", addedSub: "Ми все порахуємо. Програму можна закрити.", beingRead: "{time} · читаємо, програму можна закрити", found: "Знайдено продуктів: {n}", labelRead: "Прочитано з етикетки на твоєму фото.", unreadableLabel: "Не вдалося прочитати цю етикетку.", asMealPhoto: "Проаналізувати як фото їжі" },
   },
   nl: {
     phoneToday: "Vandaag",
@@ -2411,7 +2412,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nee",
     webPage: "Pagina {n} van {total}",
     webDone: "Klaar",
-    queue: { uploading: "Foto uploaden · 1 van 4", waiting: "Wacht op versturen", notMeal: "Dat lijkt geen maaltijd", unread: "Deze foto kon niet worden gelezen", nothingCounted: "Er is niets meegeteld.", retake: "Opnieuw maken", remove: "Haal weg", question: "Geteld als ≈{kcal}. Eén detail maakt het preciezer.", answer: "Beantwoord 1 vraag", dropTitle: "Sleep ergens een foto neer om hem te loggen", dropSub: "of plak er een in het invoerveld", addedTitle: "Toegevoegd aan je dag", addedSub: "We tellen het mee. Je kunt de app sluiten.", beingRead: "{time} · wordt gelezen, je kunt de app sluiten", found: "Gevonden voedingsmiddelen: {n}" },
+    queue: { uploading: "Foto uploaden · 1 van 4", waiting: "Wacht op versturen", notMeal: "Dat lijkt geen maaltijd", unread: "Deze foto kon niet worden gelezen", nothingCounted: "Er is niets meegeteld.", retake: "Opnieuw maken", remove: "Haal weg", question: "Geteld als ≈{kcal}. Eén detail maakt het preciezer.", answer: "Beantwoord 1 vraag", dropTitle: "Sleep ergens een foto neer om hem te loggen", dropSub: "of plak er een in het invoerveld", addedTitle: "Toegevoegd aan je dag", addedSub: "We tellen het mee. Je kunt de app sluiten.", beingRead: "{time} · wordt gelezen, je kunt de app sluiten", found: "Gevonden voedingsmiddelen: {n}", labelRead: "Afgelezen van het voedingsetiket op je foto.", unreadableLabel: "Dat etiket kon niet worden gelezen.", asMealPhoto: "Analyseer als maaltijdfoto" },
   },
   pl: {
     phoneToday: "Dziś",
@@ -2475,7 +2476,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Nie",
     webPage: "Strona {n} z {total}",
     webDone: "Gotowe",
-    queue: { uploading: "Przesyłanie zdjęcia · 1 z 4", waiting: "Czeka na wysłanie", notMeal: "To nie wygląda na posiłek", unread: "Nie udało się odczytać zdjęcia", nothingCounted: "Nic nie zostało policzone.", retake: "Zrób ponownie", remove: "Usuń", question: "Policzone jako ≈{kcal}. Jeden szczegół to doprecyzuje.", answer: "Odpowiedz na 1 pytanie", dropTitle: "Upuść zdjęcie w dowolnym miejscu, aby je zapisać", dropSub: "lub wklej je do pola wiadomości", addedTitle: "Dodane do twojego dnia", addedSub: "Policzymy to. Możesz zamknąć aplikację.", beingRead: "{time} · odczytywanie, możesz zamknąć aplikację", found: "Znalezione produkty: {n}" },
+    queue: { uploading: "Przesyłanie zdjęcia · 1 z 4", waiting: "Czeka na wysłanie", notMeal: "To nie wygląda na posiłek", unread: "Nie udało się odczytać zdjęcia", nothingCounted: "Nic nie zostało policzone.", retake: "Zrób ponownie", remove: "Usuń", question: "Policzone jako ≈{kcal}. Jeden szczegół to doprecyzuje.", answer: "Odpowiedz na 1 pytanie", dropTitle: "Upuść zdjęcie w dowolnym miejscu, aby je zapisać", dropSub: "lub wklej je do pola wiadomości", addedTitle: "Dodane do twojego dnia", addedSub: "Policzymy to. Możesz zamknąć aplikację.", beingRead: "{time} · odczytywanie, możesz zamknąć aplikację", found: "Znalezione produkty: {n}", labelRead: "Odczytano z etykiety na zdjęciu.", unreadableLabel: "Nie udało się odczytać tej etykiety.", asMealPhoto: "Analizuj jako zdjęcie posiłku" },
   },
   tr: {
     phoneToday: "Bugün",
@@ -2539,7 +2540,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Hayır",
     webPage: "Sayfa {n} / {total}",
     webDone: "Bitti",
-    queue: { uploading: "Fotoğraf yükleniyor · 1 / 4", waiting: "Gönderilmeyi bekliyor", notMeal: "Bu bir öğüne benzemiyor", unread: "Bu fotoğraf okunamadı", nothingCounted: "Hiçbir şey sayılmadı.", retake: "Yeniden çek", remove: "Kaldır", question: "≈{kcal} olarak sayıldı. Bir ayrıntı bunu netleştirir.", answer: "1 soruyu yanıtla", dropTitle: "Kaydetmek için bir fotoğrafı herhangi bir yere bırak", dropSub: "ya da yazma alanına yapıştır", addedTitle: "Gününe eklendi", addedSub: "Sayacağız. Uygulamayı kapatabilirsin.", beingRead: "{time} · okunuyor, uygulamayı kapatabilirsin", found: "Bulunan yiyecekler: {n}" },
+    queue: { uploading: "Fotoğraf yükleniyor · 1 / 4", waiting: "Gönderilmeyi bekliyor", notMeal: "Bu bir öğüne benzemiyor", unread: "Bu fotoğraf okunamadı", nothingCounted: "Hiçbir şey sayılmadı.", retake: "Yeniden çek", remove: "Kaldır", question: "≈{kcal} olarak sayıldı. Bir ayrıntı bunu netleştirir.", answer: "1 soruyu yanıtla", dropTitle: "Kaydetmek için bir fotoğrafı herhangi bir yere bırak", dropSub: "ya da yazma alanına yapıştır", addedTitle: "Gününe eklendi", addedSub: "Sayacağız. Uygulamayı kapatabilirsin.", beingRead: "{time} · okunuyor, uygulamayı kapatabilirsin", found: "Bulunan yiyecekler: {n}", labelRead: "Fotoğrafındaki besin etiketinden okundu.", unreadableLabel: "Bu etiket okunamadı.", asMealPhoto: "Öğün fotoğrafı olarak analiz et" },
   },
   "zh-Hant": {
     phoneToday: "今天",
@@ -2603,7 +2604,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "不要",
     webPage: "第 {n} 頁，共 {total} 頁",
     webDone: "完成",
-    queue: { uploading: "正在上傳照片 · 1／4", waiting: "等待傳送", notMeal: "這看起來不像一份餐點", unread: "無法讀取這張照片", nothingCounted: "沒有計入任何次數。", retake: "重拍", remove: "移除", question: "已估算為 ≈{kcal}。多一個細節會更準確。", answer: "回答 1 個問題", dropTitle: "把照片拖到任何地方即可記錄", dropSub: "或貼到輸入框中", addedTitle: "已加入你的這一天", addedSub: "我們會計算它，你可以關閉 App 了。", beingRead: "{time} · 讀取中，你可以關閉 App", found: "找到的食物：{n}" },
+    queue: { uploading: "正在上傳照片 · 1／4", waiting: "等待傳送", notMeal: "這看起來不像一份餐點", unread: "無法讀取這張照片", nothingCounted: "沒有計入任何次數。", retake: "重拍", remove: "移除", question: "已估算為 ≈{kcal}。多一個細節會更準確。", answer: "回答 1 個問題", dropTitle: "把照片拖到任何地方即可記錄", dropSub: "或貼到輸入框中", addedTitle: "已加入你的這一天", addedSub: "我們會計算它，你可以關閉 App 了。", beingRead: "{time} · 讀取中，你可以關閉 App", found: "找到的食物：{n}", labelRead: "已從照片中的營養標示讀取。", unreadableLabel: "無法讀取這個營養標示。", asMealPhoto: "當作餐點照片分析" },
   },
   "zh-Hans": {
     phoneToday: "今天",
@@ -2667,7 +2668,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "不对",
     webPage: "第 {n} 页，共 {total} 页",
     webDone: "完成",
-    queue: { uploading: "正在上传照片 · 1/4", waiting: "等待发送", notMeal: "这看起来不像一餐", unread: "没能读取这张照片", nothingCounted: "没有计入任何内容。", retake: "重拍", remove: "移除", question: "已按约 {kcal} 计入。补充一个细节会更准确。", answer: "回答 1 个问题", dropTitle: "把照片拖到任意位置即可记录", dropSub: "或粘贴到输入框中", addedTitle: "已添加到你的这一天", addedSub: "我们会计算好。你可以关闭 App 了。", beingRead: "{time} · 正在识别，你可以关闭 App", found: "找到的食物：{n}" },
+    queue: { uploading: "正在上传照片 · 1/4", waiting: "等待发送", notMeal: "这看起来不像一餐", unread: "没能读取这张照片", nothingCounted: "没有计入任何内容。", retake: "重拍", remove: "移除", question: "已按约 {kcal} 计入。补充一个细节会更准确。", answer: "回答 1 个问题", dropTitle: "把照片拖到任意位置即可记录", dropSub: "或粘贴到输入框中", addedTitle: "已添加到你的这一天", addedSub: "我们会计算好。你可以关闭 App 了。", beingRead: "{time} · 正在识别，你可以关闭 App", found: "找到的食物：{n}", labelRead: "已从照片中的营养成分表读取。", unreadableLabel: "没能读取这张营养成分表。", asMealPhoto: "当作餐食照片分析" },
   },
   ko: {
     phoneToday: "오늘",
@@ -2731,7 +2732,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "아니요",
     webPage: "{total}페이지 중 {n}페이지",
     webDone: "완료",
-    queue: { uploading: "사진 업로드 중 · 1/4", waiting: "전송 대기 중", notMeal: "식사처럼 보이지 않아요", unread: "이 사진을 읽지 못했어요", nothingCounted: "아무것도 집계되지 않았어요.", retake: "다시 찍기", remove: "지우기", question: "≈{kcal}(으)로 계산했어요. 한 가지만 알려 주면 더 정확해져요.", answer: "질문 1개에 답하기", dropTitle: "아무 곳에나 사진을 끌어다 놓으면 기록돼요", dropSub: "또는 입력창에 붙여넣으세요", addedTitle: "하루 기록에 추가했어요", addedSub: "계산은 저희가 할게요. 앱을 닫아도 돼요.", beingRead: "{time} · 분석 중, 앱을 닫아도 돼요", found: "찾은 음식: {n}개" },
+    queue: { uploading: "사진 업로드 중 · 1/4", waiting: "전송 대기 중", notMeal: "식사처럼 보이지 않아요", unread: "이 사진을 읽지 못했어요", nothingCounted: "아무것도 집계되지 않았어요.", retake: "다시 찍기", remove: "지우기", question: "≈{kcal}(으)로 계산했어요. 한 가지만 알려 주면 더 정확해져요.", answer: "질문 1개에 답하기", dropTitle: "아무 곳에나 사진을 끌어다 놓으면 기록돼요", dropSub: "또는 입력창에 붙여넣으세요", addedTitle: "하루 기록에 추가했어요", addedSub: "계산은 저희가 할게요. 앱을 닫아도 돼요.", beingRead: "{time} · 분석 중, 앱을 닫아도 돼요", found: "찾은 음식: {n}개", labelRead: "사진 속 영양성분표에서 읽었어요.", unreadableLabel: "영양성분표를 읽지 못했어요.", asMealPhoto: "식사 사진으로 분석하기" },
   },
   ja: {
     phoneToday: "今日",
@@ -2795,7 +2796,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "いいえ",
     webPage: "{n}/{total}ページ",
     webDone: "完了",
-    queue: { uploading: "写真をアップロード中 · 1/4", waiting: "送信待ち", notMeal: "食事ではないようです", unread: "この写真を読み取れませんでした", nothingCounted: "何もカウントされていません。", retake: "撮り直す", remove: "取り除く", question: "約{kcal}としてカウントしました。1つ教えてもらえると、より正確になります。", answer: "1つの質問に答える", dropTitle: "どこにでも写真をドロップして記録", dropSub: "または入力欄に貼り付け", addedTitle: "今日の記録に追加しました", addedSub: "カウントしておきます。アプリを閉じても大丈夫です。", beingRead: "{time} · 読み取り中、アプリを閉じても大丈夫です", found: "見つかった食品：{n}" },
+    queue: { uploading: "写真をアップロード中 · 1/4", waiting: "送信待ち", notMeal: "食事ではないようです", unread: "この写真を読み取れませんでした", nothingCounted: "何もカウントされていません。", retake: "撮り直す", remove: "取り除く", question: "約{kcal}としてカウントしました。1つ教えてもらえると、より正確になります。", answer: "1つの質問に答える", dropTitle: "どこにでも写真をドロップして記録", dropSub: "または入力欄に貼り付け", addedTitle: "今日の記録に追加しました", addedSub: "カウントしておきます。アプリを閉じても大丈夫です。", beingRead: "{time} · 読み取り中、アプリを閉じても大丈夫です", found: "見つかった食品：{n}", labelRead: "写真の栄養成分表示から読み取りました。", unreadableLabel: "そのラベルを読み取れませんでした。", asMealPhoto: "食事の写真として分析する" },
   },
   "pt-BR": {
     phoneToday: "Hoje",
@@ -2859,7 +2860,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webProposalNo: "Não",
     webPage: "Página {n} de {total}",
     webDone: "OK",
-    queue: { uploading: "Enviando foto · 1 de 4", waiting: "Aguardando envio", notMeal: "Isso não parece uma refeição", unread: "Não deu para ler esta foto", nothingCounted: "Nada foi contado.", retake: "Tirar outra", remove: "Remover", question: "Contado como ≈{kcal}. Um detalhe deixaria mais preciso.", answer: "Responder 1 pergunta", dropTitle: "Solte uma foto em qualquer lugar para registrar", dropSub: "ou cole uma na caixa de texto", addedTitle: "Adicionado ao seu dia", addedSub: "A gente faz a conta. Pode fechar o app.", beingRead: "{time} · em análise, pode fechar o app", found: "Alimentos encontrados: {n}" },
+    queue: { uploading: "Enviando foto · 1 de 4", waiting: "Aguardando envio", notMeal: "Isso não parece uma refeição", unread: "Não deu para ler esta foto", nothingCounted: "Nada foi contado.", retake: "Tirar outra", remove: "Remover", question: "Contado como ≈{kcal}. Um detalhe deixaria mais preciso.", answer: "Responder 1 pergunta", dropTitle: "Solte uma foto em qualquer lugar para registrar", dropSub: "ou cole uma na caixa de texto", addedTitle: "Adicionado ao seu dia", addedSub: "A gente faz a conta. Pode fechar o app.", beingRead: "{time} · em análise, pode fechar o app", found: "Alimentos encontrados: {n}", labelRead: "Lido do rótulo nutricional na sua foto.", unreadableLabel: "Não deu para ler esse rótulo.", asMealPhoto: "Analisar como foto de refeição" },
   },
 };
 
