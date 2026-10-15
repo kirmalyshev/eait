@@ -192,6 +192,11 @@ export interface MealItem {
    */
   role?: "cooking-fat" | undefined;
   /**
+   * The item came from numbers the user typed (#2088): its `grams` is a storage unit, not a
+   * weight anybody measured, so no surface may show it. Set by the server only.
+   */
+  typed?: true | undefined;
+  /**
    * A `food_ref` id ("ciqual:20346") — the catalog row the item's numbers were grounded against
    * (#562). Absent = the model's own estimate.
    */

@@ -7,6 +7,7 @@
 
 import type { FoodSearchResponse } from "@eait/shared/contract";
 import type { FoodRef } from "@eait/shared";
+import { numbersCopyFor } from "../../shared/app/numbers-copy.ts";
 import { foodLogChoice, foodSearchCopyFor, isLoggableFood } from "../../shared/app/food-search-copy.ts";
 import { wholeNumbers } from "../../shared/lang.ts";
 import type { Lang } from "../../shared/types.ts";
@@ -22,6 +23,8 @@ export interface FoodSearchOpts {
   left: number | null;
   /** Her words go to the composer, as a typed meal does today. */
   onTell: (q: string) => void;
+  /** "Enter numbers": the typed-numbers sheet, the query as its name. */
+  onNumbers: (q: string) => void;
   onClose: () => void;
   /** A meal landed: the chat's own thread and today's totals are stale. */
   onLogged: () => void;
@@ -31,6 +34,7 @@ const DEBOUNCE_MS = 250;
 
 export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
   const c = foodSearchCopyFor(o.lang);
+  const nc = numbersCopyFor(o.lang);
   const num = wholeNumbers(o.lang);
   let left = o.left;
   let seq = 0;
@@ -67,6 +71,19 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
     txt.append(el("b", "", fill(c.tell, { q })));
     row.append(disc, txt, el("i", "ico i-chevron-right"));
     row.addEventListener("click", () => { o.onClose(); o.onTell(q); });
+    return row;
+  };
+
+  // Beside "Ask in Chat": typed numbers, the name prefilled from the query (#2088).
+  const numbersRow = (q: string): HTMLElement => {
+    const row = el("button", "fs-row fs-numbers") as HTMLButtonElement;
+    row.type = "button";
+    const disc = el("span", "fs-disc fs-disc-n");
+    disc.append(kitEl(ico("numbers")));
+    const txt = el("div", "fs-txt");
+    txt.append(el("b", "", nc.enter), el("div", "fs-sub", fill(nc.rowNamed, { q })));
+    row.append(disc, txt, el("i", "ico i-chevron-right"));
+    row.addEventListener("click", () => o.onNumbers(q));
     return row;
   };
 
@@ -125,6 +142,7 @@ export function foodSearchSheet(o: FoodSearchOpts): HTMLElement {
       body.replaceChildren(
         ...(rows.length === 0 ? [el("p", "fs-none", fill(c.noMatch, { q }))] : rows.map(foodRow)),
         tellRow(q),
+        numbersRow(q),
       );
       source.textContent = rows.length === 0 ? "" : r.attributions.map((a) => a.citation).join(" · ");
     } catch {

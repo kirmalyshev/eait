@@ -616,11 +616,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       // the board's row verbatim, the control around it rather than inside it.
       const row = el("button", "ingbtn") as HTMLButtonElement;
       row.type = "button";
+      // A typed item's grams is a storage unit nobody weighed (#2088): no weight shown, no editor.
       row.append(ingredientEl({
-        name: item.name, amount: fill(mc.phoneGrams, { n: n(item.grams) }),
+        name: item.name, ...(item.typed ? {} : { amount: fill(mc.phoneGrams, { n: n(item.grams) }) }),
         ...(item.kcal !== undefined ? { kcal: kn(item.kcal) } : {}),
       }));
-      row.addEventListener("click", () => openPanel(ingredientPanel(meal, i)));
+      if (item.typed) row.disabled = true;
+      else row.addEventListener("click", () => openPanel(ingredientPanel(meal, i)));
       sheet.append(row);
     });
     const verdicts = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));

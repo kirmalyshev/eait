@@ -4418,6 +4418,89 @@
         ]
       }
     },
+    "/v1/meals/numbers": {
+      "post": {
+        "operationId": "post_numbersLog",
+        "summary": "Log a meal from typed numbers — no model runs and the free sample is not spent. The verdicts are computed server-side; the day is today minus `dayOffset`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NumbersLogRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealLogged"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/products/{barcode}": {
       "get": {
         "operationId": "get_product",
@@ -6850,6 +6933,11 @@
             "const": "cooking-fat",
             "description": "Fat the dish was cooked or dressed with, listed as its own row rather than folded into another item's numbers — so the user can see it, and take it off. Absent on plain food, and on every row stored before this existed."
           },
+          "typed": {
+            "type": "boolean",
+            "const": true,
+            "description": "The item came from numbers the user typed (#2088): its `grams` is a storage unit, not a weight anybody measured, so no surface may show it. Set by the server only."
+          },
           "ref": {
             "type": "string",
             "description": "A `food_ref` id (\"ciqual:20346\") — the catalog row the item's numbers were grounded against (#562). Absent = the model's own estimate."
@@ -7505,6 +7593,53 @@
         ],
         "additionalProperties": false,
         "description": "`POST /v1/milestones/seen`. Unknown and unearned ids are ignored."
+      },
+      "NumbersLogRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          },
+          "dayOffset": {
+            "type": "number"
+          },
+          "clientId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kcal",
+          "protein_g",
+          "fat_g",
+          "carbs_g"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/meals/numbers`. A meal typed by hand: the name and the four required numbers, then the four optional ones. There is no `verdicts` and no `grams` — verdicts are computed, and a typed meal is one portion. `dayOffset` is days before today in the server's zone, as for a saved-meal re-log; `clientId` is the replay key."
       },
       "OffProduct": {
         "type": "object",
