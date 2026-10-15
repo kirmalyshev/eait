@@ -204,6 +204,11 @@ msgid "tg.connectedLead"
 msgstr "Connected to the eait account signed in with"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Couldn't read that label."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Counted. {left}kcal left today."

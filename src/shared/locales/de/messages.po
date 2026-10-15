@@ -204,6 +204,11 @@ msgid "tg.connectedLead"
 msgstr "Verbunden mit dem eait-Konto, angemeldet mit"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Die Nährwerttabelle ließ sich nicht lesen."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "Gezählt. Heute noch {left}kcal übrig."

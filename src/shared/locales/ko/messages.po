@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "다음으로 로그인한 eait 계정에 연결됐어요:"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "그 라벨을 읽지 못했어요."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "기록했어요. 오늘 {left}kcal 남았어요."

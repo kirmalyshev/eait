@@ -420,6 +420,7 @@ export async function chatScreen(frame: Frame): Promise<HTMLElement> {
     const macs = el("div", "pl-macs");
     macs.append(grams);
     if (col !== null) col.append(head, macs); else card.append(macs);
+    if (meal.label) card.append(el("div", "muted", COPY.labelRead));
     // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
     const vs = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
     if (vs !== null) card.append(el("div", "hr"), vs);

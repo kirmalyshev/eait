@@ -198,6 +198,11 @@ msgid "tg.connectedLead"
 msgstr "已連接至 eait 帳號，登入方式："
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "無法讀取這個營養標示。"
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "已計入。今天還剩 {left} 大卡。"

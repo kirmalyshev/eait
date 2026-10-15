@@ -255,6 +255,8 @@ export function logScreen(frame: Frame): HTMLElement {
     card.append(top, gramMacsEl({
       protein: r.analysis.protein_g, carbs: r.analysis.carbs_g, fat: r.analysis.fat_g,
     }));
+    // A meal read off a nutrition label says so: its numbers are the printed ones (ieat-app#2087).
+    if (r.analysis.label) card.append(el("div", "muted", COPY.labelRead));
     // The pills arrive already worded (`verdictLabels`) — the bundle composes no verdict text.
     const list = verdictListEl(r.verdictLabels.map((v) => ({ tone: v.tone, words: v.label })));
     if (list !== null) card.append(el("div", "hr"), list);

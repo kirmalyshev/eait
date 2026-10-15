@@ -204,6 +204,11 @@ msgid "tg.connectedLead"
 msgstr "Ce Telegram est connecté au compte eait ouvert avec"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unreadable-label"
+msgstr "Impossible de lire cette étiquette."
+
+#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "stream.push.left"
 msgstr "C'est compté. Il reste {left}kcal aujourd'hui."
