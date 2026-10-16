@@ -66,6 +66,7 @@ export * from "./app/meal-copy.ts";
 export * from "./app/ingredient-source.ts";
 export * from "./app/bmi-copy.ts";
 export * from "./app/progress-copy.ts";
+export * from "./app/weigh-history-copy.ts";
 export * from "./app/milestones-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/food-search-copy.ts";
