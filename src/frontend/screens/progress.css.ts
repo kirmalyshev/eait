@@ -115,7 +115,7 @@ export const progressCss = `
 .wih .wihr + .wihr { border-top: 1px solid var(--hair); }
 .wih .wihw { flex: 1; font-size: 15px; }
 .wih .wihk { font-weight: 600; font-size: 15px; background: none; border: 0; color: inherit; cursor: pointer; }
-.wih .wihi { width: 84px; font-size: 15px; text-align: right; }
+.wih .wihi { width: 120px; font-size: 15px; text-align: right; }
 .wih .wihd { background: none; border: 0; color: var(--bad); font-weight: 600; cursor: pointer; min-height: 44px; }
 .wih .wihe { padding: 60px 24px; text-align: center; }
 `;
