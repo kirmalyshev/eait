@@ -18,8 +18,8 @@
 // import it — so the functions take `{tone, words}` pairs the caller computed.
 
 import {
-  dayRing, estimateChart, ringDash, RING_SPEC, TWO_WAYS_CHART, weekBars, WEEK_RING, weightChart,
-  type ChartDay, type EstimateDirection, type WeightPoint,
+  averageBars, dayRing, energyBars, estimateChart, ringDash, RING_SPEC, TWO_WAYS_CHART, weekBars, WEEK_RING, weightChart,
+  type AverageBarsDay, type ChartDay, type EstimateDirection, type WeightPoint,
 } from "./charts.ts";
 import type { IconName } from "./icons.ts";
 import { RADIUS, SHADOW } from "../design.ts";
@@ -420,6 +420,45 @@ export const weekBarsSvg = (
     bars + letters +
     `<text x="${g.planLabel.x}" y="${g.planLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(o.planLabel)}</text>` +
     `</svg>`;
+};
+
+/**
+ * The daily average's chart (`averageBars`): protein / carbs / fat stacked in their macro colours,
+ * the plan dashed, a dotted base for a day without meals. `days` is null for such a day.
+ */
+export const averageBarsSvg = (
+  days: readonly (AverageBarsDay | null)[],
+  planKcal: number,
+  o: { letters: readonly string[]; planLabel: string; height?: number },
+): string => {
+  const g = averageBars(days, planKcal);
+  const cols = g.columns.map((c) =>
+    "dotted" in c
+      ? `<line x1="${c.x}" x2="${c.x + c.width}" y1="118" y2="118" stroke="var(--line)" stroke-width="2" stroke-dasharray="1.5 3"/>`
+      : c.segments.map((s) => `<rect x="${c.x}" y="${s.y}" width="${c.width}" height="${s.height}" fill="var(--macro-${s.macro})"/>`).join("")
+  ).join("");
+  const letters = g.labels.map((p, i) => `<text x="${p.x}" y="${p.y}" text-anchor="middle">${esc(o.letters[i] ?? "")}</text>`).join("");
+  return `<svg class="pgraph wb" viewBox="${g.viewBox}" width="100%"${o.height !== undefined ? ` height="${o.height}"` : ""} role="img">` +
+    `<line x1="${g.planLine.x1}" x2="${g.planLine.x2}" y1="${g.planLine.y}" y2="${g.planLine.y}" stroke="var(--ink)" stroke-dasharray="${g.planLine.dash}"/>` +
+    cols + letters +
+    `<text x="${g.planLabel.x}" y="${g.planLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(o.planLabel)}</text>` +
+    `</svg>`;
+};
+
+/** The energy card's chart (`energyBars`): burned in the line grey, eaten in the accent, a day apart. */
+export const energyBarsSvg = (
+  days: readonly ({ burned: number | null; eaten: number } | null)[],
+  o: { letters: readonly string[] },
+): string => {
+  const g = energyBars(days);
+  const cols = g.columns.map((c) =>
+    "dotted" in c
+      ? `<line x1="${c.x}" x2="${c.x + 22}" y1="118" y2="118" stroke="var(--line)" stroke-width="2" stroke-dasharray="1.5 3"/>`
+      : (c.burned === null ? "" : `<rect x="${c.x}" y="${c.burned.y}" width="9" height="${c.burned.height}" rx="2" fill="var(--line)"/>`) +
+        `<rect x="${c.eaten.x}" y="${c.eaten.y}" width="9" height="${c.eaten.height}" rx="2" fill="var(--accent)"/>`
+  ).join("");
+  const letters = g.labels.map((p, i) => `<text x="${p.x}" y="${p.y}" text-anchor="middle">${esc(o.letters[i] ?? "")}</text>`).join("");
+  return `<svg class="pgraph wb" viewBox="${g.viewBox}" width="100%" role="img">${cols}${letters}</svg>`;
 };
 
 // ── The avatars ──────────────────────────────────────────────────────────────────────────────

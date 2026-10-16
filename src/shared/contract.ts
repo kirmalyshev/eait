@@ -438,6 +438,12 @@ export const ROUTES = {
    */
   days: "/v1/diary/days",
   /**
+   * GET `?week=0..3` — the Monday-to-Sunday week that many weeks back (0 = this one): the daily
+   * average over the days that have meals, those days' macros, and Apple Health's burned beside
+   * what was eaten (#893). Every figure is the server's. Answers {@link AverageResponse}.
+   */
+  average: "/v1/diary/average",
+  /**
    * GET `?range=` — one of `WEIGHT_RANGES`; absent or `90D` defaults to it. The range's start
    * date is computed server-side, in the account's timezone: no client does that arithmetic.
    * Answers {@link WeightsResponse}.
@@ -1638,6 +1644,47 @@ export interface DiaryDay extends ChartDay {
   /** The day has a meal and its kcal is below the account's floor — it earns nothing. */
   underFloor: boolean;
 }
+
+/** One calendar day of {@link AverageResponse}. A day with no meals carries nulls, never zeros. */
+export interface AverageDay {
+  date: string;
+  when: "past" | "today" | "future";
+  /** The day has meals. A day without them is a dotted base on the chart, not a 0 bar. */
+  logged: boolean;
+  kcal: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  /** At rest + Apple Health's active energy; null with no reading that day or no BMR to rest on. */
+  burned: number | null;
+}
+
+/** `GET /v1/diary/average` — one week's daily average and energy (#893). */
+export interface AverageResponse {
+  /** Monday and Sunday of the week, YYYY-MM-DD in the account's timezone. */
+  from: string;
+  to: string;
+  /** Weeks back from this one, 0..{@link AVERAGE_WEEKS_BACK}. */
+  week: number;
+  /** Seven days, Monday first. */
+  days: AverageDay[];
+  /** The plan the stacked bars are read against, sent once. */
+  planKcal: number;
+  /** Days with meals: the divisor of every average below. */
+  daysLogged: number;
+  /** Whole numbers, over the days with meals only; null when the week has none. */
+  average: { kcal: number; protein_g: number; carbs_g: number; fat_g: number } | null;
+  /**
+   * Burned and eaten over the days that have BOTH meals and a burned figure, so the three agree.
+   * `burned`/`difference` are null when no day qualifies (no Apple Health); `eaten` then falls back
+   * to the average over every logged day. `difference` is eaten − burned: negative under burned.
+   * Null when the week has no meals at all.
+   */
+  energy: { burned: number | null; eaten: number; difference: number | null } | null;
+}
+
+/** How many weeks back the Progress card's segments reach: this week and three before it. */
+export const AVERAGE_WEEKS_BACK = 3;
 
 /** `GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer. */
 export interface DaysResponse {

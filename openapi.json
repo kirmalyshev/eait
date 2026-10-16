@@ -3764,6 +3764,70 @@
         ]
       }
     },
+    "/v1/diary/average": {
+      "get": {
+        "operationId": "get_average",
+        "summary": "One week's daily average over the days that have meals, their macros, and burned beside eaten.",
+        "parameters": [
+          {
+            "name": "week",
+            "in": "query",
+            "required": false,
+            "description": "Weeks back from this one, 0 to 3; 0 when absent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AverageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/weights": {
       "get": {
         "operationId": "get_weights",
@@ -5035,6 +5099,178 @@
           "onboarded"
         ],
         "additionalProperties": false
+      },
+      "AverageDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "enum": [
+              "past",
+              "today",
+              "future"
+            ]
+          },
+          "logged": {
+            "type": "boolean",
+            "description": "The day has meals. A day without them is a dotted base on the chart, not a 0 bar."
+          },
+          "kcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "protein_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "carbs_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "fat_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "burned": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "At rest + Apple Health's active energy; null with no reading that day or no BMR to rest on."
+          }
+        },
+        "required": [
+          "date",
+          "when",
+          "logged",
+          "kcal",
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "burned"
+        ],
+        "additionalProperties": false,
+        "description": "One calendar day of  {@link  AverageResponse } . A day with no meals carries nulls, never zeros."
+      },
+      "AverageResponse": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "Monday and Sunday of the week, YYYY-MM-DD in the account's timezone."
+          },
+          "to": {
+            "type": "string"
+          },
+          "week": {
+            "type": "number",
+            "description": "Weeks back from this one, 0.. {@link  AVERAGE_WEEKS_BACK } ."
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AverageDay"
+            },
+            "description": "Seven days, Monday first."
+          },
+          "planKcal": {
+            "type": "number",
+            "description": "The plan the stacked bars are read against, sent once."
+          },
+          "daysLogged": {
+            "type": "number",
+            "description": "Days with meals: the divisor of every average below."
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kcal": {
+                    "type": "number"
+                  },
+                  "protein_g": {
+                    "type": "number"
+                  },
+                  "carbs_g": {
+                    "type": "number"
+                  },
+                  "fat_g": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kcal",
+                  "protein_g",
+                  "carbs_g",
+                  "fat_g"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whole numbers, over the days with meals only; null when the week has none."
+          },
+          "energy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "burned": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "eaten": {
+                    "type": "number"
+                  },
+                  "difference": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "burned",
+                  "eaten",
+                  "difference"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Burned and eaten over the days that have BOTH meals and a burned figure, so the three agree. `burned`/`difference` are null when no day qualifies (no Apple Health); `eaten` then falls back to the average over every logged day. `difference` is eaten − burned: negative under burned. Null when the week has no meals at all."
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "week",
+          "days",
+          "planKcal",
+          "daysLogged",
+          "average",
+          "energy"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/diary/average` — one week's daily average and energy (#893)."
       },
       "BmiRange": {
         "type": "string",
