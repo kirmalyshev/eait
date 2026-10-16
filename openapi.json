@@ -3831,7 +3831,7 @@
     "/v1/weights/{date}": {
       "patch": {
         "operationId": "patch_weightDay",
-        "summary": "Correct the caller's own weigh-in of a day (YYYY-MM-DD). Apple Health's are read-only: 404.",
+        "summary": "Correct the caller's own weigh-in of a day (YYYY-MM-DD); correcting the newest updates the profile weight like logging does. Apple Health's are read-only: 404.",
         "parameters": [
           {
             "name": "date",
@@ -3912,7 +3912,7 @@
       },
       "delete": {
         "operationId": "delete_weightDay",
-        "summary": "Remove the caller's own weigh-in of a day. The profile weight, and so the targets, stay as they are.",
+        "summary": "Remove the caller's own weigh-in of a day. Removing the newest re-derives the profile weight from the log.",
         "parameters": [
           {
             "name": "date",

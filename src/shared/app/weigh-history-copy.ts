@@ -3,10 +3,11 @@
 // numbers the client formats ({n} through `decimalNumbers`); "Delete" and "Log weight" are the
 // existing `chat-copy` / `you-copy` words, not repeated here.
 //
-// A table of its own, not a block of `PROGRESS_COPY`: a language not listed here falls back to
-// English whole (`t()`), so the localizer pass fills them in without touching Progress's tables.
+// A table of its own, over every language. Only `en` and `ru` are approved copy; the others hold
+// the English words as a PLACEHOLDER until the localizer pass (`~/eait-fleet/strings-891.md`)
+// replaces them — a language must not be missing, so the typecheck names the one that is.
 
-import { t, type Localized } from "../lang.ts";
+import { t } from "../lang.ts";
 import type { Lang } from "../types.ts";
 import type { UnitSystem } from "../ui/units.ts";
 
@@ -51,5 +52,48 @@ const RU: WeighHistoryCopy = {
   rowWeight: { metric: "{n} кг", imperial: "{n} фунт." },
 };
 
-export const WEIGH_HISTORY_COPY: Localized<WeighHistoryCopy> = { en: EN, ru: RU };
+export const WEIGH_HISTORY_COPY: Record<Lang, WeighHistoryCopy> = {
+  "en": EN,
+  "fr": EN,
+  "de": EN,
+  "it": EN,
+  "es": EN,
+  "vi": EN,
+  "id": EN,
+  "ru": RU,
+  "pt-BR": EN,
+  "ja": EN,
+  "ko": EN,
+  "zh-Hans": EN,
+  "zh-Hant": EN,
+  "tr": EN,
+  "pl": EN,
+  "nl": EN,
+  "uk": EN,
+  "sv": EN,
+  "th": EN,
+  "hi": EN,
+  "cs": EN,
+  "ro": EN,
+  "el": EN,
+  "hu": EN,
+  "da": EN,
+  "fi": EN,
+  "no": EN,
+  "sk": EN,
+  "hr": EN,
+  "sl": EN,
+  "ca": EN,
+  "ms": EN,
+  "pt-PT": EN,
+  "bn": EN,
+  "gu": EN,
+  "kn": EN,
+  "ml": EN,
+  "mr": EN,
+  "or": EN,
+  "pa": EN,
+  "ta": EN,
+  "te": EN,
+};
 export const weighHistoryCopyFor = (lang: Lang): WeighHistoryCopy => t(lang)(WEIGH_HISTORY_COPY);
