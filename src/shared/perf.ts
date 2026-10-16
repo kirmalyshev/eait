@@ -72,6 +72,7 @@ export const PERF_SCREENS = [
   "you-focus",
   "you-settings",
   "you-reminders",
+  "you-nutrition-goals",
   "milestones",
   "camera",
   "meal",
@@ -223,6 +224,9 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // Profile › Settings (ieat-app#2183): the rows Profile gave up, read off the profile already in the session.
   "you-settings": { paintMs: 100, readyMs: 100 },
   "you-reminders": { paintMs: 100, readyMs: 100 },
+  // Profile › Your plan › Nutrition goals (ieat-app#914): three goals read off the profile already in the
+  // session (`microGoals`, resolved by the server), nothing to wait on.
+  "you-nutrition-goals": { paintMs: 100, readyMs: 100 },
 
   // The badge wall (ieat-app#1956): one read of `GET /v1/milestones`, a flat list of 36 medals that
   // are bundled images, so the allowance is the request and nothing else — the same cold case `meal` has.
