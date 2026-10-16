@@ -239,18 +239,38 @@ export function badgeUnlocked(unseen: readonly string[]): void {
  * write, by the hook in `main.ts` — so the popup comes AFTER the action's own answer is on screen,
  * over it, and never instead of it. Quiet when celebrations are off, when nothing is new, and on
  * any failure: an award that fails to show is still on the wall.
+ *
+ * IT WAITS, it does not interrupt (the board's rule): while a draft is being typed, on the
+ * paywall, or while another dialog or sheet (the first verdict, a panel) is up, it tries again
+ * every two seconds for a minute. The ids stay unseen on the server meanwhile, so the next write or
+ * Home load finds them if this gives up.
  */
 let awardTimer: number | undefined;
-export function checkAwardsSoon(): void {
+const RETRY_MS = 2000;
+const MAX_TRIES = 30;
+const EDITABLE = 'input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), textarea, [contenteditable=""], [contenteditable="true"]';
+/** Something the popup must not land on. A field that has focus but is EMPTY is not mid-typing: the composer keeps focus after a send. */
+const mustWait = (): boolean => {
+  if (document.querySelector('[aria-modal="true"]') !== null) return true;
+  if (location.hash.startsWith("#/pay")) return true;
+  const a = document.activeElement;
+  if (!(a instanceof HTMLElement) || !a.matches(EDITABLE)) return false;
+  return ((a as HTMLInputElement).value ?? a.textContent ?? "") !== "";
+};
+export function checkAwardsSoon(wait = 1200, tries = 0): void {
   window.clearTimeout(awardTimer);
-  awardTimer = window.setTimeout(() => { void checkAwards(); }, 1200);
+  awardTimer = window.setTimeout(() => { void checkAwards(tries); }, wait);
 }
-async function checkAwards(): Promise<void> {
+async function checkAwards(tries: number): Promise<void> {
   try {
-    if (awardCard?.isConnected === true) return;
     if (!(await profile()).profile.milestone_celebrations) return;
     const { unseen } = await getMilestones();
-    if (unseen.length > 0) badgeUnlocked(unseen);
+    if (unseen.length === 0) return;
+    if (mustWait() || awardCard?.isConnected === true) {
+      if (tries < MAX_TRIES) checkAwardsSoon(RETRY_MS, tries + 1);
+      return;
+    }
+    badgeUnlocked(unseen);
   } catch {
     // Not worth a message: see above.
   }

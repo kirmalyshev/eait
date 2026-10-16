@@ -59,6 +59,12 @@ a.mrow .ico { width: 18px; height: 18px; }
   background: linear-gradient(160deg, #1E6B3C 0%, #5BB37E 38%, var(--surface) 62%); }
 .panel.mu:focus, .panel.mu:focus-visible { outline: 0; }
 .mu .mux { position: absolute; top: 16px; right: 16px; }
+/* The web at 390 is the phone's screen (the board): the whole viewport, the wash edge to edge, ✕ top left. */
+@media (max-width: 480px) {
+  .scrim:has(> .panel.mu) { padding: 0; }
+  .panel.mu { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: none; border-radius: 0; padding: 56px 20px 34px; }
+  .mu .mux { top: 12px; left: 16px; right: auto; }
+}
 .mu .ul { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .mu .ul img { width: 250px; height: 250px; object-fit: contain; }
 .mu .ul .cap { font-size: 14px; color: var(--muted); margin-top: 6px; }
