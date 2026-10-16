@@ -96,6 +96,16 @@ export const mealCss = `
 .fixfield::placeholder{color:var(--faint)}
 .fixex{padding:14px 16px;background:var(--hair);box-shadow:none;font-size:15px;line-height:1.45}
 
+/* A label meal's servings stepper (ieat-app#2087): the row, two round buttons, the figure between. */
+.svrow{align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.svlab{flex:1;font-size:16px}
+.card button.svbtn{width:36px;height:36px;min-height:0;padding:0;border-radius:50%;background:none;
+  box-shadow:inset 0 0 0 1.5px var(--line);font-size:20px;font-weight:400;color:var(--ink);cursor:pointer}
+.svnum{min-width:28px;text-align:center;font-size:18px}
+.svtotals{align-items:baseline;gap:14px;flex-wrap:wrap}
+.svactions{gap:10px}
+.svactions .cta{flex:1}
+
 /* The ingredient rows open their editor — a button wrapping the kit's .ing row. Inside a .card
    the shell draws every button a pill; the row is the exception — matching that rule's
    specificity and coming later is what wins. */

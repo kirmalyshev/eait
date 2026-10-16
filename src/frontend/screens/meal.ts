@@ -275,6 +275,68 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       fill(mc.phoneFixMeal, {
         name: names(meal.items), kcal: `${kn(meal.kcal)}${UNIT_KCAL[lang]}`, time: mealTime(meal),
       })));
+    if (meal.label) {
+      // A LABEL MEAL'S CORRECTION IS ITS SERVINGS (ieat-app#2087, `phone/pw1-label-servings.html`):
+      // per serving as the panel printed it, the stepper (by halves), the totals those make. The
+      // numbers are `stored / stored servings × n` — shown only; Update sends `{ servings }` ALONE
+      // and the server scales, recomputes the verdicts and the day (none drawn here: they would
+      // describe a total that is not stored yet).
+      const stored = meal.label.servings;
+      const per = (v: number): number => v / stored;
+      const macros = (k: number): string => fill(mc.servingsMacros, {
+        protein: fill(mc.phoneGrams, { n: n(Math.round(per(meal.protein_g) * k)) }),
+        carbs: fill(mc.phoneGrams, { n: n(Math.round(per(meal.carbs_g) * k)) }),
+        fat: fill(mc.phoneGrams, { n: n(Math.round(per(meal.fat_g) * k)) }),
+      });
+      const kcalOf = (k: number): string => `${kn(Math.round(per(meal.kcal) * k))}${UNIT_KCAL[lang]}`;
+      // The contract's `MAX_LABEL_SERVINGS`, spelled here because the bundle may not value-import it;
+      // the server refuses above it, so a drift is a refused Update, never a wrong number.
+      const MAX_SERVINGS = 20;
+      let servings = stored;
+      const count = el("b", "num svnum", num(servings));
+      const totals = el("b", "num d d28");
+      const totalMacros = el("span", "t13 m");
+      const update = el("button", "cta p", mc.phoneUpdate) as HTMLButtonElement;
+      update.type = "button";
+      const sync = (): void => {
+        count.textContent = num(servings);
+        totals.textContent = kcalOf(servings);
+        totalMacros.textContent = macros(servings);
+        update.disabled = servings === stored;
+      };
+      const stepper = (label: string, glyph: string, by: number): HTMLButtonElement => {
+        const b = el("button", "svbtn", glyph) as HTMLButtonElement;
+        b.type = "button";
+        b.setAttribute("aria-label", label);
+        b.addEventListener("click", () => {
+          servings = Math.min(MAX_SERVINGS, Math.max(0.5, servings + by));
+          sync();
+        });
+        return b;
+      };
+      const fewer = stepper(mc.servingsFewer, "−", -0.5);
+      const more = stepper(mc.servingsMore, "+", 0.5);
+      const row = el("div", "row svrow");
+      row.append(el("span", "svlab", mc.servingsLabel), fewer, count, more);
+      const sum = el("div", "row svtotals");
+      sum.append(totals, totalMacros);
+      const cancel = el("button", "cta s", mc.cancelCta) as HTMLButtonElement;
+      cancel.type = "button";
+      cancel.addEventListener("click", closeOverlay);
+      update.addEventListener("click", () => {
+        enqueueUpdate(meal, { kind: "ingredients", edit: { servings } });
+        closeOverlay();
+        location.hash = cameFrom;
+      });
+      const actions = el("div", "row svactions");
+      actions.append(cancel, update);
+      sync();
+      dlg.append(title, named,
+        el("span", "t13 m", fill(mc.servingsPerServing, { kcal: kcalOf(1), macros: macros(1) })),
+        row, sum, actions);
+      scrim.append(dlg);
+      return { node: scrim, focus: more };
+    }
     const field = el("textarea", "fixfield") as HTMLTextAreaElement;
     field.placeholder = mc.composeHint;
     field.value = takeSentNote(meal.id);
