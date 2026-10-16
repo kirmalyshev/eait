@@ -64,6 +64,12 @@ a.mrow .ico { width: 18px; height: 18px; }
 .mu .ul .cap { font-size: 14px; color: var(--muted); margin-top: 6px; }
 .mu .ul .nm { font-size: 28px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
 .mu .ul .cr { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.mu .ul .ula { margin-top: 18px; display: flex; flex-direction: column; align-items: center; }
+.mu .ul .ula .cap { margin-top: 0; }
+.mu .ul .ulc { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 6px; }
+.mu .ul .ulc .chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.mu .ul .ulc img { width: 32px; height: 32px; }
+.mu .ul .ulc .more { height: 32px; min-width: 32px; padding: 0 10px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); justify-content: center; }
 .mu .ulb { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: auto; padding-top: 24px; }
 .mu .ulb button { display: flex; justify-content: center; align-items: center; gap: 8px; height: 54px; border-radius: 27px;
   font-weight: 600; font-size: 16px; cursor: pointer; border: 0; }

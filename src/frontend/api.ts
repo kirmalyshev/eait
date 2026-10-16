@@ -89,6 +89,14 @@ const send = (path: string, init: RequestInit): Promise<Response> => fetch(`/api
 });
 
 /**
+ * A listener told after a WRITE succeeded (the awards check, #2148): the client cannot know which
+ * writes earn a badge, and the server already decides, so any write asks once, a moment later.
+ * Reads, the milestones' own calls and the push plumbing never do, or the check would trigger itself.
+ */
+let writeListener: (() => void) | null = null;
+export const onWrite = (fn: () => void): void => { writeListener = fn; };
+const QUIET_WRITES = /^\/(milestones|push|analytics)/;
+/**
  * One call, and ONE retry behind a bearer that expired.
  *
  * The bearer lives `BROWSER_SESSION_TTL_MS` — twelve hours — while the `/start` session cookie
@@ -125,6 +133,11 @@ async function call(path: string, init: RequestInit): Promise<Response> {
   if (!res.ok) {
     const body = await res.json().catch(() => null) as ErrorResponse | null;
     throw new ApiError(res.status, body, `${init.method ?? "GET"} ${path}: ${res.status}`);
+  }
+  // A streamed turn has only begun here: its answer, and the meal it writes, come at the END of the
+  // stream, so `apiStream` reports its own write.
+  if ((init.method ?? "GET") !== "GET" && !QUIET_WRITES.test(path) && new Headers(init.headers).get("accept") !== STREAM) {
+    writeListener?.();
   }
   return res;
 }
@@ -197,6 +210,7 @@ export async function apiStream<T>(path: string, init: RequestInit = {}, onLine?
   // Closed with no result: the turn may have run to the end anyway, which is a transport failure's
   // wording, not a refusal's.
   if (last === undefined) throw new Error(`${init.method ?? "GET"} ${path}: the stream ended with no answer`);
+  if ((init.method ?? "GET") !== "GET" && !QUIET_WRITES.test(path)) writeListener?.();
   return JSON.parse(last) as T;
 }
 

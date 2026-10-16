@@ -54,7 +54,10 @@ export interface MilestonesCopy {
     ended: StreakLine;
   };
   unlock: {
+    /** The caption over the badge: "Congrats! New award" (#2148). */
     heading: string;
+    /** The label over the others, when two or more were earned at once. */
+    otherAwards: string;
     share: string;
     viewAll: string;
     notEnjoying: string;
@@ -109,7 +112,8 @@ const EN: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Badge Unlocked",
+    heading: "Congrats! New award",
+    otherAwards: "Other awards",
     share: "Share Your Badge",
     viewAll: "View All Badges",
     notEnjoying: "Not enjoying badge celebrations?",
@@ -164,7 +168,8 @@ const FR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Badge débloqué",
+    heading: "Bravo ! Nouvelle récompense",
+    otherAwards: "Autres récompenses",
     share: "Partager mon badge",
     viewAll: "Voir tous les badges",
     notEnjoying: "Les célébrations de badges ne te plaisent pas ?",
@@ -219,7 +224,8 @@ const DE: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Abzeichen freigeschaltet",
+    heading: "Glückwunsch! Neue Auszeichnung",
+    otherAwards: "Weitere Auszeichnungen",
     share: "Abzeichen teilen",
     viewAll: "Alle Abzeichen ansehen",
     notEnjoying: "Gefallen dir die Abzeichen-Feiern nicht?",
@@ -274,7 +280,8 @@ const IT: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Badge sbloccato",
+    heading: "Complimenti! Nuovo premio",
+    otherAwards: "Altri premi",
     share: "Condividi il badge",
     viewAll: "Vedi tutti i badge",
     notEnjoying: "Non ti piacciono le celebrazioni dei badge?",
@@ -329,7 +336,8 @@ const ES: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Insignia desbloqueada",
+    heading: "¡Felicidades! Nuevo premio",
+    otherAwards: "Otros premios",
     share: "Compartir tu insignia",
     viewAll: "Ver todas las insignias",
     notEnjoying: "¿No te gustan las celebraciones de insignias?",
@@ -384,7 +392,8 @@ const VI: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Đã mở khóa huy hiệu",
+    heading: "Chúc mừng! Giải thưởng mới",
+    otherAwards: "Giải thưởng khác",
     share: "Chia sẻ huy hiệu",
     viewAll: "Xem tất cả huy hiệu",
     notEnjoying: "Không thích màn chúc mừng huy hiệu?",
@@ -439,7 +448,8 @@ const ID: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Lencana terbuka",
+    heading: "Selamat! Penghargaan baru",
+    otherAwards: "Penghargaan lainnya",
     share: "Bagikan lencana",
     viewAll: "Lihat semua lencana",
     notEnjoying: "Tidak suka perayaan lencana?",
@@ -494,7 +504,8 @@ const RU: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Значок открыт",
+    heading: "Поздравляю! Новая ачивка",
+    otherAwards: "Другие ачивки",
     share: "Поделиться значком",
     viewAll: "Все значки",
     notEnjoying: "Не нравятся праздники значков?",
@@ -549,7 +560,8 @@ const TE: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "బ్యాడ్జ్ అన్‌లాక్ అయింది",
+    heading: "అభినందనలు! కొత్త అవార్డు",
+    otherAwards: "ఇతర అవార్డులు",
     share: "మీ బ్యాడ్జ్‌ను షేర్ చేయండి",
     viewAll: "అన్ని బ్యాడ్జ్‌లను చూడండి",
     notEnjoying: "బ్యాడ్జ్ సంబరాలు నచ్చడం లేదా?",
@@ -604,7 +616,8 @@ const TA: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "பேட்ஜ் திறக்கப்பட்டது",
+    heading: "வாழ்த்துகள்! புதிய விருது",
+    otherAwards: "பிற விருதுகள்",
     share: "உங்கள் பேட்ஜைப் பகிர்",
     viewAll: "அனைத்து பேட்ஜ்களையும் பார்",
     notEnjoying: "பேட்ஜ் கொண்டாட்டங்கள் பிடிக்கவில்லையா?",
@@ -659,7 +672,8 @@ const PA: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ਬੈਜ ਅਨਲੌਕ ਹੋਇਆ",
+    heading: "ਵਧਾਈਆਂ! ਨਵਾਂ ਪੁਰਸਕਾਰ",
+    otherAwards: "ਹੋਰ ਪੁਰਸਕਾਰ",
     share: "ਆਪਣਾ ਬੈਜ ਸ਼ੇਅਰ ਕਰੋ",
     viewAll: "ਸਾਰੇ ਬੈਜ ਦੇਖੋ",
     notEnjoying: "ਬੈਜ ਦੇ ਜਸ਼ਨ ਪਸੰਦ ਨਹੀਂ ਆ ਰਹੇ?",
@@ -714,7 +728,8 @@ const OR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ବ୍ୟାଜ୍ ଅନଲକ୍ ହେଲା",
+    heading: "ଅଭିନନ୍ଦନ! ନୂଆ ପୁରସ୍କାର",
+    otherAwards: "ଅନ୍ୟ ପୁରସ୍କାର",
     share: "ଆପଣଙ୍କ ବ୍ୟାଜ୍ ସେୟାର୍ କରନ୍ତୁ",
     viewAll: "ସବୁ ବ୍ୟାଜ୍ ଦେଖନ୍ତୁ",
     notEnjoying: "ବ୍ୟାଜ୍ ଉତ୍ସବ ଭଲ ଲାଗୁନାହିଁ?",
@@ -769,7 +784,8 @@ const MR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "बॅज अनलॉक झाला",
+    heading: "अभिनंदन! नवीन पुरस्कार",
+    otherAwards: "इतर पुरस्कार",
     share: "तुमचा बॅज शेअर करा",
     viewAll: "सर्व बॅज पहा",
     notEnjoying: "बॅज सेलिब्रेशन आवडत नाही?",
@@ -824,7 +840,8 @@ const ML: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ബാഡ്ജ് അൺലോക്ക് ചെയ്തു",
+    heading: "അഭിനന്ദനങ്ങൾ! പുതിയ പുരസ്കാരം",
+    otherAwards: "മറ്റ് പുരസ്കാരങ്ങൾ",
     share: "നിങ്ങളുടെ ബാഡ്ജ് പങ്കിടുക",
     viewAll: "എല്ലാ ബാഡ്ജുകളും കാണുക",
     notEnjoying: "ബാഡ്ജ് ആഘോഷങ്ങൾ ഇഷ്ടമല്ലേ?",
@@ -879,7 +896,8 @@ const KN: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ಬ್ಯಾಡ್ಜ್ ಅನ್‌ಲಾಕ್ ಆಗಿದೆ",
+    heading: "ಅಭಿನಂದನೆಗಳು! ಹೊಸ ಪ್ರಶಸ್ತಿ",
+    otherAwards: "ಇತರ ಪ್ರಶಸ್ತಿಗಳು",
     share: "ನಿಮ್ಮ ಬ್ಯಾಡ್ಜ್ ಹಂಚಿಕೊಳ್ಳಿ",
     viewAll: "ಎಲ್ಲಾ ಬ್ಯಾಡ್ಜ್‌ಗಳನ್ನು ನೋಡಿ",
     notEnjoying: "ಬ್ಯಾಡ್ಜ್ ಸಂಭ್ರಮ ಇಷ್ಟವಾಗುತ್ತಿಲ್ಲವೇ?",
@@ -934,7 +952,8 @@ const GU: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "બેજ અનલૉક થયો",
+    heading: "અભિનંદન! નવો એવોર્ડ",
+    otherAwards: "અન્ય એવોર્ડ",
     share: "તમારો બેજ શેર કરો",
     viewAll: "બધા બેજ જુઓ",
     notEnjoying: "બેજની ઉજવણી પસંદ નથી આવતી?",
@@ -989,7 +1008,8 @@ const BN: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ব্যাজ আনলক হয়েছে",
+    heading: "অভিনন্দন! নতুন পুরস্কার",
+    otherAwards: "অন্যান্য পুরস্কার",
     share: "আপনার ব্যাজ শেয়ার করুন",
     viewAll: "সব ব্যাজ দেখুন",
     notEnjoying: "ব্যাজ উদযাপন ভালো লাগছে না?",
@@ -1044,7 +1064,8 @@ const PT_PT: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Medalha desbloqueada",
+    heading: "Parabéns! Novo prémio",
+    otherAwards: "Outros prémios",
     share: "Partilhar a tua medalha",
     viewAll: "Ver todas as medalhas",
     notEnjoying: "Não gostas das celebrações de medalhas?",
@@ -1099,7 +1120,8 @@ const MS: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Lencana Dibuka Kunci",
+    heading: "Tahniah! Anugerah baharu",
+    otherAwards: "Anugerah lain",
     share: "Kongsi Lencana Anda",
     viewAll: "Lihat Semua Lencana",
     notEnjoying: "Tidak suka sambutan lencana?",
@@ -1154,7 +1176,8 @@ const CA: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Insígnia desbloquejada",
+    heading: "Felicitats! Nou premi",
+    otherAwards: "Altres premis",
     share: "Comparteix la insígnia",
     viewAll: "Veure totes les insígnies",
     notEnjoying: "No t'agraden les celebracions d'insígnies?",
@@ -1209,7 +1232,8 @@ const SL: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Značka odklenjena",
+    heading: "Čestitke! Nova nagrada",
+    otherAwards: "Druge nagrade",
     share: "Deli svojo značko",
     viewAll: "Vse značke",
     notEnjoying: "Ti praznovanja značk niso všeč?",
@@ -1264,7 +1288,8 @@ const HR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Značka otključana",
+    heading: "Čestitam! Nova nagrada",
+    otherAwards: "Ostale nagrade",
     share: "Podijeli značku",
     viewAll: "Pogledaj sve značke",
     notEnjoying: "Ne sviđaju ti se proslave znački?",
@@ -1319,7 +1344,8 @@ const SK: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Odznak odomknutý",
+    heading: "Gratulujem! Nové ocenenie",
+    otherAwards: "Ďalšie ocenenia",
     share: "Zdieľať odznak",
     viewAll: "Zobraziť všetky odznaky",
     notEnjoying: "Nebavia ťa oslavy odznakov?",
@@ -1374,7 +1400,8 @@ const NO: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Merke låst opp",
+    heading: "Gratulerer! Ny utmerkelse",
+    otherAwards: "Andre utmerkelser",
     share: "Del merket ditt",
     viewAll: "Se alle merker",
     notEnjoying: "Liker du ikke merkefeiringer?",
@@ -1429,7 +1456,8 @@ const FI: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Merkki avattu",
+    heading: "Onnittelut! Uusi palkinto",
+    otherAwards: "Muut palkinnot",
     share: "Jaa merkkisi",
     viewAll: "Näytä kaikki merkit",
     notEnjoying: "Etkö pidä merkkijuhlista?",
@@ -1484,7 +1512,8 @@ const DA: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Mærke låst op",
+    heading: "Tillykke! Ny udmærkelse",
+    otherAwards: "Andre udmærkelser",
     share: "Del dit mærke",
     viewAll: "Se alle mærker",
     notEnjoying: "Bryder du dig ikke om mærkefejringer?",
@@ -1539,7 +1568,8 @@ const HU: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Jelvény feloldva",
+    heading: "Gratulálunk! Új díj",
+    otherAwards: "További díjak",
     share: "Jelvény megosztása",
     viewAll: "Összes jelvény",
     notEnjoying: "Nem tetszik a jelvényünneplés?",
@@ -1594,7 +1624,8 @@ const EL: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Νέο σήμα ξεκλειδώθηκε",
+    heading: "Συγχαρητήρια! Νέο βραβείο",
+    otherAwards: "Άλλα βραβεία",
     share: "Κοινοποίησε το σήμα σου",
     viewAll: "Δες όλα τα σήματα",
     notEnjoying: "Δεν σου αρέσουν οι γιορτές για τα σήματα;",
@@ -1649,7 +1680,8 @@ const RO: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Insignă deblocată",
+    heading: "Felicitări! Premiu nou",
+    otherAwards: "Alte premii",
     share: "Distribuie insigna",
     viewAll: "Vezi toate insignele",
     notEnjoying: "Nu-ți plac celebrările insignelor?",
@@ -1704,7 +1736,8 @@ const CS: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Odznak odemčen",
+    heading: "Gratuluju! Nové ocenění",
+    otherAwards: "Další ocenění",
     share: "Sdílej svůj odznak",
     viewAll: "Zobrazit všechny odznaky",
     notEnjoying: "Oslavy odznaků tě nebaví?",
@@ -1759,7 +1792,8 @@ const HI: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "बैज अनलॉक हुआ",
+    heading: "बधाई हो! नया पुरस्कार",
+    otherAwards: "अन्य पुरस्कार",
     share: "अपना बैज शेयर करें",
     viewAll: "सभी बैज देखें",
     notEnjoying: "बैज के जश्न पसंद नहीं आ रहे?",
@@ -1814,7 +1848,8 @@ const TH: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "ปลดล็อกเหรียญแล้ว",
+    heading: "ยินดีด้วย! ได้รับรางวัลใหม่",
+    otherAwards: "รางวัลอื่น ๆ",
     share: "แชร์เหรียญของคุณ",
     viewAll: "ดูเหรียญทั้งหมด",
     notEnjoying: "ไม่ชอบการฉลองเหรียญใช่ไหม?",
@@ -1869,7 +1904,8 @@ const SV: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Märke upplåst",
+    heading: "Grattis! Ny utmärkelse",
+    otherAwards: "Andra utmärkelser",
     share: "Dela ditt märke",
     viewAll: "Visa alla märken",
     notEnjoying: "Gillar du inte märkesfirandet?",
@@ -1924,7 +1960,8 @@ const UK: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Значок відкрито",
+    heading: "Вітаю! Нова нагорода",
+    otherAwards: "Інші нагороди",
     share: "Поділитися значком",
     viewAll: "Усі значки",
     notEnjoying: "Не подобаються святкування значків?",
@@ -1979,7 +2016,8 @@ const NL: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Badge ontgrendeld",
+    heading: "Gefeliciteerd! Nieuwe onderscheiding",
+    otherAwards: "Andere onderscheidingen",
     share: "Deel je badge",
     viewAll: "Bekijk alle badges",
     notEnjoying: "Geen fan van badgevieringen?",
@@ -2034,7 +2072,8 @@ const PL: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Odznaka odblokowana",
+    heading: "Gratulacje! Nowa nagroda",
+    otherAwards: "Inne nagrody",
     share: "Udostępnij odznakę",
     viewAll: "Zobacz wszystkie odznaki",
     notEnjoying: "Nie lubisz świętowania odznak?",
@@ -2089,7 +2128,8 @@ const TR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Rozet Açıldı",
+    heading: "Tebrikler! Yeni ödül",
+    otherAwards: "Diğer ödüller",
     share: "Rozetini Paylaş",
     viewAll: "Tüm Rozetleri Gör",
     notEnjoying: "Rozet kutlamalarını sevmedin mi?",
@@ -2144,7 +2184,8 @@ const ZH_HANT: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "徽章已解鎖",
+    heading: "恭喜！獲得新獎項",
+    otherAwards: "其他獎項",
     share: "分享你的徽章",
     viewAll: "查看所有徽章",
     notEnjoying: "不喜歡徽章慶祝畫面？",
@@ -2199,7 +2240,8 @@ const ZH_HANS: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "徽章已解锁",
+    heading: "恭喜！获得新奖项",
+    otherAwards: "其他奖项",
     share: "分享你的徽章",
     viewAll: "查看所有徽章",
     notEnjoying: "不喜欢徽章庆祝？",
@@ -2254,7 +2296,8 @@ const KO: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "배지 획득",
+    heading: "축하해요! 새로운 상",
+    otherAwards: "다른 상",
     share: "배지 공유하기",
     viewAll: "모든 배지 보기",
     notEnjoying: "배지 축하 화면이 별로인가요?",
@@ -2309,7 +2352,8 @@ const JA: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "バッジを獲得しました",
+    heading: "おめでとう！新しい賞",
+    otherAwards: "ほかの賞",
     share: "バッジをシェア",
     viewAll: "すべてのバッジを見る",
     notEnjoying: "バッジのお祝い表示が気になりますか？",
@@ -2364,7 +2408,8 @@ const PT_BR: MilestonesCopy = {
     },
   },
   unlock: {
-    heading: "Selo desbloqueado",
+    heading: "Parabéns! Novo prêmio",
+    otherAwards: "Outros prêmios",
     share: "Compartilhar seu selo",
     viewAll: "Ver todos os selos",
     notEnjoying: "Não curte as comemorações de selos?",
