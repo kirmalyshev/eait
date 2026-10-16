@@ -76,6 +76,14 @@ export async function onboard(page: Page, extra: Record<string, string | string[
   const answers: Record<string, string | string[]> = { ...ANSWERS, ...extra };
   for (let i = 0; i < 40; i++) {
     if (/\/start\/plan/.test(page.url())) return;
+    // The click that ended the last turn only STARTED a navigation: counting elements now can see
+    // neither a question nor a Continue link, read that as "nothing left to answer" and stop on a
+    // moment card (the ontrack one, under load). Wait for what the next page is made of first.
+    await Promise.race([
+      page.locator('input[name="prompt"], a.cta').first().waitFor({ timeout: 5000 }),
+      page.waitForURL(/\/start\/plan/, { timeout: 5000 }),
+    ]).catch(() => {});
+    if (/\/start\/plan/.test(page.url())) return;
     const promptEl = page.locator('input[name="prompt"]').first();
     const prompt = (await promptEl.count()) ? await promptEl.getAttribute("value") : null;
     if (!prompt) {
