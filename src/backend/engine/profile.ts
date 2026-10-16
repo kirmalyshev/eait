@@ -306,7 +306,7 @@ export async function patchProfile(
     if (v !== null && !(Number.isInteger(v) && v >= 1 && v <= max)) return reject(key, "out-of-range");
     patch[key] = v;
   }
-  for (const key of ["milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover"] as const) {
+  for (const key of ["milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "meal_focus_offer"] as const) {
     const v = req[key];
     if (v === undefined) continue;
     if (typeof v !== "boolean") return reject(key, "out-of-range");

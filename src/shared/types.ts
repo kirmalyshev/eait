@@ -149,6 +149,8 @@ export interface Profile {
   addback_burned: boolean;
   /** Roll up to 200 kcal of yesterday's unspent plan into today's goal (#912). Default true. */
   addback_rollover: boolean;
+  /** Offer a phone break after a logged meal (ieat-app#2129). Default true; the app Settings switch. */
+  meal_focus_offer: boolean;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
   /**
