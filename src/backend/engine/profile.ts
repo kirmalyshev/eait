@@ -299,7 +299,7 @@ export async function patchProfile(
     }
     patch.streak_goal_days = req.streak_goal_days;
   }
-  for (const key of ["milestone_celebrations", "streak_on_home", "addback_burned"] as const) {
+  for (const key of ["milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover"] as const) {
     const v = req[key];
     if (v === undefined) continue;
     if (typeof v !== "boolean") return reject(key, "out-of-range");

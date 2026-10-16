@@ -17,6 +17,7 @@ function basis(over: Partial<TargetBasis> = {}): TargetBasis {
     floorApplied: false,
     usedFallbackBand: false,
     burnedAddKcal: 0,
+    rolloverAddKcal: 0,
     planKcal: 1500,
     ...over,
   };

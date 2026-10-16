@@ -691,7 +691,7 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
         leftRow("salt", L.macros.sodium.name, day.totals.sodium_mg, day.targets.sodium_mg, { mg: true }),
       );
     }
-    const gl = day === null ? null : goalLine(day);
+    const gl = day === null ? null : goalLine(day, me.profile);
     p1.append(kcalHero(day, rich), ...(gl === null ? [] : [gl]), el("div", "hl"), rowsOne);
     p2.append(scoreHero(day), el("div", "hl"), rowsTwo);
     track.append(p1, p2);

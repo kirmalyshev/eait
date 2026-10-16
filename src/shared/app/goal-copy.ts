@@ -1,7 +1,7 @@
 // The daily-goal words (#911; boards `*-pw3-*`): the line under Home's hero, the sum it opens and
 // the switch on Profile. Eight languages are Kirill's approved copy (14 Oct 22:30, ~/eait-fleet/
-// w3-targets-copy.md); `homeLine` is that table's line without its " + yesterday {r}" part, which
-// arrives with the rollover (#912). The rest are drafts for the localizer pass.
+// w3-targets-copy.md); `homeLine` is that table's line without its " + yesterday {r}" part;
+// the rollover's (#912) lines are `homeLineBoth` and `homeLineYesterday`. The rest are drafts for the localizer pass.
 
 import { t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
@@ -9,6 +9,10 @@ import type { Lang } from "../types.ts";
 export interface GoalCopy {
   /** `{plan}` `{b}` — the quiet line under the hero. */
   homeLine: string;
+  /** `{plan}` `{b}` `{r}` — the same line when yesterday's rollover joined (#912). */
+  homeLineBoth: string;
+  /** `{plan}` `{r}` — the line when only the rollover did. */
+  homeLineYesterday: string;
   /** The sum's first row. */
   plan: string;
   burned: string;
@@ -26,6 +30,12 @@ export interface GoalCopy {
   prefsTitle: string;
   prefsBurned: string;
   prefsBurnedSub: string;
+  /** The sum's rollover row and its cap line (#912). */
+  rollover: string;
+  rolloverSub: string;
+  /** Profile's second switch. */
+  prefsRollover: string;
+  prefsRolloverSub: string;
 }
 
 export const GOAL_COPY: Localized<GoalCopy> = {
@@ -42,6 +52,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Your daily goal",
     prefsBurned: "Add burned calories",
     prefsBurnedSub: "Adds what you burn beyond your usual days, up to 500 kcal.",
+    homeLineBoth: "Plan {plan} + burned {b} + yesterday {r}",
+    homeLineYesterday: "Plan {plan} + yesterday {r}",
+    rollover: "Left from yesterday",
+    rolloverSub: "Up to 200",
+    prefsRollover: "Roll over calories",
+    prefsRolloverSub: "Adds up to 200 kcal you didn't eat yesterday.",
   },
   de: {
     homeLine: "Plan {plan} + verbrannt {b}",
@@ -56,6 +72,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Dein Tagesziel",
     prefsBurned: "Verbrannte Kalorien hinzufügen",
     prefsBurnedSub: "Fügt hinzu, was du über deine üblichen Tage hinaus verbrennst, bis zu 500 kcal.",
+    homeLineBoth: "Plan {plan} + verbrannt {b} + gestern {r}",
+    homeLineYesterday: "Plan {plan} + gestern {r}",
+    rollover: "Von gestern übrig",
+    rolloverSub: "Bis zu 200",
+    prefsRollover: "Kalorien übertragen",
+    prefsRolloverSub: "Fügt bis zu 200 kcal hinzu, die du gestern nicht gegessen hast.",
   },
   fr: {
     homeLine: "Plan {plan} + brûlées {b}",
@@ -70,6 +92,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Ton objectif du jour",
     prefsBurned: "Ajouter les calories brûlées",
     prefsBurnedSub: "Ajoute ce que tu brûles en plus de tes jours habituels, jusqu'à 500 kcal.",
+    homeLineBoth: "Plan {plan} + brûlées {b} + hier {r}",
+    homeLineYesterday: "Plan {plan} + hier {r}",
+    rollover: "Report d'hier",
+    rolloverSub: "Jusqu'à 200",
+    prefsRollover: "Reporter les calories",
+    prefsRolloverSub: "Ajoute jusqu'à 200 kcal que tu n'as pas mangées hier.",
   },
   it: {
     homeLine: "Piano {plan} + bruciate {b}",
@@ -84,6 +112,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Il tuo obiettivo giornaliero",
     prefsBurned: "Aggiungi le calorie bruciate",
     prefsBurnedSub: "Aggiunge ciò che bruci oltre le tue giornate abituali, fino a 500 kcal.",
+    homeLineBoth: "Piano {plan} + bruciate {b} + ieri {r}",
+    homeLineYesterday: "Piano {plan} + ieri {r}",
+    rollover: "Avanzate da ieri",
+    rolloverSub: "Fino a 200",
+    prefsRollover: "Riporta le calorie",
+    prefsRolloverSub: "Aggiunge fino a 200 kcal che non hai mangiato ieri.",
   },
   es: {
     homeLine: "Plan {plan} + quemadas {b}",
@@ -98,6 +132,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Tu objetivo diario",
     prefsBurned: "Sumar calorías quemadas",
     prefsBurnedSub: "Suma lo que quemas por encima de tus días habituales, hasta 500 kcal.",
+    homeLineBoth: "Plan {plan} + quemadas {b} + ayer {r}",
+    homeLineYesterday: "Plan {plan} + ayer {r}",
+    rollover: "Sobrante de ayer",
+    rolloverSub: "Hasta 200",
+    prefsRollover: "Trasladar calorías",
+    prefsRolloverSub: "Suma hasta 200 kcal que no comiste ayer.",
   },
   ru: {
     homeLine: "План {plan} + сожжено {b}",
@@ -112,6 +152,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Твоя дневная цель",
     prefsBurned: "Добавлять сожжённые калории",
     prefsBurnedSub: "Добавляет то, что ты сжигаешь сверх обычных дней, до 500 ккал.",
+    homeLineBoth: "План {plan} + сожжено {b} + вчера {r}",
+    homeLineYesterday: "План {plan} + вчера {r}",
+    rollover: "Осталось со вчера",
+    rolloverSub: "До 200",
+    prefsRollover: "Переносить калории",
+    prefsRolloverSub: "Добавляет до 200 ккал, не съеденных вчера.",
   },
   id: {
     homeLine: "Rencana {plan} + terbakar {b}",
@@ -126,6 +172,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Target harianmu",
     prefsBurned: "Tambahkan kalori terbakar",
     prefsBurnedSub: "Menambahkan kalori yang kamu bakar di atas hari-hari biasamu, maksimal 500 kkal.",
+    homeLineBoth: "Rencana {plan} + terbakar {b} + kemarin {r}",
+    homeLineYesterday: "Rencana {plan} + kemarin {r}",
+    rollover: "Sisa kemarin",
+    rolloverSub: "Hingga 200",
+    prefsRollover: "Bawa sisa kalori",
+    prefsRolloverSub: "Menambahkan hingga 200 kkal yang tidak kamu makan kemarin.",
   },
   vi: {
     homeLine: "Kế hoạch {plan} + đã đốt {b}",
@@ -140,6 +192,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Mục tiêu mỗi ngày",
     prefsBurned: "Cộng calo đã đốt",
     prefsBurnedSub: "Cộng phần bạn đốt thêm so với ngày thường, tối đa 500 kcal.",
+    homeLineBoth: "Kế hoạch {plan} + đã đốt {b} + hôm qua {r}",
+    homeLineYesterday: "Kế hoạch {plan} + hôm qua {r}",
+    rollover: "Còn lại từ hôm qua",
+    rolloverSub: "Tối đa 200",
+    prefsRollover: "Chuyển calo sang hôm sau",
+    prefsRolloverSub: "Cộng tối đa 200 kcal bạn chưa ăn hôm qua.",
   },
   "pt-BR": {
     homeLine: "Plano {plan} + queimadas {b}",
@@ -154,6 +212,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Sua meta diária",
     prefsBurned: "Somar calorias queimadas",
     prefsBurnedSub: "Soma o que você queima além dos seus dias habituais, até 500 kcal.",
+    homeLineBoth: "Plano {plan} + queimadas {b} + ontem {r}",
+    homeLineYesterday: "Plano {plan} + ontem {r}",
+    rollover: "Sobra de ontem",
+    rolloverSub: "Até 200",
+    prefsRollover: "Transferir calorias",
+    prefsRolloverSub: "Soma até 200 kcal que você não comeu ontem.",
   },
   ja: {
     homeLine: "プラン {plan} + 消費 {b}",
@@ -168,6 +232,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "1日の目標",
     prefsBurned: "消費カロリーを加える",
     prefsBurnedSub: "普段の日より多く消費した分を、最大 500 kcal まで加えます。",
+    homeLineBoth: "プラン {plan} + 消費 {b} + 昨日 {r}",
+    homeLineYesterday: "プラン {plan} + 昨日 {r}",
+    rollover: "昨日の残り",
+    rolloverSub: "最大 200",
+    prefsRollover: "カロリーを持ち越す",
+    prefsRolloverSub: "昨日食べなかった分を、最大 200 kcal まで加えます。",
   },
   ko: {
     homeLine: "플랜 {plan} + 소모 {b}",
@@ -182,6 +252,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "내 하루 목표",
     prefsBurned: "소모 칼로리 더하기",
     prefsBurnedSub: "평소보다 더 소모한 만큼을 최대 500 kcal까지 더해요.",
+    homeLineBoth: "플랜 {plan} + 소모 {b} + 어제 {r}",
+    homeLineYesterday: "플랜 {plan} + 어제 {r}",
+    rollover: "어제 남은 양",
+    rolloverSub: "최대 200",
+    prefsRollover: "칼로리 이월하기",
+    prefsRolloverSub: "어제 먹지 않은 칼로리를 최대 200 kcal까지 더해요.",
   },
   "zh-Hans": {
     homeLine: "计划 {plan} + 消耗 {b}",
@@ -196,6 +272,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "你的每日目标",
     prefsBurned: "加上消耗的热量",
     prefsBurnedSub: "加上你比平时多消耗的部分，最多 500 千卡。",
+    homeLineBoth: "计划 {plan} + 消耗 {b} + 昨天 {r}",
+    homeLineYesterday: "计划 {plan} + 昨天 {r}",
+    rollover: "昨天剩余",
+    rolloverSub: "最多 200",
+    prefsRollover: "结转卡路里",
+    prefsRolloverSub: "加上你昨天没吃的部分，最多 200 千卡。",
   },
   "zh-Hant": {
     homeLine: "計畫 {plan} + 消耗 {b}",
@@ -210,6 +292,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "你的每日目標",
     prefsBurned: "加上消耗的熱量",
     prefsBurnedSub: "加上你比平常多消耗的部分，最多 500 大卡。",
+    homeLineBoth: "計畫 {plan} + 消耗 {b} + 昨天 {r}",
+    homeLineYesterday: "計畫 {plan} + 昨天 {r}",
+    rollover: "昨天剩餘",
+    rolloverSub: "最多 200",
+    prefsRollover: "結轉卡路里",
+    prefsRolloverSub: "加上你昨天沒吃的部分，最多 200 大卡。",
   },
   tr: {
     homeLine: "Plan {plan} + yakılan {b}",
@@ -224,6 +312,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Günlük hedefin",
     prefsBurned: "Yakılan kalorileri ekle",
     prefsBurnedSub: "Normal günlerinden fazla yaktığını ekler, en fazla 500 kcal.",
+    homeLineBoth: "Plan {plan} + yakılan {b} + dün {r}",
+    homeLineYesterday: "Plan {plan} + dün {r}",
+    rollover: "Dünden kalan",
+    rolloverSub: "En fazla 200",
+    prefsRollover: "Kalorileri devret",
+    prefsRolloverSub: "Dün yemediğin en fazla 200 kcal'i ekler.",
   },
   pl: {
     homeLine: "Plan {plan} + spalone {b}",
@@ -238,6 +332,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Twój cel dzienny",
     prefsBurned: "Dodaj spalone kalorie",
     prefsBurnedSub: "Dodaje to, co spalasz więcej niż w zwykłe dni, do 500 kcal.",
+    homeLineBoth: "Plan {plan} + spalone {b} + wczoraj {r}",
+    homeLineYesterday: "Plan {plan} + wczoraj {r}",
+    rollover: "Zostało z wczoraj",
+    rolloverSub: "Do 200",
+    prefsRollover: "Przenoś kalorie",
+    prefsRolloverSub: "Dodaje do 200 kcal niezjedzonych wczoraj.",
   },
   nl: {
     homeLine: "Plan {plan} + verbrand {b}",
@@ -252,6 +352,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Jouw dagdoel",
     prefsBurned: "Verbrande calorieën toevoegen",
     prefsBurnedSub: "Voegt toe wat je meer verbrandt dan op je gewone dagen, tot 500 kcal.",
+    homeLineBoth: "Plan {plan} + verbrand {b} + gisteren {r}",
+    homeLineYesterday: "Plan {plan} + gisteren {r}",
+    rollover: "Over van gisteren",
+    rolloverSub: "Tot 200",
+    prefsRollover: "Calorieën doorschuiven",
+    prefsRolloverSub: "Voegt tot 200 kcal toe die je gisteren niet hebt gegeten.",
   },
   uk: {
     homeLine: "План {plan} + спалено {b}",
@@ -266,6 +372,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Твоя денна ціль",
     prefsBurned: "Додавати спалені калорії",
     prefsBurnedSub: "Додає те, що ти спалюєш понад звичайні дні, до 500 ккал.",
+    homeLineBoth: "План {plan} + спалено {b} + вчора {r}",
+    homeLineYesterday: "План {plan} + вчора {r}",
+    rollover: "Залишилось з учора",
+    rolloverSub: "До 200",
+    prefsRollover: "Переносити калорії",
+    prefsRolloverSub: "Додає до 200 ккал, не з'їдених учора.",
   },
   sv: {
     homeLine: "Plan {plan} + förbränt {b}",
@@ -280,6 +392,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Ditt dagliga mål",
     prefsBurned: "Lägg till förbrända kalorier",
     prefsBurnedSub: "Lägger till det du förbränner mer än en vanlig dag, upp till 500 kcal.",
+    homeLineBoth: "Plan {plan} + förbränt {b} + igår {r}",
+    homeLineYesterday: "Plan {plan} + igår {r}",
+    rollover: "Kvar från igår",
+    rolloverSub: "Upp till 200",
+    prefsRollover: "För över kalorier",
+    prefsRolloverSub: "Lägger till upp till 200 kcal som du inte åt igår.",
   },
   th: {
     homeLine: "แผน {plan} + เผาผลาญ {b}",
@@ -294,6 +412,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "เป้าหมายรายวันของคุณ",
     prefsBurned: "เพิ่มแคลอรีที่เผาผลาญ",
     prefsBurnedSub: "เพิ่มส่วนที่คุณเผาผลาญเกินวันปกติ สูงสุด 500 กิโลแคลอรี",
+    homeLineBoth: "แผน {plan} + เผาผลาญ {b} + เมื่อวาน {r}",
+    homeLineYesterday: "แผน {plan} + เมื่อวาน {r}",
+    rollover: "เหลือจากเมื่อวาน",
+    rolloverSub: "สูงสุด 200",
+    prefsRollover: "ยกยอดแคลอรี",
+    prefsRolloverSub: "เพิ่มส่วนที่คุณไม่ได้กินเมื่อวาน สูงสุด 200 กิโลแคลอรี",
   },
   hi: {
     homeLine: "प्लान {plan} + बर्न {b}",
@@ -308,6 +432,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "तुम्हारा रोज़ का लक्ष्य",
     prefsBurned: "बर्न की हुई कैलोरी जोड़ो",
     prefsBurnedSub: "आम दिनों से ज़्यादा जो तुम बर्न करते हो, वह जोड़ता है, अधिकतम 500 kcal तक।",
+    homeLineBoth: "प्लान {plan} + बर्न {b} + कल {r}",
+    homeLineYesterday: "प्लान {plan} + कल {r}",
+    rollover: "कल का बचा",
+    rolloverSub: "अधिकतम 200",
+    prefsRollover: "कैलोरी आगे बढ़ाओ",
+    prefsRolloverSub: "कल जो नहीं खाया, वह जोड़ता है, अधिकतम 200 kcal तक।",
   },
   cs: {
     homeLine: "Plán {plan} + spáleno {b}",
@@ -322,6 +452,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Tvůj denní cíl",
     prefsBurned: "Přičítat spálené kalorie",
     prefsBurnedSub: "Přičte, co spálíš navíc oproti běžným dnům, až 500 kcal.",
+    homeLineBoth: "Plán {plan} + spáleno {b} + včera {r}",
+    homeLineYesterday: "Plán {plan} + včera {r}",
+    rollover: "Zbylo ze včera",
+    rolloverSub: "Až 200",
+    prefsRollover: "Přenášet kalorie",
+    prefsRolloverSub: "Přičte až 200 kcal, které zbyly ze včerejška.",
   },
   ro: {
     homeLine: "Plan {plan} + arse {b}",
@@ -336,6 +472,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Obiectivul tău zilnic",
     prefsBurned: "Adaugă caloriile arse",
     prefsBurnedSub: "Adaugă ce arzi peste zilele tale obișnuite, până la 500 kcal.",
+    homeLineBoth: "Plan {plan} + arse {b} + ieri {r}",
+    homeLineYesterday: "Plan {plan} + ieri {r}",
+    rollover: "Rămase de ieri",
+    rolloverSub: "Până la 200",
+    prefsRollover: "Transferă caloriile",
+    prefsRolloverSub: "Adaugă până la 200 kcal pe care nu le-ai mâncat ieri.",
   },
   el: {
     homeLine: "Πλάνο {plan} + κάηκαν {b}",
@@ -350,6 +492,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Ο ημερήσιος στόχος σου",
     prefsBurned: "Πρόσθεσε τις θερμίδες που κάηκαν",
     prefsBurnedSub: "Προσθέτει όσα καις πάνω από τις συνηθισμένες μέρες σου, έως 500 kcal.",
+    homeLineBoth: "Πλάνο {plan} + κάηκαν {b} + χθες {r}",
+    homeLineYesterday: "Πλάνο {plan} + χθες {r}",
+    rollover: "Υπόλοιπο από χθες",
+    rolloverSub: "Έως 200",
+    prefsRollover: "Μεταφορά θερμίδων",
+    prefsRolloverSub: "Προσθέτει έως 200 kcal που δεν έφαγες χθες.",
   },
   hu: {
     homeLine: "Terv {plan} + elégetett {b}",
@@ -364,6 +512,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Napi célod",
     prefsBurned: "Elégetett kalóriák hozzáadása",
     prefsBurnedSub: "Hozzáadja, amit a szokásos napjaidon felül égetsz el, legfeljebb 500 kcal.",
+    homeLineBoth: "Terv {plan} + elégetett {b} + tegnap {r}",
+    homeLineYesterday: "Terv {plan} + tegnap {r}",
+    rollover: "Tegnapról maradt",
+    rolloverSub: "Legfeljebb 200",
+    prefsRollover: "Kalóriák átvitele",
+    prefsRolloverSub: "Hozzáad legfeljebb 200 kcal-t, amit tegnap nem ettél meg.",
   },
   da: {
     homeLine: "Plan {plan} + forbrændt {b}",
@@ -378,6 +532,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Dit daglige mål",
     prefsBurned: "Tilføj forbrændte kalorier",
     prefsBurnedSub: "Tilføjer det, du forbrænder ud over dine sædvanlige dage, op til 500 kcal.",
+    homeLineBoth: "Plan {plan} + forbrændt {b} + i går {r}",
+    homeLineYesterday: "Plan {plan} + i går {r}",
+    rollover: "Til overs fra i går",
+    rolloverSub: "Op til 200",
+    prefsRollover: "Overfør kalorier",
+    prefsRolloverSub: "Tilføjer op til 200 kcal, du ikke spiste i går.",
   },
   fi: {
     homeLine: "Suunnitelma {plan} + poltettu {b}",
@@ -392,6 +552,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Päivittäinen tavoitteesi",
     prefsBurned: "Lisää poltetut kalorit",
     prefsBurnedSub: "Lisää sen, minkä poltat tavallisia päiviäsi enemmän, enintään 500 kcal.",
+    homeLineBoth: "Suunnitelma {plan} + poltettu {b} + eilen {r}",
+    homeLineYesterday: "Suunnitelma {plan} + eilen {r}",
+    rollover: "Eilisestä jäljellä",
+    rolloverSub: "Enintään 200",
+    prefsRollover: "Siirrä kalorit",
+    prefsRolloverSub: "Lisää enintään 200 kcal, joita et syönyt eilen.",
   },
   no: {
     homeLine: "Plan {plan} + forbrent {b}",
@@ -406,6 +572,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Dagsmålet ditt",
     prefsBurned: "Legg til forbrente kalorier",
     prefsBurnedSub: "Legger til det du forbrenner utover dine vanlige dager, opptil 500 kcal.",
+    homeLineBoth: "Plan {plan} + forbrent {b} + i går {r}",
+    homeLineYesterday: "Plan {plan} + i går {r}",
+    rollover: "Til overs fra i går",
+    rolloverSub: "Opptil 200",
+    prefsRollover: "Overfør kalorier",
+    prefsRolloverSub: "Legger til opptil 200 kcal du ikke spiste i går.",
   },
   sk: {
     homeLine: "Plán {plan} + spálené {b}",
@@ -420,6 +592,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Tvoj denný cieľ",
     prefsBurned: "Pripočítať spálené kalórie",
     prefsBurnedSub: "Pripočíta, čo spáliš navyše oproti bežným dňom, do 500 kcal.",
+    homeLineBoth: "Plán {plan} + spálené {b} + včera {r}",
+    homeLineYesterday: "Plán {plan} + včera {r}",
+    rollover: "Zostalo zo včera",
+    rolloverSub: "Do 200",
+    prefsRollover: "Prenášať kalórie",
+    prefsRolloverSub: "Pripočíta do 200 kcal, ktoré zostali zo včera.",
   },
   hr: {
     homeLine: "Plan {plan} + potrošeno {b}",
@@ -434,6 +612,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Tvoj dnevni cilj",
     prefsBurned: "Dodaj potrošene kalorije",
     prefsBurnedSub: "Dodaje ono što potrošiš povrh uobičajenih dana, do 500 kcal.",
+    homeLineBoth: "Plan {plan} + potrošeno {b} + jučer {r}",
+    homeLineYesterday: "Plan {plan} + jučer {r}",
+    rollover: "Ostalo od jučer",
+    rolloverSub: "Do 200",
+    prefsRollover: "Prijenos kalorija",
+    prefsRolloverSub: "Dodaje do 200 kcal koje jučer nisu pojedene.",
   },
   sl: {
     homeLine: "Načrt {plan} + porabljeno {b}",
@@ -448,6 +632,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Tvoj dnevni cilj",
     prefsBurned: "Dodaj porabljene kalorije",
     prefsBurnedSub: "Doda, kar porabiš več kot ob običajnih dneh, do 500 kcal.",
+    homeLineBoth: "Načrt {plan} + porabljeno {b} + včeraj {r}",
+    homeLineYesterday: "Načrt {plan} + včeraj {r}",
+    rollover: "Ostanek od včeraj",
+    rolloverSub: "Do 200",
+    prefsRollover: "Prenos kalorij",
+    prefsRolloverSub: "Doda do 200 kcal, ki včeraj niso bile pojedene.",
   },
   ca: {
     homeLine: "Pla {plan} + cremades {b}",
@@ -462,6 +652,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "El teu objectiu diari",
     prefsBurned: "Suma les calories cremades",
     prefsBurnedSub: "Suma el que cremes per sobre dels teus dies habituals, fins a 500 kcal.",
+    homeLineBoth: "Pla {plan} + cremades {b} + ahir {r}",
+    homeLineYesterday: "Pla {plan} + ahir {r}",
+    rollover: "Sobrant d'ahir",
+    rolloverSub: "Fins a 200",
+    prefsRollover: "Traslladar calories",
+    prefsRolloverSub: "Suma fins a 200 kcal que no vas menjar ahir.",
   },
   ms: {
     homeLine: "Pelan {plan} + dibakar {b}",
@@ -476,6 +672,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "Sasaran harian kamu",
     prefsBurned: "Tambah kalori yang dibakar",
     prefsBurnedSub: "Menambah apa yang kamu bakar melebihi hari biasa, sehingga 500 kcal.",
+    homeLineBoth: "Pelan {plan} + dibakar {b} + semalam {r}",
+    homeLineYesterday: "Pelan {plan} + semalam {r}",
+    rollover: "Baki semalam",
+    rolloverSub: "Sehingga 200",
+    prefsRollover: "Bawa baki kalori",
+    prefsRolloverSub: "Menambah sehingga 200 kcal yang tidak kamu makan semalam.",
   },
   "pt-PT": {
     homeLine: "Plano {plan} + queimadas {b}",
@@ -490,6 +692,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "O teu objetivo diário",
     prefsBurned: "Somar calorias queimadas",
     prefsBurnedSub: "Soma o que queimas além dos teus dias habituais, até 500 kcal.",
+    homeLineBoth: "Plano {plan} + queimadas {b} + ontem {r}",
+    homeLineYesterday: "Plano {plan} + ontem {r}",
+    rollover: "Sobra de ontem",
+    rolloverSub: "Até 200",
+    prefsRollover: "Transferir calorias",
+    prefsRolloverSub: "Soma até 200 kcal que não comeste ontem.",
   },
   bn: {
     homeLine: "প্ল্যান {plan} + পোড়ানো {b}",
@@ -504,6 +712,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "তোমার দৈনিক লক্ষ্য",
     prefsBurned: "পোড়ানো ক্যালরি যোগ করো",
     prefsBurnedSub: "স্বাভাবিক দিনের চেয়ে বেশি যা পোড়াও তা যোগ করে, সর্বোচ্চ 500 kcal।",
+    homeLineBoth: "প্ল্যান {plan} + পোড়ানো {b} + গতকাল {r}",
+    homeLineYesterday: "প্ল্যান {plan} + গতকাল {r}",
+    rollover: "গতকালের বাকি",
+    rolloverSub: "সর্বোচ্চ 200",
+    prefsRollover: "ক্যালরি জমা রাখো",
+    prefsRolloverSub: "গতকাল যা খাওনি তা যোগ করে, সর্বোচ্চ 200 kcal।",
   },
   gu: {
     homeLine: "પ્લાન {plan} + બર્ન {b}",
@@ -518,6 +732,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "તમારું રોજનું લક્ષ્ય",
     prefsBurned: "બર્ન કરેલી કેલરી ઉમેરો",
     prefsBurnedSub: "સામાન્ય દિવસો કરતાં વધુ તમે જે બર્ન કરો છો તે ઉમેરે છે, વધુમાં વધુ 500 kcal.",
+    homeLineBoth: "પ્લાન {plan} + બર્ન {b} + ગઈકાલ {r}",
+    homeLineYesterday: "પ્લાન {plan} + ગઈકાલ {r}",
+    rollover: "ગઈકાલનું બાકી",
+    rolloverSub: "વધુમાં વધુ 200",
+    prefsRollover: "કેલરી આગળ ધપાવો",
+    prefsRolloverSub: "ગઈકાલે તમે જે ન ખાધું તે ઉમેરે છે, વધુમાં વધુ 200 kcal.",
   },
   kn: {
     homeLine: "ಪ್ಲಾನ್ {plan} + ಸುಟ್ಟದ್ದು {b}",
@@ -532,6 +752,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "ನಿಮ್ಮ ದೈನಂದಿನ ಗುರಿ",
     prefsBurned: "ಸುಟ್ಟ ಕ್ಯಾಲೊರಿ ಸೇರಿಸಿ",
     prefsBurnedSub: "ಸಾಮಾನ್ಯ ದಿನಗಳಿಗಿಂತ ಹೆಚ್ಚು ನೀವು ಸುಡುವುದನ್ನು ಸೇರಿಸುತ್ತದೆ, ಗರಿಷ್ಠ 500 kcal ವರೆಗೆ.",
+    homeLineBoth: "ಪ್ಲಾನ್ {plan} + ಸುಟ್ಟದ್ದು {b} + ನಿನ್ನೆ {r}",
+    homeLineYesterday: "ಪ್ಲಾನ್ {plan} + ನಿನ್ನೆ {r}",
+    rollover: "ನಿನ್ನೆ ಉಳಿದದ್ದು",
+    rolloverSub: "ಗರಿಷ್ಠ 200",
+    prefsRollover: "ಕ್ಯಾಲೊರಿ ಮುಂದಕ್ಕೆ ಒಯ್ಯಿರಿ",
+    prefsRolloverSub: "ನಿನ್ನೆ ನೀವು ತಿನ್ನದಿದ್ದನ್ನು ಸೇರಿಸುತ್ತದೆ, ಗರಿಷ್ಠ 200 kcal ವರೆಗೆ.",
   },
   ml: {
     homeLine: "പ്ലാൻ {plan} + കത്തിച്ചത് {b}",
@@ -546,6 +772,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "നിങ്ങളുടെ ദിവസേനയുള്ള ലക്ഷ്യം",
     prefsBurned: "കത്തിച്ച കലോറി ചേർക്കൂ",
     prefsBurnedSub: "സാധാരണ ദിവസങ്ങളെക്കാൾ കൂടുതൽ നിങ്ങൾ കത്തിക്കുന്നത് ചേർക്കുന്നു, പരമാവധി 500 kcal വരെ.",
+    homeLineBoth: "പ്ലാൻ {plan} + കത്തിച്ചത് {b} + ഇന്നലെ {r}",
+    homeLineYesterday: "പ്ലാൻ {plan} + ഇന്നലെ {r}",
+    rollover: "ഇന്നലത്തെ ബാക്കി",
+    rolloverSub: "പരമാവധി 200",
+    prefsRollover: "കലോറി മുന്നോട്ട് കൊണ്ടുപോകൂ",
+    prefsRolloverSub: "ഇന്നലെ നിങ്ങൾ കഴിക്കാത്തത് ചേർക്കുന്നു, പരമാവധി 200 kcal വരെ.",
   },
   mr: {
     homeLine: "प्लॅन {plan} + जाळलेल्या {b}",
@@ -560,6 +792,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "तुमचे रोजचे ध्येय",
     prefsBurned: "जाळलेल्या कॅलरी जोडा",
     prefsBurnedSub: "नेहमीच्या दिवसांपेक्षा तुम्ही जास्त जे जाळता ते जोडते, कमाल 500 kcal पर्यंत.",
+    homeLineBoth: "प्लॅन {plan} + जाळलेल्या {b} + काल {r}",
+    homeLineYesterday: "प्लॅन {plan} + काल {r}",
+    rollover: "कालचे उरलेले",
+    rolloverSub: "कमाल 200",
+    prefsRollover: "कॅलरी पुढे न्या",
+    prefsRolloverSub: "काल तुम्ही न खाल्लेले जोडते, कमाल 200 kcal पर्यंत.",
   },
   or: {
     homeLine: "ପ୍ଲାନ {plan} + ଜଳାଇଥିବା {b}",
@@ -574,6 +812,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "ତୁମର ଦୈନିକ ଲକ୍ଷ୍ୟ",
     prefsBurned: "ଜଳାଇଥିବା କ୍ୟାଲୋରି ଯୋଗ କର",
     prefsBurnedSub: "ସାଧାରଣ ଦିନ ଠାରୁ ଅଧିକ ଯାହା ଜଳାଅ ତାହା ଯୋଗ କରେ, ସର୍ବାଧିକ 500 kcal ପର୍ଯ୍ୟନ୍ତ।",
+    homeLineBoth: "ପ୍ଲାନ {plan} + ଜଳାଇଥିବା {b} + ଗତକାଲି {r}",
+    homeLineYesterday: "ପ୍ଲାନ {plan} + ଗତକାଲି {r}",
+    rollover: "ଗତକାଲିର ବଳକା",
+    rolloverSub: "ସର୍ବାଧିକ 200",
+    prefsRollover: "କ୍ୟାଲୋରି ଆଗକୁ ନିଅ",
+    prefsRolloverSub: "ଗତକାଲି ଯାହା ଖାଇନ ତାହା ଯୋଗ କରେ, ସର୍ବାଧିକ 200 kcal ପର୍ଯ୍ୟନ୍ତ।",
   },
   pa: {
     homeLine: "ਪਲਾਨ {plan} + ਸਾੜੀ {b}",
@@ -588,6 +832,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "ਤੁਹਾਡਾ ਰੋਜ਼ ਦਾ ਟੀਚਾ",
     prefsBurned: "ਸਾੜੀਆਂ ਕੈਲੋਰੀਆਂ ਜੋੜੋ",
     prefsBurnedSub: "ਆਮ ਦਿਨਾਂ ਤੋਂ ਵੱਧ ਜੋ ਤੁਸੀਂ ਸਾੜਦੇ ਹੋ ਉਹ ਜੋੜਦਾ ਹੈ, ਵੱਧ ਤੋਂ ਵੱਧ 500 kcal ਤੱਕ।",
+    homeLineBoth: "ਪਲਾਨ {plan} + ਸਾੜੀ {b} + ਕੱਲ੍ਹ {r}",
+    homeLineYesterday: "ਪਲਾਨ {plan} + ਕੱਲ੍ਹ {r}",
+    rollover: "ਕੱਲ੍ਹ ਦਾ ਬਚਿਆ",
+    rolloverSub: "ਵੱਧ ਤੋਂ ਵੱਧ 200",
+    prefsRollover: "ਕੈਲੋਰੀਆਂ ਅੱਗੇ ਲੈ ਜਾਓ",
+    prefsRolloverSub: "ਕੱਲ੍ਹ ਜੋ ਤੁਸੀਂ ਨਹੀਂ ਖਾਧਾ ਉਹ ਜੋੜਦਾ ਹੈ, ਵੱਧ ਤੋਂ ਵੱਧ 200 kcal ਤੱਕ।",
   },
   ta: {
     homeLine: "திட்டம் {plan} + எரித்தது {b}",
@@ -602,6 +852,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "உங்கள் தினசரி இலக்கு",
     prefsBurned: "எரித்த கலோரிகளைச் சேர்க்கவும்",
     prefsBurnedSub: "வழக்கமான நாட்களை விட அதிகம் நீங்கள் எரிப்பதைச் சேர்க்கும், அதிகபட்சம் 500 kcal வரை.",
+    homeLineBoth: "திட்டம் {plan} + எரித்தது {b} + நேற்று {r}",
+    homeLineYesterday: "திட்டம் {plan} + நேற்று {r}",
+    rollover: "நேற்றைய மீதி",
+    rolloverSub: "அதிகபட்சம் 200",
+    prefsRollover: "கலோரிகளை எடுத்துச் செல்லவும்",
+    prefsRolloverSub: "நேற்று நீங்கள் சாப்பிடாததைச் சேர்க்கும், அதிகபட்சம் 200 kcal வரை.",
   },
   te: {
     homeLine: "ప్లాన్ {plan} + కరిగించినవి {b}",
@@ -616,6 +872,12 @@ export const GOAL_COPY: Localized<GoalCopy> = {
     prefsTitle: "మీ రోజువారీ లక్ష్యం",
     prefsBurned: "కరిగించిన కేలరీలు కలపండి",
     prefsBurnedSub: "మామూలు రోజుల కంటే ఎక్కువ మీరు కరిగించేది కలుపుతుంది, గరిష్ఠంగా 500 kcal వరకు.",
+    homeLineBoth: "ప్లాన్ {plan} + కరిగించినవి {b} + నిన్న {r}",
+    homeLineYesterday: "ప్లాన్ {plan} + నిన్న {r}",
+    rollover: "నిన్నటి మిగులు",
+    rolloverSub: "గరిష్ఠంగా 200",
+    prefsRollover: "కేలరీలు ముందుకు తీసుకెళ్లండి",
+    prefsRolloverSub: "నిన్న మీరు తినని వాటిని కలుపుతుంది, గరిష్ఠంగా 200 kcal వరకు.",
   },
 };
 
