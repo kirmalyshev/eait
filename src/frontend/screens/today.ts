@@ -13,6 +13,7 @@ import { dateMinus, isCalendarDate } from "../../shared/dates.ts";
 import { dayBudget, kcalCardState, macroLeft } from "../../shared/budget.ts";
 import { trialReminder } from "../../shared/entitlement.ts";
 import { LANG_TAG, kcalNumbers, wholeNumbers } from "../../shared/lang.ts";
+import { goalLine } from "./goal.ts";
 import { badgeUnlocked } from "./milestones.ts";
 import { homeCopyFor, macroTip, streakChip, type MacroTipKind } from "../../shared/app/home-copy.ts";
 import { payCopyFor } from "../../shared/app/pay-copy.ts";
@@ -690,7 +691,8 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
         leftRow("salt", L.macros.sodium.name, day.totals.sodium_mg, day.targets.sodium_mg, { mg: true }),
       );
     }
-    p1.append(kcalHero(day, rich), el("div", "hl"), rowsOne);
+    const gl = day === null ? null : goalLine(day);
+    p1.append(kcalHero(day, rich), ...(gl === null ? [] : [gl]), el("div", "hl"), rowsOne);
     p2.append(scoreHero(day), el("div", "hl"), rowsTwo);
     track.append(p1, p2);
 

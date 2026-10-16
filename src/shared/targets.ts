@@ -46,6 +46,14 @@ export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500, other
 /** Floor used when sex is unknown — the highest of the three, because guessing low is the harmful way. */
 export const KCAL_FLOOR_UNKNOWN = 1500;
 
+/**
+ * The most a day's extra burn can add to that day's goal (#911). The add-back is what the person
+ * burned BEYOND their usual days (the `activityDeltaKcal` the plan already counts), so it never
+ * double-counts the activity level, and it is capped so one marathon cannot write a number the
+ * rest of the week then has to live with. It only ever adds; the floor is applied after it.
+ */
+export const MAX_BURNED_ADDBACK_KCAL = 500;
+
 /** The largest share of maintenance we will subtract. 20% is the standard "moderate deficit" band. */
 export const MAX_DEFICIT_SHARE = 0.2;
 /** Surpluses are capped tighter: past this, the surplus is fat, not muscle. */
@@ -148,6 +156,19 @@ export interface TargetBasis {
   floorApplied: boolean;
   /** True when no BMR could be computed and the flat goal band was used instead. */
   usedFallbackBand: boolean;
+  /** Today's kcal added for burning beyond the usual days (#911); 0 when off, no reading, or no BMR. */
+  burnedAddKcal: number;
+  /** The plan's own number: the target with NO day's reading applied. `targets.kcal` is this plus
+      `burnedAddKcal`, floored. Projection and the plan card read this, never the day's number. */
+  planKcal: number;
+}
+
+/**
+ * What one day adds to the plan. Only `activeKcal` today (#911): Apple Health's active energy for
+ * the day being asked about, or null when there is none to read.
+ */
+export interface DayReading {
+  activeKcal: number | null;
 }
 
 export interface TargetOutcome {
@@ -259,8 +280,8 @@ export function targetRange(p: Profile): { min: number; max: number } | null {
  * the floor first and the share cap second would let a large share cap pull the number back under
  * the floor, which is the exact bug this whole file exists to prevent.
  */
-export function explainTargets(profile: Profile, today = new Date()): TargetOutcome {
-  return explainTargetsAtAge(profile, ageFrom(profile.birth_year, today));
+export function explainTargets(profile: Profile, today = new Date(), day?: DayReading): TargetOutcome {
+  return explainTargetsAtAge(profile, ageFrom(profile.birth_year, today), day);
 }
 
 /**
@@ -268,7 +289,7 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
  * live plan line), where `age` is the server's `ProfileResponse.age` rather than a figure the
  * device's own clock would produce. `null` reaches the same fallback the server would.
  */
-export function explainTargetsAtAge(profile: Profile, age: number | null): TargetOutcome {
+export function explainTargetsAtAge(profile: Profile, age: number | null, day?: DayReading): TargetOutcome {
   const floorKcal = profile.sex ? KCAL_FLOOR[profile.sex] : KCAL_FLOOR_UNKNOWN;
   const bmrValue = basalMetabolicRateAtAge(profile, age);
 
@@ -282,6 +303,7 @@ export function explainTargetsAtAge(profile: Profile, age: number | null): Targe
       basis: {
         bmr: null, tdee: null, activityDeltaKcal: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
         shareCapApplied: false, floorKcal, floorApplied: kcal > band, usedFallbackBand: true,
+        burnedAddKcal: 0, planKcal: kcal,
       },
     };
   }
@@ -301,21 +323,31 @@ export function explainTargetsAtAge(profile: Profile, age: number | null): Targe
   const cappedDeltaKcal = clampMagnitude(requestedDeltaKcal, limit);
   const shareCapApplied = cappedDeltaKcal !== requestedDeltaKcal;
 
-  // Guard 2 — the floor. Last, and unconditional.
-  const beforeFloor = tdee + cappedDeltaKcal;
+  // The day's add-back (#911): what was burned beyond the days the plan already counts, capped,
+  // and only when the person has it on. It joins the sum BEFORE the floor, never after it.
+  const burnedAddKcal = profile.addback_burned && day?.activeKcal != null
+    ? Math.min(MAX_BURNED_ADDBACK_KCAL, Math.max(0, Math.round(day.activeKcal - (tdee - bmrValue))))
+    : 0;
+
+  // Guard 2 — the floor. Last, and unconditional: after the cap, after the add-back.
+  const planBeforeFloor = tdee + cappedDeltaKcal;
+  const planKcal = Math.max(floorKcal, planBeforeFloor);
+  const beforeFloor = planBeforeFloor + burnedAddKcal;
   const kcal = Math.max(floorKcal, beforeFloor);
 
   // The delta the FINAL target carries, on the same rounding the target uses: `kcal − tdee` is
   // `cappedDeltaKcal` exactly when the floor did not move the number, and the floor's own cut
   // when it did. Every reader — the projection, the plan card, the coach prompt — treats this as
   // the post-both-guards delta, so reporting the pre-floor one is a faster pace than the plan.
-  const appliedDeltaKcal = kcal - tdee;
+  // On the PLAN, not the day: a burn adds to today's goal and is not a faster pace.
+  const appliedDeltaKcal = planKcal - tdee;
 
   return {
     targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
     basis: {
       bmr: bmrValue, tdee, activityDeltaKcal: tdee - bmrValue, requestedDeltaKcal, appliedDeltaKcal,
       shareCapApplied, floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
+      burnedAddKcal, planKcal,
     },
   };
 }

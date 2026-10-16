@@ -13,7 +13,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: "maintain", sex: "female", birth_year: 1990,
     height_cm: 165, weight_kg: 70, weight_measured_at: null, target_weight_kg: 65,
-    activity: "few", pace: "steady", units: null, struggles: null, streak_goal_days: null, milestone_celebrations: true, streak_on_home: true,
+    activity: "few", pace: "steady", units: null, struggles: null, streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true,
     country: "de", restrictions: [], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
     ...over,
@@ -472,5 +472,76 @@ describe("activityDeltaKcal — the days' own share, computed where the rest of 
   it("is tdee - bmr", () => {
     const { basis } = explainTargets(profile(), TODAY);
     expect(basis.activityDeltaKcal).toBe(basis.tdee! - basis.bmr!);
+  });
+});
+
+describe("burned add-back (#911) — plan + min(500, max(0, active − usual activity)), floor last", () => {
+  // Female 165cm/70kg/36y, "few": bmr 1,386.5 → tdee 1,906, so the days' own share is ~520.
+  const base = explainTargets(profile(), TODAY);
+  const usual = base.basis.activityDeltaKcal!;
+
+  it("without a day's reading the targets are the plan, unchanged", () => {
+    expect(explainTargets(profile(), TODAY, { activeKcal: null }).targets).toEqual(base.targets);
+    expect(explainTargets(profile(), TODAY).basis.burnedAddKcal).toBe(0);
+  });
+
+  it("adds only what was burned beyond the usual days", () => {
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: usual + 300 });
+    expect(basis.burnedAddKcal).toBe(300);
+    expect(targets.kcal).toBe(base.targets.kcal + 300);
+  });
+
+  it("a day at or under usual adds nothing, never subtracts", () => {
+    for (const active of [0, Math.round(usual) - 100, Math.round(usual)]) {
+      const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: active });
+      expect(basis.burnedAddKcal).toBe(0);
+      expect(targets.kcal).toBe(base.targets.kcal);
+    }
+  });
+
+  it("caps at 500", () => {
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: usual + 2000 });
+    expect(basis.burnedAddKcal).toBe(500);
+    expect(targets.kcal).toBe(base.targets.kcal + 500);
+  });
+
+  it("is off when the preference is off", () => {
+    const { targets, basis } = explainTargets(profile({ addback_burned: false }), TODAY, { activeKcal: usual + 400 });
+    expect(basis.burnedAddKcal).toBe(0);
+    expect(targets.kcal).toBe(base.targets.kcal);
+  });
+
+  it("has no usual share to measure against on the flat-band fallback, so adds nothing", () => {
+    const { targets, basis } = explainTargets(profile({ weight_kg: null }), TODAY, { activeKcal: 2000 });
+    expect(basis.usedFallbackBand).toBe(true);
+    expect(basis.burnedAddKcal).toBe(0);
+    expect(targets.kcal).toBe(explainTargets(profile({ weight_kg: null }), TODAY).targets.kcal);
+  });
+
+  it("floor last: a plan under the floor plus a burn is floored AFTER the add, never before", () => {
+    // A 60-year-old 150cm/50kg woman cutting at push: plan lands under the 1,200 floor.
+    const p = profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50, birth_year: 1966 });
+    const plan = explainTargets(p, TODAY);
+    expect(plan.targets.kcal).toBe(KCAL_FLOOR.female);
+    const none = explainTargets(p, TODAY, { activeKcal: 0 });
+    expect(none.targets.kcal).toBe(KCAL_FLOOR.female);
+    const burned = explainTargets(p, TODAY, { activeKcal: plan.basis.activityDeltaKcal! + 100 });
+    // Never below the floor, and the 100 is not swallowed by flooring the plan first.
+    expect(burned.targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.female);
+    expect(burned.targets.kcal).toBe(Math.max(KCAL_FLOOR.female, plan.basis.tdee! + plan.basis.requestedDeltaKcal + 100));
+  });
+
+  it("the floor binds whatever the day: no input may land under it", () => {
+    const p = profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50, birth_year: 1966 });
+    for (const activeKcal of [null, 0, 50, 300, 5000]) {
+      expect(explainTargets(p, TODAY, { activeKcal }).targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.female);
+    }
+  });
+
+  it("the plan's own basis (projection delta) does not move with a day's burn", () => {
+    const a = explainTargets(profile({ goal: "lose" }), TODAY);
+    const b = explainTargets(profile({ goal: "lose" }), TODAY, { activeKcal: usual + 400 });
+    expect(b.basis.appliedDeltaKcal).toBe(a.basis.appliedDeltaKcal);
+    expect(b.basis.planKcal).toBe(a.targets.kcal);
   });
 });
