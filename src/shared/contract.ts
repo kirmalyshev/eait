@@ -444,6 +444,13 @@ export const ROUTES = {
    */
   weights: "/v1/weights",
   /**
+   * PUT `/v1/weights/{YYYY-MM-DD}` `{ kg }` (a {@link WeightEditRequest}) corrects the day's OWN
+   * weigh-in; DELETE removes it. Both answer {@link WeightsResponse} for `?range=all`'s shape
+   * (the history list redraws from it). A day that holds no manual weigh-in — an Apple Health
+   * reading, or nothing — answers 404 `not-found`: imported weigh-ins are read-only (ieat-app#891).
+   */
+  weightDayPrefix: "/v1/weights/",
+  /**
    * GET — the 36-badge wall and the streak, server-computed. 404 while `Config.milestonesEnabled`
    * is off. Answers {@link MilestonesResponse}.
    */
@@ -1680,6 +1687,25 @@ export interface WeightEntry {
   source: "health" | "manual";
 }
 
+/** `PUT /v1/weights/{date}` — the corrected weight, kg, in the same 20–500 band `PATCH /v1/profile` takes. */
+export interface WeightEditRequest {
+  kg: number;
+}
+
+/**
+ * Today's weight against the last weigh-in on or before N days ago, in kg and signed (negative =
+ * lighter). `null` where the log holds no earlier weigh-in to compare with — drawn "—" — and for
+ * `all`, against the first weigh-in ever. Numbers only: the client formats them.
+ */
+export interface WeightChanges {
+  d3: number | null;
+  d7: number | null;
+  d14: number | null;
+  d30: number | null;
+  d90: number | null;
+  all: number | null;
+}
+
 /** `GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc. */
 export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
@@ -1690,6 +1716,8 @@ export interface WeightsResponse {
    * entry the filtered `weights` can no longer name. `null` when nothing was ever logged.
    */
   latest: WeightEntry | null;
+  /** The Weight changes table (ieat-app#891), off the whole log whatever `range` cut. */
+  changes: WeightChanges;
   /**
    * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
    * rate `projectGoal` computed, and the localized month it lands in. Null when no honest

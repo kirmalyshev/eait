@@ -1835,6 +1835,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   putHealthDays: 0,
   healthDaysSince: 0,
   putWeight: 0,
+  deleteWeight: 0,
   milestoneMeals: 0,
   getMilestones: 0,
   earnMilestones: 0,
@@ -3646,6 +3647,11 @@ export async function postgresStore(
       await sql`
         insert into weights (user_id, date, kg) values (${userId}, ${date}, ${kg})
         on conflict (user_id, date) do update set kg = excluded.kg, updated_at = now()`;
+    },
+
+    async deleteWeight(userId, date) {
+      const rows = await sql`delete from weights where user_id = ${userId} and date = ${date} returning date`;
+      return rows.length > 0;
     },
 
     async milestoneMeals(userId) {

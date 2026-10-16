@@ -1771,6 +1771,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       weights.set(`${userId}\n${date}`, { userId, date, kg });
     },
 
+    async deleteWeight(userId, date) {
+      return weights.delete(`${userId}\n${date}`);
+    },
+
     async milestoneMeals(userId) {
       return [...meals.values()]
         .filter((x) => x.user_id === userId)

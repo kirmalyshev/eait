@@ -12,7 +12,7 @@
 
 import {
   bmi, bmiRange, dateMinusMonths, explainTargets, localDate, projectGoal, projectionMonth, windowStart,
-  type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightsResponse,
+  type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightChanges, type WeightsResponse,
   type WeightRange,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -75,9 +75,35 @@ export async function weights(
     // The newest weigh-in whatever the range cut — the card's current figure and its
     // none-in-range state read this, the trend's endpoints read the filtered list.
     latest: log.at(-1) ?? null,
+    changes: weightChanges(log, localDate(zone)),
     projection: planProjection(profile, outcome, log, zone),
     bmi: value === null ? null : { value, range: bmiRange(value) },
   };
+}
+
+/** Signed kg between the newest weigh-in and the last one on or before `days` ago; null with nothing older. */
+export function weightChanges(log: WeightEntry[], today: string): WeightChanges {
+  const now = log.at(-1);
+  const vs = (days: number | null): number | null => {
+    if (!now) return null;
+    const cutoff = days === null ? null : windowStart(today, days + 1);
+    const then = cutoff === null ? log[0]! : [...log].reverse().find((e) => e.date <= cutoff);
+    if (!then || then.date >= now.date) return null;
+    return Math.round((now.kg - then.kg) * 10) / 10;
+  };
+  return { d3: vs(3), d7: vs(7), d14: vs(14), d30: vs(30), d90: vs(90), all: vs(null) };
+}
+
+/**
+ * The user's own weigh-in of a day, corrected (`kg` given) or removed (`kg` null). False where the
+ * day holds no manual weigh-in: Apple Health's are read-only. The profile weight is left alone.
+ */
+export async function changeWeighIn(deps: EngineDeps, userId: string, date: string, kg: number | null): Promise<boolean> {
+  const own = (await deps.store.weightsSince(userId, date)).some((w) => w.date === date);
+  if (!own) return false;
+  if (kg === null) return deps.store.deleteWeight(userId, date);
+  await deps.store.putWeight(userId, date, kg);
+  return true;
 }
 
 /**
