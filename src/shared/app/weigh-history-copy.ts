@@ -44,10 +44,10 @@ const RU: WeighHistoryCopy = {
   changesTitle: "Изменение веса",
   change3: "3 дня", change7: "7 дней", change14: "14 дней", change30: "30 дней", change90: "90 дней", changeAll: "Всё время",
   historyTitle: "Все взвешивания",
-  sourceHealth: "Из Apple Health",
+  sourceHealth: "Из «Здоровья»",
   sourceYou: "Ты",
   historyEmptyTitle: "Пока нет взвешиваний",
-  historyEmptyNote: "Взвешивания из Apple Health тоже появятся здесь.",
+  historyEmptyNote: "Взвешивания из «Здоровья» тоже появятся здесь.",
   rowWeight: { metric: "{n} кг", imperial: "{n} фунт." },
 };
 
