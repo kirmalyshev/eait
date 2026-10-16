@@ -54,16 +54,29 @@ a.mrow { display: flex; align-items: center; justify-content: space-between; gap
 a.mrow span { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; font-size: 13px; color: var(--muted); }
 a.mrow .ico { width: 18px; height: 18px; }
 
-/* Badge Unlocked — the board's 420px card, green washing to the surface. */
+/* The new-award popup — the board's 420px card; the wash is the board's tokens (accent, accent tint, the page), so the text on it keeps its contrast. */
 .panel.mu { width: 420px; min-height: 560px; display: flex; flex-direction: column; padding: 24px 28px; position: relative;
-  background: linear-gradient(160deg, #1E6B3C 0%, #5BB37E 38%, var(--surface) 62%); }
+  background: linear-gradient(160deg, var(--accent) 0%, var(--accent-tint) 38%, var(--bg) 62%); }
 .panel.mu:focus, .panel.mu:focus-visible { outline: 0; }
 .mu .mux { position: absolute; top: 16px; right: 16px; }
+/* The web at 390 is the phone's screen (the board): the whole viewport, the wash edge to edge, ✕ top left. */
+@media (max-width: 480px) {
+  .scrim:has(> .panel.mu) { padding: 0; }
+  .panel.mu { width: 100%; max-width: none; height: 100%; min-height: 100%; max-height: none; border-radius: 0; padding: 56px 20px 34px; }
+  .mu .mux { top: 12px; left: 16px; right: auto; }
+}
 .mu .ul { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .mu .ul img { width: 250px; height: 250px; object-fit: contain; }
-.mu .ul .cap { font-size: 14px; color: var(--muted); margin-top: 6px; }
+/* The caption, the label and the criteria sit ON the wash, where --muted measured 4.07:1; ink 80% clears 4.5:1 anywhere on it. */
+.mu .ul .cap { font-size: 14px; color: color-mix(in srgb, var(--ink) 80%, var(--bg)); margin-top: 6px; }
 .mu .ul .nm { font-size: 28px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
-.mu .ul .cr { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.mu .ul .cr { font-size: 14px; color: color-mix(in srgb, var(--ink) 80%, var(--bg)); margin-top: 2px; }
+.mu .ul .ula { margin-top: 18px; display: flex; flex-direction: column; align-items: center; }
+.mu .ul .ula .cap { margin-top: 0; }
+.mu .ul .ulc { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 6px; }
+.mu .ul .ulc .chip { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.mu .ul .ulc img { width: 32px; height: 32px; }
+.mu .ul .ulc .more { height: 32px; min-width: 32px; padding: 0 10px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); justify-content: center; }
 .mu .ulb { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: auto; padding-top: 24px; }
 .mu .ulb button { display: flex; justify-content: center; align-items: center; gap: 8px; height: 54px; border-radius: 27px;
   font-weight: 600; font-size: 16px; cursor: pointer; border: 0; }

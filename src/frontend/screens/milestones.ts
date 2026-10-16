@@ -12,7 +12,7 @@ import { api, getMilestones, postMilestonesSeen } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl } from "../kit.ts";
 import { openDialog } from "../panel.ts";
-import { el, forgetProfile, kcal, lang, refusalWords, type Frame } from "../shell.ts";
+import { el, forgetProfile, kcal, lang, profile, refusalWords, type Frame } from "../shell.ts";
 
 const BADGE_BY_ID = new Map(BADGES.map((b) => [b.id, b]));
 export const medalSrc = (id: string): string => `/medals/${id}.webp`;
@@ -174,28 +174,48 @@ const canShareFiles = (): boolean =>
   navigator.canShare({ files: [new File([], "x.webp", { type: "image/webp" })] });
 
 /**
- * Badge Unlocked. `unseen` is oldest-first, so the last is the newest: ONE dialog for it, and every
- * unseen id is marked seen in one POST — a first read after deploy can hold ten and never queues a
- * run of screens. Callers gate on `milestone_celebrations`.
+ * The new-award popup (#2148): ONE popup for every badge, whenever it opens.
+ *
+ * Two at once are still one screen: the badge furthest along the wall takes it, and the others sit
+ * under it as medal + name (two) and "+n" (a third and later) beneath "Other awards" — never a run
+ * of screens. Every unseen id is marked seen in one POST, those on the screen and those only
+ * counted. Callers gate on `milestone_celebrations`.
+ *
+ * It never opens over a popup that is already up: the ids that arrive meanwhile are not in the
+ * POST, stay unseen, and the next check shows them.
  */
+let awardCard: HTMLElement | null = null;
+const WALL_ORDER = new Map(BADGES.map((b, i) => [b.id, i]));
 export function badgeUnlocked(unseen: readonly string[]): void {
-  const id = unseen[unseen.length - 1];
+  if (awardCard?.isConnected === true) return;
+  const ids = [...new Set(unseen)].filter((id) => WALL_ORDER.has(id)).sort((a, b) => WALL_ORDER.get(b)! - WALL_ORDER.get(a)!);
+  const [id, ...also] = ids;
   const badge = id === undefined ? undefined : BADGE_BY_ID.get(id);
   if (id === undefined || badge === undefined) return;
   void postMilestonesSeen([...unseen]).catch((err: unknown) => console.error(err));
-
   const c = milestonesCopyFor(lang).unlock;
   const { card, close } = openDialog(c.heading);
+  awardCard = card;
   card.classList.add("mu");
   const x = el("button", "ib mux") as HTMLButtonElement;
   x.type = "button";
   x.setAttribute("aria-label", c.close);
   x.append(kitEl(ico("x")));
   x.addEventListener("click", close);
-
   const body = el("div", "ul");
   body.append(img(id), el("div", "cap", c.heading), el("h2", "nm", badge.name), el("div", "cr", badge.rule));
-
+  if (also.length > 0) {
+    const chips = el("div", "ulc");
+    for (const other of also.slice(0, 2)) {
+      const chip = el("span", "chip");
+      chip.append(img(other, "medal"), BADGE_BY_ID.get(other)!.name);
+      chips.append(chip);
+    }
+    if (also.length > 2) chips.append(el("span", "chip more num", `+${numbers(lang)(also.length - 2)}`));
+    const more = el("div", "ula");
+    more.append(el("div", "cap", c.otherAwards), chips);
+    body.append(more);
+  }
   const actions = el("div", "ulb");
   if (canShareFiles()) {
     const share = el("button", "b1", c.share) as HTMLButtonElement;
@@ -211,10 +231,50 @@ export function badgeUnlocked(unseen: readonly string[]): void {
   off.type = "button";
   off.addEventListener("click", () => { close(); location.hash = "#/you/milestones"; });
   actions.append(all, off);
-
   card.append(x, body, actions);
 }
 
+/**
+ * Right after an action (#2148): ask the server what is new and show it. Called, a moment after any
+ * write, by the hook in `main.ts` — so the popup comes AFTER the action's own answer is on screen,
+ * over it, and never instead of it. Quiet when celebrations are off, when nothing is new, and on
+ * any failure: an award that fails to show is still on the wall.
+ *
+ * IT WAITS, it does not interrupt (the board's rule): while a draft is being typed, on the
+ * paywall, or while another dialog or sheet (the first verdict, a panel) is up, it tries again
+ * every two seconds for a minute. The ids stay unseen on the server meanwhile, so the next write or
+ * Home load finds them if this gives up.
+ */
+let awardTimer: number | undefined;
+const RETRY_MS = 2000;
+const MAX_TRIES = 30;
+const EDITABLE = 'input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]), textarea, [contenteditable=""], [contenteditable="true"]';
+/** Something the popup must not land on. A field that has focus but is EMPTY is not mid-typing: the composer keeps focus after a send. */
+const mustWait = (): boolean => {
+  if (document.querySelector('[aria-modal="true"]') !== null) return true;
+  if (location.hash.startsWith("#/pay")) return true;
+  const a = document.activeElement;
+  if (!(a instanceof HTMLElement) || !a.matches(EDITABLE)) return false;
+  return ((a as HTMLInputElement).value ?? a.textContent ?? "") !== "";
+};
+export function checkAwardsSoon(wait = 1200, tries = 0): void {
+  window.clearTimeout(awardTimer);
+  awardTimer = window.setTimeout(() => { void checkAwards(tries); }, wait);
+}
+async function checkAwards(tries: number): Promise<void> {
+  try {
+    if (!(await profile()).profile.milestone_celebrations) return;
+    const { unseen } = await getMilestones();
+    if (unseen.length === 0) return;
+    if (mustWait() || awardCard?.isConnected === true) {
+      if (tries < MAX_TRIES) checkAwardsSoon(RETRY_MS, tries + 1);
+      return;
+    }
+    badgeUnlocked(unseen);
+  } catch {
+    // Not worth a message: see above.
+  }
+}
 /** `#/you/milestones` — Badge celebrations and Streak on Home, both on by default. */
 export function milestoneSettingsScreen(frame: Frame): HTMLElement {
   const c = milestonesCopyFor(lang);
