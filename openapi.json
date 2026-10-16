@@ -3828,6 +3828,150 @@
         ]
       }
     },
+    "/v1/weights/{date}": {
+      "patch": {
+        "operationId": "patch_weightDay",
+        "summary": "Correct the caller's own weigh-in of a day (YYYY-MM-DD). Apple Health's are read-only: 404.",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeightEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "delete_weightDay",
+        "summary": "Remove the caller's own weigh-in of a day. The profile weight, and so the targets, stay as they are.",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/milestones": {
       "get": {
         "operationId": "get_milestones",
@@ -10014,6 +10158,19 @@
         ],
         "additionalProperties": false,
         "description": "Today's weight against the last weigh-in on or before N days ago, in kg and signed (negative = lighter). `null` where the log holds no earlier weigh-in to compare with — drawn \"—\" — and for `all`, against the first weigh-in ever. Numbers only: the client formats them."
+      },
+      "WeightEditRequest": {
+        "type": "object",
+        "properties": {
+          "kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kg"
+        ],
+        "additionalProperties": false,
+        "description": "`PATCH /v1/weights/{date}` — the corrected weight, kg, in the same 20–500 band `PATCH /v1/profile` takes."
       },
       "WeightEntry": {
         "type": "object",

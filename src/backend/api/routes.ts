@@ -1163,10 +1163,10 @@ export function createRouter(
 
       // A weigh-in of the user's own, corrected or removed (ieat-app#891). Apple Health's are
       // read-only: a day with no manual row is 404, whoever else holds a reading for it.
-      const weighInMatch = pathname.startsWith(ROUTES.weightDayPrefix) ? /^\/v1\/weights\/(\d{4}-\d{2}-\d{2})$/.exec(pathname) : null;
-      if (weighInMatch && (req.method === "PUT" || req.method === "DELETE")) {
+      const weighInMatch = /^\/v1\/weights\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
+      if (weighInMatch && (req.method === "PATCH" || req.method === "DELETE")) {
         let kg: number | null = null;
-        if (req.method === "PUT") {
+        if (req.method === "PATCH") {
           const body = await req.json().catch(() => null) as Partial<WeightEditRequest> | null;
           if (typeof body?.kg !== "number" || !isAcceptableWeightKg(body.kg)) return json({ error: "kg must be a plausible body weight" }, 400);
           kg = body.kg;
