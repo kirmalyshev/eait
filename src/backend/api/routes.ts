@@ -24,7 +24,7 @@ import {
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushConsentRequest, isPushDeliveredRequest, isPushOpenRequest, isPushTokenRequest, pushTokenFrom, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
-  DIARY_RANGE_MAX_DAYS, isAcceptableWeightKg, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightEditRequest, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
+  AVERAGE_WEEKS_BACK, type AverageResponse, DIARY_RANGE_MAX_DAYS, isAcceptableWeightKg, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightEditRequest, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
   MAX_FOOD_QUERY, FOOD_LOG_MAX_GRAMS, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
   type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
@@ -34,7 +34,7 @@ import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, logNumbersMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, logNumbersMeal, chatHistory, confirmPendingMeal, day, days, average, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
@@ -1150,6 +1150,15 @@ export function createRouter(
         }
         const out = await days(deps, userId, from, to);
         return out ? json(out satisfies DaysResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.average) {
+        const week = Number(url.searchParams.get("week") ?? 0);
+        if (!Number.isInteger(week) || week < 0 || week > AVERAGE_WEEKS_BACK) {
+          return json({ error: `week must be an integer in [0, ${AVERAGE_WEEKS_BACK}]` }, 400);
+        }
+        const out = await average(deps, userId, week);
+        return out ? json(out satisfies AverageResponse) : json({ error: "not-onboarded" }, 403);
       }
 
       if (req.method === "GET" && pathname === ROUTES.weights) {

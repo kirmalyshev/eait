@@ -3,9 +3,9 @@
 
 import { unseenBadges } from "./milestones.ts";
 import {
-  dateMinus, dayHealthScore, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
+  dateMinus, dayHealthScore, weekAverage, weekStart, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
   verdictLabels, windowStart,
-  type DayReading, type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
+  type AverageResponse, type DayReading, type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
@@ -153,4 +153,28 @@ export async function days(
     days: out, targetKcal, streak: read.streak, streakLongest: read.longest, streakState: read.state, streakEndedAt: read.endedAt, floorKcal: floor,
     unseenBadges: await unseenBadges(deps, userId),
   };
+}
+
+/**
+ * One week's daily average and energy (#893): the Monday-to-Sunday week `week` weeks back, read as
+ * `weekAverage` reads it. The rows are the diary's own totals (days with meals only) and Apple
+ * Health's active energy; burned rests on the plan's BMR, so it is as present as the plan's basis.
+ */
+export async function average(deps: EngineDeps, userId: string, week: number): Promise<AverageResponse | null> {
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return null;
+  const today = localDate(deps.config.timezone);
+  const from = dateMinus(weekStart(today), 7 * week);
+  const to = dateMinus(from, -6);
+  const { targets, basis } = explainTargets(profile);
+  const [totals, health] = await Promise.all([
+    deps.store.totalsSince(userId, from),
+    deps.store.healthDaysSince(userId, from),
+  ]);
+  const active = new Map<string, number>();
+  for (const h of health) if (h.date <= to && h.active_kcal !== null) active.set(h.date, h.active_kcal);
+  return weekAverage({
+    from, today, week, planKcal: targets.kcal, bmr: basis.bmr,
+    totals: totals.filter((t) => t.date >= from && t.date <= to), active,
+  });
 }

@@ -15,19 +15,21 @@ import { BMI_SEGMENTS, bmiTick } from "../../shared/scores.ts";
 import { goalBar, WEIGHT_RANGES, weightChart, type WeightRange } from "../../shared/ui/charts.ts";
 import { heightText, kgToLb, type UnitSystem } from "../../shared/ui/units.ts";
 import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
-import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, weekdayLetters } from "../../shared/lang.ts";
+import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, UNIT_KCAL, weekdayLetters } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
 import { weighHistoryCopyFor } from "../../shared/app/weigh-history-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import { averageCopyFor } from "../../shared/app/average-copy.ts";
 import { youCopyFor } from "../../shared/app/you-copy.ts";
 import { tagx } from "../../shared/ui/kit.ts";
 import type {
-  DaysResponse, PlanProjection, ProfileResponse, WeightChanges, WeightsResponse,
+  AverageResponse, DaysResponse, PlanProjection, ProfileResponse, WeightChanges, WeightsResponse,
 } from "@eait/shared";
 import { api, getMilestones, Unauthenticated } from "../api.ts";
 import { earnedCount, streakCard } from "./milestones.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { averageBarsSvg, energyBarsSvg } from "../../shared/ui/kit.ts";
 import { bmiBarEl, kitEl, weekBarsEl, weightChartEl } from "../kit.ts";
 import {
   clear, dayPickerButton, el, forgetProfile, lang, refusalWords, render, type Frame,
@@ -234,6 +236,105 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
+  // ── The daily average (#893) — the days WITH meals, stacked, a week at a time. ──
+  const ac = averageCopyFor(lang);
+  const kn = kcalNumbers(lang);
+  const swatch = (color: string, text: string): HTMLElement => {
+    const k = el("span", "row");
+    const i = el("i", "");
+    i.style.background = color;
+    k.append(i, document.createTextNode(text));
+    return k;
+  };
+  const avgCardEl = (first: AverageResponse): HTMLElement => {
+    const card = el("div", "card rise rc-5");
+    const head = el("div", "row between");
+    head.append(el("span", "lab", ac.title));
+    const seg = el("div", "seg");
+    seg.setAttribute("role", "group");
+    seg.setAttribute("aria-label", ac.title);
+    const names = [ac.thisWeek, ac.lastWeek, ac.twoWeeksAgo, ac.threeWeeksAgo];
+    const btns = names.map((label, w) => {
+      const b = el("button", w === 0 ? "on" : "", label) as HTMLButtonElement;
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(w === 0));
+      seg.append(b);
+      return b;
+    });
+    const body = el("div", "");
+    const notice = el("p", "notice");
+    notice.setAttribute("role", "alert");
+    notice.hidden = true;
+    const draw = (a: AverageResponse): void => {
+      clear(body);
+      const fig = el("div", "wnum");
+      fig.append(el("b", "d d28 num", a.average === null ? "—" : kn(a.average.kcal)), el("span", "uw", ` ${UNIT_KCAL[lang]}`));
+      const chart = el("div", "wchart");
+      const svg = kitEl(averageBarsSvg(
+        a.days.map((d) => d.logged ? { kcal: d.kcal!, protein_g: d.protein_g!, carbs_g: d.carbs_g!, fat_g: d.fat_g! } : null),
+        a.planKcal, { letters, planLabel: kn(a.planKcal), height: 130 },
+      ));
+      svg.setAttribute("aria-label", fill(ac.chartAria, { kcal: a.average === null ? "—" : kn(a.average.kcal) }));
+      chart.append(svg);
+      const legend = el("div", "row t12 m aglg");
+      legend.append(swatch("var(--macro-protein)", ac.protein), swatch("var(--macro-carbs)", ac.carbs), swatch("var(--macro-fat)", ac.fat));
+      body.append(fig, chart, legend);
+    };
+    let seq = 0;
+    btns.forEach((b, w) => b.addEventListener("click", () => {
+      if (b.classList.contains("on")) return;
+      const mine = ++seq;
+      void api<AverageResponse>(`/diary/average?week=${w}`).then((a) => {
+        if (mine !== seq) return;
+        notice.hidden = true;
+        btns.forEach((x, i) => { x.classList.toggle("on", i === w); x.setAttribute("aria-pressed", String(i === w)); });
+        draw(a);
+      }).catch(async (err: unknown) => {
+        console.error(err);
+        if (err instanceof Unauthenticated) { await render(); return; }
+        notice.textContent = refusalWords(err);
+        notice.hidden = false;
+      });
+    }));
+    seg.classList.add("ags");
+    card.append(head, seg, body, notice);
+    draw(first);
+    return card;
+  };
+
+  // ── Energy (#893) — burned beside eaten, this week's daily averages. Burned is Apple Health's,
+  // which a browser cannot connect: without it the card says where it lives and draws no bars. ──
+  const energyCardEl = (a: AverageResponse): HTMLElement => {
+    const card = el("div", "card rise rc-6");
+    const head = el("div", "row between");
+    head.append(el("span", "lab", ac.energy), el("span", "est", ac.energyEst));
+    const e = a.energy;
+    const sign = (x: number): string => (x < 0 ? `\u2212${kn(-x)}` : x > 0 ? `+${kn(x)}` : kn(0));
+    const col = (label: string, value: string): HTMLElement => {
+      const c = el("div", "ecol");
+      c.append(el("div", "t12 m", label), el("b", "d d22 num", value));
+      return c;
+    };
+    const cols = el("div", "row ecols");
+    cols.append(
+      col(ac.burned, e?.burned == null ? "—" : kn(e.burned)),
+      col(ac.eaten, e === null ? "—" : kn(e.eaten)),
+      col(ac.difference, e?.difference == null ? "—" : sign(e.difference)),
+    );
+    card.append(head, cols);
+    if (e?.burned == null) {
+      card.append(el("p", "t13 m eask", ac.needHealth));
+      return card;
+    }
+    card.setAttribute("aria-label", fill(ac.energyAria, { b: kn(e.burned), e: kn(e.eaten), d: e.difference === null ? "—" : sign(e.difference) }));
+    const chart = el("div", "wchart");
+    chart.append(kitEl(energyBarsSvg(a.days.map((d) => d.logged ? { burned: d.burned, eaten: d.kcal! } : null), { letters })));
+    const key = el("div", "row t12 m aglg");
+    key.append(swatch("var(--line)", ac.burned), swatch("var(--accent)", ac.eaten));
+    card.append(chart, key);
+    return card;
+  };
+
   // ── The BMI card — the server's figure, the neutral band labels, the "?" explains. ──
   const bmiCardEl = (w: WeightsResponse): HTMLElement => {
     const card = el("div", "card rise rc-4");
@@ -317,9 +418,10 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   };
 
   // ── The draw: weights for the range, and the week the two right-hand cards read. ──
-  const [w, d, ms] = await Promise.all([
+  const [w, d, avg, ms] = await Promise.all([
     api<WeightsResponse>(`/weights?range=${range}`),
     api<DaysResponse>(`/diary/days?from=${monday}&to=${sunday}`),
+    api<AverageResponse>(`/diary/average?week=0`),
     getMilestones().catch(() => null),
   ]);
 
@@ -345,6 +447,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
   leftCol.append(wCard);
   if (w.latest !== null) leftCol.append(historyLink(), changesCardEl(w.changes));
   if (w.projection !== null) leftCol.append(goalCardEl(w.projection));
+  leftCol.append(avgCardEl(avg), energyCardEl(avg));
   rightCol.append(weekCardEl(d), streakCard(d, earnedCount(ms)), bmiCardEl(w));
 
   return wrap;

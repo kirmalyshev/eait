@@ -535,6 +535,80 @@ export function weekBars(
   };
 }
 
+// ── The daily average's stacked bars and the energy pairs (#893) ──────────────────────────────
+//
+// The same frame and scale as the week's bars. A day with meals is a bar stacked protein / carbs /
+// fat by the kcal each contributes (4 / 4 / 9 a gram); a day without is a dotted base and never a
+// zero-height bar. The segments' heights sum to the bar's, whole pixels, the remainder on the top.
+
+export type AverageMacro = "protein" | "carbs" | "fat";
+export interface AverageBarsDay { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
+
+export function averageBars(days: readonly (AverageBarsDay | null)[], planKcal: number): {
+  viewBox: string;
+  planLine: { x1: number; x2: number; y: number; dash: string };
+  planLabel: { x: number; y: number };
+  /** One per day: stacked segments bottom-up, or a dotted base. */
+  columns: ({ x: number; width: number; segments: { macro: AverageMacro; y: number; height: number }[] } | { x: number; width: number; dotted: true })[];
+  labels: { x: number; y: number }[];
+} {
+  const largest = Math.max(planKcal, ...days.map((d) => d?.kcal ?? 0));
+  const pxPerKcal = barPxPerKcal(100, BARS_BASELINE_FULL, largest);
+  const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
+  const columns = days.map((d, i) => {
+    const x = 14 + i * 44;
+    if (d === null) return { x, width: 26, dotted: true as const };
+    const total = Math.round(d.kcal * pxPerKcal);
+    const parts: [AverageMacro, number][] = [["protein", 4 * d.protein_g], ["carbs", 4 * d.carbs_g], ["fat", 9 * d.fat_g]];
+    const sum = parts.reduce((a, [, k]) => a + k, 0);
+    const segments: { macro: AverageMacro; y: number; height: number }[] = [];
+    let y = BARS_BASE;
+    let used = 0;
+    parts.forEach(([macro, k], n) => {
+      const height = sum === 0 ? (n === parts.length - 1 ? total : 0) : n === parts.length - 1 ? total - used : Math.round((total * k) / sum);
+      used += height;
+      if (height > 0) { y -= height; segments.push({ macro, y, height }); }
+    });
+    return { x, width: 26, segments };
+  });
+  const labelLeft = 312 - (String(Math.round(planKcal)).length + Math.floor((String(Math.round(planKcal)).length - 1) / 3)) * 7;
+  let labelY = planY - 6;
+  for (const c of columns) {
+    if ("segments" in c && c.segments.length > 0 && c.x + c.width > labelLeft) labelY = Math.min(labelY, c.segments[c.segments.length - 1]!.y - 6);
+  }
+  return {
+    viewBox: "0 0 320 142",
+    planLine: { x1: 8, x2: 312, y: planY, dash: "3 3" },
+    planLabel: { x: 312, y: labelY },
+    columns,
+    labels: days.map((_, i) => ({ x: 14 + i * 44 + 13, y: 136 })),
+  };
+}
+
+/** Thin paired bars a day, burned beside eaten; a day with neither is a dotted base. */
+export function energyBars(days: readonly ({ burned: number | null; eaten: number } | null)[]): {
+  viewBox: string;
+  columns: ({ x: number; burned: { y: number; height: number } | null; eaten: { x: number; y: number; height: number } } | { x: number; dotted: true })[];
+  labels: { x: number; y: number }[];
+} {
+  const largest = Math.max(0, ...days.map((d) => Math.max(d?.burned ?? 0, d?.eaten ?? 0)));
+  const pxPerKcal = barPxPerKcal(100, 2300, largest);
+  return {
+    viewBox: "0 0 320 142",
+    columns: days.map((d, i) => {
+      const x = 16 + i * 44;
+      if (d === null) return { x, dotted: true as const };
+      const h = (kcal: number) => Math.round(kcal * pxPerKcal);
+      return {
+        x,
+        burned: d.burned === null ? null : { y: BARS_BASE - h(d.burned), height: h(d.burned) },
+        eaten: { x: x + 13, y: BARS_BASE - h(d.eaten), height: h(d.eaten) },
+      };
+    }),
+    labels: days.map((_, i) => ({ x: 16 + i * 44 + 11, y: 136 })),
+  };
+}
+
 // ── The goal progress bar ────────────────────────────────────────────────────────────────────
 //
 // Progress's goal card: `start → target` with the fill at the share already covered, "0.6kg down"

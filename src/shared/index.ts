@@ -44,6 +44,7 @@ export * from "./meal-names.ts";
 export * from "./outbox.ts";
 export * from "./paywall.ts";
 export * from "./progress.ts";
+export * from "./average.ts";
 // THE DESIGN SYSTEM (#28). Exported from the barrel AND available as `@eait/shared/design`: the
 // subpath is for the two readers that must not pull the barrel in — `app.config.ts`, which runs
 // under Node inside Expo's config loader, and the app's own `palette.ts`, which imports nothing
@@ -68,6 +69,7 @@ export * from "./app/milestones-copy.ts";
 export * from "./app/shell-copy.ts";
 export * from "./app/food-search-copy.ts";
 export * from "./app/numbers-copy.ts";
+export * from "./app/average-copy.ts";
 export * from "./app/error-copy.ts";
 export * from "./app/signup-copy.ts";
 export * from "./app/chat-copy.ts";

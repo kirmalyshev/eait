@@ -24,6 +24,14 @@ export const progressCss = `
 .prog .est { font-size: 12px; color: var(--muted); }
 
 /* The big figure line: the number in the display weight, the unit (and "· date") quiet beside it. */
+.prog .ags { margin-top: 10px; }
+.prog .d22 { font-size: 22px; }
+.prog .aglg { gap: 14px; margin-top: 8px; }
+.prog .aglg .row { gap: 5px; }
+.prog .aglg i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.prog .ecols { gap: 8px; margin-top: 10px; align-items: flex-start; }
+.prog .ecol { flex: 1; }
+.prog .eask { margin: 12px 0 0; }
 .prog .wnum { margin-top: 6px; }
 .prog .wnum .uw { color: var(--muted); font-weight: 600; }
 .prog .wchart { margin-top: 8px; }
