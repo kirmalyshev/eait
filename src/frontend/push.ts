@@ -57,5 +57,8 @@ export async function startPush(): Promise<void> {
   await registerWorker();
   if (!signedIn()) return;
   await reportPushOpen();
-  if ((await getPushConsent()).webPushKey !== null) await refreshWeb();
+  // Only while Notifications are on: a browser the account switched off was deleted server-side
+  // (ieat-app#2149), and re-registering it here would put its address back.
+  const consent = await getPushConsent();
+  if (consent.webPushKey !== null && consent.notifications) await refreshWeb();
 }

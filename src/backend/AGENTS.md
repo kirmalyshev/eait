@@ -513,7 +513,9 @@ naming it too.
   one-a-day rule, is retired for app pushes). `push_claim` is one row per `(user, local day,
   sender)` and exists for idempotency: the tick runs every minute on two replicas, so each sender
   claims its day BEFORE it sends. The sender is `pushSenderOf(kind, ref)` — the tick's scheduled
-  message (a trigger or the evening line, one sender) or `campaign:<ref>` (a campaign id,
+  message (a trigger or the evening line, one sender), `meal:<slot>` (the web push for a per-meal
+  reminder slot, ieat-app#2149: breakfast, lunch and dinner each claim their own day, send to browsers
+  only and never touch `push_slot`) or `campaign:<ref>` (a campaign id,
   `admin-test`, or one composer send: `admin:<adminId>:<request uuid>`, so composer sends are not
   limited to one a day). **The only bound is per account**: `users.push_daily_max` (admin,
   Accounts), else `EAIT__BACKEND__PUSH_DAILY_MAX`, else none, counted over that day's claims inside one

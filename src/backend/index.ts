@@ -20,7 +20,7 @@ import { choosePush } from "./push/choose.ts";
 import { chooseMail } from "./mail/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { loadPrompts } from "./llm/prompt.ts";
-import { collectPushReceipts, drainJobs, pushTick, runCampaigns, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
+import { collectPushReceipts, drainJobs, mealSlotTick, pushTick, runCampaigns, startJobs, pruneAgedHealthDays, type EngineDeps } from "./engine/index.ts";
 import { refreshCatalog } from "./engine/catalog-refresh.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
@@ -410,6 +410,8 @@ if (config.pushEnabled) {
     void (async () => {
       try {
         await pushTick(deps);
+        // The web half of the per-meal reminders (#2149): its own senders, one claim per slot and day.
+        await mealSlotTick(deps);
         // After the sweep: its rank-ordered claims for this minute are already made.
         await runCampaigns(deps);
         await collectPushReceipts(deps);

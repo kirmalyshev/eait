@@ -295,7 +295,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     const remindersAt = el("div", "");
     remindersAt.hidden = true;
     card.append(remindersAt);
-    void mealReminderRows(remindersAt, you.reminders, lang);
+    void mealReminderRows(remindersAt, you.reminders, you.web, lang, () => void draw());
 
     // Units — the display system only; the profile stores metric and PATCH writes the preference.
     card.append(optRow(

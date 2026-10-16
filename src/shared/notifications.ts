@@ -1,4 +1,12 @@
-// The two messages this product is allowed to send, and the arithmetic that decides which.
+// The server-composed messages this product sends, and the arithmetic that decides which.
+//
+// THIS HEADER WAS WRITTEN FOR TWO MESSAGES AND IS KEPT FOR WHAT IT STILL EXPLAINS (the trial reminder
+// and the 20:30 line). It is no longer the whole list: `NOTIFICATION_IDS` carries six ids, the
+// phone schedules per-meal LOCAL reminders (`meal-reminders.ts`, #902) and the server sends the same
+// slots as web push to browsers (`engine/meal-slots.ts`, #2149). There is no "one message a day"
+// rule any more (ieat-app#1965, Kirill 10 Oct): what bounds a day is one claim per (account, local
+// day, SENDER) and the account's own `push_daily_max`, both in `claimSend` (`engine/notify.ts`).
+// What is promised to the person is still told by the scripted lines.
 //
 // The scripted `trial-started` and `trial-day-one` lines (`chat-copy.ts`) promise exactly two:
 // "I'll remind you the day before it ends, never the day after" (ieat-app#1591: the 3-day trial

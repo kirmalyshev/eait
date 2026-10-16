@@ -294,7 +294,7 @@ create table if not exists push_claim (
   user_id    uuid not null references users(id) on delete cascade,
   local_date text not null,
   sender     text not null,
-  kind       text not null check (kind in ('trial','streak','evening','onboarding','campaign')),
+  kind       text not null check (kind in ('trial','streak','evening','onboarding','campaign','meal')),
   ref        text,
   created_at timestamptz not null default now(),
   primary key (user_id, local_date, sender)
@@ -304,7 +304,7 @@ alter table users add column if not exists push_daily_max integer check (push_da
 create table if not exists send_log (
   id            text primary key,
   user_id       uuid not null references users(id) on delete cascade,
-  kind          text not null check (kind in ('trial','streak','evening','onboarding','campaign','transactional')),
+  kind          text not null check (kind in ('trial','streak','evening','onboarding','campaign','meal','transactional')),
   ref           text,
   template_key  text not null,
   lang          text not null,
@@ -329,6 +329,26 @@ begin
     alter table send_log drop constraint if exists send_log_state_check;
     alter table send_log add constraint send_log_state_check
       check (state in ('queued','accepted','refused','delivered-to-apns','dead','dry','expired','would_have_sent'));
+  end if;
+end
+$do$;
+-- ieat-app#2149: the web slot reminders are kind 'meal'. A table made before them carries the narrower
+-- check; widen it once, guarded on the definition so a normal boot takes no ACCESS EXCLUSIVE lock.
+-- push_slot keeps its own list: a meal slot never writes it (it is the old build's scheduled-message
+-- fallback, and a meal reminder must not take the evening line's day from it).
+do $do$
+begin
+  if exists (select 1 from pg_constraint where conrelid = 'push_claim'::regclass and conname = 'push_claim_kind_check'
+             and pg_get_constraintdef(oid) not like '%meal%') then
+    alter table push_claim drop constraint push_claim_kind_check;
+    alter table push_claim add constraint push_claim_kind_check
+      check (kind in ('trial','streak','evening','onboarding','campaign','meal'));
+  end if;
+  if exists (select 1 from pg_constraint where conrelid = 'send_log'::regclass and conname = 'send_log_kind_check'
+             and pg_get_constraintdef(oid) not like '%meal%') then
+    alter table send_log drop constraint send_log_kind_check;
+    alter table send_log add constraint send_log_kind_check
+      check (kind in ('trial','streak','evening','onboarding','campaign','meal','transactional'));
   end if;
 end
 $do$;
@@ -1962,7 +1982,7 @@ export async function postgresStore(
       where user_id = ${userId} and local_date = ${localDate} and sender = ${sender}`;
     if (mine.length > 0) return "sender-taken";
     // ROLLING DEPLOYS: the previous build holds the scheduled message in push_slot. Drop with the write.
-    if (kind !== "campaign") {
+    if (kind !== "campaign" && kind !== "meal") {
       const old = await sql`select 1 from push_slot
         where user_id = ${userId} and local_date = ${localDate} and kind <> 'campaign'`;
       if (old.length > 0) return "sender-taken";
@@ -3987,7 +4007,7 @@ export async function postgresStore(
         if (won.length === 0) return { claimed: false as const, reason: "sender-taken" as const };
         // ROLLING DEPLOYS: the previous build claims the scheduled message on push_slot. Writing it
         // there keeps an old replica silent on a day this one took. Drop with `claimVerdict`'s read.
-        if (kind !== "campaign") {
+        if (kind !== "campaign" && kind !== "meal") {
           await tx`insert into push_slot (user_id, local_date, kind, ref) values (${userId}, ${localDate}, ${kind}, ${ref})
             on conflict (user_id, local_date) do nothing`;
         }
