@@ -50,7 +50,7 @@ button.hk { cursor: pointer; }
 .hk.over .fig, .hk.over .lbl { color: var(--over); }
 .hk.dash .fig { color: var(--line); }
 /* The quiet line under the hero when a burn was added (#911), and the sum it opens. */
-.gline { display: flex; align-items: center; gap: 2px; min-height: 44px; margin: -6px 0 -8px; padding: 0;
+.gline { display: flex; align-items: center; gap: 2px; min-height: 44px; margin: -6px 20px -8px; padding: 0;
   background: none; border: 0; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .gline svg, .gline .ico { width: 14px; height: 14px; }
 .gl-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--hair); font-size: 16px; }
@@ -58,6 +58,7 @@ button.hk { cursor: pointer; }
 .gl-t { flex: 1; min-width: 0; }
 .gl-row b { font-weight: 600; }
 .gl-total { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 0 4px; border-top: 1.5px solid var(--ink); }
+.gl-change { display: flex; align-items: center; min-height: 44px; color: var(--accent); font-weight: 600; font-size: 15px; text-decoration: none; }
 .gl-floor { margin: 8px 0; font-size: 13px; font-weight: 600; color: var(--care); }
 .hk:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .kr { position: relative; width: 96px; height: 96px; flex: 0 0 96px; display: flex;

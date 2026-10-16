@@ -47,7 +47,7 @@ export function openGoalSheet(day: DayResponse, burnedOn: boolean): void {
   const total = el("div", "gl-total");
   total.append(el("span", "d d17", c.total), el("b", "d d28 num", kn(day.targets.kcal)));
   card.append(total, el("p", "gl-floor", fill(c.floor, { floor: kn(g.floor) })));
-  const change = el("a", "elink", c.change) as HTMLAnchorElement;
+  const change = el("a", "gl-change", c.change) as HTMLAnchorElement;
   change.href = "#/you";
   change.addEventListener("click", close);
   card.append(change);
@@ -57,8 +57,9 @@ export function openGoalSheet(day: DayResponse, burnedOn: boolean): void {
 /** Profile's "Your daily goal" card: one switch, saved on tap and put back when the save fails. */
 export function goalPrefsCard(me: ProfileResponse, onSaved: (res: ProfileResponse) => void): HTMLElement {
   const c = goalCopyFor(lang);
-  const card = el("div", "card flat urows");
-  card.append(el("span", "lab", c.prefsTitle));
+  const card = el("div", "card rise rc-1");
+  const rows = el("div", "urows");
+  card.append(el("span", "lab", c.prefsTitle), rows);
   const row = el("div", "opt sw");
   const text = el("div", "ot");
   const lab = el("span", "ot", c.prefsBurned);
@@ -85,6 +86,6 @@ export function goalPrefsCard(me: ProfileResponse, onSaved: (res: ProfileRespons
       .finally(() => { saving = false; });
   });
   row.append(text, sw);
-  card.append(row);
+  rows.append(row);
   return card;
 }
