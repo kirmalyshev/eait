@@ -3,7 +3,7 @@
 
 import { unseenBadges } from "./milestones.ts";
 import {
-  dateMinus, dayHealthScore, weekAverage, weekStart, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
+  dateMinus, dayHealthScore, weekAverage, weekStart, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, microGoals, verdictInlineText,
   verdictLabels, windowStart,
   type AverageResponse, type DayReading, type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
@@ -73,7 +73,7 @@ export async function day(
   const reading = await dayReading(deps, userId, on);
   const { targets, basis } = explainTargets(profile, new Date(), reading);
   return {
-    date: on, meals, totals: sumTotals(meals), targets,
+    date: on, meals, totals: sumTotals(meals), targets, goals: microGoals(profile, targets),
     goal: { plan: basis.planKcal, burned: basis.burnedAddKcal, rollover: basis.rolloverAddKcal, active: reading.activeKcal, usual: basis.activityDeltaKcal, floor: basis.floorKcal },
     // The day's score is the kcal-weighted mean of the meals' own — the store attached those on
     // the read, so a meal nobody scored leaves this null rather than a six nobody earned.

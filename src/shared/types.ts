@@ -137,6 +137,10 @@ export interface Profile {
   struggles: Struggle[] | null;
   /** Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it. */
   streak_goal_days: StreakGoal | null;
+  /** Fibre/sugar/sodium goal overrides (#914); null = the default in `micro-goals.ts`. */
+  fiber_goal_g: number | null;
+  sugar_goal_g: number | null;
+  sodium_goal_mg: number | null;
   /** Show the Badge Unlocked moment (milestones). Default true. */
   milestone_celebrations: boolean;
   /** Show the streak chip on Home (milestones). Default true. */

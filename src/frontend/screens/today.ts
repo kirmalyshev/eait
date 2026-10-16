@@ -474,6 +474,8 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
     name: string;
     /** The "55g" / "835mg" figure, already formatted — "—g" on the dashed reads. */
     grams: string;
+    /** A goal read against, after a slash and muted: "15 g / 25 g" (#914). Plain: no bar, no tone. */
+    goal?: string;
     /** eaten÷target, raw — unset is the targetless row (the total alone); >1 is over. */
     share?: number;
     /** The bar fill's token name — `macro-<name>`; the over row always fills ink. */
@@ -489,7 +491,10 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
     const h = el("span", "h");
     h.append(kitEl(ico(o.icon)), el("span", "", cap(o.name)));
     const fig = el("b", "num");
-    if (o.share === undefined) fig.append(document.createTextNode(o.grams));
+    if (o.share === undefined) {
+      fig.append(document.createTextNode(o.grams));
+      if (o.goal !== undefined) fig.append(el("small", "", ` / ${o.goal}`));
+    }
     else figureBits(fig, over ? L.gramOver : L.gramLeft, o.grams);
     h.append(fig);
     row.append(h);
@@ -529,6 +534,13 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
       tone: opts.mg === true ? "ink" : `macro-${icon === "satfat" ? "fat" : icon}`,
       tipKind: opts.tip,
     });
+  };
+
+  /** Fibre, sugar or sodium against its goal (#914): plain figures, no bar, no colour — a goal to
+   *  read against, never a verdict, so a figure past it stays ink. */
+  const goalRow = (icon: IconName, name: string, eaten: number, goal: number, mg = false): HTMLElement => {
+    const fig = (v: number) => (mg ? fill(L.milligrams, { n: n(Math.round(v)) }) : gram(Math.round(v)));
+    return macroRow({ icon, name, grams: fig(eaten), goal: fig(goal) });
   };
 
   /** The hero's ring — the boards' 96 px instrument: the faint track, the day's arc (accent,
@@ -686,9 +698,9 @@ async function diaryScreen(frame: Frame, firstMeal: ProfileResponse | null = nul
       );
       rowsTwo.append(
         leftRow("satfat", L.macros.satFat.name, day.totals.satfat_g, day.targets.satfat_g, { tip: "satfat" }),
-        macroRow({ icon: "fibre", name: L.macros.fibre.name, grams: gram(Math.round(day.totals.fiber_g)) }),
-        macroRow({ icon: "sugar", name: L.macros.sugar.name, grams: gram(Math.round(day.totals.sugar_g)) }),
-        leftRow("salt", L.macros.sodium.name, day.totals.sodium_mg, day.targets.sodium_mg, { mg: true }),
+        goalRow("fibre", L.macros.fibre.name, day.totals.fiber_g, day.goals.fiber_g),
+        goalRow("sugar", L.macros.sugar.name, day.totals.sugar_g, day.goals.sugar_g),
+        goalRow("salt", L.macros.sodium.name, day.totals.sodium_mg, day.goals.sodium_mg, true),
       );
     }
     const gl = day === null ? null : goalLine(day, me.profile);

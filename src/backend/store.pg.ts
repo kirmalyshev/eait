@@ -253,6 +253,11 @@ alter table users add column if not exists struggles text[];
 -- and again on the read, so a value from a newer binary is unrenderable here, not wrong.
 alter table users add column if not exists streak_goal_days integer;
 
+-- Fibre, sugar and sodium goal overrides (ieat-app#914). NULL = the default in shared/micro-goals.ts.
+alter table users add column if not exists fiber_goal_g integer;
+alter table users add column if not exists sugar_goal_g integer;
+alter table users add column if not exists sodium_goal_mg integer;
+
 -- Milestones' two switches (ieat-app#1395). Booleans that default to ON, so a row from before them
 -- reads as the product's default rather than as a user who turned something off.
 alter table users add column if not exists milestone_celebrations boolean not null default true;
@@ -1467,6 +1472,9 @@ function toProfile(r: UserRow): Profile {
     streak_goal_days: (STREAK_GOALS as readonly number[]).includes(Number(r.streak_goal_days))
       ? (Number(r.streak_goal_days) as StreakGoal)
       : null,
+    fiber_goal_g: r.fiber_goal_g === null || r.fiber_goal_g === undefined ? null : Number(r.fiber_goal_g),
+    sugar_goal_g: r.sugar_goal_g === null || r.sugar_goal_g === undefined ? null : Number(r.sugar_goal_g),
+    sodium_goal_mg: r.sodium_goal_mg === null || r.sodium_goal_mg === undefined ? null : Number(r.sodium_goal_mg),
     milestone_celebrations: r.milestone_celebrations !== false,
     streak_on_home: r.streak_on_home !== false,
     addback_burned: r.addback_burned !== false,
@@ -1547,7 +1555,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "streak_goal_days", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "fiber_goal_g", "sugar_goal_g", "sodium_goal_mg", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 

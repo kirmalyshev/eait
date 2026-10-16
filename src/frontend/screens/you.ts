@@ -37,6 +37,8 @@ import type {
 import { pushRows } from "./you-push.ts";
 import { mealReminderRows } from "./you-reminders.ts";
 import { milestonesCopyFor } from "../../shared/app/milestones-copy.ts";
+import { microGoalsCopyFor } from "../../shared/app/micro-goals-copy.ts";
+import { MICRO_GOAL_MAX } from "../../shared/micro-goals.ts";
 import { api, apiSend, ApiError, signOut, Unauthenticated } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { kitEl, macEl } from "../kit.ts";
@@ -466,7 +468,11 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     const p = me!.profile;
     const imperial = units() === "imperial";
 
-    const { body, close } = openPanel(you.phone.profileTitle);
+    const { body, close, setPage } = openPanel(you.phone.profileTitle);
+    // Nutrition goals is a PAGE of this dialog, not a second one: the content swaps, the × slot
+    // becomes a back chevron, and there is one Save at a time (the board: Profile › Nutrition goals).
+    let goalsPage = false;
+    const backToRows = (): void => { goalsPage = false; setPage(you.phone.profileTitle, null); drawRows(); };
     const draft: Draft = {
       goal: p.goal,
       target: p.target_weight_kg !== null ? String(weightDisplayValue(p.target_weight_kg, units())) : "",
@@ -482,7 +488,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     let weights: WeightsResponse | null = null;
     let savedKg: number | null = null;
     void api<WeightsResponse>("/weights?range=all")
-      .then((w) => { weights = w; drawRows(); })
+      .then((w) => { weights = w; if (!goalsPage) drawRows(); })
       .catch(() => {});
 
     const latestKg = () => savedKg ?? weights?.latest?.kg ?? p.weight_kg;
@@ -563,6 +569,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
 
     function drawRows(): void {
       clear(body);
+      if (goalsPage) { drawGoalsPage(body, close); return; }
       // Goal — the onboarding's three, single pick.
       body.append(editBlock("goal", screenOptionValues("goal", lang).map((g) => ({
         value: g,
@@ -589,6 +596,20 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
         });
       });
       body.append(wrow);
+
+      // Nutrition goals (#914) — a door to its own panel, like the weigh-in's.
+      const grow = el("button", "prow") as HTMLButtonElement;
+      grow.type = "button";
+      grow.append(
+        el("span", "", microGoalsCopyFor(lang).title),
+        kitEl(`<i class="ico i-chevron-right" aria-hidden="true"></i>`),
+      );
+      grow.addEventListener("click", () => {
+        goalsPage = true;
+        setPage(microGoalsCopyFor(lang).title, backToRows, shellCopyFor(lang).navProfile);
+        drawRows();
+      });
+      body.append(grow);
 
       // Target — the one typed field, display units in, kg out at the PATCH.
       const tbox = el("div", "pedit");
@@ -705,6 +726,87 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     });
 
     drawRows();
+  }
+
+  // ── Nutrition goals (#914): fibre, sugar and sodium goals — plain numbers to read Home against,
+  // not verdicts. Blank = the default; a kidney restriction caps sodium and says so. ──────────────
+
+  function drawGoalsPage(body: HTMLElement, close: () => void): void {
+    const C = microGoalsCopyFor(lang);
+    const H = homeCopyFor(lang);
+    const p = me!.profile;
+    const shown = me!.microGoals;
+    const rows = [
+      { key: "fiber_goal_g", name: H.macros.fibre.name, unit: H.grams, tmpl: C.atLeast, max: MICRO_GOAL_MAX.fiber_g, now: shown.fiber_g, set: p.fiber_goal_g },
+      { key: "sugar_goal_g", name: H.macros.sugar.name, unit: H.grams, tmpl: C.atMost, max: MICRO_GOAL_MAX.sugar_g, now: shown.sugar_g, set: p.sugar_goal_g },
+      { key: "sodium_goal_mg", name: H.macros.sodium.name, unit: H.milligrams, tmpl: C.atMost, max: MICRO_GOAL_MAX.sodium_mg, now: shown.sodium_mg, set: p.sodium_goal_mg },
+    ] as const;
+    const draft: Record<string, string> = {};
+    body.append(el("div", "lab", C.label));
+    for (const r of rows) {
+      draft[r.key] = r.set !== null ? String(r.set) : "";
+      const line = el("label", "prow");
+      const field = document.createElement("input");
+      field.type = "number";
+      field.step = "1";
+      field.min = "1";
+      field.max = String(r.max);
+      field.inputMode = "numeric";
+      field.className = "pfield";
+      field.placeholder = String(r.now);
+      field.value = draft[r.key]!;
+      field.setAttribute("aria-label", `${r.name}, ${fill(r.tmpl, { v: fill(r.unit, { n: n(r.now) }) })}`);
+      field.addEventListener("input", () => { draft[r.key] = field.value; save.disabled = !dirty(); });
+      // The name over the goal's sentence ("at least 25 g"), which follows what is typed.
+      const words = el("span", "t12 m", "");
+      const say = (v: number): void => { words.textContent = fill(r.tmpl, { v: fill(r.unit, { n: n(v) }) }); };
+      say(r.now);
+      field.addEventListener("input", () => { const v = Number(field.value); say(field.value !== "" && v >= 1 ? v : r.now); });
+      const name = el("span", "", "");
+      name.style.cssText = "flex:1;display:flex;flex-direction:column;gap:2px;text-align:left";
+      name.append(el("span", "", r.name), words);
+      field.style.cssText = "width:96px;flex:0 0 96px;text-align:right";
+      const unit = el("span", "t13 m", fill(r.unit, { n: "" }).trim());
+      unit.style.cssText = "flex:0 0 24px;text-align:left";
+      line.style.cssText = "display:flex;align-items:center;gap:8px";
+      line.append(name, field, unit);
+      body.append(line);
+      if (r.key === "sodium_goal_mg" && me!.targets.sodium_mg !== undefined) body.append(el("p", "t12 m", C.kidneyNote));
+    }
+    body.append(el("p", "t12 m", C.foot));
+
+    const dirty = (): boolean => rows.some((r) => draft[r.key] !== (r.set !== null ? String(r.set) : ""));
+    const notice = el("div", "pnote");
+    notice.setAttribute("role", "alert");
+    notice.hidden = true;
+    const save = el("button", "cta p", you.phone.save) as HTMLButtonElement;
+    save.type = "button";
+    save.disabled = true;
+    body.append(notice, save);
+
+    save.addEventListener("click", async () => {
+      if (!dirty()) return;
+      save.disabled = true;
+      const patchBody: Record<string, number | null> = {};
+      for (const r of rows) {
+        if (draft[r.key] !== (r.set !== null ? String(r.set) : "")) patchBody[r.key] = draft[r.key] === "" ? null : Number(draft[r.key]);
+      }
+      try {
+        me = await api<ProfileResponse>("/profile", {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patchBody),
+        });
+        forgetProfile();
+        close();
+        void draw();
+      } catch (err) {
+        if (err instanceof Unauthenticated) { close(); await render(); return; }
+        notice.replaceChildren(el("b", "", you.web.saveFailedTitle), el("span", "t13 m", keptWords(err, you.web.saveFailedBody)));
+        notice.hidden = false;
+        save.disabled = !dirty();
+      }
+    });
   }
 
   // ── The remaining row panels (web/you-basis|account|subscription|delete, #477) — the same

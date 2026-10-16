@@ -20,6 +20,7 @@ export * from "./health-copy.ts";
 export * from "./trend.ts";
 export * from "./scores.ts";
 export * from "./milestones.ts";
+export * from "./micro-goals.ts";
 export * from "./app/scores-copy.ts";
 export * from "./entitlement.ts";
 export * from "./referral.ts";

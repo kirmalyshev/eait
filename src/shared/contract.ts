@@ -22,6 +22,7 @@ import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
+import type { MicroGoals } from "./micro-goals.ts";
 import type { StreakMark, StreakRead } from "./dates.ts";
 import { SNAPSHOT_MICROS, type FoodAttribution, type FoodRef, type OffProduct } from "./foods.ts";
 
@@ -754,6 +755,8 @@ export interface DonateLinks {
 export interface ProfileResponse {
   profile: Profile;
   targets: FoodTargets;
+  /** The resolved fibre/sugar/sodium goals (#914), kidney cap applied: what the profile editor shows. */
+  microGoals: MicroGoals;
   /** Why the targets are what they are. `basis.floorApplied` MUST be surfaced to the user. */
   basis: TargetBasis;
   /**
@@ -925,6 +928,10 @@ export interface PatchProfileRequest {
   struggles?: Struggle[] | null;
   /** The streak length aimed for; `null` clears it back to unasked. */
   streak_goal_days?: StreakGoal | null;
+  /** Fibre/sugar/sodium goals (#914); `null` clears one back to its default. Whole numbers, 1..`MICRO_GOAL_MAX`. */
+  fiber_goal_g?: number | null;
+  sugar_goal_g?: number | null;
+  sodium_goal_mg?: number | null;
   /** Show the Badge Unlocked moment. Default true. */
   milestone_celebrations?: boolean;
   /** Show the streak chip on Home. Default true. */
@@ -1602,6 +1609,8 @@ export interface DayResponse {
   meals: MealRecord[];
   totals: DailyTotals;
   targets: FoodTargets;
+  /** Fibre/sugar/sodium goals the day's totals are read against (#914). Not verdicts. */
+  goals: MicroGoals;
   /**
    * How `targets.kcal` was reached (#911, #912), for the goal sheet. `rollover` is what rolled in
    * from yesterday's unspent plan, 0 when the switch is off or yesterday had no logged meal. `burned` is 0 when the account has

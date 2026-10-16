@@ -19,6 +19,7 @@ interface OpenPanel {
 const stack: OpenPanel[] = [];
 
 const drop = (entry: OpenPanel): void => {
+  if (!stack.includes(entry)) return;
   stack.splice(stack.indexOf(entry), 1);
   entry.scrim.remove();
   if (entry.restore instanceof HTMLElement && entry.restore.isConnected) entry.restore.focus();
@@ -65,7 +66,12 @@ function present(card: HTMLElement, focus: HTMLElement): { close: () => void } {
  * `aria-label` carries the title because the visible one is a span, not a heading — the screen's
  * one h1 stays the screen's.
  */
-export function openPanel(title: string): { body: HTMLElement; close: () => void } {
+export function openPanel(title: string): {
+  body: HTMLElement;
+  close: () => void;
+  /** Swap the panel's page in place: a new title and, with `onBack`, a back chevron in the × slot. */
+  setPage: (title: string, onBack: (() => void) | null, backLabel?: string) => void;
+} {
   const card = el("div", "card panel rise");
   card.setAttribute("role", "dialog");
   card.setAttribute("aria-modal", "true");
@@ -78,10 +84,21 @@ export function openPanel(title: string): { body: HTMLElement; close: () => void
   spacer.setAttribute("aria-hidden", "true");
   spacer.style.visibility = "hidden";
   const head = el("div", "row between phead");
-  head.append(close, el("span", "d d17", title), spacer);
+  const heading = el("span", "d d17", title);
+  head.append(close, heading, spacer);
   const body = el("div", "pbody");
   card.append(head, body);
-  return { body, ...present(card, close) };
+  const shown = present(card, close);
+  let back: (() => void) | null = null;
+  close.addEventListener("click", () => (back ?? shown.close)());
+  const setPage = (t: string, onBack: (() => void) | null, backLabel?: string): void => {
+    back = onBack;
+    heading.textContent = t;
+    card.setAttribute("aria-label", t);
+    close.setAttribute("aria-label", onBack !== null && backLabel !== undefined ? backLabel : COPY.cancel);
+    close.replaceChildren(kitEl(ico(onBack !== null ? "chevron-left" : "x")));
+  };
+  return { body, close: shown.close, setPage };
 }
 
 /**
