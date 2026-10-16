@@ -80,7 +80,7 @@ export async function onboard(page: Page, extra: Record<string, string | string[
     // neither a question nor a Continue link, read that as "nothing left to answer" and stop on a
     // moment card (the ontrack one, under load). Wait for what the next page is made of first.
     await Promise.race([
-      page.locator('input[name="prompt"], a.cta').first().waitFor({ timeout: 5000 }),
+      page.locator('input[name="prompt"], a.cta').first().waitFor({ state: "attached", timeout: 5000 }), // the prompt input is type=hidden: never "visible"
       page.waitForURL(/\/start\/plan/, { timeout: 5000 }),
     ]).catch(() => {});
     if (/\/start\/plan/.test(page.url())) return;
