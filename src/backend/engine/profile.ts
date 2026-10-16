@@ -15,7 +15,7 @@ import { MAX_PROFILE_TEXT,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
 } from "@eait/shared";
-import { MIN_AGE } from "@eait/shared";
+import { MICRO_GOAL_MAX, MIN_AGE, microGoals } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
@@ -138,7 +138,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const { targets, basis } = explainTargets(profile);
   const entitlement = await entitlementFor(deps, userId);
   return {
-    profile, targets, basis, onboarded: profile.onboarded_at !== null,
+    profile, targets, microGoals: microGoals(profile, targets), basis, onboarded: profile.onboarded_at !== null,
     // Computed HERE, in this server's zone — a client that subtracts the year itself is off by
     // one for the hour the zones disagree, and `ageFrom` keeps the band check honest.
     age: ageFrom(profile.birth_year, new Date(`${localDate(deps.config.timezone)}T12:00:00Z`)),
@@ -299,6 +299,13 @@ export async function patchProfile(
     }
     patch.streak_goal_days = req.streak_goal_days;
   }
+  for (const key of ["fiber_goal_g", "sugar_goal_g", "sodium_goal_mg"] as const) {
+    const v = req[key];
+    if (v === undefined) continue;
+    const max = MICRO_GOAL_MAX[key === "fiber_goal_g" ? "fiber_g" : key === "sugar_goal_g" ? "sugar_g" : "sodium_mg"];
+    if (v !== null && !(Number.isInteger(v) && v >= 1 && v <= max)) return reject(key, "out-of-range");
+    patch[key] = v;
+  }
   for (const key of ["milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover"] as const) {
     const v = req[key];
     if (v === undefined) continue;
@@ -385,7 +392,7 @@ export async function patchProfile(
   return {
     ok: true,
     view: {
-      profile, targets, basis, onboarded: profile.onboarded_at !== null,
+      profile, targets, microGoals: microGoals(profile, targets), basis, onboarded: profile.onboarded_at !== null,
       age: ageFrom(profile.birth_year, new Date(`${localDate(deps.config.timezone)}T12:00:00Z`)),
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,

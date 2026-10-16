@@ -5705,6 +5705,10 @@
           "targets": {
             "$ref": "#/components/schemas/FoodTargets"
           },
+          "goals": {
+            "$ref": "#/components/schemas/MicroGoals",
+            "description": "Fibre/sugar/sodium goals the day's totals are read against (#914). Not verdicts."
+          },
           "goal": {
             "type": "object",
             "properties": {
@@ -5757,6 +5761,7 @@
           "meals",
           "totals",
           "targets",
+          "goals",
           "goal",
           "healthScore"
         ],
@@ -8019,6 +8024,29 @@
       "MessageResponse": {
         "$ref": "#/components/schemas/HandleTextResult"
       },
+      "MicroGoals": {
+        "type": "object",
+        "properties": {
+          "fiber_g": {
+            "type": "number",
+            "description": "At least."
+          },
+          "sugar_g": {
+            "type": "number",
+            "description": "At most."
+          },
+          "sodium_mg": {
+            "type": "number",
+            "description": "At most."
+          }
+        },
+        "required": [
+          "fiber_g",
+          "sugar_g",
+          "sodium_mg"
+        ],
+        "additionalProperties": false
+      },
       "MilestonesResponse": {
         "type": "object",
         "properties": {
@@ -8852,6 +8880,25 @@
             ],
             "description": "The streak length aimed for; `null` clears it back to unasked."
           },
+          "fiber_goal_g": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Fibre/sugar/sodium goals (#914); `null` clears one back to its default. Whole numbers, 1..`MICRO_GOAL_MAX`."
+          },
+          "sugar_goal_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sodium_goal_mg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "milestone_celebrations": {
             "type": "boolean",
             "description": "Show the Badge Unlocked moment. Default true."
@@ -9358,6 +9405,25 @@
             ],
             "description": "Days of logging in a row the user aims for; null = never asked. Home's streak chip reads it."
           },
+          "fiber_goal_g": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Fibre/sugar/sodium goal overrides (#914); null = the default in `micro-goals.ts`."
+          },
+          "sugar_goal_g": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sodium_goal_mg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "milestone_celebrations": {
             "type": "boolean",
             "description": "Show the Badge Unlocked moment (milestones). Default true."
@@ -9430,6 +9496,9 @@
           "units",
           "struggles",
           "streak_goal_days",
+          "fiber_goal_g",
+          "sugar_goal_g",
+          "sodium_goal_mg",
           "milestone_celebrations",
           "streak_on_home",
           "addback_burned",
@@ -9467,6 +9536,9 @@
               "units",
               "struggles",
               "streak_goal_days",
+              "fiber_goal_g",
+              "sugar_goal_g",
+              "sodium_goal_mg",
               "milestone_celebrations",
               "streak_on_home",
               "addback_burned",
@@ -9510,6 +9582,10 @@
           },
           "targets": {
             "$ref": "#/components/schemas/FoodTargets"
+          },
+          "microGoals": {
+            "$ref": "#/components/schemas/MicroGoals",
+            "description": "The resolved fibre/sugar/sodium goals (#914), kidney cap applied: what the profile editor shows."
           },
           "basis": {
             "$ref": "#/components/schemas/TargetBasis",
@@ -9577,6 +9653,7 @@
         "required": [
           "profile",
           "targets",
+          "microGoals",
           "basis",
           "age",
           "onboarded",
