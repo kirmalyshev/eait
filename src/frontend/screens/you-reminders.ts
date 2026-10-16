@@ -56,8 +56,10 @@ export async function mealReminderRows(
         turnOn.disabled = false;
       }
     });
-    text.append(el("span", "ot", C.prompt), blocked);
-    row.append(text, turnOn);
+    // The button goes UNDER the line, not beside it: it is full width, and beside the text it left the
+    // sentence a sliver one word wide at 390px.
+    text.append(el("span", "ot", C.prompt), blocked, turnOn);
+    row.append(text);
     rows.push(row);
   }
 
