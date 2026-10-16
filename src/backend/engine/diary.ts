@@ -5,7 +5,7 @@ import { unseenBadges } from "./milestones.ts";
 import {
   dateMinus, dayHealthScore, forgivingStreak, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, verdictInlineText,
   verdictLabels, windowStart,
-  type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
+  type DayReading, type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
@@ -23,6 +23,13 @@ import { sumTotals } from "./meals.ts";
  * work reads the `from`/`to` range below.
  */
 export const MAX_WINDOW_DAYS = DIARY_WINDOW_DAYS;
+
+/** What Apple Health says that day added (#911); `activeKcal` null when no row, or no active energy. */
+export async function dayReading(deps: EngineDeps, userId: string, date: string): Promise<DayReading> {
+  if (!(await deps.store.getProfile(userId))?.addback_burned) return { activeKcal: null };
+  const row = (await deps.store.healthDaysSince(userId, date)).find((d) => d.date === date);
+  return { activeKcal: row?.active_kcal ?? null };
+}
 
 /** One day. Null when the user has no profile — the surface turns that into a 403. */
 export async function day(
@@ -46,8 +53,13 @@ export async function day(
     // verdict reaches the page already composed ("calories high · saturated fat high", "" when
     // every verdict is on plan) and the pills as {dimension, tone, label}.
     .map((m) => ({ ...m, verdictInline: verdictInlineText(m.verdicts, profile.lang), verdictLabels: verdictLabels(m.verdicts, profile.lang) }));
+  // The day's own goal (#911): the plan plus what that day's Apple Health burn adds, when the
+  // account has it on. `explainTargets` applies the cap and the floor; nothing here touches either.
+  const reading = await dayReading(deps, userId, on);
+  const { targets, basis } = explainTargets(profile, new Date(), reading);
   return {
-    date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets,
+    date: on, meals, totals: sumTotals(meals), targets,
+    goal: { plan: basis.planKcal, burned: basis.burnedAddKcal, active: reading.activeKcal, usual: basis.activityDeltaKcal, floor: basis.floorKcal },
     // The day's score is the kcal-weighted mean of the meals' own — the store attached those on
     // the read, so a meal nobody scored leaves this null rather than a six nobody earned.
     healthScore: dayHealthScore(meals),

@@ -141,6 +141,8 @@ export interface Profile {
   milestone_celebrations: boolean;
   /** Show the streak chip on Home (milestones). Default true. */
   streak_on_home: boolean;
+  /** Add the day's extra burn (Apple Health) to that day's goal (#911). Default true. */
+  addback_burned: boolean;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
   /**

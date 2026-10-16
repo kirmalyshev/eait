@@ -5325,6 +5325,41 @@
           "targets": {
             "$ref": "#/components/schemas/FoodTargets"
           },
+          "goal": {
+            "type": "object",
+            "properties": {
+              "plan": {
+                "type": "number"
+              },
+              "burned": {
+                "type": "number"
+              },
+              "active": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "usual": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "floor": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "plan",
+              "burned",
+              "active",
+              "usual",
+              "floor"
+            ],
+            "additionalProperties": false,
+            "description": "How `targets.kcal` was reached (#911), for the goal sheet. `burned` is 0 when the account has the add-back off, Apple Health has no reading for the day, or there is no BMR to measure the usual days against; `active` is null in the same cases but the last. Every number is `explainTargets`'s own, never recomputed by a client."
+          },
           "healthScore": {
             "type": [
               "number",
@@ -5338,6 +5373,7 @@
           "meals",
           "totals",
           "targets",
+          "goal",
           "healthScore"
         ],
         "additionalProperties": false
@@ -8440,6 +8476,10 @@
             "type": "boolean",
             "description": "Show the streak chip on Home. Default true."
           },
+          "addback_burned": {
+            "type": "boolean",
+            "description": "Add the day's extra burn to that day's goal (#911). Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -8938,6 +8978,10 @@
             "type": "boolean",
             "description": "Show the streak chip on Home (milestones). Default true."
           },
+          "addback_burned": {
+            "type": "boolean",
+            "description": "Add the day's extra burn (Apple Health) to that day's goal (#911). Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -8996,6 +9040,7 @@
           "streak_goal_days",
           "milestone_celebrations",
           "streak_on_home",
+          "addback_burned",
           "country",
           "restrictions",
           "medical_limitations",
@@ -9031,6 +9076,7 @@
               "streak_goal_days",
               "milestone_celebrations",
               "streak_on_home",
+              "addback_burned",
               "country",
               "restrictions",
               "diet",
@@ -9772,6 +9818,14 @@
           "usedFallbackBand": {
             "type": "boolean",
             "description": "True when no BMR could be computed and the flat goal band was used instead."
+          },
+          "burnedAddKcal": {
+            "type": "number",
+            "description": "Today's kcal added for burning beyond the usual days (#911); 0 when off, no reading, or no BMR."
+          },
+          "planKcal": {
+            "type": "number",
+            "description": "The plan's own number: the target with NO day's reading applied. `targets.kcal` is this plus `burnedAddKcal`, floored. Projection and the plan card read this, never the day's number."
           }
         },
         "required": [
@@ -9783,7 +9837,9 @@
           "shareCapApplied",
           "floorKcal",
           "floorApplied",
-          "usedFallbackBand"
+          "usedFallbackBand",
+          "burnedAddKcal",
+          "planKcal"
         ],
         "additionalProperties": false,
         "description": "Everything behind the number, so the app can show its work.\n\nThis is not diagnostics. A user who is told \"1,450kcal\" and nothing else has been handed an assertion; a user who is told \"your maintenance is 2,100, we subtracted 20%, and we stopped at your floor of 1,200\" has been handed a reason. The second is the honest product and it is also the defensible one — `floorApplied` is what the UI reads to explain itself."

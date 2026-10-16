@@ -916,6 +916,8 @@ export interface PatchProfileRequest {
   milestone_celebrations?: boolean;
   /** Show the streak chip on Home. Default true. */
   streak_on_home?: boolean;
+  /** Add the day's extra burn to that day's goal (#911). Default true. */
+  addback_burned?: boolean;
   country?: string | null;
   restrictions?: string[];
   /**
@@ -1585,6 +1587,13 @@ export interface DayResponse {
   meals: MealRecord[];
   totals: DailyTotals;
   targets: FoodTargets;
+  /**
+   * How `targets.kcal` was reached (#911), for the goal sheet. `burned` is 0 when the account has
+   * the add-back off, Apple Health has no reading for the day, or there is no BMR to measure the
+   * usual days against; `active` is null in the same cases but the last. Every number is
+   * `explainTargets`'s own, never recomputed by a client.
+   */
+  goal: { plan: number; burned: number; active: number | null; usual: number | null; floor: number };
   /**
    * The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`,
    * #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored.

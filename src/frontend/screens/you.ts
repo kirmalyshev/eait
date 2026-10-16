@@ -49,6 +49,7 @@ import {
   clear, COPY, el, forgetProfile, keptWords, lang, refusalWords, render, setHeldProposal,
   setLastThread, type Frame,
 } from "../shell.ts";
+import { goalPrefsCard } from "./goal.ts";
 
 export async function youScreen(frame: Frame, mode: "profile" | "settings" = "profile"): Promise<HTMLElement> {
   const wrap = el("section", "you");
@@ -927,7 +928,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
       clear(leftCol).append(rowsCard(ids, rn), ...(anonymous ? [] : [signOutCard()]), rn.notice);
       return;
     }
-    clear(leftCol).append(identityCard(), planCard());
+    clear(leftCol).append(identityCard(), planCard(), goalPrefsCard(me!, (res) => { me = res; }));
     const refer = anonymous ? null : referralCard();
     clear(rightCol).append(...(refer ? [refer] : []), rowsCard(ids, rn), rn.notice);
   }
