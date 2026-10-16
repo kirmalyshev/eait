@@ -749,7 +749,19 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
       field.value = draft[r.key]!;
       field.setAttribute("aria-label", `${r.name}, ${fill(r.tmpl, { v: fill(r.unit, { n: n(r.now) }) })}`);
       field.addEventListener("input", () => { draft[r.key] = field.value; save.disabled = !dirty(); });
-      line.append(el("span", "", r.name), field, el("span", "t13 m", fill(r.unit, { n: "" }).trim()));
+      // The name over the goal's sentence ("at least 25 g"), which follows what is typed.
+      const words = el("span", "t12 m", "");
+      const say = (v: number): void => { words.textContent = fill(r.tmpl, { v: fill(r.unit, { n: n(v) }) }); };
+      say(r.now);
+      field.addEventListener("input", () => { const v = Number(field.value); say(field.value !== "" && v >= 1 ? v : r.now); });
+      const name = el("span", "", "");
+      name.style.cssText = "flex:1;display:flex;flex-direction:column;gap:2px;text-align:left";
+      name.append(el("span", "", r.name), words);
+      field.style.cssText = "width:96px;flex:0 0 96px;text-align:right";
+      const unit = el("span", "t13 m", fill(r.unit, { n: "" }).trim());
+      unit.style.cssText = "flex:0 0 24px;text-align:left";
+      line.style.cssText = "display:flex;align-items:center;gap:8px";
+      line.append(name, field, unit);
       body.append(line);
       if (r.key === "sodium_goal_mg" && me!.targets.sodium_mg !== undefined) body.append(el("p", "t12 m", C.kidneyNote));
     }
