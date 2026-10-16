@@ -266,6 +266,7 @@ alter table users add column if not exists streak_on_home boolean not null defau
 alter table users add column if not exists addback_burned boolean not null default true;
 -- Yesterday's unspent plan rolled into today's goal (ieat-app#912). ON by default, like the rest.
 alter table users add column if not exists addback_rollover boolean not null default true;
+alter table users add column if not exists meal_focus_offer boolean not null default true;
 
 -- The evening line's dedupe (#414): the local date this account was last CLAIMED for a send,
 -- stamped atomically before the push goes out. Two replicas racing the sweep — or this one
@@ -1479,6 +1480,7 @@ function toProfile(r: UserRow): Profile {
     streak_on_home: r.streak_on_home !== false,
     addback_burned: r.addback_burned !== false,
     addback_rollover: r.addback_rollover !== false,
+    meal_focus_offer: r.meal_focus_offer !== false,
     country: (r.country ?? null) as string | null,
     restrictions: (r.restrictions ?? []) as string[],
     medical_limitations: (r.medical_limitations ?? null) as string | null,
@@ -1555,7 +1557,7 @@ const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
   "lang", "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg",
-  "activity", "pace", "units", "struggles", "streak_goal_days", "fiber_goal_g", "sugar_goal_g", "sodium_goal_mg", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "country", "restrictions", "medical_limitations",
+  "activity", "pace", "units", "struggles", "streak_goal_days", "fiber_goal_g", "sugar_goal_g", "sodium_goal_mg", "milestone_celebrations", "streak_on_home", "addback_burned", "addback_rollover", "meal_focus_offer", "country", "restrictions", "medical_limitations",
   "food_allergies", "product_limitations", "onboarded_at",
 ] as const;
 

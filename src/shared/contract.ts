@@ -940,6 +940,8 @@ export interface PatchProfileRequest {
   addback_burned?: boolean;
   /** Roll over yesterday's unspent calories, up to 200 (#912). Default true. */
   addback_rollover?: boolean;
+  /** Offer a phone break after a logged meal (ieat-app#2129). Default true. */
+  meal_focus_offer?: boolean;
   country?: string | null;
   restrictions?: string[];
   /**
