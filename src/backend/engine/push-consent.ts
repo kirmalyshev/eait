@@ -22,7 +22,17 @@ export async function pushConsent(deps: EngineDeps, userId: string): Promise<Pus
 /** Applies whichever fields are present; an old build sends `offers` alone. */
 export async function setPushConsent(deps: EngineDeps, userId: string, change: PushConsentRequest): Promise<PushConsentResponse> {
   if (change.offers !== undefined) await deps.store.setPushOffers(userId, change.offers);
-  if (change.notifications !== undefined) await deps.store.setPushOff(userId, !change.notifications);
+  if (change.notifications !== undefined) {
+    await deps.store.setPushOff(userId, !change.notifications);
+    // Off also forgets this account's BROWSERS (ieat-app#2149, the privacy text says so): the address
+    // is only kept while it can be used. A phone keeps its token — the iOS reminders are local and
+    // the account switch already silences every push to it.
+    if (!change.notifications) {
+      for (const t of await deps.store.pushTokensFor(userId)) {
+        if (t.platform === "web") await deps.store.dropPushToken(userId, t.token);
+      }
+    }
+  }
   if (change.mealReminders !== undefined) await deps.store.setMealReminders(userId, change.mealReminders);
   return pushConsent(deps, userId);
 }

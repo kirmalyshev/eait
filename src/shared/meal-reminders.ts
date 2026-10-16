@@ -73,14 +73,52 @@ const minutesOf = (hhmm: string): number => {
 export const MEAL_REMINDER_IDS: string[] = MEAL_SLOTS.flatMap((s) =>
   Array.from({ length: MEAL_REMINDER_DAYS }, (_, i) => `meal-${s}-${i}`));
 
+interface SlotState {
+  slot: MealSlot;
+  on: boolean;
+  /** Minutes after local midnight. */
+  at: number;
+  /** A meal already logged stands in for this slot. */
+  covered: boolean;
+}
+
+/**
+ * Where each slot stands right now. The ONE place "a logged meal covers a slot" is decided, so the
+ * phone's local plan and the server's web push (#2149) cannot disagree about whether to remind.
+ *
+ * A slot is covered when a meal was logged today from 90 minutes before its time until 90 minutes
+ * before the next slot's time (or the end of the day) — breakfast at 07:40 covers 08:30. Slot
+ * boundaries run over ALL three slots, on or off: an off dinner still splits the afternoon.
+ */
+function slotStates(
+  settings: MealReminders,
+  mealTimestamps: readonly string[],
+  timezone: string,
+  now: Date,
+): { states: SlotState[]; today: string; nowMin: number } {
+  const today = localDate(timezone, now);
+  const nowMin = minutesOf(localTime(timezone, now));
+  const loggedMin = mealTimestamps
+    .filter((ts) => localDate(timezone, new Date(ts)) === today)
+    .map((ts) => minutesOf(localTime(timezone, new Date(ts))));
+  const starts = MEAL_SLOTS.map((s) => minutesOf(settings[s].time) - EARLY_MINUTES);
+  const states = MEAL_SLOTS.map((slot, i): SlotState => {
+    const start = starts[i]!;
+    const end = Math.min(24 * 60, ...starts.filter((s) => s > start));
+    return {
+      slot, on: settings[slot].on, at: minutesOf(settings[slot].time),
+      covered: loggedMin.some((m) => m >= start && m < end),
+    };
+  });
+  return { states, today, nowMin };
+}
+
 /**
  * The slots that should be on the device now.
  *
- * `mealTimestamps` are the ISO times of the meals logged (any day; other days are ignored). A slot
- * is covered when a meal was logged today from 90 minutes before its time until 90 minutes before
- * the next slot's time (or the end of the day) — breakfast at 07:40 covers 08:30. Future days have
- * nothing logged, and a time already gone today is dropped: iOS accepts such a trigger and never
- * fires it.
+ * `mealTimestamps` are the ISO times of the meals logged (any day; other days are ignored). Future
+ * days have nothing logged, and a time already gone today is dropped: iOS accepts such a trigger
+ * and never fires it.
  */
 export function mealReminderPlan(
   settings: MealReminders,
@@ -88,21 +126,10 @@ export function mealReminderPlan(
   timezone: string,
   now: Date = new Date(),
 ): PlannedMealReminder[] {
-  const today = localDate(timezone, now);
-  const nowMin = minutesOf(localTime(timezone, now));
-  const loggedMin = mealTimestamps
-    .filter((ts) => localDate(timezone, new Date(ts)) === today)
-    .map((ts) => minutesOf(localTime(timezone, new Date(ts))));
-  // Slot boundaries over ALL three slots, on or off: an off dinner still splits the afternoon.
-  const starts = MEAL_SLOTS.map((s) => minutesOf(settings[s].time) - EARLY_MINUTES);
+  const { states, today, nowMin } = slotStates(settings, mealTimestamps, timezone, now);
   const out: PlannedMealReminder[] = [];
-  for (const [i, slot] of MEAL_SLOTS.entries()) {
-    const r = settings[slot];
-    if (!r.on) continue;
-    const at = minutesOf(r.time);
-    const start = starts[i]!;
-    const end = Math.min(24 * 60, ...starts.filter((s) => s > start));
-    const covered = loggedMin.some((m) => m >= start && m < end);
+  for (const { slot, on, at, covered } of states) {
+    if (!on) continue;
     for (let d = 0; d < MEAL_REMINDER_DAYS; d++) {
       if (d === 0 && (covered || nowMin >= at)) continue;
       out.push({
@@ -112,6 +139,26 @@ export function mealReminderPlan(
     }
   }
   return out;
+}
+
+/** How long after a slot's time the server's web push may still go out: a stale "breakfast" at noon is worse than none. */
+export const MEAL_SLOT_CATCH_UP_MINUTES = 30;
+
+/**
+ * The slots whose web push is due now (#2149): on, not covered by a logged meal, and inside
+ * `[time, time + MEAL_SLOT_CATCH_UP_MINUTES)` on the account's own clock. The server's tick asks
+ * this every minute; the claim (one per slot and day) is what makes asking twice harmless.
+ */
+export function mealSlotsDue(
+  settings: MealReminders,
+  mealTimestamps: readonly string[],
+  timezone: string,
+  now: Date = new Date(),
+): MealSlot[] {
+  const { states, nowMin } = slotStates(settings, mealTimestamps, timezone, now);
+  return states
+    .filter((s) => s.on && !s.covered && nowMin >= s.at && nowMin < s.at + MEAL_SLOT_CATCH_UP_MINUTES)
+    .map((s) => s.slot);
 }
 
 export interface MealReminderCopy {

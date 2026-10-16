@@ -27,6 +27,7 @@ export {
   RECEIPT_DELAY_MS,
   type DailyNotification, type TickResult, type TestPushResult,
 } from "./notify.ts";
+export { mealSlotTick, type MealSlotTickResult } from "./meal-slots.ts";
 export {
   campaignOverview, createCampaign, dryRunCampaign, runCampaigns, setCampaignStatus, setCampaignsKilled,
   testSendCampaign, updateCampaign,

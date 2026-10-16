@@ -3,7 +3,7 @@ import { PUSH_KINDS, SEND_STATES, isTimezone, pushSenderOf } from "./push.ts";
 
 describe("push kinds", () => {
   it("names the kinds", () => {
-    expect([...PUSH_KINDS]).toEqual(["trial", "streak", "evening", "onboarding", "campaign"]);
+    expect([...PUSH_KINDS]).toEqual(["trial", "streak", "evening", "onboarding", "campaign", "meal"]);
   });
   it("keys a claim by sender: the scheduled kinds share one, each campaign has its own", () => {
     for (const k of ["trial", "streak", "evening", "onboarding"] as const) expect(pushSenderOf(k, "x")).toBe("scheduled");

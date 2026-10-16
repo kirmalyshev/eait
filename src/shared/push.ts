@@ -5,8 +5,8 @@
 // a per-minute tick idempotent. The only bound is the account's `push_daily_max` (and the optional
 // instance default), enforced in the one claim every sender goes through.
 
-/** The kinds a `send_log` / `push_claim` row may carry. The tick sends one scheduled message of the first four. */
-export const PUSH_KINDS = ["trial", "streak", "evening", "onboarding", "campaign"] as const;
+/** The kinds a `send_log` / `push_claim` row may carry. The tick sends one scheduled message of the first four; `meal` is the web slot reminders (#2149). */
+export const PUSH_KINDS = ["trial", "streak", "evening", "onboarding", "campaign", "meal"] as const;
 export type PushKind = (typeof PUSH_KINDS)[number];
 
 /**
@@ -14,7 +14,11 @@ export type PushKind = (typeof PUSH_KINDS)[number];
  * evening line, never both); a campaign is its `ref` (a campaign id, `admin:<id>`, `admin-test`).
  */
 export function pushSenderOf(kind: PushKind, ref: string | null): string {
-  return kind === "campaign" ? `campaign:${ref ?? ""}` : "scheduled";
+  if (kind === "campaign") return `campaign:${ref ?? ""}`;
+  // A meal slot (ieat-app#2149) is its own sender, one per slot (`ref` = breakfast|lunch|dinner): a
+  // lunch reminder neither takes the evening line's day nor is taken by it.
+  if (kind === "meal") return `meal:${ref ?? ""}`;
+  return "scheduled";
 }
 
 /**
