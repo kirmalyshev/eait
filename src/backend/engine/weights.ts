@@ -12,10 +12,11 @@
 
 import {
   bmi, bmiRange, dateMinusMonths, explainTargets, localDate, projectGoal, projectionMonth, windowStart,
-  type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightsResponse,
+  type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightChanges, type WeightsResponse,
   type WeightRange,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
+import { evaluateMilestones } from "./milestones.ts";
 
 /**
  * The lowest date `range` reaches. Computed HERE, in the server's zone: "6M" is six calendar
@@ -75,9 +76,51 @@ export async function weights(
     // The newest weigh-in whatever the range cut — the card's current figure and its
     // none-in-range state read this, the trend's endpoints read the filtered list.
     latest: log.at(-1) ?? null,
+    changes: weightChanges(log, localDate(zone)),
     projection: planProjection(profile, outcome, log, zone),
     bmi: value === null ? null : { value, range: bmiRange(value) },
   };
+}
+
+/** Signed kg between the newest weigh-in and the last one on or before `days` ago; null with nothing older. */
+export function weightChanges(log: WeightEntry[], today: string): WeightChanges {
+  const now = log.at(-1);
+  const vs = (days: number | null): number | null => {
+    if (!now) return null;
+    const cutoff = days === null ? null : windowStart(today, days + 1);
+    const then = cutoff === null ? log[0]! : [...log].reverse().find((e) => e.date <= cutoff);
+    if (!then || then.date >= now.date) return null;
+    return Math.round((now.kg - then.kg) * 10) / 10;
+  };
+  return { d3: vs(3), d7: vs(7), d14: vs(14), d30: vs(30), d90: vs(90), all: vs(null) };
+}
+
+/**
+ * The user's own weigh-in of a day, corrected (`kg` given) or removed (`kg` null). False where the
+ * day holds no manual weigh-in: Apple Health's are read-only.
+ */
+export async function changeWeighIn(deps: EngineDeps, userId: string, date: string, kg: number | null): Promise<boolean> {
+  const own = (await deps.store.weightsSince(userId, date)).some((w) => w.date === date);
+  if (!own) return false;
+  const newest = (await mergedWeights(deps, userId, rangeStart("all", ""))).at(-1)?.date;
+  if (kg === null) await deps.store.deleteWeight(userId, date);
+  else await deps.store.putWeight(userId, date, kg);
+  // Logging a weight sets `profile.weight_kg` to it (PATCH /v1/profile), so the profile follows the
+  // NEWEST weigh-in: correcting or removing that one re-derives it from the log, the same way, and
+  // the plan and targets keep agreeing with the list. An older one never moves it. With nothing
+  // left the profile keeps its last weight — the targets need one.
+  if (date === newest) {
+    const latest = (await mergedWeights(deps, userId, rangeStart("all", ""))).at(-1);
+    if (latest) {
+      const today = localDate(deps.config.timezone);
+      await deps.store.patchProfile(userId, {
+        weight_kg: latest.kg,
+        weight_measured_at: latest.date === today ? new Date().toISOString() : `${latest.date}T12:00:00.000Z`,
+      });
+      await evaluateMilestones(deps, userId);
+    }
+  }
+  return true;
 }
 
 /**

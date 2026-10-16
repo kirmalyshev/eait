@@ -102,4 +102,20 @@ export const progressCss = `
 .prog .rc-2 { --d: .12s; }
 .prog .rc-3 { --d: .18s; }
 .prog .rc-4 { --d: .24s; }
+
+/* Weight changes (#891): one quiet row per window, hairline between, no colour on the figures. */
+.prog .wch { padding: 9px 0; font-size: 15px; }
+.prog .wch + .wch { border-top: 1px solid var(--hair); }
+.prog .wih-link { display: flex; align-items: center; min-height: 44px; color: var(--accent); font-weight: 600; font-size: 14px; text-decoration: none; }
+
+/* All weigh-ins (#891): the date and its source left, the kg right; the user's own rows correct on a tap and delete. */
+.wih .mtop { display: flex; align-items: center; gap: 8px; }
+.wih .wihl { padding: 0; margin-top: 18px; overflow: hidden; }
+.wih .wihr { gap: 10px; padding: 12px 16px; align-items: center; }
+.wih .wihr + .wihr { border-top: 1px solid var(--hair); }
+.wih .wihw { flex: 1; font-size: 15px; }
+.wih .wihk { font-weight: 600; font-size: 15px; background: none; border: 0; color: inherit; cursor: pointer; }
+.wih .wihi { width: 120px; font-size: 15px; text-align: right; }
+.wih .wihd { background: none; border: 0; color: var(--bad); font-weight: 600; cursor: pointer; min-height: 44px; }
+.wih .wihe { padding: 60px 24px; text-align: center; }
 `;

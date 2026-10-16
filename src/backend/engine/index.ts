@@ -20,7 +20,7 @@ export { coachTurn, coachTools, recentLines, COACH_HISTORY_LINES } from "./coach
 export { appendLines, chatHistory } from "./chat.ts";
 export { sendAdminPush, type AdminPushResult } from "./admin-push.ts";
 export { day, days, week, MAX_WINDOW_DAYS } from "./diary.ts";
-export { weights, mergedWeights } from "./weights.ts";
+export { weights, mergedWeights, changeWeighIn } from "./weights.ts";
 export { milestones, markSeen, evaluateMilestones, unseenBadges } from "./milestones.ts";
 export {
   collectPushReceipts, dailyNotification, isStaffAccount, pushTick, sendLogged, sendTestPush, notificationCopy,

@@ -24,7 +24,7 @@ import {
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushConsentRequest, isPushDeliveredRequest, isPushOpenRequest, isPushTokenRequest, pushTokenFrom, isTimezone, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
-  DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
+  DIARY_RANGE_MAX_DAYS, isAcceptableWeightKg, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightEditRequest, type WeightsResponse, type MilestonesResponse, type MilestonesSeenRequest,
   MAX_FOOD_QUERY, FOOD_LOG_MAX_GRAMS, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
   type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
@@ -39,7 +39,7 @@ import {
   estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
-  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
+  changeWeighIn, recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
   attachPhotos, recordPushOpen, recordPushDelivered, pushConsent, setPushConsent,
   reanalyzeMeal, redateMeal, focusMeal, logSavedMeal, saveMealFromLog, followPhotoJob, listJobs, photoJob, queuePhoto, queueMealUpdate, removePhotoJob,
   foodSearch, productByBarcode, redeemReferral, shareReferral,
@@ -1158,6 +1158,21 @@ export function createRouter(
           return json({ error: `range must be one of ${WEIGHT_RANGES.join(", ")}` }, 400);
         }
         const out = await weights(deps, userId, range);
+        return out ? json(out satisfies WeightsResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      // A weigh-in of the user's own, corrected or removed (ieat-app#891). Apple Health's are
+      // read-only: a day with no manual row is 404, whoever else holds a reading for it.
+      const weighInMatch = /^\/v1\/weights\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
+      if (weighInMatch && (req.method === "PATCH" || req.method === "DELETE")) {
+        let kg: number | null = null;
+        if (req.method === "PATCH") {
+          const body = await req.json().catch(() => null) as Partial<WeightEditRequest> | null;
+          if (typeof body?.kg !== "number" || !isAcceptableWeightKg(body.kg)) return json({ error: "kg must be a plausible body weight" }, 400);
+          kg = body.kg;
+        }
+        if (!(await changeWeighIn(deps, userId, weighInMatch[1]!, kg))) return json({ error: "not-found" }, 404);
+        const out = await weights(deps, userId, "all");
         return out ? json(out satisfies WeightsResponse) : json({ error: "not-onboarded" }, 403);
       }
 

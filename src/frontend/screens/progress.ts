@@ -18,11 +18,12 @@ import { dateMinus, localDate, weekStart } from "../../shared/dates.ts";
 import { countText, dayMonthOn, decimalNumbers, kcalNumbers, numbers, weekdayLetters } from "../../shared/lang.ts";
 import { bmiCopy, bmiRangeLabel } from "../../shared/app/bmi-copy.ts";
 import { progressCopyFor } from "../../shared/app/progress-copy.ts";
+import { weighHistoryCopyFor } from "../../shared/app/weigh-history-copy.ts";
 import { homeCopyFor } from "../../shared/app/home-copy.ts";
 import { youCopyFor } from "../../shared/app/you-copy.ts";
 import { tagx } from "../../shared/ui/kit.ts";
 import type {
-  DaysResponse, PlanProjection, ProfileResponse, WeightsResponse,
+  DaysResponse, PlanProjection, ProfileResponse, WeightChanges, WeightsResponse,
 } from "@eait/shared";
 import { api, getMilestones, Unauthenticated } from "../api.ts";
 import { earnedCount, streakCard } from "./milestones.ts";
@@ -290,6 +291,31 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
     return card;
   };
 
+  // ── Weight changes and the way into every weigh-in (ieat-app#891). ──
+  const wh = weighHistoryCopyFor(lang);
+  const signed = (kg: number): string => {
+    const shown = Math.round((units === "imperial" ? kgToLb(kg) : kg) * 10) / 10;
+    return fill(wh.rowWeight[units], { n: `${shown > 0 ? "+" : shown < 0 ? "−" : ""}${decimalNumbers(lang)(Math.abs(shown))}` });
+  };
+  const historyLink = (): HTMLElement => {
+    const a = el("a", "wih-link", `${wh.historyTitle} ›`) as HTMLAnchorElement;
+    a.href = "#/progress/weigh-ins";
+    return a;
+  };
+  const changesCardEl = (c: WeightChanges): HTMLElement => {
+    const card = el("div", "card rise rc-1");
+    card.append(el("span", "lab", wh.changesTitle));
+    const rows: [string, number | null][] = [
+      [wh.change3, c.d3], [wh.change7, c.d7], [wh.change14, c.d14], [wh.change30, c.d30], [wh.change90, c.d90], [wh.changeAll, c.all],
+    ];
+    for (const [label, kg] of rows) {
+      const r = el("div", "row between wch");
+      r.append(el("span", "", label), el("b", "num", kg === null ? "—" : signed(kg)));
+      card.append(r);
+    }
+    return card;
+  };
+
   // ── The draw: weights for the range, and the week the two right-hand cards read. ──
   const [w, d, ms] = await Promise.all([
     api<WeightsResponse>(`/weights?range=${range}`),
@@ -317,6 +343,7 @@ export async function progressScreen(frame: Frame): Promise<HTMLElement> {
 
   fillWeight(w);
   leftCol.append(wCard);
+  if (w.latest !== null) leftCol.append(historyLink(), changesCardEl(w.changes));
   if (w.projection !== null) leftCol.append(goalCardEl(w.projection));
   rightCol.append(weekCardEl(d), streakCard(d, earnedCount(ms)), bmiCardEl(w));
 

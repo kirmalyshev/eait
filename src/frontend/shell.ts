@@ -166,7 +166,7 @@ export const firstMealDue = (me: ProfileResponse | null | undefined): me is Prof
     the plans are a takeover, not a place in the row, and no tab stays underlined under them. */
 const activeTab = (route: string): string => {
   const base = routeBase(route);
-  if (base === "#/milestones") return "#/progress";
+  if (base === "#/milestones" || base === "#/progress/weigh-ins") return "#/progress";
   if (base === "#/you/milestones" || base === "#/you/settings") return "#/you";
   return ["#/chat", "#/you", "#/progress"].includes(base) ? base : base === "#/pay" ? "" : "#/";
 };

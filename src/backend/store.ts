@@ -1522,6 +1522,12 @@ export interface Store {
   getPhotos(userId: string, mealId: string): Promise<StoredPhoto[]>;
   /** Scoped: null for another user's meal, and for a position that does not exist. */
   getPhoto(userId: string, mealId: string, position: number): Promise<StoredPhoto | null>;
+  /**
+   * Remove the day's MANUAL weight; false when the day held none (an imported reading is never
+   * touched — Apple Health's weigh-ins are read-only, ieat-app#891). The engine
+   * re-derives `profile.weight_kg` when the newest weigh-in goes (`changeWeighIn`).
+   */
+  deleteWeight(userId: string, date: string): Promise<boolean>;
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 
