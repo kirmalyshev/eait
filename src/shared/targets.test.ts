@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
-  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, TARGET_STEP_KG, ageFrom, basalMetabolicRate,
+  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MAX_DEFICIT_SHARE, MIN_TARGET_BMI, TARGET_STEP_KG, ageFrom, basalMetabolicRate,
   basalMetabolicRateAtAge, bmi, checkTargetWeight, explainTargets, explainTargetsAtAge,
   suggestedTargetKg, targetRange, targetsFor,
   verdictsFromTargets, visibleVerdicts, weightRemainingKg,
@@ -13,7 +13,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: "maintain", sex: "female", birth_year: 1990,
     height_cm: 165, weight_kg: 70, weight_measured_at: null, target_weight_kg: 65,
-    activity: "few", pace: "steady", units: null, struggles: null, streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true,
+    activity: "few", pace: "steady", units: null, struggles: null, streak_goal_days: null, milestone_celebrations: true, streak_on_home: true, addback_burned: true, addback_rollover: true,
     country: "de", restrictions: [], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
     ...over,
@@ -481,7 +481,7 @@ describe("burned add-back (#911) — plan + min(500, max(0, active − usual act
   const usual = base.basis.activityDeltaKcal!;
 
   it("without a day's reading the targets are the plan, unchanged", () => {
-    expect(explainTargets(profile(), TODAY, { activeKcal: null }).targets).toEqual(base.targets);
+    expect(explainTargets(profile(), TODAY, { activeKcal: null, yesterdayLeft: null }).targets).toEqual(base.targets);
     expect(explainTargets(profile(), TODAY).basis.burnedAddKcal).toBe(0);
   });
 
@@ -541,6 +541,84 @@ describe("burned add-back (#911) — plan + min(500, max(0, active − usual act
   it("the plan's own basis (projection delta) does not move with a day's burn", () => {
     const a = explainTargets(profile({ goal: "lose" }), TODAY);
     const b = explainTargets(profile({ goal: "lose" }), TODAY, { activeKcal: usual + 400 });
+    expect(b.basis.appliedDeltaKcal).toBe(a.basis.appliedDeltaKcal);
+    expect(b.basis.planKcal).toBe(a.targets.kcal);
+  });
+});
+
+describe("rollover (#912) — + min(200, max(0, yesterday's plan − eaten)), only when yesterday was logged, floor last", () => {
+  const base = explainTargets(profile(), TODAY);
+
+  it("adds what was left of yesterday's plan", () => {
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: null, yesterdayLeft: 144 });
+    expect(basis.rolloverAddKcal).toBe(144);
+    expect(targets.kcal).toBe(base.targets.kcal + 144);
+  });
+
+  it("caps at 200", () => {
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: null, yesterdayLeft: 900 });
+    expect(basis.rolloverAddKcal).toBe(200);
+    expect(targets.kcal).toBe(base.targets.kcal + 200);
+  });
+
+  it("a yesterday that was not logged (null) adds nothing", () => {
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: null, yesterdayLeft: null });
+    expect(basis.rolloverAddKcal).toBe(0);
+    expect(targets.kcal).toBe(base.targets.kcal);
+  });
+
+  it("an overshoot never subtracts: yesterday over the plan rolls nothing", () => {
+    for (const yesterdayLeft of [0, -1, -600]) {
+      const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: null, yesterdayLeft });
+      expect(basis.rolloverAddKcal).toBe(0);
+      expect(targets.kcal).toBe(base.targets.kcal);
+    }
+  });
+
+  it("is off when the preference is off", () => {
+    const { targets, basis } = explainTargets(profile({ addback_rollover: false }), TODAY, { activeKcal: null, yesterdayLeft: 150 });
+    expect(basis.rolloverAddKcal).toBe(0);
+    expect(targets.kcal).toBe(base.targets.kcal);
+  });
+
+  it("needs no BMR: the flat-band plan rolls over too", () => {
+    const p = profile({ weight_kg: null });
+    const plan = explainTargets(p, TODAY);
+    const { targets, basis } = explainTargets(p, TODAY, { activeKcal: 1000, yesterdayLeft: 120 });
+    expect(basis.usedFallbackBand).toBe(true);
+    expect(basis.burnedAddKcal).toBe(0);
+    expect(basis.rolloverAddKcal).toBe(120);
+    expect(targets.kcal).toBe(plan.targets.kcal + 120);
+  });
+
+  it("burned and rollover add together, each under its own cap", () => {
+    const usual = base.basis.activityDeltaKcal!;
+    const { targets, basis } = explainTargets(profile(), TODAY, { activeKcal: usual + 187, yesterdayLeft: 144 });
+    expect(basis.burnedAddKcal).toBe(187);
+    expect(basis.rolloverAddKcal).toBe(144);
+    expect(targets.kcal).toBe(base.targets.kcal + 187 + 144);
+  });
+
+  it("floor last: a plan under the floor plus a rollover is floored AFTER the add, never before", () => {
+    const p = profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50, birth_year: 1966 });
+    const plan = explainTargets(p, TODAY);
+    expect(plan.targets.kcal).toBe(KCAL_FLOOR.female);
+    const { targets } = explainTargets(p, TODAY, { activeKcal: null, yesterdayLeft: 200 });
+    const capped = -Math.round(plan.basis.tdee! * MAX_DEFICIT_SHARE);
+    expect(targets.kcal).toBe(Math.max(KCAL_FLOOR.female, plan.basis.tdee! + capped + 200));
+    expect(targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.female);
+  });
+
+  it("the floor binds whatever yesterday was: no input may land under it", () => {
+    const p = profile({ goal: "lose", pace: "push", height_cm: 150, weight_kg: 50, birth_year: 1966 });
+    for (const yesterdayLeft of [null, -5000, 0, 1, 200, 5000]) {
+      expect(explainTargets(p, TODAY, { activeKcal: null, yesterdayLeft }).targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.female);
+    }
+  });
+
+  it("the plan's own basis does not move with a day's rollover", () => {
+    const a = explainTargets(profile({ goal: "lose" }), TODAY);
+    const b = explainTargets(profile({ goal: "lose" }), TODAY, { activeKcal: null, yesterdayLeft: 200 });
     expect(b.basis.appliedDeltaKcal).toBe(a.basis.appliedDeltaKcal);
     expect(b.basis.planKcal).toBe(a.targets.kcal);
   });

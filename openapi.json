@@ -5334,6 +5334,9 @@
               "burned": {
                 "type": "number"
               },
+              "rollover": {
+                "type": "number"
+              },
               "active": {
                 "type": [
                   "number",
@@ -5353,12 +5356,13 @@
             "required": [
               "plan",
               "burned",
+              "rollover",
               "active",
               "usual",
               "floor"
             ],
             "additionalProperties": false,
-            "description": "How `targets.kcal` was reached (#911), for the goal sheet. `burned` is 0 when the account has the add-back off, Apple Health has no reading for the day, or there is no BMR to measure the usual days against; `active` is null in the same cases but the last. Every number is `explainTargets`'s own, never recomputed by a client."
+            "description": "How `targets.kcal` was reached (#911, #912), for the goal sheet. `rollover` is what rolled in from yesterday's unspent plan, 0 when the switch is off or yesterday had no logged meal. `burned` is 0 when the account has the add-back off, Apple Health has no reading for the day, or there is no BMR to measure the usual days against; `active` is null in the same cases but the last. Every number is `explainTargets`'s own, never recomputed by a client."
           },
           "healthScore": {
             "type": [
@@ -8480,6 +8484,10 @@
             "type": "boolean",
             "description": "Add the day's extra burn to that day's goal (#911). Default true."
           },
+          "addback_rollover": {
+            "type": "boolean",
+            "description": "Roll over yesterday's unspent calories, up to 200 (#912). Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -8982,6 +8990,10 @@
             "type": "boolean",
             "description": "Add the day's extra burn (Apple Health) to that day's goal (#911). Default true."
           },
+          "addback_rollover": {
+            "type": "boolean",
+            "description": "Roll up to 200 kcal of yesterday's unspent plan into today's goal (#912). Default true."
+          },
           "country": {
             "type": [
               "string",
@@ -9041,6 +9053,7 @@
           "milestone_celebrations",
           "streak_on_home",
           "addback_burned",
+          "addback_rollover",
           "country",
           "restrictions",
           "medical_limitations",
@@ -9077,6 +9090,7 @@
               "milestone_celebrations",
               "streak_on_home",
               "addback_burned",
+              "addback_rollover",
               "country",
               "restrictions",
               "diet",
@@ -9823,9 +9837,13 @@
             "type": "number",
             "description": "Today's kcal added for burning beyond the usual days (#911); 0 when off, no reading, or no BMR."
           },
+          "rolloverAddKcal": {
+            "type": "number",
+            "description": "Today's kcal rolled over from yesterday's unspent plan (#912); 0 when off or yesterday was not logged."
+          },
           "planKcal": {
             "type": "number",
-            "description": "The plan's own number: the target with NO day's reading applied. `targets.kcal` is this plus `burnedAddKcal`, floored. Projection and the plan card read this, never the day's number."
+            "description": "The plan's own number: the target with NO day's reading applied. `targets.kcal` is this plus `burnedAddKcal` and `rolloverAddKcal`, floored. Projection and the plan card read this, never the day's number."
           }
         },
         "required": [
@@ -9839,6 +9857,7 @@
           "floorApplied",
           "usedFallbackBand",
           "burnedAddKcal",
+          "rolloverAddKcal",
           "planKcal"
         ],
         "additionalProperties": false,

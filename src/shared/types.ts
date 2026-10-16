@@ -143,6 +143,8 @@ export interface Profile {
   streak_on_home: boolean;
   /** Add the day's extra burn (Apple Health) to that day's goal (#911). Default true. */
   addback_burned: boolean;
+  /** Roll up to 200 kcal of yesterday's unspent plan into today's goal (#912). Default true. */
+  addback_rollover: boolean;
   /** Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown. */
   country: string | null;
   /**

@@ -1,8 +1,8 @@
 // The day's goal, explained (#911; boards `web-pw3-goal*`, `web-pw3-prefs`): the quiet line under
-// Home's hero when a burn was added, the dialog it opens with the sum, and the switch on Profile.
+// Home's hero when a burn or a rollover was added, the dialog it opens with the sum, and the two switches on Profile.
 // Every figure is the server's (`DayResponse.goal`, off `explainTargets`) — nothing is added up here.
 
-import type { DayResponse, ProfileResponse } from "@eait/shared";
+import type { DayResponse, Profile, ProfileResponse } from "@eait/shared";
 import { goalCopyFor } from "../../shared/app/goal-copy.ts";
 import { kcalNumbers } from "../../shared/lang.ts";
 import { ico } from "../../shared/ui/kit.ts";
@@ -12,21 +12,25 @@ import { kitEl } from "../kit.ts";
 import { openDialog } from "../panel.ts";
 import { el, forgetProfile, lang } from "../shell.ts";
 
-/** "Plan 1,434 + burned 187 ›" — null unless a burn was actually added to this day's goal. */
-export function goalLine(day: DayResponse): HTMLElement | null {
-  if (day.goal.burned <= 0) return null;
+/** "Plan 1,434 + burned 187 + yesterday 144 ›" — null unless something was added to this day's goal. */
+export function goalLine(day: DayResponse, profile: Profile): HTMLElement | null {
+  const { plan, burned, rollover } = day.goal;
+  if (burned <= 0 && rollover <= 0) return null;
   const c = goalCopyFor(lang);
   const kn = kcalNumbers(lang);
+  const words = burned > 0 && rollover > 0 ? fill(c.homeLineBoth, { plan: kn(plan), b: kn(burned), r: kn(rollover) })
+    : burned > 0 ? fill(c.homeLine, { plan: kn(plan), b: kn(burned) })
+    : fill(c.homeLineYesterday, { plan: kn(plan), r: kn(rollover) });
   const line = el("button", "gline") as HTMLButtonElement;
   line.type = "button";
   line.setAttribute("aria-label", c.total);
-  line.append(document.createTextNode(fill(c.homeLine, { plan: kn(day.goal.plan), b: kn(day.goal.burned) })), kitEl(ico("chevron-right")));
-  line.addEventListener("click", () => openGoalSheet(day, true));
+  line.append(document.createTextNode(words), kitEl(ico("chevron-right")));
+  line.addEventListener("click", () => openGoalSheet(day, profile));
   return line;
 }
 
-/** The sum for one day. `burnedOn`: the account has the add-back on, so the burned row is drawn. */
-export function openGoalSheet(day: DayResponse, burnedOn: boolean): void {
+/** The sum for one day: a row for each switch the account has on. */
+export function openGoalSheet(day: DayResponse, profile: Profile): void {
   const c = goalCopyFor(lang);
   const kn = kcalNumbers(lang);
   const g = day.goal;
@@ -39,10 +43,13 @@ export function openGoalSheet(day: DayResponse, burnedOn: boolean): void {
     return r;
   };
   card.append(el("b", "d d20", c.total), row(c.plan, "", kn(g.plan)));
-  if (burnedOn) {
+  if (profile.addback_burned) {
     card.append(g.active === null || g.usual === null
-      ? row(c.noData, "", "—", true)
+      ? row(c.noData, c.noDataSub, "—", true)
       : row(c.burned, fill(c.burnedSub, { a: kn(g.active), c: kn(g.usual) }), `+${kn(g.burned)}`));
+  }
+  if (profile.addback_rollover) {
+    card.append(row(c.rollover, c.rolloverSub, g.rollover > 0 ? `+${kn(g.rollover)}` : "—", g.rollover <= 0));
   }
   const total = el("div", "gl-total");
   total.append(el("span", "d d17", c.total), el("b", "d d28 num", kn(day.targets.kcal)));
@@ -54,38 +61,44 @@ export function openGoalSheet(day: DayResponse, burnedOn: boolean): void {
   card.focus();
 }
 
-/** Profile's "Your daily goal" card: one switch, saved on tap and put back when the save fails. */
+/** Profile's "Your daily goal" card: a switch per add-back, saved on tap and put back when the save fails. */
 export function goalPrefsCard(me: ProfileResponse, onSaved: (res: ProfileResponse) => void): HTMLElement {
   const c = goalCopyFor(lang);
   const card = el("div", "card rise rc-1");
   const rows = el("div", "urows");
   card.append(el("span", "lab", c.prefsTitle), rows);
-  const row = el("div", "opt sw");
-  const text = el("div", "ot");
-  const lab = el("span", "ot", c.prefsBurned);
-  lab.id = "goal-addback_burned";
-  text.append(lab, el("div", "sub", c.prefsBurnedSub));
-  const sw = el("button", "swt") as HTMLButtonElement;
-  sw.type = "button";
-  sw.setAttribute("role", "switch");
-  sw.setAttribute("aria-labelledby", lab.id);
-  sw.append(el("i", ""));
-  const paint = (on: boolean): void => sw.setAttribute("aria-checked", String(on));
-  paint(me.profile.addback_burned);
-  let saving = false;
-  sw.addEventListener("click", () => {
-    if (saving) return;
-    const was = sw.getAttribute("aria-checked") === "true";
-    saving = true; paint(!was);
-    api<ProfileResponse>("/profile", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ addback_burned: !was }),
-    }).then((res) => { forgetProfile(); onSaved(res); })
-      .catch((err: unknown) => { console.error(err); paint(was); })
-      .finally(() => { saving = false; });
-  });
-  row.append(text, sw);
-  rows.append(row);
+  const make = (key: "addback_burned" | "addback_rollover", label: string, sub: string): HTMLElement => {
+    const row = el("div", "opt sw");
+    const text = el("div", "ot");
+    const lab = el("span", "ot", label);
+    lab.id = `goal-${key}`;
+    text.append(lab, el("div", "sub", sub));
+    const sw = el("button", "swt") as HTMLButtonElement;
+    sw.type = "button";
+    sw.setAttribute("role", "switch");
+    sw.setAttribute("aria-labelledby", lab.id);
+    sw.append(el("i", ""));
+    const paint = (on: boolean): void => sw.setAttribute("aria-checked", String(on));
+    paint(me.profile[key]);
+    let saving = false;
+    sw.addEventListener("click", () => {
+      if (saving) return;
+      const was = sw.getAttribute("aria-checked") === "true";
+      saving = true; paint(!was);
+      api<ProfileResponse>("/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ [key]: !was }),
+      }).then((res) => { forgetProfile(); onSaved(res); })
+        .catch((err: unknown) => { console.error(err); paint(was); })
+        .finally(() => { saving = false; });
+    });
+    row.append(text, sw);
+    return row;
+  };
+  rows.append(
+    make("addback_burned", c.prefsBurned, c.prefsBurnedSub),
+    make("addback_rollover", c.prefsRollover, c.prefsRolloverSub),
+  );
   return card;
 }

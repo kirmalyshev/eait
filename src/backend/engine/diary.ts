@@ -24,11 +24,26 @@ import { sumTotals } from "./meals.ts";
  */
 export const MAX_WINDOW_DAYS = DIARY_WINDOW_DAYS;
 
-/** What Apple Health says that day added (#911); `activeKcal` null when no row, or no active energy. */
+/**
+ * What a day's goal is read against (#911, #912): Apple Health's active energy that day, and what
+ * was left of YESTERDAY's plan. Each is only fetched when the account has its switch on. `activeKcal`
+ * is null with no row or no active energy; `yesterdayLeft` is null when yesterday has no logged meal
+ * (a missed log is not a saved 1,400) and is signed, so a yesterday over plan reads negative and
+ * `explainTargets` rolls nothing for it.
+ */
 export async function dayReading(deps: EngineDeps, userId: string, date: string): Promise<DayReading> {
-  if (!(await deps.store.getProfile(userId))?.addback_burned) return { activeKcal: null };
-  const row = (await deps.store.healthDaysSince(userId, date)).find((d) => d.date === date);
-  return { activeKcal: row?.active_kcal ?? null };
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return { activeKcal: null, yesterdayLeft: null };
+  const yesterday = dateMinus(date, 1);
+  const [health, totals] = await Promise.all([
+    profile.addback_burned ? deps.store.healthDaysSince(userId, date) : Promise.resolve([]),
+    profile.addback_rollover ? deps.store.totalsSince(userId, yesterday) : Promise.resolve([]),
+  ]);
+  const ate = totals.find((t) => t.date === yesterday);
+  return {
+    activeKcal: health.find((d) => d.date === date)?.active_kcal ?? null,
+    yesterdayLeft: ate === undefined ? null : explainTargets(profile).targets.kcal - ate.kcal,
+  };
 }
 
 /** One day. Null when the user has no profile — the surface turns that into a 403. */
@@ -59,7 +74,7 @@ export async function day(
   const { targets, basis } = explainTargets(profile, new Date(), reading);
   return {
     date: on, meals, totals: sumTotals(meals), targets,
-    goal: { plan: basis.planKcal, burned: basis.burnedAddKcal, active: reading.activeKcal, usual: basis.activityDeltaKcal, floor: basis.floorKcal },
+    goal: { plan: basis.planKcal, burned: basis.burnedAddKcal, rollover: basis.rolloverAddKcal, active: reading.activeKcal, usual: basis.activityDeltaKcal, floor: basis.floorKcal },
     // The day's score is the kcal-weighted mean of the meals' own — the store attached those on
     // the read, so a meal nobody scored leaves this null rather than a six nobody earned.
     healthScore: dayHealthScore(meals),

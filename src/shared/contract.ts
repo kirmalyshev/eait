@@ -918,6 +918,8 @@ export interface PatchProfileRequest {
   streak_on_home?: boolean;
   /** Add the day's extra burn to that day's goal (#911). Default true. */
   addback_burned?: boolean;
+  /** Roll over yesterday's unspent calories, up to 200 (#912). Default true. */
+  addback_rollover?: boolean;
   country?: string | null;
   restrictions?: string[];
   /**
@@ -1588,12 +1590,13 @@ export interface DayResponse {
   totals: DailyTotals;
   targets: FoodTargets;
   /**
-   * How `targets.kcal` was reached (#911), for the goal sheet. `burned` is 0 when the account has
+   * How `targets.kcal` was reached (#911, #912), for the goal sheet. `rollover` is what rolled in
+   * from yesterday's unspent plan, 0 when the switch is off or yesterday had no logged meal. `burned` is 0 when the account has
    * the add-back off, Apple Health has no reading for the day, or there is no BMR to measure the
    * usual days against; `active` is null in the same cases but the last. Every number is
    * `explainTargets`'s own, never recomputed by a client.
    */
-  goal: { plan: number; burned: number; active: number | null; usual: number | null; floor: number };
+  goal: { plan: number; burned: number; rollover: number; active: number | null; usual: number | null; floor: number };
   /**
    * The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`,
    * #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored.

@@ -54,6 +54,13 @@ export const KCAL_FLOOR_UNKNOWN = 1500;
  */
 export const MAX_BURNED_ADDBACK_KCAL = 500;
 
+/**
+ * The most of yesterday's unspent plan that rolls into today's goal (#912). It only adds: a
+ * yesterday over its plan rolls nothing and never takes calories off today, and a yesterday with no
+ * logged meal rolls nothing either, because an empty day is a missed log and not a saved 1,400.
+ */
+export const MAX_ROLLOVER_KCAL = 200;
+
 /** The largest share of maintenance we will subtract. 20% is the standard "moderate deficit" band. */
 export const MAX_DEFICIT_SHARE = 0.2;
 /** Surpluses are capped tighter: past this, the surplus is fat, not muscle. */
@@ -158,17 +165,22 @@ export interface TargetBasis {
   usedFallbackBand: boolean;
   /** Today's kcal added for burning beyond the usual days (#911); 0 when off, no reading, or no BMR. */
   burnedAddKcal: number;
+  /** Today's kcal rolled over from yesterday's unspent plan (#912); 0 when off or yesterday was not logged. */
+  rolloverAddKcal: number;
   /** The plan's own number: the target with NO day's reading applied. `targets.kcal` is this plus
-      `burnedAddKcal`, floored. Projection and the plan card read this, never the day's number. */
+      `burnedAddKcal` and `rolloverAddKcal`, floored. Projection and the plan card read this, never the day's number. */
   planKcal: number;
 }
 
 /**
- * What one day adds to the plan. Only `activeKcal` today (#911): Apple Health's active energy for
- * the day being asked about, or null when there is none to read.
+ * What one day adds to the plan: Apple Health's active energy for the day being asked about
+ * (#911), and what was left of YESTERDAY's plan (#912). Each is null when there is nothing to read:
+ * no Health row, or no meal logged yesterday.
  */
 export interface DayReading {
   activeKcal: number | null;
+  /** Yesterday's plan − what was eaten, signed; null when yesterday has no logged meal. */
+  yesterdayLeft?: number | null;
 }
 
 export interface TargetOutcome {
@@ -297,13 +309,15 @@ export function explainTargetsAtAge(profile: Profile, age: number | null, day?: 
     // No usable anthropometrics — fall back to eait's flat bands. Still floored: the bands sit
     // above every floor today, but a band edited to 1,100 tomorrow must not become a shipped target.
     const band = KCAL_BY_GOAL[profile.goal ?? "maintain"];
-    const kcal = Math.max(floorKcal, band);
+    const planKcal = Math.max(floorKcal, band);
+    const rolloverAddKcal = rolloverKcal(profile, day);
+    const kcal = Math.max(floorKcal, band + rolloverAddKcal);
     return {
       targets: withCaps(macroTargets(kcal, proteinTarget(profile)), profile),
       basis: {
         bmr: null, tdee: null, activityDeltaKcal: null, requestedDeltaKcal: 0, appliedDeltaKcal: 0,
-        shareCapApplied: false, floorKcal, floorApplied: kcal > band, usedFallbackBand: true,
-        burnedAddKcal: 0, planKcal: kcal,
+        shareCapApplied: false, floorKcal, floorApplied: kcal > band + rolloverAddKcal, usedFallbackBand: true,
+        burnedAddKcal: 0, rolloverAddKcal, planKcal,
       },
     };
   }
@@ -329,10 +343,13 @@ export function explainTargetsAtAge(profile: Profile, age: number | null, day?: 
     ? Math.min(MAX_BURNED_ADDBACK_KCAL, Math.max(0, Math.round(day.activeKcal - (tdee - bmrValue))))
     : 0;
 
-  // Guard 2 — the floor. Last, and unconditional: after the cap, after the add-back.
+  // Yesterday's unspent plan (#912), capped, only when the person has it on and yesterday was logged.
+  const rolloverAddKcal = rolloverKcal(profile, day);
+
+  // Guard 2 — the floor. Last, and unconditional: after the cap, after both add-backs.
   const planBeforeFloor = tdee + cappedDeltaKcal;
   const planKcal = Math.max(floorKcal, planBeforeFloor);
-  const beforeFloor = planBeforeFloor + burnedAddKcal;
+  const beforeFloor = planBeforeFloor + burnedAddKcal + rolloverAddKcal;
   const kcal = Math.max(floorKcal, beforeFloor);
 
   // The delta the FINAL target carries, on the same rounding the target uses: `kcal − tdee` is
@@ -347,9 +364,15 @@ export function explainTargetsAtAge(profile: Profile, age: number | null, day?: 
     basis: {
       bmr: bmrValue, tdee, activityDeltaKcal: tdee - bmrValue, requestedDeltaKcal, appliedDeltaKcal,
       shareCapApplied, floorKcal, floorApplied: kcal > beforeFloor, usedFallbackBand: false,
-      burnedAddKcal, planKcal,
+      burnedAddKcal, rolloverAddKcal, planKcal,
     },
   };
+}
+
+/** What rolls over from yesterday: its unspent plan, capped, never negative; 0 when off or unlogged. */
+function rolloverKcal(profile: Profile, day: DayReading | undefined): number {
+  const left = day?.yesterdayLeft;
+  return profile.addback_rollover && left != null ? Math.min(MAX_ROLLOVER_KCAL, Math.max(0, Math.round(left))) : 0;
 }
 
 /**
