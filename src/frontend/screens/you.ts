@@ -468,7 +468,11 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     const p = me!.profile;
     const imperial = units() === "imperial";
 
-    const { body, close } = openPanel(you.phone.profileTitle);
+    const { body, close, setPage } = openPanel(you.phone.profileTitle);
+    // Nutrition goals is a PAGE of this dialog, not a second one: the content swaps, the × slot
+    // becomes a back chevron, and there is one Save at a time (the board: Profile › Nutrition goals).
+    let goalsPage = false;
+    const backToRows = (): void => { goalsPage = false; setPage(you.phone.profileTitle, null); drawRows(); };
     const draft: Draft = {
       goal: p.goal,
       target: p.target_weight_kg !== null ? String(weightDisplayValue(p.target_weight_kg, units())) : "",
@@ -484,7 +488,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
     let weights: WeightsResponse | null = null;
     let savedKg: number | null = null;
     void api<WeightsResponse>("/weights?range=all")
-      .then((w) => { weights = w; drawRows(); })
+      .then((w) => { weights = w; if (!goalsPage) drawRows(); })
       .catch(() => {});
 
     const latestKg = () => savedKg ?? weights?.latest?.kg ?? p.weight_kg;
@@ -565,6 +569,7 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
 
     function drawRows(): void {
       clear(body);
+      if (goalsPage) { drawGoalsPage(body, close); return; }
       // Goal — the onboarding's three, single pick.
       body.append(editBlock("goal", screenOptionValues("goal", lang).map((g) => ({
         value: g,
@@ -599,7 +604,11 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
         el("span", "", microGoalsCopyFor(lang).title),
         kitEl(`<i class="ico i-chevron-right" aria-hidden="true"></i>`),
       );
-      grow.addEventListener("click", openMicroGoals);
+      grow.addEventListener("click", () => {
+        goalsPage = true;
+        setPage(microGoalsCopyFor(lang).title, backToRows, shellCopyFor(lang).navProfile);
+        drawRows();
+      });
       body.append(grow);
 
       // Target — the one typed field, display units in, kg out at the PATCH.
@@ -722,12 +731,11 @@ export async function youScreen(frame: Frame, mode: "profile" | "settings" = "pr
   // ── Nutrition goals (#914): fibre, sugar and sodium goals — plain numbers to read Home against,
   // not verdicts. Blank = the default; a kidney restriction caps sodium and says so. ──────────────
 
-  function openMicroGoals(): void {
+  function drawGoalsPage(body: HTMLElement, close: () => void): void {
     const C = microGoalsCopyFor(lang);
     const H = homeCopyFor(lang);
     const p = me!.profile;
     const shown = me!.microGoals;
-    const { body, close } = openPanel(C.title);
     const rows = [
       { key: "fiber_goal_g", name: H.macros.fibre.name, unit: H.grams, tmpl: C.atLeast, max: MICRO_GOAL_MAX.fiber_g, now: shown.fiber_g, set: p.fiber_goal_g },
       { key: "sugar_goal_g", name: H.macros.sugar.name, unit: H.grams, tmpl: C.atMost, max: MICRO_GOAL_MAX.sugar_g, now: shown.sugar_g, set: p.sugar_goal_g },
