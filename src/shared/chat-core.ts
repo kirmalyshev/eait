@@ -683,6 +683,8 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     // keeps them from when the page's line for this turn lands. `send` pushes the same row.
     if (result.kind === "answered") push({ id: uid(), role: "assistant", result });
     deps.onAnswer?.();
+    // Charged like a live send: a grant's last analysis turns the composer into the ask.
+    if (mayHaveSpentGrant(deps.profile())) void deps.refreshProfile();
     await load(() => true);
   };
 

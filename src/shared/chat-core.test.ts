@@ -212,6 +212,17 @@ describe("the composer can turn into the ask", () => {
 
   // Only an admin's grant lets an unpaid turn through, and the profile carries no count: any such
   // turn may have been the grant's last, so it re-reads — an entitled account's never does.
+  // A composer send runs as a job (#1347) and only its outcome comes back through `landed`: it was
+  // charged all the same, so it re-reads on the same rule as a live send.
+  it("a job-sent turn on a grant re-reads the profile too, a subscriber's does not", async () => {
+    const granted = harness({ profile: plenty });
+    await granted.core.landed({ kind: "answered", text: "About 40g." }, { id: "j1", text: "how much protein?" }); await settle();
+    expect(granted.fake.refreshes).toBe(1);
+    const paid = harness({ profile: { limits: { subscriptionRequired: false }, entitlement: { active: true } } as ProfileResponse });
+    await paid.core.landed({ kind: "answered", text: "About 40g." }, { id: "j1", text: "how much protein?" }); await settle();
+    expect(paid.fake.refreshes).toBe(0);
+  });
+
   it("a turn on a grant re-reads the profile, a subscriber's does not", async () => {
     const granted = harness({ profile: plenty });
     await granted.core.send("two eggs and toast"); await settle();
