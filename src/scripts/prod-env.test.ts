@@ -103,6 +103,10 @@ describe("the paywall switch", () => {
     expect(example).toContain("# EAIT__BACKEND__PAYWALL=off");
     expect(assigned(example)).not.toContain("EAIT__BACKEND__PAYWALL");
   });
+
+  it("is OFF on a fresh self-host: the script writes it, and only on the first run (Kirill)", () => {
+    expect(read("src/scripts/self-host.sh")).toContain(`set_var "$ENVF" EAIT__BACKEND__PAYWALL off`);
+  });
 });
 
 describe("every variable the deploy sets is one the backend reads", () => {

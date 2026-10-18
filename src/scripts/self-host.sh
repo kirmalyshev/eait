@@ -16,6 +16,9 @@
 #   EAIT__BACKEND__LLM_API_KEY     the model key (OpenRouter by default); prompted for when unset
 #   EAIT__BACKEND__TELEGRAM_BOT_TOKEN   optional; asked once, on the first run
 #
+# A fresh self-host is FREE: the first run writes EAIT__BACKEND__PAYWALL=off, so no account is asked
+# for a subscription (ieat-app#2364). Selling it is the hoster's own step: set it to on in .env.prod.
+#
 # Secrets are read from the environment or the terminal with echo off, written to `.env.prod`
 # (mode 600) and never printed or put in a command line. Re-running keeps every value already in
 # `.env.prod` — generated database passwords above all, because changing one locks the backend out
@@ -86,6 +89,7 @@ main() {
     cp .env.prod.example "$ENVF"
     set_var "$ENVF" EAIT__DEPLOY__POSTGRES_PASSWORD "$(gen)"
     set_var "$ENVF" EAIT__DEPLOY__APP_DB_PASSWORD "$(gen)"
+    set_var "$ENVF" EAIT__BACKEND__PAYWALL off
     if [ -n "${EAIT_DOMAIN:-}" ]; then
       [ -n "${EAIT_ACME_EMAIL:-}" ] || die "EAIT_DOMAIN needs EAIT_ACME_EMAIL, for certificate expiry notices"
       set_var "$ENVF" EAIT__DEPLOY__DOMAIN "$EAIT_DOMAIN"
