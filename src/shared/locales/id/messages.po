@@ -300,6 +300,11 @@ msgstr "Tercatat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Mencatat makanan butuh langganan. Mulai masa uji coba gratismu di web untuk melanjutkan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Aku catat ini — sudah benar?"
 
@@ -532,11 +537,6 @@ msgstr "Akun ini sudah bergabung lewat tautan dari teman."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Akun ini belum masuk — masuk dengan Apple atau Google di web, lalu kirim lagi."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Jatah gratis akun ini sudah habis. Mulai masa uji cobamu di web untuk melanjutkan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

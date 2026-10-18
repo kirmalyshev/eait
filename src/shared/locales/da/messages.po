@@ -294,6 +294,11 @@ msgstr "Registreret."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Du skal have et abonnement for at registrere måltider. Start din gratis prøveperiode på nettet for at fortsætte."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Jeg registrerer det her — ser det rigtigt ud?"
 
@@ -526,11 +531,6 @@ msgstr "Denne konto er allerede tilmeldt med en vens link."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Denne konto er ikke logget ind endnu — log ind med Apple eller Google på nettet, og send det så igen."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Denne kontos gratis prøvemåltid er brugt op. Start din gratis prøveperiode på nettet for at fortsætte."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -294,6 +294,11 @@ msgstr "Zapisano."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Zapisywanie posiłków wymaga subskrypcji. Rozpocznij darmowy okres próbny w przeglądarce, by kontynuować."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Zapisuję to — zgadza się?"
 
@@ -526,11 +531,6 @@ msgstr "To konto już dołączyło z linku od znajomych."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "To konto nie jest jeszcze zalogowane — zaloguj się przez Apple lub Google w przeglądarce, a potem wyślij ponownie."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Darmowa próbka na tym koncie jest wykorzystana. Rozpocznij darmowy okres próbny w przeglądarce, by kontynuować."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

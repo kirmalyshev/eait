@@ -294,6 +294,11 @@ msgstr "Zapsáno."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Na zapisování jídel potřebuješ předplatné. Pro pokračování začni na webu zkušební období zdarma."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Zapisuju tohle — sedí to?"
 
@@ -526,11 +531,6 @@ msgstr "Tento účet se už připojil přes odkaz kamaráda."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Tento účet ještě není přihlášený — přihlas se na webu přes Apple nebo Google a pak to pošli znovu."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Bezplatná ukázka tohoto účtu je vyčerpaná. Pro pokračování začni na webu zkušební období zdarma."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

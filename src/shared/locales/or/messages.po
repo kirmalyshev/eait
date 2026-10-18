@@ -294,6 +294,11 @@ msgstr "ଲଗ୍ ହେଲା।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ଭୋଜନ ଲଗ୍ କରିବାକୁ ସବସ୍କ୍ରିପସନ୍ ଦରକାର। ଜାରି ରଖିବାକୁ ୱେବ୍‌ରେ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "ଏହା ଲଗ୍ କରୁଛି — ଠିକ୍ ଅଛି ତ?"
 
@@ -526,11 +531,6 @@ msgstr "ଏହି ଆକାଉଣ୍ଟ ପୂର୍ବରୁ ଜଣେ ବନ�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "ଏହି ଆକାଉଣ୍ଟ ଏପର୍ଯ୍ୟନ୍ତ ସାଇନ୍ ଇନ୍ ହୋଇନାହିଁ — ୱେବ୍‌ରେ Apple କିମ୍ବା Google ସହ ସାଇନ୍ ଇନ୍ କରନ୍ତୁ, ତା'ପରେ ପୁଣି ପଠାନ୍ତୁ।"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "ଏହି ଆକାଉଣ୍ଟର ମାଗଣା ସାମ୍ପଲ୍ ସରିଗଲା। ଜାରି ରଖିବାକୁ ୱେବ୍‌ରେ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

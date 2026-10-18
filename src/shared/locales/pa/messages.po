@@ -294,6 +294,11 @@ msgstr "ਦਰਜ ਹੋ ਗਿਆ।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ਖਾਣਾ ਦਰਜ ਕਰਨ ਲਈ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਚਾਹੀਦੀ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਵੈੱਬ 'ਤੇ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "ਇਹ ਦਰਜ ਹੋਵੇਗਾ — ਸਹੀ ਲੱਗ ਰਿਹਾ ਹੈ?"
 
@@ -526,11 +531,6 @@ msgstr "ਇਹ ਅਕਾਊਂਟ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਦੋ�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "ਇਸ ਅਕਾਊਂਟ ਵਿੱਚ ਹਾਲੇ ਸਾਈਨ ਇਨ ਨਹੀਂ ਹੋਇਆ — ਵੈੱਬ 'ਤੇ Apple ਜਾਂ Google ਨਾਲ ਸਾਈਨ ਇਨ ਕਰੋ, ਫਿਰ ਇਸ ਨੂੰ ਦੁਬਾਰਾ ਭੇਜੋ।"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "ਇਸ ਅਕਾਊਂਟ ਦਾ ਮੁਫ਼ਤ ਸੈਂਪਲ ਖ਼ਤਮ ਹੋ ਗਿਆ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਵੈੱਬ 'ਤੇ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

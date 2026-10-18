@@ -300,6 +300,11 @@ msgstr "Logged."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Logging meals needs a subscription. Start your free trial on the web to carry on."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Logging this — look right?"
 
@@ -532,11 +537,6 @@ msgstr "This account already joined with a friend's link."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "This account is not signed in yet — sign in with Apple or Google on the web, then send it again."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "This account's free sample is used up. Start your free trial on the web to carry on."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

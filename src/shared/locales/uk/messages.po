@@ -294,6 +294,11 @@ msgstr "Записано."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Щоб записувати їжу, потрібна підписка. Почни безкоштовний пробний період на сайті, щоб продовжити."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Записую ось це — усе правильно?"
 
@@ -526,11 +531,6 @@ msgstr "Цей акаунт уже приєднався за посилання�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "У цей акаунт ще не виконано вхід — увійди через Apple або Google на сайті, а потім надішли це ще раз."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Безкоштовну пробу цього акаунта використано. Почни безкоштовний пробний період на сайті, щоб продовжити."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

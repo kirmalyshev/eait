@@ -294,6 +294,11 @@ msgstr "Înregistrat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Pentru a înregistra mesele ai nevoie de un abonament. Începe perioada de probă gratuită pe web ca să continui."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Înregistrez asta — e corect?"
 
@@ -526,11 +531,6 @@ msgstr "Acest cont s-a alăturat deja prin linkul unui prieten."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Acest cont nu e încă autentificat — conectează-te cu Apple sau Google pe web, apoi trimite din nou."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Mostra gratuită a acestui cont a fost folosită. Începe perioada de probă gratuită pe web ca să continui."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -294,6 +294,11 @@ msgstr "Registado."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Para registar refeições, é preciso uma subscrição. Começa a tua avaliação gratuita na web para continuar."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Vou registar isto — está certo?"
 
@@ -526,11 +531,6 @@ msgstr "Esta conta já aderiu com a ligação de um amigo."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Esta conta ainda não tem sessão iniciada — inicia sessão com a Apple ou o Google na web e depois envia de novo."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "A amostra gratuita desta conta esgotou-se. Começa a tua avaliação gratuita na web para continuar."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

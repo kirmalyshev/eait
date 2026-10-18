@@ -300,6 +300,11 @@ msgstr "Записал."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Чтобы записывать еду, нужна подписка. Начни бесплатный пробный период на сайте, чтобы продолжить."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Записываю вот это — всё верно?"
 
@@ -532,11 +537,6 @@ msgstr "Этот аккаунт уже присоединился по ссыл�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "В этот аккаунт ещё не вошли — войди через Apple или Google на сайте и пришли это ещё раз."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Бесплатный лимит этого аккаунта исчерпан. Начни пробный период на сайте, чтобы продолжить."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

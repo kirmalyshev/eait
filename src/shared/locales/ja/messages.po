@@ -294,6 +294,11 @@ msgstr "記録しました。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "食事を記録するにはサブスクリプションが必要です。続けるにはWebで無料トライアルを始めてください。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "これを記録します。合っていますか？"
 
@@ -526,11 +531,6 @@ msgstr "このアカウントはすでに友だちのリンクで参加してい
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "このアカウントはまだサインインしていません。WebでAppleまたはGoogleでサインインしてから、もう一度送ってください。"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "このアカウントの無料お試し分は使い切りました。続けるにはWebで無料トライアルを始めてください。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

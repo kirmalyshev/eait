@@ -294,6 +294,11 @@ msgstr "दर्ज हो गया।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "भोजन दर्ज करने के लिए सब्सक्रिप्शन ज़रूरी है। जारी रखने के लिए वेब पर अपना मुफ़्त ट्रायल शुरू करें।"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "यह दर्ज होगा — सही लग रहा है?"
 
@@ -526,11 +531,6 @@ msgstr "यह अकाउंट पहले ही किसी दोस्�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "इस अकाउंट में अभी साइन इन नहीं हुआ है — वेब पर Apple या Google से साइन इन करें, फिर इसे दोबारा भेजें।"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "इस अकाउंट का मुफ़्त सैंपल खत्म हो गया है। जारी रखने के लिए वेब पर अपना मुफ़्त ट्रायल शुरू करें।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

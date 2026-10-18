@@ -300,6 +300,11 @@ msgstr "Enregistré."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Pour enregistrer tes repas, il faut un abonnement. Lance ton essai gratuit sur le web pour continuer."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "J'enregistre ça — ça te va ?"
 
@@ -532,11 +537,6 @@ msgstr "Ce compte a déjà rejoint avec le lien d'un ami."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Ce compte n'est pas encore connecté — connecte-toi avec Apple ou Google sur le web, puis renvoie-le."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Ce compte a déjà utilisé son analyse offerte. Lance ton essai gratuit sur le web pour continuer."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

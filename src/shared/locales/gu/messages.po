@@ -294,6 +294,11 @@ msgstr "નોંધાઈ ગયું."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ભોજન નોંધવા માટે સબ્સ્ક્રિપ્શન જરૂરી છે. ચાલુ રાખવા માટે વેબ પર તમારું મફત ટ્રાયલ શરૂ કરો."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "આ નોંધાશે — બરાબર લાગે છે?"
 
@@ -526,11 +531,6 @@ msgstr "આ એકાઉન્ટ પહેલેથી કોઈ મિત્�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "આ એકાઉન્ટમાં હજી સાઇન ઇન થયું નથી — વેબ પર Apple અથવા Google વડે સાઇન ઇન કરો, પછી તેને ફરીથી મોકલો."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "આ એકાઉન્ટનું મફત સેમ્પલ પૂરું થઈ ગયું છે. ચાલુ રાખવા માટે વેબ પર તમારું મફત ટ્રાયલ શરૂ કરો."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

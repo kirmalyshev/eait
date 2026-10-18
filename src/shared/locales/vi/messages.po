@@ -300,6 +300,11 @@ msgstr "Đã ghi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Cần có gói đăng ký để ghi bữa ăn. Bắt đầu dùng thử miễn phí trên web để tiếp tục."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Mình ghi cái này nhé — có đúng không?"
 
@@ -532,11 +537,6 @@ msgstr "Tài khoản này đã tham gia bằng liên kết của bạn bè."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Tài khoản này chưa đăng nhập — đăng nhập bằng Apple hoặc Google trên web rồi gửi lại."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu dùng thử trên web để tiếp tục."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

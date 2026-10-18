@@ -294,6 +294,11 @@ msgstr "ದಾಖಲಾಗಿದೆ."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ಊಟವನ್ನು ದಾಖಲಿಸಲು ಚಂದಾದಾರಿಕೆ ಬೇಕು. ಮುಂದುವರಿಯಲು ವೆಬ್‌ನಲ್ಲಿ ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "ಇದನ್ನು ದಾಖಲಿಸಲಾಗುತ್ತಿದೆ — ಸರಿಯಾಗಿದೆಯೇ?"
 
@@ -526,11 +531,6 @@ msgstr "ಈ ಖಾತೆ ಈಗಾಗಲೇ ಸ್ನೇಹಿತರ ಲಿಂ�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "ಈ ಖಾತೆಗೆ ಇನ್ನೂ ಸೈನ್ ಇನ್ ಆಗಿಲ್ಲ — ವೆಬ್‌ನಲ್ಲಿ Apple ಅಥವಾ Google ಮೂಲಕ ಸೈನ್ ಇನ್ ಮಾಡಿ, ನಂತರ ಮತ್ತೆ ಕಳುಹಿಸಿ."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "ಈ ಖಾತೆಯ ಉಚಿತ ಮಾದರಿ ಮುಗಿದಿದೆ. ಮುಂದುವರಿಯಲು ವೆಬ್‌ನಲ್ಲಿ ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

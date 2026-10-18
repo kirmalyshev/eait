@@ -294,6 +294,11 @@ msgstr "Dicatat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Mencatat hidangan memerlukan langganan. Mulakan percubaan percuma anda di web untuk meneruskan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Mencatat ini — betul?"
 
@@ -526,11 +531,6 @@ msgstr "Akaun ini sudah menyertai melalui pautan rakan."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Akaun ini belum didaftar masuk — daftar masuk dengan Apple atau Google di web, kemudian hantar semula."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Sampel percuma akaun ini sudah habis. Mulakan percubaan percuma anda di web untuk meneruskan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
