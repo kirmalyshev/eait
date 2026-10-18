@@ -20,9 +20,9 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { scriptedLine } from "./chat.ts";
+import { mayHaveSpentGrant } from "./entitlement.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { Lang } from "./types.ts";
-import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import { attemptOf } from "./outbox.ts";
 import type { ConfirmMealResult, HandleTextResult, MealLogged, MealProposed, RefusedTurn, TargetGone } from "./results.ts";
 import {
@@ -251,7 +251,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // Only a change in the LINES arms a scroll; a record that changed with no new line repaints
       // where it is; nothing changed leaves the list alone.
       const { next, linesChanged, changed, superseded } = reconcilePage(
-        page.entries, state.entries, inflightIds, pagedBack, sampleSpent(deps.profile()) ? "sample" : undefined,
+        page.entries, state.entries, inflightIds, pagedBack,
       );
       for (const id of superseded) inflightIds.delete(id);
       if (changed && linesChanged) deps.onScroll?.("instant");
@@ -491,10 +491,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // Awaited, so the composer stays busy until it lands and nothing typed meanwhile is dropped.
           if (result.kind === "updated") await load(() => true);
         }
-        // THE TURN THAT SPENT THE LAST ANALYSIS turns the composer into the ask (`blockedAsk`), and
-        // nothing else re-reads the profile when a turn succeeds. Not awaited: the answer is on
-        // screen, and the composer's turn is over either way.
-        if (mayHaveSpentSample(deps.profile())) void deps.refreshProfile();
+        // THE TURN THAT SPENT A GRANT'S LAST ANALYSIS turns the composer into the ask (`blockedAsk`),
+        // and nothing else re-reads the profile when a turn succeeds. Not awaited.
+        if (mayHaveSpentGrant(deps.profile())) void deps.refreshProfile();
       } catch (e) {
         // A racing page may have superseded the bubble before the request failed in transport: the
         // words are on screen from the page, and so is the reply if the turn had one (written in the
@@ -507,9 +506,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // Only a landed PROPOSAL earns a notice; a question or an answered turn has nothing to
           // say, and no profile round trip to pay while the composer waits on `end()`.
           if (landedLine(state.entries, asked)?.pendingId) {
-            // The turn was charged: on the sample, the retry the notice invites meets a 402, so it says.
-            const p = (await deps.refreshProfile()) ?? deps.profile();
-            edit((prev) => threadReducer(prev, { kind: "unanswered", clientId: asked, scope: sampleSpent(p) ? "sample" : undefined }));
+            edit((prev) => threadReducer(prev, { kind: "unanswered", clientId: asked }));
             deps.restore?.(body, asked);
           }
         } else {
@@ -519,17 +516,12 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // Not kept: the bubble is back, marked below, and its words are one tap from the box.
           if (attemptOf({ kind: failure.kind }) === "retry" && await keep()) return;
           if (failure.kind === "analysis-failed") {
-            // The analysis was charged before the model was asked (a cap that only counts successes
-            // is one a retry loop walks through), so on the sample this failure spent it. The fact
-            // rides on the notice itself, read from a profile fetched NOW — not re-derived later
-            // from one that may never arrive, which would leave "try again" in front of a 402.
-            const p = (await deps.refreshProfile()) ?? deps.profile();
-            push({ id: uid(), role: "error", kind: "analysis-failed", ...(sampleSpent(p) ? { scope: "sample" } : {}) });
+            push({ id: uid(), role: "error", kind: "analysis-failed" });
             // Her words survive a restart: held in the outbox, drawn failed with Resend/Delete (`keptState`).
-            if (await keep({ kind: "analysis-failed", ...(sampleSpent(p) ? { scope: "sample" } : {}) })) return;
+            if (await keep({ kind: "analysis-failed" })) return;
           } else {
             pushFailure(e, keepsItsWords(failure.kind) ? asked : undefined);
-            // The server has just said the sample is spent; the profile the composer reads has not.
+            // The server has just refused an unpaid account; the profile the composer reads may not know yet.
             if (failure.kind === "subscription-required") void deps.refreshProfile();
           }
           if (failure.refusal && failure.kind !== "analysis-failed") {
@@ -691,6 +683,8 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     // keeps them from when the page's line for this turn lands. `send` pushes the same row.
     if (result.kind === "answered") push({ id: uid(), role: "assistant", result });
     deps.onAnswer?.();
+    // Charged like a live send: a grant's last analysis turns the composer into the ask.
+    if (mayHaveSpentGrant(deps.profile())) void deps.refreshProfile();
     await load(() => true);
   };
 

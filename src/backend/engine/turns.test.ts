@@ -3,6 +3,7 @@
 // charged again would make the queue the way to double-log a meal.
 
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { dateMinus, localDate, type LogPhotoResult } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -18,7 +19,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
 };
 const ZONE = CONFIG.timezone;
 
@@ -57,7 +57,7 @@ function counted(): { llm: LlmPorts; calls: () => number } {
   };
 }
 
-beforeEach(() => { store = memoryStore(); });
+beforeEach(() => { store = grantEveryAccount(memoryStore(), 1_000_000); });
 
 describe("a replayed turn", () => {
   it("logs a photo once, charges it once, and answers the replay with the first result", async () => {
@@ -118,12 +118,14 @@ describe("a replayed turn", () => {
 
   it("answers a refusal with the refusal, and a new id is a new turn", async () => {
     const userId = await onboard();
-    const d = makeDeps(demoPorts(), { freeAnalyses: 0 });
+    await store.setFreeAnalyses(userId, null);
+    const d = makeDeps(demoPorts());
     const clientId = crypto.randomUUID();
     expect((await logPhotoMeal(d, userId, photo({ clientId }))).kind).toBe("subscription-required");
-    // Bought in between: the SAME id is still the turn that was refused — the phone asks again
+    // Granted in between: the SAME id is still the turn that was refused — the phone asks again
     // with a new one, which is a deliberate second turn rather than a replay.
-    const paid = makeDeps(demoPorts(), { freeAnalyses: 5 });
+    await store.setFreeAnalyses(userId, 5);
+    const paid = d;
     expect((await logPhotoMeal(paid, userId, photo({ clientId }))).kind).toBe("subscription-required");
     expect((await logPhotoMeal(paid, userId, photo({ clientId: crypto.randomUUID() }))).kind).toBe("logged");
   });
@@ -146,7 +148,7 @@ describe("a replayed turn", () => {
     // A process that died mid-turn (a deploy) leaves a claim with no answer. The replay must not
     // wait forever, and must not run the turn: the first one may have logged the meal.
     const tenMinutesAgo = Date.now() - 10 * 60_000;
-    store = memoryStore({ now: () => tenMinutesAgo });
+    store = grantEveryAccount(memoryStore({ now: () => tenMinutesAgo }), 1_000_000);
     const userId = await onboard();
     const clientId = crypto.randomUUID();
     await store.claimTurn(userId, clientId);
@@ -158,7 +160,7 @@ describe("a replayed turn", () => {
   it("is an unknown once the answer is older than it is kept for, even before the sweep forgot it", async () => {
     // The sweep runs daily, so an answer can sit a day past its time; it is not served past it.
     let now = Date.now();
-    store = memoryStore({ now: () => now });
+    store = grantEveryAccount(memoryStore({ now: () => now }), 1_000_000);
     const userId = await onboard();
     const clientId = crypto.randomUUID();
     const { llm, calls } = counted();

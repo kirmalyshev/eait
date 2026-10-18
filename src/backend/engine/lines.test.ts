@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { localDate, OUTCOME_UNKNOWN, type ChatEntry, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -13,7 +14,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100, maxPhotosPerMeal: 2,
+  maxPhotosPerMeal: 2,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 let store: Store;
@@ -59,7 +60,7 @@ async function saidText(d: EngineDeps, userId: string, text: string) {
   return line;
 }
 
-beforeEach(() => { store = memoryStore(); deps = makeDeps(); });
+beforeEach(() => { store = grantEveryAccount(memoryStore(), 1_000_000); deps = makeDeps(); });
 
 describe("deleteLine", () => {
   it("another user's line id is target-gone", async () => {
@@ -221,9 +222,10 @@ describe("editLine", () => {
   });
 
   it("a refusal changes neither text nor numbers and charges nothing", async () => {
-    const d = makeDeps({ freeAnalyses: 1 });
+    const d = makeDeps();
     const userId = await onboard();
-    const { mealId, lineId } = await loggedPhoto(d, userId, "rice");
+    const { mealId, lineId } = await loggedPhoto(makeDeps(), userId, "rice");
+    await store.setFreeAnalyses(userId, null);
     const kcal = (await store.getMeal(userId, mealId))!.kcal;
     const out = await editLine(d, userId, lineId, { text: "changed", images: [] });
     expect(out.kind).toBe("subscription-required");
@@ -232,9 +234,10 @@ describe("editLine", () => {
   });
 
   it("a refused account's angle is never read", async () => {
-    const d = makeDeps({ freeAnalyses: 1 });
+    const d = makeDeps();
     const userId = await onboard();
-    const { lineId } = await loggedPhoto(d, userId);
+    const { lineId } = await loggedPhoto(makeDeps(), userId);
+    await store.setFreeAnalyses(userId, null);
     let read = false;
     const out = await editLine(d, userId, lineId, { text: "x", images: [async () => { read = true; return jpeg(); }] });
     expect(out.kind).toBe("subscription-required");

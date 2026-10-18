@@ -100,14 +100,9 @@ route. A route that computes is a rule the tests cannot reach.
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
-- **The SAMPLE counts value delivered, not attempts — and it is not the cost ledger** (#44, the
-  principal's decision). Both read the `analyses` row, and they are two questions. The charge above
-  is COST: every row stays, with its cost, on the paid daily cap. The sample
-  (`countUserAnalyses`) counts only rows still marked `sample`: charged before the call, so two
-  requests racing for one free meal cannot both pass `checkCaps`, and cleared by `releaseSample`
-  (`engine/caps.ts`) when the turn put no verdict in front of the person — a timeout, a provider
-  error, `analysis-failed`, a photo that was not food. So a failed free meal is a free retry; what
-  bounds a retry loop is `api/ratelimit.ts`, as it was before the sample.
+- **The charge is the cost ledger.** Every `analyses` row stays, with its cost, on the paid daily
+  cap; only a gateway refusal that generated nothing is given back (`refundGatewayRefusal`). What
+  bounds a retry loop is `api/ratelimit.ts`.
 - **A billed turn runs once per client id** (#708). `logPhotoMeal` and `handleText` claim
   `(user, clientId)` in `turns` before the caps (`engine/turns.ts`, `once`). A request re-sending the
   id gets what the first attempt settled, refusals included, or waits for it; it never calls a model,
@@ -255,11 +250,16 @@ naming it too.
   `limits.dailyPhotoCap`. **The cap is decided in `dailyPhotoCap` (`engine/entitlement.ts`) and
   nowhere else** — `checkCaps` refuses with it and `limitsOf` reports it, and two copies of that
   number is the app promising an allowance the server will not honour. A paid account gets a bigger
-  per-user cap. **There is no free tier.** An
-  account gets `freeAnalyses` (0 by default, ieat-app#2364: the 3-day trial is the only way in) analyses over its lifetime — photo, library or typed, so a sentence is
-  not the free way around the ask — and `checkCaps` answers every later one with
-  `subscription-required` (402) until the webhook has written an entitlement. `limits.sampleUsed`
-  tells the app, and the app opens the paywall on it; the refusal is the authority, the sheet only its
+  per-user cap. **There is no free tier and no sample** (ieat-app#2364:
+  the 3-day trial is the only way in). `checkCaps` answers every analysis of an unentitled account —
+  photo, library or typed, so a sentence is not the free way around the ask — with
+  `subscription-required` (402), before any charge, until the webhook has written an entitlement.
+  Two exceptions only: a SELF-HOSTED instance that sets `EAIT__BACKEND__PAYWALL=off` (`config.paywall`;
+  production never sets it, and the app repo's deploy tests refuse it), and an analysis count the
+  ADMIN granted one account (`freeAnalysesFor`, none by default) — a development store grants every account it creates
+  through that same path (`dev/grant.ts`, `--grant N`), which is how a demo, the e2e runners and the
+  tests log meals. `limits.subscriptionRequired` (`unpaidRefused`, the grant included) tells the app,
+  and the app opens the paywall on it; the refusal is the authority, the sheet only its
   rendering. **The sheet is the app's own** (`src/mobile/lib/paywall-sheet.tsx` in the app repo, drawn from
   `product/design/pro/phone/pay-*.html`) and its words are `PAY_COPY` (`src/shared/app/pay-copy.ts`) — so they ship with a build, in every shipped language, and
   `pay-copy.test.ts` puts them through the claims gate. RevenueCat supplies offerings and purchase calls only; no RevenueCat paywall is built or presented. The app never branches on the SDK's own `CustomerInfo`. A purchase ends by polling
@@ -284,8 +284,8 @@ naming it too.
   is safe only because of the shared secret checked before the body is read, and `putEntitlement`
   never creates a user.
 - **A cap on an account is not a cap while accounts are free.** `POST /v1/auth/device` mints one for
-  anybody with a 32-character string, so the sample (`EAIT__BACKEND__FREE_ANALYSES`, when an instance sets one)
-  costs an attacker one HTTP call to reset — and the minting is itself the attack: it spends the
+  anybody with a 32-character string, so anything an account were given for
+  free would cost an attacker one HTTP call to reset — and the minting is itself the attack: it spends the
   instance's money one fresh account at a time.
   `src/backend/api/ratelimit.ts` bounds the billed routes PER ADDRESS as well. The address is the
   **last** `X-Forwarded-For` value, never the first: a proxy appends what it saw, so everything left

@@ -5,6 +5,7 @@
 // account's rows or widens a window past its bound.
 
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { HEALTH_RETENTION_DAYS, explainTargets, type HealthDay, type MealRecord, dateMinus, localDate } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -18,7 +19,6 @@ import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile,
 const CONFIG: Config = {
   ...configDefaults(), port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
 };
 
 let store: Store;
@@ -62,7 +62,7 @@ function recordingCoach(reply = "Here is the answer.", suggestions = ["And prote
 }
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 
@@ -228,10 +228,11 @@ describe("the coach turn", () => {
     expect(res3.focus?.target).toBeGreaterThan(0);
   });
 
-  it("never reaches the coach on a refused turn: the sample rule and the caps stand in front of it", async () => {
+  it("never reaches the coach on a refused turn: the paywall and the caps stand in front of it", async () => {
     const { llm, seen } = recordingCoach();
-    const d = makeDeps(llm, { freeAnalyses: 0 });
+    const d = makeDeps(llm);
     const userId = await onboard();
+    await store.setFreeAnalyses(userId, null);
     expect((await handleText(d, userId, { text: "what should I eat?" })).kind).toBe("subscription-required");
     expect(seen).toHaveLength(0);
   });

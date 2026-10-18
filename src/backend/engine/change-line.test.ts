@@ -5,6 +5,7 @@
 // the model's.
 
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { explainTargets, type MealItem, type MealRecord } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -19,7 +20,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 let store: Store;
@@ -44,7 +44,7 @@ const thread = async (userId: string) => (await chatHistory(deps, userId, {})).e
 const text = (e: { kind: string }) => ("text" in e ? (e as { text: string | null }).text : null) ?? "";
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 

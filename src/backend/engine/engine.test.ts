@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type FoodRef, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -24,7 +25,6 @@ const CONFIG: Config = {
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   // Most tests chain several analyses on one account; the sample rule has its own describe.
-  freeAnalyses: 100,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -67,7 +67,7 @@ async function entitle(userId: string, expiresInMs = 86_400_000): Promise<void> 
 }
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 
@@ -338,11 +338,12 @@ describe("photo logging", () => {
     expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("analysis-failed");
   });
 
-  it("refuses HEIC before the sample is charged, so the next JPEG still goes through", async () => {
+  it("refuses HEIC before anything is charged, so the next JPEG still goes through", async () => {
     const userId = await onboard();
-    const d = makeDeps({ freeAnalyses: 1 });
+    const d = makeDeps();
     expect((await logPhotoMeal(d, userId, { images: [async () => heic()] })).kind).toBe("unsupported-image");
     expect((await logPhotoMeal(d, userId, { images: [async () => jpeg(), async () => heic()] })).kind).toBe("unsupported-image");
+    expect(await store.countUserAnalyses(userId)).toBe(0);
     expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
   });
 
@@ -352,21 +353,16 @@ describe("photo logging", () => {
       ...demoPorts(),
       analyzePhoto: async () => { throw new Error("nope"); },
     };
-    const d = makeDeps({ freeAnalyses: 1 }, llm);
+    const d = makeDeps({}, llm);
     const userId = await onboard();
     await logPhotoMeal(d, userId, photo());
     expect(await store.countUserPhotos(userId, localDate("Europe/Berlin"))).toBe(1);
-    // The SAMPLE is not a cap on attempts (#44, the principal's decision): it counts value
-    // delivered, so a failed first call leaves the free meal to be had. What bounds a retry loop is
-    // what bounded it before the sample existed — the per-address limit on the billed routes
-    // (`api/ratelimit.ts`).
-    expect((await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo())).kind).toBe("logged");
   });
 
   it("never reads image bytes when the cap already refused", async () => {
     const userId = await onboard();
-    const d = makeDeps({ freeAnalyses: 1 });
-    await logPhotoMeal(d, userId, photo());
+    await store.setFreeAnalyses(userId, null);
+    const d = makeDeps();
 
     let read = false;
     const res = await logPhotoMeal(d, userId, {
@@ -376,7 +372,7 @@ describe("photo logging", () => {
     expect(read).toBe(false); // thunks exist precisely for this
   });
 
-  it("refuses an account with no sign-in identity — before the charge, so the sample stays unspent (S8)", async () => {
+  it("refuses an account with no sign-in identity — before the charge (S8)", async () => {
     // The session account is real — onboarding ran on it — but sign-up is where an identity
     // attaches, and analysis before that is answered `identity-required` rather than charged.
     // Photo AND text: a sentence must not be the free way around the ask, which is why the gate
@@ -469,14 +465,6 @@ describe("the question after the card", () => {
     expect((await chatHistory(d, userId, { limit: 10 })).entries.some((e) => "text" in e && e.text === QUESTION.text)).toBe(false);
   });
 
-  it("never asks somebody who could not afford to answer", async () => {
-    // A reply is a billed correction. With the sample spent by this very photo, chips would open
-    // onto a 402 — a question Spud asked and then refused to hear the answer to.
-    const userId = await onboard();
-    const res = await second(makeDeps({ freeAnalyses: 2 }, asks()), userId);
-    expect(res.question).toBeUndefined();
-  });
-
   it("asks only about a plate it is unsure of", async () => {
     for (const confidence of ["medium", "high"] as const) {
       const userId = await onboard();
@@ -546,70 +534,75 @@ describe("the question after the card", () => {
   });
 });
 
-// No free tier. An account gets ONE analysis — photo, library or typed — and every later one is
-// refused until the RevenueCat webhook has written an entitlement. The sheet in the app renders
-// this refusal; it never decides it.
-describe("the sample", () => {
-  let one: EngineDeps;
-  beforeEach(() => { one = makeDeps({ freeAnalyses: 1 }); });
-
-  it("refuses the second analysis of an unentitled account, photo and typed alike", async () => {
+// No free tier and no sample (ieat-app#2364): every analysis — photo, library or typed — is refused
+// until the RevenueCat webhook has written an entitlement. The sheet in the app renders this
+// refusal; it never decides it.
+describe("the paywall", () => {
+  let paid: EngineDeps;
+  beforeEach(() => { paid = makeDeps(); });
+  // An account as production creates it: the test store grants every account (`dev/grant.ts`).
+  const unpaid = async (): Promise<string> => {
     const userId = await onboard();
-    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
-    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
-    expect(await handleText(one, userId, { text: "chicken rice bowl" })).toEqual({ kind: "subscription-required" });
+    await store.setFreeAnalyses(userId, null);
+    return userId;
+  };
+
+  it("refuses every analysis of an unentitled account, photo and typed alike, before charging", async () => {
+    const userId = await unpaid();
+    expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect(await handleText(paid, userId, { text: "chicken rice bowl" })).toEqual({ kind: "subscription-required" });
+    expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
-  it("counts a typed meal as the sample", async () => {
-    const userId = await onboard();
-    expect((await handleText(one, userId, { text: "two eggs on toast" })).kind).not.toBe("subscription-required");
-    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+  it("lets every account in when a self-hoster switched the paywall off", async () => {
+    const userId = await unpaid();
+    const free = makeDeps({ paywall: false });
+    expect((await logPhotoMeal(free, userId, photo())).kind).toBe("logged");
+    expect((await profileView(free, userId))!.limits.subscriptionRequired).toBe(false);
   });
 
-  it("takes the account's own sample size over the instance default, and reports the same number", async () => {
+  it("lets an account a development store created log meals, through the admin's own grant", async () => {
     const userId = await onboard();
-    await store.setFreeAnalyses(userId, 1);
-    const d = makeDeps({ freeAnalyses: 15 });
-    expect((await profileView(d, userId))!.limits.sampleRemaining).toBe(1);
-    expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
-    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "subscription-required" });
-    expect((await profileView(d, userId))!.limits).toMatchObject({ sampleUsed: true, sampleRemaining: 0 });
+    expect(await store.getFreeAnalyses(userId)).toBe(1_000_000);
+    expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
   });
 
-  it("is sized by config, so a demo instance can switch it off without a second code path", async () => {
+  // Kirill (ieat-app#2364): no default sample, but the admin may grant one account N analyses.
+  it("lets a granted account spend exactly its grant, and tells the app so without a count", async () => {
     const userId = await onboard();
-    const d = makeDeps({ freeAnalyses: 3 });
-    for (let i = 0; i < 3; i++) expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
-    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "subscription-required" });
+    await store.setFreeAnalyses(userId, 2);
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(false);
+    expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
+    expect((await handleText(paid, userId, { text: "two eggs on toast" })).kind).not.toBe("subscription-required");
+    expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(true);
   });
 
   it("opens the account once an entitlement is written, and closes it again when it lapses", async () => {
-    const userId = await onboard();
-    await logPhotoMeal(one, userId, photo());
+    const userId = await unpaid();
+    expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
     await entitle(userId);
-    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
+    expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
     await entitle(userId, -1000);
-    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
   });
 
   it("tells the app a subscription ENDED, so it can ask to resubscribe rather than to subscribe", async () => {
     const userId = await onboard();
     // Never bought: the ask is "subscribe".
-    expect((await profileView(one, userId))!.entitlement.lapsed).toBe(false);
+    expect((await profileView(paid, userId))!.entitlement.lapsed).toBe(false);
     await entitle(userId);
-    expect((await profileView(one, userId))!.entitlement.lapsed).toBe(false);
+    expect((await profileView(paid, userId))!.entitlement.lapsed).toBe(false);
     // Bought, and over — `expiresAt` is blanked by then, so this is the only thing that says so.
     await entitle(userId, -1000);
-    const view = (await profileView(one, userId))!;
+    const view = (await profileView(paid, userId))!;
     expect(view.entitlement).toMatchObject({ active: false, expiresAt: null, lapsed: true });
   });
 
-  // Issue #32: this happened, in production, to the first real user — an expired OpenRouter balance
-  // answered 402 seconds after they finished onboarding, and the account was paywalled forever
-  // having never seen one analysis. The sample IS the funnel: there is no free tier, so an upstream
-  // outage otherwise converts every account created during it into permanent churn.
+  // Issue #32: an expired OpenRouter balance answered 402 seconds after onboarding. A gateway
+  // refusal generated nothing and was billed nothing, so the charge is given back.
   it("gives the analysis back when the gateway refused before generating anything", async () => {
-    const refused = makeDeps({ freeAnalyses: 1 }, {
+    const refused = makeDeps({}, {
       ...demoPorts(),
       analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); },
       routeText: async () => { throw new GatewayRefusal(503, "llm http 503: no provider"); },
@@ -617,30 +610,21 @@ describe("the sample", () => {
     const userId = await onboard();
     expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
     expect((await handleText(refused, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
-    // Nothing spent, by either route, so the app shows "try again" rather than the paywall.
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
-    // The count the app words its sentences from. One read of `countUserAnalyses` produces both,
-    // so "spent" can never render beside "1 left".
-    expect((await profileView(one, userId))!.limits.sampleRemaining).toBe(1);
-    // And the sample is still there to be spent on an analysis that works.
-    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
+    expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
   it("marks analysis-failed retryable only for a refunded 429/503", async () => {
     const userId = await onboard();
-    const failing = (e: Error) => makeDeps({ freeAnalyses: 1 }, { ...demoPorts(), analyzePhoto: async () => { throw e; } });
+    const failing = (e: Error) => makeDeps({}, { ...demoPorts(), analyzePhoto: async () => { throw e; } });
     expect(await logPhotoMeal(failing(new GatewayRefusal(429, "llm http 429")), userId, photo())).toEqual({ kind: "analysis-failed", retryable: true });
     expect(await logPhotoMeal(failing(new GatewayRefusal(503, "llm http 503")), userId, photo())).toEqual({ kind: "analysis-failed", retryable: true });
     expect(await logPhotoMeal(failing(new GatewayRefusal(402, "llm http 402")), userId, photo())).toEqual({ kind: "analysis-failed" });
     expect(await logPhotoMeal(failing(new Error("llm timeout after 60000 ms")), userId, photo())).toEqual({ kind: "analysis-failed" });
   });
 
-  // Principal's decision (2026-09-25, #44): the sample counts VALUE DELIVERED, not attempts. A
-  // timeout may have been billed, so the COST stays on the row and the day's count still sees
-  // it — but the person got no verdict, so their one meal is still theirs.
-  it("timed-out analysis leaves the sample unspent", async () => {
-    const slow = makeDeps({ freeAnalyses: 1 }, {
+  // A timeout may have been billed, so the charge stays and the day's count still sees it.
+  it("keeps a timed-out analysis charged", async () => {
+    const slow = makeDeps({}, {
       ...demoPorts(),
       analyzePhoto: async () => { throw new Error("llm timeout after 60000 ms"); },
       routeText: async () => { throw new Error("llm timeout after 60000 ms"); },
@@ -648,22 +632,8 @@ describe("the sample", () => {
     const userId = await onboard();
     expect((await logPhotoMeal(slow, userId, photo())).kind).toBe("analysis-failed");
     expect((await handleText(slow, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
-    expect((await profileView(one, userId))!.limits).toMatchObject({ sampleUsed: false, sampleRemaining: 1 });
-    // Charged all the same: both billed attempts stay in the day's count.
-    const m = await store.adminMetrics({ days: 1, today: localDate(one.config.timezone), timezone: one.config.timezone });
+    const m = await store.adminMetrics({ days: 1, today: localDate(slow.config.timezone), timezone: slow.config.timezone });
     expect(m.days[0]?.analyses).toBeGreaterThanOrEqual(2);
-    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
-  });
-
-  it("a photo that is not food leaves the sample unspent: no verdict reached anybody", async () => {
-    const notFood = makeDeps({ freeAnalyses: 1 }, {
-      ...demoPorts(),
-      analyzePhoto: async (i, d) => ({ ...(await demoPorts().analyzePhoto(i, d)), isFood: false }),
-    });
-    const userId = await onboard();
-    expect((await logPhotoMeal(notFood, userId, photo())).kind).toBe("not-food");
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
   });
 
   it("still words the failure when the refund itself cannot be written", async () => {
@@ -675,34 +645,31 @@ describe("the sample", () => {
       undoAnalysis: async () => { throw new Error("delete failed"); },
     };
     const refused: EngineDeps = {
-      ...makeDeps({ freeAnalyses: 1 }, {
+      ...makeDeps({}, {
         ...demoPorts(),
         analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); },
       }),
       store: brokenStore,
     };
     const userId = await onboard();
-    const today = localDate(one.config.timezone);
-    const spentOn = async () => (await store.adminMetrics({ days: 1, today, timezone: one.config.timezone })).days[0]?.analyses ?? 0;
+    const today = localDate(refused.config.timezone);
+    const spentOn = async () => (await store.adminMetrics({ days: 1, today, timezone: refused.config.timezone })).days[0]?.analyses ?? 0;
     const before = await spentOn();
     expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
-    // Nothing was given back, so the CHARGE stands — the safe direction when the store is the thing
-    // that is broken. The SAMPLE is another matter since #44: nothing reached the person, so their
-    // one meal is still theirs, whether or not the refund landed.
+    // Nothing was given back, so the CHARGE stands — the safe direction when the store is broken.
     expect(await spentOn()).toBe(before + 1);
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
   });
 
-  it("tells the app whether the sample is spent, beside the entitlement", async () => {
-    const userId = await onboard();
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
-    await handleText(one, userId, { text: "an apple" });
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
-    // Still true after subscribing: the app pairs it with `entitlement.active` to decide the sheet.
+  it("tells the app whether it is refused, beside the entitlement", async () => {
+    const userId = await unpaid();
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(true);
+    await store.setFreeAnalyses(userId, 5);
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(false);
+    await store.setFreeAnalyses(userId, null);
     await entitle(userId);
-    const view = (await profileView(one, userId))!;
-    expect(view.limits.sampleUsed).toBe(true);
-    expect(view.limits.dailyPhotoCap).toBe(one.config.paidDailyPhotoCap);
+    const view = (await profileView(paid, userId))!;
+    expect(view.limits.subscriptionRequired).toBe(false);
+    expect(view.limits.dailyPhotoCap).toBe(paid.config.paidDailyPhotoCap);
   });
 });
 
@@ -1998,9 +1965,9 @@ describe("the thread", () => {
 
   it("keeps nothing from a refused turn", async () => {
     const userId = await onboard();
-    const one = makeDeps({ freeAnalyses: 1 });
-    await handleText(one, userId, { text: "how much protein?" });
-    expect((await handleText(one, userId, { text: "and carbs?" })).kind).toBe("subscription-required");
+    await handleText(deps, userId, { text: "how much protein?" });
+    await store.setFreeAnalyses(userId, null);
+    expect((await handleText(deps, userId, { text: "and carbs?" })).kind).toBe("subscription-required");
     expect(await thread(userId)).toHaveLength(2);
     // The verdict prose is the design's; an ordinary question gets the model's answer and no more.
     expect((await thread(userId)).map((e) => e.kind)).toEqual(["text", "text"]);
@@ -2263,12 +2230,13 @@ describe("re-analysis", () => {
     expect(seen).toEqual(["rice, not couscous", "rice, not couscous"]);
   });
 
-  it("is charged before the call: the sample is spent by it", async () => {
+  it("is charged before the call, and behind the paywall", async () => {
     const userId = await onboard();
-    const d = makeDeps({ freeAnalyses: 2 });
-    const logged = await logPhotoMeal(d, userId, photo(8)) as MealLogged;
-    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("updated");
-    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("subscription-required");
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
+    expect((await reanalyzeMeal(deps, userId, logged.mealId)).kind).toBe("updated");
+    expect(await store.countUserAnalyses(userId)).toBe(2);
+    await store.setFreeAnalyses(userId, null);
+    expect((await reanalyzeMeal(deps, userId, logged.mealId)).kind).toBe("subscription-required");
   });
 
   it("refuses a meal with no photo and another user's meal", async () => {
@@ -2305,13 +2273,11 @@ describe("re-analysis", () => {
 
   it("gives the analysis back when the gateway refused before routing", async () => {
     const userId = await onboard();
-    const d = makeDeps({ freeAnalyses: 2 });
-    const logged = await logPhotoMeal(d, userId, photo(8)) as MealLogged;
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
     const refused: LlmPorts = { ...demoPorts(), analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); } };
-    expect((await reanalyzeMeal(makeDeps({ freeAnalyses: 2 }, refused), userId, logged.mealId)).kind).toBe("analysis-failed");
-    // Refunded: the second of two analyses is still available.
-    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("updated");
-    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("subscription-required");
+    expect((await reanalyzeMeal(makeDeps({}, refused), userId, logged.mealId)).kind).toBe("analysis-failed");
+    // Refunded: only the photo's own charge is left.
+    expect(await store.countUserAnalyses(userId)).toBe(1);
   });
 });
 

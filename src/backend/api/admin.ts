@@ -488,9 +488,9 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
     return json(await adminMetrics(deps, days));
   }
 
-  // ── Per-account sample ─────────────────────────────────────────────────────────────────────
+  // ── Per-account grant (ieat-app#2364: no default sample) ─────────────────────────────────────────────────────────────────────
   //
-  // One account's own sample size over the instance default; null in the body puts it back. The
+  // The analyses the admin grants one account before a subscription; null takes the grant away. The
   // id must look like one before it reaches Postgres, or a typo is a cast error and a 500.
   const cap = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/cap$/);
   if (cap) {
@@ -504,7 +504,7 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
       const n = body?.freeAnalyses;
       // Bounded by the column: `free_analyses integer`, and a number past it is a cast error.
       if (n !== null && !(Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 2_147_483_647)) {
-        return json({ errors: ["freeAnalyses must be a whole number of analyses, or null for the instance default"] }, 422);
+        return json({ errors: ["freeAnalyses must be a whole number of analyses, or null for none"] }, 422);
       }
       const view = await setUserCap(deps, userId, n as number | null);
       return view ? json(view) : notFound();

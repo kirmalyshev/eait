@@ -618,11 +618,11 @@ export interface AdminUserRow {
   /** The referral week's end (`Store.bonusUntil`) and the days banked behind a subscription (`Store.bankedDays`) — `referralBonusEnd` makes them the third input `entitlementLive` takes. */
   bonusUntil: string | null;
   bankedDays: number;
-  /** The account's own sample size, or null when it takes the instance default. */
+  /** The analyses the admin granted this account, or null when none was. */
   freeAnalyses: number | null;
-  /** Analyses of BOTH scopes on the day asked for — the sample counts a typed meal too. */
+  /** Analyses of BOTH scopes on the day asked for. */
   analysesToday: number;
-  /** Every analysis this account has ever spent. The number the sample is spent against. */
+  /** Every analysis this account has ever spent. The number a grant is spent against. */
   spent: number;
   /** The most recent use of any of this account's sessions, or null if it has never held one. */
   lastSeen: string | null;
@@ -1665,24 +1665,18 @@ export interface Store {
    */
   countUserPhotos(userId: string, date: string): Promise<number>;
   /**
-   * The analyses that count against this account's SAMPLE, photo or text, over its lifetime. The
-   * sample rule reads it: `freeAnalyses` without an entitlement, then refusal. Both scopes on
-   * purpose — a typed meal is the sample as much as a photographed one, or a sentence is the free
-   * way around the ask.
-   *
-   * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS (principal's decision, #44). A row counts from
-   * the moment it is charged — so two requests racing for one free meal cannot both pass the check —
-   * until `releaseSample` says the turn delivered nothing: a timeout, a provider error, a photo
-   * that was not food. Only a turn that reached the person keeps counting. The ROW stays either
-   * way: it carries the cost, and the paid daily cap counts every row.
+   * Every analysis this account has been charged for and not refunded, photo or text, over its
+   * lifetime — what an admin's grant (`getFreeAnalyses`) is spent against, both scopes, so a
+   * sentence is not the free way around the ask. A row counts from the moment it is charged, so two
+   * requests racing for a grant's last analysis cannot both pass. `mayAsk` reads it too.
    */
   countUserAnalyses(userId: string): Promise<number>;
   /**
-   * This account's OWN sample size, or null when it takes the instance default
-   * (`config.freeAnalyses`). Written by the admin only — there is no client route to it.
+   * The analyses the admin granted this account before an entitlement is required, or null when
+   * none was (ieat-app#2364: no default sample). Written by the admin only — no client route to it.
    */
   getFreeAnalyses(userId: string): Promise<number | null>;
-  /** Set this account's own sample size, or clear it with null. False when there is no such user. */
+  /** Set this account's grant, or take it away with null. False when there is no such user. */
   setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
   /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<string>;
@@ -1726,13 +1720,6 @@ export interface Store {
    * scope may own, cost and all (#537).
    */
   undoAnalysis(userId: string, analysisId: string): Promise<boolean>;
-  /**
-   * Take this analysis out of the SAMPLE count and leave everything else about it: the row, its
-   * cost, and its place in the day's count. For a turn that delivered no verdict but may have
-   * been billed — the opposite of `undoAnalysis`, which is for a call billed nothing. Scoped
-   * `id = ? AND user_id = ?`; false when there is no such row of theirs.
-   */
-  releaseSample(userId: string, analysisId: string): Promise<boolean>;
 
   // ── Turns (#708) ───────────────────────────────────────────────────────────────────────────
   //
@@ -1782,7 +1769,7 @@ export interface Store {
   settleJob(userId: string, clientId: string, owner: string, outcome: object): Promise<boolean>;
   /** The one push, claimed: true for exactly one caller, and only while nobody follows and the job is not removed. */
   claimPush(userId: string, clientId: string): Promise<boolean>;
-  /** The attempt's charge, fenced, so a retry can release a dead attempt's sample. */
+  /** The attempt's charge, fenced, so a retry can find a dead attempt's charge. */
   chargeJob(userId: string, clientId: string, owner: string, analysisId: string): Promise<boolean>;
   /**
    * One transaction, fenced: record `meal.id` on the job, insert the meal, and adopt the job's

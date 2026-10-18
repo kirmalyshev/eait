@@ -69,8 +69,8 @@ export type Refusal =
    */
   | { kind: "cap-exceeded"; scope: "user" | "global" | "address" }
   /**
-   * The sample is spent and there is no entitlement. Not a cap: nothing resets at midnight. The
-   * app answers it with the paywall, and `limits.sampleUsed` lets it do so before asking.
+   * There is no entitlement (and no sample, ieat-app#2364). Not a cap: nothing resets at midnight.
+   * The app answers it with the paywall, and `limits.subscriptionRequired` lets it do so before asking.
    */
   | { kind: "subscription-required" }
   /**

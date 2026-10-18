@@ -166,7 +166,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     lifetimeEventAt: string | null;
   }
   const entitlements = new Map<string, StoredWithClocks>();
-  const freeAnalyses = new Map<string, number>(); // userId -> the admin's own sample size
+  const freeAnalyses = new Map<string, number>(); // userId -> the analyses the admin granted
   /**
    * The referral columns of `users` (#899) — maps beside the profile for the reason `roles` is
    * one: off `Profile`, `patchProfile` here cannot write them either.
@@ -302,8 +302,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
   const analyses: {
     id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
-    /** Counts against the sample until `releaseSample` says the turn delivered nothing. */
-    sample: boolean;
     /** Settled-turn timings, written by `recordTiming`; undefined until one lands. */
     msQueue?: number; msFirstItem?: number | null; msTotal?: number; msGround?: number | null;
   }[] = [];
@@ -946,7 +944,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         });
         entitlements.delete(fromUserId);
       }
-      // The admin's sample size moves the same way: into a gap, never over the survivor's own.
+      // The admin's grant moves the same way: into a gap, never over the survivor's own.
       const ownCap = freeAnalyses.get(fromUserId);
       if (ownCap !== undefined && !freeAnalyses.has(intoUserId)) freeAnalyses.set(intoUserId, ownCap);
       freeAnalyses.delete(fromUserId);
@@ -2049,7 +2047,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async countUserAnalyses(userId) {
-      return analyses.filter((a) => a.userId === userId && a.sample).length;
+      return analyses.filter((a) => a.userId === userId).length;
     },
 
     async getFreeAnalyses(userId) {
@@ -2064,7 +2062,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async recordAnalysis(userId, date, scope) {
       const id = String(++analysisSeq);
-      analyses.push({ id, userId, date, scope, costUsd: null, unpricedCalls: 0, sample: true });
+      analyses.push({ id, userId, date, scope, costUsd: null, unpricedCalls: 0 });
       return id;
     },
 
@@ -2109,13 +2107,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       analyses.splice(i, 1);
       // `on delete set null` in Postgres: the call happened whether or not it stayed billed.
       for (const c of llmCalls) if (c.analysisId === analysisId) c.analysisId = null;
-      return true;
-    },
-
-    async releaseSample(userId, analysisId) {
-      const a = analyses.find((x) => x.id === analysisId && x.userId === userId);
-      if (!a) return false;
-      a.sample = false;
       return true;
     },
 

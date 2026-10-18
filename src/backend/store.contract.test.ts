@@ -304,7 +304,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const row = (await s.adminListUsers({ limit: 50, today: RUN_DATE })).rows
         .find((r) => r.userId === userId)!;
       expect(row.email).toBeNull();
-      // Null is "this account takes the instance default", which is a different fact from a number.
+      // Null is "no grant" (ieat-app#2364), which is a different fact from a number.
       expect(row.freeAnalyses).toBeNull();
       expect(row.analysesToday).toBe(0);
       expect(row.spent).toBe(0);
@@ -2139,28 +2139,6 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countUserAnalyses(b)).toBe(1);
       expect(await s.undoAnalysis(a, refused)).toBe(false);
       expect(await s.countUserAnalyses(a)).toBe(1);
-    });
-
-    // #44: the sample counts value delivered, not attempts. A release takes the row out of the
-    // SAMPLE and leaves it everywhere else — its cost, the day's count, the paid daily cap.
-    it("releases an analysis from the sample and keeps its charge, and never another account's", async () => {
-      const s = await open();
-      const a = (await s.upsertDeviceUser(device(), "en")).userId;
-      const b = (await s.upsertDeviceUser(device(), "en")).userId;
-      const dayCount = async () =>
-        (await s.adminMetrics({ days: 1, today: RUN_DATE, timezone: "UTC" })).days[0]?.analyses ?? 0;
-      const before = await dayCount();
-      const failed = await s.recordAnalysis(a, RUN_DATE, "photo");
-      const theirs = await s.recordAnalysis(b, RUN_DATE, "photo");
-      await s.addCost(a, failed, 0.25);
-      expect(await s.releaseSample(b, failed)).toBe(false);
-      expect(await s.releaseSample(a, theirs)).toBe(false);
-      expect(await s.releaseSample(a, failed)).toBe(true);
-      expect(await s.countUserAnalyses(a)).toBe(0);
-      expect(await s.countUserAnalyses(b)).toBe(1);
-      expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1);
-      expect(await dayCount()).toBe(before + 2);
-      expect(await s.analysisCosts(a, [failed])).toEqual([{ id: failed, costUsd: 0.25, unpricedCalls: 0 }]);
     });
 
     // #484. One charge pays for several calls, so what the provider reported for each is ADDED to

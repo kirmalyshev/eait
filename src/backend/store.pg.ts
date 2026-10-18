@@ -663,7 +663,8 @@ alter table users add column if not exists entitlement_event_at   timestamptz;
 -- this column existed reads as -- and false is the safe direction: a trial reminder that never
 -- arrives beats one telling somebody who pays that "the free trial ends".
 alter table users add column if not exists entitlement_trial boolean not null default false;
--- The admin's per-account sample size. Null means the instance default (EAIT__BACKEND__FREE_ANALYSES).
+-- The analyses the admin granted one account before a subscription is required. Null means none
+-- (ieat-app#2364: there is no default sample).
 alter table users add column if not exists free_analyses integer;
 
 -- Bearer tokens, as SHA-256 hashes.
@@ -909,10 +910,7 @@ alter table analyses add column if not exists unpriced_calls integer not null de
 alter table analyses add column if not exists ms_queue integer;
 alter table analyses add column if not exists ms_first_item integer;
 alter table analyses add column if not exists ms_total integer;
--- Whether this analysis counts against the account's SAMPLE (#44): the sample counts value
--- delivered, not attempts. Every row already here counted, which is what the default says; a turn
--- that delivers nothing clears it (releaseSample) and keeps the row, its cost and its budget.
-alter table analyses add column if not exists sample boolean not null default true;
+-- analyses.sample is retired (ieat-app#2364): nothing reads it any more.
 -- The food-catalog grounding step's own ms (#602), measured inside the same settle write — null on
 -- rows that predate it or turned at a path with nothing to ground.
 alter table analyses add column if not exists ms_ground integer;
@@ -1866,7 +1864,6 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   recordTiming: 0,
   analysisCosts: 0,
   undoAnalysis: 0,
-  releaseSample: 0,
   putHealthDays: 0,
   healthDaysSince: 0,
   putWeight: 0,
@@ -2743,7 +2740,7 @@ export async function postgresStore(
             and from_u.entitlement_lifetime_event_at is not null
             and (into_u.entitlement_lifetime_event_at is null
                  or into_u.entitlement_lifetime_event_at < from_u.entitlement_lifetime_event_at)`;
-        // The existence marker and the admin's sample size, which belong to no grant and always move.
+        // The existence marker and the admin's grant, which belong to no entitlement and always move.
         await tx`
           update users into_u set
             free_analyses = coalesce(into_u.free_analyses, from_u.free_analyses),
@@ -4311,7 +4308,7 @@ export async function postgresStore(
 
     async countUserAnalyses(userId) {
       // Served by the prefix of analyses_user_date_idx (user_id, date, scope).
-      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId} and sample`;
+      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId}`;
       return num(rows[0].n);
     },
 
@@ -4415,12 +4412,6 @@ export async function postgresStore(
     async undoAnalysis(userId, analysisId) {
       const rows = await sql`
         delete from analyses where id = ${analysisId} and user_id = ${userId} returning id`;
-      return rows.length > 0;
-    },
-
-    async releaseSample(userId, analysisId) {
-      const rows = await sql`
-        update analyses set sample = false where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },
 

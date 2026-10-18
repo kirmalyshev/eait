@@ -638,7 +638,7 @@ details.how p { margin-top: 8px; }
           </div>
           <div class="scrollx" id="users-wrap"><table id="users">
             <thead>
-              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Sample</th><th class="r">Today</th><th class="r">Last seen</th></tr>
+              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Granted</th><th class="r">Today</th><th class="r">Last seen</th></tr>
             </thead>
             <tbody></tbody>
           </table></div>
@@ -683,7 +683,7 @@ details.how p { margin-top: 8px; }
                 <b>Analyses before the paywall</b>
                 <p class="muted" id="cap-status"></p>
                 <div class="row">
-                  <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default" aria-label="Analyses before the paywall">
+                  <input type="text" id="cap-n" inputmode="numeric" placeholder="none" aria-label="Analyses before the paywall">
                   <button class="primary" id="cap-save">Save</button>
                 </div>
               </div>
@@ -2650,7 +2650,7 @@ details.how p { margin-top: 8px; }
   function showCap(c, prefix) {
     $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
     $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
-      + (c.freeAnalyses === null ? " (instance default)" : "");
+      + (c.freeAnalyses === null ? " (none granted)" : "");
   }
 
   function paintStaff(on) {
@@ -2881,7 +2881,7 @@ details.how p { margin-top: 8px; }
       $("users-foot").classList.toggle("hidden", n === 0);
       $("users-empty-title").textContent = q ? "Nothing matches that." : "No accounts yet.";
       $("users-empty-note").textContent = q ? "It takes a whole address, or the start of an id." : "";
-      $("users-status").textContent = n + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
+      $("users-status").textContent = n + " shown";
     });
   }
 

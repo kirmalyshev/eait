@@ -492,7 +492,6 @@ describe("the account list", () => {
       users: { userId: string; providers: string[]; entitled: boolean; effective: number;
                freeAnalyses: number | null; spent: number; analysesToday: number }[];
       nextCursor: string | null;
-      defaultFreeAnalyses: number;
     };
 
   it("answers who signed up, what they are entitled to and what their cap is", async () => {
@@ -509,16 +508,15 @@ describe("the account list", () => {
     expect(row.entitled).toBe(false);
     expect(row.freeAnalyses).toBe(3);
     expect(row.effective).toBe(3);
-    expect(body.defaultFreeAnalyses).toBe(base.freeAnalyses);
   });
 
-  it("resolves the instance default rather than making the panel do it", async () => {
+  it("resolves no grant to none rather than making the panel do it (ieat-app#2364)", async () => {
     const userId = await user();
     const row = (await list()).users.find((u) => u.userId === userId)!;
     // Two answers to "what is this account's cap" is how the panel and `checkCaps` come to
     // disagree — `freeAnalysesFor` is `own ?? default` and so is this.
     expect(row.freeAnalyses).toBeNull();
-    expect(row.effective).toBe(base.freeAnalyses);
+    expect(row.effective).toBe(0);
   });
 
   it("clamps the page size instead of refusing it", async () => {
@@ -1002,15 +1000,15 @@ describe("the per-account sample", () => {
 
   const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
 
-  it("reads the instance default until one is set, sets one, and puts it back with null", async () => {
+  it("grants none until one is set, sets one, and takes it away with null", async () => {
     const path = `/admin/api/users/${await user()}/cap`;
-    expect(await (await admin("GET", path)).json()).toEqual({ freeAnalyses: null, effective: base.freeAnalyses, spent: 0 });
+    expect(await (await admin("GET", path)).json()).toEqual({ freeAnalyses: null, effective: 0, spent: 0 });
     const put = await admin("PUT", path, { freeAnalyses: 1 });
     expect(put.status).toBe(200);
     expect(await put.json()).toEqual({ freeAnalyses: 1, effective: 1, spent: 0 });
     expect(await (await admin("GET", path)).json()).toMatchObject({ effective: 1 });
     expect(await (await admin("PUT", path, { freeAnalyses: null })).json())
-      .toEqual({ freeAnalyses: null, effective: base.freeAnalyses, spent: 0 });
+      .toEqual({ freeAnalyses: null, effective: 0, spent: 0 });
   });
 
   it("422s anything but a whole number or null", async () => {

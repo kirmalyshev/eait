@@ -9,6 +9,7 @@
 // guard in `src/frontend/test/imports.test.ts` is what keeps it from regrowing.
 
 import { describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { beforeEach } from "bun:test";
 import type { Lang, MealProposed, PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
@@ -27,7 +28,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
   appleAudiences: [], googleAudiences: [],
 };
 
@@ -35,7 +35,7 @@ let store: Store;
 let deps: EngineDeps;
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 

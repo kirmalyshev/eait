@@ -141,8 +141,6 @@ export function reconcilePage(
   prev: ThreadEntry[],
   inflight: ReadonlySet<string>,
   pagedBack: boolean,
-  /** Whether a landed turn spent the free sample: rides on any notice given, so it can say so. */
-  scope?: "sample",
 ): { next: ThreadEntry[]; linesChanged: boolean; changed: boolean; superseded: string[] } {
   const superseded: ThreadEntry[] = [];
   let shaped = fromHistory(page);
@@ -155,7 +153,7 @@ export function reconcilePage(
     superseded.push(e);
     // Only a turn that FAILED can be unanswered; one still in flight has its reply on the way.
     if (!e.failed) continue;
-    shaped = withUnanswered(shaped, e.id, scope);
+    shaped = withUnanswered(shaped, e.id);
   }
   // A live answer's focus card and suggestions are not stored (#1229): the page's line for the
   // same turn — after the user line carrying the bubble's id — or the same line again, keeps them.
@@ -215,13 +213,12 @@ export function landedLine(entries: ThreadEntry[], clientId: string): (ThreadEnt
  * delivered would hide that. One rule, read by the reconcile and by a send that failed after its
  * line landed. Null when the turn proposed nothing, or its card is there.
  */
-export function unansweredFor(entries: ThreadEntry[], clientId: string, scope?: "sample"): ThreadEntry | null {
+export function unansweredFor(entries: ThreadEntry[], clientId: string): ThreadEntry | null {
   const line = landedLine(entries, clientId);
   const proposed = line?.pendingId;
   if (!proposed) return null;
   if (entries.some((e) => e.role === "card" && e.mealId === proposed)) return null;
-  // `scope: "sample"`: the turn was charged, and on the sample the retry the notice invites meets a 402.
-  return { id: `unanswered:${clientId}`, role: "error", kind: "unanswered", ...(scope ? { scope } : {}) };
+  return { id: `unanswered:${clientId}`, role: "error", kind: "unanswered" };
 }
 
 /**
@@ -230,8 +227,8 @@ export function unansweredFor(entries: ThreadEntry[], clientId: string, scope?: 
  * when there is nothing to give. One rule for the reconcile and for a send that failed after its
  * line landed, and the one place the placement is decided.
  */
-export function withUnanswered(entries: ThreadEntry[], clientId: string, scope?: "sample"): ThreadEntry[] {
-  const notice = unansweredFor(entries, clientId, scope);
+export function withUnanswered(entries: ThreadEntry[], clientId: string): ThreadEntry[] {
+  const notice = unansweredFor(entries, clientId);
   if (!notice) return entries;
   const line = landedLine(entries, clientId)!;
   const at = entries.indexOf(line);
@@ -475,7 +472,7 @@ export type ThreadEvent =
   | { kind: "mark"; id: string; as: "failed" | "refused" }
   /** An older page, prepended above what is on screen and deduplicated by id. */
   | { kind: "earlier"; page: ChatEntry[] }
-  | { kind: "unanswered"; clientId: string; scope?: "sample" | undefined }
+  | { kind: "unanswered"; clientId: string }
   /** The server deleted a line (#608). With a `mealId`, every card for that meal goes too: the meal is gone. */
   | { kind: "line-removed"; id: string; mealId: string | null };
 
@@ -492,7 +489,7 @@ export function threadReducer(entries: ThreadEntry[], event: ThreadEvent): Threa
       const seen = new Set(entries.map((e) => e.id));
       return [...fromHistory(event.page).filter((e) => !seen.has(e.id)), ...entries];
     }
-    case "unanswered": return withUnanswered(entries, event.clientId, event.scope);
+    case "unanswered": return withUnanswered(entries, event.clientId);
   }
 }
 

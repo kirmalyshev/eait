@@ -52,7 +52,7 @@ const assigned = (text: string): string[] => [...text.matchAll(/^([A-Z][A-Z0-9_]
 const unique = (names: string[]): string[] => [...new Set(names)].sort();
 
 /**
- * Read by `config.ts` and DELIBERATELY absent from the deploy. Both entries are asserted below
+ * Read by `config.ts` and DELIBERATELY absent from the deploy. Every entry is asserted below
  * rather than merely skipped — an exception nobody checks is how a retired variable comes back.
  */
 const NOT_DEPLOYED: Record<string, string> = {
@@ -63,6 +63,7 @@ const NOT_DEPLOYED: Record<string, string> = {
   // exactly so a value in the ambient environment cannot meter `./dev up --demo`; a production
   // deploy has no business setting it.
   EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR: "demo only — never read by loadConfig",
+  EAIT__BACKEND__FREE_ANALYSES: "retired (ieat-app#2364) — loadConfig refuses it",
 };
 
 describe("every setting the backend reads is offered by the deploy", () => {
@@ -79,7 +80,7 @@ describe("every setting the backend reads is offered by the deploy", () => {
     expect(unique(missing)).toEqual([]);
   });
 
-  it("keeps the two deliberate exceptions out of the deploy entirely", () => {
+  it("keeps the deliberate exceptions out of the deploy entirely", () => {
     const reads = configReads();
     const example = read(EXAMPLE);
     const compose = read(COMPOSE);
@@ -91,6 +92,20 @@ describe("every setting the backend reads is offered by the deploy", () => {
       expect(`${name} (${why}) in compose: ${compose.includes(name)}`)
         .toBe(`${name} (${why}) in compose: false`);
     }
+  });
+});
+
+// Kirill (ieat-app#2364): the paywall switch is self-hosting's, documented and never assigned — a
+// host copying this file must not inherit a free instance.
+describe("the paywall switch", () => {
+  it("is documented in the example, never set by it", () => {
+    const example = read(EXAMPLE);
+    expect(example).toContain("# EAIT__BACKEND__PAYWALL=off");
+    expect(assigned(example)).not.toContain("EAIT__BACKEND__PAYWALL");
+  });
+
+  it("is OFF on a fresh self-host: the script writes it, and only on the first run (Kirill)", () => {
+    expect(read("src/scripts/self-host.sh")).toContain(`set_var "$ENVF" EAIT__BACKEND__PAYWALL off`);
   });
 });
 

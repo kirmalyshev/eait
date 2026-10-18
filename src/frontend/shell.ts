@@ -155,12 +155,12 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
 /**
  * The ONE first-meal answer (#92 review): Home's free-meal flow and the log's first verdict must
  * never disagree about which meal was first, so both read the same predicate — onboarded, no
- * entitlement, the sample unspent, and `hasLoggedMeal` — every field already on the profile, the
+ * entitlement, not refused (`limits.subscriptionRequired` — never, where the paywall runs: #2364), and `hasLoggedMeal` — every field already on the profile, the
  * last one computed on the server (the client's own `/v1/diary/week` probe is gone). A type
  * guard because every caller holds `ProfileResponse | null` and only continues when it is one.
  */
 export const firstMealDue = (me: ProfileResponse | null | undefined): me is ProfileResponse =>
-  me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed && !me.hasLoggedMeal;
+  me?.onboarded === true && !me.entitlement.active && !me.limits.subscriptionRequired && !me.hasLoggedMeal;
 
 /** Which tab a route is — `#/meal/…` is Home's, as its board draws; `#/pay` is nobody's (#263):
     the plans are a takeover, not a place in the row, and no tab stays underlined under them. */

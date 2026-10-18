@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import {
   HEALTH_RETENTION_DAYS, IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
   dateMinus, localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
@@ -44,7 +45,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 5,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -128,7 +128,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 }
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
   handle = createRouter(deps, store, testVerifier);
 });
@@ -467,11 +467,12 @@ describe("photo", () => {
     expect((await send(crypto.randomUUID())).status).toBe(429);
   });
 
-  it("402s once the sample is spent — the status the app opens the paywall on", async () => {
-    const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), push: fakePush(), mail: logMail() };
+  it("402s an account with no subscription — the status the app opens the paywall on (#2364)", async () => {
+    // No grant: an account as production creates it.
+    store = memoryStore();
+    const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), push: fakePush(), mail: logMail() };
     handle = createRouter(deps, store, testVerifier);
-    await handle(photoRequest(token));
+    const token = await session();
     const res = await handle(photoRequest(token));
     expect(res.status).toBe(402);
     expect(await res.json()).toEqual({ error: "subscription-required" });
@@ -1619,7 +1620,7 @@ describe("POST /v1/auth/pair", () => {
 // per-user cap decorative.
 describe("rate limits", () => {
   const routerWith = (over: Partial<Config>) => {
-    const s = memoryStore();
+    const s = grantEveryAccount(memoryStore(), 1_000_000);
     const config: Config = { ...CONFIG, ...over };
     return createRouter({ store: s, config, llm: demoPorts(), push: fakePush(), mail: logMail() }, s, testVerifier);
   };
@@ -1761,7 +1762,7 @@ describe("rate limits", () => {
   it("counts billed analyses per address, across every account it creates", async () => {
     // The whole point. Two accounts, one address, one allowance between them — otherwise the
     // per-user cap is worth exactly one call to /v1/auth/device.
-    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
+    const h = routerWith({ analysisRateLimitPerDay: 2 });
     const address = "203.0.113.9";
 
     const onboard = async (): Promise<string> => {
@@ -1808,7 +1809,7 @@ describe("rate limits", () => {
   });
 
   it("bounds a re-analysis by address in the same bucket as the photo it re-reads", async () => {
-    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
+    const h = routerWith({ analysisRateLimitPerDay: 2 });
     const address = "203.0.113.10";
     const { token } = await (await registerFrom(h, address)).json() as { token: string };
     // S8: a device account alone is anonymous and refused analysis — sign it in first.
@@ -1844,7 +1845,7 @@ describe("rate limits", () => {
   });
 
   it("bounds a message edit by address in the same bucket as the photo it re-reads (#608)", async () => {
-    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
+    const h = routerWith({ analysisRateLimitPerDay: 2 });
     const address = "203.0.113.11";
     const { token } = await (await registerFrom(h, address)).json() as { token: string };
     // S8: a device account alone is anonymous and refused analysis — sign it in first.

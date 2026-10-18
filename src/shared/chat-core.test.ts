@@ -31,8 +31,6 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 const refused = (kind: string, scope?: string): Failure => ({ kind, ...(scope ? { scope } : {}), refusal: true });
 const offline: Failure = { kind: "offline", refusal: false };
 
-/** The sample spent and nothing bought: what `sampleSpent` reads, and nothing else. */
-const SPENT = { limits: { sampleUsed: true }, entitlement: { active: false } } as ProfileResponse;
 
 function harness(o: {
   send?: () => Promise<HandleTextResult>;
@@ -99,12 +97,12 @@ describe("send's four failure branches", () => {
     expect(core.state.entries).toEqual([]);
   });
 
-  it("analysis-failed marks the words not sent, and says the sample went, from a profile fetched then", async () => {
-    const { core, fake } = harness({ send: () => Promise.reject(refused("analysis-failed")), profile: SPENT });
+  it("analysis-failed marks the words not sent, with no sample to speak of (#2364)", async () => {
+    const { core, fake } = harness({ send: () => Promise.reject(refused("analysis-failed")) });
     await core.send("a banana");
-    expect(fake.refreshes).toBe(1);
+    expect(fake.refreshes).toBe(0);
     expect(user(core, "c1")?.failed).toBe(true);
-    expect(errors(core)).toEqual([{ id: "c2", role: "error", kind: "analysis-failed", scope: "sample" }]);
+    expect(errors(core)).toEqual([{ id: "c2", role: "error", kind: "analysis-failed" }]);
   });
 
   it("a turn that never landed is marked not sent, and survives a page that does not carry it", async () => {
@@ -142,7 +140,7 @@ describe("a page that lands while the turn is out", () => {
 
   it("says nothing at all when the landed turn proposed nothing", async () => {
     const turn = deferred<HandleTextResult>();
-    const { core, fake } = harness({ send: () => turn.promise, profile: SPENT });
+    const { core, fake } = harness({ send: () => turn.promise });
     const sending = core.send("how was my week?")!;
     const landed = userLine("how was my week?", { clientId: "c1" });
     fake.pages.push(page([landed, said("A good one.")]));
@@ -208,22 +206,30 @@ describe("the store", () => {
 });
 
 describe("the composer can turn into the ask", () => {
-  // The screen swaps the camera and the composer for "Subscribe" once the profile says the sample is
-  // spent, and nothing re-reads the profile when a turn SUCCEEDS — so the turn that may have spent
-  // the last analysis re-reads it here, or the next thing the user met would be a refusal.
-  const lastOne = { limits: { sampleUsed: false, sampleRemaining: 1 }, entitlement: { active: false } } as ProfileResponse;
-  const plenty = { limits: { sampleUsed: false, sampleRemaining: 9 }, entitlement: { active: false } } as ProfileResponse;
+  // The screen swaps the camera and the composer for "Subscribe" once the profile says so; a refusal
+  // is how a profile that has not caught up learns it (#2364: there is no sample to run out of).
+  const plenty = { limits: { subscriptionRequired: false }, entitlement: { active: false } } as ProfileResponse;
 
-  it("a turn that may have spent the last of the sample re-reads the profile", async () => {
-    const { core, fake } = harness({ profile: lastOne });
-    await core.send("two eggs and toast"); await settle();
-    expect(fake.refreshes).toBe(1);
+  // Only an admin's grant lets an unpaid turn through, and the profile carries no count: any such
+  // turn may have been the grant's last, so it re-reads — an entitled account's never does.
+  // A composer send runs as a job (#1347) and only its outcome comes back through `landed`: it was
+  // charged all the same, so it re-reads on the same rule as a live send.
+  it("a job-sent turn on a grant re-reads the profile too, a subscriber's does not", async () => {
+    const granted = harness({ profile: plenty });
+    await granted.core.landed({ kind: "answered", text: "About 40g." }, { id: "j1", text: "how much protein?" }); await settle();
+    expect(granted.fake.refreshes).toBe(1);
+    const paid = harness({ profile: { limits: { subscriptionRequired: false }, entitlement: { active: true } } as ProfileResponse });
+    await paid.core.landed({ kind: "answered", text: "About 40g." }, { id: "j1", text: "how much protein?" }); await settle();
+    expect(paid.fake.refreshes).toBe(0);
   });
 
-  it("a turn with analyses to spare does not", async () => {
-    const { core, fake } = harness({ profile: plenty });
-    await core.send("two eggs and toast"); await settle();
-    expect(fake.refreshes).toBe(0);
+  it("a turn on a grant re-reads the profile, a subscriber's does not", async () => {
+    const granted = harness({ profile: plenty });
+    await granted.core.send("two eggs and toast"); await settle();
+    expect(granted.fake.refreshes).toBe(1);
+    const paid = harness({ profile: { limits: { subscriptionRequired: false }, entitlement: { active: true } } as ProfileResponse });
+    await paid.core.send("two eggs and toast"); await settle();
+    expect(paid.fake.refreshes).toBe(0);
   });
 
   it("a subscription-required refusal re-reads it, so the ask replaces the composer", async () => {

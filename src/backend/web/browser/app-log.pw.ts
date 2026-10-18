@@ -133,8 +133,6 @@ test("a photo with no food is refused, and that is not a failure", async ({ inWe
   // Refused means refused: nothing is logged, and the day is the server's to say it — this one
   // runs the REAL analyzer, so the empty day is its answer rather than a mock's (#148).
   expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(0);
-  // Uncharged: the sample is still the account's to spend.
-  expect((await server<ProfileResponse>(page, "/profile")).limits.sampleUsed).toBe(false);
   await page.getByRole("button", { name: "Try another photo" }).click();
   await expect(page.getByText("Drop a photo here")).toBeVisible();
 });

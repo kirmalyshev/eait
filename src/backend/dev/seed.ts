@@ -583,6 +583,9 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     // The role, before anything else. `setRole` refuses an id that names no account, so it goes
     // after the account exists and before the `continue` below can skip past it.
     if (persona.admin) await store.setRole(userId, "admin");
+    // A development account logs meals: there is no default sample (ieat-app#2364), so it is granted
+    // through the admin's own path.
+    await store.setFreeAnalyses(userId, 1_000_000);
 
     if (persona.profile === null) {
       out.push({

@@ -5,6 +5,7 @@
 // wiring that turns a Telegram update into these calls.
 
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { REFUSAL_STATUS, lintCopy, localDate, scriptedLine, type Refusal } from "@eait/shared";
@@ -27,7 +28,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
   publicWebUrl: "https://app.eait.fit",
 };
 
@@ -36,7 +36,7 @@ let deps: EngineDeps;
 let h: ReturnType<typeof telegramHandlers>;
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush(), mail: logMail() };
   h = telegramHandlers(deps);
 });

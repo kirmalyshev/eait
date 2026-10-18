@@ -15,6 +15,7 @@ import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
+import { grantEveryAccount } from "./dev/grant.ts";
 import { isAgentProvider, localAgentPorts, probeAgentCli } from "./llm/local-agent.ts";
 import { choosePush } from "./push/choose.ts";
 import { chooseMail } from "./mail/choose.ts";
@@ -66,8 +67,21 @@ const cannedAuth = authArg === "demo";
 
 const config: Config = demo ? demoConfig() : loadConfig();
 
-if (cannedAuth && !demo && !["127.0.0.1", "::1", "localhost"].includes(config.host)) {
-  console.error(`[eait] --auth demo on a real store binds loopback only — got EAIT__BACKEND__HOST=${config.host}`);
+/**
+ * `--grant N`: every account this process CREATES is granted N analyses through the admin's own
+ * path (`dev/grant.ts`). There is no default sample (ieat-app#2364), so a demo grants a huge one
+ * unless told otherwise (`--grant 1` for the paywall runner); a real store grants only on request,
+ * and only on loopback — the production command passes no flag.
+ */
+const grantArg = process.argv.indexOf("--grant");
+const grant = grantArg >= 0 ? Number(process.argv[grantArg + 1]) : demo ? 1_000_000 : null;
+if (grant !== null && !(Number.isInteger(grant) && grant >= 0)) {
+  console.error(`[eait] --grant takes a whole number of analyses, got "${process.argv[grantArg + 1]}"`);
+  process.exit(1);
+}
+
+if ((cannedAuth || grant !== null) && !demo && !["127.0.0.1", "::1", "localhost"].includes(config.host)) {
+  console.error(`[eait] --auth demo and --grant on a real store bind loopback only — got EAIT__BACKEND__HOST=${config.host}`);
   process.exit(1);
 }
 
@@ -117,9 +131,10 @@ const storeOptions = {
   sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000,
   maxConnections: config.databaseMaxConnections,
 };
-const store: Store = demo
+const backing: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
+const store: Store = grant !== null ? grantEveryAccount(backing, grant) : backing;
 
 if (demo) await (await import("./dev/demo-catalog.ts")).loadDemoCatalog(store);
 
