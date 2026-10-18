@@ -256,7 +256,7 @@ naming it too.
   nowhere else** — `checkCaps` refuses with it and `limitsOf` reports it, and two copies of that
   number is the app promising an allowance the server will not honour. A paid account gets a bigger
   per-user cap. **There is no free tier.** An
-  account gets `freeAnalyses` (1, the meal on us after the soft offer — #44) analyses over its lifetime — photo, library or typed, so a sentence is
+  account gets `freeAnalyses` (0 by default, ieat-app#2364: the 3-day trial is the only way in) analyses over its lifetime — photo, library or typed, so a sentence is
   not the free way around the ask — and `checkCaps` answers every later one with
   `subscription-required` (402) until the webhook has written an entitlement. `limits.sampleUsed`
   tells the app, and the app opens the paywall on it; the refusal is the authority, the sheet only its
@@ -284,7 +284,7 @@ naming it too.
   is safe only because of the shared secret checked before the body is read, and `putEntitlement`
   never creates a user.
 - **A cap on an account is not a cap while accounts are free.** `POST /v1/auth/device` mints one for
-  anybody with a 32-character string, so the sample (`EAIT__BACKEND__FREE_ANALYSES`, one analysis per account)
+  anybody with a 32-character string, so the sample (`EAIT__BACKEND__FREE_ANALYSES`, when an instance sets one)
   costs an attacker one HTTP call to reset — and the minting is itself the attack: it spends the
   instance's money one fresh account at a time.
   `src/backend/api/ratelimit.ts` bounds the billed routes PER ADDRESS as well. The address is the

@@ -88,6 +88,8 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
+  // The chat suites log one meal on a sample; the default is 0 (ieat-app#2364).
+  freeAnalyses: 1,
   googleAudiences: [WEB_CLIENT],
   googleWebClientId: WEB_CLIENT,
   googleWebClientSecret: "web-secret",

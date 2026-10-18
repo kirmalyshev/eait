@@ -161,10 +161,9 @@ describe("referralBonusEnd", () => {
 });
 
 describe("FREE_ANALYSES", () => {
-  // #44: the sample is the ONE meal the v5 onboarding gives when the soft offer is closed. Its
-  // verdict is followed by the offer that holds, and the server's 402 is what makes it hold.
-  test("is one analysis — the meal on us, and nothing after it", () => {
-    expect(FREE_ANALYSES).toBe(1);
+  // ieat-app#2364: the 3-day trial is the only way in; no analysis without an entitlement.
+  test("is zero — no analysis without an entitlement", () => {
+    expect(FREE_ANALYSES).toBe(0);
   });
 });
 
