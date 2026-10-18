@@ -68,11 +68,7 @@ test("a photo and a message sent offline wait in the thread, and go once, in ord
   expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(1);
 });
 
-/** Analyses this account has left of its sample: the server's own count of what was charged. */
-const remaining = async (page: Page) => (await server<ProfileResponse>(page, "/profile")).limits.sampleRemaining;
-
 test("a message whose answer was lost after the server ran it is sent again, and answered once", async ({ inWebApp: page }) => {
-  const before = await remaining(page);
   let posts = 0;
   await page.route("**/api/v1/messages", async (r) => {
     if (r.request().method() !== "POST") return r.fallback();
@@ -85,7 +81,6 @@ test("a message whose answer was lost after the server ran it is sent again, and
   await expect(waiting(page)).toHaveCount(0);
   expect(posts).toBe(2);
   expect(await userLines(page)).toEqual(["text:two boiled eggs"]);
-  expect(await remaining(page)).toBe(before - 1);
 });
 
 test("a photo the server already logged under its id is not logged again when the page sends it", async ({ inWebApp: page }) => {
@@ -95,7 +90,6 @@ test("a photo the server already logged under its id is not logged again when th
   // is about to use — and the page's own attempt is then the re-send of a turn whose answer it never had.
   const id = crypto.randomUUID();
   await page.evaluate((fixed) => { crypto.randomUUID = () => fixed as ReturnType<Crypto["randomUUID"]>; }, id);
-  const before = await remaining(page);
   const first = await page.request.post("/api/v1/meals/photo", {
     headers: { authorization: `Bearer ${await sessionToken(page)}` },
     multipart: {
@@ -104,7 +98,6 @@ test("a photo the server already logged under its id is not logged again when th
     },
   });
   expect(first.status()).toBe(200);
-  expect(await remaining(page)).toBe(before - 1);
 
   // Sent turns are counted AT THE NETWORK LAYER, not inside a route — a request can slip past
   // interception entirely (the resend once reached the server and was answered while a route-side
@@ -123,7 +116,6 @@ test("a photo the server already logged under its id is not logged again when th
   expect(posts).toEqual(["/api/v1/meals/photo", "/api/v1/meals/photo"]);
   expect(await userLines(page)).toEqual(["photo:one lunch, once"]);
   expect((await server<DayResponse>(page, "/diary/day")).meals).toHaveLength(1);
-  expect(await remaining(page)).toBe(before - 1);
 });
 
 test("what is kept survives a reload, and goes when the page has a session again", async ({ inWebApp: page }) => {

@@ -173,7 +173,7 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
     days: 30, contentVersion: 1, sessions: 0, completed: 0, rows: [],
   })));
   await page.route("**/admin/api/users**", (r) => r.fulfill(json({
-    users: [], nextCursor: null, defaultFreeAnalyses: 15,
+    users: [], nextCursor: null,
   })));
   // The grounding switches (#563): a stub with memory, so a PUT is followed by a re-read that shows it.
   const switchCalls = (over.switchCalls ?? []) as { path: string; body: unknown }[];

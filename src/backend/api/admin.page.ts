@@ -638,7 +638,7 @@ details.how p { margin-top: 8px; }
           </div>
           <div class="scrollx" id="users-wrap"><table id="users">
             <thead>
-              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Sample</th><th class="r">Today</th><th class="r">Last seen</th></tr>
+              <tr><th>Push</th><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th class="r">Today</th><th class="r">Last seen</th></tr>
             </thead>
             <tbody></tbody>
           </table></div>
@@ -679,14 +679,6 @@ details.how p { margin-top: 8px; }
                 <button class="asw" id="staff-switch" role="switch" aria-checked="false" aria-label="Staff"></button>
               </div>
               <p class="aerr hidden" id="staff-error"></p>
-              <div class="sect">
-                <b>Analyses before the paywall</b>
-                <p class="muted" id="cap-status"></p>
-                <div class="row">
-                  <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default" aria-label="Analyses before the paywall">
-                  <button class="primary" id="cap-save">Save</button>
-                </div>
-              </div>
               <div class="sect">
                 <b>Pushes a day</b>
                 <p class="muted" id="pushmax-status">The most this account is sent in one local day, across every sender. Empty: no limit.</p>
@@ -2536,7 +2528,7 @@ details.how p { margin-top: 8px; }
   //
   // A READ, and the widest one in the product: every account, with the address on it. The server
   // checks the role on every request under /admin, so nothing here is a permission — it is a table.
-  // A row opens the detail pane: profile (with the staff switch and the per-account sample),
+  // A row opens the detail pane: profile (with the staff switch),
   // thread, diary, and the push composer. Every value reaches the DOM through textContent: an
   // address somebody typed at a provider is still somebody's text.
 
@@ -2645,20 +2637,12 @@ details.how p { margin-top: 8px; }
 
   // ── Profile ────────────────────────────────────────────────────────────────────────────────
 
-  function capPath(id) { return "/admin/api/users/" + encodeURIComponent(id) + "/cap"; }
-
-  function showCap(c, prefix) {
-    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
-    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
-      + (c.freeAnalyses === null ? " (instance default)" : "");
-  }
-
   function paintStaff(on) {
     $("staff-switch").classList.toggle("on", on);
     $("staff-switch").setAttribute("aria-checked", on ? "true" : "false");
   }
 
-  function fillProfile(s, cap) {
+  function fillProfile(s) {
     $("p-signup").textContent = dmon(s.createdAt) + " · " + via(s);
     var t = s.targets;
     $("p-plan").textContent = !t ? "not onboarded"
@@ -2672,7 +2656,6 @@ details.how p { margin-top: 8px; }
     $("p-streak").textContent = s.streakDays + (s.streakDays === 1 ? " day" : " days");
     paintStaff(s.staff);
     $("staff-error").classList.add("hidden");
-    showCap(cap);
     $("pushmax-n").value = sel.pushDailyMax === null || sel.pushDailyMax === undefined ? "" : String(sel.pushDailyMax);
   }
 
@@ -2680,10 +2663,10 @@ details.how p { margin-top: 8px; }
     var u = sel;
     paintBox($("pane-state"), $("pane-body"), "loading");
     var base = "/admin/api/users/" + encodeURIComponent(u.userId);
-    return Promise.all([api("GET", base), api("GET", capPath(u.userId))]).then(function (r) {
+    return api("GET", base).then(function (r) {
       if (sel !== u) return;
-      u.staff = r[0].staff;
-      fillProfile(r[0], r[1]);
+      u.staff = r.staff;
+      fillProfile(r);
       paintBox($("pane-state"), $("pane-body"), "ready");
     }, function (e) {
       if (sel !== u) return;
@@ -2739,16 +2722,6 @@ details.how p { margin-top: 8px; }
         });
       }
     );
-  });
-
-  function capFailed(e) {
-    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0]) || "failed: " + e.message;
-  }
-  $("cap-save").addEventListener("click", function () {
-    var u = sel;
-    var raw = $("cap-n").value.trim();
-    api("PUT", capPath(u.userId), { freeAnalyses: raw === "" ? null : Number(raw) })
-      .then(function (c) { if (sel === u) showCap(c, "saved — "); }).catch(function (e) { if (sel === u) capFailed(e); });
   });
 
   $("pushmax-save").addEventListener("click", function () {
@@ -2847,9 +2820,6 @@ details.how p { margin-top: 8px; }
       dmon(u.createdAt),
       via(u),
       chip,
-      // The number that is actually enforced: "effective" is what checkCaps refuses with, and the
-      // panel must not compute a second answer.
-      u.spent + " / " + u.effective,
       String(u.analysesToday),
       ago(u.lastSeen)
     ];
@@ -2881,7 +2851,7 @@ details.how p { margin-top: 8px; }
       $("users-foot").classList.toggle("hidden", n === 0);
       $("users-empty-title").textContent = q ? "Nothing matches that." : "No accounts yet.";
       $("users-empty-note").textContent = q ? "It takes a whole address, or the start of an id." : "";
-      $("users-status").textContent = n + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
+      $("users-status").textContent = n + " shown";
     });
   }
 

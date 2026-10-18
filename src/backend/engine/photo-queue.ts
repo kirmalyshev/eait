@@ -10,7 +10,6 @@ import {
 } from "@eait/shared";
 import { imageMime } from "../llm/port.ts";
 import type { JobRecord } from "../store.ts";
-import { releaseSample } from "./caps.ts";
 import type { EngineDeps } from "./deps.ts";
 import { deleteMealById } from "./lines.ts";
 import { editMeal, logPhotoTurn, reanalyzeMeal, type LogPhotoInput } from "./meals.ts";
@@ -70,8 +69,6 @@ const HANDLERS: Record<JobKind, JobHandler> = {
     retryable: (job) => job.mealId === null,
     async run(deps, job, progress, lost) {
       const { userId, clientId } = job;
-      // A dead attempt delivered nothing: its charge stays on the ledger, its sample is the user's again.
-      if (job.attempts > 1 && job.analysisId !== null) await releaseSample(deps, userId, job.analysisId);
       const photos = await deps.store.jobPhotos(userId, clientId);
       let items: MealItem[] = [];
       const result = await logPhotoTurn(deps, userId, {
@@ -103,8 +100,6 @@ const HANDLERS: Record<JobKind, JobHandler> = {
     retryable: (job) => (job.request as MealUpdateRequest).kind !== "note",
     async run(deps, job, progress, lost) {
       const { userId, clientId } = job;
-      // A dead attempt delivered nothing: its charge stays on the ledger, its sample is the user's again.
-      if (job.attempts > 1 && job.analysisId !== null) await releaseSample(deps, userId, job.analysisId);
       const input = job.request as MealUpdateRequest;
       // A CHAT-SENT note names no meal (#1347): the router's own context decides — the same read
       // `/v1/messages` makes — and the meal it lands on is bound to the job mid-write so Home's row
@@ -181,8 +176,7 @@ async function runJob(deps: EngineDeps, job: JobRecord): Promise<void> {
     return false;
   });
   if (job.attempts > 1 && !h.retryable(job)) {
-    // The dead attempt's charge stays on the ledger; the sample it never delivered is given back.
-    if (job.analysisId !== null) await releaseSample(deps, userId, job.analysisId).catch(failed("sample not released"));
+    // The dead attempt's charge stays on the ledger.
     await settle(unknown("worker-lost"));
     return;
   }

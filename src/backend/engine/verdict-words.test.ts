@@ -27,7 +27,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
+  paywall: false,
   appleAudiences: [], googleAudiences: [],
 };
 

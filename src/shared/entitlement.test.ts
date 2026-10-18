@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, referralBonusEnd, sampleSpent,
+  NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, needsSubscription, referralBonusEnd,
   subscriptionState, trialDaysLeft,
 } from "./entitlement.ts";
 
@@ -38,15 +38,15 @@ describe("entitlementActive", () => {
   });
 });
 
-// The one predicate every surface reads before inviting a retry of a failed analysis: on the
-// sample, the cap was charged before the model was asked, and the retry would meet a 402.
-describe("sampleSpent", () => {
-  test("is the sample used with no entitlement to fall back on, and nothing without a profile", () => {
-    expect(sampleSpent({ limits: { sampleUsed: true }, entitlement: { active: false } })).toBe(true);
-    expect(sampleSpent({ limits: { sampleUsed: true }, entitlement: { active: true } })).toBe(false);
-    expect(sampleSpent({ limits: { sampleUsed: false }, entitlement: { active: false } })).toBe(false);
-    expect(sampleSpent(null)).toBe(false);
-    expect(sampleSpent(undefined)).toBe(false);
+// The server's verdict, read beside the entitlement: no sample, so it refuses every unpaid account
+// unless the instance runs without the paywall (a local demo).
+describe("needsSubscription", () => {
+  test("is the server's refusal with no entitlement to fall back on, and nothing without a profile", () => {
+    expect(needsSubscription({ limits: { subscriptionRequired: true }, entitlement: { active: false } })).toBe(true);
+    expect(needsSubscription({ limits: { subscriptionRequired: true }, entitlement: { active: true } })).toBe(false);
+    expect(needsSubscription({ limits: { subscriptionRequired: false }, entitlement: { active: false } })).toBe(false);
+    expect(needsSubscription(null)).toBe(false);
+    expect(needsSubscription(undefined)).toBe(false);
   });
 });
 
@@ -56,35 +56,20 @@ describe("sampleSpent", () => {
 describe("blockedAsk", () => {
   // What stands where the camera and the composer were, once the account cannot log a meal.
   test("nothing, while the account can still log one", () => {
-    expect(blockedAsk({ limits: { sampleUsed: false }, entitlement: { active: false, lapsed: false } })).toBeNull();
-    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: true, lapsed: false } })).toBeNull();
+    expect(blockedAsk({ limits: { subscriptionRequired: false }, entitlement: { active: false, lapsed: false } })).toBeNull();
+    expect(blockedAsk({ limits: { subscriptionRequired: true }, entitlement: { active: true, lapsed: false } })).toBeNull();
     expect(blockedAsk(null)).toBeNull();
     expect(blockedAsk(undefined)).toBeNull();
   });
 
-  test("subscribe, for a spent sample and nothing ever bought", () => {
-    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false, lapsed: false } })).toBe("subscribe");
+  test("subscribe, for an unpaid account that never bought", () => {
+    expect(blockedAsk({ limits: { subscriptionRequired: true }, entitlement: { active: false, lapsed: false } })).toBe("subscribe");
     // A server older than `lapsed` sends none, and subscribe is the ask that is true of both people.
-    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false } })).toBe("subscribe");
+    expect(blockedAsk({ limits: { subscriptionRequired: true }, entitlement: { active: false } })).toBe("subscribe");
   });
 
-  test("resubscribe, for a spent sample after a subscription ended", () => {
-    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false, lapsed: true } })).toBe("resubscribe");
-  });
-});
-
-describe("mayHaveSpentSample", () => {
-  test("an unentitled account on its last analysis, or one whose profile cannot count", () => {
-    expect(mayHaveSpentSample({ limits: { sampleRemaining: 1 }, entitlement: { active: false } })).toBe(true);
-    expect(mayHaveSpentSample({ limits: { sampleRemaining: 0 }, entitlement: { active: false } })).toBe(true);
-    // A server older than the count: re-read, which is the safe direction.
-    expect(mayHaveSpentSample({ limits: {}, entitlement: { active: false } })).toBe(true);
-  });
-
-  test("not with analyses to spare, and never for an entitled account", () => {
-    expect(mayHaveSpentSample({ limits: { sampleRemaining: 2 }, entitlement: { active: false } })).toBe(false);
-    expect(mayHaveSpentSample({ limits: { sampleRemaining: 0 }, entitlement: { active: true } })).toBe(false);
-    expect(mayHaveSpentSample(null)).toBe(false);
+  test("resubscribe, after a subscription ended", () => {
+    expect(blockedAsk({ limits: { subscriptionRequired: true }, entitlement: { active: false, lapsed: true } })).toBe("resubscribe");
   });
 });
 
@@ -157,13 +142,6 @@ describe("referralBonusEnd", () => {
     expect(referralBonusEnd(null, 7, null)).toBeNull();
     expect(referralBonusEnd(null, 7, "garbage")).toBeNull();
     expect(referralBonusEnd("garbage", 0, null)).toBeNull();
-  });
-});
-
-describe("FREE_ANALYSES", () => {
-  // ieat-app#2364: the 3-day trial is the only way in; no analysis without an entitlement.
-  test("is zero — no analysis without an entitlement", () => {
-    expect(FREE_ANALYSES).toBe(0);
   });
 });
 

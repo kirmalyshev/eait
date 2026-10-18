@@ -19,7 +19,7 @@ import { itemScanner } from "../llm/partial.ts";
 import { clampDayOffset, emptyEstimate, type AnalyzedMeal } from "../llm/port.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { groundWhenOn } from "./ground.ts";
-import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
+import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, changeLine, dropOtherPendings, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
@@ -200,10 +200,8 @@ export async function textTurn(
       onCost, onCall,
     });
   } catch (e) {
-    // Given back when the gateway refused before generating anything — the same rule as the photo
-    // path, and it must be, or a typed first meal burns a sample a photo would have kept.
+    // Given back when the gateway refused before generating anything — the same rule as the photo path.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
-    if (!refunded) await releaseSample(deps, userId, analysisId);
     console.error(`[eait] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     reportTiming();
     return { kind: "analysis-failed" };
@@ -219,11 +217,6 @@ export async function textTurn(
     result = await route();
   } finally {
     reportTiming();
-  }
-  // Every branch that fails ends here as `analysis-failed`: charged, and nothing delivered (#44).
-  // `not-food` joins it for the reason `analyzePhotos` releases the same answer: an answer, no meal.
-  if (result.kind === "analysis-failed" || result.kind === "not-food") {
-    await releaseSample(deps, userId, analysisId);
   }
   // ONE QUESTION, ONE FRAMED TURN. Spent by the turn that was framed as its answer, whatever the
   // router made of it — a correction clears it through `editMeal` anyway, and every other intent
@@ -326,7 +319,7 @@ export async function textTurn(
         // The target is the focus meal, the live proposal — or, on a send that named none, the one
         // of today's meals the router's `mealIndex` resolved (#1347). A correction that lands on no
         // row is a refusal the screen can word, never an empty 200: the analysis is charged by now,
-        // and a turn that renders nothing leaves the user with a spent sample and no idea why.
+        // and a turn that renders nothing leaves the user charged with no idea why.
         const contextTarget = focus === null && routed.mealIndex !== undefined ? todayRows[routed.mealIndex] ?? null : null;
         if (!focus && !focusPending && !contextTarget) return { kind: "target-gone", on: "correction" };
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which

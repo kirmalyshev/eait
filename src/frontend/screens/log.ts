@@ -436,7 +436,7 @@ export function logScreen(frame: Frame): HTMLElement {
     busy = true;
     captured = new Date();
     // The ONE first-meal answer, read FRESH — the profile on screen was fetched at mount and a
-    // meal since logged flips `hasLoggedMeal`/`sampleUsed` without the cache knowing. The cached
+    // meal since logged flips `hasLoggedMeal` without the cache knowing. The cached
     // profile is the fallback when the refresh itself fails.
     const now = await api<ProfileResponse>("/profile").catch(() => me);
     const first = firstMealDue(now);

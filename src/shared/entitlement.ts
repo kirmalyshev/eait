@@ -90,21 +90,6 @@ export interface Entitlement {
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
-/**
- * What an account gets before the app asks for money — the sample, over its whole lifetime.
- *
- * It lives here rather than in the server's `configDefaults()` because the LANDING PAGE quotes it,
- * and the landing image ships `shared` and not `backend`: importing the server config from
- * the copy broke `docker build` with `Cannot find module '../config.ts'` and nothing before it.
- * Same reason `KCAL_FLOOR` is here. `EAIT__BACKEND__FREE_ANALYSES` still overrides it per instance;
- * this is the default the copy is written against.
- *
- * ZERO (ieat-app#2364): the 3-day subscription trial is the only way in. `checkCaps` answers
- * every analysis of an unentitled account with `subscription-required` before anything is charged.
- * The admin can still give one account its own number (`Store.setFreeAnalyses`).
- */
-export const FREE_ANALYSES = 0;
-
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
 
 /**
@@ -217,39 +202,23 @@ export function trialDaysLeft(
 /**
  * What the app offers where the camera button and the composer were, once this account cannot log
  * a meal: `"resubscribe"` once something it bought has ended, `"subscribe"` otherwise, and null while
- * a meal can still be logged. Read off the SERVER's profile, like `sampleSpent`, never the SDK's.
+ * a meal can still be logged. Read off the SERVER's profile, like `needsSubscription`, never the SDK's.
  */
 export const blockedAsk = (
-  p: { limits?: { sampleUsed?: boolean }; entitlement?: { active?: boolean; lapsed?: boolean } } | null | undefined,
+  p: { limits?: { subscriptionRequired?: boolean }; entitlement?: { active?: boolean; lapsed?: boolean } } | null | undefined,
 ): "subscribe" | "resubscribe" | null =>
-  !sampleSpent(p) ? null : p?.entitlement?.lapsed ? "resubscribe" : "subscribe";
+  !needsSubscription(p) ? null : p?.entitlement?.lapsed ? "resubscribe" : "subscribe";
 
 /**
- * Whether the turn that just finished may have spent the last of the sample, so the profile is worth
- * re-reading: `blockedAsk` is read off it, and nothing re-reads it when an analysis SUCCEEDS. An
- * unentitled account with at most one analysis left — or a profile too old to carry the count, which
- * re-reads, the safe direction.
- */
-export const mayHaveSpentSample = (
-  p: { limits?: { sampleRemaining?: number }; entitlement?: { active?: boolean } } | null | undefined,
-): boolean => !!p && !p.entitlement?.active && (p.limits?.sampleRemaining ?? 0) <= 1;
-
-/**
- * Whether a failed analysis just spent the free sample. A cap is charged before the model is asked
- * (a cap that only counts successes is one a retry loop walks through), so on the sample an
- * upstream failure MAY spend it — the server gives it back only when the gateway refused before
- * generating anything. Which happened is not knowable here, so every surface that invites a retry
- * reads a profile fetched at the failure and words itself from THAT: the retry meets a 402 or it
- * does not. One predicate, so the surfaces cannot disagree on the fact.
+ * Whether the server refuses this account a meal until it subscribes (`limits.subscriptionRequired`,
+ * ieat-app#2364: no sample, so every unpaid account on an instance that runs the paywall).
  */
 // OPTIONAL ALL THE WAY DOWN, even though the types say these fields are required. A shipped app
 // outlives its server, and a server that predates the paid tier answers /v1/profile with no
-// `entitlement` at all — which typechecks perfectly and then throws on the dereference. That was
-// seen for real against a running demo server on 2026-08-25 and guarded in `paywall.tsx`; this
-// predicate is called from the chat, the camera and the meal screen, and had the same hole.
-export const sampleSpent = (
-  p: { limits?: { sampleUsed?: boolean }; entitlement?: { active?: boolean } } | null | undefined,
-): boolean => !!p?.limits?.sampleUsed && !p?.entitlement?.active;
+// `entitlement` at all — which typechecks perfectly and then throws on the dereference.
+export const needsSubscription = (
+  p: { limits?: { subscriptionRequired?: boolean }; entitlement?: { active?: boolean } } | null | undefined,
+): boolean => !!p?.limits?.subscriptionRequired && !p?.entitlement?.active;
 
 /**
  * Is an entitlement expiring at `expiresAt` still live at `now`?

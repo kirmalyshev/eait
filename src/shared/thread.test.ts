@@ -147,9 +147,6 @@ describe("landedLine / unansweredFor", () => {
     const entries = [...fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")]), later];
     expect(withUnanswered(entries, "c1").map((e) => e.id)).toEqual([entries[0]!.id, "unanswered:c1", entries[1]!.id, "a2"]);
     expect(withUnanswered(entries, "c9")).toBe(entries);
-    // The fact that the turn spent the sample rides on the notice, like it does on "analysis-failed".
-    expect(withUnanswered(entries, "c1", "sample")[1]).toMatchObject({ kind: "unanswered", scope: "sample" });
-    expect(reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [{ id: "c1", role: "user", text: "two eggs", failed: true }], new Set(["c1"]), false, "sample").next[1]).toMatchObject({ kind: "unanswered", scope: "sample" });
   });
 });
 
@@ -531,7 +528,7 @@ describe("reconcilePage repaints an edited user line", () => {
   test("a stored user line whose text changed is a change", () => {
     const current: ThreadEntry[] = [{ id: "p1", role: "user", text: "rice", photo: true, stored: true, mealId: "m1" }];
     const page: ChatEntry[] = [{ id: "p1", seq: 1, ts: "2026-09-11T10:00:00.000Z", role: "user", kind: "photo", text: "rice, and an egg", mealId: "m1" }];
-    const r = reconcilePage(page, current, new Set(), false, undefined);
+    const r = reconcilePage(page, current, new Set(), false);
     expect(r.changed).toBe(true);
     const line = r.next.find((e) => e.id === "p1");
     expect(line && line.role === "user" ? line.text : null).toBe("rice, and an egg");

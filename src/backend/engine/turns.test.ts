@@ -18,7 +18,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
+  paywall: false,
 };
 const ZONE = CONFIG.timezone;
 
@@ -118,12 +118,12 @@ describe("a replayed turn", () => {
 
   it("answers a refusal with the refusal, and a new id is a new turn", async () => {
     const userId = await onboard();
-    const d = makeDeps(demoPorts(), { freeAnalyses: 0 });
+    const d = makeDeps(demoPorts(), { paywall: true });
     const clientId = crypto.randomUUID();
     expect((await logPhotoMeal(d, userId, photo({ clientId }))).kind).toBe("subscription-required");
     // Bought in between: the SAME id is still the turn that was refused — the phone asks again
     // with a new one, which is a deliberate second turn rather than a replay.
-    const paid = makeDeps(demoPorts(), { freeAnalyses: 5 });
+    const paid = makeDeps(demoPorts(), { paywall: false });
     expect((await logPhotoMeal(paid, userId, photo({ clientId }))).kind).toBe("subscription-required");
     expect((await logPhotoMeal(paid, userId, photo({ clientId: crypto.randomUUID() }))).kind).toBe("logged");
   });

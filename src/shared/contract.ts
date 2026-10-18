@@ -118,31 +118,17 @@ export interface Limits {
   maxPhotosPerMeal: number;
   /**
    * Photos an ENTITLED account may have analyzed today; zero means no daily cap on this server.
-   * Without an entitlement the number is moot — `sampleUsed` is the whole story — and it is sent
+   * Without an entitlement the number is moot — `subscriptionRequired` is the whole story — and it is sent
    * unconditionally because the app must never work it out: the server decides the tier.
    */
   dailyPhotoCap: number;
   /**
-   * Whether this account has spent its sample. There is no free tier: the sample is
-   * `EAIT__BACKEND__FREE_ANALYSES` analyses over the account's lifetime — the instance default;
-   * the admin can give one account its own number — and every analysis after them is refused with
-   * `subscription-required` until the RevenueCat webhook has written an entitlement. The app
-   * reads this beside `entitlement.active` to open the paywall on launch instead of on the first
-   * refusal — but the refusal is the authority, and the sheet is only its rendering.
+   * Whether this account is refused a meal until it subscribes. There is no free tier and no sample
+   * (ieat-app#2364): true for every account with no live entitlement on an instance that runs the
+   * paywall. The app reads it beside `entitlement.active` to put the ask where the camera and the
+   * composer were — but the refusal is the authority, and the sheet is only its rendering.
    */
-  sampleUsed: boolean;
-  /**
-   * How many of the sample's analyses are LEFT. Zero whenever `sampleUsed` is true.
-   *
-   * `sampleUsed` alone was the whole story while the sample was one analysis: false meant "all of
-   * it is there". At three it means "one or two or three of it is there", and every surface that
-   * tried to word that from the boolean either lied ("your sample is unspent" to somebody two
-   * meals in) or went vague. The server knows the number, so it sends it — the same rule as
-   * `dailyPhotoCap` right above, and the reason neither is compiled into the app.
-   *
-   * An entitled account gets 0 here too: the sample is not what it is spending.
-   */
-  sampleRemaining: number;
+  subscriptionRequired: boolean;
   /**
    * How many days back the diary can be asked about, counting today.
    *
@@ -852,7 +838,7 @@ export interface ProfileResponse {
    * (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read
    * it as the ONE "nothing logged yet" answer, so two clients can never disagree about which
    * meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other
-   * conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on
+   * conditions of that gate — `onboarded`, `entitlement`, `limits.subscriptionRequired` — are already on
    * this response.
    */
   hasLoggedMeal: boolean;

@@ -18,7 +18,7 @@ import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile,
 const CONFIG: Config = {
   ...configDefaults(), port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
-  freeAnalyses: 100,
+  paywall: false,
 };
 
 let store: Store;
@@ -230,7 +230,7 @@ describe("the coach turn", () => {
 
   it("never reaches the coach on a refused turn: the sample rule and the caps stand in front of it", async () => {
     const { llm, seen } = recordingCoach();
-    const d = makeDeps(llm, { freeAnalyses: 0 });
+    const d = makeDeps(llm, { paywall: true });
     const userId = await onboard();
     expect((await handleText(d, userId, { text: "what should I eat?" })).kind).toBe("subscription-required");
     expect(seen).toHaveLength(0);

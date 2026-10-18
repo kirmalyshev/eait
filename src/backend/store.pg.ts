@@ -663,8 +663,8 @@ alter table users add column if not exists entitlement_event_at   timestamptz;
 -- this column existed reads as -- and false is the safe direction: a trial reminder that never
 -- arrives beats one telling somebody who pays that "the free trial ends".
 alter table users add column if not exists entitlement_trial boolean not null default false;
--- The admin's per-account sample size. Null means the instance default (EAIT__BACKEND__FREE_ANALYSES).
-alter table users add column if not exists free_analyses integer;
+-- users.free_analyses (the admin's per-account sample) is retired with the sample (ieat-app#2364):
+-- nothing reads or writes it, and a database that has it keeps it until a migration drops it.
 
 -- Bearer tokens, as SHA-256 hashes.
 --
@@ -909,10 +909,7 @@ alter table analyses add column if not exists unpriced_calls integer not null de
 alter table analyses add column if not exists ms_queue integer;
 alter table analyses add column if not exists ms_first_item integer;
 alter table analyses add column if not exists ms_total integer;
--- Whether this analysis counts against the account's SAMPLE (#44): the sample counts value
--- delivered, not attempts. Every row already here counted, which is what the default says; a turn
--- that delivers nothing clears it (releaseSample) and keeps the row, its cost and its budget.
-alter table analyses add column if not exists sample boolean not null default true;
+-- analyses.sample is retired with the sample (ieat-app#2364): nothing reads it any more.
 -- The food-catalog grounding step's own ms (#602), measured inside the same settle write — null on
 -- rows that predate it or turned at a path with nothing to ground.
 alter table analyses add column if not exists ms_ground integer;
@@ -1858,8 +1855,6 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   updatePending: 0,
   countUserPhotos: 0,
   countUserAnalyses: 0,
-  getFreeAnalyses: 0,
-  setFreeAnalyses: 0,
   recordAnalysis: 0,
   recordLlmCall: 0,
   llmCalls: 0,
@@ -1867,7 +1862,6 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   recordTiming: 0,
   analysisCosts: 0,
   undoAnalysis: 0,
-  releaseSample: 0,
   putHealthDays: 0,
   healthDaysSince: 0,
   putWeight: 0,
@@ -2500,7 +2494,7 @@ export async function postgresStore(
       // primary key's table) — the alternative is a query per row, which is what makes an admin
       // list slow enough that somebody eventually adds a cache to it.
       const rows = await sql`
-        select u.id, u.created_at, u.onboarded_at, u.free_analyses, u.staff, u.push_daily_max, (u.push_offers_at is not null) as push_offers,
+        select u.id, u.created_at, u.onboarded_at, u.staff, u.push_daily_max, (u.push_offers_at is not null) as push_offers,
                u.entitlement_expires_at, u.entitlement_lifetime_product_id,
                u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial, u.bonus_until, u.referral_banked_days,
                (select array_agg(i.provider order by i.linked_at asc)
@@ -2509,7 +2503,6 @@ export async function postgresStore(
                  where i.user_id = u.id and i.email is not null
                  order by i.linked_at asc limit 1) as email,
                (select max(t.last_used_at) from tokens t where t.user_id = u.id) as last_seen,
-               (select count(*) from analyses a where a.user_id = u.id) as spent,
                (select count(*) from analyses a
                  where a.user_id = u.id and a.date = ${today}) as today
           from users u
@@ -2545,10 +2538,7 @@ export async function postgresStore(
           },
           bonusUntil: r.bonus_until === null ? null : new Date(r.bonus_until as string).toISOString(),
           bankedDays: num(r.referral_banked_days),
-          freeAnalyses: r.free_analyses === null || r.free_analyses === undefined
-            ? null : num(r.free_analyses),
           analysesToday: num(r.today),
-          spent: num(r.spent),
           lastSeen: r.last_seen === null ? null : new Date(r.last_seen as string).toISOString(),
           staff: r.staff === true,
           pushDailyMax: r.push_daily_max === null || r.push_daily_max === undefined ? null : num(r.push_daily_max),
@@ -2744,10 +2734,9 @@ export async function postgresStore(
             and from_u.entitlement_lifetime_event_at is not null
             and (into_u.entitlement_lifetime_event_at is null
                  or into_u.entitlement_lifetime_event_at < from_u.entitlement_lifetime_event_at)`;
-        // The existence marker and the admin's sample size, which belong to no grant and always move.
+        // The existence marker, which belongs to no grant and always moves.
         await tx`
           update users into_u set
-            free_analyses = coalesce(into_u.free_analyses, from_u.free_analyses),
             push_daily_max = coalesce(into_u.push_daily_max, from_u.push_daily_max),
             entitlement_event_at = greatest(into_u.entitlement_event_at, from_u.entitlement_event_at)
           from users from_u
@@ -4317,19 +4306,8 @@ export async function postgresStore(
 
     async countUserAnalyses(userId) {
       // Served by the prefix of analyses_user_date_idx (user_id, date, scope).
-      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId} and sample`;
+      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId}`;
       return num(rows[0].n);
-    },
-
-    async getFreeAnalyses(userId) {
-      const rows = await sql`select free_analyses from users where id = ${userId}`;
-      const v = rows[0]?.free_analyses;
-      return v === null || v === undefined ? null : num(v);
-    },
-
-    async setFreeAnalyses(userId, n) {
-      const rows = await sql`update users set free_analyses = ${n} where id = ${userId} returning id`;
-      return rows.length > 0;
     },
 
     async recordAnalysis(userId, date, scope) {
@@ -4421,12 +4399,6 @@ export async function postgresStore(
     async undoAnalysis(userId, analysisId) {
       const rows = await sql`
         delete from analyses where id = ${analysisId} and user_id = ${userId} returning id`;
-      return rows.length > 0;
-    },
-
-    async releaseSample(userId, analysisId) {
-      const rows = await sql`
-        update analyses set sample = false where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },
 

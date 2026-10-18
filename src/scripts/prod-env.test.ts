@@ -52,7 +52,7 @@ const assigned = (text: string): string[] => [...text.matchAll(/^([A-Z][A-Z0-9_]
 const unique = (names: string[]): string[] => [...new Set(names)].sort();
 
 /**
- * Read by `config.ts` and DELIBERATELY absent from the deploy. Both entries are asserted below
+ * Read by `config.ts` and DELIBERATELY absent from the deploy. Every entry is asserted below
  * rather than merely skipped — an exception nobody checks is how a retired variable comes back.
  */
 const NOT_DEPLOYED: Record<string, string> = {
@@ -63,6 +63,8 @@ const NOT_DEPLOYED: Record<string, string> = {
   // exactly so a value in the ambient environment cannot meter `./dev up --demo`; a production
   // deploy has no business setting it.
   EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR: "demo only — never read by loadConfig",
+  EAIT__BACKEND__FREE_ANALYSES: "retired (ieat-app#2364) — loadConfig refuses it",
+  EAIT__BACKEND__PAYWALL: "local runs only — a deploy never switches the paywall off",
 };
 
 describe("every setting the backend reads is offered by the deploy", () => {
@@ -79,7 +81,7 @@ describe("every setting the backend reads is offered by the deploy", () => {
     expect(unique(missing)).toEqual([]);
   });
 
-  it("keeps the two deliberate exceptions out of the deploy entirely", () => {
+  it("keeps the deliberate exceptions out of the deploy entirely", () => {
     const reads = configReads();
     const example = read(EXAMPLE);
     const compose = read(COMPOSE);

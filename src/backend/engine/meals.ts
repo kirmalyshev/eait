@@ -28,7 +28,7 @@ import { isCookingFat, prepareAnalysis } from "./analysis.ts";
 import { catalogMicros, groundWhenOn, mealFromFood, recomputeFromSnapshot } from "./ground.ts";
 import { switchOn } from "./switches.ts";
 import { RAW_STATE, words } from "../food-index.ts";
-import { charge, checkCaps, checkFreeLog, refundGatewayRefusal, releaseSample } from "./caps.ts";
+import { charge, checkCaps, checkFreeLog, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { GatewayRefusal, clampDayOffset, emptyEstimate, imageMime, type AnalyzedMeal } from "../llm/port.ts";
@@ -149,7 +149,7 @@ export async function analyzePhotos(
 
   // Sniffed AFTER the cap (a refused account never has its bytes read) and BEFORE the charge: the
   // provider rejects HEIC with a 400 that stays charged, and HEIC is what an iPhone hands over
-  // unless the capture is re-encoded — without this the first real photo spent the sample and
+  // unless the capture is re-encoded — without this the first real photo was charged and
   // logged nothing.
   const images = await read();
   if (images.length === 0) return { kind: "no-photo" };
@@ -212,8 +212,6 @@ export async function analyzePhotos(
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
-    // Billed or not, nothing reached the person, so the sample is still theirs (#44).
-    if (!refunded) await releaseSample(deps, userId, analysisId);
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
@@ -244,8 +242,7 @@ export async function analyzePhotos(
   analysis = prepared.analysis;
 
   // A label that is a label and says nothing legible is not a meal and not a charge: the row is
-  // DELETED (`undoAnalysis`), not just released — `releaseSample` keeps it, and the paid daily cap
-  // counts rows (ieat-app#2087).
+  // DELETED (`undoAnalysis`): the paid daily cap counts rows (ieat-app#2087).
   if (label !== false && (labelMark === "unreadable" || (label && !analysis.isFood))) {
     await deps.store.undoAnalysis(userId, analysisId).catch((x: unknown) => {
       console.error(`[eait] label refund failed: ${(x as Error)?.message ?? x}`);
@@ -253,21 +250,17 @@ export async function analyzePhotos(
     return { kind: "unreadable-label" };
   }
   if (!analysis.isFood) {
-    // An answer, but no verdict: not the meal on us (#44).
-    await releaseSample(deps, userId, analysisId);
     return { kind: "not-food" };
   }
   if (emptyEstimate(analysis)) {
     // The model claimed food and itemised none of it — a failed read, not an empty plate (#248).
-    // Same rule as the gate above: nothing reached the person, so the sample is still theirs.
-    await releaseSample(deps, userId, analysisId);
     return { kind: "analysis-failed" };
   }
   return { kind: "read", analysis, question: prepared.question, images, analysisId, fromLabel: label === true || (label !== false && labelMark === "read") };
 }
 
 /**
- * The App Clip's estimate: an anonymous device account's sample, read and answered, nothing stored
+ * The App Clip's estimate: an anonymous device account's photo, read and answered, nothing stored
  * but the charge. No meal, no photos, no verdicts — the account has no targets to judge against.
  */
 export async function estimatePhoto(
@@ -406,7 +399,7 @@ export async function logPhotoTurn(
  *    of the one screen that has to show what this product does is one screen doing two jobs.
  *  - THE ACCOUNT CAN AFFORD THE REPLY. A tapped chip is a billed correction, so `checkCaps` is
  *    asked — as a dry check, which it is: it reads and never charges — with the TEXT scope the
- *    answer will actually spend. Asking somebody whose sample is gone opens chips onto a 402.
+ *    answer will actually spend. Asking somebody the paywall refuses opens chips onto a 402.
  *  - IT IS SAFE TO REPEAT. The text and the options go through `normalizePromptText` because both
  *    become a line in the thread and, on the reply, a quoted span in the next prompt.
  *
@@ -1161,7 +1154,7 @@ async function buildRepertoire(deps: EngineDeps, userId: string, today: string):
 }
 
 /**
- * One catalog row logged as a meal — the app's food search, one tap. NO model call and NO sample spent, but behind the paywall like a photo (`checkFreeLog`):
+ * One catalog row logged as a meal — the app's food search, one tap. NO model call, but behind the paywall like a photo (`checkFreeLog`):
  * the numbers are the row's per-100 g scaled to `grams` (`mealFromFood`), read here and never from
  * the request, and the verdicts go through `gatedVerdicts` like every other write. Run through
  * `once` with no model calls, so a re-sent tap replays instead of logging twice.
@@ -1223,8 +1216,8 @@ export async function logFoodMeal(
 }
 
 /**
- * A meal typed by hand (#2088): one item, the user's own numbers. NO model call and NO sample
- * spent, behind the paywall like every model-free log (`checkFreeLog`). The numbers come from the
+ * A meal typed by hand (#2088): one item, the user's own numbers. NO model call,
+ * behind the paywall like every model-free log (`checkFreeLog`). The numbers come from the
  * request, the verdicts and the score are computed here against the account's targets — nothing
  * the client sent about them is read. Lands on today minus `dayOffset` (the day open on Home), run
  * through `once` so a re-sent tap replays instead of logging twice.
@@ -1301,8 +1294,8 @@ export async function saveMealFromLog(
  * Log a saved meal as a NEW meal on today minus `dayOffset` — the day open on Home, resolved on the
  * server like `redateMeal`'s offset, never a client date. The numbers come from the saved row; the
  * verdicts and the score are computed here against the account's targets NOW, never copied from
- * the meal it was saved from or from an earlier re-log. No model call, so nothing is charged and
- * the free sample is not spent — but the paywall holds (`checkFreeLog`).
+ * the meal it was saved from or from an earlier re-log. No model call, so nothing is charged — but
+ * the paywall holds (`checkFreeLog`).
  */
 export async function logSavedMeal(
   deps: EngineDeps,
@@ -1312,8 +1305,8 @@ export async function logSavedMeal(
 ): Promise<MealLogged | Refusal | TargetGone> {
   const saved = await deps.store.getSavedMeal(userId, savedId);
   if (!saved) return { kind: "target-gone", on: "saved-meal" };
-  // The paywall, the ONE rule (`checkFreeLog`): the sample is not spent, but once it is gone and
-  // there is no entitlement a re-log is refused like a photo. No second check lives here.
+  // The paywall, the ONE rule (`checkFreeLog`): with no entitlement a re-log is refused like a
+  // photo. No second check lives here.
   const refused = await checkFreeLog(deps, userId);
   if (refused) return refused;
   const date = dateMinus(localDate(deps.config.timezone), clampDayOffset(dayOffset));

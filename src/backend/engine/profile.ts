@@ -20,38 +20,15 @@ import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
 import { evaluateMilestones } from "./milestones.ts";
-import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
+import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 import { referralView } from "./referral.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
-
-/**
- * The sample, as the app is told about it: spent or not, and how much is left.
- *
- * ONE COUNT, READ ONCE. Two `countUserAnalyses` calls for two fields could disagree with each
- * other across a concurrent analysis, and the app would render "spent" beside "2 left".
- *
- * AN ENTITLED ACCOUNT HAS NONE OF IT LEFT, whatever it has spent. The sample is not what a
- * subscriber is drawing on — `checkCaps` never reaches the sample branch for them — so reporting
- * three remaining to somebody who subscribed before logging anything is a promise about an
- * allowance that does not apply, and `contract.ts` says so in as many words.
- */
-function sampleOf(
-  spent: number,
-  sample: number,
-  entitled: boolean,
-): Pick<Limits, "sampleUsed" | "sampleRemaining"> {
-  return {
-    sampleUsed: spent >= sample,
-    sampleRemaining: entitled ? 0 : Math.max(0, sample - spent),
-  };
-}
 
 /**
  * The limits THIS server enforces, so the client stops guessing at them.
  *
  * Every one of them is env-configured and therefore differs per environment. Sending them is what
- * keeps the app from offering four photo slots to a server that accepts two, or counting down a
- * sample whose size it guessed.
+ * keeps the app from offering four photo slots to a server that accepts two.
  */
 async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Promise<Limits> {
   return {
@@ -60,7 +37,8 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
     // The SAME function and the SAME count `checkCaps` refuses with. Anything else here is the
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
-    ...sampleOf(await deps.store.countUserAnalyses(userId), await freeAnalysesFor(deps, userId), entitled),
+    // The paywall's own answer (`checkCaps`): no sample, so every unpaid account (ieat-app#2364).
+    subscriptionRequired: deps.config.paywall && !entitled,
     // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
     // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,

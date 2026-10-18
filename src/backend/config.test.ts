@@ -25,7 +25,7 @@ const VARS = [
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
-  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
+  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__PAYWALL", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
   "EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR",
   "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID",
@@ -168,7 +168,6 @@ describe("loadConfig", () => {
       EAIT__BACKEND__PENDING_TTL_MINUTES: "5",
       EAIT__BACKEND__MAX_UPLOAD_MB: "8",
       EAIT__BACKEND__MAX_PHOTOS_PER_MEAL: "2",
-      EAIT__BACKEND__FREE_ANALYSES: "7",
       EAIT__BACKEND__TZ_NAME: "America/New_York",
       EAIT__BACKEND__PORT: "9999",
       EAIT__BACKEND__HOST: "0.0.0.0",
@@ -180,7 +179,6 @@ describe("loadConfig", () => {
     expect(c.pendingTtlMs).toBe(5 * 60 * 1000);
     expect(c.maxUploadBytes).toBe(8 * 1024 * 1024);
     expect(c.maxPhotosPerMeal).toBe(2);
-    expect(c.freeAnalyses).toBe(7);
     expect(c.timezone).toBe("America/New_York");
     expect(c.port).toBe(9999);
     expect(c.host).toBe("0.0.0.0");
@@ -487,24 +485,22 @@ describe("the web onboarding", () => {
 // webhook, grants nobody anything, and gives every account the free cap — which is exactly what
 // every deployment did before any of this existed.
 describe("the paid tier", () => {
-  it("is dormant by default: no webhook, no sample, sandbox refused", () => {
+  it("is dormant by default: no webhook, the paywall on, sandbox refused", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.freeAnalyses).toBe(0);
+    expect(c.paywall).toBe(true);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 
-  it("reads the sample size, the paid cap and the sandbox switch", () => {
+  it("reads the paywall switch, the paid cap and the sandbox switch", () => {
     withRequired({
-      // NOT 3, which is the default: an override test that asserts the default passes just as
-      // happily when the override is deleted. This is the one knob the sample change turns.
-      EAIT__BACKEND__FREE_ANALYSES: "7",
+      EAIT__BACKEND__PAYWALL: "0",
       EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "99",
       EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: "1",
     });
     const c = loadConfig();
-    expect(c.freeAnalyses).toBe(7);
+    expect(c.paywall).toBe(false);
     expect(c.paidDailyPhotoCap).toBe(99);
     expect(c.revenueCatAcceptSandbox).toBe(true);
   });
@@ -541,6 +537,12 @@ describe("the paid tier", () => {
   it("refuses the retired free daily cap", () => {
     withRequired({ EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20" });
     expect(() => loadConfig()).toThrow(/USER_DAILY_PHOTO_CAP/);
+  });
+
+  // ieat-app#2364: there is no free sample; a host still setting it is told so rather than ignored.
+  it("refuses the retired free-sample size", () => {
+    withRequired({ EAIT__BACKEND__FREE_ANALYSES: "1" });
+    expect(() => loadConfig()).toThrow(/FREE_ANALYSES/);
   });
 
   it("names which entitlement grants the tier, defaulting to pro", () => {
@@ -670,8 +672,21 @@ describe("demo mode", () => {
     expect(d.maxPhotosPerMeal).toBe(configDefaults().maxPhotosPerMeal);
   });
 
-  // THE ONE RUNNER THAT NEEDS THE PRODUCTION BEHAVIOUR, and the same carve-out `freeAnalyses`
-  // already has. `scripts/e2e-boot.sh` sets the limit to 1 because nothing else in this repo can
+  // A demo charges nobody unless the paywall runner asks: `EAIT__BACKEND__PAYWALL=1` (#2364).
+  it("runs without the paywall unless asked", () => {
+    const before = process.env.EAIT__BACKEND__PAYWALL;
+    try {
+      delete process.env.EAIT__BACKEND__PAYWALL;
+      expect(demoConfig().paywall).toBe(false);
+      process.env.EAIT__BACKEND__PAYWALL = "1";
+      expect(demoConfig().paywall).toBe(true);
+    } finally {
+      if (before === undefined) delete process.env.EAIT__BACKEND__PAYWALL; else process.env.EAIT__BACKEND__PAYWALL = before;
+    }
+  });
+
+  // THE ONE RUNNER THAT NEEDS THE PRODUCTION BEHAVIOUR, and the same carve-out the paywall
+  // has. `scripts/e2e-boot.sh` sets the limit to 1 because nothing else in this repo can
   // produce a 429 at the door: the suite's other flows each mint a token on launch and would all
   // meet it first. Unset is still a million, so the paragraph above stays true of every other run.
   it("takes the auth limit from its own variable, and refuses the values that mean 'refuse everyone'", () => {
