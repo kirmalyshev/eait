@@ -11,7 +11,7 @@
 //     verdict can never describe numbers that have since changed.
 
 import {
-  type ClipEstimateResponse, type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
+  type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type Lang, type MealFocus, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
   type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type SavedMeal, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension, MAX_SAVED_MEALS, mealNames,
@@ -131,7 +131,6 @@ export async function analyzePhotos(
   onEvent?: (event: PhotoEvent) => void,
   /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
   eaten: Date = new Date(),
-  scope: "photo" | "clip" = "photo",
   /** When the request arrived — the queue leg's zero: `eaten` is hours old on a kept turn (#220). */
   receivedAt: number = Date.now(),
   onCharged?: (analysisId: string) => Promise<void>,
@@ -144,7 +143,7 @@ export async function analyzePhotos(
   // The stream's first word — "Reading the plate…", already in the account's language. A client
   // prints it; it never composes it: the web bundle holds no i18n catalog.
   onEvent?.({ kind: "reading", line: streamCopyFor(profile.lang).reading });
-  const refusal = await checkCaps(deps, userId, date, scope);
+  const refusal = await checkCaps(deps, userId, date, "photo");
   if (refusal) return refusal;
 
   // Sniffed AFTER the cap (a refused account never has its bytes read) and BEFORE the charge: the
@@ -157,7 +156,7 @@ export async function analyzePhotos(
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
-  const { analysisId, onCost, onCall } = await charge(deps, userId, date, scope, callKind);
+  const { analysisId, onCost, onCall } = await charge(deps, userId, date, "photo", callKind);
   await onCharged?.(analysisId);
 
   const { targets } = explainTargets(profile);
@@ -266,26 +265,6 @@ export async function analyzePhotos(
   return { kind: "read", analysis, question: prepared.question, images, analysisId, fromLabel: label === true || (label !== false && labelMark === "read") };
 }
 
-/**
- * The App Clip's estimate: an anonymous device account's sample, read and answered, nothing stored
- * but the charge. No meal, no photos, no verdicts — the account has no targets to judge against.
- */
-export async function estimatePhoto(
-  deps: EngineDeps,
-  userId: string,
-  images: (() => Promise<Uint8Array>)[],
-): Promise<{ kind: "estimated"; estimate: ClipEstimateResponse } | { kind: "not-anonymous" } | Refusal> {
-  if (!(await isAnonymous(deps, userId))) return { kind: "not-anonymous" };
-  const profile = await deps.store.getProfile(userId);
-  if (!profile) return { kind: "not-onboarded" };
-  // Charged on the UTC day, which is the day `clipDailyMax` counts.
-  const read = await analyzePhotos(deps, userId, profile, new Date().toISOString().slice(0, 10),
-    () => Promise.all(images.map((r) => r())), undefined, undefined, new Date(), "clip");
-  if (read.kind !== "read") return read;
-  const { items, kcal, protein_g, carbs_g, fat_g, confidence } = read.analysis;
-  return { kind: "estimated", estimate: { items, kcal, protein_g, carbs_g, fat_g, confidence } };
-}
-
 export async function logPhotoMeal(
   deps: EngineDeps,
   userId: string,
@@ -322,7 +301,7 @@ export async function logPhotoTurn(
 
   const read = await analyzePhotos(deps, userId, profile, today,
     () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten,
-    "photo", input.receivedAt, job && (async (id) => {
+    input.receivedAt, job && (async (id) => {
       if (!(await deps.store.chargeJob(userId, input.clientId!, job.owner, id))) throw job.lost();
     }), undefined, input.label);
   if (read.kind !== "read") return read;
@@ -915,7 +894,7 @@ export async function rewriteMeal(
       addedBytes = await added();
       return [...(await deps.store.getPhotos(userId, existing.id)).map((p) => p.bytes), ...addedBytes];
     },
-    caption, onEvent, new Date(), "photo", Date.now(), onCharged, "reread");
+    caption, onEvent, new Date(), Date.now(), onCharged, "reread");
   if (read.kind !== "read") return read;
   onCounting?.();
   const { analysis } = read;
