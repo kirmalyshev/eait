@@ -554,6 +554,13 @@ describe("the paywall", () => {
     expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
+  it("lets every account in when a self-hoster switched the paywall off", async () => {
+    const userId = await unpaid();
+    const free = makeDeps({ paywall: false });
+    expect((await logPhotoMeal(free, userId, photo())).kind).toBe("logged");
+    expect((await profileView(free, userId))!.limits.subscriptionRequired).toBe(false);
+  });
+
   it("lets an account a development store created log meals, through the admin's own grant", async () => {
     const userId = await onboard();
     expect(await store.getFreeAnalyses(userId)).toBe(1_000_000);

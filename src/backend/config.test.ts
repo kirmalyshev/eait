@@ -25,7 +25,7 @@ const VARS = [
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
-  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
+  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__PAYWALL", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
   "EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR",
   "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID",
@@ -537,6 +537,18 @@ describe("the paid tier", () => {
   });
 
   // ieat-app#2364: there is no free sample; a host still setting it is told so rather than ignored.
+  // Kirill (ieat-app#2364): self-hosting gets ONE switch; production never sets it.
+  it("runs the paywall unless a self-hoster switches it off, and refuses anything else", () => {
+    withRequired();
+    expect(loadConfig().paywall).toBe(true);
+    withRequired({ EAIT__BACKEND__PAYWALL: "off" });
+    expect(loadConfig().paywall).toBe(false);
+    withRequired({ EAIT__BACKEND__PAYWALL: "on" });
+    expect(loadConfig().paywall).toBe(true);
+    withRequired({ EAIT__BACKEND__PAYWALL: "false" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__PAYWALL/);
+  });
+
   it("refuses the retired free-sample size", () => {
     withRequired({ EAIT__BACKEND__FREE_ANALYSES: "1" });
     expect(() => loadConfig()).toThrow(/FREE_ANALYSES/);

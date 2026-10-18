@@ -95,6 +95,16 @@ describe("every setting the backend reads is offered by the deploy", () => {
   });
 });
 
+// Kirill (ieat-app#2364): the paywall switch is self-hosting's, documented and never assigned — a
+// host copying this file must not inherit a free instance.
+describe("the paywall switch", () => {
+  it("is documented in the example, never set by it", () => {
+    const example = read(EXAMPLE);
+    expect(example).toContain("# EAIT__BACKEND__PAYWALL=off");
+    expect(assigned(example)).not.toContain("EAIT__BACKEND__PAYWALL");
+  });
+});
+
 describe("every variable the deploy sets is one the backend reads", () => {
   it("offers no EAIT__BACKEND__ setting that config.ts ignores", () => {
     const reads = configReads();

@@ -254,8 +254,9 @@ naming it too.
   the 3-day trial is the only way in). `checkCaps` answers every analysis of an unentitled account —
   photo, library or typed, so a sentence is not the free way around the ask — with
   `subscription-required` (402), before any charge, until the webhook has written an entitlement.
-  There is no switch: the one exception is an analysis count the ADMIN granted one account
-  (`freeAnalysesFor`, none by default) — and a development store grants every account it creates
+  Two exceptions only: a SELF-HOSTED instance that sets `EAIT__BACKEND__PAYWALL=off` (`config.paywall`;
+  production never sets it, and the app repo's deploy tests refuse it), and an analysis count the
+  ADMIN granted one account (`freeAnalysesFor`, none by default) — a development store grants every account it creates
   through that same path (`dev/grant.ts`, `--grant N`), which is how a demo, the e2e runners and the
   tests log meals. `limits.subscriptionRequired` (`unpaidRefused`, the grant included) tells the app,
   and the app opens the paywall on it; the refusal is the authority, the sheet only its

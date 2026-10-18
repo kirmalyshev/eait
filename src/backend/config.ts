@@ -143,6 +143,12 @@ export interface Config {
    */
   llmAgentConcurrency: number;
   /**
+   * Whether an account with no live entitlement (and no admin grant) is refused. ON everywhere but a
+   * self-hosted instance that sets `EAIT__BACKEND__PAYWALL=off` — Kirill's one switch for
+   * self-hosting (ieat-app#2364). Production never sets it; the deploy tree's tests refuse it.
+   */
+  paywall: boolean;
+  /**
    * Photos per day for an account with a live entitlement; 0 means no daily cap. What a
    * subscription buys is this allowance — the per-address limits in `api/ratelimit.ts` are what
    * bound the instance's spend above it.
@@ -683,6 +689,7 @@ export function configDefaults(): Config {
     llmRouteMaxTokens: 400,
     llmRouteStallMs: 15_000,
     llmAgentConcurrency: 2,
+    paywall: true,
     paidDailyPhotoCap: 200,
     timezone: "Europe/Berlin",
     pendingTtlMs: 30 * 60 * 1000,
@@ -780,6 +787,10 @@ export function loadConfig(): Config {
     );
   }
   const paidDailyPhotoCap = int("EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", d.paidDailyPhotoCap);
+  const paywallRaw = process.env.EAIT__BACKEND__PAYWALL?.trim();
+  if (paywallRaw !== undefined && paywallRaw !== "" && paywallRaw !== "on" && paywallRaw !== "off") {
+    throw new Error(`[eait] EAIT__BACKEND__PAYWALL is "${paywallRaw}": it takes "on" (the default) or "off" (a self-hosted instance that sells nothing).`);
+  }
 
   const llmMaxTokens = llmMaxTokensFromEnv(d.llmMaxTokens);
 
@@ -920,6 +931,7 @@ export function loadConfig(): Config {
     llmRouteMaxTokens: int("EAIT__BACKEND__LLM_ROUTE_MAX_TOKENS", d.llmRouteMaxTokens),
     llmRouteStallMs: int("EAIT__BACKEND__LLM_ROUTE_STALL_MS", d.llmRouteStallMs),
     llmAgentConcurrency,
+    paywall: paywallRaw !== "off",
     paidDailyPhotoCap,
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
     pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
