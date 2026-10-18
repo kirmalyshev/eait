@@ -143,12 +143,6 @@ export interface Config {
    */
   llmAgentConcurrency: number;
   /**
-   * Whether an account with no live entitlement is refused (`subscription-required`, before any
-   * charge). THERE IS NO FREE TIER AND NO SAMPLE (ieat-app#2364): on by default and on in
-   * production. Off only for a local demo or dev run that logs meals with nobody paying.
-   */
-  paywall: boolean;
-  /**
    * Photos per day for an account with a live entitlement; 0 means no daily cap. What a
    * subscription buys is this allowance — the per-address limits in `api/ratelimit.ts` are what
    * bound the instance's spend above it.
@@ -696,7 +690,6 @@ export function configDefaults(): Config {
     llmRouteMaxTokens: 400,
     llmRouteStallMs: 15_000,
     llmAgentConcurrency: 2,
-    paywall: true,
     paidDailyPhotoCap: 200,
     timezone: "Europe/Berlin",
     pendingTtlMs: 30 * 60 * 1000,
@@ -936,7 +929,6 @@ export function loadConfig(): Config {
     llmRouteMaxTokens: int("EAIT__BACKEND__LLM_ROUTE_MAX_TOKENS", d.llmRouteMaxTokens),
     llmRouteStallMs: int("EAIT__BACKEND__LLM_ROUTE_STALL_MS", d.llmRouteStallMs),
     llmAgentConcurrency,
-    paywall: !["0", "false"].includes(process.env.EAIT__BACKEND__PAYWALL ?? ""),
     paidDailyPhotoCap,
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
     pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
@@ -1149,10 +1141,6 @@ export function demoConfig(): Config {
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
     llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
-    // No paywall in the demo BY DEFAULT — the E2E flows log meals on accounts nobody pays for: it is
-    // a local demo, not a public instance. `scripts/e2e-paywall.sh` starts one with
-    // `EAIT__BACKEND__PAYWALL=1`, because the refusal that opens the sheet is `subscription-required`.
-    paywall: ["1", "true"].includes(process.env.EAIT__BACKEND__PAYWALL ?? ""),
     // AND UNMETERED PER ADDRESS — `api/ratelimit.ts`
     // keys on the client address, and a demo has exactly one: every request the simulator makes
     // comes off 127.0.0.1 and lands in the same bucket. `bun run e2e` clears state and mints a

@@ -64,7 +64,6 @@ const NOT_DEPLOYED: Record<string, string> = {
   // deploy has no business setting it.
   EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR: "demo only — never read by loadConfig",
   EAIT__BACKEND__FREE_ANALYSES: "retired (ieat-app#2364) — loadConfig refuses it",
-  EAIT__BACKEND__PAYWALL: "local runs only — a deploy never switches the paywall off",
 };
 
 describe("every setting the backend reads is offered by the deploy", () => {

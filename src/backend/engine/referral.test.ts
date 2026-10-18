@@ -18,7 +18,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  paywall: true, landingUrl: "https://eait.fit",
+  landingUrl: "https://eait.fit",
 };
 
 let store: Store;

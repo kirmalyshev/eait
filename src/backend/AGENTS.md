@@ -254,9 +254,11 @@ naming it too.
   the 3-day trial is the only way in). `checkCaps` answers every analysis of an unentitled account —
   photo, library or typed, so a sentence is not the free way around the ask — with
   `subscription-required` (402), before any charge, until the webhook has written an entitlement.
-  `config.paywall` is the one switch, on everywhere but a local demo; the one exception inside it is
-  an analysis count the ADMIN granted one account (`freeAnalysesFor`, none by default).
-  `limits.subscriptionRequired` (`unpaidRefused`, the grant included) tells the app, and the app opens the paywall on it; the refusal is the authority, the sheet only its
+  There is no switch: the one exception is an analysis count the ADMIN granted one account
+  (`freeAnalysesFor`, none by default) — and a development store grants every account it creates
+  through that same path (`dev/grant.ts`, `--grant N`), which is how a demo, the e2e runners and the
+  tests log meals. `limits.subscriptionRequired` (`unpaidRefused`, the grant included) tells the app,
+  and the app opens the paywall on it; the refusal is the authority, the sheet only its
   rendering. **The sheet is the app's own** (`src/mobile/lib/paywall-sheet.tsx` in the app repo, drawn from
   `product/design/pro/phone/pay-*.html`) and its words are `PAY_COPY` (`src/shared/app/pay-copy.ts`) — so they ship with a build, in every shipped language, and
   `pay-copy.test.ts` puts them through the claims gate. RevenueCat supplies offerings and purchase calls only; no RevenueCat paywall is built or presented. The app never branches on the SDK's own `CustomerInfo`. A purchase ends by polling

@@ -6,6 +6,7 @@
 // nutrient, not the day). An EDIT gets the change line (#119); this is the log reply.
 
 import { beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
@@ -19,7 +20,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  paywall: false,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 let store: Store;
@@ -64,7 +64,7 @@ const plates = (...ps: [satfat: number, sodium: number, kcal?: number][]): LlmPo
 };
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 
@@ -117,7 +117,7 @@ describe("the logged-meal verdict line", () => {
 
     // The reverse does not: the day's kcal nearly spent (1,940 of 1,724 eaten) but the cap wide
     // open (5 of 13g, 62% left) is no reason to go easy ON IT.
-    store = memoryStore(); deps = makeDeps(plates([0, 0, 1400], [5, 300]));
+    store = grantEveryAccount(memoryStore(), 1_000_000); deps = makeDeps(plates([0, 0, 1400], [5, 300]));
     const early = await onboard({ restrictions: ["ldl"] });
     await logPhotoMeal(deps, early, photo());
     await logPhotoMeal(deps, early, photo());

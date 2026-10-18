@@ -15,12 +15,11 @@ import { isAnonymous } from "./identity.ts";
 export type CapScope = "photo" | "text" | "clip";
 
 /**
- * Whether an account with no live entitlement is refused: always, unless the instance runs without
- * the paywall (`config.paywall`, a local demo) or the admin granted it analyses it has not spent.
+ * Whether an account with no live entitlement is refused: always, unless the admin granted it
+ * analyses it has not spent (a development store grants every account some — `dev/grant.ts`).
  * There is no default sample (ieat-app#2364). The profile's `subscriptionRequired` is this answer.
  */
 export async function unpaidRefused(deps: EngineDeps, userId: string): Promise<boolean> {
-  if (!deps.config.paywall) return false;
   const granted = await freeAnalysesFor(deps, userId);
   return granted === 0 || (await deps.store.countUserAnalyses(userId)) >= granted;
 }

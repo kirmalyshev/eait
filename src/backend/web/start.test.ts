@@ -7,6 +7,7 @@
 // are all the real ones.
 
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -89,7 +90,6 @@ const CONFIG: Config = {
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   // The chat suites log meals with nobody paying; the refusal test turns the paywall on.
-  paywall: false,
   googleAudiences: [WEB_CLIENT],
   googleWebClientId: WEB_CLIENT,
   googleWebClientSecret: "web-secret",
@@ -132,7 +132,7 @@ function router(
   webApp = false,
   storeOpts: StoreOptions = {},
 ) {
-  store = memoryStore(storeOpts);
+  store = grantEveryAccount(memoryStore(storeOpts), 1_000_000);
   // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
   const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
   deps = { store, config: withWeb, llm, push: fakePush(), mail: logMail() };
@@ -1566,8 +1566,9 @@ describe("chat on the web: saying something", () => {
   });
 
   it("renders the server's refusal rather than a blank page", async () => {
-    router({ ...CONFIG, paywall: true });
-    const { session } = await onboarded();
+    router(CONFIG);
+    const { session, userId } = await onboarded();
+    await store.setFreeAnalyses(userId, null);
     const spent = await post("/start/chat/say", { text: "how much protein have I had?" }, session);
     expect(spent.headers.get("location")).toBe("/start/chat?notice=subscription-required");
     expect(await (await get("/start/chat?notice=subscription-required", session)).text())

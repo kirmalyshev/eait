@@ -3,6 +3,7 @@
 // call grammY does not make itself — the file download — goes through an injected `fetch`.
 
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { GrammyError, HttpError } from "grammy";
 import type { UserFromGetMe } from "grammy/types";
 import { configDefaults, type Config } from "../config.ts";
@@ -25,7 +26,6 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  paywall: false,
   publicWebUrl: "https://app.eait.fit",
 };
 
@@ -40,7 +40,7 @@ let deps: EngineDeps;
 let quiet: ReturnType<typeof spyOn>[] = [];
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush(), mail: logMail() };
   quiet = [spyOn(console, "warn").mockImplementation(() => {}), spyOn(console, "error").mockImplementation(() => {})];
 });

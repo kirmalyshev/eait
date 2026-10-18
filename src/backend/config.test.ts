@@ -25,7 +25,7 @@ const VARS = [
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__LLM_INPUT_PRICE_PER_MTOK", "EAIT__BACKEND__LLM_OUTPUT_PRICE_PER_MTOK",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
-  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__PAYWALL", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
+  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
   "EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR",
   "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID",
@@ -485,22 +485,19 @@ describe("the web onboarding", () => {
 // webhook, grants nobody anything, and gives every account the free cap — which is exactly what
 // every deployment did before any of this existed.
 describe("the paid tier", () => {
-  it("is dormant by default: no webhook, the paywall on, sandbox refused", () => {
+  it("is dormant by default: no webhook, sandbox refused", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.paywall).toBe(true);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 
-  it("reads the paywall switch, the paid cap and the sandbox switch", () => {
+  it("reads the paid cap and the sandbox switch", () => {
     withRequired({
-      EAIT__BACKEND__PAYWALL: "0",
       EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "99",
       EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: "1",
     });
     const c = loadConfig();
-    expect(c.paywall).toBe(false);
     expect(c.paidDailyPhotoCap).toBe(99);
     expect(c.revenueCatAcceptSandbox).toBe(true);
   });
@@ -672,21 +669,7 @@ describe("demo mode", () => {
     expect(d.maxPhotosPerMeal).toBe(configDefaults().maxPhotosPerMeal);
   });
 
-  // A demo charges nobody unless the paywall runner asks: `EAIT__BACKEND__PAYWALL=1` (#2364).
-  it("runs without the paywall unless asked", () => {
-    const before = process.env.EAIT__BACKEND__PAYWALL;
-    try {
-      delete process.env.EAIT__BACKEND__PAYWALL;
-      expect(demoConfig().paywall).toBe(false);
-      process.env.EAIT__BACKEND__PAYWALL = "1";
-      expect(demoConfig().paywall).toBe(true);
-    } finally {
-      if (before === undefined) delete process.env.EAIT__BACKEND__PAYWALL; else process.env.EAIT__BACKEND__PAYWALL = before;
-    }
-  });
-
-  // THE ONE RUNNER THAT NEEDS THE PRODUCTION BEHAVIOUR, and the same carve-out the paywall
-  // has. `scripts/e2e-boot.sh` sets the limit to 1 because nothing else in this repo can
+  // THE ONE RUNNER THAT NEEDS THE PRODUCTION BEHAVIOUR. `scripts/e2e-boot.sh` sets the limit to 1 because nothing else in this repo can
   // produce a 429 at the door: the suite's other flows each mint a token on launch and would all
   // meet it first. Unset is still a million, so the paragraph above stays true of every other run.
   it("takes the auth limit from its own variable, and refuses the values that mean 'refuse everyone'", () => {

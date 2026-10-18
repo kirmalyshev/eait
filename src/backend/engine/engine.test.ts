@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { grantEveryAccount } from "../dev/grant.ts";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, onboardingContentFor, proposalLive, scriptedLine, threadCopyFor, type ActivityLevel, type FoodRef, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -24,7 +25,6 @@ const CONFIG: Config = {
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   // Most tests chain several analyses on one account; the sample rule has its own describe.
-  paywall: false,
   appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -67,7 +67,7 @@ async function entitle(userId: string, expiresInMs = 86_400_000): Promise<void> 
 }
 
 beforeEach(() => {
-  store = memoryStore();
+  store = grantEveryAccount(memoryStore(), 1_000_000);
   deps = makeDeps();
 });
 
@@ -361,7 +361,8 @@ describe("photo logging", () => {
 
   it("never reads image bytes when the cap already refused", async () => {
     const userId = await onboard();
-    const d = makeDeps({ paywall: true });
+    await store.setFreeAnalyses(userId, null);
+    const d = makeDeps();
 
     let read = false;
     const res = await logPhotoMeal(d, userId, {
@@ -538,18 +539,25 @@ describe("the question after the card", () => {
 // refusal; it never decides it.
 describe("the paywall", () => {
   let paid: EngineDeps;
-  beforeEach(() => { paid = makeDeps({ paywall: true }); });
+  beforeEach(() => { paid = makeDeps(); });
+  // An account as production creates it: the test store grants every account (`dev/grant.ts`).
+  const unpaid = async (): Promise<string> => {
+    const userId = await onboard();
+    await store.setFreeAnalyses(userId, null);
+    return userId;
+  };
 
   it("refuses every analysis of an unentitled account, photo and typed alike, before charging", async () => {
-    const userId = await onboard();
+    const userId = await unpaid();
     expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
     expect(await handleText(paid, userId, { text: "chicken rice bowl" })).toEqual({ kind: "subscription-required" });
     expect(await store.countUserAnalyses(userId)).toBe(0);
   });
 
-  it("is switched off by config, so a demo instance logs meals with nobody paying", async () => {
+  it("lets an account a development store created log meals, through the admin's own grant", async () => {
     const userId = await onboard();
-    expect((await logPhotoMeal(makeDeps({ paywall: false }), userId, photo())).kind).toBe("logged");
+    expect(await store.getFreeAnalyses(userId)).toBe(1_000_000);
+    expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
   });
 
   // Kirill (ieat-app#2364): no default sample, but the admin may grant one account N analyses.
@@ -564,7 +572,7 @@ describe("the paywall", () => {
   });
 
   it("opens the account once an entitlement is written, and closes it again when it lapses", async () => {
-    const userId = await onboard();
+    const userId = await unpaid();
     expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
     await entitle(userId);
     expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
@@ -646,9 +654,11 @@ describe("the paywall", () => {
   });
 
   it("tells the app whether it is refused, beside the entitlement", async () => {
-    const userId = await onboard();
+    const userId = await unpaid();
     expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(true);
-    expect((await profileView(makeDeps({ paywall: false }), userId))!.limits.subscriptionRequired).toBe(false);
+    await store.setFreeAnalyses(userId, 5);
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(false);
+    await store.setFreeAnalyses(userId, null);
     await entitle(userId);
     const view = (await profileView(paid, userId))!;
     expect(view.limits.subscriptionRequired).toBe(false);
@@ -1949,7 +1959,8 @@ describe("the thread", () => {
   it("keeps nothing from a refused turn", async () => {
     const userId = await onboard();
     await handleText(deps, userId, { text: "how much protein?" });
-    expect((await handleText(makeDeps({ paywall: true }), userId, { text: "and carbs?" })).kind).toBe("subscription-required");
+    await store.setFreeAnalyses(userId, null);
+    expect((await handleText(deps, userId, { text: "and carbs?" })).kind).toBe("subscription-required");
     expect(await thread(userId)).toHaveLength(2);
     // The verdict prose is the design's; an ordinary question gets the model's answer and no more.
     expect((await thread(userId)).map((e) => e.kind)).toEqual(["text", "text"]);
@@ -2217,7 +2228,8 @@ describe("re-analysis", () => {
     const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
     expect((await reanalyzeMeal(deps, userId, logged.mealId)).kind).toBe("updated");
     expect(await store.countUserAnalyses(userId)).toBe(2);
-    expect((await reanalyzeMeal(makeDeps({ paywall: true }), userId, logged.mealId)).kind).toBe("subscription-required");
+    await store.setFreeAnalyses(userId, null);
+    expect((await reanalyzeMeal(deps, userId, logged.mealId)).kind).toBe("subscription-required");
   });
 
   it("refuses a meal with no photo and another user's meal", async () => {
