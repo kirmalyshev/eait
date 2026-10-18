@@ -4754,7 +4754,7 @@ if (PG_URL) {
         .sort();
       expect(unscoped).toEqual([
         "adminListUsers", "adminMetrics", "campaignReport", "campaignsKilled", "claimJob", "claimPairingCode",
-        "countClipAnalyses", "countOnboardedSince", "createCampaign", "createUser", "expireJobs", "foodById",
+        "countOnboardedSince", "createCampaign", "createUser", "expireJobs", "foodById",
         "forgetJobs", "forgetTurnOutcomes", "getCampaign", "getNotificationCopy", "getOnboardingContent",
         "getPrompts",
         // #899: the referrer is found by code, rewarded from a webhook, and its friends counted —

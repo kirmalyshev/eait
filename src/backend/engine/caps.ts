@@ -11,8 +11,7 @@ import { GatewayRefusal, type OnCall, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { isAnonymous } from "./identity.ts";
 
-/** `clip` is the App Clip's anonymous estimate: its own daily ceiling, and no identity required. */
-export type CapScope = "photo" | "text" | "clip";
+export type CapScope = "photo" | "text";
 
 /**
  * Whether an account with no live entitlement is refused: always, unless the admin granted it
@@ -64,13 +63,7 @@ export async function checkCaps(
   // Apple or Google identity is refused here — ahead of every cap and therefore ahead of the
   // charge. `charge` writes
   // `recordAnalysis` below this, so a refusal returned now has spent nothing.
-  if (scope !== "clip" && await isAnonymous(deps, userId)) return { kind: "identity-required" };
-
-  // The clip's circuit breaker: anonymous accounts are free to mint and addresses rotate, so the
-  // clip's total is bounded here, per UTC day, before any charge. Zero is the clip switched off.
-  if (scope === "clip" && (config.clipDailyMax <= 0 || await store.countClipAnalyses(date) >= config.clipDailyMax)) {
-    return { kind: "cap-exceeded", scope: "global" };
-  }
+  if (await isAnonymous(deps, userId)) return { kind: "identity-required" };
 
   // Read from the store on every request rather than carried in the session, and that is the
   // point: a subscription that lapsed an hour ago must stop working an hour ago. An entitlement
@@ -94,7 +87,7 @@ export async function checkCaps(
 
 /**
  * The `kind` an `llm_calls` row carries, off the transport's own name for the call (#602). A
- * `meal_analysis` is not in the map: its kind is the CALLER's word — `photo`, `clip` or `reread` —
+ * `meal_analysis` is not in the map: its kind is the CALLER's word — `photo` or `reread` —
  * which `charge` is told below.
  */
 const LLM_CALL_KIND: Record<string, string> = {
@@ -114,12 +107,12 @@ const LLM_CALL_KIND: Record<string, string> = {
  *
  * `onCall` is the same shape one level down (#602): ONE llm_calls ROW PER PROVIDER CALL, metrics
  * only, fired and forgotten like the cost — a row that cannot land is a log line, never a failed
- * turn. `photoKind` is what a `meal_analysis` call is FOR at this callsite — the photo turn,
- * the clip's estimate, or a meal's re-read.
+ * turn. `photoKind` is what a `meal_analysis` call is FOR at this callsite — the photo turn
+ * or a meal's re-read.
  */
 export async function charge(
   deps: EngineDeps, userId: string, date: string, scope: CapScope,
-  photoKind: "photo" | "clip" | "reread" = scope === "clip" ? "clip" : "photo",
+  photoKind: "photo" | "reread" = "photo",
 ): Promise<{ analysisId: string; onCost: OnCost; onCall: OnCall }> {
   const id = await deps.store.recordAnalysis(userId, date, scope);
   return { analysisId: id, onCost: (usd) => {
