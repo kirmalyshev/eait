@@ -20,6 +20,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { scriptedLine } from "./chat.ts";
+import { mayHaveSpentGrant } from "./entitlement.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, PendingMealsResponse, ProfileResponse } from "./contract.ts";
 import type { Lang } from "./types.ts";
 import { attemptOf } from "./outbox.ts";
@@ -490,6 +491,9 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // Awaited, so the composer stays busy until it lands and nothing typed meanwhile is dropped.
           if (result.kind === "updated") await load(() => true);
         }
+        // THE TURN THAT SPENT A GRANT'S LAST ANALYSIS turns the composer into the ask (`blockedAsk`),
+        // and nothing else re-reads the profile when a turn succeeds. Not awaited.
+        if (mayHaveSpentGrant(deps.profile())) void deps.refreshProfile();
       } catch (e) {
         // A racing page may have superseded the bubble before the request failed in transport: the
         // words are on screen from the page, and so is the reply if the turn had one (written in the

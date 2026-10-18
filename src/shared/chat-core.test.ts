@@ -210,10 +210,15 @@ describe("the composer can turn into the ask", () => {
   // is how a profile that has not caught up learns it (#2364: there is no sample to run out of).
   const plenty = { limits: { subscriptionRequired: false }, entitlement: { active: false } } as ProfileResponse;
 
-  it("a successful turn does not re-read the profile", async () => {
-    const { core, fake } = harness({ profile: plenty });
-    await core.send("two eggs and toast"); await settle();
-    expect(fake.refreshes).toBe(0);
+  // Only an admin's grant lets an unpaid turn through, and the profile carries no count: any such
+  // turn may have been the grant's last, so it re-reads — an entitled account's never does.
+  it("a turn on a grant re-reads the profile, a subscriber's does not", async () => {
+    const granted = harness({ profile: plenty });
+    await granted.core.send("two eggs and toast"); await settle();
+    expect(granted.fake.refreshes).toBe(1);
+    const paid = harness({ profile: { limits: { subscriptionRequired: false }, entitlement: { active: true } } as ProfileResponse });
+    await paid.core.send("two eggs and toast"); await settle();
+    expect(paid.fake.refreshes).toBe(0);
   });
 
   it("a subscription-required refusal re-reads it, so the ask replaces the composer", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, needsSubscription, referralBonusEnd,
+  NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentGrant, needsSubscription, referralBonusEnd,
   subscriptionState, trialDaysLeft,
 } from "./entitlement.ts";
 
@@ -70,6 +70,17 @@ describe("blockedAsk", () => {
 
   test("resubscribe, after a subscription ended", () => {
     expect(blockedAsk({ limits: { subscriptionRequired: true }, entitlement: { active: false, lapsed: true } })).toBe("resubscribe");
+  });
+});
+
+// Only an admin's grant lets an unpaid turn through (ieat-app#2364), and the profile carries no count,
+// so any turn an unentitled account finished may have been the grant's last.
+describe("mayHaveSpentGrant", () => {
+  test("every unentitled account, never an entitled one or a missing profile", () => {
+    expect(mayHaveSpentGrant({ entitlement: { active: false } })).toBe(true);
+    expect(mayHaveSpentGrant({})).toBe(true);
+    expect(mayHaveSpentGrant({ entitlement: { active: true } })).toBe(false);
+    expect(mayHaveSpentGrant(null)).toBe(false);
   });
 });
 

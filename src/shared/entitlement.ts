@@ -210,6 +210,16 @@ export const blockedAsk = (
   !needsSubscription(p) ? null : p?.entitlement?.lapsed ? "resubscribe" : "subscribe";
 
 /**
+ * Whether the turn that just finished may have spent the last of an admin's grant, so the profile is
+ * worth re-reading: `blockedAsk` is read off it, and nothing else re-reads it when an analysis
+ * SUCCEEDS. Only a grant lets an unpaid turn through (ieat-app#2364) and the profile carries no
+ * count, so that is every account with no live entitlement.
+ */
+export const mayHaveSpentGrant = (
+  p: { entitlement?: { active?: boolean } } | null | undefined,
+): boolean => !!p && !p.entitlement?.active;
+
+/**
  * Whether the server refuses this account a meal until it subscribes (`limits.subscriptionRequired`,
  * ieat-app#2364: no sample, so every unpaid account on an instance that runs the paywall).
  */
