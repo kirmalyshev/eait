@@ -383,7 +383,7 @@ export interface StoredPhoto {
  *
  * Written once per HTTP call the LLM ports make, charged or not: `analysisId` is the analysis the
  * call was billed to, or null when the call belonged to no charged turn. `kind` is the engine's
- * name for the call — `photo`, `clip`, `reread`, `route`, `text_meal`, `correction`, `coach` —
+ * name for the call — `photo`, `reread`, `route`, `text_meal`, `correction`, `coach` —
  * and `status` how it ended: `ok`, `http_<n>`, `timeout`, `aborted` (the turn's own cutoff), a
  * transport `error`, `schema_retry` (a reply that failed validation and was retried), `parse_error`
  * (the same on the last attempt) or `truncated`. `modelServed`, `provider`, `generationId` and the
@@ -1664,8 +1664,6 @@ export interface Store {
    * not to use the chat.
    */
   countUserPhotos(userId: string, date: string): Promise<number>;
-  /** App Clip estimates the instance has charged on `date` (UTC), for `clipDailyMax`. */
-  countClipAnalyses(date: string): Promise<number>;
   /**
    * The analyses that count against this account's SAMPLE, photo or text, over its lifetime. The
    * sample rule reads it: `freeAnalyses` without an entitlement, then refusal. Both scopes on
@@ -1687,7 +1685,7 @@ export interface Store {
   /** Set this account's own sample size, or clear it with null. False when there is no such user. */
   setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
   /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
-  recordAnalysis(userId: string, date: string, scope: "photo" | "text" | "clip"): Promise<string>;
+  recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<string>;
   /**
    * ONE ROW PER PROVIDER CALL — the call's metrics, never its content (#602). No prompt text, no
    * image bytes, no reply: `images` and `imageBytes` are counts and sums. Written after the call

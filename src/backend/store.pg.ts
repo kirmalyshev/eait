@@ -894,7 +894,7 @@ create table if not exists analyses (
   id      bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,
   date    text not null,
-  -- 'photo' | 'text' | 'clip'. The per-user cap counts photos only; the day's metrics count all.
+  -- 'photo' | 'text'. 'clip' rows predate the App Clip's removal. The per-user cap counts photos only; the day's metrics count all.
   scope   text not null default 'photo'
 );
 create index if not exists analyses_date_idx on analyses(date);
@@ -1698,14 +1698,13 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   // owner, the policy would hide the existing row and the move would become a duplicate.
   putPushToken: "unscoped",
 
-  // ── Cross-user by definition: the admin surface, the funnel, the clip's breaker.
+  // ── Cross-user by definition: the admin surface, the funnel.
   hasAdmin: "unscoped",
   adminListUsers: "unscoped",
   adminMetrics: "unscoped",
   onboardingFunnel: "unscoped",
   // The loader's people counter: one number over every account, no row of anybody's comes back.
   countOnboardedSince: "unscoped",
-  countClipAnalyses: "unscoped",
   pushAudience: "unscoped",
   sendsAwaitingReceipt: "unscoped",
   pushOpenStats: "unscoped",
@@ -4307,11 +4306,6 @@ export async function postgresStore(
       const rows = await sql`
         select count(*)::int as n from analyses
         where user_id = ${userId} and date = ${date} and scope = 'photo'`;
-      return num(rows[0].n);
-    },
-
-    async countClipAnalyses(date) {
-      const rows = await sql`select count(*)::int as n from analyses where date = ${date} and scope = 'clip'`;
       return num(rows[0].n);
     },
 

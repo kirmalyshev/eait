@@ -16,7 +16,7 @@
 
 import {
   IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, type JobsFilter, isEditMealRequest, isFocusMealRequest, isMealUpdateRequest, isRedateMealRequest, isSaveMealRequest, parseNumbersLogRequest,
-  type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest, type ClipEstimateResponse,
+  type AuthDeviceRequest, type AuthDeviceResponse, type AuthEmailCodeRequest, type AuthEmailVerifyRequest, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang, type RedateMealResponse, type SaveMealResponse, type SavedMealsResponse,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
@@ -36,7 +36,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, logFoodMeal, logNumbersMeal, chatHistory, confirmPendingMeal, day, days, average, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
-  estimatePhoto, healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
+  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, peopleBuilding, pendingMeals, profileView,
   sendEmailCode, unlinkIdentity, verifyEmailCode,
   EMAIL_ADDRESS, normalizeEmail,
   changeWeighIn, recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, milestones, markSeen, type EngineDeps,
@@ -558,7 +558,7 @@ export function createRouter(
       // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
       // the refusal path the app already renders — and is worded as what it is. Saying "your daily
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
-      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.photoQueue || pathname === ROUTES.clipEstimate || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.photoQueue || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
         || (req.method === "PATCH" && MESSAGE_PATH.test(pathname))) {
         // A RE-SENT TURN IS NOT COUNTED (#708): it is answered from the claim and calls no model, and
         // one refused here is asked again by its client under a NEW id — a second meal. Only on the
@@ -762,18 +762,6 @@ export function createRouter(
         if (req.method === "DELETE") return json(await removePhotoJob(deps, userId, jobId));
         if (wantsStream(req)) return stream(req, pathname, (line) => followPhotoJob(deps, userId, jobId, line, req.signal));
         return json(job);
-      }
-
-      if (req.method === "POST" && pathname === ROUTES.clipEstimate) {
-        // The clip's own per-address allowance, on top of the analysis limit above.
-        const wait = limit(req, peer, "clip", deps.config.clipPerAddressDay, DAY);
-        if (wait !== null) return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
-        const upload = await readPhotoForm(req);
-        if (upload instanceof Response) return upload;
-        const result = await estimatePhoto(deps, userId,
-          upload.files.map((f) => async () => new Uint8Array(await f.arrayBuffer())));
-        if (result.kind === "not-anonymous") return json({ error: "anonymous-only" }, 403);
-        return isRefusal(result) ? refusal(result) : json(result.estimate satisfies ClipEstimateResponse);
       }
 
       // ── Push tokens ───────────────────────────────────────────────────────────────────────
