@@ -294,6 +294,11 @@ msgstr "已记录。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "记录餐食需要订阅。请在网页上开始免费试用以继续使用。"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "准备记录这个——对吗？"
 
@@ -526,11 +531,6 @@ msgstr "这个账户已经通过好友链接加入过了。"
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "此账户尚未登录——请先在网页上通过 Apple 或 Google 登录，然后重新发送。"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "此账户的免费体验次数已用完。请在网页上开始免费试用以继续使用。"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -294,6 +294,11 @@ msgstr "Rögzítve."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Az étkezések rögzítéséhez előfizetés kell. A folytatáshoz indítsd el az ingyenes próbaidőszakot a weben."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Ezt rögzítem — így jó?"
 
@@ -526,11 +531,6 @@ msgstr "Ez a fiók már csatlakozott egy barát linkjével."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Ez a fiók még nincs bejelentkezve — jelentkezz be Apple-lel vagy Google-lel a weben, aztán küldd el újra."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Ennek a fióknak elfogyott az ingyenes ízelítője. A folytatáshoz indítsd el az ingyenes próbaidőszakot a weben."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

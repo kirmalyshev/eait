@@ -294,6 +294,11 @@ msgstr "Kirjattu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Aterioiden kirjaaminen vaatii tilauksen. Aloita ilmainen kokeilujakso verkossa jatkaaksesi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Kirjaan tämän – näyttääkö oikealta?"
 
@@ -526,11 +531,6 @@ msgstr "Tämä tili on jo liittynyt ystävän linkillä."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Tälle tilille ei ole vielä kirjauduttu – kirjaudu verkossa Applella tai Googlella ja lähetä se sitten uudelleen."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Tämän tilin ilmainen maistiainen on käytetty. Aloita ilmainen kokeilujakso verkossa jatkaaksesi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

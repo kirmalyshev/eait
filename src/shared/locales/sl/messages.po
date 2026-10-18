@@ -294,6 +294,11 @@ msgstr "Zabeleženo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Za beleženje obrokov potrebuješ naročnino. Za nadaljevanje začni brezplačno preizkusno obdobje na spletu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Beležim tole — je prav?"
 
@@ -526,11 +531,6 @@ msgstr "Ta račun se je že pridružil prek povezave prijatelja."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Ta račun še ni prijavljen — na spletu se prijavi z Apple ali Google, nato pošlji znova."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Brezplačni vzorec tega računa je porabljen. Za nadaljevanje na spletu začni brezplačno preizkusno obdobje."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

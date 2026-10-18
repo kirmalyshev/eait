@@ -294,6 +294,11 @@ msgstr "Καταγράφηκε."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Για να καταγράφεις γεύματα χρειάζεται συνδρομή. Ξεκίνα τη δωρεάν δοκιμή σου στο web για να συνεχίσεις."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Το καταγράφω — σωστό;"
 
@@ -526,11 +531,6 @@ msgstr "Αυτός ο λογαριασμός έχει ήδη γραφτεί με
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Αυτός ο λογαριασμός δεν έχει συνδεθεί ακόμα — συνδέσου μέσω Apple ή Google στο web και μετά στείλε το ξανά."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Το δωρεάν δείγμα αυτού του λογαριασμού εξαντλήθηκε. Ξεκίνα τη δωρεάν δοκιμή σου στο web για να συνεχίσεις."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

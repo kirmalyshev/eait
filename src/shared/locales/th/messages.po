@@ -294,6 +294,11 @@ msgstr "จดแล้ว"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ต้องสมัครสมาชิกจึงจะจดมื้ออาหารได้ เริ่มทดลองใช้ฟรีบนเว็บเพื่อใช้งานต่อ"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "จะจดแบบนี้ — ถูกไหม?"
 
@@ -526,11 +531,6 @@ msgstr "บัญชีนี้เข้าร่วมผ่านลิงก
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "บัญชีนี้ยังไม่ได้ลงชื่อเข้าใช้ — ลงชื่อเข้าใช้ด้วย Apple หรือ Google บนเว็บ แล้วส่งอีกครั้ง"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "บัญชีนี้ใช้ตัวอย่างฟรีหมดแล้ว เริ่มทดลองใช้ฟรีบนเว็บเพื่อใช้งานต่อ"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

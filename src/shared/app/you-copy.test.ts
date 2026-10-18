@@ -92,7 +92,7 @@ describe("YOU_COPY", () => {
     expect(en.subscriptionLifetime).toBe("lifetime");
     expect(en.subscriptionEnded).toBe("ended {date}");
     expect(en.subscriptionEndedNoDate).toBe("ended");
-    expect(en.subscriptionFree).toBe("free");
+    expect(en.subscriptionFree).toBe("none");
     expect(en.account).toBe("Account");
     // phone/you-weight.html
     expect(en.phone.weightTitle).toBe("Your weight");

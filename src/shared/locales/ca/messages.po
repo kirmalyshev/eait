@@ -294,6 +294,11 @@ msgstr "Registrat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Per registrar els àpats cal una subscripció. Comença la prova gratuïta al web per continuar."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Registro això — et sembla bé?"
 
@@ -526,11 +531,6 @@ msgstr "Aquest compte ja s'ha unit amb l'enllaç d'un amic."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Aquest compte encara no té la sessió iniciada — inicia sessió amb Apple o Google al web i torna-ho a enviar."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "La mostra gratuïta d'aquest compte s'ha esgotat. Comença la prova gratuïta al web per continuar."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

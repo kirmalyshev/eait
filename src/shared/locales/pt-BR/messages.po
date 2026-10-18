@@ -294,6 +294,11 @@ msgstr "Anotado."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Para registrar refeições, é preciso uma assinatura. Comece seu teste grátis na web para continuar."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Vou registrar isto — está certo?"
 
@@ -526,11 +531,6 @@ msgstr "Esta conta já entrou com um link de indicação."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Esta conta ainda não fez login — entre com Apple ou Google na web e depois envie de novo."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "A amostra grátis desta conta acabou. Comece seu teste grátis na web para continuar."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

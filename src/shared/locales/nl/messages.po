@@ -294,6 +294,11 @@ msgstr "Gelogd."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Voor het loggen van maaltijden heb je een abonnement nodig. Start je gratis proefperiode op het web om door te gaan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Ik log dit — klopt het?"
 
@@ -526,11 +531,6 @@ msgstr "Dit account is al aangemeld met de link van een vriend."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Dit account is nog niet ingelogd — log op het web in met Apple of Google en stuur het dan opnieuw."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "De gratis proef van dit account is op. Start je gratis proefperiode op het web om door te gaan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

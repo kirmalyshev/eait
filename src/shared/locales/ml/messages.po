@@ -294,6 +294,11 @@ msgstr "രേഖപ്പെടുത്തി."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "ഭക്ഷണം രേഖപ്പെടുത്താൻ സബ്സ്ക്രിപ്ഷൻ വേണം. തുടരാൻ വെബിൽ നിങ്ങളുടെ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "ഇത് രേഖപ്പെടുത്തുന്നു — ശരിയാണോ?"
 
@@ -526,11 +531,6 @@ msgstr "ഈ അക്കൗണ്ട് ഇതിനകം ഒരു സുഹ�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "ഈ അക്കൗണ്ടിൽ ഇതുവരെ സൈൻ ഇൻ ചെയ്തിട്ടില്ല — വെബിൽ Apple അല്ലെങ്കിൽ Google ഉപയോഗിച്ച് സൈൻ ഇൻ ചെയ്ത ശേഷം വീണ്ടും അയയ്ക്കൂ."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "ഈ അക്കൗണ്ടിന്റെ സൗജന്യ സാമ്പിൾ തീർന്നു. തുടരാൻ വെബിൽ നിങ്ങളുടെ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

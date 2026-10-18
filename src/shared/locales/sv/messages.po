@@ -294,6 +294,11 @@ msgstr "Loggat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Du behöver en prenumeration för att logga måltider. Starta din gratis provperiod på webben för att fortsätta."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Jag loggar det här — stämmer det?"
 
@@ -526,11 +531,6 @@ msgstr "Det här kontot har redan gått med via en väns länk."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Det här kontot är inte inloggat än — logga in med Apple eller Google på webben och skicka det sedan igen."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Det här kontots gratisprov är förbrukat. Starta din gratis provperiod på webben för att fortsätta."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

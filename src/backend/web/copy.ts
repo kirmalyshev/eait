@@ -221,7 +221,7 @@ const EN: PageCopy = {
   chatNoFocusRedate:
     "There is no meal open here to move to another day. Open it in the app to change its day.",
   chatNotOnboarded: "Answer the plan questions first.",
-  chatRefusalSubscription: "This account's free sample is used up. Start your free trial to carry on.",
+  chatRefusalSubscription: "Logging meals needs a subscription. Start your free trial to carry on.",
   chatRefusalFailed: "That did not come back. Try it again.",
   chatRefusalNotFood: "That did not look like food.",
   chatRefusalImage: "That file is not a photo this can read. JPEG, PNG or WebP.",
@@ -334,7 +334,7 @@ const FR: PageCopy = {
   chatNoFocusCorrection: "Aucun repas n'est ouvert ici à corriger. Ouvre-le dans l'app, ou dis ce que tu as mangé et enregistre-le à nouveau.",
   chatNoFocusRedate: "Aucun repas n'est ouvert ici à déplacer vers un autre jour. Ouvre-le dans l'app pour changer sa date.",
   chatNotOnboarded: "Réponds d'abord aux questions du plan.",
-  chatRefusalSubscription: "Ce compte a déjà utilisé son analyse offerte. Lance ton essai gratuit pour continuer.",
+  chatRefusalSubscription: "Pour enregistrer tes repas, il faut un abonnement. Lance ton essai gratuit pour continuer.",
   chatRefusalFailed: "Pas de réponse. Réessaie.",
   chatRefusalNotFood: "Ça ne ressemblait pas à de la nourriture.",
   chatRefusalImage: "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP.",
@@ -433,7 +433,7 @@ const DE: PageCopy = {
   chatNoFocusCorrection: "Hier ist keine Mahlzeit offen, die sich korrigieren ließe. Öffne sie in der App, oder sag, was du gegessen hast, und trag es neu ein.",
   chatNoFocusRedate: "Hier ist keine Mahlzeit offen, die sich auf einen anderen Tag schieben ließe. Öffne sie in der App, um den Tag zu ändern.",
   chatNotOnboarded: "Beantworte zuerst die Planfragen.",
-  chatRefusalSubscription: "Die kostenlose Testmahlzeit dieses Kontos ist verbraucht. Starte deine Testphase, um weiterzumachen.",
+  chatRefusalSubscription: "Zum Erfassen von Mahlzeiten brauchst du ein Abo. Starte deine kostenlose Testphase, um weiterzumachen.",
   chatRefusalFailed: "Da kam nichts zurück. Versuch es noch einmal.",
   chatRefusalNotFood: "Das sah nicht nach Essen aus.",
   chatRefusalImage: "Dieses Dateiformat geht hier nicht. Nimm JPEG, PNG oder WebP.",
@@ -532,7 +532,7 @@ const IT: PageCopy = {
   chatNoFocusCorrection: "Qui non c'è nessun pasto aperto da correggere. Aprilo nell'app, oppure di' cosa hai mangiato e registralo di nuovo.",
   chatNoFocusRedate: "Qui non c'è nessun pasto aperto da spostare a un altro giorno. Aprilo nell'app per cambiarne la data.",
   chatNotOnboarded: "Prima rispondi alle domande del piano.",
-  chatRefusalSubscription: "Hai già usato l'analisi gratuita di questo account. Inizia la tua prova gratuita per continuare.",
+  chatRefusalSubscription: "Per registrare i pasti serve un abbonamento. Inizia la tua prova gratuita per continuare.",
   chatRefusalFailed: "Nessuna risposta. Riprova.",
   chatRefusalNotFood: "Non sembrava cibo.",
   chatRefusalImage: "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",
@@ -631,7 +631,7 @@ const ES: PageCopy = {
   chatNoFocusCorrection: "Aquí no hay ninguna comida abierta que corregir. Ábrela en la app, o di qué has comido y regístrala otra vez.",
   chatNoFocusRedate: "Aquí no hay ninguna comida abierta que mover a otro día. Ábrela en la app para cambiarle el día.",
   chatNotOnboarded: "Responde primero a las preguntas del plan.",
-  chatRefusalSubscription: "Ya has usado el análisis gratis de esta cuenta. Empieza tu prueba gratis para seguir.",
+  chatRefusalSubscription: "Para registrar comidas necesitas una suscripción. Empieza tu prueba gratis para seguir.",
   chatRefusalFailed: "No volvió nada. Inténtalo otra vez.",
   chatRefusalNotFood: "Eso no parecía comida.",
   chatRefusalImage: "Ese archivo no es una foto que se pueda leer aquí. JPEG, PNG o WebP.",
@@ -730,7 +730,7 @@ const VI: PageCopy = {
   chatNoFocusCorrection: "Ở đây không có bữa nào đang mở để sửa. Mở nó trong ứng dụng, hoặc kể bạn đã ăn gì rồi ghi lại.",
   chatNoFocusRedate: "Ở đây không có bữa nào đang mở để chuyển sang ngày khác. Mở nó trong ứng dụng để đổi ngày.",
   chatNotOnboarded: "Hãy trả lời các câu hỏi lập kế hoạch trước.",
-  chatRefusalSubscription: "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu dùng thử để tiếp tục.",
+  chatRefusalSubscription: "Cần có gói đăng ký để ghi bữa ăn. Bắt đầu dùng thử miễn phí để tiếp tục.",
   chatRefusalFailed: "Chưa nhận được kết quả. Thử lại nhé.",
   chatRefusalNotFood: "Cái đó trông không giống đồ ăn.",
   chatRefusalImage: "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP.",
@@ -829,7 +829,7 @@ const ID: PageCopy = {
   chatNoFocusCorrection: "Tidak ada makanan yang sedang terbuka di sini untuk dikoreksi. Buka di aplikasi, atau sebutkan apa yang kamu makan dan catat lagi.",
   chatNoFocusRedate: "Tidak ada makanan yang sedang terbuka di sini untuk dipindah ke hari lain. Buka di aplikasi untuk mengubah harinya.",
   chatNotOnboarded: "Jawab dulu pertanyaan rencananya.",
-  chatRefusalSubscription: "Jatah gratis akun ini sudah habis. Mulai masa uji cobamu untuk melanjutkan.",
+  chatRefusalSubscription: "Mencatat makanan butuh langganan. Mulai masa uji coba gratismu untuk melanjutkan.",
   chatRefusalFailed: "Hasilnya tidak masuk. Coba lagi.",
   chatRefusalNotFood: "Itu tidak kelihatan seperti makanan.",
   chatRefusalImage: "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP.",
@@ -928,7 +928,7 @@ const RU: PageCopy = {
   chatNoFocusCorrection: "Здесь нет открытого приёма пищи, который можно было бы поправить. Открой его в приложении или скажи, что было на тарелке, и запиши заново.",
   chatNoFocusRedate: "Здесь нет открытого приёма пищи, который можно было бы перенести на другой день. Открой его в приложении, чтобы поменять день.",
   chatNotOnboarded: "Сначала ответь на вопросы плана.",
-  chatRefusalSubscription: "Бесплатный лимит этого аккаунта исчерпан. Начни пробный период, чтобы продолжить.",
+  chatRefusalSubscription: "Чтобы записывать еду, нужна подписка. Начни бесплатный пробный период, чтобы продолжить.",
   chatRefusalFailed: "Ответ не пришёл. Попробуй ещё раз.",
   chatRefusalNotFood: "Это не похоже на еду.",
   chatRefusalImage: "Этот формат не поддерживается. Нужен JPEG, PNG или WebP.",
@@ -1030,7 +1030,7 @@ const TE: PageCopy = {
   chatNoFocusRedate:
     "ఇక్కడ వేరే రోజుకు మార్చడానికి ఏ భోజనమూ తెరిచి లేదు. దాని రోజును మార్చడానికి దాన్ని యాప్‌లో తెరవండి.",
   chatNotOnboarded: "ముందు ప్లాన్ ప్రశ్నలకు సమాధానం ఇవ్వండి.",
-  chatRefusalSubscription: "ఈ ఖాతా ఉచిత శాంపిల్ అయిపోయింది. కొనసాగడానికి మీ ఉచిత ట్రయల్ మొదలుపెట్టండి.",
+  chatRefusalSubscription: "భోజనాలను నమోదు చేయడానికి సబ్‌స్క్రిప్షన్ అవసరం. కొనసాగడానికి మీ ఉచిత ట్రయల్ మొదలుపెట్టండి.",
   chatRefusalFailed: "అది తిరిగి రాలేదు. మళ్ళీ ప్రయత్నించండి.",
   chatRefusalNotFood: "అది ఆహారంలా కనిపించలేదు.",
   chatRefusalImage: "ఆ ఫైల్ చదవగలిగే ఫోటో కాదు. JPEG, PNG లేదా WebP.",
@@ -1146,7 +1146,7 @@ const TA: PageCopy = {
   chatNoFocusRedate:
     "இங்கே வேறு நாளுக்கு மாற்ற எந்த உணவும் திறந்திருக்கவில்லை. அதன் நாளை மாற்ற ஆப்பில் திறக்கவும்.",
   chatNotOnboarded: "முதலில் திட்டக் கேள்விகளுக்குப் பதிலளிக்கவும்.",
-  chatRefusalSubscription: "இந்தக் கணக்கின் இலவச மாதிரி தீர்ந்துவிட்டது. தொடர உங்கள் இலவச சோதனையைத் தொடங்கவும்.",
+  chatRefusalSubscription: "உணவைப் பதிவுசெய்ய சந்தா தேவை. தொடர உங்கள் இலவச சோதனையைத் தொடங்கவும்.",
   chatRefusalFailed: "பதில் வரவில்லை. மீண்டும் முயலவும்.",
   chatRefusalNotFood: "அது உணவு போலத் தெரியவில்லை.",
   chatRefusalImage: "இந்தக் கோப்பை புகைப்படமாகப் படிக்க முடியாது. JPEG, PNG அல்லது WebP.",
@@ -1262,7 +1262,7 @@ const PA: PageCopy = {
   chatNoFocusRedate:
     "ਇੱਥੇ ਕਿਸੇ ਹੋਰ ਦਿਨ 'ਤੇ ਲਿਜਾਣ ਲਈ ਕੋਈ ਖਾਣਾ ਖੁੱਲ੍ਹਾ ਨਹੀਂ ਹੈ। ਉਸਦਾ ਦਿਨ ਬਦਲਣ ਲਈ ਉਸ ਨੂੰ ਐਪ ਵਿੱਚ ਖੋਲ੍ਹੋ।",
   chatNotOnboarded: "ਪਹਿਲਾਂ ਪਲਾਨ ਦੇ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦਿਓ।",
-  chatRefusalSubscription: "ਇਸ ਅਕਾਊਂਟ ਦਾ ਮੁਫ਼ਤ ਸੈਂਪਲ ਖ਼ਤਮ ਹੋ ਗਿਆ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।",
+  chatRefusalSubscription: "ਖਾਣਾ ਦਰਜ ਕਰਨ ਲਈ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਚਾਹੀਦੀ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।",
   chatRefusalFailed: "ਜਵਾਬ ਨਹੀਂ ਆਇਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
   chatRefusalNotFood: "ਇਹ ਖਾਣਾ ਨਹੀਂ ਲੱਗਿਆ।",
   chatRefusalImage: "ਇਹ ਫ਼ਾਈਲ ਅਜਿਹੀ ਫ਼ੋਟੋ ਨਹੀਂ ਜਿਸ ਨੂੰ ਪੜ੍ਹਿਆ ਜਾ ਸਕੇ। JPEG, PNG ਜਾਂ WebP।",
@@ -1378,7 +1378,7 @@ const OR: PageCopy = {
   chatNoFocusRedate:
     "ଏଠାରେ ଅନ୍ୟ ଦିନକୁ ନେବା ପାଇଁ କୌଣସି ଭୋଜନ ଖୋଲା ନାହିଁ। ଏହାର ଦିନ ବଦଳାଇବାକୁ ଏହାକୁ ଆପ୍‌ରେ ଖୋଲନ୍ତୁ।",
   chatNotOnboarded: "ପ୍ରଥମେ ପ୍ଲାନ୍ ପ୍ରଶ୍ନର ଉତ୍ତର ଦିଅନ୍ତୁ।",
-  chatRefusalSubscription: "ଏହି ଆକାଉଣ୍ଟର ମାଗଣା ସାମ୍ପଲ୍ ସରିଯାଇଛି। ଜାରି ରଖିବାକୁ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।",
+  chatRefusalSubscription: "ଭୋଜନ ଲଗ୍ କରିବାକୁ ସବସ୍କ୍ରିପସନ୍ ଦରକାର। ଜାରି ରଖିବାକୁ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।",
   chatRefusalFailed: "ଉତ୍ତର ଆସିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
   chatRefusalNotFood: "ଏହା ଖାଦ୍ୟ ପରି ଲାଗିଲା ନାହିଁ।",
   chatRefusalImage: "ଏହି ଫାଇଲ୍ ପଢ଼ିହେବା ଭଳି ଫଟୋ ନୁହେଁ। JPEG, PNG କିମ୍ବା WebP।",
@@ -1494,7 +1494,7 @@ const MR: PageCopy = {
   chatNoFocusRedate:
     "दुसऱ्या दिवशी हलवण्यासाठी इथे कोणतेही जेवण उघडलेले नाही. त्याचा दिवस बदलण्यासाठी ते ॲपमध्ये उघडा.",
   chatNotOnboarded: "आधी प्लॅनच्या प्रश्नांची उत्तरे द्या.",
-  chatRefusalSubscription: "या अकाउंटचे मोफत सॅम्पल संपले आहे. पुढे चालू ठेवण्यासाठी तुमचे मोफत ट्रायल सुरू करा.",
+  chatRefusalSubscription: "जेवण नोंदवण्यासाठी सबस्क्रिप्शन आवश्यक आहे. पुढे चालू ठेवण्यासाठी तुमचे मोफत ट्रायल सुरू करा.",
   chatRefusalFailed: "उत्तर परत आले नाही. पुन्हा प्रयत्न करा.",
   chatRefusalNotFood: "हे अन्नासारखे दिसले नाही.",
   chatRefusalImage: "ही फाइल वाचता येईल असा फोटो नाही. JPEG, PNG किंवा WebP.",
@@ -1610,7 +1610,7 @@ const ML: PageCopy = {
   chatNoFocusRedate:
     "മറ്റൊരു ദിവസത്തേക്ക് മാറ്റാൻ ഇവിടെ ഒരു ഭക്ഷണവും തുറന്നിട്ടില്ല. ദിവസം മാറ്റാൻ ആപ്പിൽ അത് തുറക്കൂ.",
   chatNotOnboarded: "ആദ്യം പ്ലാൻ ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകൂ.",
-  chatRefusalSubscription: "ഈ അക്കൗണ്ടിന്റെ സൗജന്യ സാമ്പിൾ തീർന്നു. തുടരാൻ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ.",
+  chatRefusalSubscription: "ഭക്ഷണം രേഖപ്പെടുത്താൻ സബ്സ്ക്രിപ്ഷൻ വേണം. തുടരാൻ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ.",
   chatRefusalFailed: "മറുപടി വന്നില്ല. വീണ്ടും ശ്രമിക്കൂ.",
   chatRefusalNotFood: "അത് ആഹാരം പോലെ തോന്നിയില്ല.",
   chatRefusalImage: "ആ ഫയൽ ഇതിന് വായിക്കാവുന്ന ഫോട്ടോയല്ല. JPEG, PNG അല്ലെങ്കിൽ WebP.",
@@ -1726,7 +1726,7 @@ const KN: PageCopy = {
   chatNoFocusRedate:
     "ಬೇರೆ ದಿನಕ್ಕೆ ಸರಿಸಲು ಇಲ್ಲಿ ಯಾವುದೇ ಊಟ ತೆರೆದಿಲ್ಲ. ಅದರ ದಿನ ಬದಲಿಸಲು ಅದನ್ನು ಆ್ಯಪ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ.",
   chatNotOnboarded: "ಮೊದಲು ಪ್ಲಾನ್ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಿ.",
-  chatRefusalSubscription: "ಈ ಖಾತೆಯ ಉಚಿತ ಮಾದರಿ ಮುಗಿದಿದೆ. ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ.",
+  chatRefusalSubscription: "ಊಟವನ್ನು ದಾಖಲಿಸಲು ಚಂದಾದಾರಿಕೆ ಬೇಕು. ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ.",
   chatRefusalFailed: "ಉತ್ತರ ಬರಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
   chatRefusalNotFood: "ಅದು ಆಹಾರದಂತೆ ಕಾಣಲಿಲ್ಲ.",
   chatRefusalImage: "ಆ ಫೈಲ್ ಓದಬಹುದಾದ ಫೋಟೋ ಅಲ್ಲ. JPEG, PNG ಅಥವಾ WebP.",
@@ -1842,7 +1842,7 @@ const GU: PageCopy = {
   chatNoFocusRedate:
     "અહીં બીજા દિવસે ખસેડવા માટે કોઈ ભોજન ખુલ્લું નથી. તેનો દિવસ બદલવા માટે તેને ઍપમાં ખોલો.",
   chatNotOnboarded: "પહેલાં પ્લાનના પ્રશ્નોના જવાબ આપો.",
-  chatRefusalSubscription: "આ એકાઉન્ટનું મફત સેમ્પલ પૂરું થઈ ગયું છે. આગળ વધવા માટે તમારું મફત ટ્રાયલ શરૂ કરો.",
+  chatRefusalSubscription: "ભોજન નોંધવા માટે સબ્સ્ક્રિપ્શન જરૂરી છે. આગળ વધવા માટે તમારું મફત ટ્રાયલ શરૂ કરો.",
   chatRefusalFailed: "જવાબ આવ્યો નહીં. ફરી પ્રયાસ કરો.",
   chatRefusalNotFood: "આ ખોરાક જેવું લાગ્યું નહીં.",
   chatRefusalImage: "આ ફાઇલ એવો ફોટો નથી જે વાંચી શકાય. JPEG, PNG અથવા WebP.",
@@ -1958,7 +1958,7 @@ const BN: PageCopy = {
   chatNoFocusRedate:
     "এখানে অন্য দিনে সরানোর মতো কোনো খাবার খোলা নেই। দিন বদলাতে অ্যাপে সেটি খুলুন।",
   chatNotOnboarded: "আগে প্ল্যানের প্রশ্নগুলোর উত্তর দিন।",
-  chatRefusalSubscription: "এই অ্যাকাউন্টের ফ্রি স্যাম্পল শেষ। চালিয়ে যেতে আপনার ফ্রি ট্রায়াল শুরু করুন।",
+  chatRefusalSubscription: "খাবার লগ করতে সাবস্ক্রিপশন লাগবে। চালিয়ে যেতে আপনার ফ্রি ট্রায়াল শুরু করুন।",
   chatRefusalFailed: "উত্তর আসেনি। আবার চেষ্টা করুন।",
   chatRefusalNotFood: "এটি খাবার বলে মনে হলো না।",
   chatRefusalImage: "এই ফাইলটি পড়া যায় এমন ছবি নয়। JPEG, PNG বা WebP।",
@@ -2074,7 +2074,7 @@ const PT_PT: PageCopy = {
   chatNoFocusRedate:
     "Não há nenhuma refeição aberta aqui para mudar de dia. Abre-a na app para alterar o dia.",
   chatNotOnboarded: "Responde primeiro às perguntas do plano.",
-  chatRefusalSubscription: "A amostra gratuita desta conta esgotou-se. Começa a tua avaliação gratuita para continuar.",
+  chatRefusalSubscription: "Para registar refeições, é preciso uma subscrição. Começa a tua avaliação gratuita para continuar.",
   chatRefusalFailed: "Não veio resposta. Tenta novamente.",
   chatRefusalNotFood: "Isso não parecia comida.",
   chatRefusalImage: "Esse ficheiro não é uma foto que se consiga ler aqui. JPEG, PNG ou WebP.",
@@ -2190,7 +2190,7 @@ const MS: PageCopy = {
   chatNoFocusRedate:
     "Tiada hidangan dibuka di sini untuk dipindahkan ke hari lain. Bukanya dalam aplikasi untuk menukar harinya.",
   chatNotOnboarded: "Jawab soalan pelan dahulu.",
-  chatRefusalSubscription: "Sampel percuma akaun ini sudah habis. Mulakan percubaan percuma anda untuk teruskan.",
+  chatRefusalSubscription: "Mencatat hidangan memerlukan langganan. Mulakan percubaan percuma anda untuk teruskan.",
   chatRefusalFailed: "Tiada jawapan diterima. Cuba sekali lagi.",
   chatRefusalNotFood: "Itu tidak kelihatan seperti makanan.",
   chatRefusalImage: "Fail itu bukan foto yang boleh dibaca di sini. JPEG, PNG atau WebP.",
@@ -2306,7 +2306,7 @@ const CA: PageCopy = {
   chatNoFocusRedate:
     "Aquí no hi ha cap àpat obert per moure a un altre dia. Obre'l a l'app per canviar-ne el dia.",
   chatNotOnboarded: "Primer respon les preguntes del pla.",
-  chatRefusalSubscription: "La mostra gratuïta d'aquest compte s'ha esgotat. Comença la prova gratuïta per continuar.",
+  chatRefusalSubscription: "Per registrar els àpats cal una subscripció. Comença la prova gratuïta per continuar.",
   chatRefusalFailed: "No ha arribat cap resposta. Torna-ho a provar.",
   chatRefusalNotFood: "Això no semblava menjar.",
   chatRefusalImage: "Aquest fitxer no és una foto que es pugui llegir aquí. JPEG, PNG o WebP.",
@@ -2422,7 +2422,7 @@ const SL: PageCopy = {
   chatNoFocusRedate:
     "Tu ni odprtega obroka za premik na drug dan. Odpri ga v aplikaciji, da mu spremeniš dan.",
   chatNotOnboarded: "Najprej odgovori na vprašanja za načrt.",
-  chatRefusalSubscription: "Brezplačni vzorec tega računa je porabljen. Za nadaljevanje začni brezplačno preizkusno obdobje.",
+  chatRefusalSubscription: "Za beleženje obrokov potrebuješ naročnino. Za nadaljevanje začni brezplačno preizkusno obdobje.",
   chatRefusalFailed: "Odgovor ni prispel. Poskusi znova.",
   chatRefusalNotFood: "To ni bilo videti kot hrana.",
   chatRefusalImage: "Te datoteke ni mogoče prebrati kot fotografijo. JPEG, PNG ali WebP.",
@@ -2538,7 +2538,7 @@ const HR: PageCopy = {
   chatNoFocusRedate:
     "Ovdje nije otvoren obrok koji bi se mogao premjestiti na drugi dan. Otvori ga u aplikaciji da mu promijeniš dan.",
   chatNotOnboarded: "Prvo odgovori na pitanja za plan.",
-  chatRefusalSubscription: "Besplatni uzorak ovog računa je potrošen. Pokreni besplatno probno razdoblje za nastavak.",
+  chatRefusalSubscription: "Za bilježenje obroka potrebna je pretplata. Pokreni besplatno probno razdoblje za nastavak.",
   chatRefusalFailed: "Odgovor nije stigao. Pokušaj ponovno.",
   chatRefusalNotFood: "To ne izgleda kao hrana.",
   chatRefusalImage: "Ta datoteka nije fotografija koju možemo pročitati. JPEG, PNG ili WebP.",
@@ -2654,7 +2654,7 @@ const SK: PageCopy = {
   chatNoFocusRedate:
     "Nie je tu otvorené žiadne jedlo na presun na iný deň. Otvor ho v aplikácii a zmeň mu deň.",
   chatNotOnboarded: "Najprv odpovedz na otázky k plánu.",
-  chatRefusalSubscription: "Bezplatná ukážka tohto účtu je vyčerpaná. Na pokračovanie začni skúšobné obdobie zadarmo.",
+  chatRefusalSubscription: "Na zapisovanie jedál potrebuješ predplatné. Na pokračovanie začni skúšobné obdobie zadarmo.",
   chatRefusalFailed: "Odpoveď neprišla. Skús to znova.",
   chatRefusalNotFood: "Toto nevyzeralo ako jedlo.",
   chatRefusalImage: "Tento súbor nie je fotka, ktorú viem prečítať. JPEG, PNG alebo WebP.",
@@ -2770,7 +2770,7 @@ const NO: PageCopy = {
   chatNoFocusRedate:
     "Det er ikke noe åpent måltid her å flytte til en annen dag. Åpne det i appen for å endre dagen.",
   chatNotOnboarded: "Svar på planspørsmålene først.",
-  chatRefusalSubscription: "Denne kontoens gratisprøve er brukt opp. Start den gratis prøveperioden for å fortsette.",
+  chatRefusalSubscription: "Du trenger et abonnement for å logge måltider. Start den gratis prøveperioden for å fortsette.",
   chatRefusalFailed: "Det kom ikke noe svar. Prøv igjen.",
   chatRefusalNotFood: "Det så ikke ut som mat.",
   chatRefusalImage: "Den filen er ikke et bilde som kan leses. JPEG, PNG eller WebP.",
@@ -2886,7 +2886,7 @@ const FI: PageCopy = {
   chatNoFocusRedate:
     "Täällä ei ole avointa ateriaa siirrettäväksi toiselle päivälle. Avaa se sovelluksessa vaihtaaksesi päivän.",
   chatNotOnboarded: "Vastaa ensin suunnitelmakysymyksiin.",
-  chatRefusalSubscription: "Tämän tilin ilmainen maistiainen on käytetty. Aloita ilmainen kokeilujakso jatkaaksesi.",
+  chatRefusalSubscription: "Aterioiden kirjaaminen vaatii tilauksen. Aloita ilmainen kokeilujakso jatkaaksesi.",
   chatRefusalFailed: "Vastausta ei tullut. Yritä uudelleen.",
   chatRefusalNotFood: "Tuo ei näyttänyt ruoalta.",
   chatRefusalImage: "Tätä tiedostoa ei voi lukea kuvana. JPEG, PNG tai WebP.",
@@ -3002,7 +3002,7 @@ const DA: PageCopy = {
   chatNoFocusRedate:
     "Der er intet åbent måltid her at flytte til en anden dag. Åbn det i appen for at ændre dagen.",
   chatNotOnboarded: "Besvar spørgsmålene til planen først.",
-  chatRefusalSubscription: "Denne kontos gratis prøvemåltid er brugt op. Start din gratis prøveperiode for at fortsætte.",
+  chatRefusalSubscription: "Du skal have et abonnement for at registrere måltider. Start din gratis prøveperiode for at fortsætte.",
   chatRefusalFailed: "Der kom ikke noget svar. Prøv igen.",
   chatRefusalNotFood: "Det lignede ikke mad.",
   chatRefusalImage: "Den fil er ikke et foto, der kan læses her. JPEG, PNG eller WebP.",
@@ -3118,7 +3118,7 @@ const HU: PageCopy = {
   chatNoFocusRedate:
     "Itt nincs megnyitott étkezés, amit másik napra lehetne tenni. Nyisd meg az appban a nap módosításához.",
   chatNotOnboarded: "Előbb válaszolj a tervhez tartozó kérdésekre.",
-  chatRefusalSubscription: "Ennek a fióknak elfogyott az ingyenes ízelítője. Indítsd el az ingyenes próbaidőszakot a folytatáshoz.",
+  chatRefusalSubscription: "Az étkezések rögzítéséhez előfizetés kell. Indítsd el az ingyenes próbaidőszakot a folytatáshoz.",
   chatRefusalFailed: "Ez nem jött vissza. Próbáld újra.",
   chatRefusalNotFood: "Ez nem tűnt ételnek.",
   chatRefusalImage: "Ezt a fájlt nem tudjuk fotóként beolvasni. JPEG, PNG vagy WebP kell.",
@@ -3234,7 +3234,7 @@ const EL: PageCopy = {
   chatNoFocusRedate:
     "Δεν υπάρχει ανοιχτό γεύμα εδώ για μεταφορά σε άλλη μέρα. Άνοιξέ το στην εφαρμογή για να αλλάξεις τη μέρα του.",
   chatNotOnboarded: "Απάντησε πρώτα στις ερωτήσεις του πλάνου.",
-  chatRefusalSubscription: "Το δωρεάν δείγμα αυτού του λογαριασμού εξαντλήθηκε. Ξεκίνα τη δωρεάν δοκιμή σου για να συνεχίσεις.",
+  chatRefusalSubscription: "Για να καταγράφεις γεύματα χρειάζεται συνδρομή. Ξεκίνα τη δωρεάν δοκιμή σου για να συνεχίσεις.",
   chatRefusalFailed: "Δεν ήρθε απάντηση. Δοκίμασε ξανά.",
   chatRefusalNotFood: "Αυτό δεν έμοιαζε με φαγητό.",
   chatRefusalImage: "Αυτό το αρχείο δεν είναι φωτογραφία που μπορεί να διαβαστεί εδώ. JPEG, PNG ή WebP.",
@@ -3350,7 +3350,7 @@ const RO: PageCopy = {
   chatNoFocusRedate:
     "Nu e nicio masă deschisă aici de mutat în altă zi. Deschide-o în aplicație ca să-i schimbi ziua.",
   chatNotOnboarded: "Răspunde mai întâi la întrebările pentru plan.",
-  chatRefusalSubscription: "Mostra gratuită a acestui cont s-a terminat. Începe perioada de probă gratuită ca să continui.",
+  chatRefusalSubscription: "Pentru a înregistra mesele ai nevoie de un abonament. Începe perioada de probă gratuită ca să continui.",
   chatRefusalFailed: "Nu a venit niciun răspuns. Încearcă din nou.",
   chatRefusalNotFood: "Nu părea a fi mâncare.",
   chatRefusalImage: "Fișierul nu e o fotografie pe care o pot citi. JPEG, PNG sau WebP.",
@@ -3466,7 +3466,7 @@ const CS: PageCopy = {
   chatNoFocusRedate:
     "Není tu otevřené žádné jídlo k přesunu na jiný den. Otevři ho v aplikaci a změň mu den.",
   chatNotOnboarded: "Nejdřív odpověz na otázky k plánu.",
-  chatRefusalSubscription: "Bezplatná ukázka tohoto účtu je vyčerpaná. Pro pokračování začni zkušební období zdarma.",
+  chatRefusalSubscription: "Na zapisování jídel potřebuješ předplatné. Pro pokračování začni zkušební období zdarma.",
   chatRefusalFailed: "Odpověď nepřišla. Zkus to znovu.",
   chatRefusalNotFood: "Tohle nevypadalo jako jídlo.",
   chatRefusalImage: "Tento soubor není fotka, kterou umím přečíst. JPEG, PNG nebo WebP.",
@@ -3582,7 +3582,7 @@ const HI: PageCopy = {
   chatNoFocusRedate:
     "यहाँ दूसरे दिन पर ले जाने के लिए कोई भोजन खुला नहीं है। उसका दिन बदलने के लिए उसे ऐप में खोलें।",
   chatNotOnboarded: "पहले प्लान के सवालों के जवाब दें।",
-  chatRefusalSubscription: "इस अकाउंट का मुफ़्त सैंपल खत्म हो गया है। जारी रखने के लिए अपना मुफ़्त ट्रायल शुरू करें।",
+  chatRefusalSubscription: "भोजन दर्ज करने के लिए सब्सक्रिप्शन ज़रूरी है। जारी रखने के लिए अपना मुफ़्त ट्रायल शुरू करें।",
   chatRefusalFailed: "जवाब नहीं आया। फिर से कोशिश करें।",
   chatRefusalNotFood: "यह खाना नहीं लगा।",
   chatRefusalImage: "यह फ़ाइल ऐसी फ़ोटो नहीं है जिसे पढ़ा जा सके। JPEG, PNG या WebP।",
@@ -3698,7 +3698,7 @@ const TH: PageCopy = {
   chatNoFocusRedate:
     "ที่นี่ไม่มีมื้อที่เปิดอยู่ให้ย้ายไปวันอื่น เปิดมื้อนั้นในแอปเพื่อเปลี่ยนวัน",
   chatNotOnboarded: "ตอบคำถามเรื่องแผนก่อน",
-  chatRefusalSubscription: "บัญชีนี้ใช้ตัวอย่างฟรีหมดแล้ว เริ่มทดลองใช้ฟรีเพื่อใช้งานต่อ",
+  chatRefusalSubscription: "ต้องสมัครสมาชิกจึงจะจดมื้ออาหารได้ เริ่มทดลองใช้ฟรีเพื่อใช้งานต่อ",
   chatRefusalFailed: "ไม่ได้รับผลลัพธ์กลับมา ลองอีกครั้ง",
   chatRefusalNotFood: "ดูไม่เหมือนอาหาร",
   chatRefusalImage: "ไฟล์นี้ไม่ใช่รูปที่อ่านได้ ใช้ JPEG, PNG หรือ WebP",
@@ -3814,7 +3814,7 @@ const SV: PageCopy = {
   chatNoFocusRedate:
     "Det finns ingen öppen måltid här att flytta till en annan dag. Öppna den i appen för att byta dag.",
   chatNotOnboarded: "Svara på planfrågorna först.",
-  chatRefusalSubscription: "Kontots gratisprov är förbrukat. Starta din gratis provperiod för att fortsätta.",
+  chatRefusalSubscription: "Du behöver en prenumeration för att logga måltider. Starta din gratis provperiod för att fortsätta.",
   chatRefusalFailed: "Det kom inget svar. Försök igen.",
   chatRefusalNotFood: "Det där såg inte ut som mat.",
   chatRefusalImage: "Filen är inte ett foto som kan läsas här. JPEG, PNG eller WebP.",
@@ -3930,7 +3930,7 @@ const UK: PageCopy = {
   chatNoFocusRedate:
     "Тут немає відкритого прийому їжі, який можна перенести на інший день. Відкрий його в програмі, щоб змінити день.",
   chatNotOnboarded: "Спершу дай відповіді на запитання для плану.",
-  chatRefusalSubscription: "Безкоштовну пробу цього акаунта використано. Почни безкоштовний пробний період, щоб продовжити.",
+  chatRefusalSubscription: "Щоб записувати їжу, потрібна підписка. Почни безкоштовний пробний період, щоб продовжити.",
   chatRefusalFailed: "Відповідь не надійшла. Спробуй ще раз.",
   chatRefusalNotFood: "Це не схоже на їжу.",
   chatRefusalImage: "Цей файл — не фото, яке можна прочитати. Потрібен JPEG, PNG або WebP.",
@@ -4046,7 +4046,7 @@ const NL: PageCopy = {
   chatNoFocusRedate:
     "Er staat hier geen maaltijd open om naar een andere dag te verplaatsen. Open hem in de app om de dag te wijzigen.",
   chatNotOnboarded: "Beantwoord eerst de planvragen.",
-  chatRefusalSubscription: "De gratis proef van dit account is op. Start je gratis proefperiode om door te gaan.",
+  chatRefusalSubscription: "Voor het loggen van maaltijden heb je een abonnement nodig. Start je gratis proefperiode om door te gaan.",
   chatRefusalFailed: "Daar kwam niets op terug. Probeer het opnieuw.",
   chatRefusalNotFood: "Dat leek geen eten.",
   chatRefusalImage: "Dat bestand is geen foto die dit kan lezen. JPEG, PNG of WebP.",
@@ -4162,7 +4162,7 @@ const PL: PageCopy = {
   chatNoFocusRedate:
     "Nie ma tu otwartego posiłku do przeniesienia na inny dzień. Otwórz go w aplikacji, aby zmienić dzień.",
   chatNotOnboarded: "Najpierw odpowiedz na pytania do planu.",
-  chatRefusalSubscription: "Darmowa próbka tego konta została wykorzystana. Rozpocznij darmowy okres próbny, aby kontynuować.",
+  chatRefusalSubscription: "Zapisywanie posiłków wymaga subskrypcji. Rozpocznij darmowy okres próbny, aby kontynuować.",
   chatRefusalFailed: "Odpowiedź nie dotarła. Spróbuj ponownie.",
   chatRefusalNotFood: "To nie wyglądało na jedzenie.",
   chatRefusalImage: "Tego pliku nie da się odczytać jako zdjęcia. JPEG, PNG lub WebP.",
@@ -4278,7 +4278,7 @@ const TR: PageCopy = {
   chatNoFocusRedate:
     "Burada başka bir güne taşınacak açık bir öğün yok. Gününü değiştirmek için uygulamada aç.",
   chatNotOnboarded: "Önce plan sorularını yanıtla.",
-  chatRefusalSubscription: "Bu hesabın ücretsiz kullanım hakkı bitti. Devam etmek için ücretsiz denemeni başlat.",
+  chatRefusalSubscription: "Öğün kaydetmek için abonelik gerekiyor. Devam etmek için ücretsiz denemeni başlat.",
   chatRefusalFailed: "Yanıt gelmedi. Tekrar dene.",
   chatRefusalNotFood: "Bu yiyeceğe benzemiyordu.",
   chatRefusalImage: "Bu dosya burada okunabilen bir fotoğraf değil. JPEG, PNG veya WebP kullan.",
@@ -4394,7 +4394,7 @@ const ZH_HANT: PageCopy = {
   chatNoFocusRedate:
     "這裡沒有打開的餐點可以移到其他日期。請在 App 中打開它來更改日期。",
   chatNotOnboarded: "請先回答計畫問題。",
-  chatRefusalSubscription: "這個帳號的免費體驗已用完。開始免費試用即可繼續。",
+  chatRefusalSubscription: "記錄餐點需要訂閱。開始免費試用即可繼續。",
   chatRefusalFailed: "沒有收到回應，請再試一次。",
   chatRefusalNotFood: "這看起來不像食物。",
   chatRefusalImage: "這個檔案不是可讀取的照片格式。請用 JPEG、PNG 或 WebP。",
@@ -4510,7 +4510,7 @@ const ZH_HANS: PageCopy = {
   chatNoFocusRedate:
     "这里没有打开的餐食可以移到别的日期。在 App 里打开它来更改日期。",
   chatNotOnboarded: "先回答计划相关的问题。",
-  chatRefusalSubscription: "这个账户的免费体验已用完。开始免费试用即可继续。",
+  chatRefusalSubscription: "记录餐食需要订阅。开始免费试用即可继续。",
   chatRefusalFailed: "没有收到结果。再试一次。",
   chatRefusalNotFood: "这看起来不像食物。",
   chatRefusalImage: "这个文件不是能读取的照片。请用 JPEG、PNG 或 WebP。",
@@ -4626,7 +4626,7 @@ const KO: PageCopy = {
   chatNoFocusRedate:
     "여기에는 다른 날로 옮길 식사가 열려 있지 않아요. 날짜를 바꾸려면 앱에서 열어 주세요.",
   chatNotOnboarded: "먼저 플랜 질문에 답해 주세요.",
-  chatRefusalSubscription: "이 계정의 무료 분석을 모두 사용했어요. 계속하려면 무료 체험을 시작해 주세요.",
+  chatRefusalSubscription: "식사를 기록하려면 구독이 필요해요. 무료 체험을 시작하고 계속 이용하세요.",
   chatRefusalFailed: "응답이 오지 않았어요. 다시 시도해 주세요.",
   chatRefusalNotFood: "음식처럼 보이지 않아요.",
   chatRefusalImage: "읽을 수 있는 사진 파일이 아니에요. JPEG, PNG, WebP를 사용해 주세요.",
@@ -4742,7 +4742,7 @@ const JA: PageCopy = {
   chatNoFocusRedate:
     "ここには別の日に移動できる食事が開かれていません。日付を変更するにはアプリで開いてください。",
   chatNotOnboarded: "まずプランの質問に答えてください。",
-  chatRefusalSubscription: "このアカウントの無料お試しは使い切りました。続けるには無料トライアルを開始してください。",
+  chatRefusalSubscription: "食事を記録するにはサブスクリプションが必要です。続けるには無料トライアルを開始してください。",
   chatRefusalFailed: "応答がありませんでした。もう一度お試しください。",
   chatRefusalNotFood: "食べ物には見えませんでした。",
   chatRefusalImage: "このファイルは読み込める写真ではありません。JPEG、PNG、WebPを使ってください。",
@@ -4858,7 +4858,7 @@ const PT_BR: PageCopy = {
   chatNoFocusRedate:
     "Não há nenhuma refeição aberta aqui para mudar de dia. Abra-a no app para trocar o dia.",
   chatNotOnboarded: "Responda primeiro às perguntas do plano.",
-  chatRefusalSubscription: "A amostra grátis desta conta acabou. Comece seu teste grátis para continuar.",
+  chatRefusalSubscription: "Para registrar refeições, é preciso uma assinatura. Comece seu teste grátis para continuar.",
   chatRefusalFailed: "Não veio resposta. Tente de novo.",
   chatRefusalNotFood: "Isso não parecia comida.",
   chatRefusalImage: "Esse arquivo não é uma foto que dá para ler aqui. JPEG, PNG ou WebP.",

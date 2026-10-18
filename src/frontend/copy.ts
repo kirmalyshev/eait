@@ -256,7 +256,7 @@ const EN: WebCopy = {
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
-    "subscription-required": "This account's free sample is used up. Start your free trial to carry on.",
+    "subscription-required": "Logging meals needs a subscription. Start your free trial to carry on.",
     "unsupported-image": "That file is not a photo this can read. JPEG, PNG or WebP.",
     "not-food": "No food in that one.",
     "unreadable-label": "Couldn't read that label.",
@@ -345,7 +345,7 @@ const FR: WebCopy = {
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
-    "subscription-required": "Ce compte a déjà utilisé son analyse offerte. Lance ton essai gratuit pour continuer.",
+    "subscription-required": "Pour enregistrer tes repas, il faut un abonnement. Lance ton essai gratuit pour continuer.",
     "unsupported-image": "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP.",
     "not-food": "Aucun aliment sur celle-là.",
     "unreadable-label": "Impossible de lire cette étiquette.",
@@ -434,7 +434,7 @@ const DE: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
-    "subscription-required": "Die kostenlose Testmahlzeit dieses Kontos ist verbraucht. Starte deine Testphase, um weiterzumachen.",
+    "subscription-required": "Zum Erfassen von Mahlzeiten brauchst du ein Abo. Starte deine kostenlose Testphase, um weiterzumachen.",
     "unsupported-image": "Dieses Dateiformat geht hier nicht. Nimm JPEG, PNG oder WebP.",
     "not-food": "Auf diesem Foto ist kein Essen.",
     "unreadable-label": "Die Nährwerttabelle ließ sich nicht lesen.",
@@ -523,7 +523,7 @@ const IT: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
-    "subscription-required": "Hai già usato l'analisi gratuita di questo account. Inizia la tua prova gratuita per continuare.",
+    "subscription-required": "Per registrare i pasti serve un abbonamento. Inizia la tua prova gratuita per continuare.",
     "unsupported-image": "Quel file non è una foto leggibile qui. JPEG, PNG o WebP.",
     "not-food": "Non vedo cibo in questa foto.",
     "unreadable-label": "Etichetta non leggibile.",
@@ -612,7 +612,7 @@ const ES: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
-    "subscription-required": "Ya has usado el análisis gratis de esta cuenta. Empieza tu prueba gratis para seguir.",
+    "subscription-required": "Para registrar comidas necesitas una suscripción. Empieza tu prueba gratis para seguir.",
     "unsupported-image": "Ese archivo no es una foto que se pueda leer aquí. JPEG, PNG o WebP.",
     "not-food": "No hay comida en esta.",
     "unreadable-label": "No se pudo leer esa etiqueta.",
@@ -701,7 +701,7 @@ const VI: WebCopy = {
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Chất béo",
   refusals: {
-    "subscription-required": "Lượt phân tích miễn phí của tài khoản này đã hết. Bắt đầu dùng thử để tiếp tục.",
+    "subscription-required": "Cần có gói đăng ký để ghi bữa ăn. Bắt đầu dùng thử miễn phí để tiếp tục.",
     "unsupported-image": "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP.",
     "not-food": "Không có đồ ăn trong ảnh này.",
     "unreadable-label": "Không đọc được nhãn đó.",
@@ -790,7 +790,7 @@ const ID: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbohidrat", statFat: "Lemak",
   refusals: {
-    "subscription-required": "Jatah gratis akun ini sudah habis. Mulai masa uji cobamu untuk melanjutkan.",
+    "subscription-required": "Mencatat makanan butuh langganan. Mulai masa uji coba gratismu untuk melanjutkan.",
     "unsupported-image": "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP.",
     "not-food": "Tidak ada makanan di foto ini.",
     "unreadable-label": "Label itu tidak bisa dibaca.",
@@ -879,7 +879,7 @@ const RU: WebCopy = {
   photoWithCaption: "Фото: {text}",
   statProtein: "Белки", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {
-    "subscription-required": "Бесплатный анализ на этом аккаунте уже использован. Начни пробный период, чтобы продолжить.",
+    "subscription-required": "Чтобы записывать еду, нужна подписка. Начни бесплатный пробный период, чтобы продолжить.",
     "unsupported-image": "Этот формат не поддерживается. Нужен JPEG, PNG или WebP.",
     "not-food": "На этом фото еды нет.",
     "unreadable-label": "Не удалось прочитать эту этикетку.",
@@ -978,7 +978,7 @@ const TE: WebCopy = {
   photoWithCaption: "ఫోటో: {text}",
   statProtein: "ప్రోటీన్", statCarbs: "కార్బ్స్", statFat: "కొవ్వు",
   refusals: {
-    "subscription-required": "ఈ ఖాతా ఉచిత శాంపిల్ అయిపోయింది. కొనసాగడానికి మీ ఉచిత ట్రయల్ మొదలుపెట్టండి.",
+    "subscription-required": "భోజనాలను నమోదు చేయడానికి సబ్‌స్క్రిప్షన్ అవసరం. కొనసాగడానికి మీ ఉచిత ట్రయల్ మొదలుపెట్టండి.",
     "unsupported-image": "ఆ ఫైల్ చదవగలిగే ఫోటో కాదు. JPEG, PNG లేదా WebP.",
     "not-food": "దీనిలో ఆహారం లేదు.",
     "unreadable-label": "ఆ లేబుల్‌ను చదవడం కుదరలేదు.",
@@ -1077,7 +1077,7 @@ const TA: WebCopy = {
   photoWithCaption: "புகைப்படம்: {text}",
   statProtein: "புரதம்", statCarbs: "கார்ப்ஸ்", statFat: "கொழுப்பு",
   refusals: {
-    "subscription-required": "இந்தக் கணக்கின் இலவச மாதிரி தீர்ந்துவிட்டது. தொடர உங்கள் இலவச சோதனையைத் தொடங்கவும்.",
+    "subscription-required": "உணவைப் பதிவுசெய்ய சந்தா தேவை. தொடர உங்கள் இலவச சோதனையைத் தொடங்கவும்.",
     "unsupported-image": "இந்தக் கோப்பை புகைப்படமாகப் படிக்க முடியாது. JPEG, PNG அல்லது WebP.",
     "not-food": "இதில் உணவு எதுவும் இல்லை.",
     "unreadable-label": "அந்த லேபிளைப் படிக்க முடியவில்லை.",
@@ -1176,7 +1176,7 @@ const PA: WebCopy = {
   photoWithCaption: "ਫ਼ੋਟੋ: {text}",
   statProtein: "ਪ੍ਰੋਟੀਨ", statCarbs: "ਕਾਰਬਸ", statFat: "ਫ਼ੈਟ",
   refusals: {
-    "subscription-required": "ਇਸ ਅਕਾਊਂਟ ਦਾ ਮੁਫ਼ਤ ਸੈਂਪਲ ਖ਼ਤਮ ਹੋ ਗਿਆ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।",
+    "subscription-required": "ਖਾਣਾ ਦਰਜ ਕਰਨ ਲਈ ਸਬਸਕ੍ਰਿਪਸ਼ਨ ਚਾਹੀਦੀ ਹੈ। ਜਾਰੀ ਰੱਖਣ ਲਈ ਆਪਣਾ ਮੁਫ਼ਤ ਟ੍ਰਾਇਲ ਸ਼ੁਰੂ ਕਰੋ।",
     "unsupported-image": "ਇਹ ਫ਼ਾਈਲ ਅਜਿਹੀ ਫ਼ੋਟੋ ਨਹੀਂ ਜਿਸ ਨੂੰ ਪੜ੍ਹਿਆ ਜਾ ਸਕੇ। JPEG, PNG ਜਾਂ WebP।",
     "not-food": "ਇਸ ਵਿੱਚ ਕੋਈ ਖਾਣਾ ਨਹੀਂ ਹੈ।",
     "unreadable-label": "ਉਹ ਲੇਬਲ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ।",
@@ -1275,7 +1275,7 @@ const OR: WebCopy = {
   photoWithCaption: "ଫଟୋ: {text}",
   statProtein: "ପ୍ରୋଟିନ୍", statCarbs: "କାର୍ବସ୍", statFat: "ଫ୍ୟାଟ୍",
   refusals: {
-    "subscription-required": "ଏହି ଆକାଉଣ୍ଟର ମାଗଣା ସାମ୍ପଲ୍ ସରିଯାଇଛି। ଜାରି ରଖିବାକୁ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।",
+    "subscription-required": "ଭୋଜନ ଲଗ୍ କରିବାକୁ ସବସ୍କ୍ରିପସନ୍ ଦରକାର। ଜାରି ରଖିବାକୁ ଆପଣଙ୍କ ମାଗଣା ଟ୍ରାଏଲ୍ ଆରମ୍ଭ କରନ୍ତୁ।",
     "unsupported-image": "ଏହି ଫାଇଲ୍ ପଢ଼ିହେବା ଭଳି ଫଟୋ ନୁହେଁ। JPEG, PNG କିମ୍ବା WebP।",
     "not-food": "ଏଥିରେ କୌଣସି ଖାଦ୍ୟ ନାହିଁ।",
     "unreadable-label": "ସେହି ଲେବଲ୍ ପଢ଼ିହେଲା ନାହିଁ।",
@@ -1374,7 +1374,7 @@ const MR: WebCopy = {
   photoWithCaption: "फोटो: {text}",
   statProtein: "प्रोटीन", statCarbs: "कार्ब्स", statFat: "फॅट",
   refusals: {
-    "subscription-required": "या अकाउंटचे मोफत सॅम्पल संपले आहे. पुढे चालू ठेवण्यासाठी तुमचे मोफत ट्रायल सुरू करा.",
+    "subscription-required": "जेवण नोंदवण्यासाठी सबस्क्रिप्शन आवश्यक आहे. पुढे चालू ठेवण्यासाठी तुमचे मोफत ट्रायल सुरू करा.",
     "unsupported-image": "ही फाइल वाचता येईल असा फोटो नाही. JPEG, PNG किंवा WebP.",
     "not-food": "यात अन्न दिसले नाही.",
     "unreadable-label": "ते लेबल वाचता आले नाही.",
@@ -1473,7 +1473,7 @@ const ML: WebCopy = {
   photoWithCaption: "ഫോട്ടോ: {text}",
   statProtein: "പ്രോട്ടീൻ", statCarbs: "കാർബ്സ്", statFat: "കൊഴുപ്പ്",
   refusals: {
-    "subscription-required": "ഈ അക്കൗണ്ടിന്റെ സൗജന്യ സാമ്പിൾ തീർന്നു. തുടരാൻ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ.",
+    "subscription-required": "ഭക്ഷണം രേഖപ്പെടുത്താൻ സബ്സ്ക്രിപ്ഷൻ വേണം. തുടരാൻ സൗജന്യ ട്രയൽ ആരംഭിക്കൂ.",
     "unsupported-image": "ആ ഫയൽ ഇതിന് വായിക്കാവുന്ന ഫോട്ടോയല്ല. JPEG, PNG അല്ലെങ്കിൽ WebP.",
     "not-food": "അതിൽ ആഹാരമൊന്നുമില്ല.",
     "unreadable-label": "ആ ലേബൽ വായിക്കാനായില്ല.",
@@ -1572,7 +1572,7 @@ const KN: WebCopy = {
   photoWithCaption: "ಫೋಟೋ: {text}",
   statProtein: "ಪ್ರೋಟೀನ್", statCarbs: "ಕಾರ್ಬ್ಸ್", statFat: "ಕೊಬ್ಬು",
   refusals: {
-    "subscription-required": "ಈ ಖಾತೆಯ ಉಚಿತ ಮಾದರಿ ಮುಗಿದಿದೆ. ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ.",
+    "subscription-required": "ಊಟವನ್ನು ದಾಖಲಿಸಲು ಚಂದಾದಾರಿಕೆ ಬೇಕು. ಮುಂದುವರಿಯಲು ನಿಮ್ಮ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ.",
     "unsupported-image": "ಆ ಫೈಲ್ ಓದಬಹುದಾದ ಫೋಟೋ ಅಲ್ಲ. JPEG, PNG ಅಥವಾ WebP.",
     "not-food": "ಅದರಲ್ಲಿ ಆಹಾರವಿಲ್ಲ.",
     "unreadable-label": "ಆ ಲೇಬಲ್ ಓದಲಾಗಲಿಲ್ಲ.",
@@ -1671,7 +1671,7 @@ const GU: WebCopy = {
   photoWithCaption: "ફોટો: {text}",
   statProtein: "પ્રોટીન", statCarbs: "કાર્બ્સ", statFat: "ફેટ",
   refusals: {
-    "subscription-required": "આ એકાઉન્ટનું મફત સેમ્પલ પૂરું થઈ ગયું છે. આગળ વધવા માટે તમારું મફત ટ્રાયલ શરૂ કરો.",
+    "subscription-required": "ભોજન નોંધવા માટે સબ્સ્ક્રિપ્શન જરૂરી છે. આગળ વધવા માટે તમારું મફત ટ્રાયલ શરૂ કરો.",
     "unsupported-image": "આ ફાઇલ એવો ફોટો નથી જે વાંચી શકાય. JPEG, PNG અથવા WebP.",
     "not-food": "આમાં કોઈ ખોરાક નથી.",
     "unreadable-label": "તે લેબલ વાંચી શકાયું નહીં.",
@@ -1770,7 +1770,7 @@ const BN: WebCopy = {
   photoWithCaption: "ছবি: {text}",
   statProtein: "প্রোটিন", statCarbs: "কার্বস", statFat: "ফ্যাট",
   refusals: {
-    "subscription-required": "এই অ্যাকাউন্টের ফ্রি স্যাম্পল শেষ। চালিয়ে যেতে আপনার ফ্রি ট্রায়াল শুরু করুন।",
+    "subscription-required": "খাবার লগ করতে সাবস্ক্রিপশন লাগবে। চালিয়ে যেতে আপনার ফ্রি ট্রায়াল শুরু করুন।",
     "unsupported-image": "এই ফাইলটি পড়া যায় এমন ছবি নয়। JPEG, PNG বা WebP।",
     "not-food": "এতে কোনো খাবার নেই।",
     "unreadable-label": "লেবেলটি পড়া যায়নি।",
@@ -1869,7 +1869,7 @@ const PT_PT: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Hidratos", statFat: "Gordura",
   refusals: {
-    "subscription-required": "A amostra gratuita desta conta esgotou-se. Começa a tua avaliação gratuita para continuar.",
+    "subscription-required": "Para registar refeições, é preciso uma subscrição. Começa a tua avaliação gratuita para continuar.",
     "unsupported-image": "Esse ficheiro não é uma foto que se consiga ler aqui. JPEG, PNG ou WebP.",
     "not-food": "Não há comida nessa.",
     "unreadable-label": "Não foi possível ler este rótulo.",
@@ -1968,7 +1968,7 @@ const MS: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbohidrat", statFat: "Lemak",
   refusals: {
-    "subscription-required": "Sampel percuma akaun ini sudah habis. Mulakan percubaan percuma anda untuk teruskan.",
+    "subscription-required": "Mencatat hidangan memerlukan langganan. Mulakan percubaan percuma anda untuk teruskan.",
     "unsupported-image": "Fail itu bukan foto yang boleh dibaca di sini. JPEG, PNG atau WebP.",
     "not-food": "Tiada makanan dalam foto itu.",
     "unreadable-label": "Tidak dapat membaca label itu.",
@@ -2067,7 +2067,7 @@ const CA: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteïna", statCarbs: "Carbohidrats", statFat: "Greix",
   refusals: {
-    "subscription-required": "La mostra gratuïta d'aquest compte s'ha esgotat. Comença la prova gratuïta per continuar.",
+    "subscription-required": "Per registrar els àpats cal una subscripció. Comença la prova gratuïta per continuar.",
     "unsupported-image": "Aquest fitxer no és una foto que es pugui llegir aquí. JPEG, PNG o WebP.",
     "not-food": "Aquí no hi ha menjar.",
     "unreadable-label": "No s'ha pogut llegir aquesta etiqueta.",
@@ -2166,7 +2166,7 @@ const SL: WebCopy = {
   photoWithCaption: "Fotografija: {text}",
   statProtein: "Beljakovine", statCarbs: "Ogljikovi hidrati", statFat: "Maščobe",
   refusals: {
-    "subscription-required": "Brezplačni vzorec tega računa je porabljen. Za nadaljevanje začni brezplačno preizkusno obdobje.",
+    "subscription-required": "Za beleženje obrokov potrebuješ naročnino. Za nadaljevanje začni brezplačno preizkusno obdobje.",
     "unsupported-image": "Te datoteke ni mogoče prebrati kot fotografijo. JPEG, PNG ali WebP.",
     "not-food": "Na tej fotografiji ni hrane.",
     "unreadable-label": "Tabele hranilnih vrednosti ni bilo mogoče prebrati.",
@@ -2265,7 +2265,7 @@ const HR: WebCopy = {
   photoWithCaption: "Fotografija: {text}",
   statProtein: "Proteini", statCarbs: "Ugljikohidrati", statFat: "Masti",
   refusals: {
-    "subscription-required": "Besplatni uzorak ovog računa je potrošen. Pokreni besplatno probno razdoblje za nastavak.",
+    "subscription-required": "Za bilježenje obroka potrebna je pretplata. Pokreni besplatno probno razdoblje za nastavak.",
     "unsupported-image": "Ta datoteka nije fotografija koju možemo pročitati. JPEG, PNG ili WebP.",
     "not-food": "Na ovoj fotografiji nema hrane.",
     "unreadable-label": "Ova se nutritivna deklaracija nije mogla pročitati.",
@@ -2364,7 +2364,7 @@ const SK: WebCopy = {
   photoWithCaption: "Fotka: {text}",
   statProtein: "Bielkoviny", statCarbs: "Sacharidy", statFat: "Tuky",
   refusals: {
-    "subscription-required": "Bezplatná ukážka tohto účtu je vyčerpaná. Na pokračovanie začni skúšobné obdobie zadarmo.",
+    "subscription-required": "Na zapisovanie jedál potrebuješ predplatné. Na pokračovanie začni skúšobné obdobie zadarmo.",
     "unsupported-image": "Tento súbor nie je fotka, ktorú viem prečítať. JPEG, PNG alebo WebP.",
     "not-food": "Na tejto fotke nie je jedlo.",
     "unreadable-label": "Túto nutričnú tabuľku sa nepodarilo prečítať.",
@@ -2463,7 +2463,7 @@ const NO: WebCopy = {
   photoWithCaption: "Bilde: {text}",
   statProtein: "Protein", statCarbs: "Karbohydrater", statFat: "Fett",
   refusals: {
-    "subscription-required": "Denne kontoens gratisprøve er brukt opp. Start den gratis prøveperioden for å fortsette.",
+    "subscription-required": "Du trenger et abonnement for å logge måltider. Start den gratis prøveperioden for å fortsette.",
     "unsupported-image": "Den filen er ikke et bilde som kan leses. JPEG, PNG eller WebP.",
     "not-food": "Ingen mat i den.",
     "unreadable-label": "Kunne ikke lese denne næringsdeklarasjonen.",
@@ -2562,7 +2562,7 @@ const FI: WebCopy = {
   photoWithCaption: "Kuva: {text}",
   statProtein: "Proteiini", statCarbs: "Hiilihydraatit", statFat: "Rasva",
   refusals: {
-    "subscription-required": "Tämän tilin ilmainen maistiainen on käytetty. Aloita ilmainen kokeilujakso jatkaaksesi.",
+    "subscription-required": "Aterioiden kirjaaminen vaatii tilauksen. Aloita ilmainen kokeilujakso jatkaaksesi.",
     "unsupported-image": "Tätä tiedostoa ei voi lukea kuvana. JPEG, PNG tai WebP.",
     "not-food": "Tuossa ei ole ruokaa.",
     "unreadable-label": "Ravintoarvomerkintöjen lukeminen ei onnistunut.",
@@ -2661,7 +2661,7 @@ const DA: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Kulhydrater", statFat: "Fedt",
   refusals: {
-    "subscription-required": "Denne kontos gratis prøvemåltid er brugt op. Start din gratis prøveperiode for at fortsætte.",
+    "subscription-required": "Du skal have et abonnement for at registrere måltider. Start din gratis prøveperiode for at fortsætte.",
     "unsupported-image": "Den fil er ikke et foto, der kan læses her. JPEG, PNG eller WebP.",
     "not-food": "Ingen mad på det her.",
     "unreadable-label": "Næringsdeklarationen kunne ikke læses.",
@@ -2761,7 +2761,7 @@ const HU: WebCopy = {
   statProtein: "Fehérje", statCarbs: "Szénhidrát", statFat: "Zsír",
   refusals: {
     "unreadable-label": "Ezt a címkét nem tudtuk beolvasni.",
-    "subscription-required": "Ennek a fióknak elfogyott az ingyenes ízelítője. Indítsd el az ingyenes próbaidőszakot a folytatáshoz.",
+    "subscription-required": "Az étkezések rögzítéséhez előfizetés kell. Indítsd el az ingyenes próbaidőszakot a folytatáshoz.",
     "unsupported-image": "Ezt a fájlt nem tudjuk fotóként beolvasni. JPEG, PNG vagy WebP kell.",
     "not-food": "Ezen nincs étel.",
     "analysis-failed": "Ez nem jött vissza. Próbáld újra.",
@@ -2860,7 +2860,7 @@ const EL: WebCopy = {
   statProtein: "Πρωτεΐνη", statCarbs: "Υδατάνθρακες", statFat: "Λιπαρά",
   refusals: {
     "unreadable-label": "Δεν ήταν δυνατή η ανάγνωση αυτής της ετικέτας.",
-    "subscription-required": "Το δωρεάν δείγμα αυτού του λογαριασμού εξαντλήθηκε. Ξεκίνα τη δωρεάν δοκιμή σου για να συνεχίσεις.",
+    "subscription-required": "Για να καταγράφεις γεύματα χρειάζεται συνδρομή. Ξεκίνα τη δωρεάν δοκιμή σου για να συνεχίσεις.",
     "unsupported-image": "Αυτό το αρχείο δεν είναι φωτογραφία που μπορεί να διαβαστεί εδώ. JPEG, PNG ή WebP.",
     "not-food": "Δεν υπάρχει φαγητό σε αυτή τη φωτογραφία.",
     "analysis-failed": "Δεν ήρθε απάντηση. Δοκίμασε ξανά.",
@@ -2959,7 +2959,7 @@ const RO: WebCopy = {
   statProtein: "Proteine", statCarbs: "Carbohidrați", statFat: "Grăsimi",
   refusals: {
     "unreadable-label": "Eticheta asta nu a putut fi citită.",
-    "subscription-required": "Mostra gratuită a acestui cont s-a terminat. Începe perioada de probă gratuită ca să continui.",
+    "subscription-required": "Pentru a înregistra mesele ai nevoie de un abonament. Începe perioada de probă gratuită ca să continui.",
     "unsupported-image": "Fișierul nu e o fotografie pe care o pot citi. JPEG, PNG sau WebP.",
     "not-food": "Nu e mâncare în fotografia asta.",
     "analysis-failed": "Nu a venit niciun răspuns. Încearcă din nou.",
@@ -3058,7 +3058,7 @@ const CS: WebCopy = {
   statProtein: "Bílkoviny", statCarbs: "Sacharidy", statFat: "Tuky",
   refusals: {
     "unreadable-label": "Tuhle etiketu se nepodařilo přečíst.",
-    "subscription-required": "Bezplatná ukázka tohoto účtu je vyčerpaná. Pro pokračování začni zkušební období zdarma.",
+    "subscription-required": "Na zapisování jídel potřebuješ předplatné. Pro pokračování začni zkušební období zdarma.",
     "unsupported-image": "Tento soubor není fotka, kterou umím přečíst. JPEG, PNG nebo WebP.",
     "not-food": "Tady žádné jídlo není.",
     "analysis-failed": "Odpověď nepřišla. Zkus to znovu.",
@@ -3157,7 +3157,7 @@ const HI: WebCopy = {
   statProtein: "प्रोटीन", statCarbs: "कार्ब्स", statFat: "फ़ैट",
   refusals: {
     "unreadable-label": "वह लेबल पढ़ा नहीं जा सका।",
-    "subscription-required": "इस अकाउंट का मुफ़्त सैंपल खत्म हो गया है। जारी रखने के लिए अपना मुफ़्त ट्रायल शुरू करें।",
+    "subscription-required": "भोजन दर्ज करने के लिए सब्सक्रिप्शन ज़रूरी है। जारी रखने के लिए अपना मुफ़्त ट्रायल शुरू करें।",
     "unsupported-image": "यह फ़ाइल ऐसी फ़ोटो नहीं है जिसे पढ़ा जा सके। JPEG, PNG या WebP।",
     "not-food": "इसमें कोई खाना नहीं है।",
     "analysis-failed": "जवाब नहीं आया। फिर से कोशिश करें।",
@@ -3256,7 +3256,7 @@ const TH: WebCopy = {
   statProtein: "โปรตีน", statCarbs: "คาร์บ", statFat: "ไขมัน",
   refusals: {
     "unreadable-label": "อ่านฉลากนั้นไม่ได้",
-    "subscription-required": "บัญชีนี้ใช้ตัวอย่างฟรีหมดแล้ว เริ่มทดลองใช้ฟรีเพื่อใช้งานต่อ",
+    "subscription-required": "ต้องสมัครสมาชิกจึงจะจดมื้ออาหารได้ เริ่มทดลองใช้ฟรีเพื่อใช้งานต่อ",
     "unsupported-image": "ไฟล์นี้ไม่ใช่รูปที่อ่านได้ ใช้ JPEG, PNG หรือ WebP",
     "not-food": "รูปนี้ไม่มีอาหาร",
     "analysis-failed": "ไม่ได้รับผลลัพธ์กลับมา ลองอีกครั้ง",
@@ -3355,7 +3355,7 @@ const SV: WebCopy = {
   statProtein: "Protein", statCarbs: "Kolhydrater", statFat: "Fett",
   refusals: {
     "unreadable-label": "Det gick inte att läsa etiketten.",
-    "subscription-required": "Kontots gratisprov är förbrukat. Starta din gratis provperiod för att fortsätta.",
+    "subscription-required": "Du behöver en prenumeration för att logga måltider. Starta din gratis provperiod för att fortsätta.",
     "unsupported-image": "Filen är inte ett foto som kan läsas här. JPEG, PNG eller WebP.",
     "not-food": "Ingen mat på den.",
     "analysis-failed": "Det kom inget svar. Försök igen.",
@@ -3454,7 +3454,7 @@ const UK: WebCopy = {
   statProtein: "Білок", statCarbs: "Вуглеводи", statFat: "Жири",
   refusals: {
     "unreadable-label": "Не вдалося прочитати цю етикетку.",
-    "subscription-required": "Безкоштовну пробу цього акаунта використано. Почни безкоштовний пробний період, щоб продовжити.",
+    "subscription-required": "Щоб записувати їжу, потрібна підписка. Почни безкоштовний пробний період, щоб продовжити.",
     "unsupported-image": "Цей файл — не фото, яке можна прочитати. Потрібен JPEG, PNG або WebP.",
     "not-food": "Тут немає їжі.",
     "analysis-failed": "Відповідь не надійшла. Спробуй ще раз.",
@@ -3552,7 +3552,7 @@ const NL: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Eiwit", statCarbs: "Koolhydraten", statFat: "Vet",
   refusals: {
-    "subscription-required": "De gratis proef van dit account is op. Start je gratis proefperiode om door te gaan.",
+    "subscription-required": "Voor het loggen van maaltijden heb je een abonnement nodig. Start je gratis proefperiode om door te gaan.",
     "unsupported-image": "Dat bestand is geen foto die dit kan lezen. JPEG, PNG of WebP.",
     "not-food": "Daar staat geen eten op.",
     "unreadable-label": "Dat etiket kon niet worden gelezen.",
@@ -3651,7 +3651,7 @@ const PL: WebCopy = {
   photoWithCaption: "Zdjęcie: {text}",
   statProtein: "Białko", statCarbs: "Węglowodany", statFat: "Tłuszcz",
   refusals: {
-    "subscription-required": "Darmowa próbka tego konta została wykorzystana. Rozpocznij darmowy okres próbny, aby kontynuować.",
+    "subscription-required": "Zapisywanie posiłków wymaga subskrypcji. Rozpocznij darmowy okres próbny, aby kontynuować.",
     "unsupported-image": "Tego pliku nie da się odczytać jako zdjęcia. JPEG, PNG lub WebP.",
     "not-food": "Nie ma tu jedzenia.",
     "unreadable-label": "Nie udało się odczytać tej etykiety.",
@@ -3750,7 +3750,7 @@ const TR: WebCopy = {
   photoWithCaption: "Fotoğraf: {text}",
   statProtein: "Protein", statCarbs: "Karbonhidrat", statFat: "Yağ",
   refusals: {
-    "subscription-required": "Bu hesabın ücretsiz kullanım hakkı bitti. Devam etmek için ücretsiz denemeni başlat.",
+    "subscription-required": "Öğün kaydetmek için abonelik gerekiyor. Devam etmek için ücretsiz denemeni başlat.",
     "unsupported-image": "Bu dosya burada okunabilen bir fotoğraf değil. JPEG, PNG veya WebP kullan.",
     "not-food": "Bunda yiyecek yok.",
     "unreadable-label": "Bu etiket okunamadı.",
@@ -3849,7 +3849,7 @@ const ZH_HANT: WebCopy = {
   photoWithCaption: "照片：{text}",
   statProtein: "蛋白質", statCarbs: "碳水", statFat: "脂肪",
   refusals: {
-    "subscription-required": "這個帳號的免費體驗已用完。開始免費試用即可繼續。",
+    "subscription-required": "記錄餐點需要訂閱。開始免費試用即可繼續。",
     "unsupported-image": "這個檔案不是可讀取的照片格式。請用 JPEG、PNG 或 WebP。",
     "not-food": "這張照片裡沒有食物。",
     "unreadable-label": "無法讀取這個營養標示。",
@@ -3948,7 +3948,7 @@ const ZH_HANS: WebCopy = {
   photoWithCaption: "照片：{text}",
   statProtein: "蛋白质", statCarbs: "碳水", statFat: "脂肪",
   refusals: {
-    "subscription-required": "这个账户的免费体验已用完。开始免费试用即可继续。",
+    "subscription-required": "记录餐食需要订阅。开始免费试用即可继续。",
     "unsupported-image": "这个文件不是能读取的照片。请用 JPEG、PNG 或 WebP。",
     "not-food": "这张里没有食物。",
     "unreadable-label": "没能读取这张营养成分表。",
@@ -4047,7 +4047,7 @@ const KO: WebCopy = {
   photoWithCaption: "사진: {text}",
   statProtein: "단백질", statCarbs: "탄수화물", statFat: "지방",
   refusals: {
-    "subscription-required": "이 계정의 무료 분석을 모두 사용했어요. 계속하려면 무료 체험을 시작해 주세요.",
+    "subscription-required": "식사를 기록하려면 구독이 필요해요. 무료 체험을 시작하고 계속 이용하세요.",
     "unsupported-image": "읽을 수 있는 사진 파일이 아니에요. JPEG, PNG, WebP를 사용해 주세요.",
     "not-food": "음식이 보이지 않아요.",
     "unreadable-label": "영양성분표를 읽지 못했어요.",
@@ -4146,7 +4146,7 @@ const JA: WebCopy = {
   photoWithCaption: "写真：{text}",
   statProtein: "タンパク質", statCarbs: "炭水化物", statFat: "脂質",
   refusals: {
-    "subscription-required": "このアカウントの無料お試しは使い切りました。続けるには無料トライアルを開始してください。",
+    "subscription-required": "食事を記録するにはサブスクリプションが必要です。続けるには無料トライアルを開始してください。",
     "unsupported-image": "このファイルは読み込める写真ではありません。JPEG、PNG、WebPを使ってください。",
     "not-food": "食べ物が写っていません。",
     "unreadable-label": "その表示を読み取れませんでした。",
@@ -4245,7 +4245,7 @@ const PT_BR: WebCopy = {
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carboidratos", statFat: "Gordura",
   refusals: {
-    "subscription-required": "A amostra grátis desta conta acabou. Comece seu teste grátis para continuar.",
+    "subscription-required": "Para registrar refeições, é preciso uma assinatura. Comece seu teste grátis para continuar.",
     "unsupported-image": "Esse arquivo não é uma foto que dá para ler aqui. JPEG, PNG ou WebP.",
     "not-food": "Não tem comida nessa.",
     "unreadable-label": "Não foi possível ler esse rótulo.",

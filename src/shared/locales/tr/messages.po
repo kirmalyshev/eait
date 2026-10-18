@@ -294,6 +294,11 @@ msgstr "Kaydedildi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Öğün kaydetmek için abonelik gerekiyor. Devam etmek için web'de ücretsiz denemeni başlat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "Bunu kaydediyorum — doğru mu?"
 
@@ -526,11 +531,6 @@ msgstr "Bu hesap zaten bir arkadaş bağlantısıyla katıldı."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "Bu hesaba henüz giriş yapılmadı — web'de Apple veya Google ile giriş yap, sonra tekrar gönder."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Bu hesabın ücretsiz kullanım hakkı bitti. Devam etmek için web'de ücretsiz denemeni başlat."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

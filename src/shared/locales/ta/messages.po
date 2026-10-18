@@ -294,6 +294,11 @@ msgstr "பதிவானது."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "உணவைப் பதிவுசெய்ய சந்தா தேவை. தொடர, இணையத்தில் உங்கள் இலவச சோதனையைத் தொடங்குங்கள்."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "இதைப் பதிவுசெய்கிறேன் — சரியாக உள்ளதா?"
 
@@ -526,11 +531,6 @@ msgstr "இந்தக் கணக்கு ஏற்கெனவே ஒரு
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "இந்தக் கணக்கில் இன்னும் உள்நுழையவில்லை — இணையத்தில் Apple அல்லது Google மூலம் உள்நுழைந்து, மீண்டும் அனுப்புங்கள்."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "இந்தக் கணக்கின் இலவச மாதிரி தீர்ந்துவிட்டது. தொடர, இணையத்தில் உங்கள் இலவச சோதனையைத் தொடங்குங்கள்."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

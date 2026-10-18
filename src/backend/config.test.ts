@@ -487,11 +487,11 @@ describe("the web onboarding", () => {
 // webhook, grants nobody anything, and gives every account the free cap — which is exactly what
 // every deployment did before any of this existed.
 describe("the paid tier", () => {
-  it("is dormant by default: no webhook, the sample and nothing more, sandbox refused", () => {
+  it("is dormant by default: no webhook, no sample, sandbox refused", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.freeAnalyses).toBe(1);
+    expect(c.freeAnalyses).toBe(0);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 

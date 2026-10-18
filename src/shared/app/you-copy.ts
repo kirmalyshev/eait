@@ -391,7 +391,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "lifetime",
     subscriptionEnded: "ended {date}",
     subscriptionEndedNoDate: "ended",
-    subscriptionFree: "free",
+    subscriptionFree: "none",
     account: "Account",
     referral: {
       label: "Refer a friend",
@@ -529,7 +529,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "à vie",
     subscriptionEnded: "terminé le {date}",
     subscriptionEndedNoDate: "terminé",
-    subscriptionFree: "gratuit",
+    subscriptionFree: "aucun",
     account: "Compte",
     referral: {
       label: "Parrainer un ami",
@@ -667,7 +667,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "auf Lebenszeit",
     subscriptionEnded: "beendet am {date}",
     subscriptionEndedNoDate: "beendet",
-    subscriptionFree: "kostenlos",
+    subscriptionFree: "keins",
     account: "Konto",
     referral: {
       label: "Freunde einladen",
@@ -805,7 +805,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "a vita",
     subscriptionEnded: "terminato il {date}",
     subscriptionEndedNoDate: "terminato",
-    subscriptionFree: "gratuito",
+    subscriptionFree: "nessuno",
     account: "Account",
     referral: {
       label: "Invita un amico",
@@ -943,7 +943,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "de por vida",
     subscriptionEnded: "terminada el {date}",
     subscriptionEndedNoDate: "terminada",
-    subscriptionFree: "gratis",
+    subscriptionFree: "ninguna",
     account: "Cuenta",
     referral: {
       label: "Invita a un amigo",
@@ -1081,7 +1081,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "trọn đời",
     subscriptionEnded: "đã kết thúc {date}",
     subscriptionEndedNoDate: "đã kết thúc",
-    subscriptionFree: "miễn phí",
+    subscriptionFree: "chưa có",
     account: "Tài khoản",
     referral: {
       label: "Giới thiệu bạn bè",
@@ -1219,7 +1219,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "seumur hidup",
     subscriptionEnded: "berakhir {date}",
     subscriptionEndedNoDate: "berakhir",
-    subscriptionFree: "gratis",
+    subscriptionFree: "tidak ada",
     account: "Akun",
     referral: {
       label: "Ajak teman",
@@ -1357,7 +1357,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "пожизненная",
     subscriptionEnded: "закончилась {date}",
     subscriptionEndedNoDate: "закончилась",
-    subscriptionFree: "бесплатно",
+    subscriptionFree: "нет",
     account: "Аккаунт",
     referral: {
       label: "Пригласить друга",
@@ -1495,7 +1495,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "జీవితకాలం",
     subscriptionEnded: "{date} నాడు ముగిసింది",
     subscriptionEndedNoDate: "ముగిసింది",
-    subscriptionFree: "ఉచితం",
+    subscriptionFree: "లేదు",
     account: "ఖాతా",
     referral: {
       label: "స్నేహితులను ఆహ్వానించండి",
@@ -1633,7 +1633,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "வாழ்நாள்",
     subscriptionEnded: "முடிந்தது: {date}",
     subscriptionEndedNoDate: "முடிந்தது",
-    subscriptionFree: "இலவசம்",
+    subscriptionFree: "இல்லை",
     account: "கணக்கு",
     referral: {
       label: "நண்பரைப் பரிந்துரையுங்கள்",
@@ -1771,7 +1771,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ਲਾਈਫ਼ਟਾਈਮ",
     subscriptionEnded: "{date} ਨੂੰ ਖ਼ਤਮ",
     subscriptionEndedNoDate: "ਖ਼ਤਮ",
-    subscriptionFree: "ਮੁਫ਼ਤ",
+    subscriptionFree: "ਕੋਈ ਨਹੀਂ",
     account: "ਅਕਾਊਂਟ",
     referral: {
       label: "ਕਿਸੇ ਦੋਸਤ ਨੂੰ ਸੱਦਾ ਦਿਓ",
@@ -1909,7 +1909,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ଆଜୀବନ",
     subscriptionEnded: "{date} ରେ ଶେଷ",
     subscriptionEndedNoDate: "ଶେଷ",
-    subscriptionFree: "ମାଗଣା",
+    subscriptionFree: "ନାହିଁ",
     account: "ଆକାଉଣ୍ଟ",
     referral: {
       label: "ଜଣେ ବନ୍ଧୁଙ୍କୁ ଡାକନ୍ତୁ",
@@ -2047,7 +2047,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "लाइफटाइम",
     subscriptionEnded: "{date} रोजी संपले",
     subscriptionEndedNoDate: "संपले",
-    subscriptionFree: "मोफत",
+    subscriptionFree: "नाही",
     account: "अकाउंट",
     referral: {
       label: "मित्राला आमंत्रित करा",
@@ -2185,7 +2185,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ആജീവനാന്തം",
     subscriptionEnded: "അവസാനിച്ചു: {date}",
     subscriptionEndedNoDate: "അവസാനിച്ചു",
-    subscriptionFree: "സൗജന്യം",
+    subscriptionFree: "ഇല്ല",
     account: "അക്കൗണ്ട്",
     referral: {
       label: "ഒരു സുഹൃത്തിനെ ക്ഷണിക്കുക",
@@ -2323,7 +2323,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ಜೀವಮಾನ",
     subscriptionEnded: "{date} ರಂದು ಮುಗಿದಿದೆ",
     subscriptionEndedNoDate: "ಮುಗಿದಿದೆ",
-    subscriptionFree: "ಉಚಿತ",
+    subscriptionFree: "ಇಲ್ಲ",
     account: "ಖಾತೆ",
     referral: {
       label: "ಸ್ನೇಹಿತರನ್ನು ಆಹ್ವಾನಿಸಿ",
@@ -2461,7 +2461,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "લાઇફટાઇમ",
     subscriptionEnded: "{date} ના રોજ પૂરું થયું",
     subscriptionEndedNoDate: "પૂરું થયું",
-    subscriptionFree: "મફત",
+    subscriptionFree: "નથી",
     account: "એકાઉન્ટ",
     referral: {
       label: "મિત્રને આમંત્રણ આપો",
@@ -2599,7 +2599,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "আজীবন",
     subscriptionEnded: "শেষ হয়েছে {date}",
     subscriptionEndedNoDate: "শেষ হয়েছে",
-    subscriptionFree: "ফ্রি",
+    subscriptionFree: "নেই",
     account: "অ্যাকাউন্ট",
     referral: {
       label: "বন্ধুকে আমন্ত্রণ জানান",
@@ -2737,7 +2737,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "vitalícia",
     subscriptionEnded: "terminou a {date}",
     subscriptionEndedNoDate: "terminada",
-    subscriptionFree: "grátis",
+    subscriptionFree: "nenhuma",
     account: "Conta",
     referral: {
       label: "Convidar um amigo",
@@ -2875,7 +2875,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "seumur hidup",
     subscriptionEnded: "tamat {date}",
     subscriptionEndedNoDate: "tamat",
-    subscriptionFree: "percuma",
+    subscriptionFree: "tiada",
     account: "Akaun",
     referral: {
       label: "Rujuk rakan",
@@ -3013,7 +3013,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "vitalícia",
     subscriptionEnded: "acabada el {date}",
     subscriptionEndedNoDate: "acabada",
-    subscriptionFree: "gratuïta",
+    subscriptionFree: "cap",
     account: "Compte",
     referral: {
       label: "Convida un amic",
@@ -3151,7 +3151,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "doživljenjska",
     subscriptionEnded: "potekla {date}",
     subscriptionEndedNoDate: "potekla",
-    subscriptionFree: "brezplačno",
+    subscriptionFree: "brez",
     account: "Račun",
     referral: {
       label: "Povabi prijatelja",
@@ -3289,7 +3289,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "doživotno",
     subscriptionEnded: "završila {date}",
     subscriptionEndedNoDate: "završila",
-    subscriptionFree: "besplatno",
+    subscriptionFree: "nema",
     account: "Račun",
     referral: {
       label: "Pozovi prijatelja",
@@ -3427,7 +3427,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "doživotné",
     subscriptionEnded: "skončilo {date}",
     subscriptionEndedNoDate: "skončilo",
-    subscriptionFree: "zadarmo",
+    subscriptionFree: "žiadne",
     account: "Účet",
     referral: {
       label: "Pozvi kamaráta",
@@ -3565,7 +3565,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "livstid",
     subscriptionEnded: "avsluttet {date}",
     subscriptionEndedNoDate: "avsluttet",
-    subscriptionFree: "gratis",
+    subscriptionFree: "ingen",
     account: "Konto",
     referral: {
       label: "Inviter en venn",
@@ -3703,7 +3703,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "elinikäinen",
     subscriptionEnded: "päättyi {date}",
     subscriptionEndedNoDate: "päättynyt",
-    subscriptionFree: "ilmainen",
+    subscriptionFree: "ei ole",
     account: "Tili",
     referral: {
       label: "Kutsu ystävä",
@@ -3841,7 +3841,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "livstid",
     subscriptionEnded: "udløb {date}",
     subscriptionEndedNoDate: "udløbet",
-    subscriptionFree: "gratis",
+    subscriptionFree: "intet",
     account: "Konto",
     referral: {
       label: "Inviter en ven",
@@ -3979,7 +3979,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "életre szóló",
     subscriptionEnded: "lejárt: {date}",
     subscriptionEndedNoDate: "lejárt",
-    subscriptionFree: "ingyenes",
+    subscriptionFree: "nincs",
     account: "Fiók",
     referral: {
       label: "Hívd meg egy barátodat",
@@ -4117,7 +4117,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "εφ' όρου ζωής",
     subscriptionEnded: "έληξε {date}",
     subscriptionEndedNoDate: "έληξε",
-    subscriptionFree: "δωρεάν",
+    subscriptionFree: "καμία",
     account: "Λογαριασμός",
     referral: {
       label: "Πρόσκληση φίλου",
@@ -4255,7 +4255,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "pe viață",
     subscriptionEnded: "încheiat pe {date}",
     subscriptionEndedNoDate: "încheiat",
-    subscriptionFree: "gratuit",
+    subscriptionFree: "niciunul",
     account: "Cont",
     referral: {
       label: "Invită un prieten",
@@ -4393,7 +4393,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "doživotní",
     subscriptionEnded: "skončilo {date}",
     subscriptionEndedNoDate: "skončilo",
-    subscriptionFree: "zdarma",
+    subscriptionFree: "žádné",
     account: "Účet",
     referral: {
       label: "Pozvi kamaráda",
@@ -4531,7 +4531,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "लाइफ़टाइम",
     subscriptionEnded: "{date} को खत्म",
     subscriptionEndedNoDate: "खत्म",
-    subscriptionFree: "मुफ़्त",
+    subscriptionFree: "कोई नहीं",
     account: "अकाउंट",
     referral: {
       label: "किसी दोस्त को बुलाएँ",
@@ -4669,7 +4669,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ตลอดชีพ",
     subscriptionEnded: "สิ้นสุด {date}",
     subscriptionEndedNoDate: "สิ้นสุดแล้ว",
-    subscriptionFree: "ฟรี",
+    subscriptionFree: "ไม่มี",
     account: "บัญชี",
     referral: {
       label: "ชวนเพื่อน",
@@ -4807,7 +4807,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "livstid",
     subscriptionEnded: "avslutad {date}",
     subscriptionEndedNoDate: "avslutad",
-    subscriptionFree: "gratis",
+    subscriptionFree: "ingen",
     account: "Konto",
     referral: {
       label: "Bjud in en vän",
@@ -4945,7 +4945,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "довічна",
     subscriptionEnded: "закінчилася {date}",
     subscriptionEndedNoDate: "закінчилася",
-    subscriptionFree: "безкоштовно",
+    subscriptionFree: "немає",
     account: "Акаунт",
     referral: {
       label: "Запросити друга",
@@ -5083,7 +5083,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "levenslang",
     subscriptionEnded: "gestopt op {date}",
     subscriptionEndedNoDate: "gestopt",
-    subscriptionFree: "gratis",
+    subscriptionFree: "geen",
     account: "Account",
     referral: {
       label: "Nodig een vriend uit",
@@ -5221,7 +5221,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "dożywotnio",
     subscriptionEnded: "zakończona {date}",
     subscriptionEndedNoDate: "zakończona",
-    subscriptionFree: "bezpłatnie",
+    subscriptionFree: "brak",
     account: "Konto",
     referral: {
       label: "Poleć znajomym",
@@ -5359,7 +5359,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "ömür boyu",
     subscriptionEnded: "{date} tarihinde bitti",
     subscriptionEndedNoDate: "bitti",
-    subscriptionFree: "ücretsiz",
+    subscriptionFree: "yok",
     account: "Hesap",
     referral: {
       label: "Arkadaşını davet et",
@@ -5497,7 +5497,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "終身",
     subscriptionEnded: "已於 {date} 結束",
     subscriptionEndedNoDate: "已結束",
-    subscriptionFree: "免費",
+    subscriptionFree: "無",
     account: "帳號",
     referral: {
       label: "推薦朋友",
@@ -5635,7 +5635,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "终身",
     subscriptionEnded: "已于{date}结束",
     subscriptionEndedNoDate: "已结束",
-    subscriptionFree: "免费",
+    subscriptionFree: "无",
     account: "账户",
     referral: {
       label: "邀请好友",
@@ -5773,7 +5773,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "평생",
     subscriptionEnded: "{date}에 종료됨",
     subscriptionEndedNoDate: "종료됨",
-    subscriptionFree: "무료",
+    subscriptionFree: "없음",
     account: "계정",
     referral: {
       label: "친구 초대",
@@ -5911,7 +5911,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "買い切り",
     subscriptionEnded: "{date}に終了",
     subscriptionEndedNoDate: "終了",
-    subscriptionFree: "無料",
+    subscriptionFree: "なし",
     account: "アカウント",
     referral: {
       label: "友だちを招待",
@@ -6049,7 +6049,7 @@ export const YOU_COPY: Localized<YouCopy> = {
     subscriptionLifetime: "vitalícia",
     subscriptionEnded: "encerrada em {date}",
     subscriptionEndedNoDate: "encerrada",
-    subscriptionFree: "grátis",
+    subscriptionFree: "nenhuma",
     account: "Conta",
     referral: {
       label: "Indique um amigo",

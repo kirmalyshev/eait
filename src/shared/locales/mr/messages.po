@@ -294,6 +294,11 @@ msgstr "नोंदवले."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "जेवण नोंदवण्यासाठी सबस्क्रिप्शन आवश्यक आहे. पुढे चालू ठेवण्यासाठी वेबवर तुमचे मोफत ट्रायल सुरू करा."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "हे नोंदवले जाईल — बरोबर वाटते का?"
 
@@ -526,11 +531,6 @@ msgstr "हे अकाउंट आधीच मित्राच्या �
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "या अकाउंटमध्ये अजून साइन इन केलेले नाही — वेबवर Apple किंवा Google सह साइन इन करा, मग ते पुन्हा पाठवा."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "या अकाउंटचे मोफत सॅम्पल संपले आहे. पुढे चालू ठेवण्यासाठी वेबवर तुमचे मोफत ट्रायल सुरू करा."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

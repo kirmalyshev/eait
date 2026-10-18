@@ -143,9 +143,8 @@ export interface Config {
    */
   llmAgentConcurrency: number;
   /**
-   * Analyses an account gets before an entitlement is required. THERE IS NO FREE TIER: this is
-   * the onboarding's sample — the one meal on us, photo or typed — and the default is
-   * `FREE_ANALYSES` (1). Lifetime, not per day, and the INSTANCE default: the admin can give one
+   * Analyses an account gets before an entitlement is required. THERE IS NO FREE TIER: the
+   * default is `FREE_ANALYSES` (0, ieat-app#2364 — the trial is the only way in). Lifetime, not per day, and the INSTANCE default: the admin can give one
    * account its own (`Store.setFreeAnalyses`). A demo instance sets it high rather than growing a
    * second code path.
    */

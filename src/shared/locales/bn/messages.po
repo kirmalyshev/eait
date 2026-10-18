@@ -294,6 +294,11 @@ msgstr "লগ হয়েছে।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "খাবার লগ করতে সাবস্ক্রিপশন লাগবে। চালিয়ে যেতে ওয়েবে আপনার ফ্রি ট্রায়াল শুরু করুন।"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "এটা লগ করছি — ঠিক আছে তো?"
 
@@ -526,11 +531,6 @@ msgstr "এই অ্যাকাউন্ট আগেই একজন বন�
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "এই অ্যাকাউন্টে এখনও সাইন ইন করা হয়নি — ওয়েবে Apple বা Google দিয়ে সাইন ইন করুন, তারপর আবার পাঠান।"
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "এই অ্যাকাউন্টের ফ্রি স্যাম্পল শেষ হয়ে গেছে। চালিয়ে যেতে ওয়েবে আপনার ফ্রি ট্রায়াল শুরু করুন।"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

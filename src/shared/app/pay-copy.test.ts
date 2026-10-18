@@ -14,7 +14,6 @@ const KEYS = [
   "plansTitle", "plansHeroAlt",
   "planYearly", "planMonthly", "trialBadge", "pricePerYear", "pricePerMonth",
   "yearlySub", "monthlySub", "perMonthCaption", "benefitPhoto", "benefitPlan", "benefitChat",
-  "freeMealLabel",
   "startTrial", "trialNote", "trialNotePhone",
   "giftTitle", "giftAlt", "giftNote", "giftOpen",
   "offerTitle", "offerAlt", "offerOff", "offerPrice", "offerPerMonth",
@@ -82,7 +81,6 @@ describe("PAY_COPY", () => {
     expect(en.benefitChat).toBe("Ask Spud about your day");
     expect(en.yearlySub).toBe("{trial}, then {price} a year");
     expect(en.perMonthCaption).toBe("a month");
-    expect(en.freeMealLabel).toBe("Your free meal");
     expect(en.monthlySub).toBe("{trial}, then {price} a month");
     expect(en.startTrial).toBe("Try {days} days free");
     expect(en.trialNote).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.");
@@ -110,7 +108,7 @@ describe("PAY_COPY", () => {
     expect(en.welcomeSub).toBe("Every meal gets an honest answer now, and your plan moves when your weight does.");
     expect(en.welcomeBack).toBe("Back to today");
     // pay-dock (phone)
-    expect(en.dockTitlePhone).toBe("That was your meal on us");
+    expect(en.dockTitlePhone).toBe("Subscribe to log your meals");
     expect(en.subscribePhone).toBe("Subscribe");
     // pay-trial-ends (phone and web): the one reminder, named from the board
     expect(en.trialEnds).toBe("Your free trial ends tomorrow");

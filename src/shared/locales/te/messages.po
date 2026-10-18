@@ -294,6 +294,11 @@ msgstr "నమోదైంది."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "భోజనాలను నమోదు చేయడానికి సబ్‌స్క్రిప్షన్ అవసరం. కొనసాగడానికి వెబ్‌లో మీ ఉచిత ట్రయల్ మొదలుపెట్టండి."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.proposalLead"
 msgstr "దీన్ని నమోదు చేస్తున్నాను — సరిగ్గా ఉందా?"
 
@@ -526,11 +531,6 @@ msgstr "ఈ ఖాతా ఇప్పటికే స్నేహితుల �
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.identity-required"
 msgstr "ఈ ఖాతాలో ఇంకా సైన్ ఇన్ కాలేదు — వెబ్‌లో Apple లేదా Google ద్వారా సైన్ ఇన్ చేసి, మళ్ళీ పంపండి."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "ఈ ఖాతా ఉచిత శాంపిల్ అయిపోయింది. కొనసాగడానికి వెబ్‌లో మీ ఉచిత ట్రయల్ మొదలుపెట్టండి."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
