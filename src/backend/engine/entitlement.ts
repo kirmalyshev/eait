@@ -23,11 +23,41 @@ import { referralRewardDays } from "./referral.ts";
 /**
  * The photos-per-day allowance of an ENTITLED account, resolved in one place.
  *
- * There is no unentitled allowance to resolve: without an entitlement the account is refused
- * (`checkCaps`, ieat-app#2364 — there is no sample).
+ * There is no unentitled allowance to resolve: without an entitlement the account has what the
+ * admin granted it (`freeAnalysesFor`, none by default — ieat-app#2364) and nothing per day.
  */
 export function dailyPhotoCap(config: Config): number {
   return config.paidDailyPhotoCap;
+}
+
+/**
+ * The analyses the admin granted THIS account before an entitlement is required — none unless one
+ * was granted (ieat-app#2364: no default sample). `checkCaps` refuses with it and `limitsOf` reports it.
+ */
+export async function freeAnalysesFor(deps: EngineDeps, userId: string): Promise<number> {
+  return (await deps.store.getFreeAnalyses(userId)) ?? 0;
+}
+
+/** One account's sample, as the admin sees it. */
+export interface UserCap {
+  /** The analyses the admin granted this account, or null when none was. */
+  freeAnalyses: number | null;
+  effective: number;
+  spent: number;
+}
+
+/** Null when there is no such account. */
+export async function userCap(deps: EngineDeps, userId: string): Promise<UserCap | null> {
+  if (!(await deps.store.getProfile(userId))) return null;
+  const [own, spent] = await Promise.all([
+    deps.store.getFreeAnalyses(userId), deps.store.countUserAnalyses(userId),
+  ]);
+  return { freeAnalyses: own, effective: own ?? 0, spent };
+}
+
+/** Null when there is no such account. `n` null takes the grant away. */
+export async function setUserCap(deps: EngineDeps, userId: string, n: number | null): Promise<UserCap | null> {
+  return (await deps.store.setFreeAnalyses(userId, n)) ? userCap(deps, userId) : null;
 }
 
 /**
@@ -36,10 +66,11 @@ export function dailyPhotoCap(config: Config): number {
  *
  * `entitled` is `entitlementLive` and nothing else, for the reason at the top of this file: the
  * panel must not be a second opinion about what "paid" means, or it will eventually disagree with
- * the refusal.
+ * the refusal. `effective` is the same `own ?? default` that `checkCaps` refuses with.
  */
 export interface AdminUser extends AdminUserRow {
   entitled: boolean;
+  effective: number;
 }
 
 export interface AdminUsers {
@@ -66,6 +97,7 @@ export async function adminUsers(
     users: page.rows.map((row) => ({
       ...row,
       entitled: entitlementLive(row.entitlement, now, referralBonusOf(row.entitlement, row.bonusUntil, row.bankedDays, now).end),
+      effective: row.freeAnalyses ?? 0,
     })),
     nextCursor: page.nextCursor,
   };

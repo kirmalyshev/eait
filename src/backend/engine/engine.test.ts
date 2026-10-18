@@ -552,6 +552,17 @@ describe("the paywall", () => {
     expect((await logPhotoMeal(makeDeps({ paywall: false }), userId, photo())).kind).toBe("logged");
   });
 
+  // Kirill (ieat-app#2364): no default sample, but the admin may grant one account N analyses.
+  it("lets a granted account spend exactly its grant, and tells the app so without a count", async () => {
+    const userId = await onboard();
+    await store.setFreeAnalyses(userId, 2);
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(false);
+    expect((await logPhotoMeal(paid, userId, photo())).kind).toBe("logged");
+    expect((await handleText(paid, userId, { text: "two eggs on toast" })).kind).not.toBe("subscription-required");
+    expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect((await profileView(paid, userId))!.limits.subscriptionRequired).toBe(true);
+  });
+
   it("opens the account once an entitlement is written, and closes it again when it lapses", async () => {
     const userId = await onboard();
     expect(await logPhotoMeal(paid, userId, photo())).toEqual({ kind: "subscription-required" });

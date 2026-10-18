@@ -278,6 +278,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const { userId } = await s.upsertDeviceUser(d, "en");
       await s.addIdentity(userId, "google", subject("list-one"));
       await s.setIdentityEmail(userId, "google", subject("list-one"), "Listed@Example.test");
+      await s.setFreeAnalyses(userId, 7);
       await s.recordAnalysis(userId, RUN_DATE, "photo");
       await s.recordAnalysis(userId, RUN_DATE, "text");
       await s.issueToken(userId);
@@ -290,8 +291,10 @@ function contract(name: string, make: () => Promise<Store>) {
       // the account, not the absence of one.
       expect([...row.providers].sort()).toEqual(["device", "google"]);
       expect(row.email).toBe("Listed@Example.test");
-      // Both scopes: a typed meal is an analysis as much as a photograph.
+      expect(row.freeAnalyses).toBe(7);
+      // Both scopes, because the sample is spent by a typed meal as much as by a photograph.
       expect(row.analysesToday).toBe(2);
+      expect(row.spent).toBe(2);
       expect(row.lastSeen).toBeTruthy();
     });
 
@@ -301,7 +304,10 @@ function contract(name: string, make: () => Promise<Store>) {
       const row = (await s.adminListUsers({ limit: 50, today: RUN_DATE })).rows
         .find((r) => r.userId === userId)!;
       expect(row.email).toBeNull();
+      // Null is "no grant" (ieat-app#2364), which is a different fact from a number.
+      expect(row.freeAnalyses).toBeNull();
       expect(row.analysesToday).toBe(0);
+      expect(row.spent).toBe(0);
       // Never signed in on any device, so there is no session to have been seen in.
       expect(row.lastSeen).toBeNull();
       expect(row.entitlement).toBeNull();
@@ -676,6 +682,31 @@ function contract(name: string, make: () => Promise<Store>) {
 
       await s.mergeUsers(anon, real);
       expect((await s.getEntitlement(real))?.lifetimeProductId).toBeNull();
+    });
+
+    it("has no sample size of its own until the admin sets one, and the merge carries it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.getFreeAnalyses(userId)).toBeNull();
+      expect(await s.setFreeAnalyses(userId, 1)).toBe(true);
+      expect(await s.getFreeAnalyses(userId)).toBe(1);
+      expect(await s.setFreeAnalyses(userId, null)).toBe(true);
+      expect(await s.getFreeAnalyses(userId)).toBeNull();
+      expect(await s.setFreeAnalyses(crypto.randomUUID(), 1)).toBe(false);
+
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.setFreeAnalyses(anon, 1);
+      await s.mergeUsers(anon, real);
+      expect(await s.getFreeAnalyses(real)).toBe(1);
+
+      // And never over the survivor's own.
+      const anon2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.setFreeAnalyses(anon2, 1);
+      await s.setFreeAnalyses(real2, 2);
+      await s.mergeUsers(anon2, real2);
+      expect(await s.getFreeAnalyses(real2)).toBe(2);
     });
 
     // THE CLOCKS HAVE TO CROSS TOO, and `getEntitlement` hides them — so the only way to see one is

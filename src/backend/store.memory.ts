@@ -166,6 +166,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     lifetimeEventAt: string | null;
   }
   const entitlements = new Map<string, StoredWithClocks>();
+  const freeAnalyses = new Map<string, number>(); // userId -> the analyses the admin granted
   /**
    * The referral columns of `users` (#899) — maps beside the profile for the reason `roles` is
    * one: off `Profile`, `patchProfile` here cannot write them either.
@@ -433,6 +434,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const k of [...pushSlots.keys()]) if (k.startsWith(`${userId}|`)) pushSlots.delete(k);
     pushDailyMax.delete(userId);
     for (const [k, r] of sendLog) if (r.userId === userId) { sendLog.delete(k); pushOpens.delete(`${userId}|${k}`); }
+    freeAnalyses.delete(userId);
     eraseReferrals(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -760,7 +762,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           entitlement: storedEntitlement(id),
           bonusUntil: bonusUntil.get(id) ?? null,
           bankedDays: bankedDays.get(id) ?? 0,
+          freeAnalyses: freeAnalyses.get(id) ?? null,
           analysesToday: analyses.filter((a) => a.userId === id && a.date === today).length,
+          spent: analyses.filter((a) => a.userId === id).length,
           lastSeen: sessions.length === 0 ? null
             : new Date(Math.max(...sessions.map((t) => t.lastUsedAt))).toISOString(),
           staff: staffSet.has(id),
@@ -940,6 +944,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         });
         entitlements.delete(fromUserId);
       }
+      // The admin's grant moves the same way: into a gap, never over the survivor's own.
+      const ownCap = freeAnalyses.get(fromUserId);
+      if (ownCap !== undefined && !freeAnalyses.has(intoUserId)) freeAnalyses.set(intoUserId, ownCap);
+      freeAnalyses.delete(fromUserId);
       const ownPushMax = pushDailyMax.get(fromUserId);
       if (ownPushMax !== undefined && !pushDailyMax.has(intoUserId)) pushDailyMax.set(intoUserId, ownPushMax);
       pushDailyMax.delete(fromUserId);
@@ -2044,6 +2052,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async countUserAnalyses(userId) {
       return analyses.filter((a) => a.userId === userId).length;
+    },
+
+    async getFreeAnalyses(userId) {
+      return freeAnalyses.get(userId) ?? null;
+    },
+
+    async setFreeAnalyses(userId, n) {
+      if (!users.has(userId)) return false;
+      if (n === null) freeAnalyses.delete(userId); else freeAnalyses.set(userId, n);
+      return true;
     },
 
     async recordAnalysis(userId, date, scope) {

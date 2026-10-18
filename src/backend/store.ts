@@ -618,8 +618,12 @@ export interface AdminUserRow {
   /** The referral week's end (`Store.bonusUntil`) and the days banked behind a subscription (`Store.bankedDays`) — `referralBonusEnd` makes them the third input `entitlementLive` takes. */
   bonusUntil: string | null;
   bankedDays: number;
+  /** The analyses the admin granted this account, or null when none was. */
+  freeAnalyses: number | null;
   /** Analyses of BOTH scopes on the day asked for. */
   analysesToday: number;
+  /** Every analysis this account has ever spent. The number a grant is spent against. */
+  spent: number;
   /** The most recent use of any of this account's sessions, or null if it has never held one. */
   lastSeen: string | null;
   /** `users.staff`. */
@@ -1664,9 +1668,18 @@ export interface Store {
   countClipAnalyses(date: string): Promise<number>;
   /**
    * Every analysis this account has been charged for and not refunded, photo or text, over its
-   * lifetime. `mayAsk` reads it to tell the first meal from the rest.
+   * lifetime — what an admin's grant (`getFreeAnalyses`) is spent against, both scopes, so a
+   * sentence is not the free way around the ask. A row counts from the moment it is charged, so two
+   * requests racing for a grant's last analysis cannot both pass. `mayAsk` reads it too.
    */
   countUserAnalyses(userId: string): Promise<number>;
+  /**
+   * The analyses the admin granted this account before an entitlement is required, or null when
+   * none was (ieat-app#2364: no default sample). Written by the admin only — no client route to it.
+   */
+  getFreeAnalyses(userId: string): Promise<number | null>;
+  /** Set this account's grant, or take it away with null. False when there is no such user. */
+  setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
   /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text" | "clip"): Promise<string>;
   /**
@@ -1758,7 +1771,7 @@ export interface Store {
   settleJob(userId: string, clientId: string, owner: string, outcome: object): Promise<boolean>;
   /** The one push, claimed: true for exactly one caller, and only while nobody follows and the job is not removed. */
   claimPush(userId: string, clientId: string): Promise<boolean>;
-  /** The attempt's charge, fenced, so a retry can release a dead attempt's sample. */
+  /** The attempt's charge, fenced, so a retry can find a dead attempt's charge. */
   chargeJob(userId: string, clientId: string, owner: string, analysisId: string): Promise<boolean>;
   /**
    * One transaction, fenced: record `meal.id` on the job, insert the meal, and adopt the job's

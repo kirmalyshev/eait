@@ -23,6 +23,7 @@ import { evaluateMilestones } from "./milestones.ts";
 import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 import { referralView } from "./referral.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
+import { unpaidRefused } from "./caps.ts";
 
 /**
  * The limits THIS server enforces, so the client stops guessing at them.
@@ -37,8 +38,8 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
     // The SAME function and the SAME count `checkCaps` refuses with. Anything else here is the
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
-    // The paywall's own answer (`checkCaps`): no sample, so every unpaid account (ieat-app#2364).
-    subscriptionRequired: deps.config.paywall && !entitled,
+    // The paywall's own answer (`checkCaps`), the admin's grant included — so the app needs no count.
+    subscriptionRequired: !entitled && await unpaidRefused(deps, userId),
     // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
     // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,

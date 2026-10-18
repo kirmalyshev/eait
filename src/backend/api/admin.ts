@@ -51,7 +51,7 @@ import {
   sendTestPush, pushOpenView, sendAdminPush,
   listPushTemplates, reviewPushTemplate, savePushTemplate,
   campaignOverview, createCampaign, dryRunCampaign, setCampaignStatus, setCampaignsKilled, testSendCampaign, updateCampaign,
-  resetOnboardingContent, saveOnboardingContent, saveSwitch,
+  resetOnboardingContent, saveOnboardingContent, saveSwitch, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
 import { adminPage } from "./admin.page.ts";
@@ -486,6 +486,29 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps, adminId: 
     // Clamped rather than rejected, exactly as the funnel's own `days` is.
     const days = Number.isFinite(raw) ? Math.min(400, Math.max(1, Math.round(raw))) : 30;
     return json(await adminMetrics(deps, days));
+  }
+
+  // ── Per-account grant (ieat-app#2364: no default sample) ─────────────────────────────────────────────────────────────────────
+  //
+  // The analyses the admin grants one account before a subscription; null takes the grant away. The
+  // id must look like one before it reaches Postgres, or a typo is a cast error and a 500.
+  const cap = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/cap$/);
+  if (cap) {
+    const userId = cap[1]!;
+    if (req.method === "GET") {
+      const view = await userCap(deps, userId);
+      return view ? json(view) : notFound();
+    }
+    if (req.method === "PUT") {
+      const body = await req.json().catch(() => null) as { freeAnalyses?: unknown } | null;
+      const n = body?.freeAnalyses;
+      // Bounded by the column: `free_analyses integer`, and a number past it is a cast error.
+      if (n !== null && !(Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 2_147_483_647)) {
+        return json({ errors: ["freeAnalyses must be a whole number of analyses, or null for none"] }, 422);
+      }
+      const view = await setUserCap(deps, userId, n as number | null);
+      return view ? json(view) : notFound();
+    }
   }
 
   // ── Referrals (#899) ───────────────────────────────────────────────────────────────────────

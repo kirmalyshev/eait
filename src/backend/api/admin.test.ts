@@ -489,12 +489,14 @@ describe("the account list", () => {
   const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
   const list = async (query = "") =>
     await (await admin("GET", `/admin/api/users${query}`)).json() as {
-      users: { userId: string; providers: string[]; entitled: boolean; analysesToday: number }[];
+      users: { userId: string; providers: string[]; entitled: boolean; effective: number;
+               freeAnalyses: number | null; spent: number; analysesToday: number }[];
       nextCursor: string | null;
     };
 
-  it("answers who signed up and what they are entitled to", async () => {
+  it("answers who signed up, what they are entitled to and what their cap is", async () => {
     const userId = await user();
+    await store.setFreeAnalyses(userId, 3);
     await store.recordAnalysis(userId, localDate(base.timezone), "photo");
 
     const body = await list();
@@ -504,7 +506,17 @@ describe("the account list", () => {
     // Never entitled without a webhook: there is no client route that grants one and no admin
     // route either, and this is the panel reading the same record the refusal reads.
     expect(row.entitled).toBe(false);
-    expect(row.analysesToday).toBe(1);
+    expect(row.freeAnalyses).toBe(3);
+    expect(row.effective).toBe(3);
+  });
+
+  it("resolves no grant to none rather than making the panel do it (ieat-app#2364)", async () => {
+    const userId = await user();
+    const row = (await list()).users.find((u) => u.userId === userId)!;
+    // Two answers to "what is this account's cap" is how the panel and `checkCaps` come to
+    // disagree — `freeAnalysesFor` is `own ?? default` and so is this.
+    expect(row.freeAnalyses).toBeNull();
+    expect(row.effective).toBe(0);
   });
 
   it("clamps the page size instead of refusing it", async () => {
@@ -738,13 +750,14 @@ describe("the audit line", () => {
         template: { key: "evening", lang: "en", variant: "default", title: "Evening", body: "{weight} today." },
         status: "draft",
       });
-      await admin("PUT", `/admin/api/users/${subject}/push-cap`, { pushDailyMax: 40 });
+      await admin("GET", `/admin/api/users/${subject}/cap`);
+      await admin("PUT", `/admin/api/users/${subject}/cap`, { freeAnalyses: 40 });
     });
     expect(audit(lines)).toEqual([
       `[eait] admin write: ${adminId} PUT /admin/api/content -> 200`,
       `[eait] admin write: ${adminId} POST /admin/api/content/reset -> 200`,
       `[eait] admin write: ${adminId} PUT /admin/api/push-templates -> 422`,
-      `[eait] admin write: ${adminId} PUT /admin/api/users/${subject}/push-cap -> 200`,
+      `[eait] admin write: ${adminId} PUT /admin/api/users/${subject}/cap -> 200`,
     ]);
   });
 
@@ -977,6 +990,48 @@ describe("the numbers past the funnel", () => {
     // An aggregate is still a query over other people's rows.
     const res = await handle(new Request(url("/admin/api/metrics"), {
       headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("the per-account sample", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+
+  it("grants none until one is set, sets one, and takes it away with null", async () => {
+    const path = `/admin/api/users/${await user()}/cap`;
+    expect(await (await admin("GET", path)).json()).toEqual({ freeAnalyses: null, effective: 0, spent: 0 });
+    const put = await admin("PUT", path, { freeAnalyses: 1 });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual({ freeAnalyses: 1, effective: 1, spent: 0 });
+    expect(await (await admin("GET", path)).json()).toMatchObject({ effective: 1 });
+    expect(await (await admin("PUT", path, { freeAnalyses: null })).json())
+      .toEqual({ freeAnalyses: null, effective: 0, spent: 0 });
+  });
+
+  it("422s anything but a whole number or null", async () => {
+    const path = `/admin/api/users/${await user()}/cap`;
+    for (const freeAnalyses of [-1, 1.5, "1", true, 2_147_483_648]) {
+      expect((await admin("PUT", path, { freeAnalyses })).status).toBe(422);
+    }
+    expect((await admin("PUT", path, {})).status).toBe(422);
+  });
+
+  it("404s an account that does not exist, and an id that could not be one", async () => {
+    expect((await admin("GET", `/admin/api/users/${crypto.randomUUID()}/cap`)).status).toBe(404);
+    expect((await admin("PUT", `/admin/api/users/${crypto.randomUUID()}/cap`, { freeAnalyses: 1 })).status).toBe(404);
+    expect((await admin("GET", "/admin/api/users/not-a-uuid/cap")).status).toBe(404);
+  });
+
+  it("gives an ordinary user's bearer token a 404 on a WRITE", async () => {
+    // The write is the one worth stating separately: setting another account's sample size is the
+    // only thing on this surface that changes what a stranger is allowed to spend.
+    const path = `/admin/api/users/${await user()}/cap`;
+    const res = await handle(new Request(url(path), {
+      method: "PUT", headers: { authorization: `Bearer ${await session()}`, "content-type": "application/json" },
+      body: JSON.stringify({ freeAnalyses: 1 }),
     }));
     expect(res.status).toBe(404);
   });

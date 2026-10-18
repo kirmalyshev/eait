@@ -8,20 +8,30 @@
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { GatewayRefusal, type OnCall, type OnCost } from "../llm/port.ts";
-import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
+import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { isAnonymous } from "./identity.ts";
 
 /** `clip` is the App Clip's anonymous estimate: its own daily ceiling, and no identity required. */
 export type CapScope = "photo" | "text" | "clip";
 
 /**
- * THE paywall rule, once: an account with no live entitlement is refused — there is no sample
- * (ieat-app#2364). `"entitled"` means the paid tier's own limits apply; null is an instance that
- * runs without the paywall (`config.paywall`, a local demo). Read per request, never cached.
+ * Whether an account with no live entitlement is refused: always, unless the instance runs without
+ * the paywall (`config.paywall`, a local demo) or the admin granted it analyses it has not spent.
+ * There is no default sample (ieat-app#2364). The profile's `subscriptionRequired` is this answer.
+ */
+export async function unpaidRefused(deps: EngineDeps, userId: string): Promise<boolean> {
+  if (!deps.config.paywall) return false;
+  const granted = await freeAnalysesFor(deps, userId);
+  return granted === 0 || (await deps.store.countUserAnalyses(userId)) >= granted;
+}
+
+/**
+ * THE paywall rule, once. `"entitled"` means the paid tier's own limits apply; null is an unpaid
+ * account `unpaidRefused` lets through. Read per request, never cached.
  */
 async function paywall(deps: EngineDeps, userId: string): Promise<Refusal | null | "entitled"> {
   if ((await entitlementFor(deps, userId)).active) return "entitled";
-  return deps.config.paywall ? { kind: "subscription-required" } : null;
+  return (await unpaidRefused(deps, userId)) ? { kind: "subscription-required" } : null;
 }
 
 /**
@@ -37,8 +47,8 @@ export async function checkFreeLog(deps: EngineDeps, userId: string): Promise<Re
 /**
  * Null when the request may proceed, a refusal when it may not.
  *
- * Without an entitlement the account is refused, photo or text alike — a sentence must not be
- * the free way around the ask. With one, photos meet the paid daily cap and text turns meet no per-user cap
+ * Without an entitlement the account is refused (`unpaidRefused`), photo or text alike — a sentence
+ * must not be the free way around the ask. With one, photos meet the paid daily cap and text turns meet no per-user cap
  * at all: charging a question against the photo allowance would mean asking "how much protein
  * have I had" costs the user a meal they could have logged, which quietly teaches people not to
  * use the chat.
