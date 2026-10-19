@@ -549,11 +549,6 @@ msgstr "이 Telegram에서 시도 횟수가 너무 많아요. 잠시 기다린 �
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "무료 체험이 시작됐어요. 취소하지 않으면 종료 후 {price} 요금이 청구돼요. 종료 전날에 알려 드릴게요. 종료 다음 날이 아니라요."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "사진이 아니라 입력한 내용이라 양은 제 추정이에요. 대략 {kcal} 정도로 보세요. 그램 수를 알면 알려 주세요. 고칠게요."
 
@@ -601,3 +596,8 @@ msgstr "첫날이 시작됐어요. 20:30에 한 줄을 받게 돼요. 오늘을 
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "프로필과 설정은 웹에 있어요."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "무료 체험이 시작됐어요. 취소하지 않으면 끝날 때 {price}를 내요. 끝나기 하루 전에 알려 드릴게요."

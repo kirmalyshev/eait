@@ -549,11 +549,6 @@ msgstr "ಈ Telegram ನಿಂದ ತುಂಬಾ ಪ್ರಯತ್ನಗಳು
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "ಟ್ರಯಲ್ ಶುರುವಾಗಿದೆ — ನೀವು ನಿಲ್ಲಿಸದಿದ್ದರೆ, ಅದು ಮುಗಿದಾಗ {price}. ಅದು ಮುಗಿಯುವ ಹಿಂದಿನ ದಿನ ನಾನು ನೆನಪಿಸುತ್ತೇನೆ, ಮರುದಿನ ಎಂದಿಗೂ ಅಲ್ಲ."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "ಫೋಟೋ ಅಲ್ಲ, ಟೈಪ್ ಮಾಡಿದ್ದು — ಹಾಗಾಗಿ ಪ್ರಮಾಣಗಳು ನನ್ನ ಅಂದಾಜು. {kcal} ಅನ್ನು ಸ್ಥೂಲ ಎಂದು ತಿಳಿಯಿರಿ; ಗ್ರಾಂಗಳು ಗೊತ್ತಿದ್ದರೆ ಹೇಳಿ, ನಾನು ಸರಿಪಡಿಸುತ್ತೇನೆ."
 
@@ -601,3 +596,8 @@ msgstr "ನಿಮ್ಮ ಮೊದಲ ದಿನ ಶುರುವಾಗಿದೆ. 2
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "ನಿಮ್ಮ ಪ್ರೊಫೈಲ್ ಮತ್ತು ಸೆಟ್ಟಿಂಗ್‌ಗಳು ವೆಬ್‌ನಲ್ಲಿವೆ."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "ನಿಮ್ಮ ಟ್ರಯಲ್ ಪ್ರಾರಂಭವಾಗಿದೆ. ಅದು ಮುಗಿದಾಗ ನೀವು {price} ಪಾವತಿಸುತ್ತೀರಿ, ರದ್ದು ಮಾಡದಿದ್ದರೆ. ಮುಗಿಯುವ ಹಿಂದಿನ ದಿನ ನೆನಪಿಸುತ್ತೇನೆ."

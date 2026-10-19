@@ -86,26 +86,26 @@ describe("PAY_COPY", () => {
     expect(en.trialNote).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel any time in Profile › Subscription.");
     expect(en.trialNotePhone).toBe("{days} days free, then {renewal}. Renews automatically until cancelled. Cancel in Settings › Apple ID › Subscriptions at least 24 hours before the trial ends.");
     // pay-gift
-    expect(en.giftTitle).toBe("We have a gift for you");
+    expect(en.giftTitle).toBe("One more offer");
     expect(en.giftAlt).toBe("A wrapped gift box");
     expect(en.giftNote).toBe("One offer, shown only this once.");
     expect(en.giftOpen).toBe("Open");
     // pay-ultra
-    expect(en.offerTitle).toBe("Your gift: yearly, for less");
+    expect(en.offerTitle).toBe("Yearly, at a lower price");
     expect(en.offerAlt).toBe("Porridge with berries");
     expect(en.offerOff).toBe("{percent} off");
     expect(en.offerPrice).toBe("{price} / year");
     expect(en.offerPerMonth).toBe("≈ {price} a month");
-    expect(en.offerClaim).toBe("Claim");
+    expect(en.offerClaim).toBe("Get this price");
     expect(en.offerDecline).toBe("No thanks");
     expect(en.offerNote).toBe("Billed yearly. Cancel any time");
     // pay-catching-up
-    expect(en.storeThanks).toBe("Thanks, the store has it");
+    expect(en.storeThanks).toBe("Thanks, your purchase went through");
     expect(en.catchingUp).toBe("Your account is catching up. A few seconds.");
     expect(en.subscribingPhone).toBe("Subscribing");
     // pay-welcome
     expect(en.welcomeTitle).toBe("You’re all set");
-    expect(en.welcomeSub).toBe("Every meal gets an honest answer now, and your plan moves when your weight does.");
+    expect(en.welcomeSub).toBe("Every meal is checked against your plan now, and the plan updates as your weight changes.");
     expect(en.welcomeBack).toBe("Back to today");
     // pay-dock (phone)
     expect(en.dockTitlePhone).toBe("Subscribe to log your meals");

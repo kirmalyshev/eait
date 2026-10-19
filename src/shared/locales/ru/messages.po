@@ -555,11 +555,6 @@ msgstr "Слишком много попыток с этого Telegram. Под�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Пробный период запущен — по окончании {price}, если не остановишь. Напомню накануне окончания, и никогда на следующий день после."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Это текст, а не фото — значит, порции я прикинул. Считай {kcal} грубой оценкой; знаешь граммы — скажи, и я поправлю."
 
@@ -607,3 +602,8 @@ msgstr "Первый день пошёл. В 20:30 придёт одна стр�
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Профиль и настройки — на сайте."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Пробный период идёт. Когда он закончится, ты платишь {price}, если не отменишь. Напомню за день до этого."

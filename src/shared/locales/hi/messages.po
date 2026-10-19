@@ -549,11 +549,6 @@ msgstr "इस Telegram से बहुत ज़्यादा कोशि�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "ट्रायल शुरू — खत्म होने पर {price}, जब तक आप इसे रोकें नहीं। खत्म होने से एक दिन पहले याद दिलाया जाएगा, बाद में कभी नहीं।"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "फ़ोटो नहीं, लिखा हुआ — इसलिए मात्रा मेरा अंदाज़ा है। {kcal} को मोटा अंदाज़ा मानें; ग्राम पता हों तो बताएँ, और इसे ठीक कर दिया जाएगा।"
 
@@ -601,3 +596,8 @@ msgstr "आपका पहला दिन शुरू हो गया। 20:
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "आपकी प्रोफ़ाइल और सेटिंग्ज़ वेब पर हैं।"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "आपका ट्रायल शुरू हो गया है। खत्म होने पर आप {price} चुकाएँगे, जब तक आप रद्द न करें। खत्म होने से एक दिन पहले याद दिलाया जाएगा।"

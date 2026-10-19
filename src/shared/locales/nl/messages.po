@@ -549,11 +549,6 @@ msgstr "Te veel pogingen vanuit deze Telegram. Wacht even en druk dan opnieuw op
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Proefperiode loopt — daarna {price}, tenzij je stopt. Ik herinner je de dag voordat die eindigt, nooit de dag erna."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Getypt, niet gefotografeerd — de porties zijn dus mijn schatting. Zie {kcal} als ruw; weet je de grammen, zeg het en ik pas het aan."
 
@@ -601,3 +596,8 @@ msgstr "Je eerste dag is begonnen. Om 20:30 krijg je één regel — vandaag ver
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Je profiel en instellingen staan op het web."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Je proefperiode is begonnen. Aan het einde betaal je {price}, tenzij je opzegt. De dag ervoor herinner ik je eraan."

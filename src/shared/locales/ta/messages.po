@@ -549,11 +549,6 @@ msgstr "இந்த Telegram-இலிருந்து அதிக முய
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "சோதனை தொடங்கியது — நீங்கள் நிறுத்தாவிட்டால், அது முடிந்ததும் {price}. முடிவதற்கு முந்தைய நாள் நினைவூட்டுவேன், அடுத்த நாள் ஒருபோதும் இல்லை."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "புகைப்படம் அல்ல, தட்டச்சு — எனவே அளவுகள் என் ஊகம். {kcal} ஐத் தோராயமாகக் கொள்ளுங்கள்; கிராம்கள் தெரிந்தால் சொல்லுங்கள், சரிசெய்கிறேன்."
 
@@ -601,3 +596,8 @@ msgstr "உங்கள் முதல் நாள் தொடங்கிய
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "உங்கள் சுயவிவரமும் அமைப்புகளும் இணையத்தில் உள்ளன."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "உங்கள் சோதனை தொடங்கிவிட்டது. அது முடிந்ததும் நீங்கள் {price} செலுத்துவீர்கள், நீங்கள் ரத்து செய்தால் தவிர. முந்தைய நாள் நினைவூட்டுவேன்."

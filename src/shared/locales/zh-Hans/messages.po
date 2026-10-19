@@ -549,11 +549,6 @@ msgstr "此 Telegram 尝试次数过多。请稍等一会儿，再点击链接�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "试用已开始——结束后收费{price}，除非你取消。我会在试用结束前一天提醒你，绝不会等到结束后。"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "这是打字输入的，不是拍照——所以份量是我猜的。{kcal}只是粗略估计；如果你知道克数，告诉我，我来修正。"
 
@@ -601,3 +596,8 @@ msgstr "你的第一天已经开始。20:30 你会收到一条消息——今天
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "你的个人资料和设置在网页上。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "你的试用已开始。结束时需付{price}，除非你取消。我会在前一天提醒你。"
