@@ -1320,9 +1320,9 @@ describe("the soft offer after the plan", () => {
     const session = await toPlan();
     const html = await (await get("/start/offer", session)).text();
     for (const perk of [
-      "Honest macros on every meal",
+      "Calories and macros from a photo of each meal",
       "Your plan moves when your weight does",
-      "Spud, any time you ask",
+      "Ask Spud about any meal, any time",
     ]) expect(html).toContain(escape(perk));
     expect(html).toContain("7 days free");
     expect(html).toContain("We remind you");
