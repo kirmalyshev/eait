@@ -549,11 +549,6 @@ msgstr "Tentativas demais deste Telegram. Espere um pouco e toque no link de nov
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Teste ativado — {price} quando terminar, a menos que você cancele. Vou avisar você na véspera do fim, nunca no dia seguinte."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Digitado, não fotografado — então as porções são estimativa minha. Considere {kcal} como aproximado; se souber os gramas, me diga e eu corrijo."
 
@@ -601,3 +596,8 @@ msgstr "Seu primeiro dia começou. Às 20:30 você recebe uma mensagem — hoje 
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Seu perfil e suas configurações estão na web."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Seu teste começou. Quando terminar, você paga {price}, a menos que cancele. Vou te lembrar na véspera."

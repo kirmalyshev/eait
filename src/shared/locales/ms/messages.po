@@ -549,11 +549,6 @@ msgstr "Terlalu banyak cubaan dari Telegram ini. Tunggu sebentar, kemudian tekan
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Percubaan sudah bermula — {price} apabila ia tamat, melainkan anda menghentikannya. Saya akan ingatkan anda sehari sebelum ia tamat, tidak sekali-kali sehari selepasnya."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Ditaip, bukan difoto — jadi porsinya tekaan saya. Anggap {kcal} sebagai kasar; jika anda tahu gramnya, beritahu dan saya akan betulkan."
 
@@ -601,3 +596,8 @@ msgstr "Hari pertama anda sudah bermula. Pada 20:30 anda akan menerima satu ring
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Profil dan seting anda ada di web."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Percubaan anda telah bermula. Apabila tamat anda membayar {price}, melainkan anda membatalkannya. Saya akan ingatkan sehari sebelumnya."

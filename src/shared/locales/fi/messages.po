@@ -549,11 +549,6 @@ msgstr "Liian monta yritystä tästä Telegramista. Odota hetki ja paina linkki�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Kokeilujakso on alkanut – sen päätyttyä {price}, ellet lopeta sitä. Muistutan sinua päättymistä edeltävänä päivänä, en koskaan sen jälkeen."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Kirjoitettu, ei kuvattu – joten annokset ovat arvioni. Pidä {kcal} karkeana arviona; jos tiedät grammat, kerro, niin korjaan."
 
@@ -601,3 +596,8 @@ msgstr "Ensimmäinen päiväsi on alkanut. Klo 20.30 saat yhden viestin – päi
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Profiilisi ja asetuksesi ovat verkossa."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Kokeilujaksosi on alkanut. Sen päättyessä maksat {price}, ellet peruuta. Muistutan sinua edellisenä päivänä."

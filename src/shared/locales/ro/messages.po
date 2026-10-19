@@ -549,11 +549,6 @@ msgstr "Prea multe încercări de pe acest Telegram. Așteaptă puțin, apoi apa
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Perioada de probă a început — {price} când se încheie, dacă nu o oprești. Îți amintesc cu o zi înainte să se încheie, niciodată a doua zi după."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Scris, nu fotografiat — deci porțiile sunt estimarea mea. Ia {kcal} ca aproximare; dacă știi gramajele, spune-mi și corectez."
 
@@ -601,3 +596,8 @@ msgstr "Prima ta zi a început. La 20:30 primești un singur mesaj — ziua de a
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Profilul și configurările tale sunt pe web."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Perioada ta de probă a început. Când se încheie plătești {price}, dacă nu anulezi. Îți amintesc cu o zi înainte."

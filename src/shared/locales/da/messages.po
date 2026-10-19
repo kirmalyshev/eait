@@ -549,11 +549,6 @@ msgstr "For mange forsøg fra dette Telegram. Vent lidt, og tryk på linket igen
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Prøveperioden er i gang — {price}, når den slutter, medmindre du stopper den. Jeg minder dig om det dagen før, den slutter, aldrig dagen efter."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Skrevet, ikke fotograferet — så portionerne er mit gæt. Tag {kcal} som et groft skøn; hvis du kender grammene, så sig det, så retter jeg det."
 
@@ -601,3 +596,8 @@ msgstr "Din første dag er i gang. Kl. 20.30 får du én linje — i dag i forho
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Din profil og dine indstillinger er på nettet."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Din prøveperiode er startet. Når den slutter, betaler du {price}, medmindre du opsiger. Jeg minder dig om det dagen før."

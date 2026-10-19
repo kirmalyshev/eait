@@ -124,7 +124,7 @@ describe("YOU_COPY", () => {
     expect(en.phone.dayOfTotal).toBe("Day {n} of {total}");
     expect(en.phone.untilDate).toBe("until {date}");
     expect(en.phone.beforeEnds).toBe("Before it ends");
-    expect(en.phone.weRemind).toBe("We remind you");
+    expect(en.phone.weRemind).toBe("We'll remind you");
     expect(en.phone.thenLabel).toBe("Then");
     expect(en.phone.manageStore).toBe("Manage in the App Store");
     expect(en.phone.restore).toBe("Restore");

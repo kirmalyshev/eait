@@ -549,11 +549,6 @@ msgstr "ลองจาก Telegram นี้หลายครั้งเก�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "ช่วงทดลองใช้ฟรีเริ่มแล้ว — เมื่อสิ้นสุดจะคิด {price} เว้นแต่คุณยกเลิก เราจะเตือนหนึ่งวันก่อนสิ้นสุด ไม่ใช่วันหลัง"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "พิมพ์มา ไม่ได้ถ่ายรูป — ปริมาณจึงเป็นการคาดเดาของเรา ให้ถือว่า {kcal} เป็นค่าคร่าวๆ ถ้ารู้กรัม บอกมาแล้วเราจะแก้ให้"
 
@@ -601,3 +596,8 @@ msgstr "วันแรกของคุณเริ่มแล้ว ตอ�
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "โปรไฟล์และการตั้งค่าของคุณอยู่บนเว็บ"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "ช่วงทดลองใช้ของคุณเริ่มแล้ว เมื่อสิ้นสุดคุณจะจ่าย {price} เว้นแต่คุณยกเลิก เราจะเตือนหนึ่งวันก่อนหน้า"

@@ -549,11 +549,6 @@ msgstr "Πάρα πολλές προσπάθειες από αυτό το Telegr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Η δωρεάν δοκιμή ξεκίνησε — {price} όταν λήξει, εκτός αν τη σταματήσεις. Θα σου το θυμίσω την παραμονή της λήξης, ποτέ την επόμενη μέρα."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Γραμμένο, όχι φωτογραφημένο — οπότε οι μερίδες είναι δική μου εκτίμηση. Πάρε τις {kcal} κατά προσέγγιση· αν ξέρεις τα γραμμάρια, πες τα και θα το διορθώσω."
 
@@ -601,3 +596,8 @@ msgstr "Η πρώτη σου μέρα ξεκίνησε. Στις 20:30 θα πά
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Το προφίλ και οι ρυθμίσεις σου είναι στο web."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Η δωρεάν δοκιμή σου ξεκίνησε. Όταν λήξει πληρώνεις {price}, εκτός αν ακυρώσεις. Θα σου το θυμίσω μία μέρα πριν."

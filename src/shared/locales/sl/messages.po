@@ -549,11 +549,6 @@ msgstr "Preveč poskusov s tega Telegrama. Malo počakaj, nato znova pritisni po
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Preizkusno obdobje teče — {price}, ko se konča, razen če ga ustaviš. Opomnim te dan pred koncem, nikoli dan po njem."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Napisano, ne fotografirano — zato so porcije moja ocena. {kcal} vzemi kot grobo oceno; če poznaš grame, povej in popravim."
 
@@ -601,3 +596,8 @@ msgstr "Tvoj prvi dan se je začel. Ob 20:30 dobiš eno sporočilo — današnji
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Tvoj profil in nastavitve so na spletu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Tvoje preizkusno obdobje se je začelo. Ko se konča, plačaš {price}, razen če prekličeš. Opomnim te dan prej."

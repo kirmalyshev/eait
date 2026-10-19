@@ -549,11 +549,6 @@ msgstr "このTelegramからの試行が多すぎます。しばらく待って�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "トライアルが始まりました。停止しない限り、終了後は{price}になります。終了の前日にお知らせします。終了後に知らせることはありません。"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "写真ではなく文字での入力なので、量は推測です。{kcal}はおおよその値として見てください。グラム数がわかれば教えてください。直します。"
 
@@ -601,3 +596,8 @@ msgstr "1日目がスタートしました。20:30に1行だけ届きます。�
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "プロフィールと設定はWebにあります。"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "トライアルが始まりました。キャンセルしない限り、終了時に{price}をお支払いいただきます。前日にお知らせします。"

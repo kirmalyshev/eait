@@ -549,11 +549,6 @@ msgstr "Zbyt wiele prób z tego Telegrama. Odczekaj chwilę i naciśnij link pon
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Okres próbny ruszył — po jego końcu {price}, chyba że go anulujesz. Przypomnę ci dzień przed końcem, nigdy dzień po."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Wpisane, nie sfotografowane — więc porcje to mój szacunek. Traktuj {kcal} jako przybliżenie; jeśli znasz gramy, napisz, a poprawię."
 
@@ -601,3 +596,8 @@ msgstr "Twój pierwszy dzień ruszył. O 20:30 dostaniesz jedną wiadomość —
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Twój profil i ustawienia są w przeglądarce."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Twój okres próbny się rozpoczął. Po jego końcu płacisz {price}, chyba że anulujesz. Przypomnę ci dzień wcześniej."

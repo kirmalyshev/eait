@@ -549,11 +549,6 @@ msgstr "Z tohoto Telegramu bylo příliš mnoho pokusů. Chvíli počkej a pak s
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.scripted.trial-started"
-msgstr "Zkušební období běží — po jeho skončení {price}, pokud ho nezastavíš. Připomenu ti to den před koncem, nikdy den poté."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Napsané, ne vyfocené — porce jsou tedy můj odhad. Ber {kcal} jako hrubý odhad; jestli znáš gramy, řekni a opravím to."
 
@@ -601,3 +596,8 @@ msgstr "Tvůj první den začal. Ve 20:30 dostaneš jeden řádek — dnešek v 
 #: src/backend/telegram/copy.ts
 msgid "tg.onTheWeb"
 msgstr "Tvůj profil a nastavení jsou na webu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Tvé zkušební období začalo. Až skončí, zaplatíš {price}, pokud nezrušíš. Připomenu ti to den předem."
