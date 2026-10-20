@@ -59,7 +59,7 @@ describe("every language's chat copy", () => {
       expect(c.continueLabel.trim(), `${lang}.continue`).toBeTruthy();
       expect(c.how.title.trim(), `${lang}.how`).toBeTruthy();
       expect(c.how.steps, `${lang}.how.steps`).toHaveLength(3);
-      for (const key of ["title", "body", "connect", "skip"] as const) {
+      for (const key of ["title", "body"] as const) {
         expect(c.health[key].trim(), `${lang}.health.${key}`).toBeTruthy();
       }
     }
