@@ -146,8 +146,12 @@ export interface ChatCopy {
     /** The arithmetic rows the plan page draws — the composition, not admin words. */
     rest: string; activity: string; pace: string; floor: string; protein: string;
   };
-  /** The post-sign-up sync screen (17-health-sync): title, one line, two buttons. */
-  health: { title: string; body: string; connect: string; skip: string };
+  /**
+   * The post-sign-up sync screen (17-health-sync): title and one line. Its ONE button is
+   * `continueLabel` — App Review 5.1.1(iv): a screen ahead of the HealthKit sheet offers no
+   * "Not now", and the sheet itself is the only place the request can be declined.
+   */
+  health: { title: string; body: string };
   /**
    * The target prompt's suggestion line: `{weight}` the suggested weight written the way the
    * reader's toggle spells it (`weightDisplay` — "73.5kg" or "162lb"), `{pct}` the whole percent
@@ -300,8 +304,6 @@ const EN: ChatCopy = {
   health: {
     title: "Sync with Apple Health",
     body: "Weight and activity come in. Your meals go to Health.",
-    connect: "Connect Apple Health",
-    skip: "Not now",
   },
   targetSuggestion:  {
     down: "I suggest {weight}, about {pct}% down, a good first goal",
@@ -436,8 +438,6 @@ const FR: ChatCopy = {
   health: {
     title: "Synchroniser avec Santé",
     body: "Ton poids et ton activité arrivent, tes repas partent vers Santé.",
-    connect: "Connecter l'app Santé",
-    skip: "Pas maintenant",
   },
   targetSuggestion:  {
     down: "Je te propose {weight}, soit environ {pct} % de moins — un bon premier objectif",
@@ -572,8 +572,6 @@ const DE: ChatCopy = {
   health: {
     title: "Mit Apple Health synchronisieren",
     body: "Gewicht und Aktivität kommen rein, deine Mahlzeiten gehen raus.",
-    connect: "Apple Health verbinden",
-    skip: "Nicht jetzt",
   },
   targetSuggestion:  {
     down: "Ich schlage {weight} vor, etwa {pct}% weniger — ein gutes erstes Ziel",
@@ -708,8 +706,6 @@ const IT: ChatCopy = {
   health: {
     title: "Sincronizza con Apple Health",
     body: "Peso e attività in entrata, pasti in uscita.",
-    connect: "Collega Apple Health",
-    skip: "Non ora",
   },
   targetSuggestion:  {
     down: "Ti suggerisco {weight}, circa il {pct}% in meno — un buon primo obiettivo",
@@ -844,8 +840,6 @@ const ES: ChatCopy = {
   health: {
     title: "Sincronizar con Apple Health",
     body: "Entran tu peso y tu actividad; salen tus comidas.",
-    connect: "Conectar Apple Health",
-    skip: "Ahora no",
   },
   targetSuggestion:  {
     down: "Te sugiero {weight}, alrededor de un {pct}% menos — una buena primera meta",
@@ -980,8 +974,6 @@ const VI: ChatCopy = {
   health: {
     title: "Đồng bộ với Apple Health",
     body: "Nhận cân nặng và vận động, gửi bữa ăn sang Health.",
-    connect: "Kết nối Apple Health",
-    skip: "Để sau",
   },
   targetSuggestion:  {
     down: "Mình gợi ý {weight}, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
@@ -1116,8 +1108,6 @@ const ID: ChatCopy = {
   health: {
     title: "Sinkronkan dengan Apple Health",
     body: "Berat badan dan aktivitas masuk ke eait, makanan dikirim ke Kesehatan.",
-    connect: "Hubungkan Apple Health",
-    skip: "Nanti saja",
   },
   targetSuggestion:  {
     down: "Kusarankan {weight}, turun sekitar {pct}% — target pertama yang bagus",
@@ -1254,8 +1244,6 @@ const RU: ChatCopy = {
   health: {
     title: "Синхронизация с Apple Health",
     body: "Вес и активность — из «Здоровья», приёмы пищи — в «Здоровье».",
-    connect: "Подключить Apple Health",
-    skip: "Не сейчас",
   },
   targetSuggestion:  {
     down: "Предлагаю {weight} — примерно на {pct}% меньше, хорошая первая цель",
@@ -1397,8 +1385,6 @@ const TE: ChatCopy = {
   health: {
     title: "ఆరోగ్యం యాప్‌తో సింక్ చేయండి",
     body: "బరువు, కార్యకలాపం ఇక్కడికి వస్తాయి. మీ భోజనాలు ఆరోగ్యం యాప్‌కు వెళ్తాయి.",
-    connect: "ఆరోగ్యం యాప్‌ను కనెక్ట్ చేయండి",
-    skip: "ఇప్పుడు కాదు",
   },
   targetSuggestion:  {
     down: "{weight} సూచిస్తున్నాను, సుమారు {pct}% తక్కువ, మంచి మొదటి లక్ష్యం",
@@ -1535,8 +1521,6 @@ const TA: ChatCopy = {
   health: {
     title: "சுகாதாரத்துடன் ஒத்திசை",
     body: "எடையும் செயல்பாடும் இங்கே வரும். உங்கள் உணவுகள் சுகாதாரத்திற்குச் செல்லும்.",
-    connect: "சுகாதாரத்துடன் இணை",
-    skip: "இப்போது வேண்டாம்",
   },
   targetSuggestion:  {
     down: "நான் பரிந்துரைப்பது {weight}, சுமார் {pct}% குறைவு, நல்ல முதல் இலக்கு",
@@ -1673,8 +1657,6 @@ const PA: ChatCopy = {
   health: {
     title: "ਸਿਹਤ ਨਾਲ ਸਿੰਕ ਕਰੋ",
     body: "ਭਾਰ ਅਤੇ ਸਰਗਰਮੀ ਇੱਥੇ ਆਉਂਦੇ ਹਨ। ਤੁਹਾਡੇ ਖਾਣੇ ਸਿਹਤ ਵਿੱਚ ਜਾਂਦੇ ਹਨ।",
-    connect: "ਸਿਹਤ ਨਾਲ ਕਨੈਕਟ ਕਰੋ",
-    skip: "ਹੁਣ ਨਹੀਂ",
   },
   targetSuggestion:  {
     down: "ਮੇਰਾ ਸੁਝਾਅ ਹੈ {weight}, ਲਗਭਗ {pct}% ਘੱਟ, ਇੱਕ ਚੰਗਾ ਪਹਿਲਾ ਟੀਚਾ",
@@ -1811,8 +1793,6 @@ const OR: ChatCopy = {
   health: {
     title: "ସ୍ୱାସ୍ଥ୍ୟ ସହ ସିଙ୍କ୍ କରନ୍ତୁ",
     body: "ଓଜନ ଓ ସକ୍ରିୟତା ଏଠାକୁ ଆସେ। ଆପଣଙ୍କ ଭୋଜନ ସ୍ୱାସ୍ଥ୍ୟକୁ ଯାଏ।",
-    connect: "ସ୍ୱାସ୍ଥ୍ୟ ସହ ସଂଯୋଗ କରନ୍ତୁ",
-    skip: "ଏବେ ନୁହେଁ",
   },
   targetSuggestion:  {
     down: "ମୋ ପରାମର୍ଶ {weight}, ପ୍ରାୟ {pct}% କମ୍, ଏକ ଭଲ ପ୍ରଥମ ଲକ୍ଷ୍ୟ",
@@ -1949,8 +1929,6 @@ const MR: ChatCopy = {
   health: {
     title: "आरोग्य ॲपसोबत सिंक करा",
     body: "वजन आणि ॲक्टिव्हिटी इथे येतात. तुमची जेवणे आरोग्य ॲपमध्ये जातात.",
-    connect: "आरोग्य कनेक्ट करा",
-    skip: "आत्ता नको",
   },
   targetSuggestion:  {
     down: "माझी सूचना: {weight}, सुमारे {pct}% कमी, एक चांगले पहिले ध्येय",
@@ -2087,8 +2065,6 @@ const ML: ChatCopy = {
   health: {
     title: "ആരോഗ്യം ആപ്പുമായി സിങ്ക് ചെയ്യുക",
     body: "ഭാരവും പ്രവർത്തനവും ഇങ്ങോട്ട് വരുന്നു. നിങ്ങളുടെ ഭക്ഷണങ്ങൾ ആരോഗ്യം ആപ്പിലേക്ക് പോകുന്നു.",
-    connect: "ആരോഗ്യം കണക്റ്റ് ചെയ്യുക",
-    skip: "ഇപ്പോൾ വേണ്ട",
   },
   targetSuggestion:  {
     down: "ഞാൻ നിർദ്ദേശിക്കുന്നത് {weight}, ഏകദേശം {pct}% കുറവ്, ഒരു നല്ല ആദ്യ ലക്ഷ്യം",
@@ -2225,8 +2201,6 @@ const KN: ChatCopy = {
   health: {
     title: "ಆರೋಗ್ಯ ಆ್ಯಪ್‌ನೊಂದಿಗೆ ಸಿಂಕ್ ಮಾಡಿ",
     body: "ತೂಕ ಮತ್ತು ಚಟುವಟಿಕೆ ಇಲ್ಲಿಗೆ ಬರುತ್ತವೆ. ನಿಮ್ಮ ಊಟಗಳು ಆರೋಗ್ಯ ಆ್ಯಪ್‌ಗೆ ಹೋಗುತ್ತವೆ.",
-    connect: "ಆರೋಗ್ಯ ಆ್ಯಪ್‌ನೊಂದಿಗೆ ಸಂಪರ್ಕಿಸಿ",
-    skip: "ಈಗ ಬೇಡ",
   },
   targetSuggestion:  {
     down: "ನನ್ನ ಸಲಹೆ {weight}, ಸುಮಾರು {pct}% ಕಡಿಮೆ, ಉತ್ತಮ ಮೊದಲ ಗುರಿ",
@@ -2363,8 +2337,6 @@ const GU: ChatCopy = {
   health: {
     title: "હેલ્થ સાથે સિંક કરો",
     body: "વજન અને પ્રવૃત્તિ અહીં આવે છે. તમારાં ભોજન હેલ્થમાં જાય છે.",
-    connect: "હેલ્થ સાથે કનેક્ટ કરો",
-    skip: "હમણાં નહીં",
   },
   targetSuggestion:  {
     down: "મારું સૂચન {weight} છે, લગભગ {pct}% ઓછું, એક સારું પહેલું ધ્યેય",
@@ -2501,8 +2473,6 @@ const BN: ChatCopy = {
   health: {
     title: "স্বাস্থ্য অ্যাপের সঙ্গে সিঙ্ক করুন",
     body: "ওজন আর কার্যকলাপ এখানে আসে। আপনার খাবার যায় স্বাস্থ্য অ্যাপে।",
-    connect: "স্বাস্থ্য অ্যাপ সংযুক্ত করুন",
-    skip: "এখন না",
   },
   targetSuggestion:  {
     down: "আমার পরামর্শ {weight}, প্রায় {pct}% কম, প্রথম লক্ষ্য হিসেবে ভালো",
@@ -2639,8 +2609,6 @@ const PT_PT: ChatCopy = {
   health: {
     title: "Sincronizar com a app Saúde",
     body: "O peso e a atividade entram. As tuas refeições vão para a app Saúde.",
-    connect: "Ligar à app Saúde",
-    skip: "Agora não",
   },
   targetSuggestion:  {
     down: "Sugiro {weight}, cerca de {pct}% a menos, um bom primeiro objetivo",
@@ -2777,8 +2745,6 @@ const MS: ChatCopy = {
   health: {
     title: "Segerakkan dengan Kesihatan Apple",
     body: "Berat dan aktiviti masuk. Hidangan anda dihantar ke Kesihatan.",
-    connect: "Sambungkan Kesihatan Apple",
-    skip: "Bukan sekarang",
   },
   targetSuggestion:  {
     down: "Saya cadangkan {weight}, kira-kira {pct}% kurang, matlamat pertama yang baik",
@@ -2915,8 +2881,6 @@ const CA: ChatCopy = {
   health: {
     title: "Sincronitza amb Salut",
     body: "El pes i l'activitat entren. Els teus àpats van a Salut.",
-    connect: "Connecta amb Salut",
-    skip: "Ara no",
   },
   targetSuggestion:  {
     down: "Et proposo {weight}, un {pct} % menys: un bon primer objectiu",
@@ -3053,8 +3017,6 @@ const SL: ChatCopy = {
   health: {
     title: "Sinhronizacija z aplikacijo Zdravje",
     body: "Teža in aktivnost prideta noter. Tvoji obroki gredo v aplikacijo Zdravje.",
-    connect: "Poveži aplikacijo Zdravje",
-    skip: "Ne zdaj",
   },
   targetSuggestion:  {
     down: "Predlagam {weight}, približno {pct} % manj, dober prvi cilj",
@@ -3191,8 +3153,6 @@ const HR: ChatCopy = {
   health: {
     title: "Sinkroniziraj s aplikacijom Zdravlje",
     body: "Težina i aktivnost stižu ovamo. Obroci idu u aplikaciju Zdravlje.",
-    connect: "Poveži aplikaciju Zdravlje",
-    skip: "Ne sada",
   },
   targetSuggestion:  {
     down: "Predlažem {weight}, oko {pct}% manje — dobar prvi cilj",
@@ -3329,8 +3289,6 @@ const SK: ChatCopy = {
   health: {
     title: "Synchronizácia s aplikáciou Zdravie",
     body: "Váha a aktivita prídu sem. Tvoje jedlá idú do aplikácie Zdravie.",
-    connect: "Pripojiť aplikáciu Zdravie",
-    skip: "Teraz nie",
   },
   targetSuggestion:  {
     down: "Navrhujem {weight}, asi o {pct} % menej, dobrý prvý cieľ",
@@ -3467,8 +3425,6 @@ const NO: ChatCopy = {
   health: {
     title: "Synkroniser med Apple Helse",
     body: "Vekt og aktivitet kommer inn. Måltidene dine går til Helse.",
-    connect: "Koble til Apple Helse",
-    skip: "Ikke nå",
   },
   targetSuggestion:  {
     down: "Jeg foreslår {weight}, rundt {pct} % ned, et godt første mål",
@@ -3605,8 +3561,6 @@ const FI: ChatCopy = {
   health: {
     title: "Synkronoi Terveys-apin kanssa",
     body: "Paino ja aktiivisuus tulevat sisään. Ateriasi menevät Terveys-appiin.",
-    connect: "Yhdistä Terveys-appiin",
-    skip: "Ei nyt",
   },
   targetSuggestion:  {
     down: "Ehdotan {weight}, noin {pct} % vähemmän, hyvä ensimmäinen tavoite",
@@ -3743,8 +3697,6 @@ const DA: ChatCopy = {
   health: {
     title: "Synkroniser med Sundhed",
     body: "Vægt og aktivitet kommer ind. Dine måltider går til Sundhed.",
-    connect: "Forbind Sundhed",
-    skip: "Ikke nu",
   },
   targetSuggestion:  {
     down: "Jeg foreslår {weight}, cirka {pct} % ned, et godt første mål",
@@ -3881,8 +3833,6 @@ const HU: ChatCopy = {
   health: {
     title: "Szinkronizálás az Egészség appal",
     body: "A testsúly és az aktivitás beérkezik. Az étkezéseid az Egészség appba kerülnek.",
-    connect: "Egészség app csatlakoztatása",
-    skip: "Most nem",
   },
   targetSuggestion:  {
     down: "Javaslatom: {weight}, kb. {pct}%-kal kevesebb, jó első cél",
@@ -4019,8 +3969,6 @@ const EL: ChatCopy = {
   health: {
     title: "Συγχρονισμός με την Υγεία",
     body: "Το βάρος και η δραστηριότητα έρχονται εδώ. Τα γεύματά σου πάνε στην Υγεία.",
-    connect: "Σύνδεση με την Υγεία",
-    skip: "Όχι τώρα",
   },
   targetSuggestion:  {
     down: "Προτείνω {weight}, περίπου {pct}% λιγότερο, ένας καλός πρώτος στόχος",
@@ -4157,8 +4105,6 @@ const RO: ChatCopy = {
   health: {
     title: "Sincronizează cu Sănătate",
     body: "Greutatea și activitatea intră. Mesele tale ajung în Sănătate.",
-    connect: "Conectează aplicația Sănătate",
-    skip: "Nu acum",
   },
   targetSuggestion:  {
     down: "Îți sugerez {weight}, cu aproximativ {pct}% mai puțin, un prim obiectiv bun",
@@ -4295,8 +4241,6 @@ const CS: ChatCopy = {
   health: {
     title: "Synchronizovat s aplikací Zdraví",
     body: "Váha a aktivita se načtou sem. Tvoje jídla jdou do aplikace Zdraví.",
-    connect: "Připojit aplikaci Zdraví",
-    skip: "Teď ne",
   },
   targetSuggestion:  {
     down: "Navrhuji {weight}, zhruba o {pct} % méně, dobrý první cíl",
@@ -4433,8 +4377,6 @@ const HI: ChatCopy = {
   health: {
     title: "स्वास्थ्य के साथ सिंक करें",
     body: "वज़न और गतिविधि यहाँ आते हैं। आपके भोजन स्वास्थ्य में जाते हैं।",
-    connect: "स्वास्थ्य से कनेक्ट करें",
-    skip: "अभी नहीं",
   },
   targetSuggestion:  {
     down: "मेरा सुझाव है {weight}, लगभग {pct}% कम, एक अच्छा पहला लक्ष्य",
@@ -4571,8 +4513,6 @@ const TH: ChatCopy = {
   health: {
     title: "ซิงค์กับแอปสุขภาพ",
     body: "น้ำหนักและกิจกรรมเข้ามา มื้ออาหารของคุณส่งไปที่แอปสุขภาพ",
-    connect: "เชื่อมต่อแอปสุขภาพ",
-    skip: "ไว้ทีหลัง",
   },
   targetSuggestion:  {
     down: "เราแนะนำ {weight} น้อยลงประมาณ {pct}% เป็นเป้าหมายแรกที่ดี",
@@ -4709,8 +4649,6 @@ const SV: ChatCopy = {
   health: {
     title: "Synka med Hälsa",
     body: "Vikt och aktivitet kommer in. Dina måltider går till Hälsa.",
-    connect: "Anslut Hälsa",
-    skip: "Inte nu",
   },
   targetSuggestion:  {
     down: "Jag föreslår {weight}, cirka {pct} % ner, ett bra första mål",
@@ -4847,8 +4785,6 @@ const UK: ChatCopy = {
   health: {
     title: "Синхронізація з Apple Health",
     body: "Вага й активність — зі «Здоров'я», прийоми їжі — у «Здоров'я».",
-    connect: "Підключити Apple Health",
-    skip: "Не зараз",
   },
   targetSuggestion:  {
     down: "Пропоную {weight} — приблизно на {pct}% менше, гарна перша мета",
@@ -4985,8 +4921,6 @@ const NL: ChatCopy = {
   health: {
     title: "Synchroniseren met Gezondheid",
     body: "Gewicht en activiteit komen binnen. Je maaltijden gaan naar Gezondheid.",
-    connect: "Koppel Gezondheid",
-    skip: "Niet nu",
   },
   targetSuggestion:  {
     down: "Ik stel {weight} voor, zo'n {pct}% eraf, een goed eerste doel",
@@ -5123,8 +5057,6 @@ const PL: ChatCopy = {
   health: {
     title: "Synchronizuj z aplikacją Zdrowie",
     body: "Waga i aktywność trafiają do eait. Twoje posiłki trafiają do aplikacji Zdrowie.",
-    connect: "Połącz z aplikacją Zdrowie",
-    skip: "Nie teraz",
   },
   targetSuggestion:  {
     down: "Proponuję {weight}, około {pct}% mniej — dobry pierwszy cel",
@@ -5261,8 +5193,6 @@ const TR: ChatCopy = {
   health: {
     title: "Sağlık ile eşzamanla",
     body: "Kilo ve aktivite gelir. Öğünlerin Sağlık'a gider.",
-    connect: "Sağlık'ı bağla",
-    skip: "Şimdi değil",
   },
   targetSuggestion:  {
     down: "{weight} öneriyorum, yaklaşık %{pct} aşağı, iyi bir ilk hedef",
@@ -5399,8 +5329,6 @@ const ZH_HANT: ChatCopy = {
   health: {
     title: "與「健康」同步",
     body: "體重和活動資料會匯入，你的餐點會寫入「健康」。",
-    connect: "連接「健康」",
-    skip: "現在不要",
   },
   targetSuggestion:  {
     down: "我建議 {weight}，約減少 {pct}%，是不錯的第一個目標",
@@ -5537,8 +5465,6 @@ const ZH_HANS: ChatCopy = {
   health: {
     title: "与“健康”同步",
     body: "体重和活动数据会同步进来，你的餐食会写入“健康”。",
-    connect: "连接“健康”",
-    skip: "以后再说",
   },
   targetSuggestion:  {
     down: "我建议{weight}，约减少{pct}%，是不错的第一个目标",
@@ -5675,8 +5601,6 @@ const KO: ChatCopy = {
   health: {
     title: "건강 앱과 동기화",
     body: "체중과 활동은 가져오고, 식사는 건강 앱으로 보내요.",
-    connect: "건강 앱 연결",
-    skip: "나중에",
   },
   targetSuggestion:  {
     down: "{weight}를 추천해요. 약 {pct}% 감소로, 첫 목표로 좋아요",
@@ -5813,8 +5737,6 @@ const JA: ChatCopy = {
   health: {
     title: "ヘルスケアと同期",
     body: "体重とアクティビティを取り込み、食事をヘルスケアに書き込みます。",
-    connect: "ヘルスケアと連携",
-    skip: "あとで",
   },
   targetSuggestion:  {
     down: "おすすめは{weight}。約{pct}%減で、最初の目標にちょうどいいです",
@@ -5951,8 +5873,6 @@ const PT_BR: ChatCopy = {
   health: {
     title: "Sincronizar com o Saúde",
     body: "Peso e atividade entram. Suas refeições vão para o Saúde.",
-    connect: "Conectar ao app Saúde",
-    skip: "Agora não",
   },
   targetSuggestion:  {
     down: "Sugiro {weight}, cerca de {pct}% a menos, uma boa primeira meta",

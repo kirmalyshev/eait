@@ -1101,11 +1101,12 @@ export interface HealthScreenCopy {
   /** Today's bar, on both charts. */
   today: string;
   /**
-   * health-connect: the pitch. `reads`/`writes`/`weightOnly` are the three rows' heads; `cta` is
-   * the button AND the screen's title — the board writes one sentence in both places.
+   * health-connect: the pitch. `reads`/`writes`/`weightOnly` are the three rows' heads; `title`
+   * is the card's heading. The button under it is `ChatCopy.continueLabel`, never these words —
+   * App Review 5.1.1(iv) gives a screen ahead of the HealthKit sheet a Continue and nothing else.
    */
   connect: {
-    cta: string;
+    title: string;
     reads: string;
     readsList: string;
     writes: string;
@@ -1230,7 +1231,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Back",
     today: "Today",
     connect: {
-      cta: "Connect Apple Health",
+      title: "Connect Apple Health",
       reads: "Reads",
       readsList: "weight, body, energy, activity, sleep",
       writes: "Writes",
@@ -1317,7 +1318,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Retour",
     today: "Aujourd'hui",
     connect: {
-      cta: "Connecter l'app Santé",
+      title: "Connecter l'app Santé",
       reads: "Lecture",
       readsList: "poids, corps, énergie, activité, sommeil",
       writes: "Écriture",
@@ -1404,7 +1405,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Zurück",
     today: "Heute",
     connect: {
-      cta: "Apple Health verbinden",
+      title: "Apple Health verbinden",
       reads: "Liest",
       readsList: "Gewicht, Körper, Energie, Aktivität, Schlaf",
       writes: "Schreibt",
@@ -1491,7 +1492,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Indietro",
     today: "Oggi",
     connect: {
-      cta: "Collega Apple Health",
+      title: "Collega Apple Health",
       reads: "Legge",
       readsList: "peso, corpo, energia, attività, sonno",
       writes: "Scrive",
@@ -1578,7 +1579,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Atrás",
     today: "Hoy",
     connect: {
-      cta: "Conectar Apple Health",
+      title: "Conectar Apple Health",
       reads: "Lee",
       readsList: "peso, cuerpo, energía, actividad, sueño",
       writes: "Escribe",
@@ -1665,7 +1666,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Quay lại",
     today: "Hôm nay",
     connect: {
-      cta: "Kết nối Apple Health",
+      title: "Kết nối Apple Health",
       reads: "Đọc",
       readsList: "cân nặng, cơ thể, năng lượng, vận động, giấc ngủ",
       writes: "Ghi",
@@ -1752,7 +1753,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Kembali",
     today: "Hari ini",
     connect: {
-      cta: "Hubungkan Apple Health",
+      title: "Hubungkan Apple Health",
       reads: "Membaca",
       readsList: "berat, tubuh, energi, aktivitas, tidur",
       writes: "Menulis",
@@ -1839,7 +1840,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Назад",
     today: "Сегодня",
     connect: {
-      cta: "Подключить Apple Health",
+      title: "Подключить Apple Health",
       reads: "Читает",
       readsList: "вес, тело, энергию, активность, сон",
       writes: "Пишет",
@@ -1926,7 +1927,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "వెనుకకు",
     today: "ఈరోజు",
     connect: {
-      cta: "ఆరోగ్యం యాప్‌ను కనెక్ట్ చేయండి",
+      title: "ఆరోగ్యం యాప్‌ను కనెక్ట్ చేయండి",
       reads: "చదువుతుంది",
       readsList: "బరువు, శరీరం, శక్తి, కార్యకలాపం, నిద్ర",
       writes: "రాస్తుంది",
@@ -2013,7 +2014,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "பின்செல்",
     today: "இன்று",
     connect: {
-      cta: "சுகாதாரத்துடன் இணை",
+      title: "சுகாதாரத்துடன் இணை",
       reads: "படிப்பது",
       readsList: "எடை, உடல், ஆற்றல், செயல்பாடு, தூக்கம்",
       writes: "எழுதுவது",
@@ -2100,7 +2101,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "ਵਾਪਸ",
     today: "ਅੱਜ",
     connect: {
-      cta: "ਸਿਹਤ ਨਾਲ ਕਨੈਕਟ ਕਰੋ",
+      title: "ਸਿਹਤ ਨਾਲ ਕਨੈਕਟ ਕਰੋ",
       reads: "ਪੜ੍ਹਦਾ ਹੈ",
       readsList: "ਭਾਰ, ਸਰੀਰ, ਊਰਜਾ, ਸਰਗਰਮੀ, ਨੀਂਦ",
       writes: "ਲਿਖਦਾ ਹੈ",
@@ -2187,7 +2188,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "ପଛକୁ",
     today: "ଆଜି",
     connect: {
-      cta: "ସ୍ୱାସ୍ଥ୍ୟ ସହ ସଂଯୋଗ କରନ୍ତୁ",
+      title: "ସ୍ୱାସ୍ଥ୍ୟ ସହ ସଂଯୋଗ କରନ୍ତୁ",
       reads: "ପଢ଼େ",
       readsList: "ଓଜନ, ଶରୀର, ଶକ୍ତି, ସକ୍ରିୟତା, ନିଦ",
       writes: "ଲେଖେ",
@@ -2274,7 +2275,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "मागे",
     today: "आज",
     connect: {
-      cta: "आरोग्य कनेक्ट करा",
+      title: "आरोग्य कनेक्ट करा",
       reads: "वाचते",
       readsList: "वजन, शरीर, ऊर्जा, ॲक्टिव्हिटी, झोप",
       writes: "लिहिते",
@@ -2361,7 +2362,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "തിരികെ",
     today: "ഇന്ന്",
     connect: {
-      cta: "ആരോഗ്യം കണക്റ്റ് ചെയ്യുക",
+      title: "ആരോഗ്യം കണക്റ്റ് ചെയ്യുക",
       reads: "വായിക്കുന്നത്",
       readsList: "ഭാരം, ശരീരം, ഊർജം, പ്രവർത്തനം, ഉറക്കം",
       writes: "എഴുതുന്നത്",
@@ -2448,7 +2449,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "ಹಿಂದೆ",
     today: "ಇಂದು",
     connect: {
-      cta: "ಆರೋಗ್ಯ ಆ್ಯಪ್‌ನೊಂದಿಗೆ ಸಂಪರ್ಕಿಸಿ",
+      title: "ಆರೋಗ್ಯ ಆ್ಯಪ್‌ನೊಂದಿಗೆ ಸಂಪರ್ಕಿಸಿ",
       reads: "ಓದುತ್ತದೆ",
       readsList: "ತೂಕ, ದೇಹ, ಶಕ್ತಿ, ಚಟುವಟಿಕೆ, ನಿದ್ರೆ",
       writes: "ಬರೆಯುತ್ತದೆ",
@@ -2535,7 +2536,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "પાછા",
     today: "આજે",
     connect: {
-      cta: "હેલ્થ સાથે કનેક્ટ કરો",
+      title: "હેલ્થ સાથે કનેક્ટ કરો",
       reads: "વાંચે છે",
       readsList: "વજન, શરીર, ઊર્જા, પ્રવૃત્તિ, ઊંઘ",
       writes: "લખે છે",
@@ -2622,7 +2623,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "ফিরে যান",
     today: "আজ",
     connect: {
-      cta: "স্বাস্থ্য অ্যাপ সংযুক্ত করুন",
+      title: "স্বাস্থ্য অ্যাপ সংযুক্ত করুন",
       reads: "পড়ে",
       readsList: "ওজন, শরীর, শক্তি, কার্যকলাপ, ঘুম",
       writes: "লেখে",
@@ -2709,7 +2710,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Voltar",
     today: "Hoje",
     connect: {
-      cta: "Ligar à app Saúde",
+      title: "Ligar à app Saúde",
       reads: "Lê",
       readsList: "peso, corpo, energia, atividade, sono",
       writes: "Escreve",
@@ -2796,7 +2797,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Kembali",
     today: "Hari ini",
     connect: {
-      cta: "Sambungkan Kesihatan Apple",
+      title: "Sambungkan Kesihatan Apple",
       reads: "Membaca",
       readsList: "berat, badan, tenaga, aktiviti, tidur",
       writes: "Menulis",
@@ -2883,7 +2884,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Enrere",
     today: "Avui",
     connect: {
-      cta: "Connecta amb Salut",
+      title: "Connecta amb Salut",
       reads: "Llegeix",
       readsList: "pes, cos, energia, activitat, son",
       writes: "Escriu",
@@ -2970,7 +2971,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Nazaj",
     today: "Danes",
     connect: {
-      cta: "Poveži aplikacijo Zdravje",
+      title: "Poveži aplikacijo Zdravje",
       reads: "Bere",
       readsList: "težo, telo, energijo, aktivnost, spanje",
       writes: "Zapisuje",
@@ -3057,7 +3058,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Natrag",
     today: "Danas",
     connect: {
-      cta: "Poveži aplikaciju Zdravlje",
+      title: "Poveži aplikaciju Zdravlje",
       reads: "Čita",
       readsList: "težinu, tijelo, energiju, aktivnost, san",
       writes: "Upisuje",
@@ -3144,7 +3145,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Späť",
     today: "Dnes",
     connect: {
-      cta: "Pripojiť aplikáciu Zdravie",
+      title: "Pripojiť aplikáciu Zdravie",
       reads: "Číta",
       readsList: "váhu, telo, energiu, aktivitu, spánok",
       writes: "Zapisuje",
@@ -3231,7 +3232,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Tilbake",
     today: "I dag",
     connect: {
-      cta: "Koble til Apple Helse",
+      title: "Koble til Apple Helse",
       reads: "Leser",
       readsList: "vekt, kropp, energi, aktivitet, søvn",
       writes: "Skriver",
@@ -3318,7 +3319,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Takaisin",
     today: "Tänään",
     connect: {
-      cta: "Yhdistä Terveys-appiin",
+      title: "Yhdistä Terveys-appiin",
       reads: "Lukee",
       readsList: "paino, keho, energia, aktiivisuus, uni",
       writes: "Kirjoittaa",
@@ -3405,7 +3406,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Tilbage",
     today: "I dag",
     connect: {
-      cta: "Forbind Sundhed",
+      title: "Forbind Sundhed",
       reads: "Læser",
       readsList: "vægt, krop, energi, aktivitet, søvn",
       writes: "Skriver",
@@ -3492,7 +3493,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Vissza",
     today: "Ma",
     connect: {
-      cta: "Egészség app csatlakoztatása",
+      title: "Egészség app csatlakoztatása",
       reads: "Olvassa",
       readsList: "testsúly, test, energia, aktivitás, alvás",
       writes: "Írja",
@@ -3579,7 +3580,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Πίσω",
     today: "Σήμερα",
     connect: {
-      cta: "Σύνδεση με την Υγεία",
+      title: "Σύνδεση με την Υγεία",
       reads: "Διαβάζει",
       readsList: "βάρος, σώμα, ενέργεια, δραστηριότητα, ύπνο",
       writes: "Γράφει",
@@ -3666,7 +3667,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Înapoi",
     today: "Azi",
     connect: {
-      cta: "Conectează aplicația Sănătate",
+      title: "Conectează aplicația Sănătate",
       reads: "Citește",
       readsList: "greutate, corp, energie, activitate, somn",
       writes: "Scrie",
@@ -3753,7 +3754,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Zpět",
     today: "Dnes",
     connect: {
-      cta: "Připojit aplikaci Zdraví",
+      title: "Připojit aplikaci Zdraví",
       reads: "Čte",
       readsList: "váhu, tělo, energii, aktivitu, spánek",
       writes: "Zapisuje",
@@ -3840,7 +3841,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "वापस",
     today: "आज",
     connect: {
-      cta: "स्वास्थ्य से कनेक्ट करें",
+      title: "स्वास्थ्य से कनेक्ट करें",
       reads: "पढ़ता है",
       readsList: "वज़न, शरीर, ऊर्जा, गतिविधि, नींद",
       writes: "लिखता है",
@@ -3927,7 +3928,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "กลับ",
     today: "วันนี้",
     connect: {
-      cta: "เชื่อมต่อแอปสุขภาพ",
+      title: "เชื่อมต่อแอปสุขภาพ",
       reads: "อ่าน",
       readsList: "น้ำหนัก ร่างกาย พลังงาน กิจกรรม การนอน",
       writes: "เขียน",
@@ -4014,7 +4015,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Tillbaka",
     today: "I dag",
     connect: {
-      cta: "Anslut Hälsa",
+      title: "Anslut Hälsa",
       reads: "Läser",
       readsList: "vikt, kropp, energi, aktivitet, sömn",
       writes: "Skriver",
@@ -4101,7 +4102,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Назад",
     today: "Сьогодні",
     connect: {
-      cta: "Підключити Apple Health",
+      title: "Підключити Apple Health",
       reads: "Читає",
       readsList: "вагу, тіло, енергію, активність, сон",
       writes: "Записує",
@@ -4188,7 +4189,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Terug",
     today: "Vandaag",
     connect: {
-      cta: "Koppel Gezondheid",
+      title: "Koppel Gezondheid",
       reads: "Leest",
       readsList: "gewicht, lichaam, energie, activiteit, slaap",
       writes: "Schrijft",
@@ -4275,7 +4276,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Wstecz",
     today: "Dziś",
     connect: {
-      cta: "Połącz z aplikacją Zdrowie",
+      title: "Połącz z aplikacją Zdrowie",
       reads: "Odczytuje",
       readsList: "wagę, ciało, energię, aktywność, sen",
       writes: "Zapisuje",
@@ -4362,7 +4363,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Geri",
     today: "Bugün",
     connect: {
-      cta: "Sağlık'ı bağla",
+      title: "Sağlık'ı bağla",
       reads: "Okur",
       readsList: "kilo, vücut, enerji, aktivite, uyku",
       writes: "Yazar",
@@ -4449,7 +4450,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "返回",
     today: "今天",
     connect: {
-      cta: "連接「健康」",
+      title: "連接「健康」",
       reads: "讀取",
       readsList: "體重、身體、能量、活動、睡眠",
       writes: "寫入",
@@ -4536,7 +4537,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "返回",
     today: "今天",
     connect: {
-      cta: "连接“健康”",
+      title: "连接“健康”",
       reads: "读取",
       readsList: "体重、身体、能量、活动、睡眠",
       writes: "写入",
@@ -4623,7 +4624,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "뒤로",
     today: "오늘",
     connect: {
-      cta: "건강 앱 연결",
+      title: "건강 앱 연결",
       reads: "읽기",
       readsList: "체중, 신체 측정값, 에너지, 활동, 수면",
       writes: "쓰기",
@@ -4710,7 +4711,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "戻る",
     today: "今日",
     connect: {
-      cta: "ヘルスケアと連携",
+      title: "ヘルスケアと連携",
       reads: "読み取り",
       readsList: "体重、身体、エネルギー、アクティビティ、睡眠",
       writes: "書き込み",
@@ -4797,7 +4798,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
     back: "Voltar",
     today: "Hoje",
     connect: {
-      cta: "Conectar ao app Saúde",
+      title: "Conectar ao app Saúde",
       reads: "Lê",
       readsList: "peso, corpo, energia, atividade, sono",
       writes: "Grava",
