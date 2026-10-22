@@ -224,7 +224,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     recentlyUploaded: "Recent",
 
 
-    nothingLogged: "Nothing logged yet.",
+    nothingLogged: "Snap your meal.",
     diaryFailed: "Couldn't load your diary.",
     tryAgain: "Try again",
     webUploadPhoto: "Upload a photo",
