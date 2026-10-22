@@ -62,7 +62,7 @@ describe("HOME_COPY", () => {
     // today-past — the over day
     expect(en.kcalOverDetail).toBe("kcal over · {eaten} of {plan}");
     // the empty and the failed days
-    expect(en.nothingLogged).toBe("Nothing logged yet.");
+    expect(en.nothingLogged).toBe("Snap your meal.");
     expect(en.diaryFailed).toBe("Couldn't load your diary.");
     expect(en.tryAgain).toBe("Try again");
     // web only: the upload CTA and the in-diary proposal
