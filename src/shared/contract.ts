@@ -247,6 +247,20 @@ export const ROUTES = {
    * {@link ROUTES.authApple} with its raw nonce; nothing is verified or minted here.
    */
   authAppleAndroidReturn: "/v1/auth/apple/android/return",
+  /**
+   * GET — the Android App Link the return above prefers once it can be VERIFIED (ieat-app#2434):
+   * `via=applink` on the kickoff bounces here over https instead of into a custom scheme, which any
+   * installed app may claim. Reached without the app installed — the link unverified — it 303s the
+   * same parameters into the configured scheme, so the hop degrades to exactly what it was.
+   */
+  authAppleAndroidApp: "/v1/auth/apple/android/app",
+  /**
+   * GET — Android's `assetlinks.json`, the document an App Link is verified against
+   * (ieat-app#2434). It names the app's package and its signing certificates, both from
+   * `EAIT__BACKEND__ANDROID_*` config; unconfigured is a 404, not an empty document, because a
+   * served-but-empty one would still answer a client asking whether this host takes App Links.
+   */
+  assetlinks: "/.well-known/assetlinks.json",
   authGoogle: "/v1/auth/google",
   /**
    * POST — send a six-digit sign-in code to `email` (#569). Answers 204 whether or not the

@@ -164,6 +164,12 @@ services:
       # check, which is the correct default for an instance that has registered no OAuth client.
       EAIT__BACKEND__APPLE_AUDIENCES: ${EAIT__BACKEND__APPLE_AUDIENCES:-}
       EAIT__BACKEND__GOOGLE_AUDIENCES: ${EAIT__BACKEND__GOOGLE_AUDIENCES:-}
+      # The Android Apple return's hops (ieat-app#2434): the exact schemes it may bounce into, and
+      # the package + signing fingerprints assetlinks.json certifies for the App Link that replaces
+      # them. Fingerprints empty = the verified hop is off and the scheme carries the return.
+      EAIT__BACKEND__ANDROID_APP_SCHEMES: ${EAIT__BACKEND__ANDROID_APP_SCHEMES:-eait}
+      EAIT__BACKEND__ANDROID_PACKAGE: ${EAIT__BACKEND__ANDROID_PACKAGE:-com.eait.fit}
+      EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS: ${EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS:-}
       EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID: ${EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID:-}
       EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET: ${EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET:-}
       EAIT__BACKEND__APPLE_SERVICE_ID: ${EAIT__BACKEND__APPLE_SERVICE_ID:-}

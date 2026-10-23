@@ -277,6 +277,8 @@ export const UNDOCUMENTED: Partial<Record<keyof typeof ROUTES, string>> = {
   webStart: "A server-rendered page, not an endpoint; the app never fetches it.",
   authAppleAndroid: "A browser redirect to Apple, not a JSON endpoint.",
   authAppleAndroidReturn: "Apple's form POST, answered with a redirect into the app.",
+  authAppleAndroidApp: "An Android App Link's landing path, answered with a redirect into the app.",
+  assetlinks: "Android's domain-verification document, not an API endpoint.",
 };
 
 /** Every refusal kind at its status, for the endpoints that can refuse. */
