@@ -2042,7 +2042,7 @@ describe("push tokens", () => {
     for (const body of [
       {}, { token: "" }, { token: "not-a-token", platform: "ios" },
       { token: `ExponentPushToken[${"x".repeat(300)}]`, platform: "ios" },
-      { token: token(), platform: "android" },
+      { token: token(), platform: "windows" },
       { token: token() },
     ]) {
       expect((await post(ROUTES.pushToken, body, t)).status).toBe(400);

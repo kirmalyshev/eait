@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { CampaignStatus, CampaignTemplateKey, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
+import type { PushPlatform, CampaignStatus, CampaignTemplateKey, PushKind, Segment, PushOpenAction, SendKind, SendLogState } from "@eait/shared";
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
@@ -310,8 +310,7 @@ export interface ReferralStats {
   daysGranted: number;
 }
 
-/** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
-export type PushPlatform = "ios" | "web";
+export type { PushPlatform };
 
 /** One device this account can be reached on. */
 export interface PushToken {

@@ -1301,9 +1301,15 @@ export const MAX_SAVED_MEALS = 100;
  * `platform` is on the wire because the shape of this problem is per-platform and Android will not
  * be a different route. `web` carries a Web Push subscription (`webPushSubscription`) as the token.
  */
+/** Where a push token was issued. `ios` and `android` carry an Expo token; `web` a Web Push subscription. */
+export type PushPlatform = "ios" | "android" | "web";
+
+/** The Android notification channel every push is sent on; the app creates it under this id. */
+export const ANDROID_PUSH_CHANNEL = "default";
+
 export interface PushTokenRequest {
   token: string;
-  platform: "ios" | "web";
+  platform: PushPlatform;
   /**
    * The IANA zone the phone dates its days in (`Intl.DateTimeFormat().resolvedOptions().timeZone`),
    * sent on every launch. Optional on the wire and ignored when it is not a zone this server knows,
@@ -1370,7 +1376,7 @@ export function webPushSubscription(v: unknown): string | null {
 
 /** The token to store or drop for a push token field: the Expo token as sent, or the canonical web subscription. */
 export function pushTokenFrom(platform: unknown, token: unknown): string | null {
-  if (platform === "ios") return isPushToken(token) ? token : null;
+  if (platform === "ios" || platform === "android") return isPushToken(token) ? token : null;
   return platform === "web" ? webPushSubscription(token) : null;
 }
 

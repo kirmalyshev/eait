@@ -79,8 +79,8 @@ describe("send", () => {
     expect(seen[0]!.headers.get("authorization")).toBe("Bearer expo-token-not-real");
     expect(seen[0]!.headers.get("content-type")).toBe("application/json");
     expect(seen[0]!.body).toEqual([
-      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true },
-      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true },
+      { to: "ExponentPushToken[a]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true, channelId: "default" },
+      { to: "ExponentPushToken[b]", title: "Today against the plan", body: "1,600 of your 2,100kcal today.", sound: "default", mutableContent: true, channelId: "default" },
     ]);
     expect(tickets).toEqual([
       { token: "ExponentPushToken[a]", id: "r1", error: null },
