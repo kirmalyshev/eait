@@ -772,6 +772,21 @@ export function configDefaults(): Config {
   };
 }
 
+/**
+ * The store-review pair, or both empty. A code the app's six-box field cannot type (`newEmailCode`'s
+ * six digits) would be a sign-in that is live and unusable, so it switches the feature off and the
+ * boot says so — never what the code was.
+ */
+function storeReview(): Pick<Config, "storeReviewEmail" | "storeReviewCode"> {
+  const email = (process.env.EAIT__BACKEND__STORE_REVIEW_EMAIL ?? "").trim().toLowerCase();
+  const code = (process.env.EAIT__BACKEND__STORE_REVIEW_CODE ?? "").trim();
+  if (email !== "" && code !== "" && !/^\d{6}$/.test(code)) {
+    console.warn("[eait] store-review sign-in is OFF: EAIT__BACKEND__STORE_REVIEW_CODE must be exactly six digits");
+    return { storeReviewEmail: "", storeReviewCode: "" };
+  }
+  return { storeReviewEmail: email, storeReviewCode: code };
+}
+
 export function loadConfig(): Config {
   const d = configDefaults();
 
@@ -1005,8 +1020,7 @@ export function loadConfig(): Config {
     mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
     emailCodesPerHour: int("EAIT__BACKEND__EMAIL_CODES_PER_HOUR", d.emailCodesPerHour),
     emailCodesPerDay: int("EAIT__BACKEND__EMAIL_CODES_PER_DAY", d.emailCodesPerDay),
-    storeReviewEmail: (process.env.EAIT__BACKEND__STORE_REVIEW_EMAIL ?? d.storeReviewEmail).trim().toLowerCase(),
-    storeReviewCode: (process.env.EAIT__BACKEND__STORE_REVIEW_CODE ?? d.storeReviewCode).trim(),
+    ...storeReview(),
   };
 }
 

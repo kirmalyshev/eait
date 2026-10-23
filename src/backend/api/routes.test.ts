@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, setSystemTime } from "bun:test";
 import { grantEveryAccount } from "../dev/grant.ts";
 import {
   HEALTH_RETENTION_DAYS, IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
@@ -2398,9 +2398,11 @@ describe("store-review sign-in (eait#713)", () => {
       },
       s, testVerifier,
     );
-    const post = (route: string, body: unknown) =>
-      h(new Request(url(route), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
-    const verify = (email: string, code: string) => post(ROUTES.authEmailVerify, { email, code, terms: true });
+    const post = (route: string, body: unknown, peer = "203.0.113.1") =>
+      h(new Request(url(route), {
+        method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": peer }, body: JSON.stringify(body),
+      }));
+    const verify = (email: string, code: string, peer?: string) => post(ROUTES.authEmailVerify, { email, code, terms: true }, peer);
     const active = async (token: string) => {
       const res = await h(new Request(url(ROUTES.profile), { headers: { authorization: `Bearer ${token}` } }));
       return ((await res.json()) as { entitlement: { active: boolean } }).entitlement.active;
@@ -2434,6 +2436,24 @@ describe("store-review sign-in (eait#713)", () => {
     }
     expect((await r.verify(REVIEW.storeReviewEmail, "000000")).status).toBe(401);
     expect((await r.verify(REVIEW.storeReviewEmail, REVIEW.storeReviewCode)).status).toBe(200);
+  });
+
+  it("refuses every peer once ten wrong codes landed this hour, and takes the code again after it", async () => {
+    const r = reviewRouter(REVIEW);
+    const start = new Date("2026-10-23T12:00:00Z");
+    setSystemTime(start);
+    try {
+      for (let i = 0; i < 10; i++) expect((await r.verify(REVIEW.storeReviewEmail, "000000", `198.51.100.${i}`)).status).toBe(401);
+      const locked = await r.verify(REVIEW.storeReviewEmail, REVIEW.storeReviewCode, "192.0.2.99");
+      expect(locked.status).toBe(429);
+      expect(Number(locked.headers.get("retry-after"))).toBe(3600);
+      // Every other address keeps its own path while the reviewer one is locked.
+      expect((await r.verify("someone@example.com", "000000")).status).toBe(410);
+      setSystemTime(new Date(start.getTime() + 60 * 60_000));
+      expect((await r.verify(REVIEW.storeReviewEmail, REVIEW.storeReviewCode)).status).toBe(200);
+    } finally {
+      setSystemTime();
+    }
   });
 
   it("works only for that address: every other one keeps the mailed code, and is not comped", async () => {

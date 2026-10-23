@@ -292,6 +292,14 @@ describe("redact", () => {
     expect(config.storeReviewEmail).toBe("review@eait.fit");
     expect(JSON.stringify(redact(config))).not.toContain("987654");
   });
+
+  it("switches the store-review sign-in off when the code is not six digits the app can type", () => {
+    for (const code of ["12345", "1234567", "abcdef", "12 456"]) {
+      withRequired({ EAIT__BACKEND__STORE_REVIEW_EMAIL: "review@eait.fit", EAIT__BACKEND__STORE_REVIEW_CODE: code });
+      const config = loadConfig();
+      expect([config.storeReviewEmail, config.storeReviewCode]).toEqual(["", ""]);
+    }
+  });
 });
 
 // ── Onboarding in a browser ──────────────────────────────────────────────────────────────────
