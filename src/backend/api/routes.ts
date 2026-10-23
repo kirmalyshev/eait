@@ -28,7 +28,8 @@ import {
   MAX_FOOD_QUERY, FOOD_LOG_MAX_GRAMS, normalizeBarcode, type FoodSearchResponse, type ProductResponse,
   type ReferralRedeemRequest, type ReferralSharedRequest,
 } from "@eait/shared";
-import { narrowLang } from "@eait/shared";
+import { acceptLang, narrowLang } from "@eait/shared";
+import { appLinkLanding, html } from "../web/page.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { emailSignInEnabled } from "../mail/choose.ts";
 import { isCalendarDate } from "@eait/shared";
@@ -126,20 +127,29 @@ const MESSAGE_PATH = /^\/v1\/messages\/([^/]+)$/;
 const JOBS_CURSOR = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\|.+$/s;
 const PHOTO_JOB_PATH = /^\/v1\/meals\/photo\/queue\/([^/]+)$/;
 
-/** The app's own URL schemes — `eait`, `eaitdev`, `eaitpreview`, `eait-slotN-<branch>` — and nothing else. */
-const APP_SCHEME = /^eait[a-z0-9-]{0,60}$/;
 /** A client-minted `state` or hashed `nonce` for the Android Apple flow. */
 const OAUTH_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
 /** Apple's form POST is a few hundred bytes plus an id_token; the same ceiling `/start` gives its own. */
 const APPLE_RETURN_MAX_BYTES = 8 * 1024;
+/**
+ * The token that marks a return bound for the verified App Link rather than a custom scheme
+ * (ieat-app#2434). It rides where the scheme did in `<token>.<state>` and cannot collide with one:
+ * `https://apple-return` would be a URL to a host that does not exist, so no real scheme is named
+ * `https`, and a deployment that allowed one loses nothing it could have used.
+ */
+const APP_LINK = "https";
 
-/** `<scheme>.<state>` off Apple's return, both halves re-validated — the poster is anybody. */
-function appleReturnState(raw: string | null): { scheme: string; state: string } | null {
+/**
+ * `<token>.<state>` off Apple's return, both halves re-validated — the poster is anybody. `allowed`
+ * is the configured scheme set plus {@link APP_LINK} while this host certifies one; a token outside
+ * it is never turned into a redirect target.
+ */
+function appleReturnState(raw: string | null, allowed: ReadonlySet<string>): { scheme: string; state: string } | null {
   const dot = raw?.indexOf(".") ?? -1;
   if (raw == null || dot < 0) return null;
   const scheme = raw.slice(0, dot);
   const state = raw.slice(dot + 1);
-  return APP_SCHEME.test(scheme) && OAUTH_TOKEN.test(state) ? { scheme, state } : null;
+  return allowed.has(scheme) && OAUTH_TOKEN.test(state) ? { scheme, state } : null;
 }
 
 export function createRouter(
@@ -150,6 +160,12 @@ export function createRouter(
 ) {
   const handleRevenueCat = createRevenueCatWebhook();
   const providers = options.webProviders ?? webProviders(deps.config);
+  // The Android Apple return's two hops (ieat-app#2434): the allowlisted schemes, and the App Link
+  // marker while this host certifies one — package AND fingerprints, because assetlinks.json needs
+  // both to say anything.
+  const appLinkReady = deps.config.androidPackage !== "" && deps.config.androidCertFingerprints.length > 0;
+  const returnSchemes = new Set(deps.config.androidAppSchemes);
+  if (appLinkReady) returnSchemes.add(APP_LINK);
   const bearer = (req: Request): string | null => {
     const header = req.headers.get("authorization");
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
@@ -360,6 +376,23 @@ export function createRouter(
       options.draining?.() === true ? 503 : 200,
     );
 
+    // Android's domain-verification document (ieat-app#2434), served by the backend rather than at
+    // the edge so a self-hosted install answers it too. Unauthenticated: the OS fetches it during
+    // install and on every verification pass. The fingerprints are not a secret — a signing
+    // certificate's SHA-256 is printed on every artifact it signs. Unconfigured is a 404, not an
+    // empty array: the file is also the app's probe for "this host returns through an App Link".
+    if (pathname === ROUTES.assetlinks) {
+      if (!appLinkReady) return json({ error: "not found" }, 404);
+      return Response.json([{
+        relation: ["delegate_permission/common.handle_all_urls"],
+        target: {
+          namespace: "android_app",
+          package_name: deps.config.androidPackage,
+          sha256_cert_fingerprints: deps.config.androidCertFingerprints,
+        },
+      }]);
+    }
+
     try {
       // The admin, on a ROLE the account carries (#391b).
       //
@@ -459,20 +492,32 @@ export function createRouter(
       // VERIFIED OR MINTED HERE: the app posts the id_token to `ROUTES.authApple` with its raw
       // nonce, and `verify` checks signature, `aud` and nonce there as it does for every token.
       //
-      // The scheme rides in `state` and is re-validated on the way back, because the return route
-      // takes a cross-site POST from anybody: a scheme read off that form unchecked would hand an
-      // id_token to whatever URL the poster named. Origin is the API's (`publicOrigin`), not the
-      // browser's — these are /v1 routes, and the return URL registered with Apple names this host.
-      if (pathname === ROUTES.authAppleAndroid || pathname === ROUTES.authAppleAndroidReturn) {
+      // The return token rides in `state` and is re-validated on the way back, because the return
+      // route takes a cross-site POST from anybody: a token read off that form unchecked would
+      // hand an id_token to whatever URL the poster named. The set it is checked against is
+      // CONFIGURED, not a pattern — a prefix once admitted every `eait*` name, and a custom scheme
+      // is claimable by any installed app (ieat-app#2434). Origin is the API's (`publicOrigin`),
+      // not the browser's — these are /v1 routes, and the return URL registered with Apple names
+      // this host.
+      if (pathname === ROUTES.authAppleAndroid || pathname === ROUTES.authAppleAndroidReturn
+        || pathname === ROUTES.authAppleAndroidApp) {
         const apple = providers.apple;
         if (!apple) return json({ error: "not found" }, 404);
         if (req.method === "GET" && pathname === ROUTES.authAppleAndroid) {
           const scheme = url.searchParams.get("scheme") ?? "";
           const state = url.searchParams.get("state") ?? "";
           const nonce = url.searchParams.get("nonce") ?? "";
-          if (!APP_SCHEME.test(scheme) || !OAUTH_TOKEN.test(state) || !OAUTH_TOKEN.test(nonce)) {
+          // The hop is the SERVER'S choice, never the caller's: while this host certifies an App
+          // Link the return uses it unconditionally, because honouring an opt-in would let a
+          // kickoff that simply omits the flag name a custom scheme — the interception this whole
+          // change exists to close. The allowlisted scheme is validated either way: it is the
+          // fallback a host without App Links still takes, and a kickoff naming none of this
+          // host's builds was never honest.
+          if (!deps.config.androidAppSchemes.includes(scheme) || !OAUTH_TOKEN.test(state)
+            || !OAUTH_TOKEN.test(nonce)) {
             return json({ error: "bad request" }, 400);
           }
+          const token = appLinkReady ? APP_LINK : scheme;
           const to = new URL(apple.authorizeEndpoint, publicOrigin(req));
           to.search = new URLSearchParams({
             client_id: apple.clientId,
@@ -481,10 +526,28 @@ export function createRouter(
             response_type: "code id_token",
             response_mode: "form_post",
             scope: "openid email",
-            state: `${scheme}.${state}`,
+            state: `${token}.${state}`,
             nonce,
           }).toString();
           return new Response(null, { status: 303, headers: { location: to.toString() } });
+        }
+        if (req.method === "GET" && pathname === ROUTES.authAppleAndroidApp) {
+          // The App Link's landing, reached only when Android did NOT deliver it into the app —
+          // the link unverified, or no install. NEVER a redirect into a custom scheme: that is
+          // exactly the case where a foreign app claiming `eait` is the only receiver. What a
+          // person gets instead is this page and a link THEY tap — a user gesture is what hands a
+          // verified App Link to the app — plus the way to install when nothing answers. The page
+          // is a real one: the kit, the languages, the CSP `html()` gives every page of this
+          // origin's, because anything a user reads is user-facing however short the path to it.
+          if (!appLinkReady) return json({ error: "not found" }, 404);
+          const state = url.searchParams.get("state") ?? "";
+          if (!OAUTH_TOKEN.test(state)) return json({ error: "not found" }, 404);
+          const idToken = url.searchParams.get("id_token");
+          const back = new URLSearchParams(idToken
+            ? { state, id_token: idToken }
+            : { state, error: url.searchParams.get("error") ?? "no-token" });
+          const href = `${publicOrigin(req)}${ROUTES.authAppleAndroidApp}?${back.toString()}`;
+          return html(appLinkLanding(href, acceptLang(req.headers.get("accept-language"))));
         }
         if (req.method === "POST" && pathname === ROUTES.authAppleAndroidReturn) {
           // Size and type checked BEFORE `formData()` buffers the body, as `/start`'s Apple bridge
@@ -499,15 +562,21 @@ export function createRouter(
             const v = form?.get(k);
             return typeof v === "string" && v !== "" ? v : null;
           };
-          const parsed = appleReturnState(field("state"));
+          const parsed = appleReturnState(field("state"), returnSchemes);
           if (!parsed) return json({ error: "bad request" }, 400);
           const idToken = field("id_token");
           const back = new URLSearchParams(idToken
             ? { state: parsed.state, id_token: idToken }
             : { state: parsed.state, error: field("error") ?? "no-token" });
+          // The App Link names THIS host, never the poster's: `https` in the token means the
+          // verified link on our own origin, so the redirect still cannot be aimed at a third
+          // party. `location` holds the id_token; the edge keeps it out of the access log.
+          const target = parsed.scheme === APP_LINK
+            ? `${publicOrigin(req)}${ROUTES.authAppleAndroidApp}?${back.toString()}`
+            : `${parsed.scheme}://apple-return?${back.toString()}`;
           return new Response(null, {
             status: 303,
-            headers: { location: `${parsed.scheme}://apple-return?${back.toString()}` },
+            headers: { location: target },
           });
         }
         return json({ error: "not found" }, 404);

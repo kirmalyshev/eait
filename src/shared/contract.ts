@@ -243,10 +243,27 @@ export const ROUTES = {
   authAppleAndroid: "/v1/auth/apple/android",
   /**
    * POST — Apple's `form_post` return for {@link ROUTES.authAppleAndroid}, bounced as a 303 to
-   * `<scheme>://apple-return?state=…&id_token=…` (or `&error=…`). The app then posts that token to
-   * {@link ROUTES.authApple} with its raw nonce; nothing is verified or minted here.
+   * `<scheme>://apple-return?state=…&id_token=…` (or `&error=…`) — or, once this host certifies an
+   * App Link, to {@link ROUTES.authAppleAndroidApp} instead, the hop being the server's choice
+   * alone (ieat-app#2434). The app then posts that token to {@link ROUTES.authApple} with its raw
+   * nonce; nothing is verified or minted here.
    */
   authAppleAndroidReturn: "/v1/auth/apple/android/return",
+  /**
+   * GET — the Android App Link the return above uses once it can be VERIFIED (ieat-app#2434),
+   * replacing a custom scheme any installed app may claim. Reached without delivery — the link
+   * unverified, the app not installed — it answers a page whose link a person taps to take the
+   * same verified URL into the app; it never redirects into a scheme, which is exactly the case
+   * where only a foreign claimant would receive the token.
+   */
+  authAppleAndroidApp: "/v1/auth/apple/android/app",
+  /**
+   * GET — Android's `assetlinks.json`, the document an App Link is verified against
+   * (ieat-app#2434). It names the app's package and its signing certificates, both from
+   * `EAIT__BACKEND__ANDROID_*` config; unconfigured is a 404, not an empty document, because a
+   * served-but-empty one would still answer a client asking whether this host takes App Links.
+   */
+  assetlinks: "/.well-known/assetlinks.json",
   authGoogle: "/v1/auth/google",
   /**
    * POST — send a six-digit sign-in code to `email` (#569). Answers 204 whether or not the

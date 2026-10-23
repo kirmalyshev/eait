@@ -6,7 +6,7 @@ import {
   type Lang, type Profile,
 } from "@eait/shared";
 import { blankProfile } from "../store.ts";
-import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
+import { APPLINK_COPY_BY_LANG, PAGE_COPY_BY_LANG, appLinkCopyFor, pageCopyFor } from "./copy.ts";
 import { chat, plan, question, shell, type PlanView } from "./page.ts";
 
 /**
@@ -88,7 +88,7 @@ describe("what /start says for itself, in eight languages", () => {
     expect(lintCopy(
       // The strings, for the same reason as the walk above — `Record<string, string>`
       // is what lintCopy takes and a CountForms leaf is not a string.
-      Object.fromEntries(Object.entries({ ...pageCopyFor("en"), ...signupCopyFor("en") })
+      Object.fromEntries(Object.entries({ ...pageCopyFor("en"), ...signupCopyFor("en"), ...appLinkCopyFor("en") })
         .filter((e): e is [string, string] => typeof e[1] === "string")),
     )).toEqual([]);
   });
@@ -177,6 +177,12 @@ describe("the language picker on the plan page", () => {
 describe("the table itself", () => {
   it("names all eight and nothing else", () => {
     expect(Object.keys(PAGE_COPY_BY_LANG).sort()).toEqual([...LANGS].sort());
+  });
+  it("the App Link landing's table names them all too (#2434)", () => {
+    expect(Object.keys(APPLINK_COPY_BY_LANG).sort()).toEqual([...LANGS].sort());
+    for (const lang of LANGS) {
+      expect(Object.keys(appLinkCopyFor(lang)).sort(), lang).toEqual(Object.keys(appLinkCopyFor("en")).sort());
+    }
   });
 });
 

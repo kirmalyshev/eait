@@ -183,6 +183,29 @@ export interface Config {
   /** Every Google OAuth client id that may sign in: iOS, web, Android. Empty = Google is off. */
   googleAudiences: string[];
   /**
+   * The EXACT URL schemes the Android Apple flow's return may bounce an id_token into
+   * (ieat-app#2434): `EAIT__BACKEND__ANDROID_APP_SCHEMES`, comma-separated, `eait` alone in
+   * production. A custom scheme is claimable by any installed app, so the set is an allowlist and
+   * not a pattern — a prefix regex once admitted every `eait*` name, which is the hop this list
+   * exists to close. The App Link return (`androidCertFingerprints` below) is the durable fix;
+   * this bounds the window until it is live.
+   */
+  androidAppSchemes: string[];
+  /**
+   * The Android app's package name for `/.well-known/assetlinks.json` — `com.eait.fit` in
+   * production. With `androidCertFingerprints` below it decides whether the Apple return may use
+   * a verified App Link; the pair is read together and a fingerprints list without a package is
+   * refused at boot.
+   */
+  androidPackage: string;
+  /**
+   * The SHA-256 certificate fingerprints `assetlinks.json` certifies — the upload key's and Play
+   * app signing's, colon-separated hex pairs, comma-separated in the variable. PUBLIC: a signature
+   * fingerprint is printed on every signed artifact. EMPTY = App Links are off: the file 404s and
+   * the return falls back to the allowlisted scheme.
+   */
+  androidCertFingerprints: string[];
+  /**
    * The Google OAuth WEB client, for onboarding in a browser (`docs/WEB_ONBOARDING.md`).
    *
    * BOTH OR NEITHER. With either one empty every path under `/start` answers 404 — the same shape
@@ -711,6 +734,9 @@ export function configDefaults(): Config {
     linesRateLimitPerHour: 120,
     appleAudiences: [],
     googleAudiences: [],
+    androidAppSchemes: ["eait"],
+    androidPackage: "com.eait.fit",
+    androidCertFingerprints: [],
     googleWebClientId: "",
     googleWebClientSecret: "",
     webPaywall: {
@@ -907,6 +933,36 @@ export function loadConfig(): Config {
     );
   }
 
+  // The Android Apple return's scheme allowlist and the App Link that replaces it (ieat-app#2434).
+  // `=== undefined`, not list()'s empty: unset keeps the default `eait`, so a deployment that never
+  // set the variable tightens to exactly the production scheme instead of silently admitting
+  // nothing. An explicit empty list is honoured — that is the operator saying "no schemes".
+  const androidAppSchemes = process.env.EAIT__BACKEND__ANDROID_APP_SCHEMES === undefined
+    ? d.androidAppSchemes : list("EAIT__BACKEND__ANDROID_APP_SCHEMES");
+  for (const s of androidAppSchemes) {
+    if (!/^[a-z][a-z0-9+.-]{0,62}$/i.test(s)) {
+      throw new Error(`[eait] EAIT__BACKEND__ANDROID_APP_SCHEMES takes URL schemes, not "${s}"`);
+    }
+  }
+  const androidPackage = process.env.EAIT__BACKEND__ANDROID_PACKAGE ?? d.androidPackage;
+  // Normalised to assetlinks.json's uppercase form; a fingerprint that does not read as 32
+  // colon-separated hex pairs would serve a document that verifies nothing, so it is a boot
+  // error rather than a quiet App Link that never works.
+  const androidCertFingerprints = list("EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS").map((f) => f.toUpperCase());
+  for (const f of androidCertFingerprints) {
+    if (!/^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(f)) {
+      throw new Error(`[eait] EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS takes colon-separated SHA-256 hex pairs, not "${f}"`);
+    }
+  }
+  // The file needs BOTH halves: fingerprints without a package certify nobody, and a package with
+  // no fingerprints verifies against nothing. Package alone stays legal — App Links are then off.
+  if (androidCertFingerprints.length > 0 && androidPackage === "") {
+    throw new Error(
+      "[eait] EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS needs EAIT__BACKEND__ANDROID_PACKAGE too, " +
+      "or /.well-known/assetlinks.json would name no app",
+    );
+  }
+
   // A value the provider rejects is a 400 on EVERY schema call — charged, because a 400 is not a
   // gateway refusal — so a typo here would spend every user's sample on nothing. Refused at boot.
   const llmReasoningEffort = process.env.EAIT__BACKEND__LLM_REASONING_EFFORT ?? d.llmReasoningEffort;
@@ -971,6 +1027,9 @@ export function loadConfig(): Config {
     linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
     googleAudiences,
+    androidAppSchemes,
+    androidPackage,
+    androidCertFingerprints,
     googleWebClientId,
     googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? d.googleWebClientSecret,
     appleServiceId,
@@ -1213,6 +1272,13 @@ export function demoConfig(): Config {
     appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? "",
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? "",
     applePrivateKey: applePrivateKeyFromEnv(),
+    // The Android return's hops (ieat-app#2434), for the same argument: a demo that cannot serve
+    // assetlinks.json cannot exercise the App Link hop it certifies, and the allowlist decides
+    // what the scheme bounce may be named.
+    androidAppSchemes: process.env.EAIT__BACKEND__ANDROID_APP_SCHEMES === undefined
+      ? configDefaults().androidAppSchemes : list("EAIT__BACKEND__ANDROID_APP_SCHEMES"),
+    androidPackage: process.env.EAIT__BACKEND__ANDROID_PACKAGE ?? configDefaults().androidPackage,
+    androidCertFingerprints: list("EAIT__BACKEND__ANDROID_CERT_FINGERPRINTS").map((f) => f.toUpperCase()),
     webPaywall: webPaywallFromEnv(),
     // Same argument — "works in demo, untested in production" is the shape of every configuration
     // bug that ships. The privacy link `/start` renders comes off this.
