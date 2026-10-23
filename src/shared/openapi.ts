@@ -275,6 +275,8 @@ export const API: readonly Endpoint[] = [
 /** `ROUTES` keys that are not JSON endpoints, with the reason each is left out. */
 export const UNDOCUMENTED: Partial<Record<keyof typeof ROUTES, string>> = {
   webStart: "A server-rendered page, not an endpoint; the app never fetches it.",
+  authAppleAndroid: "A browser redirect to Apple, not a JSON endpoint.",
+  authAppleAndroidReturn: "Apple's form POST, answered with a redirect into the app.",
 };
 
 /** Every refusal kind at its status, for the endpoints that can refuse. */

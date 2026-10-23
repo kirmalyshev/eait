@@ -233,6 +233,20 @@ export const ROUTES = {
   health: "/health",
   authDevice: "/v1/auth/device",
   authApple: "/v1/auth/apple",
+  /**
+   * GET, unauthenticated — Android's Sign in with Apple, which has no native sheet and so runs
+   * Apple's WEB flow against the Services ID (ieat-app#2428). Takes `scheme`, `state` and `nonce`
+   * (the SHA-256 hex of the app's raw nonce) and answers a 303 to Apple. 404 where Apple web
+   * sign-in is not configured, 400 on anything malformed — so a bare GET is how the app asks
+   * whether to draw the button at all.
+   */
+  authAppleAndroid: "/v1/auth/apple/android",
+  /**
+   * POST — Apple's `form_post` return for {@link ROUTES.authAppleAndroid}, bounced as a 303 to
+   * `<scheme>://apple-return?state=…&id_token=…` (or `&error=…`). The app then posts that token to
+   * {@link ROUTES.authApple} with its raw nonce; nothing is verified or minted here.
+   */
+  authAppleAndroidReturn: "/v1/auth/apple/android/return",
   authGoogle: "/v1/auth/google",
   /**
    * POST — send a six-digit sign-in code to `email` (#569). Answers 204 whether or not the

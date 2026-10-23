@@ -126,6 +126,22 @@ const MESSAGE_PATH = /^\/v1\/messages\/([^/]+)$/;
 const JOBS_CURSOR = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z\|.+$/s;
 const PHOTO_JOB_PATH = /^\/v1\/meals\/photo\/queue\/([^/]+)$/;
 
+/** The app's own URL schemes — `eait`, `eaitdev`, `eaitpreview`, `eait-slotN-<branch>` — and nothing else. */
+const APP_SCHEME = /^eait[a-z0-9-]{0,60}$/;
+/** A client-minted `state` or hashed `nonce` for the Android Apple flow. */
+const OAUTH_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+/** Apple's form POST is a few hundred bytes plus an id_token; the same ceiling `/start` gives its own. */
+const APPLE_RETURN_MAX_BYTES = 8 * 1024;
+
+/** `<scheme>.<state>` off Apple's return, both halves re-validated — the poster is anybody. */
+function appleReturnState(raw: string | null): { scheme: string; state: string } | null {
+  const dot = raw?.indexOf(".") ?? -1;
+  if (raw == null || dot < 0) return null;
+  const scheme = raw.slice(0, dot);
+  const state = raw.slice(dot + 1);
+  return APP_SCHEME.test(scheme) && OAUTH_TOKEN.test(state) ? { scheme, state } : null;
+}
+
 export function createRouter(
   deps: EngineDeps,
   store: Store,
@@ -433,6 +449,68 @@ export function createRouter(
       // token against, and verifying without one would accept any Apple developer's notifications.
       if (pathname === APPLE_NOTIFICATIONS_PATH) {
         return await appleNotifications(req, deps, verifier);
+      }
+
+      // ── Sign in with Apple on Android (ieat-app#2428) ─────────────────────────────────────
+      //
+      // Android has no native Apple sheet, so the app runs Apple's WEB flow on the Services ID
+      // `/start` already uses. Apple wants an https return URL and — because we ask for `email` —
+      // `form_post`, which no app can receive; these two routes are only that hop. NOTHING IS
+      // VERIFIED OR MINTED HERE: the app posts the id_token to `ROUTES.authApple` with its raw
+      // nonce, and `verify` checks signature, `aud` and nonce there as it does for every token.
+      //
+      // The scheme rides in `state` and is re-validated on the way back, because the return route
+      // takes a cross-site POST from anybody: a scheme read off that form unchecked would hand an
+      // id_token to whatever URL the poster named. Origin is the API's (`publicOrigin`), not the
+      // browser's — these are /v1 routes, and the return URL registered with Apple names this host.
+      if (pathname === ROUTES.authAppleAndroid || pathname === ROUTES.authAppleAndroidReturn) {
+        const apple = providers.apple;
+        if (!apple) return json({ error: "not found" }, 404);
+        if (req.method === "GET" && pathname === ROUTES.authAppleAndroid) {
+          const scheme = url.searchParams.get("scheme") ?? "";
+          const state = url.searchParams.get("state") ?? "";
+          const nonce = url.searchParams.get("nonce") ?? "";
+          if (!APP_SCHEME.test(scheme) || !OAUTH_TOKEN.test(state) || !OAUTH_TOKEN.test(nonce)) {
+            return json({ error: "bad request" }, 400);
+          }
+          const to = new URL(apple.authorizeEndpoint, publicOrigin(req));
+          to.search = new URLSearchParams({
+            client_id: apple.clientId,
+            redirect_uri: `${publicOrigin(req)}${ROUTES.authAppleAndroidReturn}`,
+            // The id_token comes back in the form itself; the code is never exchanged.
+            response_type: "code id_token",
+            response_mode: "form_post",
+            scope: "openid email",
+            state: `${scheme}.${state}`,
+            nonce,
+          }).toString();
+          return new Response(null, { status: 303, headers: { location: to.toString() } });
+        }
+        if (req.method === "POST" && pathname === ROUTES.authAppleAndroidReturn) {
+          // Size and type checked BEFORE `formData()` buffers the body, as `/start`'s Apple bridge
+          // does: an unauthenticated cross-site POST must stay cheap to refuse.
+          const declared = Number(req.headers.get("content-length") ?? NaN);
+          if (!Number.isFinite(declared) || declared > APPLE_RETURN_MAX_BYTES
+              || !(req.headers.get("content-type") ?? "").startsWith("application/x-www-form-urlencoded")) {
+            return json({ error: "bad request" }, 400);
+          }
+          const form = await req.formData().catch(() => null);
+          const field = (k: string): string | null => {
+            const v = form?.get(k);
+            return typeof v === "string" && v !== "" ? v : null;
+          };
+          const parsed = appleReturnState(field("state"));
+          if (!parsed) return json({ error: "bad request" }, 400);
+          const idToken = field("id_token");
+          const back = new URLSearchParams(idToken
+            ? { state: parsed.state, id_token: idToken }
+            : { state: parsed.state, error: field("error") ?? "no-token" });
+          return new Response(null, {
+            status: 303,
+            headers: { location: `${parsed.scheme}://apple-return?${back.toString()}` },
+          });
+        }
+        return json({ error: "not found" }, 404);
       }
 
       // ── The routes that mint a session ────────────────────────────────────────────────────
