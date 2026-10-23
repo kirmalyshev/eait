@@ -506,17 +506,17 @@ export function createRouter(
           const scheme = url.searchParams.get("scheme") ?? "";
           const state = url.searchParams.get("state") ?? "";
           const nonce = url.searchParams.get("nonce") ?? "";
-          // `via=applink` asks for the verified hop; it is honoured only while `appLinkReady`,
-          // otherwise the allowlisted scheme carries the return as before — which is what makes
-          // the flag safe to send before App Links are live. The scheme is validated either way:
-          // it is the fallback the server may still choose, and a kickoff that named none of this
+          // The hop is the SERVER'S choice, never the caller's: while this host certifies an App
+          // Link the return uses it unconditionally, because honouring an opt-in would let a
+          // kickoff that simply omits the flag name a custom scheme — the interception this whole
+          // change exists to close. The allowlisted scheme is validated either way: it is the
+          // fallback a host without App Links still takes, and a kickoff naming none of this
           // host's builds was never honest.
-          const via = url.searchParams.get("via") ?? "";
           if (!deps.config.androidAppSchemes.includes(scheme) || !OAUTH_TOKEN.test(state)
-            || !OAUTH_TOKEN.test(nonce) || (via !== "" && via !== "applink")) {
+            || !OAUTH_TOKEN.test(nonce)) {
             return json({ error: "bad request" }, 400);
           }
-          const token = via === "applink" && appLinkReady ? APP_LINK : scheme;
+          const token = appLinkReady ? APP_LINK : scheme;
           const to = new URL(apple.authorizeEndpoint, publicOrigin(req));
           to.search = new URLSearchParams({
             client_id: apple.clientId,
@@ -532,21 +532,22 @@ export function createRouter(
         }
         if (req.method === "GET" && pathname === ROUTES.authAppleAndroidApp) {
           // The App Link's landing, reached only when Android did NOT deliver it into the app —
-          // the link unverified, or no install. Bouncing the same parameters into the configured
-          // scheme is the hop's own fallback: the browser follows it into an intent, so a real
-          // install still gets its token and a stranger gets exactly what the interim design gave.
+          // the link unverified, or no install. NEVER a redirect into a custom scheme: that is
+          // exactly the case where a foreign app claiming `eait` is the only receiver. What a
+          // person gets instead is this page and a link THEY tap — a user gesture is what hands a
+          // verified App Link to the app — plus the way to install when nothing answers.
+          if (!appLinkReady) return json({ error: "not found" }, 404);
           const state = url.searchParams.get("state") ?? "";
-          const scheme = deps.config.androidAppSchemes[0];
-          if (!OAUTH_TOKEN.test(state) || scheme === undefined) {
-            return json({ error: "not found" }, 404);
-          }
+          if (!OAUTH_TOKEN.test(state)) return json({ error: "not found" }, 404);
           const idToken = url.searchParams.get("id_token");
           const back = new URLSearchParams(idToken
             ? { state, id_token: idToken }
             : { state, error: url.searchParams.get("error") ?? "no-token" });
-          return new Response(null, {
-            status: 303,
-            headers: { location: `${scheme}://apple-return?${back.toString()}` },
+          const href = `${publicOrigin(req)}${ROUTES.authAppleAndroidApp}?${back.toString()}`;
+          const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>eait</title><meta name="robots" content="noindex"></head><body style="font-family:system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;text-align:center"><main><p>You are signed in.</p><p><a href="${href}">Return to eait</a></p><p>No eait on this device? Install the app and sign in again.</p></main></body></html>`;
+          return new Response(html, {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
           });
         }
         if (req.method === "POST" && pathname === ROUTES.authAppleAndroidReturn) {

@@ -243,15 +243,18 @@ export const ROUTES = {
   authAppleAndroid: "/v1/auth/apple/android",
   /**
    * POST — Apple's `form_post` return for {@link ROUTES.authAppleAndroid}, bounced as a 303 to
-   * `<scheme>://apple-return?state=…&id_token=…` (or `&error=…`). The app then posts that token to
-   * {@link ROUTES.authApple} with its raw nonce; nothing is verified or minted here.
+   * `<scheme>://apple-return?state=…&id_token=…` (or `&error=…`) — or, once this host certifies an
+   * App Link, to {@link ROUTES.authAppleAndroidApp} instead, the hop being the server's choice
+   * alone (ieat-app#2434). The app then posts that token to {@link ROUTES.authApple} with its raw
+   * nonce; nothing is verified or minted here.
    */
   authAppleAndroidReturn: "/v1/auth/apple/android/return",
   /**
-   * GET — the Android App Link the return above prefers once it can be VERIFIED (ieat-app#2434):
-   * `via=applink` on the kickoff bounces here over https instead of into a custom scheme, which any
-   * installed app may claim. Reached without the app installed — the link unverified — it 303s the
-   * same parameters into the configured scheme, so the hop degrades to exactly what it was.
+   * GET — the Android App Link the return above uses once it can be VERIFIED (ieat-app#2434),
+   * replacing a custom scheme any installed app may claim. Reached without delivery — the link
+   * unverified, the app not installed — it answers a page whose link a person taps to take the
+   * same verified URL into the app; it never redirects into a scheme, which is exactly the case
+   * where only a foreign claimant would receive the token.
    */
   authAppleAndroidApp: "/v1/auth/apple/android/app",
   /**

@@ -76,7 +76,12 @@ describe("the Android Apple kickoff's scheme allowlist", () => {
     expect(ok.status).toBe(303);
     const to = new URL(ok.headers.get("location") ?? "");
     expect(to.origin).toBe("https://appleid.apple.com");
-    expect(to.searchParams.get("state")).toBe(`eait.${STATE}`);
+    // Certified, the token marks the App Link; the scheme the kickoff named is still what an
+    // uncertified host carries — the allowlist is checked either way.
+    expect(to.searchParams.get("state")).toBe(`https.${STATE}`);
+    const off = router({ androidCertFingerprints: [] });
+    const plain = await kickoff(off, `scheme=eait&state=${STATE}&nonce=${NONCE}`);
+    expect(new URL(plain.headers.get("location") ?? "").searchParams.get("state")).toBe(`eait.${STATE}`);
 
     // The prefix regex these replaced admitted every `eait*` name — a custom scheme being
     // claimable by any installed app is the whole of the bug this list closes.
@@ -92,16 +97,19 @@ describe("the Android Apple kickoff's scheme allowlist", () => {
     expect((await kickoff(none, `scheme=eait&state=${STATE}&nonce=${NONCE}`)).status).toBe(400);
   });
 
-  it("takes via=applink only as the literal, and honours it only while assetlinks is configured", async () => {
+  it("takes the App Link UNCONDITIONALLY while certified — a caller's opt-in is not asked", async () => {
     const h = router();
-    const res = await kickoff(h, `scheme=eait&state=${STATE}&nonce=${NONCE}&via=applink`);
+    // No `via` at all: an attacker kickoff that would name the scheme by omission gets the
+    // verified hop instead, because the scheme exists only for hosts that cannot certify one.
+    const res = await kickoff(h, `scheme=eait&state=${STATE}&nonce=${NONCE}`);
     expect(res.status).toBe(303);
     expect(new URL(res.headers.get("location") ?? "").searchParams.get("state")).toBe(`https.${STATE}`);
-    // Anything else is not a mode: a misspelled flag fails loudly rather than silently scheme-ing.
-    expect((await kickoff(h, `scheme=eait&state=${STATE}&nonce=${NONCE}&via=browser`)).status).toBe(400);
-    // Unconfigured falls back to the scheme — the flag is safe to send before App Links are live.
+    // `via` is not read at all — neither honouring it nor refusing it is a door a caller needs.
+    const withVia = await kickoff(h, `scheme=eait&state=${STATE}&nonce=${NONCE}&via=browser`);
+    expect(new URL(withVia.headers.get("location") ?? "").searchParams.get("state")).toBe(`https.${STATE}`);
+    // Unconfigured is the only case the scheme still carries.
     const off = router({ androidCertFingerprints: [] });
-    const plain = await kickoff(off, `scheme=eait&state=${STATE}&nonce=${NONCE}&via=applink`);
+    const plain = await kickoff(off, `scheme=eait&state=${STATE}&nonce=${NONCE}`);
     expect(new URL(plain.headers.get("location") ?? "").searchParams.get("state")).toBe(`eait.${STATE}`);
   });
 });
@@ -141,14 +149,26 @@ describe("the Android Apple return", () => {
 });
 
 describe("the App Link's landing", () => {
-  it("bounces the return into the configured scheme when the link arrived unverified", async () => {
+  it("answers a tap-through page and NEVER a Location with a non-https scheme", async () => {
     const h = router();
     const res = await get(h, `${ROUTES.authAppleAndroidApp}?state=${STATE}&id_token=tok`);
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`eait://apple-return?state=${STATE}&id_token=tok`);
-    // Nothing to bounce is not found, and a missing state is not bounced at all.
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    // No redirect of any kind: the case this page answers — the link unverified or no install —
+    // is exactly the case where a foreign app claiming `eait` is the only receiver. The person
+    // taps the same verified URL back into the app, a gesture Android delivers even here.
+    expect(res.headers.get("location")).toBeNull();
+    const html = await res.text();
+    expect(html).toContain(`href="https://api.eait.fit${ROUTES.authAppleAndroidApp}?state=${STATE}&id_token=tok"`);
+    expect(html).toContain("Install the app");
+    // Apple's error is carried to the tap the same way the token is.
+    const err = await get(h, `${ROUTES.authAppleAndroidApp}?state=${STATE}&error=user_cancelled_authorize`);
+    expect(await err.text()).toContain(`error=user_cancelled_authorize`);
+    // Nothing to hand back is not found, and the page exists only where an App Link does.
     expect((await get(h, `${ROUTES.authAppleAndroidApp}?id_token=tok`)).status).toBe(404);
     expect((await get(h, `${ROUTES.authAppleAndroidApp}?state=x`)).status).toBe(404);
+    const off = router({ androidCertFingerprints: [] });
+    expect((await get(off, `${ROUTES.authAppleAndroidApp}?state=${STATE}&id_token=tok`)).status).toBe(404);
   });
 });
 
