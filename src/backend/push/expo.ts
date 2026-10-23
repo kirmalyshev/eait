@@ -11,6 +11,7 @@
 // who learns a push token can send to it; `chooseP…` refuses to build this client without one, so
 // an unset credential is a process that LOGS rather than one that sends unauthenticated.
 
+import { ANDROID_PUSH_CHANNEL } from "@eait/shared";
 import type { PushError, PushMessage, PushPort, PushTicket } from "./port.ts";
 
 const SEND_URL = "https://exp.host/--/api/v2/push/send";
@@ -94,7 +95,7 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
           return {
             // mutableContent on EVERY message: the app's notification extension reports delivery
             // for all of them, and only the ones with an image have anything to attach.
-            to: m.to, title: m.title, body: m.body, sound: "default", mutableContent: true,
+            to: m.to, title: m.title, body: m.body, sound: "default", mutableContent: true, channelId: ANDROID_PUSH_CHANNEL,
             // The image rides in `data` too: Expo delivers `data` under userInfo["body"], which the
             // extension is known to read (the send id arrives there); richContent's place in the
             // APNs payload is Expo's to choose.
